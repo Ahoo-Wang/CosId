@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  */
 public class DefaultIdSegment implements IdSegment {
     
-    public static final DefaultIdSegment OVERFLOW = new DefaultIdSegment(IdSegment.SEQUENCE_OVERFLOW, 0, Clock.CACHE.secondTime(), TIME_TO_LIVE_FOREVER, false);
+    public static final DefaultIdSegment OVERFLOW = new DefaultIdSegment(IdSegment.SEQUENCE_OVERFLOW, 0, Clock.SYSTEM.secondTime(), TIME_TO_LIVE_FOREVER);
     
     /**
      * include.
@@ -37,14 +37,13 @@ public class DefaultIdSegment implements IdSegment {
     private volatile long sequence;
     private final long fetchTime;
     private final long ttl;
-    private final boolean allowReset;
     private static final AtomicLongFieldUpdater<DefaultIdSegment> S = AtomicLongFieldUpdater.newUpdater(DefaultIdSegment.class, "sequence");
     
     public DefaultIdSegment(long maxId, long step) {
-        this(maxId, step, Clock.CACHE.secondTime(), TIME_TO_LIVE_FOREVER, false);
+        this(maxId, step, Clock.SYSTEM.secondTime(), TIME_TO_LIVE_FOREVER);
     }
     
-    public DefaultIdSegment(long maxId, long step, long fetchTime, long ttl, boolean allowReset) {
+    public DefaultIdSegment(long maxId, long step, long fetchTime, long ttl) {
         Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
         this.maxId = maxId;
         this.step = step;
@@ -52,7 +51,6 @@ public class DefaultIdSegment implements IdSegment {
         this.sequence = offset;
         this.fetchTime = fetchTime;
         this.ttl = ttl;
-        this.allowReset = allowReset;
     }
     
     @Override
@@ -97,11 +95,6 @@ public class DefaultIdSegment implements IdSegment {
             return SEQUENCE_OVERFLOW;
         }
         return nextSeq;
-    }
-    
-    @Override
-    public boolean allowReset() {
-        return allowReset;
     }
     
     @Override

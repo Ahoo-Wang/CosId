@@ -29,14 +29,16 @@ public class IdSegmentChain implements IdSegment {
     private final IdSegment idSegment;
     @GuardedBy("this")
     private volatile IdSegmentChain next;
+    private final boolean allowReset;
     
-    public IdSegmentChain(IdSegmentChain previousChain, IdSegment idSegment) {
-        this(previousChain.getVersion() + 1, idSegment);
+    public IdSegmentChain(IdSegmentChain previousChain, IdSegment idSegment, boolean allowReset) {
+        this(previousChain.getVersion() + 1, idSegment, allowReset);
     }
     
-    public IdSegmentChain(long version, IdSegment idSegment) {
+    public IdSegmentChain(long version, IdSegment idSegment, boolean allowReset) {
         this.version = version;
         this.idSegment = idSegment;
+        this.allowReset = allowReset;
     }
     
     /**
@@ -63,7 +65,10 @@ public class IdSegmentChain implements IdSegment {
     }
     
     public void setNext(IdSegmentChain nextIdSegmentChain) {
-        ensureNextIdSegment(nextIdSegmentChain);
+        if (!allowReset) {
+            ensureNextIdSegment(nextIdSegmentChain);
+        }
+        
         next = nextIdSegmentChain;
     }
     
@@ -91,13 +96,18 @@ public class IdSegmentChain implements IdSegment {
         return (int) ((end.getMaxId() - getSequence()) / step);
     }
     
-    public static IdSegmentChain newRoot() {
-        return new IdSegmentChain(IdSegmentChain.ROOT_VERSION, DefaultIdSegment.OVERFLOW);
+    public static IdSegmentChain newRoot(boolean allowReset) {
+        return new IdSegmentChain(IdSegmentChain.ROOT_VERSION, DefaultIdSegment.OVERFLOW, allowReset);
     }
     
     @Override
     public long getFetchTime() {
         return idSegment.getFetchTime();
+    }
+    
+    @Override
+    public long getTtl() {
+        return idSegment.getTtl();
     }
     
     @Override
@@ -123,11 +133,6 @@ public class IdSegmentChain implements IdSegment {
     @Override
     public long incrementAndGet() {
         return idSegment.incrementAndGet();
-    }
-    
-    @Override
-    public boolean allowReset() {
-        return idSegment.allowReset();
     }
     
     @Override

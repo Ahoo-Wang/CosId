@@ -38,7 +38,7 @@ public class SegmentChainId implements SegmentId {
     private final int safeDistance;
     private final IdSegmentDistributor maxIdDistributor;
     private final PrefetchJob prefetchJob;
-    private volatile IdSegmentChain headChain = IdSegmentChain.newRoot();
+    private volatile IdSegmentChain headChain;
     
     public SegmentChainId(IdSegmentDistributor maxIdDistributor) {
         this(TIME_TO_LIVE_FOREVER, DEFAULT_SAFE_DISTANCE, maxIdDistributor, PrefetchWorkerExecutorService.DEFAULT);
@@ -47,6 +47,7 @@ public class SegmentChainId implements SegmentId {
     public SegmentChainId(long idSegmentTtl, int safeDistance, IdSegmentDistributor maxIdDistributor, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         Preconditions.checkArgument(idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
         Preconditions.checkArgument(safeDistance > 0, "The safety distance must be greater than 0.");
+        this.headChain = IdSegmentChain.newRoot(maxIdDistributor.allowReset());
         this.idSegmentTtl = idSegmentTtl;
         this.safeDistance = safeDistance;
         this.maxIdDistributor = maxIdDistributor;
@@ -78,7 +79,7 @@ public class SegmentChainId implements SegmentId {
         if (log.isDebugEnabled()) {
             log.debug("Forward [{}] - [{}] -> [{}].", maxIdDistributor.getNamespacedName(), headChain, forwardChain);
         }
-        if (forwardChain.allowReset()) {
+        if (maxIdDistributor.allowReset()) {
             headChain = forwardChain;
         } else if (forwardChain.compareTo(headChain) > 0) {
             headChain = forwardChain;
@@ -174,7 +175,7 @@ public class SegmentChainId implements SegmentId {
         
         public void prefetch() {
             
-            long wakeupTimeGap = Clock.CACHE.secondTime() - lastHungerTime;
+            long wakeupTimeGap = Clock.SYSTEM.secondTime() - lastHungerTime;
             final boolean hunger = wakeupTimeGap < hungerThreshold;
             
             final int prePrefetchDistance = this.prefetchDistance;

@@ -70,7 +70,8 @@ public interface IdSegment extends Comparable<IdSegment> {
              */
             return false;
         }
-        return Clock.CACHE.secondTime() - getFetchTime() > getTtl();
+        
+        return Clock.SYSTEM.secondTime() - getFetchTime() > getTtl();
     }
     
     default boolean isOverflow() {
@@ -92,10 +93,6 @@ public interface IdSegment extends Comparable<IdSegment> {
     
     long incrementAndGet();
     
-    default boolean allowReset() {
-        return false;
-    }
-    
     @Override
     default int compareTo(IdSegment other) {
         if (getOffset() == other.getOffset()) {
@@ -105,9 +102,6 @@ public interface IdSegment extends Comparable<IdSegment> {
     }
     
     default void ensureNextIdSegment(IdSegment nextIdSegment) throws NextIdSegmentExpiredException {
-        if (allowReset()) {
-            return;
-        }
         if (compareTo(nextIdSegment) >= 0) {
             throw new NextIdSegmentExpiredException(this, nextIdSegment);
         }

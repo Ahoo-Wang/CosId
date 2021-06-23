@@ -9,8 +9,8 @@ Global distributed ID generator
 > Kotlin DSL
 
 ``` kotlin
-    val coskyVersion = "0.3.0";
-    implementation("me.ahoo.cosid:cosid-core:${coskyVersion}")
+    val cosidVersion = "0.3.0";
+    implementation("me.ahoo.cosid:cosid-core:${cosidVersion}")
 ```
 
 ### Maven

@@ -1,0 +1,8 @@
+# Auto Configure
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration
+
+
+
+
+

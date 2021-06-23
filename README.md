@@ -51,6 +51,12 @@ Global distributed ID generator
         
 ```
 
+### SafeJavaScriptSnowflakeId
+
+```java
+    IdGenerator snowflakeId = SafeJavaScriptSnowflakeId.ofMillisecond(1);
+```
+
 ## MachineIdDistributor
 
 ### StatefulSetMachineIdDistributor (Kubernetes)

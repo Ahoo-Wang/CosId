@@ -11,7 +11,7 @@ Global distributed ID generator
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.5.0";
+    val cosidVersion = "0.6.0";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -27,7 +27,7 @@ Global distributed ID generator
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.5.0</cosid.version>
+        <cosid.version>0.6.0</cosid.version>
     </properties>
 
     <dependencies>
@@ -107,7 +107,7 @@ cosid:
 > Support clock callback verification, and wait until it catches up with the clock callback.
 
 ``` kotlin
-    val cosidVersion = "0.5.0";
+    val cosidVersion = "0.6.0";
     implementation("me.ahoo.cosid:cosid-redis:${cosidVersion}")
 ```
 

@@ -45,14 +45,23 @@ public class RedisMachineIdDistributor implements MachineIdDistributor {
         ).thenApply(distribution -> {
             List<Long> state = (List<Long>) distribution;
             int realMachineId = state.get(0).intValue();
+
             if (realMachineId == -1) {
                 throw new MachineIdOverflowException(totalMachineIds(machineBit), instanceId);
             }
+
             long lastStamp = 0;
             if (state.size() == 2) {
                 lastStamp = state.get(1);
-                waitUntilLastStamp(lastStamp);
+                long backwardsStamp = getBackwardsStamp(lastStamp);
+                if (backwardsStamp > 0) {
+                    if (log.isWarnEnabled()) {
+                        log.warn("waitUntilLastStamp - backwardsStamp:[{}] - instanceId:[{}] @ namespace:[{}] - machineId:[{}] - lastStamp:[{}].", backwardsStamp, instanceId, namespace, realMachineId, lastStamp);
+                    }
+                    waitUntilLastStamp(lastStamp);
+                }
             }
+
             if (log.isInfoEnabled()) {
                 log.info("distributeAsync - instanceId:[{}] @ namespace:[{}] - machineId:[{}] - lastStamp:[{}].", instanceId, namespace, realMachineId, lastStamp);
             }

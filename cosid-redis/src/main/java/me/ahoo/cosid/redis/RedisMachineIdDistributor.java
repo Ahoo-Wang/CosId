@@ -1,5 +1,6 @@
 package me.ahoo.cosid.redis;
 
+import com.google.common.base.Objects;
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
 import lombok.SneakyThrows;
@@ -12,6 +13,7 @@ import me.ahoo.cosky.core.redis.RedisScripts;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -24,8 +26,11 @@ public class RedisMachineIdDistributor implements MachineIdDistributor {
     public static final int TIMEOUT = 5;
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
+    private final ConcurrentHashMap<NamespacedInstanceId, Long> instanceIdMapLastStamp;
+
     public RedisMachineIdDistributor(RedisClusterAsyncCommands<String, String> redisCommands) {
         this.redisCommands = redisCommands;
+        this.instanceIdMapLastStamp = new ConcurrentHashMap<>();
     }
 
     @SneakyThrows
@@ -50,6 +55,8 @@ public class RedisMachineIdDistributor implements MachineIdDistributor {
                 throw new MachineIdOverflowException(totalMachineIds(machineBit), instanceId);
             }
 
+            NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
+
             long lastStamp = 0;
             if (state.size() == 2) {
                 lastStamp = state.get(1);
@@ -61,7 +68,7 @@ public class RedisMachineIdDistributor implements MachineIdDistributor {
                     waitUntilLastStamp(lastStamp);
                 }
             }
-
+            instanceIdMapLastStamp.put(namespacedInstanceId, lastStamp);
             if (log.isInfoEnabled()) {
                 log.info("distributeAsync - instanceId:[{}] @ namespace:[{}] - machineId:[{}] - lastStamp:[{}].", instanceId, namespace, realMachineId, lastStamp);
             }
@@ -111,12 +118,41 @@ public class RedisMachineIdDistributor implements MachineIdDistributor {
         if (log.isInfoEnabled()) {
             log.info("revertAsync - instanceId:[{}] @ namespace:[{}].", instanceId, namespace);
         }
+
         return RedisScripts.doEnsureScript(MACHINE_ID_REVERT, redisCommands,
                 (scriptSha) -> {
+                    NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
+                    long lastStamp = instanceIdMapLastStamp.getOrDefault(namespacedInstanceId, 0L);
+                    if (lastStamp < System.currentTimeMillis()) {
+                        lastStamp = System.currentTimeMillis();
+                    }
                     String[] keys = {namespace};
-                    String[] values = {instanceId.getInstanceId(), String.valueOf(System.currentTimeMillis())};
+                    String[] values = {instanceId.getInstanceId(), String.valueOf(lastStamp)};
                     return redisCommands.evalsha(scriptSha, ScriptOutputType.INTEGER, keys, values);
                 }
         );
+    }
+
+    public static class NamespacedInstanceId {
+        private final String namespace;
+        private final InstanceId instanceId;
+
+        public NamespacedInstanceId(String namespace, InstanceId instanceId) {
+            this.namespace = namespace;
+            this.instanceId = instanceId;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof NamespacedInstanceId)) return false;
+            NamespacedInstanceId that = (NamespacedInstanceId) o;
+            return Objects.equal(namespace, that.namespace) && Objects.equal(instanceId, that.instanceId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(namespace, instanceId);
+        }
     }
 }

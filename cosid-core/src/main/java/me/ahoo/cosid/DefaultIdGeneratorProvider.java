@@ -10,18 +10,22 @@ import java.util.function.Supplier;
  * @author ahoo wang
  */
 public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
-    private final IdGeneratorHolder shareIdGeneratorHolder;
+    private IdGeneratorHolder shareIdGeneratorHolder;
 
     private final ConcurrentHashMap<String, IdGeneratorHolder> nameMapIdGen;
 
-    public DefaultIdGeneratorProvider(IdGenerator shareIdGen) {
-        this.shareIdGeneratorHolder = new IdGeneratorHolder(shareIdGen);
+    public DefaultIdGeneratorProvider() {
         this.nameMapIdGen = new ConcurrentHashMap<>();
     }
 
     @Override
     public IdGenerator getShare() {
         return shareIdGeneratorHolder.getIdGenerator();
+    }
+
+    @Override
+    public void setShare(IdGenerator idGenerator) {
+        this.shareIdGeneratorHolder = new IdGeneratorHolder(idGenerator);
     }
 
     @Override

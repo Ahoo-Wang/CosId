@@ -20,6 +20,6 @@ jmh {
     benchmarkMode.set(listOf(
         "thrpt"
     ))
-    threads.set(2)
+    threads.set(40)
     fork.set(1)
 }

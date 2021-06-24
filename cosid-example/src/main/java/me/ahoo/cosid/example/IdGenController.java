@@ -1,7 +1,7 @@
 package me.ahoo.cosid.example;
 
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.IdGeneratorProvider;
-import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -10,10 +10,10 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 public class IdGenController {
-    private final MillisecondSnowflakeId shareIdGenerator;
+    private final IdGenerator shareIdGenerator;
     private final IdGeneratorProvider idGeneratorProvider;
 
-    public IdGenController(MillisecondSnowflakeId shareIdGenerator, IdGeneratorProvider idGeneratorProvider) {
+    public IdGenController(IdGenerator shareIdGenerator, IdGeneratorProvider idGeneratorProvider) {
         this.shareIdGenerator = shareIdGenerator;
         this.idGeneratorProvider = idGeneratorProvider;
     }

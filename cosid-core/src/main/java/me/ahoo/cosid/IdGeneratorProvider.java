@@ -13,6 +13,8 @@ public interface IdGeneratorProvider {
 
     IdGenerator getShare();
 
+    void setShare(IdGenerator idGenerator);
+
     SnowflakeIdStateParser getShareSnowflakeIdStateParser();
 
     Optional<IdGenerator> get(String name);

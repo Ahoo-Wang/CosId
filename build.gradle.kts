@@ -10,16 +10,22 @@ val bomProjects = listOf(
 val coreProjects = listOf(
     project(":cosid-core")
 )
+val exampleProjects = listOf(
+    project(":cosid-example")
+)
 
-val publishProjects = subprojects
+val publishProjects = subprojects - exampleProjects
 val libraryProjects = publishProjects - bomProjects
 
 ext {
     set("lombokVersion", "1.18.20")
     set("guavaVersion", "30.0-jre")
     set("springBootVersion", "2.4.7")
+    set("springCloudVersion", "2020.0.3")
+    set("springfoxVersion", "3.0.0")
     set("jmhVersion", "1.29")
     set("junitPioneerVersion", "1.4.2")
+    set("coskyVersion", "1.1.11")
     set("libraryProjects", libraryProjects)
 }
 

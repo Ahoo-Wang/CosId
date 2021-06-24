@@ -119,5 +119,7 @@ public abstract class SnowflakeId implements IdGenerator {
         return maxSequence;
     }
 
-
+    public long getLastStamp() {
+        return lastStamp;
+    }
 }

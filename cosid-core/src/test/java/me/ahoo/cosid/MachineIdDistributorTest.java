@@ -19,7 +19,7 @@ class MachineIdDistributorTest {
             key = StatefulSetMachineIdDistributor.HOSTNAME_KEY,
             value = "cosid-host-6")
     void distribute() {
-        var machineId = StatefulSetMachineIdDistributor.INSTANCE.distribute();
+        var machineId = StatefulSetMachineIdDistributor.INSTANCE.distribute("", 0, InstanceId.NONE);
         Assertions.assertEquals(6, machineId);
     }
 }

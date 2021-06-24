@@ -16,6 +16,10 @@ public class MillisecondSnowflakeId extends SnowflakeId {
         this(CosId.COSID_EPOCH, DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, machineId);
     }
 
+    public MillisecondSnowflakeId(int machineBit, int machineId) {
+        super(CosId.COSID_EPOCH, DEFAULT_TIMESTAMP_BIT, machineBit, DEFAULT_SEQUENCE_BIT, machineId);
+    }
+
     public MillisecondSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, int machineId) {
         super(epoch, timestampBit, machineBit, sequenceBit, machineId);
     }

@@ -1,0 +1,19 @@
+cosid:
+#  stateful-set:
+#    enabled: true
+#  manual:
+#    enabled: true
+#    machine-id: 1
+  redis:
+    enabled: true
+  providers:
+    order:
+#      epoch:
+#      timestamp-bit:
+#      machine-bit:
+      sequence-bit: 12
+    user:
+#      epoch:
+#      timestamp-bit:
+#      machine-bit:
+      sequence-bit: 12

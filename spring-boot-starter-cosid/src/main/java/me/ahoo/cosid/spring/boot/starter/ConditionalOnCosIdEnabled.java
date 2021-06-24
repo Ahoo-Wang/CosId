@@ -13,7 +13,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
-@ConditionalOnProperty(value = ConditionalOnCosIdEnabled.ENABLED_KEY, matchIfMissing = true)
+@ConditionalOnProperty(value = ConditionalOnCosIdEnabled.ENABLED_KEY, matchIfMissing = true, havingValue = "true")
 public @interface ConditionalOnCosIdEnabled {
     String ENABLED_KEY = CosId.COSID_PREFIX + "enabled";
 }

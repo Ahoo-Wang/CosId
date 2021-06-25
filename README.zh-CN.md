@@ -2,8 +2,8 @@
 
 ## 介绍
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* 全局分布式 ID 生成器，旨在提供通用、灵活、高性能的分布式系统 ID 生成器。 目前提供了俩大类 ID 生成器：*SnowflakeId* （单机 TPS
-性能：409W [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (单机 TPS 性能(步长 1000)：1268W [JMH 基准测试](#jmh-benchmark))。
+*[CosId](https://github.com/Ahoo-Wang/CosId)* 全局分布式 ID 生成器，旨在提供通用、灵活、高性能的分布式系统 ID 生成器。 目前提供了俩大类 ID 生成器：*SnowflakeId* （单机
+TPS 性能：409W [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (单机 TPS 性能(步长 1000)：1268W [JMH 基准测试](#jmh-benchmark))。
 
 ## SnowflakeId
 
@@ -11,8 +11,9 @@
 > 通用位分配方案为：`timestamp` (41 bits) + `machineId` (10 bits) + `sequence` (12 bits) = 63 bits 。
 
 - 41 位 `timestamp` = (1L<<41)/(1000/3600/365) 约可以存储 69 年的时间戳，即可以使用的绝对时间为 `EPOCH` + 69 年，一般我们需要自定义`EPOCH`为产品启动时间。
-- 10 位 `machineId` = (1L<<10) = 1024 即相同业务可以部署 1024 个副本 (在 Kubernetes 概念里没有主从副本之分，这里直接沿用 Kubernetes 的定义) 实例，一般情况下没有必要使用这么多位，所以会根据部署规模需要重新定义。
-- 12 位 `sequence` = (1L<<12) * 1000 = 4096000 即每秒可生成约 409W 的 ID。
+- 10 位 `machineId` = (1L<<10) = 1024 即相同业务可以部署 1024 个副本 (在 Kubernetes 概念里没有主从副本之分，这里直接沿用 Kubernetes 的定义)
+  实例，一般情况下没有必要使用这么多位，所以会根据部署规模需要重新定义。
+- 12 位 `sequence` = (1L<<12) * 1000 = 4096000 即单机每秒可生成约 409W 的 ID，全局同业务集群可产生 4096000*1024=419430W=41.9亿(TPS)。
 
 从 *SnowflakeId* 设计上可以看出:
 
@@ -37,7 +38,7 @@
 
 #### RedisMachineIdDistributor
 
-> 使用 `Redis` 作为机器号的分发存储 
+> 使用 `Redis` 作为机器号的分发存储
 
 ### ClockBackwardsSynchronizer (时钟回拨同步器)
 
@@ -45,14 +46,15 @@
 
 ### ClockSyncSnowflakeId (主动时钟同步 `SnowflakeId`)
 
-默认 `SnowflakeId` 当发生时钟回拨时会直接抛出 `ClockBackwardsException` 异常，而使用 `ClockSyncSnowflakeId` 会使用 `ClockBackwardsSynchronizer` 主动等待时钟同步来重新生成 ID，提高更加友好的使用体验。
+默认 `SnowflakeId` 当发生时钟回拨时会直接抛出 `ClockBackwardsException` 异常，而使用 `ClockSyncSnowflakeId` 会使用 `ClockBackwardsSynchronizer`
+主动等待时钟同步来重新生成 ID，提高更加友好的使用体验。
 
 ### SafeJavaScriptSnowflakeId (`JavaScript` 安全的 `SnowflakeId`)
 
 ### SnowflakeIdStateParser (可以将 `SnowflakeId` 解析成可读性更好的 `SnowflakeIdState` )
 
 ```java
-        SnowflakeIdState idState = snowflakeIdStateParser.parse(id);
+        SnowflakeIdState idState=snowflakeIdStateParser.parse(id);
         idState.getFriendlyId(); //20210623131730192-1-0
 ```
 
@@ -63,7 +65,6 @@
 ## IdGeneratorProvider
 
 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)
-
 
 ## 安装
 

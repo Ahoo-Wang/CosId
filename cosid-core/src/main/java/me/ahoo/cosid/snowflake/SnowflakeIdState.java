@@ -16,7 +16,9 @@ public class SnowflakeIdState {
     private final long sequence;
 
     private final LocalDateTime timestamp;
-
+    /**
+     * {@link #timestamp}-{@link #machineId}-{@link #sequence}
+     */
     private final String friendlyId;
 
     SnowflakeIdState(long id, int machineId, long sequence, LocalDateTime timestamp, String friendlyId) {

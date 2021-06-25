@@ -1,4 +1,4 @@
-# CosId
+# [CosId](https://github.com/Ahoo-Wang/CosId)  Universal, flexible and high performance distributed ID generator
 
 Global distributed ID generator
 

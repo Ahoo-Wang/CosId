@@ -1,4 +1,4 @@
-# [CosId](https://github.com/Ahoo-Wang/CosId) 通用、灵活、高性能的分布式系统 ID 生成器
+# [CosId](https://github.com/Ahoo-Wang/CosId) 通用、灵活、高性能的分布式 ID 生成器
 
 ## 介绍
 

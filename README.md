@@ -133,9 +133,9 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4204761.
 ### RedisIdGenerator
 
 ```
-Benchmark                             Mode  Cnt         Score   Error  Units
-RedisIdGeneratorBenchmark.step_1     thrpt          77837.775          ops/s
-RedisIdGeneratorBenchmark.step_100   thrpt        1743674.923          ops/s
-RedisIdGeneratorBenchmark.step_1000  thrpt       15053562.447          ops/s
-
+Benchmark                              Mode  Cnt         Score   Error  Units
+RedisIdGeneratorBenchmark.step_1      thrpt          86243.935          ops/s
+RedisIdGeneratorBenchmark.step_100    thrpt        1718229.010          ops/s
+RedisIdGeneratorBenchmark.step_1000   thrpt       12688174.755          ops/s
+RedisIdGeneratorBenchmark.step_10000  thrpt       13995195.387          ops/s
 ```

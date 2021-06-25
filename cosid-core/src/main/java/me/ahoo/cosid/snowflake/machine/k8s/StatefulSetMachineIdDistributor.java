@@ -2,25 +2,21 @@ package me.ahoo.cosid.snowflake.machine.k8s;
 
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
+import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.*;
-
-import java.util.concurrent.CompletableFuture;
 
 /**
  * @author ahoo wang
  */
 @Slf4j
 public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributor {
-    public static final StatefulSetMachineIdDistributor INSTANCE = new StatefulSetMachineIdDistributor();
+    public static final StatefulSetMachineIdDistributor INSTANCE = new StatefulSetMachineIdDistributor(LocalMachineState.FILE, ClockBackwardsSynchronizer.DEFAULT);
     public static final String HOSTNAME_KEY = "HOSTNAME";
 
-    public StatefulSetMachineIdDistributor() {
-        super(LocalMachineState.FILE);
+    public StatefulSetMachineIdDistributor(LocalMachineState localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        super(localMachineState, clockBackwardsSynchronizer);
     }
 
-    public StatefulSetMachineIdDistributor(LocalMachineState localMachineState) {
-        super(localMachineState);
-    }
 
     public static int resolveMachineId() {
         String hostName = System.getenv(HOSTNAME_KEY);

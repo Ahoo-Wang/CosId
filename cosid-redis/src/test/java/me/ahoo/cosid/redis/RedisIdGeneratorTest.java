@@ -49,7 +49,7 @@ public class RedisIdGeneratorTest {
         Assertions.assertTrue(id3 > id2);
     }
 
-    static final int CONCURRENT_THREADS = 20;
+    static final int CONCURRENT_THREADS = 30;
     static final int THREAD_REQUEST_NUM = 50000;
 
     @Test

@@ -4,12 +4,15 @@ import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.*;
 import me.ahoo.cosky.core.redis.RedisScripts;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
+import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsStamp;
 
 /**
  * @author ahoo wang
@@ -23,16 +26,13 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     public static final int TIMEOUT = 5;
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
-
-    public RedisMachineIdDistributor(RedisClusterAsyncCommands<String, String> redisCommands) {
-        super(LocalMachineState.FILE);
+    public RedisMachineIdDistributor(RedisClusterAsyncCommands<String, String> redisCommands,
+                                        LocalMachineState localMachineState,
+                                        ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        super(localMachineState, clockBackwardsSynchronizer);
         this.redisCommands = redisCommands;
     }
 
-    public RedisMachineIdDistributor(RedisClusterAsyncCommands<String, String> redisCommands, LocalMachineState localMachineState) {
-        super(localMachineState);
-        this.redisCommands = redisCommands;
-    }
 
     @SneakyThrows
     @Override

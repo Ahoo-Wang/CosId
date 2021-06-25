@@ -3,6 +3,7 @@ package me.ahoo.cosid.redis;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.internal.Exceptions;
+import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.DefaultInstanceId;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
 import me.ahoo.cosid.snowflake.machine.LocalMachineState;
@@ -19,18 +20,18 @@ import java.util.UUID;
 class RedisMachineIdDistributorTest {
     protected RedisClient redisClient;
     protected StatefulRedisConnection<String, String> redisConnection;
-
+    protected RedisMachineIdDistributor redisMachineIdDistributor;
 
     @BeforeAll
     private void initRedis() {
         System.out.println("--- initRedis ---");
         redisClient = RedisClient.create("redis://localhost:6379");
         redisConnection = redisClient.connect();
+        redisMachineIdDistributor = new RedisMachineIdDistributor(redisConnection.async(), LocalMachineState.FILE, ClockBackwardsSynchronizer.DEFAULT);
     }
 
     @Test
-    void distribute_none_local() {
-        RedisMachineIdDistributor redisMachineIdDistributor = new RedisMachineIdDistributor(redisConnection.async());
+    void distribute() {
         int machineBit = 1;
         String namespace = UUID.randomUUID().toString();
         InstanceId instanceId = DefaultInstanceId.of("127.0.0.1", 80, false);
@@ -62,8 +63,7 @@ class RedisMachineIdDistributorTest {
     }
 
     @Test
-    void distribute_none_local_stable() {
-        RedisMachineIdDistributor redisMachineIdDistributor = new RedisMachineIdDistributor(redisConnection.async());
+    void distribute_stable() {
         int machineBit = 1;
         String namespace = UUID.randomUUID().toString();
         InstanceId instanceId = DefaultInstanceId.of("127.0.0.1", 80, true);

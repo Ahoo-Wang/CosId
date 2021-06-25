@@ -88,7 +88,7 @@ public class SnowflakeIdProperties {
     public static class InstanceId {
         private Boolean stable;
 
-        private int port;
+        private Integer port;
 
         public Boolean isStable() {
             return stable;
@@ -98,11 +98,11 @@ public class SnowflakeIdProperties {
             this.stable = stable;
         }
 
-        public int getPort() {
+        public Integer getPort() {
             return port;
         }
 
-        public void setPort(int port) {
+        public void setPort(Integer port) {
             this.port = port;
         }
     }

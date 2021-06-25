@@ -2,10 +2,9 @@ package me.ahoo.cosid.snowflake.machine;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
+import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 
 import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author ahoo wang
@@ -16,43 +15,11 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     private final int DEFAULT_TIMEOUT = 1;
     private final Duration timeout = Duration.ofSeconds(DEFAULT_TIMEOUT);
     private final LocalMachineState localMachineState;
+    private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
 
-    protected AbstractMachineIdDistributor(LocalMachineState localMachineState) {
+    public AbstractMachineIdDistributor(LocalMachineState localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         this.localMachineState = localMachineState;
-    }
-
-    protected long getBackwardsStamp(long lastStamp) {
-        return lastStamp - System.currentTimeMillis();
-    }
-
-    /**
-     * fix {@link ClockBackwardsException}
-     *
-     * @param lastStamp
-     */
-    @SneakyThrows
-    protected void waitUntilLastStamp(long lastStamp) {
-        long backwardsStamp = getBackwardsStamp(lastStamp);
-        if (backwardsStamp <= 0) {
-            return;
-        }
-        if (log.isWarnEnabled()) {
-            log.warn("waitUntilLastStamp - backwardsStamp:[{}] - lastStamp:[{}].", backwardsStamp, lastStamp);
-        }
-
-        if (backwardsStamp <= 10) {
-            while ((getBackwardsStamp(lastStamp)) <= 0) {
-                /**
-                 * Spin until it catches the clock back
-                 */
-            }
-        }
-
-        if (backwardsStamp > 2000) {
-            throw new ClockBackwardsException(lastStamp, System.currentTimeMillis());
-        }
-
-        TimeUnit.MILLISECONDS.sleep(backwardsStamp);
+        this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
     }
 
     /**
@@ -71,13 +38,13 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     public int distribute(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
         MachineState localState = localMachineState.get(namespace, instanceId);
         if (!MachineState.NOT_FOUND.equals(localState)) {
-            waitUntilLastStamp(localState.getLastStamp());
+            clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastStamp());
             return localState.getMachineId();
         }
 
         localState = distribute0(namespace, machineBit, instanceId);
-        if (getBackwardsStamp(localState.getLastStamp()) > 0) {
-            waitUntilLastStamp(localState.getLastStamp());
+        if (ClockBackwardsSynchronizer.getBackwardsStamp(localState.getLastStamp()) > 0) {
+            clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastStamp());
             localState = MachineState.of(localState.getMachineId(), System.currentTimeMillis());
         }
 
@@ -86,7 +53,6 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     }
 
     protected abstract MachineState distribute0(String namespace, int machineBit, InstanceId instanceId);
-
 
 
     /**
@@ -106,7 +72,7 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
             revert0(namespace, instanceId, lastLocalState);
             return;
         }
-        if (getBackwardsStamp(lastLocalState.getLastStamp()) < 0) {
+        if (ClockBackwardsSynchronizer.getBackwardsStamp(lastLocalState.getLastStamp()) < 0) {
             localMachineState.set(namespace, lastLocalState.getMachineId(), instanceId);
         }
         revert0(namespace, instanceId, lastLocalState);

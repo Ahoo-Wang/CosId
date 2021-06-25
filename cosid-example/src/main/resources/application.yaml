@@ -1,4 +1,5 @@
 cosid:
+  namespace: ${spring.application.name}
   snowflake:
   #  stateful-set:
   #    enabled: true
@@ -21,3 +22,4 @@ cosid:
     enabled: false
   redis:
     enabled: true
+

@@ -9,7 +9,6 @@ import me.ahoo.cosky.core.redis.RedisScripts;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author ahoo wang
@@ -18,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class RedisIdGenerator implements IdGenerator {
     public static final String REDIS_ID_GENERATE = "redis_id_generate.lua";
     public static final int TIMEOUT = 1;
+    public static final int DEFAULT_START = 1;
     public static final int DEFAULT_STEP = 100;
 
     private final String namespace;
@@ -26,7 +26,7 @@ public class RedisIdGenerator implements IdGenerator {
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
     private volatile long maxId;
-    private final AtomicLong sequence;
+    private volatile long sequence;
 
     public RedisIdGenerator(String namespace,
                             String name,
@@ -36,7 +36,7 @@ public class RedisIdGenerator implements IdGenerator {
         this.name = name;
         this.step = step;
         this.redisCommands = redisCommands;
-        this.sequence = new AtomicLong(0L);
+        this.sequence = 0L;
         this.fetchId0();
     }
 
@@ -59,16 +59,12 @@ public class RedisIdGenerator implements IdGenerator {
             return fetchIdAsync().get(TIMEOUT, TimeUnit.SECONDS);
         }
         synchronized (this) {
-            long nextId = sequence.incrementAndGet();
+            final long nextId = ++sequence;
             if (nextId < maxId) {
                 return nextId;
             }
-
-            if (log.isInfoEnabled()) {
-                log.info("initFetchId - maxId:[{}] - step:[{}].", maxId, step);
-            }
             fetchId0();
-            return sequence.incrementAndGet();
+            return ++sequence;
         }
     }
 
@@ -78,9 +74,9 @@ public class RedisIdGenerator implements IdGenerator {
         if (log.isInfoEnabled()) {
             log.info("fetchId0 - maxId:[{}] - step:[{}].", maxId, step);
         }
-        long lastFetchId = fetchIdAsync().get(TIMEOUT, TimeUnit.SECONDS);
+        final long lastFetchId = fetchIdAsync().get(TIMEOUT, TimeUnit.SECONDS);
         maxId = lastFetchId + step;
-        sequence.set(lastFetchId - 1);
+        sequence = lastFetchId - 1;
     }
 
     private CompletableFuture<Long> fetchIdAsync() {

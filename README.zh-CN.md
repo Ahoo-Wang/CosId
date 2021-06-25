@@ -47,7 +47,7 @@ TPS 性能：409W [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (�
 ### ClockSyncSnowflakeId (主动时钟同步 `SnowflakeId`)
 
 默认 `SnowflakeId` 当发生时钟回拨时会直接抛出 `ClockBackwardsException` 异常，而使用 `ClockSyncSnowflakeId` 会使用 `ClockBackwardsSynchronizer`
-主动等待时钟同步来重新生成 ID，提高更加友好的使用体验。
+主动等待时钟同步来重新生成 ID，提供更加友好的使用体验。
 
 ### SafeJavaScriptSnowflakeId (`JavaScript` 安全的 `SnowflakeId`)
 

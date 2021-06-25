@@ -17,7 +17,7 @@ TPS 性能：409W [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (�
 
 从 *SnowflakeId* 设计上可以看出:
 
-- `timestamp` 在高位，所以 *SnowflakeId* 是本机单调递增的，受全局时钟同步影响 *SnowflakeId* 全局趋势递增的。
+- `timestamp` 在高位，所以 *SnowflakeId* 是本机单调递增的，受全局时钟同步影响 *SnowflakeId* 是全局趋势递增的。
 - *SnowflakeId* 不对任何第三方中间件有强依赖关系，并且性能也非常高。
 - 强依赖本机时钟，潜在的时钟回拨问题会导致 ID 重复。
 - `machineId` 需要手动设置，实际部署时如果采用手动分配 `machineId`，会非常低效。

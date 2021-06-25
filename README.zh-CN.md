@@ -56,6 +56,20 @@ TPS 性能：409W [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (�
 ### SnowflakeIdStateParser (可以将 `SnowflakeId` 解析成可读性更好的 `SnowflakeIdState` )
 
 ```java
+public class SnowflakeIdState {
+
+  private final long id;
+
+  private final int machineId;
+
+  private final long sequence;
+
+  private final LocalDateTime timestamp;
+
+  private final String friendlyId;
+}
+```
+```java
         SnowflakeIdState idState=snowflakeIdStateParser.parse(id);
         idState.getFriendlyId(); //20210623131730192-1-0
 ```

@@ -22,4 +22,6 @@ cosid:
     enabled: false
   redis:
     enabled: true
-
+    providers:
+      order:
+        step: 100

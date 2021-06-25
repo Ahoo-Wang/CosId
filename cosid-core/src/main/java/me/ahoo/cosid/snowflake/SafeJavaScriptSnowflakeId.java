@@ -10,7 +10,7 @@ import me.ahoo.cosid.CosId;
  * @author ahoo wang
  * Creation time 2020/9/22 21:25
  **/
-public class SafeJavaScriptSnowflakeId {
+public final class SafeJavaScriptSnowflakeId {
 
     public static final int JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT = 53;
     public static final long JAVA_SCRIPT_MAX_SAFE_NUMBER = 9007199254740991L;

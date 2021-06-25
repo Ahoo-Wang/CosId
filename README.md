@@ -1,7 +1,5 @@
 # [CosId](https://github.com/Ahoo-Wang/CosId)  Universal, flexible and high performance distributed ID generator
 
-Global distributed ID generator
-
 > [中文文档](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md)
 
 # Installation

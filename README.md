@@ -2,6 +2,8 @@
 
 Global distributed ID generator
 
+> [中文文档](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md)
+
 # Installation
 
 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)

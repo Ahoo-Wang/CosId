@@ -2,6 +2,8 @@ package me.ahoo.cosid.snowflake;
 
 import lombok.var;
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
+import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
 /**
  * @author ahoo wang

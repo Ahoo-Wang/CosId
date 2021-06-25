@@ -1,46 +1,49 @@
 package me.ahoo.cosid.redis;
 
-import com.google.common.base.Objects;
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.InstanceId;
-import me.ahoo.cosid.MachineIdDistributor;
-import me.ahoo.cosid.MachineIdOverflowException;
-import me.ahoo.cosid.snowflake.ClockBackwardsException;
+import me.ahoo.cosid.snowflake.machine.*;
 import me.ahoo.cosky.core.redis.RedisScripts;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
  * @author ahoo wang
  */
 @Slf4j
-public class RedisMachineIdDistributor implements MachineIdDistributor {
+public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     public static final String MACHINE_ID_DISTRIBUTE = "machine_id_distribute.lua";
     public static final String MACHINE_ID_REVERT = "machine_id_revert.lua";
+    public static final String MACHINE_ID_REVERT_STABLE = "machine_id_revert_stable.lua";
+
     public static final int TIMEOUT = 5;
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
-    private final ConcurrentHashMap<NamespacedInstanceId, Long> instanceIdMapLastStamp;
 
     public RedisMachineIdDistributor(RedisClusterAsyncCommands<String, String> redisCommands) {
+        super(LocalMachineState.FILE);
         this.redisCommands = redisCommands;
-        this.instanceIdMapLastStamp = new ConcurrentHashMap<>();
+    }
+
+    public RedisMachineIdDistributor(RedisClusterAsyncCommands<String, String> redisCommands, LocalMachineState localMachineState) {
+        super(localMachineState);
+        this.redisCommands = redisCommands;
     }
 
     @SneakyThrows
     @Override
-    public int distribute(String namespace, int machineBit, InstanceId instanceId) {
-        return distributeAsync(namespace, machineBit, instanceId).get(TIMEOUT, TimeUnit.SECONDS);
+    protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
+        return distributeAsync0(namespace, machineBit, instanceId).get(TIMEOUT, TimeUnit.SECONDS);
     }
 
-    @Override
-    public CompletableFuture<Integer> distributeAsync(String namespace, int machineBit, InstanceId instanceId) {
+    protected CompletableFuture<MachineState> distributeAsync0(String namespace, int machineBit, InstanceId instanceId) {
+        if (log.isInfoEnabled()) {
+            log.info("distributeAsync0 - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
+        }
         return RedisScripts.doEnsureScript(MACHINE_ID_DISTRIBUTE, redisCommands,
                 (scriptSha) -> {
                     String[] keys = {namespace};
@@ -55,75 +58,47 @@ public class RedisMachineIdDistributor implements MachineIdDistributor {
                 throw new MachineIdOverflowException(totalMachineIds(machineBit), instanceId);
             }
 
-            NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
-
-            long lastStamp = 0;
+            long lastStamp = NOT_FOUND_LAST_STAMP;
             if (state.size() == 2) {
                 lastStamp = state.get(1);
-                long backwardsStamp = getBackwardsStamp(lastStamp);
-                if (backwardsStamp > 0) {
-                    if (log.isWarnEnabled()) {
-                        log.warn("waitUntilLastStamp - backwardsStamp:[{}] - instanceId:[{}] @ namespace:[{}] - machineId:[{}] - lastStamp:[{}].", backwardsStamp, instanceId, namespace, realMachineId, lastStamp);
-                    }
-                    waitUntilLastStamp(lastStamp);
-                }
             }
-            instanceIdMapLastStamp.put(namespacedInstanceId, lastStamp);
-            if (log.isInfoEnabled()) {
-                log.info("distributeAsync - instanceId:[{}] @ namespace:[{}] - machineId:[{}] - lastStamp:[{}].", instanceId, namespace, realMachineId, lastStamp);
-            }
-            return realMachineId;
+
+            return MachineState.of(realMachineId, lastStamp);
         });
     }
 
+    @SneakyThrows
+    @Override
+    protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
+        revertAsync0(namespace, instanceId, machineState).get(TIMEOUT, TimeUnit.SECONDS);
+    }
+
     /**
-     * fix {@link me.ahoo.cosid.snowflake.ClockBackwardsException}
+     * when {@link InstanceId#isStable()} is true,do not revert machineId
      *
-     * @param lastStamp
+     * @param namespace
+     * @param instanceId
+     * @param machineState
+     * @return
      */
-    @SneakyThrows
-    private void waitUntilLastStamp(long lastStamp) {
-        long backwardsStamp = getBackwardsStamp(lastStamp);
-        if (backwardsStamp <= 0) {
-            return;
-        }
 
-        if (backwardsStamp <= 10) {
-            while ((getBackwardsStamp(lastStamp)) <= 0) {
-                /**
-                 * Spin until it catches the clock back
-                 */
-            }
-        }
-
-        if (backwardsStamp > 2000) {
-            throw new ClockBackwardsException(lastStamp, System.currentTimeMillis());
-        }
-
-        TimeUnit.MILLISECONDS.sleep(backwardsStamp);
-    }
-
-    private long getBackwardsStamp(long lastStamp) {
-        return lastStamp - System.currentTimeMillis();
-    }
-
-    @SneakyThrows
-    @Override
-    public void revert(String namespace, InstanceId instanceId) {
-        revertAsync(namespace, instanceId).get(TIMEOUT, TimeUnit.SECONDS);
-    }
-
-    @Override
-    public CompletableFuture<Void> revertAsync(String namespace, InstanceId instanceId) {
+    protected CompletableFuture<Void> revertAsync0(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
             log.info("revertAsync - instanceId:[{}] @ namespace:[{}].", instanceId, namespace);
         }
 
-        return RedisScripts.doEnsureScript(MACHINE_ID_REVERT, redisCommands,
+        if (instanceId.isStable()) {
+            return revertScriptAsync(MACHINE_ID_REVERT_STABLE, namespace, instanceId, machineState);
+        }
+
+        return revertScriptAsync(MACHINE_ID_REVERT, namespace, instanceId, machineState);
+    }
+
+    private CompletableFuture<Void> revertScriptAsync(String scriptName, String namespace, InstanceId instanceId, MachineState machineState) {
+        return RedisScripts.doEnsureScript(scriptName, redisCommands,
                 (scriptSha) -> {
-                    NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
-                    long lastStamp = instanceIdMapLastStamp.getOrDefault(namespacedInstanceId, 0L);
-                    if (lastStamp < System.currentTimeMillis()) {
+                    long lastStamp = machineState.getLastStamp();
+                    if (getBackwardsStamp(lastStamp) < 0) {
                         lastStamp = System.currentTimeMillis();
                     }
                     String[] keys = {namespace};
@@ -133,26 +108,4 @@ public class RedisMachineIdDistributor implements MachineIdDistributor {
         );
     }
 
-    public static class NamespacedInstanceId {
-        private final String namespace;
-        private final InstanceId instanceId;
-
-        public NamespacedInstanceId(String namespace, InstanceId instanceId) {
-            this.namespace = namespace;
-            this.instanceId = instanceId;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof NamespacedInstanceId)) return false;
-            NamespacedInstanceId that = (NamespacedInstanceId) o;
-            return Objects.equal(namespace, that.namespace) && Objects.equal(instanceId, that.instanceId);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hashCode(namespace, instanceId);
-        }
-    }
 }

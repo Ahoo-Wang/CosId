@@ -2,12 +2,14 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import com.google.common.base.Preconditions;
 import me.ahoo.cosid.IdGenerator;
-import me.ahoo.cosid.IdGeneratorProvider;
-import me.ahoo.cosid.InstanceId;
-import me.ahoo.cosid.MachineIdDistributor;
-import me.ahoo.cosid.k8s.StatefulSetMachineIdDistributor;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.snowflake.machine.DefaultInstanceId;
+import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.k8s.StatefulSetMachineIdDistributor;
 import me.ahoo.cosid.redis.RedisMachineIdDistributor;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.snowflake.machine.ManualMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.LifecycleMachineIdDistributor;
@@ -20,7 +22,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 
 import java.util.Objects;
 
@@ -51,7 +52,7 @@ public class CosIdSnowflakeAutoConfiguration {
             port = snowflakeIdProperties.getInstanceId().getPort();
         }
 
-        return new InstanceId.DefaultInstanceId(hostInfo.getIpAddress(), port);
+        return DefaultInstanceId.of(hostInfo.getIpAddress(), port, false);
     }
 
     @Bean
@@ -67,7 +68,7 @@ public class CosIdSnowflakeAutoConfiguration {
     public MachineIdDistributor manualMachineIdDistributor() {
         Integer machineId = snowflakeIdProperties.getManual().getMachineId();
         Preconditions.checkNotNull(machineId, "me.ahoo.cosid.redis.manual.machineId can not be null.");
-        return new MachineIdDistributor.ManualMachineIdDistributor(machineId);
+        return new ManualMachineIdDistributor(machineId);
     }
 
     @Bean

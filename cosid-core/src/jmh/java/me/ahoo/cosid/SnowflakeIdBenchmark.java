@@ -1,6 +1,6 @@
 package me.ahoo.cosid;
 
-import me.ahoo.cosid.snowflake.ClockBackwardsException;
+import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SafeJavaScriptSnowflakeId;
 import me.ahoo.cosid.snowflake.SecondSnowflakeId;

@@ -86,8 +86,17 @@ public class SnowflakeIdProperties {
     }
 
     public static class InstanceId {
+        private Boolean stable;
 
         private int port;
+
+        public Boolean isStable() {
+            return stable;
+        }
+
+        public void setStable(Boolean stable) {
+            this.stable = stable;
+        }
 
         public int getPort() {
             return port;

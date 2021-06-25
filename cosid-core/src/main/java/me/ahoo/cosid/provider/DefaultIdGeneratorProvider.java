@@ -1,5 +1,6 @@
-package me.ahoo.cosid;
+package me.ahoo.cosid.provider;
 
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
 import java.util.Optional;

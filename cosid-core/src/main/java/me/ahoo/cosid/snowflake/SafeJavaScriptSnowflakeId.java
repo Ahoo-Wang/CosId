@@ -26,32 +26,33 @@ public class SafeJavaScriptSnowflakeId {
     }
 
     /**
-     * Max Sequence (TPS) = 63000
-     * Max Machine = 63
+     * Max Sequence (9 bits) = ((1&lt;&lt;)*1000) = 512000 (TPS)
+     * Max Machine (3 bits) = 1&lt;&lt;3 = 8
      * Max Timestamp = 2199023255551 ms ~~ 69.7 years
+     *
      * @param machineId 服务实例编号
      * @return MillisecondSnowflakeId
      */
     public static MillisecondSnowflakeId ofMillisecond(int machineId) {
-        int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
-        int machineBit = MillisecondSnowflakeId.DEFAULT_MACHINE_BIT - 4;
-        int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT - 6;
+        final int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
+        final int machineBit = MillisecondSnowflakeId.DEFAULT_MACHINE_BIT - 7;
+        final int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT - 3;
         checkTotalBit(timestampBit, machineBit, sequenceBit);
         return ofMillisecond(CosId.COSID_EPOCH_SECOND, timestampBit, machineBit, sequenceBit, machineId);
     }
 
     /**
-     * Max Sequence (TPS) = 65535
-     * Max Machine = 63
+     * Max Sequence (19 bits) = (1&lt;&lt;19) = 524288 (TPS)
+     * Max Machine (3 bits) = 1&lt;&lt;3 = 8
      * Max Timestamp = 2147483647 s ~~ 68 years
      *
      * @param machineId 服务实例编号
      * @return SecondSnowflakeId
      */
     public static SecondSnowflakeId ofSecond(int machineId) {
-        int timestampBit = SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
-        int machineBit = SecondSnowflakeId.DEFAULT_MACHINE_BIT - 4;
-        int sequenceBit = SecondSnowflakeId.DEFAULT_SEQUENCE_BIT - 6;
+        final int timestampBit = SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
+        final int machineBit = SecondSnowflakeId.DEFAULT_MACHINE_BIT - 7;
+        final int sequenceBit = SecondSnowflakeId.DEFAULT_SEQUENCE_BIT - 3;
         checkTotalBit(timestampBit, machineBit, sequenceBit);
         return ofSecond(CosId.COSID_EPOCH_SECOND, timestampBit, machineBit, sequenceBit, machineId);
     }

@@ -1,4 +1,4 @@
-package me.ahoo.cosid;
+package me.ahoo.cosid.snowflake.machine;
 
 import com.google.common.base.Strings;
 

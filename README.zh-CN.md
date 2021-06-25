@@ -119,23 +119,11 @@ cosid:
 
 ## JMH-Benchmark
 
-### SnowflakeId
-
 ```
 Benchmark                                                    Mode  Cnt        Score   Error  Units
 SnowflakeIdBenchmark.millisecondSnowflakeId_generate        thrpt       4093924.313          ops/s
 SnowflakeIdBenchmark.safeJsMillisecondSnowflakeId_generate  thrpt        511542.292          ops/s
 SnowflakeIdBenchmark.safeJsSecondSnowflakeId_generate       thrpt        511939.629          ops/s
 SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4204761.870          ops/s
-```
-
-
-### RedisIdGenerator
-
-```
-Benchmark                             Mode  Cnt         Score   Error  Units
-RedisIdGeneratorBenchmark.step_1     thrpt          77837.775          ops/s
-RedisIdGeneratorBenchmark.step_100   thrpt        1743674.923          ops/s
-RedisIdGeneratorBenchmark.step_1000  thrpt       15053562.447          ops/s
 
 ```

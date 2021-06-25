@@ -26,7 +26,7 @@ public class RedisIdGenerator implements IdGenerator {
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
     private volatile long maxId;
-    private volatile AtomicLong sequence;
+    private final AtomicLong sequence;
 
     public RedisIdGenerator(String namespace,
                             String name,
@@ -36,7 +36,8 @@ public class RedisIdGenerator implements IdGenerator {
         this.name = name;
         this.step = step;
         this.redisCommands = redisCommands;
-        this.initFetchId();
+        this.sequence = new AtomicLong(0L);
+        this.fetchId0();
     }
 
     public String getNamespace() {
@@ -57,24 +58,29 @@ public class RedisIdGenerator implements IdGenerator {
         if (step == 1) {
             return fetchIdAsync().get(TIMEOUT, TimeUnit.SECONDS);
         }
+        synchronized (this) {
+            long nextId = sequence.incrementAndGet();
+            if (nextId < maxId) {
+                return nextId;
+            }
 
-        long nextId = sequence.incrementAndGet();
-        if (nextId < maxId) {
-            return nextId;
+            if (log.isInfoEnabled()) {
+                log.info("initFetchId - maxId:[{}] - step:[{}].", maxId, step);
+            }
+            fetchId0();
+            return sequence.incrementAndGet();
         }
-        initFetchId();
-        return sequence.incrementAndGet();
     }
 
-    @SneakyThrows
-    private synchronized void initFetchId() {
-        if (log.isInfoEnabled()) {
-            log.info("initFetchId - maxId:[{}] - step:[{}].", maxId, step);
-        }
 
+    @SneakyThrows
+    private void fetchId0() {
+        if (log.isInfoEnabled()) {
+            log.info("fetchId0 - maxId:[{}] - step:[{}].", maxId, step);
+        }
         long lastFetchId = fetchIdAsync().get(TIMEOUT, TimeUnit.SECONDS);
         maxId = lastFetchId + step;
-        sequence = new AtomicLong(lastFetchId - 1);
+        sequence.set(lastFetchId - 1);
     }
 
     private CompletableFuture<Long> fetchIdAsync() {

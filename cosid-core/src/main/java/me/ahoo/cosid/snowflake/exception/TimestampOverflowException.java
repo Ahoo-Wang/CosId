@@ -1,4 +1,4 @@
-package me.ahoo.cosid.snowflake;
+package me.ahoo.cosid.snowflake.exception;
 
 import com.google.common.base.Strings;
 

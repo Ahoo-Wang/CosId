@@ -1,4 +1,4 @@
-package me.ahoo.cosid.snowflake;
+package me.ahoo.cosid.snowflake.exception;
 
 /**
  * @author ahoo wang

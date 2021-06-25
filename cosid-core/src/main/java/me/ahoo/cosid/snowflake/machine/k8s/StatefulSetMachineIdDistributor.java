@@ -1,9 +1,8 @@
-package me.ahoo.cosid.k8s;
+package me.ahoo.cosid.snowflake.machine.k8s;
 
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.InstanceId;
-import me.ahoo.cosid.MachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.*;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -11,12 +10,19 @@ import java.util.concurrent.CompletableFuture;
  * @author ahoo wang
  */
 @Slf4j
-public class StatefulSetMachineIdDistributor implements MachineIdDistributor {
+public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributor {
     public static final StatefulSetMachineIdDistributor INSTANCE = new StatefulSetMachineIdDistributor();
     public static final String HOSTNAME_KEY = "HOSTNAME";
 
-    @Override
-    public int distribute(String namespace, int machineBit, InstanceId instanceId) {
+    public StatefulSetMachineIdDistributor() {
+        super(LocalMachineState.FILE);
+    }
+
+    public StatefulSetMachineIdDistributor(LocalMachineState localMachineState) {
+        super(localMachineState);
+    }
+
+    public static int resolveMachineId() {
         String hostName = System.getenv(HOSTNAME_KEY);
         Preconditions.checkNotNull(hostName, "HOSTNAME can not be null.");
         int lastSplitIdx = hostName.lastIndexOf("-");
@@ -29,18 +35,15 @@ public class StatefulSetMachineIdDistributor implements MachineIdDistributor {
     }
 
     @Override
-    public CompletableFuture<Integer> distributeAsync(String namespace, int machineBit, InstanceId instanceId) {
-        return CompletableFuture.completedFuture(distribute(namespace, machineBit, instanceId));
+    protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
+        int machineId = resolveMachineId();
+        return MachineState.of(machineId, NOT_FOUND_LAST_STAMP);
     }
 
-    @Override
-    public void revert(String namespace, InstanceId instanceId) {
-
-    }
 
     @Override
-    public CompletableFuture<Void> revertAsync(String namespace, InstanceId instanceId) {
-        return CompletableFuture.completedFuture(null);
+    protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
+
     }
 
 }

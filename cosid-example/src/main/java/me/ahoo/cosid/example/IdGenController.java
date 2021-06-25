@@ -1,7 +1,7 @@
 package me.ahoo.cosid.example;
 
 import me.ahoo.cosid.IdGenerator;
-import me.ahoo.cosid.IdGeneratorProvider;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 

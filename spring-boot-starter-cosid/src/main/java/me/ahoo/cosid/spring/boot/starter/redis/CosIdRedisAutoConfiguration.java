@@ -1,7 +1,7 @@
 package me.ahoo.cosid.spring.boot.starter.redis;
 
 import me.ahoo.cosid.IdGenerator;
-import me.ahoo.cosid.IdGeneratorProvider;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.redis.RedisIdGenerator;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;

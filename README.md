@@ -1,5 +1,7 @@
 # [CosId](https://github.com/Ahoo-Wang/CosId) Universal, flexible, high-performance distributed ID generator
 
+> [中文文档](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md)
+
 ## Introduction
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* provide a universal, flexible and high-performance distributed ID generator. Two major types of ID generators are currently provided：*SnowflakeId* (Stand-alone TPS performance：4,090,000 [JMH Benchmark](#jmh-benchmark))、*RedisIdGenerator* (Stand-alone TPS performance(Step 1000)：12,688,174 [JMH Benchmark](#jmh-benchmark))。

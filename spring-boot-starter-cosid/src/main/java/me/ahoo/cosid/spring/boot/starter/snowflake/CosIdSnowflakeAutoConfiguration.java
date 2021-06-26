@@ -10,7 +10,6 @@ import me.ahoo.cosid.redis.RedisMachineIdDistributor;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
-import me.ahoo.cosid.spring.boot.starter.LifecycleMachineIdDistributor;
 import me.ahoo.cosky.core.redis.RedisConnectionFactory;
 import me.ahoo.cosky.core.util.Systems;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;

@@ -10,12 +10,12 @@ import me.ahoo.cosid.snowflake.exception.ClockTooManyBackwardsException;
 public interface ClockBackwardsSynchronizer {
     ClockBackwardsSynchronizer DEFAULT = new DefaultClockBackwardsSynchronizer();
 
-    void sync(long lastStamp) throws InterruptedException, ClockTooManyBackwardsException;
+    void sync(long lastTimestamp) throws InterruptedException, ClockTooManyBackwardsException;
 
-    void syncUninterruptibly(long lastStamp) throws ClockTooManyBackwardsException;
+    void syncUninterruptibly(long lastTimestamp) throws ClockTooManyBackwardsException;
 
-    static long getBackwardsStamp(long lastStamp) {
-        return lastStamp - System.currentTimeMillis();
+    static long getBackwardsTimeStamp(long lastTimestamp) {
+        return lastTimestamp - System.currentTimeMillis();
     }
 }
 

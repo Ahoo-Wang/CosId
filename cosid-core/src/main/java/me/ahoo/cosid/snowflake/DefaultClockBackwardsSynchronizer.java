@@ -24,17 +24,17 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
     }
 
     @Override
-    public void sync(long lastStamp) throws InterruptedException, ClockTooManyBackwardsException {
-        long backwardsStamp = ClockBackwardsSynchronizer.getBackwardsStamp(lastStamp);
+    public void sync(long lastTimestamp) throws InterruptedException, ClockTooManyBackwardsException {
+        long backwardsStamp = ClockBackwardsSynchronizer.getBackwardsTimeStamp(lastTimestamp);
         if (backwardsStamp <= 0) {
             return;
         }
         if (log.isWarnEnabled()) {
-            log.warn("sync - backwardsStamp:[{}] - lastStamp:[{}].", backwardsStamp, lastStamp);
+            log.warn("sync - backwardsStamp:[{}] - lastStamp:[{}].", backwardsStamp, lastTimestamp);
         }
 
         if (backwardsStamp <= spinThreshold) {
-            while ((ClockBackwardsSynchronizer.getBackwardsStamp(lastStamp)) <= 0) {
+            while ((ClockBackwardsSynchronizer.getBackwardsTimeStamp(lastTimestamp)) <= 0) {
                 /**
                  * Spin until it catches the clock back
                  */
@@ -42,16 +42,16 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
         }
 
         if (backwardsStamp > brokenThreshold) {
-            throw new ClockTooManyBackwardsException(lastStamp, System.currentTimeMillis());
+            throw new ClockTooManyBackwardsException(lastTimestamp, System.currentTimeMillis());
         }
 
         TimeUnit.MILLISECONDS.sleep(backwardsStamp);
     }
 
     @Override
-    public void syncUninterruptibly(long lastStamp) throws ClockTooManyBackwardsException {
+    public void syncUninterruptibly(long lastTimestamp) throws ClockTooManyBackwardsException {
         try {
-            sync(lastStamp);
+            sync(lastTimestamp);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new CosIdException(e);

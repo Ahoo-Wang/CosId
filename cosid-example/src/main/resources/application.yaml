@@ -19,9 +19,11 @@ cosid:
   #      timestamp-bit:
   #      machine-bit:
         sequence-bit: 12
-    enabled: false
-  redis:
     enabled: true
-    providers:
-      order:
-        step: 100
+#    instance-id:
+#      stable: true
+#  redis:
+#    enabled: true
+#    providers:
+#      order:
+#        step: 100

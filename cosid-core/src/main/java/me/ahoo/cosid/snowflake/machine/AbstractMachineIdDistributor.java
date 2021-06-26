@@ -38,13 +38,13 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     public int distribute(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
         MachineState localState = localMachineState.get(namespace, instanceId);
         if (!MachineState.NOT_FOUND.equals(localState)) {
-            clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastStamp());
+            clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastTimeStamp());
             return localState.getMachineId();
         }
 
         localState = distribute0(namespace, machineBit, instanceId);
-        if (ClockBackwardsSynchronizer.getBackwardsStamp(localState.getLastStamp()) > 0) {
-            clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastStamp());
+        if (ClockBackwardsSynchronizer.getBackwardsTimeStamp(localState.getLastTimeStamp()) > 0) {
+            clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastTimeStamp());
             localState = MachineState.of(localState.getMachineId(), System.currentTimeMillis());
         }
 
@@ -72,7 +72,7 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
             revert0(namespace, instanceId, lastLocalState);
             return;
         }
-        if (ClockBackwardsSynchronizer.getBackwardsStamp(lastLocalState.getLastStamp()) < 0) {
+        if (ClockBackwardsSynchronizer.getBackwardsTimeStamp(lastLocalState.getLastTimeStamp()) < 0) {
             localMachineState.set(namespace, lastLocalState.getMachineId(), instanceId);
         }
         revert0(namespace, instanceId, lastLocalState);

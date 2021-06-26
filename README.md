@@ -1,17 +1,177 @@
-# [CosId](https://github.com/Ahoo-Wang/CosId)  Universal, flexible and high performance distributed ID generator
+# [CosId](https://github.com/Ahoo-Wang/CosId) Universal, flexible, high-performance distributed ID generator
 
-> [中文文档](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md)
+## Introduction
 
-# Installation
+*[CosId](https://github.com/Ahoo-Wang/CosId)* provide a universal, flexible and high-performance distributed ID generator. Two major types of ID generators are currently provided：*SnowflakeId* (Stand-alone TPS performance：4,090,000 [JMH Benchmark](#jmh-benchmark))、*RedisIdGenerator* (Stand-alone TPS performance(Step 1000)：12,688,174 [JMH Benchmark](#jmh-benchmark))。
+
+## SnowflakeId
+
+![Snowflake](./docs/Snowflake-identifier.png)
+
+> *SnowflakeId* is a distributed ID algorithm that uses `Long` (64 bits) bit partition to generate ID.
+> The general bit allocation scheme is : `timestamp` (41 bits) + `machineId` (10 bits) + `sequence` (12 bits) = 63 bits 。
+
+- 41 bits `timestamp` = (1L<<41)/(1000/3600/365) approximately 69 years of timestamp can be stored, that is, the usable absolute time is `EPOCH` + 69 years. Generally, we need to customize `EPOCH` as the product development time. In addition, we can increase the number of allocated bits by compressing other areas， The number of timestamp bits to extend the available time.
+- 10 bits `machineId` = (1L<<10) = 1024 That is, 1024 copies of the same business can be deployed (there is no master-slave copy in the Kubernetes concept, and the definition of Kubernetes is directly used here) instances. Generally, there is no need to use so many, so it will be redefined according to the scale of deployment.
+- 12 bits `sequence` = (1L<<12) * 1000 = 4096000 That is, a single machine can generate about 409W ID per second, and a global same-service cluster can generate 40960001024=419430W=4.19 billion (TPS).
+
+It can be seen from the design of SnowflakeId:
+
+- :thumbsup: The first 41 bits are a `timestamp`,So *SnowflakeId* is local monotonically increasing, and affected by global clock synchronization *SnowflakeId* is global trend increasing.
+- :thumbsup: `SnowflakeId` does not have a strong dependency on any third-party middleware, and its performance is also very high.
+- :thumbsup: The bit allocation scheme can be flexibly configured according to the needs of the business system to achieve the optimal use effect.
+- :thumbsdown: Strong reliance on the local clock, potential clock callback problems will cause ID duplication.
+- :thumbsdown: The `machineId` needs to be set manually. If the `machineId` is manually assigned during actual deployment, it will be very inefficient.
+
+---
+
+*[CosId-SnowflakeId](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-core/src/main/java/me/ahoo/cosid/snowflake)*
+
+It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock callback problem. And provide a more friendly and flexible experience.
+
+### MachineIdDistributor
+
+> Currently [CosId](https:github.comAhoo-WangCosId) provides the following three `MachineId` distributors.
+
+#### ManualMachineIdDistributor
+
+```yaml
+cosid:
+  snowflake:
+    manual:
+      enabled: true
+      machine-id: 1
+```
+
+> Manually distribute `MachineId`
+
+#### StatefulSetMachineIdDistributor
+
+```yaml
+cosid:
+  snowflake:
+    stateful-set:
+    enabled: true
+```
+
+> Use the stable identification ID provided by the `StatefulSet` of `Kubernetes` as the machine number.
+
+#### RedisMachineIdDistributor
+
+```yaml
+cosid:
+  snowflake:
+    redis:
+      enabled: true
+```
+
+> Use *Redis* as the distribution store for the machine number.
+
+### ClockBackwardsSynchronizer
+
+The default `DefaultClockBackwardsSynchronizer` clock callback synchronizer uses active wait synchronization strategy, `spinThreshold` (default value 20 milliseconds) is used to set the spin wait threshold, when it is greater than `spinThreshold`, use thread sleep to wait for clock synchronization, if it exceeds` BrokenThreshold` (default value 2 seconds) will directly throw a `ClockTooManyBackwardsException` exception.
+
+### LocalMachineState
+
+```java
+public class MachineState {
+  public static final MachineState NOT_FOUND = of(-1, -1);
+  private final int machineId;
+  private final long lastTimeStamp;
+
+  public MachineState(int machineId, long lastTimeStamp) {
+    this.machineId = machineId;
+    this.lastTimeStamp = lastTimeStamp;
+  }
+
+  public int getMachineId() {
+    return machineId;
+  }
+
+  public long getLastTimeStamp() {
+    return lastTimeStamp;
+  }
+
+  public static MachineState of(int machineId, long lastStamp) {
+    return new MachineState(machineId, lastStamp);
+  }
+}
+```
+
+The default `FileLocalMachineState` local machine state storage uses a local file to store the machine number and the most recent timestamp, which is used as a `MachineState` cache.
+
+### ClockSyncSnowflakeId
+
+The default `SnowflakeId` will directly throw a `ClockBackwardsException` when a clock callback occurs, while using the `ClockSyncSnowflakeId` will use the `ClockBackwardsSynchronizer` to actively wait for clock synchronization to regenerate the ID, providing a more user-friendly experience.
+
+### SafeJavaScriptSnowflakeId
+
+```java
+SnowflakeId snowflakeId = SafeJavaScriptSnowflakeId.ofMillisecond(1);
+```
+
+The `Number.MAX_SAFE_INTEGER` of `JavaScript` has only 53 bits. If the 63-bit `SnowflakeId` is directly returned to the front end, the value will overflow. Usually we can convert `SnowflakeId` to String type or customize `SnowflakeId` Bit allocation is used to shorten the number of bits of `SnowflakeId` so that `ID` does not overflow when it is provided to the front end.
+
+### SnowflakeIdStateParser (Can parse `SnowflakeId` into a more readable `SnowflakeIdState`)
+
+```java
+public class SnowflakeIdState {
+
+    private final long id;
+
+    private final int machineId;
+
+    private final long sequence;
+
+    private final LocalDateTime timestamp;
+    /**
+     * {@link #timestamp}-{@link #machineId}-{@link #sequence}
+     */
+    private final String friendlyId;
+}
+```
+
+```java
+        SnowflakeIdState idState=snowflakeIdStateParser.parse(id);
+        idState.getFriendlyId(); //20210623131730192-1-0
+```
+
+## RedisIdGenerator
+
+The TPS performance limit of stand-alone Redis is about 10W+. If we have higher performance requirements in some scenarios, we can choose to increase the step size of each `ID` distribution to reduce the frequency of network IO requests and improve the performance of `IdGenerator` , Use `RedisIdGenerator` to generate `ID` TPS limit is approximately equal to `10+W Step`.
+
+## IdGeneratorProvider
+
+```yaml
+cosid:
+  snowflake:
+    providers:
+      bizA:
+        #      epoch:
+        #      timestamp-bit:
+        #      machine-bit:
+        sequence-bit: 12
+      bizB:
+        #      epoch:
+        #      timestamp-bit:
+        #      machine-bit:
+        sequence-bit: 12
+```
+
+In actual use, we generally do not use the same `IdGenerator` for all business services, but different businesses use different `IdGenerator`, then `IdGeneratorProvider` exists to solve this problem, and it is the container of `IdGenerator` , You can get the corresponding `IdGenerator` by the business name.
+
+## Examples
 
 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)
+
+## Installation
 
 ### Gradle
 
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.8.0";
+    val cosidVersion = "0.8.2";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -27,7 +187,7 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.8.0</cosid.version>
+        <cosid.version>0.8.2</cosid.version>
     </properties>
 
     <dependencies>
@@ -45,76 +205,33 @@
 
 ```yaml
 cosid:
-  #  stateful-set:
-  #    enabled: true
-  #  manual:
-  #    enabled: true
-  #    machine-id: 1
+  namespace: ${spring.application.name}
+  snowflake:
+    #  stateful-set:
+    #    enabled: true
+    #  manual:
+    #    enabled: true
+    #    machine-id: 1
+    redis:
+      enabled: true
+    providers:
+      order:
+        #      epoch:
+        #      timestamp-bit:
+        #      machine-bit:
+        sequence-bit: 12
+      user:
+        #      epoch:
+        #      timestamp-bit:
+        #      machine-bit:
+        sequence-bit: 12
+    enabled: false
   redis:
     enabled: true
-  providers:
-    order:
-      #      epoch:
-      #      timestamp-bit:
-      #      machine-bit:
-      sequence-bit: 12
-    user:
-      #      epoch:
-      #      timestamp-bit:
-      #      machine-bit:
-      sequence-bit: 12
-```
+    providers:
+      order:
+        step: 100
 
-## IdGenerator
-
-```java
-        IdGenerator idGen=new MillisecondSnowflakeId(1);
-        long id=idGen.generate();
-
-        MillisecondSnowflakeIdStateParser snowflakeIdStateParser=MillisecondSnowflakeIdStateParser.of(idGen);
-        SnowflakeIdState idState=snowflakeIdStateParser.parse(id);
-        idState.getFriendlyId(); //20210623131730192-1-0
-
-```
-
-### SafeJavaScriptSnowflakeId
-
-```java
-    IdGenerator snowflakeId=SafeJavaScriptSnowflakeId.ofMillisecond(1);
-```
-
-## MachineIdDistributor
-
-### StatefulSetMachineIdDistributor (On Kubernetes)
-
-```yaml
-cosid:
-  stateful-set:
-    enabled: true
-```
-
-### ManualMachineIdDistributor
-
-```yaml
-cosid:
-  manual:
-    enabled: true
-    machine-id: 1
-```
-
-### RedisMachineIdDistributor
-
-> Support clock callback verification, and wait until it catches up with the clock callback.
-
-``` kotlin
-    val cosidVersion = "0.8.0";
-    implementation("me.ahoo.cosid:cosid-redis:${cosidVersion}")
-```
-
-```yaml
-cosid:
-  redis:
-    enabled: true
 ```
 
 ## JMH-Benchmark
@@ -128,7 +245,6 @@ SnowflakeIdBenchmark.safeJsMillisecondSnowflakeId_generate  thrpt        511542.
 SnowflakeIdBenchmark.safeJsSecondSnowflakeId_generate       thrpt        511939.629          ops/s
 SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4204761.870          ops/s
 ```
-
 
 ### RedisIdGenerator
 

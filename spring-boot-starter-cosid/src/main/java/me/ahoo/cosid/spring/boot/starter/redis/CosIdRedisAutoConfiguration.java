@@ -42,7 +42,7 @@ public class CosIdRedisAutoConfiguration {
             return shareIdGen;
         }
         redisIdProperties.getProviders().forEach((name, provider) -> {
-            IdGenerator idGenerator = new RedisIdGenerator(cosIdProperties.getNamespace(), name, redisIdPropertiesShare.getStep(), redisConnectionFactory.getShareAsyncCommands());
+            IdGenerator idGenerator = new RedisIdGenerator(cosIdProperties.getNamespace(), name, provider.getStep(), redisConnectionFactory.getShareAsyncCommands());
             idGeneratorProvider.set(name, idGenerator);
         });
 

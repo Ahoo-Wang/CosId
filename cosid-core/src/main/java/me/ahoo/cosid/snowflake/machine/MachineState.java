@@ -6,19 +6,19 @@ package me.ahoo.cosid.snowflake.machine;
 public class MachineState {
     public static final MachineState NOT_FOUND = of(-1, -1);
     private final int machineId;
-    private final long lastStamp;
+    private final long lastTimeStamp;
 
-    public MachineState(int machineId, long lastStamp) {
+    public MachineState(int machineId, long lastTimeStamp) {
         this.machineId = machineId;
-        this.lastStamp = lastStamp;
+        this.lastTimeStamp = lastTimeStamp;
     }
 
     public int getMachineId() {
         return machineId;
     }
 
-    public long getLastStamp() {
-        return lastStamp;
+    public long getLastTimeStamp() {
+        return lastTimeStamp;
     }
 
     public static MachineState of(int machineId, long lastStamp) {

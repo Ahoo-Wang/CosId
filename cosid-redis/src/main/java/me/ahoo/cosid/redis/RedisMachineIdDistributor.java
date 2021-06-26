@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsStamp;
+import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
 
 /**
  * @author ahoo wang
@@ -97,8 +97,8 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     private CompletableFuture<Void> revertScriptAsync(String scriptName, String namespace, InstanceId instanceId, MachineState machineState) {
         return RedisScripts.doEnsureScript(scriptName, redisCommands,
                 (scriptSha) -> {
-                    long lastStamp = machineState.getLastStamp();
-                    if (getBackwardsStamp(lastStamp) < 0) {
+                    long lastStamp = machineState.getLastTimeStamp();
+                    if (getBackwardsTimeStamp(lastStamp) < 0) {
                         lastStamp = System.currentTimeMillis();
                     }
                     String[] keys = {namespace};

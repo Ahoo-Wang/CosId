@@ -35,14 +35,14 @@ public class CosIdRedisAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnBean(RedisConnectionFactory.class)
     public RedisIdGenerator shareIdGenerator(RedisConnectionFactory redisConnectionFactory, IdGeneratorProvider idGeneratorProvider) {
-        RedisIdProperties.Provider redisIdPropertiesShare = redisIdProperties.getShare();
-        RedisIdGenerator shareIdGen = new RedisIdGenerator(cosIdProperties.getNamespace(), "share", redisIdPropertiesShare.getStep(), redisConnectionFactory.getShareAsyncCommands());
+        RedisIdProperties.IdDefinition shareIdDefinition = redisIdProperties.getShare();
+        RedisIdGenerator shareIdGen = new RedisIdGenerator(cosIdProperties.getNamespace(), "share", shareIdDefinition.getStep(), redisConnectionFactory.getShareAsyncCommands());
         idGeneratorProvider.setShare(shareIdGen);
-        if (Objects.isNull(redisIdProperties.getProviders())) {
+        if (Objects.isNull(redisIdProperties.getProvider())) {
             return shareIdGen;
         }
-        redisIdProperties.getProviders().forEach((name, provider) -> {
-            IdGenerator idGenerator = new RedisIdGenerator(cosIdProperties.getNamespace(), name, provider.getStep(), redisConnectionFactory.getShareAsyncCommands());
+        redisIdProperties.getProvider().forEach((name, idDefinition) -> {
+            IdGenerator idGenerator = new RedisIdGenerator(cosIdProperties.getNamespace(), name, idDefinition.getStep(), redisConnectionFactory.getShareAsyncCommands());
             idGeneratorProvider.set(name, idGenerator);
         });
 

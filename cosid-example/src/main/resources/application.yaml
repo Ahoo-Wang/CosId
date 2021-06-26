@@ -8,7 +8,7 @@ cosid:
   #    machine-id: 1
     redis:
       enabled: true
-    providers:
+    provider:
       order:
   #      epoch:
   #      timestamp-bit:
@@ -24,6 +24,6 @@ cosid:
 #      stable: true
 #  redis:
 #    enabled: true
-#    providers:
+#    provider:
 #      order:
 #        step: 100

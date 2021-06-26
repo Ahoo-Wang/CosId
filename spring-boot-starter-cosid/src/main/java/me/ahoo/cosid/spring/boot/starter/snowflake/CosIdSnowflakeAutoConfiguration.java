@@ -104,23 +104,23 @@ public class CosIdSnowflakeAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnBean(InstanceId.class)
     public MillisecondSnowflakeId shareIdGenerator(MachineIdDistributor machineIdDistributor, InstanceId instanceId, IdGeneratorProvider idGeneratorProvider) {
-        SnowflakeIdProperties.Provider shareProvider = snowflakeIdProperties.getShare();
-        MillisecondSnowflakeId shareIdGen = createIdGen(machineIdDistributor, instanceId, shareProvider);
+        SnowflakeIdProperties.IdDefinition shareIdDefinition = snowflakeIdProperties.getShare();
+        MillisecondSnowflakeId shareIdGen = createIdGen(machineIdDistributor, instanceId, shareIdDefinition);
         idGeneratorProvider.setShare(shareIdGen);
-        if (Objects.isNull(snowflakeIdProperties.getProviders())) {
+        if (Objects.isNull(snowflakeIdProperties.getProvider())) {
             return shareIdGen;
         }
-        snowflakeIdProperties.getProviders().forEach((name, provider) -> {
-            IdGenerator idGenerator = createIdGen(machineIdDistributor, instanceId, provider);
+        snowflakeIdProperties.getProvider().forEach((name, idDefinition) -> {
+            IdGenerator idGenerator = createIdGen(machineIdDistributor, instanceId, idDefinition);
             idGeneratorProvider.set(name, idGenerator);
         });
 
         return shareIdGen;
     }
 
-    private MillisecondSnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.Provider provider) {
-        int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), provider.getMachineBit(), instanceId);
-        return new MillisecondSnowflakeId(provider.getEpoch(), provider.getTimestampBit(), provider.getMachineBit(), provider.getSequenceBit(), machineId);
+    private MillisecondSnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition) {
+        int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), idDefinition.getMachineBit(), instanceId);
+        return new MillisecondSnowflakeId(idDefinition.getEpoch(), idDefinition.getTimestampBit(), idDefinition.getMachineBit(), idDefinition.getSequenceBit(), machineId);
     }
 
 }

@@ -147,7 +147,7 @@ The TPS performance limit of stand-alone Redis is about 10W+. If we have higher 
 ```yaml
 cosid:
   snowflake:
-    providers:
+    provider:
       bizA:
         #      epoch:
         #      timestamp-bit:
@@ -173,7 +173,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.8.2";
+    val cosidVersion = "0.8.3";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -189,7 +189,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.8.2</cosid.version>
+        <cosid.version>0.8.3</cosid.version>
     </properties>
 
     <dependencies>
@@ -216,7 +216,7 @@ cosid:
     #    machine-id: 1
     redis:
       enabled: true
-    providers:
+    provider:
       order:
         #      epoch:
         #      timestamp-bit:
@@ -230,7 +230,7 @@ cosid:
     enabled: false
   redis:
     enabled: true
-    providers:
+    provider:
       order:
         step: 100
 

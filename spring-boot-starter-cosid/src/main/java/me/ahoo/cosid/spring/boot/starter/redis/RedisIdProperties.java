@@ -15,12 +15,12 @@ public class RedisIdProperties {
     public final static String PREFIX = CosId.COSID_PREFIX + "redis";
     private boolean enabled;
 
-    private Provider share;
+    private IdDefinition share;
 
-    private Map<String, Provider> providers;
+    private Map<String, IdDefinition> provider;
 
     public RedisIdProperties() {
-        share = new Provider();
+        share = new IdDefinition();
     }
 
     public boolean isEnabled() {
@@ -31,23 +31,23 @@ public class RedisIdProperties {
         this.enabled = enabled;
     }
 
-    public Provider getShare() {
+    public IdDefinition getShare() {
         return share;
     }
 
-    public void setShare(Provider share) {
+    public void setShare(IdDefinition share) {
         this.share = share;
     }
 
-    public Map<String, Provider> getProviders() {
-        return providers;
+    public Map<String, IdDefinition> getProvider() {
+        return provider;
     }
 
-    public void setProviders(Map<String, Provider> providers) {
-        this.providers = providers;
+    public void setProvider(Map<String, IdDefinition> provider) {
+        this.provider = provider;
     }
 
-    public static class Provider {
+    public static class IdDefinition {
 
         private int step = RedisIdGenerator.DEFAULT_STEP;
 

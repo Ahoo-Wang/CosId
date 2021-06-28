@@ -17,7 +17,7 @@ public class RedisIdGeneratorBenchmark {
     private RedisIdGenerator redisIdGenerator;
     private RedisIdGenerator redisIdGenerator100;
     private RedisIdGenerator redisIdGenerator1000;
-    private RedisIdGenerator redisIdGenerator10000;
+//    private JdkId jdkId = new JdkId();
 
     @Setup
     public void setup() {
@@ -26,32 +26,25 @@ public class RedisIdGeneratorBenchmark {
         redisConnection = redisClient.connect();
         redisIdGenerator = new RedisIdGenerator("bh", "1", 1, redisClient.connect().async());
         redisIdGenerator100 = new RedisIdGenerator("bh", "100", 100, redisClient.connect().async());
-        redisIdGenerator1000 = new RedisIdGenerator("bh", "1000",  1000, redisClient.connect().async());
-        redisIdGenerator10000 = new RedisIdGenerator("bh", "10000",  10000, redisClient.connect().async());
+        redisIdGenerator1000 = new RedisIdGenerator("bh", "1000", 1000, redisClient.connect().async());
     }
 
     @Benchmark
-    @Threads(30)
+    @Threads(28)
     public long step_1() {
         return redisIdGenerator.generate();
     }
 
-    @Threads(20)
+    @Threads(1)
     @Benchmark
     public long step_100() {
         return redisIdGenerator100.generate();
     }
 
-    @Threads(15)
+    @Threads(1)
     @Benchmark
     public long step_1000() {
         return redisIdGenerator1000.generate();
-    }
-
-    @Threads(10)
-    @Benchmark
-    public long step_10000() {
-        return redisIdGenerator10000.generate();
     }
 
     @TearDown

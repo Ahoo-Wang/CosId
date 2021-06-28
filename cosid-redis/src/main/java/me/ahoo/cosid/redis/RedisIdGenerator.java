@@ -25,8 +25,8 @@ public class RedisIdGenerator implements IdGenerator {
     private final int step;
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
-    private volatile long maxId;
-    private volatile long sequence;
+    private volatile long maxId = -1;
+    private long sequence;
 
     public RedisIdGenerator(String namespace,
                             String name,
@@ -36,12 +36,15 @@ public class RedisIdGenerator implements IdGenerator {
         this.name = name;
         this.step = step;
         this.redisCommands = redisCommands;
-        this.sequence = 0L;
-        this.fetchId0();
+        this.sequence = this.fetchIdAndResetMaxId() - 1;
     }
 
     public String getNamespace() {
         return namespace;
+    }
+
+    public long getMaxId() {
+        return maxId;
     }
 
     public String getName() {
@@ -56,30 +59,35 @@ public class RedisIdGenerator implements IdGenerator {
     @Override
     public long generate() {
         if (step == 1) {
-            return fetchIdAsync().get(TIMEOUT, TimeUnit.SECONDS);
+            return fetchId();
         }
+
         synchronized (this) {
-            final long nextId = ++sequence;
-            if (nextId < maxId) {
-                return nextId;
+            while (true) {
+                if (sequence < maxId) {
+                    return ++sequence;
+                }
+                fetchIdAndResetMaxId();
             }
-            fetchId0();
-            return ++sequence;
         }
     }
 
+    @SneakyThrows
+    private long fetchIdAndResetMaxId() {
+        final long lastFetchId = fetchId();
+        maxId = lastFetchId + step;
+        return lastFetchId;
+    }
 
     @SneakyThrows
-    private void fetchId0() {
-        if (log.isInfoEnabled()) {
-            log.info("fetchId0 - maxId:[{}] - step:[{}].", maxId, step);
-        }
-        final long lastFetchId = fetchIdAsync().get(TIMEOUT, TimeUnit.SECONDS);
-        maxId = lastFetchId + step;
-        sequence = lastFetchId - 1;
+    private long fetchId() {
+        return fetchIdAsync().get(TIMEOUT, TimeUnit.SECONDS);
     }
 
     private CompletableFuture<Long> fetchIdAsync() {
+        if (log.isInfoEnabled()) {
+            log.info("fetchIdAsync - current Max ID:[{}] - step:[{}].", maxId, step);
+        }
         return RedisScripts.doEnsureScript(REDIS_ID_GENERATE, redisCommands,
                 (scriptSha) -> {
                     String[] keys = {namespace, name};

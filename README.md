@@ -4,7 +4,7 @@
 
 ## Introduction
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* provide a universal, flexible and high-performance distributed ID generator. Two major types of ID generators are currently provided：*SnowflakeId* (Stand-alone TPS performance：4,090,000 [JMH Benchmark](#jmh-benchmark))、*RedisIdGenerator* (Stand-alone TPS performance(Step 1000)：12,688,174 [JMH Benchmark](#jmh-benchmark))。
+*[CosId](https://github.com/Ahoo-Wang/CosId)* provide a universal, flexible and high-performance distributed ID generator. Two major types of ID generators are currently provided：*SnowflakeId* (Stand-alone TPS performance：4,090,000 [JMH Benchmark](#jmh-benchmark))、*RedisIdGenerator* (Stand-alone TPS performance(Step 1000)：35,369,730 [JMH Benchmark](#jmh-benchmark))。
 
 ## SnowflakeId
 
@@ -140,7 +140,7 @@ public class SnowflakeIdState {
 
 ## RedisIdGenerator
 
-The TPS performance limit of stand-alone Redis is about 10W+. If we have higher performance requirements in some scenarios, we can choose to increase the step size of each `ID` distribution to reduce the frequency of network IO requests and improve the performance of `IdGenerator` , Use `RedisIdGenerator` to generate `ID` TPS limit is approximately equal to `10+W Step`.
+When the step size of `RedisIdGenerator` is set to 1 (one Redis network IO request is required for each generation of `ID`) TPS performance is about 21W+/s ([JMH benchmark](#jmh-benchmark)), if we are correct in some scenarios ID generated TPS performance has higher requirements, so you can choose to increase the step size of each `ID` distribution to reduce the frequency of network IO requests and improve the performance of `IdGenerator` (for example, increase the step size to 1000, and the performance can be increased to 3545W+/s [JMH benchmark](#jmh-benchmark)).
 
 ## IdGeneratorProvider
 
@@ -160,6 +160,10 @@ cosid:
         sequence-bit: 12
 ```
 
+```java
+IdGenerator idGenerator = idGeneratorProvider.get("bizA");
+```
+
 In actual use, we generally do not use the same `IdGenerator` for all business services, but different businesses use different `IdGenerator`, then `IdGeneratorProvider` exists to solve this problem, and it is the container of `IdGenerator` , You can get the corresponding `IdGenerator` by the business name.
 
 ## Examples
@@ -173,7 +177,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.8.3";
+    val cosidVersion = "0.8.6";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -189,7 +193,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.8.3</cosid.version>
+        <cosid.version>0.8.6</cosid.version>
     </properties>
 
     <dependencies>
@@ -251,9 +255,8 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4204761.
 ### RedisIdGenerator
 
 ```
-Benchmark                              Mode  Cnt         Score   Error  Units
-RedisIdGeneratorBenchmark.step_1      thrpt          86243.935          ops/s
-RedisIdGeneratorBenchmark.step_100    thrpt        1718229.010          ops/s
-RedisIdGeneratorBenchmark.step_1000   thrpt       12688174.755          ops/s
-RedisIdGeneratorBenchmark.step_10000  thrpt       13995195.387          ops/s
+Benchmark                             Mode  Cnt         Score   Error  Units
+RedisIdGeneratorBenchmark.step_1     thrpt         216277.251          ops/s
+RedisIdGeneratorBenchmark.step_100   thrpt        4006944.185          ops/s
+RedisIdGeneratorBenchmark.step_1000  thrpt       35369730.408          ops/s
 ```

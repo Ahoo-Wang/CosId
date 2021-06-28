@@ -3,7 +3,7 @@
 ## 介绍
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式系统 ID 生成器。 目前提供了俩大类 ID 生成器：*SnowflakeId* （单机 TPS
-性能：409W+/s [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (单机 TPS 性能(步长 1000)：3545W+/s [JMH 基准测试](#jmh-benchmark))。
+性能：409W/s [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (单机 TPS 性能(步长 1000)：3545W+/s [JMH 基准测试](#jmh-benchmark))。
 
 ## SnowflakeId
 

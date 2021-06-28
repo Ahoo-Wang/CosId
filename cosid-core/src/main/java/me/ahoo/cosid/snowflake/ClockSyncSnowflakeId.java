@@ -1,7 +1,6 @@
 package me.ahoo.cosid.snowflake;
 
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 

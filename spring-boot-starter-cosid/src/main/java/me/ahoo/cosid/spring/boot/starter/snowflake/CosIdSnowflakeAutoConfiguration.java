@@ -69,7 +69,7 @@ public class CosIdSnowflakeAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public LocalMachineState localMachineState() {
-        return LocalMachineState.FILE;
+        return new FileLocalMachineState(snowflakeIdProperties.getMachineState().getStateLocation());
     }
 
     @Bean
@@ -111,7 +111,8 @@ public class CosIdSnowflakeAutoConfiguration {
     @Bean
     @ConditionalOnBean(value = {InstanceId.class, MachineIdDistributor.class})
     public MachineId machineId(InstanceId instanceId, MachineIdDistributor machineIdDistributor) {
-        int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), snowflakeIdProperties.getShare().getMachineBit(), instanceId);
+        Integer machineBit = getMachineBit(snowflakeIdProperties.getShare());
+        int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), machineBit, instanceId);
         return new MachineId(machineId);
     }
 
@@ -134,15 +135,20 @@ public class CosIdSnowflakeAutoConfiguration {
     }
 
     private SnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition) {
-        Integer machineBit = idDefinition.getMachineBit();
-        if (Objects.isNull(machineBit) || machineBit <= 0) {
-            machineBit = snowflakeIdProperties.getInstanceId().getMachineBit();
-        }
+        Integer machineBit = getMachineBit(idDefinition);
         int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), machineBit, instanceId);
         if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {
             return new SecondSnowflakeId(idDefinition.getEpoch(), idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId);
         }
         return new MillisecondSnowflakeId(idDefinition.getEpoch(), idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId);
+    }
+
+    private Integer getMachineBit(SnowflakeIdProperties.IdDefinition idDefinition) {
+        Integer machineBit = idDefinition.getMachineBit();
+        if (Objects.isNull(machineBit) || machineBit <= 0) {
+            machineBit = snowflakeIdProperties.getInstanceId().getMachineBit();
+        }
+        return machineBit;
     }
 
 }

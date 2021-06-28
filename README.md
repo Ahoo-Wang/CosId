@@ -4,7 +4,7 @@
 
 ## Introduction
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* provide a universal, flexible and high-performance distributed ID generator. Two major types of ID generators are currently provided：*SnowflakeId* (Stand-alone TPS performance：4,090,000 [JMH Benchmark](#jmh-benchmark))、*RedisIdGenerator* (Stand-alone TPS performance(Step 1000)：35,369,730 [JMH Benchmark](#jmh-benchmark))。
+*[CosId](https://github.com/Ahoo-Wang/CosId)* provide a universal, flexible and high-performance distributed ID generator. Two major types of ID generators are currently provided：*SnowflakeId* (Stand-alone TPS performance：4,090,000 [JMH Benchmark](#jmh-benchmark))、*RedisIdGenerator* (Stand-alone TPS performance(Step 1000)：36,874,696 [JMH Benchmark](#jmh-benchmark))。
 
 ## SnowflakeId
 
@@ -177,7 +177,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.9.0";
+    val cosidVersion = "0.9.2";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -193,7 +193,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.9.0</cosid.version>
+        <cosid.version>0.9.2</cosid.version>
     </properties>
 
     <dependencies>

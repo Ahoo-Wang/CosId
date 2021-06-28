@@ -22,8 +22,10 @@ cosid:
         #      timestamp-bit:
         sequence-bit: 12
     enabled: true
-#  redis:
-#    enabled: true
-#    provider:
-#      order:
-#        step: 100
+  redis:
+    enabled: false
+    provider:
+      order:
+        step: 100
+    share:
+      step: 10

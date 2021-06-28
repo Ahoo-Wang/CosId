@@ -26,7 +26,7 @@ public class ClockSyncSnowflakeId implements IdGenerator {
             if (log.isWarnEnabled()) {
                 log.warn(exception.getMessage(), exception);
             }
-            clockBackwardsSynchronizer.syncUninterruptibly(snowflakeId.getLastStamp());
+            clockBackwardsSynchronizer.syncUninterruptibly(snowflakeId.getLastTimestamp());
             return snowflakeId.generate();
         }
     }

@@ -1,6 +1,5 @@
 package me.ahoo.cosid.snowflake;
 
-import lombok.var;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
@@ -27,7 +26,7 @@ public abstract class SnowflakeId implements IdGenerator {
 
     protected final int machineId;
     protected long sequence = 0L;
-    protected long lastStamp = -1L;
+    protected long lastTimestamp = -1L;
 
     public SnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, int machineId) {
         if ((timestampBit + machineBit + sequenceBit) > TOTAL_BIT) {
@@ -50,7 +49,7 @@ public abstract class SnowflakeId implements IdGenerator {
 
     protected long nextTime() {
         long time = getCurrentTime();
-        while (time <= lastStamp) {
+        while (time <= lastTimestamp) {
             time = getCurrentTime();
         }
         return time;
@@ -65,26 +64,26 @@ public abstract class SnowflakeId implements IdGenerator {
 
     @Override
     public synchronized long generate() {
-        long currentStamp = getCurrentTime();
-        if (currentStamp < lastStamp) {
-            throw new ClockBackwardsException(lastStamp, currentStamp);
+        long currentTimestamp = getCurrentTime();
+        if (currentTimestamp < lastTimestamp) {
+            throw new ClockBackwardsException(lastTimestamp, currentTimestamp);
         }
 
-        if (currentStamp == lastStamp) {
+        if (currentTimestamp == lastTimestamp) {
             sequence = (sequence + 1) & maxSequence;
             if (sequence == 0L) {
-                currentStamp = nextTime();
+                currentTimestamp = nextTime();
             }
         } else {
             sequence = 0L;
         }
 
-        lastStamp = currentStamp;
-        var diffStamp = (currentStamp - epoch);
-        if (diffStamp > maxTimestamp) {
-            throw new TimestampOverflowException(epoch, diffStamp, maxTimestamp);
+        lastTimestamp = currentTimestamp;
+        long diffTimestamp = (currentTimestamp - epoch);
+        if (diffTimestamp > maxTimestamp) {
+            throw new TimestampOverflowException(epoch, diffTimestamp, maxTimestamp);
         }
-        return diffStamp << timestampLeft
+        return diffTimestamp << timestampLeft
                 | machineId << machineLeft
                 | sequence;
     }
@@ -121,8 +120,8 @@ public abstract class SnowflakeId implements IdGenerator {
         return maxSequence;
     }
 
-    public long getLastStamp() {
-        return lastStamp;
+    public long getLastTimestamp() {
+        return lastTimestamp;
     }
 
     public int getMachineId() {

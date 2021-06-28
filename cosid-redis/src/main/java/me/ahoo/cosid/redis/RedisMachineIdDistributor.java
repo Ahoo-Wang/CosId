@@ -27,8 +27,8 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
     public RedisMachineIdDistributor(RedisClusterAsyncCommands<String, String> redisCommands,
-                                        LocalMachineState localMachineState,
-                                        ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+                                     LocalMachineState localMachineState,
+                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(localMachineState, clockBackwardsSynchronizer);
         this.redisCommands = redisCommands;
     }
@@ -46,7 +46,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
         }
         return RedisScripts.doEnsureScript(MACHINE_ID_DISTRIBUTE, redisCommands,
                 (scriptSha) -> {
-                    String[] keys = {namespace};
+                    String[] keys = {wrapNamespace(namespace)};
                     String[] values = {instanceId.getInstanceId(), String.valueOf(maxMachineId(machineBit))};
                     return redisCommands.evalsha(scriptSha, ScriptOutputType.MULTI, keys, values);
                 }
@@ -101,11 +101,15 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
                     if (getBackwardsTimeStamp(lastStamp) < 0) {
                         lastStamp = System.currentTimeMillis();
                     }
-                    String[] keys = {namespace};
+                    String[] keys = {wrapNamespace(namespace)};
                     String[] values = {instanceId.getInstanceId(), String.valueOf(lastStamp)};
                     return redisCommands.evalsha(scriptSha, ScriptOutputType.INTEGER, keys, values);
                 }
         );
+    }
+
+    public static String wrapNamespace(String namespace) {
+        return "{" + namespace + "}";
     }
 
 }

@@ -2,6 +2,7 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.snowflake.machine.FileLocalMachineState;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.Map;
@@ -15,6 +16,7 @@ public class SnowflakeIdProperties {
 
     private boolean enabled;
     private InstanceId instanceId;
+    private MachineState machineState;
     private Manual manual;
 
     private StatefulSet statefulSet;
@@ -36,6 +38,7 @@ public class SnowflakeIdProperties {
     public SnowflakeIdProperties() {
         share = new IdDefinition();
         instanceId = new InstanceId();
+        machineState = new MachineState();
     }
 
     public InstanceId getInstanceId() {
@@ -44,6 +47,14 @@ public class SnowflakeIdProperties {
 
     public void setInstanceId(InstanceId instanceId) {
         this.instanceId = instanceId;
+    }
+
+    public MachineState getMachineState() {
+        return machineState;
+    }
+
+    public void setMachineState(MachineState machineState) {
+        this.machineState = machineState;
     }
 
     public Manual getManual() {
@@ -124,6 +135,19 @@ public class SnowflakeIdProperties {
 
         public void setMachineBit(int machineBit) {
             this.machineBit = machineBit;
+        }
+    }
+
+    public static class MachineState {
+
+        private String stateLocation = FileLocalMachineState.DEFAULT_STATE_LOCATION_PATH;
+
+        public String getStateLocation() {
+            return stateLocation;
+        }
+
+        public void setStateLocation(String stateLocation) {
+            this.stateLocation = stateLocation;
         }
     }
 

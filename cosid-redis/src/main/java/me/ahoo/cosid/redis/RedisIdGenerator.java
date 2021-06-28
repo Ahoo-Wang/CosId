@@ -10,6 +10,8 @@ import me.ahoo.cosky.core.redis.RedisScripts;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import static me.ahoo.cosid.redis.RedisMachineIdDistributor.wrapNamespace;
+
 /**
  * @author ahoo wang
  */
@@ -25,8 +27,8 @@ public class RedisIdGenerator implements IdGenerator {
     private final int step;
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
-    private volatile long maxId = -1;
-    private long sequence;
+    private long maxId = -1;
+    private long sequence = 0;
 
     public RedisIdGenerator(String namespace,
                             String name,
@@ -36,7 +38,6 @@ public class RedisIdGenerator implements IdGenerator {
         this.name = name;
         this.step = step;
         this.redisCommands = redisCommands;
-        this.sequence = this.fetchIdAndResetMaxId() - 1;
     }
 
     public String getNamespace() {
@@ -67,16 +68,19 @@ public class RedisIdGenerator implements IdGenerator {
                 if (sequence < maxId) {
                     return ++sequence;
                 }
-                fetchIdAndResetMaxId();
+                fetchIdAndReset();
             }
         }
     }
 
     @SneakyThrows
-    private long fetchIdAndResetMaxId() {
-        final long lastFetchId = fetchId();
-        maxId = lastFetchId + step;
-        return lastFetchId;
+    private void fetchIdAndReset() {
+        final long preSequence = sequence;
+        maxId = fetchId();
+        sequence = maxId - step;
+        if (log.isInfoEnabled()) {
+            log.info("fetchIdAndResetMaxId - namespace:[{}] - name:[{}] maxId:[{}] - sequence:[{}->{}] - step:[{}].", namespace, name, maxId, preSequence, sequence, step);
+        }
     }
 
     @SneakyThrows
@@ -85,13 +89,10 @@ public class RedisIdGenerator implements IdGenerator {
     }
 
     private CompletableFuture<Long> fetchIdAsync() {
-        if (log.isInfoEnabled()) {
-            log.info("fetchIdAsync - current Max ID:[{}] - step:[{}].", maxId, step);
-        }
         return RedisScripts.doEnsureScript(REDIS_ID_GENERATE, redisCommands,
                 (scriptSha) -> {
-                    String[] keys = {namespace, name};
-                    String[] values = {String.valueOf(step)};
+                    String[] keys = {wrapNamespace(namespace)};
+                    String[] values = {name, String.valueOf(step)};
                     return redisCommands.evalsha(scriptSha, ScriptOutputType.INTEGER, keys, values);
                 }
         );

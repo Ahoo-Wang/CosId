@@ -7,13 +7,13 @@ import com.google.common.base.Strings;
  */
 public class TimestampOverflowException extends RuntimeException {
     private final long epoch;
-    private final long diffStamp;
+    private final long diffTimestamp;
     private final long maxTimestamp;
 
-    public TimestampOverflowException(long epoch, long diffStamp, long maxTimestamp) {
-        super(Strings.lenientFormat("epoch:[%s] - diffStamp:[%s] can't be greater than maxTimestamp:[%s]", epoch, diffStamp, maxTimestamp));
+    public TimestampOverflowException(long epoch, long diffTimestamp, long maxTimestamp) {
+        super(Strings.lenientFormat("epoch:[%s] - diffTimestamp:[%s] can't be greater than maxTimestamp:[%s]", epoch, diffTimestamp, maxTimestamp));
         this.epoch = epoch;
-        this.diffStamp = diffStamp;
+        this.diffTimestamp = diffTimestamp;
         this.maxTimestamp = maxTimestamp;
     }
 
@@ -21,8 +21,8 @@ public class TimestampOverflowException extends RuntimeException {
         return epoch;
     }
 
-    public long getDiffStamp() {
-        return diffStamp;
+    public long getDiffTimestamp() {
+        return diffTimestamp;
     }
 
     public long getMaxTimestamp() {

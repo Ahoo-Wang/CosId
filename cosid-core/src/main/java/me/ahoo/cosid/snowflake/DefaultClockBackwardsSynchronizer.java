@@ -42,7 +42,7 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
         }
 
         if (backwardsStamp > brokenThreshold) {
-            throw new ClockTooManyBackwardsException(lastTimestamp, System.currentTimeMillis());
+            throw new ClockTooManyBackwardsException(lastTimestamp, System.currentTimeMillis(), brokenThreshold);
         }
 
         TimeUnit.MILLISECONDS.sleep(backwardsStamp);

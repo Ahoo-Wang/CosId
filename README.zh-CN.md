@@ -3,7 +3,7 @@
 ## 介绍
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式系统 ID 生成器。 目前提供了俩大类 ID 生成器：*SnowflakeId* （单机 TPS
-性能：409W/s [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (单机 TPS 性能(步长 1000)：3545W+/s [JMH 基准测试](#jmh-benchmark))。
+性能：409W/s [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (单机 TPS 性能(步长 1000)：3687W+/s [JMH 基准测试](#jmh-benchmark))。
 
 ## SnowflakeId
 
@@ -180,7 +180,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.9.0";
+    val cosidVersion = "0.9.2";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -196,7 +196,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.9.0</cosid.version>
+        <cosid.version>0.9.2</cosid.version>
     </properties>
 
     <dependencies>
@@ -263,8 +263,8 @@ gradle cosid-redis:jmh
 ```
 
 ```
-Benchmark                             Mode  Cnt         Score   Error  Units
-RedisIdGeneratorBenchmark.step_1     thrpt         216277.251          ops/s
-RedisIdGeneratorBenchmark.step_100   thrpt        4006944.185          ops/s
-RedisIdGeneratorBenchmark.step_1000  thrpt       35369730.408          ops/s
+Benchmark                             Mode  Cnt         Score        Error  Units
+RedisIdGeneratorBenchmark.step_1     thrpt   25    220218.848 ±   2070.786  ops/s
+RedisIdGeneratorBenchmark.step_100   thrpt   25   3605422.967 ±  13479.405  ops/s
+RedisIdGeneratorBenchmark.step_1000  thrpt   25  36874696.252 ± 357214.292  ops/s
 ```

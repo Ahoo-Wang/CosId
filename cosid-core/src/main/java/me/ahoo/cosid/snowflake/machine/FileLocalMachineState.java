@@ -16,16 +16,16 @@ import java.util.List;
  */
 @Slf4j
 public class FileLocalMachineState implements LocalMachineState {
-    public static final String DEFAULT_STATE_DIRECTORY_PATH = "./cosid-local-machine/";
+    public static final String DEFAULT_STATE_LOCATION_PATH = "./cosid-local-machine/";
     public static final String STATE_DELIMITER = "|";
-    public final String stateDirectoryPath;
+    public final String stateLocation;
 
-    public FileLocalMachineState(String stateDirectoryPath) {
-        this.stateDirectoryPath = stateDirectoryPath;
+    public FileLocalMachineState(String stateLocation) {
+        this.stateLocation = stateLocation;
     }
 
     public FileLocalMachineState() {
-        this(DEFAULT_STATE_DIRECTORY_PATH);
+        this(DEFAULT_STATE_LOCATION_PATH);
     }
 
     @SneakyThrows
@@ -33,19 +33,19 @@ public class FileLocalMachineState implements LocalMachineState {
     public MachineState get(String namespace, InstanceId instanceId) {
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isInfoEnabled()) {
-            log.info("get - read from state path : [{}].", stateFile.getAbsolutePath());
+            log.info("get - read from stateLocation : [{}].", stateFile.getAbsolutePath());
         }
 
         if (!stateFile.exists()) {
             if (log.isInfoEnabled()) {
-                log.info("get - read from state path : [{}] not found.", stateFile.getAbsolutePath());
+                log.info("get - read from stateLocation : [{}] not found.", stateFile.getAbsolutePath());
             }
             return MachineState.NOT_FOUND;
         }
         String stateLine = Files.asCharSource(stateFile, Charsets.UTF_8).readFirstLine();
         if (Strings.isNullOrEmpty(stateLine)) {
             if (log.isWarnEnabled()) {
-                log.warn("get - read from state path : [{}] state data is empty.", stateFile.getAbsolutePath());
+                log.warn("get - read from stateLocation : [{}] state data is empty.", stateFile.getAbsolutePath());
             }
             return MachineState.NOT_FOUND;
         }
@@ -63,11 +63,11 @@ public class FileLocalMachineState implements LocalMachineState {
     }
 
     private File getStateFile(String namespace, InstanceId instanceId) {
-        File stateDirectory = new File(stateDirectoryPath);
+        File stateDirectory = new File(stateLocation);
         if (!stateDirectory.exists()) {
             stateDirectory.mkdirs();
         }
-        String statePath = stateDirectoryPath + namespace + "__" + instanceId.getInstanceId();
+        String statePath = stateLocation + namespace + "__" + instanceId.getInstanceId();
         return new File(statePath);
     }
 
@@ -76,7 +76,7 @@ public class FileLocalMachineState implements LocalMachineState {
     public void set(String namespace, int machineId, InstanceId instanceId) {
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isInfoEnabled()) {
-            log.info("set - write machineId:[{}] to state path : [{}].", machineId, stateFile.getAbsolutePath());
+            log.info("set - write machineId:[{}] to stateLocation : [{}].", machineId, stateFile.getAbsolutePath());
         }
 
         String stateLine = Strings.lenientFormat("%s%s%s", machineId, STATE_DELIMITER, System.currentTimeMillis());
@@ -94,7 +94,7 @@ public class FileLocalMachineState implements LocalMachineState {
     public void remove(String namespace, InstanceId instanceId) {
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isInfoEnabled()) {
-            log.info("remove - state path : [{}].", stateFile.getAbsolutePath());
+            log.info("remove - stateLocation : [{}].", stateFile.getAbsolutePath());
         }
         if (stateFile.exists()) {
             stateFile.delete();
@@ -110,14 +110,14 @@ public class FileLocalMachineState implements LocalMachineState {
         if (stateFiles == null) return;
         for (File stateFile : stateFiles) {
             if (log.isInfoEnabled()) {
-                log.info("clear - state path : [{}].", stateFile.getAbsolutePath());
+                log.info("clear - stateLocation : [{}].", stateFile.getAbsolutePath());
             }
             stateFile.delete();
         }
     }
 
     private File[] getStateFilesOf(String namespace) {
-        File stateDirectory = new File(stateDirectoryPath);
+        File stateDirectory = new File(stateLocation);
 
         if (!stateDirectory.exists()) {
             return new File[0];

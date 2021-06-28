@@ -82,7 +82,7 @@ public class CosIdSnowflakeAutoConfiguration {
     @ConditionalOnProperty(value = SnowflakeIdProperties.Manual.ENABLED_KEY, havingValue = "true")
     public MachineIdDistributor manualMachineIdDistributor(LocalMachineState localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         Integer machineId = snowflakeIdProperties.getManual().getMachineId();
-        Preconditions.checkNotNull(machineId, "me.ahoo.cosid.redis.manual.machineId can not be null.");
+        Preconditions.checkNotNull(machineId, "cosid.snowflake.manual.machineId can not be null.");
         return new ManualMachineIdDistributor(machineId, localMachineState, clockBackwardsSynchronizer);
     }
 

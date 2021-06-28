@@ -124,4 +124,8 @@ public abstract class SnowflakeId implements IdGenerator {
     public long getLastStamp() {
         return lastStamp;
     }
+
+    public int getMachineId() {
+        return machineId;
+    }
 }

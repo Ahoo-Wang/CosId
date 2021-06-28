@@ -29,6 +29,7 @@ public class IdGeneratorTest {
     @Test
     public void snowflakeTest() {
         var idGen = new MillisecondSnowflakeId(1);
+        Assertions.assertEquals(1, idGen.getMachineId());
         var id = idGen.generate();
         var id1 = idGen.generate();
 

@@ -35,6 +35,7 @@ public class SnowflakeIdProperties {
 
     public SnowflakeIdProperties() {
         share = new IdDefinition();
+        instanceId = new InstanceId();
     }
 
     public InstanceId getInstanceId() {
@@ -89,8 +90,11 @@ public class SnowflakeIdProperties {
         private Boolean stable;
 
         private Integer port;
+        private String instanceId;
 
-        public Boolean isStable() {
+        private int machineBit = MillisecondSnowflakeId.DEFAULT_MACHINE_BIT;
+
+        public Boolean getStable() {
             return stable;
         }
 
@@ -104,6 +108,22 @@ public class SnowflakeIdProperties {
 
         public void setPort(Integer port) {
             this.port = port;
+        }
+
+        public String getInstanceId() {
+            return instanceId;
+        }
+
+        public void setInstanceId(String instanceId) {
+            this.instanceId = instanceId;
+        }
+
+        public int getMachineBit() {
+            return machineBit;
+        }
+
+        public void setMachineBit(int machineBit) {
+            this.machineBit = machineBit;
         }
     }
 
@@ -159,7 +179,7 @@ public class SnowflakeIdProperties {
         private TimestampUnit timestampUnit = TimestampUnit.MILLISECOND;
         private long epoch = CosId.COSID_EPOCH;
         private int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
-        private int machineBit = MillisecondSnowflakeId.DEFAULT_MACHINE_BIT;
+        private Integer machineBit;
         private int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT;
 
         public TimestampUnit getTimestampUnit() {
@@ -186,11 +206,11 @@ public class SnowflakeIdProperties {
             this.timestampBit = timestampBit;
         }
 
-        public int getMachineBit() {
+        public Integer getMachineBit() {
             return machineBit;
         }
 
-        public void setMachineBit(int machineBit) {
+        public void setMachineBit(Integer machineBit) {
             this.machineBit = machineBit;
         }
 

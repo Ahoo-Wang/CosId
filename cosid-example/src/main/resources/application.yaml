@@ -1,27 +1,27 @@
 cosid:
   namespace: ${spring.application.name}
   snowflake:
-  #  stateful-set:
-  #    enabled: true
-  #  manual:
-  #    enabled: true
-  #    machine-id: 1
+    #    instance-id:
+    #      stable: true
+    #      machine-bit: 10
+    #      instance-id: ${HOSTNAME}
+    #  stateful-set:
+    #    enabled: true
+    #  manual:
+    #    enabled: true
+    #    machine-id: 1
     redis:
       enabled: true
     provider:
       order:
-  #      epoch:
-  #      timestamp-bit:
-  #      machine-bit:
+        #      epoch:
+        #      timestamp-bit:
         sequence-bit: 12
       user:
-  #      epoch:
-  #      timestamp-bit:
-  #      machine-bit:
+        #      epoch:
+        #      timestamp-bit:
         sequence-bit: 12
     enabled: true
-#    instance-id:
-#      stable: true
 #  redis:
 #    enabled: true
 #    provider:

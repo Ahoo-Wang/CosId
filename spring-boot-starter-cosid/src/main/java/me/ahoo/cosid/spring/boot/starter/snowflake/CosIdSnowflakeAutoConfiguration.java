@@ -1,6 +1,7 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
@@ -40,21 +41,26 @@ public class CosIdSnowflakeAutoConfiguration {
         this.snowflakeIdProperties = snowflakeIdProperties;
     }
 
-
     @Bean
     @ConditionalOnMissingBean
     public InstanceId instanceId(InetUtils inetUtils) {
-        InetUtils.HostInfo hostInfo = inetUtils.findFirstNonLoopbackHostInfo();
-        int port = (int) Systems.getCurrentProcessId();
-        boolean stable = false;
         SnowflakeIdProperties.InstanceId instanceId = snowflakeIdProperties.getInstanceId();
-        if (Objects.nonNull(instanceId)) {
-            if (Objects.nonNull(instanceId.getPort()) && instanceId.getPort() > 0) {
-                port = instanceId.getPort();
-            }
-            if (Objects.nonNull(instanceId.isStable()) && instanceId.isStable()) {
-                stable = instanceId.isStable();
-            }
+        Preconditions.checkNotNull(instanceId, "cosid.snowflake.instanceId can not be null.");
+
+        boolean stable = false;
+        if (Objects.nonNull(instanceId.getStable()) && instanceId.getStable()) {
+            stable = instanceId.getStable();
+        }
+
+        if (!Strings.isNullOrEmpty(instanceId.getInstanceId())) {
+            return DefaultInstanceId.of(instanceId.getInstanceId(), stable);
+        }
+
+        InetUtils.HostInfo hostInfo = inetUtils.findFirstNonLoopbackHostInfo();
+
+        int port = (int) Systems.getCurrentProcessId();
+        if (Objects.nonNull(instanceId.getPort()) && instanceId.getPort() > 0) {
+            port = instanceId.getPort();
         }
 
         return DefaultInstanceId.of(hostInfo.getIpAddress(), port, stable);
@@ -103,6 +109,13 @@ public class CosIdSnowflakeAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnBean(value = {InstanceId.class, MachineIdDistributor.class})
+    public MachineId machineId(InstanceId instanceId, MachineIdDistributor machineIdDistributor) {
+        int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), snowflakeIdProperties.getShare().getMachineBit(), instanceId);
+        return new MachineId(machineId);
+    }
+
+    @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(InstanceId.class)
     public SnowflakeId shareIdGenerator(MachineIdDistributor machineIdDistributor, InstanceId instanceId, IdGeneratorProvider idGeneratorProvider) {
@@ -121,11 +134,15 @@ public class CosIdSnowflakeAutoConfiguration {
     }
 
     private SnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition) {
-        int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), idDefinition.getMachineBit(), instanceId);
-        if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {
-            return new SecondSnowflakeId(idDefinition.getEpoch(), idDefinition.getTimestampBit(), idDefinition.getMachineBit(), idDefinition.getSequenceBit(), machineId);
+        Integer machineBit = idDefinition.getMachineBit();
+        if (Objects.isNull(machineBit) || machineBit <= 0) {
+            machineBit = snowflakeIdProperties.getInstanceId().getMachineBit();
         }
-        return new MillisecondSnowflakeId(idDefinition.getEpoch(), idDefinition.getTimestampBit(), idDefinition.getMachineBit(), idDefinition.getSequenceBit(), machineId);
+        int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), machineBit, instanceId);
+        if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {
+            return new SecondSnowflakeId(idDefinition.getEpoch(), idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId);
+        }
+        return new MillisecondSnowflakeId(idDefinition.getEpoch(), idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId);
     }
 
 }

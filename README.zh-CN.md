@@ -155,12 +155,10 @@ cosid:
       bizA:
         #      epoch:
         #      timestamp-bit:
-        #      machine-bit:
         sequence-bit: 12
       bizB:
         #      epoch:
         #      timestamp-bit:
-        #      machine-bit:
         sequence-bit: 12
 ```
 
@@ -182,7 +180,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.8.8";
+    val cosidVersion = "0.9.0";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -198,7 +196,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.8.8</cosid.version>
+        <cosid.version>0.9.0</cosid.version>
     </properties>
 
     <dependencies>
@@ -218,6 +216,10 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
 cosid:
   namespace: ${spring.application.name}
   snowflake:
+    #    instance-id:
+    #      stable: true
+    #      machine-bit: 10
+    #      instance-id: ${HOSTNAME}
     #  stateful-set:
     #    enabled: true
     #  manual:
@@ -229,20 +231,17 @@ cosid:
       order:
         #      epoch:
         #      timestamp-bit:
-        #      machine-bit:
         sequence-bit: 12
       user:
         #      epoch:
         #      timestamp-bit:
-        #      machine-bit:
         sequence-bit: 12
-    enabled: false
-  redis:
     enabled: true
-    provider:
-      order:
-        step: 100
-
+#  redis:
+#    enabled: true
+#    provider:
+#      order:
+#        step: 100
 ```
 
 ## JMH-Benchmark

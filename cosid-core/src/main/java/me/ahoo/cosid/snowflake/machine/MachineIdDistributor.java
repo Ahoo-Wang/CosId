@@ -1,6 +1,8 @@
 package me.ahoo.cosid.snowflake.machine;
 
 
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+
 /**
  * @author ahoo wang
  */
@@ -22,6 +24,10 @@ public interface MachineIdDistributor {
      * @throws MachineIdOverflowException
      */
     int distribute(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException;
+
+    default int distribute(String namespace, InstanceId instanceId) throws MachineIdOverflowException {
+        return distribute(namespace, MillisecondSnowflakeId.DEFAULT_MACHINE_BIT, instanceId);
+    }
 
     void revert(String namespace, InstanceId instanceId) throws MachineIdOverflowException;
 

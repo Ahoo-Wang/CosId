@@ -3,6 +3,8 @@ package me.ahoo.cosid.snowflake.machine;
 import com.google.common.base.Objects;
 
 /**
+ * 逻辑概念的机器号，并不一定跟物理机/虚拟机一一对应，运行进程的唯一性编号(不同业务领域/服务使用 namespace 隔离)。
+ *
  * @author ahoo wang
  */
 public class MachineId {

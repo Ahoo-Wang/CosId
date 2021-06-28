@@ -177,7 +177,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.8.8";
+    val cosidVersion = "0.9.0";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -193,7 +193,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.8.8</cosid.version>
+        <cosid.version>0.9.0</cosid.version>
     </properties>
 
     <dependencies>
@@ -213,6 +213,10 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 cosid:
   namespace: ${spring.application.name}
   snowflake:
+    #    instance-id:
+    #      stable: true
+    #      machine-bit: 10
+    #      instance-id: ${HOSTNAME}
     #  stateful-set:
     #    enabled: true
     #  manual:
@@ -224,20 +228,17 @@ cosid:
       order:
         #      epoch:
         #      timestamp-bit:
-        #      machine-bit:
         sequence-bit: 12
       user:
         #      epoch:
         #      timestamp-bit:
-        #      machine-bit:
         sequence-bit: 12
-    enabled: false
-  redis:
     enabled: true
-    provider:
-      order:
-        step: 100
-
+#  redis:
+#    enabled: true
+#    provider:
+#      order:
+#        step: 100
 ```
 
 ## JMH-Benchmark

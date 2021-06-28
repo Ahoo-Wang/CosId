@@ -4,6 +4,8 @@ import com.google.common.base.Preconditions;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.SecondSnowflakeId;
+import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.snowflake.machine.*;
 import me.ahoo.cosid.snowflake.machine.k8s.StatefulSetMachineIdDistributor;
 import me.ahoo.cosid.redis.RedisMachineIdDistributor;
@@ -103,9 +105,9 @@ public class CosIdSnowflakeAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(InstanceId.class)
-    public MillisecondSnowflakeId shareIdGenerator(MachineIdDistributor machineIdDistributor, InstanceId instanceId, IdGeneratorProvider idGeneratorProvider) {
+    public SnowflakeId shareIdGenerator(MachineIdDistributor machineIdDistributor, InstanceId instanceId, IdGeneratorProvider idGeneratorProvider) {
         SnowflakeIdProperties.IdDefinition shareIdDefinition = snowflakeIdProperties.getShare();
-        MillisecondSnowflakeId shareIdGen = createIdGen(machineIdDistributor, instanceId, shareIdDefinition);
+        SnowflakeId shareIdGen = createIdGen(machineIdDistributor, instanceId, shareIdDefinition);
         idGeneratorProvider.setShare(shareIdGen);
         if (Objects.isNull(snowflakeIdProperties.getProvider())) {
             return shareIdGen;
@@ -118,8 +120,11 @@ public class CosIdSnowflakeAutoConfiguration {
         return shareIdGen;
     }
 
-    private MillisecondSnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition) {
+    private SnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition) {
         int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), idDefinition.getMachineBit(), instanceId);
+        if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {
+            return new SecondSnowflakeId(idDefinition.getEpoch(), idDefinition.getTimestampBit(), idDefinition.getMachineBit(), idDefinition.getSequenceBit(), machineId);
+        }
         return new MillisecondSnowflakeId(idDefinition.getEpoch(), idDefinition.getTimestampBit(), idDefinition.getMachineBit(), idDefinition.getSequenceBit(), machineId);
     }
 

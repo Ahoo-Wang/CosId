@@ -156,10 +156,19 @@ public class SnowflakeIdProperties {
     }
 
     public static class IdDefinition {
+        private TimestampUnit timestampUnit = TimestampUnit.MILLISECOND;
         private long epoch = CosId.COSID_EPOCH;
         private int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
         private int machineBit = MillisecondSnowflakeId.DEFAULT_MACHINE_BIT;
         private int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT;
+
+        public TimestampUnit getTimestampUnit() {
+            return timestampUnit;
+        }
+
+        public void setTimestampUnit(TimestampUnit timestampUnit) {
+            this.timestampUnit = timestampUnit;
+        }
 
         public long getEpoch() {
             return epoch;
@@ -191,6 +200,11 @@ public class SnowflakeIdProperties {
 
         public void setSequenceBit(int sequenceBit) {
             this.sequenceBit = sequenceBit;
+        }
+
+        public enum TimestampUnit {
+            SECOND,
+            MILLISECOND
         }
     }
 }

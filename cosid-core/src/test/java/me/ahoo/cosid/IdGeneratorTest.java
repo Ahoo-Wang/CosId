@@ -7,6 +7,11 @@ import me.ahoo.cosid.snowflake.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -59,7 +64,7 @@ public class IdGeneratorTest {
     }
 
 
-//    @Test
+    //    @Test
     public void snowflakePerformanceTest() {
         var idGen = new MillisecondSnowflakeId(1);
         var max = 50000000;
@@ -99,7 +104,7 @@ public class IdGeneratorTest {
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
 
-//    @Test
+    @Test
     public void safe_ofMillisecond() {
         var snowflakeId = SafeJavaScriptSnowflakeId.ofMillisecond(1);
         var snowflakeIdStateParser = MillisecondSnowflakeIdStateParser.of(snowflakeId);
@@ -109,8 +114,53 @@ public class IdGeneratorTest {
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
 
+    static final int CONCURRENT_THREADS = 30;
+    static final int THREAD_REQUEST_NUM = 50000;
 
-//    @Test
+    @Test
+    public void concurrent_generate_step_10() {
+        var idGen = new MillisecondSnowflakeId(1);
+        ExecutorService executorService = Executors.newFixedThreadPool(10);
+        CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
+        int threads = 0;
+        while (threads < CONCURRENT_THREADS) {
+            completableFutures[threads] = CompletableFuture.supplyAsync(() -> {
+                List<Long> ids = new ArrayList<>(THREAD_REQUEST_NUM);
+                int requestNum = 0;
+                while (requestNum < THREAD_REQUEST_NUM) {
+                    requestNum++;
+                    long id = idGen.generate();
+                    ids.add(id);
+                }
+                return ids;
+            });
+
+            threads++;
+        }
+        CompletableFuture.allOf(completableFutures).thenAccept(nil -> {
+            List<Long> totalIds = new ArrayList<>();
+            for (CompletableFuture<List<Long>> completableFuture : completableFutures) {
+                List<Long> ids = completableFuture.join();
+                totalIds.addAll(ids);
+            }
+            totalIds.sort(Long::compareTo);
+            Long lastId = null;
+            for (Long currentId : totalIds) {
+                if (lastId == null) {
+                    lastId = currentId;
+                    continue;
+                }
+
+                Assertions.assertTrue(currentId > lastId);
+                lastId = currentId;
+            }
+
+        }).join();
+        executorService.shutdown();
+    }
+
+
+    //    @Test
     public void secondPerformanceTest() {
         var snowflakeId = new SecondSnowflakeId(1);
         var max = 50000000;
@@ -124,7 +174,7 @@ public class IdGeneratorTest {
         System.out.println(String.format("times: %s , taken: %s s,tps: max[%s] %s", max, takenTime, snowflakeId.getMaxSequence(), max / takenTime));
     }
 
-//    @Test
+    //    @Test
     public void safe_ofSecondPerformanceTest() {
         var snowflakeId = SafeJavaScriptSnowflakeId.ofSecond(1);
         var max = 50000000;
@@ -138,7 +188,7 @@ public class IdGeneratorTest {
         System.out.println(String.format("times: %s , taken: %s s,tps: max[%s] %s", max, takenTime, snowflakeId.getMaxSequence(), max / takenTime));
     }
 
-//    @Test
+    //    @Test
     public void safe_ofMillisecondPerformanceTest() {
         var snowflakeId = SafeJavaScriptSnowflakeId.ofMillisecond(1);
         var max = 500000;

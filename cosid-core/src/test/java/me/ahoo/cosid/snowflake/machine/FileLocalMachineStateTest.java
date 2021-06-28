@@ -3,13 +3,11 @@ package me.ahoo.cosid.snowflake.machine;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 /**
  * @author ahoo wang
  */
 class FileLocalMachineStateTest {
-    private final String namespace = "test";
+    private static final String namespace = "test";
     private final FileLocalMachineState fileLocalMachineState = new FileLocalMachineState();
 
     @Test

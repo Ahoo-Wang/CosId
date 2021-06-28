@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = CosId.COSID)
 public class CosIdProperties {
-    public final String DEFAULT_NAMESPACE = "{" + CosId.COSID + "}";
+    public static final String DEFAULT_NAMESPACE = "{" + CosId.COSID + "}";
     private boolean enabled = true;
 
     private String namespace = DEFAULT_NAMESPACE;

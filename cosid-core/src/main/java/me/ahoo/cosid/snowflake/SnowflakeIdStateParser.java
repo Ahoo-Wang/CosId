@@ -102,7 +102,7 @@ public abstract class SnowflakeIdStateParser {
 
 
     public static SnowflakeIdStateParser of(SnowflakeId snowflakeId) {
-        if (SecondSnowflakeId.class.isInstance(snowflakeId)) {
+        if (snowflakeId instanceof SecondSnowflakeId) {
             return SecondSnowflakeIdStateParser.of(snowflakeId);
         }
         return MillisecondSnowflakeIdStateParser.of(snowflakeId);

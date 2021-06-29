@@ -122,28 +122,35 @@ public class CosIdSnowflakeAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(InstanceId.class)
-    public SnowflakeId shareIdGenerator(MachineIdDistributor machineIdDistributor, InstanceId instanceId, IdGeneratorProvider idGeneratorProvider) {
+    public SnowflakeId shareIdGenerator(MachineIdDistributor machineIdDistributor, InstanceId instanceId, IdGeneratorProvider idGeneratorProvider, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         SnowflakeIdProperties.IdDefinition shareIdDefinition = snowflakeIdProperties.getShare();
-        SnowflakeId shareIdGen = createIdGen(machineIdDistributor, instanceId, shareIdDefinition);
+        SnowflakeId shareIdGen = createIdGen(machineIdDistributor, instanceId, shareIdDefinition, clockBackwardsSynchronizer);
         idGeneratorProvider.setShare(shareIdGen);
         if (Objects.isNull(snowflakeIdProperties.getProvider())) {
             return shareIdGen;
         }
         snowflakeIdProperties.getProvider().forEach((name, idDefinition) -> {
-            IdGenerator idGenerator = createIdGen(machineIdDistributor, instanceId, idDefinition);
+            IdGenerator idGenerator = createIdGen(machineIdDistributor, instanceId, idDefinition, clockBackwardsSynchronizer);
             idGeneratorProvider.set(name, idGenerator);
         });
 
         return shareIdGen;
     }
 
-    private SnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition) {
+    private SnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        long epoch = getEpoch(idDefinition);
         Integer machineBit = getMachineBit(idDefinition);
+        SnowflakeId snowflakeId;
         int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), machineBit, instanceId);
         if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {
-            return new SecondSnowflakeId(idDefinition.getEpoch(), idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId);
+            snowflakeId = new SecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId);
+        } else {
+            snowflakeId = new MillisecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId);
         }
-        return new MillisecondSnowflakeId(idDefinition.getEpoch(), idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId);
+        if (idDefinition.isClockSync()) {
+            return new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
+        }
+        return snowflakeId;
     }
 
     private Integer getMachineBit(SnowflakeIdProperties.IdDefinition idDefinition) {
@@ -152,6 +159,13 @@ public class CosIdSnowflakeAutoConfiguration {
             machineBit = snowflakeIdProperties.getMachine().getMachineBit();
         }
         return machineBit;
+    }
+
+    private long getEpoch(SnowflakeIdProperties.IdDefinition idDefinition) {
+        if (idDefinition.getEpoch() > 0) {
+            return idDefinition.getEpoch();
+        }
+        return snowflakeIdProperties.getEpoch();
     }
 
 }

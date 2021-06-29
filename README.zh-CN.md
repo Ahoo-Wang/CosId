@@ -126,6 +126,13 @@ cosid:
 
 ### ClockSyncSnowflakeId (主动时钟同步 `SnowflakeId`)
 
+```yaml
+cosid:
+  snowflake:
+    share:
+      clock-sync: true
+```
+
 默认 `SnowflakeId` 当发生时钟回拨时会直接抛出 `ClockBackwardsException` 异常，而使用 `ClockSyncSnowflakeId` 会使用 `ClockBackwardsSynchronizer`
 主动等待时钟同步来重新生成 ID，提供更加友好的使用体验。
 
@@ -201,7 +208,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.9.5";
+    val cosidVersion = "0.9.8";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -217,7 +224,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.9.5</cosid.version>
+        <cosid.version>0.9.8</cosid.version>
     </properties>
 
     <dependencies>
@@ -238,6 +245,7 @@ cosid:
   namespace: ${spring.application.name}
   snowflake:
     enabled: true
+    #    epoch: 1577203200000
     machine:
       #      stable: true
       #      machine-bit: 10
@@ -249,13 +257,13 @@ cosid:
       state-storage:
         local:
           state-location: ./cosid-machine-state/
+    share:
+      clock-sync: true
     provider:
       bizA:
-        #        epoch:
         #        timestamp-bit:
         sequence-bit: 12
       bizB:
-        #        epoch:
         #        timestamp-bit:
         sequence-bit: 12
 #  redis:

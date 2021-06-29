@@ -6,7 +6,7 @@ import me.ahoo.cosid.CosId;
  * @author ahoo wang
  * Creation time 2020/9/22 20:13
  **/
-public class MillisecondSnowflakeId extends SnowflakeId {
+public class MillisecondSnowflakeId extends AbstractSnowflakeId {
 
     public final static int DEFAULT_TIMESTAMP_BIT = 41;
     public final static int DEFAULT_MACHINE_BIT = 10;

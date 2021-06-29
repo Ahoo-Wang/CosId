@@ -16,6 +16,7 @@ public class SnowflakeIdProperties {
     public final static String PREFIX = CosId.COSID_PREFIX + "snowflake";
 
     private boolean enabled;
+    private long epoch = CosId.COSID_EPOCH;
     private Machine machine;
     private ClockBackwards clockBackwards;
     private IdDefinition share;
@@ -33,6 +34,14 @@ public class SnowflakeIdProperties {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public long getEpoch() {
+        return epoch;
+    }
+
+    public void setEpoch(long epoch) {
+        this.epoch = epoch;
     }
 
     public Machine getMachine() {
@@ -212,11 +221,20 @@ public class SnowflakeIdProperties {
     }
 
     public static class IdDefinition {
+        private boolean clockSync = true;
         private TimestampUnit timestampUnit = TimestampUnit.MILLISECOND;
-        private long epoch = CosId.COSID_EPOCH;
+        private long epoch;
         private int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
         private Integer machineBit;
         private int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT;
+
+        public boolean isClockSync() {
+            return clockSync;
+        }
+
+        public void setClockSync(boolean clockSync) {
+            this.clockSync = clockSync;
+        }
 
         public TimestampUnit getTimestampUnit() {
             return timestampUnit;

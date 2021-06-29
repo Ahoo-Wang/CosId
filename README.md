@@ -125,6 +125,13 @@ The default `LocalMachineStateStorage` local machine state storage uses a local 
 
 ### ClockSyncSnowflakeId
 
+```yaml
+cosid:
+  snowflake:
+    share:
+      clock-sync: true
+```
+
 The default `SnowflakeId` will directly throw a `ClockBackwardsException` when a clock callback occurs, while using the `ClockSyncSnowflakeId` will use the `ClockBackwardsSynchronizer` to actively wait for clock synchronization to regenerate the ID, providing a more user-friendly experience.
 
 ### SafeJavaScriptSnowflakeId
@@ -196,7 +203,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.9.5";
+    val cosidVersion = "0.9.8";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -212,7 +219,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.9.5</cosid.version>
+        <cosid.version>0.9.8</cosid.version>
     </properties>
 
     <dependencies>
@@ -233,6 +240,7 @@ cosid:
   namespace: ${spring.application.name}
   snowflake:
     enabled: true
+#    epoch: 1577203200000
     machine:
 #      stable: true
 #      machine-bit: 10
@@ -244,13 +252,13 @@ cosid:
       state-storage:
         local:
           state-location: ./cosid-machine-state/
+    share:
+      clock-sync: true
     provider:
       bizA:
-#        epoch:
 #        timestamp-bit:
         sequence-bit: 12
       bizB:
-#        epoch:
 #        timestamp-bit:
         sequence-bit: 12
 #  redis:

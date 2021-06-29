@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
  * @author ahoo wang
  * Creation time 2020/9/22 20:14
  **/
-public class SecondSnowflakeId extends SnowflakeId {
+public class SecondSnowflakeId extends AbstractSnowflakeId {
 
     public final static int DEFAULT_TIMESTAMP_BIT = 31;
     public final static int DEFAULT_MACHINE_BIT = 10;

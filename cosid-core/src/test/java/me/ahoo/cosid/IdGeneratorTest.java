@@ -120,7 +120,7 @@ public class IdGeneratorTest {
 
     @Test
     public void concurrent_generate_step_10() {
-        var idGen = new MillisecondSnowflakeId(1);
+        final SnowflakeId idGen = new ClockSyncSnowflakeId(new MillisecondSnowflakeId(1), ClockBackwardsSynchronizer.DEFAULT);
         ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;

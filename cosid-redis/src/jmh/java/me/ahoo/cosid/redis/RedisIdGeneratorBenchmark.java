@@ -24,9 +24,9 @@ public class RedisIdGeneratorBenchmark {
         System.out.println("\n ----- RedisIdGeneratorBenchmark setup ----- \n");
         redisClient = RedisClient.create("redis://localhost:6379");
         redisConnection = redisClient.connect();
-        redisIdGenerator = new RedisIdGenerator("bh", "1", 1, redisClient.connect().async());
-        redisIdGenerator100 = new RedisIdGenerator("bh", "100", 100, redisClient.connect().async());
-        redisIdGenerator1000 = new RedisIdGenerator("bh", "1000", 1000, redisClient.connect().async());
+        redisIdGenerator = new RedisIdGenerator("bh", "1", 0, 1, RedisIdGenerator.DEFAULT_TIMEOUT, redisClient.connect().async());
+        redisIdGenerator100 = new RedisIdGenerator("bh", "100", 0, 100, RedisIdGenerator.DEFAULT_TIMEOUT, redisClient.connect().async());
+        redisIdGenerator1000 = new RedisIdGenerator("bh", "1000", 0, 1000, RedisIdGenerator.DEFAULT_TIMEOUT, redisClient.connect().async());
     }
 
     @Benchmark

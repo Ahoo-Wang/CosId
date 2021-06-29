@@ -4,6 +4,7 @@ import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.redis.RedisIdGenerator;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
 import java.util.Map;
 
 /**
@@ -13,8 +14,9 @@ import java.util.Map;
 @ConfigurationProperties(prefix = RedisIdProperties.PREFIX)
 public class RedisIdProperties {
     public final static String PREFIX = CosId.COSID_PREFIX + "redis";
+    public final static String SHARE = "share";
     private boolean enabled;
-
+    private Duration timeout = RedisIdGenerator.DEFAULT_TIMEOUT;
     private IdDefinition share;
 
     private Map<String, IdDefinition> provider;
@@ -29,6 +31,14 @@ public class RedisIdProperties {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public Duration getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(Duration timeout) {
+        this.timeout = timeout;
     }
 
     public IdDefinition getShare() {
@@ -49,7 +59,16 @@ public class RedisIdProperties {
 
     public static class IdDefinition {
 
+        private int offset = RedisIdGenerator.DEFAULT_OFFSET;
         private int step = RedisIdGenerator.DEFAULT_STEP;
+
+        public int getOffset() {
+            return offset;
+        }
+
+        public void setOffset(int offset) {
+            this.offset = offset;
+        }
 
         public int getStep() {
             return step;

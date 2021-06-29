@@ -2,6 +2,7 @@ package me.ahoo.cosid.example;
 
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -25,7 +26,6 @@ public class IdGenController {
 
     @GetMapping("genFriendlyId")
     public String genFriendlyId() {
-        long id = shareIdGenerator.generate();
-        return idGeneratorProvider.getShareSnowflakeIdStateParser().parse(id).getFriendlyId();
+        return ((SnowflakeFriendlyId) shareIdGenerator).friendlyId().getFriendlyId();
     }
 }

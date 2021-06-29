@@ -20,6 +20,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.annotation.Nullable;
+import java.time.Duration;
 import java.util.Objects;
 
 /**
@@ -98,7 +99,8 @@ public class CosIdSnowflakeAutoConfiguration {
             }
             case REDIS: {
                 Preconditions.checkNotNull(redisConnectionFactory, "redisConnectionFactory can not be null.");
-                return new RedisMachineIdDistributor(redisConnectionFactory.getShareAsyncCommands(), localMachineState, clockBackwardsSynchronizer);
+                Duration timeout = snowflakeIdProperties.getMachine().getDistributor().getRedis().getTimeout();
+                return new RedisMachineIdDistributor(timeout, redisConnectionFactory.getShareAsyncCommands(), localMachineState, clockBackwardsSynchronizer);
             }
             default:
                 throw new IllegalStateException("Unexpected value: " + machineIdDistributor.getType());
@@ -148,7 +150,10 @@ public class CosIdSnowflakeAutoConfiguration {
             snowflakeId = new MillisecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId);
         }
         if (idDefinition.isClockSync()) {
-            return new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
+            snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
+        }
+        if (idDefinition.isFriendly()) {
+            snowflakeId = new DefaultSnowflakeFriendlyId(snowflakeId);
         }
         return snowflakeId;
     }

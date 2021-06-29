@@ -1,9 +1,7 @@
 package me.ahoo.cosid;
 
+import me.ahoo.cosid.snowflake.*;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
-import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
-import me.ahoo.cosid.snowflake.SafeJavaScriptSnowflakeId;
-import me.ahoo.cosid.snowflake.SecondSnowflakeId;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
@@ -18,6 +16,7 @@ public class SnowflakeIdBenchmark {
     SecondSnowflakeId secondSnowflakeId;
     MillisecondSnowflakeId safeJsMillisecondSnowflakeId;
     SecondSnowflakeId safeJsSecondSnowflakeId;
+    SnowflakeFriendlyId snowflakeFriendlyId;
 
     @Setup
     public void setup() {
@@ -25,11 +24,17 @@ public class SnowflakeIdBenchmark {
         secondSnowflakeId = new SecondSnowflakeId(1);
         safeJsSecondSnowflakeId = SafeJavaScriptSnowflakeId.ofSecond(1);
         safeJsMillisecondSnowflakeId = SafeJavaScriptSnowflakeId.ofMillisecond(1);
+        snowflakeFriendlyId = new DefaultSnowflakeFriendlyId(new ClockSyncSnowflakeId(new MillisecondSnowflakeId(1), ClockBackwardsSynchronizer.DEFAULT));
     }
 
     @Benchmark
     public long millisecondSnowflakeId_generate() {
         return retryWhenClockClockBackwards(millisecondSnowflakeId);
+    }
+
+    @Benchmark
+    public SnowflakeIdState millisecondSnowflakeId_friendlyId() {
+        return snowflakeFriendlyId.friendlyId();
     }
 
     @Benchmark
@@ -44,7 +49,7 @@ public class SnowflakeIdBenchmark {
 
     @Benchmark
     public long safeJsSecondSnowflakeId_generate() {
-        return retryWhenClockClockBackwards(safeJsMillisecondSnowflakeId);
+        return retryWhenClockClockBackwards(safeJsSecondSnowflakeId);
     }
 
     public long retryWhenClockClockBackwards(IdGenerator idGenerator) {

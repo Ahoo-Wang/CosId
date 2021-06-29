@@ -2,35 +2,43 @@ cosid:
   namespace: ${spring.application.name}
   snowflake:
     enabled: true
-#    epoch: 1577203200000
+    #    epoch: 1577203200000
     clock-backwards:
       spin-threshold: 10
       broken-threshold: 2000
     machine:
-#      stable: true
-#      machine-bit: 10
-#      instance-id: ${HOSTNAME}
+      #      stable: true
+      #      machine-bit: 10
+      #      instance-id: ${HOSTNAME}
       distributor:
         type: redis
-#        manual:
-#          machine-id: 0
+      #        manual:
+      #          machine-id: 0
       state-storage:
         local:
           state-location: ./cosid-machine-state/
     share:
       clock-sync: true
+      friendly: true
     provider:
-      order:
-#        timestamp-bit:
+      bizA:
+        #        timestamp-bit:
         sequence-bit: 12
-      user:
-#        timestamp-bit:
+      bizB:
+        #        timestamp-bit:
         sequence-bit: 12
 
-#  redis:
-#    enabled: false
-#    provider:
-#      order:
-#        step: 100
-#    share:
-#      step: 100
+  redis:
+    enabled: false
+    share:
+      offset: 0
+      step: 100
+    provider:
+      bizA:
+        offset: 10000
+        step: 100
+      bizB:
+        offset: 10000
+        step: 100
+
+

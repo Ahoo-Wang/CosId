@@ -36,13 +36,13 @@ public class CosIdRedisAutoConfiguration {
     @ConditionalOnBean(RedisConnectionFactory.class)
     public RedisIdGenerator shareIdGenerator(RedisConnectionFactory redisConnectionFactory, IdGeneratorProvider idGeneratorProvider) {
         RedisIdProperties.IdDefinition shareIdDefinition = redisIdProperties.getShare();
-        RedisIdGenerator shareIdGen = new RedisIdGenerator(cosIdProperties.getNamespace(), "share", shareIdDefinition.getStep(), redisConnectionFactory.getShareAsyncCommands());
+        RedisIdGenerator shareIdGen = new RedisIdGenerator(cosIdProperties.getNamespace(), RedisIdProperties.SHARE, shareIdDefinition.getOffset(), shareIdDefinition.getStep(), redisIdProperties.getTimeout(), redisConnectionFactory.getShareAsyncCommands());
         idGeneratorProvider.setShare(shareIdGen);
         if (Objects.isNull(redisIdProperties.getProvider())) {
             return shareIdGen;
         }
         redisIdProperties.getProvider().forEach((name, idDefinition) -> {
-            IdGenerator idGenerator = new RedisIdGenerator(cosIdProperties.getNamespace(), name, idDefinition.getStep(), redisConnectionFactory.getShareAsyncCommands());
+            IdGenerator idGenerator = new RedisIdGenerator(cosIdProperties.getNamespace(), name, idDefinition.getOffset(), idDefinition.getStep(), redisIdProperties.getTimeout(), redisConnectionFactory.getShareAsyncCommands());
             idGeneratorProvider.set(name, idGenerator);
         });
 

@@ -1,6 +1,5 @@
 package me.ahoo.cosid;
 
-import com.google.common.base.Stopwatch;
 import lombok.var;
 import me.ahoo.cosid.jvm.JdkId;
 import me.ahoo.cosid.snowflake.*;
@@ -12,7 +11,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author ahoo wang
@@ -37,6 +35,19 @@ public class IdGeneratorTest {
         var snowflakeIdStateParser = MillisecondSnowflakeIdStateParser.of(idGen);
         var idState = snowflakeIdStateParser.parse(id);
         Assertions.assertNotNull(idState);
+    }
+
+    @Test
+    public void snowflakeFriendlyIdTest() {
+        MillisecondSnowflakeId idGen = new MillisecondSnowflakeId(1);
+        DefaultSnowflakeFriendlyId snowflakeFriendlyId = new DefaultSnowflakeFriendlyId(idGen);
+        long id = snowflakeFriendlyId.generate();
+        SnowflakeIdState snowflakeIdState = snowflakeFriendlyId.friendlyId(id);
+        Assertions.assertNotNull(snowflakeIdState);
+        Assertions.assertEquals(1, snowflakeIdState.getMachineId());
+        Assertions.assertEquals(id, snowflakeIdState.getId());
+        SnowflakeIdState snowflakeIdState2 = snowflakeFriendlyId.ofFriendlyId(snowflakeIdState.getFriendlyId());
+        Assertions.assertEquals(snowflakeIdState2, snowflakeIdState);
     }
 
     /***
@@ -64,20 +75,6 @@ public class IdGeneratorTest {
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
 
-
-    //    @Test
-    public void snowflakePerformanceTest() {
-        var idGen = new MillisecondSnowflakeId(1);
-        var max = 50000000;
-        var current = 0;
-        var stopwatch = Stopwatch.createStarted();
-        while (current < max) {
-            var id = idGen.generate();
-            current++;
-        }
-        var takenTime = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
-        System.out.println(String.format("times: %s , taken: %s ms,tps: max[%s] %s", max, takenTime, idGen.getMaxSequence(), max / takenTime));
-    }
 
     @Test
     public void secondSnowflakeIdTest() {
@@ -158,48 +155,5 @@ public class IdGeneratorTest {
 
         }).join();
         executorService.shutdown();
-    }
-
-
-    //    @Test
-    public void secondPerformanceTest() {
-        var snowflakeId = new SecondSnowflakeId(1);
-        var max = 50000000;
-        var current = 0;
-        var stopwatch = Stopwatch.createStarted();
-        while (current < max) {
-            var id = snowflakeId.generate();
-            current++;
-        }
-        var takenTime = stopwatch.stop().elapsed(TimeUnit.SECONDS);
-        System.out.println(String.format("times: %s , taken: %s s,tps: max[%s] %s", max, takenTime, snowflakeId.getMaxSequence(), max / takenTime));
-    }
-
-    //    @Test
-    public void safe_ofSecondPerformanceTest() {
-        var snowflakeId = SafeJavaScriptSnowflakeId.ofSecond(1);
-        var max = 50000000;
-        var current = 0;
-        var stopwatch = Stopwatch.createStarted();
-        while (current < max) {
-            var id = snowflakeId.generate();
-            current++;
-        }
-        var takenTime = stopwatch.stop().elapsed(TimeUnit.SECONDS);
-        System.out.println(String.format("times: %s , taken: %s s,tps: max[%s] %s", max, takenTime, snowflakeId.getMaxSequence(), max / takenTime));
-    }
-
-    //    @Test
-    public void safe_ofMillisecondPerformanceTest() {
-        var snowflakeId = SafeJavaScriptSnowflakeId.ofMillisecond(1);
-        var max = 500000;
-        var current = 0;
-        var stopwatch = Stopwatch.createStarted();
-        while (current < max) {
-            var id = snowflakeId.generate();
-            current++;
-        }
-        var takenTime = stopwatch.stop().elapsed(TimeUnit.MILLISECONDS);
-        System.out.println(String.format("times: %s , taken: %s ms,tps: max[%s] %s", max, takenTime, snowflakeId.getMaxSequence(), max / takenTime));
     }
 }

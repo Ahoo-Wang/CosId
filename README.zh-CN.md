@@ -1,9 +1,10 @@
 # [CosId](https://github.com/Ahoo-Wang/CosId) 通用、灵活、高性能的分布式 ID 生成器
 
+> [English Document](https://github.com/Ahoo-Wang/CosId/blob/main/README.md)
+
 ## 介绍
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式系统 ID 生成器。 目前提供了俩大类 ID 生成器：*SnowflakeId* （单机 TPS
-性能：409W/s [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (单机 TPS 性能(步长 1000)：3687W+/s [JMH 基准测试](#jmh-benchmark))。
+*[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式系统 ID 生成器。 目前提供了俩大类 ID 生成器：*SnowflakeId* （单机 TPS 性能：409W/s [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (单机 TPS 性能(步长 1000)：3687W+/s [JMH 基准测试](#jmh-benchmark))。
 
 ## SnowflakeId
 
@@ -145,7 +146,14 @@ SnowflakeId snowflakeId=SafeJavaScriptSnowflakeId.ofMillisecond(1);
 `JavaScript` 的 `Number.MAX_SAFE_INTEGER` 只有 53 位，如果直接将 63 位的 `SnowflakeId` 返回给前端，那么会值溢出的情况，通常我们可以将`SnowflakeId`转换为
 String 类型或者自定义 `SnowflakeId` 位分配来缩短 `SnowflakeId` 的位数 使 `ID` 提供给前端时不溢出。
 
-### SnowflakeIdStateParser (可以将 `SnowflakeId` 解析成可读性更好的 `SnowflakeIdState` )
+### SnowflakeFriendlyId (可以将 `SnowflakeId` 解析成可读性更好的 `SnowflakeIdState` )
+
+```yaml
+cosid:
+  snowflake:
+    share:
+      friendly: true
+```
 
 ```java
 public class SnowflakeIdState {
@@ -165,11 +173,42 @@ public class SnowflakeIdState {
 ```
 
 ```java
-        SnowflakeIdState idState=snowflakeIdStateParser.parse(id);
+public interface SnowflakeFriendlyId extends SnowflakeId {
+
+  SnowflakeIdState friendlyId(long id);
+
+  SnowflakeIdState ofFriendlyId(String friendlyId);
+
+  default SnowflakeIdState friendlyId() {
+    long id = generate();
+    return friendlyId(id);
+  }
+}
+```
+
+```java
+        SnowflakeFriendlyId snowflakeFriendlyId = new DefaultSnowflakeFriendlyId(snowflakeId);
+        SnowflakeIdState idState = snowflakeFriendlyId.friendlyId();
         idState.getFriendlyId(); //20210623131730192-1-0
 ```
 
 ## RedisIdGenerator
+
+```yaml
+cosid:
+  redis:
+    enabled: true
+    share:
+      offset: 0
+      step: 100
+    provider:
+      bizA:
+        offset: 10000
+        step: 100
+      bizB:
+        offset: 10000
+        step: 100
+```
 
 `RedisIdGenerator` 步长设置为 1 时（每次生成`ID`都需要执行一次 *Redis* 网络 IO 请求）*TPS* 性能约为 21W/s ([JMH 基准测试](#jmh-benchmark))，如果在部分场景下我们对 ID 生成的 *TPS* 性能有更高的要求，那么可以选择使用增加每次`ID`分发步长来降低网络 IO 请求频次，提高 `IdGenerator`
 性能（比如增加步长为 1000，性能可提升到 3545W+/s [JMH 基准测试](#jmh-benchmark)）。
@@ -208,7 +247,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.9.8";
+    val cosidVersion = "1.0.0";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -224,7 +263,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.9.8</cosid.version>
+        <cosid.version>1.0.0</cosid.version>
     </properties>
 
     <dependencies>
@@ -246,6 +285,9 @@ cosid:
   snowflake:
     enabled: true
     #    epoch: 1577203200000
+    clock-backwards:
+      spin-threshold: 10
+      broken-threshold: 2000
     machine:
       #      stable: true
       #      machine-bit: 10
@@ -259,6 +301,7 @@ cosid:
           state-location: ./cosid-machine-state/
     share:
       clock-sync: true
+      friendly: true
     provider:
       bizA:
         #        timestamp-bit:
@@ -266,13 +309,19 @@ cosid:
       bizB:
         #        timestamp-bit:
         sequence-bit: 12
+
 #  redis:
 #    enabled: false
-#    provider:
-#      order:
-#        step: 100
 #    share:
+#      offset: 0
 #      step: 100
+#    provider:
+#      bizA:
+#        offset: 10000
+#        step: 100
+#      bizB:
+#        offset: 10000
+#        step: 100
 ```
 
 ## JMH-Benchmark

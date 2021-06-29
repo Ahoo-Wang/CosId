@@ -142,7 +142,14 @@ SnowflakeId snowflakeId = SafeJavaScriptSnowflakeId.ofMillisecond(1);
 
 The `Number.MAX_SAFE_INTEGER` of `JavaScript` has only 53 bits. If the 63-bit `SnowflakeId` is directly returned to the front end, the value will overflow. Usually we can convert `SnowflakeId` to String type or customize `SnowflakeId` Bit allocation is used to shorten the number of bits of `SnowflakeId` so that `ID` does not overflow when it is provided to the front end.
 
-### SnowflakeIdStateParser (Can parse `SnowflakeId` into a more readable `SnowflakeIdState`)
+### SnowflakeFriendlyId (Can parse `SnowflakeId` into a more readable `SnowflakeIdState`)
+
+```yaml
+cosid:
+  snowflake:
+    share:
+      friendly: true
+```
 
 ```java
 public class SnowflakeIdState {
@@ -162,11 +169,42 @@ public class SnowflakeIdState {
 ```
 
 ```java
-        SnowflakeIdState idState=snowflakeIdStateParser.parse(id);
+public interface SnowflakeFriendlyId extends SnowflakeId {
+
+    SnowflakeIdState friendlyId(long id);
+
+    SnowflakeIdState ofFriendlyId(String friendlyId);
+
+    default SnowflakeIdState friendlyId() {
+        long id = generate();
+        return friendlyId(id);
+    }
+}
+```
+
+```java
+        SnowflakeFriendlyId snowflakeFriendlyId=new DefaultSnowflakeFriendlyId(snowflakeId);
+        SnowflakeIdState idState = snowflakeFriendlyId.friendlyId();
         idState.getFriendlyId(); //20210623131730192-1-0
 ```
 
 ## RedisIdGenerator
+
+```yaml
+cosid:
+  redis:
+    enabled: true
+    share:
+      offset: 0
+      step: 100
+    provider:
+      bizA:
+        offset: 10000
+        step: 100
+      bizB:
+        offset: 10000
+        step: 100
+```
 
 When the step size of `RedisIdGenerator` is set to 1 (one Redis network IO request is required for each generation of `ID`) TPS performance is about 21W+/s ([JMH benchmark](#jmh-benchmark)), if we are correct in some scenarios ID generated TPS performance has higher requirements, so you can choose to increase the step size of each `ID` distribution to reduce the frequency of network IO requests and improve the performance of `IdGenerator` (for example, increase the step size to 1000, and the performance can be increased to 3545W+/s [JMH benchmark](#jmh-benchmark)).
 
@@ -177,11 +215,9 @@ cosid:
   snowflake:
     provider:
       bizA:
-        #      epoch:
         #      timestamp-bit:
         sequence-bit: 12
       bizB:
-        #      epoch:
         #      timestamp-bit:
         sequence-bit: 12
 ```
@@ -203,7 +239,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.9.8";
+    val cosidVersion = "1.0.0";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -219,7 +255,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.9.8</cosid.version>
+        <cosid.version>1.0.0</cosid.version>
     </properties>
 
     <dependencies>
@@ -240,34 +276,44 @@ cosid:
   namespace: ${spring.application.name}
   snowflake:
     enabled: true
-#    epoch: 1577203200000
+    #    epoch: 1577203200000
+    clock-backwards:
+      spin-threshold: 10
+      broken-threshold: 2000
     machine:
-#      stable: true
-#      machine-bit: 10
-#      instance-id: ${HOSTNAME}
+      #      stable: true
+      #      machine-bit: 10
+      #      instance-id: ${HOSTNAME}
       distributor:
         type: redis
-#        manual:
-#          machine-id: 0
+      #        manual:
+      #          machine-id: 0
       state-storage:
         local:
           state-location: ./cosid-machine-state/
     share:
       clock-sync: true
+      friendly: true
     provider:
       bizA:
-#        timestamp-bit:
+        #        timestamp-bit:
         sequence-bit: 12
       bizB:
-#        timestamp-bit:
+        #        timestamp-bit:
         sequence-bit: 12
+
 #  redis:
 #    enabled: false
-#    provider:
-#      order:
-#        step: 100
 #    share:
+#      offset: 0
 #      step: 100
+#    provider:
+#      bizA:
+#        offset: 10000
+#        step: 100
+#      bizB:
+#        offset: 10000
+#        step: 100
 ```
 
 ## JMH-Benchmark

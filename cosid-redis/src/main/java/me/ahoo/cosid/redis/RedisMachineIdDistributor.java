@@ -8,6 +8,7 @@ import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.*;
 import me.ahoo.cosky.core.redis.RedisScripts;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -22,14 +23,21 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     public static final String MACHINE_ID_DISTRIBUTE = "machine_id_distribute.lua";
     public static final String MACHINE_ID_REVERT = "machine_id_revert.lua";
     public static final String MACHINE_ID_REVERT_STABLE = "machine_id_revert_stable.lua";
-
-    public static final int TIMEOUT = 5;
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(1);
+    public final Duration timeout;
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
     public RedisMachineIdDistributor(RedisClusterAsyncCommands<String, String> redisCommands,
                                      MachineStateStorage machineStateStorage,
                                      ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        this(DEFAULT_TIMEOUT, redisCommands, machineStateStorage, clockBackwardsSynchronizer);
+    }
+
+    public RedisMachineIdDistributor(Duration timeout, RedisClusterAsyncCommands<String, String> redisCommands,
+                                     MachineStateStorage machineStateStorage,
+                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
+        this.timeout = timeout;
         this.redisCommands = redisCommands;
     }
 
@@ -37,7 +45,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     @SneakyThrows
     @Override
     protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
-        return distributeAsync0(namespace, machineBit, instanceId).get(TIMEOUT, TimeUnit.SECONDS);
+        return distributeAsync0(namespace, machineBit, instanceId).get(timeout.toNanos(), TimeUnit.NANOSECONDS);
     }
 
     protected CompletableFuture<MachineState> distributeAsync0(String namespace, int machineBit, InstanceId instanceId) {
@@ -70,7 +78,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     @SneakyThrows
     @Override
     protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
-        revertAsync0(namespace, instanceId, machineState).get(TIMEOUT, TimeUnit.SECONDS);
+        revertAsync0(namespace, instanceId, machineState).get(timeout.toNanos(), TimeUnit.NANOSECONDS);
     }
 
     /**

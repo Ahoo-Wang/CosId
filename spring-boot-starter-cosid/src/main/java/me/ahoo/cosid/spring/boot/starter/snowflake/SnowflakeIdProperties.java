@@ -1,11 +1,13 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.redis.RedisMachineIdDistributor;
 import me.ahoo.cosid.snowflake.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.machine.LocalMachineStateStorage;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
 import java.util.Map;
 
 /**
@@ -182,6 +184,11 @@ public class SnowflakeIdProperties {
         public static class Distributor {
             private Type type = Type.MANUAL;
             private Manual manual;
+            private Redis redis;
+
+            public Distributor() {
+                this.redis = new Redis();
+            }
 
             public Type getType() {
                 return type;
@@ -197,6 +204,14 @@ public class SnowflakeIdProperties {
 
             public void setManual(Manual manual) {
                 this.manual = manual;
+            }
+
+            public Redis getRedis() {
+                return redis;
+            }
+
+            public void setRedis(Redis redis) {
+                this.redis = redis;
             }
 
             public enum Type {
@@ -218,10 +233,24 @@ public class SnowflakeIdProperties {
                 this.machineId = machineId;
             }
         }
+
+        public static class Redis {
+
+            private Duration timeout = RedisMachineIdDistributor.DEFAULT_TIMEOUT;
+
+            public Duration getTimeout() {
+                return timeout;
+            }
+
+            public void setTimeout(Duration timeout) {
+                this.timeout = timeout;
+            }
+        }
     }
 
     public static class IdDefinition {
         private boolean clockSync = true;
+        private boolean friendly = true;
         private TimestampUnit timestampUnit = TimestampUnit.MILLISECOND;
         private long epoch;
         private int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
@@ -234,6 +263,14 @@ public class SnowflakeIdProperties {
 
         public void setClockSync(boolean clockSync) {
             this.clockSync = clockSync;
+        }
+
+        public boolean isFriendly() {
+            return friendly;
+        }
+
+        public void setFriendly(boolean friendly) {
+            this.friendly = friendly;
         }
 
         public TimestampUnit getTimestampUnit() {

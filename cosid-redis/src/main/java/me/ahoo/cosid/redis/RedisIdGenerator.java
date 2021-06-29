@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosky.core.redis.RedisScripts;
 
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -18,13 +19,15 @@ import static me.ahoo.cosid.redis.RedisMachineIdDistributor.wrapNamespace;
 @Slf4j
 public class RedisIdGenerator implements IdGenerator {
     public static final String REDIS_ID_GENERATE = "redis_id_generate.lua";
-    public static final int TIMEOUT = 1;
-    public static final int DEFAULT_START = 1;
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(1);
+    public static final int DEFAULT_OFFSET = 0;
     public static final int DEFAULT_STEP = 100;
 
     private final String namespace;
     private final String name;
+    private final int offset;
     private final int step;
+    private final Duration timeout;
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
     private long maxId = -1;
@@ -32,11 +35,21 @@ public class RedisIdGenerator implements IdGenerator {
 
     public RedisIdGenerator(String namespace,
                             String name,
+                            RedisClusterAsyncCommands<String, String> redisCommands) {
+        this(namespace, name, DEFAULT_OFFSET, DEFAULT_STEP, DEFAULT_TIMEOUT, redisCommands);
+    }
+
+    public RedisIdGenerator(String namespace,
+                            String name,
+                            int offset,
                             int step,
+                            Duration timeout,
                             RedisClusterAsyncCommands<String, String> redisCommands) {
         this.namespace = namespace;
         this.name = name;
+        this.offset = offset;
         this.step = step;
+        this.timeout = timeout;
         this.redisCommands = redisCommands;
     }
 
@@ -50,6 +63,10 @@ public class RedisIdGenerator implements IdGenerator {
 
     public String getName() {
         return name;
+    }
+
+    public int getOffset() {
+        return offset;
     }
 
     public int getStep() {
@@ -85,14 +102,14 @@ public class RedisIdGenerator implements IdGenerator {
 
     @SneakyThrows
     private long fetchId() {
-        return fetchIdAsync().get(TIMEOUT, TimeUnit.SECONDS);
+        return fetchIdAsync().get(timeout.toNanos(), TimeUnit.NANOSECONDS);
     }
 
     private CompletableFuture<Long> fetchIdAsync() {
         return RedisScripts.doEnsureScript(REDIS_ID_GENERATE, redisCommands,
                 (scriptSha) -> {
                     String[] keys = {wrapNamespace(namespace)};
-                    String[] values = {name, String.valueOf(step)};
+                    String[] values = {name, String.valueOf(offset), String.valueOf(step)};
                     return redisCommands.evalsha(scriptSha, ScriptOutputType.INTEGER, keys, values);
                 }
         );

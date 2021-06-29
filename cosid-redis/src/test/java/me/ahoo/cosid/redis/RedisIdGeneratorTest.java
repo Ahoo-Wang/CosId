@@ -50,13 +50,21 @@ public class RedisIdGeneratorTest {
         Assertions.assertTrue(id3 > id2);
     }
 
+    @Test
+    public void generate_offset() {
+        String namespace = UUID.randomUUID().toString();
+        RedisIdGenerator redisIdGenerator_offset_10 = new RedisIdGenerator(namespace, "generate_offset", 10, 100, RedisIdGenerator.DEFAULT_TIMEOUT, redisClient.connect().async());
+        long id = redisIdGenerator_offset_10.generate();
+        Assertions.assertEquals(11, id);
+    }
+
     static final int CONCURRENT_THREADS = 20;
     static final int THREAD_REQUEST_NUM = 50000;
 
     @Test
     public void concurrent_generate_step_100() {
         String namespace = UUID.randomUUID().toString();
-        redisIdGenerator = new RedisIdGenerator(namespace, "generate_step_10", 100, redisClient.connect().async());
+        redisIdGenerator = new RedisIdGenerator(namespace, "generate_step_10", 0, 100, RedisIdGenerator.DEFAULT_TIMEOUT, redisClient.connect().async());
         ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;
@@ -104,8 +112,8 @@ public class RedisIdGeneratorTest {
     @Test
     public void concurrent_generate_step_10_multi_instance() {
         String namespace = UUID.randomUUID().toString();
-        IdGenerator idGenerator1 = new RedisIdGenerator(namespace, "generate_step_10", 10, redisClient.connect().async());
-        IdGenerator idGenerator2 = new RedisIdGenerator(namespace, "generate_step_10", 10, redisClient.connect().async());
+        IdGenerator idGenerator1 = new RedisIdGenerator(namespace, "generate_step_10", 0, 10, RedisIdGenerator.DEFAULT_TIMEOUT, redisClient.connect().async());
+        IdGenerator idGenerator2 = new RedisIdGenerator(namespace, "generate_step_10", 0, 10, RedisIdGenerator.DEFAULT_TIMEOUT, redisClient.connect().async());
         ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[MULTI_CONCURRENT_THREADS * 2];
         int threads1 = 0;

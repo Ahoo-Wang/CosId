@@ -276,9 +276,13 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4204761.
 
 ### RedisIdGenerator
 
+``` shell
+gradle cosid-redis:jmh
 ```
-Benchmark                             Mode  Cnt         Score   Error  Units
-RedisIdGeneratorBenchmark.step_1     thrpt         216277.251          ops/s
-RedisIdGeneratorBenchmark.step_100   thrpt        4006944.185          ops/s
-RedisIdGeneratorBenchmark.step_1000  thrpt       35369730.408          ops/s
+
+```
+Benchmark                             Mode  Cnt         Score        Error  Units
+RedisIdGeneratorBenchmark.step_1     thrpt   25    220218.848 ±   2070.786  ops/s
+RedisIdGeneratorBenchmark.step_100   thrpt   25   3605422.967 ±  13479.405  ops/s
+RedisIdGeneratorBenchmark.step_1000  thrpt   25  36874696.252 ± 357214.292  ops/s
 ```

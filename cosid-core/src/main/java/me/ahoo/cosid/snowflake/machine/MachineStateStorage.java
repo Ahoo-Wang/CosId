@@ -5,9 +5,9 @@ package me.ahoo.cosid.snowflake.machine;
  *
  * @author ahoo wang
  */
-public interface LocalMachineState {
-    LocalMachineState FILE = new FileLocalMachineState();
-    LocalMachineState NONE = new None();
+public interface MachineStateStorage {
+    MachineStateStorage LOCAL = new LocalMachineStateStorage();
+    MachineStateStorage NONE = new None();
 
     MachineState get(String namespace, InstanceId instanceId);
 
@@ -21,7 +21,7 @@ public interface LocalMachineState {
 
     boolean exists(String namespace, InstanceId instanceId);
 
-    class None implements LocalMachineState {
+    class None implements MachineStateStorage {
         @Override
         public MachineState get(String namespace, InstanceId instanceId) {
             return MachineState.NOT_FOUND;

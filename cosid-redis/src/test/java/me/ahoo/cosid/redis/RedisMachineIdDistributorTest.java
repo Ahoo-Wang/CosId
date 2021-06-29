@@ -6,7 +6,7 @@ import io.lettuce.core.internal.Exceptions;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.DefaultInstanceId;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
-import me.ahoo.cosid.snowflake.machine.LocalMachineState;
+import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
 import org.junit.jupiter.api.*;
 
@@ -27,7 +27,7 @@ class RedisMachineIdDistributorTest {
         System.out.println("--- initRedis ---");
         redisClient = RedisClient.create("redis://localhost:6379");
         redisConnection = redisClient.connect();
-        redisMachineIdDistributor = new RedisMachineIdDistributor(redisConnection.async(), LocalMachineState.FILE, ClockBackwardsSynchronizer.DEFAULT);
+        redisMachineIdDistributor = new RedisMachineIdDistributor(redisConnection.async(), MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
     }
 
     @Test

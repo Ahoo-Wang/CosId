@@ -40,9 +40,11 @@
 ```yaml
 cosid:
   snowflake:
-    manual:
-      enabled: true
-      machine-id: 1
+    machine:
+      distributor:
+        type: manual
+        manual:
+          machine-id: 0
 ```
 
 > 手动分配 `MachineId`
@@ -52,8 +54,9 @@ cosid:
 ```yaml
 cosid:
   snowflake:
-    stateful-set:
-    enabled: true
+    machine:
+      distributor:
+        type: stateful_set
 ```
 
 > 使用 `Kubernetes` 的 `StatefulSet` 提供的稳定的标识 ID 作为机器号。
@@ -63,18 +66,27 @@ cosid:
 ```yaml
 cosid:
   snowflake:
-    redis:
-      enabled: true
+    machine:
+      distributor:
+        type: redis
 ```
 
 > 使用 `Redis` 作为机器号的分发存储。
 
 ### ClockBackwardsSynchronizer (时钟回拨同步器)
 
-默认提供的 `DefaultClockBackwardsSynchronizer` 时钟回拨同步器使用主动等待同步策略，`spinThreshold`(默认值 20 毫秒) 用于设置自旋等待阈值， 当大于`spinThreshold`
+```yaml
+cosid:
+  snowflake:
+    clock-backwards:
+      spin-threshold: 10
+      broken-threshold: 2000
+```
+
+默认提供的 `DefaultClockBackwardsSynchronizer` 时钟回拨同步器使用主动等待同步策略，`spinThreshold`(默认值 10 毫秒) 用于设置自旋等待阈值， 当大于`spinThreshold`
 时使用线程休眠等待时钟同步，如果超过`brokenThreshold`(默认值 2 秒)时会直接抛出`ClockTooManyBackwardsException`异常。
 
-### LocalMachineState (本地机器状态存储)
+### MachineStateStorage (机器状态存储)
 
 ```java
 public class MachineState {
@@ -101,7 +113,16 @@ public class MachineState {
 }
 ```
 
-默认提供的 `FileLocalMachineState` 本地机器状态存储，使用本地文件存储机器号、最近一次时间戳，用作 `MachineState` 缓存。
+```yaml
+cosid:
+  snowflake:
+    machine:
+      state-storage:
+        local:
+          state-location: ./cosid-machine-state/
+```
+
+默认提供的 `LocalMachineStateStorage` 本地机器状态存储，使用本地文件存储机器号、最近一次时间戳，用作 `MachineState` 缓存。
 
 ### ClockSyncSnowflakeId (主动时钟同步 `SnowflakeId`)
 
@@ -180,7 +201,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.9.2";
+    val cosidVersion = "0.9.5";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -196,7 +217,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.9.2</cosid.version>
+        <cosid.version>0.9.5</cosid.version>
     </properties>
 
     <dependencies>
@@ -216,32 +237,34 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
 cosid:
   namespace: ${spring.application.name}
   snowflake:
-    #    instance-id:
-    #      stable: true
-    #      machine-bit: 10
-    #      instance-id: ${HOSTNAME}
-    #  stateful-set:
-    #    enabled: true
-    #  manual:
-    #    enabled: true
-    #    machine-id: 1
-    redis:
-      enabled: true
-    provider:
-      order:
-        #      epoch:
-        #      timestamp-bit:
-        sequence-bit: 12
-      user:
-        #      epoch:
-        #      timestamp-bit:
-        sequence-bit: 12
     enabled: true
+    machine:
+      #      stable: true
+      #      machine-bit: 10
+      #      instance-id: ${HOSTNAME}
+      distributor:
+        type: redis
+      #        manual:
+      #          machine-id: 0
+      state-storage:
+        local:
+          state-location: ./cosid-machine-state/
+    provider:
+      bizA:
+        #        epoch:
+        #        timestamp-bit:
+        sequence-bit: 12
+      bizB:
+        #        epoch:
+        #        timestamp-bit:
+        sequence-bit: 12
 #  redis:
-#    enabled: true
+#    enabled: false
 #    provider:
 #      order:
 #        step: 100
+#    share:
+#      step: 100
 ```
 
 ## JMH-Benchmark

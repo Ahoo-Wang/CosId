@@ -10,11 +10,11 @@ import me.ahoo.cosid.snowflake.machine.*;
  */
 @Slf4j
 public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributor {
-    public static final StatefulSetMachineIdDistributor INSTANCE = new StatefulSetMachineIdDistributor(LocalMachineState.FILE, ClockBackwardsSynchronizer.DEFAULT);
+    public static final StatefulSetMachineIdDistributor INSTANCE = new StatefulSetMachineIdDistributor(MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
     public static final String HOSTNAME_KEY = "HOSTNAME";
 
-    public StatefulSetMachineIdDistributor(LocalMachineState localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        super(localMachineState, clockBackwardsSynchronizer);
+    public StatefulSetMachineIdDistributor(MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        super(machineStateStorage, clockBackwardsSynchronizer);
     }
 
 

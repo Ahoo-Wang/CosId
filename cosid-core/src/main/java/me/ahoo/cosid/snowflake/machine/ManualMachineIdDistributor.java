@@ -12,8 +12,8 @@ public class ManualMachineIdDistributor extends AbstractMachineIdDistributor {
     private final int machineId;
     private final MachineState machineState;
 
-    public ManualMachineIdDistributor(int machineId, LocalMachineState localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        super(localMachineState, clockBackwardsSynchronizer);
+    public ManualMachineIdDistributor(int machineId, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        super(machineStateStorage, clockBackwardsSynchronizer);
         this.machineId = machineId;
         this.machineState = MachineState.of(machineId, NOT_FOUND_LAST_STAMP);
     }

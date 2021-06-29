@@ -6,9 +6,9 @@ import org.junit.jupiter.api.Test;
 /**
  * @author ahoo wang
  */
-class FileLocalMachineStateTest {
+class LocalMachineStateStorageTest {
     private static final String namespace = "test";
-    private final FileLocalMachineState fileLocalMachineState = new FileLocalMachineState();
+    private final LocalMachineStateStorage fileLocalMachineState = new LocalMachineStateStorage();
 
     @Test
     void get() {

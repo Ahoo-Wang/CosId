@@ -3,7 +3,6 @@ plugins {
 }
 
 dependencies {
-
     api("com.google.guava:guava")
     testImplementation("org.junit-pioneer:junit-pioneer")
     jmh("org.openjdk.jmh:jmh-core:${rootProject.ext.get("jmhVersion")}")

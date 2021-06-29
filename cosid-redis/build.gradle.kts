@@ -4,7 +4,7 @@ plugins {
 
 dependencies {
     api(project(":cosid-core"))
-    api("me.ahoo.cosky:cosky-core")
+    implementation("me.ahoo.cosky:cosky-core")
     api("io.lettuce:lettuce-core")
     api("com.google.guava:guava")
     testImplementation("org.junit-pioneer:junit-pioneer")

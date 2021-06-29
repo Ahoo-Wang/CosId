@@ -4,25 +4,22 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.SecondSnowflakeId;
-import me.ahoo.cosid.snowflake.SnowflakeId;
+import me.ahoo.cosid.snowflake.*;
 import me.ahoo.cosid.snowflake.machine.*;
 import me.ahoo.cosid.snowflake.machine.k8s.StatefulSetMachineIdDistributor;
 import me.ahoo.cosid.redis.RedisMachineIdDistributor;
-import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosky.core.redis.RedisConnectionFactory;
 import me.ahoo.cosky.core.util.Systems;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 
 /**
@@ -44,23 +41,23 @@ public class CosIdSnowflakeAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public InstanceId instanceId(InetUtils inetUtils) {
-        SnowflakeIdProperties.InstanceId instanceId = snowflakeIdProperties.getInstanceId();
-        Preconditions.checkNotNull(instanceId, "cosid.snowflake.instanceId can not be null.");
+        SnowflakeIdProperties.Machine machine = snowflakeIdProperties.getMachine();
+        Preconditions.checkNotNull(machine, "cosid.snowflake.machine can not be null.");
 
         boolean stable = false;
-        if (Objects.nonNull(instanceId.getStable()) && instanceId.getStable()) {
-            stable = instanceId.getStable();
+        if (Objects.nonNull(machine.getStable()) && machine.getStable()) {
+            stable = machine.getStable();
         }
 
-        if (!Strings.isNullOrEmpty(instanceId.getInstanceId())) {
-            return DefaultInstanceId.of(instanceId.getInstanceId(), stable);
+        if (!Strings.isNullOrEmpty(machine.getInstanceId())) {
+            return DefaultInstanceId.of(machine.getInstanceId(), stable);
         }
 
         InetUtils.HostInfo hostInfo = inetUtils.findFirstNonLoopbackHostInfo();
 
         int port = (int) Systems.getCurrentProcessId();
-        if (Objects.nonNull(instanceId.getPort()) && instanceId.getPort() > 0) {
-            port = instanceId.getPort();
+        if (Objects.nonNull(machine.getPort()) && machine.getPort() > 0) {
+            port = machine.getPort();
         }
 
         return DefaultInstanceId.of(hostInfo.getIpAddress(), port, stable);
@@ -68,38 +65,44 @@ public class CosIdSnowflakeAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public LocalMachineState localMachineState() {
-        return new FileLocalMachineState(snowflakeIdProperties.getMachineState().getStateLocation());
+    public MachineStateStorage localMachineState() {
+        if (!snowflakeIdProperties.getMachine().getStateStorage().isEnabled()) {
+            return MachineStateStorage.NONE;
+        }
+        return new LocalMachineStateStorage(snowflakeIdProperties.getMachine().getStateStorage().getLocal().getStateLocation());
     }
 
     @Bean
     @ConditionalOnMissingBean
     public ClockBackwardsSynchronizer clockBackwardsSynchronizer() {
-        return ClockBackwardsSynchronizer.DEFAULT;
+        SnowflakeIdProperties.ClockBackwards clockBackwards = snowflakeIdProperties.getClockBackwards();
+        Preconditions.checkNotNull(clockBackwards, "cosid.snowflake.clockBackwards can not be null.");
+        return new DefaultClockBackwardsSynchronizer(clockBackwards.getSpinThreshold(), clockBackwards.getBrokenThreshold());
     }
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnProperty(value = SnowflakeIdProperties.StatefulSet.ENABLED_KEY, havingValue = "true")
-    public StatefulSetMachineIdDistributor statefulSetMachineIdDistributor(LocalMachineState localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new StatefulSetMachineIdDistributor(localMachineState, clockBackwardsSynchronizer);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnProperty(value = SnowflakeIdProperties.Manual.ENABLED_KEY, havingValue = "true")
-    public MachineIdDistributor manualMachineIdDistributor(LocalMachineState localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        Integer machineId = snowflakeIdProperties.getManual().getMachineId();
-        Preconditions.checkNotNull(machineId, "cosid.snowflake.manual.machineId can not be null.");
-        return new ManualMachineIdDistributor(machineId, localMachineState, clockBackwardsSynchronizer);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(RedisConnectionFactory.class)
-    @ConditionalOnProperty(value = SnowflakeIdProperties.Redis.ENABLED_KEY, havingValue = "true")
-    public RedisMachineIdDistributor redisMachineIdDistributor(RedisConnectionFactory redisConnectionFactory, LocalMachineState localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new RedisMachineIdDistributor(redisConnectionFactory.getShareAsyncCommands(), localMachineState, clockBackwardsSynchronizer);
+    public MachineIdDistributor machineIdDistributor(@Nullable RedisConnectionFactory redisConnectionFactory, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        SnowflakeIdProperties.Machine.Distributor machineIdDistributor = snowflakeIdProperties.getMachine().getDistributor();
+        switch (machineIdDistributor.getType()) {
+            case MANUAL: {
+                SnowflakeIdProperties.Machine.Manual manual = machineIdDistributor.getManual();
+                Preconditions.checkNotNull(manual, "cosid.snowflake.machine.distributor.manual can not be null.");
+                Integer machineId = manual.getMachineId();
+                Preconditions.checkNotNull(machineId, "cosid.snowflake.machine.distributor.manual.machineId can not be null.");
+                Preconditions.checkArgument(machineId >= 0, "cosid.snowflake.machine.distributor.manual.machineId can not be less than 0.");
+                return new ManualMachineIdDistributor(machineId, localMachineState, clockBackwardsSynchronizer);
+            }
+            case STATEFUL_SET: {
+                return new StatefulSetMachineIdDistributor(localMachineState, clockBackwardsSynchronizer);
+            }
+            case REDIS: {
+                Preconditions.checkNotNull(redisConnectionFactory, "redisConnectionFactory can not be null.");
+                return new RedisMachineIdDistributor(redisConnectionFactory.getShareAsyncCommands(), localMachineState, clockBackwardsSynchronizer);
+            }
+            default:
+                throw new IllegalStateException("Unexpected value: " + machineIdDistributor.getType());
+        }
     }
 
     @Bean
@@ -146,7 +149,7 @@ public class CosIdSnowflakeAutoConfiguration {
     private Integer getMachineBit(SnowflakeIdProperties.IdDefinition idDefinition) {
         Integer machineBit = idDefinition.getMachineBit();
         if (Objects.isNull(machineBit) || machineBit <= 0) {
-            machineBit = snowflakeIdProperties.getInstanceId().getMachineBit();
+            machineBit = snowflakeIdProperties.getMachine().getMachineBit();
         }
         return machineBit;
     }

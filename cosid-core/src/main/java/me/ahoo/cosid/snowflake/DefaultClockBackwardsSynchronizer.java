@@ -11,11 +11,14 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchronizer {
+    public static final int DEFAULT_SPIN_THRESHOLD = 10;
+    public static final int DEFAULT_BROKEN_THRESHOLD = 2000;
+
     private final int spinThreshold;
     private final int brokenThreshold;
 
     public DefaultClockBackwardsSynchronizer() {
-        this(20, 2000);
+        this(DEFAULT_SPIN_THRESHOLD, DEFAULT_BROKEN_THRESHOLD);
     }
 
     public DefaultClockBackwardsSynchronizer(int spinThreshold, int brokenThreshold) {

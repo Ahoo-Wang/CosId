@@ -1,8 +1,9 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.snowflake.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
-import me.ahoo.cosid.snowflake.machine.FileLocalMachineState;
+import me.ahoo.cosid.snowflake.machine.LocalMachineStateStorage;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.Map;
@@ -15,17 +16,16 @@ public class SnowflakeIdProperties {
     public final static String PREFIX = CosId.COSID_PREFIX + "snowflake";
 
     private boolean enabled;
-    private InstanceId instanceId;
-    private MachineState machineState;
-    private Manual manual;
-
-    private StatefulSet statefulSet;
-
-    private Redis redis;
-
+    private Machine machine;
+    private ClockBackwards clockBackwards;
     private IdDefinition share;
-
     private Map<String, IdDefinition> provider;
+
+    public SnowflakeIdProperties() {
+        share = new IdDefinition();
+        machine = new Machine();
+        clockBackwards = new ClockBackwards();
+    }
 
     public boolean isEnabled() {
         return enabled;
@@ -35,50 +35,20 @@ public class SnowflakeIdProperties {
         this.enabled = enabled;
     }
 
-    public SnowflakeIdProperties() {
-        share = new IdDefinition();
-        instanceId = new InstanceId();
-        machineState = new MachineState();
+    public Machine getMachine() {
+        return machine;
     }
 
-    public InstanceId getInstanceId() {
-        return instanceId;
+    public void setMachine(Machine machine) {
+        this.machine = machine;
     }
 
-    public void setInstanceId(InstanceId instanceId) {
-        this.instanceId = instanceId;
+    public ClockBackwards getClockBackwards() {
+        return clockBackwards;
     }
 
-    public MachineState getMachineState() {
-        return machineState;
-    }
-
-    public void setMachineState(MachineState machineState) {
-        this.machineState = machineState;
-    }
-
-    public Manual getManual() {
-        return manual;
-    }
-
-    public void setManual(Manual manual) {
-        this.manual = manual;
-    }
-
-    public StatefulSet getStatefulSet() {
-        return statefulSet;
-    }
-
-    public void setStatefulSet(StatefulSet statefulSet) {
-        this.statefulSet = statefulSet;
-    }
-
-    public Redis getRedis() {
-        return redis;
-    }
-
-    public void setRedis(Redis redis) {
-        this.redis = redis;
+    public void setClockBackwards(ClockBackwards clockBackwards) {
+        this.clockBackwards = clockBackwards;
     }
 
     public IdDefinition getShare() {
@@ -97,13 +67,21 @@ public class SnowflakeIdProperties {
         this.provider = provider;
     }
 
-    public static class InstanceId {
+    public static class Machine {
         private Boolean stable;
 
         private Integer port;
         private String instanceId;
 
         private int machineBit = MillisecondSnowflakeId.DEFAULT_MACHINE_BIT;
+
+        private StateStorage stateStorage;
+        private Distributor distributor;
+
+        public Machine() {
+            stateStorage = new StateStorage();
+            distributor = new Distributor();
+        }
 
         public Boolean getStable() {
             return stable;
@@ -136,66 +114,100 @@ public class SnowflakeIdProperties {
         public void setMachineBit(int machineBit) {
             this.machineBit = machineBit;
         }
-    }
 
-    public static class MachineState {
-
-        private String stateLocation = FileLocalMachineState.DEFAULT_STATE_LOCATION_PATH;
-
-        public String getStateLocation() {
-            return stateLocation;
+        public StateStorage getStateStorage() {
+            return stateStorage;
         }
 
-        public void setStateLocation(String stateLocation) {
-            this.stateLocation = stateLocation;
-        }
-    }
-
-    public static class Manual {
-        public static final String ENABLED_KEY = PREFIX + ".manual.enabled";
-        private boolean enabled;
-        private Integer machineId = 1;
-
-        public boolean isEnabled() {
-            return enabled;
+        public void setStateStorage(StateStorage stateStorage) {
+            this.stateStorage = stateStorage;
         }
 
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
+        public Distributor getDistributor() {
+            return distributor;
         }
 
-        public Integer getMachineId() {
-            return machineId;
+        public void setDistributor(Distributor distributor) {
+            this.distributor = distributor;
         }
 
-        public void setMachineId(Integer machineId) {
-            this.machineId = machineId;
+        public static class StateStorage {
+
+            private boolean enabled = true;
+            private Local local;
+
+            public StateStorage() {
+                this.local = new Local();
+            }
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public void setEnabled(boolean enabled) {
+                this.enabled = enabled;
+            }
+
+            public Local getLocal() {
+                return local;
+            }
+
+            public void setLocal(Local local) {
+                this.local = local;
+            }
+
+            public static class Local {
+
+                private String stateLocation = LocalMachineStateStorage.DEFAULT_STATE_LOCATION_PATH;
+
+                public String getStateLocation() {
+                    return stateLocation;
+                }
+
+                public void setStateLocation(String stateLocation) {
+                    this.stateLocation = stateLocation;
+                }
+            }
         }
-    }
 
-    public static class StatefulSet {
-        public static final String ENABLED_KEY = PREFIX + ".stateful-set.enabled";
-        private boolean enabled;
+        public static class Distributor {
+            private Type type = Type.MANUAL;
+            private Manual manual;
 
-        public boolean isEnabled() {
-            return enabled;
+            public Type getType() {
+                return type;
+            }
+
+            public void setType(Type type) {
+                this.type = type;
+            }
+
+            public Manual getManual() {
+                return manual;
+            }
+
+            public void setManual(Manual manual) {
+                this.manual = manual;
+            }
+
+            public enum Type {
+                MANUAL,
+                STATEFUL_SET,
+                REDIS
+            }
         }
 
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
-        }
-    }
+        public static class Manual {
 
-    public static class Redis {
-        public static final String ENABLED_KEY = PREFIX + ".redis.enabled";
-        private boolean enabled;
+            private Integer machineId;
 
-        public boolean isEnabled() {
-            return enabled;
-        }
+            public Integer getMachineId() {
+                return machineId;
+            }
 
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
+            public void setMachineId(Integer machineId) {
+                this.machineId = machineId;
+            }
         }
     }
 
@@ -249,6 +261,28 @@ public class SnowflakeIdProperties {
         public enum TimestampUnit {
             SECOND,
             MILLISECOND
+        }
+    }
+
+    public static class ClockBackwards {
+
+        private int spinThreshold = DefaultClockBackwardsSynchronizer.DEFAULT_SPIN_THRESHOLD;
+        private int brokenThreshold = DefaultClockBackwardsSynchronizer.DEFAULT_BROKEN_THRESHOLD;
+
+        public int getSpinThreshold() {
+            return spinThreshold;
+        }
+
+        public void setSpinThreshold(int spinThreshold) {
+            this.spinThreshold = spinThreshold;
+        }
+
+        public int getBrokenThreshold() {
+            return brokenThreshold;
+        }
+
+        public void setBrokenThreshold(int brokenThreshold) {
+            this.brokenThreshold = brokenThreshold;
         }
     }
 }

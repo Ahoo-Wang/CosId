@@ -14,18 +14,18 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     public static final int NOT_FOUND_LAST_STAMP = -1;
     private final int DEFAULT_TIMEOUT = 1;
     private final Duration timeout = Duration.ofSeconds(DEFAULT_TIMEOUT);
-    private final LocalMachineState localMachineState;
+    private final MachineStateStorage machineStateStorage;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
 
-    public AbstractMachineIdDistributor(LocalMachineState localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        this.localMachineState = localMachineState;
+    public AbstractMachineIdDistributor(MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        this.machineStateStorage = machineStateStorage;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
     }
 
     /**
-     * 1. get from {@link me.ahoo.cosid.snowflake.machine.LocalMachineState}
+     * 1. get from {@link MachineStateStorage}
      * 2. when not found: {@link #distribute0}
-     * 3. set {@link me.ahoo.cosid.snowflake.machine.MachineState} to {@link me.ahoo.cosid.snowflake.machine.LocalMachineState}
+     * 3. set {@link me.ahoo.cosid.snowflake.machine.MachineState} to {@link MachineStateStorage}
      *
      * @param namespace
      * @param machineBit
@@ -36,7 +36,7 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     @SneakyThrows
     @Override
     public int distribute(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
-        MachineState localState = localMachineState.get(namespace, instanceId);
+        MachineState localState = machineStateStorage.get(namespace, instanceId);
         if (!MachineState.NOT_FOUND.equals(localState)) {
             clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastTimeStamp());
             return localState.getMachineId();
@@ -48,7 +48,7 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
             localState = MachineState.of(localState.getMachineId(), System.currentTimeMillis());
         }
 
-        localMachineState.set(namespace, localState.getMachineId(), instanceId);
+        machineStateStorage.set(namespace, localState.getMachineId(), instanceId);
         return localState.getMachineId();
     }
 
@@ -56,7 +56,7 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
 
 
     /**
-     * 1. get from {@link me.ahoo.cosid.snowflake.machine.LocalMachineState}
+     * 1. get from {@link MachineStateStorage}
      * 2. when not found: {@link #distribute0} , no need to revert
      * 3. revert
      *
@@ -67,13 +67,13 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     @SneakyThrows
     @Override
     public void revert(String namespace, InstanceId instanceId) throws MachineIdOverflowException {
-        MachineState lastLocalState = localMachineState.get(namespace, instanceId);
+        MachineState lastLocalState = machineStateStorage.get(namespace, instanceId);
         if (MachineState.NOT_FOUND.equals(lastLocalState)) {
             revert0(namespace, instanceId, lastLocalState);
             return;
         }
         if (ClockBackwardsSynchronizer.getBackwardsTimeStamp(lastLocalState.getLastTimeStamp()) < 0) {
-            localMachineState.set(namespace, lastLocalState.getMachineId(), instanceId);
+            machineStateStorage.set(namespace, lastLocalState.getMachineId(), instanceId);
         }
         revert0(namespace, instanceId, lastLocalState);
     }

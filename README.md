@@ -29,7 +29,7 @@ It can be seen from the design of SnowflakeId:
 
 *[CosId-SnowflakeId](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-core/src/main/java/me/ahoo/cosid/snowflake)*
 
-It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock callback problem. And provide a more friendly and flexible experience.
+It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock backwards problem. And provide a more friendly and flexible experience.
 
 ### MachineIdDistributor
 
@@ -40,9 +40,11 @@ It mainly solves two major problems of `SnowflakeId`: machine number allocation 
 ```yaml
 cosid:
   snowflake:
-    manual:
-      enabled: true
-      machine-id: 1
+    machine:
+      distributor:
+        type: manual
+        manual:
+          machine-id: 0
 ```
 
 > Manually distribute `MachineId`
@@ -52,8 +54,9 @@ cosid:
 ```yaml
 cosid:
   snowflake:
-    stateful-set:
-    enabled: true
+    machine:
+      distributor:
+        type: stateful_set
 ```
 
 > Use the stable identification ID provided by the `StatefulSet` of `Kubernetes` as the machine number.
@@ -63,17 +66,26 @@ cosid:
 ```yaml
 cosid:
   snowflake:
-    redis:
-      enabled: true
+    machine:
+      distributor:
+        type: redis
 ```
 
 > Use *Redis* as the distribution store for the machine number.
 
 ### ClockBackwardsSynchronizer
 
-The default `DefaultClockBackwardsSynchronizer` clock callback synchronizer uses active wait synchronization strategy, `spinThreshold` (default value 20 milliseconds) is used to set the spin wait threshold, when it is greater than `spinThreshold`, use thread sleep to wait for clock synchronization, if it exceeds` BrokenThreshold` (default value 2 seconds) will directly throw a `ClockTooManyBackwardsException` exception.
+```yaml
+cosid:
+  snowflake:
+    clock-backwards:
+      spin-threshold: 10
+      broken-threshold: 2000
+```
 
-### LocalMachineState
+The default `DefaultClockBackwardsSynchronizer` clock callback synchronizer uses active wait synchronization strategy, `spinThreshold` (default value 10 milliseconds) is used to set the spin wait threshold, when it is greater than `spinThreshold`, use thread sleep to wait for clock synchronization, if it exceeds` BrokenThreshold` (default value 2 seconds) will directly throw a `ClockTooManyBackwardsException` exception.
+
+### MachineStateStorage
 
 ```java
 public class MachineState {
@@ -100,7 +112,16 @@ public class MachineState {
 }
 ```
 
-The default `FileLocalMachineState` local machine state storage uses a local file to store the machine number and the most recent timestamp, which is used as a `MachineState` cache.
+```yaml
+cosid:
+  snowflake:
+    machine:
+      state-storage:
+        local:
+          state-location: ./cosid-machine-state/
+```
+
+The default `LocalMachineStateStorage` local machine state storage uses a local file to store the machine number and the most recent timestamp, which is used as a `MachineState` cache.
 
 ### ClockSyncSnowflakeId
 
@@ -151,12 +172,10 @@ cosid:
       bizA:
         #      epoch:
         #      timestamp-bit:
-        #      machine-bit:
         sequence-bit: 12
       bizB:
         #      epoch:
         #      timestamp-bit:
-        #      machine-bit:
         sequence-bit: 12
 ```
 
@@ -177,7 +196,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "0.9.2";
+    val cosidVersion = "0.9.5";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -193,7 +212,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>0.9.2</cosid.version>
+        <cosid.version>0.9.5</cosid.version>
     </properties>
 
     <dependencies>
@@ -213,32 +232,34 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 cosid:
   namespace: ${spring.application.name}
   snowflake:
-    #    instance-id:
-    #      stable: true
-    #      machine-bit: 10
-    #      instance-id: ${HOSTNAME}
-    #  stateful-set:
-    #    enabled: true
-    #  manual:
-    #    enabled: true
-    #    machine-id: 1
-    redis:
-      enabled: true
-    provider:
-      order:
-        #      epoch:
-        #      timestamp-bit:
-        sequence-bit: 12
-      user:
-        #      epoch:
-        #      timestamp-bit:
-        sequence-bit: 12
     enabled: true
+    machine:
+#      stable: true
+#      machine-bit: 10
+#      instance-id: ${HOSTNAME}
+      distributor:
+        type: redis
+#        manual:
+#          machine-id: 0
+      state-storage:
+        local:
+          state-location: ./cosid-machine-state/
+    provider:
+      bizA:
+#        epoch:
+#        timestamp-bit:
+        sequence-bit: 12
+      bizB:
+#        epoch:
+#        timestamp-bit:
+        sequence-bit: 12
 #  redis:
-#    enabled: true
+#    enabled: false
 #    provider:
 #      order:
 #        step: 100
+#    share:
+#      step: 100
 ```
 
 ## JMH-Benchmark

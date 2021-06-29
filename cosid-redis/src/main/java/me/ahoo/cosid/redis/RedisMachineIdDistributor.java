@@ -27,9 +27,9 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
     public RedisMachineIdDistributor(RedisClusterAsyncCommands<String, String> redisCommands,
-                                     LocalMachineState localMachineState,
+                                     MachineStateStorage machineStateStorage,
                                      ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        super(localMachineState, clockBackwardsSynchronizer);
+        super(machineStateStorage, clockBackwardsSynchronizer);
         this.redisCommands = redisCommands;
     }
 

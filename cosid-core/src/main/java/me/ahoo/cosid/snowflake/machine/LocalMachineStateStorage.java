@@ -15,16 +15,16 @@ import java.util.List;
  * @author ahoo wang
  */
 @Slf4j
-public class FileLocalMachineState implements LocalMachineState {
-    public static final String DEFAULT_STATE_LOCATION_PATH = "./cosid-local-machine/";
+public class LocalMachineStateStorage implements MachineStateStorage {
+    public static final String DEFAULT_STATE_LOCATION_PATH = "./cosid-machine-state/";
     public static final String STATE_DELIMITER = "|";
     public final String stateLocation;
 
-    public FileLocalMachineState(String stateLocation) {
+    public LocalMachineStateStorage(String stateLocation) {
         this.stateLocation = stateLocation;
     }
 
-    public FileLocalMachineState() {
+    public LocalMachineStateStorage() {
         this(DEFAULT_STATE_LOCATION_PATH);
     }
 

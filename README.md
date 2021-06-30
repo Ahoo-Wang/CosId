@@ -22,7 +22,7 @@ It can be seen from the design of SnowflakeId:
 - :thumbsup: The first 41 bits are a `timestamp`,So *SnowflakeId* is local monotonically increasing, and affected by global clock synchronization *SnowflakeId* is global trend increasing.
 - :thumbsup: `SnowflakeId` does not have a strong dependency on any third-party middleware, and its performance is also very high.
 - :thumbsup: The bit allocation scheme can be flexibly configured according to the needs of the business system to achieve the optimal use effect.
-- :thumbsdown: Strong reliance on the local clock, potential clock callback problems will cause ID duplication.
+- :thumbsdown: Strong reliance on the local clock, potential clock moved backwards problems will cause ID duplication.
 - :thumbsdown: The `machineId` needs to be set manually. If the `machineId` is manually assigned during actual deployment, it will be very inefficient.
 
 ---
@@ -83,7 +83,7 @@ cosid:
       broken-threshold: 2000
 ```
 
-The default `DefaultClockBackwardsSynchronizer` clock callback synchronizer uses active wait synchronization strategy, `spinThreshold` (default value 10 milliseconds) is used to set the spin wait threshold, when it is greater than `spinThreshold`, use thread sleep to wait for clock synchronization, if it exceeds` BrokenThreshold` (default value 2 seconds) will directly throw a `ClockTooManyBackwardsException` exception.
+The default `DefaultClockBackwardsSynchronizer` clock moved backwards synchronizer uses active wait synchronization strategy, `spinThreshold` (default value 10 milliseconds) is used to set the spin wait threshold, when it is greater than `spinThreshold`, use thread sleep to wait for clock synchronization, if it exceeds` BrokenThreshold` (default value 2 seconds) will directly throw a `ClockTooManyBackwardsException` exception.
 
 ### MachineStateStorage
 
@@ -132,7 +132,7 @@ cosid:
       clock-sync: true
 ```
 
-The default `SnowflakeId` will directly throw a `ClockBackwardsException` when a clock callback occurs, while using the `ClockSyncSnowflakeId` will use the `ClockBackwardsSynchronizer` to actively wait for clock synchronization to regenerate the ID, providing a more user-friendly experience.
+The default `SnowflakeId` will directly throw a `ClockBackwardsException` when a clock moved backwards occurs, while using the `ClockSyncSnowflakeId` will use the `ClockBackwardsSynchronizer` to actively wait for clock synchronization to regenerate the ID, providing a more user-friendly experience.
 
 ### SafeJavaScriptSnowflakeId
 

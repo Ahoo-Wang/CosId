@@ -318,6 +318,10 @@ cosid:
 
 ## JMH-Benchmark
 
+- The development notebook : MacBook Pro (M1)
+- All benchmark tests are carried out on the development notebook.
+- Deploying Redis on the development notebook.
+
 ### SnowflakeId
 
 ```

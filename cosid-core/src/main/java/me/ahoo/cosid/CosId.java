@@ -10,7 +10,13 @@ public final class CosId {
     public static final String COSID = "cosid";
     public static final String COSID_PREFIX = COSID + ".";
     public static final LocalDateTime PIGEON_EPOCH_DATE;
+    /**
+     *  1577203200000
+     */
     public static final long COSID_EPOCH;
+    /**
+     *  1577203200
+     */
     public static final long COSID_EPOCH_SECOND;
 
     static {

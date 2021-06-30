@@ -27,9 +27,11 @@ if machineState then
 end
 
 local instanceRevertKey = 'cosid' .. ':' .. namespace .. ':revert';
-local machineId = redis.call('hrandfield', instanceRevertKey);
-if machineId then
-    local lastStamp = redis.call('hget', instanceRevertKey, machineId)
+local machineData = redis.call('hscan', instanceRevertKey, 0, 'match', '*', 'count', 1)[2];
+local machineId = 0;
+if #machineData > 0 then
+    machineId = machineData[1];
+    local lastStamp = machineData[2];
     machineState = convertToStringState(machineId, lastStamp);
     redis.call('hset', instanceIdxKey, instanceId, machineState);
     redis.call('hdel', instanceRevertKey, machineId)
@@ -39,7 +41,6 @@ end
 local lastMachineId = redis.call('get', machineIdAdderKey)
 if not lastMachineId then
     lastMachineId = -1;
-    machineId = 0;
     redis.call('set', machineIdAdderKey, machineId)
 end
 

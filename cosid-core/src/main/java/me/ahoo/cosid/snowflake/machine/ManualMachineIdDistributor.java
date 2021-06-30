@@ -24,6 +24,9 @@ public class ManualMachineIdDistributor extends AbstractMachineIdDistributor {
 
     @Override
     protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
+        if (log.isInfoEnabled()) {
+            log.info("distribute0 - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
+        }
         return machineState;
     }
 

@@ -10,8 +10,14 @@ java {
 
 dependencies {
     implementation(platform(project(":cosid-dependencies")))
-    implementation(project(":cosid-redis"))
     implementation(project(":spring-boot-starter-cosid"))
+    implementation(project(":cosid-redis"))
+    implementation("me.ahoo.cosky:cosky-spring-cloud-core")
+//    implementation(project(":spring-boot-starter-cosid")){
+//        capabilities {
+//            requireCapability("me.ahoo.cosid:redis-support")
+//        }
+//    }
     implementation("io.springfox:springfox-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 

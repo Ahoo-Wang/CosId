@@ -25,7 +25,7 @@ public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributo
 
         String idStr = hostName.substring(lastSplitIdx + 1);
         if (log.isInfoEnabled()) {
-            log.info("distribute - machineId:[{}] from Env HOSTNAME:[{}]", idStr, hostName);
+            log.info("resolveMachineId - machineId:[{}] from Env HOSTNAME:[{}]", idStr, hostName);
         }
         return Integer.parseInt(idStr);
     }
@@ -33,7 +33,11 @@ public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributo
     @Override
     protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
         int machineId = resolveMachineId();
-        return MachineState.of(machineId, NOT_FOUND_LAST_STAMP);
+        MachineState machineState = MachineState.of(machineId, NOT_FOUND_LAST_STAMP);
+        if (log.isInfoEnabled()) {
+            log.info("distribute0 - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
+        }
+        return machineState;
     }
 
 

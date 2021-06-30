@@ -182,6 +182,7 @@ public class SnowflakeIdProperties {
         }
 
         public static class Distributor {
+            public static final String TYPE = PREFIX + ".machine.distributor.type";
             private Type type = Type.MANUAL;
             private Manual manual;
             private Redis redis;
@@ -236,7 +237,7 @@ public class SnowflakeIdProperties {
 
         public static class Redis {
 
-            private Duration timeout = RedisMachineIdDistributor.DEFAULT_TIMEOUT;
+            private Duration timeout = Duration.ofSeconds(1);
 
             public Duration getTimeout() {
                 return timeout;

@@ -21,6 +21,14 @@ public class MachineState {
         return lastTimeStamp;
     }
 
+    @Override
+    public String toString() {
+        return "MachineState{" +
+                "machineId=" + machineId +
+                ", lastTimeStamp=" + lastTimeStamp +
+                '}';
+    }
+
     public static MachineState of(int machineId, long lastStamp) {
         return new MachineState(machineId, lastStamp);
     }

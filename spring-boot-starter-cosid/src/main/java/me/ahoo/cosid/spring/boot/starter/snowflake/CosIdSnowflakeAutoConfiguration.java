@@ -7,20 +7,17 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.*;
 import me.ahoo.cosid.snowflake.machine.*;
 import me.ahoo.cosid.snowflake.machine.k8s.StatefulSetMachineIdDistributor;
-import me.ahoo.cosid.redis.RedisMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
-import me.ahoo.cosky.core.redis.RedisConnectionFactory;
-import me.ahoo.cosky.core.util.Systems;
+import me.ahoo.cosid.util.Systems;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import javax.annotation.Nullable;
-import java.time.Duration;
 import java.util.Objects;
 
 /**
@@ -83,47 +80,31 @@ public class CosIdSnowflakeAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public MachineIdDistributor machineIdDistributor(@Nullable RedisConnectionFactory redisConnectionFactory, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        SnowflakeIdProperties.Machine.Distributor machineIdDistributor = snowflakeIdProperties.getMachine().getDistributor();
-        switch (machineIdDistributor.getType()) {
-            case MANUAL: {
-                SnowflakeIdProperties.Machine.Manual manual = machineIdDistributor.getManual();
-                Preconditions.checkNotNull(manual, "cosid.snowflake.machine.distributor.manual can not be null.");
-                Integer machineId = manual.getMachineId();
-                Preconditions.checkNotNull(machineId, "cosid.snowflake.machine.distributor.manual.machineId can not be null.");
-                Preconditions.checkArgument(machineId >= 0, "cosid.snowflake.machine.distributor.manual.machineId can not be less than 0.");
-                return new ManualMachineIdDistributor(machineId, localMachineState, clockBackwardsSynchronizer);
-            }
-            case STATEFUL_SET: {
-                return new StatefulSetMachineIdDistributor(localMachineState, clockBackwardsSynchronizer);
-            }
-            case REDIS: {
-                Preconditions.checkNotNull(redisConnectionFactory, "redisConnectionFactory can not be null.");
-                Duration timeout = snowflakeIdProperties.getMachine().getDistributor().getRedis().getTimeout();
-                return new RedisMachineIdDistributor(timeout, redisConnectionFactory.getShareAsyncCommands(), localMachineState, clockBackwardsSynchronizer);
-            }
-            default:
-                throw new IllegalStateException("Unexpected value: " + machineIdDistributor.getType());
-        }
+    @ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, matchIfMissing = true, havingValue = "manual")
+    public ManualMachineIdDistributor machineIdDistributor(MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        SnowflakeIdProperties.Machine.Manual manual = snowflakeIdProperties.getMachine().getDistributor().getManual();
+        Preconditions.checkNotNull(manual, "cosid.snowflake.machine.distributor.manual can not be null.");
+        Integer machineId = manual.getMachineId();
+        Preconditions.checkNotNull(machineId, "cosid.snowflake.machine.distributor.manual.machineId can not be null.");
+        Preconditions.checkArgument(machineId >= 0, "cosid.snowflake.machine.distributor.manual.machineId can not be less than 0.");
+        return new ManualMachineIdDistributor(machineId, localMachineState, clockBackwardsSynchronizer);
     }
 
     @Bean
-    @ConditionalOnBean(value = MachineIdDistributor.class)
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "stateful_set")
+    public StatefulSetMachineIdDistributor statefulSetMachineIdDistributor(MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        return new StatefulSetMachineIdDistributor(localMachineState, clockBackwardsSynchronizer);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
     public LifecycleMachineIdDistributor lifecycleMachineIdDistributor(InstanceId instanceId, MachineIdDistributor machineIdDistributor) {
         return new LifecycleMachineIdDistributor(cosIdProperties, instanceId, machineIdDistributor);
     }
 
     @Bean
-    @ConditionalOnBean(value = {InstanceId.class, MachineIdDistributor.class})
-    public MachineId machineId(InstanceId instanceId, MachineIdDistributor machineIdDistributor) {
-        Integer machineBit = getMachineBit(snowflakeIdProperties.getShare());
-        int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), machineBit, instanceId);
-        return new MachineId(machineId);
-    }
-
-    @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnBean(InstanceId.class)
     public SnowflakeId shareIdGenerator(MachineIdDistributor machineIdDistributor, InstanceId instanceId, IdGeneratorProvider idGeneratorProvider, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         SnowflakeIdProperties.IdDefinition shareIdDefinition = snowflakeIdProperties.getShare();
         SnowflakeId shareIdGen = createIdGen(machineIdDistributor, instanceId, shareIdDefinition, clockBackwardsSynchronizer);
@@ -137,6 +118,13 @@ public class CosIdSnowflakeAutoConfiguration {
         });
 
         return shareIdGen;
+    }
+
+    @Bean
+    @ConditionalOnBean(value = SnowflakeId.class)
+    public MachineId machineId(SnowflakeId snowflakeId) {
+        int machineId = snowflakeId.getMachineId();
+        return new MachineId(machineId);
     }
 
     private SnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {

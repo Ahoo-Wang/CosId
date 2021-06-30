@@ -7,13 +7,13 @@ cosid:
       spin-threshold: 10
       broken-threshold: 2000
     machine:
-      #      stable: true
+#      stable: true
       #      machine-bit: 10
       #      instance-id: ${HOSTNAME}
       distributor:
         type: redis
-      #        manual:
-      #          machine-id: 0
+#        manual:
+#          machine-id: 0
       state-storage:
         local:
           state-location: ./cosid-machine-state/
@@ -40,5 +40,3 @@ cosid:
       bizB:
         offset: 10000
         step: 100
-
-

@@ -4,6 +4,7 @@ import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosky.core.redis.RedisScripts;
 
@@ -11,7 +12,7 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static me.ahoo.cosid.redis.RedisMachineIdDistributor.wrapNamespace;
+import static me.ahoo.cosid.redis.RedisMachineIdDistributor.hashTag;
 
 /**
  * @author ahoo wang
@@ -25,6 +26,11 @@ public class RedisIdGenerator implements IdGenerator {
 
     private final String namespace;
     private final String name;
+    /**
+     * hash tag : namespace.name
+     * cosid:{namespace.name}:adder
+     */
+    private final String adderKey;
     private final int offset;
     private final int step;
     private final Duration timeout;
@@ -51,6 +57,7 @@ public class RedisIdGenerator implements IdGenerator {
         this.step = step;
         this.timeout = timeout;
         this.redisCommands = redisCommands;
+        this.adderKey = CosId.COSID + ":" + hashTag(namespace + "." + name) + ".adder";
     }
 
     public String getNamespace() {
@@ -96,7 +103,7 @@ public class RedisIdGenerator implements IdGenerator {
         maxId = fetchId();
         sequence = maxId - step;
         if (log.isInfoEnabled()) {
-            log.info("fetchIdAndResetMaxId - namespace:[{}] - name:[{}] maxId:[{}] - sequence:[{}->{}] - step:[{}].", namespace, name, maxId, preSequence, sequence, step);
+            log.info("fetchIdAndResetMaxId - namespace:[{}] - name:[{}] - maxId:[{}] - sequence:[{}->{}] - step:[{}].", namespace, name, maxId, preSequence, sequence, step);
         }
     }
 
@@ -108,10 +115,11 @@ public class RedisIdGenerator implements IdGenerator {
     private CompletableFuture<Long> fetchIdAsync() {
         return RedisScripts.doEnsureScript(REDIS_ID_GENERATE, redisCommands,
                 (scriptSha) -> {
-                    String[] keys = {wrapNamespace(namespace)};
-                    String[] values = {name, String.valueOf(offset), String.valueOf(step)};
+                    String[] keys = {adderKey};
+                    String[] values = {String.valueOf(offset), String.valueOf(step)};
                     return redisCommands.evalsha(scriptSha, ScriptOutputType.INTEGER, keys, values);
                 }
         );
     }
+
 }

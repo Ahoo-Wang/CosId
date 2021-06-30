@@ -45,7 +45,11 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     @SneakyThrows
     @Override
     protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
-        return distributeAsync0(namespace, machineBit, instanceId).get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        MachineState machineState = distributeAsync0(namespace, machineBit, instanceId).get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        if (log.isInfoEnabled()) {
+            log.info("distribute0 - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
+        }
+        return machineState;
     }
 
     protected CompletableFuture<MachineState> distributeAsync0(String namespace, int machineBit, InstanceId instanceId) {
@@ -54,7 +58,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
         }
         return RedisScripts.doEnsureScript(MACHINE_ID_DISTRIBUTE, redisCommands,
                 (scriptSha) -> {
-                    String[] keys = {wrapNamespace(namespace)};
+                    String[] keys = {hashTag(namespace)};
                     String[] values = {instanceId.getInstanceId(), String.valueOf(maxMachineId(machineBit))};
                     return redisCommands.evalsha(scriptSha, ScriptOutputType.MULTI, keys, values);
                 }
@@ -109,15 +113,21 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
                     if (getBackwardsTimeStamp(lastStamp) < 0) {
                         lastStamp = System.currentTimeMillis();
                     }
-                    String[] keys = {wrapNamespace(namespace)};
+                    String[] keys = {hashTag(namespace)};
                     String[] values = {instanceId.getInstanceId(), String.valueOf(lastStamp)};
                     return redisCommands.evalsha(scriptSha, ScriptOutputType.INTEGER, keys, values);
                 }
         );
     }
 
-    public static String wrapNamespace(String namespace) {
-        return "{" + namespace + "}";
+    /**
+     * redis hash tag for redis-cluster
+     *
+     * @param key
+     * @return
+     */
+    public static String hashTag(String key) {
+        return "{" + key + "}";
     }
 
 }

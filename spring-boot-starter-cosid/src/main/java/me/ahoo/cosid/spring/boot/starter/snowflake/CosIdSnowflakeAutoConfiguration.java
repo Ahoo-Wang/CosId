@@ -17,6 +17,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 import java.util.Objects;
 
@@ -48,7 +49,7 @@ public class CosIdSnowflakeAutoConfiguration {
         }
 
         if (!Strings.isNullOrEmpty(machine.getInstanceId())) {
-            return DefaultInstanceId.of(machine.getInstanceId(), stable);
+            return InstanceId.of(machine.getInstanceId(), stable);
         }
 
         InetUtils.HostInfo hostInfo = inetUtils.findFirstNonLoopbackHostInfo();
@@ -58,7 +59,7 @@ public class CosIdSnowflakeAutoConfiguration {
             port = machine.getPort();
         }
 
-        return DefaultInstanceId.of(hostInfo.getIpAddress(), port, stable);
+        return InstanceId.of(hostInfo.getIpAddress(), port, stable);
     }
 
     @Bean
@@ -104,8 +105,9 @@ public class CosIdSnowflakeAutoConfiguration {
     }
 
     @Bean
+    @Primary
     @ConditionalOnMissingBean
-    public SnowflakeId shareIdGenerator(MachineIdDistributor machineIdDistributor, InstanceId instanceId, IdGeneratorProvider idGeneratorProvider, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+    public SnowflakeId shareSnowflakeId(MachineIdDistributor machineIdDistributor, InstanceId instanceId, IdGeneratorProvider idGeneratorProvider, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         SnowflakeIdProperties.IdDefinition shareIdDefinition = snowflakeIdProperties.getShare();
         SnowflakeId shareIdGen = createIdGen(machineIdDistributor, instanceId, shareIdDefinition, clockBackwardsSynchronizer);
         idGeneratorProvider.setShare(shareIdGen);

@@ -48,7 +48,7 @@ cosid:
           machine-id: 0
 ```
 
-> 手动分配 `MachineId`
+> 手动分配 `MachineId`。
 
 #### StatefulSetMachineIdDistributor
 
@@ -63,6 +63,8 @@ cosid:
 > 使用 `Kubernetes` 的 `StatefulSet` 提供的稳定的标识 ID 作为机器号。
 
 #### RedisMachineIdDistributor
+
+![RedisMachineIdDistributor](./docs/RedisMachineIdDistributor.png)
 
 ```yaml
 cosid:
@@ -246,7 +248,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.0.3";
+    val cosidVersion = "1.0.4";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -262,7 +264,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.0.3</cosid.version>
+        <cosid.version>1.0.4</cosid.version>
     </properties>
 
     <dependencies>

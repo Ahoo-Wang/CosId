@@ -40,8 +40,8 @@ class LocalMachineStateStorageTest {
     @Test
     void clear() {
         fileLocalMachineState.clear(namespace);
-        fileLocalMachineState.set(namespace, 1, DefaultInstanceId.of("test", false));
-        fileLocalMachineState.set(namespace, 2, DefaultInstanceId.of("test1", false));
+        fileLocalMachineState.set(namespace, 1, InstanceId.of("test", false));
+        fileLocalMachineState.set(namespace, 2, InstanceId.of("test1", false));
         fileLocalMachineState.clear(namespace);
         Assertions.assertEquals(0, fileLocalMachineState.size(namespace));
     }

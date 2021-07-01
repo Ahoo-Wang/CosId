@@ -34,10 +34,12 @@ public class CosIdRedisAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(RedisConnectionFactory.class)
-    public RedisIdGenerator shareIdGenerator(RedisConnectionFactory redisConnectionFactory, IdGeneratorProvider idGeneratorProvider) {
+    public RedisIdGenerator shareRedisIdGenerator(RedisConnectionFactory redisConnectionFactory, IdGeneratorProvider idGeneratorProvider) {
         RedisIdProperties.IdDefinition shareIdDefinition = redisIdProperties.getShare();
         RedisIdGenerator shareIdGen = new RedisIdGenerator(cosIdProperties.getNamespace(), RedisIdProperties.SHARE, shareIdDefinition.getOffset(), shareIdDefinition.getStep(), redisIdProperties.getTimeout(), redisConnectionFactory.getShareAsyncCommands());
-        idGeneratorProvider.setShare(shareIdGen);
+        if (Objects.isNull(idGeneratorProvider.getShare())) {
+            idGeneratorProvider.setShare(shareIdGen);
+        }
         if (Objects.isNull(redisIdProperties.getProvider())) {
             return shareIdGen;
         }

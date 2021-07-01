@@ -29,14 +29,14 @@ cosid:
         sequence-bit: 12
 
   redis:
-    enabled: false
+    enabled: true
     share:
       offset: 0
       step: 100
     provider:
-      bizA:
+      bizC:
         offset: 10000
         step: 100
-      bizB:
+      bizD:
         offset: 10000
         step: 100

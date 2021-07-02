@@ -9,6 +9,7 @@ import java.util.function.Supplier;
  * @author ahoo wang
  */
 public interface IdGeneratorProvider {
+    String SHARE = "__share__";
 
     IdGenerator getShare();
 

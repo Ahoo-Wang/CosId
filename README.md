@@ -4,7 +4,7 @@
 
 ## Introduction
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* provide a universal, flexible and high-performance distributed ID generator. Two major types of ID generators are currently provided：*SnowflakeId* (Stand-alone TPS performance：4,090,000 [JMH Benchmark](#jmh-benchmark))、*RedisIdGenerator* (Stand-alone TPS performance(Step 1000)：36,874,696 [JMH Benchmark](#jmh-benchmark))。
+*[CosId](https://github.com/Ahoo-Wang/CosId)* provide a universal, flexible and high-performance distributed ID generator. Two major types of ID generators are currently provided：*SnowflakeId* (Stand-alone TPS performance：4,090,000 [JMH Benchmark](#jmh-benchmark))、*SegmentId* (*RedisIdSegmentDistributor* Stand-alone TPS performance(Step 1000)：36,874,696 [JMH Benchmark](#jmh-benchmark))。
 
 ## SnowflakeId
 
@@ -189,26 +189,29 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
         SnowflakeIdState idState = snowflakeFriendlyId.friendlyId();
         idState.getFriendlyId(); //20210623131730192-1-0
 ```
+## SegmentId
 
-## RedisIdGenerator
+## RedisIdSegmentDistributor
 
 ```yaml
 cosid:
-  redis:
+  segment:
     enabled: true
+    distributor:
+      type: redis
     share:
       offset: 0
       step: 100
     provider:
-      bizA:
+      bizC:
         offset: 10000
         step: 100
-      bizB:
+      bizD:
         offset: 10000
         step: 100
 ```
 
-When the step size of `RedisIdGenerator` is set to 1 (one Redis network IO request is required for each generation of `ID`) TPS performance is about 21W+/s ([JMH benchmark](#jmh-benchmark)), if we are correct in some scenarios ID generated TPS performance has higher requirements, so you can choose to increase the step size of each `ID` distribution to reduce the frequency of network IO requests and improve the performance of `IdGenerator` (for example, increase the step size to 1000, and the performance can be increased to 3545W+/s [JMH benchmark](#jmh-benchmark)).
+When the step size of `RedisIdSegmentDistributor` is set to 1 (one Redis network IO request is required for each generation of `ID`) TPS performance is about 21W+/s ([JMH benchmark](#jmh-benchmark)), if we are correct in some scenarios ID generated TPS performance has higher requirements, so you can choose to increase the step size of each `ID` distribution to reduce the frequency of network IO requests and improve the performance of `IdGenerator` (for example, increase the step size to 1000, and the performance can be increased to 3545W+/s [JMH benchmark](#jmh-benchmark)).
 
 ## IdGeneratorProvider
 
@@ -241,7 +244,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.0.4";
+    val cosidVersion = "1.1.0";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -257,7 +260,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.0.4</cosid.version>
+        <cosid.version>1.1.0</cosid.version>
     </properties>
 
     <dependencies>
@@ -303,19 +306,20 @@ cosid:
       bizB:
         #        timestamp-bit:
         sequence-bit: 12
-
-#  redis:
-#    enabled: false
-#    share:
-#      offset: 0
-#      step: 100
-#    provider:
-#      bizA:
-#        offset: 10000
-#        step: 100
-#      bizB:
-#        offset: 10000
-#        step: 100
+  segment:
+    enabled: true
+    distributor:
+      type: redis
+    share:
+      offset: 0
+      step: 100
+    provider:
+      bizC:
+        offset: 10000
+        step: 100
+      bizD:
+        offset: 10000
+        step: 100
 ```
 
 ## JMH-Benchmark
@@ -334,15 +338,15 @@ SnowflakeIdBenchmark.safeJsSecondSnowflakeId_generate       thrpt        511939.
 SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4204761.870          ops/s
 ```
 
-### RedisIdGenerator
+### RedisIdSegmentDistributorBenchmark
 
 ``` shell
 gradle cosid-redis:jmh
 ```
 
 ```
-Benchmark                             Mode  Cnt         Score        Error  Units
-RedisIdGeneratorBenchmark.step_1     thrpt   25    220218.848 ±   2070.786  ops/s
-RedisIdGeneratorBenchmark.step_100   thrpt   25   3605422.967 ±  13479.405  ops/s
-RedisIdGeneratorBenchmark.step_1000  thrpt   25  36874696.252 ± 357214.292  ops/s
+Benchmark                                      Mode  Cnt         Score        Error  Units
+RedisIdSegmentDistributorBenchmark.step_1     thrpt   25    220218.848 ±   2070.786  ops/s
+RedisIdSegmentDistributorBenchmark.step_100   thrpt   25   3605422.967 ±  13479.405  ops/s
+RedisIdSegmentDistributorBenchmark.step_1000  thrpt   25  36874696.252 ± 357214.292  ops/s
 ```

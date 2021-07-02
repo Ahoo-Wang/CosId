@@ -1,7 +1,6 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import me.ahoo.cosid.spring.boot.starter.EnabledSuffix;
-import me.ahoo.cosid.spring.boot.starter.redis.RedisIdProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.lang.annotation.ElementType;

@@ -10,6 +10,7 @@ import java.util.function.Supplier;
  * @author ahoo wang
  */
 public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
+
     private IdGenerator shareIdGenerator;
 
     private final ConcurrentHashMap<String, IdGenerator> nameMapIdGen;
@@ -26,6 +27,7 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
     @Override
     public void setShare(IdGenerator idGenerator) {
         this.shareIdGenerator = idGenerator;
+        set(SHARE, idGenerator);
     }
 
     @Override

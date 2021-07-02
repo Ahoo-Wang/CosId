@@ -4,6 +4,7 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.segment.DefaultSegmentId;
 import org.junit.jupiter.api.*;
 
 import java.util.ArrayList;
@@ -17,35 +18,35 @@ import java.util.concurrent.*;
  * @author ahoo wang
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class RedisIdGeneratorTest {
+public class RedisIdIdSegmentDistributorTest {
     protected RedisClient redisClient;
     protected StatefulRedisConnection<String, String> redisConnection;
-    protected RedisIdGenerator redisIdGenerator;
+    protected RedisIdSegmentDistributor redisMaxIdDistributor;
 
     @BeforeAll
     private void initRedis() {
         System.out.println("--- initRedis ---");
         redisClient = RedisClient.create("redis://localhost:6379");
         redisConnection = redisClient.connect();
-
+        redisMaxIdDistributor = new RedisIdSegmentDistributor(UUID.randomUUID().toString(), "RedisIdGeneratorTest", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
     }
 
     @Test
-    public void generateOnce() {
-        long id = redisIdGenerator.generate();
-        Assertions.assertTrue(id > 0);
+    public void nextMaxId() {
+        long nextMaxId = redisMaxIdDistributor.nextMaxId();
+        Assertions.assertTrue(nextMaxId > 0);
     }
 
     @Test
     public void generate() {
-        long id = redisIdGenerator.generate();
+        long id = redisMaxIdDistributor.nextMaxId();
         Assertions.assertTrue(id > 0);
 
-        long id2 = redisIdGenerator.generate();
+        long id2 = redisMaxIdDistributor.nextMaxId();
         Assertions.assertTrue(id2 > 0);
         Assertions.assertTrue(id2 > id);
 
-        long id3 = redisIdGenerator.generate();
+        long id3 = redisMaxIdDistributor.nextMaxId();
         Assertions.assertTrue(id3 > 0);
         Assertions.assertTrue(id3 > id2);
     }
@@ -53,9 +54,9 @@ public class RedisIdGeneratorTest {
     @Test
     public void generate_offset() {
         String namespace = UUID.randomUUID().toString();
-        RedisIdGenerator redisIdGenerator_offset_10 = new RedisIdGenerator(namespace, "generate_offset", 10, 100, RedisIdGenerator.DEFAULT_TIMEOUT, redisClient.connect().async());
-        long id = redisIdGenerator_offset_10.generate();
-        Assertions.assertEquals(11, id);
+        RedisIdSegmentDistributor redisMaxIdDistributor_offset_10 = new RedisIdSegmentDistributor(namespace, "generate_offset", 10, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        long id = redisMaxIdDistributor_offset_10.nextMaxId();
+        Assertions.assertEquals(110, id);
     }
 
     static final int CONCURRENT_THREADS = 20;
@@ -64,7 +65,8 @@ public class RedisIdGeneratorTest {
     @Test
     public void concurrent_generate_step_100() {
         String namespace = UUID.randomUUID().toString();
-        redisIdGenerator = new RedisIdGenerator(namespace, "generate_step_10", 0, 100, RedisIdGenerator.DEFAULT_TIMEOUT, redisClient.connect().async());
+        RedisIdSegmentDistributor redisMaxIdDistributor_generate_step_100 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        DefaultSegmentId defaultSegmentId = new DefaultSegmentId(redisMaxIdDistributor_generate_step_100);
         ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;
@@ -74,7 +76,7 @@ public class RedisIdGeneratorTest {
                 int requestNum = 0;
                 while (requestNum < THREAD_REQUEST_NUM) {
                     requestNum++;
-                    long id = redisIdGenerator.generate();
+                    long id = defaultSegmentId.generate();
                     ids.add(id);
                 }
                 return ids;
@@ -106,14 +108,17 @@ public class RedisIdGeneratorTest {
         executorService.shutdown();
     }
 
-    static final int MULTI_CONCURRENT_THREADS = 15;
+    static final int MULTI_CONCURRENT_THREADS = 10;
     static final int MULTI_THREAD_REQUEST_NUM = 50000;
 
     @Test
     public void concurrent_generate_step_10_multi_instance() {
         String namespace = UUID.randomUUID().toString();
-        IdGenerator idGenerator1 = new RedisIdGenerator(namespace, "generate_step_10", 0, 10, RedisIdGenerator.DEFAULT_TIMEOUT, redisClient.connect().async());
-        IdGenerator idGenerator2 = new RedisIdGenerator(namespace, "generate_step_10", 0, 10, RedisIdGenerator.DEFAULT_TIMEOUT, redisClient.connect().async());
+        RedisIdSegmentDistributor redisMaxIdDistributor1 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        RedisIdSegmentDistributor redisMaxIdDistributor2 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        IdGenerator idGenerator1 = new DefaultSegmentId(redisMaxIdDistributor1);
+        IdGenerator idGenerator2 = new DefaultSegmentId(redisMaxIdDistributor2);
+
         ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[MULTI_CONCURRENT_THREADS * 2];
         int threads1 = 0;

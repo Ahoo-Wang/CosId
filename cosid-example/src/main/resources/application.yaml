@@ -27,9 +27,10 @@ cosid:
       bizB:
         #        timestamp-bit:
         sequence-bit: 12
-
-  redis:
+  segment:
     enabled: true
+    distributor:
+      type: redis
     share:
       offset: 0
       step: 100

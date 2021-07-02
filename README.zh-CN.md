@@ -4,7 +4,9 @@
 
 ## 介绍
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式系统 ID 生成器。 目前提供了俩大类 ID 生成器：*SnowflakeId* （单机 TPS 性能：409W/s [JMH 基准测试](#jmh-benchmark)）、*RedisIdGenerator* (单机 TPS 性能(步长 1000)：3687W+/s [JMH 基准测试](#jmh-benchmark))。
+*[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式系统 ID 生成器。 目前提供了俩大类 ID 生成器：*SnowflakeId* （单机 TPS
+性能：409W/s [JMH 基准测试](#jmh-benchmark)）、*SegmentId*( *RedisIdSegmentDistributor* 单机 TPS 性能(步长 1000)
+：3687W+/s [JMH 基准测试](#jmh-benchmark))。
 
 ## SnowflakeId
 
@@ -145,7 +147,8 @@ cosid:
 SnowflakeId snowflakeId=SafeJavaScriptSnowflakeId.ofMillisecond(1);
 ```
 
-`JavaScript` 的 `Number.MAX_SAFE_INTEGER` 只有 53 位，如果直接将 63 位的 `SnowflakeId` 返回给前端，那么会值溢出的情况，通常我们可以将`SnowflakeId`转换为 `String` 类型或者自定义 `SnowflakeId` 位分配来缩短 `SnowflakeId` 的位数 使 `ID` 提供给前端时不溢出。
+`JavaScript` 的 `Number.MAX_SAFE_INTEGER` 只有 53 位，如果直接将 63 位的 `SnowflakeId` 返回给前端，那么会值溢出的情况，通常我们可以将`SnowflakeId`
+转换为 `String` 类型或者自定义 `SnowflakeId` 位分配来缩短 `SnowflakeId` 的位数 使 `ID` 提供给前端时不溢出。
 
 ### SnowflakeFriendlyId (可以将 `SnowflakeId` 解析成可读性更好的 `SnowflakeIdState` )
 
@@ -176,42 +179,47 @@ public class SnowflakeIdState {
 ```java
 public interface SnowflakeFriendlyId extends SnowflakeId {
 
-  SnowflakeIdState friendlyId(long id);
+    SnowflakeIdState friendlyId(long id);
 
-  SnowflakeIdState ofFriendlyId(String friendlyId);
+    SnowflakeIdState ofFriendlyId(String friendlyId);
 
-  default SnowflakeIdState friendlyId() {
-    long id = generate();
-    return friendlyId(id);
-  }
+    default SnowflakeIdState friendlyId() {
+        long id = generate();
+        return friendlyId(id);
+    }
 }
 ```
 
 ```java
-        SnowflakeFriendlyId snowflakeFriendlyId = new DefaultSnowflakeFriendlyId(snowflakeId);
-        SnowflakeIdState idState = snowflakeFriendlyId.friendlyId();
+        SnowflakeFriendlyId snowflakeFriendlyId=new DefaultSnowflakeFriendlyId(snowflakeId);
+        SnowflakeIdState idState=snowflakeFriendlyId.friendlyId();
         idState.getFriendlyId(); //20210623131730192-1-0
 ```
 
-## RedisIdGenerator
+## SegmentId (号段模式)
+
+## RedisIdSegmentDistributor (使用`Redis`作为号段分发存储)
 
 ```yaml
 cosid:
-  redis:
+  segment:
     enabled: true
+    distributor:
+      type: redis
     share:
       offset: 0
       step: 100
     provider:
-      bizA:
+      bizC:
         offset: 10000
         step: 100
-      bizB:
+      bizD:
         offset: 10000
         step: 100
 ```
 
-`RedisIdGenerator` 步长设置为 1 时（每次生成`ID`都需要执行一次 *Redis* 网络 IO 请求）*TPS* 性能约为 21W/s ([JMH 基准测试](#jmh-benchmark))，如果在部分场景下我们对 ID 生成的 *TPS* 性能有更高的要求，那么可以选择使用增加每次`ID`分发步长来降低网络 IO 请求频次，提高 `IdGenerator`
+`RedisIdSegmentDistributor` 步长设置为 1 时（每次生成`ID`都需要执行一次 *Redis* 网络 IO 请求）*TPS* 性能约为 21W/s ([JMH 基准测试](#jmh-benchmark))
+，如果在部分场景下我们对 ID 生成的 *TPS* 性能有更高的要求，那么可以选择使用增加每次`ID`分发步长来降低网络 IO 请求频次，提高 `IdGenerator`
 性能（比如增加步长为 1000，性能可提升到 3545W+/s [JMH 基准测试](#jmh-benchmark)）。
 
 ## IdGeneratorProvider
@@ -231,7 +239,7 @@ cosid:
 ```
 
 ```java
-IdGenerator idGenerator = idGeneratorProvider.get("bizA");
+IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 ```
 
 在实际使用中我们一般不会所有业务服务使用同一个 `IdGenerator` ，而是不同的业务使用不同的 `IdGenerator`，那么 `IdGeneratorProvider`
@@ -248,7 +256,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.0.4";
+    val cosidVersion = "1.1.0";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -264,7 +272,7 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.0.4</cosid.version>
+        <cosid.version>1.1.0</cosid.version>
     </properties>
 
     <dependencies>
@@ -310,19 +318,20 @@ cosid:
       bizB:
         #        timestamp-bit:
         sequence-bit: 12
-
-#  redis:
-#    enabled: false
-#    share:
-#      offset: 0
-#      step: 100
-#    provider:
-#      bizA:
-#        offset: 10000
-#        step: 100
-#      bizB:
-#        offset: 10000
-#        step: 100
+  segment:
+    enabled: true
+    distributor:
+      type: redis
+    share:
+      offset: 0
+      step: 100
+    provider:
+      bizC:
+        offset: 10000
+        step: 100
+      bizD:
+        offset: 10000
+        step: 100
 ```
 
 ## JMH-Benchmark
@@ -341,15 +350,15 @@ SnowflakeIdBenchmark.safeJsSecondSnowflakeId_generate       thrpt        511939.
 SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4204761.870          ops/s
 ```
 
-### RedisIdGenerator
+### RedisIdSegmentDistributorBenchmark
 
 ``` shell
 gradle cosid-redis:jmh
 ```
 
 ```
-Benchmark                             Mode  Cnt         Score        Error  Units
-RedisIdGeneratorBenchmark.step_1     thrpt   25    220218.848 ±   2070.786  ops/s
-RedisIdGeneratorBenchmark.step_100   thrpt   25   3605422.967 ±  13479.405  ops/s
-RedisIdGeneratorBenchmark.step_1000  thrpt   25  36874696.252 ± 357214.292  ops/s
+Benchmark                                      Mode  Cnt         Score        Error  Units
+RedisIdSegmentDistributorBenchmark.step_1     thrpt   25    220218.848 ±   2070.786  ops/s
+RedisIdSegmentDistributorBenchmark.step_100   thrpt   25   3605422.967 ±  13479.405  ops/s
+RedisIdSegmentDistributorBenchmark.step_1000  thrpt   25  36874696.252 ± 357214.292  ops/s
 ```

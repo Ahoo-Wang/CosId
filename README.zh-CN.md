@@ -5,8 +5,8 @@
 ## 介绍
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式系统 ID 生成器。 目前提供了俩大类 ID 生成器：*SnowflakeId* （单机 TPS
-性能：409W/s [JMH 基准测试](#jmh-benchmark)）、*SegmentId*( *RedisIdSegmentDistributor* 单机 TPS 性能(步长 1000)
-：3687W+/s [JMH 基准测试](#jmh-benchmark))。
+性能：409W/s [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark)）、*SegmentId*( *RedisIdSegmentDistributor* 单机 TPS 性能(步长 1000)
+：3687W+/s [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark))。
 
 ## SnowflakeId
 
@@ -218,9 +218,9 @@ cosid:
         step: 100
 ```
 
-`RedisIdSegmentDistributor` 步长设置为 1 时（每次生成`ID`都需要执行一次 *Redis* 网络 IO 请求）*TPS* 性能约为 21W/s ([JMH 基准测试](#jmh-benchmark))
+`RedisIdSegmentDistributor` 步长设置为 1 时（每次生成`ID`都需要执行一次 *Redis* 网络 IO 请求）*TPS* 性能约为 21W/s ([JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark))
 ，如果在部分场景下我们对 ID 生成的 *TPS* 性能有更高的要求，那么可以选择使用增加每次`ID`分发步长来降低网络 IO 请求频次，提高 `IdGenerator`
-性能（比如增加步长为 1000，性能可提升到 3545W+/s [JMH 基准测试](#jmh-benchmark)）。
+性能（比如增加步长为 1000，性能可提升到 3545W+/s [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark)）。
 
 ## IdGeneratorProvider
 

@@ -137,7 +137,6 @@ public class SegmentChainId implements SegmentId {
                         log.warn("prefetch - gave up this next IdSegmentClain.", nextIdSegmentExpiredException);
                     }
                     safeGap++;
-                    continue;
                 }
             }
         }

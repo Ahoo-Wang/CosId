@@ -28,8 +28,8 @@ public class IdSegmentClain {
             if (nextIdSegmentClain.getIdSegment().getOffset() < idSegment.getOffset()) {
                 throw new NextIdSegmentExpiredException(this, nextIdSegmentClain);
             }
-            next = nextIdSegmentClain;
             nextIdSegmentClain.version = version + 1;
+            next = nextIdSegmentClain;
             return true;
         }
     }

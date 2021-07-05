@@ -1,73 +1,34 @@
-package me.ahoo.cosid.redis;
+package me.ahoo.cosid.segment;
 
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.api.StatefulRedisConnection;
-import me.ahoo.cosid.segment.DefaultSegmentId;
-import me.ahoo.cosid.segment.SegmentId;
-import org.junit.jupiter.api.*;
+import lombok.SneakyThrows;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-
 /**
  * @author ahoo wang
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class RedisIdIdSegmentDistributorTest {
-    protected RedisClient redisClient;
-    protected StatefulRedisConnection<String, String> redisConnection;
-    protected RedisIdSegmentDistributor redisMaxIdDistributor;
-
-    @BeforeAll
-    private void initRedis() {
-        System.out.println("--- initRedis ---");
-        redisClient = RedisClient.create("redis://localhost:6379");
-        redisConnection = redisClient.connect();
-        redisMaxIdDistributor = new RedisIdSegmentDistributor(UUID.randomUUID().toString(), "RedisIdGeneratorTest", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
-    }
+class SegmentChainIdTest {
 
     @Test
-    public void nextMaxId() {
-        long nextMaxId = redisMaxIdDistributor.nextMaxId();
-        Assertions.assertTrue(nextMaxId > 0);
-    }
-
-    @Test
-    public void generate() {
-        long id = redisMaxIdDistributor.nextMaxId();
-        Assertions.assertTrue(id > 0);
-
-        long id2 = redisMaxIdDistributor.nextMaxId();
-        Assertions.assertTrue(id2 > 0);
-        Assertions.assertTrue(id2 > id);
-
-        long id3 = redisMaxIdDistributor.nextMaxId();
-        Assertions.assertTrue(id3 > 0);
-        Assertions.assertTrue(id3 > id2);
-    }
-
-    @Test
-    public void generate_offset() {
-        String namespace = UUID.randomUUID().toString();
-        RedisIdSegmentDistributor redisMaxIdDistributor_offset_10 = new RedisIdSegmentDistributor(namespace, "generate_offset", 10, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
-        long id = redisMaxIdDistributor_offset_10.nextMaxId();
-        Assertions.assertEquals(110, id);
+    @SneakyThrows
+    void generate() {
+        SegmentChainId SegmentChainId = new SegmentChainId(new DefaultSegmentIdTest.TestIdSegmentDistributor());
+        SegmentChainId.generate();
+//        Thread.sleep(1000_000);
     }
 
     static final int CONCURRENT_THREADS = 20;
     static final int THREAD_REQUEST_NUM = 50000;
 
     @Test
-    public void concurrent_generate_step_100() {
-        String namespace = UUID.randomUUID().toString();
-        RedisIdSegmentDistributor redisMaxIdDistributor_generate_step_100 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
-        SegmentId defaultSegmentId = new DefaultSegmentId(redisMaxIdDistributor_generate_step_100);
+    public void concurrent_generate() {
+        SegmentChainId SegmentChainId = new SegmentChainId(new DefaultSegmentIdTest.TestIdSegmentDistributor());
         ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;
@@ -75,10 +36,13 @@ public class RedisIdIdSegmentDistributorTest {
             completableFutures[threads] = CompletableFuture.supplyAsync(() -> {
                 List<Long> ids = new ArrayList<>(THREAD_REQUEST_NUM);
                 int requestNum = 0;
+                long lastId = 0;
                 while (requestNum < THREAD_REQUEST_NUM) {
                     requestNum++;
-                    long id = defaultSegmentId.generate();
+                    long id = SegmentChainId.generate();
                     ids.add(id);
+                    Assertions.assertTrue(lastId < id);
+                    lastId = id;
                 }
                 return ids;
             });
@@ -99,38 +63,40 @@ public class RedisIdIdSegmentDistributorTest {
                     lastId = currentId;
                     continue;
                 }
-
+//                Assertions.assertTrue(lastId + 1 <= currentId);
                 Assertions.assertEquals(lastId + 1, currentId);
                 lastId = currentId;
             }
-
+            Assertions.assertTrue(THREAD_REQUEST_NUM * CONCURRENT_THREADS <= lastId);
             Assertions.assertEquals(THREAD_REQUEST_NUM * CONCURRENT_THREADS, lastId);
         }).join();
         executorService.shutdown();
     }
 
-    static final int MULTI_CONCURRENT_THREADS = 10;
+    static final int MULTI_CONCURRENT_THREADS = 20;
     static final int MULTI_THREAD_REQUEST_NUM = 50000;
 
     @Test
-    public void concurrent_generate_step_10_multi_instance() {
-        String namespace = UUID.randomUUID().toString();
-        RedisIdSegmentDistributor redisMaxIdDistributor1 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
-        RedisIdSegmentDistributor redisMaxIdDistributor2 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
-        SegmentId idGenerator1 = new DefaultSegmentId(redisMaxIdDistributor1);
-        SegmentId idGenerator2 = new DefaultSegmentId(redisMaxIdDistributor2);
+    public void concurrent_generate_multi_instance() {
 
+        IdSegmentDistributor testMaxIdDistributor = new DefaultSegmentIdTest.TestIdSegmentDistributor();
+        SegmentChainId SegmentChainId1 = new SegmentChainId(testMaxIdDistributor);
+        SegmentChainId SegmentChainId2 = new SegmentChainId(testMaxIdDistributor);
         ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[MULTI_CONCURRENT_THREADS * 2];
         int threads1 = 0;
+
         while (threads1 < MULTI_CONCURRENT_THREADS) {
             completableFutures[threads1] = CompletableFuture.supplyAsync(() -> {
                 List<Long> ids = new ArrayList<>(MULTI_THREAD_REQUEST_NUM);
                 int requestNum = 0;
+                Long lastId = 0L;
                 while (requestNum < MULTI_THREAD_REQUEST_NUM) {
                     requestNum++;
-                    long id = idGenerator1.generate();
+                    long id = SegmentChainId1.generate();
                     ids.add(id);
+                    Assertions.assertTrue(lastId < id);
+                    lastId = id;
                 }
                 return ids;
             });
@@ -141,10 +107,13 @@ public class RedisIdIdSegmentDistributorTest {
             completableFutures[threads2] = CompletableFuture.supplyAsync(() -> {
                 List<Long> ids = new ArrayList<>(MULTI_THREAD_REQUEST_NUM);
                 int requestNum = 0;
+                Long lastId = 0L;
                 while (requestNum < MULTI_THREAD_REQUEST_NUM) {
                     requestNum++;
-                    long id = idGenerator2.generate();
+                    long id = SegmentChainId2.generate();
                     ids.add(id);
+                    Assertions.assertTrue(lastId < id);
+                    lastId = id;
                 }
                 return ids;
             });
@@ -165,24 +134,13 @@ public class RedisIdIdSegmentDistributorTest {
                     continue;
                 }
 
-                Assertions.assertEquals(lastId + 1, currentId);
+                Assertions.assertTrue(lastId + 1 <= currentId);
+//                Assertions.assertEquals(lastId + 1, currentId);
                 lastId = currentId;
             }
 
-            Assertions.assertEquals(MULTI_THREAD_REQUEST_NUM * MULTI_CONCURRENT_THREADS * 2, lastId);
+            Assertions.assertTrue(MULTI_THREAD_REQUEST_NUM * MULTI_CONCURRENT_THREADS * 2 <= lastId);
         }).join();
         executorService.shutdown();
-    }
-
-    @AfterAll
-    private void destroyRedis() {
-        System.out.println("--- destroyRedis ---");
-
-        if (Objects.nonNull(redisConnection)) {
-            redisConnection.close();
-        }
-        if (Objects.nonNull(redisClient)) {
-            redisClient.shutdown();
-        }
     }
 }

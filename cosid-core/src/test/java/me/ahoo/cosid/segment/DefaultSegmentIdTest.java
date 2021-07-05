@@ -1,5 +1,6 @@
 package me.ahoo.cosid.segment;
 
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -8,11 +9,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * @author ahoo wang
  */
-class DefaultIdSegmentIdTest {
+class DefaultSegmentIdTest {
 
     @Test
     void generate() {
@@ -33,10 +35,13 @@ class DefaultIdSegmentIdTest {
             completableFutures[threads] = CompletableFuture.supplyAsync(() -> {
                 List<Long> ids = new ArrayList<>(THREAD_REQUEST_NUM);
                 int requestNum = 0;
+                long lastId = 0;
                 while (requestNum < THREAD_REQUEST_NUM) {
                     requestNum++;
                     long id = defaultSegmentId.generate();
                     ids.add(id);
+                    Assertions.assertTrue(lastId < id);
+                    lastId = id;
                 }
                 return ids;
             });
@@ -83,10 +88,13 @@ class DefaultIdSegmentIdTest {
             completableFutures[threads1] = CompletableFuture.supplyAsync(() -> {
                 List<Long> ids = new ArrayList<>(MULTI_THREAD_REQUEST_NUM);
                 int requestNum = 0;
+                long lastId = 0;
                 while (requestNum < MULTI_THREAD_REQUEST_NUM) {
                     requestNum++;
                     long id = defaultSegmentId1.generate();
                     ids.add(id);
+                    Assertions.assertTrue(lastId < id);
+                    lastId = id;
                 }
                 return ids;
             });
@@ -97,10 +105,13 @@ class DefaultIdSegmentIdTest {
             completableFutures[threads2] = CompletableFuture.supplyAsync(() -> {
                 List<Long> ids = new ArrayList<>(MULTI_THREAD_REQUEST_NUM);
                 int requestNum = 0;
+                long lastId = 0;
                 while (requestNum < MULTI_THREAD_REQUEST_NUM) {
                     requestNum++;
                     long id = defaultSegmentId2.generate();
                     ids.add(id);
+                    Assertions.assertTrue(lastId < id);
+                    lastId = id;
                 }
                 return ids;
             });
@@ -132,6 +143,11 @@ class DefaultIdSegmentIdTest {
 
     public static class TestIdSegmentDistributor extends IdSegmentDistributor.JdkIdSegmentDistributor {
 
-
+        @SneakyThrows
+        @Override
+        public long nextMaxId() {
+            LockSupport.parkNanos(4300);
+            return super.nextMaxId();
+        }
     }
 }

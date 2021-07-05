@@ -78,7 +78,11 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
     @SneakyThrows
     @Override
     public long nextMaxId() {
-        return fetchMaxIdAsync().get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        long maxId = fetchMaxIdAsync().get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        if (log.isDebugEnabled()) {
+            log.debug("nextMaxId - [{}].", maxId);
+        }
+        return maxId;
     }
 
     private CompletableFuture<Long> fetchMaxIdAsync() {

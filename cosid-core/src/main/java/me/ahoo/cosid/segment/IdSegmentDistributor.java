@@ -18,6 +18,11 @@ public interface IdSegmentDistributor {
         return new IdSegment(maxId, getStep());
     }
 
+    default IdSegmentClain nextIdSegmentClain() {
+        IdSegment nextIdSegment = nextIdSegment();
+        return new IdSegmentClain(nextIdSegment);
+    }
+
     class JdkIdSegmentDistributor implements IdSegmentDistributor {
 
         private final AtomicLong adder = new AtomicLong();

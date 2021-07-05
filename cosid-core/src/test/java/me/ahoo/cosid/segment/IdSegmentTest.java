@@ -29,10 +29,13 @@ class IdSegmentTest {
                 int idsSize = maxId / CONCURRENT_THREADS;
                 List<Long> ids = new ArrayList<>(idsSize);
                 int requestNum = 0;
+                long lastId = 0;
                 while (requestNum < idsSize) {
                     requestNum++;
                     long id = segment.getAndIncrement();
                     ids.add(id);
+                    Assertions.assertTrue(lastId < id);
+                    lastId = id;
                 }
                 return ids;
             });

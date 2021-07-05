@@ -5,6 +5,6 @@ import me.ahoo.cosid.IdGenerator;
 /**
  * @author ahoo wang
  */
-public interface SegmentId extends IdGenerator{
-
+public interface SegmentId extends IdGenerator {
+    int ONE_STEP = 1;
 }

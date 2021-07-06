@@ -256,7 +256,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.1.2";
+    val cosidVersion = "1.1.3";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -272,7 +272,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.1.2</cosid.version>
+        <cosid.version>1.1.3</cosid.version>
     </properties>
 
     <dependencies>

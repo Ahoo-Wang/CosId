@@ -24,14 +24,14 @@ public class DefaultSegmentId implements SegmentId {
         }
 
         long nextSeq = segment.incrementAndGet();
-        if (nextSeq != DefaultIdSegment.SEQUENCE_OVERFLOW) {
+        if (nextSeq != IdSegment.SEQUENCE_OVERFLOW) {
             return nextSeq;
         }
 
         synchronized (this) {
             while (true) {
                 nextSeq = segment.incrementAndGet();
-                if (nextSeq != DefaultIdSegment.SEQUENCE_OVERFLOW) {
+                if (nextSeq != IdSegment.SEQUENCE_OVERFLOW) {
                     return nextSeq;
                 }
                 IdSegment nextIdSegment = maxIdDistributor.nextIdSegment();

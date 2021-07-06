@@ -38,7 +38,7 @@ public interface IdSegmentDistributor {
     }
 
     default IdSegment nextIdSegment() {
-        long maxId = nextMaxId();
+        final long maxId = nextMaxId();
         return new DefaultIdSegment(maxId, getStep());
     }
 

@@ -222,7 +222,6 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
                     log.warn("prefetch - gave up this next IdSegmentClain.", nextIdSegmentExpiredException);
                 }
             }
-
         }
 
         public void shutdown() {

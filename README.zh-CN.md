@@ -4,10 +4,14 @@
 
 ## 介绍
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式系统 ID 生成器。 目前提供了俩大类 ID 生成器：*SnowflakeId* （单机 TPS
-性能：409W/s [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark)）、*SegmentId*( *RedisIdSegmentDistributor* 单机 TPS 性能(步长 1000)
-：3687W+/s [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark))。
+*[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 目前提供了三类 ID 生成器：
 
+- `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) , 主要解决 *时钟回拨问题* 、*机器号分配问题* 并且提供更加友好、灵活的使用体验。
+- `SegmentId` :  `RedisIdSegmentDistributor` *单机 TPS 性能(步长 1000)：3687W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) , 每次获取一段(`Step`)ID，来降低号段分发器的网络IO请求频次提升性能。
+- `SegmentChainId` (实验性功能): `SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强，设计图如下。`PrefetchWorker` 维护安全距离(`safeDistance`), 使得 `SegmentChainId` 达到近似 `AtomicLong` 的 *TPS 性能(步长 1000): 10882W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) 。
+
+![SegmentClainId](./docs/SegmentClainId.png)
+  
 ## SnowflakeId
 
 ![Snowflake](./docs/Snowflake-identifier.png)
@@ -15,10 +19,8 @@
 > *SnowflakeId* 使用 `Long` （64 bits） 位分区来生成 ID 的一种分布式 ID 算法。
 > 通用的位分配方案为：`timestamp` (41 bits) + `machineId` (10 bits) + `sequence` (12 bits) = 63 bits 。
 
-- 41 位 `timestamp` = (1L<<41)/(1000/3600/365) 约可以存储 69 年的时间戳，即可以使用的绝对时间为 `EPOCH` + 69 年，一般我们需要自定义 `EPOCH`
-  为产品开发时间，另外还可以通过压缩其他区域的分配位数，来增加时间戳位数来延长可用时间。
-- 10 位 `machineId` = (1L<<10) = 1024 即相同业务可以部署 1024 个副本 (在 Kubernetes 概念里没有主从副本之分，这里直接沿用 Kubernetes 的定义)
-  实例，一般情况下没有必要使用这么多位，所以会根据部署规模需要重新定义。
+- 41 位 `timestamp` = (1L<<41)/(1000/3600/365) 约可以存储 69 年的时间戳，即可以使用的绝对时间为 `EPOCH` + 69 年，一般我们需要自定义 `EPOCH` 为产品开发时间，另外还可以通过压缩其他区域的分配位数，来增加时间戳位数来延长可用时间。
+- 10 位 `machineId` = (1L<<10) = 1024 即相同业务可以部署 1024 个副本 (在 Kubernetes 概念里没有主从副本之分，这里直接沿用 Kubernetes 的定义) 实例，一般情况下没有必要使用这么多位，所以会根据部署规模需要重新定义。
 - 12 位 `sequence` = (1L<<12) * 1000 = 4096000 即单机每秒可生成约 409W 的 ID，全局同业务集群可产生 4096000*1024=419430W=41.9亿(TPS)。
 
 从 *SnowflakeId* 设计上可以看出:
@@ -31,8 +33,7 @@
 
 ---
 
-*[CosId-SnowflakeId](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-core/src/main/java/me/ahoo/cosid/snowflake)*
-主要解决 *SnowflakeId* 俩大问题：机器号分配问题、时钟回拨问题。 并且提供更加友好、灵活的使用体验。
+*[CosId-SnowflakeId](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-core/src/main/java/me/ahoo/cosid/snowflake)* 主要解决 *SnowflakeId* 俩大问题：机器号分配问题、时钟回拨问题。 并且提供更加友好、灵活的使用体验。
 
 ### MachineIdDistributor (MachineId 分配器)
 
@@ -88,8 +89,7 @@ cosid:
       broken-threshold: 2000
 ```
 
-默认提供的 `DefaultClockBackwardsSynchronizer` 时钟回拨同步器使用主动等待同步策略，`spinThreshold`(默认值 10 毫秒) 用于设置自旋等待阈值， 当大于`spinThreshold`
-时使用线程休眠等待时钟同步，如果超过`brokenThreshold`(默认值 2 秒)时会直接抛出`ClockTooManyBackwardsException`异常。
+默认提供的 `DefaultClockBackwardsSynchronizer` 时钟回拨同步器使用主动等待同步策略，`spinThreshold`(默认值 10 毫秒) 用于设置自旋等待阈值， 当大于`spinThreshold` 时使用线程休眠等待时钟同步，如果超过`brokenThreshold`(默认值 2 秒)时会直接抛出`ClockTooManyBackwardsException`异常。
 
 ### MachineStateStorage (机器状态存储)
 
@@ -138,8 +138,7 @@ cosid:
       clock-sync: true
 ```
 
-默认 `SnowflakeId` 当发生时钟回拨时会直接抛出 `ClockBackwardsException` 异常，而使用 `ClockSyncSnowflakeId` 会使用 `ClockBackwardsSynchronizer`
-主动等待时钟同步来重新生成 ID，提供更加友好的使用体验。
+默认 `SnowflakeId` 当发生时钟回拨时会直接抛出 `ClockBackwardsException` 异常，而使用 `ClockSyncSnowflakeId` 会使用 `ClockBackwardsSynchronizer` 主动等待时钟同步来重新生成 ID，提供更加友好的使用体验。
 
 ### SafeJavaScriptSnowflakeId (`JavaScript` 安全的 `SnowflakeId`)
 
@@ -147,8 +146,7 @@ cosid:
 SnowflakeId snowflakeId=SafeJavaScriptSnowflakeId.ofMillisecond(1);
 ```
 
-`JavaScript` 的 `Number.MAX_SAFE_INTEGER` 只有 53 位，如果直接将 63 位的 `SnowflakeId` 返回给前端，那么会值溢出的情况，通常我们可以将`SnowflakeId`
-转换为 `String` 类型或者自定义 `SnowflakeId` 位分配来缩短 `SnowflakeId` 的位数 使 `ID` 提供给前端时不溢出。
+`JavaScript` 的 `Number.MAX_SAFE_INTEGER` 只有 53 位，如果直接将 63 位的 `SnowflakeId` 返回给前端，那么会值溢出的情况，通常我们可以将`SnowflakeId` 转换为 `String` 类型或者自定义 `SnowflakeId` 位分配来缩短 `SnowflakeId` 的位数 使 `ID` 提供给前端时不溢出。
 
 ### SnowflakeFriendlyId (可以将 `SnowflakeId` 解析成可读性更好的 `SnowflakeIdState` )
 
@@ -198,7 +196,7 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
 
 ## SegmentId (号段模式)
 
-## RedisIdSegmentDistributor (使用`Redis`作为号段分发存储)
+## RedisIdSegmentDistributor (使用`Redis`作为号段分发后端存储)
 
 ```yaml
 cosid:
@@ -218,9 +216,11 @@ cosid:
         step: 100
 ```
 
-`RedisIdSegmentDistributor` 步长设置为 1 时（每次生成`ID`都需要执行一次 *Redis* 网络 IO 请求）*TPS* 性能约为 21W/s ([JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark))
-，如果在部分场景下我们对 ID 生成的 *TPS* 性能有更高的要求，那么可以选择使用增加每次`ID`分发步长来降低网络 IO 请求频次，提高 `IdGenerator`
-性能（比如增加步长为 1000，性能可提升到 3545W+/s [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark)）。
+`RedisIdSegmentDistributor` 步长设置为 1 时（每次生成`ID`都需要执行一次 *Redis* 网络 IO 请求）*TPS* 性能约为 21W/s ([JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) )，如果在部分场景下我们对 ID 生成的 *TPS* 性能有更高的要求，那么可以选择使用增加每次`ID`分发步长来降低网络 IO 请求频次，提高 `IdGenerator` 性能（比如增加步长为 1000，性能可提升到 3545W+/s [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark)）。
+
+### SegmentChainId (号段链模式)
+
+![SegmentClainId](./docs/SegmentClainId.png)
 
 ## IdGeneratorProvider
 
@@ -242,8 +242,7 @@ cosid:
 IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 ```
 
-在实际使用中我们一般不会所有业务服务使用同一个 `IdGenerator` ，而是不同的业务使用不同的 `IdGenerator`，那么 `IdGeneratorProvider`
-就是为了解决这个问题而存在的，他是 `IdGenerator` 的容器，可以通过业务名来获取相应的 `IdGenerator`。
+在实际使用中我们一般不会所有业务服务使用同一个 `IdGenerator` ，而是不同的业务使用不同的 `IdGenerator`，那么 `IdGeneratorProvider` 就是为了解决这个问题而存在的，他是 `IdGenerator` 的容器，可以通过业务名来获取相应的 `IdGenerator`。
 
 ## Examples
 
@@ -256,7 +255,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.1.3";
+    val cosidVersion = "1.1.4";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -272,7 +271,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.1.3</cosid.version>
+        <cosid.version>1.1.4</cosid.version>
     </properties>
 
     <dependencies>
@@ -342,6 +341,12 @@ cosid:
 
 ### SnowflakeId
 
+``` shell
+gradle cosid-core:jmh
+# or
+java -jar cosid-core/build/libs/cosid-core-1.1.4-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+```
+
 ```
 Benchmark                                                    Mode  Cnt        Score   Error  Units
 SnowflakeIdBenchmark.millisecondSnowflakeId_generate        thrpt       4093924.313          ops/s
@@ -354,11 +359,17 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4204761.
 
 ``` shell
 gradle cosid-redis:jmh
+# or
+java -jar cosid-redis/build/libs/cosid-redis-1.1.4-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
-Benchmark                                      Mode  Cnt         Score        Error  Units
-RedisIdSegmentDistributorBenchmark.step_1     thrpt   25    220218.848 ±   2070.786  ops/s
-RedisIdSegmentDistributorBenchmark.step_100   thrpt   25   3605422.967 ±  13479.405  ops/s
-RedisIdSegmentDistributorBenchmark.step_1000  thrpt   25  36874696.252 ± 357214.292  ops/s
+Benchmark                                                       Mode  Cnt          Score         Error  Units
+RedisIdSegmentDistributorBenchmark.jdkId_AtomicLong_baseline   thrpt    5  133453762.920 ±  460414.074  ops/s
+RedisIdSegmentDistributorBenchmark.segmentChainId_step_1       thrpt    5     268674.112 ±   26154.333  ops/s
+RedisIdSegmentDistributorBenchmark.segmentChainId_step_100     thrpt    5   21907055.565 ± 1013620.092  ops/s
+RedisIdSegmentDistributorBenchmark.segmentChainId_step_1000    thrpt    5  108822460.249 ± 5879881.263  ops/s
+RedisIdSegmentDistributorBenchmark.segmentId_step_1            thrpt    5     211779.978 ±   25033.046  ops/s
+RedisIdSegmentDistributorBenchmark.segmentId_step_100          thrpt    5    3042491.392 ±   16249.712  ops/s
+RedisIdSegmentDistributorBenchmark.segmentId_step_1000         thrpt    5   36871236.823 ±  165826.567  ops/s
 ```

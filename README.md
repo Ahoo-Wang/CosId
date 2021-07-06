@@ -4,7 +4,13 @@
 
 ## Introduction
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* provide a universal, flexible and high-performance distributed ID generator. Two major types of ID generators are currently provided：*SnowflakeId* (Stand-alone TPS performance：4,090,000 [JMH Benchmark](#jmh-benchmark))、*SegmentId* (*RedisIdSegmentDistributor* Stand-alone TPS performance(Step 1000)：36,874,696 [JMH Benchmark](#jmh-benchmark))。
+*[CosId](https://github.com/Ahoo-Wang/CosId)* aims to provide a universal, flexible and high-performance distributed ID generator. Three types of ID generators are currently provided:
+
+- `SnowflakeId` : Stand-alone *TPS performance：4,090,000* [JMH Benchmark](#jmh-benchmark) , It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and provide a more friendly and flexible experience.
+- `SegmentId` : `RedisIdSegmentDistributor` Stand-alone *TPS performance(Step 1000)：36,874,696* [JMH Benchmark](#jmh-benchmark) , Get a segment (`Step`) ID every time to reduce the network IO request frequency of the `IdSegment` distributor and improve performance.
+- `SegmentChainId`(*Experimental features*) : `SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves approximately `AtomicLong` *TPS performance (Step 1000): 108,822,460+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) .
+
+![SegmentClainId](./docs/SegmentClainId.png)
 
 ## SnowflakeId
 
@@ -29,7 +35,7 @@ It can be seen from the design of SnowflakeId:
 
 *[CosId-SnowflakeId](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-core/src/main/java/me/ahoo/cosid/snowflake)*
 
-It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock backwards problem. And provide a more friendly and flexible experience.
+It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and provide a more friendly and flexible experience.
 
 ### MachineIdDistributor
 
@@ -213,6 +219,10 @@ cosid:
 
 When the step size of `RedisIdSegmentDistributor` is set to 1 (one Redis network IO request is required for each generation of `ID`) TPS performance is about 21W+/s ([JMH benchmark](#jmh-benchmark)), if we are correct in some scenarios ID generated TPS performance has higher requirements, so you can choose to increase the step size of each `ID` distribution to reduce the frequency of network IO requests and improve the performance of `IdGenerator` (for example, increase the step size to 1000, and the performance can be increased to 3545W+/s [JMH benchmark](#jmh-benchmark)).
 
+### SegmentChainId
+
+![SegmentClainId](./docs/SegmentClainId.png)
+
 ## IdGeneratorProvider
 
 ```yaml
@@ -244,7 +254,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.1.3";
+    val cosidVersion = "1.1.4";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -260,7 +270,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.1.3</cosid.version>
+        <cosid.version>1.1.4</cosid.version>
     </properties>
 
     <dependencies>
@@ -330,6 +340,12 @@ cosid:
 
 ### SnowflakeId
 
+``` shell
+gradle cosid-core:jmh
+# or
+java -jar cosid-core/build/libs/cosid-core-1.1.4-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+```
+
 ```
 Benchmark                                                    Mode  Cnt        Score   Error  Units
 SnowflakeIdBenchmark.millisecondSnowflakeId_generate        thrpt       4093924.313          ops/s
@@ -342,11 +358,17 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4204761.
 
 ``` shell
 gradle cosid-redis:jmh
+# or
+java -jar cosid-redis/build/libs/cosid-redis-1.1.4-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
-Benchmark                                      Mode  Cnt         Score        Error  Units
-RedisIdSegmentDistributorBenchmark.step_1     thrpt   25    220218.848 ±   2070.786  ops/s
-RedisIdSegmentDistributorBenchmark.step_100   thrpt   25   3605422.967 ±  13479.405  ops/s
-RedisIdSegmentDistributorBenchmark.step_1000  thrpt   25  36874696.252 ± 357214.292  ops/s
+Benchmark                                                       Mode  Cnt          Score         Error  Units
+RedisIdSegmentDistributorBenchmark.jdkId_AtomicLong_baseline   thrpt    5  133453762.920 ±  460414.074  ops/s
+RedisIdSegmentDistributorBenchmark.segmentChainId_step_1       thrpt    5     268674.112 ±   26154.333  ops/s
+RedisIdSegmentDistributorBenchmark.segmentChainId_step_100     thrpt    5   21907055.565 ± 1013620.092  ops/s
+RedisIdSegmentDistributorBenchmark.segmentChainId_step_1000    thrpt    5  108822460.249 ± 5879881.263  ops/s
+RedisIdSegmentDistributorBenchmark.segmentId_step_1            thrpt    5     211779.978 ±   25033.046  ops/s
+RedisIdSegmentDistributorBenchmark.segmentId_step_100          thrpt    5    3042491.392 ±   16249.712  ops/s
+RedisIdSegmentDistributorBenchmark.segmentId_step_1000         thrpt    5   36871236.823 ±  165826.567  ops/s
 ```

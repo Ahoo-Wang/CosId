@@ -10,24 +10,24 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class NextIdSegmentExpiredException extends CosIdException {
     private static final AtomicLong times = new AtomicLong(0);
-    private final IdSegmentClain current;
-    private final IdSegmentClain next;
+    private final IdSegment current;
+    private final IdSegment next;
 
-    public NextIdSegmentExpiredException(IdSegmentClain current, IdSegmentClain next) {
-        super(Strings.lenientFormat("next offset:[%s] cannot be less than current:[%s] -- times:[%s].",
-                next.getIdSegment().getOffset(),
-                current.getIdSegment().getOffset(),
+    public NextIdSegmentExpiredException(IdSegment current, IdSegment next) {
+        super(Strings.lenientFormat("The next IdSegment:[%s] cannot be before the current IdSegment:[%s]-- times:[%s].",
+                next,
+                current,
                 times.incrementAndGet())
         );
         this.current = current;
         this.next = next;
     }
 
-    public IdSegmentClain getCurrent() {
+    public IdSegment getCurrent() {
         return current;
     }
 
-    public IdSegmentClain getNext() {
+    public IdSegment getNext() {
         return next;
     }
 }

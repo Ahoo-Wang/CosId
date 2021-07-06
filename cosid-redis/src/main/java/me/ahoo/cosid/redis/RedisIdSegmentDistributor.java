@@ -77,19 +77,19 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
 
     @SneakyThrows
     @Override
-    public long nextMaxId() {
-        long maxId = fetchMaxIdAsync().get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+    public long nextMaxId(int step) {
+        long maxId = fetchMaxIdAsync(step).get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         if (log.isDebugEnabled()) {
-            log.debug("nextMaxId - [{}].", maxId);
+            log.debug("nextMaxId - step:[{}] - maxId:[{}].", step, maxId);
         }
         return maxId;
     }
 
-    private CompletableFuture<Long> fetchMaxIdAsync() {
+    private CompletableFuture<Long> fetchMaxIdAsync(int step) {
         return RedisScripts.doEnsureScript(REDIS_ID_GENERATE, redisCommands,
                 (scriptSha) -> {
                     String[] keys = {adderKey};
-                    String[] values = {String.valueOf(offset), String.valueOf(getStep())};
+                    String[] values = {String.valueOf(offset), String.valueOf(step)};
                     return redisCommands.evalsha(scriptSha, ScriptOutputType.INTEGER, keys, values);
                 }
         );

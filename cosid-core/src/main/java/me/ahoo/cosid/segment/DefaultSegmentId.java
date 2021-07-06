@@ -9,8 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 public class DefaultSegmentId implements SegmentId {
 
     private final IdSegmentDistributor maxIdDistributor;
-    
-    private volatile IdSegment segment = IdSegment.OVERFLOW;
+
+    private volatile IdSegment segment = DefaultIdSegment.OVERFLOW;
 
     public DefaultSegmentId(IdSegmentDistributor maxIdDistributor) {
         this.maxIdDistributor = maxIdDistributor;
@@ -23,18 +23,20 @@ public class DefaultSegmentId implements SegmentId {
             return maxIdDistributor.nextMaxId();
         }
 
-        long nextSeq = segment.getAndIncrement();
-        if (nextSeq != IdSegment.SEQUENCE_OVERFLOW) {
+        long nextSeq = segment.incrementAndGet();
+        if (nextSeq != DefaultIdSegment.SEQUENCE_OVERFLOW) {
             return nextSeq;
         }
 
         synchronized (this) {
             while (true) {
-                nextSeq = segment.getAndIncrement();
-                if (nextSeq != IdSegment.SEQUENCE_OVERFLOW) {
+                nextSeq = segment.incrementAndGet();
+                if (nextSeq != DefaultIdSegment.SEQUENCE_OVERFLOW) {
                     return nextSeq;
                 }
-                segment = maxIdDistributor.nextIdSegment();
+                IdSegment nextIdSegment = maxIdDistributor.nextIdSegment();
+                segment.ensureNextIdSegment(nextIdSegment);
+                segment = nextIdSegment;
             }
         }
     }

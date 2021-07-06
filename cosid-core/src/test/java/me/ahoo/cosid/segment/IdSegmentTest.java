@@ -19,7 +19,7 @@ class IdSegmentTest {
     @Test
     void getAndIncrement() {
         int maxId = 10000000;
-        IdSegment segment = new IdSegment(maxId, maxId);
+        DefaultIdSegment segment = new DefaultIdSegment(maxId, maxId);
 
         ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
@@ -32,7 +32,7 @@ class IdSegmentTest {
                 long lastId = 0;
                 while (requestNum < idsSize) {
                     requestNum++;
-                    long id = segment.getAndIncrement();
+                    long id = segment.incrementAndGet();
                     ids.add(id);
                     Assertions.assertTrue(lastId < id);
                     lastId = id;

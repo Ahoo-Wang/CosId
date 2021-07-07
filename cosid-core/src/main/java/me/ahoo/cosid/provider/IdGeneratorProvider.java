@@ -2,6 +2,7 @@ package me.ahoo.cosid.provider;
 
 import me.ahoo.cosid.IdGenerator;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Supplier;
 
@@ -20,5 +21,7 @@ public interface IdGeneratorProvider {
     void set(String name, IdGenerator idGenerator);
 
     IdGenerator getOrCreate(String name, Supplier<IdGenerator> idGenSupplier);
+
+    Collection<IdGenerator> getAll();
 
 }

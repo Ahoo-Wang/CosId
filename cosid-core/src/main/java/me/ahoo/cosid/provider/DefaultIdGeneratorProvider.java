@@ -2,6 +2,7 @@ package me.ahoo.cosid.provider;
 
 import me.ahoo.cosid.IdGenerator;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -44,6 +45,11 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
     @Override
     public IdGenerator getOrCreate(String name, Supplier<IdGenerator> idGenSupplier) {
         return nameMapIdGen.computeIfAbsent(name, (__) -> idGenSupplier.get());
+    }
+
+    @Override
+    public Collection<IdGenerator> getAll() {
+        return nameMapIdGen.values();
     }
 
 }

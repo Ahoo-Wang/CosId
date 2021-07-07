@@ -155,8 +155,17 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             if (log.isDebugEnabled()) {
                 log.debug("PrefetchWorker - wakeUp - state:[{}].", this.getState());
             }
+            if (stopped) {
+                if (log.isWarnEnabled()) {
+                    log.warn("PrefetchWorker - wakeUp - PrefetchWorker is stopped,Can't be awakened!");
+                }
+                return;
+            }
 
             if (State.RUNNABLE.equals(this.getState())) {
+                if (log.isDebugEnabled()) {
+                    log.debug("PrefetchWorker - wakeUp PrefetchWorker is running ,Don't need to be awakened.");
+                }
                 return;
             }
 

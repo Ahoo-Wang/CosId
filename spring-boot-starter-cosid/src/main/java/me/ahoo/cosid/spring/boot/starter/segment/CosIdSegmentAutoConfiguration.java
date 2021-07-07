@@ -56,6 +56,11 @@ public class CosIdSegmentAutoConfiguration {
         return shareIdGen;
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public LifecycleSegmentChainId lifecycleSegmentChainId(IdGeneratorProvider idGeneratorProvider) {
+        return new LifecycleSegmentChainId(idGeneratorProvider);
+    }
 
     private SegmentId createSegmentId(String name, SegmentIdProperties.IdDefinition idDefinition, RedisConnectionFactory redisConnectionFactory) {
         RedisIdSegmentDistributor redisIdSegmentDistributor = new RedisIdSegmentDistributor(

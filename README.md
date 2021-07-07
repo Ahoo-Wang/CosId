@@ -254,7 +254,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.1.4";
+    val cosidVersion = "1.1.5";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -270,7 +270,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.1.4</cosid.version>
+        <cosid.version>1.1.5</cosid.version>
     </properties>
 
     <dependencies>
@@ -343,7 +343,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.1.4-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.1.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -359,7 +359,7 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4204761.
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.1.4-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-redis/build/libs/cosid-redis-1.1.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```

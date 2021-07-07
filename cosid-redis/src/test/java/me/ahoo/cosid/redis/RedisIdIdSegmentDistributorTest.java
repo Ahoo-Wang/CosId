@@ -68,7 +68,6 @@ public class RedisIdIdSegmentDistributorTest {
         String namespace = UUID.randomUUID().toString();
         RedisIdSegmentDistributor redisMaxIdDistributor_generate_step_100 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
         SegmentId defaultSegmentId = new DefaultSegmentId(redisMaxIdDistributor_generate_step_100);
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;
         while (threads < CONCURRENT_THREADS) {
@@ -106,7 +105,6 @@ public class RedisIdIdSegmentDistributorTest {
 
             Assertions.assertEquals(THREAD_REQUEST_NUM * CONCURRENT_THREADS, lastId);
         }).join();
-        executorService.shutdown();
     }
 
     static final int MULTI_CONCURRENT_THREADS = 10;
@@ -120,7 +118,6 @@ public class RedisIdIdSegmentDistributorTest {
         SegmentId idGenerator1 = new DefaultSegmentId(redisMaxIdDistributor1);
         SegmentId idGenerator2 = new DefaultSegmentId(redisMaxIdDistributor2);
 
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[MULTI_CONCURRENT_THREADS * 2];
         int threads1 = 0;
         while (threads1 < MULTI_CONCURRENT_THREADS) {
@@ -171,7 +168,6 @@ public class RedisIdIdSegmentDistributorTest {
 
             Assertions.assertEquals(MULTI_THREAD_REQUEST_NUM * MULTI_CONCURRENT_THREADS * 2, lastId);
         }).join();
-        executorService.shutdown();
     }
 
     @AfterAll

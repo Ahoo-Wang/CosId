@@ -6,8 +6,6 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * @author ahoo wang
@@ -21,7 +19,6 @@ class IdSegmentTest {
         int maxId = 10000000;
         DefaultIdSegment segment = new DefaultIdSegment(maxId, maxId);
 
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;
         while (threads < CONCURRENT_THREADS) {
@@ -63,7 +60,6 @@ class IdSegmentTest {
 
             Assertions.assertEquals(maxId, lastId);
         }).join();
-        executorService.shutdown();
     }
 
 }

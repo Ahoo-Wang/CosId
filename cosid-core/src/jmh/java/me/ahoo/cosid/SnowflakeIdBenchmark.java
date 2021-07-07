@@ -1,7 +1,6 @@
 package me.ahoo.cosid;
 
 import me.ahoo.cosid.snowflake.*;
-import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
@@ -12,24 +11,24 @@ import org.openjdk.jmh.annotations.State;
  */
 @State(Scope.Benchmark)
 public class SnowflakeIdBenchmark {
-    MillisecondSnowflakeId millisecondSnowflakeId;
-    SecondSnowflakeId secondSnowflakeId;
-    MillisecondSnowflakeId safeJsMillisecondSnowflakeId;
-    SecondSnowflakeId safeJsSecondSnowflakeId;
+    SnowflakeId millisecondSnowflakeId;
+    SnowflakeId secondSnowflakeId;
+    SnowflakeId safeJsMillisecondSnowflakeId;
+    SnowflakeId safeJsSecondSnowflakeId;
     SnowflakeFriendlyId snowflakeFriendlyId;
 
     @Setup
     public void setup() {
-        millisecondSnowflakeId = new MillisecondSnowflakeId(1);
-        secondSnowflakeId = new SecondSnowflakeId(1);
-        safeJsSecondSnowflakeId = SafeJavaScriptSnowflakeId.ofSecond(1);
-        safeJsMillisecondSnowflakeId = SafeJavaScriptSnowflakeId.ofMillisecond(1);
+        millisecondSnowflakeId = new ClockSyncSnowflakeId(new MillisecondSnowflakeId(1));
+        secondSnowflakeId = new ClockSyncSnowflakeId(new SecondSnowflakeId(1));
+        safeJsSecondSnowflakeId = new ClockSyncSnowflakeId(SafeJavaScriptSnowflakeId.ofSecond(1));
+        safeJsMillisecondSnowflakeId = new ClockSyncSnowflakeId(SafeJavaScriptSnowflakeId.ofMillisecond(1));
         snowflakeFriendlyId = new DefaultSnowflakeFriendlyId(new ClockSyncSnowflakeId(new MillisecondSnowflakeId(1), ClockBackwardsSynchronizer.DEFAULT));
     }
 
     @Benchmark
     public long millisecondSnowflakeId_generate() {
-        return retryWhenClockClockBackwards(millisecondSnowflakeId);
+        return millisecondSnowflakeId.generate();
     }
 
     @Benchmark
@@ -39,25 +38,16 @@ public class SnowflakeIdBenchmark {
 
     @Benchmark
     public long secondSnowflakeId_generate() {
-        return retryWhenClockClockBackwards(secondSnowflakeId);
+        return secondSnowflakeId.generate();
     }
 
     @Benchmark
     public long safeJsMillisecondSnowflakeId_generate() {
-        return retryWhenClockClockBackwards(safeJsMillisecondSnowflakeId);
+        return safeJsMillisecondSnowflakeId.generate();
     }
 
     @Benchmark
     public long safeJsSecondSnowflakeId_generate() {
-        return retryWhenClockClockBackwards(safeJsSecondSnowflakeId);
-    }
-
-    public long retryWhenClockClockBackwards(IdGenerator idGenerator) {
-        try {
-            return idGenerator.generate();
-        } catch (ClockBackwardsException clockBackwardsException) {
-            System.out.println(idGenerator.getClass().getSimpleName() + ":" + clockBackwardsException.getMessage());
-            return retryWhenClockClockBackwards(idGenerator);
-        }
+        return safeJsSecondSnowflakeId.generate();
     }
 }

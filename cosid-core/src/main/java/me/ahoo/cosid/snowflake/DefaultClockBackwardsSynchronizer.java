@@ -37,11 +37,12 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
         }
 
         if (backwardsStamp <= spinThreshold) {
-            while ((ClockBackwardsSynchronizer.getBackwardsTimeStamp(lastTimestamp)) <= 0) {
+            while ((ClockBackwardsSynchronizer.getBackwardsTimeStamp(lastTimestamp)) > 0) {
                 /**
                  * Spin until it catches the clock back
                  */
             }
+            return;
         }
 
         if (backwardsStamp > brokenThreshold) {

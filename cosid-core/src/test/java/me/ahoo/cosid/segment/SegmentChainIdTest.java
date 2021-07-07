@@ -2,18 +2,12 @@ package me.ahoo.cosid.segment;
 
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.AssertionsKt;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * @author ahoo wang
@@ -23,7 +17,7 @@ class SegmentChainIdTest {
     @Test
     @SneakyThrows
     void sort() {
-        IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.JdkIdSegmentDistributor();
+        IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
         IdSegmentClain idSegmentClain1 = idSegmentDistributor.nextIdSegmentClain(IdSegmentClain.newRoot());
         IdSegmentClain idSegmentClain2 = idSegmentDistributor.nextIdSegmentClain(IdSegmentClain.newRoot());
         IdSegmentClain idSegmentClain3 = idSegmentDistributor.nextIdSegmentClain(IdSegmentClain.newRoot());
@@ -37,7 +31,7 @@ class SegmentChainIdTest {
     @Test
     @SneakyThrows
     void nextIdSegmentsClain() {
-        IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.JdkIdSegmentDistributor();
+        IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
         IdSegmentClain rootClain = idSegmentDistributor.nextIdSegmentClain(IdSegmentClain.newRoot(), 3);
         Assertions.assertEquals(0, rootClain.getVersion());
         Assertions.assertEquals(0, rootClain.getIdSegment().getOffset());
@@ -52,12 +46,7 @@ class SegmentChainIdTest {
     @Test
     @SneakyThrows
     void generate() {
-        SegmentChainId segmentChainId = new SegmentChainId(10, SegmentChainId.DEFAULT_PREFETCH_PERIOD, new IdSegmentDistributor.JdkIdSegmentDistributor() {
-            @Override
-            public int getStep() {
-                return 2;
-            }
-        });
+        SegmentChainId segmentChainId = new SegmentChainId(10, SegmentChainId.DEFAULT_PREFETCH_PERIOD, new IdSegmentDistributor.Atomic(2));
 //        Thread.sleep(10);
         segmentChainId.generate();
         segmentChainId.generate();
@@ -69,8 +58,7 @@ class SegmentChainIdTest {
 
     @Test
     public void concurrent_generate() {
-        SegmentChainId segmentChainId = new SegmentChainId(new DefaultSegmentIdTest.TestIdSegmentDistributor());
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
+        SegmentChainId segmentChainId = new SegmentChainId(new IdSegmentDistributor.Mock());
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;
         while (threads < CONCURRENT_THREADS) {
@@ -104,26 +92,28 @@ class SegmentChainIdTest {
                     lastId = currentId;
                     continue;
                 }
-//                Assertions.assertTrue(lastId + 1 <= currentId);
+                /**
+                 * 单实例下可以保证绝对递增+1，不存在ID间隙
+                 */
                 Assertions.assertEquals(lastId + 1, currentId);
                 lastId = currentId;
             }
             Assertions.assertTrue(THREAD_REQUEST_NUM * CONCURRENT_THREADS <= lastId);
             Assertions.assertEquals(THREAD_REQUEST_NUM * CONCURRENT_THREADS, lastId);
         }).join();
-        executorService.shutdown();
     }
 
-    static final int MULTI_CONCURRENT_THREADS = 20;
-    static final int MULTI_THREAD_REQUEST_NUM = 50000;
+    static final int MULTI_CONCURRENT_THREADS = 10;
+    static final int MULTI_THREAD_REQUEST_NUM = 10;
 
     @Test
     public void concurrent_generate_multi_instance() {
 
-        IdSegmentDistributor testMaxIdDistributor = new DefaultSegmentIdTest.TestIdSegmentDistributor();
+        IdSegmentDistributor testMaxIdDistributor = new IdSegmentDistributor.Mock();
         SegmentChainId segmentChainId1 = new SegmentChainId(testMaxIdDistributor);
         SegmentChainId segmentChainId2 = new SegmentChainId(testMaxIdDistributor);
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
+        final IdSegmentClain head1 = segmentChainId1.getHead();
+        final IdSegmentClain head2 = segmentChainId2.getHead();
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[MULTI_CONCURRENT_THREADS * 2];
         int threads1 = 0;
 
@@ -167,6 +157,26 @@ class SegmentChainIdTest {
                 totalIds.addAll(ids);
             }
             totalIds.sort(Long::compareTo);
+            ArrayList<IdSegment> idSegments = new ArrayList<>(totalIds.size() / testMaxIdDistributor.getStep() + 1000);
+            IdSegmentClain current = head1;
+            while (current.getNext() != null) {
+                current = current.getNext();
+                idSegments.add(current.getIdSegment());
+            }
+            current = head2;
+            while (current.getNext() != null) {
+                current = current.getNext();
+                idSegments.add(current.getIdSegment());
+            }
+            idSegments.sort(null);
+            for (int i = 1; i < idSegments.size(); i++) {
+                IdSegment pre = idSegments.get(i - 1);
+                IdSegment next = idSegments.get(i);
+                if (pre.getOffset() + pre.getStep() != next.getOffset()) {
+                    throw new NextIdSegmentExpiredException(pre, next);
+                }
+            }
+
             Long lastId = null;
             for (Long currentId : totalIds) {
                 if (lastId == null) {
@@ -174,14 +184,18 @@ class SegmentChainIdTest {
                     lastId = currentId;
                     continue;
                 }
-
+//                if (lastId + 1 != currentId) {
+//                    /**
+//                     * SegmentChainId 预取（安全间隙规则）导致实例1/实例2 预取到的IdSegment没有完全使用，导致ID空洞，只能保证趋势递增
+//                     */
+//                    Assertions.assertEquals(lastId + 1, currentId);
+//                }
                 Assertions.assertTrue(lastId + 1 <= currentId);
-//                Assertions.assertEquals(lastId + 1, currentId);
+
                 lastId = currentId;
             }
 
             Assertions.assertTrue(MULTI_THREAD_REQUEST_NUM * MULTI_CONCURRENT_THREADS * 2 <= lastId);
         }).join();
-        executorService.shutdown();
     }
 }

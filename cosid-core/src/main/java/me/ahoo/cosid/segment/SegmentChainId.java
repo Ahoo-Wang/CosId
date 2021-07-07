@@ -31,6 +31,9 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
         this.prefetchWorker.start();
     }
 
+    public IdSegmentClain getHead() {
+        return headClain;
+    }
 
     public void stopPrefetchWorker() {
         this.prefetchWorker.shutdown();
@@ -87,7 +90,8 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             IdSegmentClain currentClain = headClain;
             while (currentClain != null) {
                 long nextSeq = currentClain.incrementAndGet();
-                if (nextSeq != DefaultIdSegment.SEQUENCE_OVERFLOW) {
+
+                if (!currentClain.isOverflow(nextSeq)) {
                     forward(currentClain);
                     return nextSeq;
                 }
@@ -106,6 +110,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
                     log.warn("generate - gave up this next IdSegmentClain.", nextIdSegmentExpiredException);
                 }
             }
+            this.prefetchWorker.wakeUp();
         }
     }
 

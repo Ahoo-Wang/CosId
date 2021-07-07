@@ -51,7 +51,8 @@ public class DefaultIdSegment implements IdSegment {
         }
 
         final long nextSeq = sequence.incrementAndGet();
-        if (nextSeq > maxId) {
+
+        if (isOverflow(nextSeq)) {
             return SEQUENCE_OVERFLOW;
         }
         return nextSeq;

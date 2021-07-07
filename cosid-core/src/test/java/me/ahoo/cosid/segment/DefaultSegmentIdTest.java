@@ -1,15 +1,11 @@
 package me.ahoo.cosid.segment;
 
-import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * @author ahoo wang
@@ -18,7 +14,7 @@ class DefaultSegmentIdTest {
 
     @Test
     void generate() {
-        DefaultSegmentId defaultSegmentId = new DefaultSegmentId(new TestIdSegmentDistributor());
+        DefaultSegmentId defaultSegmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         defaultSegmentId.generate();
     }
 
@@ -27,8 +23,7 @@ class DefaultSegmentIdTest {
 
     @Test
     public void concurrent_generate() {
-        DefaultSegmentId defaultSegmentId = new DefaultSegmentId(new TestIdSegmentDistributor());
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
+        DefaultSegmentId defaultSegmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;
         while (threads < CONCURRENT_THREADS) {
@@ -69,7 +64,6 @@ class DefaultSegmentIdTest {
 
             Assertions.assertEquals(THREAD_REQUEST_NUM * CONCURRENT_THREADS, lastId);
         }).join();
-        executorService.shutdown();
     }
 
     static final int MULTI_CONCURRENT_THREADS = 10;
@@ -78,10 +72,9 @@ class DefaultSegmentIdTest {
     @Test
     public void concurrent_generate_multi_instance() {
 
-        IdSegmentDistributor testMaxIdDistributor = new TestIdSegmentDistributor();
+        IdSegmentDistributor testMaxIdDistributor = new IdSegmentDistributor.Mock();
         DefaultSegmentId defaultSegmentId1 = new DefaultSegmentId(testMaxIdDistributor);
         DefaultSegmentId defaultSegmentId2 = new DefaultSegmentId(testMaxIdDistributor);
-        ExecutorService executorService = Executors.newFixedThreadPool(10);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[MULTI_CONCURRENT_THREADS * 2];
         int threads1 = 0;
         while (threads1 < MULTI_CONCURRENT_THREADS) {
@@ -138,16 +131,6 @@ class DefaultSegmentIdTest {
 
             Assertions.assertEquals(MULTI_THREAD_REQUEST_NUM * MULTI_CONCURRENT_THREADS * 2, lastId);
         }).join();
-        executorService.shutdown();
     }
 
-    public static class TestIdSegmentDistributor extends IdSegmentDistributor.JdkIdSegmentDistributor {
-
-        @SneakyThrows
-        @Override
-        public long nextMaxId() {
-            LockSupport.parkNanos(4300);
-            return super.nextMaxId();
-        }
-    }
 }

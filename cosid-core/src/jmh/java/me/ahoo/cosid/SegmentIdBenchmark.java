@@ -9,8 +9,6 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * @author ahoo wang
@@ -23,8 +21,8 @@ public class SegmentIdBenchmark {
 
     @Setup
     public void setup() {
-        segmentId = new DefaultSegmentId(new TestIdSegmentDistributor());
-        segmentChainId = new SegmentChainId(10, SegmentChainId.DEFAULT_PREFETCH_PERIOD, new TestIdSegmentDistributor());
+        segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
+        segmentChainId = new SegmentChainId(10, SegmentChainId.DEFAULT_PREFETCH_PERIOD, new IdSegmentDistributor.Mock());
     }
 
     @Benchmark
@@ -37,18 +35,4 @@ public class SegmentIdBenchmark {
         return segmentChainId.generate();
     }
 
-
-    public static class TestIdSegmentDistributor extends IdSegmentDistributor.JdkIdSegmentDistributor {
-
-        @Override
-        public int getStep() {
-            return 2;
-        }
-
-        @Override
-        public long nextMaxId() {
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
-            return super.nextMaxId();
-        }
-    }
 }

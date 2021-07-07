@@ -31,7 +31,7 @@ public class DefaultSegmentId implements SegmentId {
         synchronized (this) {
             while (true) {
                 nextSeq = segment.incrementAndGet();
-                if (nextSeq != IdSegment.SEQUENCE_OVERFLOW) {
+                if(!segment.isOverflow(nextSeq)){
                     return nextSeq;
                 }
                 IdSegment nextIdSegment = maxIdDistributor.nextIdSegment();

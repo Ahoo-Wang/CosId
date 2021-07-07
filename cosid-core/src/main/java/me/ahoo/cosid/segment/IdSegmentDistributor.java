@@ -1,9 +1,13 @@
 package me.ahoo.cosid.segment;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * @author ahoo wang
@@ -66,17 +70,56 @@ public interface IdSegmentDistributor {
         return rootClain;
     }
 
-    class JdkIdSegmentDistributor implements IdSegmentDistributor {
-
+    class Atomic implements IdSegmentDistributor {
+        private final int step;
         private final AtomicLong adder = new AtomicLong();
+
+        public Atomic() {
+           this(DEFAULT_STEP);
+        }
+        public Atomic(int step) {
+            this.step = step;
+        }
 
         @Override
         public int getStep() {
-            return DEFAULT_STEP;
+            return step;
         }
 
         @Override
         public long nextMaxId(int step) {
+            return adder.addAndGet(step);
+        }
+
+    }
+
+    @VisibleForTesting
+    class Mock implements IdSegmentDistributor {
+        private final int step;
+        private final long ioWaiting;
+        private final AtomicLong adder = new AtomicLong();
+
+        public Mock() {
+            this(DEFAULT_STEP, 220000);
+        }
+
+        /**
+         * @param step 单次获取IdSegment的区间长度
+         * @param tps  发号器的TPS，用于模拟网络IO请求的等待时常
+         */
+        public Mock(int step, int tps) {
+            this.step = step;
+            this.ioWaiting = TimeUnit.SECONDS.toNanos(1) / tps;
+        }
+
+        @Override
+        public int getStep() {
+            return step;
+        }
+
+        @Override
+        public long nextMaxId(int step) {
+            LockSupport.parkNanos(ioWaiting);
             return adder.addAndGet(step);
         }
 

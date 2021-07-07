@@ -19,6 +19,10 @@ public interface IdSegment extends Comparable<IdSegment> {
         return getSequence() >= getMaxId();
     }
 
+    default boolean isOverflow(long nextSeq) {
+        return nextSeq == SEQUENCE_OVERFLOW || nextSeq > getMaxId();
+    }
+
     long incrementAndGet();
 
 

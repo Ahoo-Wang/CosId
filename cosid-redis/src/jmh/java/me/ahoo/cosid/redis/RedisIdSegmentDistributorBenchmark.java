@@ -33,23 +33,22 @@ public class RedisIdSegmentDistributorBenchmark {
     public void setup() {
         System.out.println("\n ----- RedisIdSegmentDistributorBenchmark setup ----- \n");
         redisClient = RedisClient.create("redis://localhost:6379");
-        redisConnection = redisClient.connect();
         jdkId = new JdkId();
-        segmentJdkIdBaseline = new DefaultSegmentId(new IdSegmentDistributor.JdkIdSegmentDistributor());
+        segmentJdkIdBaseline = new DefaultSegmentId(new IdSegmentDistributor.Atomic());
 
-        RedisIdSegmentDistributor redisMaxIdDistributor = new RedisIdSegmentDistributor("bh_seg", "1", 0, 1, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        RedisIdSegmentDistributor redisMaxIdDistributor = new RedisIdSegmentDistributor("bh", "1", 0, 1, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
         segmentId = new DefaultSegmentId(redisMaxIdDistributor);
-        RedisIdSegmentDistributor redisMaxIdDistributor100 = new RedisIdSegmentDistributor("bh_seg", "100", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        RedisIdSegmentDistributor redisMaxIdDistributor100 = new RedisIdSegmentDistributor("bh", "100", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
         segmentId100 = new DefaultSegmentId(redisMaxIdDistributor100);
-        RedisIdSegmentDistributor redisMaxIdDistributor1000 = new RedisIdSegmentDistributor("bh_seg", "1000", 0, 1000, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        RedisIdSegmentDistributor redisMaxIdDistributor1000 = new RedisIdSegmentDistributor("bh", "1000", 0, 1000, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
         segmentId1000 = new DefaultSegmentId(redisMaxIdDistributor1000);
 
-        segmentChainJdkIdBaseline = new SegmentChainId(new IdSegmentDistributor.JdkIdSegmentDistributor());
-        RedisIdSegmentDistributor redisMaxIdDistributorClain = new RedisIdSegmentDistributor("bh_clain", "1", 0, 1, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        segmentChainJdkIdBaseline = new SegmentChainId(new IdSegmentDistributor.Atomic());
+        RedisIdSegmentDistributor redisMaxIdDistributorClain = new RedisIdSegmentDistributor("bh_cl", "1", 0, 1, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
         segmentChainId = new SegmentChainId(redisMaxIdDistributorClain);
-        RedisIdSegmentDistributor redisMaxIdDistributorClain100 = new RedisIdSegmentDistributor("bh_clain", "100", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        RedisIdSegmentDistributor redisMaxIdDistributorClain100 = new RedisIdSegmentDistributor("bh_cl", "100", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
         segmentChainId100 = new SegmentChainId(redisMaxIdDistributorClain100);
-        RedisIdSegmentDistributor redisMaxIdDistributorClain1000 = new RedisIdSegmentDistributor("bh_clain", "1000", 0, 1000, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        RedisIdSegmentDistributor redisMaxIdDistributorClain1000 = new RedisIdSegmentDistributor("bh_cl", "1000", 0, 1000, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
         segmentChainId1000 = new SegmentChainId(redisMaxIdDistributorClain1000);
     }
     @Benchmark
@@ -57,6 +56,7 @@ public class RedisIdSegmentDistributorBenchmark {
     public long jdkId_AtomicLong_baseline() {
         return jdkId.generate();
     }
+
     @Benchmark
     @Threads(1)
     public long segmentJdkId_baseline() {

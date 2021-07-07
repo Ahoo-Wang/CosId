@@ -12,6 +12,10 @@ public class ClockSyncSnowflakeId implements SnowflakeId {
     private final SnowflakeId delegate;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
 
+    public ClockSyncSnowflakeId(SnowflakeId delegate) {
+        this(delegate, ClockBackwardsSynchronizer.DEFAULT);
+    }
+
     public ClockSyncSnowflakeId(SnowflakeId delegate, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         this.delegate = delegate;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
@@ -83,4 +87,6 @@ public class ClockSyncSnowflakeId implements SnowflakeId {
     public int getMachineId() {
         return delegate.getMachineId();
     }
+
+
 }

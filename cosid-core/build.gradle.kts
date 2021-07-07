@@ -15,7 +15,7 @@ jmh {
     iterations.set(1)
     resultFormat.set("json")
     benchmarkMode.set(listOf(
-        "thrpt"
+        "thrpt","sample"
     ))
     threads.set(2)
     fork.set(1)

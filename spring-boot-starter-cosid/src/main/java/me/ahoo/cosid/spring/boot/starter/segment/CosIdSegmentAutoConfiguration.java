@@ -1,8 +1,10 @@
 package me.ahoo.cosid.spring.boot.starter.segment;
 
+import com.google.common.base.MoreObjects;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.redis.RedisIdSegmentDistributor;
 import me.ahoo.cosid.segment.DefaultSegmentId;
+import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
@@ -39,8 +41,7 @@ public class CosIdSegmentAutoConfiguration {
     @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "redis")
     public SegmentId shareSegmentId(RedisConnectionFactory redisConnectionFactory, IdGeneratorProvider idGeneratorProvider) {
         SegmentIdProperties.IdDefinition shareIdDefinition = segmentIdProperties.getShare();
-        RedisIdSegmentDistributor shareRedisMaxIdDistributor = new RedisIdSegmentDistributor(cosIdProperties.getNamespace(), IdGeneratorProvider.SHARE, shareIdDefinition.getOffset(), shareIdDefinition.getStep(), segmentIdProperties.getTimeout(), redisConnectionFactory.getShareAsyncCommands());
-        SegmentId shareIdGen = new DefaultSegmentId(shareRedisMaxIdDistributor);
+        SegmentId shareIdGen = createSegmentId(IdGeneratorProvider.SHARE, shareIdDefinition, redisConnectionFactory);
         if (Objects.isNull(idGeneratorProvider.getShare())) {
             idGeneratorProvider.setShare(shareIdGen);
         }
@@ -48,12 +49,29 @@ public class CosIdSegmentAutoConfiguration {
             return shareIdGen;
         }
         segmentIdProperties.getProvider().forEach((name, idDefinition) -> {
-            RedisIdSegmentDistributor redisMaxIdDistributor = new RedisIdSegmentDistributor(cosIdProperties.getNamespace(), name, idDefinition.getOffset(), idDefinition.getStep(), segmentIdProperties.getTimeout(), redisConnectionFactory.getShareAsyncCommands());
-            SegmentId idGenerator = new DefaultSegmentId(redisMaxIdDistributor);
+            SegmentId idGenerator = createSegmentId(name, idDefinition, redisConnectionFactory);
             idGeneratorProvider.set(name, idGenerator);
         });
 
         return shareIdGen;
+    }
+
+
+    private SegmentId createSegmentId(String name, SegmentIdProperties.IdDefinition idDefinition, RedisConnectionFactory redisConnectionFactory) {
+        RedisIdSegmentDistributor redisIdSegmentDistributor = new RedisIdSegmentDistributor(
+                cosIdProperties.getNamespace(),
+                name,
+                idDefinition.getOffset(),
+                idDefinition.getStep(),
+                segmentIdProperties.getTimeout(),
+                redisConnectionFactory.getShareAsyncCommands());
+
+        SegmentIdProperties.Mode mode = MoreObjects.firstNonNull(idDefinition.getMode(), segmentIdProperties.getMode());
+        if (SegmentIdProperties.Mode.DEFAULT.equals(mode)) {
+            return new DefaultSegmentId(redisIdSegmentDistributor);
+        }
+        SegmentIdProperties.Chain clain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
+        return new SegmentChainId(clain.getSafeDistance(), clain.getPrefetchPeriod(), redisIdSegmentDistributor);
     }
 
 }

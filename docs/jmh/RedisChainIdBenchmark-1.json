@@ -1,0 +1,208 @@
+[
+    {
+        "jmhVersion" : "1.29",
+        "benchmark" : "me.ahoo.cosid.redis.RedisChainIdBenchmark.atomicLong_baseline",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "11.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.11+9-LTS",
+        "warmupIterations" : 1,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "10 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.437404218308849E8,
+            "scoreError" : 1142477.9566045487,
+            "scoreConfidence" : [
+                1.4259794387428036E8,
+                1.4488289978748944E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.43286423576372E8,
+                "50.0" : 1.437470951508335E8,
+                "90.0" : 1.4410041323925352E8,
+                "95.0" : 1.4410041323925352E8,
+                "99.0" : 1.4410041323925352E8,
+                "99.9" : 1.4410041323925352E8,
+                "99.99" : 1.4410041323925352E8,
+                "99.999" : 1.4410041323925352E8,
+                "99.9999" : 1.4410041323925352E8,
+                "100.0" : 1.4410041323925352E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.437470951508335E8,
+                    1.43286423576372E8,
+                    1.4386331054201165E8,
+                    1.4410041323925352E8,
+                    1.4370486664595392E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.29",
+        "benchmark" : "me.ahoo.cosid.redis.RedisChainIdBenchmark.step_1",
+        "mode" : "thrpt",
+        "threads" : 28,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "11.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.11+9-LTS",
+        "warmupIterations" : 1,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "10 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 301874.9257285334,
+            "scoreError" : 10340.941125543804,
+            "scoreConfidence" : [
+                291533.9846029896,
+                312215.8668540772
+            ],
+            "scorePercentiles" : {
+                "0.0" : 299136.90100715955,
+                "50.0" : 301628.67586422345,
+                "90.0" : 305657.0435086689,
+                "95.0" : 305657.0435086689,
+                "99.0" : 305657.0435086689,
+                "99.9" : 305657.0435086689,
+                "99.99" : 305657.0435086689,
+                "99.999" : 305657.0435086689,
+                "99.9999" : 305657.0435086689,
+                "100.0" : 305657.0435086689
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    299650.115789427,
+                    303301.8924731883,
+                    299136.90100715955,
+                    301628.67586422345,
+                    305657.0435086689
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.29",
+        "benchmark" : "me.ahoo.cosid.redis.RedisChainIdBenchmark.step_100",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "11.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.11+9-LTS",
+        "warmupIterations" : 1,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "10 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 2.574633616451236E7,
+            "scoreError" : 433565.8396332387,
+            "scoreConfidence" : [
+                2.531277032487912E7,
+                2.6179902004145596E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 2.5558268380706027E7,
+                "50.0" : 2.576877186236784E7,
+                "90.0" : 2.584592209971171E7,
+                "95.0" : 2.584592209971171E7,
+                "99.0" : 2.584592209971171E7,
+                "99.9" : 2.584592209971171E7,
+                "99.99" : 2.584592209971171E7,
+                "99.999" : 2.584592209971171E7,
+                "99.9999" : 2.584592209971171E7,
+                "100.0" : 2.584592209971171E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    2.5558268380706027E7,
+                    2.576877186236784E7,
+                    2.584592209971171E7,
+                    2.5742346513704944E7,
+                    2.581637196607129E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.29",
+        "benchmark" : "me.ahoo.cosid.redis.RedisChainIdBenchmark.step_1000",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "11.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.11+9-LTS",
+        "warmupIterations" : 1,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "10 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.0272284061568372E8,
+            "scoreError" : 2368562.636812863,
+            "scoreConfidence" : [
+                1.0035427797887085E8,
+                1.0509140325249659E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.0181706632531703E8,
+                "50.0" : 1.027973621184151E8,
+                "90.0" : 1.0350369326956145E8,
+                "95.0" : 1.0350369326956145E8,
+                "99.0" : 1.0350369326956145E8,
+                "99.9" : 1.0350369326956145E8,
+                "99.99" : 1.0350369326956145E8,
+                "99.999" : 1.0350369326956145E8,
+                "99.9999" : 1.0350369326956145E8,
+                "100.0" : 1.0350369326956145E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.0350369326956145E8,
+                    1.027973621184151E8,
+                    1.0294355397288619E8,
+                    1.0255252739223887E8,
+                    1.0181706632531703E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+

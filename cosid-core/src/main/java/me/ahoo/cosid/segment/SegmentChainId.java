@@ -56,31 +56,8 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
         }
     }
 
-
     private IdSegmentClain generateNext(IdSegmentClain previousClain, int segments) {
         return maxIdDistributor.nextIdSegmentClain(previousClain, segments);
-    }
-
-    private void checkClain(IdSegmentClain currentClain) {
-        if (DefaultIdSegment.OVERFLOW.equals(currentClain.getIdSegment())) {
-            currentClain = currentClain.getNext();
-        }
-        while (currentClain != null && currentClain.getNext() != null) {
-            IdSegmentClain nextNextClain = currentClain.getNext();
-            if (currentClain.compareTo(nextNextClain) >= 0) {
-                throw new NextIdSegmentExpiredException(currentClain, nextNextClain);
-            }
-
-            if (currentClain.getVersion() + 1 != nextNextClain.getVersion()) {
-                throw new NextIdSegmentExpiredException(currentClain, nextNextClain);
-            }
-
-            if (currentClain.getIdSegment().getOffset() + maxIdDistributor.getStep() > nextNextClain.getIdSegment().getOffset()) {
-                throw new NextIdSegmentExpiredException(currentClain, nextNextClain);
-            }
-
-            currentClain = nextNextClain;
-        }
     }
 
     @SneakyThrows
@@ -90,7 +67,6 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             IdSegmentClain currentClain = headClain;
             while (currentClain != null) {
                 long nextSeq = currentClain.incrementAndGet();
-
                 if (!currentClain.isOverflow(nextSeq)) {
                     forward(currentClain);
                     return nextSeq;
@@ -101,7 +77,6 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             try {
                 final IdSegmentClain preIdSegmentClain = headClain;
                 IdSegmentClain nextClain = preIdSegmentClain.ensureSetNext((preClain) -> generateNext(preClain, safeDistance)).getNext();
-//                checkClain(preIdSegmentClain);
                 if (log.isDebugEnabled()) {
                     log.debug("generate - headClain.version:[{}->{}].", preIdSegmentClain.getVersion(), nextClain.getVersion());
                 }
@@ -215,7 +190,6 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             try {
                 final IdSegmentClain preTail = tailClain;
                 tailClain = tailClain.ensureSetNext((preClain) -> generateNext(preClain, safeGap)).getNext();
-//                checkClain(preTail);
                 while (tailClain.getNext() != null) {
                     tailClain = tailClain.getNext();
                 }

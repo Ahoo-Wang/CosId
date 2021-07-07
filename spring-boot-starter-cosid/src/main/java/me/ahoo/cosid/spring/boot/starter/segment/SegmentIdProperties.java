@@ -2,6 +2,7 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.redis.RedisIdSegmentDistributor;
+import me.ahoo.cosid.segment.SegmentChainId;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
@@ -16,16 +17,18 @@ public class SegmentIdProperties {
     public final static String PREFIX = CosId.COSID_PREFIX + "segment";
 
     private boolean enabled;
+    private Mode mode;
     private int step;
     private Duration timeout = RedisIdSegmentDistributor.DEFAULT_TIMEOUT;
     private Distributor distributor;
-
+    private Chain chain;
     private IdDefinition share;
     private Map<String, IdDefinition> provider;
 
     public SegmentIdProperties() {
         share = new IdDefinition();
         distributor = new Distributor();
+        chain = new Chain();
     }
 
     public boolean isEnabled() {
@@ -34,6 +37,14 @@ public class SegmentIdProperties {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public Mode getMode() {
+        return mode;
+    }
+
+    public void setMode(Mode mode) {
+        this.mode = mode;
     }
 
     public int getStep() {
@@ -60,6 +71,14 @@ public class SegmentIdProperties {
         this.distributor = distributor;
     }
 
+    public Chain getChain() {
+        return chain;
+    }
+
+    public void setChain(Chain chain) {
+        this.chain = chain;
+    }
+
     public IdDefinition getShare() {
         return share;
     }
@@ -74,6 +93,32 @@ public class SegmentIdProperties {
 
     public void setProvider(Map<String, IdDefinition> provider) {
         this.provider = provider;
+    }
+
+    public enum Mode {
+        DEFAULT,
+        CHAIN
+    }
+
+    public static class Chain {
+        private int safeDistance = SegmentChainId.DEFAULT_SAFE_DISTANCE;
+        private Duration prefetchPeriod = SegmentChainId.DEFAULT_PREFETCH_PERIOD;
+
+        public int getSafeDistance() {
+            return safeDistance;
+        }
+
+        public void setSafeDistance(int safeDistance) {
+            this.safeDistance = safeDistance;
+        }
+
+        public Duration getPrefetchPeriod() {
+            return prefetchPeriod;
+        }
+
+        public void setPrefetchPeriod(Duration prefetchPeriod) {
+            this.prefetchPeriod = prefetchPeriod;
+        }
     }
 
     public static class Distributor {
@@ -121,8 +166,18 @@ public class SegmentIdProperties {
 
     public static class IdDefinition {
 
+        private Mode mode;
         private int offset = RedisIdSegmentDistributor.DEFAULT_OFFSET;
         private int step = RedisIdSegmentDistributor.DEFAULT_STEP;
+        private Chain chain;
+
+        public Mode getMode() {
+            return mode;
+        }
+
+        public void setMode(Mode mode) {
+            this.mode = mode;
+        }
 
         public int getOffset() {
             return offset;
@@ -138,6 +193,14 @@ public class SegmentIdProperties {
 
         public void setStep(int step) {
             this.step = step;
+        }
+
+        public Chain getChain() {
+            return chain;
+        }
+
+        public void setChain(Chain chain) {
+            this.chain = chain;
         }
     }
 }

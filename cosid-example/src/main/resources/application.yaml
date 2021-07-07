@@ -29,6 +29,10 @@ cosid:
         sequence-bit: 12
   segment:
     enabled: true
+    mode: chain
+    chain:
+      safe-distance: 100
+      prefetch-period: 4000ns
     distributor:
       type: redis
     share:
@@ -41,3 +45,4 @@ cosid:
       bizD:
         offset: 10000
         step: 100
+

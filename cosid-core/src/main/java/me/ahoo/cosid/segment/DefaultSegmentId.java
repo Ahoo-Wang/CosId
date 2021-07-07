@@ -24,7 +24,7 @@ public class DefaultSegmentId implements SegmentId {
         }
 
         long nextSeq = segment.incrementAndGet();
-        if (nextSeq != IdSegment.SEQUENCE_OVERFLOW) {
+        if (!segment.isOverflow(nextSeq)){
             return nextSeq;
         }
 

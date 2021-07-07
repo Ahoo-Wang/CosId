@@ -7,8 +7,8 @@
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 目前提供了三类 ID 生成器：
 
 - `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) , 主要解决 *时钟回拨问题* 、*机器号分配问题* 并且提供更加友好、灵活的使用体验。
-- `SegmentId` :  `RedisIdSegmentDistributor` *单机 TPS 性能(步长 1000)：3687W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) , 每次获取一段(`Step`)ID，来降低号段分发器的网络IO请求频次提升性能。
-- `SegmentChainId` (实验性功能): `SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强，设计图如下。`PrefetchWorker` 维护安全距离(`safeDistance`), 使得 `SegmentChainId` 达到近似 `AtomicLong` 的 *TPS 性能(步长 1000): 10882W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) 。
+- `SegmentId` :  `RedisIdSegmentDistributor` *单机 TPS 性能(步长 1000)：2950W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) , 每次获取一段(`Step`)ID，来降低号段分发器的网络IO请求频次提升性能。
+- `SegmentChainId` : `SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强，设计图如下。`PrefetchWorker` 维护安全距离(`safeDistance`), 使得 `SegmentChainId` 达到近似 `AtomicLong` 的 *TPS 性能(步长 1000): 10272W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) 。
 
 ![SegmentClainId](./docs/SegmentClainId.png)
   
@@ -222,6 +222,28 @@ cosid:
 
 ![SegmentClainId](./docs/SegmentClainId.png)
 
+```yaml
+cosid:
+  segment:
+    enabled: true
+    mode: chain
+    chain:
+      safe-distance: 100
+      prefetch-period: 4000ns
+    distributor:
+      type: redis
+    share:
+      offset: 0
+      step: 100
+    provider:
+      bizC:
+        offset: 10000
+        step: 100
+      bizD:
+        offset: 10000
+        step: 100
+```
+
 ## IdGeneratorProvider
 
 ```yaml
@@ -255,7 +277,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.1.5";
+    val cosidVersion = "1.1.6";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -271,7 +293,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.1.5</cosid.version>
+        <cosid.version>1.1.6</cosid.version>
     </properties>
 
     <dependencies>
@@ -319,6 +341,10 @@ cosid:
         sequence-bit: 12
   segment:
     enabled: true
+    mode: chain
+    chain:
+      safe-distance: 100
+      prefetch-period: 4000ns
     distributor:
       type: redis
     share:
@@ -344,32 +370,80 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.1.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.1.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
 Benchmark                                                    Mode  Cnt        Score   Error  Units
-SnowflakeIdBenchmark.millisecondSnowflakeId_generate        thrpt       4093924.313          ops/s
-SnowflakeIdBenchmark.safeJsMillisecondSnowflakeId_generate  thrpt        511542.292          ops/s
-SnowflakeIdBenchmark.safeJsSecondSnowflakeId_generate       thrpt        511939.629          ops/s
-SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4204761.870          ops/s
+SnowflakeIdBenchmark.millisecondSnowflakeId_friendlyId      thrpt       4020311.665          ops/s
+SnowflakeIdBenchmark.millisecondSnowflakeId_generate        thrpt       4095403.859          ops/s
+SnowflakeIdBenchmark.safeJsMillisecondSnowflakeId_generate  thrpt        511654.048          ops/s
+SnowflakeIdBenchmark.safeJsSecondSnowflakeId_generate       thrpt        539818.563          ops/s
+SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.941          ops/s
 ```
 
-### RedisIdSegmentDistributorBenchmark
+### RedisIdBenchmark
+
+![RedisIdBenchmark](./docs/jmh/RedisIdBenchmark.png)
 
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.1.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-redis/build/libs/cosid-redis-1.1.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisIdBenchmark
 ```
 
 ```
-Benchmark                                                       Mode  Cnt          Score         Error  Units
-RedisIdSegmentDistributorBenchmark.jdkId_AtomicLong_baseline   thrpt    5  133453762.920 ±  460414.074  ops/s
-RedisIdSegmentDistributorBenchmark.segmentChainId_step_1       thrpt    5     268674.112 ±   26154.333  ops/s
-RedisIdSegmentDistributorBenchmark.segmentChainId_step_100     thrpt    5   21907055.565 ± 1013620.092  ops/s
-RedisIdSegmentDistributorBenchmark.segmentChainId_step_1000    thrpt    5  108822460.249 ± 5879881.263  ops/s
-RedisIdSegmentDistributorBenchmark.segmentId_step_1            thrpt    5     211779.978 ±   25033.046  ops/s
-RedisIdSegmentDistributorBenchmark.segmentId_step_100          thrpt    5    3042491.392 ±   16249.712  ops/s
-RedisIdSegmentDistributorBenchmark.segmentId_step_1000         thrpt    5   36871236.823 ±  165826.567  ops/s
+Benchmark                    Mode  Cnt         Score         Error  Units
+RedisIdBenchmark.step_1     thrpt    5    207470.850 ±   11832.936  ops/s
+RedisIdBenchmark.step_100   thrpt    5   3868126.197 ±  258008.896  ops/s
+RedisIdBenchmark.step_1000  thrpt    5  29506073.112 ± 2502253.182  ops/s
+```
+
+### RedisChainIdBenchmark
+
+![RedisChainIdBenchmark](./docs/jmh/RedisChainIdBenchmark.png)
+
+``` shell
+gradle cosid-redis:jmh
+# or
+java -jar cosid-redis/build/libs/cosid-redis-1.1.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+```
+
+```
+Benchmark                                   Mode  Cnt          Score         Error  Units
+RedisChainIdBenchmark.atomicLong_baseline  thrpt    5  143740421.831 ± 1142477.957  ops/s
+RedisChainIdBenchmark.step_1               thrpt    5     301874.926 ±   10340.941  ops/s
+RedisChainIdBenchmark.step_100             thrpt    5   25746336.165 ±  433565.840  ops/s
+RedisChainIdBenchmark.step_1000            thrpt    5  102722840.616 ± 2368562.637  ops/s
+```
+
+
+### RedisIdBenchmark VS RedisChainIdBenchmark Sample
+
+![Segemnt_Step1000_VS_sample](./docs/jmh/Segemnt_Step1000_VS_sample.png)
+
+```shell
+java -jar cosid-redis/build/libs/cosid-redis-1.1.6-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+```
+
+```
+Benchmark                                            Mode      Cnt    Score   Error  Units
+RedisChainIdBenchmark.step_1000                    sample  1062954    0.056 ± 0.002  us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.00    sample               ≈ 0          us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.50    sample             0.042          us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.90    sample             0.083          us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.95    sample             0.084          us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.99    sample             0.125          us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.999   sample             3.000          us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.9999  sample             8.818          us/op
+RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           290.304          us/op
+RedisIdBenchmark.step_1000                         sample  1374946    0.064 ± 0.003  us/op
+RedisIdBenchmark.step_1000:step_1000·p0.00         sample               ≈ 0          us/op
+RedisIdBenchmark.step_1000:step_1000·p0.50         sample             0.042          us/op
+RedisIdBenchmark.step_1000:step_1000·p0.90         sample             0.042          us/op
+RedisIdBenchmark.step_1000:step_1000·p0.95         sample             0.042          us/op
+RedisIdBenchmark.step_1000:step_1000·p0.99         sample             0.083          us/op
+RedisIdBenchmark.step_1000:step_1000·p0.999        sample             0.291          us/op
+RedisIdBenchmark.step_1000:step_1000·p0.9999       sample            46.624          us/op
+RedisIdBenchmark.step_1000:step_1000·p1.00         sample           483.840          us/op
 ```

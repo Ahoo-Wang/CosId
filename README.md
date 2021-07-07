@@ -418,6 +418,9 @@ RedisChainIdBenchmark.step_100             thrpt    5   25746336.165 ±  433565.
 RedisChainIdBenchmark.step_1000            thrpt    5  102722840.616 ± 2368562.637  ops/s
 ```
 
+### RedisIdBenchmark VS RedisChainIdBenchmark TPS
+
+![Segemnt_Step1000_VS_tps](./docs/jmh/Segemnt_Step1000_VS_tps.png)
 
 ### RedisIdBenchmark VS RedisChainIdBenchmark Sample
 

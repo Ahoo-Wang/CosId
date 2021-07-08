@@ -54,6 +54,9 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
      */
     private void forward(IdSegmentClain forwardClain) {
         if (forwardClain.compareTo(headClain) > 0) {
+            if (log.isDebugEnabled()) {
+                log.debug("forward - [{}] -> [{}].", headClain, forwardClain);
+            }
             headClain = forwardClain;
         }
     }

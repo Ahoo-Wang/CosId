@@ -280,6 +280,8 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 
 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-rest-api)
 
+> http://localhost:8080/swagger-ui/index.html#/
+
 ## 安装
 
 ### Gradle

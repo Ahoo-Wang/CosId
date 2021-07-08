@@ -269,6 +269,8 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 
 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-rest-api)
 
+> http://localhost:8080/swagger-ui/index.html#/
+
 ## Installation
 
 ### Gradle

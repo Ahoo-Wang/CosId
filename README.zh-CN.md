@@ -278,7 +278,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 
 ## Examples
 
-[CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)
+[CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-rest-api)
 
 ## 安装
 

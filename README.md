@@ -267,7 +267,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 
 ## Examples
 
-[CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)
+[CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-rest-api)
 
 ## Installation
 

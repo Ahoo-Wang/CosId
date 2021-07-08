@@ -6,7 +6,7 @@
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* aims to provide a universal, flexible and high-performance distributed ID generator. Three types of ID generators are currently provided:
 
-- `SnowflakeId` : Stand-alone *TPS performance：4,090,000* [JMH Benchmark](#jmh-benchmark) , It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and provide a more friendly and flexible experience.
+- `SnowflakeId` : Stand-alone *TPS performance：4,096,000* [JMH Benchmark](#jmh-benchmark) , It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and provide a more friendly and flexible experience.
 - `SegmentId` : `RedisIdSegmentDistributor` Stand-alone *TPS performance(Step 1000)：29,506,073+/s* [JMH Benchmark](#jmh-benchmark) , Get a segment (`Step`) ID every time to reduce the network IO request frequency of the `IdSegment` distributor and improve performance.
 - `SegmentChainId` : `SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves approximately `AtomicLong` *TPS performance (Step 1000): 102,722,840+/s* [JMH Benchmark](#jmh-benchmark) .
 

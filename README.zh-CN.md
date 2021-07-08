@@ -429,11 +429,11 @@ RedisChainIdBenchmark.step_1000            thrpt    5  102722840.616 ± 2368562.
 
 ### RedisIdBenchmark VS RedisChainIdBenchmark TPS (ops/s)
 
-![Segemnt_Step1000_VS_tps](./docs/jmh/Segemnt_Step1000_VS_throughput.png)
+![Segment_Step1000_VS_tps](./docs/jmh/Segemnt_Step1000_VS_throughput.png)
 
 ### RedisIdBenchmark VS RedisChainIdBenchmark Sample (us/op)
 
-![Segemnt_Step1000_VS_sample](./docs/jmh/Segemnt_Step1000_VS_sample.png)
+![Segment_Step1000_VS_sample](./docs/jmh/Segemnt_Step1000_VS_sample.png)
 
 ```shell
 java -jar cosid-redis/build/libs/cosid-redis-1.1.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000

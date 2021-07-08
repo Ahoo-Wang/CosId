@@ -88,8 +88,8 @@ public class CosIdSegmentAutoConfiguration {
         if (SegmentIdProperties.Mode.DEFAULT.equals(mode)) {
             return new DefaultSegmentId(redisIdSegmentDistributor);
         }
-        SegmentIdProperties.Chain clain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
-        return new SegmentChainId(clain.getSafeDistance(), clain.getPrefetchPeriod(), redisIdSegmentDistributor);
+        SegmentIdProperties.Chain chain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
+        return new SegmentChainId(chain.getSafeDistance(), chain.getPrefetchPeriod(), redisIdSegmentDistributor);
     }
 
 }

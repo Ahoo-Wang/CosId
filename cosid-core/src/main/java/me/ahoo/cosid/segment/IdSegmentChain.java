@@ -18,24 +18,24 @@ import java.util.function.Function;
 /**
  * @author ahoo wang
  */
-public class IdSegmentClain implements IdSegment {
+public class IdSegmentChain implements IdSegment {
     public static final int ROOT_VERSION = -1;
-    public static final IdSegmentClain NOT_SET = null;
+    public static final IdSegmentChain NOT_SET = null;
 
     private final int version;
     private final IdSegment idSegment;
-    private volatile IdSegmentClain next;
+    private volatile IdSegmentChain next;
 
-    public IdSegmentClain(IdSegmentClain previousClain, IdSegment idSegment) {
-        this(previousClain.getVersion() + 1, idSegment);
+    public IdSegmentChain(IdSegmentChain previousChain, IdSegment idSegment) {
+        this(previousChain.getVersion() + 1, idSegment);
     }
 
-    public IdSegmentClain(int version, IdSegment idSegment) {
+    public IdSegmentChain(int version, IdSegment idSegment) {
         this.version = version;
         this.idSegment = idSegment;
     }
 
-    public boolean trySetNext(Function<IdSegmentClain, IdSegmentClain> idSegmentClainSupplier) throws NextIdSegmentExpiredException {
+    public boolean trySetNext(Function<IdSegmentChain, IdSegmentChain> idSegmentChainSupplier) throws NextIdSegmentExpiredException {
         if (NOT_SET != next) {
             return false;
         }
@@ -44,26 +44,26 @@ public class IdSegmentClain implements IdSegment {
             if (NOT_SET != next) {
                 return false;
             }
-            IdSegmentClain nextIdSegmentClain = idSegmentClainSupplier.apply(this);
+            IdSegmentChain nextIdSegmentClain = idSegmentChainSupplier.apply(this);
             setNext(nextIdSegmentClain);
             return true;
         }
     }
 
-    public void setNext(IdSegmentClain nextIdSegmentClain) {
-        ensureNextIdSegment(nextIdSegmentClain);
-        next = nextIdSegmentClain;
+    public void setNext(IdSegmentChain nextIdSegmentChain) {
+        ensureNextIdSegment(nextIdSegmentChain);
+        next = nextIdSegmentChain;
     }
 
-    public IdSegmentClain ensureSetNext(Function<IdSegmentClain, IdSegmentClain> idSegmentClainSupplier) throws NextIdSegmentExpiredException {
-        IdSegmentClain currentClain = this;
-        while (!currentClain.trySetNext(idSegmentClainSupplier)) {
-            currentClain = currentClain.getNext();
+    public IdSegmentChain ensureSetNext(Function<IdSegmentChain, IdSegmentChain> idSegmentChainSupplier) throws NextIdSegmentExpiredException {
+        IdSegmentChain currentChain = this;
+        while (!currentChain.trySetNext(idSegmentChainSupplier)) {
+            currentChain = currentChain.getNext();
         }
-        return currentClain;
+        return currentChain;
     }
 
-    public IdSegmentClain getNext() {
+    public IdSegmentChain getNext() {
         return next;
     }
 
@@ -75,12 +75,12 @@ public class IdSegmentClain implements IdSegment {
         return version;
     }
 
-    public int gap(IdSegmentClain end) {
+    public int gap(IdSegmentChain end) {
         return end.version - version;
     }
 
-    public static IdSegmentClain newRoot() {
-        return new IdSegmentClain(IdSegmentClain.ROOT_VERSION, DefaultIdSegment.OVERFLOW);
+    public static IdSegmentChain newRoot() {
+        return new IdSegmentChain(IdSegmentChain.ROOT_VERSION, DefaultIdSegment.OVERFLOW);
     }
 
     @Override
@@ -110,7 +110,7 @@ public class IdSegmentClain implements IdSegment {
 
     @Override
     public String toString() {
-        return "IdSegmentClain{" +
+        return "IdSegmentChain{" +
                 "version=" + version +
                 ", idSegment=" + idSegment +
                 '}';

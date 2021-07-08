@@ -31,21 +31,21 @@ class SegmentChainIdTest {
     @SneakyThrows
     void sort() {
         IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
-        IdSegmentClain idSegmentClain1 = idSegmentDistributor.nextIdSegmentClain(IdSegmentClain.newRoot());
-        IdSegmentClain idSegmentClain2 = idSegmentDistributor.nextIdSegmentClain(IdSegmentClain.newRoot());
-        IdSegmentClain idSegmentClain3 = idSegmentDistributor.nextIdSegmentClain(IdSegmentClain.newRoot());
-        List<IdSegmentClain> clainList = Arrays.asList(idSegmentClain2, idSegmentClain1, idSegmentClain3);
-        clainList.sort(null);
-        Assertions.assertEquals(idSegmentClain1, clainList.get(0));
-        Assertions.assertEquals(idSegmentClain2, clainList.get(1));
-        Assertions.assertEquals(idSegmentClain3, clainList.get(2));
+        IdSegmentChain idSegmentClain1 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
+        IdSegmentChain idSegmentClain2 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
+        IdSegmentChain idSegmentClain3 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
+        List<IdSegmentChain> chainList = Arrays.asList(idSegmentClain2, idSegmentClain1, idSegmentClain3);
+        chainList.sort(null);
+        Assertions.assertEquals(idSegmentClain1, chainList.get(0));
+        Assertions.assertEquals(idSegmentClain2, chainList.get(1));
+        Assertions.assertEquals(idSegmentClain3, chainList.get(2));
     }
 
     @Test
     @SneakyThrows
     void nextIdSegmentsClain() {
         IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
-        IdSegmentClain rootClain = idSegmentDistributor.nextIdSegmentClain(IdSegmentClain.newRoot(), 3);
+        IdSegmentChain rootClain = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(), 3);
         Assertions.assertEquals(0, rootClain.getVersion());
         Assertions.assertEquals(0, rootClain.getIdSegment().getOffset());
         Assertions.assertEquals(1, rootClain.getNext().getVersion());
@@ -125,8 +125,8 @@ class SegmentChainIdTest {
         IdSegmentDistributor testMaxIdDistributor = new IdSegmentDistributor.Mock();
         SegmentChainId segmentChainId1 = new SegmentChainId(testMaxIdDistributor);
         SegmentChainId segmentChainId2 = new SegmentChainId(testMaxIdDistributor);
-        final IdSegmentClain head1 = segmentChainId1.getHead();
-        final IdSegmentClain head2 = segmentChainId2.getHead();
+        final IdSegmentChain head1 = segmentChainId1.getHead();
+        final IdSegmentChain head2 = segmentChainId2.getHead();
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[MULTI_CONCURRENT_THREADS * 2];
         int threads1 = 0;
 
@@ -171,7 +171,7 @@ class SegmentChainIdTest {
             }
             totalIds.sort(Long::compareTo);
             ArrayList<IdSegment> idSegments = new ArrayList<>(totalIds.size() / testMaxIdDistributor.getStep() + 1000);
-            IdSegmentClain current = head1;
+            IdSegmentChain current = head1;
             while (current.getNext() != null) {
                 current = current.getNext();
                 idSegments.add(current.getIdSegment());

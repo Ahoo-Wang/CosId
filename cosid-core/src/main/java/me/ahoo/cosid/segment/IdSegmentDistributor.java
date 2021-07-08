@@ -68,28 +68,28 @@ public interface IdSegmentDistributor {
         return new DefaultIdSegment(maxId, getStep());
     }
 
-    default IdSegmentClain nextIdSegmentClain(IdSegmentClain previousClain) {
+    default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain) {
         IdSegment nextIdSegment = nextIdSegment();
-        return new IdSegmentClain(previousClain, nextIdSegment);
+        return new IdSegmentChain(previousChain, nextIdSegment);
     }
 
-    default IdSegmentClain nextIdSegmentClain(IdSegmentClain previousClain, int segments) {
+    default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments) {
         if (DEFAULT_SEGMENTS == segments) {
-            return nextIdSegmentClain(previousClain);
+            return nextIdSegmentChain(previousChain);
         }
         List<IdSegment> nextIdSegments = nextIdSegment(segments);
-        IdSegmentClain rootClain = null;
-        IdSegmentClain currentClain = null;
+        IdSegmentChain rootChain = null;
+        IdSegmentChain currentChain = null;
         for (IdSegment nextIdSegment : nextIdSegments) {
-            if (Objects.isNull(rootClain)) {
-                rootClain = new IdSegmentClain(previousClain, nextIdSegment);
-                currentClain = rootClain;
+            if (Objects.isNull(rootChain)) {
+                rootChain = new IdSegmentChain(previousChain, nextIdSegment);
+                currentChain = rootChain;
                 continue;
             }
-            currentClain.setNext(new IdSegmentClain(currentClain, nextIdSegment));
-            currentClain = currentClain.getNext();
+            currentChain.setNext(new IdSegmentChain(currentChain, nextIdSegment));
+            currentChain = currentChain.getNext();
         }
-        return rootClain;
+        return rootChain;
     }
 
     class Atomic implements IdSegmentDistributor {

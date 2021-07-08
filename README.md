@@ -10,7 +10,7 @@
 - `SegmentId` : `RedisIdSegmentDistributor` Stand-alone *TPS performance(Step 1000)：29,506,073+/s* [JMH Benchmark](#jmh-benchmark) , Get a segment (`Step`) ID every time to reduce the network IO request frequency of the `IdSegment` distributor and improve performance.
 - `SegmentChainId` : `SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves approximately `AtomicLong` *TPS performance (Step 1000): 102,722,840+/s* [JMH Benchmark](#jmh-benchmark) .
 
-![SegmentClainId](./docs/SegmentClainId.png)
+![SegmentChainId](./docs/SegmentChainId.png)
 
 ## SnowflakeId
 
@@ -221,7 +221,7 @@ When the step size of `RedisIdSegmentDistributor` is set to 1 (one Redis network
 
 ### SegmentChainId
 
-![SegmentClainId](./docs/SegmentClainId.png)
+![SegmentChainId](./docs/SegmentChainId.png)
 
 ```yaml
 cosid:
@@ -278,7 +278,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.2.3";
+    val cosidVersion = "1.2.4";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -294,7 +294,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.2.3</cosid.version>
+        <cosid.version>1.2.4</cosid.version>
     </properties>
 
     <dependencies>
@@ -373,7 +373,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.2.3-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.2.4-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -392,7 +392,7 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.2.3-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.2.4-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisIdBenchmark
 ```
 
 ```
@@ -409,7 +409,7 @@ RedisIdBenchmark.step_1000  thrpt    5  29506073.112 ± 2502253.182  ops/s
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.2.3-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.2.4-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
@@ -429,7 +429,7 @@ RedisChainIdBenchmark.step_1000            thrpt    5  102722840.616 ± 2368562.
 ![Segment_Step1000_VS_sample](./docs/jmh/Segemnt_Step1000_VS_sample.png)
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.2.3-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.2.4-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```

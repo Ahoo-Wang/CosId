@@ -55,7 +55,7 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
         this.offset = offset;
         this.timeout = timeout;
         this.redisCommands = redisCommands;
-        this.adderKey = CosId.COSID + ":" + hashTag(namespace + "." + name) + ".adder";
+        this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
     }
 
     public String getNamespace() {

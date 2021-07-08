@@ -1,5 +1,7 @@
 package me.ahoo.cosid.segment;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -13,8 +15,7 @@ import java.util.concurrent.locks.LockSupport;
 @Slf4j
 public class SegmentChainId implements SegmentId, AutoCloseable {
     public static final int DEFAULT_SAFE_DISTANCE = 10;
-    public static final int SPIN_THRESHOLD = 50;
-    public static final Duration DEFAULT_PREFETCH_PERIOD = Duration.ofNanos(4000);
+    public static final Duration DEFAULT_PREFETCH_PERIOD = Duration.ofSeconds(1);
     private final int safeDistance;
     private final IdSegmentDistributor maxIdDistributor;
     private final PrefetchWorker prefetchWorker;
@@ -25,6 +26,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
     }
 
     public SegmentChainId(int safeDistance, Duration prefetchPeriod, IdSegmentDistributor maxIdDistributor) {
+        Preconditions.checkArgument(safeDistance > 0, "The safety distance must be greater than 0.");
         this.safeDistance = safeDistance;
         this.maxIdDistributor = maxIdDistributor;
         this.prefetchWorker = new PrefetchWorker(prefetchPeriod, headClain);
@@ -76,9 +78,13 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
 
             try {
                 final IdSegmentClain preIdSegmentClain = headClain;
-                IdSegmentClain nextClain = preIdSegmentClain.ensureSetNext((preClain) -> generateNext(preClain, safeDistance)).getNext();
-                if (log.isDebugEnabled()) {
-                    log.debug("generate - headClain.version:[{}->{}].", preIdSegmentClain.getVersion(), nextClain.getVersion());
+
+                if (preIdSegmentClain.trySetNext((preClain) -> generateNext(preClain, safeDistance))) {
+                    IdSegmentClain nextClain = preIdSegmentClain.getNext();
+                    forward(nextClain);
+                    if (log.isDebugEnabled()) {
+                        log.debug("generate - headClain.version:[{}->{}].", preIdSegmentClain.getVersion(), nextClain.getVersion());
+                    }
                 }
             } catch (NextIdSegmentExpiredException nextIdSegmentExpiredException) {
                 if (log.isWarnEnabled()) {
@@ -145,7 +151,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
         private volatile boolean stopped = false;
 
         PrefetchWorker(Duration prefetchPeriod, IdSegmentClain tailClain) {
-            super("CosId-PrefetchWorker");
+            super(Strings.lenientFormat("CosId-PrefetchWorker@%s", maxIdDistributor.getNamespacedName()));
             this.prefetchPeriod = prefetchPeriod;
             this.tailClain = tailClain;
             this.setDaemon(true);
@@ -153,18 +159,18 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
 
         public synchronized void wakeUp() {
             if (log.isDebugEnabled()) {
-                log.debug("PrefetchWorker - wakeUp - state:[{}].", this.getState());
+                log.debug("{} - wakeUp - state:[{}].", this.getName(), this.getState());
             }
             if (stopped) {
                 if (log.isWarnEnabled()) {
-                    log.warn("PrefetchWorker - wakeUp - PrefetchWorker is stopped,Can't be awakened!");
+                    log.warn("{} - wakeUp - PrefetchWorker is stopped,Can't be awakened!", this.getName());
                 }
                 return;
             }
 
             if (State.RUNNABLE.equals(this.getState())) {
                 if (log.isDebugEnabled()) {
-                    log.debug("PrefetchWorker - wakeUp PrefetchWorker is running ,Don't need to be awakened.");
+                    log.debug("{} - wakeUp PrefetchWorker is running ,Don't need to be awakened.", this.getName());
                 }
                 return;
             }
@@ -189,7 +195,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             final int safeGap = safeDistance - headToTailGap;
 
             if (log.isDebugEnabled()) {
-                log.debug("PrefetchWorker - prefetch - headClain.version:[{}] - tailClain.version:[{}] - safeGap:[{}].", usableHeadClain.getVersion(), tailClain.getVersion(), safeGap);
+                log.debug("prefetch - {} - headClain.version:[{}] - tailClain.version:[{}] - safeGap:[{}].", maxIdDistributor.getNamespacedName(), usableHeadClain.getVersion(), tailClain.getVersion(), safeGap);
             }
 
             if (safeGap <= 0) {
@@ -203,18 +209,18 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
                     tailClain = tailClain.getNext();
                 }
                 if (log.isDebugEnabled()) {
-                    log.debug("PrefetchWorker - restTail - tailClain.version:[{}:{}->{}] - headClain.version:[{}->{}].", preTail.gap(preTail.getNext()), preTail.getVersion(), preTail.getNext().getVersion(), headClain.getVersion(), SegmentChainId.this.headClain.getVersion());
+                    log.debug("prefetch - {} - restTail - tailClain.version:[{}:{}->{}] - headClain.version:[{}->{}].", maxIdDistributor.getNamespacedName(), preTail.gap(preTail.getNext()), preTail.getVersion(), preTail.getNext().getVersion(), headClain.getVersion(), SegmentChainId.this.headClain.getVersion());
                 }
             } catch (NextIdSegmentExpiredException nextIdSegmentExpiredException) {
                 if (log.isWarnEnabled()) {
-                    log.warn("prefetch - gave up this next IdSegmentClain.", nextIdSegmentExpiredException);
+                    log.warn("prefetch - {} - gave up this next IdSegmentClain.", maxIdDistributor.getNamespacedName(), nextIdSegmentExpiredException);
                 }
             }
         }
 
         public void shutdown() {
             if (log.isInfoEnabled()) {
-                log.info("PrefetchWorker - shutdown!");
+                log.info("{} - shutdown!", this.getName());
             }
             stopped = true;
         }
@@ -222,11 +228,11 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
         @Override
         public void run() {
             if (log.isInfoEnabled()) {
-                log.info("PrefetchWorker - run.");
+                log.info("{} - run.", this.getName());
             }
             while (!stopped && !isInterrupted()) {
                 try {
-                    LockSupport.parkNanos(prefetchPeriod.toNanos());
+                    LockSupport.parkNanos(this, prefetchPeriod.toNanos());
                     prefetch();
                 } catch (Throwable throwable) {
                     if (log.isErrorEnabled()) {

@@ -4,7 +4,6 @@ package me.ahoo.cosid.redis;
 import io.lettuce.core.RedisClient;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.SegmentChainId;
-import me.ahoo.cosid.segment.SegmentId;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,6 +37,7 @@ public class RedisIdFactory implements AutoCloseable {
         RedisIdSegmentDistributor distributor = createDistributor(step);
         return new DefaultSegmentId(distributor);
     }
+
 
     public SegmentChainId createSegmentChainId(int step) {
         RedisIdSegmentDistributor distributor = createDistributor(step);

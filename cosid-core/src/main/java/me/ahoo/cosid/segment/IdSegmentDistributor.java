@@ -5,6 +5,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
@@ -15,6 +16,14 @@ import java.util.concurrent.locks.LockSupport;
 public interface IdSegmentDistributor {
     int DEFAULT_SEGMENTS = 1;
     int DEFAULT_STEP = 100;
+
+    String getNamespace();
+
+    String getName();
+
+    default String getNamespacedName() {
+        return getNamespace() + "." + getName();
+    }
 
     int getStep();
 
@@ -72,13 +81,26 @@ public interface IdSegmentDistributor {
 
     class Atomic implements IdSegmentDistributor {
         private final int step;
+        private final String name;
         private final AtomicLong adder = new AtomicLong();
 
         public Atomic() {
-           this(DEFAULT_STEP);
+            this(DEFAULT_STEP);
         }
+
         public Atomic(int step) {
             this.step = step;
+            this.name = "atomic__" + UUID.randomUUID();
+        }
+
+        @Override
+        public String getNamespace() {
+            return "__";
+        }
+
+        @Override
+        public String getName() {
+            return name;
         }
 
         @Override
@@ -96,6 +118,7 @@ public interface IdSegmentDistributor {
     @VisibleForTesting
     class Mock implements IdSegmentDistributor {
         private final int step;
+        private final String name;
         private final long ioWaiting;
         private final AtomicLong adder = new AtomicLong();
 
@@ -110,6 +133,17 @@ public interface IdSegmentDistributor {
         public Mock(int step, int tps) {
             this.step = step;
             this.ioWaiting = TimeUnit.SECONDS.toNanos(1) / tps;
+            this.name = "mock__" + UUID.randomUUID();
+        }
+
+        @Override
+        public String getNamespace() {
+            return "__";
+        }
+
+        @Override
+        public String getName() {
+            return name;
         }
 
         @Override

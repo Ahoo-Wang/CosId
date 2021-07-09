@@ -11,28 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.snowflake.exception;
+package me.ahoo.cosid.jdbc.exception;
 
 import me.ahoo.cosid.CosIdException;
 
 /**
  * @author ahoo wang
  */
-public class ClockBackwardsException extends CosIdException {
-    private final long lastTimestamp;
-    private final long currentTimestamp;
+public class NotFoundMaxIdException extends CosIdException {
+    public final String name;
 
-    public ClockBackwardsException(long lastTimestamp, long currentTimestamp) {
-        super(String.format("Clock moved backwards.  Refusing to generate id. lastTimestamp:[%s] | currentTimestamp:[%s]", lastTimestamp, currentTimestamp));
-        this.lastTimestamp = lastTimestamp;
-        this.currentTimestamp = currentTimestamp;
+    public NotFoundMaxIdException(String name) {
+        super(name + ":not found max id ");
+        this.name = name;
     }
 
-    public long getLastTimestamp() {
-        return lastTimestamp;
-    }
-
-    public long getCurrentTimestamp() {
-        return currentTimestamp;
+    public String getName() {
+        return name;
     }
 }

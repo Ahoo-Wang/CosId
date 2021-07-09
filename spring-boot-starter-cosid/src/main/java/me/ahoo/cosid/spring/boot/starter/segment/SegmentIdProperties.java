@@ -14,6 +14,8 @@
 package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
+import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.redis.RedisIdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -30,7 +32,7 @@ public class SegmentIdProperties {
     public final static String PREFIX = CosId.COSID_PREFIX + "segment";
 
     private boolean enabled;
-    private Mode mode;
+    private Mode mode = Mode.CHAIN;
     private int step;
     private Duration timeout = RedisIdSegmentDistributor.DEFAULT_TIMEOUT;
     private Distributor distributor;
@@ -138,9 +140,19 @@ public class SegmentIdProperties {
         public static final String TYPE = PREFIX + ".distributor.type";
         private Type type = Type.REDIS;
         private Redis redis;
+        private Jdbc jdbc;
 
         public Distributor() {
             this.redis = new Redis();
+            this.jdbc = new Jdbc();
+        }
+
+        public Type getType() {
+            return type;
+        }
+
+        public void setType(Type type) {
+            this.type = type;
         }
 
         public Redis getRedis() {
@@ -151,12 +163,12 @@ public class SegmentIdProperties {
             this.redis = redis;
         }
 
-        public Type getType() {
-            return type;
+        public Jdbc getJdbc() {
+            return jdbc;
         }
 
-        public void setType(Type type) {
-            this.type = type;
+        public void setJdbc(Jdbc jdbc) {
+            this.jdbc = jdbc;
         }
 
         public static class Redis {
@@ -172,9 +184,71 @@ public class SegmentIdProperties {
             }
         }
 
+        public static class Jdbc {
+
+            private String incrementMaxIdSql = JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL;
+            private String fetchMaxIdSql = JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL;
+            private boolean enableAutoInitCosidTable = false;
+            private String initCosidTableSql = JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL;
+            private boolean enableAutoInitIdSegment = true;
+            private String initIdSegmentSql = JdbcIdSegmentInitializer.INIT_ID_SEGMENT_SQL;
+
+
+            public String getIncrementMaxIdSql() {
+                return incrementMaxIdSql;
+            }
+
+            public void setIncrementMaxIdSql(String incrementMaxIdSql) {
+                this.incrementMaxIdSql = incrementMaxIdSql;
+            }
+
+            public String getFetchMaxIdSql() {
+                return fetchMaxIdSql;
+            }
+
+            public void setFetchMaxIdSql(String fetchMaxIdSql) {
+                this.fetchMaxIdSql = fetchMaxIdSql;
+            }
+
+
+            public boolean isEnableAutoInitCosidTable() {
+                return enableAutoInitCosidTable;
+            }
+
+            public void setEnableAutoInitCosidTable(boolean enableAutoInitCosidTable) {
+                this.enableAutoInitCosidTable = enableAutoInitCosidTable;
+            }
+
+            public String getInitCosidTableSql() {
+                return initCosidTableSql;
+            }
+
+            public void setInitCosidTableSql(String initCosidTableSql) {
+                this.initCosidTableSql = initCosidTableSql;
+            }
+
+            public boolean isEnableAutoInitIdSegment() {
+                return enableAutoInitIdSegment;
+            }
+
+            public void setEnableAutoInitIdSegment(boolean enableAutoInitIdSegment) {
+                this.enableAutoInitIdSegment = enableAutoInitIdSegment;
+            }
+
+            public String getInitIdSegmentSql() {
+                return initIdSegmentSql;
+            }
+
+            public void setInitIdSegmentSql(String initIdSegmentSql) {
+                this.initIdSegmentSql = initIdSegmentSql;
+            }
+
+
+        }
+
         public enum Type {
             REDIS,
-            MYSQL
+            JDBC
         }
     }
 

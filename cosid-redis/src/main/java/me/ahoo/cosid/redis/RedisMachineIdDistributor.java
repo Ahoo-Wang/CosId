@@ -15,16 +15,15 @@ package me.ahoo.cosid.redis;
 
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.*;
+import me.ahoo.cosid.util.Futures;
 import me.ahoo.cosky.core.redis.RedisScripts;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
 
@@ -55,10 +54,10 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     }
 
 
-    @SneakyThrows
     @Override
     protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
-        MachineState machineState = distributeAsync0(namespace, machineBit, instanceId).get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+
+        MachineState machineState =Futures.getUnChecked(distributeAsync0(namespace, machineBit, instanceId),timeout);
         if (log.isInfoEnabled()) {
             log.info("distribute0 - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
         }
@@ -92,10 +91,10 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
         });
     }
 
-    @SneakyThrows
+
     @Override
     protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
-        revertAsync0(namespace, instanceId, machineState).get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        Futures.getUnChecked(revertAsync0(namespace, instanceId, machineState),timeout);
     }
 
     /**

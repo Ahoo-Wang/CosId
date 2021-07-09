@@ -11,28 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.snowflake.exception;
+package me.ahoo.cosid.jdbc;
 
-import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.jdbc.state.*;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Threads;
 
 /**
  * @author ahoo wang
  */
-public class ClockBackwardsException extends CosIdException {
-    private final long lastTimestamp;
-    private final long currentTimestamp;
+public class MySqlIdBenchmark {
 
-    public ClockBackwardsException(long lastTimestamp, long currentTimestamp) {
-        super(String.format("Clock moved backwards.  Refusing to generate id. lastTimestamp:[%s] | currentTimestamp:[%s]", lastTimestamp, currentTimestamp));
-        this.lastTimestamp = lastTimestamp;
-        this.currentTimestamp = currentTimestamp;
+    @Benchmark
+    @Threads(2)
+    public long step_1(SegmentIdState segmentIdState) {
+        return segmentIdState.segmentId.generate();
+    }
+    @Benchmark
+    public long step_100(SegmentId100State segmentId100State) {
+        return segmentId100State.segmentId.generate();
+    }
+    @Benchmark
+    public long step_1000(SegmentId1000State segmentId1000State) {
+        return segmentId1000State.segmentId.generate();
     }
 
-    public long getLastTimestamp() {
-        return lastTimestamp;
-    }
-
-    public long getCurrentTimestamp() {
-        return currentTimestamp;
-    }
 }

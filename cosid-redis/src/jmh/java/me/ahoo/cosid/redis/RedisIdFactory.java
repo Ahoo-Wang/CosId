@@ -30,7 +30,9 @@ public class RedisIdFactory implements AutoCloseable {
 
     AtomicInteger counter = new AtomicInteger();
     RedisClient redisClient;
+    private RedisIdFactory() {
 
+    }
     public synchronized RedisIdSegmentDistributor createDistributor(int step) {
         if (redisClient == null) {
             redisClient = RedisClient.create("redis://localhost:6379");

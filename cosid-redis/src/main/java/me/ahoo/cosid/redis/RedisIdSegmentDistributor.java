@@ -15,16 +15,14 @@ package me.ahoo.cosid.redis;
 
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.CosId;
-
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosky.core.redis.RedisScripts;
+import me.ahoo.cosky.core.util.Futures;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 import static me.ahoo.cosid.redis.RedisMachineIdDistributor.hashTag;
 
@@ -88,10 +86,9 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
         return step;
     }
 
-    @SneakyThrows
     @Override
     public long nextMaxId(int step) {
-        long maxId = fetchMaxIdAsync(step).get(timeout.toNanos(), TimeUnit.NANOSECONDS);
+        long maxId = Futures.getUnChecked(fetchMaxIdAsync(step), timeout);
         if (log.isDebugEnabled()) {
             log.debug("nextMaxId - step:[{}] - maxId:[{}].", step, maxId);
         }

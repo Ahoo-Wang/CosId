@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.snowflake.machine;
 
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 
@@ -46,7 +45,6 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
      * @return
      * @throws MachineIdOverflowException
      */
-    @SneakyThrows
     @Override
     public int distribute(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
         MachineState localState = machineStateStorage.get(namespace, instanceId);
@@ -77,7 +75,6 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
      * @param instanceId
      * @throws MachineIdOverflowException
      */
-    @SneakyThrows
     @Override
     public void revert(String namespace, InstanceId instanceId) throws MachineIdOverflowException {
         MachineState lastLocalState = machineStateStorage.get(namespace, instanceId);

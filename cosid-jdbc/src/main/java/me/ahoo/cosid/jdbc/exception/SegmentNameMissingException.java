@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.snowflake.exception;
+package me.ahoo.cosid.jdbc.exception;
 
 import com.google.common.base.Strings;
 import me.ahoo.cosid.CosIdException;
@@ -19,27 +19,23 @@ import me.ahoo.cosid.CosIdException;
 /**
  * @author ahoo wang
  */
-public class TimestampOverflowException extends CosIdException {
-    private final long epoch;
-    private final long diffTimestamp;
-    private final long maxTimestamp;
+public class SegmentNameMissingException extends CosIdException {
 
-    public TimestampOverflowException(long epoch, long diffTimestamp, long maxTimestamp) {
-        super(Strings.lenientFormat("epoch:[%s] - diffTimestamp:[%s] can't be greater than maxTimestamp:[%s]", epoch, diffTimestamp, maxTimestamp));
-        this.epoch = epoch;
-        this.diffTimestamp = diffTimestamp;
-        this.maxTimestamp = maxTimestamp;
+    private final String name;
+
+    /**
+     * Constructs a new runtime exception with {@code null} as its
+     * detail message.  The cause is not initialized, and may subsequently be
+     * initialized by a call to {@link #initCause}.
+     *
+     * @param name name of segment
+     */
+    public SegmentNameMissingException(String name) {
+        super(Strings.lenientFormat("name:[%s] missing.", name));
+        this.name = name;
     }
 
-    public long getEpoch() {
-        return epoch;
-    }
-
-    public long getDiffTimestamp() {
-        return diffTimestamp;
-    }
-
-    public long getMaxTimestamp() {
-        return maxTimestamp;
+    public String getName() {
+        return name;
     }
 }

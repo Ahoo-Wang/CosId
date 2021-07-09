@@ -17,11 +17,13 @@ import com.google.common.base.Charsets;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import me.ahoo.cosid.CosIdException;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -41,7 +43,6 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         this(DEFAULT_STATE_LOCATION_PATH);
     }
 
-    @SneakyThrows
     @Override
     public MachineState get(String namespace, InstanceId instanceId) {
         File stateFile = getStateFile(namespace, instanceId);
@@ -55,7 +56,12 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             }
             return MachineState.NOT_FOUND;
         }
-        String stateLine = Files.asCharSource(stateFile, Charsets.UTF_8).readFirstLine();
+        String stateLine = null;
+        try {
+            stateLine = Files.asCharSource(stateFile, Charsets.UTF_8).readFirstLine();
+        } catch (IOException e) {
+            throw new CosIdException(e);
+        }
         if (Strings.isNullOrEmpty(stateLine)) {
             if (log.isWarnEnabled()) {
                 log.warn("get - read from stateLocation : [{}] state data is empty.", stateFile.getAbsolutePath());
@@ -84,7 +90,6 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         return new File(statePath);
     }
 
-    @SneakyThrows
     @Override
     public void set(String namespace, int machineId, InstanceId instanceId) {
         File stateFile = getStateFile(namespace, instanceId);
@@ -94,12 +99,20 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
         String stateLine = Strings.lenientFormat("%s%s%s", machineId, STATE_DELIMITER, System.currentTimeMillis());
         if (!stateFile.exists()) {
-            stateFile.createNewFile();
+            try {
+                stateFile.createNewFile();
+            } catch (IOException e) {
+                throw new CosIdException(e);
+            }
         }
 
         try (FileOutputStream fileOutputStream = new FileOutputStream(stateFile, false)) {
             fileOutputStream.write(stateLine.getBytes(Charsets.UTF_8));
             fileOutputStream.flush();
+        } catch (FileNotFoundException e) {
+            throw new CosIdException(e);
+        } catch (IOException e) {
+            throw new CosIdException(e);
         }
     }
 

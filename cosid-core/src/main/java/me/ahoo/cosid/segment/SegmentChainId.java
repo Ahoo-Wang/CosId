@@ -15,7 +15,6 @@ package me.ahoo.cosid.segment;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Closeable;
@@ -33,6 +32,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
     private final IdSegmentDistributor maxIdDistributor;
     private final PrefetchWorker prefetchWorker;
     private volatile IdSegmentChain headChain = IdSegmentChain.newRoot();
+
 
     public SegmentChainId(IdSegmentDistributor maxIdDistributor) {
         this(DEFAULT_SAFE_DISTANCE, DEFAULT_PREFETCH_PERIOD, maxIdDistributor);
@@ -78,7 +78,6 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
         return maxIdDistributor.nextIdSegmentChain(previousChain, segments);
     }
 
-    @SneakyThrows
     @Override
     public long generate() {
         while (true) {
@@ -107,7 +106,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
                     log.warn("generate - gave up this next IdSegmentChain.", nextIdSegmentExpiredException);
                 }
             }
-            this.prefetchWorker.wakeUp();
+            this.prefetchWorker.wakeup();
         }
     }
 
@@ -162,9 +161,16 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
     }
 
     public class PrefetchWorker extends Thread {
+        private final static int MAX_PREFETCH_DISTANCE = 100_000;
+        /**
+         * Duration.ofSeconds(5).toMillis();
+         */
+        private final static long hungerThreshold = 5 * 1000;
         private final Duration prefetchPeriod;
         private IdSegmentChain tailChain;
         private volatile boolean stopped = false;
+        private int prefetchDistance = safeDistance;
+        private volatile long lastWakeupTime;
 
         PrefetchWorker(Duration prefetchPeriod, IdSegmentChain tailChain) {
             super(Strings.lenientFormat("CosId-PrefetchWorker@%s", maxIdDistributor.getNamespacedName()));
@@ -173,9 +179,10 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             this.setDaemon(true);
         }
 
-        public synchronized void wakeUp() {
+        public synchronized void wakeup() {
+            lastWakeupTime = System.currentTimeMillis();
             if (log.isDebugEnabled()) {
-                log.debug("{} - wakeUp - state:[{}].", this.getName(), this.getState());
+                log.debug("{} - wakeUp - state:[{}] - lastWakeupTime:[{}].", this.getName(), this.getState(), lastWakeupTime);
             }
             if (stopped) {
                 if (log.isWarnEnabled()) {
@@ -196,6 +203,24 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
 
         public void prefetch() {
 
+            long wakeupTimeGap = System.currentTimeMillis() - lastWakeupTime;
+            boolean hunger = wakeupTimeGap < hungerThreshold;
+
+            final int prePrefetchDistance = this.prefetchDistance;
+            if (hunger) {
+                this.prefetchDistance = Math.min(this.prefetchDistance * 2, MAX_PREFETCH_DISTANCE);
+                if (log.isInfoEnabled()) {
+                    log.info("prefetch - {} - Hunger, Safety distance expansion.[{}->{}]", maxIdDistributor.getNamespacedName(), prePrefetchDistance, this.prefetchDistance);
+                }
+            } else {
+                this.prefetchDistance = Math.max(this.prefetchDistance / 2, safeDistance);
+                if (prePrefetchDistance > this.prefetchDistance) {
+                    if (log.isInfoEnabled()) {
+                        log.info("prefetch - {} - Full, Safety distance shrinks.[{}->{}]", maxIdDistributor.getNamespacedName(), prePrefetchDistance, this.prefetchDistance);
+                    }
+                }
+            }
+
             IdSegmentChain usableHeadChain = SegmentChainId.this.headChain;
             while (usableHeadChain.getIdSegment().isOverflow()) {
                 usableHeadChain = usableHeadChain.getNext();
@@ -207,20 +232,19 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
 
             forward(usableHeadChain);
             final int headToTailGap = usableHeadChain.gap(tailChain);
-
             final int safeGap = safeDistance - headToTailGap;
 
-            if (log.isDebugEnabled()) {
-                log.debug("prefetch - {} - headChain.version:[{}] - tailChain.version:[{}] - safeGap:[{}].", maxIdDistributor.getNamespacedName(), usableHeadChain.getVersion(), tailChain.getVersion(), safeGap);
+            if (safeGap <= 0 && !hunger) {
+                return;
             }
 
-            if (safeGap <= 0) {
-                return;
+            if (log.isDebugEnabled()) {
+                log.debug("prefetch - {} - headChain.version:[{}] - tailChain.version:[{}] - prefetchDistance:[{}].", maxIdDistributor.getNamespacedName(), usableHeadChain.getVersion(), tailChain.getVersion(), this.prefetchDistance);
             }
 
             try {
                 final IdSegmentChain preTail = tailChain;
-                tailChain = tailChain.ensureSetNext((preChain) -> generateNext(preChain, safeGap)).getNext();
+                tailChain = tailChain.ensureSetNext((preChain) -> generateNext(preChain, this.prefetchDistance)).getNext();
                 while (tailChain.getNext() != null) {
                     tailChain = tailChain.getNext();
                 }

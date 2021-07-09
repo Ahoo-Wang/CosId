@@ -14,11 +14,12 @@
 package me.ahoo.cosid.snowflake.machine;
 
 import com.google.common.base.Strings;
+import me.ahoo.cosid.CosIdException;
 
 /**
  * @author ahoo wang
  */
-public class MachineIdOverflowException extends RuntimeException {
+public class MachineIdOverflowException extends CosIdException {
     private final int totalMachineIds;
     private final InstanceId instanceId;
 

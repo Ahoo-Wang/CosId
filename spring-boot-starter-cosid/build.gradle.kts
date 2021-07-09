@@ -16,12 +16,17 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "redis-support", version.toString())
     }
+    registerFeature("jdbcSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "jdbc-support", version.toString())
+    }
 }
 
 dependencies {
     api(project(":cosid-core"))
     "redisSupportImplementation"(project(":cosid-redis"))
     "redisSupportImplementation"("me.ahoo.cosky:cosky-spring-cloud-core")
+    "jdbcSupportImplementation"(project(":cosid-jdbc"))
     api("org.springframework.boot:spring-boot-starter")
     api("org.springframework.cloud:spring-cloud-commons")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:${rootProject.ext.get("springBootVersion")}")

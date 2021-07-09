@@ -9,8 +9,8 @@
 - `SnowflakeId` : Stand-alone *TPS performance：4,096,000* [JMH Benchmark](#jmh-benchmark) , It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and provide a more friendly and flexible experience.
 - `SegmentId`: Get a segment (`Step`) ID every time to reduce the network IO request frequency of the `IdSegment` distributor and improve performance.
     - `IdSegmentDistributor`: 
-        - `RedisIdSegmentDistributor`: IdSegment distributor based on *Redis*.
-        - `JdbcIdSegmentDistributor`: The *Jdbc-based* number segment distributor supports various relational databases.
+        - `RedisIdSegmentDistributor`: `IdSegment` distributor based on *Redis*.
+        - `JdbcIdSegmentDistributor`: The *Jdbc-based* `IdSegment` distributor supports various relational databases.
     - `SegmentChainId`(**recommend**):`SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves approximately `AtomicLong` *TPS performance (Step 1000): 127,439,148+/s* [JMH Benchmark](#jmh-benchmark) .
         - `PrefetchWorker` maintains a safe distance (`safeDistance`), and supports dynamic `safeDistance` expansion and contraction based on hunger status.
 

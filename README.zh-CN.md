@@ -4,13 +4,15 @@
 
 ## 介绍
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 目前提供了三类 ID 生成器：
+*[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 目前提供了俩类 ID 生成器：
 
 - `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) , 主要解决 *时钟回拨问题* 、*机器号分配问题* 并且提供更加友好、灵活的使用体验。
-- `SegmentId` :  `RedisIdSegmentDistributor` *单机 TPS 性能(步长 1000)：2950W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) , 每次获取一段(`Step`)ID，来降低号段分发器的网络IO请求频次提升性能。
-- `SegmentChainId` : `SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强，设计图如下。`PrefetchWorker` 维护安全距离(`safeDistance`), 使得 `SegmentChainId` 达到近似 `AtomicLong` 的 *TPS 性能(步长 1000):10272W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) 。
-
-![SegmentChainId](./docs/SegmentChainId.png)
+- `SegmentId`: 每次获取一段 (`Step`) ID，来降低号段分发器的网络IO请求频次提升性能。
+  - `IdSegmentDistributor`: 号段分发器（号段存储器）
+    - `RedisIdSegmentDistributor`: 基于 *Redis* 的号段分发器。
+    - `JdbcIdSegmentDistributor`: 基于 *Jdbc* 的号段分发器，支持各种关系型数据库。
+  - `SegmentChainId`(推荐):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:10272W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) 。
+    - `PrefetchWorker` 维护安全距离(`safeDistance`), 并且支持基于饥饿状态的动态`safeDistance`扩容/收缩。 
 
 ## SnowflakeId
 
@@ -217,7 +219,7 @@ cosid:
 性能有更高的要求，那么可以选择使用增加每次`ID`分发步长来降低网络 IO 请求频次，提高 `IdGenerator` 性能（比如增加步长为 1000，性能可提升到
 3545W+/s [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark)）。
 
-## JdbcIdSegmentDistributor (使用数据库`Db`作为号段分发后端存储)
+## JdbcIdSegmentDistributor (使用关系型数据库`Db`作为号段分发后端存储)
 
 ```yaml
 spring:
@@ -390,26 +392,11 @@ SnowflakeIdBenchmark.safeJsSecondSnowflakeId_generate       thrpt        539818.
 SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.941          ops/s
 ```
 
-### RedisIdBenchmark
-
-![RedisIdBenchmark](./docs/jmh/RedisIdBenchmark.png)
-
-``` shell
-gradle cosid-redis:jmh
-# or
-java -jar cosid-redis/build/libs/cosid-redis-1.2.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisIdBenchmark
-```
-
-```
-Benchmark                    Mode  Cnt         Score         Error  Units
-RedisIdBenchmark.step_1     thrpt    5    207470.850 ±   11832.936  ops/s
-RedisIdBenchmark.step_100   thrpt    5   3868126.197 ±  258008.896  ops/s
-RedisIdBenchmark.step_1000  thrpt    5  29506073.112 ± 2502253.182  ops/s
-```
-
 ### RedisChainIdBenchmark
 
-![RedisChainIdBenchmark](./docs/jmh/RedisChainIdBenchmark.png)
+#### Throughput (ops/s)
+
+![RedisChainIdBenchmark-Throughput](./docs/jmh/RedisChainIdBenchmark-Throughput.png)
 
 ``` shell
 gradle cosid-redis:jmh
@@ -418,43 +405,70 @@ java -jar cosid-redis/build/libs/cosid-redis-1.2.5-jmh.jar -bm thrpt -wi 1 -rf j
 ```
 
 ```
-Benchmark                                   Mode  Cnt          Score         Error  Units
-RedisChainIdBenchmark.atomicLong_baseline  thrpt    5  143740421.831 ± 1142477.957  ops/s
-RedisChainIdBenchmark.step_1               thrpt    5     301874.926 ±   10340.941  ops/s
-RedisChainIdBenchmark.step_100             thrpt    5   25746336.165 ±  433565.840  ops/s
-RedisChainIdBenchmark.step_1000            thrpt    5  102722840.616 ± 2368562.637  ops/s
+Benchmark                                   Mode  Cnt          Score          Error  Units
+RedisChainIdBenchmark.atomicLong_baseline  thrpt    5  144541334.198 ±  5578137.471  ops/s
+RedisChainIdBenchmark.step_1               thrpt    5    1874168.687 ±   310274.706  ops/s
+RedisChainIdBenchmark.step_100             thrpt    5  114226113.524 ± 15789563.078  ops/s
+RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743.699  ops/s
 ```
 
-### RedisIdBenchmark VS RedisChainIdBenchmark TPS (ops/s)
+#### Sample (us/op)
 
-![Segment_Step1000_VS_tps](./docs/jmh/Segemnt_Step1000_VS_throughput.png)
-
-### RedisIdBenchmark VS RedisChainIdBenchmark Sample (us/op)
-
-![Segment_Step1000_VS_sample](./docs/jmh/Segemnt_Step1000_VS_sample.png)
+![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
 
 ```shell
 java -jar cosid-redis/build/libs/cosid-redis-1.2.5-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
+Benchmark                                            Mode      Cnt   Score    Error  Units
+RedisChainIdBenchmark.step_1000                    sample  1336271   0.024 ±  0.001  us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.00    sample              ≈ 0           us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.50    sample            0.041           us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.90    sample            0.042           us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.95    sample            0.042           us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.99    sample            0.042           us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.999   sample            0.042           us/op
+RedisChainIdBenchmark.step_1000:step_1000·p0.9999  sample            0.208           us/op
+RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440           us/op
+```
+
+### MySqlChainIdBenchmark
+
+#### Throughput (ops/s)
+
+![MySqlChainIdBenchmark-Throughput](./docs/jmh/MySqlChainIdBenchmark-Throughput.png)
+
+``` shell
+gradle cosid-jdbc:jmh
+# or
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+```
+
+```
+Benchmark                                   Mode  Cnt          Score         Error  Units
+MySqlChainIdBenchmark.atomicLong_baseline  thrpt    5  145294642.937 ±  224876.284  ops/s
+MySqlChainIdBenchmark.step_1               thrpt    5      35058.790 ±   36226.041  ops/s
+MySqlChainIdBenchmark.step_100             thrpt    5   74575876.804 ± 5590390.811  ops/s
+MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.409  ops/s
+```
+
+#### Sample (us/op)
+
+![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
+
+```shell
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.5-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+```
+```
 Benchmark                                            Mode      Cnt    Score   Error  Units
-RedisChainIdBenchmark.step_1000                    sample  1062954    0.056 ± 0.002  us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.00    sample               ≈ 0          us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.50    sample             0.042          us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.90    sample             0.083          us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.95    sample             0.084          us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.99    sample             0.125          us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.999   sample             3.000          us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.9999  sample             8.818          us/op
-RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           290.304          us/op
-RedisIdBenchmark.step_1000                         sample  1374946    0.064 ± 0.003  us/op
-RedisIdBenchmark.step_1000:step_1000·p0.00         sample               ≈ 0          us/op
-RedisIdBenchmark.step_1000:step_1000·p0.50         sample             0.042          us/op
-RedisIdBenchmark.step_1000:step_1000·p0.90         sample             0.042          us/op
-RedisIdBenchmark.step_1000:step_1000·p0.95         sample             0.042          us/op
-RedisIdBenchmark.step_1000:step_1000·p0.99         sample             0.083          us/op
-RedisIdBenchmark.step_1000:step_1000·p0.999        sample             0.291          us/op
-RedisIdBenchmark.step_1000:step_1000·p0.9999       sample            46.624          us/op
-RedisIdBenchmark.step_1000:step_1000·p1.00         sample           483.840          us/op
+MySqlChainIdBenchmark.step_1000                    sample  1286774    0.024 ± 0.001  us/op
+MySqlChainIdBenchmark.step_1000:step_1000·p0.00    sample               ≈ 0          us/op
+MySqlChainIdBenchmark.step_1000:step_1000·p0.50    sample             0.041          us/op
+MySqlChainIdBenchmark.step_1000:step_1000·p0.90    sample             0.042          us/op
+MySqlChainIdBenchmark.step_1000:step_1000·p0.95    sample             0.042          us/op
+MySqlChainIdBenchmark.step_1000:step_1000·p0.99    sample             0.042          us/op
+MySqlChainIdBenchmark.step_1000:step_1000·p0.999   sample             0.083          us/op
+MySqlChainIdBenchmark.step_1000:step_1000·p0.9999  sample             0.208          us/op
+MySqlChainIdBenchmark.step_1000:step_1000·p1.00    sample           342.528          us/op
 ```

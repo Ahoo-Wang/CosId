@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.jdbc;
 
+import me.ahoo.cosid.jdbc.state.JdkIdState;
 import me.ahoo.cosid.jdbc.state.SegmentChainId1000State;
 import me.ahoo.cosid.jdbc.state.SegmentChainId100State;
 import me.ahoo.cosid.jdbc.state.SegmentChainIdState;
@@ -23,6 +24,11 @@ import org.openjdk.jmh.annotations.Threads;
  * @author ahoo wang
  */
 public class MySqlChainIdBenchmark {
+
+    @Benchmark
+    public long atomicLong_baseline(JdkIdState jdkIdState) {
+        return jdkIdState.jdkId.generate();
+    }
 
     @Benchmark
     @Threads(2)

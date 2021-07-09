@@ -1,0 +1,208 @@
+[
+    {
+        "jmhVersion" : "1.29",
+        "benchmark" : "me.ahoo.cosid.jdbc.MySqlChainIdBenchmark.atomicLong_baseline",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "11.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.11+9-LTS",
+        "warmupIterations" : 1,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "10 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.4529464293707496E8,
+            "scoreError" : 224876.28421218783,
+            "scoreConfidence" : [
+                1.4506976665286276E8,
+                1.4551951922128716E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.452392920001689E8,
+                "50.0" : 1.4526829238307935E8,
+                "90.0" : 1.4536658637709507E8,
+                "95.0" : 1.4536658637709507E8,
+                "99.0" : 1.4536658637709507E8,
+                "99.9" : 1.4536658637709507E8,
+                "99.99" : 1.4536658637709507E8,
+                "99.999" : 1.4536658637709507E8,
+                "99.9999" : 1.4536658637709507E8,
+                "100.0" : 1.4536658637709507E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.4525124912623954E8,
+                    1.4526829238307935E8,
+                    1.4536658637709507E8,
+                    1.4534779479879194E8,
+                    1.452392920001689E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.29",
+        "benchmark" : "me.ahoo.cosid.jdbc.MySqlChainIdBenchmark.step_1",
+        "mode" : "thrpt",
+        "threads" : 2,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "11.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.11+9-LTS",
+        "warmupIterations" : 1,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "10 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 35058.78951087349,
+            "scoreError" : 36226.04114575371,
+            "scoreConfidence" : [
+                -1167.2516348802237,
+                71284.8306566272
+            ],
+            "scorePercentiles" : {
+                "0.0" : 19198.22207130635,
+                "50.0" : 39458.71089493323,
+                "90.0" : 41876.053327257345,
+                "95.0" : 41876.053327257345,
+                "99.0" : 41876.053327257345,
+                "99.9" : 41876.053327257345,
+                "99.99" : 41876.053327257345,
+                "99.999" : 41876.053327257345,
+                "99.9999" : 41876.053327257345,
+                "100.0" : 41876.053327257345
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    40975.852349102104,
+                    39458.71089493323,
+                    33785.108911768424,
+                    19198.22207130635,
+                    41876.053327257345
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.29",
+        "benchmark" : "me.ahoo.cosid.jdbc.MySqlChainIdBenchmark.step_100",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "11.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.11+9-LTS",
+        "warmupIterations" : 1,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "10 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 7.45758768035122E7,
+            "scoreError" : 5590390.811448693,
+            "scoreConfidence" : [
+                6.89854859920635E7,
+                8.01662676149609E7
+            ],
+            "scorePercentiles" : {
+                "0.0" : 7.344054022998188E7,
+                "50.0" : 7.379584128619087E7,
+                "90.0" : 7.679510831926197E7,
+                "95.0" : 7.679510831926197E7,
+                "99.0" : 7.679510831926197E7,
+                "99.9" : 7.679510831926197E7,
+                "99.99" : 7.679510831926197E7,
+                "99.999" : 7.679510831926197E7,
+                "99.9999" : 7.679510831926197E7,
+                "100.0" : 7.679510831926197E7
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    7.379584128619087E7,
+                    7.679510831926197E7,
+                    7.530779462038736E7,
+                    7.354009956173892E7,
+                    7.344054022998188E7
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    },
+    {
+        "jmhVersion" : "1.29",
+        "benchmark" : "me.ahoo.cosid.jdbc.MySqlChainIdBenchmark.step_1000",
+        "mode" : "thrpt",
+        "threads" : 1,
+        "forks" : 1,
+        "jvm" : "/Library/Java/JavaVirtualMachines/zulu-11.jdk/Contents/Home/bin/java",
+        "jvmArgs" : [
+        ],
+        "jdkVersion" : "11.0.11",
+        "vmName" : "OpenJDK 64-Bit Server VM",
+        "vmVersion" : "11.0.11+9-LTS",
+        "warmupIterations" : 1,
+        "warmupTime" : "10 s",
+        "warmupBatchSize" : 1,
+        "measurementIterations" : 5,
+        "measurementTime" : "10 s",
+        "measurementBatchSize" : 1,
+        "primaryMetric" : {
+            "score" : 1.231318042604681E8,
+            "scoreError" : 1488004.4086152818,
+            "scoreConfidence" : [
+                1.2164379985185282E8,
+                1.2461980866908337E8
+            ],
+            "scorePercentiles" : {
+                "0.0" : 1.2266697647640309E8,
+                "50.0" : 1.2306935223137383E8,
+                "90.0" : 1.2369719155745232E8,
+                "95.0" : 1.2369719155745232E8,
+                "99.0" : 1.2369719155745232E8,
+                "99.9" : 1.2369719155745232E8,
+                "99.99" : 1.2369719155745232E8,
+                "99.999" : 1.2369719155745232E8,
+                "99.9999" : 1.2369719155745232E8,
+                "100.0" : 1.2369719155745232E8
+            },
+            "scoreUnit" : "ops/s",
+            "rawData" : [
+                [
+                    1.2369719155745232E8,
+                    1.2266697647640309E8,
+                    1.2306935223137383E8,
+                    1.2328150867321683E8,
+                    1.2294399236389442E8
+                ]
+            ]
+        },
+        "secondaryMetrics" : {
+        }
+    }
+]
+
+

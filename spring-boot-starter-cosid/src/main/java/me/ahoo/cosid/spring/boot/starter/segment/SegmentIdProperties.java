@@ -173,7 +173,8 @@ public class SegmentIdProperties {
         }
 
         public enum Type {
-            REDIS
+            REDIS,
+            MYSQL
         }
     }
 

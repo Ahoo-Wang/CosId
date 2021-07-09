@@ -4,11 +4,15 @@
 
 ## Introduction
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* aims to provide a universal, flexible and high-performance distributed ID generator. Three types of ID generators are currently provided:
+*[CosId](https://github.com/Ahoo-Wang/CosId)* aims to provide a universal, flexible and high-performance distributed ID generator. Two types of ID generators are currently provided:
 
 - `SnowflakeId` : Stand-alone *TPS performance：4,096,000* [JMH Benchmark](#jmh-benchmark) , It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and provide a more friendly and flexible experience.
-- `SegmentId` : `RedisIdSegmentDistributor` Stand-alone *TPS performance(Step 1000)：29,506,073+/s* [JMH Benchmark](#jmh-benchmark) , Get a segment (`Step`) ID every time to reduce the network IO request frequency of the `IdSegment` distributor and improve performance.
-- `SegmentChainId` : `SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves approximately `AtomicLong` *TPS performance (Step 1000): 102,722,840+/s* [JMH Benchmark](#jmh-benchmark) .
+- `SegmentId`: Get a segment (`Step`) ID every time to reduce the network IO request frequency of the `IdSegment` distributor and improve performance.
+    - `IdSegmentDistributor`: 
+        - `RedisIdSegmentDistributor`: IdSegment distributor based on *Redis*.
+        - `JdbcIdSegmentDistributor`: The *Jdbc-based* number segment distributor supports various relational databases.
+    - `SegmentChainId`(**recommend**):`SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves approximately `AtomicLong` *TPS performance (Step 1000): 127,439,148+/s* [JMH Benchmark](#jmh-benchmark) .
+        - `PrefetchWorker` maintains a safe distance (`safeDistance`), and supports dynamic `safeDistance` expansion and contraction based on hunger status.
 
 ![SegmentChainId](./docs/SegmentChainId.png)
 
@@ -205,20 +209,25 @@ cosid:
     enabled: true
     distributor:
       type: redis
-    share:
-      offset: 0
-      step: 100
-    provider:
-      bizC:
-        offset: 10000
-        step: 100
-      bizD:
-        offset: 10000
-        step: 100
 ```
 
-When the step size of `RedisIdSegmentDistributor` is set to 1 (one Redis network IO request is required for each generation of `ID`) TPS performance is about 21W+/s ([JMH benchmark](#jmh-benchmark)), if we are correct in some scenarios ID generated TPS performance has higher requirements, so you can choose to increase the step size of each `ID` distribution to reduce the frequency of network IO requests and improve the performance of `IdGenerator` (for example, increase the step size to 1000, and the performance can be increased to 3545W+/s [JMH benchmark](#jmh-benchmark)).
+## JdbcIdSegmentDistributor
 
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/test_db
+    username: root
+    password: root
+cosid:
+  segment:
+    enabled: true
+    distributor:
+      type: jdbc
+      jdbc:
+        enable-auto-init-cosid-table: false
+        enable-auto-init-id-segment: true
+```
 ### SegmentChainId
 
 ![SegmentChainId](./docs/SegmentChainId.png)

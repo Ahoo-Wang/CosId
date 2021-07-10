@@ -22,6 +22,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+
 /**
  * @author ahoo wang
  */
@@ -59,7 +61,7 @@ class SegmentChainIdTest {
     @Test
     @SneakyThrows
     void generate() {
-        SegmentChainId segmentChainId = new SegmentChainId(10, SegmentChainId.DEFAULT_PREFETCH_PERIOD, new IdSegmentDistributor.Atomic(2));
+        SegmentChainId segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER,10, SegmentChainId.DEFAULT_PREFETCH_PERIOD, new IdSegmentDistributor.Atomic(2));
 //        Thread.sleep(10);
         segmentChainId.generate();
         segmentChainId.generate();

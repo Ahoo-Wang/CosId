@@ -22,6 +22,8 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+
 
 /**
  * @author ahoo wang
@@ -35,7 +37,7 @@ public class SegmentIdBenchmark {
     @Setup
     public void setup() {
         segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
-        segmentChainId = new SegmentChainId(10, SegmentChainId.DEFAULT_PREFETCH_PERIOD, new IdSegmentDistributor.Mock());
+        segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER,10, SegmentChainId.DEFAULT_PREFETCH_PERIOD, new IdSegmentDistributor.Mock());
     }
 
     @Benchmark

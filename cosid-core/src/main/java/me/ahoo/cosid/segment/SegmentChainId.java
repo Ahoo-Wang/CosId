@@ -21,6 +21,8 @@ import java.io.Closeable;
 import java.time.Duration;
 import java.util.concurrent.locks.LockSupport;
 
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+
 /**
  * @author ahoo wang
  */
@@ -28,6 +30,8 @@ import java.util.concurrent.locks.LockSupport;
 public class SegmentChainId implements SegmentId, AutoCloseable {
     public static final int DEFAULT_SAFE_DISTANCE = 10;
     public static final Duration DEFAULT_PREFETCH_PERIOD = Duration.ofSeconds(1);
+
+    private final long idSegmentTtl;
     private final int safeDistance;
     private final IdSegmentDistributor maxIdDistributor;
     private final PrefetchWorker prefetchWorker;
@@ -35,11 +39,13 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
 
 
     public SegmentChainId(IdSegmentDistributor maxIdDistributor) {
-        this(DEFAULT_SAFE_DISTANCE, DEFAULT_PREFETCH_PERIOD, maxIdDistributor);
+        this(TIME_TO_LIVE_FOREVER, DEFAULT_SAFE_DISTANCE, DEFAULT_PREFETCH_PERIOD, maxIdDistributor);
     }
 
-    public SegmentChainId(int safeDistance, Duration prefetchPeriod, IdSegmentDistributor maxIdDistributor) {
+    public SegmentChainId(long idSegmentTtl, int safeDistance, Duration prefetchPeriod, IdSegmentDistributor maxIdDistributor) {
+        Preconditions.checkArgument(idSegmentTtl == TIME_TO_LIVE_FOREVER || idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
         Preconditions.checkArgument(safeDistance > 0, "The safety distance must be greater than 0.");
+        this.idSegmentTtl = idSegmentTtl;
         this.safeDistance = safeDistance;
         this.maxIdDistributor = maxIdDistributor;
         this.prefetchWorker = new PrefetchWorker(prefetchPeriod, headChain);
@@ -75,7 +81,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
     }
 
     private IdSegmentChain generateNext(IdSegmentChain previousChain, int segments) {
-        return maxIdDistributor.nextIdSegmentChain(previousChain, segments);
+        return maxIdDistributor.nextIdSegmentChain(previousChain, segments, idSegmentTtl);
     }
 
     @Override
@@ -83,10 +89,12 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
         while (true) {
             IdSegmentChain currentChain = headChain;
             while (currentChain != null) {
-                long nextSeq = currentChain.incrementAndGet();
-                if (!currentChain.isOverflow(nextSeq)) {
-                    forward(currentChain);
-                    return nextSeq;
+                if (currentChain.isAvailable()) {
+                    long nextSeq = currentChain.incrementAndGet();
+                    if (!currentChain.isOverflow(nextSeq)) {
+                        forward(currentChain);
+                        return nextSeq;
+                    }
                 }
                 currentChain = currentChain.getNext();
             }
@@ -221,17 +229,17 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
                 }
             }
 
-            IdSegmentChain usableHeadChain = SegmentChainId.this.headChain;
-            while (usableHeadChain.getIdSegment().isOverflow()) {
-                usableHeadChain = usableHeadChain.getNext();
-                if (usableHeadChain == null) {
-                    usableHeadChain = tailChain;
+            IdSegmentChain availableHeadChain = SegmentChainId.this.headChain;
+            while (!availableHeadChain.getIdSegment().isAvailable()) {
+                availableHeadChain = availableHeadChain.getNext();
+                if (availableHeadChain == null) {
+                    availableHeadChain = tailChain;
                     break;
                 }
             }
 
-            forward(usableHeadChain);
-            final int headToTailGap = usableHeadChain.gap(tailChain);
+            forward(availableHeadChain);
+            final int headToTailGap = availableHeadChain.gap(tailChain);
             final int safeGap = safeDistance - headToTailGap;
 
             if (safeGap <= 0 && !hunger) {
@@ -239,7 +247,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             }
 
             if (log.isDebugEnabled()) {
-                log.debug("prefetch - {} - headChain.version:[{}] - tailChain.version:[{}] - prefetchDistance:[{}].", maxIdDistributor.getNamespacedName(), usableHeadChain.getVersion(), tailChain.getVersion(), this.prefetchDistance);
+                log.debug("prefetch - {} - headChain.version:[{}] - tailChain.version:[{}] - prefetchDistance:[{}].", maxIdDistributor.getNamespacedName(), availableHeadChain.getVersion(), tailChain.getVersion(), this.prefetchDistance);
             }
 
             try {

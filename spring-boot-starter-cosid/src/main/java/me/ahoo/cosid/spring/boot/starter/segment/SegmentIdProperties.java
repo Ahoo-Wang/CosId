@@ -23,6 +23,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.time.Duration;
 import java.util.Map;
 
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+
 /**
  * @author ahoo wang
  */
@@ -34,7 +36,10 @@ public class SegmentIdProperties {
     private boolean enabled;
     private Mode mode = Mode.CHAIN;
     private int step;
-    private Duration timeout = RedisIdSegmentDistributor.DEFAULT_TIMEOUT;
+    /**
+     * idSegment time to live
+     */
+    private long ttl = TIME_TO_LIVE_FOREVER;
     private Distributor distributor;
     private Chain chain;
     private IdDefinition share;
@@ -70,12 +75,12 @@ public class SegmentIdProperties {
         this.step = step;
     }
 
-    public Duration getTimeout() {
-        return timeout;
+    public long getTtl() {
+        return ttl;
     }
 
-    public void setTimeout(Duration timeout) {
-        this.timeout = timeout;
+    public void setTtl(long ttl) {
+        this.ttl = ttl;
     }
 
     public Distributor getDistributor() {
@@ -173,7 +178,7 @@ public class SegmentIdProperties {
 
         public static class Redis {
 
-            private Duration timeout = Duration.ofSeconds(1);
+            private Duration timeout = RedisIdSegmentDistributor.DEFAULT_TIMEOUT;
 
             public Duration getTimeout() {
                 return timeout;
@@ -193,7 +198,6 @@ public class SegmentIdProperties {
             private boolean enableAutoInitIdSegment = true;
             private String initIdSegmentSql = JdbcIdSegmentInitializer.INIT_ID_SEGMENT_SQL;
 
-
             public String getIncrementMaxIdSql() {
                 return incrementMaxIdSql;
             }
@@ -209,7 +213,6 @@ public class SegmentIdProperties {
             public void setFetchMaxIdSql(String fetchMaxIdSql) {
                 this.fetchMaxIdSql = fetchMaxIdSql;
             }
-
 
             public boolean isEnableAutoInitCosidTable() {
                 return enableAutoInitCosidTable;
@@ -243,7 +246,6 @@ public class SegmentIdProperties {
                 this.initIdSegmentSql = initIdSegmentSql;
             }
 
-
         }
 
         public enum Type {
@@ -257,6 +259,10 @@ public class SegmentIdProperties {
         private Mode mode;
         private int offset = RedisIdSegmentDistributor.DEFAULT_OFFSET;
         private int step = RedisIdSegmentDistributor.DEFAULT_STEP;
+        /**
+         * idSegmentTtl
+         */
+        private Long ttl;
         private Chain chain;
 
         public Mode getMode() {
@@ -281,6 +287,14 @@ public class SegmentIdProperties {
 
         public void setStep(int step) {
             this.step = step;
+        }
+
+        public Long getTtl() {
+            return ttl;
+        }
+
+        public void setTtl(Long ttl) {
+            this.ttl = ttl;
         }
 
         public Chain getChain() {

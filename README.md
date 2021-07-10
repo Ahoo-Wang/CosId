@@ -14,8 +14,6 @@
     - `SegmentChainId`(**recommend**):`SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves approximately `AtomicLong` *TPS performance (Step 1000): 127,439,148+/s* [JMH Benchmark](#jmh-benchmark) .
         - `PrefetchWorker` maintains a safe distance (`safeDistance`), and supports dynamic `safeDistance` expansion and contraction based on hunger status.
 
-![SegmentChainId](./docs/SegmentChainId.png)
-
 ## SnowflakeId
 
 ![Snowflake](./docs/Snowflake-identifier.png)
@@ -201,7 +199,7 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
 ```
 ## SegmentId
 
-## RedisIdSegmentDistributor
+### RedisIdSegmentDistributor
 
 ```yaml
 cosid:
@@ -211,7 +209,20 @@ cosid:
       type: redis
 ```
 
-## JdbcIdSegmentDistributor
+### JdbcIdSegmentDistributor
+
+> Initialize the `cosid` table
+
+```mysql
+create table if not exists cosid
+(
+    name            varchar(100) not null comment '{namespace}.{name}',
+    last_max_id     bigint       not null default 0,
+    last_fetch_time bigint       not null,
+    constraint cosid_pk
+        primary key (name)
+) engine = InnoDB;
+```
 
 ```yaml
 spring:
@@ -228,6 +239,16 @@ cosid:
         enable-auto-init-cosid-table: false
         enable-auto-init-id-segment: true
 ```
+
+After enabling `enable-auto-init-id-segment:true`, the application will try to create the `idSegment` record when it starts to avoid manual creation. Similar to the execution of the following initialization sql script, there is no need to worry about misoperation, because `name` is the primary key.
+
+```mysql
+insert into cosid
+    (name, last_max_id, last_fetch_time)
+    value
+    ('namespace.name', 0, unix_timestamp());
+```
+
 ### SegmentChainId
 
 ![SegmentChainId](./docs/SegmentChainId.png)
@@ -382,7 +403,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.2.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.2.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -403,7 +424,7 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.2.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.2.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
@@ -419,7 +440,7 @@ RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743
 ![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.2.5-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.2.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -444,7 +465,7 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 ``` shell
 gradle cosid-jdbc:jmh
 # or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
 
 ```
@@ -460,7 +481,7 @@ MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.
 ![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.5-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 ```
 Benchmark                                            Mode      Cnt    Score   Error  Units

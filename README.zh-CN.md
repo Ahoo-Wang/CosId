@@ -144,8 +144,7 @@ cosid:
       clock-sync: true
 ```
 
-默认 `SnowflakeId` 当发生时钟回拨时会直接抛出 `ClockBackwardsException` 异常，而使用 `ClockSyncSnowflakeId` 会使用 `ClockBackwardsSynchronizer`
-主动等待时钟同步来重新生成 ID，提供更加友好的使用体验。
+默认 `SnowflakeId` 当发生时钟回拨时会直接抛出 `ClockBackwardsException` 异常，而使用 `ClockSyncSnowflakeId` 会使用 `ClockBackwardsSynchronizer` 主动等待时钟同步来重新生成 ID，提供更加友好的使用体验。
 
 ### SafeJavaScriptSnowflakeId (`JavaScript` 安全的 `SnowflakeId`)
 
@@ -204,7 +203,7 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
 
 ## SegmentId (号段模式)
 
-## RedisIdSegmentDistributor (使用`Redis`作为号段分发后端存储)
+### RedisIdSegmentDistributor (使用`Redis`作为号段分发后端存储)
 
 ```yaml
 cosid:
@@ -214,7 +213,21 @@ cosid:
       type: redis
 ```
 
-## JdbcIdSegmentDistributor (使用关系型数据库`Db`作为号段分发后端存储)
+### JdbcIdSegmentDistributor (使用关系型数据库`Db`作为号段分发后端存储)
+
+> 初始化 `cosid` table
+
+```mysql
+create table if not exists cosid
+(
+    name            varchar(100) not null comment '{namespace}.{name}',
+    last_max_id     bigint       not null default 0,
+    last_fetch_time bigint       not null,
+    constraint cosid_pk
+        primary key (name)
+) engine = InnoDB;
+
+```
 
 ```yaml
 spring:
@@ -230,6 +243,15 @@ cosid:
       jdbc:
         enable-auto-init-cosid-table: false
         enable-auto-init-id-segment: true
+```
+
+开启 `enable-auto-init-id-segment:true` 之后，应用启动时会尝试创建 `idSegment` 记录，避免手动创建。类似执行了以下初始化sql脚本，不用担心误操作，因为 `name` 是主键。
+
+```mysql
+insert into cosid
+    (name, last_max_id, last_fetch_time)
+    value
+    ('namespace.name', 0, unix_timestamp());
 ```
 
 ### SegmentChainId (号段链模式)
@@ -281,7 +303,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.2.5";
+    val cosidVersion = "1.2.8";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -297,7 +319,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.2.5</cosid.version>
+        <cosid.version>1.2.8</cosid.version>
     </properties>
 
     <dependencies>
@@ -374,7 +396,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.2.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.2.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -395,7 +417,7 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.2.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.2.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
@@ -411,7 +433,7 @@ RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743
 ![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.2.5-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.2.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -436,7 +458,7 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 ``` shell
 gradle cosid-jdbc:jmh
 # or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
 
 ```
@@ -452,7 +474,7 @@ MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.
 ![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.5-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 ```
 Benchmark                                            Mode      Cnt    Score   Error  Units

@@ -13,12 +13,9 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
-import com.google.common.base.MoreObjects;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.segment.DefaultSegmentId;
-import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
@@ -91,12 +88,7 @@ public class CosIdJdbcSegmentAutoConfiguration {
         if (jdbc.isEnableAutoInitIdSegment()) {
             jdbcIdSegmentInitializer.tryInitIdSegment(jdbcIdSegmentDistributor.getNamespacedName(), idDefinition.getOffset());
         }
-        SegmentIdProperties.Mode mode = MoreObjects.firstNonNull(idDefinition.getMode(), segmentIdProperties.getMode());
-        if (SegmentIdProperties.Mode.DEFAULT.equals(mode)) {
-            return new DefaultSegmentId(jdbcIdSegmentDistributor);
-        }
-        SegmentIdProperties.Chain chain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
-        return new SegmentChainId(chain.getSafeDistance(), chain.getPrefetchPeriod(), jdbcIdSegmentDistributor);
+        return CosIdSegmentAutoConfiguration.createSegment(segmentIdProperties, idDefinition, jdbcIdSegmentDistributor);
     }
 
 }

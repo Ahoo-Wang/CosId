@@ -13,7 +13,12 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
+import com.google.common.base.MoreObjects;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.segment.DefaultSegmentId;
+import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.SegmentChainId;
+import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -33,5 +38,15 @@ public class CosIdSegmentAutoConfiguration {
     @ConditionalOnMissingBean
     public LifecycleSegmentChainId lifecycleSegmentChainId(IdGeneratorProvider idGeneratorProvider) {
         return new LifecycleSegmentChainId(idGeneratorProvider);
+    }
+
+    public static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor) {
+        long ttl = MoreObjects.firstNonNull(idDefinition.getTtl(), segmentIdProperties.getTtl());
+        SegmentIdProperties.Mode mode = MoreObjects.firstNonNull(idDefinition.getMode(), segmentIdProperties.getMode());
+        if (SegmentIdProperties.Mode.DEFAULT.equals(mode)) {
+            return new DefaultSegmentId(ttl, idSegmentDistributor);
+        }
+        SegmentIdProperties.Chain chain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
+        return new SegmentChainId(ttl, chain.getSafeDistance(), chain.getPrefetchPeriod(), idSegmentDistributor);
     }
 }

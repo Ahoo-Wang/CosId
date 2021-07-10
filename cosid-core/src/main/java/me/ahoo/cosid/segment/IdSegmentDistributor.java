@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+
 /**
  * @author ahoo wang
  */
@@ -50,34 +52,50 @@ public interface IdSegmentDistributor {
         return nextMaxId(getStep());
     }
 
+    default IdSegment nextIdSegment() {
+        return nextIdSegment(TIME_TO_LIVE_FOREVER);
+    }
+
+    default IdSegment nextIdSegment(long ttl) {
+        final long maxId = nextMaxId();
+        return new DefaultIdSegment(maxId, getStep(), System.currentTimeMillis(), ttl);
+    }
+
     default List<IdSegment> nextIdSegment(int segments) {
+        return nextIdSegment(segments, TIME_TO_LIVE_FOREVER);
+    }
+
+    default List<IdSegment> nextIdSegment(int segments, long ttl) {
         final int totalStep = getStep(segments);
         final long maxId = nextMaxId(totalStep);
         final long offset = maxId - totalStep;
         List<IdSegment> idSegments = new ArrayList<>(segments);
         for (int i = 0; i < segments; i++) {
             long currentMaxId = offset + getStep() * (i + 1);
-            DefaultIdSegment segment = new DefaultIdSegment(currentMaxId, getStep());
+            DefaultIdSegment segment = new DefaultIdSegment(currentMaxId, getStep(), System.currentTimeMillis(), ttl);
             idSegments.add(segment);
         }
         return idSegments;
     }
 
-    default IdSegment nextIdSegment() {
-        final long maxId = nextMaxId();
-        return new DefaultIdSegment(maxId, getStep());
+    default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain) {
+        return nextIdSegmentChain(previousChain, TIME_TO_LIVE_FOREVER);
     }
 
-    default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain) {
-        IdSegment nextIdSegment = nextIdSegment();
+    default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, long ttl) {
+        IdSegment nextIdSegment = nextIdSegment(ttl);
         return new IdSegmentChain(previousChain, nextIdSegment);
     }
 
     default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments) {
+        return nextIdSegmentChain(previousChain, segments, TIME_TO_LIVE_FOREVER);
+    }
+
+    default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
         if (DEFAULT_SEGMENTS == segments) {
-            return nextIdSegmentChain(previousChain);
+            return nextIdSegmentChain(previousChain, ttl);
         }
-        List<IdSegment> nextIdSegments = nextIdSegment(segments);
+        List<IdSegment> nextIdSegments = nextIdSegment(segments, ttl);
         IdSegmentChain rootChain = null;
         IdSegmentChain currentChain = null;
         for (IdSegment nextIdSegment : nextIdSegments) {

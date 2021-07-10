@@ -84,6 +84,11 @@ public class IdSegmentChain implements IdSegment {
     }
 
     @Override
+    public long getFetchTime() {
+        return idSegment.getFetchTime();
+    }
+
+    @Override
     public long getMaxId() {
         return idSegment.getMaxId();
     }

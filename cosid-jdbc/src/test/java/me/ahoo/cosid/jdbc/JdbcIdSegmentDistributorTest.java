@@ -93,13 +93,13 @@ class JdbcIdSegmentDistributorTest {
     }
 
     static final int CONCURRENT_THREADS = 20;
-    static final int THREAD_REQUEST_NUM = 5000;
+    static final int THREAD_REQUEST_NUM = 50000;
 
     @SneakyThrows
     @Test
     public void concurrent_generate_step_100() {
         String namespace = UUID.randomUUID().toString();
-        JdbcIdSegmentDistributor maxIdDistributor_generate_step_100 = new JdbcIdSegmentDistributor(namespace, UUID.randomUUID().toString(), 1, dataSource);
+        JdbcIdSegmentDistributor maxIdDistributor_generate_step_100 = new JdbcIdSegmentDistributor(namespace, UUID.randomUUID().toString(), 100, dataSource);
         mySqlIdSegmentInitializer.initIdSegment(maxIdDistributor_generate_step_100.getNamespacedName(), 0);
         SegmentId segmentChainId = new SegmentChainId(maxIdDistributor_generate_step_100);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];

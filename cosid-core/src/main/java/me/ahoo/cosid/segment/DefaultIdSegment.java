@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class DefaultIdSegment implements IdSegment {
 
-    public static final DefaultIdSegment OVERFLOW = new DefaultIdSegment(-1, 0);
+    public static final DefaultIdSegment OVERFLOW = new DefaultIdSegment(IdSegment.SEQUENCE_OVERFLOW, 0, 0, TIME_TO_LIVE_FOREVER);
 
     /**
      * include
@@ -29,12 +29,30 @@ public class DefaultIdSegment implements IdSegment {
     private final long offset;
     private final int step;
     private final AtomicLong sequence;
+    private final long fetchTime;
+    private final long ttl;
 
     public DefaultIdSegment(long maxId, int step) {
+        this(maxId, step, System.currentTimeMillis(), TIME_TO_LIVE_FOREVER);
+    }
+
+    public DefaultIdSegment(long maxId, int step, long fetchTime, long ttl) {
         this.maxId = maxId;
         this.step = step;
         this.offset = maxId - step;
         this.sequence = new AtomicLong(offset);
+        this.fetchTime = fetchTime;
+        this.ttl = ttl;
+    }
+
+    @Override
+    public long getFetchTime() {
+        return fetchTime;
+    }
+
+    @Override
+    public long getTtl() {
+        return ttl;
     }
 
     @Override
@@ -78,6 +96,8 @@ public class DefaultIdSegment implements IdSegment {
                 ", offset=" + offset +
                 ", step=" + step +
                 ", sequence=" + sequence +
+                ", fetchTime=" + fetchTime +
+                ", ttl=" + ttl +
                 '}';
     }
 }

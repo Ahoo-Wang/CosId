@@ -19,6 +19,14 @@ package me.ahoo.cosid.segment;
 public interface IdSegment extends Comparable<IdSegment> {
 
     long SEQUENCE_OVERFLOW = -1;
+    long TIME_TO_LIVE_FOREVER = -1;
+
+    /**
+     * ID segment fetch time
+     * unit {@link java.util.concurrent.TimeUnit#MILLISECONDS}
+     * @return
+     */
+    long getFetchTime();
 
     long getMaxId();
 
@@ -28,12 +36,42 @@ public interface IdSegment extends Comparable<IdSegment> {
 
     int getStep();
 
+    /**
+     * the id segment time to live
+     * unit {@link java.util.concurrent.TimeUnit#MILLISECONDS}
+     *
+     * @return when return -1 {@link #TIME_TO_LIVE_FOREVER}
+     */
+    default long getTtl() {
+        return TIME_TO_LIVE_FOREVER;
+    }
+
+    /**
+     * id segment has expired?
+     *
+     * @return
+     */
+    default boolean isExpired() {
+        if (TIME_TO_LIVE_FOREVER == getTtl()) {
+            return false;
+        }
+        return System.currentTimeMillis() - getFetchTime() > getTtl();
+    }
+
     default boolean isOverflow() {
         return getSequence() >= getMaxId();
     }
 
     default boolean isOverflow(long nextSeq) {
         return nextSeq == SEQUENCE_OVERFLOW || nextSeq > getMaxId();
+    }
+
+    /**
+     * not expired and not overflow
+     * @return
+     */
+    default boolean isAvailable() {
+        return !isExpired() && !isOverflow();
     }
 
     long incrementAndGet();

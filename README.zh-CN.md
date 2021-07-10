@@ -428,7 +428,9 @@ RedisChainIdBenchmark.step_100             thrpt    5  114226113.524 ± 15789563
 RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743.699  ops/s
 ```
 
-#### Sample (us/op)
+#### Percentile-Sample (*P9999=0.208微秒*)
+
+> [百分位数](https://zh.wikipedia.org/wiki/%E7%99%BE%E5%88%86%E4%BD%8D%E6%95%B0) ，统计学术语，若将一组数据从小到大排序，并计算相应的累计百分点，则某百分点所对应数据的值，就称为这百分点的百分位数，以Pk表示第k百分位数。百分位数是用来比较个体在群体中的相对地位量数。
 
 ![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
 
@@ -469,7 +471,7 @@ MySqlChainIdBenchmark.step_100             thrpt    5   74575876.804 ± 5590390.
 MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.409  ops/s
 ```
 
-#### Sample (us/op)
+#### Percentile-Sample (*P9999=0.208微秒*)
 
 ![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
 

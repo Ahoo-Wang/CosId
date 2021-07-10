@@ -435,7 +435,9 @@ RedisChainIdBenchmark.step_100             thrpt    5  114226113.524 ± 15789563
 RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743.699  ops/s
 ```
 
-#### Sample (us/op)
+#### Percentile-Sample (*P9999=0.208 us/op*)
+
+> In statistics, a percentile (or a centile) is a score below which a given percentage of scores in its frequency distribution falls (exclusive definition) or a score at or below which a given percentage falls (inclusive definition). For example, the 50th percentile (the median) is the score below which (exclusive) or at or below which (inclusive) 50% of the scores in the distribution may be found.
 
 ![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
 
@@ -476,7 +478,7 @@ MySqlChainIdBenchmark.step_100             thrpt    5   74575876.804 ± 5590390.
 MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.409  ops/s
 ```
 
-#### Sample (us/op)
+#### Percentile-Sample (*P9999=0.208 us/op*)
 
 ![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
 

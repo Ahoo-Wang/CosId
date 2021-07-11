@@ -199,7 +199,7 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
 ```
 ## SegmentId
 
-![SegmentId-Timeline](./docs/SegmentId-Timeline.png)
+![SegmentId](./docs/SegmentId.png)
 
 ### RedisIdSegmentDistributor
 

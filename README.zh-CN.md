@@ -203,7 +203,7 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
 
 ## SegmentId (号段模式)
 
-![SegmentId-Timeline](./docs/SegmentId-Timeline.png)
+![SegmentId](./docs/SegmentId.png)
 
 ### RedisIdSegmentDistributor (使用`Redis`作为号段分发后端存储)
 

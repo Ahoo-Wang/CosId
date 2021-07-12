@@ -30,6 +30,7 @@ import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
  */
 public interface IdSegmentDistributor {
     int DEFAULT_SEGMENTS = 1;
+    int DEFAULT_OFFSET = 0;
     int DEFAULT_STEP = 100;
 
     String getNamespace();

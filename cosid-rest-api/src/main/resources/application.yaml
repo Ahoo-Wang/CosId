@@ -1,9 +1,12 @@
 spring:
+  application:
+    name: ${service.name:cosid-example}
   datasource:
-    url: jdbc:mysql://localhost:3306/test_db?serverTimezone=GMT%2B8&characterEncoding=utf-8
+    url: jdbc:mysql://localhost:3306/test_db
     username: root
     password: root
-
+  redis:
+    url: redis://localhost:6379
 cosid:
   namespace: ${spring.application.name}
   snowflake:
@@ -40,7 +43,7 @@ cosid:
       safe-distance: 5
       prefetch-period: 1s
     distributor:
-      type: jdbc
+      type: redis
     share:
       offset: 0
       step: 100
@@ -53,5 +56,5 @@ cosid:
         step: 100
 logging:
   level:
-    me.ahoo.cosid: info
+    me.ahoo.cosid: debug
 

@@ -34,7 +34,6 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
 
     public static final String REDIS_ID_GENERATE = "redis_id_generate.lua";
     public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(1);
-    public static final int DEFAULT_OFFSET = 0;
 
     private final String namespace;
     private final String name;

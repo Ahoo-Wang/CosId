@@ -16,7 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
-import me.ahoo.cosid.redis.RedisIdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -178,7 +178,7 @@ public class SegmentIdProperties {
 
         public static class Redis {
 
-            private Duration timeout = RedisIdSegmentDistributor.DEFAULT_TIMEOUT;
+            private Duration timeout = Duration.ofSeconds(1);
 
             public Duration getTimeout() {
                 return timeout;
@@ -257,8 +257,8 @@ public class SegmentIdProperties {
     public static class IdDefinition {
 
         private Mode mode;
-        private int offset = RedisIdSegmentDistributor.DEFAULT_OFFSET;
-        private int step = RedisIdSegmentDistributor.DEFAULT_STEP;
+        private int offset = IdSegmentDistributor.DEFAULT_OFFSET;
+        private int step = IdSegmentDistributor.DEFAULT_STEP;
         /**
          * idSegmentTtl
          */

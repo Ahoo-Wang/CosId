@@ -11,29 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.spring.boot.starter.snowflake;
+package me.ahoo.cosid.spring.boot.starter.segment;
 
-import me.ahoo.cosid.snowflake.machine.InstanceId;
-import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
-import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
+import lombok.extern.slf4j.Slf4j;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.SmartLifecycle;
 
 /**
  * @author ahoo wang
  */
-public class LifecycleMachineIdDistributor implements SmartLifecycle {
-    private final CosIdProperties cosIdProperties;
-    private final InstanceId instanceId;
-    private final MachineIdDistributor machineIdDistributor;
+@Slf4j
+public class CosIdLifecycleSegmentChainId implements SmartLifecycle {
     private volatile boolean running;
+    private final IdGeneratorProvider idGeneratorProvider;
 
-    public LifecycleMachineIdDistributor(CosIdProperties cosIdProperties,
-                                         InstanceId instanceId,
-                                         MachineIdDistributor machineIdDistributor) {
-        this.cosIdProperties = cosIdProperties;
-        this.instanceId = instanceId;
-        this.machineIdDistributor = machineIdDistributor;
+    public CosIdLifecycleSegmentChainId(IdGeneratorProvider idGeneratorProvider) {
+        this.idGeneratorProvider = idGeneratorProvider;
     }
 
     /**
@@ -67,8 +61,19 @@ public class LifecycleMachineIdDistributor implements SmartLifecycle {
      */
     @Override
     public void stop() {
+        if (!running) {
+            return;
+        }
         running = false;
-        machineIdDistributor.revert(cosIdProperties.getNamespace(), this.instanceId);
+        idGeneratorProvider.getAll().stream().filter(idGenerator -> idGenerator instanceof AutoCloseable).map(idGenerator -> (AutoCloseable) idGenerator).forEach(autoCloseable -> {
+            try {
+                autoCloseable.close();
+            } catch (Exception exception) {
+                if (log.isErrorEnabled()) {
+                    log.error(exception.getMessage(), exception);
+                }
+            }
+        });
     }
 
     /**

@@ -113,8 +113,8 @@ public class CosIdSnowflakeAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public LifecycleMachineIdDistributor lifecycleMachineIdDistributor(InstanceId instanceId, MachineIdDistributor machineIdDistributor) {
-        return new LifecycleMachineIdDistributor(cosIdProperties, instanceId, machineIdDistributor);
+    public CosIdLifecycleMachineIdDistributor lifecycleMachineIdDistributor(InstanceId instanceId, MachineIdDistributor machineIdDistributor) {
+        return new CosIdLifecycleMachineIdDistributor(cosIdProperties, instanceId, machineIdDistributor);
     }
 
     @Bean

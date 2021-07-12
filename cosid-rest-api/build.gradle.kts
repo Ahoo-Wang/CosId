@@ -47,19 +47,35 @@ application {
 dependencies {
     implementation(platform(project(":cosid-dependencies")))
     implementation(project(":spring-boot-starter-cosid"))
-    implementation("me.ahoo.cosky:cosky-spring-cloud-core")
+
     implementation("io.springfox:springfox-boot-starter")
 
-    implementation(project(":cosid-redis"))
+    //region cosid-redis
+//    implementation(project(":cosid-redis"))
+//    implementation("me.ahoo.cosky:cosky-spring-cloud-core")
+// or
 //    implementation(project(":spring-boot-starter-cosid")){
 //        capabilities {
 //            requireCapability("me.ahoo.cosid:redis-support")
 //        }
 //    }
+    //endregion
+    //region cosid-spring-redis
+    implementation(project(":cosid-spring-redis"))
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+// or
+//    implementation(project(":spring-boot-starter-cosid")){
+//        capabilities {
+//            requireCapability("me.ahoo.cosid:spring-redis-support")
+//        }
+//    }
 
+    //endregion
+    //region cosid-jdbc
     implementation(project(":cosid-jdbc"))
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("mysql:mysql-connector-java")
+    //endregion
 
     implementation("io.springfox:springfox-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-actuator")

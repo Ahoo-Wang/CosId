@@ -310,7 +310,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.2.4";
+    val cosidVersion = "1.3.1";
     implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
 ```
 
@@ -326,7 +326,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.2.4</cosid.version>
+        <cosid.version>1.3.1</cosid.version>
     </properties>
 
     <dependencies>
@@ -343,6 +343,15 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 ### application.yaml
 
 ```yaml
+spring:
+  application:
+    name: ${service.name:cosid-example}
+  datasource:
+    url: jdbc:mysql://localhost:3306/test_db
+    username: root
+    password: root
+  redis:
+    url: redis://localhost:6379
 cosid:
   namespace: ${spring.application.name}
   snowflake:
@@ -405,7 +414,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.2.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.3.1-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -426,7 +435,7 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.2.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.3.1-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
@@ -444,7 +453,7 @@ RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743
 ![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.2.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.3.1-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -469,7 +478,7 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 ``` shell
 gradle cosid-jdbc:jmh
 # or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.1-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
 
 ```
@@ -485,7 +494,7 @@ MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.
 ![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.2.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.1-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 ```
 Benchmark                                            Mode      Cnt    Score   Error  Units

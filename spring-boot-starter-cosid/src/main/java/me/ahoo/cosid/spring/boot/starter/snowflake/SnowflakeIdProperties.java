@@ -14,7 +14,6 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import me.ahoo.cosid.CosId;
-import me.ahoo.cosid.redis.RedisMachineIdDistributor;
 import me.ahoo.cosid.snowflake.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.machine.LocalMachineStateStorage;

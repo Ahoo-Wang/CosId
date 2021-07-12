@@ -17,8 +17,7 @@ plugins {
 
 dependencies {
     api(project(":cosid-core"))
-    implementation("me.ahoo.cosky:cosky-core")
-    api("io.lettuce:lettuce-core")
+    api("org.springframework.data:spring-data-redis")
     testImplementation("org.junit-pioneer:junit-pioneer")
     jmh("org.openjdk.jmh:jmh-core:${rootProject.ext.get("jmhVersion")}")
     jmh("org.openjdk.jmh:jmh-generator-annprocess:${rootProject.ext.get("jmhVersion")}")

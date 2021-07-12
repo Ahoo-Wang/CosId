@@ -36,8 +36,8 @@ public class CosIdSegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public LifecycleSegmentChainId lifecycleSegmentChainId(IdGeneratorProvider idGeneratorProvider) {
-        return new LifecycleSegmentChainId(idGeneratorProvider);
+    public CosIdLifecycleSegmentChainId lifecycleSegmentChainId(IdGeneratorProvider idGeneratorProvider) {
+        return new CosIdLifecycleSegmentChainId(idGeneratorProvider);
     }
 
     public static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor) {

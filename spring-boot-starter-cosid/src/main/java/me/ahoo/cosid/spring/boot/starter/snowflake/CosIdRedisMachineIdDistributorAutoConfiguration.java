@@ -27,7 +27,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import javax.annotation.Nullable;
 import java.time.Duration;
 
 /**
@@ -37,21 +36,23 @@ import java.time.Duration;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdSnowflakeEnabled
 @ConditionalOnClass(RedisMachineIdDistributor.class)
-public class RedisMachineIdDistributorAutoConfiguration {
+@ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "redis")
+public class CosIdRedisMachineIdDistributorAutoConfiguration {
 
     private final SnowflakeIdProperties snowflakeIdProperties;
 
-    public RedisMachineIdDistributorAutoConfiguration(SnowflakeIdProperties snowflakeIdProperties) {
+    public CosIdRedisMachineIdDistributorAutoConfiguration(SnowflakeIdProperties snowflakeIdProperties) {
         this.snowflakeIdProperties = snowflakeIdProperties;
     }
 
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(RedisConnectionFactory.class)
-    @ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "redis")
     public RedisMachineIdDistributor redisMachineIdDistributor(RedisConnectionFactory redisConnectionFactory, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         Preconditions.checkNotNull(redisConnectionFactory, "redisConnectionFactory can not be null.");
         Duration timeout = snowflakeIdProperties.getMachine().getDistributor().getRedis().getTimeout();
         return new RedisMachineIdDistributor(timeout, redisConnectionFactory.getShareAsyncCommands(), localMachineState, clockBackwardsSynchronizer);
     }
+
+
 }

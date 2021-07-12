@@ -11,23 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.spring.boot.starter.segment;
+package me.ahoo.cosid.spring.boot.starter.snowflake;
 
-import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
+import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.SmartLifecycle;
 
 /**
  * @author ahoo wang
  */
-@Slf4j
-public class LifecycleSegmentChainId implements SmartLifecycle {
+public class CosIdLifecycleMachineIdDistributor implements SmartLifecycle {
+    private final CosIdProperties cosIdProperties;
+    private final InstanceId instanceId;
+    private final MachineIdDistributor machineIdDistributor;
     private volatile boolean running;
-    private final IdGeneratorProvider idGeneratorProvider;
 
-    public LifecycleSegmentChainId(IdGeneratorProvider idGeneratorProvider) {
-        this.idGeneratorProvider = idGeneratorProvider;
+    public CosIdLifecycleMachineIdDistributor(CosIdProperties cosIdProperties,
+                                              InstanceId instanceId,
+                                              MachineIdDistributor machineIdDistributor) {
+        this.cosIdProperties = cosIdProperties;
+        this.instanceId = instanceId;
+        this.machineIdDistributor = machineIdDistributor;
     }
 
     /**
@@ -61,19 +67,8 @@ public class LifecycleSegmentChainId implements SmartLifecycle {
      */
     @Override
     public void stop() {
-        if (!running) {
-            return;
-        }
         running = false;
-        idGeneratorProvider.getAll().stream().filter(idGenerator -> idGenerator instanceof AutoCloseable).map(idGenerator -> (AutoCloseable) idGenerator).forEach(autoCloseable -> {
-            try {
-                autoCloseable.close();
-            } catch (Exception exception) {
-                if (log.isErrorEnabled()) {
-                    log.error(exception.getMessage(), exception);
-                }
-            }
-        });
+        machineIdDistributor.revert(cosIdProperties.getNamespace(), this.instanceId);
     }
 
     /**

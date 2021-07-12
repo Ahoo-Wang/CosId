@@ -16,16 +16,12 @@ package me.ahoo.cosid.snowflake.machine;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 
-import java.time.Duration;
-
 /**
  * @author ahoo wang
  */
 @Slf4j
 public abstract class AbstractMachineIdDistributor implements MachineIdDistributor {
     public static final int NOT_FOUND_LAST_STAMP = -1;
-    private final int DEFAULT_TIMEOUT = 1;
-    private final Duration timeout = Duration.ofSeconds(DEFAULT_TIMEOUT);
     private final MachineStateStorage machineStateStorage;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
 

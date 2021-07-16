@@ -13,17 +13,21 @@
 
 package me.ahoo.cosid.segment;
 
+import me.ahoo.cosid.util.Clock;
+
 /**
  * @author ahoo wang
  */
 public interface IdSegment extends Comparable<IdSegment> {
 
     long SEQUENCE_OVERFLOW = -1;
-    long TIME_TO_LIVE_FOREVER = -1;
+
+    long TIME_TO_LIVE_FOREVER = Long.MAX_VALUE;
 
     /**
      * ID segment fetch time
-     * unit {@link java.util.concurrent.TimeUnit#MILLISECONDS}
+     * unit {@link java.util.concurrent.TimeUnit#SECONDS}
+     *
      * @return
      */
     long getFetchTime();
@@ -34,13 +38,13 @@ public interface IdSegment extends Comparable<IdSegment> {
 
     long getSequence();
 
-    int getStep();
+    long getStep();
 
     /**
      * the id segment time to live
-     * unit {@link java.util.concurrent.TimeUnit#MILLISECONDS}
+     * unit {@link java.util.concurrent.TimeUnit#SECONDS}
      *
-     * @return when return -1 {@link #TIME_TO_LIVE_FOREVER}
+     * @return the id segment time to live
      */
     default long getTtl() {
         return TIME_TO_LIVE_FOREVER;
@@ -53,9 +57,12 @@ public interface IdSegment extends Comparable<IdSegment> {
      */
     default boolean isExpired() {
         if (TIME_TO_LIVE_FOREVER == getTtl()) {
+            /**
+             * Very important! Avoid getting the current clock, because getting the clock is too slow.
+             */
             return false;
         }
-        return System.currentTimeMillis() - getFetchTime() > getTtl();
+        return Clock.CACHE.secondTime() - getFetchTime() > getTtl();
     }
 
     default boolean isOverflow() {
@@ -68,6 +75,7 @@ public interface IdSegment extends Comparable<IdSegment> {
 
     /**
      * not expired and not overflow
+     *
      * @return
      */
     default boolean isAvailable() {

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.segment;
 
 import lombok.SneakyThrows;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -47,21 +48,19 @@ class SegmentChainIdTest {
     @SneakyThrows
     void nextIdSegmentsClain() {
         IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
-        IdSegmentChain rootClain = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(), 3);
+        IdSegmentChain rootClain = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(), 3,TIME_TO_LIVE_FOREVER);
         Assertions.assertEquals(0, rootClain.getVersion());
         Assertions.assertEquals(0, rootClain.getIdSegment().getOffset());
-        Assertions.assertEquals(1, rootClain.getNext().getVersion());
-        Assertions.assertEquals(idSegmentDistributor.getStep(), rootClain.getNext().getIdSegment().getOffset());
-        Assertions.assertEquals(2, rootClain.getNext().getNext().getVersion());
-        Assertions.assertEquals(idSegmentDistributor.getStep() * 2, rootClain.getNext().getNext().getIdSegment().getOffset());
-        Assertions.assertNull(rootClain.getNext().getNext().getNext());
+        Assertions.assertEquals(300, rootClain.getStep());
+        Assertions.assertEquals(300, rootClain.getMaxId());
+
     }
 
 
     @Test
     @SneakyThrows
     void generate() {
-        SegmentChainId segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER,10, SegmentChainId.DEFAULT_PREFETCH_PERIOD, new IdSegmentDistributor.Atomic(2));
+        SegmentChainId segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Atomic(2), PrefetchWorkerExecutorService.DEFAULT);
 //        Thread.sleep(10);
         segmentChainId.generate();
         segmentChainId.generate();
@@ -69,10 +68,11 @@ class SegmentChainIdTest {
     }
 
     static final int CONCURRENT_THREADS = 20;
-    static final int THREAD_REQUEST_NUM = 50000;
+    static final int THREAD_REQUEST_NUM = 500000;
 
     @Test
     public void concurrent_generate() {
+        Object ex = PrefetchWorkerExecutorService.DEFAULT;
         SegmentChainId segmentChainId = new SegmentChainId(new IdSegmentDistributor.Mock());
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;
@@ -118,8 +118,8 @@ class SegmentChainIdTest {
         }).join();
     }
 
-    static final int MULTI_CONCURRENT_THREADS = 10;
-    static final int MULTI_THREAD_REQUEST_NUM = 10;
+    static final int MULTI_CONCURRENT_THREADS = 50;
+    static final int MULTI_THREAD_REQUEST_NUM = 100000;
 
     @Test
     public void concurrent_generate_multi_instance() {
@@ -172,7 +172,7 @@ class SegmentChainIdTest {
                 totalIds.addAll(ids);
             }
             totalIds.sort(Long::compareTo);
-            ArrayList<IdSegment> idSegments = new ArrayList<>(totalIds.size() / testMaxIdDistributor.getStep() + 1000);
+            ArrayList<IdSegment> idSegments = new ArrayList<IdSegment>((int)(totalIds.size() / testMaxIdDistributor.getStep() + 1000));
             IdSegmentChain current = head1;
             while (current.getNext() != null) {
                 current = current.getNext();
@@ -187,6 +187,7 @@ class SegmentChainIdTest {
             for (int i = 1; i < idSegments.size(); i++) {
                 IdSegment pre = idSegments.get(i - 1);
                 IdSegment next = idSegments.get(i);
+
                 if (pre.getOffset() + pre.getStep() != next.getOffset()) {
                     throw new NextIdSegmentExpiredException(pre, next);
                 }

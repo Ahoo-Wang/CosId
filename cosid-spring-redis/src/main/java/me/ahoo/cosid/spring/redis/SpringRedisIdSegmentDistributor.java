@@ -42,8 +42,8 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
      * cosid:{namespace.name}:adder
      */
     private final String adderKey;
-    private final int offset;
-    private final int step;
+    private final long offset;
+    private final long step;
     private final StringRedisTemplate redisTemplate;
 
     public SpringRedisIdSegmentDistributor(String namespace,
@@ -54,8 +54,8 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
 
     public SpringRedisIdSegmentDistributor(String namespace,
                                            String name,
-                                           int offset,
-                                           int step,
+                                           long offset,
+                                           long step,
                                            StringRedisTemplate redisTemplate) {
         this.step = step;
         this.namespace = namespace;
@@ -73,17 +73,18 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         return name;
     }
 
-    public int getOffset() {
+    public long getOffset() {
         return offset;
     }
 
     @Override
-    public int getStep() {
+    public long getStep() {
         return step;
     }
 
     @Override
-    public long nextMaxId(int step) {
+    public long nextMaxId(long step) {
+        IdSegmentDistributor.ensureStep(step);
         List<String> keys = Collections.singletonList(adderKey);
         String[] values = {String.valueOf(offset), String.valueOf(step)};
         long maxId = redisTemplate.execute(REDIS_ID_GENERATE, keys, values);

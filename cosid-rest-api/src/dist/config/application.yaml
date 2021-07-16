@@ -33,7 +33,9 @@ cosid:
     mode: chain
     chain:
       safe-distance: 5
-      prefetch-period: 1s
+      prefetch-worker:
+        core-pool-size: 2
+        prefetch-period: 1s
     distributor:
       type: redis
     share:

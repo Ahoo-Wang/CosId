@@ -26,7 +26,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
-@ConditionalOnProperty(value = ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY, matchIfMissing = true, havingValue = "true")
+@ConditionalOnProperty(value = ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY, matchIfMissing = false, havingValue = "true")
 public @interface ConditionalOnCosIdSnowflakeEnabled {
     String ENABLED_KEY = SnowflakeIdProperties.PREFIX + EnabledSuffix.KEY;
 }

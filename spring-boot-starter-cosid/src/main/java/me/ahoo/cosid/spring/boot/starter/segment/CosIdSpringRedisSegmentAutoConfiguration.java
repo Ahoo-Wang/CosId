@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.segment.SegmentId;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributor;
@@ -49,9 +50,9 @@ public class CosIdSpringRedisSegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public SegmentId shareSpringRedisSegmentId(StringRedisTemplate redisTemplate, IdGeneratorProvider idGeneratorProvider) {
+    public SegmentId shareSpringRedisSegmentId(StringRedisTemplate redisTemplate, IdGeneratorProvider idGeneratorProvider, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         SegmentIdProperties.IdDefinition shareIdDefinition = segmentIdProperties.getShare();
-        SegmentId shareIdGen = createSegmentIdOfSpring(IdGeneratorProvider.SHARE, shareIdDefinition, redisTemplate);
+        SegmentId shareIdGen = createSegmentIdOfSpring(IdGeneratorProvider.SHARE, shareIdDefinition, redisTemplate, prefetchWorkerExecutorService);
         if (Objects.isNull(idGeneratorProvider.getShare())) {
             idGeneratorProvider.setShare(shareIdGen);
         }
@@ -59,21 +60,21 @@ public class CosIdSpringRedisSegmentAutoConfiguration {
             return shareIdGen;
         }
         segmentIdProperties.getProvider().forEach((name, idDefinition) -> {
-            SegmentId idGenerator = createSegmentIdOfSpring(name, idDefinition, redisTemplate);
+            SegmentId idGenerator = createSegmentIdOfSpring(name, idDefinition, redisTemplate, prefetchWorkerExecutorService);
             idGeneratorProvider.set(name, idGenerator);
         });
 
         return shareIdGen;
     }
 
-    private SegmentId createSegmentIdOfSpring(String name, SegmentIdProperties.IdDefinition idDefinition, StringRedisTemplate redisTemplate) {
+    private SegmentId createSegmentIdOfSpring(String name, SegmentIdProperties.IdDefinition idDefinition, StringRedisTemplate redisTemplate, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         SpringRedisIdSegmentDistributor redisIdSegmentDistributor = new SpringRedisIdSegmentDistributor(
                 cosIdProperties.getNamespace(),
                 name,
                 idDefinition.getOffset(),
                 idDefinition.getStep(),
                 redisTemplate);
-        return CosIdSegmentAutoConfiguration.createSegment(segmentIdProperties, idDefinition, redisIdSegmentDistributor);
+        return CosIdSegmentAutoConfiguration.createSegment(segmentIdProperties, idDefinition, redisIdSegmentDistributor, prefetchWorkerExecutorService);
     }
 
 }

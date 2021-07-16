@@ -18,6 +18,7 @@ import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
@@ -33,11 +34,12 @@ public class SegmentIdProperties {
 
     public final static String PREFIX = CosId.COSID_PREFIX + "segment";
 
-    private boolean enabled;
+    private boolean enabled = false;
     private Mode mode = Mode.CHAIN;
-    private int step;
+    private long step;
     /**
      * idSegment time to live
+     * unit {@link java.util.concurrent.TimeUnit#SECONDS}
      */
     private long ttl = TIME_TO_LIVE_FOREVER;
     private Distributor distributor;
@@ -67,7 +69,7 @@ public class SegmentIdProperties {
         this.mode = mode;
     }
 
-    public int getStep() {
+    public long getStep() {
         return step;
     }
 
@@ -122,7 +124,11 @@ public class SegmentIdProperties {
 
     public static class Chain {
         private int safeDistance = SegmentChainId.DEFAULT_SAFE_DISTANCE;
-        private Duration prefetchPeriod = SegmentChainId.DEFAULT_PREFETCH_PERIOD;
+        private PrefetchWorker prefetchWorker;
+
+        public Chain() {
+            prefetchWorker = new PrefetchWorker();
+        }
 
         public int getSafeDistance() {
             return safeDistance;
@@ -132,12 +138,34 @@ public class SegmentIdProperties {
             this.safeDistance = safeDistance;
         }
 
-        public Duration getPrefetchPeriod() {
-            return prefetchPeriod;
+        public PrefetchWorker getPrefetchWorker() {
+            return prefetchWorker;
         }
 
-        public void setPrefetchPeriod(Duration prefetchPeriod) {
-            this.prefetchPeriod = prefetchPeriod;
+        public void setPrefetchWorker(PrefetchWorker prefetchWorker) {
+            this.prefetchWorker = prefetchWorker;
+        }
+
+        public static class PrefetchWorker {
+
+            private Duration prefetchPeriod = PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD;
+            private int corePoolSize = Runtime.getRuntime().availableProcessors();
+
+            public Duration getPrefetchPeriod() {
+                return prefetchPeriod;
+            }
+
+            public void setPrefetchPeriod(Duration prefetchPeriod) {
+                this.prefetchPeriod = prefetchPeriod;
+            }
+
+            public int getCorePoolSize() {
+                return corePoolSize;
+            }
+
+            public void setCorePoolSize(int corePoolSize) {
+                this.corePoolSize = corePoolSize;
+            }
         }
     }
 
@@ -257,10 +285,11 @@ public class SegmentIdProperties {
     public static class IdDefinition {
 
         private Mode mode;
-        private int offset = IdSegmentDistributor.DEFAULT_OFFSET;
-        private int step = IdSegmentDistributor.DEFAULT_STEP;
+        private long offset = IdSegmentDistributor.DEFAULT_OFFSET;
+        private long step = IdSegmentDistributor.DEFAULT_STEP;
         /**
          * idSegmentTtl
+         * unit {@link java.util.concurrent.TimeUnit#SECONDS}
          */
         private Long ttl;
         private Chain chain;
@@ -273,19 +302,19 @@ public class SegmentIdProperties {
             this.mode = mode;
         }
 
-        public int getOffset() {
+        public long getOffset() {
             return offset;
         }
 
-        public void setOffset(int offset) {
+        public void setOffset(long offset) {
             this.offset = offset;
         }
 
-        public int getStep() {
+        public long getStep() {
             return step;
         }
 
-        public void setStep(int step) {
+        public void setStep(long step) {
             this.step = step;
         }
 

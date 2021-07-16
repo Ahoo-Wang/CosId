@@ -42,8 +42,8 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
      * cosid:{namespace.name}:adder
      */
     private final String adderKey;
-    private final int offset;
-    private final int step;
+    private final long offset;
+    private final long step;
     private final Duration timeout;
     private final RedisClusterAsyncCommands<String, String> redisCommands;
 
@@ -55,8 +55,8 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
 
     public RedisIdSegmentDistributor(String namespace,
                                      String name,
-                                     int offset,
-                                     int step,
+                                     long offset,
+                                     long step,
                                      Duration timeout,
                                      RedisClusterAsyncCommands<String, String> redisCommands) {
         this.step = step;
@@ -76,25 +76,26 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
         return name;
     }
 
-    public int getOffset() {
+    public long getOffset() {
         return offset;
     }
 
     @Override
-    public int getStep() {
+    public long getStep() {
         return step;
     }
 
     @Override
-    public long nextMaxId(int step) {
+    public long nextMaxId(long step) {
+        IdSegmentDistributor.ensureStep(step);
         long maxId = Futures.getUnChecked(fetchMaxIdAsync(step), timeout);
-        if (log.isDebugEnabled()) {
-            log.debug("nextMaxId - step:[{}] - maxId:[{}].", step, maxId);
+        if (log.isInfoEnabled()) {
+            log.info("nextMaxId - step:[{}] - maxId:[{}].", step, maxId);
         }
         return maxId;
     }
 
-    private CompletableFuture<Long> fetchMaxIdAsync(int step) {
+    private CompletableFuture<Long> fetchMaxIdAsync(long step) {
         return RedisScripts.doEnsureScript(REDIS_ID_GENERATE, redisCommands,
                 (scriptSha) -> {
                     String[] keys = {adderKey};

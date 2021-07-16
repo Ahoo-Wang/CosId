@@ -17,6 +17,7 @@ import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.segment.SegmentId;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -59,9 +60,9 @@ public class CosIdJdbcSegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public SegmentId shareJdbcSegmentId(IdGeneratorProvider idGeneratorProvider, JdbcIdSegmentInitializer jdbcIdSegmentInitializer, DataSource dataSource) {
+    public SegmentId shareJdbcSegmentId(IdGeneratorProvider idGeneratorProvider, JdbcIdSegmentInitializer jdbcIdSegmentInitializer, DataSource dataSource, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         SegmentIdProperties.IdDefinition shareIdDefinition = segmentIdProperties.getShare();
-        SegmentId shareIdGen = createSegmentId(IdGeneratorProvider.SHARE, shareIdDefinition, jdbcIdSegmentInitializer, dataSource);
+        SegmentId shareIdGen = createSegmentId(IdGeneratorProvider.SHARE, shareIdDefinition, jdbcIdSegmentInitializer, dataSource, prefetchWorkerExecutorService);
         if (Objects.isNull(idGeneratorProvider.getShare())) {
             idGeneratorProvider.setShare(shareIdGen);
         }
@@ -69,14 +70,14 @@ public class CosIdJdbcSegmentAutoConfiguration {
             return shareIdGen;
         }
         segmentIdProperties.getProvider().forEach((name, idDefinition) -> {
-            SegmentId idGenerator = createSegmentId(name, idDefinition, jdbcIdSegmentInitializer, dataSource);
+            SegmentId idGenerator = createSegmentId(name, idDefinition, jdbcIdSegmentInitializer, dataSource, prefetchWorkerExecutorService);
             idGeneratorProvider.set(name, idGenerator);
         });
 
         return shareIdGen;
     }
 
-    private SegmentId createSegmentId(String name, SegmentIdProperties.IdDefinition idDefinition, JdbcIdSegmentInitializer jdbcIdSegmentInitializer, DataSource dataSource) {
+    private SegmentId createSegmentId(String name, SegmentIdProperties.IdDefinition idDefinition, JdbcIdSegmentInitializer jdbcIdSegmentInitializer, DataSource dataSource, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
         JdbcIdSegmentDistributor jdbcIdSegmentDistributor = new JdbcIdSegmentDistributor(
                 cosIdProperties.getNamespace(),
@@ -88,7 +89,7 @@ public class CosIdJdbcSegmentAutoConfiguration {
         if (jdbc.isEnableAutoInitIdSegment()) {
             jdbcIdSegmentInitializer.tryInitIdSegment(jdbcIdSegmentDistributor.getNamespacedName(), idDefinition.getOffset());
         }
-        return CosIdSegmentAutoConfiguration.createSegment(segmentIdProperties, idDefinition, jdbcIdSegmentDistributor);
+        return CosIdSegmentAutoConfiguration.createSegment(segmentIdProperties, idDefinition, jdbcIdSegmentDistributor, prefetchWorkerExecutorService);
     }
 
 }

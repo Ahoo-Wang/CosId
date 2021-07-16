@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.redis.RedisIdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentId;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosky.core.redis.RedisConnectionFactory;
@@ -52,9 +53,9 @@ public class CosIdRedisSegmentAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(RedisConnectionFactory.class)
-    public SegmentId shareRedisSegmentId(RedisConnectionFactory redisConnectionFactory, IdGeneratorProvider idGeneratorProvider) {
+    public SegmentId shareRedisSegmentId(RedisConnectionFactory redisConnectionFactory, IdGeneratorProvider idGeneratorProvider, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         SegmentIdProperties.IdDefinition shareIdDefinition = segmentIdProperties.getShare();
-        SegmentId shareIdGen = createSegmentId(IdGeneratorProvider.SHARE, shareIdDefinition, redisConnectionFactory);
+        SegmentId shareIdGen = createSegmentId(IdGeneratorProvider.SHARE, shareIdDefinition, redisConnectionFactory, prefetchWorkerExecutorService);
         if (Objects.isNull(idGeneratorProvider.getShare())) {
             idGeneratorProvider.setShare(shareIdGen);
         }
@@ -62,14 +63,14 @@ public class CosIdRedisSegmentAutoConfiguration {
             return shareIdGen;
         }
         segmentIdProperties.getProvider().forEach((name, idDefinition) -> {
-            SegmentId idGenerator = createSegmentId(name, idDefinition, redisConnectionFactory);
+            SegmentId idGenerator = createSegmentId(name, idDefinition, redisConnectionFactory, prefetchWorkerExecutorService);
             idGeneratorProvider.set(name, idGenerator);
         });
 
         return shareIdGen;
     }
 
-    private SegmentId createSegmentId(String name, SegmentIdProperties.IdDefinition idDefinition, RedisConnectionFactory redisConnectionFactory) {
+    private SegmentId createSegmentId(String name, SegmentIdProperties.IdDefinition idDefinition, RedisConnectionFactory redisConnectionFactory, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         Duration timeout = segmentIdProperties.getDistributor().getRedis().getTimeout();
         RedisIdSegmentDistributor redisIdSegmentDistributor = new RedisIdSegmentDistributor(
                 cosIdProperties.getNamespace(),
@@ -78,7 +79,7 @@ public class CosIdRedisSegmentAutoConfiguration {
                 idDefinition.getStep(),
                 timeout,
                 redisConnectionFactory.getShareAsyncCommands());
-        return CosIdSegmentAutoConfiguration.createSegment(segmentIdProperties, idDefinition, redisIdSegmentDistributor);
+        return CosIdSegmentAutoConfiguration.createSegment(segmentIdProperties, idDefinition, redisIdSegmentDistributor, prefetchWorkerExecutorService);
     }
 
 }

@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.segment;
 
+import me.ahoo.cosid.util.Clock;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -27,16 +29,16 @@ public class DefaultIdSegment implements IdSegment {
      */
     private final long maxId;
     private final long offset;
-    private final int step;
+    private final long step;
     private final AtomicLong sequence;
     private final long fetchTime;
     private final long ttl;
 
-    public DefaultIdSegment(long maxId, int step) {
-        this(maxId, step, System.currentTimeMillis(), TIME_TO_LIVE_FOREVER);
+    public DefaultIdSegment(long maxId, long step) {
+        this(maxId, step, Clock.CACHE.secondTime(), TIME_TO_LIVE_FOREVER);
     }
 
-    public DefaultIdSegment(long maxId, int step, long fetchTime, long ttl) {
+    public DefaultIdSegment(long maxId, long step, long fetchTime, long ttl) {
         this.maxId = maxId;
         this.step = step;
         this.offset = maxId - step;
@@ -71,7 +73,7 @@ public class DefaultIdSegment implements IdSegment {
     }
 
     @Override
-    public int getStep() {
+    public long getStep() {
         return step;
     }
 

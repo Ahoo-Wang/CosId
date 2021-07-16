@@ -14,11 +14,12 @@
 package me.ahoo.cosid.spring.boot.starter.segment;
 
 import com.google.common.base.MoreObjects;
-import me.ahoo.cosid.provider.IdGeneratorProvider;
+import com.google.common.base.Preconditions;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -34,19 +35,34 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties(SegmentIdProperties.class)
 public class CosIdSegmentAutoConfiguration {
 
-    @Bean
-    @ConditionalOnMissingBean
-    public CosIdLifecycleSegmentChainId lifecycleSegmentChainId(IdGeneratorProvider idGeneratorProvider) {
-        return new CosIdLifecycleSegmentChainId(idGeneratorProvider);
+    private final SegmentIdProperties segmentIdProperties;
+
+    public CosIdSegmentAutoConfiguration(SegmentIdProperties segmentIdProperties) {
+        this.segmentIdProperties = segmentIdProperties;
     }
 
-    public static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor) {
+    @Bean
+    @ConditionalOnMissingBean
+    public PrefetchWorkerExecutorService prefetchWorkerExecutorService() {
+        SegmentIdProperties.Chain.PrefetchWorker prefetchWorker = segmentIdProperties.getChain().getPrefetchWorker();
+        Preconditions.checkNotNull(prefetchWorker, "cosid.segment.chain.prefetch-worker can not be null!");
+        return new PrefetchWorkerExecutorService(prefetchWorker.getPrefetchPeriod(), prefetchWorker.getCorePoolSize());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public CosIdLifecyclePrefetchWorkerExecutorService lifecycleSegmentChainId(PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
+        return new CosIdLifecyclePrefetchWorkerExecutorService(prefetchWorkerExecutorService);
+    }
+
+
+    public static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         long ttl = MoreObjects.firstNonNull(idDefinition.getTtl(), segmentIdProperties.getTtl());
         SegmentIdProperties.Mode mode = MoreObjects.firstNonNull(idDefinition.getMode(), segmentIdProperties.getMode());
         if (SegmentIdProperties.Mode.DEFAULT.equals(mode)) {
             return new DefaultSegmentId(ttl, idSegmentDistributor);
         }
         SegmentIdProperties.Chain chain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
-        return new SegmentChainId(ttl, chain.getSafeDistance(), chain.getPrefetchPeriod(), idSegmentDistributor);
+        return new SegmentChainId(ttl, chain.getSafeDistance(), idSegmentDistributor, prefetchWorkerExecutorService);
     }
 }

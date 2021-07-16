@@ -36,16 +36,16 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
 
     private final String namespace;
     private final String name;
-    private final int step;
+    private final long step;
     private final DataSource dataSource;
     private final String incrementMaxIdSql;
     private final String fetchMaxIdSql;
 
-    public JdbcIdSegmentDistributor(String namespace, String name, int step, DataSource dataSource) {
+    public JdbcIdSegmentDistributor(String namespace, String name, long step, DataSource dataSource) {
         this(namespace, name, step, INCREMENT_MAX_ID_SQL, FETCH_MAX_ID_SQL, dataSource);
     }
 
-    public JdbcIdSegmentDistributor(String namespace, String name, int step, String incrementMaxIdSql, String fetchMaxIdSql, DataSource dataSource) {
+    public JdbcIdSegmentDistributor(String namespace, String name, long step, String incrementMaxIdSql, String fetchMaxIdSql, DataSource dataSource) {
         this.namespace = namespace;
         this.name = name;
         this.step = step;
@@ -65,17 +65,18 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
     }
 
     @Override
-    public int getStep() {
+    public long getStep() {
         return step;
     }
 
 
     @Override
-    public long nextMaxId(int step) {
+    public long nextMaxId(long step) {
+        IdSegmentDistributor.ensureStep(step);
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
             try (PreparedStatement accStatement = connection.prepareStatement(incrementMaxIdSql)) {
-                accStatement.setInt(1, step);
+                accStatement.setLong(1, step);
                 accStatement.setString(2, getNamespacedName());
                 int affected = accStatement.executeUpdate();
                 if (affected == 0) {

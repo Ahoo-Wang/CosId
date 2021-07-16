@@ -68,7 +68,7 @@ public class SegmentChainId implements SegmentId {
     private void forward(IdSegmentChain forwardChain) {
         if (forwardChain.compareTo(headChain) > 0) {
             if (log.isDebugEnabled()) {
-                log.debug("forward - [{}] -> [{}].", headChain, forwardChain);
+                log.debug("forward - [{}] - [{}] -> [{}].", maxIdDistributor.getNamespacedName(), headChain, forwardChain);
             }
             headChain = forwardChain;
         }
@@ -100,12 +100,12 @@ public class SegmentChainId implements SegmentId {
                     IdSegmentChain nextChain = preIdSegmentChain.getNext();
                     forward(nextChain);
                     if (log.isDebugEnabled()) {
-                        log.debug("generate - headChain.version:[{}->{}].", preIdSegmentChain.getVersion(), nextChain.getVersion());
+                        log.debug("generate - [{}] - headChain.version:[{}->{}].", maxIdDistributor.getNamespacedName(),preIdSegmentChain.getVersion(), nextChain.getVersion());
                     }
                 }
             } catch (NextIdSegmentExpiredException nextIdSegmentExpiredException) {
                 if (log.isWarnEnabled()) {
-                    log.warn("generate - gave up this next IdSegmentChain.", nextIdSegmentExpiredException);
+                    log.warn("generate - [{}] - gave up this next IdSegmentChain.", maxIdDistributor.getNamespacedName(),nextIdSegmentExpiredException);
                 }
             }
             this.prefetchJob.hungry();
@@ -171,11 +171,6 @@ public class SegmentChainId implements SegmentId {
 
         public void prefetch() {
 
-            if (IdSegmentChain.ROOT_VERSION == tailChain.getVersion()) {
-                appendChain(tailChain, safeDistance + 1);
-                return;
-            }
-
             long wakeupTimeGap = Clock.CACHE.secondTime() - lastHungerTime;
             final boolean hunger = wakeupTimeGap < hungerThreshold;
 
@@ -183,13 +178,13 @@ public class SegmentChainId implements SegmentId {
             if (hunger) {
                 this.prefetchDistance = Math.min(Math.multiplyExact(this.prefetchDistance, 2), MAX_PREFETCH_DISTANCE);
                 if (log.isInfoEnabled()) {
-                    log.info("prefetch - {} - Hunger, Safety distance expansion.[{}->{}]", maxIdDistributor.getNamespacedName(), prePrefetchDistance, this.prefetchDistance);
+                    log.info("prefetch - [{}] - Hunger, Safety distance expansion.[{}->{}]", maxIdDistributor.getNamespacedName(), prePrefetchDistance, this.prefetchDistance);
                 }
             } else {
                 this.prefetchDistance = Math.max(Math.floorDiv(this.prefetchDistance, 2), safeDistance);
                 if (prePrefetchDistance > this.prefetchDistance) {
                     if (log.isInfoEnabled()) {
-                        log.info("prefetch - {} - Full, Safety distance shrinks.[{}->{}]", maxIdDistributor.getNamespacedName(), prePrefetchDistance, this.prefetchDistance);
+                        log.info("prefetch - [{}] - Full, Safety distance shrinks.[{}->{}]", maxIdDistributor.getNamespacedName(), prePrefetchDistance, this.prefetchDistance);
                     }
                 }
             }
@@ -210,7 +205,7 @@ public class SegmentChainId implements SegmentId {
 
             if (safeGap <= 0 && !hunger) {
                 if (log.isTraceEnabled()) {
-                    log.trace("prefetch - {} - safeGap is less than or equal to 0, and is not hungry - headChain.version:[{}] - tailChain.version:[{}].", maxIdDistributor.getNamespacedName(), availableHeadChain.getVersion(), tailChain.getVersion());
+                    log.trace("prefetch - [{}] - safeGap is less than or equal to 0, and is not hungry - headChain.version:[{}] - tailChain.version:[{}].", maxIdDistributor.getNamespacedName(), availableHeadChain.getVersion(), tailChain.getVersion());
                 }
                 return;
             }
@@ -223,7 +218,7 @@ public class SegmentChainId implements SegmentId {
         private void appendChain(IdSegmentChain availableHeadChain, int prefetchSegments) {
 
             if (log.isDebugEnabled()) {
-                log.debug("appendChain - {} - headChain.version:[{}] - tailChain.version:[{}] - prefetchSegments:[{}].", maxIdDistributor.getNamespacedName(), availableHeadChain.getVersion(), tailChain.getVersion(), prefetchSegments);
+                log.debug("appendChain - [{}] - headChain.version:[{}] - tailChain.version:[{}] - prefetchSegments:[{}].", maxIdDistributor.getNamespacedName(), availableHeadChain.getVersion(), tailChain.getVersion(), prefetchSegments);
             }
 
             try {
@@ -233,11 +228,11 @@ public class SegmentChainId implements SegmentId {
                     tailChain = tailChain.getNext();
                 }
                 if (log.isDebugEnabled()) {
-                    log.debug("appendChain - {} - restTail - tailChain.version:[{}:{}->{}] .", maxIdDistributor.getNamespacedName(), preTail.gap(tailChain, maxIdDistributor.getStep()), preTail.getVersion(), tailChain.getVersion());
+                    log.debug("appendChain - [{}] - restTail - tailChain.version:[{}:{}->{}] .", maxIdDistributor.getNamespacedName(), preTail.gap(tailChain, maxIdDistributor.getStep()), preTail.getVersion(), tailChain.getVersion());
                 }
             } catch (NextIdSegmentExpiredException nextIdSegmentExpiredException) {
                 if (log.isWarnEnabled()) {
-                    log.warn("appendChain - {} - gave up this next IdSegmentChain.", maxIdDistributor.getNamespacedName(), nextIdSegmentExpiredException);
+                    log.warn("appendChain - [{}] - gave up this next IdSegmentChain.", maxIdDistributor.getNamespacedName(), nextIdSegmentExpiredException);
                 }
             }
         }

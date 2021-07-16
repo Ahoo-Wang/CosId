@@ -89,8 +89,8 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
     public long nextMaxId(long step) {
         IdSegmentDistributor.ensureStep(step);
         long maxId = Futures.getUnChecked(fetchMaxIdAsync(step), timeout);
-        if (log.isInfoEnabled()) {
-            log.info("nextMaxId - step:[{}] - maxId:[{}].", step, maxId);
+        if (log.isDebugEnabled()) {
+            log.debug("nextMaxId - step:[{}] - maxId:[{}].", step, maxId);
         }
         return maxId;
     }

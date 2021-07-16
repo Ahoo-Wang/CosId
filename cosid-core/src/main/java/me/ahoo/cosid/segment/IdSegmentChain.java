@@ -76,10 +76,7 @@ public class IdSegmentChain implements IdSegment {
     }
 
     public int gap(IdSegmentChain end, long step) {
-        if (this.equals(end)) {
-            return 0;
-        }
-        return (int) ((end.getOffset() - getOffset()) / step);
+        return (int) ((end.getMaxId() - getSequence()) / step);
     }
 
     public static IdSegmentChain newRoot() {

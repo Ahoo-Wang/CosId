@@ -14,12 +14,11 @@
 package me.ahoo.cosid.segment;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import me.ahoo.cosid.util.Clock;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
@@ -30,8 +29,8 @@ import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
  */
 public interface IdSegmentDistributor {
     int DEFAULT_SEGMENTS = 1;
-    int DEFAULT_OFFSET = 0;
-    int DEFAULT_STEP = 100;
+    long DEFAULT_OFFSET = 0;
+    long DEFAULT_STEP = 100;
 
     String getNamespace();
 
@@ -41,13 +40,13 @@ public interface IdSegmentDistributor {
         return getNamespace() + "." + getName();
     }
 
-    int getStep();
+    long getStep();
 
-    default int getStep(int segments) {
-        return getStep() * segments;
+    default long getStep(int segments) {
+        return Math.multiplyExact(getStep(), segments);
     }
 
-    long nextMaxId(int step);
+    long nextMaxId(long step);
 
     default long nextMaxId() {
         return nextMaxId(getStep());
@@ -59,60 +58,37 @@ public interface IdSegmentDistributor {
 
     default IdSegment nextIdSegment(long ttl) {
         final long maxId = nextMaxId();
-        return new DefaultIdSegment(maxId, getStep(), System.currentTimeMillis(), ttl);
+        return new DefaultIdSegment(maxId, getStep(), Clock.CACHE.secondTime(), ttl);
     }
 
-    default List<IdSegment> nextIdSegment(int segments) {
-        return nextIdSegment(segments, TIME_TO_LIVE_FOREVER);
-    }
-
-    default List<IdSegment> nextIdSegment(int segments, long ttl) {
-        final int totalStep = getStep(segments);
+    default IdSegment nextIdSegment(int segments, long ttl) {
+        final long totalStep = getStep(segments);
         final long maxId = nextMaxId(totalStep);
-        final long offset = maxId - totalStep;
-        List<IdSegment> idSegments = new ArrayList<>(segments);
-        for (int i = 0; i < segments; i++) {
-            long currentMaxId = offset + getStep() * (i + 1);
-            DefaultIdSegment segment = new DefaultIdSegment(currentMaxId, getStep(), System.currentTimeMillis(), ttl);
-            idSegments.add(segment);
-        }
-        return idSegments;
+        final IdSegment nextIdSegment = new DefaultIdSegment(maxId, totalStep, Clock.CACHE.secondTime(), ttl);
+        return new MergedIdSegment(segments, nextIdSegment);
     }
 
     default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain) {
-        return nextIdSegmentChain(previousChain, TIME_TO_LIVE_FOREVER);
-    }
-
-    default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, long ttl) {
-        IdSegment nextIdSegment = nextIdSegment(ttl);
-        return new IdSegmentChain(previousChain, nextIdSegment);
-    }
-
-    default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments) {
-        return nextIdSegmentChain(previousChain, segments, TIME_TO_LIVE_FOREVER);
+        return nextIdSegmentChain(previousChain, DEFAULT_SEGMENTS, TIME_TO_LIVE_FOREVER);
     }
 
     default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
         if (DEFAULT_SEGMENTS == segments) {
-            return nextIdSegmentChain(previousChain, ttl);
+            IdSegment nextIdSegment = nextIdSegment(ttl);
+            return new IdSegmentChain(previousChain, nextIdSegment);
         }
-        List<IdSegment> nextIdSegments = nextIdSegment(segments, ttl);
-        IdSegmentChain rootChain = null;
-        IdSegmentChain currentChain = null;
-        for (IdSegment nextIdSegment : nextIdSegments) {
-            if (Objects.isNull(rootChain)) {
-                rootChain = new IdSegmentChain(previousChain, nextIdSegment);
-                currentChain = rootChain;
-                continue;
-            }
-            currentChain.setNext(new IdSegmentChain(currentChain, nextIdSegment));
-            currentChain = currentChain.getNext();
-        }
-        return rootChain;
+
+        IdSegment nextIdSegment = nextIdSegment(segments, ttl);
+        return new IdSegmentChain(previousChain, nextIdSegment);
+    }
+
+    static void ensureStep(long step) {
+        Preconditions.checkArgument(step > 0, "the step:[%s] can not less than 1.", step);
     }
 
     class Atomic implements IdSegmentDistributor {
-        private final int step;
+        private final static AtomicInteger ATOMIC_COUNTER = new AtomicInteger();
+        private final long step;
         private final String name;
         private final AtomicLong adder = new AtomicLong();
 
@@ -120,9 +96,9 @@ public interface IdSegmentDistributor {
             this(DEFAULT_STEP);
         }
 
-        public Atomic(int step) {
+        public Atomic(long step) {
             this.step = step;
-            this.name = "atomic__" + UUID.randomUUID();
+            this.name = "atomic__" + ATOMIC_COUNTER.incrementAndGet();
         }
 
         @Override
@@ -136,12 +112,12 @@ public interface IdSegmentDistributor {
         }
 
         @Override
-        public int getStep() {
+        public long getStep() {
             return step;
         }
 
         @Override
-        public long nextMaxId(int step) {
+        public long nextMaxId(long step) {
             return adder.addAndGet(step);
         }
 
@@ -149,7 +125,8 @@ public interface IdSegmentDistributor {
 
     @VisibleForTesting
     class Mock implements IdSegmentDistributor {
-        private final int step;
+        private final static AtomicInteger MOCK_COUNTER = new AtomicInteger();
+        private final long step;
         private final String name;
         private final long ioWaiting;
         private final AtomicLong adder = new AtomicLong();
@@ -162,10 +139,10 @@ public interface IdSegmentDistributor {
          * @param step 单次获取IdSegment的区间长度
          * @param tps  发号器的TPS，用于模拟网络IO请求的等待时常
          */
-        public Mock(int step, int tps) {
+        public Mock(long step, int tps) {
             this.step = step;
             this.ioWaiting = TimeUnit.SECONDS.toNanos(1) / tps;
-            this.name = "mock__" + UUID.randomUUID();
+            this.name = "mock__" + MOCK_COUNTER.incrementAndGet();
         }
 
         @Override
@@ -179,12 +156,12 @@ public interface IdSegmentDistributor {
         }
 
         @Override
-        public int getStep() {
+        public long getStep() {
             return step;
         }
 
         @Override
-        public long nextMaxId(int step) {
+        public long nextMaxId(long step) {
             LockSupport.parkNanos(ioWaiting);
             return adder.addAndGet(step);
         }

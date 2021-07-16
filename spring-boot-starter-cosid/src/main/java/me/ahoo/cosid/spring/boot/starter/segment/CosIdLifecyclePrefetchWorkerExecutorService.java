@@ -14,7 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.segment;
 
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.SmartLifecycle;
 
@@ -22,12 +22,12 @@ import org.springframework.context.SmartLifecycle;
  * @author ahoo wang
  */
 @Slf4j
-public class CosIdLifecycleSegmentChainId implements SmartLifecycle {
+public class CosIdLifecyclePrefetchWorkerExecutorService implements SmartLifecycle {
     private volatile boolean running;
-    private final IdGeneratorProvider idGeneratorProvider;
+    private final PrefetchWorkerExecutorService prefetchWorkerExecutorService;
 
-    public CosIdLifecycleSegmentChainId(IdGeneratorProvider idGeneratorProvider) {
-        this.idGeneratorProvider = idGeneratorProvider;
+    public CosIdLifecyclePrefetchWorkerExecutorService(PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
+        this.prefetchWorkerExecutorService = prefetchWorkerExecutorService;
     }
 
     /**
@@ -65,15 +65,7 @@ public class CosIdLifecycleSegmentChainId implements SmartLifecycle {
             return;
         }
         running = false;
-        idGeneratorProvider.getAll().stream().filter(idGenerator -> idGenerator instanceof AutoCloseable).map(idGenerator -> (AutoCloseable) idGenerator).forEach(autoCloseable -> {
-            try {
-                autoCloseable.close();
-            } catch (Exception exception) {
-                if (log.isErrorEnabled()) {
-                    log.error(exception.getMessage(), exception);
-                }
-            }
-        });
+        prefetchWorkerExecutorService.shutdown();
     }
 
     /**

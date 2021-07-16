@@ -22,7 +22,7 @@ public class IdSegmentChain implements IdSegment {
     public static final int ROOT_VERSION = -1;
     public static final IdSegmentChain NOT_SET = null;
 
-    private final int version;
+    private final long version;
     private final IdSegment idSegment;
     private volatile IdSegmentChain next;
 
@@ -30,7 +30,7 @@ public class IdSegmentChain implements IdSegment {
         this(previousChain.getVersion() + 1, idSegment);
     }
 
-    public IdSegmentChain(int version, IdSegment idSegment) {
+    public IdSegmentChain(long version, IdSegment idSegment) {
         this.version = version;
         this.idSegment = idSegment;
     }
@@ -71,12 +71,15 @@ public class IdSegmentChain implements IdSegment {
         return idSegment;
     }
 
-    public int getVersion() {
+    public long getVersion() {
         return version;
     }
 
-    public int gap(IdSegmentChain end) {
-        return end.version - version;
+    public int gap(IdSegmentChain end, long step) {
+        if (this.equals(end)) {
+            return 0;
+        }
+        return (int) ((end.getOffset() - getOffset()) / step);
     }
 
     public static IdSegmentChain newRoot() {
@@ -104,7 +107,7 @@ public class IdSegmentChain implements IdSegment {
     }
 
     @Override
-    public int getStep() {
+    public long getStep() {
         return idSegment.getStep();
     }
 

@@ -11,25 +11,34 @@
  * limitations under the License.
  */
 
-plugins {
-    id("me.champeau.jmh") version "0.6.4"
-}
+package me.ahoo.cosid.segment.concurrent;
 
-dependencies {
-    api("com.google.guava:guava")
-    testImplementation("org.junit-pioneer:junit-pioneer")
-    jmh("org.openjdk.jmh:jmh-core:${rootProject.ext.get("jmhVersion")}")
-    jmh("org.openjdk.jmh:jmh-generator-annprocess:${rootProject.ext.get("jmhVersion")}")
-}
+import me.ahoo.cosid.util.Clock;
 
-jmh {
-    jmhVersion.set(rootProject.ext.get("jmhVersion").toString())
-    warmupIterations.set(1)
-    iterations.set(1)
-    resultFormat.set("json")
-    benchmarkMode.set(listOf(
-        "thrpt"
-    ))
-    threads.set(1)
-    fork.set(1)
+/**
+ * @author ahoo wang
+ */
+public interface AffinityJob extends Runnable {
+
+    String getJobId();
+
+    default String affinity() {
+        return getJobId();
+    }
+
+    default void hungry() {
+        setHungerTime(Clock.CACHE.secondTime());
+        getPrefetchWorker().wakeup(this);
+    }
+
+    /**
+     *
+     * @param hungerTime {@link java.util.concurrent.TimeUnit#SECONDS}
+     */
+    void setHungerTime(long hungerTime);
+
+    PrefetchWorker getPrefetchWorker();
+
+    void setPrefetchWorker(PrefetchWorker prefetchWorker);
+
 }

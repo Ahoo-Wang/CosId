@@ -11,25 +11,28 @@
  * limitations under the License.
  */
 
-plugins {
-    id("me.champeau.jmh") version "0.6.4"
-}
+package me.ahoo.cosid;
 
-dependencies {
-    api("com.google.guava:guava")
-    testImplementation("org.junit-pioneer:junit-pioneer")
-    jmh("org.openjdk.jmh:jmh-core:${rootProject.ext.get("jmhVersion")}")
-    jmh("org.openjdk.jmh:jmh-generator-annprocess:${rootProject.ext.get("jmhVersion")}")
-}
+import me.ahoo.cosid.util.Clock;
+import org.openjdk.jmh.annotations.Benchmark;
 
-jmh {
-    jmhVersion.set(rootProject.ext.get("jmhVersion").toString())
-    warmupIterations.set(1)
-    iterations.set(1)
-    resultFormat.set("json")
-    benchmarkMode.set(listOf(
-        "thrpt"
-    ))
-    threads.set(1)
-    fork.set(1)
+/**
+ * @author ahoo wang
+ */
+public class ClockBenchmark {
+
+    @Benchmark
+    public long currentTimeMillis() {
+        return System.currentTimeMillis();
+    }
+
+    @Benchmark
+    public long nanoTime() {
+        return System.nanoTime();
+    }
+
+    @Benchmark
+    public long cacheSecondTime() {
+        return Clock.CACHE.secondTime();
+    }
 }

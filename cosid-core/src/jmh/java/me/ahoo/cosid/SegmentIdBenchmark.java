@@ -13,10 +13,12 @@
 
 package me.ahoo.cosid;
 
+import me.ahoo.cosid.jvm.JdkId;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
@@ -33,11 +35,18 @@ public class SegmentIdBenchmark {
 
     SegmentId segmentId;
     SegmentChainId segmentChainId;
+    JdkId jdkId;
 
     @Setup
     public void setup() {
+        jdkId = new JdkId();
         segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
-        segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER,10, SegmentChainId.DEFAULT_PREFETCH_PERIOD, new IdSegmentDistributor.Mock());
+        segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10000, new IdSegmentDistributor.Mock(), PrefetchWorkerExecutorService.DEFAULT);
+    }
+
+    @Benchmark
+    public long jdkId_generate() {
+        return jdkId.generate();
     }
 
     @Benchmark

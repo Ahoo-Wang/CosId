@@ -16,10 +16,10 @@ package me.ahoo.cosid.segment;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
-
-import java.io.Closeable;
-import java.time.Duration;
-import java.util.concurrent.locks.LockSupport;
+import me.ahoo.cosid.segment.concurrent.AffinityJob;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorker;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+import me.ahoo.cosid.util.Clock;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
@@ -27,37 +27,31 @@ import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
  * @author ahoo wang
  */
 @Slf4j
-public class SegmentChainId implements SegmentId, AutoCloseable {
+public class SegmentChainId implements SegmentId {
     public static final int DEFAULT_SAFE_DISTANCE = 10;
-    public static final Duration DEFAULT_PREFETCH_PERIOD = Duration.ofSeconds(1);
 
     private final long idSegmentTtl;
     private final int safeDistance;
     private final IdSegmentDistributor maxIdDistributor;
-    private final PrefetchWorker prefetchWorker;
+    private final PrefetchJob prefetchJob;
     private volatile IdSegmentChain headChain = IdSegmentChain.newRoot();
 
-
     public SegmentChainId(IdSegmentDistributor maxIdDistributor) {
-        this(TIME_TO_LIVE_FOREVER, DEFAULT_SAFE_DISTANCE, DEFAULT_PREFETCH_PERIOD, maxIdDistributor);
+        this(TIME_TO_LIVE_FOREVER, DEFAULT_SAFE_DISTANCE, maxIdDistributor, PrefetchWorkerExecutorService.DEFAULT);
     }
 
-    public SegmentChainId(long idSegmentTtl, int safeDistance, Duration prefetchPeriod, IdSegmentDistributor maxIdDistributor) {
-        Preconditions.checkArgument(idSegmentTtl == TIME_TO_LIVE_FOREVER || idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
+    public SegmentChainId(long idSegmentTtl, int safeDistance, IdSegmentDistributor maxIdDistributor, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
+        Preconditions.checkArgument(idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
         Preconditions.checkArgument(safeDistance > 0, "The safety distance must be greater than 0.");
         this.idSegmentTtl = idSegmentTtl;
         this.safeDistance = safeDistance;
         this.maxIdDistributor = maxIdDistributor;
-        this.prefetchWorker = new PrefetchWorker(prefetchPeriod, headChain);
-        this.prefetchWorker.start();
+        prefetchJob = new PrefetchJob(headChain);
+        prefetchWorkerExecutorService.submit(prefetchJob);
     }
 
     public IdSegmentChain getHead() {
         return headChain;
-    }
-
-    public void stopPrefetchWorker() {
-        this.prefetchWorker.shutdown();
     }
 
     /**
@@ -114,99 +108,65 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
                     log.warn("generate - gave up this next IdSegmentChain.", nextIdSegmentExpiredException);
                 }
             }
-            this.prefetchWorker.wakeup();
+            this.prefetchJob.hungry();
         }
     }
 
-    /**
-     * Closes this resource, relinquishing any underlying resources.
-     * This method is invoked automatically on objects managed by the
-     * {@code try}-with-resources statement.
-     *
-     * <p>While this interface method is declared to throw {@code
-     * Exception}, implementers are <em>strongly</em> encouraged to
-     * declare concrete implementations of the {@code close} method to
-     * throw more specific exceptions, or to throw no exception at all
-     * if the close operation cannot fail.
-     *
-     * <p> Cases where the close operation may fail require careful
-     * attention by implementers. It is strongly advised to relinquish
-     * the underlying resources and to internally <em>mark</em> the
-     * resource as closed, prior to throwing the exception. The {@code
-     * close} method is unlikely to be invoked more than once and so
-     * this ensures that the resources are released in a timely manner.
-     * Furthermore it reduces problems that could arise when the resource
-     * wraps, or is wrapped, by another resource.
-     *
-     * <p><em>Implementers of this interface are also strongly advised
-     * to not have the {@code close} method throw {@link
-     * InterruptedException}.</em>
-     * <p>
-     * This exception interacts with a thread's interrupted status,
-     * and runtime misbehavior is likely to occur if an {@code
-     * InterruptedException} is {@linkplain Throwable#addSuppressed
-     * suppressed}.
-     * <p>
-     * More generally, if it would cause problems for an
-     * exception to be suppressed, the {@code AutoCloseable.close}
-     * method should not throw it.
-     *
-     * <p>Note that unlike the {@link Closeable#close close}
-     * method of {@link Closeable}, this {@code close} method
-     * is <em>not</em> required to be idempotent.  In other words,
-     * calling this {@code close} method more than once may have some
-     * visible side effect, unlike {@code Closeable.close} which is
-     * required to have no effect if called more than once.
-     * <p>
-     * However, implementers of this interface are strongly encouraged
-     * to make their {@code close} methods idempotent.
-     *
-     * @throws Exception if this resource cannot be closed
-     */
-    @Override
-    public void close() throws Exception {
-        this.stopPrefetchWorker();
-    }
-
-    public class PrefetchWorker extends Thread {
+    public class PrefetchJob implements AffinityJob {
         private final static int MAX_PREFETCH_DISTANCE = 100_000;
         /**
-         * Duration.ofSeconds(5).toMillis();
+         * Duration.ofSeconds(5);
          */
-        private final static long hungerThreshold = 5 * 1000;
-        private final Duration prefetchPeriod;
-        private IdSegmentChain tailChain;
-        private volatile boolean stopped = false;
+        private final static long hungerThreshold = 5;
+        private volatile PrefetchWorker prefetchWorker;
         private int prefetchDistance = safeDistance;
-        private volatile long lastWakeupTime;
+        private IdSegmentChain tailChain;
+        /**
+         * @see java.util.concurrent.TimeUnit#SECONDS
+         */
+        private volatile long lastHungerTime;
 
-        PrefetchWorker(Duration prefetchPeriod, IdSegmentChain tailChain) {
-            super(Strings.lenientFormat("CosId-PrefetchWorker@%s", maxIdDistributor.getNamespacedName()));
-            this.prefetchPeriod = prefetchPeriod;
+        public PrefetchJob(IdSegmentChain tailChain) {
             this.tailChain = tailChain;
-            this.setDaemon(true);
         }
 
-        public synchronized void wakeup() {
-            lastWakeupTime = System.currentTimeMillis();
-            if (log.isDebugEnabled()) {
-                log.debug("{} - wakeUp - state:[{}] - lastWakeupTime:[{}].", this.getName(), this.getState(), lastWakeupTime);
-            }
-            if (stopped) {
-                if (log.isWarnEnabled()) {
-                    log.warn("{} - wakeUp - PrefetchWorker is stopped,Can't be awakened!", this.getName());
-                }
+        @Override
+        public String getJobId() {
+            return maxIdDistributor.getNamespacedName();
+        }
+
+        @Override
+        public void setHungerTime(long hungerTime) {
+            lastHungerTime = hungerTime;
+        }
+
+        @Override
+        public PrefetchWorker getPrefetchWorker() {
+            return prefetchWorker;
+        }
+
+        @Override
+        public void setPrefetchWorker(PrefetchWorker prefetchWorker) {
+            if (this.prefetchWorker != null) {
                 return;
             }
+            this.prefetchWorker = prefetchWorker;
+        }
 
-            if (State.RUNNABLE.equals(this.getState())) {
-                if (log.isDebugEnabled()) {
-                    log.debug("{} - wakeUp PrefetchWorker is running ,Don't need to be awakened.", this.getName());
-                }
-                return;
-            }
-
-            LockSupport.unpark(this);
+        /**
+         * When an object implementing interface <code>Runnable</code> is used
+         * to create a thread, starting the thread causes the object's
+         * <code>run</code> method to be called in that separately executing
+         * thread.
+         * <p>
+         * The general contract of the method <code>run</code> is that it may
+         * take any action whatsoever.
+         *
+         * @see Thread#run()
+         */
+        @Override
+        public void run() {
+            prefetch();
         }
 
         public void prefetch() {
@@ -216,17 +176,17 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
                 return;
             }
 
-            long wakeupTimeGap = System.currentTimeMillis() - lastWakeupTime;
-            boolean hunger = wakeupTimeGap < hungerThreshold;
+            long wakeupTimeGap = Clock.CACHE.secondTime() - lastHungerTime;
+            final boolean hunger = wakeupTimeGap < hungerThreshold;
 
             final int prePrefetchDistance = this.prefetchDistance;
             if (hunger) {
-                this.prefetchDistance = Math.min(this.prefetchDistance * 2, MAX_PREFETCH_DISTANCE);
+                this.prefetchDistance = Math.min(Math.multiplyExact(this.prefetchDistance, 2), MAX_PREFETCH_DISTANCE);
                 if (log.isInfoEnabled()) {
                     log.info("prefetch - {} - Hunger, Safety distance expansion.[{}->{}]", maxIdDistributor.getNamespacedName(), prePrefetchDistance, this.prefetchDistance);
                 }
             } else {
-                this.prefetchDistance = Math.max(this.prefetchDistance / 2, safeDistance);
+                this.prefetchDistance = Math.max(Math.floorDiv(this.prefetchDistance, 2), safeDistance);
                 if (prePrefetchDistance > this.prefetchDistance) {
                     if (log.isInfoEnabled()) {
                         log.info("prefetch - {} - Full, Safety distance shrinks.[{}->{}]", maxIdDistributor.getNamespacedName(), prePrefetchDistance, this.prefetchDistance);
@@ -245,7 +205,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
 
             forward(availableHeadChain);
 
-            final int headToTailGap = availableHeadChain.gap(tailChain);
+            final int headToTailGap = availableHeadChain.gap(tailChain, maxIdDistributor.getStep());
             final int safeGap = safeDistance - headToTailGap;
 
             if (safeGap <= 0 && !hunger) {
@@ -273,35 +233,11 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
                     tailChain = tailChain.getNext();
                 }
                 if (log.isDebugEnabled()) {
-                    log.debug("appendChain - {} - restTail - tailChain.version:[{}:{}->{}] .", maxIdDistributor.getNamespacedName(), preTail.gap(tailChain), preTail.getVersion(), tailChain.getVersion());
+                    log.debug("appendChain - {} - restTail - tailChain.version:[{}:{}->{}] .", maxIdDistributor.getNamespacedName(), preTail.gap(tailChain, maxIdDistributor.getStep()), preTail.getVersion(), tailChain.getVersion());
                 }
             } catch (NextIdSegmentExpiredException nextIdSegmentExpiredException) {
                 if (log.isWarnEnabled()) {
                     log.warn("appendChain - {} - gave up this next IdSegmentChain.", maxIdDistributor.getNamespacedName(), nextIdSegmentExpiredException);
-                }
-            }
-        }
-
-        public void shutdown() {
-            if (log.isInfoEnabled()) {
-                log.info("{} - shutdown!", this.getName());
-            }
-            stopped = true;
-        }
-
-        @Override
-        public void run() {
-            if (log.isInfoEnabled()) {
-                log.info("{} - run.", this.getName());
-            }
-            while (!stopped && !isInterrupted()) {
-                try {
-                    LockSupport.parkNanos(this, prefetchPeriod.toNanos());
-                    prefetch();
-                } catch (Throwable throwable) {
-                    if (log.isErrorEnabled()) {
-                        log.error(throwable.getMessage(), throwable);
-                    }
                 }
             }
         }

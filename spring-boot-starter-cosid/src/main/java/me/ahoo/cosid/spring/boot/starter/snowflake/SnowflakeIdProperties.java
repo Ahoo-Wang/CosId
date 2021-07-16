@@ -29,7 +29,7 @@ import java.util.Map;
 public class SnowflakeIdProperties {
     public final static String PREFIX = CosId.COSID_PREFIX + "snowflake";
 
-    private boolean enabled;
+    private boolean enabled = false;
     private long epoch = CosId.COSID_EPOCH;
     private Machine machine;
     private ClockBackwards clockBackwards;

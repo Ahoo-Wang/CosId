@@ -35,7 +35,7 @@ public class DefaultSegmentId implements SegmentId {
     }
 
     public DefaultSegmentId(long idSegmentTtl, IdSegmentDistributor maxIdDistributor) {
-        Preconditions.checkArgument(idSegmentTtl == TIME_TO_LIVE_FOREVER || idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
+        Preconditions.checkArgument(idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
         this.idSegmentTtl = idSegmentTtl;
         this.maxIdDistributor = maxIdDistributor;
     }

@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.segment;
 
+import com.google.common.base.Preconditions;
 import me.ahoo.cosid.util.Clock;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -22,7 +23,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class DefaultIdSegment implements IdSegment {
 
-    public static final DefaultIdSegment OVERFLOW = new DefaultIdSegment(IdSegment.SEQUENCE_OVERFLOW, 0, 0, TIME_TO_LIVE_FOREVER);
+    public static final DefaultIdSegment OVERFLOW = new DefaultIdSegment(IdSegment.SEQUENCE_OVERFLOW, 0, Clock.CACHE.secondTime(), TIME_TO_LIVE_FOREVER);
 
     /**
      * include
@@ -39,6 +40,7 @@ public class DefaultIdSegment implements IdSegment {
     }
 
     public DefaultIdSegment(long maxId, long step, long fetchTime, long ttl) {
+        Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
         this.maxId = maxId;
         this.step = step;
         this.offset = maxId - step;

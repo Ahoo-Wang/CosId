@@ -35,7 +35,7 @@ public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributo
         String hostName = System.getenv(HOSTNAME_KEY);
         Preconditions.checkNotNull(hostName, "HOSTNAME can not be null.");
         int lastSplitIdx = hostName.lastIndexOf("-");
-
+        Preconditions.checkArgument(lastSplitIdx > 0, "The format of hostName:[%s] is incorrect.", hostName);
         String idStr = hostName.substring(lastSplitIdx + 1);
         if (log.isInfoEnabled()) {
             log.info("resolveMachineId - machineId:[{}] from Env HOSTNAME:[{}]", idStr, hostName);

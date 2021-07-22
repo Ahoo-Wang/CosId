@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.snowflake.machine;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 
@@ -43,6 +45,10 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
      */
     @Override
     public int distribute(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Preconditions.checkArgument(machineBit > 0, "machineBit:[%s] must be greater than 0!", machineBit);
+        Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
+
         MachineState localState = machineStateStorage.get(namespace, instanceId);
         if (!MachineState.NOT_FOUND.equals(localState)) {
             clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastTimeStamp());
@@ -73,6 +79,9 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
      */
     @Override
     public void revert(String namespace, InstanceId instanceId) throws MachineIdOverflowException {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
+
         MachineState lastLocalState = machineStateStorage.get(namespace, instanceId);
         if (MachineState.NOT_FOUND.equals(lastLocalState)) {
             revert0(namespace, instanceId, lastLocalState);

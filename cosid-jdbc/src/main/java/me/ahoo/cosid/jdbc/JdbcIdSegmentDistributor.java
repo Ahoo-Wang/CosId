@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.jdbc;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.jdbc.exception.NotFoundMaxIdException;
@@ -46,6 +48,13 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
     }
 
     public JdbcIdSegmentDistributor(String namespace, String name, long step, String incrementMaxIdSql, String fetchMaxIdSql, DataSource dataSource) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
+        Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(incrementMaxIdSql), "incrementMaxIdSql can not be empty!");
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(fetchMaxIdSql), "fetchMaxIdSql can not be empty!");
+        Preconditions.checkNotNull(dataSource, "dataSource can not be null!");
+
         this.namespace = namespace;
         this.name = name;
         this.step = step;
@@ -68,7 +77,6 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
     public long getStep() {
         return step;
     }
-
 
     @Override
     public long nextMaxId(long step) {

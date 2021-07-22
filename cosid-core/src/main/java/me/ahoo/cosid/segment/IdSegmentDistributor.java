@@ -57,11 +57,16 @@ public interface IdSegmentDistributor {
     }
 
     default IdSegment nextIdSegment(long ttl) {
+        Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
+
         final long maxId = nextMaxId();
         return new DefaultIdSegment(maxId, getStep(), Clock.CACHE.secondTime(), ttl);
     }
 
     default IdSegment nextIdSegment(int segments, long ttl) {
+        Preconditions.checkArgument(segments > 0, "segments:[%s] must be greater than 0.", segments);
+        Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
+
         final long totalStep = getStep(segments);
         final long maxId = nextMaxId(totalStep);
         final IdSegment nextIdSegment = new DefaultIdSegment(maxId, totalStep, Clock.CACHE.secondTime(), ttl);
@@ -83,7 +88,7 @@ public interface IdSegmentDistributor {
     }
 
     static void ensureStep(long step) {
-        Preconditions.checkArgument(step > 0, "the step:[%s] can not less than 1.", step);
+        Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
     }
 
     class Atomic implements IdSegmentDistributor {

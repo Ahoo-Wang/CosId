@@ -14,6 +14,7 @@
 package me.ahoo.cosid.snowflake.machine;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
@@ -45,6 +46,9 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
     @Override
     public MachineState get(String namespace, InstanceId instanceId) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
+
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isInfoEnabled()) {
             log.info("get - read from stateLocation : [{}].", stateFile.getAbsolutePath());
@@ -92,6 +96,10 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
     @Override
     public void set(String namespace, int machineId, InstanceId instanceId) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Preconditions.checkArgument(machineId >= 0, "machineId:[%s] must be greater than or equal to 0!", machineId);
+        Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
+
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isInfoEnabled()) {
             log.info("set - write machineId:[{}] to stateLocation : [{}].", machineId, stateFile.getAbsolutePath());
@@ -118,6 +126,9 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
     @Override
     public void remove(String namespace, InstanceId instanceId) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
+
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isInfoEnabled()) {
             log.info("remove - stateLocation : [{}].", stateFile.getAbsolutePath());
@@ -129,6 +140,8 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
     @Override
     public void clear(String namespace) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+
         if (log.isInfoEnabled()) {
             log.info("clear - namespace : [{}].", namespace);
         }
@@ -156,12 +169,17 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
     @Override
     public int size(String namespace) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+
         return getStateFilesOf(namespace).length;
     }
 
 
     @Override
     public boolean exists(String namespace, InstanceId instanceId) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
+
         File stateFile = getStateFile(namespace, instanceId);
         return stateFile.exists();
     }

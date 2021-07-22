@@ -24,6 +24,8 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 
+import java.util.UUID;
+
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
 
@@ -41,7 +43,12 @@ public class SegmentIdBenchmark {
     public void setup() {
         jdkId = new JdkId();
         segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
-        segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10000, new IdSegmentDistributor.Mock(), PrefetchWorkerExecutorService.DEFAULT);
+        segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Mock(), PrefetchWorkerExecutorService.DEFAULT);
+    }
+
+    @Benchmark
+    public UUID uuid_generate() {
+        return UUID.randomUUID();
     }
 
     @Benchmark

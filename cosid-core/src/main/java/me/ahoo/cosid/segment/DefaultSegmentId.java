@@ -14,7 +14,6 @@
 package me.ahoo.cosid.segment;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
@@ -35,7 +34,8 @@ public class DefaultSegmentId implements SegmentId {
     }
 
     public DefaultSegmentId(long idSegmentTtl, IdSegmentDistributor maxIdDistributor) {
-        Preconditions.checkArgument(idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
+        Preconditions.checkArgument(idSegmentTtl > 0, "idSegmentTtl:[%s] must be greater than 0.", idSegmentTtl);
+
         this.idSegmentTtl = idSegmentTtl;
         this.maxIdDistributor = maxIdDistributor;
     }

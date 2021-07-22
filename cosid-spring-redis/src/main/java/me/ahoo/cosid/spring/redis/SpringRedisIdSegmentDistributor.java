@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.spring.redis;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
@@ -49,7 +51,7 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
     public SpringRedisIdSegmentDistributor(String namespace,
                                            String name,
                                            StringRedisTemplate redisTemplate) {
-        this(namespace, name, DEFAULT_OFFSET, DEFAULT_STEP,  redisTemplate);
+        this(namespace, name, DEFAULT_OFFSET, DEFAULT_STEP, redisTemplate);
     }
 
     public SpringRedisIdSegmentDistributor(String namespace,
@@ -57,10 +59,15 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
                                            long offset,
                                            long step,
                                            StringRedisTemplate redisTemplate) {
-        this.step = step;
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
+        Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
+
         this.namespace = namespace;
         this.name = name;
         this.offset = offset;
+        this.step = step;
         this.redisTemplate = redisTemplate;
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
     }

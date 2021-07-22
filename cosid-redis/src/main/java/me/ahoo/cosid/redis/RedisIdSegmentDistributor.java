@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.redis;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
 import lombok.extern.slf4j.Slf4j;
@@ -59,10 +61,15 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
                                      long step,
                                      Duration timeout,
                                      RedisClusterAsyncCommands<String, String> redisCommands) {
-        this.step = step;
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
+        Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
+
         this.namespace = namespace;
         this.name = name;
         this.offset = offset;
+        this.step = step;
         this.timeout = timeout;
         this.redisCommands = redisCommands;
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";

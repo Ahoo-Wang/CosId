@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.segment.concurrent;
 
+import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -39,6 +40,7 @@ public class PrefetchWorkerExecutorService {
     private final AtomicLong threadIdx = new AtomicLong();
 
     public PrefetchWorkerExecutorService(Duration prefetchPeriod, int corePoolSize) {
+        Preconditions.checkArgument(corePoolSize > 0, "corePoolSize:[%s] must be greater than 0.", corePoolSize);
         this.prefetchPeriod = prefetchPeriod;
         this.corePoolSize = corePoolSize;
         this.workers = new DefaultPrefetchWorker[corePoolSize];
@@ -77,6 +79,7 @@ public class PrefetchWorkerExecutorService {
     }
 
     public void submit(AffinityJob affinityJob) {
+        Preconditions.checkNotNull(affinityJob, "affinityJob can not be null!");
         if (log.isInfoEnabled()) {
             log.info("submit - jobId:[{}].", affinityJob.getJobId());
         }
@@ -114,7 +117,7 @@ public class PrefetchWorkerExecutorService {
     public class GracefullyCloser extends Thread {
         @Override
         public void run() {
-            if (log.isInfoEnabled()){
+            if (log.isInfoEnabled()) {
                 log.info("Close gracefully!");
             }
             shutdown();

@@ -18,16 +18,16 @@
 
 ![Snowflake](./docs/Snowflake-identifier.png)
 
-> *SnowflakeId* is a distributed ID algorithm that uses `Long` (64 bits) bit partition to generate ID.
-> The general bit allocation scheme is : `timestamp` (41 bits) + `machineId` (10 bits) + `sequence` (12 bits) = 63 bits 。
+> *SnowflakeId* is a distributed ID algorithm that uses `Long` (64-bit) bit partition to generate ID.
+> The general bit allocation scheme is : `timestamp` (41-bit) + `machineId` (10-bit) + `sequence` (12-bit) = 63-bit。
 
-- 41 bits `timestamp` = (1L<<41)/(1000/3600/365) approximately 69 years of timestamp can be stored, that is, the usable absolute time is `EPOCH` + 69 years. Generally, we need to customize `EPOCH` as the product development time. In addition, we can increase the number of allocated bits by compressing other areas， The number of timestamp bits to extend the available time.
-- 10 bits `machineId` = (1L<<10) = 1024 That is, 1024 copies of the same business can be deployed (there is no master-slave copy in the Kubernetes concept, and the definition of Kubernetes is directly used here) instances. Generally, there is no need to use so many, so it will be redefined according to the scale of deployment.
-- 12 bits `sequence` = (1L<<12) * 1000 = 4096000 That is, a single machine can generate about 409W ID per second, and a global same-service cluster can generate 40960001024=419430W=4.19 billion (TPS).
+- 41-bit `timestamp` = (1L<<41)/(1000/3600/365) approximately 69 years of timestamp can be stored, that is, the usable absolute time is `EPOCH` + 69 years. Generally, we need to customize `EPOCH` as the product development time. In addition, we can increase the number of allocated bits by compressing other areas， The number of timestamp bits to extend the available time.
+- 10-bit `machineId` = (1L<<10) = 1024 That is, 1024 copies of the same business can be deployed (there is no master-slave copy in the Kubernetes concept, and the definition of Kubernetes is directly used here) instances. Generally, there is no need to use so many, so it will be redefined according to the scale of deployment.
+- 12-bit `sequence` = (1L<<12) * 1000 = 4096000 That is, a single machine can generate about 409W ID per second, and a global same-service cluster can generate `4096000*1024=4194304000=4.19 billion (TPS)`.
 
 It can be seen from the design of SnowflakeId:
 
-- :thumbsup: The first 41 bits are a `timestamp`,So *SnowflakeId* is local monotonically increasing, and affected by global clock synchronization *SnowflakeId* is global trend increasing.
+- :thumbsup: The first 41-bit are a `timestamp`,So *SnowflakeId* is local monotonically increasing, and affected by global clock synchronization *SnowflakeId* is global trend increasing.
 - :thumbsup: `SnowflakeId` does not have a strong dependency on any third-party middleware, and its performance is also very high.
 - :thumbsup: The bit allocation scheme can be flexibly configured according to the needs of the business system to achieve the optimal use effect.
 - :thumbsdown: Strong reliance on the local clock, potential clock moved backwards problems will cause ID duplication.
@@ -150,7 +150,7 @@ The default `SnowflakeId` will directly throw a `ClockBackwardsException` when a
 SnowflakeId snowflakeId = SafeJavaScriptSnowflakeId.ofMillisecond(1);
 ```
 
-The `Number.MAX_SAFE_INTEGER` of `JavaScript` has only 53 bits. If the 63-bit `SnowflakeId` is directly returned to the front end, the value will overflow. Usually we can convert `SnowflakeId` to String type or customize `SnowflakeId` Bit allocation is used to shorten the number of bits of `SnowflakeId` so that `ID` does not overflow when it is provided to the front end.
+The `Number.MAX_SAFE_INTEGER` of `JavaScript` has only 53-bit. If the 63-bit `SnowflakeId` is directly returned to the front end, the value will overflow. Usually we can convert `SnowflakeId` to String type or customize `SnowflakeId` Bit allocation is used to shorten the number of bits of `SnowflakeId` so that `ID` does not overflow when it is provided to the front end.
 
 ### SnowflakeFriendlyId (Can parse `SnowflakeId` into a more readable `SnowflakeIdState`)
 

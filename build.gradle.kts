@@ -38,7 +38,7 @@ ext {
     set("springfoxVersion", "3.0.0")
     set("jmhVersion", "1.29")
     set("junitPioneerVersion", "1.4.2")
-    set("coskyVersion", "1.1.11")
+    set("coskyVersion", "1.2.8")
     set("libraryProjects", libraryProjects)
 }
 

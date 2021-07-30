@@ -46,7 +46,7 @@ application {
 
 dependencies {
     implementation(platform(project(":cosid-dependencies")))
-    implementation(project(":spring-boot-starter-cosid"))
+    implementation(project(":cosid-spring-boot-starter"))
 
     implementation("io.springfox:springfox-boot-starter")
 
@@ -54,7 +54,7 @@ dependencies {
 //    implementation(project(":cosid-redis"))
 //    implementation("me.ahoo.cosky:cosky-spring-cloud-core")
 // or
-//    implementation(project(":spring-boot-starter-cosid")){
+//    implementation(project(":cosid-spring-boot-starter")){
 //        capabilities {
 //            requireCapability("me.ahoo.cosid:redis-support")
 //        }
@@ -64,7 +64,7 @@ dependencies {
     implementation(project(":cosid-spring-redis"))
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
 // or
-//    implementation(project(":spring-boot-starter-cosid")){
+//    implementation(project(":cosid-spring-boot-starter")){
 //        capabilities {
 //            requireCapability("me.ahoo.cosid:spring-redis-support")
 //        }

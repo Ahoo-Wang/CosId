@@ -25,7 +25,7 @@ buildscript {
 include(":cosid-core")
 include(":cosid-bom")
 include(":cosid-dependencies")
-include(":spring-boot-starter-cosid")
+include(":cosid-spring-boot-starter")
 include(":cosid-redis")
 include(":cosid-spring-redis")
 include(":cosid-jdbc")

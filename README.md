@@ -313,7 +313,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 
 ``` kotlin
     val cosidVersion = "1.3.4";
-    implementation("me.ahoo.cosid:spring-boot-starter-cosid:${cosidVersion}")
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
 ### Maven
@@ -334,7 +334,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <dependencies>
         <dependency>
             <groupId>me.ahoo.cosid</groupId>
-            <artifactId>spring-boot-starter-cosid</artifactId>
+            <artifactId>cosid-spring-boot-starter</artifactId>
             <version>${cosid.version}</version>
         </dependency>
     </dependencies>

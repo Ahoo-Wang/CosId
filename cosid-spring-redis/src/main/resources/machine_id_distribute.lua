@@ -27,7 +27,7 @@ if machineState then
 end
 
 local instanceRevertKey = 'cosid' .. ':' .. namespace .. ':revert';
-local machineData = redis.call('hscan', instanceRevertKey, 0, 'match', '*', 'count', 1)[2];
+local machineData = redis.call('hgetall', instanceRevertKey);
 local machineId = 0;
 if #machineData > 0 then
     machineId = machineData[1];

@@ -196,6 +196,7 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 #### MySqlChainIdBenchmark-Percentile
 
 ![MySqlChainIdBenchmark-Sample](docs/jmh/MySqlChainIdBenchmark-Sample.png)
+
 ## 基准测试报告运行环境说明
 
 - 基准测试运行环境：笔记本开发机(MacBook-Pro-(M1))

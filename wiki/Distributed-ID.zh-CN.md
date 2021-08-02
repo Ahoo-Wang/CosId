@@ -1,4 +1,4 @@
-# 分布式ID生成器（[CosId](https://github.com/Ahoo-Wang/CosId) ）设计与实现
+# 分布式ID生成器（[CosId](https://github.com/Ahoo-Wang/CosId)）设计与实现
 
 ## [CosId](https://github.com/Ahoo-Wang/CosId) 简介
 
@@ -175,11 +175,23 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 
 ### SegmentChainId-吞吐量 (ops/s)
 
+#### RedisChainIdBenchmark-Throughput
+
 ![RedisChainIdBenchmark-Throughput](../docs/jmh/RedisChainIdBenchmark-Throughput.png)
 
-### SegmentChainId-每次操作耗时的百分位数
+#### MySqlChainIdBenchmark-Throughput
+
+![MySqlChainIdBenchmark-Throughput](../docs/jmh/MySqlChainIdBenchmark-Throughput.png)
+
+### SegmentChainId-每次操作耗时的百分位数(us/op)
+
+#### RedisChainIdBenchmark-Percentile
 
 ![RedisChainIdBenchmark-Sample](../docs/jmh/RedisChainIdBenchmark-Sample.png)
+
+#### MySqlChainIdBenchmark-Percentile
+
+![MySqlChainIdBenchmark-Sample](../docs/jmh/MySqlChainIdBenchmark-Sample.png)
 
 ## 基准测试报告运行环境说明
 

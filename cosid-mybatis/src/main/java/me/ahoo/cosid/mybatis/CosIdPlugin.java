@@ -14,8 +14,7 @@
 package me.ahoo.cosid.mybatis;
 
 
-import me.ahoo.cosid.annotation.CosId;
-import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.support.CosIdAnnotationSupport;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.SqlCommandType;
@@ -24,9 +23,8 @@ import org.apache.ibatis.plugin.Intercepts;
 import org.apache.ibatis.plugin.Invocation;
 import org.apache.ibatis.plugin.Signature;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * @author ahoo wang
@@ -38,12 +36,10 @@ import java.util.stream.Collectors;
 public class CosIdPlugin implements Interceptor {
 
     public static final String DEFAULT_LIST_KEY = "list";
-    private final IdGeneratorProvider idGeneratorProvider;
-    private final ConcurrentHashMap<Class<?>, List<CosIdField>> classMapField;
+    private final CosIdAnnotationSupport cosIdSupport;
 
-    public CosIdPlugin(IdGeneratorProvider idGeneratorProvider) {
-        classMapField = new ConcurrentHashMap<>();
-        this.idGeneratorProvider = idGeneratorProvider;
+    public CosIdPlugin(CosIdAnnotationSupport cosIdSupport) {
+        this.cosIdSupport = cosIdSupport;
     }
 
     @SuppressWarnings("rawtypes")
@@ -58,29 +54,15 @@ public class CosIdPlugin implements Interceptor {
 
         Object parameter = args[1];
         if (!(parameter instanceof Map)) {
-            ensureId(parameter);
+            cosIdSupport.ensureId(parameter);
             return invocation.proceed();
         }
 
         Collection entityList = (Collection) ((Map) parameter).get(DEFAULT_LIST_KEY);
 
         for (Object entity : entityList) {
-            ensureId(entity);
+            cosIdSupport.ensureId(entity);
         }
         return invocation.proceed();
-    }
-
-    private void ensureId(Object entity) {
-        getCosIdFields(entity.getClass()).forEach(cosIdField -> cosIdField.ensureId(entity, idGeneratorProvider));
-    }
-
-    private List<CosIdField> getCosIdFields(Class<?> entityClass) {
-        return classMapField.computeIfAbsent(entityClass, (key) -> Arrays.stream(entityClass.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(CosId.class))
-                .map(field -> {
-                    CosId cosId = field.getAnnotation(CosId.class);
-                    return new CosIdField(cosId, field);
-                })
-                .collect(Collectors.toList()));
     }
 }

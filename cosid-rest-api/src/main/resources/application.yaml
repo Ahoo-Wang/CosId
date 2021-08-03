@@ -45,7 +45,7 @@ cosid:
         core-pool-size: 2
         prefetch-period: 1s
     distributor:
-      type: redis
+      type: jdbc
     share:
       offset: 0
       step: 100

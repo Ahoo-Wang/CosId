@@ -24,7 +24,7 @@ import java.util.function.Supplier;
  * @author ahoo wang
  */
 public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
-
+    public static final IdGeneratorProvider INSTANCE = new DefaultIdGeneratorProvider();
     private IdGenerator shareIdGenerator;
 
     private final ConcurrentHashMap<String, IdGenerator> nameMapIdGen;

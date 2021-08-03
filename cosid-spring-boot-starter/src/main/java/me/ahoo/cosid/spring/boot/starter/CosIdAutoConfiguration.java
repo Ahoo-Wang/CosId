@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.boot.starter;
 
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.support.CosIdAnnotationSupport;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -36,6 +37,12 @@ public class CosIdAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public IdGeneratorProvider idGeneratorProvider() {
-        return new DefaultIdGeneratorProvider();
+        return DefaultIdGeneratorProvider.INSTANCE;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public CosIdAnnotationSupport cosIdAnnotationSupport(IdGeneratorProvider idGeneratorProvider) {
+        return new CosIdAnnotationSupport(idGeneratorProvider);
     }
 }

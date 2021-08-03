@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.mybatis;
+package me.ahoo.cosid.support;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;

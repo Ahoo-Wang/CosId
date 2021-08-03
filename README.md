@@ -358,11 +358,11 @@ public interface OrderRepository {
         orderRepository.insert(order);
         /**
          * {
-         *     "id": 212980826009239550,
-         *     "stringId": "212980826009239553",
-         *     "friendlyId": "20210803170945913-0-2",
-         *     "bizId": 26996
-         *   }
+         *   "id": 213044050087903230,
+         *   "stringId": "213044050087903233",
+         *   "friendlyId": "20210803212059708-0-2",
+         *   "bizId": 28801
+         * }
          */
         return order;
 ```

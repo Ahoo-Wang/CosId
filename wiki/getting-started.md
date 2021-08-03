@@ -13,8 +13,7 @@
     - `IdSegmentDistributor`: 号段分发器（号段存储器）
         - `RedisIdSegmentDistributor`: 基于 *Redis* 的号段分发器。
         - `JdbcIdSegmentDistributor`: 基于 *Jdbc* 的号段分发器，支持各种关系型数据库。
-    - `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:
-      12743W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) 。
+    - `SegmentChainId`(**推荐**):`SegmentChainId`(*lock-free*) 是对`SegmentId`的增强。性能可达到近似`AtomicLong`的*TPS性能:12743W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) 。
         - `PrefetchWorker` 维护安全距离(`safeDistance`), 并且支持基于饥饿状态的动态`safeDistance`扩容/收缩。
 
 ## SnowflakeId
@@ -296,8 +295,7 @@ cosid:
 IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 ```
 
-在实际使用中我们一般不会所有业务服务使用同一个 `IdGenerator` ，而是不同的业务使用不同的 `IdGenerator`，那么 `IdGeneratorProvider`
-就是为了解决这个问题而存在的，他是 `IdGenerator` 的容器，可以通过业务名来获取相应的 `IdGenerator`。
+在实际使用中我们一般不会所有业务服务使用同一个`IdGenerator`而是不同的业务使用不同的`IdGenerator`，那么`IdGeneratorProvider`就是为了解决这个问题而存在的，他是 `IdGenerator`的容器，可以通过业务名来获取相应的`IdGenerator`。
 
 ### CosIdPlugin（MyBatis 插件）
 
@@ -308,7 +306,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 @Retention(RetentionPolicy.RUNTIME)
 public @interface CosId {
     String value() default IdGeneratorProvider.SHARE;
-    
+
     boolean friendlyId() default false;
 }
 ```
@@ -336,6 +334,7 @@ public class Order {
 ```
 
 ```java
+
 @Mapper
 public interface OrderRepository {
     @Insert("insert into t_order (id,string_id,friendly_id,biz_id) value (#{id},#{stringId},#{friendlyId},#{bizId});")
@@ -354,15 +353,15 @@ public interface OrderRepository {
 ```
 
 ```java
-        Order order = new Order();
+        Order order=new Order();
         orderRepository.insert(order);
         /**
          * {
-         *     "id": 212980826009239550,
-         *     "stringId": "212980826009239553",
-         *     "friendlyId": "20210803170945913-0-2",
-         *     "bizId": 26996
-         *   }
+         *   "id": 213044050087903230,
+         *   "stringId": "213044050087903233",
+         *   "friendlyId": "20210803212059708-0-2",
+         *   "bizId": 28801
+         * }
          */
         return order;
 ```

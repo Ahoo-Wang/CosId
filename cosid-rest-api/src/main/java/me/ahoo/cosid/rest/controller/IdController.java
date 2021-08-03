@@ -66,5 +66,4 @@ public class IdController {
 
         throw new IllegalArgumentException(Strings.lenientFormat("idGenerator:[%s] is not SnowflakeFriendlyId.", name));
     }
-
 }

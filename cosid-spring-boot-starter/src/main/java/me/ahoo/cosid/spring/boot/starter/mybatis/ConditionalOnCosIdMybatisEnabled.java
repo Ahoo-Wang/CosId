@@ -11,23 +11,21 @@
  * limitations under the License.
  */
 
-rootProject.name = "CosId"
+package me.ahoo.cosid.spring.boot.starter.mybatis;
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath("io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.30.0")
-    }
+import me.ahoo.cosid.mybatis.CosIdPlugin;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+/**
+ * @author ahoo wang
+ */
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.TYPE, ElementType.METHOD})
+@ConditionalOnClass(CosIdPlugin.class)
+public @interface ConditionalOnCosIdMybatisEnabled {
 }
-
-include(":cosid-core")
-include(":cosid-bom")
-include(":cosid-dependencies")
-include(":cosid-spring-boot-starter")
-include(":cosid-redis")
-include(":cosid-spring-redis")
-include(":cosid-jdbc")
-include(":cosid-mybatis")
-include(":cosid-rest-api")

@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.redis;
 
+import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.*;
@@ -57,8 +58,11 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         }
 
         List<String> keys = Collections.singletonList(hashTag(namespace));
-        String[] values = {instanceId.getInstanceId(), String.valueOf(maxMachineId(machineBit))};
+        Object[] values = {instanceId.getInstanceId(), String.valueOf(maxMachineId(machineBit))};
+        @SuppressWarnings("unchecked")
         List<Long> state = (List<Long>) redisTemplate.execute(MACHINE_ID_DISTRIBUTE, keys, values);
+        Preconditions.checkState(state != null, "state can not be null!");
+        Preconditions.checkState(state.size() > 0, "state.size must be greater than 0!");
         int realMachineId = state.get(0).intValue();
         if (realMachineId == -1) {
             throw new MachineIdOverflowException(totalMachineIds(machineBit), instanceId);
@@ -95,7 +99,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
             lastStamp = System.currentTimeMillis();
         }
         List<String> keys = Collections.singletonList(hashTag(namespace));
-        String[] values = {instanceId.getInstanceId(), String.valueOf(lastStamp)};
+        Object[] values = {instanceId.getInstanceId(), String.valueOf(lastStamp)};
 
         redisTemplate.execute(script, keys, values);
     }
@@ -104,7 +108,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
      * redis hash tag for redis-cluster
      *
      * @param key
-     * @return
+     * @return hash tag key
      */
     public static String hashTag(String key) {
         return "{" + key + "}";

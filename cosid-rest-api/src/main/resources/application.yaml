@@ -56,6 +56,8 @@ cosid:
       bizD:
         offset: 10000
         step: 100
+
+
 logging:
   level:
     me.ahoo.cosid: debug

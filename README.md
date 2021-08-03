@@ -41,7 +41,7 @@ It mainly solves two major problems of `SnowflakeId`: machine number allocation 
 
 ### MachineIdDistributor
 
-> Currently [CosId](https:github.comAhoo-WangCosId) provides the following three `MachineId` distributors.
+> Currently [CosId](https://github.com/Ahoo-Wang/CosId) provides the following three `MachineId` distributors.
 
 #### ManualMachineIdDistributor
 
@@ -299,6 +299,74 @@ IdGenerator idGenerator = idGeneratorProvider.get("bizA");
 
 In actual use, we generally do not use the same `IdGenerator` for all business services, but different businesses use different `IdGenerator`, then `IdGeneratorProvider` exists to solve this problem, and it is the container of `IdGenerator` , You can get the corresponding `IdGenerator` by the business name.
 
+### CosIdPlugin (MyBatis Plugin)
+
+```java
+
+@Target({ElementType.FIELD})
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+public @interface CosId {
+    String value() default IdGeneratorProvider.SHARE;
+    
+    boolean friendlyId() default false;
+}
+```
+
+```java
+public class Order {
+
+    @CosId
+    private long id;
+
+    @CosId
+    private String stringId;
+
+    @CosId(friendlyId = true)
+    private String friendlyId;
+
+    @CosId(value = "bizC")
+    private long bizId;
+
+    /**
+     * ...
+     * getter or setter
+     */
+}
+```
+
+```java
+@Mapper
+public interface OrderRepository {
+    @Insert("insert into t_order (id,string_id,friendly_id,biz_id) value (#{id},#{stringId},#{friendlyId},#{bizId});")
+    void insert(Order order);
+
+    @Insert({
+            "<script>",
+            "insert into t_order (id,string_id,friendly_id,biz_id)",
+            "VALUES" +
+                    "<foreach item='item' collection='list' open='' separator=',' close=''>" +
+                    "(#{item.id},#{item.stringId},#{item.friendlyId},#{item.bizId})" +
+                    "</foreach>",
+            "</script>"})
+    void insertList(List<Order> orderList);
+}
+```
+
+```java
+        Order order = new Order();
+        orderRepository.insert(order);
+        /**
+         * {
+         *     "id": 212980826009239550,
+         *     "stringId": "212980826009239553",
+         *     "friendlyId": "20210803170945913-0-2",
+         *     "bizId": 26996
+         *   }
+         */
+        return order;
+```
+
 ## Examples
 
 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-rest-api)
@@ -312,7 +380,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.3.6";
+    val cosidVersion = "1.3.8";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -328,7 +396,7 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.3.6</cosid.version>
+        <cosid.version>1.3.8</cosid.version>
     </properties>
 
     <dependencies>
@@ -418,7 +486,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.3.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.3.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -439,7 +507,7 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.3.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.3.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
@@ -457,7 +525,7 @@ RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743
 ![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.3.6-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.3.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -482,7 +550,7 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 ``` shell
 gradle cosid-jdbc:jmh
 # or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
 
 ```
@@ -498,7 +566,7 @@ MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.
 ![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.6-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 ```
 Benchmark                                            Mode      Cnt    Score   Error  Units

@@ -24,6 +24,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "jdbc-support", version.toString())
     }
+    registerFeature("mybatisSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "mybatis-support", version.toString())
+    }
 }
 
 dependencies {
@@ -36,6 +40,8 @@ dependencies {
     "redisSupportImplementation"("me.ahoo.cosky:cosky-spring-cloud-core")
 
     "jdbcSupportImplementation"(project(":cosid-jdbc"))
+
+    "mybatisSupportImplementation"(project(":cosid-mybatis"))
     api("org.springframework.boot:spring-boot-starter")
     api("org.springframework.cloud:spring-cloud-commons")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:${rootProject.ext.get("springBootVersion")}")

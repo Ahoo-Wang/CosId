@@ -17,6 +17,8 @@ dependencies {
     api(platform("me.ahoo.cosky:cosky-bom:${rootProject.ext.get("coskyVersion")}"))
     constraints {
         api("org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}")
+        api("org.mybatis:mybatis:${rootProject.ext.get("mybatisVersion")}")
+        api("org.mybatis.spring.boot:mybatis-spring-boot-starter:${rootProject.ext.get("mybatisBootVersion")}")
         api("com.google.guava:guava:${rootProject.ext.get("guavaVersion")}")
         api("org.junit-pioneer:junit-pioneer:${rootProject.ext.get("junitPioneerVersion")}")
         api("io.springfox:springfox-boot-starter:${rootProject.ext.get("springfoxVersion")}")

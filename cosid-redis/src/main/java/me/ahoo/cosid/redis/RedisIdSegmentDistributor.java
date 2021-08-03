@@ -75,10 +75,12 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
     }
 
+    @Override
     public String getNamespace() {
         return namespace;
     }
 
+    @Override
     public String getName() {
         return name;
     }
@@ -95,11 +97,11 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
     @Override
     public long nextMaxId(long step) {
         IdSegmentDistributor.ensureStep(step);
-        long maxId = Futures.getUnChecked(fetchMaxIdAsync(step), timeout);
+        long nextMaxId = Futures.getUnChecked(fetchMaxIdAsync(step), timeout);
         if (log.isDebugEnabled()) {
-            log.debug("nextMaxId - step:[{}] - maxId:[{}].", step, maxId);
+            log.debug("nextMaxId - step:[{}] - nextMaxId:[{}].", step, nextMaxId);
         }
-        return maxId;
+        return nextMaxId;
     }
 
     private CompletableFuture<Long> fetchMaxIdAsync(long step) {

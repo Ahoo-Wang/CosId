@@ -77,6 +77,11 @@ dependencies {
     implementation("mysql:mysql-connector-java")
     //endregion
 
+    //region cosid-mybatis
+    implementation(project(":cosid-mybatis"))
+    implementation("org.mybatis.spring.boot:mybatis-spring-boot-starter")
+    //endregion
+
     implementation("io.springfox:springfox-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 

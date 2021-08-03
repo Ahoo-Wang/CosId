@@ -6,12 +6,15 @@
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 目前提供了俩类 ID 生成器：
 
-- `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) , 主要解决 *时钟回拨问题* 、*机器号分配问题* 并且提供更加友好、灵活的使用体验。
+- `SnowflakeId` : *单机 TPS
+  性能：409W/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) , 主要解决 *时钟回拨问题* 、*
+  机器号分配问题* 并且提供更加友好、灵活的使用体验。
 - `SegmentId`: 每次获取一段 (`Step`) ID，来降低号段分发器的网络IO请求频次提升性能。
     - `IdSegmentDistributor`: 号段分发器（号段存储器）
         - `RedisIdSegmentDistributor`: 基于 *Redis* 的号段分发器。
         - `JdbcIdSegmentDistributor`: 基于 *Jdbc* 的号段分发器，支持各种关系型数据库。
-    - `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) 。
+    - `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:
+      12743W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) 。
         - `PrefetchWorker` 维护安全距离(`safeDistance`), 并且支持基于饥饿状态的动态`safeDistance`扩容/收缩。
 
 ## SnowflakeId
@@ -144,7 +147,8 @@ cosid:
       clock-sync: true
 ```
 
-默认 `SnowflakeId` 当发生时钟回拨时会直接抛出 `ClockBackwardsException` 异常，而使用 `ClockSyncSnowflakeId` 会使用 `ClockBackwardsSynchronizer` 主动等待时钟同步来重新生成 ID，提供更加友好的使用体验。
+默认 `SnowflakeId` 当发生时钟回拨时会直接抛出 `ClockBackwardsException` 异常，而使用 `ClockSyncSnowflakeId` 会使用 `ClockBackwardsSynchronizer`
+主动等待时钟同步来重新生成 ID，提供更加友好的使用体验。
 
 ### SafeJavaScriptSnowflakeId (`JavaScript` 安全的 `SnowflakeId`)
 
@@ -292,7 +296,76 @@ cosid:
 IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 ```
 
-在实际使用中我们一般不会所有业务服务使用同一个 `IdGenerator` ，而是不同的业务使用不同的 `IdGenerator`，那么 `IdGeneratorProvider`就是为了解决这个问题而存在的，他是 `IdGenerator` 的容器，可以通过业务名来获取相应的 `IdGenerator`。
+在实际使用中我们一般不会所有业务服务使用同一个 `IdGenerator` ，而是不同的业务使用不同的 `IdGenerator`，那么 `IdGeneratorProvider`
+就是为了解决这个问题而存在的，他是 `IdGenerator` 的容器，可以通过业务名来获取相应的 `IdGenerator`。
+
+### CosIdPlugin（MyBatis 插件）
+
+```java
+
+@Target({ElementType.FIELD})
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+public @interface CosId {
+    String value() default IdGeneratorProvider.SHARE;
+    
+    boolean friendlyId() default false;
+}
+```
+
+```java
+public class Order {
+
+    @CosId
+    private long id;
+
+    @CosId
+    private String stringId;
+
+    @CosId(friendlyId = true)
+    private String friendlyId;
+
+    @CosId(value = "bizC")
+    private long bizId;
+
+    /**
+     * ...
+     * getter or setter
+     */
+}
+```
+
+```java
+@Mapper
+public interface OrderRepository {
+    @Insert("insert into t_order (id,string_id,friendly_id,biz_id) value (#{id},#{stringId},#{friendlyId},#{bizId});")
+    void insert(Order order);
+
+    @Insert({
+            "<script>",
+            "insert into t_order (id,string_id,friendly_id,biz_id)",
+            "VALUES" +
+                    "<foreach item='item' collection='list' open='' separator=',' close=''>" +
+                    "(#{item.id},#{item.stringId},#{item.friendlyId},#{item.bizId})" +
+                    "</foreach>",
+            "</script>"})
+    void insertList(List<Order> orderList);
+}
+```
+
+```java
+        Order order = new Order();
+        orderRepository.insert(order);
+        /**
+         * {
+         *     "id": 212980826009239550,
+         *     "stringId": "212980826009239553",
+         *     "friendlyId": "20210803170945913-0-2",
+         *     "bizId": 26996
+         *   }
+         */
+        return order;
+```
 
 ## Examples
 
@@ -307,7 +380,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.3.6";
+    val cosidVersion = "1.3.8";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -323,7 +396,7 @@ IdGenerator idGenerator=idGeneratorProvider.get("bizA");
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.3.6</cosid.version>
+        <cosid.version>1.3.8</cosid.version>
     </properties>
 
     <dependencies>
@@ -411,7 +484,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.3.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.3.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -432,7 +505,7 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.3.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.3.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
@@ -450,7 +523,7 @@ RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743
 ![RedisChainIdBenchmark-Sample](../docs/jmh/RedisChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.3.6-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.3.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -475,7 +548,7 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 ``` shell
 gradle cosid-jdbc:jmh
 # or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
 
 ```
@@ -491,8 +564,9 @@ MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.
 ![MySqlChainIdBenchmark-Sample](../docs/jmh/MySqlChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.6-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
+
 ```
 Benchmark                                            Mode      Cnt    Score   Error  Units
 MySqlChainIdBenchmark.step_1000                    sample  1286774    0.024 ± 0.001  us/op

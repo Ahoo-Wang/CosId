@@ -11,23 +11,31 @@
  * limitations under the License.
  */
 
-rootProject.name = "CosId"
+package me.ahoo.cosid.annotation;
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath("io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.30.0")
-    }
+import me.ahoo.cosid.provider.IdGeneratorProvider;
+
+import java.lang.annotation.*;
+
+/**
+ * @author ahoo wang
+ */
+@Target({ElementType.FIELD})
+@Documented
+@Retention(RetentionPolicy.RUNTIME)
+public @interface CosId {
+    /**
+     * id generator name
+     * {@link IdGeneratorProvider#get(String)}
+     *
+     * @return id generator name
+     */
+    String value() default IdGeneratorProvider.SHARE;
+
+    /**
+     * {@link me.ahoo.cosid.snowflake.SnowflakeFriendlyId}
+     *
+     * @return
+     */
+    boolean friendlyId() default false;
 }
-
-include(":cosid-core")
-include(":cosid-bom")
-include(":cosid-dependencies")
-include(":cosid-spring-boot-starter")
-include(":cosid-redis")
-include(":cosid-spring-redis")
-include(":cosid-jdbc")
-include(":cosid-mybatis")
-include(":cosid-rest-api")

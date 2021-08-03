@@ -75,6 +75,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
                     return redisCommands.evalsha(scriptSha, ScriptOutputType.MULTI, keys, values);
                 }
         ).thenApply(distribution -> {
+            @SuppressWarnings("unchecked")
             List<Long> state = (List<Long>) distribution;
             int realMachineId = state.get(0).intValue();
 
@@ -105,7 +106,6 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
      * @param machineState
      * @return
      */
-
     protected CompletableFuture<Void> revertAsync0(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
             log.info("revertAsync - instanceId:[{}] @ namespace:[{}].", instanceId, namespace);
@@ -136,7 +136,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
      * redis hash tag for redis-cluster
      *
      * @param key
-     * @return
+     * @return hash tag key
      */
     public static String hashTag(String key) {
         return "{" + key + "}";

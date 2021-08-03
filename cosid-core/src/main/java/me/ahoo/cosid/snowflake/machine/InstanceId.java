@@ -33,7 +33,7 @@ public class InstanceId {
     /**
      * 稳定的的实例拥有稳定的机器号
      *
-     * @return
+     * @return Is the instance deployment status stable?
      */
     public boolean isStable() {
         return stable;

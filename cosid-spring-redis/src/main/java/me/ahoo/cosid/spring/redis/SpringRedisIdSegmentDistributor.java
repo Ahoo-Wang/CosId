@@ -72,10 +72,12 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
     }
 
+    @Override
     public String getNamespace() {
         return namespace;
     }
 
+    @Override
     public String getName() {
         return name;
     }
@@ -93,12 +95,13 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
     public long nextMaxId(long step) {
         IdSegmentDistributor.ensureStep(step);
         List<String> keys = Collections.singletonList(adderKey);
-        String[] values = {String.valueOf(offset), String.valueOf(step)};
-        long maxId = redisTemplate.execute(REDIS_ID_GENERATE, keys, values);
+        Object[] values = {String.valueOf(offset), String.valueOf(step)};
+        Long nextMaxId = redisTemplate.execute(REDIS_ID_GENERATE, keys, values);
+        Preconditions.checkNotNull(nextMaxId,"nextMaxId can not be null!");
         if (log.isDebugEnabled()) {
-            log.debug("nextMaxId - step:[{}] - maxId:[{}].", step, maxId);
+            log.debug("nextMaxId - step:[{}] - nextMaxId:[{}].", step, nextMaxId);
         }
-        return maxId;
+        return nextMaxId;
     }
 
 

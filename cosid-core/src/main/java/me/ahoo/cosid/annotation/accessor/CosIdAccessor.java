@@ -16,6 +16,7 @@ package me.ahoo.cosid.annotation.accessor;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.annotation.CosIdDefinition;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 
@@ -28,9 +29,9 @@ import java.util.Objects;
 public interface CosIdAccessor extends CosIdGetter, CosIdSetter {
 
     default boolean ensureId(Object target, IdGeneratorProvider idGeneratorProvider) {
-
+        CosIdDefinition cosIdDefinition = getCosIdDefinition();
         Preconditions.checkArgument(getIdDeclaringClass().isInstance(target), "target:[%s] is not instance of IdDeclaringClass:[%s]", target, getIdDeclaringClass());
-        IdGenerator idGenerator = idGeneratorProvider.get(getCosId().value()).orElseThrow(() -> new IllegalArgumentException(Strings.lenientFormat("idGenerator:[%s] not fond.", getCosId().value())));
+        IdGenerator idGenerator = idGeneratorProvider.get(cosIdDefinition.getGeneratorName()).orElseThrow(() -> new IllegalArgumentException(Strings.lenientFormat("idGenerator:[%s] not fond.", cosIdDefinition.getGeneratorName())));
 
         Object previousId = get(target);
 
@@ -39,12 +40,12 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter {
                 return false;
             }
 
-            if (!getCosId().friendlyId()) {
+            if (!cosIdDefinition.isFriendlyId()) {
                 set(target, idGenerator.generateAsString());
                 return true;
             }
 
-            Preconditions.checkState(idGenerator instanceof SnowflakeFriendlyId, "idGenerator:[%s] is not SnowflakeFriendlyId. IdType:[%s]", getCosId().value(), getIdType());
+            Preconditions.checkState(idGenerator instanceof SnowflakeFriendlyId, "idGenerator:[%s] is not SnowflakeFriendlyId. IdType:[%s]", cosIdDefinition.getGeneratorName(), getIdType());
             String friendlyId = ((SnowflakeFriendlyId) idGenerator).friendlyId().getFriendlyId();
             set(target, friendlyId);
             return true;

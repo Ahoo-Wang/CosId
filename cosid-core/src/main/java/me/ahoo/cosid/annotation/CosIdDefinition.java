@@ -11,32 +11,36 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation.accessor;
+package me.ahoo.cosid.annotation;
 
-import me.ahoo.cosid.annotation.CosIdDefinition;
-import me.ahoo.cosid.annotation.IdMetadata;
-
-import java.lang.reflect.Field;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 /**
  * @author ahoo wang
  */
-public abstract class AbstractIdMetadata implements IdMetadata {
-    private final CosIdDefinition cosIdDefinition;
-    private final Field idField;
+public class CosIdDefinition {
 
-    public AbstractIdMetadata(CosIdDefinition cosIdDefinition, Field idField) {
-        this.cosIdDefinition = cosIdDefinition;
-        this.idField = idField;
+    private final String generatorName;
+    private final boolean friendlyId;
+
+    public CosIdDefinition() {
+        this(IdGeneratorProvider.SHARE, false);
     }
 
-    @Override
-    public CosIdDefinition getCosIdDefinition() {
-        return cosIdDefinition;
+    public CosIdDefinition(String generatorName, boolean friendlyId) {
+        this.generatorName = generatorName;
+        this.friendlyId = friendlyId;
     }
 
-    @Override
-    public Field getIdField() {
-        return idField;
+    public String getGeneratorName() {
+        return generatorName;
+    }
+
+    public boolean isFriendlyId() {
+        return friendlyId;
+    }
+
+    public static CosIdDefinition of(CosId cosId) {
+        return new CosIdDefinition(cosId.value(), cosId.friendlyId());
     }
 }

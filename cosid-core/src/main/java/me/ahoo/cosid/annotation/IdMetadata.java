@@ -20,7 +20,7 @@ import java.lang.reflect.Field;
  */
 public interface IdMetadata {
 
-    CosId getCosId();
+    CosIdDefinition getCosIdDefinition();
 
     Field getIdField();
 

@@ -16,6 +16,7 @@ package me.ahoo.cosid.annotation.accessor;
 import com.google.common.collect.ImmutableMap;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.annotation.CosIdDefinition;
 import me.ahoo.cosid.annotation.accessor.field.FieldGetter;
 import me.ahoo.cosid.annotation.accessor.field.FieldSetter;
 import me.ahoo.cosid.annotation.accessor.method.MethodGetter;
@@ -102,12 +103,12 @@ public abstract class CosIdAccessorSupport {
                 }
 
                 CosId cosId = declaredField.getAnnotation(CosId.class);
-
+                CosIdDefinition cosIdDefinition = CosIdDefinition.of(cosId);
                 Method getter = resolveGetter(currentDeclaringClass, declaredField);
                 Method setter = resolveSetter(currentDeclaringClass, declaredField);
 
-                CosIdGetter cosIdGetter = getter != null ? new MethodGetter(cosId, declaredField, getter) : new FieldGetter(cosId, declaredField);
-                CosIdSetter cosIdSetter = setter != null ? new MethodSetter(cosId, declaredField, setter) : new FieldSetter(cosId, declaredField);
+                CosIdGetter cosIdGetter = getter != null ? new MethodGetter(cosIdDefinition, declaredField, getter) : new FieldGetter(cosIdDefinition, declaredField);
+                CosIdSetter cosIdSetter = setter != null ? new MethodSetter(cosIdDefinition, declaredField, setter) : new FieldSetter(cosIdDefinition, declaredField);
                 CosIdAccessor cosIdAccessor = new DefaultCosIdAccessor(cosIdGetter, cosIdSetter);
                 cosIdAccessors.put(declaredField, cosIdAccessor);
             }

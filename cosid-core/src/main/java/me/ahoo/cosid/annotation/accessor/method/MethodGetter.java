@@ -14,7 +14,7 @@
 package me.ahoo.cosid.annotation.accessor.method;
 
 import me.ahoo.cosid.CosIdException;
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.annotation.CosIdDefinition;
 import me.ahoo.cosid.annotation.accessor.AbstractIdMetadata;
 import me.ahoo.cosid.annotation.accessor.CosIdAccessor;
 import me.ahoo.cosid.annotation.accessor.CosIdGetter;
@@ -29,8 +29,8 @@ import java.lang.reflect.Method;
 public class MethodGetter extends AbstractIdMetadata implements CosIdGetter {
     private final Method getter;
 
-    public MethodGetter(CosId cosId, Field idField, Method getter) {
-        super(cosId, idField);
+    public MethodGetter(CosIdDefinition cosIdDefinition, Field idField, Method getter) {
+        super(cosIdDefinition, idField);
         this.getter = getter;
         CosIdAccessor.ensureAccessible(getter);
     }

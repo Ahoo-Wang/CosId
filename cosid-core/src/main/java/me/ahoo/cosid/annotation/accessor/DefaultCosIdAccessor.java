@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.annotation.accessor;
 
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.annotation.CosIdDefinition;
 
 import java.lang.reflect.Field;
 
@@ -31,8 +31,8 @@ public class DefaultCosIdAccessor implements CosIdAccessor {
     }
 
     @Override
-    public CosId getCosId() {
-        return getter.getCosId();
+    public CosIdDefinition getCosIdDefinition() {
+        return getter.getCosIdDefinition();
     }
 
     @Override

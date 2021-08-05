@@ -13,27 +13,18 @@
 
 package me.ahoo.cosid.annotation;
 
-import me.ahoo.cosid.annotation.accessor.CosIdAccessor;
-import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.annotation.accessor.CosIdAccessorSupport;
-
 /**
  * @author ahoo wang
  */
-public class CosIdAnnotationSupport {
+public class LongIdEntity {
+    @CosId
+    private Long id;
 
-    private final IdGeneratorProvider idGeneratorProvider;
-
-    public CosIdAnnotationSupport(IdGeneratorProvider idGeneratorProvider) {
-        this.idGeneratorProvider = idGeneratorProvider;
+    public Long getId() {
+        return id;
     }
 
-    public boolean ensureId(Object entity) {
-        CosIdAccessor cosIdAccessor = CosIdAccessorSupport.getCosIdAccessor(entity.getClass());
-        if (CosIdAccessor.NOT_FOUND.equals(cosIdAccessor)) {
-            return false;
-        }
-        return cosIdAccessor.ensureId(entity, idGeneratorProvider);
+    public void setId(Long id) {
+        this.id = id;
     }
-
 }

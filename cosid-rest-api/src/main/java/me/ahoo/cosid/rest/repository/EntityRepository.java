@@ -13,7 +13,8 @@
 
 package me.ahoo.cosid.rest.repository;
 
-import me.ahoo.cosid.rest.entity.Order;
+import me.ahoo.cosid.rest.entity.FriendlyIdEntity;
+import me.ahoo.cosid.rest.entity.LongIdEntity;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 
@@ -23,17 +24,18 @@ import java.util.List;
  * @author ahoo wang
  */
 @Mapper
-public interface OrderRepository {
-    @Insert("insert into t_order (id,string_id,friendly_id,biz_id) value (#{id},#{stringId},#{friendlyId},#{bizId});")
-    void insert(Order order);
+public interface EntityRepository {
+
+    @Insert("insert into t_table (id) value (#{id});")
+    void insert(LongIdEntity order);
 
     @Insert({
             "<script>",
-            "insert into t_order (id,string_id,friendly_id,biz_id)",
+            "insert into t_friendly_table (id)",
             "VALUES" +
                     "<foreach item='item' collection='list' open='' separator=',' close=''>" +
-                    "(#{item.id},#{item.stringId},#{item.friendlyId},#{item.bizId})" +
+                    "(#{item.id})" +
                     "</foreach>",
             "</script>"})
-    void insertList(List<Order> orderList);
+    void insertList(List<FriendlyIdEntity> list);
 }

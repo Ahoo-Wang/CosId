@@ -29,17 +29,24 @@ public class CosIdAnnotationSupportTest {
     @Test
     void ensureId() {
         idGeneratorProvider.setShare(JdkId.INSTANCE);
-        TestEntity entity = new TestEntity();
+        LongIdEntity entity = new LongIdEntity();
         cosIdSupport.ensureId(entity);
-        Assertions.assertEquals("1", entity.getStringId());
-        Assertions.assertEquals(2, entity.getId());
+        Assertions.assertTrue(entity.getId()>0);
+    }
+
+    @Test
+    void ensureChildId() {
+        idGeneratorProvider.setShare(JdkId.INSTANCE);
+        ChildEntity entity = new ChildEntity();
+        cosIdSupport.ensureId(entity);
+        Assertions.assertTrue(entity.getId()>0);
     }
 
     @Test
     void ensureIdExists() {
         idGeneratorProvider.setShare(JdkId.INSTANCE);
-        IdEntity entity = new IdEntity();
-        entity.setId(888);
+        LongIdEntity entity = new LongIdEntity();
+        entity.setId(888L);
         cosIdSupport.ensureId(entity);
         Assertions.assertEquals(888, entity.getId());
     }

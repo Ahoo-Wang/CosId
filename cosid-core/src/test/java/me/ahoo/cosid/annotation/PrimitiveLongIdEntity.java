@@ -16,16 +16,15 @@ package me.ahoo.cosid.annotation;
 /**
  * @author ahoo wang
  */
-public class TestEntity extends IdEntity {
-
+public class PrimitiveLongIdEntity {
     @CosId
-    private String stringId;
+    private long id;
 
-    public String getStringId() {
-        return stringId;
+    public long getId() {
+        return id;
     }
 
-    public void setStringId(String stringId) {
-        this.stringId = stringId;
+    public void setId(long id) {
+        this.id = id;
     }
 }

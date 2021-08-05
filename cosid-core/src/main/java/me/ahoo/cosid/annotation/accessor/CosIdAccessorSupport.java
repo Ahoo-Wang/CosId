@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.annotation.accessor;
 
-import com.google.common.collect.ImmutableMap;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.annotation.CosId;
 import me.ahoo.cosid.annotation.CosIdDefinition;
@@ -25,8 +24,6 @@ import me.ahoo.cosid.annotation.accessor.method.MethodSetter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static java.util.Locale.ENGLISH;
@@ -40,7 +37,7 @@ public abstract class CosIdAccessorSupport {
     public static final String GET_PREFIX = "get";
     public static final String SET_PREFIX = "set";
 
-    private static final ConcurrentHashMap<Class<?>, Map<Field, CosIdAccessor>> classMapAccessor = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, CosIdAccessor> classMapAccessor = new ConcurrentHashMap<>();
 
     public static String capitalize(String name) {
         if (name == null || name.length() == 0) {
@@ -78,18 +75,22 @@ public abstract class CosIdAccessorSupport {
         }
     }
 
-    public static Map<Field, CosIdAccessor> getCosIdAccessor(Class<?> declaringClass) {
+    public static CosIdAccessor getCosIdAccessor(Class<?> declaringClass) {
         return classMapAccessor.computeIfAbsent(declaringClass, (key) -> getCosIdAccessor0(declaringClass));
     }
 
-    private static Map<Field, CosIdAccessor> getCosIdAccessor0(Class<?> declaringClass) {
-        Map<Field, CosIdAccessor> cosIdAccessors = new HashMap<>();
+    private static CosIdAccessor getCosIdAccessor0(Class<?> declaringClass) {
+        CosIdAccessor firstAccessor = CosIdAccessor.NOT_FOUND;
         Class<?> currentDeclaringClass = declaringClass;
         while (!Object.class.equals(currentDeclaringClass)) {
 
             for (Field declaredField : currentDeclaringClass.getDeclaredFields()) {
                 if (!declaredField.isAnnotationPresent(CosId.class)) {
                     continue;
+                }
+
+                if (!CosIdAccessor.NOT_FOUND.equals(firstAccessor)) {
+                    throw new MultipleIdNotSupportException(declaringClass);
                 }
 
                 if (!CosIdAccessor.availableType(declaredField.getType())) {
@@ -109,12 +110,11 @@ public abstract class CosIdAccessorSupport {
 
                 CosIdGetter cosIdGetter = getter != null ? new MethodGetter(cosIdDefinition, declaredField, getter) : new FieldGetter(cosIdDefinition, declaredField);
                 CosIdSetter cosIdSetter = setter != null ? new MethodSetter(cosIdDefinition, declaredField, setter) : new FieldSetter(cosIdDefinition, declaredField);
-                CosIdAccessor cosIdAccessor = new DefaultCosIdAccessor(cosIdGetter, cosIdSetter);
-                cosIdAccessors.put(declaredField, cosIdAccessor);
+                firstAccessor = new DefaultCosIdAccessor(cosIdGetter, cosIdSetter);
             }
 
             currentDeclaringClass = currentDeclaringClass.getSuperclass();
         }
-        return ImmutableMap.copyOf(cosIdAccessors);
+        return firstAccessor;
     }
 }

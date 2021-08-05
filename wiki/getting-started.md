@@ -312,58 +312,62 @@ public @interface CosId {
 ```
 
 ```java
-public class Order {
+public class LongIdEntity {
 
-    @CosId
-    private long id;
+    @CosId(value = "safeJs")
+    private Long id;
 
-    @CosId
-    private String stringId;
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+}
+
+public class FriendlyIdEntity {
 
     @CosId(friendlyId = true)
-    private String friendlyId;
+    private String id;
 
-    @CosId(value = "bizC")
-    private long bizId;
+    public String getId() {
+        return id;
+    }
 
-    /**
-     * ...
-     * getter or setter
-     */
+    public void setId(String id) {
+        this.id = id;
+    }
 }
 ```
 
 ```java
-
 @Mapper
 public interface OrderRepository {
-    @Insert("insert into t_order (id,string_id,friendly_id,biz_id) value (#{id},#{stringId},#{friendlyId},#{bizId});")
-    void insert(Order order);
+    @Insert("insert into t_table (id) value (#{id});")
+    void insert(LongIdEntity order);
 
     @Insert({
             "<script>",
-            "insert into t_order (id,string_id,friendly_id,biz_id)",
+            "insert into t_friendly_table (id)",
             "VALUES" +
                     "<foreach item='item' collection='list' open='' separator=',' close=''>" +
-                    "(#{item.id},#{item.stringId},#{item.friendlyId},#{item.bizId})" +
+                    "(#{item.id})" +
                     "</foreach>",
             "</script>"})
-    void insertList(List<Order> orderList);
+    void insertList(List<FriendlyIdEntity> list);
 }
 ```
 
 ```java
-        Order order=new Order();
-        orderRepository.insert(order);
+        LongIdEntity entity = new LongIdEntity();
+        entityRepository.insert(entity);
         /**
          * {
-         *   "id": 213044050087903230,
-         *   "stringId": "213044050087903233",
-         *   "friendlyId": "20210803212059708-0-2",
-         *   "bizId": 28801
+         *   "id": 208796080181248
          * }
          */
-        return order;
+        return entity;
 ```
 
 ## Examples

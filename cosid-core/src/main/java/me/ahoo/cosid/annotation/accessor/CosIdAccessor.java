@@ -21,12 +21,15 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 
 import java.lang.reflect.AccessibleObject;
+import java.lang.reflect.Field;
 import java.util.Objects;
 
 /**
  * @author ahoo wang
  */
 public interface CosIdAccessor extends CosIdGetter, CosIdSetter {
+
+    NotFound NOT_FOUND = new NotFound();
 
     default boolean ensureId(Object target, IdGeneratorProvider idGeneratorProvider) {
         CosIdDefinition cosIdDefinition = getCosIdDefinition();
@@ -68,6 +71,29 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter {
     static void ensureAccessible(AccessibleObject accessibleObject) {
         if (!accessibleObject.isAccessible()) {
             accessibleObject.setAccessible(true);
+        }
+    }
+
+    class NotFound implements CosIdAccessor {
+
+        @Override
+        public CosIdDefinition getCosIdDefinition() {
+            return null;
+        }
+
+        @Override
+        public Field getIdField() {
+            return null;
+        }
+
+        @Override
+        public Object get(Object target) {
+            return null;
+        }
+
+        @Override
+        public void set(Object target, Object value) {
+
         }
     }
 

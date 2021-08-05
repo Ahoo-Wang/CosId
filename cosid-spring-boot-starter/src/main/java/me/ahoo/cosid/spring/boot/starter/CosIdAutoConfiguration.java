@@ -15,7 +15,7 @@ package me.ahoo.cosid.spring.boot.starter;
 
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.support.CosIdAnnotationSupport;
+import me.ahoo.cosid.annotation.CosIdAnnotationSupport;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;

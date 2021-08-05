@@ -14,7 +14,7 @@
 package me.ahoo.cosid.mybatis;
 
 
-import me.ahoo.cosid.support.CosIdAnnotationSupport;
+import me.ahoo.cosid.annotation.CosIdAnnotationSupport;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.SqlCommandType;

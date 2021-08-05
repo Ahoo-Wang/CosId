@@ -15,7 +15,7 @@ package me.ahoo.cosid.spring.boot.starter.mybatis;
 
 import me.ahoo.cosid.mybatis.CosIdPlugin;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosid.support.CosIdAnnotationSupport;
+import me.ahoo.cosid.annotation.CosIdAnnotationSupport;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;

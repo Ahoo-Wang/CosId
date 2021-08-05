@@ -1,0 +1,73 @@
+/*
+ * Copyright [2021-2021] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.cosid.annotation.accessor;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
+
+import java.lang.reflect.AccessibleObject;
+import java.util.Objects;
+
+/**
+ * @author ahoo wang
+ */
+public interface CosIdAccessor extends CosIdGetter, CosIdSetter {
+
+    default boolean ensureId(Object target, IdGeneratorProvider idGeneratorProvider) {
+
+        Preconditions.checkArgument(getIdDeclaringClass().isInstance(target), "target:[%s] is not instance of IdDeclaringClass:[%s]", target, getIdDeclaringClass());
+        IdGenerator idGenerator = idGeneratorProvider.get(getCosId().value()).orElseThrow(() -> new IllegalArgumentException(Strings.lenientFormat("idGenerator:[%s] not fond.", getCosId().value())));
+
+        Object previousId = get(target);
+
+        if (String.class.equals(getIdType())) {
+            if (Objects.nonNull(previousId) && !Strings.isNullOrEmpty(previousId.toString())) {
+                return false;
+            }
+
+            if (!getCosId().friendlyId()) {
+                set(target, idGenerator.generateAsString());
+                return true;
+            }
+
+            Preconditions.checkState(idGenerator instanceof SnowflakeFriendlyId, "idGenerator:[%s] is not SnowflakeFriendlyId. IdType:[%s]", getCosId().value(), getIdType());
+            String friendlyId = ((SnowflakeFriendlyId) idGenerator).friendlyId().getFriendlyId();
+            set(target, friendlyId);
+            return true;
+        }
+
+        if (Objects.isNull(previousId) || (Long) previousId < 1) {
+            set(target, idGenerator.generate());
+            return true;
+        }
+        return false;
+
+    }
+
+    static boolean availableType(Class<?> idType) {
+        return String.class.equals(idType)
+                || Long.class.equals(idType)
+                || long.class.equals(idType);
+    }
+
+    static void ensureAccessible(AccessibleObject accessibleObject) {
+        if (!accessibleObject.isAccessible()) {
+            accessibleObject.setAccessible(true);
+        }
+    }
+
+}

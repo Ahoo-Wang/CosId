@@ -11,20 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.support;
-
-import me.ahoo.cosid.annotation.CosId;
+package me.ahoo.cosid.annotation;
 
 /**
  * @author ahoo wang
  */
-public class Entity {
-
+public class IdEntity {
     @CosId
     private long id;
-
-    @CosId
-    private String stringId;
 
     public long getId() {
         return id;
@@ -33,13 +27,4 @@ public class Entity {
     public void setId(long id) {
         this.id = id;
     }
-
-    public String getStringId() {
-        return stringId;
-    }
-
-    public void setStringId(String stringId) {
-        this.stringId = stringId;
-    }
-
 }

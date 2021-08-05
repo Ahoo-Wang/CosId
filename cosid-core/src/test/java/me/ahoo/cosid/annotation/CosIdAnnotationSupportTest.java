@@ -11,9 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.support;
+package me.ahoo.cosid.annotation;
 
-import me.ahoo.cosid.annotation.CosId;
 import me.ahoo.cosid.jvm.JdkId;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
@@ -30,25 +29,29 @@ public class CosIdAnnotationSupportTest {
     @Test
     void ensureId() {
         idGeneratorProvider.setShare(JdkId.INSTANCE);
-        Entity entity=new Entity();
+        TestEntity entity = new TestEntity();
         cosIdSupport.ensureId(entity);
-        Assertions.assertEquals(1,entity.getId());
-        Assertions.assertEquals("2",entity.getStringId());
+        Assertions.assertEquals("1", entity.getStringId());
+        Assertions.assertEquals(2, entity.getId());
+    }
+
+    @Test
+    void ensureIdExists() {
+        idGeneratorProvider.setShare(JdkId.INSTANCE);
+        IdEntity entity = new IdEntity();
+        entity.setId(888);
+        cosIdSupport.ensureId(entity);
+        Assertions.assertEquals(888, entity.getId());
     }
 
     @Test
     void ensureIdNotFindIdGen() {
-        MissingIdGenEntity entity=new MissingIdGenEntity();
-        Assertions.assertThrows(IllegalArgumentException.class,()->{
+        MissingIdGenEntity entity = new MissingIdGenEntity();
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
             cosIdSupport.ensureId(entity);
         });
     }
 
 
-    public static class MissingIdGenEntity{
-        @CosId("missing")
-        private long id;
-
-    }
 
 }

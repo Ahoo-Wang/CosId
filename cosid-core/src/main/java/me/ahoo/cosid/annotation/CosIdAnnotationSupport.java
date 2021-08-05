@@ -11,15 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.support;
+package me.ahoo.cosid.annotation;
 
-import me.ahoo.cosid.annotation.CosId;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
+import me.ahoo.cosid.annotation.accessor.CosIdAccessorSupport;
 
 /**
  * @author ahoo wang
@@ -27,24 +22,15 @@ import java.util.stream.Collectors;
 public class CosIdAnnotationSupport {
 
     private final IdGeneratorProvider idGeneratorProvider;
-    private final ConcurrentHashMap<Class<?>, List<CosIdField>> classMapField;
 
     public CosIdAnnotationSupport(IdGeneratorProvider idGeneratorProvider) {
-        this.classMapField = new ConcurrentHashMap<>();
         this.idGeneratorProvider = idGeneratorProvider;
     }
 
     public void ensureId(Object entity) {
-        getCosIdFields(entity.getClass()).forEach(cosIdField -> cosIdField.ensureId(entity, idGeneratorProvider));
+        CosIdAccessorSupport.getCosIdAccessor(entity.getClass())
+                .values()
+                .forEach(cosIdAccessor -> cosIdAccessor.ensureId(entity, idGeneratorProvider));
     }
 
-    private List<CosIdField> getCosIdFields(Class<?> entityClass) {
-        return classMapField.computeIfAbsent(entityClass, (key) -> Arrays.stream(entityClass.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(CosId.class))
-                .map(field -> {
-                    CosId cosId = field.getAnnotation(CosId.class);
-                    return new CosIdField(cosId, field);
-                })
-                .collect(Collectors.toList()));
-    }
 }

@@ -385,7 +385,7 @@ public interface OrderRepository {
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.3.9";
+    val cosidVersion = "1.3.12";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 

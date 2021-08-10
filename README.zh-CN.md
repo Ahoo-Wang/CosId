@@ -166,6 +166,8 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 
 ## 号段链模式（SegmentChainId）
 
+[分布式ID(CosId)之号段链模式性能(1.2亿/s)解析](wiki/SegmentChainId.zh-CN.md)
+
 ![SegmentChainId](docs/SegmentChainId.png)
 
 **SegmentChainId**是**SegmentId**增强版，相比于**SegmentId**有以下优势：

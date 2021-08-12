@@ -34,9 +34,6 @@ import static me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor.hashTag
 @Slf4j
 public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
 
-    public static final Resource REDIS_ID_GENERATE_SOURCE = new ClassPathResource("redis_id_generate.lua");
-    public static final RedisScript<Long> REDIS_ID_GENERATE = RedisScript.of(REDIS_ID_GENERATE_SOURCE, Long.class);
-
     private final String namespace;
     private final String name;
     /**
@@ -47,6 +44,7 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
     private final long offset;
     private final long step;
     private final StringRedisTemplate redisTemplate;
+    private volatile long lastMaxId;
 
     public SpringRedisIdSegmentDistributor(String namespace,
                                            String name,
@@ -70,6 +68,21 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         this.step = step;
         this.redisTemplate = redisTemplate;
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
+        this.ensureOffset();
+    }
+
+    private void ensureOffset() {
+        if (log.isDebugEnabled()) {
+            log.debug("ensureOffset -[{}]- offset:[{}].", adderKey, offset);
+        }
+        Boolean notExists = redisTemplate.opsForValue().setIfAbsent(adderKey, String.valueOf(offset));
+        if (log.isDebugEnabled()) {
+            log.debug("ensureOffset -[{}]- offset:[{}] - notExists:[{}].", adderKey, offset, notExists);
+        }
+    }
+
+    public String getAdderKey() {
+        return adderKey;
     }
 
     @Override
@@ -94,13 +107,20 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
     @Override
     public long nextMaxId(long step) {
         IdSegmentDistributor.ensureStep(step);
-        List<String> keys = Collections.singletonList(adderKey);
-        Object[] values = {String.valueOf(offset), String.valueOf(step)};
-        Long nextMaxId = redisTemplate.execute(REDIS_ID_GENERATE, keys, values);
-        Preconditions.checkNotNull(nextMaxId,"nextMaxId can not be null!");
         if (log.isDebugEnabled()) {
-            log.debug("nextMaxId - step:[{}] - nextMaxId:[{}].", step, nextMaxId);
+            log.debug("nextMaxId -[{}]- step:[{}].", adderKey, step);
         }
+
+        final long nextMinMaxId = lastMaxId + step;
+        Long nextMaxId = redisTemplate.opsForValue().increment(adderKey, step);
+
+        Preconditions.checkNotNull(nextMaxId, "nextMaxId can not be null!");
+        if (log.isDebugEnabled()) {
+            log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);
+        }
+
+        Preconditions.checkState(nextMaxId >= nextMinMaxId, "nextMaxId:[%s] must be greater than nextMinMaxId:[%s]!", nextMaxId, nextMinMaxId);
+        this.lastMaxId = nextMaxId;
         return nextMaxId;
     }
 

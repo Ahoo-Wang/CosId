@@ -14,7 +14,7 @@
 package me.ahoo.cosid;
 
 import lombok.var;
-import me.ahoo.cosid.jvm.JdkId;
+import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.snowflake.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -22,8 +22,6 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * @author ahoo wang
@@ -32,8 +30,8 @@ import java.util.concurrent.Executors;
 public class IdGeneratorTest {
     @Test
     public void jdkTest() {
-        var id = JdkId.INSTANCE.generate();
-        var id1 = JdkId.INSTANCE.generate();
+        var id = AtomicLongGenerator.INSTANCE.generate();
+        var id1 = AtomicLongGenerator.INSTANCE.generate();
         Assertions.assertTrue(id1 > id);
     }
 

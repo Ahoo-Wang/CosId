@@ -30,7 +30,7 @@ cosid:
       clock-sync: true
       friendly: true
     provider:
-      bizA:
+      order:
         #        timestamp-bit:
         sequence-bit: 12
       safeJs:
@@ -45,7 +45,7 @@ cosid:
         core-pool-size: 2
         prefetch-period: 1s
     distributor:
-      type: jdbc
+      type: redis
     share:
       offset: 0
       step: 100

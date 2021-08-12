@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.jdbc.state;
 
-import me.ahoo.cosid.jvm.JdkId;
+import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -24,10 +24,10 @@ import org.openjdk.jmh.annotations.State;
 @State(Scope.Benchmark)
 public class JdkIdState {
 
-   public JdkId jdkId;
+   public AtomicLongGenerator jdkId;
 
     @Setup
     public void setup() {
-        jdkId = new JdkId();
+        jdkId = new AtomicLongGenerator();
     }
 }

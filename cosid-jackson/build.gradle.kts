@@ -10,24 +10,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package me.ahoo.cosid.redis.state;
-
-import me.ahoo.cosid.jvm.AtomicLongGenerator;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
-
 /**
- * @author ahoo wang
+ * TODO
  */
-@State(Scope.Benchmark)
-public class JdkIdState {
-
-   public AtomicLongGenerator jdkId;
-
-    @Setup
-    public void setup() {
-        jdkId = new AtomicLongGenerator();
-    }
+dependencies {
+    implementation("com.fasterxml.jackson.core:jackson-databind")
 }

@@ -13,16 +13,45 @@
 
 package me.ahoo.cosid.spring.redis;
 
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
-import static org.junit.jupiter.api.Assertions.*;
+import java.util.UUID;
 
 /**
  * @author ahoo wang
  */
 class SpringRedisIdSegmentDistributorTest {
+    StringRedisTemplate stringRedisTemplate;
+    SpringRedisIdSegmentDistributor springRedisIdSegmentDistributor;
+
+    @BeforeEach
+    private void initRedis() {
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+        LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
+        lettuceConnectionFactory.afterPropertiesSet();
+        stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
+        springRedisIdSegmentDistributor = new SpringRedisIdSegmentDistributor(UUID.randomUUID().toString(), "RedisIdGeneratorTest", stringRedisTemplate);
+
+    }
 
     @Test
     void nextMaxId() {
+        long nextMaxId = springRedisIdSegmentDistributor.nextMaxId();
+        Assertions.assertEquals(springRedisIdSegmentDistributor.getStep(), nextMaxId);
+    }
+    @Test
+    public void generateIfMaxIdBack() {
+        long id = springRedisIdSegmentDistributor.nextMaxId();
+        Assertions.assertTrue(id > 0);
+        String adderKey = springRedisIdSegmentDistributor.getAdderKey();
+        stringRedisTemplate.opsForValue().set(adderKey, String.valueOf(id - 1));
+        Assertions.assertThrows(IllegalStateException.class,()->{
+            long id2 = springRedisIdSegmentDistributor.nextMaxId();
+        });
     }
 }

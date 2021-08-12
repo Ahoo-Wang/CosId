@@ -15,8 +15,6 @@ package me.ahoo.cosid.spring.redis;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 /**
  * @author ahoo wang
  */
@@ -24,6 +22,7 @@ class SpringRedisMachineIdDistributorTest {
 
     @Test
     void distribute0() {
+
     }
 
     @Test

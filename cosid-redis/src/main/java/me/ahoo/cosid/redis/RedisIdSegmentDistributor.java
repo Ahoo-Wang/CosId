@@ -48,6 +48,7 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
     private final long step;
     private final Duration timeout;
     private final RedisClusterAsyncCommands<String, String> redisCommands;
+    private volatile long lastMaxId;
 
     public RedisIdSegmentDistributor(String namespace,
                                      String name,
@@ -73,6 +74,21 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
         this.timeout = timeout;
         this.redisCommands = redisCommands;
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
+        this.ensureOffset();
+    }
+
+    private void ensureOffset() {
+        if (log.isDebugEnabled()) {
+            log.debug("ensureOffset -[{}]- offset:[{}].", adderKey, offset);
+        }
+        Boolean notExists = Futures.getUnChecked(redisCommands.setnx(this.adderKey, String.valueOf(offset)), timeout);
+        if (log.isDebugEnabled()) {
+            log.debug("ensureOffset -[{}]- offset:[{}] - notExists:[{}].", adderKey, offset, notExists);
+        }
+    }
+
+    public String getAdderKey() {
+        return adderKey;
     }
 
     @Override
@@ -97,21 +113,18 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
     @Override
     public long nextMaxId(long step) {
         IdSegmentDistributor.ensureStep(step);
-        long nextMaxId = Futures.getUnChecked(fetchMaxIdAsync(step), timeout);
         if (log.isDebugEnabled()) {
-            log.debug("nextMaxId - step:[{}] - nextMaxId:[{}].", step, nextMaxId);
+            log.debug("nextMaxId -[{}]- step:[{}].", adderKey, step);
         }
+        final long nextMinMaxId = lastMaxId + step;
+
+        long nextMaxId = Futures.getUnChecked(redisCommands.incrby(adderKey, step), timeout);
+        if (log.isDebugEnabled()) {
+            log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);
+        }
+
+        Preconditions.checkState(nextMaxId >= nextMinMaxId, "nextMaxId:[%s] must be greater than nextMinMaxId:[%s]!", nextMaxId, nextMinMaxId);
+        this.lastMaxId = nextMaxId;
         return nextMaxId;
     }
-
-    private CompletableFuture<Long> fetchMaxIdAsync(long step) {
-        return RedisScripts.doEnsureScript(REDIS_ID_GENERATE, redisCommands,
-                (scriptSha) -> {
-                    String[] keys = {adderKey};
-                    String[] values = {String.valueOf(offset), String.valueOf(step)};
-                    return redisCommands.evalsha(scriptSha, ScriptOutputType.INTEGER, keys, values);
-                }
-        );
-    }
-
 }

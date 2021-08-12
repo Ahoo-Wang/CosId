@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid;
 
-import me.ahoo.cosid.jvm.JdkId;
+import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
@@ -37,11 +37,11 @@ public class SegmentIdBenchmark {
 
     SegmentId segmentId;
     SegmentChainId segmentChainId;
-    JdkId jdkId;
+    AtomicLongGenerator jdkId;
 
     @Setup
     public void setup() {
-        jdkId = new JdkId();
+        jdkId = new AtomicLongGenerator();
         segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Mock(), PrefetchWorkerExecutorService.DEFAULT);
     }

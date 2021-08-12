@@ -21,13 +21,13 @@ buildscript {
         classpath("io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.30.0")
     }
 }
-
-include(":cosid-core")
 include(":cosid-bom")
 include(":cosid-dependencies")
+include(":cosid-core")
 include(":cosid-spring-boot-starter")
 include(":cosid-redis")
 include(":cosid-spring-redis")
 include(":cosid-jdbc")
 include(":cosid-mybatis")
 include(":cosid-rest-api")
+include(":cosid-jackson")

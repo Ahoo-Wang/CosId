@@ -11,23 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.redis.state;
+package me.ahoo.cosid.jvm;
 
-import me.ahoo.cosid.jvm.AtomicLongGenerator;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
+import me.ahoo.cosid.IdGenerator;
+
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author ahoo wang
+ * Creation time: 2019/11/21 20:51
  */
-@State(Scope.Benchmark)
-public class JdkIdState {
+public class AtomicLongGenerator implements IdGenerator {
+    public final static IdGenerator INSTANCE = new AtomicLongGenerator();
+    private final AtomicLong idGen = new AtomicLong();
 
-   public AtomicLongGenerator jdkId;
-
-    @Setup
-    public void setup() {
-        jdkId = new AtomicLongGenerator();
+    @Override
+    public long generate() {
+        return idGen.incrementAndGet();
     }
 }

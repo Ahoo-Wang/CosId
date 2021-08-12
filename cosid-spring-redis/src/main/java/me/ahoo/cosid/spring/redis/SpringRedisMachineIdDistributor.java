@@ -105,10 +105,10 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     }
 
     /**
-     * redis hash tag for redis-cluster
+     * redis hash-tag for redis-cluster
      *
      * @param key
-     * @return hash tag key
+     * @return hash-tag key
      */
     public static String hashTag(String key) {
         return "{" + key + "}";

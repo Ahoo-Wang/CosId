@@ -66,6 +66,17 @@ public class RedisIdIdSegmentDistributorTest {
     }
 
     @Test
+    public void generateIfMaxIdBack() {
+        long id = redisMaxIdDistributor.nextMaxId();
+        Assertions.assertTrue(id > 0);
+        String adderKey = redisMaxIdDistributor.getAdderKey();
+        redisConnection.sync().set(adderKey, String.valueOf(id - 1));
+        Assertions.assertThrows(IllegalStateException.class,()->{
+            long id2 = redisMaxIdDistributor.nextMaxId();
+        });
+    }
+
+    @Test
     public void generate_offset() {
         String namespace = UUID.randomUUID().toString();
         RedisIdSegmentDistributor redisMaxIdDistributor_offset_10 = new RedisIdSegmentDistributor(namespace, "generate_offset", 10, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());

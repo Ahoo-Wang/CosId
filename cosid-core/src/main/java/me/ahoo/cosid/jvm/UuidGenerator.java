@@ -11,23 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.redis.state;
+package me.ahoo.cosid.jvm;
 
-import me.ahoo.cosid.jvm.AtomicLongGenerator;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
+import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.IdGenerator;
+
+import java.util.UUID;
 
 /**
  * @author ahoo wang
  */
-@State(Scope.Benchmark)
-public class JdkIdState {
+public class UuidGenerator implements IdGenerator {
 
-   public AtomicLongGenerator jdkId;
+    public final static IdGenerator INSTANCE = new UuidGenerator();
 
-    @Setup
-    public void setup() {
-        jdkId = new AtomicLongGenerator();
+    @Override
+    public long generate() {
+        throw new CosIdException("UuidGenerator does not support the generation of long IDs!");
+    }
+
+    @Override
+    public String generateAsString() {
+        return UUID.randomUUID().toString();
     }
 }

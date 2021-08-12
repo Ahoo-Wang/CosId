@@ -11,23 +11,24 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.redis.state;
+package me.ahoo.cosid.jackson;
 
-import me.ahoo.cosid.jvm.AtomicLongGenerator;
-import org.openjdk.jmh.annotations.Scope;
-import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
+import com.fasterxml.jackson.annotation.JacksonAnnotation;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+import java.lang.annotation.*;
 
 /**
  * @author ahoo wang
  */
-@State(Scope.Benchmark)
-public class JdkIdState {
+@Deprecated
+@Target(ElementType.FIELD)
+@Retention(RetentionPolicy.RUNTIME)
+@Inherited
+@JacksonAnnotation
+@JsonSerialize(using = StringIdJsonSerializer.class)
+@JsonDeserialize(using = StringIdJsonDeserializer.class)
+public @interface StringId{
 
-   public AtomicLongGenerator jdkId;
-
-    @Setup
-    public void setup() {
-        jdkId = new AtomicLongGenerator();
-    }
 }

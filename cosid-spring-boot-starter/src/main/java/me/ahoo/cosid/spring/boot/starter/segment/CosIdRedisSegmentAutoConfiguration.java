@@ -78,7 +78,7 @@ public class CosIdRedisSegmentAutoConfiguration {
                 idDefinition.getOffset(),
                 idDefinition.getStep(),
                 timeout,
-                redisConnectionFactory.getShareAsyncCommands());
+                redisConnectionFactory.getShareReactiveCommands());
         return CosIdSegmentAutoConfiguration.createSegment(segmentIdProperties, idDefinition, redisIdSegmentDistributor, prefetchWorkerExecutorService);
     }
 

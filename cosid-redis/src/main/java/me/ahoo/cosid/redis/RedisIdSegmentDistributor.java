@@ -15,16 +15,12 @@ package me.ahoo.cosid.redis;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import io.lettuce.core.ScriptOutputType;
-import io.lettuce.core.cluster.api.async.RedisClusterAsyncCommands;
+import io.lettuce.core.cluster.api.reactive.RedisClusterReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
-import me.ahoo.cosky.core.redis.RedisScripts;
-import me.ahoo.cosky.core.util.Futures;
 
 import java.time.Duration;
-import java.util.concurrent.CompletableFuture;
 
 import static me.ahoo.cosid.redis.RedisMachineIdDistributor.hashTag;
 
@@ -47,12 +43,12 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
     private final long offset;
     private final long step;
     private final Duration timeout;
-    private final RedisClusterAsyncCommands<String, String> redisCommands;
+    private final RedisClusterReactiveCommands<String, String> redisCommands;
     private volatile long lastMaxId;
 
     public RedisIdSegmentDistributor(String namespace,
                                      String name,
-                                     RedisClusterAsyncCommands<String, String> redisCommands) {
+                                     RedisClusterReactiveCommands<String, String> redisCommands) {
         this(namespace, name, DEFAULT_OFFSET, DEFAULT_STEP, DEFAULT_TIMEOUT, redisCommands);
     }
 
@@ -61,7 +57,7 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
                                      long offset,
                                      long step,
                                      Duration timeout,
-                                     RedisClusterAsyncCommands<String, String> redisCommands) {
+                                     RedisClusterReactiveCommands<String, String> redisCommands) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
         Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
@@ -81,7 +77,7 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
         if (log.isDebugEnabled()) {
             log.debug("ensureOffset -[{}]- offset:[{}].", adderKey, offset);
         }
-        Boolean notExists = Futures.getUnChecked(redisCommands.setnx(this.adderKey, String.valueOf(offset)), timeout);
+        Boolean notExists = redisCommands.setnx(this.adderKey, String.valueOf(offset)).block(timeout);
         if (log.isDebugEnabled()) {
             log.debug("ensureOffset -[{}]- offset:[{}] - notExists:[{}].", adderKey, offset, notExists);
         }
@@ -118,7 +114,7 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
         }
         final long nextMinMaxId = lastMaxId + step;
 
-        long nextMaxId = Futures.getUnChecked(redisCommands.incrby(adderKey, step), timeout);
+        long nextMaxId = redisCommands.incrby(adderKey, step).block(timeout);
         if (log.isDebugEnabled()) {
             log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);
         }

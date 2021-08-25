@@ -39,7 +39,7 @@ class RedisMachineIdDistributorTest {
         System.out.println("--- initRedis ---");
         redisClient = RedisClient.create("redis://localhost:6379");
         redisConnection = redisClient.connect();
-        redisMachineIdDistributor = new RedisMachineIdDistributor(redisConnection.async(), MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
+        redisMachineIdDistributor = new RedisMachineIdDistributor(redisConnection.reactive(), MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
     }
 
     @Test

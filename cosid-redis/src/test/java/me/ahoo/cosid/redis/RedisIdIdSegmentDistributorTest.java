@@ -42,7 +42,7 @@ public class RedisIdIdSegmentDistributorTest {
         System.out.println("--- initRedis ---");
         redisClient = RedisClient.create("redis://localhost:6379");
         redisConnection = redisClient.connect();
-        redisMaxIdDistributor = new RedisIdSegmentDistributor(UUID.randomUUID().toString(), "RedisIdGeneratorTest", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        redisMaxIdDistributor = new RedisIdSegmentDistributor(UUID.randomUUID().toString(), "RedisIdGeneratorTest", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
     }
 
     @Test
@@ -79,7 +79,7 @@ public class RedisIdIdSegmentDistributorTest {
     @Test
     public void generate_offset() {
         String namespace = UUID.randomUUID().toString();
-        RedisIdSegmentDistributor redisMaxIdDistributor_offset_10 = new RedisIdSegmentDistributor(namespace, "generate_offset", 10, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        RedisIdSegmentDistributor redisMaxIdDistributor_offset_10 = new RedisIdSegmentDistributor(namespace, "generate_offset", 10, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
         long id = redisMaxIdDistributor_offset_10.nextMaxId();
         Assertions.assertEquals(110, id);
     }
@@ -90,7 +90,7 @@ public class RedisIdIdSegmentDistributorTest {
     @Test
     public void concurrent_generate_step_100() {
         String namespace = UUID.randomUUID().toString();
-        RedisIdSegmentDistributor redisMaxIdDistributor_generate_step_100 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        RedisIdSegmentDistributor redisMaxIdDistributor_generate_step_100 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
         SegmentId defaultSegmentId = new DefaultSegmentId(redisMaxIdDistributor_generate_step_100);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;
@@ -137,8 +137,8 @@ public class RedisIdIdSegmentDistributorTest {
     @Test
     public void concurrent_generate_step_10_multi_instance() {
         String namespace = UUID.randomUUID().toString();
-        RedisIdSegmentDistributor redisMaxIdDistributor1 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
-        RedisIdSegmentDistributor redisMaxIdDistributor2 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().async());
+        RedisIdSegmentDistributor redisMaxIdDistributor1 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
+        RedisIdSegmentDistributor redisMaxIdDistributor2 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
         SegmentId idGenerator1 = new DefaultSegmentId(redisMaxIdDistributor1);
         SegmentId idGenerator2 = new DefaultSegmentId(redisMaxIdDistributor2);
 

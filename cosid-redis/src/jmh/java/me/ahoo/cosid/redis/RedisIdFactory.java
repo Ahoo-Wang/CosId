@@ -44,7 +44,7 @@ public class RedisIdFactory implements AutoCloseable {
                 0,
                 step,
                 RedisIdSegmentDistributor.DEFAULT_TIMEOUT,
-                redisClient.connect().async());
+                redisClient.connect().reactive());
     }
 
 

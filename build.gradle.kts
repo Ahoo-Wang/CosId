@@ -40,7 +40,7 @@ ext {
     set("junitPioneerVersion", "1.4.2")
     set("mybatisVersion", "3.5.7")
     set("mybatisBootVersion","2.1.4")
-    set("coskyVersion", "1.3.1")
+    set("coskyVersion", "1.3.5")
     set("libraryProjects", libraryProjects)
 }
 

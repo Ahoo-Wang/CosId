@@ -94,7 +94,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
 
     @Override
     protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
-       revertAsync0(namespace, instanceId, machineState).block(timeout);
+        revertAsync0(namespace, instanceId, machineState).block(timeout);
     }
 
     /**

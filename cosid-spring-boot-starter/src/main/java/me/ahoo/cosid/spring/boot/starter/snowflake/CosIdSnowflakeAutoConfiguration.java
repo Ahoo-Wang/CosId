@@ -138,7 +138,7 @@ public class CosIdSnowflakeAutoConfiguration {
     @Bean
     @ConditionalOnBean(value = SnowflakeId.class)
     public MachineId machineId(SnowflakeId snowflakeId) {
-        int machineId = snowflakeId.getMachineId();
+        long machineId = snowflakeId.getMachineId();
         return new MachineId(machineId);
     }
 

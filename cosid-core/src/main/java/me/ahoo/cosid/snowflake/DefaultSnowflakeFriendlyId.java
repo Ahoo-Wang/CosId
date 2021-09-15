@@ -89,7 +89,7 @@ public class DefaultSnowflakeFriendlyId implements SnowflakeFriendlyId {
     }
 
     @Override
-    public int getMachineId() {
+    public long getMachineId() {
         return delegate.getMachineId();
     }
 }

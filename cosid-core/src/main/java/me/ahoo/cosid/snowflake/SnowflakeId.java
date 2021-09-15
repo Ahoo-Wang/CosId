@@ -47,5 +47,5 @@ public interface SnowflakeId extends IdGenerator {
 
     long getLastTimestamp();
 
-    int getMachineId();
+    long getMachineId();
 }

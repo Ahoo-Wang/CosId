@@ -32,12 +32,12 @@ public final class SafeJavaScriptSnowflakeId {
         return id < JAVA_SCRIPT_MAX_SAFE_NUMBER;
     }
 
-    public static MillisecondSnowflakeId ofMillisecond(long epoch, int timestampBit, int machineBit, int sequenceBit, int machineId) {
+    public static MillisecondSnowflakeId ofMillisecond(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId) {
         checkTotalBit(timestampBit, machineBit, sequenceBit);
         return new MillisecondSnowflakeId(epoch, timestampBit, machineBit, sequenceBit, machineId);
     }
 
-    public static SecondSnowflakeId ofSecond(long epoch, int timestampBit, int machineBit, int sequenceBit, int machineId) {
+    public static SecondSnowflakeId ofSecond(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId) {
         checkTotalBit(timestampBit, machineBit, sequenceBit);
         return new SecondSnowflakeId(epoch, timestampBit, machineBit, sequenceBit, machineId);
     }
@@ -50,7 +50,7 @@ public final class SafeJavaScriptSnowflakeId {
      * @param machineId 服务实例编号
      * @return MillisecondSnowflakeId
      */
-    public static MillisecondSnowflakeId ofMillisecond(int machineId) {
+    public static MillisecondSnowflakeId ofMillisecond(long machineId) {
         final int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
         final int machineBit = MillisecondSnowflakeId.DEFAULT_MACHINE_BIT - 7;
         final int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT - 3;
@@ -66,7 +66,7 @@ public final class SafeJavaScriptSnowflakeId {
      * @param machineId 服务实例编号
      * @return SecondSnowflakeId
      */
-    public static SecondSnowflakeId ofSecond(int machineId) {
+    public static SecondSnowflakeId ofSecond(long machineId) {
         final int timestampBit = SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
         final int machineBit = SecondSnowflakeId.DEFAULT_MACHINE_BIT - 7;
         final int sequenceBit = SecondSnowflakeId.DEFAULT_SEQUENCE_BIT - 3;

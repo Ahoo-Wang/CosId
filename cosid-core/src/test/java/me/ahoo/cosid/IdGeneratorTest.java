@@ -19,6 +19,9 @@ import me.ahoo.cosid.snowflake.*;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -86,11 +89,29 @@ public class IdGeneratorTest {
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
 
+    @Test
+    public void secondSnowflakeIdTestEpoch() {
+
+        var idGen = new SecondSnowflakeId(LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond(),
+                SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
+                SecondSnowflakeId.DEFAULT_MACHINE_BIT,
+                SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023);
+        var snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
+        var id = idGen.generate();
+        var id1 = idGen.generate();
+
+        Assertions.assertTrue(id1 > id);
+
+        var idState = snowflakeIdStateParser.parse(id);
+        Assertions.assertEquals(idState.getTimestamp().toLocalDate(), LocalDate.now());
+        var idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
+        Assertions.assertEquals(idState, idStateOfFriendlyId);
+    }
 
     @Test
     public void secondSnowflakeIdTest() {
 
-        var idGen = new SecondSnowflakeId(1);
+        var idGen = new SecondSnowflakeId(1023);
         var snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
         var id = idGen.generate();
         var id1 = idGen.generate();

@@ -39,7 +39,7 @@ public class DataSourceFactory {
             return dataSource;
         }
         HikariDataSource hikariDataSource = new HikariDataSource();
-        hikariDataSource.setJdbcUrl("jdbc:mysql://localhost:3306/test_db");
+        hikariDataSource.setJdbcUrl("jdbc:mysql://localhost:3306/cosid_db");
         hikariDataSource.setUsername("root");
         hikariDataSource.setPassword("root");
         dataSource = hikariDataSource;

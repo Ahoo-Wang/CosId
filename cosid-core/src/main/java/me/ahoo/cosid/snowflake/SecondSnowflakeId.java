@@ -27,15 +27,15 @@ public class SecondSnowflakeId extends AbstractSnowflakeId {
     public final static int DEFAULT_MACHINE_BIT = 10;
     public final static int DEFAULT_SEQUENCE_BIT = 22;
 
-    public SecondSnowflakeId(int machineId) {
+    public SecondSnowflakeId(long machineId) {
         this(CosId.COSID_EPOCH_SECOND, DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, machineId);
     }
 
-    public SecondSnowflakeId(int machineBit, int machineId) {
+    public SecondSnowflakeId(int machineBit, long machineId) {
         super(CosId.COSID_EPOCH, DEFAULT_TIMESTAMP_BIT, machineBit, DEFAULT_SEQUENCE_BIT, machineId);
     }
 
-    public SecondSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, int machineId) {
+    public SecondSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId) {
         super(epoch, timestampBit, machineBit, sequenceBit, machineId);
     }
 

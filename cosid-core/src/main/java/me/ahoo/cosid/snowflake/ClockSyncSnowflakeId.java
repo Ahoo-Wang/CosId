@@ -97,7 +97,7 @@ public class ClockSyncSnowflakeId implements SnowflakeId {
     }
 
     @Override
-    public int getMachineId() {
+    public long getMachineId() {
         return delegate.getMachineId();
     }
 

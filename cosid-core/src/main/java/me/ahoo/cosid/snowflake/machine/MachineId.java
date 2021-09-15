@@ -21,13 +21,13 @@ import com.google.common.base.Objects;
  * @author ahoo wang
  */
 public class MachineId {
-    private final int machineId;
+    private final long machineId;
 
-    public MachineId(int machineId) {
+    public MachineId(long machineId) {
         this.machineId = machineId;
     }
 
-    public int getMachineId() {
+    public long getMachineId() {
         return machineId;
     }
 

@@ -24,7 +24,7 @@ public class SnowflakeIdState {
 
     private final long id;
 
-    private final int machineId;
+    private final long machineId;
 
     private final long sequence;
 
@@ -34,7 +34,7 @@ public class SnowflakeIdState {
      */
     private final String friendlyId;
 
-    SnowflakeIdState(long id, int machineId, long sequence, LocalDateTime timestamp, String friendlyId) {
+    SnowflakeIdState(long id, long machineId, long sequence, LocalDateTime timestamp, String friendlyId) {
         this.id = id;
         this.machineId = machineId;
         this.sequence = sequence;
@@ -50,7 +50,7 @@ public class SnowflakeIdState {
         return id;
     }
 
-    public int getMachineId() {
+    public long getMachineId() {
         return machineId;
     }
 
@@ -90,7 +90,7 @@ public class SnowflakeIdState {
 
     public static class SnowflakeIdStateBuilder {
         private long id;
-        private int machineId;
+        private long machineId;
         private long sequence;
         private LocalDateTime timestamp;
         private String friendlyId;
@@ -103,7 +103,7 @@ public class SnowflakeIdState {
             return this;
         }
 
-        public SnowflakeIdStateBuilder machineId(int machineId) {
+        public SnowflakeIdStateBuilder machineId(long machineId) {
             this.machineId = machineId;
             return this;
         }

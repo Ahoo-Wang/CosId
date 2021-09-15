@@ -22,7 +22,7 @@ import java.time.ZoneOffset;
 public final class CosId {
     public static final String COSID = "cosid";
     public static final String COSID_PREFIX = COSID + ".";
-    public static final LocalDateTime PIGEON_EPOCH_DATE;
+    public static final LocalDateTime COSID_EPOCH_DATE;
     /**
      *  1577203200000
      */
@@ -33,8 +33,8 @@ public final class CosId {
     public static final long COSID_EPOCH_SECOND;
 
     static {
-        PIGEON_EPOCH_DATE = LocalDateTime.of(2019, 12, 24, 16, 0);
-        COSID_EPOCH = PIGEON_EPOCH_DATE.toInstant(ZoneOffset.UTC).toEpochMilli();
+        COSID_EPOCH_DATE = LocalDateTime.of(2019, 12, 24, 16, 0);
+        COSID_EPOCH = COSID_EPOCH_DATE.toInstant(ZoneOffset.UTC).toEpochMilli();
         COSID_EPOCH_SECOND = COSID_EPOCH / 1000;
     }
 }

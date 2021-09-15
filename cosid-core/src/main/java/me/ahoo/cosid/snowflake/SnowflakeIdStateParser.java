@@ -16,10 +16,10 @@ package me.ahoo.cosid.snowflake;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
-import lombok.var;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * @author ahoo wang
@@ -64,16 +64,16 @@ public abstract class SnowflakeIdStateParser {
 
     public SnowflakeIdState parse(String friendlyId) {
         Preconditions.checkNotNull(friendlyId, "friendlyId can not be null!");
-        var segments = Splitter.on(DELIMITER).trimResults().omitEmptyStrings().splitToList(friendlyId);
+        List<String> segments = Splitter.on(DELIMITER).trimResults().omitEmptyStrings().splitToList(friendlyId);
         if (segments.size() != 3) {
             throw new IllegalArgumentException(Strings.lenientFormat("friendlyId :[%s] Illegal.", friendlyId));
         }
-        var timestampStr = segments.get(0);
-        var timestamp = LocalDateTime.parse(timestampStr, getDateTimeFormatter());
-        var machineId = Integer.parseInt(segments.get(1));
-        var sequence = Long.parseLong(segments.get(2));
-        var diffTime = getDiffTime(timestamp);
-        var id = (diffTime) << timestampLeft
+        String timestampStr = segments.get(0);
+        LocalDateTime timestamp = LocalDateTime.parse(timestampStr, getDateTimeFormatter());
+        long machineId = Long.parseLong(segments.get(1));
+        long sequence = Long.parseLong(segments.get(2));
+        long diffTime = getDiffTime(timestamp);
+        long id = (diffTime) << timestampLeft
                 | machineId << machineLeft
                 | sequence;
         return SnowflakeIdState.builder()
@@ -87,13 +87,13 @@ public abstract class SnowflakeIdStateParser {
 
     public SnowflakeIdState parse(long id) {
 
-        var machineId = (id >> machineLeft) & machineMask;
-        var sequence = id & sequenceMask;
-        var diffTime = (id >> timestampLeft) & timestampMask;
+        long machineId = (id >> machineLeft) & machineMask;
+        long sequence = id & sequenceMask;
+        long diffTime = (id >> timestampLeft) & timestampMask;
 
-        var timestamp = getTimestamp(diffTime);
+        LocalDateTime timestamp = getTimestamp(diffTime);
 
-        var friendlyId = new StringBuilder(timestamp.format(getDateTimeFormatter()))
+        String friendlyId = new StringBuilder(timestamp.format(getDateTimeFormatter()))
                 .append(DELIMITER)
                 .append(machineId)
                 .append(DELIMITER)
@@ -110,7 +110,7 @@ public abstract class SnowflakeIdStateParser {
     }
 
     private long getMask(long bits) {
-        return -1L ^ (-1L << bits);
+        return ~(-1L << bits);
     }
 
 

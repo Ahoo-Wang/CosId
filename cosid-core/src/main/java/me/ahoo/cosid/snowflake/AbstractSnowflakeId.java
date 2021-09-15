@@ -34,11 +34,11 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
     protected final long machineLeft;
     protected final long timestampLeft;
 
-    protected final int machineId;
+    protected final long machineId;
     protected long sequence = 0L;
     protected long lastTimestamp = -1L;
 
-    public AbstractSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, int machineId) {
+    public AbstractSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId) {
         if ((timestampBit + machineBit + sequenceBit) > TOTAL_BIT) {
             throw new IllegalArgumentException("total bit can't be greater than TOTAL_BIT[63] .");
         }
@@ -46,9 +46,9 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         this.timestampBit = timestampBit;
         this.machineBit = machineBit;
         this.sequenceBit = sequenceBit;
-        this.maxTimestamp = -1L ^ (-1L << timestampBit);
-        this.maxSequence = -1L ^ (-1L << sequenceBit);
-        this.maxMachine = -1L ^ (-1L << machineBit);
+        this.maxTimestamp = ~(-1L << timestampBit);
+        this.maxSequence = ~(-1L << sequenceBit);
+        this.maxMachine = ~(-1L << machineBit);
         this.machineLeft = sequenceBit;
         this.timestampLeft = this.machineLeft + machineBit;
         if (machineId > this.maxMachine || machineId < 0) {
@@ -139,7 +139,7 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
     }
 
     @Override
-    public int getMachineId() {
+    public long getMachineId() {
         return machineId;
     }
 

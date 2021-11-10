@@ -20,6 +20,7 @@ import me.ahoo.cosid.snowflake.machine.LocalMachineStateStorage;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.Map;
 
 /**
@@ -30,6 +31,7 @@ public class SnowflakeIdProperties {
     public final static String PREFIX = CosId.COSID_PREFIX + "snowflake";
 
     private boolean enabled = false;
+    private String zoneId = ZoneId.systemDefault().getId();
     private long epoch = CosId.COSID_EPOCH;
     private Machine machine;
     private ClockBackwards clockBackwards;
@@ -48,6 +50,14 @@ public class SnowflakeIdProperties {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public String getZoneId() {
+        return zoneId;
+    }
+
+    public void setZoneId(String zoneId) {
+        this.zoneId = zoneId;
     }
 
     public long getEpoch() {

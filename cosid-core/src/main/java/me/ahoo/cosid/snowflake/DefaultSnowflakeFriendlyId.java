@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.snowflake;
 
+import java.time.ZoneId;
+
 /**
  * @author ahoo wang
  */
@@ -21,8 +23,12 @@ public class DefaultSnowflakeFriendlyId implements SnowflakeFriendlyId {
     private final SnowflakeIdStateParser snowflakeIdStateParser;
 
     public DefaultSnowflakeFriendlyId(SnowflakeId delegate) {
+        this(delegate, ZoneId.systemDefault());
+    }
+
+    public DefaultSnowflakeFriendlyId(SnowflakeId delegate, ZoneId zoneId) {
         this.delegate = delegate;
-        this.snowflakeIdStateParser = SnowflakeIdStateParser.of(delegate);
+        this.snowflakeIdStateParser = SnowflakeIdStateParser.of(delegate, zoneId);
     }
 
     public SnowflakeId getDelegate() {

@@ -32,6 +32,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
+import java.time.ZoneId;
 import java.util.Objects;
 
 /**
@@ -156,7 +157,8 @@ public class CosIdSnowflakeAutoConfiguration {
             snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
         }
         if (idDefinition.isFriendly()) {
-            snowflakeId = new DefaultSnowflakeFriendlyId(snowflakeId);
+            final ZoneId zoneId = ZoneId.of(snowflakeIdProperties.getZoneId());
+            snowflakeId = new DefaultSnowflakeFriendlyId(snowflakeId, zoneId);
         }
         return snowflakeId;
     }

@@ -39,7 +39,11 @@ public class MillisecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
             .toFormatter();
 
     public MillisecondSnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit) {
-        super(epoch, timestampBit, machineBit, sequenceBit);
+        this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault());
+    }
+
+    public MillisecondSnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId) {
+        super(epoch, timestampBit, machineBit, sequenceBit, zoneId);
     }
 
     @Override
@@ -49,15 +53,19 @@ public class MillisecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
 
     @Override
     protected LocalDateTime getTimestamp(long diffTime) {
-        return Instant.ofEpochMilli(epoch + diffTime).atZone(ZoneId.systemDefault()).toLocalDateTime();
+        return Instant.ofEpochMilli(epoch + diffTime).atZone(getZoneId()).toLocalDateTime();
     }
 
     @Override
     protected long getDiffTime(LocalDateTime timestamp) {
-        return ZonedDateTime.of(timestamp, ZoneId.systemDefault()).toInstant().toEpochMilli() - epoch;
+        return ZonedDateTime.of(timestamp, getZoneId()).toInstant().toEpochMilli() - epoch;
     }
 
     public static MillisecondSnowflakeIdStateParser of(SnowflakeId snowflakeId) {
-        return new MillisecondSnowflakeIdStateParser(snowflakeId.getEpoch(), snowflakeId.getTimestampBit(), snowflakeId.getMachineBit(), snowflakeId.getSequenceBit());
+        return of(snowflakeId, ZoneId.systemDefault());
+    }
+
+    public static MillisecondSnowflakeIdStateParser of(SnowflakeId snowflakeId, ZoneId zoneId) {
+        return new MillisecondSnowflakeIdStateParser(snowflakeId.getEpoch(), snowflakeId.getTimestampBit(), snowflakeId.getMachineBit(), snowflakeId.getSequenceBit(), zoneId);
     }
 }

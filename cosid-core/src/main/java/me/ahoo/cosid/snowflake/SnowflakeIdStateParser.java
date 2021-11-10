@@ -18,6 +18,7 @@ import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -28,7 +29,7 @@ import java.util.List;
 public abstract class SnowflakeIdStateParser {
 
     public static final String DELIMITER = "-";
-
+    protected final ZoneId zoneId;
     protected final long epoch;
 
     protected final int sequenceBit;
@@ -44,6 +45,11 @@ public abstract class SnowflakeIdStateParser {
 
     public SnowflakeIdStateParser(long epoch
             , int timestampBit, int machineBit, int sequenceBit) {
+        this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault());
+    }
+
+    public SnowflakeIdStateParser(long epoch
+            , int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId) {
         this.epoch = epoch;
         this.sequenceMask = getMask(sequenceBit);
         this.sequenceBit = sequenceBit;
@@ -51,9 +57,13 @@ public abstract class SnowflakeIdStateParser {
         this.machineBit = machineBit;
         this.timestampMask = getMask(timestampBit);
         this.timestampBit = timestampBit;
-
+        this.zoneId = zoneId;
         this.machineLeft = sequenceBit;
         this.timestampLeft = machineLeft + machineBit;
+    }
+
+    public ZoneId getZoneId() {
+        return zoneId;
     }
 
     protected abstract DateTimeFormatter getDateTimeFormatter();
@@ -115,9 +125,13 @@ public abstract class SnowflakeIdStateParser {
 
 
     public static SnowflakeIdStateParser of(SnowflakeId snowflakeId) {
+        return of(snowflakeId, ZoneId.systemDefault());
+    }
+
+    public static SnowflakeIdStateParser of(SnowflakeId snowflakeId, ZoneId zoneId) {
         if (snowflakeId instanceof SecondSnowflakeId) {
-            return SecondSnowflakeIdStateParser.of(snowflakeId);
+            return SecondSnowflakeIdStateParser.of(snowflakeId, zoneId);
         }
-        return MillisecondSnowflakeIdStateParser.of(snowflakeId);
+        return MillisecondSnowflakeIdStateParser.of(snowflakeId, zoneId);
     }
 }

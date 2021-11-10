@@ -61,7 +61,7 @@ public class IdController {
     public String friendlyId(@PathVariable String name) {
         IdGenerator idGenerator = getIdGenerator(name);
         if (idGenerator instanceof SnowflakeFriendlyId) {
-            return ((SnowflakeFriendlyId) idGenerator).friendlyId().getFriendlyId();
+            return idGenerator.generateAsString();
         }
 
         throw new IllegalArgumentException(Strings.lenientFormat("idGenerator:[%s] is not SnowflakeFriendlyId.", name));

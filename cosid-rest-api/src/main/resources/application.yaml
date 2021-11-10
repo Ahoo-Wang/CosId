@@ -1,8 +1,10 @@
+server:
+  port: 8004
 spring:
   application:
     name: ${service.name:cosid-example}
   datasource:
-    url: jdbc:mysql://localhost:3306/test_db
+    url: jdbc:mysql://localhost:3306/cosid_db
     username: root
     password: root
   redis:

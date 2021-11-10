@@ -27,4 +27,8 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
         return friendlyId(id);
     }
 
+    @Override
+    default String generateAsString() {
+        return friendlyId().getFriendlyId();
+    }
 }

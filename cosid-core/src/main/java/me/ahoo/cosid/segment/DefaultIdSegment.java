@@ -16,7 +16,7 @@ package me.ahoo.cosid.segment;
 import com.google.common.base.Preconditions;
 import me.ahoo.cosid.util.Clock;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
  * @author ahoo wang
@@ -31,9 +31,11 @@ public class DefaultIdSegment implements IdSegment {
     private final long maxId;
     private final long offset;
     private final long step;
-    private final AtomicLong sequence;
+    private volatile long sequence;
     private final long fetchTime;
     private final long ttl;
+
+    private static final AtomicLongFieldUpdater<DefaultIdSegment> S = AtomicLongFieldUpdater.newUpdater(DefaultIdSegment.class, "sequence");
 
     public DefaultIdSegment(long maxId, long step) {
         this(maxId, step, Clock.CACHE.secondTime(), TIME_TO_LIVE_FOREVER);
@@ -44,7 +46,7 @@ public class DefaultIdSegment implements IdSegment {
         this.maxId = maxId;
         this.step = step;
         this.offset = maxId - step;
-        this.sequence = new AtomicLong(offset);
+        this.sequence = offset;
         this.fetchTime = fetchTime;
         this.ttl = ttl;
     }
@@ -71,7 +73,7 @@ public class DefaultIdSegment implements IdSegment {
 
     @Override
     public long getSequence() {
-        return sequence.get();
+        return sequence;
     }
 
     @Override
@@ -85,7 +87,7 @@ public class DefaultIdSegment implements IdSegment {
             return SEQUENCE_OVERFLOW;
         }
 
-        final long nextSeq = sequence.incrementAndGet();
+        final long nextSeq = S.incrementAndGet(this);
 
         if (isOverflow(nextSeq)) {
             return SEQUENCE_OVERFLOW;

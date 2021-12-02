@@ -44,8 +44,8 @@ public class IdSegmentChain implements IdSegment {
             if (NOT_SET != next) {
                 return false;
             }
-            IdSegmentChain nextIdSegmentClain = idSegmentChainSupplier.apply(this);
-            setNext(nextIdSegmentClain);
+            IdSegmentChain nextIdSegmentChain = idSegmentChainSupplier.apply(this);
+            setNext(nextIdSegmentChain);
             return true;
         }
     }

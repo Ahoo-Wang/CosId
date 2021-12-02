@@ -96,7 +96,7 @@ public class SegmentChainId implements SegmentId {
             try {
                 final IdSegmentChain preIdSegmentChain = headChain;
 
-                if (preIdSegmentChain.trySetNext((preClain) -> generateNext(preClain, safeDistance))) {
+                if (preIdSegmentChain.trySetNext((preChain) -> generateNext(preChain, safeDistance))) {
                     IdSegmentChain nextChain = preIdSegmentChain.getNext();
                     forward(nextChain);
                     if (log.isDebugEnabled()) {

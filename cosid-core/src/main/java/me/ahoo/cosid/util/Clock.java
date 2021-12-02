@@ -85,7 +85,7 @@ public interface Clock {
          */
         @Override
         public void run() {
-            while (true) {
+            while (!thread.isInterrupted()) {
                 this.lastTime = getSystemSecondTime();
                 LockSupport.parkNanos(this, ONE_SECOND_PERIOD);
             }

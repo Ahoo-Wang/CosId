@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-create database if not exists cosid;
+create database if not exists cosid_db;
+use  cosid_db;
 
 create table if not exists cosid
 (

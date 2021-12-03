@@ -11,13 +11,13 @@ spring:
       ds0:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: com.mysql.cj.jdbc.Driver
-        jdbcUrl: jdbc:mysql://localhost:3306/cosid_db
+        jdbcUrl: jdbc:mysql://localhost:3306/cosid_db_0
         username: root
         password: root
       ds1:
         type: com.zaxxer.hikari.HikariDataSource
         driver-class-name: com.mysql.cj.jdbc.Driver
-        jdbcUrl: jdbc:mysql://localhost:3307/cosid_db
+        jdbcUrl: jdbc:mysql://localhost:3306/cosid_db_1
         username: root
         password: root
     props:

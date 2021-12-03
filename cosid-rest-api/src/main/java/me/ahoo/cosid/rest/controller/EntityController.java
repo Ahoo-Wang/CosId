@@ -20,14 +20,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Arrays;
-import java.util.List;
-
 /**
  * @author ahoo wang
  */
 @RestController
-@RequestMapping("entities")
+@RequestMapping("test")
 public class EntityController {
 
     private final EntityRepository entityRepository;
@@ -36,8 +33,8 @@ public class EntityController {
         this.entityRepository = entityRepository;
     }
 
-    @PostMapping()
-    public LongIdEntity create() {
+    @PostMapping("/long")
+    public LongIdEntity longId() {
         LongIdEntity entity = new LongIdEntity();
         entityRepository.insert(entity);
         /**
@@ -48,15 +45,10 @@ public class EntityController {
         return entity;
     }
 
-    @PostMapping("/batch")
-    public List<FriendlyIdEntity> createBatch() {
+    @PostMapping("/friendly")
+    public FriendlyIdEntity friendly() {
         FriendlyIdEntity entity = new FriendlyIdEntity();
-        FriendlyIdEntity entity1 = new FriendlyIdEntity();
-        FriendlyIdEntity entity2 = new FriendlyIdEntity();
-        FriendlyIdEntity entity3 = new FriendlyIdEntity();
-        FriendlyIdEntity entity4 = new FriendlyIdEntity();
-        List<FriendlyIdEntity> list = Arrays.asList(entity, entity1, entity2, entity3, entity4);
-        entityRepository.insertList(list);
-        return list;
+        entityRepository.insertFriendly(entity);
+        return entity;
     }
 }

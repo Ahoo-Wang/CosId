@@ -10,25 +10,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+-- ds0
+create table t_friendly_table
+(
+    id varchar(25) not null primary key
+);
 
-package me.ahoo.cosid.rest.repository;
+create table t_table_0
+(
+    id bigint not null primary key
+);
+create table t_table_1
+(
+    id bigint not null primary key
+);
 
-import me.ahoo.cosid.rest.entity.FriendlyIdEntity;
-import me.ahoo.cosid.rest.entity.LongIdEntity;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
+-- ds0 & ds1
+create table t_order
+(
+    order_id      bigint not null primary key,
+    user_id bigint not null
+);
 
-import java.util.List;
-
-/**
- * @author ahoo wang
- */
-@Mapper
-public interface EntityRepository {
-
-    @Insert("insert into t_table (id) value (#{id});")
-    void insert(LongIdEntity entity);
-
-    @Insert("insert into t_friendly_table (id) value (#{id});")
-    void insertFriendly(FriendlyIdEntity entity);
-}
+create table t_order_item
+(
+    order_item_id       bigint not null primary key,
+    order_id bigint not null
+);

@@ -13,22 +13,25 @@
 
 package me.ahoo.cosid.rest.repository;
 
-import me.ahoo.cosid.rest.entity.FriendlyIdEntity;
-import me.ahoo.cosid.rest.entity.LongIdEntity;
+import me.ahoo.cosid.rest.entity.Order;
+import me.ahoo.cosid.rest.entity.OrderItem;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
-
-import java.util.List;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 /**
  * @author ahoo wang
  */
 @Mapper
-public interface EntityRepository {
+public interface OrderRepository {
 
-    @Insert("insert into t_table (id) value (#{id});")
-    void insert(LongIdEntity entity);
+    @Insert("insert into t_order (order_id,user_id) value (#{orderId},#{userId});")
+    void insert(Order order);
 
-    @Insert("insert into t_friendly_table (id) value (#{id});")
-    void insertFriendly(FriendlyIdEntity entity);
+    @Insert("insert into t_order_item (order_item_id,order_id) value (#{orderItemId},#{orderId});")
+    void insertItem(OrderItem orderItem);
+
+    @Select("select * from t_order where order_id=#{orderId}")
+    Order getById(@Param("orderId") long orderId);
 }

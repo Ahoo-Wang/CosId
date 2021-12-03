@@ -11,24 +11,32 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.rest.repository;
+package me.ahoo.cosid.rest.entity;
 
-import me.ahoo.cosid.rest.entity.FriendlyIdEntity;
-import me.ahoo.cosid.rest.entity.LongIdEntity;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-
-import java.util.List;
+import me.ahoo.cosid.annotation.CosId;
 
 /**
  * @author ahoo wang
  */
-@Mapper
-public interface EntityRepository {
+public class OrderItem {
+    @CosId(value = "order_item")
+    private Long orderItemId;
+    private Long orderId;
 
-    @Insert("insert into t_table (id) value (#{id});")
-    void insert(LongIdEntity entity);
+    public Long getOrderItemId() {
+        return orderItemId;
+    }
 
-    @Insert("insert into t_friendly_table (id) value (#{id});")
-    void insertFriendly(FriendlyIdEntity entity);
+    public void setOrderItemId(Long orderItemId) {
+        this.orderItemId = orderItemId;
+    }
+
+    public Long getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(Long orderId) {
+        this.orderId = orderId;
+    }
+
 }

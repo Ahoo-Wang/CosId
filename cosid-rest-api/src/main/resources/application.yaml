@@ -3,12 +3,61 @@ server:
 spring:
   application:
     name: ${service.name:cosid-example}
-  datasource:
-    url: jdbc:mysql://localhost:3306/cosid_db
-    username: root
-    password: root
   redis:
     url: redis://localhost:6379
+  shardingsphere:
+    datasource:
+      names: ds0,ds1
+      ds0:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbcUrl: jdbc:mysql://localhost:3306/cosid_db
+        username: root
+        password: root
+      ds1:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbcUrl: jdbc:mysql://localhost:3307/cosid_db
+        username: root
+        password: root
+    props:
+      sql:
+        show: true
+    rules:
+      sharding:
+        tables:
+          t_table:
+            actual-data-nodes: ds0.t_table_$->{0..1}
+            table-strategy:
+              standard:
+                sharding-column: id
+                sharding-algorithm-name: table-inline
+          t_friendly_table:
+            actual-data-nodes: ds0.t_friendly_table
+          t_order:
+            actual-data-nodes: ds$->{0..1}.t_order
+            database-strategy:
+              standard:
+                sharding-column: order_id
+                sharding-algorithm-name: order-db-inline
+          t_order_item:
+            actual-data-nodes: ds$->{0..1}.t_order_item
+            database-strategy:
+              standard:
+                sharding-column: order_id
+                sharding-algorithm-name: order-db-inline
+        sharding-algorithms:
+          table-inline:
+            type: INLINE
+            props:
+              algorithm-expression: t_table_$->{id % 2}
+          order-db-inline:
+            type: INLINE
+            props:
+              algorithm-expression: ds$->{order_id % 2}
+        binding-tables:
+          - t_order,t_order_item
+
 cosid:
   namespace: ${spring.application.name}
   snowflake:
@@ -18,13 +67,13 @@ cosid:
       spin-threshold: 10
       broken-threshold: 2000
     machine:
-#      stable: true
+      #      stable: true
       #      machine-bit: 10
       #      instance-id: ${HOSTNAME}
       distributor:
         type: redis
-#        manual:
-#          machine-id: 0
+      #        manual:
+      #          machine-id: 0
       state-storage:
         local:
           state-location: ./cosid-machine-state/
@@ -32,7 +81,7 @@ cosid:
       clock-sync: true
       friendly: true
     provider:
-      order:
+      order_item:
         #        timestamp-bit:
         sequence-bit: 12
       safeJs:
@@ -52,15 +101,17 @@ cosid:
       offset: 0
       step: 100
     provider:
-      bizC:
+      order:
         offset: 10000
         step: 100
-      bizD:
+      longId:
         offset: 10000
         step: 100
 
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
 
 logging:
   level:
     me.ahoo.cosid: debug
-

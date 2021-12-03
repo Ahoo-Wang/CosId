@@ -25,7 +25,7 @@ import me.ahoo.cosid.annotation.CosId;
  */
 public class LongIdEntity {
 
-    @CosId(value = "safeJs")
+    @CosId(value = "longId")
     private Long id;
 
     public Long getId() {

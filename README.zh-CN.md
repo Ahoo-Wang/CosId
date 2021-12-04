@@ -179,6 +179,61 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
   - `Step`太小会影响吞吐量，那么我们如何合理设置`Step`呢？答案是我们无法准确预估所有时点的吞吐量需求，那么最好的办法是吞吐量需求高时，Step自动增大，吞吐量低时Step自动收缩。
   - **SegmentChainId**引入了**饥饿状态**的概念，**PrefetchWorker**会根据**饥饿状态**检测当前**安全距离**是否需要膨胀或者收缩，以便获得吞吐量与有序性之间的权衡，这便是**SegmentChainId**的自适应性。
 
+## 集成
+
+### CosIdPlugin（MyBatis 插件）
+
+> Kotlin DSL
+
+``` kotlin
+    implementation("me.ahoo.cosid:cosid-mybatis:${cosidVersion}")
+```
+
+```java
+public class Order {
+
+    @CosId(value = "order")
+    private Long orderId;
+    private Long userId;
+
+    public Long getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(Long orderId) {
+        this.orderId = orderId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+}
+```
+
+### CosIdKeyGenerateAlgorithm (shardingsphere-KeyGenerateAlgorithm)
+
+> Kotlin DSL
+
+``` kotlin
+    implementation("me.ahoo.cosid:cosid-shardingsphere:${cosidVersion}")
+```
+
+```yaml
+spring:
+  shardingsphere:
+    rules:
+      sharding:
+        key-generators:
+          cosid:
+            type: COSID
+            props:
+              id-name: __share__
+```
+
 ### SegmentChainId-吞吐量 (ops/s)
 
 #### RedisChainIdBenchmark-Throughput

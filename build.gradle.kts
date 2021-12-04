@@ -41,6 +41,7 @@ ext {
     set("mybatisVersion", "3.5.7")
     set("mybatisBootVersion","2.1.4")
     set("coskyVersion", "1.3.10")
+    set("shardingsphereVersion","5.0.0")
     set("libraryProjects", libraryProjects)
 }
 

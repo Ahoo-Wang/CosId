@@ -26,12 +26,9 @@ import org.apache.ibatis.annotations.Select;
 @Mapper
 public interface OrderRepository {
 
-    @Insert("insert into t_order (order_id,user_id) value (#{orderId},#{userId});")
     void insert(Order order);
 
-    @Insert("insert into t_order_item (order_item_id,order_id) value (#{orderItemId},#{orderId});")
     void insertItem(OrderItem orderItem);
 
-    @Select("select * from t_order where order_id=#{orderId}")
     Order getById(@Param("orderId") long orderId);
 }

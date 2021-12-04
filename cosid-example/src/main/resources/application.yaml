@@ -27,6 +27,8 @@ spring:
         binding-tables:
           - t_order,t_order_item
         tables:
+          cosid:
+            actual-data-nodes: ds0.cosid
           t_table:
             actual-data-nodes: ds0.t_table_$->{0..1}
             table-strategy:
@@ -41,6 +43,9 @@ spring:
               standard:
                 sharding-column: order_id
                 sharding-algorithm-name: order-db-inline
+            key-generate-strategy:
+              column: order_id
+              key-generator-name: order
           t_order_item:
             actual-data-nodes: ds$->{0..1}.t_order_item
             database-strategy:
@@ -56,7 +61,11 @@ spring:
             type: INLINE
             props:
               algorithm-expression: ds$->{order_id % 2}
-
+        key-generators:
+          order:
+            type: COSID
+            props:
+              id-name: order
 
 cosid:
   namespace: ${spring.application.name}
@@ -111,6 +120,7 @@ cosid:
 mybatis:
   configuration:
     map-underscore-to-camel-case: true
+  mapper-locations: classpath:/mappers/*.xml
 
 logging:
   level:

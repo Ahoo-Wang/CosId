@@ -75,7 +75,8 @@ dependencies {
     implementation(project(":cosid-jdbc"))
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("mysql:mysql-connector-java")
-    implementation("org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter:5.0.0")
+    implementation(project(":cosid-shardingsphere"))
+    implementation("org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter:${rootProject.ext.get("shardingsphereVersion")}")
     //endregion
 
     //region cosid-mybatis

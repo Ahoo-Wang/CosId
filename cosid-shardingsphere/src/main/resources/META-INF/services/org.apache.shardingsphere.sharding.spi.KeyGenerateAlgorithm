@@ -11,13 +11,4 @@
 # limitations under the License.
 #
 
-group=me.ahoo.cosid
-version=1.4.0
-
-description=Global distributed ID generator
-website=https://github.com/Ahoo-Wang/CosId
-issues=https://github.com/Ahoo-Wang/CosId/issues
-vcs=https://github.com/Ahoo-Wang/CosId.git
-
-license_name=The Apache Software License, Version 2.0
-license_url=https://www.apache.org/licenses/LICENSE-2.0.txt
+me.ahoo.cosid.shardingsphere.CosIdKeyGenerateAlgorithm

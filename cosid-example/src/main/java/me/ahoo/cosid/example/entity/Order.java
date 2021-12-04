@@ -20,7 +20,7 @@ import me.ahoo.cosid.annotation.CosId;
  */
 public class Order {
 
-    @CosId(value = "order")
+//    @CosId(value = "order")
     private Long orderId;
     private Long userId;
 

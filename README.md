@@ -301,6 +301,12 @@ In actual use, we generally do not use the same `IdGenerator` for all business s
 
 ### CosIdPlugin (MyBatis Plugin)
 
+> Kotlin DSL
+
+``` kotlin
+    implementation("me.ahoo.cosid:cosid-mybatis:${cosidVersion}")
+```
+
 ```java
 
 @Target({ElementType.FIELD})
@@ -372,6 +378,26 @@ public interface OrderRepository {
         return entity;
 ```
 
+### CosIdKeyGenerateAlgorithm (shardingsphere-KeyGenerateAlgorithm)
+
+> Kotlin DSL
+
+``` kotlin
+    implementation("me.ahoo.cosid:cosid-shardingsphere:${cosidVersion}")
+```
+
+```yaml
+spring:
+  shardingsphere:
+    rules:
+      sharding:
+        key-generators:
+          cosid:
+            type: COSID
+            props:
+              id-name: __share__
+```
+
 ## Examples
 
 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)
@@ -385,7 +411,7 @@ public interface OrderRepository {
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.3.19";
+    val cosidVersion = "1.4.0";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -401,7 +427,7 @@ public interface OrderRepository {
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.3.19</cosid.version>
+        <cosid.version>1.4.0</cosid.version>
     </properties>
 
     <dependencies>
@@ -418,15 +444,75 @@ public interface OrderRepository {
 ### application.yaml
 
 ```yaml
+server:
+  port: 8008
 spring:
   application:
     name: ${service.name:cosid-example}
-  datasource:
-    url: jdbc:mysql://localhost:3306/test_db
-    username: root
-    password: root
   redis:
     url: redis://localhost:6379
+  shardingsphere:
+    datasource:
+      names: ds0,ds1
+      ds0:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbcUrl: jdbc:mysql://localhost:3306/cosid_db_0
+        username: root
+        password: root
+      ds1:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbcUrl: jdbc:mysql://localhost:3306/cosid_db_1
+        username: root
+        password: root
+    props:
+      sql-show: true
+    rules:
+      sharding:
+        binding-tables:
+          - t_order,t_order_item
+        tables:
+          cosid:
+            actual-data-nodes: ds0.cosid
+          t_table:
+            actual-data-nodes: ds0.t_table_$->{0..1}
+            table-strategy:
+              standard:
+                sharding-column: id
+                sharding-algorithm-name: table-inline
+          t_friendly_table:
+            actual-data-nodes: ds0.t_friendly_table
+          t_order:
+            actual-data-nodes: ds$->{0..1}.t_order
+            database-strategy:
+              standard:
+                sharding-column: order_id
+                sharding-algorithm-name: order-db-inline
+            key-generate-strategy:
+              column: order_id
+              key-generator-name: order
+          t_order_item:
+            actual-data-nodes: ds$->{0..1}.t_order_item
+            database-strategy:
+              standard:
+                sharding-column: order_id
+                sharding-algorithm-name: order-db-inline
+        sharding-algorithms:
+          table-inline:
+            type: INLINE
+            props:
+              algorithm-expression: t_table_$->{id % 2}
+          order-db-inline:
+            type: INLINE
+            props:
+              algorithm-expression: ds$->{order_id % 2}
+        key-generators:
+          order:
+            type: COSID
+            props:
+              id-name: order
+
 cosid:
   namespace: ${spring.application.name}
   snowflake:
@@ -450,12 +536,12 @@ cosid:
       clock-sync: true
       friendly: true
     provider:
-      bizA:
+      order_item:
         #        timestamp-bit:
         sequence-bit: 12
-      bizB:
-        #        timestamp-bit:
-        sequence-bit: 12
+      safeJs:
+        machine-bit: 3
+        sequence-bit: 9
   segment:
     enabled: true
     mode: chain
@@ -470,14 +556,17 @@ cosid:
       offset: 0
       step: 100
     provider:
-      bizC:
+      order:
         offset: 10000
         step: 100
-      bizD:
+      longId:
         offset: 10000
         step: 100
 
-
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath:/mappers/*.xml
 ```
 
 ## JMH-Benchmark
@@ -491,7 +580,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.3.19-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.4.0-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -512,7 +601,7 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.3.19-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.4.0-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
@@ -530,7 +619,7 @@ RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743
 ![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.3.19-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.4.0-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -555,7 +644,7 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 ``` shell
 gradle cosid-jdbc:jmh
 # or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.19-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.0-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
 
 ```
@@ -571,7 +660,7 @@ MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.
 ![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.3.19-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.0-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 ```
 Benchmark                                            Mode      Cnt    Score   Error  Units

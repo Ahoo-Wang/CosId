@@ -214,7 +214,7 @@ public class Order {
 }
 ```
 
-### CosIdKeyGenerateAlgorithm (shardingsphere-KeyGenerateAlgorithm)
+### CosIdKeyGenerateAlgorithm (shardingsphere-分布式主键)
 
 > Kotlin DSL
 

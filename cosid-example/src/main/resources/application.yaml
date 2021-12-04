@@ -1,5 +1,5 @@
 server:
-  port: 8004
+  port: 8008
 spring:
   application:
     name: ${service.name:cosid-example}
@@ -21,10 +21,11 @@ spring:
         username: root
         password: root
     props:
-      sql:
-        show: true
+      sql-show: true
     rules:
       sharding:
+        binding-tables:
+          - t_order,t_order_item
         tables:
           t_table:
             actual-data-nodes: ds0.t_table_$->{0..1}
@@ -55,8 +56,7 @@ spring:
             type: INLINE
             props:
               algorithm-expression: ds$->{order_id % 2}
-        binding-tables:
-          - t_order,t_order_item
+
 
 cosid:
   namespace: ${spring.application.name}

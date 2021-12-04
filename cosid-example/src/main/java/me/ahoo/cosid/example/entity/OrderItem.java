@@ -11,17 +11,32 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.rest;
+package me.ahoo.cosid.example.entity;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import me.ahoo.cosid.annotation.CosId;
 
 /**
  * @author ahoo wang
  */
-@SpringBootApplication
-public class RestApiServer {
-    public static void main(String[] args) {
-        SpringApplication.run(RestApiServer.class, args);
+public class OrderItem {
+    @CosId(value = "order_item")
+    private Long orderItemId;
+    private Long orderId;
+
+    public Long getOrderItemId() {
+        return orderItemId;
     }
+
+    public void setOrderItemId(Long orderItemId) {
+        this.orderItemId = orderItemId;
+    }
+
+    public Long getOrderId() {
+        return orderId;
+    }
+
+    public void setOrderId(Long orderId) {
+        this.orderId = orderId;
+    }
+
 }

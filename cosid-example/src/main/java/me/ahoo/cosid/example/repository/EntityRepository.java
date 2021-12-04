@@ -11,28 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.rest.entity;
+package me.ahoo.cosid.example.repository;
 
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.example.entity.FriendlyIdEntity;
+import me.ahoo.cosid.example.entity.LongIdEntity;
+import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
- * create table t_table
- * (
- * id bigint not null primary key
- * );
- *
  * @author ahoo wang
  */
-public class LongIdEntity {
+@Mapper
+public interface EntityRepository {
 
-    @CosId(value = "longId")
-    private Long id;
+    @Insert("insert into t_table (id) value (#{id});")
+    void insert(LongIdEntity entity);
 
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
+    @Insert("insert into t_friendly_table (id) value (#{id});")
+    void insertFriendly(FriendlyIdEntity entity);
 }

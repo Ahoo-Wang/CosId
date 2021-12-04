@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.rest.entity;
+package me.ahoo.cosid.example.entity;
 
 import me.ahoo.cosid.annotation.CosId;
 

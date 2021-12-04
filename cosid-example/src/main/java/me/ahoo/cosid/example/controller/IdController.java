@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.rest.controller;
+package me.ahoo.cosid.example.controller;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;

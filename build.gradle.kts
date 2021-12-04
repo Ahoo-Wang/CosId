@@ -24,7 +24,7 @@ val coreProjects = listOf(
     project(":cosid-core")
 )
 val serverProjects = listOf(
-    project(":cosid-rest-api")
+    project(":cosid-example")
 )
 
 val publishProjects = subprojects - serverProjects

@@ -11,32 +11,28 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.rest.entity;
+package me.ahoo.cosid.example.entity;
 
 import me.ahoo.cosid.annotation.CosId;
 
 /**
+ * create table t_table
+ * (
+ * id bigint not null primary key
+ * );
+ *
  * @author ahoo wang
  */
-public class OrderItem {
-    @CosId(value = "order_item")
-    private Long orderItemId;
-    private Long orderId;
+public class LongIdEntity {
 
-    public Long getOrderItemId() {
-        return orderItemId;
+    @CosId(value = "longId")
+    private Long id;
+
+    public Long getId() {
+        return id;
     }
 
-    public void setOrderItemId(Long orderItemId) {
-        this.orderItemId = orderItemId;
+    public void setId(Long id) {
+        this.id = id;
     }
-
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(Long orderId) {
-        this.orderId = orderId;
-    }
-
 }

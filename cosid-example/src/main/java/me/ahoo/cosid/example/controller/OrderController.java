@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.rest.controller;
+package me.ahoo.cosid.example.controller;
 
-import me.ahoo.cosid.rest.entity.Order;
-import me.ahoo.cosid.rest.entity.OrderItem;
-import me.ahoo.cosid.rest.repository.OrderRepository;
+import me.ahoo.cosid.example.entity.Order;
+import me.ahoo.cosid.example.entity.OrderItem;
+import me.ahoo.cosid.example.repository.OrderRepository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 

@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.rest.repository;
+package me.ahoo.cosid.example.repository;
 
-import me.ahoo.cosid.rest.entity.Order;
-import me.ahoo.cosid.rest.entity.OrderItem;
+import me.ahoo.cosid.example.entity.Order;
+import me.ahoo.cosid.example.entity.OrderItem;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;

@@ -11,17 +11,32 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.rest.config;
+package me.ahoo.cosid.example.entity;
 
-
-import org.springframework.context.annotation.Configuration;
+import me.ahoo.cosid.annotation.CosId;
 
 /**
  * @author ahoo wang
  */
-@Configuration
-public class AppConfig {
+public class Order {
 
+    @CosId(value = "order")
+    private Long orderId;
+    private Long userId;
 
+    public Long getOrderId() {
+        return orderId;
+    }
 
+    public void setOrderId(Long orderId) {
+        this.orderId = orderId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
 }

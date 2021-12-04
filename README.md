@@ -374,9 +374,9 @@ public interface OrderRepository {
 
 ## Examples
 
-[CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-rest-api)
+[CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)
 
-> http://localhost:8080/swagger-ui/index.html#/
+> http://localhost:8008/swagger-ui/index.html#/
 
 ## Installation
 

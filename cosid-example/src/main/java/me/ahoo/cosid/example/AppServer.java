@@ -11,24 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.rest.repository;
+package me.ahoo.cosid.example;
 
-import me.ahoo.cosid.rest.entity.FriendlyIdEntity;
-import me.ahoo.cosid.rest.entity.LongIdEntity;
-import org.apache.ibatis.annotations.Insert;
-import org.apache.ibatis.annotations.Mapper;
-
-import java.util.List;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * @author ahoo wang
  */
-@Mapper
-public interface EntityRepository {
-
-    @Insert("insert into t_table (id) value (#{id});")
-    void insert(LongIdEntity entity);
-
-    @Insert("insert into t_friendly_table (id) value (#{id});")
-    void insertFriendly(FriendlyIdEntity entity);
+@SpringBootApplication
+public class AppServer {
+    public static void main(String[] args) {
+        SpringApplication.run(AppServer.class, args);
+    }
 }

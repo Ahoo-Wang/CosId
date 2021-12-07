@@ -16,6 +16,8 @@ package me.ahoo.cosid.segment;
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.concurrent.GuardedBy;
+
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
 /**
@@ -27,6 +29,7 @@ public class DefaultSegmentId implements SegmentId {
     private final long idSegmentTtl;
     private final IdSegmentDistributor maxIdDistributor;
 
+    @GuardedBy("this")
     private volatile IdSegment segment = DefaultIdSegment.OVERFLOW;
 
     public DefaultSegmentId(IdSegmentDistributor maxIdDistributor) {

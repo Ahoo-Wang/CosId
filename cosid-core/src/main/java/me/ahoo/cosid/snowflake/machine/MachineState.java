@@ -13,9 +13,12 @@
 
 package me.ahoo.cosid.snowflake.machine;
 
+import javax.annotation.concurrent.Immutable;
+
 /**
  * @author ahoo wang
  */
+@Immutable
 public class MachineState {
     public static final MachineState NOT_FOUND = of(-1, -1);
     private final int machineId;

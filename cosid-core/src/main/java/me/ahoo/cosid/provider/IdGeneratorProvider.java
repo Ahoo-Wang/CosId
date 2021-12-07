@@ -15,6 +15,7 @@ package me.ahoo.cosid.provider;
 
 import me.ahoo.cosid.IdGenerator;
 
+import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -22,6 +23,7 @@ import java.util.function.Supplier;
 /**
  * @author ahoo wang
  */
+@ThreadSafe
 public interface IdGeneratorProvider {
     String SHARE = "__share__";
 

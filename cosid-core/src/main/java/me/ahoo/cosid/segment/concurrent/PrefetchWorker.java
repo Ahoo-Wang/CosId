@@ -13,9 +13,12 @@
 
 package me.ahoo.cosid.segment.concurrent;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * @author ahoo wang
  */
+@ThreadSafe
 public interface PrefetchWorker {
 
     String getName();

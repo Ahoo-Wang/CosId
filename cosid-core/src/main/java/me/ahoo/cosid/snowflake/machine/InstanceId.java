@@ -15,10 +15,13 @@ package me.ahoo.cosid.snowflake.machine;
 
 import com.google.common.base.Objects;
 
+import javax.annotation.concurrent.Immutable;
+
 /**
  * @author ahoo wang
  * @see MachineId
  */
+@Immutable
 public class InstanceId {
     public static final InstanceId NONE = new InstanceId("none", false);
 

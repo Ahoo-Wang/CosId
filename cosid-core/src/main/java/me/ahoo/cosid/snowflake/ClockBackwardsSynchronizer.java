@@ -15,11 +15,14 @@ package me.ahoo.cosid.snowflake;
 
 import me.ahoo.cosid.snowflake.exception.ClockTooManyBackwardsException;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * 时钟回拨同步器
  *
  * @author ahoo wang
  */
+@ThreadSafe
 public interface ClockBackwardsSynchronizer {
     ClockBackwardsSynchronizer DEFAULT = new DefaultClockBackwardsSynchronizer();
 

@@ -13,11 +13,13 @@
 
 package me.ahoo.cosid.annotation;
 
+import javax.annotation.concurrent.Immutable;
 import java.lang.reflect.Field;
 
 /**
  * @author ahoo wang
  */
+@Immutable
 public interface IdMetadata {
 
     CosIdDefinition getCosIdDefinition();

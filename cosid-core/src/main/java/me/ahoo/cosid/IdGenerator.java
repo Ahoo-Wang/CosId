@@ -13,10 +13,13 @@
 
 package me.ahoo.cosid;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * @author ahoo wang
  * Creation time: 2019/11/14 18:43
  */
+@ThreadSafe
 public interface IdGenerator {
 
     long generate();

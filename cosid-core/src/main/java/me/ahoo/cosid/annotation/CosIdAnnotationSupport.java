@@ -17,9 +17,12 @@ import me.ahoo.cosid.annotation.accessor.CosIdAccessor;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.annotation.accessor.CosIdAccessorSupport;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * @author ahoo wang
  */
+@ThreadSafe
 public class CosIdAnnotationSupport {
 
     private final IdGeneratorProvider idGeneratorProvider;

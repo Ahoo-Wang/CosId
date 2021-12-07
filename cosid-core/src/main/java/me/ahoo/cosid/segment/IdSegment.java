@@ -15,9 +15,12 @@ package me.ahoo.cosid.segment;
 
 import me.ahoo.cosid.util.Clock;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * @author ahoo wang
  */
+@ThreadSafe
 public interface IdSegment extends Comparable<IdSegment> {
 
     long SEQUENCE_OVERFLOW = -1;

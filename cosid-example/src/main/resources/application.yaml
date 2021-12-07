@@ -54,13 +54,13 @@ spring:
                 sharding-algorithm-name: order-db-inline
         sharding-algorithms:
           table-inline:
-            type: INLINE
+            type: MOD
             props:
-              algorithm-expression: t_table_$->{id % 2}
+              sharding-count: 2
           order-db-inline:
-            type: INLINE
+            type: MOD
             props:
-              algorithm-expression: ds$->{order_id % 2}
+              sharding-count: 2
         key-generators:
           order:
             type: COSID

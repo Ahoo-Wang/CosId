@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.util;
 
+import javax.annotation.concurrent.ThreadSafe;
 import java.time.Duration;
 import java.util.concurrent.locks.LockSupport;
 
@@ -21,6 +22,7 @@ import java.util.concurrent.locks.LockSupport;
  *
  * @author ahoo wang
  */
+@ThreadSafe
 public interface Clock {
 
     Clock CACHE = new CacheClock();

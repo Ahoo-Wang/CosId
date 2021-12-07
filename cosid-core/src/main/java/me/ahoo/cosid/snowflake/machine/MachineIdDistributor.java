@@ -16,9 +16,12 @@ package me.ahoo.cosid.snowflake.machine;
 
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * @author ahoo wang
  */
+@ThreadSafe
 public interface MachineIdDistributor {
 
     default int maxMachineId(int machineBit) {

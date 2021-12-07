@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.segment;
 
+import javax.annotation.concurrent.GuardedBy;
 import java.util.function.Function;
 
 /**
@@ -24,6 +25,7 @@ public class IdSegmentChain implements IdSegment {
 
     private final long version;
     private final IdSegment idSegment;
+    @GuardedBy("this")
     private volatile IdSegmentChain next;
 
     public IdSegmentChain(IdSegmentChain previousChain, IdSegment idSegment) {

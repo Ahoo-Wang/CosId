@@ -13,11 +13,15 @@
 
 package me.ahoo.cosid.example.controller;
 
+import com.google.common.base.Splitter;
 import me.ahoo.cosid.example.entity.Order;
 import me.ahoo.cosid.example.entity.OrderItem;
 import me.ahoo.cosid.example.repository.OrderRepository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author ahoo wang
@@ -50,4 +54,11 @@ public class OrderController {
     public Order get(@PathVariable long id) {
         return orderRepository.getById(id);
     }
+
+    @GetMapping("/list/{ids}")
+    public List<Order> get(@PathVariable String ids) {
+        List<Long> idList = Splitter.on(",").omitEmptyStrings().trimResults().splitToStream(ids).map(Long::parseLong).collect(Collectors.toList());
+        return orderRepository.getByIds(idList);
+    }
+
 }

@@ -13,11 +13,14 @@
 
 package me.ahoo.cosid.snowflake.machine;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * 机器状态的本地缓存
  *
  * @author ahoo wang
  */
+@ThreadSafe
 public interface MachineStateStorage {
     MachineStateStorage LOCAL = new LocalMachineStateStorage();
     MachineStateStorage NONE = new None();

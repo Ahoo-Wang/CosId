@@ -20,6 +20,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
+
 /**
  * @author ahoo wang
  */
@@ -31,4 +33,6 @@ public interface OrderRepository {
     void insertItem(OrderItem orderItem);
 
     Order getById(@Param("orderId") long orderId);
+
+    List<Order> getByIds(@Param("ids") List<Long> ids);
 }

@@ -17,6 +17,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 
+import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -26,6 +27,7 @@ import java.util.List;
  * @author ahoo wang
  * Creation time: 2019/12/4 21:20
  */
+@ThreadSafe
 public abstract class SnowflakeIdStateParser {
 
     public static final String DELIMITER = "-";

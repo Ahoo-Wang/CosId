@@ -37,3 +37,38 @@ create table t_order_item
     order_item_id       bigint not null primary key,
     order_id bigint not null
 );
+
+
+-- interval
+
+create table t_date_log_202112
+(
+    id          bigint   not null,
+    create_time datetime not null,
+    constraint t_date_log_202112_pk
+        primary key (id)
+);
+
+create table t_date_time_log_202112
+(
+    id          bigint   not null,
+    create_time datetime not null,
+    constraint t_date_time_log_202112_pk
+        primary key (id)
+);
+
+create table t_timestamp_log_202112
+(
+    id          bigint   not null,
+    create_time bigint not null,
+    constraint t_timestamp_log_202112_pk
+        primary key (id)
+);
+
+create table t_snowflake_log_202112
+(
+    id          bigint   not null,
+    constraint t_snowflake_log_202112_pk
+        primary key (id)
+);
+

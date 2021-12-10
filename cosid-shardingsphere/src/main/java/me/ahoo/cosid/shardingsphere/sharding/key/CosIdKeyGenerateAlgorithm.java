@@ -11,26 +11,39 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.snowflake;
+package me.ahoo.cosid.shardingsphere.sharding.key;
+
+import me.ahoo.cosid.CosId;
+import org.apache.shardingsphere.sharding.spi.KeyGenerateAlgorithm;
+
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * @author ahoo wang
  */
-public interface SnowflakeFriendlyId extends SnowflakeId {
+@ThreadSafe
+public class CosIdKeyGenerateAlgorithm extends AbstractCosIdAlgorithm implements KeyGenerateAlgorithm {
 
-    SnowflakeIdStateParser getParser();
+    public static final String TYPE = CosId.COSID.toUpperCase();
 
-    SnowflakeIdState friendlyId(long id);
-
-    SnowflakeIdState ofFriendlyId(String friendlyId);
-
-    default SnowflakeIdState friendlyId() {
-        long id = generate();
-        return friendlyId(id);
-    }
-
+    /**
+     * Get type.
+     *
+     * @return type
+     */
     @Override
-    default String generateAsString() {
-        return friendlyId().getFriendlyId();
+    public String getType() {
+        return TYPE;
     }
+
+    /**
+     * Generate key.
+     *
+     * @return generated key
+     */
+    @Override
+    public Comparable<?> generateKey() {
+        return generateId();
+    }
+
 }

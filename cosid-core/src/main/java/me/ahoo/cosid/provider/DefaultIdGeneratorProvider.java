@@ -15,6 +15,7 @@ package me.ahoo.cosid.provider;
 
 import me.ahoo.cosid.IdGenerator;
 
+import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,9 +24,10 @@ import java.util.function.Supplier;
 /**
  * @author ahoo wang
  */
+@ThreadSafe
 public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
     public static final IdGeneratorProvider INSTANCE = new DefaultIdGeneratorProvider();
-    private IdGenerator shareIdGenerator;
+    private volatile IdGenerator shareIdGenerator;
 
     private final ConcurrentHashMap<String, IdGenerator> nameMapIdGen;
 

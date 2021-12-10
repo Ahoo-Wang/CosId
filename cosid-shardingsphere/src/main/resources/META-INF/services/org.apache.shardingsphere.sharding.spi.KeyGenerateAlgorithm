@@ -11,4 +11,4 @@
 # limitations under the License.
 #
 
-me.ahoo.cosid.shardingsphere.CosIdKeyGenerateAlgorithm
+me.ahoo.cosid.shardingsphere.sharding.key.CosIdKeyGenerateAlgorithm

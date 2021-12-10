@@ -15,7 +15,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="me.ahoo.cosid.example.repository.OrderRepository">
 
-    <!--me.ahoo.cosid.shardingsphere.CosIdKeyGenerateAlgorithm-->
+    <!--me.ahoo.cosid.shardingsphere.sharding.key.CosIdKeyGenerateAlgorithm-->
     <insert id="insert" useGeneratedKeys="true" keyProperty="orderId">
         insert into t_order (user_id) value (#{userId});
     </insert>

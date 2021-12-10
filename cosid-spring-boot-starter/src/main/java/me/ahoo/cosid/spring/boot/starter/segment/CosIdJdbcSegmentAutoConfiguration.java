@@ -51,7 +51,7 @@ public class CosIdJdbcSegmentAutoConfiguration {
     @ConditionalOnMissingBean
     public JdbcIdSegmentInitializer jdbcIdSegmentInitializer(DataSource dataSource) {
         SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
-        JdbcIdSegmentInitializer segmentInitializer = new JdbcIdSegmentInitializer(jdbc.getInitIdSegmentSql(), jdbc.getInitIdSegmentSql(), dataSource);
+        JdbcIdSegmentInitializer segmentInitializer = new JdbcIdSegmentInitializer(jdbc.getInitCosidTableSql(), jdbc.getInitIdSegmentSql(), dataSource);
         if (jdbc.isEnableAutoInitCosidTable()) {
             segmentInitializer.tryInitCosIdTable();
         }

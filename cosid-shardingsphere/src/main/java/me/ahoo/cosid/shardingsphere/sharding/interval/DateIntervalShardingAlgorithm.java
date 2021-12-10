@@ -11,21 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere;
+package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import me.ahoo.cosid.CosId;
-import me.ahoo.cosid.IdGenerator;
-import org.apache.shardingsphere.sharding.spi.KeyGenerateAlgorithm;
-
-import javax.annotation.concurrent.ThreadSafe;
+import java.time.LocalDateTime;
+import java.util.Date;
 
 /**
+ * support types: {@link Date}/{@link java.sql.Date}/{@link java.sql.Timestamp}
+ *
  * @author ahoo wang
  */
-@ThreadSafe
-public class CosIdKeyGenerateAlgorithm extends AbstractCosIdAlgorithm implements KeyGenerateAlgorithm {
+public class DateIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Date> {
 
-    public static final String TYPE = CosId.COSID.toUpperCase();
+    public static final String TYPE = PREFIX_TYPE + "DATE";
 
     /**
      * Get type.
@@ -37,15 +35,9 @@ public class CosIdKeyGenerateAlgorithm extends AbstractCosIdAlgorithm implements
         return TYPE;
     }
 
-    /**
-     * Generate key.
-     *
-     * @return generated key
-     */
     @Override
-    public Comparable<?> generateKey() {
-        final IdGenerator idGenerator = this.tryGetIdGenerator(true);
-        return idGenerator.generate();
+    protected LocalDateTime convertShardingValue(Date shardingValue) {
+        return LocalDateTime.ofInstant(shardingValue.toInstant(), getZoneId());
     }
 
 }

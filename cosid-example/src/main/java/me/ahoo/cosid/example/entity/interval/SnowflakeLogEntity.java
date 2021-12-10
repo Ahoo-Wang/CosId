@@ -11,26 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.snowflake;
+package me.ahoo.cosid.example.entity.interval;
+
+import me.ahoo.cosid.annotation.CosId;
 
 /**
  * @author ahoo wang
  */
-public interface SnowflakeFriendlyId extends SnowflakeId {
+public class SnowflakeLogEntity {
+    @CosId("snowflake")
+    private long id;
 
-    SnowflakeIdStateParser getParser();
-
-    SnowflakeIdState friendlyId(long id);
-
-    SnowflakeIdState ofFriendlyId(String friendlyId);
-
-    default SnowflakeIdState friendlyId() {
-        long id = generate();
-        return friendlyId(id);
+    public long getId() {
+        return id;
     }
 
-    @Override
-    default String generateAsString() {
-        return friendlyId().getFriendlyId();
+    public void setId(long id) {
+        this.id = id;
     }
 }

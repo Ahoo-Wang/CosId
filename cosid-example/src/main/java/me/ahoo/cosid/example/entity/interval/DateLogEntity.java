@@ -11,26 +11,35 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.snowflake;
+package me.ahoo.cosid.example.entity.interval;
+
+import java.util.Date;
 
 /**
+ * create table t_friendly_table
+ * (
+ * id varchar(25) not null primary key
+ * );
  * @author ahoo wang
  */
-public interface SnowflakeFriendlyId extends SnowflakeId {
+public class DateLogEntity {
 
-    SnowflakeIdStateParser getParser();
+    private long id;
+    private Date createTime;
 
-    SnowflakeIdState friendlyId(long id);
-
-    SnowflakeIdState ofFriendlyId(String friendlyId);
-
-    default SnowflakeIdState friendlyId() {
-        long id = generate();
-        return friendlyId(id);
+    public long getId() {
+        return id;
     }
 
-    @Override
-    default String generateAsString() {
-        return friendlyId().getFriendlyId();
+    public void setId(long id) {
+        this.id = id;
+    }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
     }
 }

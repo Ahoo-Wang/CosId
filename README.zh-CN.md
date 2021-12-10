@@ -214,13 +214,15 @@ public class Order {
 }
 ```
 
-### CosIdKeyGenerateAlgorithm (shardingsphere-分布式主键)
+### ShardingSphere 插件
 
 > Kotlin DSL
 
 ``` kotlin
     implementation("me.ahoo.cosid:cosid-shardingsphere:${cosidVersion}")
 ```
+
+#### CosIdKeyGenerateAlgorithm (分布式主键)
 
 ```yaml
 spring:
@@ -232,6 +234,64 @@ spring:
             type: COSID
             props:
               id-name: __share__
+```
+
+#### 基于间隔的时间范围分片算法
+
+![CosIdIntervalShardingAlgorithm](docs/CosIdIntervalShardingAlgorithm.png)
+
+- 易用性: 支持多种数据类型 (`Long`、`LocalDateTime`、`DATE`)，而官方实现是先转换成字符串再转换成`LocalDateTime`，转换成功率受时间格式化字符影响。
+- 性能 : 相比于 `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm` 性能高出 *1200~4000* 倍。
+
+``` shell
+gradle cosid-shardingsphere:jmh
+```
+```
+# JMH version: 1.29
+# VM version: JDK 11.0.13, OpenJDK 64-Bit Server VM, 11.0.13+8-LTS
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=/work/CosId/cosid-shardingsphere/build/tmp/jmh -Duser.country=CN -Duser.language=zh -Duser.variant
+# Blackhole mode: full + dont-inline hint
+# Warmup: 1 iterations, 10 s each
+# Measurement: 1 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+Benchmark                                                          Mode  Cnt         Score   Error  Units
+IntervalShardingAlgorithmBenchmark.cosid_precise_local_date_time  thrpt       66276995.822          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_precise_timestamp        thrpt       24841952.001          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_local_date_time    thrpt        3344013.803          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_timestamp          thrpt        2846453.298          ops/s
+IntervalShardingAlgorithmBenchmark.office_precise_timestamp       thrpt           6286.861          ops/s
+IntervalShardingAlgorithmBenchmark.office_range_timestamp         thrpt           2302.986          ops/s
+```
+
+- DateIntervalShardingAlgorithm
+  - type: COSID_INTERVAL_DATE
+- LocalDateTimeIntervalShardingAlgorithm
+  - type: COSID_INTERVAL_LDT
+- TimestampIntervalShardingAlgorithm
+  - type: COSID_INTERVAL_TS
+- TimestampOfSecondIntervalShardingAlgorithm
+  - type: COSID_INTERVAL_TS_SECOND
+- SnowflakeIntervalShardingAlgorithm
+  - type: COSID_INTERVAL_SNOWFLAKE
+
+```yaml
+spring:
+  shardingsphere:
+    rules:
+      sharding:
+        sharding-algorithms:
+          alg-name:
+            type: COSID_INTERVAL_{type_suffix}
+            props:
+              logic-name: logic-name
+              id-name: cosid-name
+              datetime-lower: 2021-12-08T22:00:00
+              datetime-upper: 2022-12-01T00:00:00
+              sharding-suffix-pattern: _yyyyMM
+              datetime-interval-unit: MONTHS
+              datetime-interval-amount: 1
 ```
 
 ## 性能测试报告

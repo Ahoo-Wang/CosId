@@ -378,13 +378,15 @@ public interface OrderRepository {
         return entity;
 ```
 
-### CosIdKeyGenerateAlgorithm (shardingsphere-KeyGenerateAlgorithm)
+### ShardingSphere Plugin
 
 > Kotlin DSL
 
 ``` kotlin
     implementation("me.ahoo.cosid:cosid-shardingsphere:${cosidVersion}")
 ```
+
+#### CosIdKeyGenerateAlgorithm (Distributed-Id)
 
 ```yaml
 spring:
@@ -396,6 +398,64 @@ spring:
             type: COSID
             props:
               id-name: __share__
+```
+
+#### Interval-based time range sharding algorithm
+
+![CosIdIntervalShardingAlgorithm](docs/CosIdIntervalShardingAlgorithm.png)
+
+- Ease of use: supports multiple data types (`Long`/`LocalDateTime`/`DATE`),The official implementation is to first convert to a string and then convert to `LocalDateTime`, the conversion success rate is affected by the time formatting characters.
+- Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`,The performance is *1200~4000* times higher.
+
+``` shell
+gradle cosid-shardingsphere:jmh
+```
+```
+# JMH version: 1.29
+# VM version: JDK 11.0.13, OpenJDK 64-Bit Server VM, 11.0.13+8-LTS
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=/work/CosId/cosid-shardingsphere/build/tmp/jmh -Duser.country=CN -Duser.language=zh -Duser.variant
+# Blackhole mode: full + dont-inline hint
+# Warmup: 1 iterations, 10 s each
+# Measurement: 1 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+Benchmark                                                          Mode  Cnt         Score   Error  Units
+IntervalShardingAlgorithmBenchmark.cosid_precise_local_date_time  thrpt       66276995.822          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_precise_timestamp        thrpt       24841952.001          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_local_date_time    thrpt        3344013.803          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_timestamp          thrpt        2846453.298          ops/s
+IntervalShardingAlgorithmBenchmark.office_precise_timestamp       thrpt           6286.861          ops/s
+IntervalShardingAlgorithmBenchmark.office_range_timestamp         thrpt           2302.986          ops/s
+```
+
+- DateIntervalShardingAlgorithm
+    - type: COSID_INTERVAL_DATE
+- LocalDateTimeIntervalShardingAlgorithm
+    - type: COSID_INTERVAL_LDT
+- TimestampIntervalShardingAlgorithm
+    - type: COSID_INTERVAL_TS
+- TimestampOfSecondIntervalShardingAlgorithm
+    - type: COSID_INTERVAL_TS_SECOND
+- SnowflakeIntervalShardingAlgorithm
+    - type: COSID_INTERVAL_SNOWFLAKE
+
+```yaml
+spring:
+  shardingsphere:
+    rules:
+      sharding:
+        sharding-algorithms:
+          alg-name:
+            type: COSID_INTERVAL_{type_suffix}
+            props:
+              logic-name: logic-name
+              id-name: cosid-name
+              datetime-lower: 2021-12-08T22:00:00
+              datetime-upper: 2022-12-01T00:00:00
+              sharding-suffix-pattern: _yyyyMM
+              datetime-interval-unit: MONTHS
+              datetime-interval-amount: 1
 ```
 
 ## Examples
@@ -411,7 +471,7 @@ spring:
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.4.1";
+    val cosidVersion = "1.4.5";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -427,7 +487,7 @@ spring:
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.4.1</cosid.version>
+        <cosid.version>1.4.5</cosid.version>
     </properties>
 
     <dependencies>
@@ -500,13 +560,13 @@ spring:
                 sharding-algorithm-name: order-db-inline
         sharding-algorithms:
           table-inline:
-            type: INLINE
+            type: MOD
             props:
-              algorithm-expression: t_table_$->{id % 2}
+              sharding-count: 2
           order-db-inline:
-            type: INLINE
+            type: MOD
             props:
-              algorithm-expression: ds$->{order_id % 2}
+              sharding-count: 2
         key-generators:
           order:
             type: COSID
@@ -580,7 +640,7 @@ mybatis:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.4.1-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.4.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -601,7 +661,7 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.4.1-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.4.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
@@ -619,7 +679,7 @@ RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743
 ![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.4.1-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.4.5-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -644,7 +704,7 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 ``` shell
 gradle cosid-jdbc:jmh
 # or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.1-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
 
 ```
@@ -660,7 +720,7 @@ MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.
 ![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.1-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.5-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 ```
 Benchmark                                            Mode      Cnt    Score   Error  Units

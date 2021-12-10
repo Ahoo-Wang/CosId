@@ -99,11 +99,9 @@ public abstract class SnowflakeIdStateParser {
 
     public SnowflakeIdState parse(long id) {
 
-        long machineId = (id >> machineLeft) & machineMask;
-        long sequence = id & sequenceMask;
-        long diffTime = (id >> timestampLeft) & timestampMask;
-
-        LocalDateTime timestamp = getTimestamp(diffTime);
+        long machineId = parseMachineId(id);
+        long sequence = parseSequence(id);
+        LocalDateTime timestamp = parseTimestamp(id);
 
         String friendlyId = new StringBuilder(timestamp.format(getDateTimeFormatter()))
                 .append(DELIMITER)
@@ -125,6 +123,23 @@ public abstract class SnowflakeIdStateParser {
         return ~(-1L << bits);
     }
 
+    public LocalDateTime parseTimestamp(long id) {
+        long diffTime = (id >> timestampLeft) & timestampMask;
+        return getTimestamp(diffTime);
+    }
+
+    public long parseMachineId(long id) {
+        return (id >> machineLeft) & machineMask;
+    }
+
+    public long parseSequence(long id) {
+        return id & sequenceMask;
+    }
+
+    public long shiftTimestamp(long timestamp) {
+        long diffTime = timestamp - epoch;
+        return (diffTime) << timestampLeft;
+    }
 
     public static SnowflakeIdStateParser of(SnowflakeId snowflakeId) {
         return of(snowflakeId, ZoneId.systemDefault());

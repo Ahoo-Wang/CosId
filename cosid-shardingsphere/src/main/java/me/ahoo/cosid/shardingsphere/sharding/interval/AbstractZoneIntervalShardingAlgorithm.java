@@ -11,26 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.snowflake;
+package me.ahoo.cosid.shardingsphere.sharding.interval;
+
+import java.time.ZoneId;
 
 /**
  * @author ahoo wang
  */
-public interface SnowflakeFriendlyId extends SnowflakeId {
+public abstract class AbstractZoneIntervalShardingAlgorithm<T extends Comparable<?>> extends AbstractIntervalShardingAlgorithm<T> {
 
-    SnowflakeIdStateParser getParser();
+    public static final String ZONE_ID = "zone-id";
 
-    SnowflakeIdState friendlyId(long id);
+    private ZoneId zoneId = ZoneId.systemDefault();
 
-    SnowflakeIdState ofFriendlyId(String friendlyId);
-
-    default SnowflakeIdState friendlyId() {
-        long id = generate();
-        return friendlyId(id);
+    /**
+     * Initialize algorithm.
+     */
+    @Override
+    public void init() {
+        super.init();
+        if (getProps().containsKey(ZONE_ID)) {
+            zoneId = ZoneId.of(getRequiredValue(ZONE_ID));
+        }
     }
 
-    @Override
-    default String generateAsString() {
-        return friendlyId().getFriendlyId();
+    public ZoneId getZoneId() {
+        return zoneId;
     }
 }

@@ -22,13 +22,16 @@ import java.time.ZoneOffset;
 public final class CosId {
     public static final String COSID = "cosid";
     public static final String COSID_PREFIX = COSID + ".";
+    /**
+     * UTC DATE
+     */
     public static final LocalDateTime COSID_EPOCH_DATE;
     /**
-     *  1577203200000
+     * 1577203200000
      */
     public static final long COSID_EPOCH;
     /**
-     *  1577203200
+     * 1577203200
      */
     public static final long COSID_EPOCH_SECOND;
 

@@ -34,8 +34,8 @@ public class DefaultSnowflakeFriendlyId implements SnowflakeFriendlyId {
     public SnowflakeId getDelegate() {
         return delegate;
     }
-
-    public SnowflakeIdStateParser getSnowflakeIdStateParser() {
+    @Override
+    public SnowflakeIdStateParser getParser() {
         return snowflakeIdStateParser;
     }
 

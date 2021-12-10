@@ -11,26 +11,30 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.snowflake;
+package me.ahoo.cosid.shardingsphere.sharding.interval;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
 
 /**
  * @author ahoo wang
  */
-public interface SnowflakeFriendlyId extends SnowflakeId {
+public class TimestampOfSecondIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Long> {
 
-    SnowflakeIdStateParser getParser();
-
-    SnowflakeIdState friendlyId(long id);
-
-    SnowflakeIdState ofFriendlyId(String friendlyId);
-
-    default SnowflakeIdState friendlyId() {
-        long id = generate();
-        return friendlyId(id);
-    }
+    public static final String TYPE = PREFIX_TYPE + "TS_SECOND";
 
     @Override
-    default String generateAsString() {
-        return friendlyId().getFriendlyId();
+    protected LocalDateTime convertShardingValue(Long shardingValue) {
+        return LocalDateTime.ofInstant(Instant.ofEpochSecond(shardingValue), getZoneId());
+    }
+
+    /**
+     * Get type.
+     *
+     * @return type
+     */
+    @Override
+    public String getType() {
+        return TYPE;
     }
 }

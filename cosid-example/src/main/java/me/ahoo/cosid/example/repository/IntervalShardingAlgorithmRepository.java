@@ -11,26 +11,23 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.snowflake;
+package me.ahoo.cosid.example.repository;
+
+import me.ahoo.cosid.example.entity.interval.DateLogEntity;
+import me.ahoo.cosid.example.entity.interval.LocalDateTimeLogEntity;
+import me.ahoo.cosid.example.entity.interval.SnowflakeLogEntity;
+import me.ahoo.cosid.example.entity.interval.TimestampLogEntity;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
  * @author ahoo wang
  */
-public interface SnowflakeFriendlyId extends SnowflakeId {
+@Mapper
+public interface IntervalShardingAlgorithmRepository {
 
-    SnowflakeIdStateParser getParser();
+    void insertDate(DateLogEntity log);
+    void insertTimestamp(TimestampLogEntity log);
+    void insertDateTime(LocalDateTimeLogEntity log);
 
-    SnowflakeIdState friendlyId(long id);
-
-    SnowflakeIdState ofFriendlyId(String friendlyId);
-
-    default SnowflakeIdState friendlyId() {
-        long id = generate();
-        return friendlyId(id);
-    }
-
-    @Override
-    default String generateAsString() {
-        return friendlyId().getFriendlyId();
-    }
+    void insertSnowflake(SnowflakeLogEntity log);
 }

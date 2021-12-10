@@ -11,26 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.snowflake;
+package me.ahoo.cosid.shardingsphere.sharding;
+
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 /**
  * @author ahoo wang
  */
-public interface SnowflakeFriendlyId extends SnowflakeId {
-
-    SnowflakeIdStateParser getParser();
-
-    SnowflakeIdState friendlyId(long id);
-
-    SnowflakeIdState ofFriendlyId(String friendlyId);
-
-    default SnowflakeIdState friendlyId() {
-        long id = generate();
-        return friendlyId(id);
-    }
-
-    @Override
-    default String generateAsString() {
-        return friendlyId().getFriendlyId();
-    }
+public interface CosIdAlgorithm {
+    /**
+     * #{@link IdGeneratorProvider#get(String)}
+     */
+    String ID_NAME_KEY = "id-name";
 }

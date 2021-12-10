@@ -405,6 +405,8 @@ spring:
 - 易用性: 支持多种数据类型 (`Long`、`LocalDateTime`、`DATE`)，而官方实现是先转换成字符串再转换成`LocalDateTime`，转换成功率受时间格式化字符影响。
 - 性能 : 相比于 `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm` 性能高出 *1200~4000* 倍。
 
+![Interval-based-sharding-algorithm](../docs/Interval-based-sharding-algorithm-jmh.png)
+
 ``` shell
 gradle cosid-shardingsphere:jmh
 ```

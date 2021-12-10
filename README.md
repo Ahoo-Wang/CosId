@@ -407,6 +407,8 @@ spring:
 - Ease of use: supports multiple data types (`Long`/`LocalDateTime`/`DATE`),The official implementation is to first convert to a string and then convert to `LocalDateTime`, the conversion success rate is affected by the time formatting characters.
 - Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`,The performance is *1200~4000* times higher.
 
+![Interval-based-sharding-algorithm](docs/Interval-based-sharding-algorithm-jmh.png)
+
 ``` shell
 gradle cosid-shardingsphere:jmh
 ```

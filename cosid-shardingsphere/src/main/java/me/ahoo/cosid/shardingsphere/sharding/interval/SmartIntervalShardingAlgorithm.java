@@ -24,8 +24,9 @@ import java.util.Date;
 public class SmartIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Comparable<?>> {
     public static final String TYPE = "COSID_INTERVAL";
     public static final String TIMESTAMP_SECOND_TYPE = "SECOND";
+
     /**
-     * MS
+     * type of timestamp
      */
     public static final String TIMESTAMP_TYPE_KEY = "ts-type";
 

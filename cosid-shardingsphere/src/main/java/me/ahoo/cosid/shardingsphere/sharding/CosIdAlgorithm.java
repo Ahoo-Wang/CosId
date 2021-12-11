@@ -23,4 +23,6 @@ public interface CosIdAlgorithm {
      * #{@link IdGeneratorProvider#get(String)}
      */
     String ID_NAME_KEY = "id-name";
+
+    String LOGIC_NAME_KEY = "logic-name";
 }

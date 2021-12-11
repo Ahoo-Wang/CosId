@@ -16,6 +16,7 @@ package me.ahoo.cosid.shardingsphere.sharding.interval;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
+import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.StandardShardingAlgorithm;
@@ -50,8 +51,6 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
 
     public static final String PREFIX_TYPE = "COSID_INTERVAL_";
 
-    public static final String LOGIC_NAME = "logic-name";
-
     public static final String DATE_TIME_LOWER_KEY = "datetime-lower";
 
     public static final String DATE_TIME_UPPER_KEY = "datetime-upper";
@@ -62,7 +61,7 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
 
     public static final String INTERVAL_AMOUNT_KEY = "datetime-interval-amount";
 
-    private Properties props = new Properties();
+    private volatile Properties props = new Properties();
 
     private volatile IntervalTimeline intervalTimeline;
 
@@ -81,7 +80,7 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
      */
     @Override
     public void init() {
-        String logicName = getRequiredValue(LOGIC_NAME);
+        String logicName = getRequiredValue(CosIdAlgorithm.LOGIC_NAME_KEY);
         LocalDateTime effectiveLower = LocalDateTime.parse(getRequiredValue(DATE_TIME_LOWER_KEY));
         LocalDateTime effectiveUpper = LocalDateTime.parse(getRequiredValue(DATE_TIME_UPPER_KEY));
         DateTimeFormatter suffixFormatter = DateTimeFormatter.ofPattern(getRequiredValue(SHARDING_SUFFIX_FORMAT_KEY));
@@ -90,10 +89,13 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
         this.intervalTimeline = new IntervalTimeline(logicName, Range.closed(effectiveLower, effectiveUpper), IntervalTimeline.Step.of(stepUnit, stepAmount), suffixFormatter);
     }
 
+
+
     protected String getRequiredValue(String key) {
         Preconditions.checkArgument(getProps().containsKey(key), "% can not be null.", key);
         return getProps().getProperty(key);
     }
+
 
     @VisibleForTesting
     public IntervalTimeline getIntervalTimeline() {

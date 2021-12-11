@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import java.time.Instant;
 import java.time.LocalDateTime;
 
 /**
@@ -25,7 +24,7 @@ public class TimestampIntervalShardingAlgorithm extends AbstractZoneIntervalShar
 
     @Override
     protected LocalDateTime convertShardingValue(Long shardingValue) {
-        return LocalDateTime.ofInstant(Instant.ofEpochMilli(shardingValue), getZoneId());
+        return LocalDateTimeConvert.fromTimestamp(shardingValue, getZoneId());
     }
 
     /**

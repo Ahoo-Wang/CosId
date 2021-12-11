@@ -14,6 +14,7 @@
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.collect.Range;
+import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
@@ -56,7 +57,7 @@ public class IntervalShardingAlgorithmBenchmark {
     @Setup
     public void init() {
         Properties properties = new Properties();
-        properties.setProperty(AbstractIntervalShardingAlgorithm.LOGIC_NAME, LOGIC_TABLE_NAME);
+        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_KEY, LOGIC_TABLE_NAME);
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, LOWER_DATETIME.toString());
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, UPPER_DATETIME.toString());
         properties.setProperty(AbstractIntervalShardingAlgorithm.SHARDING_SUFFIX_FORMAT_KEY, FORMATTER_PATTERN);

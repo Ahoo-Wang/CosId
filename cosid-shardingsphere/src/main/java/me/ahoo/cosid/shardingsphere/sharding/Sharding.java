@@ -11,33 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding.interval;
+package me.ahoo.cosid.shardingsphere.sharding;
 
-import java.time.LocalDateTime;
-import java.util.Date;
+import com.google.common.collect.Range;
+
+import java.util.Collection;
 
 /**
- * support types: {@link Date}/{@link java.sql.Date}/{@link java.sql.Timestamp}
- *
  * @author ahoo wang
  */
-public class DateIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Date> {
+public interface Sharding<T extends Comparable<?>> {
+    
+    String sharding(T shardingValue);
 
-    public static final String TYPE = PREFIX_TYPE + "DATE";
-
-    /**
-     * Get type.
-     *
-     * @return type
-     */
-    @Override
-    public String getType() {
-        return TYPE;
-    }
-
-    @Override
-    protected LocalDateTime convertShardingValue(Date shardingValue) {
-        return LocalDateTimeConvert.fromDate(shardingValue, getZoneId());
-    }
-
+    Collection<String> sharding(Range<T> shardingValue);
 }

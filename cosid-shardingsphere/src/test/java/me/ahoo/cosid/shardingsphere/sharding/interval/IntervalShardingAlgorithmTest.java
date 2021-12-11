@@ -47,7 +47,7 @@ class IntervalShardingAlgorithmTest {
     @BeforeEach
     void init() {
         properties = new Properties();
-        properties.setProperty(AbstractIntervalShardingAlgorithm.LOGIC_NAME, "t_ldt");
+        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_KEY, "t_ldt");
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, "2021-12-08T22:00:00");
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, "2025-11-02T22:00:00");
         properties.setProperty(AbstractIntervalShardingAlgorithm.SHARDING_SUFFIX_FORMAT_KEY, FORMATTER_PATTERN);

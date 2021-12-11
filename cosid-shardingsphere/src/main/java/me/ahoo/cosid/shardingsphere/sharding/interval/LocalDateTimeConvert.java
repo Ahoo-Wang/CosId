@@ -13,31 +13,26 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 
 /**
- * support types: {@link Date}/{@link java.sql.Date}/{@link java.sql.Timestamp}
- *
  * @author ahoo wang
  */
-public class DateIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Date> {
+public final class LocalDateTimeConvert {
 
-    public static final String TYPE = PREFIX_TYPE + "DATE";
-
-    /**
-     * Get type.
-     *
-     * @return type
-     */
-    @Override
-    public String getType() {
-        return TYPE;
+    public static LocalDateTime fromDate(Date date, ZoneId zoneId) {
+        return LocalDateTime.ofInstant(date.toInstant(), zoneId);
     }
 
-    @Override
-    protected LocalDateTime convertShardingValue(Date shardingValue) {
-        return LocalDateTimeConvert.fromDate(shardingValue, getZoneId());
+    public static LocalDateTime fromTimestamp(Long timestamp, ZoneId zoneId) {
+        return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), zoneId);
+    }
+
+    public static LocalDateTime fromTimestampSecond(Long timestamp, ZoneId zoneId) {
+        return LocalDateTime.ofInstant(Instant.ofEpochSecond(timestamp), zoneId);
     }
 
 }

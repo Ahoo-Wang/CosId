@@ -11,21 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding;
+package me.ahoo.cosid.shardingsphere.sharding.utils;
 
-import com.google.common.collect.Range;
-import me.ahoo.cosid.shardingsphere.sharding.utils.ExactCollection;
-
-import java.util.Collection;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author ahoo wang
  */
-public interface Sharding<T extends Comparable<?>> {
-    
-    String sharding(T shardingValue);
-
-    Collection<String> sharding(Range<T> shardingValue);
-
-    Collection<String>  getEffectiveNodes();
+class ExactCollectionTest {
+    @Test
+    public void test() {
+        final int SIZE = 10;
+        ExactCollection<String> exactCollection = new ExactCollection<>(SIZE);
+        for (int i = 0; i < exactCollection.size(); i++) {
+            exactCollection.add(i, String.valueOf(i));
+        }
+        Assertions.assertEquals(SIZE, exactCollection.size());
+        int idx = 0;
+        for (String element : exactCollection) {
+            Assertions.assertEquals(String.valueOf(idx), element);
+            idx++;
+        }
+    }
 }

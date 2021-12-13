@@ -14,9 +14,9 @@
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
+import me.ahoo.cosid.shardingsphere.sharding.utils.ExactCollection;
 import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
@@ -68,7 +68,7 @@ class IntervalShardingAlgorithmTest {
         LocalDateTime shardingUpper = LocalDateTime.of(2022, 5, 9, 22, 0);
         RangeShardingValue rangeShardingValue = new RangeShardingValue<>("t_ldt", "create_time", Range.closed(shardingLower, shardingUpper));
         Collection<String> nodes = shardingAlgorithm.doSharding(null, rangeShardingValue);
-        Assertions.assertEquals(Sets.newHashSet("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
+        Assertions.assertEquals(new ExactCollection<>("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
     }
 
     @Test
@@ -84,7 +84,7 @@ class IntervalShardingAlgorithmTest {
         long shardingUpper = LocalDateTime.of(2022, 5, 9, 22, 0).toInstant(zoneOffset).toEpochMilli();
         RangeShardingValue rangeShardingValue = new RangeShardingValue<>("t_ldt", "create_time", Range.closed(shardingLower, shardingUpper));
         Collection<String> nodes = shardingAlgorithm.doSharding(null, rangeShardingValue);
-        Assertions.assertEquals(Sets.newHashSet("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
+        Assertions.assertEquals(new ExactCollection<>("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
     }
 
     @Test
@@ -100,7 +100,7 @@ class IntervalShardingAlgorithmTest {
         long shardingUpper = LocalDateTime.of(2022, 5, 9, 22, 0).toInstant(zoneOffset).toEpochMilli() / 1000;
         RangeShardingValue rangeShardingValue = new RangeShardingValue<>("t_ldt", "create_time", Range.closed(shardingLower, shardingUpper));
         Collection<String> nodes = shardingAlgorithm.doSharding(null, rangeShardingValue);
-        Assertions.assertEquals(Sets.newHashSet("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
+        Assertions.assertEquals(new ExactCollection<>("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
     }
 
     @Test
@@ -116,7 +116,7 @@ class IntervalShardingAlgorithmTest {
         Date shardingUpper = new Date(LocalDateTime.of(2022, 5, 9, 22, 0).toInstant(zoneOffset).toEpochMilli());
         RangeShardingValue rangeShardingValue = new RangeShardingValue<>("t_ldt", "create_time", Range.closed(shardingLower, shardingUpper));
         Collection<String> nodes = shardingAlgorithm.doSharding(null, rangeShardingValue);
-        Assertions.assertEquals(Sets.newHashSet("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
+        Assertions.assertEquals(new ExactCollection<>("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
     }
 
 
@@ -141,13 +141,13 @@ class IntervalShardingAlgorithmTest {
 
         Date shardingLower = new java.sql.Timestamp(LocalDateTime.of(2021, 12, 9, 22, 0).toInstant(zoneOffset).toEpochMilli());
         PreciseShardingValue preciseshardingValue = new PreciseShardingValue<>("t_ldt", "create_time", shardingLower);
-        String node = shardingAlgorithm.doSharding(intervalTimeline.getAllNodes(), preciseshardingValue);
+        String node = shardingAlgorithm.doSharding(intervalTimeline.getEffectiveNodes(), preciseshardingValue);
         Assertions.assertEquals("t_ldt_202112", node);
 
         Date shardingUpper = new java.sql.Timestamp(LocalDateTime.of(2022, 5, 9, 22, 0).toInstant(zoneOffset).toEpochMilli());
         RangeShardingValue rangeShardingValue = new RangeShardingValue<>("t_ldt", "create_time", Range.closed(shardingLower, shardingUpper));
-        Collection<String> nodes = shardingAlgorithm.doSharding(intervalTimeline.getAllNodes(), rangeShardingValue);
-        Assertions.assertEquals(Sets.newHashSet("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
+        Collection<String> nodes = shardingAlgorithm.doSharding(intervalTimeline.getEffectiveNodes(), rangeShardingValue);
+        Assertions.assertEquals(new ExactCollection<>("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
     }
 
     @Test
@@ -168,7 +168,7 @@ class IntervalShardingAlgorithmTest {
         long shardingUpper = defaultSnowflakeFriendlyId.ofFriendlyId("20220509231730192-1-0").getId();
         RangeShardingValue rangeShardingValue = new RangeShardingValue<>("t_ldt", "create_time", Range.closed(shardingLower, shardingUpper));
         Collection<String> nodes = shardingAlgorithm.doSharding(null, rangeShardingValue);
-        Assertions.assertEquals(Sets.newHashSet("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
+        Assertions.assertEquals(new ExactCollection<>("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
 
         shardingLower = snowflakeId.generate();
         preciseshardingValue = new PreciseShardingValue<>("t_ldt", "create_time", shardingLower);

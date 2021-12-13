@@ -14,7 +14,7 @@
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
+import me.ahoo.cosid.shardingsphere.sharding.utils.ExactCollection;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -41,6 +41,7 @@ class IntervalTimelineTest {
         IntervalTimeline.Step step = IntervalTimeline.Step.of(chronoUnit, amount);
         String logicName = "table";
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("_yyyyMM");
+
         return new IntervalTimeline(logicName, Range.closed(lower, upper), step, formatter);
     }
 
@@ -64,6 +65,28 @@ class IntervalTimelineTest {
         IntervalTimeline intervalTimeline = createLine(ChronoUnit.MONTHS, 3);
         Assertions.assertNotNull(intervalTimeline);
         Assertions.assertEquals(5, intervalTimeline.size());
+    }
+
+    @Test
+    void size_step_day_1() {
+        LocalDateTime startInterval = LocalDateTime.of(2021, 12, 8, 22, 25);
+        IntervalTimeline.Step step = IntervalTimeline.Step.of(ChronoUnit.DAYS, 1);
+        LocalDateTime time = LocalDateTime.of(2021, 12, 10, 22, 24);
+        int offset = step.unitOffset(startInterval, time);
+        Assertions.assertEquals(2, offset);
+        time = LocalDateTime.of(2021, 12, 10, 22, 25);
+        offset = step.unitOffset(startInterval, time);
+        Assertions.assertEquals(2, offset);
+        time = LocalDateTime.of(2021, 12, 10, 22, 26);
+        offset = step.unitOffset(startInterval, time);
+        Assertions.assertEquals(2, offset);
+        time = LocalDateTime.of(2021, 12, 9, 1, 26);
+        offset = step.unitOffset(startInterval, time);
+        Assertions.assertEquals(1, offset);
+        startInterval = LocalDateTime.of(2021, 12, 28, 22, 25);
+        time = LocalDateTime.of(2022, 1, 1, 22, 26);
+        offset = step.unitOffset(startInterval, time);
+        Assertions.assertEquals(4, offset);
     }
 
     @Test
@@ -103,11 +126,11 @@ class IntervalTimelineTest {
     @Test
     void get() {
         IntervalTimeline intervalTimeline = createLine(ChronoUnit.MONTHS, 1);
-        String node = intervalTimeline.getNode(LocalDateTime.of(2021, 12, 8, 22, 25));
+        String node = intervalTimeline.sharding(LocalDateTime.of(2021, 12, 8, 22, 25));
         Assertions.assertEquals("table_202112", node);
-        node = intervalTimeline.getNode(LocalDateTime.of(2022, 1, 1, 0, 0));
+        node = intervalTimeline.sharding(LocalDateTime.of(2022, 1, 1, 0, 0));
         Assertions.assertEquals("table_202201", node);
-        node = intervalTimeline.getNode(LocalDateTime.of(2023, 1, 1, 0, 0));
+        node = intervalTimeline.sharding(LocalDateTime.of(2023, 1, 1, 0, 0));
         Assertions.assertEquals("table_202301", node);
     }
 
@@ -119,20 +142,20 @@ class IntervalTimelineTest {
         LocalDateTime shardingLower = LocalDateTime.of(2021, 12, 8, 22, 25);
         LocalDateTime shardingUpper = LocalDateTime.of(2022, 5, 1, 0, 0);
         Range<LocalDateTime> closedRange = Range.closed(shardingLower, shardingUpper);
-        Collection<String> nodes = intervalTimeline.getRangeNode(closedRange);
-        Assertions.assertEquals(Sets.newHashSet("table_202112", "table_202201", "table_202202", "table_202203", "table_202204", "table_202205"), nodes);
+        Collection<String> nodes = intervalTimeline.sharding(closedRange);
+        Assertions.assertEquals(new ExactCollection<>("table_202112", "table_202201", "table_202202", "table_202203", "table_202204", "table_202205"), nodes);
 
         Range<LocalDateTime> closedOpenRange = Range.closedOpen(shardingLower, shardingUpper);
-        nodes = intervalTimeline.getRangeNode(closedOpenRange);
-        Assertions.assertEquals(Sets.newHashSet("table_202112", "table_202201", "table_202202", "table_202203", "table_202204"), nodes);
+        nodes = intervalTimeline.sharding(closedOpenRange);
+        Assertions.assertEquals(new ExactCollection<>("table_202112", "table_202201", "table_202202", "table_202203", "table_202204"), nodes);
 
         Range<LocalDateTime> openClosedRange = Range.openClosed(shardingLower, shardingUpper);
-        nodes = intervalTimeline.getRangeNode(openClosedRange);
-        Assertions.assertEquals(Sets.newHashSet("table_202112", "table_202201", "table_202202", "table_202203", "table_202204", "table_202205"), nodes);
+        nodes = intervalTimeline.sharding(openClosedRange);
+        Assertions.assertEquals(new ExactCollection<>("table_202112", "table_202201", "table_202202", "table_202203", "table_202204", "table_202205"), nodes);
 
         Range<LocalDateTime> openRange = Range.open(shardingLower, shardingUpper);
-        nodes = intervalTimeline.getRangeNode(openRange);
-        Assertions.assertEquals(Sets.newHashSet("table_202112", "table_202201", "table_202202", "table_202203", "table_202204"), nodes);
+        nodes = intervalTimeline.sharding(openRange);
+        Assertions.assertEquals(new ExactCollection<>("table_202112", "table_202201", "table_202202", "table_202203", "table_202204"), nodes);
     }
 
     @Test
@@ -144,50 +167,50 @@ class IntervalTimelineTest {
 
         LocalDateTime shardingLower = LocalDateTime.of(2022, 1, 1, 0, 0);
         LocalDateTime shardingUpper = LocalDateTime.of(2022, 3, 1, 0, 0);
-        Collection<String> nodes = intervalTimeline.getRangeNode(Range.open(shardingLower, shardingUpper));
-        Assertions.assertEquals(Sets.newHashSet("table_202201", "table_202202"), nodes);
+        Collection<String> nodes = intervalTimeline.sharding(Range.open(shardingLower, shardingUpper));
+        Assertions.assertEquals(new ExactCollection<>("table_202201", "table_202202"), nodes);
 
-        nodes = intervalTimeline.getRangeNode(Range.singleton(shardingLower));
-        Assertions.assertEquals(Sets.newHashSet("table_202201"), nodes);
+        nodes = intervalTimeline.sharding(Range.singleton(shardingLower));
+        Assertions.assertEquals(new ExactCollection<>("table_202201"), nodes);
 
         shardingUpper = LocalDateTime.of(2022, 2, 1, 0, 0);
-        nodes = intervalTimeline.getRangeNode(Range.lessThan(shardingUpper));
-        Assertions.assertEquals(Sets.newHashSet("table_202112", "table_202201"), nodes);
+        nodes = intervalTimeline.sharding(Range.lessThan(shardingUpper));
+        Assertions.assertEquals(new ExactCollection<>("table_202112", "table_202201"), nodes);
 
-        nodes = intervalTimeline.getRangeNode(Range.atMost(shardingUpper));
-        Assertions.assertEquals(Sets.newHashSet("table_202112", "table_202201", "table_202202"), nodes);
+        nodes = intervalTimeline.sharding(Range.atMost(shardingUpper));
+        Assertions.assertEquals(new ExactCollection<>("table_202112", "table_202201", "table_202202"), nodes);
 
         shardingUpper = LocalDateTime.of(2024, 1, 1, 0, 0);
-        nodes = intervalTimeline.getRangeNode(Range.atMost(shardingUpper));
+        nodes = intervalTimeline.sharding(Range.atMost(shardingUpper));
         Assertions.assertEquals(intervalTimeline.size(), nodes.size());
 
         shardingUpper = LocalDateTime.of(2020, 1, 1, 0, 0);
-        nodes = intervalTimeline.getRangeNode(Range.atLeast(shardingUpper));
+        nodes = intervalTimeline.sharding(Range.atLeast(shardingUpper));
         Assertions.assertEquals(intervalTimeline.size(), nodes.size());
 
         shardingLower = LocalDateTime.of(2022, 1, 1, 0, 0);
         shardingUpper = LocalDateTime.of(2022, 2, 1, 0, 0);
-        nodes = intervalTimeline.getRangeNode(Range.open(shardingLower, shardingUpper));
-        Assertions.assertEquals(Sets.newHashSet("table_202201"), nodes);
+        nodes = intervalTimeline.sharding(Range.open(shardingLower, shardingUpper));
+        Assertions.assertEquals(new ExactCollection<>("table_202201"), nodes);
 
         shardingLower = LocalDateTime.of(2021, 12, 8, 22, 20);
         shardingUpper = LocalDateTime.of(2022, 2, 1, 0, 0);
-        nodes = intervalTimeline.getRangeNode(Range.closed(shardingLower, shardingUpper));
+        nodes = intervalTimeline.sharding(Range.closed(shardingLower, shardingUpper));
         Assertions.assertEquals(3, nodes.size());
 
         shardingLower = LocalDateTime.of(2021, 12, 8, 22, 20);
         shardingUpper = LocalDateTime.of(2024, 1, 1, 0, 0);
-        nodes = intervalTimeline.getRangeNode(Range.closed(shardingLower, shardingUpper));
+        nodes = intervalTimeline.sharding(Range.closed(shardingLower, shardingUpper));
         Assertions.assertEquals(intervalTimeline.size(), nodes.size());
 
         shardingLower = LocalDateTime.of(2020, 12, 8, 22, 20);
         shardingUpper = LocalDateTime.of(2024, 1, 1, 0, 0);
-        nodes = intervalTimeline.getRangeNode(Range.closed(shardingLower, shardingUpper));
+        nodes = intervalTimeline.sharding(Range.closed(shardingLower, shardingUpper));
         Assertions.assertEquals(intervalTimeline.size(), nodes.size());
 
         shardingLower = LocalDateTime.of(2000, 1, 1, 0, 0);
         shardingUpper = LocalDateTime.of(2002, 2, 1, 0, 0);
-        nodes = intervalTimeline.getRangeNode(Range.open(shardingLower, shardingUpper));
+        nodes = intervalTimeline.sharding(Range.open(shardingLower, shardingUpper));
         Assertions.assertEquals(0, nodes.size());
     }
 }

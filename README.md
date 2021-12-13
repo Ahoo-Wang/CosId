@@ -407,11 +407,14 @@ spring:
 - Ease of use: supports multiple data types (`Long`/`LocalDateTime`/`DATE`),The official implementation is to first convert to a string and then convert to `LocalDateTime`, the conversion success rate is affected by the time formatting characters.
 - Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`,The performance is *1200~4000* times higher.
 
-![Interval-based-sharding-algorithm](docs/Interval-based-sharding-algorithm-jmh.png)
+| **PreciseShardingValue**                                                                                                                     | **RangeShardingValue**                                                                                                                   |
+|----------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| ![Throughput Of IntervalShardingAlgorithm - PreciseShardingValue](wiki/img/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of IntervalShardingAlgorithm - RangeShardingValue](wiki/img/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png) |
 
 ``` shell
 gradle cosid-shardingsphere:jmh
 ```
+
 ```
 # JMH version: 1.29
 # VM version: JDK 11.0.13, OpenJDK 64-Bit Server VM, 11.0.13+8-LTS
@@ -422,15 +425,35 @@ gradle cosid-shardingsphere:jmh
 # Timeout: 10 min per iteration
 # Threads: 1 thread, will synchronize iterations
 # Benchmark mode: Throughput, ops/time
-Benchmark                                                          Mode  Cnt         Score   Error  Units
-IntervalShardingAlgorithmBenchmark.cosid_precise_local_date_time  thrpt       66276995.822          ops/s
-IntervalShardingAlgorithmBenchmark.cosid_precise_timestamp        thrpt       24841952.001          ops/s
-IntervalShardingAlgorithmBenchmark.cosid_range_local_date_time    thrpt        3344013.803          ops/s
-IntervalShardingAlgorithmBenchmark.cosid_range_timestamp          thrpt        2846453.298          ops/s
-IntervalShardingAlgorithmBenchmark.office_precise_timestamp       thrpt           6286.861          ops/s
-IntervalShardingAlgorithmBenchmark.office_range_timestamp         thrpt           2302.986          ops/s
+Benchmark                                                         (days)   Mode  Cnt         Score   Error  Units
+IntervalShardingAlgorithmBenchmark.cosid_precise_local_date_time      10  thrpt       53279788.772          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_precise_local_date_time     100  thrpt       38114729.365          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_precise_local_date_time    1000  thrpt       32714318.129          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_precise_local_date_time   10000  thrpt       22317905.643          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_precise_timestamp            10  thrpt       20028091.211          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_precise_timestamp           100  thrpt       19272744.794          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_precise_timestamp          1000  thrpt       17814417.856          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_precise_timestamp         10000  thrpt       12384788.025          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_local_date_time        10  thrpt       18716732.080          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_local_date_time       100  thrpt        8436553.492          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_local_date_time      1000  thrpt        1655952.254          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_local_date_time     10000  thrpt         185348.831          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_timestamp              10  thrpt        9410931.643          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_timestamp             100  thrpt        5792861.181          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_timestamp            1000  thrpt        1585344.761          ops/s
+IntervalShardingAlgorithmBenchmark.cosid_range_timestamp           10000  thrpt         196663.812          ops/s
+IntervalShardingAlgorithmBenchmark.office_precise_timestamp           10  thrpt          72189.800          ops/s
+IntervalShardingAlgorithmBenchmark.office_precise_timestamp          100  thrpt          11245.324          ops/s
+IntervalShardingAlgorithmBenchmark.office_precise_timestamp         1000  thrpt           1339.128          ops/s
+IntervalShardingAlgorithmBenchmark.office_precise_timestamp        10000  thrpt            113.396          ops/s
+IntervalShardingAlgorithmBenchmark.office_range_timestamp             10  thrpt          64679.422          ops/s
+IntervalShardingAlgorithmBenchmark.office_range_timestamp            100  thrpt           4267.860          ops/s
+IntervalShardingAlgorithmBenchmark.office_range_timestamp           1000  thrpt            227.817          ops/s
+IntervalShardingAlgorithmBenchmark.office_range_timestamp          10000  thrpt              7.579          ops/s
 ```
 
+- SmartIntervalShardingAlgorithm
+    - type:COSID_INTERVAL
 - DateIntervalShardingAlgorithm
     - type: COSID_INTERVAL_DATE
 - LocalDateTimeIntervalShardingAlgorithm
@@ -439,6 +462,8 @@ IntervalShardingAlgorithmBenchmark.office_range_timestamp         thrpt         
     - type: COSID_INTERVAL_TS
 - TimestampOfSecondIntervalShardingAlgorithm
     - type: COSID_INTERVAL_TS_SECOND
+- SnowflakeIntervalShardingAlgorithm
+    - type: COSID_INTERVAL_SNOWFLAKE
 - SnowflakeIntervalShardingAlgorithm
     - type: COSID_INTERVAL_SNOWFLAKE
 
@@ -460,6 +485,66 @@ spring:
               datetime-interval-amount: 1
 ```
 
+#### CosIdModShardingAlgorithm
+
+![CosIdModShardingAlgorithm](docs/CosIdModShardingAlgorithm.png)
+
+- Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`,The performance is *1200~4000* times higher.And it has higher stability and no serious performance degradation.
+
+| **PreciseShardingValue**                                                                                                           | **RangeShardingValue**                                                                                                         |
+|------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
+| ![Throughput Of ModShardingAlgorithm - PreciseShardingValue](wiki/img/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of ModShardingAlgorithm - RangeShardingValue](wiki/img/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png) |
+
+``` shell
+gradle cosid-shardingsphere:jmh
+```
+
+```
+# JMH version: 1.29
+# VM version: JDK 11.0.13, OpenJDK 64-Bit Server VM, 11.0.13+8-LTS
+# VM options: -Dfile.encoding=UTF-8 -Djava.io.tmpdir=/work/CosId/cosid-shardingsphere/build/tmp/jmh -Duser.country=CN -Duser.language=zh -Duser.variant
+# Blackhole mode: full + dont-inline hint
+# Warmup: 1 iterations, 10 s each
+# Measurement: 1 iterations, 10 s each
+# Timeout: 10 min per iteration
+# Threads: 1 thread, will synchronize iterations
+# Benchmark mode: Throughput, ops/time
+Benchmark                                     (divisor)   Mode  Cnt          Score   Error  Units
+ModShardingAlgorithmBenchmark.cosid_precise          10  thrpt       121431137.111          ops/s
+ModShardingAlgorithmBenchmark.cosid_precise         100  thrpt       119947284.141          ops/s
+ModShardingAlgorithmBenchmark.cosid_precise        1000  thrpt       113095657.321          ops/s
+ModShardingAlgorithmBenchmark.cosid_precise       10000  thrpt       108435323.537          ops/s
+ModShardingAlgorithmBenchmark.cosid_precise      100000  thrpt        84657505.579          ops/s
+ModShardingAlgorithmBenchmark.cosid_range            10  thrpt        37397323.508          ops/s
+ModShardingAlgorithmBenchmark.cosid_range           100  thrpt        16905691.783          ops/s
+ModShardingAlgorithmBenchmark.cosid_range          1000  thrpt         2969820.981          ops/s
+ModShardingAlgorithmBenchmark.cosid_range         10000  thrpt          312881.488          ops/s
+ModShardingAlgorithmBenchmark.cosid_range        100000  thrpt           31581.396          ops/s
+ModShardingAlgorithmBenchmark.office_precise         10  thrpt         9135460.160          ops/s
+ModShardingAlgorithmBenchmark.office_precise        100  thrpt         1356582.418          ops/s
+ModShardingAlgorithmBenchmark.office_precise       1000  thrpt          104500.125          ops/s
+ModShardingAlgorithmBenchmark.office_precise      10000  thrpt            8619.933          ops/s
+ModShardingAlgorithmBenchmark.office_precise     100000  thrpt             629.353          ops/s
+ModShardingAlgorithmBenchmark.office_range           10  thrpt         5535645.737          ops/s
+ModShardingAlgorithmBenchmark.office_range          100  thrpt           83271.925          ops/s
+ModShardingAlgorithmBenchmark.office_range         1000  thrpt             911.534          ops/s
+ModShardingAlgorithmBenchmark.office_range        10000  thrpt               9.133          ops/s
+ModShardingAlgorithmBenchmark.office_range       100000  thrpt               0.208          ops/s
+```
+
+```yaml
+spring:
+  shardingsphere:
+    rules:
+      sharding:
+        sharding-algorithms:
+          alg-name:
+            type: COSID_MOD
+            props:
+              mod: 4
+              logic-name-prefix: t_table_
+```
+
 ## Examples
 
 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)
@@ -473,7 +558,7 @@ spring:
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.4.6";
+    val cosidVersion = "1.4.8";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -489,7 +574,7 @@ spring:
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.4.6</cosid.version>
+        <cosid.version>1.4.8</cosid.version>
     </properties>
 
     <dependencies>
@@ -562,13 +647,25 @@ spring:
                 sharding-algorithm-name: order-db-inline
         sharding-algorithms:
           table-inline:
-            type: MOD
+            type: COSID_MOD
             props:
-              sharding-count: 2
+              mod: 2
+              logic-name-prefix: t_table_
           order-db-inline:
-            type: MOD
+            type: COSID_MOD
             props:
-              sharding-count: 2
+              mod: 2
+              logic-name-prefix: ds
+          snowflake-log-interval:
+            type: COSID_INTERVAL_SNOWFLAKE
+            props:
+              logic-name: t_snowflake_log
+              id-name: snowflake
+              datetime-lower: 2021-12-08T22:00:00
+              datetime-upper: 2022-12-01T00:00:00
+              sharding-suffix-pattern: _yyyyMM
+              datetime-interval-unit: MONTHS
+              datetime-interval-amount: 1
         key-generators:
           order:
             type: COSID
@@ -642,7 +739,7 @@ mybatis:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.4.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.4.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -663,7 +760,7 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.4.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.4.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
@@ -681,7 +778,7 @@ RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743
 ![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.4.6-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.4.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -706,7 +803,7 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 ``` shell
 gradle cosid-jdbc:jmh
 # or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
 
 ```
@@ -722,7 +819,7 @@ MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.
 ![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.6-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.8-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 ```
 Benchmark                                            Mode      Cnt    Score   Error  Units

@@ -14,9 +14,9 @@
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
+import me.ahoo.cosid.shardingsphere.sharding.utils.PropertiesUtil;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.StandardShardingAlgorithm;
@@ -92,8 +92,7 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
 
 
     protected String getRequiredValue(String key) {
-        Preconditions.checkArgument(getProps().containsKey(key), "% can not be null.", key);
-        return getProps().getProperty(key);
+       return PropertiesUtil.getRequiredValue(getProps(),key);
     }
 
 
@@ -112,7 +111,7 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
     @Override
     public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<T> shardingValue) {
         LocalDateTime shardingTime = convertShardingValue(shardingValue.getValue());
-        return this.intervalTimeline.getNode(shardingTime);
+        return this.intervalTimeline.sharding(shardingTime);
     }
 
     protected abstract LocalDateTime convertShardingValue(T shardingValue);
@@ -133,6 +132,6 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
     @Override
     public Collection<String> doSharding(Collection<String> availableTargetNames, RangeShardingValue<T> shardingValue) {
         Range<LocalDateTime> shardingRangeTime = convertRangeShardingValue(shardingValue.getValueRange());
-        return this.intervalTimeline.getRangeNode(shardingRangeTime);
+        return this.intervalTimeline.sharding(shardingRangeTime);
     }
 }

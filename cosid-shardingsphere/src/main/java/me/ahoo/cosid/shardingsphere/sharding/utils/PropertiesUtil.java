@@ -11,21 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding;
+package me.ahoo.cosid.shardingsphere.sharding.utils;
 
-import com.google.common.collect.Range;
-import me.ahoo.cosid.shardingsphere.sharding.utils.ExactCollection;
+import com.google.common.base.Preconditions;
 
-import java.util.Collection;
+import java.util.Properties;
 
 /**
  * @author ahoo wang
  */
-public interface Sharding<T extends Comparable<?>> {
-    
-    String sharding(T shardingValue);
+public final class PropertiesUtil {
 
-    Collection<String> sharding(Range<T> shardingValue);
-
-    Collection<String>  getEffectiveNodes();
+    public static String getRequiredValue(Properties properties, String key) {
+        Preconditions.checkArgument(properties.containsKey(key), "% can not be null.", key);
+        return properties.get(key).toString();
+    }
 }

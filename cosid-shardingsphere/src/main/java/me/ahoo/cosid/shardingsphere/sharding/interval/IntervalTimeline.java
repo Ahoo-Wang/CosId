@@ -13,37 +13,39 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import com.google.common.collect.*;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
+import me.ahoo.cosid.shardingsphere.sharding.Sharding;
+import me.ahoo.cosid.shardingsphere.sharding.utils.ExactCollection;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * @author ahoo wang
  */
 @ThreadSafe
-public class IntervalTimeline {
+public class IntervalTimeline implements Sharding<LocalDateTime> {
 
     private final Range<LocalDateTime> effectiveInterval;
     private final Step step;
     private final Interval startInterval;
-    private final Interval[] intervals;
+    private final Interval[] effectiveIntervals;
     private final String logicName;
     private final DateTimeFormatter suffixFormatter;
-    private final Collection<String> allNodes;
+    private final ExactCollection<String> effectiveNodes;
 
     public IntervalTimeline(String logicName, Range<LocalDateTime> effectiveInterval, Step step, DateTimeFormatter suffixFormatter) {
         this.effectiveInterval = effectiveInterval;
         this.step = step;
         this.logicName = logicName;
         this.suffixFormatter = suffixFormatter;
-        this.intervals = initIntervals(effectiveInterval, step, logicName, suffixFormatter);
-        this.startInterval = this.intervals[0];
-        this.allNodes = Arrays.stream(this.intervals).map(Interval::getNode).collect(ImmutableSet.toImmutableSet());
+        this.effectiveIntervals = initIntervals(effectiveInterval, step, logicName, suffixFormatter);
+        this.startInterval = this.effectiveIntervals[0];
+        this.effectiveNodes = initEffectiveNodes(this.effectiveIntervals);
     }
 
     private static Interval[] initIntervals(Range<LocalDateTime> effectiveInterval, Step step, String logicName, DateTimeFormatter suffixFormatter) {
@@ -58,8 +60,16 @@ public class IntervalTimeline {
         return intervalList.toArray(new Interval[intervalList.size()]);
     }
 
+    private static ExactCollection<String> initEffectiveNodes(Interval[] effectiveIntervals) {
+        ExactCollection<String> effectiveNodes = new ExactCollection<>(effectiveIntervals.length);
+        for (int i = 0; i < effectiveIntervals.length; i++) {
+            effectiveNodes.add(i, effectiveIntervals[i].getNode());
+        }
+        return effectiveNodes;
+    }
+
     public int size() {
-        return intervals.length;
+        return effectiveIntervals.length;
     }
 
     public boolean contains(LocalDateTime time) {
@@ -70,7 +80,13 @@ public class IntervalTimeline {
         return startInterval;
     }
 
-    public String getNode(LocalDateTime shardingValue) {
+    @Override
+    public Collection<String> getEffectiveNodes() {
+        return effectiveNodes;
+    }
+
+    @Override
+    public String sharding(LocalDateTime shardingValue) {
         if (!contains(shardingValue)) {
             /**
              * throw error?
@@ -78,18 +94,11 @@ public class IntervalTimeline {
             return null;
         }
         int offset = step.unitOffset(startInterval.getLower(), shardingValue);
-        return intervals[offset].getNode();
+        return effectiveIntervals[offset].getNode();
     }
 
-    public Collection<String> getAllNodes() {
-        return allNodes;
-    }
-
-    /**
-     * @param shardingValue
-     * @return
-     */
-    public Collection<String> getRangeNode(Range<LocalDateTime> shardingValue) {
+    @Override
+    public Collection<String> sharding(Range<LocalDateTime> shardingValue) {
 
         if (!effectiveInterval.isConnected(shardingValue)) {
             return Collections.emptyList();
@@ -106,10 +115,10 @@ public class IntervalTimeline {
         }
 
         if (lowerOffset == 0 && upperOffset == maxOffset) {
-            return allNodes;
+            return effectiveNodes;
         }
 
-        Interval lastInterval = intervals[upperOffset];
+        Interval lastInterval = effectiveIntervals[upperOffset];
 
         if (lowerOffset == upperOffset) {
             return Collections.singleton(lastInterval.getNode());
@@ -120,12 +129,17 @@ public class IntervalTimeline {
                 && lastInterval.getLower().equals(shardingValue.upperEndpoint())) {
             upperOffset = upperOffset - 1;
         }
+        final int nodeSize = upperOffset - lowerOffset + 1;
 
-        Set<String> nodes = Sets.newHashSetWithExpectedSize(upperOffset - lowerOffset + 1);
+        //        Set<String> nodes = Sets.newHashSetWithExpectedSize(nodeSize);
+        ExactCollection<String> nodes = new ExactCollection<>(nodeSize);
+
+        int idx = 0;
         while (lowerOffset <= upperOffset) {
-            Interval interval = intervals[lowerOffset];
-            nodes.add(interval.getNode());
+            Interval interval = effectiveIntervals[lowerOffset];
+            nodes.add(idx, interval.getNode());
             lowerOffset++;
+            idx++;
         }
         return nodes;
     }
@@ -205,14 +219,54 @@ public class IntervalTimeline {
 
         /**
          * 计算单位偏移量
+         * Start with 0
          *
          * @param startInterval 单位时间最小值
          * @param time
          * @return
          */
         public int unitOffset(LocalDateTime startInterval, LocalDateTime time) {
-            long until = startInterval.until(time, unit);
-            return (int) until / amount;
+            return getDiffUint(startInterval, time) / amount;
+//
+//            long until = startInterval.until(time, unit);
+//            return (int) until / amount;
+        }
+
+        private int getDiffUint(LocalDateTime startInterval, LocalDateTime time) {
+            switch (unit) {
+                case YEARS: {
+                    return getDiffYear(startInterval, time);
+                }
+                case MONTHS: {
+                    return getDiffYearMonth(startInterval, time);
+                }
+                case DAYS: {
+                    return getDiffYearMonthDay(startInterval, time);
+                }
+                case HOURS: {
+                    return getDiffYearMonthDay(startInterval, time) * 24;
+                }
+                case MINUTES: {
+                    return getDiffYearMonthDay(startInterval, time) * 24 * 60;
+                }
+                case SECONDS: {
+                    return getDiffYearMonthDay(startInterval, time) * 24 * 60 * 60;
+                }
+                default:
+                    throw new IllegalStateException("Unexpected value: " + unit);
+            }
+        }
+
+        private int getDiffYearMonthDay(LocalDateTime startInterval, LocalDateTime time) {
+            return (int) (time.toLocalDate().toEpochDay() - startInterval.toLocalDate().toEpochDay());
+        }
+
+        private int getDiffYearMonth(LocalDateTime startInterval, LocalDateTime time) {
+            return getDiffYear(startInterval, time) * 12 + (time.getMonthValue() - startInterval.getMonthValue());
+        }
+
+        private int getDiffYear(LocalDateTime startInterval, LocalDateTime time) {
+            return time.getYear() - startInterval.getYear();
         }
 
         public static Step of(ChronoUnit unit) {

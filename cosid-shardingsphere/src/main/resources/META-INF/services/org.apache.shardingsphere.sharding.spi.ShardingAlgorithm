@@ -17,3 +17,4 @@ me.ahoo.cosid.shardingsphere.sharding.interval.TimestampIntervalShardingAlgorith
 me.ahoo.cosid.shardingsphere.sharding.interval.TimestampOfSecondIntervalShardingAlgorithm
 me.ahoo.cosid.shardingsphere.sharding.interval.SnowflakeIntervalShardingAlgorithm
 me.ahoo.cosid.shardingsphere.sharding.interval.SmartIntervalShardingAlgorithm
+me.ahoo.cosid.shardingsphere.sharding.mod.ModShardingAlgorithm

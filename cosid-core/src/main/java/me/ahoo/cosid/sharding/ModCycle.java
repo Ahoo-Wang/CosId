@@ -11,19 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding.mod;
+package me.ahoo.cosid.sharding;
 
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
-import me.ahoo.cosid.shardingsphere.sharding.Sharding;
-import me.ahoo.cosid.shardingsphere.sharding.utils.ExactCollection;
 
 import java.util.Collection;
 
 /**
  * @author ahoo wang
  */
-public class ModCycle implements Sharding<Long> {
+public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
     private final int divisor;
     private final String logicNamePrefix;
     private final ExactCollection<String> effectiveNodes;
@@ -50,28 +48,38 @@ public class ModCycle implements Sharding<Long> {
     }
 
     @Override
-    public String sharding(Long shardingValue) {
-        int nodeIdx = (int) (shardingValue % divisor);
+    public String sharding(T shardingValue) {
+        int nodeIdx = (int) (shardingValue.longValue() % divisor);
         return effectiveNodes.get(nodeIdx);
     }
 
     @Override
-    public Collection<String> sharding(Range<Long> shardingValue) {
-        long lower, upper;
+    public Collection<String> sharding(Range<T> shardingValue) {
 
-        if (!shardingValue.hasLowerBound() || !shardingValue.hasUpperBound()) {
+        if (Range.all().equals(shardingValue)) {
             return effectiveNodes;
         }
-        /**
-         * range
-         */
-        lower = BoundType.OPEN.equals(shardingValue.lowerBoundType()) ? (shardingValue.lowerEndpoint() + 1) : shardingValue.lowerEndpoint();
-        upper = BoundType.OPEN.equals(shardingValue.upperBoundType()) ? (shardingValue.upperEndpoint() - 1) : shardingValue.upperEndpoint();
-        if (upper - lower >= divisor) {
+
+        if (!shardingValue.hasUpperBound()) {
             return effectiveNodes;
         }
+
+        long lower = 0, upper;
+        if (shardingValue.hasLowerBound()) {
+            long lowerEndpoint = shardingValue.lowerEndpoint().longValue();
+            lower = BoundType.OPEN.equals(shardingValue.lowerBoundType()) ? (lowerEndpoint + 1) : lowerEndpoint;
+        }
+
+        long upperEndpoint = shardingValue.upperEndpoint().longValue();
+
+        upper = BoundType.OPEN.equals(shardingValue.upperBoundType()) ? (upperEndpoint - 1) : upperEndpoint;
+
         final int nodeSize = (int) (upper - lower + 1);
-//            Collection<String> nodes = Sets.newHashSetWithExpectedSize(nodeSize);
+
+        if (nodeSize >= divisor) {
+            return effectiveNodes;
+        }
+
         ExactCollection<String> nodes = new ExactCollection<>(nodeSize);
         int idx = 0;
         while (lower <= upper) {

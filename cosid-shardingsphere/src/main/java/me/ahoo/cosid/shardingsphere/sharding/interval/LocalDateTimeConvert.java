@@ -13,9 +13,9 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.TemporalAccessor;
 import java.util.Date;
 
 /**
@@ -35,4 +35,11 @@ public final class LocalDateTimeConvert {
         return LocalDateTime.ofInstant(Instant.ofEpochSecond(timestamp), zoneId);
     }
 
+    public static LocalDateTime fromString(String dateTime, DateTimeFormatter dateTimeFormatter) {
+        TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(dateTime, LocalDateTime::from, LocalDate::from);
+        if (temporalAccessor instanceof LocalDateTime) {
+            return (LocalDateTime) temporalAccessor;
+        }
+        return LocalDateTime.of((LocalDate) temporalAccessor, LocalTime.MIN);
+    }
 }

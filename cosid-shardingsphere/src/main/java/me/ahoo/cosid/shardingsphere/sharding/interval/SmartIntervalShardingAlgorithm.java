@@ -16,7 +16,11 @@ package me.ahoo.cosid.shardingsphere.sharding.interval;
 import com.google.common.base.Strings;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
+
+import static me.ahoo.cosid.shardingsphere.sharding.interval.StringIntervalShardingAlgorithm.DATE_TIME_PATTERN_KEY;
+import static me.ahoo.cosid.shardingsphere.sharding.interval.StringIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN;
 
 /**
  * @author ahoo wang
@@ -29,8 +33,8 @@ public class SmartIntervalShardingAlgorithm extends AbstractZoneIntervalSharding
      * type of timestamp
      */
     public static final String TIMESTAMP_TYPE_KEY = "ts-type";
-
     private volatile boolean isSecondTs = false;
+    private volatile DateTimeFormatter dateTimeFormatter;
 
     /**
      * Initialize algorithm.
@@ -42,6 +46,8 @@ public class SmartIntervalShardingAlgorithm extends AbstractZoneIntervalSharding
                 && TIMESTAMP_SECOND_TYPE.equalsIgnoreCase(getProps().getProperty(TIMESTAMP_TYPE_KEY))) {
             isSecondTs = true;
         }
+        final String dateTimePattern = getProps().getProperty(DATE_TIME_PATTERN_KEY, DEFAULT_DATE_TIME_PATTERN);
+        dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern);
     }
 
     @Override
@@ -59,6 +65,10 @@ public class SmartIntervalShardingAlgorithm extends AbstractZoneIntervalSharding
                 return LocalDateTimeConvert.fromTimestampSecond((Long) shardingValue, getZoneId());
             }
             return LocalDateTimeConvert.fromTimestamp((Long) shardingValue, getZoneId());
+        }
+
+        if (shardingValue instanceof String) {
+            return LocalDateTimeConvert.fromString((String) shardingValue, dateTimeFormatter);
         }
         throw new NotSupportIntervalShardingTypeException(Strings.lenientFormat("The current shard type:[%s] is not supported!", shardingValue.getClass()));
     }

@@ -11,10 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding.interval;
+package me.ahoo.cosid.sharding;
 
 import com.google.common.collect.Range;
-import me.ahoo.cosid.shardingsphere.sharding.utils.ExactCollection;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

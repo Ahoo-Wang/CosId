@@ -11,21 +11,37 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding;
+package me.ahoo.cosid.sharding;
 
 import com.google.common.collect.Range;
-import me.ahoo.cosid.shardingsphere.sharding.utils.ExactCollection;
 
 import java.util.Collection;
 
 /**
+ * TODO
+ *
  * @author ahoo wang
  */
-public interface Sharding<T extends Comparable<?>> {
-    
-    String sharding(T shardingValue);
+public class CachedSharding<T extends Comparable<T>> implements Sharding<T> {
 
-    Collection<String> sharding(Range<T> shardingValue);
+    private final Sharding<T> delegate;
 
-    Collection<String>  getEffectiveNodes();
+    public CachedSharding(Sharding<T> delegate) {
+        this.delegate = delegate;
+    }
+
+    @Override
+    public String sharding(T shardingValue) {
+        return delegate.sharding(shardingValue);
+    }
+
+    @Override
+    public Collection<String> sharding(Range<T> shardingValue) {
+        return null;
+    }
+
+    @Override
+    public Collection<String> getEffectiveNodes() {
+        return delegate.getEffectiveNodes();
+    }
 }

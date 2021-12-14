@@ -456,6 +456,8 @@ IntervalShardingAlgorithmBenchmark.office_range_timestamp          10000  thrpt 
     - type: COSID_INTERVAL
 - DateIntervalShardingAlgorithm
     - type: COSID_INTERVAL_DATE
+- StringIntervalShardingAlgorithm
+    - type: COSID_INTERVAL_STRING
 - LocalDateTimeIntervalShardingAlgorithm
     - type: COSID_INTERVAL_LDT
 - TimestampIntervalShardingAlgorithm
@@ -464,6 +466,8 @@ IntervalShardingAlgorithmBenchmark.office_range_timestamp          10000  thrpt 
     - type: COSID_INTERVAL_TS_SECOND
 - SnowflakeIntervalShardingAlgorithm
     - type: COSID_INTERVAL_SNOWFLAKE
+- SnowflakeFriendlyIntervalShardingAlgorithm
+    - type: COSID_INTERVAL_SNOWFLAKE_FRIENDLY
 
 ```yaml
 spring:

@@ -33,7 +33,7 @@ public interface SnowflakeId extends IdGenerator {
      * 是否是 Javascript  安全的 SnowflakeId
      * {@link SafeJavaScriptSnowflakeId#JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT}
      *
-     * @return
+     * @return Is it a JavaScript secure snowflakeId
      */
     default boolean isSafeJavascript() {
         return (getTimestampBit() + getMachineBit() + getSequenceBit()) <= SafeJavaScriptSnowflakeId.JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT;

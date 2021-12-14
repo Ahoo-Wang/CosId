@@ -15,8 +15,9 @@ package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.collect.Range;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
+import me.ahoo.cosid.sharding.IntervalTimeline;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
-import me.ahoo.cosid.shardingsphere.sharding.utils.ExactCollection;
+import me.ahoo.cosid.sharding.ExactCollection;
 import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
@@ -119,6 +120,22 @@ class IntervalShardingAlgorithmTest {
         Assertions.assertEquals(new ExactCollection<>("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
     }
 
+
+    @Test
+    void test_String() {
+        AbstractIntervalShardingAlgorithm shardingAlgorithm = new StringIntervalShardingAlgorithm();
+        shardingAlgorithm.setProps(properties);
+        shardingAlgorithm.init();
+        String shardingLower = "2021-12-09 22:00:00";
+        PreciseShardingValue preciseshardingValue = new PreciseShardingValue<>("t_ldt", "create_time", shardingLower);
+        String node = shardingAlgorithm.doSharding(null, preciseshardingValue);
+        Assertions.assertEquals("t_ldt_202112", node);
+
+        String shardingUpper ="2022-05-09 22:00:00";
+        RangeShardingValue rangeShardingValue = new RangeShardingValue<>("t_ldt", "create_time", Range.closed(shardingLower, shardingUpper));
+        Collection<String> nodes = shardingAlgorithm.doSharding(null, rangeShardingValue);
+        Assertions.assertEquals(new ExactCollection<>("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
+    }
 
     @Test
     void test_Office() {

@@ -11,10 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding.mod;
+package me.ahoo.cosid.sharding;
 
 import com.google.common.collect.Range;
-import me.ahoo.cosid.shardingsphere.sharding.utils.ExactCollection;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -24,21 +23,23 @@ import java.util.Collection;
  * @author ahoo wang
  */
 class ModCycleTest {
-    public static ModCycle createModCycle() {
-        return new ModCycle(10, "t_mod_");
+
+    public static ModCycle<Long> createModCycle() {
+        return new ModCycle<>(4, "t_mod_");
     }
 
 
     @Test
     public void test() {
-        ModCycle modCycle = createModCycle();
+        ModCycle<Long> modCycle = createModCycle();
         Assertions.assertNotNull(modCycle);
-        Assertions.assertEquals(10, modCycle.getDivisor());
+        Assertions.assertEquals(4, modCycle.getDivisor());
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3"), modCycle.getEffectiveNodes());
     }
 
     @Test
     public void shardingPrecise() {
-        ModCycle modCycle = createModCycle();
+        ModCycle<Long> modCycle = createModCycle();
         String node = modCycle.sharding(1L);
         Assertions.assertEquals("t_mod_1", node);
         node = modCycle.sharding(2L);
@@ -46,26 +47,14 @@ class ModCycleTest {
         node = modCycle.sharding(3L);
         Assertions.assertEquals("t_mod_3", node);
         node = modCycle.sharding(4L);
-        Assertions.assertEquals("t_mod_4", node);
-        node = modCycle.sharding(5L);
-        Assertions.assertEquals("t_mod_5", node);
-        node = modCycle.sharding(6L);
-        Assertions.assertEquals("t_mod_6", node);
-        node = modCycle.sharding(7L);
-        Assertions.assertEquals("t_mod_7", node);
-        node = modCycle.sharding(8L);
-        Assertions.assertEquals("t_mod_8", node);
-        node = modCycle.sharding(9L);
-        Assertions.assertEquals("t_mod_9", node);
-        node = modCycle.sharding(10L);
         Assertions.assertEquals("t_mod_0", node);
-        node = modCycle.sharding(11L);
+        node = modCycle.sharding(5L);
         Assertions.assertEquals("t_mod_1", node);
     }
 
     @Test
     public void shardingRange() {
-        ModCycle modCycle = createModCycle();
+        ModCycle<Long> modCycle = createModCycle();
         Collection<String> nodes = modCycle.sharding(Range.closed(1L, 3L));
         Assertions.assertEquals(new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3"), nodes);
         nodes = modCycle.sharding(Range.closedOpen(1L, 3L));
@@ -77,13 +66,31 @@ class ModCycleTest {
         Assertions.assertEquals(new ExactCollection<>("t_mod_2"), nodes);
 
         nodes = modCycle.sharding(Range.greaterThan(1L));
-        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3", "t_mod_4", "t_mod_5", "t_mod_6", "t_mod_7", "t_mod_8", "t_mod_9"), nodes);
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3"), nodes);
         nodes = modCycle.sharding(Range.atLeast(1L));
-        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3", "t_mod_4", "t_mod_5", "t_mod_6", "t_mod_7", "t_mod_8", "t_mod_9"), nodes);
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3"), nodes);
+        nodes = modCycle.sharding(Range.atLeast(3L));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3"), nodes);
+
+        nodes = modCycle.sharding(Range.lessThan(5L));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3"), nodes);
+
+        nodes = modCycle.sharding(Range.lessThan(4L));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3"), nodes);
 
         nodes = modCycle.sharding(Range.lessThan(3L));
-        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3", "t_mod_4", "t_mod_5", "t_mod_6", "t_mod_7", "t_mod_8", "t_mod_9"), nodes);
-        nodes = modCycle.sharding(Range.atLeast(3L));
-        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3", "t_mod_4", "t_mod_5", "t_mod_6", "t_mod_7", "t_mod_8", "t_mod_9"), nodes);
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2"), nodes);
+
+        nodes = modCycle.sharding(Range.lessThan(2L));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1"), nodes);
+
+        nodes = modCycle.sharding(Range.atMost(2L));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2"), nodes);
+
+        nodes = modCycle.sharding(Range.atMost(3L));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3"), nodes);
+
+        nodes = modCycle.sharding(Range.atMost(4L));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3"), nodes);
     }
 }

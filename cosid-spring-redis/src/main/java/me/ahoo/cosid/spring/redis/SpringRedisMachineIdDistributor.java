@@ -80,9 +80,6 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     /**
      * when {@link InstanceId#isStable()} is true,do not revert machineId
      *
-     * @param namespace
-     * @param instanceId
-     * @param machineState
      */
     @Override
     protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
@@ -106,7 +103,6 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     /**
      * redis hash-tag for redis-cluster
      *
-     * @param key
      * @return hash-tag key
      */
     public static String hashTag(String key) {

@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.mod;
 
-import com.google.common.base.Strings;
-import com.google.common.collect.Range;
+
+import me.ahoo.cosid.sharding.ModCycle;
 import me.ahoo.cosid.shardingsphere.sharding.utils.PropertiesUtil;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
@@ -26,7 +26,7 @@ import java.util.Properties;
 /**
  * @author ahoo wang
  */
-public class ModShardingAlgorithm<T extends Comparable<?>> implements StandardShardingAlgorithm<T> {
+public class ModShardingAlgorithm<T extends Number & Comparable<T>> implements StandardShardingAlgorithm<T> {
 
     public static final String TYPE = "COSID_MOD";
 
@@ -35,7 +35,7 @@ public class ModShardingAlgorithm<T extends Comparable<?>> implements StandardSh
     public static final String LOGIC_NAME_PREFIX_KEY = "logic-name-prefix";
 
     private volatile Properties props = new Properties();
-    private volatile ModCycle modCycle;
+    private volatile ModCycle<T> modCycle;
 
     /**
      * Get type.
@@ -67,7 +67,7 @@ public class ModShardingAlgorithm<T extends Comparable<?>> implements StandardSh
         this.props = props;
     }
 
-    public ModCycle getModCycle() {
+    public ModCycle<T> getModCycle() {
         return modCycle;
     }
 
@@ -80,14 +80,7 @@ public class ModShardingAlgorithm<T extends Comparable<?>> implements StandardSh
      */
     @Override
     public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<T> shardingValue) {
-        Object value = shardingValue.getValue();
-        if (value instanceof Integer) {
-            return modCycle.sharding(((Integer) shardingValue.getValue()).longValue());
-        }
-        if (value instanceof Long) {
-            return modCycle.sharding((Long) shardingValue.getValue());
-        }
-        throw new NotSupportModShardingTypeException(Strings.lenientFormat("The current shard type:[%s] is not supported!", shardingValue.getClass()));
+        return modCycle.sharding(shardingValue.getValue());
     }
 
     /**
@@ -99,17 +92,7 @@ public class ModShardingAlgorithm<T extends Comparable<?>> implements StandardSh
      */
     @Override
     public Collection<String> doSharding(Collection<String> availableTargetNames, RangeShardingValue<T> shardingValue) {
-        Range<?> shardingValueRange = shardingValue.getValueRange();
-        Object value = shardingValueRange.hasLowerBound() ? shardingValueRange.lowerEndpoint() : shardingValueRange.upperEndpoint();
-        if (value instanceof Integer) {
-            Range<Long> rangeShardingValue = Range.range(((Integer) shardingValueRange.lowerEndpoint()).longValue(), shardingValueRange.lowerBoundType(), ((Integer) shardingValueRange.upperEndpoint()).longValue(), shardingValueRange.upperBoundType());
-            return modCycle.sharding((rangeShardingValue));
-        }
-        if (value instanceof Long) {
-            Range<Long> rangeShardingValue = Range.range((Long) shardingValueRange.lowerEndpoint(), shardingValueRange.lowerBoundType(), (Long) shardingValueRange.upperEndpoint(), shardingValueRange.upperBoundType());
-            return modCycle.sharding((rangeShardingValue));
-        }
-        throw new NotSupportModShardingTypeException(Strings.lenientFormat("The current shard type:[%s] is not supported!", value.getClass()));
+        return modCycle.sharding(shardingValue.getValueRange());
     }
 
     /**
@@ -120,6 +103,6 @@ public class ModShardingAlgorithm<T extends Comparable<?>> implements StandardSh
         String divisorStr = PropertiesUtil.getRequiredValue(getProps(), MODULO_KEY);
         int divisor = Integer.parseInt(divisorStr);
         String logicNamePrefix = PropertiesUtil.getRequiredValue(getProps(), LOGIC_NAME_PREFIX_KEY);
-        this.modCycle = new ModCycle(divisor, logicNamePrefix);
+        this.modCycle = new ModCycle<>(divisor, logicNamePrefix);
     }
 }

@@ -15,6 +15,7 @@ jmh {
     jmhVersion.set(rootProject.ext.get("jmhVersion").toString())
     warmupIterations.set(1)
     iterations.set(1)
+    excludes.set(listOf("IntervalShardingAlgorithmBenchmark"))
     resultFormat.set("json")
     benchmarkMode.set(listOf(
         "thrpt"

@@ -20,7 +20,7 @@ import java.time.ZoneId;
  */
 public abstract class AbstractZoneIntervalShardingAlgorithm<T extends Comparable<?>> extends AbstractIntervalShardingAlgorithm<T> {
 
-    public static final String ZONE_ID = "zone-id";
+    public static final String ZONE_ID_KEY = "zone-id";
 
     private ZoneId zoneId = ZoneId.systemDefault();
 
@@ -30,8 +30,8 @@ public abstract class AbstractZoneIntervalShardingAlgorithm<T extends Comparable
     @Override
     public void init() {
         super.init();
-        if (getProps().containsKey(ZONE_ID)) {
-            zoneId = ZoneId.of(getRequiredValue(ZONE_ID));
+        if (getProps().containsKey(ZONE_ID_KEY)) {
+            zoneId = ZoneId.of(getRequiredValue(ZONE_ID_KEY));
         }
     }
 

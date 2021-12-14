@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding.utils;
+package me.ahoo.cosid.sharding;
 
 import com.google.common.collect.Sets;
 
@@ -20,7 +20,7 @@ import java.util.*;
 /**
  * 准确式集合
  * <p>
- * 用于范围分片算法，范围可用节点集合（Interval 算法、Mod 算法可以提前预知节点数量）。
+ * 用于 Interval 算法、Mod 算法可以提前预知节点数量的场景。
  * <p>
  * 主要针对以下问题：
  * <p>

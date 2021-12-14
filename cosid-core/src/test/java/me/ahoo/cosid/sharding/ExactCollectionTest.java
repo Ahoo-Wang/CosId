@@ -11,19 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding.utils;
+package me.ahoo.cosid.sharding;
 
-import com.google.common.base.Preconditions;
-
-import java.util.Properties;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author ahoo wang
  */
-public final class PropertiesUtil {
-
-    public static String getRequiredValue(Properties properties, String key) {
-        Preconditions.checkArgument(properties.containsKey(key), "%s can not be null.", key);
-        return properties.get(key).toString();
+class ExactCollectionTest {
+    @Test
+    public void test() {
+        final int SIZE = 10;
+        ExactCollection<String> exactCollection = new ExactCollection<>(SIZE);
+        for (int i = 0; i < exactCollection.size(); i++) {
+            exactCollection.add(i, String.valueOf(i));
+        }
+        Assertions.assertEquals(SIZE, exactCollection.size());
+        int idx = 0;
+        for (String element : exactCollection) {
+            Assertions.assertEquals(String.valueOf(idx), element);
+            idx++;
+        }
     }
 }

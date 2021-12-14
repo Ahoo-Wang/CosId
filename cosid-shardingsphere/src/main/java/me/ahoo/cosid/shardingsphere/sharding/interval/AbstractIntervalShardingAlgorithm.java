@@ -15,6 +15,7 @@ package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
+import me.ahoo.cosid.sharding.IntervalTimeline;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.shardingsphere.sharding.utils.PropertiesUtil;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
@@ -89,12 +90,9 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
         this.intervalTimeline = new IntervalTimeline(logicName, Range.closed(effectiveLower, effectiveUpper), IntervalTimeline.Step.of(stepUnit, stepAmount), suffixFormatter);
     }
 
-
-
     protected String getRequiredValue(String key) {
        return PropertiesUtil.getRequiredValue(getProps(),key);
     }
-
 
     @VisibleForTesting
     public IntervalTimeline getIntervalTimeline() {

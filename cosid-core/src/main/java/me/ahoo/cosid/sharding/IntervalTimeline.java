@@ -11,12 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding.interval;
+package me.ahoo.cosid.sharding;
 
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
-import me.ahoo.cosid.shardingsphere.sharding.Sharding;
-import me.ahoo.cosid.shardingsphere.sharding.utils.ExactCollection;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDateTime;

@@ -19,8 +19,10 @@ import com.google.common.collect.Range;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * @author ahoo wang
@@ -29,14 +31,14 @@ import java.util.*;
 public class IntervalTimeline implements Sharding<LocalDateTime> {
 
     private final Range<LocalDateTime> effectiveInterval;
-    private final Step step;
+    private final IntervalStep step;
     private final Interval startInterval;
     private final Interval[] effectiveIntervals;
     private final String logicName;
     private final DateTimeFormatter suffixFormatter;
     private final ExactCollection<String> effectiveNodes;
 
-    public IntervalTimeline(String logicName, Range<LocalDateTime> effectiveInterval, Step step, DateTimeFormatter suffixFormatter) {
+    public IntervalTimeline(String logicName, Range<LocalDateTime> effectiveInterval, IntervalStep step, DateTimeFormatter suffixFormatter) {
         this.effectiveInterval = effectiveInterval;
         this.step = step;
         this.logicName = logicName;
@@ -46,7 +48,7 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
         this.effectiveNodes = initEffectiveNodes(this.effectiveIntervals);
     }
 
-    private static Interval[] initIntervals(Range<LocalDateTime> effectiveInterval, Step step, String logicName, DateTimeFormatter suffixFormatter) {
+    private static Interval[] initIntervals(Range<LocalDateTime> effectiveInterval, IntervalStep step, String logicName, DateTimeFormatter suffixFormatter) {
         LocalDateTime lower = step.ofUnit(effectiveInterval.lowerEndpoint());
         LocalDateTime upper = step.ofUnit(effectiveInterval.upperEndpoint());
         List<Interval> intervalList = new ArrayList<>();
@@ -158,121 +160,6 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
 
         public String getNode() {
             return node;
-        }
-    }
-
-    public static class Step {
-        public static final int DEFAULT_AMOUNT = 1;
-
-        private final ChronoUnit unit;
-        private final int amount;
-
-        public Step(ChronoUnit unit, int amount) {
-            this.unit = unit;
-            this.amount = amount;
-        }
-
-        public ChronoUnit getUnit() {
-            return unit;
-        }
-
-        public int getAmount() {
-            return amount;
-        }
-
-        public LocalDateTime next(LocalDateTime previous) {
-            return previous.plus(amount, unit);
-        }
-
-        /**
-         * 按照 {@link #unit} 保留单位时间精度
-         *
-         * @param time
-         * @return
-         */
-        public LocalDateTime ofUnit(LocalDateTime time) {
-            switch (unit) {
-                case YEARS: {
-                    return LocalDateTime.of(time.getYear(), 1, 1, 0, 0);
-                }
-                case MONTHS: {
-                    return LocalDateTime.of(time.getYear(), time.getMonthValue(), 1, 0, 0);
-                }
-                case DAYS: {
-                    return LocalDateTime.of(time.getYear(), time.getMonthValue(), time.getDayOfMonth(), 0, 0);
-                }
-                case HOURS: {
-                    return LocalDateTime.of(time.getYear(), time.getMonthValue(), time.getDayOfMonth(), time.getHour(), 0);
-                }
-                case MINUTES: {
-                    return LocalDateTime.of(time.getYear(), time.getMonthValue(), time.getDayOfMonth(), time.getHour(), time.getMinute());
-                }
-                case SECONDS: {
-                    return LocalDateTime.of(time.getYear(), time.getMonthValue(), time.getDayOfMonth(), time.getHour(), time.getMinute(), time.getSecond());
-                }
-                default:
-                    throw new IllegalStateException("Unexpected value: " + unit);
-            }
-        }
-
-        /**
-         * 计算单位偏移量
-         * Start with 0
-         *
-         * @param startInterval 单位时间最小值
-         * @param time
-         * @return
-         */
-        public int unitOffset(LocalDateTime startInterval, LocalDateTime time) {
-            return getDiffUint(startInterval, time) / amount;
-//
-//            long until = startInterval.until(time, unit);
-//            return (int) until / amount;
-        }
-
-        private int getDiffUint(LocalDateTime startInterval, LocalDateTime time) {
-            switch (unit) {
-                case YEARS: {
-                    return getDiffYear(startInterval, time);
-                }
-                case MONTHS: {
-                    return getDiffYearMonth(startInterval, time);
-                }
-                case DAYS: {
-                    return getDiffYearMonthDay(startInterval, time);
-                }
-                case HOURS: {
-                    return getDiffYearMonthDay(startInterval, time) * 24;
-                }
-                case MINUTES: {
-                    return getDiffYearMonthDay(startInterval, time) * 24 * 60;
-                }
-                case SECONDS: {
-                    return getDiffYearMonthDay(startInterval, time) * 24 * 60 * 60;
-                }
-                default:
-                    throw new IllegalStateException("Unexpected value: " + unit);
-            }
-        }
-
-        private int getDiffYearMonthDay(LocalDateTime startInterval, LocalDateTime time) {
-            return (int) (time.toLocalDate().toEpochDay() - startInterval.toLocalDate().toEpochDay());
-        }
-
-        private int getDiffYearMonth(LocalDateTime startInterval, LocalDateTime time) {
-            return getDiffYear(startInterval, time) * 12 + (time.getMonthValue() - startInterval.getMonthValue());
-        }
-
-        private int getDiffYear(LocalDateTime startInterval, LocalDateTime time) {
-            return time.getYear() - startInterval.getYear();
-        }
-
-        public static Step of(ChronoUnit unit) {
-            return new Step(unit, DEFAULT_AMOUNT);
-        }
-
-        public static Step of(ChronoUnit unit, int amount) {
-            return new Step(unit, amount);
         }
     }
 }

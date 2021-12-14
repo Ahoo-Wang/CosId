@@ -37,15 +37,14 @@ class IntervalTimelineTest {
     public static IntervalTimeline createLine(ChronoUnit chronoUnit, int amount) {
         LocalDateTime lower = LocalDateTime.of(2021, 12, 8, 22, 25);
         LocalDateTime upper = LocalDateTime.of(2023, 1, 1, 0, 0);
-        IntervalTimeline.Step step = IntervalTimeline.Step.of(chronoUnit, amount);
+        IntervalStep step = IntervalStep.of(chronoUnit, amount);
         String logicName = "table";
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("_yyyyMM");
-
         return new IntervalTimeline(logicName, Range.closed(lower, upper), step, formatter);
     }
 
     @Test
-    void size_step_1() {
+    void size() {
         IntervalTimeline intervalTimeline = createLine(ChronoUnit.MONTHS, 1);
         Assertions.assertNotNull(intervalTimeline);
         Assertions.assertEquals(14, intervalTimeline.size());
@@ -53,77 +52,21 @@ class IntervalTimelineTest {
     }
 
     @Test
-    void size_step_2() {
+    void sizeWithAmountTwo() {
         IntervalTimeline intervalTimeline = createLine(ChronoUnit.MONTHS, 2);
         Assertions.assertNotNull(intervalTimeline);
         Assertions.assertEquals(7, intervalTimeline.size());
     }
 
     @Test
-    void size_step_3() {
+    void sizeWithAmountThree() {
         IntervalTimeline intervalTimeline = createLine(ChronoUnit.MONTHS, 3);
         Assertions.assertNotNull(intervalTimeline);
         Assertions.assertEquals(5, intervalTimeline.size());
     }
 
     @Test
-    void size_step_day_1() {
-        LocalDateTime startInterval = LocalDateTime.of(2021, 12, 8, 22, 25);
-        IntervalTimeline.Step step = IntervalTimeline.Step.of(ChronoUnit.DAYS, 1);
-        LocalDateTime time = LocalDateTime.of(2021, 12, 10, 22, 24);
-        int offset = step.unitOffset(startInterval, time);
-        Assertions.assertEquals(2, offset);
-        time = LocalDateTime.of(2021, 12, 10, 22, 25);
-        offset = step.unitOffset(startInterval, time);
-        Assertions.assertEquals(2, offset);
-        time = LocalDateTime.of(2021, 12, 10, 22, 26);
-        offset = step.unitOffset(startInterval, time);
-        Assertions.assertEquals(2, offset);
-        time = LocalDateTime.of(2021, 12, 9, 1, 26);
-        offset = step.unitOffset(startInterval, time);
-        Assertions.assertEquals(1, offset);
-        startInterval = LocalDateTime.of(2021, 12, 28, 22, 25);
-        time = LocalDateTime.of(2022, 1, 1, 22, 26);
-        offset = step.unitOffset(startInterval, time);
-        Assertions.assertEquals(4, offset);
-    }
-
-    @Test
-    void step_unitOffset() {
-        IntervalTimeline.Step step = IntervalTimeline.Step.of(ChronoUnit.MONTHS, 1);
-        LocalDateTime startInterval = LocalDateTime.of(2021, 12, 1, 0, 0);
-        int offset = step.unitOffset(startInterval, LocalDateTime.of(2021, 12, 25, 0, 0));
-        Assertions.assertEquals(0, offset);
-
-        offset = step.unitOffset(startInterval, LocalDateTime.of(2022, 1, 22, 0, 0));
-        Assertions.assertEquals(1, offset);
-
-        offset = step.unitOffset(startInterval, LocalDateTime.of(2022, 2, 1, 0, 0));
-        Assertions.assertEquals(2, offset);
-
-        offset = step.unitOffset(startInterval, LocalDateTime.of(2022, 12, 9, 0, 0));
-        Assertions.assertEquals(12, offset);
-    }
-
-    @Test
-    void step_unitOffset_2() {
-        IntervalTimeline.Step step = IntervalTimeline.Step.of(ChronoUnit.MONTHS, 2);
-        LocalDateTime low = LocalDateTime.of(2021, 12, 1, 0, 0);
-        int offset = step.unitOffset(low, LocalDateTime.of(2021, 12, 25, 0, 0));
-        Assertions.assertEquals(0, offset);
-
-        offset = step.unitOffset(low, LocalDateTime.of(2022, 1, 22, 0, 0));
-        Assertions.assertEquals(0, offset);
-
-        offset = step.unitOffset(low, LocalDateTime.of(2022, 2, 1, 0, 0));
-        Assertions.assertEquals(1, offset);
-
-        offset = step.unitOffset(low, LocalDateTime.of(2022, 12, 9, 0, 0));
-        Assertions.assertEquals(6, offset);
-    }
-
-    @Test
-    void get() {
+    void sharding() {
         IntervalTimeline intervalTimeline = createLine(ChronoUnit.MONTHS, 1);
         String node = intervalTimeline.sharding(LocalDateTime.of(2021, 12, 8, 22, 25));
         Assertions.assertEquals("table_202112", node);
@@ -135,7 +78,7 @@ class IntervalTimelineTest {
 
 
     @Test
-    void getRange() {
+    void shardingRange() {
         IntervalTimeline intervalTimeline = createLine(ChronoUnit.MONTHS, 1);
 
         LocalDateTime shardingLower = LocalDateTime.of(2021, 12, 8, 22, 25);
@@ -158,7 +101,7 @@ class IntervalTimelineTest {
     }
 
     @Test
-    void getRange_critical() {
+    void shardingRangeWithBoundary() {
         /**
          * 2021-12-08 22:25 ~ 2023-01-01 00:00
          */
@@ -212,4 +155,5 @@ class IntervalTimelineTest {
         nodes = intervalTimeline.sharding(Range.open(shardingLower, shardingUpper));
         Assertions.assertEquals(0, nodes.size());
     }
+
 }

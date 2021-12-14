@@ -30,10 +30,16 @@ class ModCycleTest {
 
 
     @Test
-    public void test() {
+    public void getDivisor() {
         ModCycle<Long> modCycle = createModCycle();
         Assertions.assertNotNull(modCycle);
         Assertions.assertEquals(4, modCycle.getDivisor());
+    }
+
+
+    @Test
+    public void getEffectiveNodes() {
+        ModCycle<Long> modCycle = createModCycle();
         Assertions.assertEquals(new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3"), modCycle.getEffectiveNodes());
     }
 

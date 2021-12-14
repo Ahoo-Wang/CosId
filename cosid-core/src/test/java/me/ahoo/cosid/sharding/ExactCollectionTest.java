@@ -20,18 +20,51 @@ import org.junit.jupiter.api.Test;
  * @author ahoo wang
  */
 class ExactCollectionTest {
+
+    public ExactCollection<String> createExactCollection(int size) {
+        return new ExactCollection<>(size);
+    }
+
     @Test
-    public void test() {
-        final int SIZE = 10;
-        ExactCollection<String> exactCollection = new ExactCollection<>(SIZE);
+    public void ctor() {
+        ExactCollection<String> exactCollection = createExactCollection(10);
+        Assertions.assertNotNull(exactCollection);
+        Assertions.assertEquals(10, exactCollection.size());
+    }
+
+    @Test
+    public void add() {
+        ExactCollection<String> exactCollection = new ExactCollection<>(10);
         for (int i = 0; i < exactCollection.size(); i++) {
             exactCollection.add(i, String.valueOf(i));
         }
-        Assertions.assertEquals(SIZE, exactCollection.size());
+        Assertions.assertNotNull(exactCollection);
+        Assertions.assertEquals(10, exactCollection.size());
+    }
+
+    @Test
+    public void iterator() {
+        ExactCollection<String> exactCollection = new ExactCollection<>(10);
+        for (int i = 0; i < exactCollection.size(); i++) {
+            exactCollection.add(i, String.valueOf(i));
+        }
+        Assertions.assertEquals(10, exactCollection.size());
         int idx = 0;
         for (String element : exactCollection) {
             Assertions.assertEquals(String.valueOf(idx), element);
             idx++;
         }
     }
+
+    @Test
+    public void eq() {
+        ExactCollection<String> exactCollection = new ExactCollection<>(2);
+        exactCollection.add(0, "0");
+        exactCollection.add(1, "1");
+        Assertions.assertEquals(new ExactCollection<String>("0", "1"), exactCollection);
+        Assertions.assertEquals(new ExactCollection<String>("1", "0"), exactCollection);
+        Assertions.assertNotEquals(new ExactCollection<String>( "0"), exactCollection);
+        Assertions.assertNotEquals(new ExactCollection<String>( "0","2"), exactCollection);
+    }
+
 }

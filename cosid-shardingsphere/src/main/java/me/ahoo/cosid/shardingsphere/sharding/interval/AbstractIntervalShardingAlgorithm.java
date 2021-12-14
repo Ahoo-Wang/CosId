@@ -15,6 +15,7 @@ package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
+import me.ahoo.cosid.sharding.IntervalStep;
 import me.ahoo.cosid.sharding.IntervalTimeline;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.shardingsphere.sharding.utils.PropertiesUtil;
@@ -87,7 +88,7 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
         DateTimeFormatter suffixFormatter = DateTimeFormatter.ofPattern(getRequiredValue(SHARDING_SUFFIX_FORMAT_KEY));
         ChronoUnit stepUnit = ChronoUnit.valueOf(getRequiredValue(INTERVAL_UNIT_KEY));
         int stepAmount = Integer.parseInt(getProps().getProperty(INTERVAL_AMOUNT_KEY, "1"));
-        this.intervalTimeline = new IntervalTimeline(logicName, Range.closed(effectiveLower, effectiveUpper), IntervalTimeline.Step.of(stepUnit, stepAmount), suffixFormatter);
+        this.intervalTimeline = new IntervalTimeline(logicName, Range.closed(effectiveLower, effectiveUpper), IntervalStep.of(stepUnit, stepAmount), suffixFormatter);
     }
 
     protected String getRequiredValue(String key) {

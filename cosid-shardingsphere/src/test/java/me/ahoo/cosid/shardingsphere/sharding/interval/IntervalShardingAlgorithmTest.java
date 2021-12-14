@@ -15,6 +15,7 @@ package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.collect.Range;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
+import me.ahoo.cosid.sharding.IntervalStep;
 import me.ahoo.cosid.sharding.IntervalTimeline;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.sharding.ExactCollection;
@@ -152,7 +153,7 @@ class IntervalShardingAlgorithmTest {
 
         LocalDateTime lower = LocalDateTime.of(2021, 12, 8, 0, 0);
         LocalDateTime upper = LocalDateTime.of(2023, 1, 1, 0, 0);
-        IntervalTimeline.Step step = IntervalTimeline.Step.of(ChronoUnit.MONTHS, 1);
+        IntervalStep step = IntervalStep.of(ChronoUnit.MONTHS, 1);
         String logicName = "t_ldt";
         IntervalTimeline intervalTimeline = new IntervalTimeline(logicName, Range.closed(lower, upper), step, FORMATTER);
 

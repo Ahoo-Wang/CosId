@@ -14,6 +14,7 @@
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import me.ahoo.cosid.sharding.IntervalStep;
 import me.ahoo.cosid.sharding.IntervalTimeline;
@@ -92,7 +93,7 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
     }
 
     protected String getRequiredValue(String key) {
-       return PropertiesUtil.getRequiredValue(getProps(),key);
+        return PropertiesUtil.getRequiredValue(getProps(), key);
     }
 
     @VisibleForTesting
@@ -115,10 +116,37 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
 
     protected abstract LocalDateTime convertShardingValue(T shardingValue);
 
+
     protected Range<LocalDateTime> convertRangeShardingValue(Range<T> shardingValue) {
-        LocalDateTime lower = convertShardingValue(shardingValue.lowerEndpoint());
+        if (Range.all().equals(shardingValue)) {
+            return Range.all();
+        }
+        Object endpointValue = shardingValue.hasLowerBound() ? shardingValue.lowerEndpoint() : shardingValue.upperEndpoint();
+        if (endpointValue instanceof LocalDateTime) {
+            @SuppressWarnings("unchecked")
+            Range<LocalDateTime> targetRange = (Range<LocalDateTime>) shardingValue;
+            return targetRange;
+        }
+
+        if (shardingValue.hasLowerBound() && shardingValue.hasUpperBound()) {
+            LocalDateTime lower = convertShardingValue(shardingValue.lowerEndpoint());
+            LocalDateTime upper = convertShardingValue(shardingValue.upperEndpoint());
+            return Range.range(lower, shardingValue.lowerBoundType(), upper, shardingValue.upperBoundType());
+        }
+
+        if (shardingValue.hasLowerBound()) {
+            LocalDateTime lower = convertShardingValue(shardingValue.lowerEndpoint());
+            if (BoundType.OPEN.equals(shardingValue.lowerBoundType())) {
+                return Range.greaterThan(lower);
+            }
+            return Range.atLeast(lower);
+        }
+
         LocalDateTime upper = convertShardingValue(shardingValue.upperEndpoint());
-        return Range.range(lower, shardingValue.lowerBoundType(), upper, shardingValue.upperBoundType());
+        if (BoundType.OPEN.equals(shardingValue.upperBoundType())) {
+            return Range.lessThan(upper);
+        }
+        return Range.atMost(upper);
     }
 
     /**

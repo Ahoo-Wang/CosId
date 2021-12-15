@@ -48,7 +48,7 @@ public class IntervalStep {
      * @param time
      * @return
      */
-    public LocalDateTime ofUnit(LocalDateTime time) {
+    public LocalDateTime floorUnit(LocalDateTime time) {
         switch (unit) {
             case YEARS: {
                 return LocalDateTime.of(time.getYear(), 1, 1, 0, 0);
@@ -81,14 +81,11 @@ public class IntervalStep {
      * @param time
      * @return
      */
-    public int unitOffset(LocalDateTime start, LocalDateTime time) {
-        return getDiffUint(start, time) / amount;
-//
-//            long until = startInterval.until(time, unit);
-//            return (int) until / amount;
+    public int offsetUnit(LocalDateTime start, LocalDateTime time) {
+        return getDiffUnit(start, time) / amount;
     }
 
-    private int getDiffUint(LocalDateTime startInterval, LocalDateTime time) {
+    private int getDiffUnit(LocalDateTime startInterval, LocalDateTime time) {
         switch (unit) {
             case YEARS: {
                 return getDiffYear(startInterval, time);

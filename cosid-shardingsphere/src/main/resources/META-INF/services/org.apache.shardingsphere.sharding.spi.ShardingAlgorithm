@@ -10,13 +10,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
- 
+
+me.ahoo.cosid.shardingsphere.sharding.interval.SmartIntervalShardingAlgorithm
+
+me.ahoo.cosid.shardingsphere.sharding.interval.DateIntervalShardingAlgorithm
 me.ahoo.cosid.shardingsphere.sharding.interval.LocalDateTimeIntervalShardingAlgorithm
 me.ahoo.cosid.shardingsphere.sharding.interval.StringIntervalShardingAlgorithm
-me.ahoo.cosid.shardingsphere.sharding.interval.DateIntervalShardingAlgorithm
 me.ahoo.cosid.shardingsphere.sharding.interval.TimestampIntervalShardingAlgorithm
 me.ahoo.cosid.shardingsphere.sharding.interval.TimestampOfSecondIntervalShardingAlgorithm
+
 me.ahoo.cosid.shardingsphere.sharding.interval.SnowflakeIntervalShardingAlgorithm
 me.ahoo.cosid.shardingsphere.sharding.interval.SnowflakeFriendlyIntervalShardingAlgorithm
-me.ahoo.cosid.shardingsphere.sharding.interval.SmartIntervalShardingAlgorithm
+
+
 me.ahoo.cosid.shardingsphere.sharding.mod.ModShardingAlgorithm

@@ -31,6 +31,13 @@ import java.util.*;
  * @author ahoo wang
  */
 public class ExactCollection<E> extends AbstractCollection<E> implements RandomAccess {
+    private static final ExactCollection EMPTY = new ExactCollection(0);
+
+    @SuppressWarnings("unchecked")
+    public static final <E> ExactCollection<E> empty() {
+        return (ExactCollection<E>) EMPTY;
+    }
+
     private final int size;
     private final Object[] elements;
 

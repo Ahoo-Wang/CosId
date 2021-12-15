@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.sharding;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 
@@ -49,8 +50,8 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
     }
 
     private static Interval[] initIntervals(Range<LocalDateTime> effectiveInterval, IntervalStep step, String logicName, DateTimeFormatter suffixFormatter) {
-        LocalDateTime lower = step.ofUnit(effectiveInterval.lowerEndpoint());
-        LocalDateTime upper = step.ofUnit(effectiveInterval.upperEndpoint());
+        LocalDateTime lower = step.floorUnit(effectiveInterval.lowerEndpoint());
+        LocalDateTime upper = step.floorUnit(effectiveInterval.upperEndpoint());
         List<Interval> intervalList = new ArrayList<>();
         while (!lower.isAfter(upper)) {
             String nodeName = logicName + lower.format(suffixFormatter);
@@ -87,13 +88,8 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
 
     @Override
     public String sharding(LocalDateTime shardingValue) {
-        if (!contains(shardingValue)) {
-            /**
-             * throw error?
-             */
-            return null;
-        }
-        int offset = step.unitOffset(startInterval.getLower(), shardingValue);
+        Preconditions.checkArgument(contains(shardingValue), "Sharding value:[%s]: out of bounds:[%s].", shardingValue, effectiveInterval);
+        int offset = step.offsetUnit(startInterval.getLower(), shardingValue);
         return effectiveIntervals[offset].getNode();
     }
 
@@ -101,21 +97,34 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
     public Collection<String> sharding(Range<LocalDateTime> shardingValue) {
 
         if (!effectiveInterval.isConnected(shardingValue)) {
-            return Collections.emptyList();
+            return ExactCollection.empty();
+        }
+        if (Range.all().equals(shardingValue)) {
+            return effectiveNodes;
         }
 
         int maxOffset = size() - 1;
-        int lowerOffset = !shardingValue.hasLowerBound() ? 0 : step.unitOffset(startInterval.getLower(), shardingValue.lowerEndpoint());
-        if (lowerOffset < 0) {
-            lowerOffset = 0;
-        }
-        int upperOffset = !shardingValue.hasUpperBound() ? maxOffset : step.unitOffset(startInterval.getLower(), shardingValue.upperEndpoint());
-        if (upperOffset > maxOffset) {
-            upperOffset = maxOffset;
+        int lowerOffset = 0, upperOffset = maxOffset;
+        if (shardingValue.hasLowerBound()) {
+            LocalDateTime lowerEndpoint = shardingValue.lowerEndpoint();
+            if (!lowerEndpoint.isBefore(startInterval.getLower())) {
+                lowerOffset = step.offsetUnit(startInterval.getLower(), lowerEndpoint);
+            }
         }
 
-        if (lowerOffset == 0 && upperOffset == maxOffset) {
-            return effectiveNodes;
+        if (shardingValue.hasUpperBound()) {
+            LocalDateTime upperEndpoint = shardingValue.upperEndpoint();
+            if (!upperEndpoint.isAfter(effectiveInterval.upperEndpoint())) {
+                upperOffset = step.offsetUnit(startInterval.getLower(), shardingValue.upperEndpoint());
+                Interval lastInterval = effectiveIntervals[upperOffset];
+                if (BoundType.OPEN.equals(shardingValue.upperBoundType())
+                        && lastInterval.getLower().equals(upperEndpoint)) {
+                    if (upperOffset == 0) {
+                        return ExactCollection.empty();
+                    }
+                    upperOffset = upperOffset - 1;
+                }
+            }
         }
 
         Interval lastInterval = effectiveIntervals[upperOffset];
@@ -124,14 +133,12 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
             return Collections.singleton(lastInterval.getNode());
         }
 
-        if (shardingValue.hasUpperBound()
-                && BoundType.OPEN.equals(shardingValue.upperBoundType())
-                && lastInterval.getLower().equals(shardingValue.upperEndpoint())) {
-            upperOffset = upperOffset - 1;
+        if (lowerOffset == 0 && upperOffset == maxOffset) {
+            return effectiveNodes;
         }
+
         final int nodeSize = upperOffset - lowerOffset + 1;
 
-        //        Set<String> nodes = Sets.newHashSetWithExpectedSize(nodeSize);
         ExactCollection<String> nodes = new ExactCollection<>(nodeSize);
 
         int idx = 0;

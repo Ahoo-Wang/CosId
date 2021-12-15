@@ -11,31 +11,28 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding.interval;
+package me.ahoo.cosid.jvm;
 
-import me.ahoo.cosid.util.LocalDateTimeConvert;
+import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author ahoo wang
  */
-public class TimestampIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Long> {
+class UuidGeneratorTest {
 
-    public static final String TYPE = PREFIX_TYPE + "TS";
-
-    @Override
-    protected LocalDateTime convertShardingValue(Long shardingValue) {
-        return LocalDateTimeConvert.fromTimestamp(shardingValue, getZoneId());
+    @Test
+    void generate() {
+        assertThrows(UnsupportedOperationException.class, () -> {
+            UuidGenerator.INSTANCE.generate();
+        });
     }
 
-    /**
-     * Get type.
-     *
-     * @return type
-     */
-    @Override
-    public String getType() {
-        return TYPE;
+    @Test
+    void generateAsString() {
+        String uuid = UuidGenerator.INSTANCE.generateAsString();
+        assertNotNull(uuid);
+        assertEquals(36, uuid.length());
     }
 }

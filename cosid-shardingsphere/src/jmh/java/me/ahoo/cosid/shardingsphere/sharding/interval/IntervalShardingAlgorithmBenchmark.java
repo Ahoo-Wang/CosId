@@ -37,9 +37,9 @@ public class IntervalShardingAlgorithmBenchmark {
     private final static LocalDateTime LOWER_DATETIME = LocalDateTime.of(2021, 12, 8, 22, 0, 0);
     private final static long LOWER_TS = LOWER_DATETIME.toInstant(ZONE_OFFSET).toEpochMilli();
     @Param({"10", "100", "1000", "10000"})
-    private static int days;
-    private static int totalRange;
-    private static LocalDateTime upperDatetime;
+    private int days;
+    private int totalRange;
+    private LocalDateTime upperDatetime;
 
     private final static String LOGIC_TABLE_NAME = "t_ldt";
     private final static String FORMATTER_PATTERN = "_yyyyMMDD";

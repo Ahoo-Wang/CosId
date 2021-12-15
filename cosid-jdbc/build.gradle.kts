@@ -19,7 +19,6 @@ dependencies {
     api(project(":cosid-core"))
     testImplementation("com.zaxxer:HikariCP")
     testImplementation("mysql:mysql-connector-java")
-    testImplementation("org.junit-pioneer:junit-pioneer")
     jmh("org.openjdk.jmh:jmh-core:${rootProject.ext.get("jmhVersion")}")
     jmh("org.openjdk.jmh:jmh-generator-annprocess:${rootProject.ext.get("jmhVersion")}")
 }

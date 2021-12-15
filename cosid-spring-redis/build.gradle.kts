@@ -19,7 +19,6 @@ dependencies {
     api(project(":cosid-core"))
     api("org.springframework.data:spring-data-redis")
     testImplementation("io.lettuce:lettuce-core")
-    testImplementation("org.junit-pioneer:junit-pioneer")
     jmh("org.openjdk.jmh:jmh-core:${rootProject.ext.get("jmhVersion")}")
     jmh("org.openjdk.jmh:jmh-generator-annprocess:${rootProject.ext.get("jmhVersion")}")
 }

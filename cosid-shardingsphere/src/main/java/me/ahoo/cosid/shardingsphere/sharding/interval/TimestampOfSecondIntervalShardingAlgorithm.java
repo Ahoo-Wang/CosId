@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
+import me.ahoo.cosid.util.LocalDateTimeConvert;
+
 import java.time.LocalDateTime;
 
 /**

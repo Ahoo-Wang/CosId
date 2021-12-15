@@ -35,8 +35,8 @@ public class ModShardingAlgorithmBenchmark {
 
     private final static String ID_COLUMN_NAME = "id";
     @Param({"10", "100", "1000", "10000", "100000"})
-    private static int divisor;
-    private static int randomBound;
+    private int divisor;
+    private int randomBound;
     ModShardingAlgorithm cosIdModShardingAlgorithm;
     org.apache.shardingsphere.sharding.algorithm.sharding.mod.ModShardingAlgorithm officeModShardingAlgorithm;
 

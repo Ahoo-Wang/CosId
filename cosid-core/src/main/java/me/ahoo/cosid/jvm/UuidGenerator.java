@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.jvm;
 
-import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.IdGenerator;
 
 import java.util.UUID;
@@ -27,7 +26,7 @@ public class UuidGenerator implements IdGenerator {
 
     @Override
     public long generate() {
-        throw new CosIdException("UuidGenerator does not support the generation of long IDs!");
+        throw new UnsupportedOperationException("UuidGenerator does not support the generation of long IDs!");
     }
 
     @Override

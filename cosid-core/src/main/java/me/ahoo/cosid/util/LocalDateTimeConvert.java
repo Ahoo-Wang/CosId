@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.shardingsphere.sharding.interval;
+package me.ahoo.cosid.util;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;

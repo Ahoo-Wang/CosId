@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.sharding;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 
@@ -27,6 +28,7 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
     private final ExactCollection<String> effectiveNodes;
 
     public ModCycle(int divisor, String logicNamePrefix) {
+        Preconditions.checkArgument(divisor > 0, "divisor must be greater than 0!");
         this.divisor = divisor;
         this.logicNamePrefix = logicNamePrefix;
         this.effectiveNodes = initNodes(divisor, logicNamePrefix);
@@ -75,6 +77,10 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
         upper = BoundType.OPEN.equals(shardingValue.upperBoundType()) ? (upperEndpoint - 1) : upperEndpoint;
 
         final int nodeSize = (int) (upper - lower + 1);
+
+        if (nodeSize == 0) {
+            return ExactCollection.empty();
+        }
 
         if (nodeSize >= divisor) {
             return effectiveNodes;

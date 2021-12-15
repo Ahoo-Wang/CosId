@@ -14,14 +14,10 @@
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.collect.Range;
-import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
+import me.ahoo.cosid.sharding.ExactCollection;
 import me.ahoo.cosid.sharding.IntervalStep;
 import me.ahoo.cosid.sharding.IntervalTimeline;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
-import me.ahoo.cosid.sharding.ExactCollection;
-import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
-import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
-import me.ahoo.cosid.snowflake.SnowflakeId;
 import org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
@@ -40,6 +36,7 @@ import java.util.Properties;
 /**
  * @author ahoo wang
  */
+@Deprecated
 class IntervalShardingAlgorithmTest {
     private final static String FORMATTER_PATTERN = "_yyyyMM";
     private Properties properties;
@@ -168,34 +165,4 @@ class IntervalShardingAlgorithmTest {
         Assertions.assertEquals(new ExactCollection<>("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
     }
 
-    @Test
-    void test_Snowflake() {
-        String idName = "test";
-        SnowflakeId snowflakeId = new MillisecondSnowflakeId(1);
-        DefaultSnowflakeFriendlyId defaultSnowflakeFriendlyId = new DefaultSnowflakeFriendlyId(snowflakeId);
-        DefaultIdGeneratorProvider.INSTANCE.set(idName, defaultSnowflakeFriendlyId);
-        AbstractIntervalShardingAlgorithm shardingAlgorithm = new SnowflakeIntervalShardingAlgorithm();
-        properties.setProperty(CosIdAlgorithm.ID_NAME_KEY, idName);
-        shardingAlgorithm.setProps(properties);
-        shardingAlgorithm.init();
-
-        long shardingLower = defaultSnowflakeFriendlyId.ofFriendlyId("20211209231730192-1-0").getId();
-        PreciseShardingValue preciseshardingValue = new PreciseShardingValue<>("t_ldt", "create_time", shardingLower);
-        String node = shardingAlgorithm.doSharding(null, preciseshardingValue);
-        Assertions.assertEquals("t_ldt_202112", node);
-        long shardingUpper = defaultSnowflakeFriendlyId.ofFriendlyId("20220509231730192-1-0").getId();
-        RangeShardingValue rangeShardingValue = new RangeShardingValue<>("t_ldt", "create_time", Range.closed(shardingLower, shardingUpper));
-        Collection<String> nodes = shardingAlgorithm.doSharding(null, rangeShardingValue);
-        Assertions.assertEquals(new ExactCollection<>("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);
-
-        shardingLower = snowflakeId.generate();
-        preciseshardingValue = new PreciseShardingValue<>("t_ldt", "create_time", shardingLower);
-        node = shardingAlgorithm.doSharding(null, preciseshardingValue);
-        Assertions.assertEquals("t_ldt" + FORMATTER.format(LocalDateTime.now()), node);
-
-        shardingLower = defaultSnowflakeFriendlyId.getParser().shiftTimestamp(System.currentTimeMillis());
-        preciseshardingValue = new PreciseShardingValue<>("t_ldt", "create_time", shardingLower);
-        node = shardingAlgorithm.doSharding(null, preciseshardingValue);
-        Assertions.assertEquals("t_ldt" + FORMATTER.format(LocalDateTime.now()), node);
-    }
 }

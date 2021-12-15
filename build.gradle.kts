@@ -86,6 +86,8 @@ configure(libraryProjects) {
         this.add("implementation", "org.slf4j:slf4j-api")
         this.add("testImplementation", "ch.qos.logback:logback-classic")
         this.add("testImplementation", "org.junit.jupiter:junit-jupiter-api")
+        this.add("testImplementation", "org.junit.jupiter:junit-jupiter-params")
+        this.add("testImplementation", "org.junit-pioneer:junit-pioneer")
         this.add("testRuntimeOnly", "org.junit.jupiter:junit-jupiter-engine")
     }
 }

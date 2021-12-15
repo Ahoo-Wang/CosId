@@ -66,7 +66,7 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
             return effectiveNodes;
         }
 
-        long lower = 0, upper;
+        long lower = 0;
         if (shardingValue.hasLowerBound()) {
             long lowerEndpoint = shardingValue.lowerEndpoint().longValue();
             lower = BoundType.OPEN.equals(shardingValue.lowerBoundType()) ? (lowerEndpoint + 1) : lowerEndpoint;
@@ -74,7 +74,7 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
 
         long upperEndpoint = shardingValue.upperEndpoint().longValue();
 
-        upper = BoundType.OPEN.equals(shardingValue.upperBoundType()) ? (upperEndpoint - 1) : upperEndpoint;
+        long upper = BoundType.OPEN.equals(shardingValue.upperBoundType()) ? (upperEndpoint - 1) : upperEndpoint;
 
         final int nodeSize = (int) (upper - lower + 1);
 

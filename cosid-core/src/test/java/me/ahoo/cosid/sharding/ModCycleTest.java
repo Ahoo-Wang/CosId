@@ -44,7 +44,7 @@ class ModCycleTest {
 
 
     @Test
-    public void ctor_divisorIsZero() {
+    public void ctorWhenDivisorIsZero() {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
             createModCycle(0);
         });

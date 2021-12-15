@@ -39,7 +39,6 @@ public class IntervalShardingAlgorithmBenchmark {
     @Param({"10", "100", "1000", "10000"})
     private int days;
     private int totalRange;
-    private LocalDateTime upperDatetime;
 
     private final static String LOGIC_TABLE_NAME = "t_ldt";
     private final static String FORMATTER_PATTERN = "_yyyyMMDD";
@@ -55,7 +54,7 @@ public class IntervalShardingAlgorithmBenchmark {
     @Setup
     public void init() {
         totalRange = days * 10;
-        upperDatetime = LOWER_DATETIME.plusDays(days);
+        LocalDateTime upperDatetime = LOWER_DATETIME.plusDays(days);
         Properties properties = new Properties();
         properties.setProperty(CosIdAlgorithm.LOGIC_NAME_KEY, LOGIC_TABLE_NAME);
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, LOWER_DATETIME.toString());

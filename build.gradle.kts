@@ -12,7 +12,7 @@
  */
 
 plugins {
-    id("io.codearte.nexus-staging")
+    id("io.github.gradle-nexus.publish-plugin") version("1.1.0")
 }
 
 val bomProjects = listOf(
@@ -161,10 +161,14 @@ configure(publishProjects) {
     }
 }
 
-nexusStaging {
-    username = getPropertyOf("ossrhUsername")
-    password = getPropertyOf("ossrhPassword")
-    packageGroup = "me.ahoo"
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            username.set(getPropertyOf("ossrhUsername"))
+            password.set(getPropertyOf("ossrhPassword"))
+        }
+    }
 }
 
 fun getPropertyOf(name: String) = project.properties[name]?.toString()

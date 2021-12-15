@@ -13,14 +13,6 @@
 
 rootProject.name = "CosId"
 
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath("io.codearte.gradle.nexus:gradle-nexus-staging-plugin:0.30.0")
-    }
-}
 include(":cosid-bom")
 include(":cosid-dependencies")
 include(":cosid-core")

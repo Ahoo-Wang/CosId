@@ -102,6 +102,14 @@ configure(publishProjects) {
                 name = "projectBuildRepo"
                 url = uri(layout.buildDirectory.dir("repos"))
             }
+            maven {
+                name = "GitHubPackages"
+                url = uri("https://maven.pkg.github.com/Ahoo-Wang/CosId")
+                credentials {
+                    username = project.findProperty("gitHubPackagesUserName") as String
+                    password = project.findProperty("gitHubPackagesToken") as String
+                }
+            }
         }
         publications {
             val publishName = if (isBom) "mavenBom" else "mavenLibrary"

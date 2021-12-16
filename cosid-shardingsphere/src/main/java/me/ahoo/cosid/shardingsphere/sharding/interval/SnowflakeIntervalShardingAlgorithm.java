@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
  */
 public class SnowflakeIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Long> {
 
-    public static final String TYPE = PREFIX_TYPE + "SNOWFLAKE";
+    public static final String TYPE = AbstractIntervalShardingAlgorithm.TYPE_PREFIX + "SNOWFLAKE";
 
     private volatile LazyIdGenerator cosIdProvider;
 

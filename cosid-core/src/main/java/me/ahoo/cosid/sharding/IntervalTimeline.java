@@ -35,26 +35,26 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
     private final IntervalStep step;
     private final Interval startInterval;
     private final Interval[] effectiveIntervals;
-    private final String logicName;
+    private final String logicNamePrefix;
     private final DateTimeFormatter suffixFormatter;
     private final ExactCollection<String> effectiveNodes;
 
-    public IntervalTimeline(String logicName, Range<LocalDateTime> effectiveInterval, IntervalStep step, DateTimeFormatter suffixFormatter) {
+    public IntervalTimeline(String logicNamePrefix, Range<LocalDateTime> effectiveInterval, IntervalStep step, DateTimeFormatter suffixFormatter) {
         this.effectiveInterval = effectiveInterval;
         this.step = step;
-        this.logicName = logicName;
+        this.logicNamePrefix = logicNamePrefix;
         this.suffixFormatter = suffixFormatter;
-        this.effectiveIntervals = initIntervals(effectiveInterval, step, logicName, suffixFormatter);
+        this.effectiveIntervals = initIntervals(effectiveInterval, step, logicNamePrefix, suffixFormatter);
         this.startInterval = this.effectiveIntervals[0];
         this.effectiveNodes = initEffectiveNodes(this.effectiveIntervals);
     }
 
-    private static Interval[] initIntervals(Range<LocalDateTime> effectiveInterval, IntervalStep step, String logicName, DateTimeFormatter suffixFormatter) {
+    private static Interval[] initIntervals(Range<LocalDateTime> effectiveInterval, IntervalStep step, String logicNamePrefix, DateTimeFormatter suffixFormatter) {
         LocalDateTime lower = step.floorUnit(effectiveInterval.lowerEndpoint());
         LocalDateTime upper = step.floorUnit(effectiveInterval.upperEndpoint());
         List<Interval> intervalList = new ArrayList<>();
         while (!lower.isAfter(upper)) {
-            String nodeName = logicName + lower.format(suffixFormatter);
+            String nodeName = logicNamePrefix + lower.format(suffixFormatter);
             intervalList.add(new Interval(lower, nodeName));
             lower = step.next(lower);
         }

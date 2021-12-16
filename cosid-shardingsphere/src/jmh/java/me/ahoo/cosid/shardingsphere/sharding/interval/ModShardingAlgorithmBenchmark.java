@@ -14,6 +14,7 @@
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.collect.Range;
+import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.shardingsphere.sharding.mod.ModShardingAlgorithm;
 
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
@@ -24,7 +25,6 @@ import java.util.Collection;
 import java.util.Properties;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static me.ahoo.cosid.shardingsphere.sharding.mod.ModShardingAlgorithm.LOGIC_NAME_PREFIX_KEY;
 import static me.ahoo.cosid.shardingsphere.sharding.mod.ModShardingAlgorithm.MODULO_KEY;
 
 /**
@@ -33,6 +33,8 @@ import static me.ahoo.cosid.shardingsphere.sharding.mod.ModShardingAlgorithm.MOD
 @State(Scope.Benchmark)
 public class ModShardingAlgorithmBenchmark {
 
+    private final static String LOGIC_TABLE_NAME = "t_mod";
+    private final static String LOGIC_NAME_PREFIX = LOGIC_TABLE_NAME + "_";
     private final static String ID_COLUMN_NAME = "id";
     @Param({"10", "100", "1000", "10000", "100000"})
     private int divisor;
@@ -46,7 +48,7 @@ public class ModShardingAlgorithmBenchmark {
         randomBound = divisor * 10;
         Properties properties = new Properties();
 
-        properties.setProperty(LOGIC_NAME_PREFIX_KEY, "t_mod_");
+        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, LOGIC_NAME_PREFIX);
         properties.setProperty(MODULO_KEY, String.valueOf(divisor));
         properties.setProperty("sharding-count", String.valueOf(divisor));
 
@@ -61,13 +63,13 @@ public class ModShardingAlgorithmBenchmark {
 
     public PreciseShardingValue<Comparable<?>> getRandomId() {
         long id = ThreadLocalRandom.current().nextLong(0, randomBound);
-        return new PreciseShardingValue(LOGIC_NAME_PREFIX_KEY, ID_COLUMN_NAME, id);
+        return new PreciseShardingValue(LOGIC_TABLE_NAME, ID_COLUMN_NAME, id);
     }
 
     public RangeShardingValue<Comparable<?>> getRandomRangeId() {
         long randomLower = ThreadLocalRandom.current().nextLong(0, randomBound);
         long randomUpper = ThreadLocalRandom.current().nextLong(randomLower, randomBound);
-        return new RangeShardingValue<>(LOGIC_NAME_PREFIX_KEY, ID_COLUMN_NAME, Range.closed(randomLower, randomUpper));
+        return new RangeShardingValue<>(LOGIC_TABLE_NAME, ID_COLUMN_NAME, Range.closed(randomLower, randomUpper));
     }
 
     @Benchmark

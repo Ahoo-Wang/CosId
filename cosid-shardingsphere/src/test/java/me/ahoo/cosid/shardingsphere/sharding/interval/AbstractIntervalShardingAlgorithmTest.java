@@ -30,16 +30,16 @@ class AbstractIntervalShardingAlgorithmTest {
     public final static ZoneOffset ZONE_OFFSET_SHANGHAI = ZoneOffset.of("+8");
     public static final LocalDateTime LOWER_DATE_TIME = LocalDateTime.of(2021, 1, 1, 0, 0);
     public static final LocalDateTime UPPER_DATE_TIME = LOWER_DATE_TIME.plusYears(1);
-    public static final String LOGIC_NAME = "table";
+    public static final String LOGIC_NAME = "table_";
     public static final String COLUMN_NAME = "create_time";
-    public static final String SUFFIX_FORMATTER_STRING = "_yyyyMM";
+    public static final String SUFFIX_FORMATTER_STRING = "yyyyMM";
     public static final DateTimeFormatter SUFFIX_FORMATTER = DateTimeFormatter.ofPattern(SUFFIX_FORMATTER_STRING);
     public static final ExactCollection<String> ALL_NODES = new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105"
             , "table_202106", "table_202107", "table_202108", "table_202109", "table_202110", "table_202111", "table_202112", "table_202201");
 
     Properties getProps() {
         Properties properties = new Properties();
-        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_KEY, LOGIC_NAME);
+        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, LOGIC_NAME);
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, LOWER_DATE_TIME.toString());
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, UPPER_DATE_TIME.toString());
         properties.setProperty(AbstractIntervalShardingAlgorithm.SHARDING_SUFFIX_FORMAT_KEY, SUFFIX_FORMATTER_STRING);

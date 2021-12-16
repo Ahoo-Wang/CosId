@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
  * @author ahoo wang
  */
 public class LocalDateTimeIntervalShardingAlgorithm extends AbstractIntervalShardingAlgorithm<LocalDateTime> {
-    public static final String TYPE = PREFIX_TYPE + "LDT";
+    public static final String TYPE = TYPE_PREFIX + "LDT";
 
     /**
      * Get type.

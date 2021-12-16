@@ -15,6 +15,7 @@ package me.ahoo.cosid.shardingsphere.sharding.mod;
 
 import com.google.common.collect.Range;
 import me.ahoo.cosid.sharding.ExactCollection;
+import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,7 +47,7 @@ class ModShardingAlgorithmTest {
     @BeforeEach
     public void setup() {
         Properties properties = new Properties();
-        properties.setProperty(ModShardingAlgorithm.LOGIC_NAME_PREFIX_KEY, LOGIC_NAME_PREFIX);
+        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, LOGIC_NAME_PREFIX);
         properties.setProperty(ModShardingAlgorithm.MODULO_KEY, String.valueOf(DIVISOR));
         shardingAlgorithm = new ModShardingAlgorithm();
         shardingAlgorithm.setProps(properties);

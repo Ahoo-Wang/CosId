@@ -38,7 +38,7 @@ import java.util.Properties;
  */
 @Deprecated
 class IntervalShardingAlgorithmTest {
-    private final static String FORMATTER_PATTERN = "_yyyyMM";
+    private final static String FORMATTER_PATTERN = "yyyyMM";
     private Properties properties;
     private final ZoneOffset zoneOffset = ZoneOffset.of("+8");
     private final static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern(FORMATTER_PATTERN);
@@ -46,7 +46,7 @@ class IntervalShardingAlgorithmTest {
     @BeforeEach
     void init() {
         properties = new Properties();
-        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_KEY, "t_ldt");
+        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, "t_ldt_");
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, "2021-12-08T22:00:00");
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, "2025-11-02T22:00:00");
         properties.setProperty(AbstractIntervalShardingAlgorithm.SHARDING_SUFFIX_FORMAT_KEY, FORMATTER_PATTERN);
@@ -151,7 +151,7 @@ class IntervalShardingAlgorithmTest {
         LocalDateTime lower = LocalDateTime.of(2021, 12, 8, 0, 0);
         LocalDateTime upper = LocalDateTime.of(2023, 1, 1, 0, 0);
         IntervalStep step = IntervalStep.of(ChronoUnit.MONTHS, 1);
-        String logicName = "t_ldt";
+        String logicName = "t_ldt_";
         IntervalTimeline intervalTimeline = new IntervalTimeline(logicName, Range.closed(lower, upper), step, FORMATTER);
 
         Date shardingLower = new java.sql.Timestamp(LocalDateTime.of(2021, 12, 9, 22, 0).toInstant(zoneOffset).toEpochMilli());

@@ -99,38 +99,38 @@ spring:
           data-log-interval:
             type: COSID_INTERVAL_DATE
             props:
-              logic-name: t_date_log
+              logic-name-prefix: t_date_log_
               datetime-lower: 2021-12-08T22:00:00
               datetime-upper: 2022-12-01T00:00:00
-              sharding-suffix-pattern: _yyyyMM
+              sharding-suffix-pattern: yyyyMM
               datetime-interval-unit: MONTHS
               datetime-interval-amount: 1
           data-time-log-interval:
             type: COSID_INTERVAL_LDT
             props:
-              logic-name: t_date_time_log
+              logic-name-prefix: t_date_time_log_
               datetime-lower: 2021-12-08T22:00:00
               datetime-upper: 2022-12-01T00:00:00
-              sharding-suffix-pattern: _yyyyMM
+              sharding-suffix-pattern: yyyyMM
               datetime-interval-unit: MONTHS
               datetime-interval-amount: 1
           timestamp-log-interval:
             type: COSID_INTERVAL_TS
             props:
-              logic-name: t_timestamp_log
+              logic-name-prefix: t_timestamp_log_
               datetime-lower: 2021-12-08T22:00:00
               datetime-upper: 2022-12-01T00:00:00
-              sharding-suffix-pattern: _yyyyMM
+              sharding-suffix-pattern: yyyyMM
               datetime-interval-unit: MONTHS
               datetime-interval-amount: 1
           snowflake-log-interval:
             type: COSID_INTERVAL_SNOWFLAKE
             props:
-              logic-name: t_snowflake_log
+              logic-name-prefix: t_snowflake_log_
               id-name: snowflake
               datetime-lower: 2021-12-08T22:00:00
               datetime-upper: 2022-12-01T00:00:00
-              sharding-suffix-pattern: _yyyyMM
+              sharding-suffix-pattern: yyyyMM
               datetime-interval-unit: MONTHS
               datetime-interval-amount: 1
         key-generators:

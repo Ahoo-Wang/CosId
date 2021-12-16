@@ -41,7 +41,8 @@ public class IntervalShardingAlgorithmBenchmark {
     private int totalRange;
 
     private final static String LOGIC_TABLE_NAME = "t_ldt";
-    private final static String FORMATTER_PATTERN = "_yyyyMMDD";
+    private final static String LOGIC_NAME_PREFIX = LOGIC_TABLE_NAME + "_";
+    private final static String FORMATTER_PATTERN = "yyyyMMDD";
     AbstractIntervalShardingAlgorithm dateIntervalShardingAlgorithm;
     AbstractIntervalShardingAlgorithm datetimeIntervalShardingAlgorithm;
     IntervalShardingAlgorithm officeIntervalShardingAlgorithm;
@@ -56,7 +57,7 @@ public class IntervalShardingAlgorithmBenchmark {
         totalRange = days * 10;
         LocalDateTime upperDatetime = LOWER_DATETIME.plusDays(days);
         Properties properties = new Properties();
-        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_KEY, LOGIC_TABLE_NAME);
+        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, LOGIC_NAME_PREFIX);
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, LOWER_DATETIME.toString());
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, upperDatetime.toString());
         properties.setProperty(AbstractIntervalShardingAlgorithm.SHARDING_SUFFIX_FORMAT_KEY, FORMATTER_PATTERN);

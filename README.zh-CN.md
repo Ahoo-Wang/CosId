@@ -310,11 +310,11 @@ spring:
           alg-name:
             type: COSID_INTERVAL_{type_suffix}
             props:
-              logic-name: logic-name
+              logic-name-prefix: logic-name-prefix
               id-name: cosid-name
               datetime-lower: 2021-12-08T22:00:00
               datetime-upper: 2022-12-01T00:00:00
-              sharding-suffix-pattern: _yyyyMM
+              sharding-suffix-pattern: yyyyMM
               datetime-interval-unit: MONTHS
               datetime-interval-amount: 1
 ```

@@ -25,7 +25,7 @@ import java.util.Date;
  */
 public class DateIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Date> {
 
-    public static final String TYPE = PREFIX_TYPE + "DATE";
+    public static final String TYPE = TYPE_PREFIX + "DATE";
 
     /**
      * Get type.

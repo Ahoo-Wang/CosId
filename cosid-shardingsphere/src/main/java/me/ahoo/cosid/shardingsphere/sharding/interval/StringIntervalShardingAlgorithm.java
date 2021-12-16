@@ -23,7 +23,7 @@ import java.time.format.DateTimeFormatter;
  */
 public class StringIntervalShardingAlgorithm extends AbstractIntervalShardingAlgorithm<String> {
 
-    public static final String TYPE = PREFIX_TYPE + "STRING";
+    public static final String TYPE = TYPE_PREFIX + "STRING";
     public static final String DATE_TIME_PATTERN_KEY = "datetime-pattern";
 
     public static final String DEFAULT_DATE_TIME_PATTERN = "yyyy-MM-dd HH:mm:ss";

@@ -52,7 +52,7 @@ import java.util.Properties;
  */
 public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>> implements StandardShardingAlgorithm<T> {
 
-    public static final String PREFIX_TYPE = "COSID_INTERVAL_";
+    public static final String TYPE_PREFIX = CosIdAlgorithm.TYPE_PREFIX + "INTERVAL_";
 
     public static final String DATE_TIME_LOWER_KEY = "datetime-lower";
 
@@ -83,13 +83,13 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
      */
     @Override
     public void init() {
-        String logicName = getRequiredValue(CosIdAlgorithm.LOGIC_NAME_KEY);
+        String logicNamePrefix = getRequiredValue(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY);
         LocalDateTime effectiveLower = LocalDateTime.parse(getRequiredValue(DATE_TIME_LOWER_KEY));
         LocalDateTime effectiveUpper = LocalDateTime.parse(getRequiredValue(DATE_TIME_UPPER_KEY));
         DateTimeFormatter suffixFormatter = DateTimeFormatter.ofPattern(getRequiredValue(SHARDING_SUFFIX_FORMAT_KEY));
         ChronoUnit stepUnit = ChronoUnit.valueOf(getRequiredValue(INTERVAL_UNIT_KEY));
         int stepAmount = Integer.parseInt(getProps().getProperty(INTERVAL_AMOUNT_KEY, "1"));
-        this.intervalTimeline = new IntervalTimeline(logicName, Range.closed(effectiveLower, effectiveUpper), IntervalStep.of(stepUnit, stepAmount), suffixFormatter);
+        this.intervalTimeline = new IntervalTimeline(logicNamePrefix, Range.closed(effectiveLower, effectiveUpper), IntervalStep.of(stepUnit, stepAmount), suffixFormatter);
     }
 
     protected String getRequiredValue(String key) {

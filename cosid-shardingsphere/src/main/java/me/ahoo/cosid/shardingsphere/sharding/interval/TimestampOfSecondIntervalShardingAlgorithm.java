@@ -22,7 +22,7 @@ import java.time.LocalDateTime;
  */
 public class TimestampOfSecondIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Long> {
 
-    public static final String TYPE = PREFIX_TYPE + "TS_SECOND";
+    public static final String TYPE = TYPE_PREFIX + "TS_SECOND";
 
     @Override
     protected LocalDateTime convertShardingValue(Long shardingValue) {

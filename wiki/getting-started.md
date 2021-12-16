@@ -478,11 +478,11 @@ spring:
           alg-name:
             type: COSID_INTERVAL_{type_suffix}
             props:
-              logic-name: logic-name
+              logic-name-prefix: logic-name-prefix
               id-name: cosid-name
               datetime-lower: 2021-12-08T22:00:00
               datetime-upper: 2022-12-01T00:00:00
-              sharding-suffix-pattern: _yyyyMM
+              sharding-suffix-pattern: yyyyMM
               datetime-interval-unit: MONTHS
               datetime-interval-amount: 1
 ```
@@ -560,7 +560,7 @@ spring:
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.4.12";
+    val cosidVersion = "1.4.13";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -576,7 +576,7 @@ spring:
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.4.12</cosid.version>
+        <cosid.version>1.4.13</cosid.version>
     </properties>
 
     <dependencies>
@@ -593,13 +593,7 @@ spring:
 ### application.yaml
 
 ```yaml
-server:
-  port: 8008
 spring:
-  application:
-    name: ${service.name:cosid-example}
-  redis:
-    url: redis://localhost:6379
   shardingsphere:
     datasource:
       names: ds0,ds1
@@ -647,6 +641,39 @@ spring:
               standard:
                 sharding-column: order_id
                 sharding-algorithm-name: order-db-inline
+          t_date_log:
+            actual-data-nodes: ds0.t_date_log_202112
+            key-generate-strategy:
+              column: id
+              key-generator-name: snowflake
+            table-strategy:
+              standard:
+                sharding-column: create_time
+                sharding-algorithm-name: data-log-interval
+          t_date_time_log:
+            actual-data-nodes: ds0.t_date_time_log_202112
+            key-generate-strategy:
+              column: id
+              key-generator-name: snowflake
+            table-strategy:
+              standard:
+                sharding-column: create_time
+                sharding-algorithm-name: data-time-log-interval
+          t_timestamp_log:
+            actual-data-nodes: ds0.t_timestamp_log_202112
+            key-generate-strategy:
+              column: id
+              key-generator-name: snowflake
+            table-strategy:
+              standard:
+                sharding-column: create_time
+                sharding-algorithm-name: timestamp-log-interval
+          t_snowflake_log:
+            actual-data-nodes: ds0.t_snowflake_log_202112
+            table-strategy:
+              standard:
+                sharding-column: id
+                sharding-algorithm-name: snowflake-log-interval
         sharding-algorithms:
           table-inline:
             type: COSID_MOD
@@ -658,17 +685,48 @@ spring:
             props:
               mod: 2
               logic-name-prefix: ds
+          data-log-interval:
+            type: COSID_INTERVAL_DATE
+            props:
+              logic-name-prefix: t_date_log_
+              datetime-lower: 2021-12-08T22:00:00
+              datetime-upper: 2022-12-01T00:00:00
+              sharding-suffix-pattern: yyyyMM
+              datetime-interval-unit: MONTHS
+              datetime-interval-amount: 1
+          data-time-log-interval:
+            type: COSID_INTERVAL_LDT
+            props:
+              logic-name-prefix: t_date_time_log_
+              datetime-lower: 2021-12-08T22:00:00
+              datetime-upper: 2022-12-01T00:00:00
+              sharding-suffix-pattern: yyyyMM
+              datetime-interval-unit: MONTHS
+              datetime-interval-amount: 1
+          timestamp-log-interval:
+            type: COSID_INTERVAL_TS
+            props:
+              logic-name-prefix: t_timestamp_log_
+              datetime-lower: 2021-12-08T22:00:00
+              datetime-upper: 2022-12-01T00:00:00
+              sharding-suffix-pattern: yyyyMM
+              datetime-interval-unit: MONTHS
+              datetime-interval-amount: 1
           snowflake-log-interval:
             type: COSID_INTERVAL_SNOWFLAKE
             props:
-              logic-name: t_snowflake_log
+              logic-name-prefix: t_snowflake_log_
               id-name: snowflake
               datetime-lower: 2021-12-08T22:00:00
               datetime-upper: 2022-12-01T00:00:00
-              sharding-suffix-pattern: _yyyyMM
+              sharding-suffix-pattern: yyyyMM
               datetime-interval-unit: MONTHS
               datetime-interval-amount: 1
         key-generators:
+          snowflake:
+            type: COSID
+            props:
+              id-name: snowflake
           order:
             type: COSID
             props:
@@ -700,6 +758,8 @@ cosid:
       order_item:
         #        timestamp-bit:
         sequence-bit: 12
+      snowflake:
+        sequence-bit: 12
       safeJs:
         machine-bit: 3
         sequence-bit: 9
@@ -723,13 +783,7 @@ cosid:
       longId:
         offset: 10000
         step: 100
-
-mybatis:
-  configuration:
-    map-underscore-to-camel-case: true
-  mapper-locations: classpath:/mappers/*.xml
 ```
-
 ## JMH-Benchmark
 
 - 基准测试运行环境：笔记本开发机 ( MacBook Pro (M1) )
@@ -741,7 +795,7 @@ mybatis:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.4.12-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.4.13-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -762,7 +816,7 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.4.12-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.4.13-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
@@ -780,7 +834,7 @@ RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743
 ![RedisChainIdBenchmark-Sample](../docs/jmh/RedisChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.4.12-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.4.13-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -805,7 +859,7 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 ``` shell
 gradle cosid-jdbc:jmh
 # or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.12-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.13-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
 
 ```
@@ -821,7 +875,7 @@ MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.
 ![MySqlChainIdBenchmark-Sample](../docs/jmh/MySqlChainIdBenchmark-Sample.png)
 
 ```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.12-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.4.13-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```

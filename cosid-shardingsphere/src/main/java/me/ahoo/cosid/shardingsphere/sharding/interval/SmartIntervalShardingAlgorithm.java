@@ -14,6 +14,7 @@
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.base.Strings;
+import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.util.LocalDateTimeConvert;
 
 import java.time.LocalDateTime;
@@ -27,7 +28,7 @@ import static me.ahoo.cosid.shardingsphere.sharding.interval.StringIntervalShard
  * @author ahoo wang
  */
 public class SmartIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Comparable<?>> {
-    public static final String TYPE = "COSID_INTERVAL";
+    public static final String TYPE = CosIdAlgorithm.TYPE_PREFIX + "INTERVAL";
     public static final String TIMESTAMP_SECOND_TYPE = "SECOND";
 
     /**

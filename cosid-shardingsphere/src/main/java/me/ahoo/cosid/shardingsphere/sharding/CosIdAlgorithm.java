@@ -13,16 +13,15 @@
 
 package me.ahoo.cosid.shardingsphere.sharding;
 
-import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 /**
  * @author ahoo wang
  */
-public interface CosIdAlgorithm {
-    /**
-     * #{@link IdGeneratorProvider#get(String)}
-     */
-    String ID_NAME_KEY = "id-name";
+public final class CosIdAlgorithm {
 
-    String LOGIC_NAME_KEY = "logic-name";
+    public static final String TYPE_PREFIX = "COSID_";
+
+    public static final String ID_NAME_KEY = "id-name";
+
+    public static final String LOGIC_NAME_PREFIX_KEY = "logic-name-prefix";
 }

@@ -13,16 +13,19 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.key;
 
+import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.segment.DefaultSegmentId;
+import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author ahoo wang
@@ -43,7 +46,29 @@ class CosIdKeyGenerateAlgorithmTest {
 
     @Test
     void generateKey() {
-        Object key = cosIdKeyGenerateAlgorithm.generateKey();
-        assertNotNull(key);
+        assertNotNull(cosIdKeyGenerateAlgorithm.generateKey());
+    }
+
+
+    @Test
+    public void generateKeyWhenNotSetIdName() {
+        DefaultSegmentId defaultSegmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
+        DefaultIdGeneratorProvider.INSTANCE.setShare(defaultSegmentId);
+        CosIdKeyGenerateAlgorithm keyGenerateAlgorithm = new CosIdKeyGenerateAlgorithm();
+        Properties properties = new Properties();
+        keyGenerateAlgorithm.setProps(properties);
+        keyGenerateAlgorithm.init();
+        assertEquals(1L, cosIdKeyGenerateAlgorithm.generateKey());
+        assertEquals(2L, cosIdKeyGenerateAlgorithm.generateKey());
+    }
+
+    @Test
+    public void assertGenerateKeyWhenIdProviderIsEmpty() {
+        DefaultIdGeneratorProvider.INSTANCE.clear();
+        CosIdKeyGenerateAlgorithm keyGenerateAlgorithm = new CosIdKeyGenerateAlgorithm();
+        Properties properties = new Properties();
+        keyGenerateAlgorithm.setProps(properties);
+        keyGenerateAlgorithm.init();
+        assertThrows(CosIdException.class, keyGenerateAlgorithm::generateKey);
     }
 }

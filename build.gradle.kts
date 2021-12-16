@@ -36,7 +36,7 @@ ext {
     set("springBootVersion", "2.4.13")
     set("springCloudVersion", "2020.0.4")
     set("springfoxVersion", "3.0.0")
-    set("jmhVersion", "1.29")
+    set("jmhVersion", "1.33")
     set("junitPioneerVersion", "1.4.2")
     set("mybatisVersion", "3.5.7")
     set("mybatisBootVersion", "2.1.4")
@@ -148,7 +148,6 @@ configure(publishProjects) {
         }
     }
 }
-
 
 nexusPublishing {
     repositories {

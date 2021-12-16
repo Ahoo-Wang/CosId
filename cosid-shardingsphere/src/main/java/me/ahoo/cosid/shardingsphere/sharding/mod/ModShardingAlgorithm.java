@@ -14,6 +14,7 @@
 package me.ahoo.cosid.shardingsphere.sharding.mod;
 
 
+import com.google.common.annotations.VisibleForTesting;
 import me.ahoo.cosid.sharding.ModCycle;
 import me.ahoo.cosid.shardingsphere.sharding.utils.PropertiesUtil;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
@@ -67,6 +68,7 @@ public class ModShardingAlgorithm<T extends Number & Comparable<T>> implements S
         this.props = props;
     }
 
+    @VisibleForTesting
     public ModCycle<T> getModCycle() {
         return modCycle;
     }

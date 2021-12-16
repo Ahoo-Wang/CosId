@@ -31,11 +31,15 @@ public interface IdGeneratorProvider {
 
     void setShare(IdGenerator idGenerator);
 
+    IdGenerator removeShare();
+
     Optional<IdGenerator> get(String name);
 
     void set(String name, IdGenerator idGenerator);
 
-    IdGenerator getOrCreate(String name, Supplier<IdGenerator> idGenSupplier);
+    IdGenerator remove(String name);
+
+    void clear();
 
     Collection<IdGenerator> getAll();
 

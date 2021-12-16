@@ -32,7 +32,7 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
     private final ConcurrentHashMap<String, IdGenerator> nameMapIdGen;
 
     public DefaultIdGeneratorProvider() {
-        this.nameMapIdGen = new ConcurrentHashMap<>();
+        nameMapIdGen = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -42,8 +42,14 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
 
     @Override
     public void setShare(IdGenerator idGenerator) {
-        this.shareIdGenerator = idGenerator;
+        shareIdGenerator = idGenerator;
         set(SHARE, idGenerator);
+    }
+
+    @Override
+    public IdGenerator removeShare() {
+        shareIdGenerator = null;
+        return nameMapIdGen.remove(SHARE);
     }
 
     @Override
@@ -53,13 +59,22 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
     }
 
     @Override
+    public IdGenerator remove(String name) {
+        if (SHARE.equals(name)) {
+            return removeShare();
+        }
+        return nameMapIdGen.remove(name);
+    }
+
+    @Override
     public void set(String name, IdGenerator idGenerator) {
         nameMapIdGen.put(name, idGenerator);
     }
 
     @Override
-    public IdGenerator getOrCreate(String name, Supplier<IdGenerator> idGenSupplier) {
-        return nameMapIdGen.computeIfAbsent(name, (__) -> idGenSupplier.get());
+    public void clear() {
+        shareIdGenerator = null;
+        nameMapIdGen.clear();
     }
 
     @Override

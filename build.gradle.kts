@@ -12,7 +12,7 @@
  */
 
 plugins {
-    id("io.github.gradle-nexus.publish-plugin") version("1.1.0")
+    id("io.github.gradle-nexus.publish-plugin") version ("1.1.0")
 }
 
 val bomProjects = listOf(
@@ -39,9 +39,9 @@ ext {
     set("jmhVersion", "1.29")
     set("junitPioneerVersion", "1.4.2")
     set("mybatisVersion", "3.5.7")
-    set("mybatisBootVersion","2.1.4")
+    set("mybatisBootVersion", "2.1.4")
     set("coskyVersion", "1.3.10")
-    set("shardingsphereVersion","5.0.0")
+    set("shardingsphereVersion", "5.0.0")
     set("libraryProjects", libraryProjects)
 }
 
@@ -102,18 +102,6 @@ configure(publishProjects) {
                 name = "projectBuildRepo"
                 url = uri(layout.buildDirectory.dir("repos"))
             }
-            maven {
-                name = "sonatypeRepo"
-                url = if (version.toString().endsWith("SNAPSHOT"))
-                    uri("https://oss.sonatype.org/content/repositories/snapshots")
-                else
-                    uri("https://oss.sonatype.org/service/local/staging/deploy/maven2/")
-
-                credentials {
-                    username = getPropertyOf("ossrhUsername")
-                    password = getPropertyOf("ossrhPassword")
-                }
-            }
         }
         publications {
             val publishName = if (isBom) "mavenBom" else "mavenLibrary"
@@ -164,10 +152,7 @@ configure(publishProjects) {
 
 nexusPublishing {
     repositories {
-        sonatype {
-            username.set(getPropertyOf("ossrhUsername"))
-            password.set(getPropertyOf("ossrhPassword"))
-        }
+        sonatype()
     }
 }
 

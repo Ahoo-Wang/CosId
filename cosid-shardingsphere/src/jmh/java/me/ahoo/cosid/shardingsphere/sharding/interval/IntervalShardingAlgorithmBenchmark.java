@@ -58,8 +58,8 @@ public class IntervalShardingAlgorithmBenchmark {
         LocalDateTime upperDatetime = LOWER_DATETIME.plusDays(days);
         Properties properties = new Properties();
         properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, LOGIC_NAME_PREFIX);
-        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, LOWER_DATETIME.toString());
-        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, upperDatetime.toString());
+        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, LOWER_DATETIME.format(AbstractIntervalShardingAlgorithm.DEFAULT_DATE_TIME_FORMATTER));
+        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, upperDatetime.format(AbstractIntervalShardingAlgorithm.DEFAULT_DATE_TIME_FORMATTER));
         properties.setProperty(AbstractIntervalShardingAlgorithm.SHARDING_SUFFIX_FORMAT_KEY, FORMATTER_PATTERN);
         properties.setProperty(AbstractIntervalShardingAlgorithm.INTERVAL_UNIT_KEY, "DAYS");
         properties.setProperty(AbstractIntervalShardingAlgorithm.INTERVAL_AMOUNT_KEY, "1");
@@ -72,9 +72,9 @@ public class IntervalShardingAlgorithmBenchmark {
         datetimeIntervalShardingAlgorithm.init();
 
         officeIntervalShardingAlgorithm = new IntervalShardingAlgorithm();
-        properties.setProperty("datetime-pattern", "yyyy-MM-dd HH:mm:ss");
-        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, LOWER_DATETIME.toString().replace("T", " ") + ":00");
-        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, upperDatetime.toString().replace("T", " ") + ":00");
+        properties.setProperty("datetime-pattern", AbstractIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
+        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, LOWER_DATETIME.format(AbstractIntervalShardingAlgorithm.DEFAULT_DATE_TIME_FORMATTER));
+        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, upperDatetime.format(AbstractIntervalShardingAlgorithm.DEFAULT_DATE_TIME_FORMATTER));
         officeIntervalShardingAlgorithm.setProps(properties);
         officeIntervalShardingAlgorithm.init();
 

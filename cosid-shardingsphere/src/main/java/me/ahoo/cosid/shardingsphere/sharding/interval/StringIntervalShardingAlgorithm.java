@@ -25,8 +25,6 @@ public class StringIntervalShardingAlgorithm extends AbstractIntervalShardingAlg
 
     public static final String TYPE = TYPE_PREFIX + "STRING";
     public static final String DATE_TIME_PATTERN_KEY = "datetime-pattern";
-
-    public static final String DEFAULT_DATE_TIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
     private volatile DateTimeFormatter dateTimeFormatter;
 
     /**

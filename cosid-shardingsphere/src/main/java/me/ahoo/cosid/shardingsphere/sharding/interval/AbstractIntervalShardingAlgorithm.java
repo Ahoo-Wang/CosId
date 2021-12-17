@@ -54,6 +54,10 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
 
     public static final String TYPE_PREFIX = CosIdAlgorithm.TYPE_PREFIX + "INTERVAL_";
 
+    public static final String DEFAULT_DATE_TIME_PATTERN = "yyyy-MM-dd HH:mm:ss";
+
+    public static final DateTimeFormatter DEFAULT_DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern(DEFAULT_DATE_TIME_PATTERN);
+
     public static final String DATE_TIME_LOWER_KEY = "datetime-lower";
 
     public static final String DATE_TIME_UPPER_KEY = "datetime-upper";
@@ -64,7 +68,7 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
 
     public static final String INTERVAL_AMOUNT_KEY = "datetime-interval-amount";
 
-    private volatile Properties props = new Properties();
+    private Properties props = new Properties();
 
     private volatile IntervalTimeline intervalTimeline;
 
@@ -84,8 +88,8 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
     @Override
     public void init() {
         String logicNamePrefix = getRequiredValue(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY);
-        LocalDateTime effectiveLower = LocalDateTime.parse(getRequiredValue(DATE_TIME_LOWER_KEY));
-        LocalDateTime effectiveUpper = LocalDateTime.parse(getRequiredValue(DATE_TIME_UPPER_KEY));
+        LocalDateTime effectiveLower = LocalDateTime.parse(getRequiredValue(DATE_TIME_LOWER_KEY), DEFAULT_DATE_TIME_FORMATTER);
+        LocalDateTime effectiveUpper = LocalDateTime.parse(getRequiredValue(DATE_TIME_UPPER_KEY), DEFAULT_DATE_TIME_FORMATTER);
         DateTimeFormatter suffixFormatter = DateTimeFormatter.ofPattern(getRequiredValue(SHARDING_SUFFIX_FORMAT_KEY));
         ChronoUnit stepUnit = ChronoUnit.valueOf(getRequiredValue(INTERVAL_UNIT_KEY));
         int stepAmount = Integer.parseInt(getProps().getProperty(INTERVAL_AMOUNT_KEY, "1"));
@@ -115,7 +119,6 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
     }
 
     protected abstract LocalDateTime convertShardingValue(T shardingValue);
-
 
     protected Range<LocalDateTime> convertRangeShardingValue(Range<T> shardingValue) {
         if (Range.all().equals(shardingValue)) {

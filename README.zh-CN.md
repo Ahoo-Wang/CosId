@@ -312,8 +312,8 @@ spring:
             props:
               logic-name-prefix: logic-name-prefix
               id-name: cosid-name
-              datetime-lower: 2021-12-08T22:00:00
-              datetime-upper: 2022-12-01T00:00:00
+              datetime-lower: 2021-12-08 22:00:00
+              datetime-upper: 2022-12-01 00:00:00
               sharding-suffix-pattern: yyyyMM
               datetime-interval-unit: MONTHS
               datetime-interval-amount: 1

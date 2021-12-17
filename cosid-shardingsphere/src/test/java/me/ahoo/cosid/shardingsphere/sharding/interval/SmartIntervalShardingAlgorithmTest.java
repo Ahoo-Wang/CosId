@@ -38,7 +38,6 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
  */
 class SmartIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorithmTest {
 
-
     private final static DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(StringIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
 
     AbstractIntervalShardingAlgorithm shardingAlgorithm;

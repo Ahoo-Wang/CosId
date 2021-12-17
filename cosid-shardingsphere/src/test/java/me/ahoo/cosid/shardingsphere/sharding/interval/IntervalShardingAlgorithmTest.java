@@ -47,8 +47,8 @@ class IntervalShardingAlgorithmTest {
     void init() {
         properties = new Properties();
         properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, "t_ldt_");
-        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, "2021-12-08T22:00:00");
-        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, "2025-11-02T22:00:00");
+        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, "2021-12-08 22:00:00");
+        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, "2025-11-02 22:00:00");
         properties.setProperty(AbstractIntervalShardingAlgorithm.SHARDING_SUFFIX_FORMAT_KEY, FORMATTER_PATTERN);
         properties.setProperty(AbstractIntervalShardingAlgorithm.INTERVAL_UNIT_KEY, "MONTHS");
         properties.setProperty(AbstractIntervalShardingAlgorithm.INTERVAL_AMOUNT_KEY, "1");

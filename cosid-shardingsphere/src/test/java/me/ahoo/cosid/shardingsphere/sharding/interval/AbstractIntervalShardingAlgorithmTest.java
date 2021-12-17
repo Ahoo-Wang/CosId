@@ -40,14 +40,13 @@ class AbstractIntervalShardingAlgorithmTest {
     Properties getProps() {
         Properties properties = new Properties();
         properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, LOGIC_NAME);
-        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, LOWER_DATE_TIME.toString());
-        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, UPPER_DATE_TIME.toString());
+        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, LOWER_DATE_TIME.format(AbstractIntervalShardingAlgorithm.DEFAULT_DATE_TIME_FORMATTER));
+        properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, UPPER_DATE_TIME.format(AbstractIntervalShardingAlgorithm.DEFAULT_DATE_TIME_FORMATTER));
         properties.setProperty(AbstractIntervalShardingAlgorithm.SHARDING_SUFFIX_FORMAT_KEY, SUFFIX_FORMATTER_STRING);
         properties.setProperty(AbstractIntervalShardingAlgorithm.INTERVAL_UNIT_KEY, "MONTHS");
         properties.setProperty(AbstractIntervalShardingAlgorithm.INTERVAL_AMOUNT_KEY, "1");
         return properties;
     }
-
 
 
 }

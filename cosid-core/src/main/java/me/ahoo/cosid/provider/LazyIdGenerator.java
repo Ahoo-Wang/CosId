@@ -49,7 +49,7 @@ public final class LazyIdGenerator implements IdGenerator {
             lazyIdGen = idGeneratorOp.get();
             return lazyIdGen;
         } else if (required) {
-            throw new CosIdException(Strings.lenientFormat("CosId:[%s] not found!"));
+            throw new CosIdException(Strings.lenientFormat("CosId:[%s] not found!", idName));
         }
         return null;
     }
@@ -59,7 +59,7 @@ public final class LazyIdGenerator implements IdGenerator {
         if (idGenerator instanceof SnowflakeId) {
             return (SnowflakeId) idGenerator;
         }
-        throw new CosIdException(Strings.lenientFormat("CosId:[%s] is not instanceof SnowflakeId!"));
+        throw new CosIdException(Strings.lenientFormat("CosId:[%s] is not instanceof SnowflakeId!", idName));
     }
 
     public SnowflakeFriendlyId asFriendlyId(boolean required) {
@@ -67,7 +67,7 @@ public final class LazyIdGenerator implements IdGenerator {
         if (idGenerator instanceof SnowflakeFriendlyId) {
             return (SnowflakeFriendlyId) idGenerator;
         }
-        throw new CosIdException(Strings.lenientFormat("CosId:[%s] is not instanceof SnowflakeFriendlyId!"));
+        throw new CosIdException(Strings.lenientFormat("CosId:[%s] is not instanceof SnowflakeFriendlyId!", idName));
     }
 
     public SegmentId asSegmentId(boolean required) {
@@ -75,7 +75,7 @@ public final class LazyIdGenerator implements IdGenerator {
         if (idGenerator instanceof SegmentId) {
             return (SegmentId) idGenerator;
         }
-        throw new CosIdException(Strings.lenientFormat("CosId:[%s] is not instanceof SegmentId!"));
+        throw new CosIdException(Strings.lenientFormat("CosId:[%s] is not instanceof SegmentId!", idName));
     }
 
     @Override

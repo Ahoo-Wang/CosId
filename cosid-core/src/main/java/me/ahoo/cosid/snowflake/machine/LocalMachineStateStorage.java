@@ -22,10 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.CosIdException;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.List;
 
 /**
  * @author ahoo wang
@@ -33,7 +31,6 @@ import java.util.List;
 @Slf4j
 public class LocalMachineStateStorage implements MachineStateStorage {
     public static final String DEFAULT_STATE_LOCATION_PATH = "./cosid-machine-state/";
-    public static final String STATE_DELIMITER = "|";
     public final String stateLocation;
 
     public LocalMachineStateStorage(String stateLocation) {
@@ -60,35 +57,28 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             }
             return MachineState.NOT_FOUND;
         }
-        String stateLine = null;
+        String stateString;
         try {
-            stateLine = Files.asCharSource(stateFile, Charsets.UTF_8).readFirstLine();
+            stateString = Files.asCharSource(stateFile, Charsets.UTF_8).readFirstLine();
         } catch (IOException e) {
             throw new CosIdException(e);
         }
-        if (Strings.isNullOrEmpty(stateLine)) {
+        if (Strings.isNullOrEmpty(stateString)) {
             if (log.isWarnEnabled()) {
                 log.warn("get - read from stateLocation : [{}] state data is empty.", stateFile.getAbsolutePath());
             }
             return MachineState.NOT_FOUND;
         }
         if (log.isInfoEnabled()) {
-            log.info("get - state data : [{}].", stateLine);
+            log.info("get - state data : [{}].", stateString);
         }
-
-        List<String> stateSplits = Splitter.on(STATE_DELIMITER).omitEmptyStrings().splitToList(stateLine);
-        if (stateSplits.size() != 2) {
-            throw new IllegalArgumentException(Strings.lenientFormat("Machine status data:[{%s}] format error.", stateLine));
-        }
-        int machineId = Integer.parseInt(stateSplits.get(0));
-        long lastStamp = Long.parseLong(stateSplits.get(1));
-        return MachineState.of(machineId, lastStamp);
+        return MachineState.of(stateString);
     }
 
     private File getStateFile(String namespace, InstanceId instanceId) {
         File stateDirectory = new File(stateLocation);
         if (!stateDirectory.exists()) {
-            stateDirectory.mkdirs();
+            boolean ignored = stateDirectory.mkdirs();
         }
         String statePath = stateLocation + namespace + "__" + instanceId.getInstanceId();
         return new File(statePath);
@@ -105,22 +95,20 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             log.info("set - write machineId:[{}] to stateLocation : [{}].", machineId, stateFile.getAbsolutePath());
         }
 
-        String stateLine = Strings.lenientFormat("%s%s%s", machineId, STATE_DELIMITER, System.currentTimeMillis());
+        String stateString = MachineState.of(machineId, System.currentTimeMillis()).toStateString();
         if (!stateFile.exists()) {
             try {
-                stateFile.createNewFile();
+                boolean ignored = stateFile.createNewFile();
             } catch (IOException e) {
                 throw new CosIdException(e);
             }
         }
 
         try (FileOutputStream fileOutputStream = new FileOutputStream(stateFile, false)) {
-            fileOutputStream.write(stateLine.getBytes(Charsets.UTF_8));
+            fileOutputStream.write(stateString.getBytes(Charsets.UTF_8));
             fileOutputStream.flush();
-        } catch (FileNotFoundException e) {
-            throw new CosIdException(e);
         } catch (IOException e) {
-            throw new CosIdException(e);
+            throw new CosIdException(e.getMessage(), e);
         }
     }
 
@@ -134,7 +122,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             log.info("remove - stateLocation : [{}].", stateFile.getAbsolutePath());
         }
         if (stateFile.exists()) {
-            stateFile.delete();
+            boolean ignored = stateFile.delete();
         }
     }
 
@@ -151,7 +139,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             if (log.isInfoEnabled()) {
                 log.info("clear - stateLocation : [{}].", stateFile.getAbsolutePath());
             }
-            stateFile.delete();
+            boolean ignored = stateFile.delete();
         }
     }
 
@@ -161,10 +149,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         if (!stateDirectory.exists()) {
             return new File[0];
         }
-        File[] stateFiles = stateDirectory.listFiles(((dir, name) -> {
-            return name.startsWith(namespace);
-        }));
-        return stateFiles;
+        return stateDirectory.listFiles(((dir, name) -> name.startsWith(namespace)));
     }
 
     @Override

@@ -11,26 +11,26 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid;
 
-import me.ahoo.cosid.converter.ToStringIdConverter;
+plugins {
+    id("me.champeau.jmh") version "0.6.4"
+}
 
-import javax.annotation.concurrent.ThreadSafe;
+dependencies {
+    api(project(":cosid-core"))
+    api("org.apache.curator:curator-recipes")
+    jmh("org.openjdk.jmh:jmh-core:${rootProject.ext.get("jmhVersion")}")
+    jmh("org.openjdk.jmh:jmh-generator-annprocess:${rootProject.ext.get("jmhVersion")}")
+}
 
-/**
- * @author ahoo wang
- * Creation time: 2019/11/14 18:43
- */
-@ThreadSafe
-public interface IdGenerator {
-
-    default IdConverter idConverter() {
-        return ToStringIdConverter.INSTANCE;
-    }
-
-    long generate();
-
-    default String generateAsString() {
-        return idConverter().asString(generate());
-    }
+jmh {
+    jmhVersion.set(rootProject.ext.get("jmhVersion").toString())
+    warmupIterations.set(1)
+    iterations.set(1)
+    resultFormat.set("json")
+    benchmarkMode.set(listOf(
+        "thrpt"
+    ))
+//    threads.set(40)
+    fork.set(1)
 }

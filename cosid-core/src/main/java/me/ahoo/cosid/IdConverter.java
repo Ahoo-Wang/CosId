@@ -13,24 +13,15 @@
 
 package me.ahoo.cosid;
 
-import me.ahoo.cosid.converter.ToStringIdConverter;
-
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * @author ahoo wang
- * Creation time: 2019/11/14 18:43
  */
 @ThreadSafe
-public interface IdGenerator {
+public interface IdConverter {
 
-    default IdConverter idConverter() {
-        return ToStringIdConverter.INSTANCE;
-    }
+    String asString(long id);
 
-    long generate();
-
-    default String generateAsString() {
-        return idConverter().asString(generate());
-    }
+    long asLong(String idString);
 }

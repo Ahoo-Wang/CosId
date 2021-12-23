@@ -17,7 +17,9 @@ import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.machine.LocalMachineStateStorage;
+import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 import java.time.Duration;
 import java.time.ZoneId;
@@ -279,6 +281,8 @@ public class SnowflakeIdProperties {
         private int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
         private Integer machineBit;
         private int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT;
+        @NestedConfigurationProperty
+        private IdConverterDefinition converter;
 
         public boolean isClockSync() {
             return clockSync;
@@ -334,6 +338,14 @@ public class SnowflakeIdProperties {
 
         public void setSequenceBit(int sequenceBit) {
             this.sequenceBit = sequenceBit;
+        }
+
+        public IdConverterDefinition getConverter() {
+            return converter;
+        }
+
+        public void setConverter(IdConverterDefinition converter) {
+            this.converter = converter;
         }
 
         public enum TimestampUnit {

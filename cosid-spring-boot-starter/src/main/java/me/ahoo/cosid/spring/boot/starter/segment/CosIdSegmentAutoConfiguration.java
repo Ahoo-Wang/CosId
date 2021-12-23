@@ -15,16 +15,20 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
-import me.ahoo.cosid.segment.DefaultSegmentId;
-import me.ahoo.cosid.segment.IdSegmentDistributor;
-import me.ahoo.cosid.segment.SegmentChainId;
-import me.ahoo.cosid.segment.SegmentId;
+import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.converter.PrefixIdConverter;
+import me.ahoo.cosid.converter.Radix62IdConvert;
+import me.ahoo.cosid.converter.ToStringIdConverter;
+import me.ahoo.cosid.segment.*;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.Objects;
 
 /**
  * @author ahoo wang
@@ -55,14 +59,43 @@ public class CosIdSegmentAutoConfiguration {
         return new CosIdLifecyclePrefetchWorkerExecutorService(prefetchWorkerExecutorService);
     }
 
-
     public static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         long ttl = MoreObjects.firstNonNull(idDefinition.getTtl(), segmentIdProperties.getTtl());
         SegmentIdProperties.Mode mode = MoreObjects.firstNonNull(idDefinition.getMode(), segmentIdProperties.getMode());
+
+        SegmentId segmentId;
         if (SegmentIdProperties.Mode.DEFAULT.equals(mode)) {
-            return new DefaultSegmentId(ttl, idSegmentDistributor);
+            segmentId = new DefaultSegmentId(ttl, idSegmentDistributor);
+        } else {
+            SegmentIdProperties.Chain chain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
+            segmentId = new SegmentChainId(ttl, chain.getSafeDistance(), idSegmentDistributor, prefetchWorkerExecutorService);
         }
-        SegmentIdProperties.Chain chain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
-        return new SegmentChainId(ttl, chain.getSafeDistance(), idSegmentDistributor, prefetchWorkerExecutorService);
+
+        IdConverterDefinition converterDefinition = idDefinition.getConverter();
+
+        if (Objects.isNull(converterDefinition)) {
+            return segmentId;
+        }
+
+        IdConverter idConverter = ToStringIdConverter.INSTANCE;
+        switch (converterDefinition.getType()) {
+            case TO_STRING: {
+                break;
+            }
+            case RADIX: {
+                IdConverterDefinition.Radix radix = converterDefinition.getRadix();
+                idConverter = new Radix62IdConvert(radix.isPadStart(), radix.getCharSize());
+                break;
+            }
+            default:
+                throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
+        }
+
+        if (!PrefixIdConverter.EMPTY_PREFIX.equals(converterDefinition.getPrefix())) {
+            idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
+        }
+
+        return new StringSegmentId(segmentId, idConverter);
+
     }
 }

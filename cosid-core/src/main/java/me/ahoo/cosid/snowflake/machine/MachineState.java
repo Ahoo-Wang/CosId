@@ -13,7 +13,11 @@
 
 package me.ahoo.cosid.snowflake.machine;
 
+import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
+
 import javax.annotation.concurrent.Immutable;
+import java.util.List;
 
 /**
  * @author ahoo wang
@@ -21,6 +25,7 @@ import javax.annotation.concurrent.Immutable;
 @Immutable
 public class MachineState {
     public static final MachineState NOT_FOUND = of(-1, -1);
+    public static final String STATE_DELIMITER = "|";
     private final int machineId;
     private final long lastTimeStamp;
 
@@ -45,7 +50,21 @@ public class MachineState {
                 '}';
     }
 
+    public String toStateString() {
+        return Strings.lenientFormat("%s%s%s", machineId, STATE_DELIMITER, System.currentTimeMillis());
+    }
+
     public static MachineState of(int machineId, long lastStamp) {
         return new MachineState(machineId, lastStamp);
+    }
+
+    public static MachineState of(String stateString) {
+        List<String> stateSplits = Splitter.on(STATE_DELIMITER).omitEmptyStrings().splitToList(stateString);
+        if (stateSplits.size() != 2) {
+            throw new IllegalArgumentException(Strings.lenientFormat("Machine status data:[{%s}] format error.", stateString));
+        }
+        int machineId = Integer.parseInt(stateSplits.get(0));
+        long lastStamp = Long.parseLong(stateSplits.get(1));
+        return MachineState.of(machineId, lastStamp);
     }
 }

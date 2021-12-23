@@ -11,26 +11,24 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid;
+package me.ahoo.cosid.converter;
 
-import me.ahoo.cosid.converter.ToStringIdConverter;
-
-import javax.annotation.concurrent.ThreadSafe;
+import me.ahoo.cosid.IdConverter;
 
 /**
  * @author ahoo wang
- * Creation time: 2019/11/14 18:43
  */
-@ThreadSafe
-public interface IdGenerator {
+public class ToStringIdConverter implements IdConverter {
+    
+    public static final IdConverter INSTANCE = new ToStringIdConverter();
 
-    default IdConverter idConverter() {
-        return ToStringIdConverter.INSTANCE;
+    @Override
+    public String asString(long id) {
+        return String.valueOf(id);
     }
 
-    long generate();
-
-    default String generateAsString() {
-        return idConverter().asString(generate());
+    @Override
+    public long asLong(String idString) {
+        return Long.parseLong(idString);
     }
 }

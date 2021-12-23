@@ -13,89 +13,38 @@
 
 package me.ahoo.cosid.snowflake;
 
+import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
+
 import java.time.ZoneId;
 
 /**
  * @author ahoo wang
  */
-public class DefaultSnowflakeFriendlyId implements SnowflakeFriendlyId {
-    private final SnowflakeId delegate;
+public class DefaultSnowflakeFriendlyId extends StringSnowflakeId implements SnowflakeFriendlyId {
+
     private final SnowflakeIdStateParser snowflakeIdStateParser;
 
-    public DefaultSnowflakeFriendlyId(SnowflakeId delegate) {
-        this(delegate, ZoneId.systemDefault());
+    public DefaultSnowflakeFriendlyId(SnowflakeId actual) {
+        this(actual, ZoneId.systemDefault());
     }
 
-    public DefaultSnowflakeFriendlyId(SnowflakeId delegate, ZoneId zoneId) {
-        this.delegate = delegate;
-        this.snowflakeIdStateParser = SnowflakeIdStateParser.of(delegate, zoneId);
+    public DefaultSnowflakeFriendlyId(SnowflakeId actual, ZoneId zoneId) {
+        this(actual, SnowflakeIdStateParser.of(actual, zoneId));
     }
 
-    public SnowflakeId getDelegate() {
-        return delegate;
+    public DefaultSnowflakeFriendlyId(SnowflakeId actual, SnowflakeIdStateParser snowflakeIdStateParser) {
+        this(actual, new SnowflakeFriendlyIdConverter(snowflakeIdStateParser), snowflakeIdStateParser);
     }
+
+    public DefaultSnowflakeFriendlyId(SnowflakeId actual, IdConverter converter, SnowflakeIdStateParser snowflakeIdStateParser) {
+        super(actual, converter);
+        this.snowflakeIdStateParser = snowflakeIdStateParser;
+    }
+
     @Override
     public SnowflakeIdStateParser getParser() {
         return snowflakeIdStateParser;
     }
 
-    @Override
-    public long generate() {
-        return delegate.generate();
-    }
-
-    @Override
-    public SnowflakeIdState friendlyId(long id) {
-        return snowflakeIdStateParser.parse(id);
-    }
-
-    @Override
-    public SnowflakeIdState ofFriendlyId(String friendlyId) {
-        return snowflakeIdStateParser.parse(friendlyId);
-    }
-
-    @Override
-    public long getEpoch() {
-        return delegate.getEpoch();
-    }
-
-    @Override
-    public int getTimestampBit() {
-        return delegate.getTimestampBit();
-    }
-
-    @Override
-    public int getMachineBit() {
-        return delegate.getMachineBit();
-    }
-
-    @Override
-    public int getSequenceBit() {
-        return delegate.getSequenceBit();
-    }
-
-    @Override
-    public long getMaxTimestamp() {
-        return delegate.getMaxTimestamp();
-    }
-
-    @Override
-    public long getMaxMachine() {
-        return delegate.getMaxMachine();
-    }
-
-    @Override
-    public long getMaxSequence() {
-        return delegate.getMaxSequence();
-    }
-
-    @Override
-    public long getLastTimestamp() {
-        return delegate.getLastTimestamp();
-    }
-
-    @Override
-    public long getMachineId() {
-        return delegate.getMachineId();
-    }
 }

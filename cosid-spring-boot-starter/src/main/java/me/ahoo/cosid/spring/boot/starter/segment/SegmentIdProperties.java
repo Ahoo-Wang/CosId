@@ -15,13 +15,16 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import java.time.Duration;
 import java.util.Map;
+
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
@@ -292,6 +295,8 @@ public class SegmentIdProperties {
          */
         private Long ttl;
         private Chain chain;
+        @NestedConfigurationProperty
+        private IdConverterDefinition converter;
 
         public Mode getMode() {
             return mode;
@@ -331,6 +336,14 @@ public class SegmentIdProperties {
 
         public void setChain(Chain chain) {
             this.chain = chain;
+        }
+
+        public IdConverterDefinition getConverter() {
+            return converter;
+        }
+
+        public void setConverter(IdConverterDefinition converter) {
+            this.converter = converter;
         }
     }
 }

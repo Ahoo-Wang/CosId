@@ -15,13 +15,19 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.converter.PrefixIdConverter;
+import me.ahoo.cosid.converter.Radix62IdConvert;
+import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
+import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.*;
 import me.ahoo.cosid.snowflake.machine.*;
 import me.ahoo.cosid.snowflake.machine.k8s.StatefulSetMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
+import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 import me.ahoo.cosid.util.Systems;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -156,11 +162,47 @@ public class CosIdSnowflakeAutoConfiguration {
         if (idDefinition.isClockSync()) {
             snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
         }
-        if (idDefinition.isFriendly()) {
-            final ZoneId zoneId = ZoneId.of(snowflakeIdProperties.getZoneId());
+
+        IdConverterDefinition converterDefinition = idDefinition.getConverter();
+
+        boolean isFriendly = idDefinition.isFriendly();
+        final ZoneId zoneId = ZoneId.of(snowflakeIdProperties.getZoneId());
+
+        if (isFriendly) {
             snowflakeId = new DefaultSnowflakeFriendlyId(snowflakeId, zoneId);
         }
-        return snowflakeId;
+
+        if (Objects.isNull(converterDefinition)) {
+            return snowflakeId;
+        }
+
+        IdConverter idConverter = ToStringIdConverter.INSTANCE;
+        switch (converterDefinition.getType()) {
+            case TO_STRING: {
+                break;
+            }
+            case SNOWFLAKE_FRIENDLY: {
+                idConverter = new SnowflakeFriendlyIdConverter(SnowflakeIdStateParser.of(snowflakeId, zoneId));
+                break;
+            }
+            case RADIX: {
+                IdConverterDefinition.Radix radix = converterDefinition.getRadix();
+                idConverter = new Radix62IdConvert(radix.isPadStart(), radix.getCharSize());
+                break;
+            }
+            default:
+                throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
+        }
+
+        if (!PrefixIdConverter.EMPTY_PREFIX.equals(converterDefinition.getPrefix())) {
+            idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
+        }
+
+        if (isFriendly){
+            SnowflakeFriendlyId snowflakeFriendlyId = (SnowflakeFriendlyId) snowflakeId;
+            return new DefaultSnowflakeFriendlyId(snowflakeId, idConverter, snowflakeFriendlyId.getParser());
+        }
+        return new StringSnowflakeId(snowflakeId, idConverter);
     }
 
     private Integer getMachineBit(SnowflakeIdProperties.IdDefinition idDefinition) {

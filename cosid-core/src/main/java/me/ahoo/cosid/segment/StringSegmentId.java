@@ -11,26 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid;
+package me.ahoo.cosid.segment;
 
-import me.ahoo.cosid.converter.ToStringIdConverter;
-
-import javax.annotation.concurrent.ThreadSafe;
+import me.ahoo.cosid.StringIdGenerator;
+import me.ahoo.cosid.IdConverter;
 
 /**
  * @author ahoo wang
- * Creation time: 2019/11/14 18:43
  */
-@ThreadSafe
-public interface IdGenerator {
+public class StringSegmentId extends StringIdGenerator implements SegmentId {
 
-    default IdConverter idConverter() {
-        return ToStringIdConverter.INSTANCE;
-    }
-
-    long generate();
-
-    default String generateAsString() {
-        return idConverter().asString(generate());
+    public StringSegmentId(SegmentId actual, IdConverter idConverter) {
+        super(actual, idConverter);
     }
 }

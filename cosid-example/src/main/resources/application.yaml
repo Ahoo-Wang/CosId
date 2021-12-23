@@ -165,7 +165,15 @@ cosid:
     share:
       clock-sync: true
       friendly: true
+
     provider:
+      short_id:
+        converter:
+          prefix: cosid_
+          type: radix
+          radix:
+            char-size: 11
+            pad-start: false
       order_item:
         #        timestamp-bit:
         sequence-bit: 12

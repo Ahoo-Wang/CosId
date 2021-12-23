@@ -20,17 +20,16 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
 
     SnowflakeIdStateParser getParser();
 
-    SnowflakeIdState friendlyId(long id);
+    default SnowflakeIdState friendlyId(long id) {
+        return getParser().parse(id);
+    }
 
-    SnowflakeIdState ofFriendlyId(String friendlyId);
+    default SnowflakeIdState ofFriendlyId(String friendlyId) {
+        return getParser().parse(friendlyId);
+    }
 
     default SnowflakeIdState friendlyId() {
         long id = generate();
         return friendlyId(id);
-    }
-
-    @Override
-    default String generateAsString() {
-        return friendlyId().getFriendlyId();
     }
 }

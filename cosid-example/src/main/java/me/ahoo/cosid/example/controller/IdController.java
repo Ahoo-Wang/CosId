@@ -63,7 +63,12 @@ public class IdController {
         if (idGenerator instanceof SnowflakeFriendlyId) {
             return idGenerator.generateAsString();
         }
-
         throw new IllegalArgumentException(Strings.lenientFormat("idGenerator:[%s] is not SnowflakeFriendlyId.", name));
+    }
+
+    @GetMapping("shortId")
+    public String shortId() {
+        IdGenerator idGenerator = getIdGenerator("short_id");
+        return idGenerator.generateAsString();
     }
 }

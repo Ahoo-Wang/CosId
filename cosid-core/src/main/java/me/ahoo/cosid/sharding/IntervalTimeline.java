@@ -58,7 +58,7 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
             intervalList.add(new Interval(lower, nodeName));
             lower = step.next(lower);
         }
-        return intervalList.toArray(new Interval[intervalList.size()]);
+        return intervalList.toArray(new Interval[0]);
     }
 
     private static ExactCollection<String> initEffectiveNodes(Interval[] effectiveIntervals) {

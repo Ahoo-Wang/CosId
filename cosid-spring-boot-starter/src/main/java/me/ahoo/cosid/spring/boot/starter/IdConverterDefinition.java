@@ -14,7 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter;
 
 import me.ahoo.cosid.converter.PrefixIdConverter;
-import me.ahoo.cosid.converter.Radix62IdConvert;
+import me.ahoo.cosid.converter.Radix62IdConverter;
 
 /**
  * @author ahoo wang
@@ -52,7 +52,7 @@ public class IdConverterDefinition {
     public static class Radix {
 
         private boolean padStart;
-        private int charSize = Radix62IdConvert.MAX_CHAR_SIZE;
+        private int charSize = Radix62IdConverter.MAX_CHAR_SIZE;
 
         public boolean isPadStart() {
             return padStart;

@@ -23,35 +23,35 @@ import org.junit.jupiter.params.provider.ValueSource;
 /**
  * @author ahoo wang
  */
-class Radix62IdConvertTest {
+class Radix62IdConverterTest {
 
     @ParameterizedTest
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})
     void asString(long argId) {
-        String idStr = Radix62IdConvert.INSTANCE.asString(argId);
+        String idStr = Radix62IdConverter.INSTANCE.asString(argId);
         Assertions.assertNotNull(idStr);
-        Assertions.assertTrue(idStr.length() <= Radix62IdConvert.MAX_CHAR_SIZE);
+        Assertions.assertTrue(idStr.length() <= Radix62IdConverter.MAX_CHAR_SIZE);
     }
 
     @Test
     void asStringWhenIdZero() {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            Radix62IdConvert.INSTANCE.asString(0L);
+            Radix62IdConverter.INSTANCE.asString(0L);
         });
     }
 
     @ParameterizedTest
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})
     void asLong(long argId) {
-        String idStr = Radix62IdConvert.INSTANCE.asString(argId);
-        long actual = Radix62IdConvert.INSTANCE.asLong(idStr);
+        String idStr = Radix62IdConverter.INSTANCE.asString(argId);
+        long actual = Radix62IdConverter.INSTANCE.asLong(idStr);
         Assertions.assertEquals(argId, actual);
     }
 
     @Test
     void asLongWhenNumberFormat() {
         int charSize = 2;
-        Radix62IdConvert idConvert = new Radix62IdConvert(false, charSize);
+        Radix62IdConverter idConvert = new Radix62IdConverter(false, charSize);
 
         Assertions.assertThrows(NumberFormatException.class, () -> {
             idConvert.asLong("-1");
@@ -67,16 +67,16 @@ class Radix62IdConvertTest {
     @ParameterizedTest
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})
     void asStringPad(long argId) {
-        String idStr = Radix62IdConvert.PAD_START.asString(argId);
+        String idStr = Radix62IdConverter.PAD_START.asString(argId);
         Assertions.assertNotNull(idStr);
-        Assertions.assertEquals(Radix62IdConvert.MAX_CHAR_SIZE, idStr.length());
+        Assertions.assertEquals(Radix62IdConverter.MAX_CHAR_SIZE, idStr.length());
     }
 
     @ParameterizedTest
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})
     void asLongPad(long argId) {
-        String idStr = Radix62IdConvert.PAD_START.asString(argId);
-        long actual = Radix62IdConvert.PAD_START.asLong(idStr);
+        String idStr = Radix62IdConverter.PAD_START.asString(argId);
+        long actual = Radix62IdConverter.PAD_START.asLong(idStr);
         Assertions.assertEquals(argId, actual);
     }
 
@@ -84,16 +84,16 @@ class Radix62IdConvertTest {
     void asStringSnowflakeId() {
         IdGenerator idGenerator = new MillisecondSnowflakeId(1);
         long argId = idGenerator.generate();
-        String idStr = Radix62IdConvert.PAD_START.asString(argId);
+        String idStr = Radix62IdConverter.PAD_START.asString(argId);
         Assertions.assertNotNull(idStr);
-        Assertions.assertEquals(Radix62IdConvert.MAX_CHAR_SIZE, idStr.length());
+        Assertions.assertEquals(Radix62IdConverter.MAX_CHAR_SIZE, idStr.length());
     }
 
     @Test
     void asStringCharSize10() {
         int charSize = 10;
-        Radix62IdConvert idConvert = new Radix62IdConvert(false, charSize);
-        long maxId = Double.valueOf(Math.pow(Radix62IdConvert.RADIX, charSize)).longValue();
+        Radix62IdConverter idConvert = new Radix62IdConverter(false, charSize);
+        long maxId = Double.valueOf(Math.pow(Radix62IdConverter.RADIX, charSize)).longValue();
         Assertions.assertThrows(IllegalArgumentException.class, () -> idConvert.asString(maxId));
         long id = maxId - 1;
         String actualIdStr = idConvert.asString(id);
@@ -108,7 +108,7 @@ class Radix62IdConvertTest {
     @Test
     void asStringPadCharSize10() {
         int charSize = 10;
-        Radix62IdConvert idConvert = new Radix62IdConvert(true, charSize);
+        Radix62IdConverter idConvert = new Radix62IdConverter(true, charSize);
         String actualIdStr = idConvert.asString(1L);
         Assertions.assertEquals(charSize, actualIdStr.length());
     }

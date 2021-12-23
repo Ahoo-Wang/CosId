@@ -39,7 +39,7 @@ public interface Clock {
         /**
          * {@link System#currentTimeMillis()} is too slow!
          *
-         * @return
+         * @return second time from cache
          */
         @Override
         public long secondTime() {

@@ -18,17 +18,17 @@ import com.google.common.base.Strings;
 import me.ahoo.cosid.IdConverter;
 
 /**
- * [0-1][A-Z][a-z]{11}
+ * [0-9][A-Z][a-z]{11}
  *
  * @author ahoo wang
  */
-public final class Radix62IdConvert implements IdConverter {
+public final class Radix62IdConverter implements IdConverter {
 
     public static final int MAX_CHAR_SIZE = 11;
     public static final int RADIX = 62;
 
-    public static final IdConverter INSTANCE = new Radix62IdConvert(false, MAX_CHAR_SIZE);
-    public static final IdConverter PAD_START = new Radix62IdConvert(true, MAX_CHAR_SIZE);
+    public static final IdConverter INSTANCE = new Radix62IdConverter(false, MAX_CHAR_SIZE);
+    public static final IdConverter PAD_START = new Radix62IdConverter(true, MAX_CHAR_SIZE);
 
     /**
      * 48
@@ -39,12 +39,12 @@ public final class Radix62IdConvert implements IdConverter {
      */
     private static final char NINE = '9';
     /**
-     * 64
+     * 65
      */
     private static final char UPPERCASE_A = 'A';
     private static final int UPPERCASE_OFFSET = 10;
     /**
-     *
+     * 90
      */
     private static final char UPPERCASE_Z = 'Z';
     /**
@@ -59,18 +59,18 @@ public final class Radix62IdConvert implements IdConverter {
 
     private final static char[] digits = {
             /**
-             * offset: 48
+             * offset: 0
              * [48-57]
             */
             ZERO, '1', '2', '3', '4', '5', '6', '7', '8', NINE,
             /**
-             * offset: 64
+             * offset: 10
              * [64-90]
             */
             UPPERCASE_A, 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
             'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', UPPERCASE_Z,
             /**
-             * offset: 97
+             * offset: 36
              * [97-122]
             */
             LOWERCASE_A, 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
@@ -82,7 +82,7 @@ public final class Radix62IdConvert implements IdConverter {
     private final int charSize;
     private final long maxId;
 
-    public Radix62IdConvert(boolean padStart, int charSize) {
+    public Radix62IdConverter(boolean padStart, int charSize) {
         Preconditions.checkArgument(charSize > 0 && charSize <= MAX_CHAR_SIZE, "charSize cannot be greater than MAX_CHAR_SIZE[%s]!", MAX_CHAR_SIZE);
         this.padStart = padStart;
         this.charSize = charSize;

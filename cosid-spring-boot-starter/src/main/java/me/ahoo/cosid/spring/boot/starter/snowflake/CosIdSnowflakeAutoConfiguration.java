@@ -18,7 +18,7 @@ import com.google.common.base.Strings;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.converter.PrefixIdConverter;
-import me.ahoo.cosid.converter.Radix62IdConvert;
+import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
@@ -187,7 +187,7 @@ public class CosIdSnowflakeAutoConfiguration {
             }
             case RADIX: {
                 IdConverterDefinition.Radix radix = converterDefinition.getRadix();
-                idConverter = new Radix62IdConvert(radix.isPadStart(), radix.getCharSize());
+                idConverter = new Radix62IdConverter(radix.isPadStart(), radix.getCharSize());
                 break;
             }
             default:

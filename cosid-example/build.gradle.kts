@@ -79,6 +79,10 @@ dependencies {
     implementation("org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter:${rootProject.ext.get("shardingsphereVersion")}")
     //endregion
 
+    //region cosid-zookeeper
+//    implementation(project(":cosid-zookeeper"))
+    //endregion
+
     //region cosid-mybatis
     implementation(project(":cosid-mybatis"))
     implementation("org.mybatis.spring.boot:mybatis-spring-boot-starter")

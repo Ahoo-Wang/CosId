@@ -19,9 +19,11 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.segment.*;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -39,9 +41,11 @@ import java.util.Objects;
 @EnableConfigurationProperties(SegmentIdProperties.class)
 public class CosIdSegmentAutoConfiguration {
 
+    private final CosIdProperties cosIdProperties;
     private final SegmentIdProperties segmentIdProperties;
 
-    public CosIdSegmentAutoConfiguration(SegmentIdProperties segmentIdProperties) {
+    public CosIdSegmentAutoConfiguration(CosIdProperties cosIdProperties, SegmentIdProperties segmentIdProperties) {
+        this.cosIdProperties = cosIdProperties;
         this.segmentIdProperties = segmentIdProperties;
     }
 
@@ -59,7 +63,39 @@ public class CosIdSegmentAutoConfiguration {
         return new CosIdLifecyclePrefetchWorkerExecutorService(prefetchWorkerExecutorService);
     }
 
-    public static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
+    private IdSegmentDistributorDefinition asDistributorDefinition(String name, SegmentIdProperties.IdDefinition idDefinition) {
+        return new IdSegmentDistributorDefinition(cosIdProperties.getNamespace(), name, idDefinition.getOffset(), idDefinition.getStep());
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public SegmentId shareSegmentId(IdSegmentDistributorFactory distributorFactory, IdGeneratorProvider idGeneratorProvider, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
+        SegmentIdProperties.IdDefinition shareIdDefinition = segmentIdProperties.getShare();
+        IdSegmentDistributorDefinition shareDistributorDefinition = asDistributorDefinition(IdGeneratorProvider.SHARE, shareIdDefinition);
+        IdSegmentDistributor shareIdSegmentDistributor = distributorFactory.create(shareDistributorDefinition);
+
+
+        SegmentId shareIdGen = createSegment(segmentIdProperties, shareIdDefinition, shareIdSegmentDistributor, prefetchWorkerExecutorService);
+
+        if (Objects.isNull(idGeneratorProvider.getShare())) {
+            idGeneratorProvider.setShare(shareIdGen);
+        }
+        if (Objects.isNull(segmentIdProperties.getProvider())) {
+            return shareIdGen;
+        }
+
+        segmentIdProperties.getProvider().forEach((name, idDefinition) -> {
+            IdSegmentDistributorDefinition distributorDefinition = asDistributorDefinition(name, shareIdDefinition);
+            IdSegmentDistributor idSegmentDistributor = distributorFactory.create(distributorDefinition);
+            SegmentId idGenerator = createSegment(segmentIdProperties, idDefinition, idSegmentDistributor, prefetchWorkerExecutorService);
+            idGeneratorProvider.set(name, idGenerator);
+        });
+
+        return shareIdGen;
+    }
+
+
+    private static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         long ttl = MoreObjects.firstNonNull(idDefinition.getTtl(), segmentIdProperties.getTtl());
         SegmentIdProperties.Mode mode = MoreObjects.firstNonNull(idDefinition.getMode(), segmentIdProperties.getMode());
 

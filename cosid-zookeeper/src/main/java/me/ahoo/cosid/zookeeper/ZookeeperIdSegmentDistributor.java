@@ -34,6 +34,9 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
     private final String name;
     private final long offset;
     private final long step;
+    /**
+     * /cosid/{namespace}.{name}
+     */
     private final String counterPath;
     private final DistributedAtomicLong distributedAtomicLong;
 
@@ -46,7 +49,7 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
         this.name = name;
         this.offset = offset;
         this.step = step;
-        this.counterPath = Strings.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, name);
+        this.counterPath = Strings.lenientFormat("/%s/%s", CosId.COSID, getNamespacedName());
         this.distributedAtomicLong = new DistributedAtomicLong(curatorFramework, counterPath, retryPolicy);
         this.ensureOffset();
     }
@@ -85,7 +88,9 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
     @Override
     public long nextMaxId(long step) {
         IdSegmentDistributor.ensureStep(step);
-
+        if (log.isDebugEnabled()) {
+            log.debug("nextMaxId -[{}]- step:[{}].", counterPath, step);
+        }
         try {
             AtomicValue<Long> nextMaxId = distributedAtomicLong.add(step);
             return nextMaxId.postValue();

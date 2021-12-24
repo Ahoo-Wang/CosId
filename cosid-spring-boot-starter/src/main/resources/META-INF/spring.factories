@@ -3,9 +3,11 @@ org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
   me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.snowflake.CosIdRedisMachineIdDistributorAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.snowflake.CosIdSpringRedisMachineIdDistributorAutoConfiguration,\
+  me.ahoo.cosid.spring.boot.starter.snowflake.CosIdZookeeperMachineIdDistributorAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.snowflake.CosIdSnowflakeAutoConfiguration,\
-  me.ahoo.cosid.spring.boot.starter.segment.CosIdSegmentAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.segment.CosIdRedisSegmentAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.segment.CosIdSpringRedisSegmentAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.segment.CosIdJdbcSegmentAutoConfiguration,\
+  me.ahoo.cosid.spring.boot.starter.segment.CosIdZookeeperSegmentAutoConfiguration,\
+  me.ahoo.cosid.spring.boot.starter.segment.CosIdSegmentAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.mybatis.CosIdMybatisAutoConfiguration

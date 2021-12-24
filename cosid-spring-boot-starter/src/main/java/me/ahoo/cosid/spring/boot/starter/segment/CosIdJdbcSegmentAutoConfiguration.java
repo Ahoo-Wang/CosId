@@ -13,13 +13,10 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
-import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
+import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributorFactory;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
-import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.segment.SegmentId;
-import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -27,7 +24,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
-import java.util.Objects;
 
 /**
  * @author ahoo wang
@@ -39,11 +35,9 @@ import java.util.Objects;
 @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "jdbc")
 public class CosIdJdbcSegmentAutoConfiguration {
 
-    private final CosIdProperties cosIdProperties;
     private final SegmentIdProperties segmentIdProperties;
 
-    public CosIdJdbcSegmentAutoConfiguration(CosIdProperties cosIdProperties, SegmentIdProperties segmentIdProperties) {
-        this.cosIdProperties = cosIdProperties;
+    public CosIdJdbcSegmentAutoConfiguration(SegmentIdProperties segmentIdProperties) {
         this.segmentIdProperties = segmentIdProperties;
     }
 
@@ -60,36 +54,9 @@ public class CosIdJdbcSegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public SegmentId shareJdbcSegmentId(IdGeneratorProvider idGeneratorProvider, JdbcIdSegmentInitializer jdbcIdSegmentInitializer, DataSource dataSource, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
-        SegmentIdProperties.IdDefinition shareIdDefinition = segmentIdProperties.getShare();
-        SegmentId shareIdGen = createSegmentId(IdGeneratorProvider.SHARE, shareIdDefinition, jdbcIdSegmentInitializer, dataSource, prefetchWorkerExecutorService);
-        if (Objects.isNull(idGeneratorProvider.getShare())) {
-            idGeneratorProvider.setShare(shareIdGen);
-        }
-        if (Objects.isNull(segmentIdProperties.getProvider())) {
-            return shareIdGen;
-        }
-        segmentIdProperties.getProvider().forEach((name, idDefinition) -> {
-            SegmentId idGenerator = createSegmentId(name, idDefinition, jdbcIdSegmentInitializer, dataSource, prefetchWorkerExecutorService);
-            idGeneratorProvider.set(name, idGenerator);
-        });
-
-        return shareIdGen;
-    }
-
-    private SegmentId createSegmentId(String name, SegmentIdProperties.IdDefinition idDefinition, JdbcIdSegmentInitializer jdbcIdSegmentInitializer, DataSource dataSource, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
+    public IdSegmentDistributorFactory idSegmentDistributorFactory(DataSource dataSource,JdbcIdSegmentInitializer jdbcIdSegmentInitializer) {
         SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
-        JdbcIdSegmentDistributor jdbcIdSegmentDistributor = new JdbcIdSegmentDistributor(
-                cosIdProperties.getNamespace(),
-                name,
-                idDefinition.getStep(),
-                jdbc.getIncrementMaxIdSql(),
-                jdbc.getFetchMaxIdSql(),
-                dataSource);
-        if (jdbc.isEnableAutoInitIdSegment()) {
-            jdbcIdSegmentInitializer.tryInitIdSegment(jdbcIdSegmentDistributor.getNamespacedName(), idDefinition.getOffset());
-        }
-        return CosIdSegmentAutoConfiguration.createSegment(segmentIdProperties, idDefinition, jdbcIdSegmentDistributor, prefetchWorkerExecutorService);
+        return new JdbcIdSegmentDistributorFactory(dataSource, jdbc.isEnableAutoInitIdSegment(), jdbcIdSegmentInitializer, jdbc.getIncrementMaxIdSql(), jdbc.getFetchMaxIdSql());
     }
 
 }

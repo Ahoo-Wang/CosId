@@ -14,15 +14,17 @@
 package me.ahoo.cosid.zookeeper;
 
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.util.MockIdGenerator;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.RetryNTimes;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.UUID;
+import java.util.Objects;
 
 /**
  * @author ahoo wang
@@ -37,7 +39,7 @@ class ZookeeperIdSegmentDistributorTest {
         retryPolicy = new RetryNTimes(1, 10);
         curatorFramework = CuratorFrameworkFactory.newClient("localhost:2181", retryPolicy);
         curatorFramework.start();
-        zookeeperIdSegmentDistributor = new ZookeeperIdSegmentDistributor("dev", UUID.randomUUID().toString(), IdSegmentDistributor.DEFAULT_OFFSET, IdSegmentDistributor.DEFAULT_STEP, curatorFramework, retryPolicy);
+        zookeeperIdSegmentDistributor = new ZookeeperIdSegmentDistributor(MockIdGenerator.INSTANCE.generateAsString(), MockIdGenerator.INSTANCE.generateAsString(), IdSegmentDistributor.DEFAULT_OFFSET, IdSegmentDistributor.DEFAULT_STEP, curatorFramework, retryPolicy);
     }
 
     @Test
@@ -50,10 +52,17 @@ class ZookeeperIdSegmentDistributorTest {
 
     @Test
     void nextMaxIdOffset() {
-        ZookeeperIdSegmentDistributor distributorOffset100 = new ZookeeperIdSegmentDistributor("dev", UUID.randomUUID().toString(), 100, IdSegmentDistributor.DEFAULT_STEP, curatorFramework, retryPolicy);
+        ZookeeperIdSegmentDistributor distributorOffset100 = new ZookeeperIdSegmentDistributor("dev", MockIdGenerator.INSTANCE.generateAsString(), 100, IdSegmentDistributor.DEFAULT_STEP, curatorFramework, retryPolicy);
         long nextMaxID = distributorOffset100.nextMaxId(100);
         Assertions.assertEquals(200, nextMaxID);
         nextMaxID = distributorOffset100.nextMaxId(100);
         Assertions.assertEquals(300, nextMaxID);
+    }
+
+    @AfterEach
+    void destroy() {
+        if (Objects.nonNull(curatorFramework)) {
+            curatorFramework.close();
+        }
     }
 }

@@ -18,6 +18,8 @@ import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 
+import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
+
 /**
  * @author ahoo wang
  */
@@ -83,13 +85,12 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
 
         MachineState lastLocalState = machineStateStorage.get(namespace, instanceId);
-        if (MachineState.NOT_FOUND.equals(lastLocalState)) {
-            revert0(namespace, instanceId, lastLocalState);
-            return;
-        }
-        if (ClockBackwardsSynchronizer.getBackwardsTimeStamp(lastLocalState.getLastTimeStamp()) < 0) {
+
+        if (getBackwardsTimeStamp(lastLocalState.getLastTimeStamp()) < 0) {
+            lastLocalState = MachineState.of(lastLocalState.getMachineId(), System.currentTimeMillis());
             machineStateStorage.set(namespace, lastLocalState.getMachineId(), instanceId);
         }
+
         revert0(namespace, instanceId, lastLocalState);
     }
 

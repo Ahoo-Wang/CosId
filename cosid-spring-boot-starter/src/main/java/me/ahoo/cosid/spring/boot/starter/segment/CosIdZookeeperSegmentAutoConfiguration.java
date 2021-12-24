@@ -13,20 +13,19 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
-import me.ahoo.cosid.redis.RedisIdSegmentDistributor;
-import me.ahoo.cosid.redis.RedisIdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosky.core.redis.RedisConnectionFactory;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributor;
+import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributorFactory;
+import org.apache.curator.RetryPolicy;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.time.Duration;
 
 /**
  * @author ahoo wang
@@ -35,22 +34,15 @@ import java.time.Duration;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
-@ConditionalOnClass(RedisIdSegmentDistributor.class)
-@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "redis")
-public class CosIdRedisSegmentAutoConfiguration {
-
-    private final SegmentIdProperties segmentIdProperties;
-
-    public CosIdRedisSegmentAutoConfiguration(SegmentIdProperties segmentIdProperties) {
-        this.segmentIdProperties = segmentIdProperties;
-    }
+@ConditionalOnClass(ZookeeperIdSegmentDistributor.class)
+@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "zookeeper")
+public class CosIdZookeeperSegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    @ConditionalOnBean(RedisConnectionFactory.class)
-    public IdSegmentDistributorFactory idSegmentDistributorFactory(RedisConnectionFactory connectionFactory) {
-        Duration timeout = segmentIdProperties.getDistributor().getRedis().getTimeout();
-        return new RedisIdSegmentDistributorFactory(connectionFactory, timeout);
+    public IdSegmentDistributorFactory idSegmentDistributorFactory(CuratorFramework curatorFramework) {
+        RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3);
+        return new ZookeeperIdSegmentDistributorFactory(curatorFramework, retryPolicy);
     }
 
 }

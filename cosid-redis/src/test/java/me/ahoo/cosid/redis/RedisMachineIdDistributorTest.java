@@ -20,10 +20,10 @@ import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
+import me.ahoo.cosid.util.MockIdGenerator;
 import org.junit.jupiter.api.*;
 
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * @author ahoo wang
@@ -35,7 +35,7 @@ class RedisMachineIdDistributorTest {
     protected RedisMachineIdDistributor redisMachineIdDistributor;
 
     @BeforeAll
-    private void initRedis() {
+    void initRedis() {
         System.out.println("--- initRedis ---");
         redisClient = RedisClient.create("redis://localhost:6379");
         redisConnection = redisClient.connect();
@@ -45,7 +45,7 @@ class RedisMachineIdDistributorTest {
     @Test
     void distribute() {
         int machineBit = 1;
-        String namespace = UUID.randomUUID().toString();
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
         InstanceId instanceId = InstanceId.of("127.0.0.1", 80, false);
         int machineId = redisMachineIdDistributor.distribute(namespace, machineBit, instanceId);
         Assertions.assertEquals(0, machineId);
@@ -77,7 +77,7 @@ class RedisMachineIdDistributorTest {
     @Test
     void distribute_stable() {
         int machineBit = 1;
-        String namespace = UUID.randomUUID().toString();
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
         InstanceId instanceId = InstanceId.of("127.0.0.1", 80, true);
         int machineId = redisMachineIdDistributor.distribute(namespace, machineBit, instanceId);
         Assertions.assertEquals(0, machineId);
@@ -115,7 +115,7 @@ class RedisMachineIdDistributorTest {
 
 
     @AfterAll
-    private void destroyRedis() {
+    void destroyRedis() {
         System.out.println("--- destroyRedis ---");
 
         if (Objects.nonNull(redisConnection)) {

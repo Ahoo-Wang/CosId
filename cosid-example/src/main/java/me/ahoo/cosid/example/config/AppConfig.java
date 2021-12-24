@@ -14,6 +14,13 @@
 package me.ahoo.cosid.example.config;
 
 
+import org.apache.curator.RetryPolicy;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.RetryNTimes;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -22,6 +29,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class AppConfig {
 
-
+//    @Bean
+//    @ConditionalOnClass(CuratorFramework.class)
+//    @ConditionalOnMissingBean
+//    public CuratorFramework curatorFramework() {
+//        RetryPolicy retryPolicy = new RetryNTimes(1, 10);
+//        CuratorFramework client = CuratorFrameworkFactory.newClient("localhost:2181", retryPolicy);
+//        client.start();
+//        return client;
+//    }
 
 }

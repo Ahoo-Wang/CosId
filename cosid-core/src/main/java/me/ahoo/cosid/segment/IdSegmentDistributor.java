@@ -37,7 +37,7 @@ public interface IdSegmentDistributor {
     String getName();
 
     default String getNamespacedName() {
-        return getNamespace() + "." + getName();
+        return getNamespacedName(getNamespace(), getName());
     }
 
     long getStep();
@@ -89,6 +89,10 @@ public interface IdSegmentDistributor {
 
     static void ensureStep(long step) {
         Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
+    }
+
+    static String getNamespacedName(String namespace, String name) {
+        return namespace + "." + name;
     }
 
     class Atomic implements IdSegmentDistributor {

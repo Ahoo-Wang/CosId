@@ -13,12 +13,10 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
-import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.segment.SegmentId;
-import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributor;
+import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributorFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -26,8 +24,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
-
-import java.util.Objects;
 
 /**
  * @author ahoo wang
@@ -40,41 +36,9 @@ import java.util.Objects;
 @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "redis")
 public class CosIdSpringRedisSegmentAutoConfiguration {
 
-    private final CosIdProperties cosIdProperties;
-    private final SegmentIdProperties segmentIdProperties;
-
-    public CosIdSpringRedisSegmentAutoConfiguration(CosIdProperties cosIdProperties, SegmentIdProperties segmentIdProperties) {
-        this.cosIdProperties = cosIdProperties;
-        this.segmentIdProperties = segmentIdProperties;
-    }
-
     @Bean
     @ConditionalOnMissingBean
-    public SegmentId shareSpringRedisSegmentId(StringRedisTemplate redisTemplate, IdGeneratorProvider idGeneratorProvider, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
-        SegmentIdProperties.IdDefinition shareIdDefinition = segmentIdProperties.getShare();
-        SegmentId shareIdGen = createSegmentIdOfSpring(IdGeneratorProvider.SHARE, shareIdDefinition, redisTemplate, prefetchWorkerExecutorService);
-        if (Objects.isNull(idGeneratorProvider.getShare())) {
-            idGeneratorProvider.setShare(shareIdGen);
-        }
-        if (Objects.isNull(segmentIdProperties.getProvider())) {
-            return shareIdGen;
-        }
-        segmentIdProperties.getProvider().forEach((name, idDefinition) -> {
-            SegmentId idGenerator = createSegmentIdOfSpring(name, idDefinition, redisTemplate, prefetchWorkerExecutorService);
-            idGeneratorProvider.set(name, idGenerator);
-        });
-
-        return shareIdGen;
+    public IdSegmentDistributorFactory idSegmentDistributorFactory(StringRedisTemplate stringRedisTemplate) {
+        return new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate);
     }
-
-    private SegmentId createSegmentIdOfSpring(String name, SegmentIdProperties.IdDefinition idDefinition, StringRedisTemplate redisTemplate, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
-        SpringRedisIdSegmentDistributor redisIdSegmentDistributor = new SpringRedisIdSegmentDistributor(
-                cosIdProperties.getNamespace(),
-                name,
-                idDefinition.getOffset(),
-                idDefinition.getStep(),
-                redisTemplate);
-        return CosIdSegmentAutoConfiguration.createSegment(segmentIdProperties, idDefinition, redisIdSegmentDistributor, prefetchWorkerExecutorService);
-    }
-
 }

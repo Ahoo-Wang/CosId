@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.snowflake.machine;
 
+import com.google.common.base.Objects;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 
@@ -43,6 +44,19 @@ public class MachineState {
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof MachineState)) return false;
+        MachineState that = (MachineState) o;
+        return getMachineId() == that.getMachineId();
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(getMachineId());
+    }
+
+    @Override
     public String toString() {
         return "MachineState{" +
                 "machineId=" + machineId +
@@ -51,11 +65,15 @@ public class MachineState {
     }
 
     public String toStateString() {
-        return Strings.lenientFormat("%s%s%s", machineId, STATE_DELIMITER, System.currentTimeMillis());
+        return Strings.lenientFormat("%s%s%s", machineId, STATE_DELIMITER, lastTimeStamp);
     }
 
     public static MachineState of(int machineId, long lastStamp) {
         return new MachineState(machineId, lastStamp);
+    }
+
+    public static MachineState of(int machineId) {
+        return of(machineId, System.currentTimeMillis());
     }
 
     public static MachineState of(String stateString) {

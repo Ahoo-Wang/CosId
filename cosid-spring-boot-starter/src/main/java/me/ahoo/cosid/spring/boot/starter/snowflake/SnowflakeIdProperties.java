@@ -242,7 +242,8 @@ public class SnowflakeIdProperties {
             public enum Type {
                 MANUAL,
                 STATEFUL_SET,
-                REDIS
+                REDIS,
+                ZOOKEEPER
             }
         }
 

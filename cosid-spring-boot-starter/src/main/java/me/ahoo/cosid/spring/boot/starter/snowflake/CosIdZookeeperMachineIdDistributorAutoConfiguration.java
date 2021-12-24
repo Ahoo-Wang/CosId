@@ -16,13 +16,13 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor;
+import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
+import org.apache.curator.framework.CuratorFramework;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
  * @author ahoo wang
@@ -30,13 +30,13 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdSnowflakeEnabled
-@ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "redis")
-@ConditionalOnClass(SpringRedisMachineIdDistributor.class)
-public class CosIdSpringRedisMachineIdDistributorAutoConfiguration {
+@ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "zookeeper")
+@ConditionalOnClass(ZookeeperMachineIdDistributor.class)
+public class CosIdZookeeperMachineIdDistributorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public SpringRedisMachineIdDistributor springRedisMachineIdDistributor(StringRedisTemplate redisTemplate, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new SpringRedisMachineIdDistributor(redisTemplate, localMachineState, clockBackwardsSynchronizer);
+    public ZookeeperMachineIdDistributor zookeeperMachineIdDistributor(CuratorFramework curatorFramework, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        return new ZookeeperMachineIdDistributor(curatorFramework, localMachineState, clockBackwardsSynchronizer);
     }
 }

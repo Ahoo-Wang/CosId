@@ -25,7 +25,7 @@ import javax.annotation.concurrent.ThreadSafe;
 public interface MachineIdDistributor {
 
     default int maxMachineId(int machineBit) {
-        return -1 ^ (-1 << machineBit);
+        return ~(-1 << machineBit);
     }
 
     default int totalMachineIds(int machineBit) {

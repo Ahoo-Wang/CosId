@@ -14,17 +14,64 @@
 package me.ahoo.cosid.shardingsphere.sharding.key;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.provider.LazyIdGenerator;
+import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
+import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmPostProcessor;
 import org.apache.shardingsphere.sharding.spi.KeyGenerateAlgorithm;
+import org.apache.shardingsphere.spi.typed.TypedSPI;
 
 import javax.annotation.concurrent.ThreadSafe;
+import java.util.Properties;
 
 /**
  * @author ahoo wang
  */
 @ThreadSafe
-public class CosIdKeyGenerateAlgorithm extends AbstractCosIdAlgorithm implements KeyGenerateAlgorithm {
+public class CosIdKeyGenerateAlgorithm implements TypedSPI, ShardingSphereAlgorithmPostProcessor, KeyGenerateAlgorithm {
 
     public static final String TYPE = CosId.COSID.toUpperCase();
+
+    public static final String AS_STRING_KEY = "as-string";
+
+    /**
+     * Need to declare volatile here ?
+     */
+    private volatile Properties props = new Properties();
+
+    protected volatile LazyIdGenerator cosIdProvider;
+    private volatile boolean asString;
+
+    /**
+     * Get properties.
+     *
+     * @return properties
+     */
+    @Override
+    public Properties getProps() {
+        return props;
+    }
+
+    /**
+     * Set properties.
+     *
+     * @param props properties
+     */
+    @Override
+    public void setProps(Properties props) {
+        this.props = props;
+    }
+
+    /**
+     * Initialize algorithm.
+     */
+    @Override
+    public void init() {
+        cosIdProvider = new LazyIdGenerator(getProps().getOrDefault(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE).toString());
+        String asStringStr = getProps().getProperty(AS_STRING_KEY, Boolean.FALSE.toString());
+        this.asString = Boolean.parseBoolean(asStringStr);
+        cosIdProvider.tryGet(false);
+    }
 
     /**
      * Get type.
@@ -43,7 +90,10 @@ public class CosIdKeyGenerateAlgorithm extends AbstractCosIdAlgorithm implements
      */
     @Override
     public Comparable<?> generateKey() {
-        return generateId();
+        if (this.asString) {
+            return cosIdProvider.generateAsString();
+        }
+        return cosIdProvider.generate();
     }
 
 }

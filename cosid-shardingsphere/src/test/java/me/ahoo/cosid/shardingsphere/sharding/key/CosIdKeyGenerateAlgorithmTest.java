@@ -20,6 +20,8 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
+import me.ahoo.cosid.util.MockIdGenerator;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -71,4 +73,22 @@ class CosIdKeyGenerateAlgorithmTest {
         keyGenerateAlgorithm.init();
         assertThrows(CosIdException.class, keyGenerateAlgorithm::generateKey);
     }
+
+
+    @Test
+    void generateKeyAsString() {
+        String idName = "stringId";
+        Properties properties = new Properties();
+        properties.setProperty(CosIdAlgorithm.ID_NAME_KEY, idName);
+        properties.setProperty(CosIdKeyGenerateAlgorithm.AS_STRING_KEY, "true");
+        CosIdKeyGenerateAlgorithm stringCosIdKeyAlg = new CosIdKeyGenerateAlgorithm();
+        stringCosIdKeyAlg.setProps(properties);
+        stringCosIdKeyAlg.init();
+        DefaultIdGeneratorProvider.INSTANCE.set(idName, MockIdGenerator.INSTANCE);
+
+        Comparable<?> key = stringCosIdKeyAlg.generateKey();
+        Assertions.assertTrue(key instanceof String);
+        Assertions.assertTrue(key.toString().startsWith("test_"));
+    }
+
 }

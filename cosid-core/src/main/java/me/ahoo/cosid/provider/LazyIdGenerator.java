@@ -15,6 +15,7 @@ package me.ahoo.cosid.provider;
 
 import com.google.common.base.Strings;
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
@@ -81,5 +82,10 @@ public final class LazyIdGenerator implements IdGenerator {
     @Override
     public long generate() {
         return tryGet(true).generate();
+    }
+
+    @Override
+    public IdConverter idConverter() {
+        return tryGet(true).idConverter();
     }
 }

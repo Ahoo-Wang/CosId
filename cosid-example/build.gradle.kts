@@ -80,7 +80,7 @@ dependencies {
     //endregion
 
     //region cosid-zookeeper
-//    implementation(project(":cosid-zookeeper"))
+    implementation(project(":cosid-zookeeper"))
     //endregion
 
     //region cosid-mybatis

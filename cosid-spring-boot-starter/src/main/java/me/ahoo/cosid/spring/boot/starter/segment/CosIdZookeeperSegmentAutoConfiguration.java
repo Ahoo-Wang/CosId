@@ -19,7 +19,6 @@ import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributor;
 import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributorFactory;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -40,8 +39,7 @@ public class CosIdZookeeperSegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public IdSegmentDistributorFactory idSegmentDistributorFactory(CuratorFramework curatorFramework) {
-        RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3);
+    public IdSegmentDistributorFactory idSegmentDistributorFactory(CuratorFramework curatorFramework, RetryPolicy retryPolicy) {
         return new ZookeeperIdSegmentDistributorFactory(curatorFramework, retryPolicy);
     }
 

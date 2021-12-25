@@ -1,6 +1,7 @@
 # Auto Configure
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
   me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration,\
+  me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.snowflake.CosIdRedisMachineIdDistributorAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.snowflake.CosIdSpringRedisMachineIdDistributorAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.snowflake.CosIdZookeeperMachineIdDistributorAutoConfiguration,\

@@ -97,45 +97,15 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
 
     @Override
     protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
-        String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
-        String revertPath = getRevertPath(namespace);
+        if (log.isInfoEnabled()) {
+            log.info("distribute0 - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
+        }
+
         try {
-            /**
-             * when {@link instanceId.stable} is true
-             */
-            Stat instanceStat = curatorFramework.checkExists().forPath(instancePath);
-            if (Objects.nonNull(instanceStat)) {
-                byte[] stateBuf = curatorFramework.getData().forPath(instancePath);
-                if (stateBuf != null) {
-                    return MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
-                }
+            MachineState machineState = tryDistribute(namespace, machineBit, instanceId);
+            if (log.isInfoEnabled()) {
+                log.info("distribute0 - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
             }
-            Stat revertStat = curatorFramework.checkExists().forPath(revertPath);
-            if (Objects.nonNull(revertStat) && revertStat.getNumChildren() > 0) {
-                List<String> revertMachines = curatorFramework.getChildren().forPath(revertPath);
-                for (String revertMachine : revertMachines) {
-                    String revertMachinePath = ZKPaths.makePath(revertPath, revertMachine);
-                    byte[] stateBuf = curatorFramework.getData().forPath(revertMachinePath);
-                    MachineState revertMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
-                    try {
-                        /**
-                         * When a {@link KeeperException.NoNodeException} is thrown, it indicates that it has been obtained by other instances.
-                         * Try to get the next {@link revertMachine}.
-                         */
-                        curatorFramework.delete().forPath(revertMachinePath);
-                    } catch (KeeperException.NoNodeException noNodeException) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("distribute0 - delete revertMachinePath:[{}] failed!", revertMachinePath);
-                        }
-                        continue;
-                    }
-                    setMachineState(instancePath, revertMachineState);
-                    return revertMachineState;
-                }
-            }
-            int machineId = nextMachineId(namespace, machineBit, instanceId);
-            MachineState machineState = MachineState.of(machineId);
-            setMachineState(instancePath, machineState);
             return machineState;
         } catch (MachineIdOverflowException overflowException) {
             throw overflowException;
@@ -144,13 +114,55 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         }
     }
 
+    private MachineState tryDistribute(String namespace, int machineBit, InstanceId instanceId) throws Exception {
+        String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
+        String revertPath = getRevertPath(namespace);
+        /**
+         * when {@link instanceId.stable} is true
+         */
+        Stat instanceStat = curatorFramework.checkExists().forPath(instancePath);
+        if (Objects.nonNull(instanceStat)) {
+            byte[] stateBuf = curatorFramework.getData().forPath(instancePath);
+            if (stateBuf != null) {
+                return MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+            }
+        }
+        Stat revertStat = curatorFramework.checkExists().forPath(revertPath);
+        if (Objects.nonNull(revertStat) && revertStat.getNumChildren() > 0) {
+            List<String> revertMachines = curatorFramework.getChildren().forPath(revertPath);
+            for (String revertMachine : revertMachines) {
+                String revertMachinePath = ZKPaths.makePath(revertPath, revertMachine);
+                byte[] stateBuf = curatorFramework.getData().forPath(revertMachinePath);
+                MachineState revertMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+                try {
+                    /**
+                     * When a {@link KeeperException.NoNodeException} is thrown, it indicates that it has been obtained by other instances.
+                     * Try to get the next {@link revertMachine}.
+                     */
+                    curatorFramework.delete().forPath(revertMachinePath);
+                } catch (KeeperException.NoNodeException noNodeException) {
+                    if (log.isDebugEnabled()) {
+                        log.debug("distribute0 - delete revertMachinePath:[{}] failed!", revertMachinePath);
+                    }
+                    continue;
+                }
+                setMachineState(instancePath, revertMachineState);
+                return revertMachineState;
+            }
+        }
+        int machineId = nextMachineId(namespace, machineBit, instanceId);
+        MachineState machineState = MachineState.of(machineId);
+        setMachineState(instancePath, machineState);
+        return machineState;
+    }
+
     @Override
     protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
             log.info("revert0 - instanceId:[{}] @ namespace:[{}].", instanceId, namespace);
         }
-
-        if (MachineState.NOT_FOUND.equals(machineState)) {
+        MachineState revertMachineState = machineState;
+        if (MachineState.NOT_FOUND.equals(revertMachineState)) {
             try {
                 String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
                 Stat instanceStat = curatorFramework.checkExists().forPath(instancePath);
@@ -159,17 +171,17 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
                 }
                 byte[] stateBuf = curatorFramework.getData().forPath(instancePath);
                 MachineState remoteMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
-                machineState = MachineState.of(remoteMachineState.getMachineId(), machineState.getLastTimeStamp());
+                revertMachineState = MachineState.of(remoteMachineState.getMachineId(), machineState.getLastTimeStamp());
             } catch (Exception exception) {
                 throw new CosIdException(exception.getMessage(), exception);
             }
         }
 
         if (instanceId.isStable()) {
-            revertStable(namespace, instanceId.getInstanceId(), machineState);
+            revertStable(namespace, instanceId.getInstanceId(), revertMachineState);
             return;
         }
-        revertTemporary(namespace, instanceId.getInstanceId(), machineState);
+        revertTemporary(namespace, instanceId.getInstanceId(), revertMachineState);
     }
 
     private void revertTemporary(String namespace, String instanceId, MachineState machineState) {

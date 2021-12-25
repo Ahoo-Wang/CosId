@@ -93,6 +93,9 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
         }
         try {
             AtomicValue<Long> nextMaxId = distributedAtomicLong.add(step);
+            if (log.isDebugEnabled()) {
+                log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{} -> {}].", counterPath, step, nextMaxId.preValue(), nextMaxId.postValue());
+            }
             return nextMaxId.postValue();
         } catch (Exception exception) {
             throw new CosIdException(exception.getMessage(), exception.getCause());

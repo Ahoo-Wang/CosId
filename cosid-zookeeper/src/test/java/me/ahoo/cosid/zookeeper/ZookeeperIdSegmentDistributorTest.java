@@ -18,6 +18,7 @@ import me.ahoo.cosid.util.MockIdGenerator;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.retry.RetryNTimes;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -36,7 +37,7 @@ class ZookeeperIdSegmentDistributorTest {
 
     @BeforeEach
     void init() {
-        retryPolicy = new RetryNTimes(1, 10);
+        retryPolicy = new ExponentialBackoffRetry(1000, 3, 3000);
         curatorFramework = CuratorFrameworkFactory.newClient("localhost:2181", retryPolicy);
         curatorFramework.start();
         zookeeperIdSegmentDistributor = new ZookeeperIdSegmentDistributor(MockIdGenerator.INSTANCE.generateAsString(), MockIdGenerator.INSTANCE.generateAsString(), IdSegmentDistributor.DEFAULT_OFFSET, IdSegmentDistributor.DEFAULT_STEP, curatorFramework, retryPolicy);

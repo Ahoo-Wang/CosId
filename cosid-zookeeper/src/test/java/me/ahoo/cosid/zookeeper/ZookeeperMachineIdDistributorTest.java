@@ -69,7 +69,7 @@ class ZookeeperMachineIdDistributorTest {
     }
 
     @Test
-    void distribute_stable() {
+    void distributeWhenStable() {
         int machineBit = 1;
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         InstanceId instanceId = InstanceId.of("127.0.0.1", 80, true);

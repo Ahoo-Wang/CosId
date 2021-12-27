@@ -84,7 +84,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     @Override
     protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
-            log.info("revert0 - instanceId:[{}] @ namespace:[{}].", instanceId, namespace);
+            log.info("revert0 - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         RedisScript<Long> script = MACHINE_ID_REVERT;
         if (instanceId.isStable()) {

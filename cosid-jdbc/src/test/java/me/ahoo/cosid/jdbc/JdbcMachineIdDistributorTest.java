@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.zookeeper;
+package me.ahoo.cosid.jdbc;
 
 import lombok.SneakyThrows;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
@@ -19,33 +19,27 @@ import me.ahoo.cosid.snowflake.machine.InstanceId;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.util.MockIdGenerator;
-import org.apache.curator.RetryPolicy;
-import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.retry.ExponentialBackoffRetry;
-import org.apache.curator.retry.RetryNTimes;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import javax.sql.DataSource;
 import java.util.Arrays;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * @author ahoo wang
  */
-class ZookeeperMachineIdDistributorTest {
-    CuratorFramework curatorFramework;
-    ZookeeperMachineIdDistributor zookeeperMachineIdDistributor;
+class JdbcMachineIdDistributorTest {
+    DataSource dataSource;
+    JdbcMachineIdDistributor jdbcMachineIdDistributor;
+
 
     @BeforeEach
     void init() {
-        curatorFramework = CuratorFrameworkFactory.newClient("localhost:2181", new RetryNTimes(1, 10));
-        curatorFramework.start();
-        RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3, 3000);
-        zookeeperMachineIdDistributor = new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
+        dataSource = DataSourceFactory.INSTANCE.createDataSource();
+        jdbcMachineIdDistributor = new JdbcMachineIdDistributor(dataSource, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
+
     }
 
     @SneakyThrows
@@ -54,22 +48,22 @@ class ZookeeperMachineIdDistributorTest {
         int machineBit = 1;
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         InstanceId instanceId = InstanceId.of("127.0.0.1", 80, false);
-        int machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
+        int machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId);
         Assertions.assertEquals(0, machineId);
-        machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
+        machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId);
         Assertions.assertEquals(0, machineId);
 
         InstanceId instanceId1 = InstanceId.of("127.0.0.1", 82, false);
-        machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId1);
+        machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId1);
         Assertions.assertEquals(1, machineId);
 
         Assertions.assertThrows(MachineIdOverflowException.class, () -> {
             InstanceId instanceId2 = InstanceId.of("127.0.0.1", 83, false);
-            zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId2);
+            jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId2);
         });
-        zookeeperMachineIdDistributor.revert(namespace, instanceId);
+        jdbcMachineIdDistributor.revert(namespace, instanceId);
         InstanceId instanceId3 = InstanceId.of("127.0.0.1", 84, false);
-        int machineId3 = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId3);
+        int machineId3 = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId3);
         Assertions.assertEquals(0, machineId3);
     }
 
@@ -78,31 +72,30 @@ class ZookeeperMachineIdDistributorTest {
         int machineBit = 1;
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         InstanceId instanceId = InstanceId.of("127.0.0.1", 80, true);
-        int machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
+        int machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId);
         Assertions.assertEquals(0, machineId);
-        machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
+        machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId);
         Assertions.assertEquals(0, machineId);
 
         InstanceId instanceId1 = InstanceId.of("127.0.0.1", 82, true);
-        machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId1);
+        machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId1);
         Assertions.assertEquals(1, machineId);
 
         Assertions.assertThrows(MachineIdOverflowException.class, () -> {
             InstanceId instanceId2 = InstanceId.of("127.0.0.1", 83, true);
-            zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId2);
+            jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId2);
         });
 
-        zookeeperMachineIdDistributor.revert(namespace, instanceId);
+        jdbcMachineIdDistributor.revert(namespace, instanceId);
 
         Assertions.assertThrows(MachineIdOverflowException.class, () -> {
             InstanceId instanceId3 = InstanceId.of("127.0.0.1", 84, true);
-            zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId3);
+            jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId3);
         });
 
-        machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
+        machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId);
         Assertions.assertEquals(0, machineId);
     }
-
 
     @Test
     void distributeConcurrent() {
@@ -114,7 +107,7 @@ class ZookeeperMachineIdDistributorTest {
         for (int i = 0; i < totalMachine; i++) {
             results[i] = CompletableFuture.supplyAsync(() -> {
                 InstanceId instanceId = InstanceId.of(MockIdGenerator.INSTANCE.generateAsString(), false);
-                return zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
+                return jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId);
             });
         }
 
@@ -123,13 +116,6 @@ class ZookeeperMachineIdDistributorTest {
         Integer[] machineIds = Arrays.stream(results).map(CompletableFuture::join).sorted().toArray(Integer[]::new);
         for (int i = 0; i < machineIds.length; i++) {
             Assertions.assertEquals(i, machineIds[i]);
-        }
-    }
-
-    @AfterEach
-    void destroy() {
-        if (Objects.nonNull(curatorFramework)) {
-            curatorFramework.close();
         }
     }
 }

@@ -6,6 +6,10 @@ spring:
   redis:
     url: redis://localhost:6379
   shardingsphere:
+#    mode:
+#      type: standalone
+#      repository:
+#        type: file
     datasource:
       names: ds0,ds1
       ds0:
@@ -142,6 +146,7 @@ spring:
             type: COSID
             props:
               id-name: order
+
 
 cosid:
   namespace: ${spring.application.name}

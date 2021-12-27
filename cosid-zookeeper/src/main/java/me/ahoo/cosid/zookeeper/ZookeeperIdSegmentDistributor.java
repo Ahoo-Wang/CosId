@@ -15,14 +15,19 @@ package me.ahoo.cosid.zookeeper;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.util.Exceptions;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.atomic.AtomicValue;
 import org.apache.curator.framework.recipes.atomic.DistributedAtomicLong;
+import org.apache.curator.framework.recipes.atomic.PromotedToLock;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author ahoo wang
@@ -38,6 +43,10 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
      * /cosid/{namespace}.{name}
      */
     private final String counterPath;
+    /**
+     * {counterPath}-locker
+     */
+    private final String counterLockerPath;
     private final DistributedAtomicLong distributedAtomicLong;
 
     public ZookeeperIdSegmentDistributor(String namespace, String name, long offset, long step, CuratorFramework curatorFramework, RetryPolicy retryPolicy) {
@@ -50,7 +59,13 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
         this.offset = offset;
         this.step = step;
         this.counterPath = Strings.lenientFormat("/%s/%s", CosId.COSID, getNamespacedName());
-        this.distributedAtomicLong = new DistributedAtomicLong(curatorFramework, counterPath, retryPolicy);
+        this.counterLockerPath = counterPath + "-locker";
+        PromotedToLock promotedToLock = PromotedToLock.builder()
+                .lockPath(counterLockerPath)
+                .timeout(15, TimeUnit.SECONDS)
+                .retryPolicy(retryPolicy)
+                .build();
+        this.distributedAtomicLong = new DistributedAtomicLong(curatorFramework, counterPath, retryPolicy, promotedToLock);
         this.ensureOffset();
     }
 
@@ -91,14 +106,16 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
         if (log.isDebugEnabled()) {
             log.debug("nextMaxId -[{}]- step:[{}].", counterPath, step);
         }
-        try {
-            AtomicValue<Long> nextMaxId = distributedAtomicLong.add(step);
-            if (log.isDebugEnabled()) {
-                log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{} -> {}].", counterPath, step, nextMaxId.preValue(), nextMaxId.postValue());
-            }
-            return nextMaxId.postValue();
-        } catch (Exception exception) {
-            throw new CosIdException(exception.getMessage(), exception.getCause());
+
+        AtomicValue<Long> nextMaxId = Exceptions.invokeUnchecked(() -> distributedAtomicLong.add(step));
+
+        if (log.isDebugEnabled()) {
+            log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{} -> {}].", counterPath, step, nextMaxId.preValue(), nextMaxId.postValue());
         }
+        if (!nextMaxId.succeeded()) {
+            throw new CosIdException(Strings.lenientFormat("nextMaxId - [%s][%s->%s] concurrency conflict!", counterPath, nextMaxId.preValue(), nextMaxId.postValue()));
+        }
+
+        return nextMaxId.postValue();
     }
 }

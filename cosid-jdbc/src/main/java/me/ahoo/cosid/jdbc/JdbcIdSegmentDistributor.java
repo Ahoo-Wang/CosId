@@ -33,8 +33,10 @@ import java.sql.SQLException;
 @Slf4j
 public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
 
-    public static final String INCREMENT_MAX_ID_SQL = "update cosid set last_max_id=(last_max_id + ?),last_fetch_time=unix_timestamp() where name = ?;";
-    public static final String FETCH_MAX_ID_SQL = "select last_max_id from cosid where name = ?;";
+    public static final String INCREMENT_MAX_ID_SQL
+            = "update cosid set last_max_id=(last_max_id + ?),last_fetch_time=unix_timestamp() where name = ?;";
+    public static final String FETCH_MAX_ID_SQL
+            = "select last_max_id from cosid where name = ?;";
 
     private final String namespace;
     private final String name;
@@ -108,7 +110,7 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
             if (log.isErrorEnabled()) {
                 log.error(sqlException.getMessage(), sqlException);
             }
-            throw new CosIdException(sqlException);
+            throw new CosIdException(sqlException.getMessage(), sqlException);
         }
     }
 

@@ -13,17 +13,17 @@
 
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
+import me.ahoo.cosid.jdbc.JdbcMachineIdDistributor;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
-import org.apache.curator.RetryPolicy;
-import org.apache.curator.framework.CuratorFramework;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import javax.sql.DataSource;
 
 /**
  * @author ahoo wang
@@ -31,13 +31,14 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdSnowflakeEnabled
-@ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "zookeeper")
-@ConditionalOnClass(ZookeeperMachineIdDistributor.class)
-public class CosIdZookeeperMachineIdDistributorAutoConfiguration {
+@ConditionalOnClass(JdbcMachineIdDistributor.class)
+@ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "jdbc")
+public class CosIdJdbcMachineIdDistributorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public ZookeeperMachineIdDistributor zookeeperMachineIdDistributor(CuratorFramework curatorFramework, RetryPolicy retryPolicy, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, localMachineState, clockBackwardsSynchronizer);
+    public JdbcMachineIdDistributor jdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        return new JdbcMachineIdDistributor(dataSource, localMachineState, clockBackwardsSynchronizer);
     }
+
 }

@@ -58,7 +58,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
 
         MachineState machineState = distributeAsync0(namespace, machineBit, instanceId).block(timeout);
         if (log.isInfoEnabled()) {
-            log.info("distribute0 - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
+            log.info("distribute0 - [{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
         }
         return machineState;
     }
@@ -107,9 +107,8 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
      */
     protected Mono<Void> revertAsync0(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
-            log.info("revertAsync - instanceId:[{}] @ namespace:[{}].", instanceId, namespace);
+            log.info("revertAsync - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
-
         if (instanceId.isStable()) {
             return revertScriptAsync(MACHINE_ID_REVERT_STABLE, namespace, instanceId, machineState);
         }

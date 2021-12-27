@@ -37,7 +37,8 @@ public class JdbcIdSegmentInitializer {
                     "    last_fetch_time bigint       not null default unix_timestamp(),\n" +
                     "    primary key (name)\n" +
                     ") engine = InnoDB;";
-    public static final String INIT_ID_SEGMENT_SQL = "insert into cosid (name, last_max_id,last_fetch_time) value (?, ?,unix_timestamp());";
+    public static final String INIT_ID_SEGMENT_SQL
+            = "insert into cosid (name, last_max_id,last_fetch_time) value (?, ?,unix_timestamp());";
 
     private final String initCosIdTableSql;
     private final String initIdSegmentSql;
@@ -69,7 +70,6 @@ public class JdbcIdSegmentInitializer {
             }
         }
     }
-
 
     public boolean tryInitCosIdTable() {
         try {

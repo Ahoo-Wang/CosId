@@ -19,9 +19,12 @@ import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.*;
+import me.ahoo.cosid.util.Exceptions;
+import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.recipes.atomic.AtomicValue;
 import org.apache.curator.framework.recipes.atomic.DistributedAtomicInteger;
-import org.apache.curator.retry.RetryNTimes;
+import org.apache.curator.framework.recipes.atomic.PromotedToLock;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
@@ -29,6 +32,7 @@ import org.apache.zookeeper.data.Stat;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author ahoo wang
@@ -48,10 +52,12 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     private static final String REVERT_PATH = "__revert";
 
     private final CuratorFramework curatorFramework;
+    private final RetryPolicy retryPolicy;
 
-    public ZookeeperMachineIdDistributor(CuratorFramework curatorFramework, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+    public ZookeeperMachineIdDistributor(CuratorFramework curatorFramework, RetryPolicy retryPolicy, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
         this.curatorFramework = curatorFramework;
+        this.retryPolicy = retryPolicy;
     }
 
     /**
@@ -62,6 +68,10 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
      */
     private static String getCounterPath(String namespace) {
         return Strings.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, "__counter");
+    }
+
+    private static String getCounterLockerPath(String namespace) {
+        return Strings.lenientFormat("%s-locker", getCounterPath(namespace));
     }
 
     private static String getInstanceIdxPath(String namespace) {
@@ -81,13 +91,20 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     }
 
     private int nextMachineId(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
-        DistributedAtomicInteger distributedAtomicInteger = new DistributedAtomicInteger(curatorFramework, getCounterPath(namespace), new RetryNTimes(3, 10));
-        int machineId;
-        try {
-            machineId = distributedAtomicInteger.increment().postValue() - 1;
-        } catch (Exception e) {
-            throw new CosIdException(e.getMessage(), e);
+        String counterPath = getCounterPath(namespace);
+        String counterLockerPath = getCounterLockerPath(namespace);
+        PromotedToLock promotedToLock = PromotedToLock.builder()
+                .lockPath(counterLockerPath)
+                .timeout(15, TimeUnit.SECONDS)
+                .retryPolicy(retryPolicy)
+                .build();
+
+        DistributedAtomicInteger distributedAtomicInteger = new DistributedAtomicInteger(curatorFramework, counterPath, retryPolicy, promotedToLock);
+        AtomicValue<Integer> atomicValue = Exceptions.invokeUnchecked(distributedAtomicInteger::increment);
+        if (!atomicValue.succeeded()) {
+            throw new CosIdException(Strings.lenientFormat("nextMachineId - [%s][%s->%s] concurrency conflict!", counterPath, atomicValue.preValue(), atomicValue.postValue()));
         }
+        int machineId = atomicValue.postValue() - 1;
 
         if (machineId > maxMachineId(machineBit)) {
             throw new MachineIdOverflowException(machineBit, instanceId);
@@ -101,17 +118,11 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
             log.info("distribute0 - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
 
-        try {
-            MachineState machineState = tryDistribute(namespace, machineBit, instanceId);
-            if (log.isInfoEnabled()) {
-                log.info("distribute0 - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
-            }
-            return machineState;
-        } catch (MachineIdOverflowException overflowException) {
-            throw overflowException;
-        } catch (Exception exception) {
-            throw new CosIdException(exception.getMessage(), exception);
+        MachineState machineState = Exceptions.invokeUnchecked(() -> tryDistribute(namespace, machineBit, instanceId));
+        if (log.isInfoEnabled()) {
+            log.info("distribute0 - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
         }
+        return machineState;
     }
 
     private MachineState tryDistribute(String namespace, int machineBit, InstanceId instanceId) throws Exception {
@@ -159,22 +170,19 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     @Override
     protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
-            log.info("revert0 - instanceId:[{}] @ namespace:[{}].", instanceId, namespace);
+            log.info("revert0 - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         MachineState revertMachineState = machineState;
         if (MachineState.NOT_FOUND.equals(revertMachineState)) {
-            try {
-                String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
-                Stat instanceStat = curatorFramework.checkExists().forPath(instancePath);
-                if (Objects.isNull(instanceStat)) {
-                    return;
-                }
-                byte[] stateBuf = curatorFramework.getData().forPath(instancePath);
-                MachineState remoteMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
-                revertMachineState = MachineState.of(remoteMachineState.getMachineId(), machineState.getLastTimeStamp());
-            } catch (Exception exception) {
-                throw new CosIdException(exception.getMessage(), exception);
+            String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
+            Stat instanceStat = Exceptions.invokeUnchecked(() -> curatorFramework.checkExists().forPath(instancePath));
+            if (Objects.isNull(instanceStat)) {
+                return;
             }
+
+            byte[] stateBuf = Exceptions.invokeUnchecked(() -> curatorFramework.getData().forPath(instancePath));
+            MachineState remoteMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+            revertMachineState = MachineState.of(remoteMachineState.getMachineId(), machineState.getLastTimeStamp());
         }
 
         if (instanceId.isStable()) {
@@ -187,25 +195,17 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     private void revertTemporary(String namespace, String instanceId, MachineState machineState) {
         String revertMachinePath = getRevertMachinePath(namespace, machineState.getMachineId());
         String instancePath = getInstancePath(namespace, instanceId);
-        try {
-            curatorFramework.delete().forPath(instancePath);
-            setMachineState(revertMachinePath, machineState);
-        } catch (Exception e) {
-            throw new CosIdException(e.getMessage(), e);
-        }
+        Exceptions.invokeUnchecked(() -> curatorFramework.delete().forPath(instancePath));
+        setMachineState(revertMachinePath, machineState);
     }
 
     private void revertStable(String namespace, String instanceId, MachineState machineState) {
         String instancePath = getInstancePath(namespace, instanceId);
-        try {
-            setMachineState(instancePath, machineState);
-        } catch (Exception e) {
-            throw new CosIdException(e.getMessage(), e);
-        }
+        setMachineState(instancePath, machineState);
     }
 
-    private void setMachineState(String path, MachineState machineState) throws Exception {
-        curatorFramework.create().orSetData().creatingParentsIfNeeded().forPath(path, machineState.toStateString().getBytes(StandardCharsets.UTF_8));
+    private void setMachineState(String path, MachineState machineState) {
+        Exceptions.invokeUnchecked(() -> curatorFramework.create().orSetData().creatingParentsIfNeeded().forPath(path, machineState.toStateString().getBytes(StandardCharsets.UTF_8)));
     }
 
 }

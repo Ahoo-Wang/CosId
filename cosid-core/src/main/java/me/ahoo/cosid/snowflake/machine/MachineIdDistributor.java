@@ -19,6 +19,7 @@ import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
+ *
  * @author ahoo wang
  */
 @ThreadSafe
@@ -46,6 +47,5 @@ public interface MachineIdDistributor {
     }
 
     void revert(String namespace, InstanceId instanceId) throws MachineIdOverflowException;
-
 
 }

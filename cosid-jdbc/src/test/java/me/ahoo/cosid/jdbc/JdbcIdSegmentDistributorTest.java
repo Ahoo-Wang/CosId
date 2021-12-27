@@ -18,6 +18,7 @@ import me.ahoo.cosid.jdbc.exception.SegmentNameMissingException;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
+import me.ahoo.cosid.util.MockIdGenerator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.function.Executable;
 import javax.sql.DataSource;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -45,7 +47,7 @@ class JdbcIdSegmentDistributorTest {
     private void init() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
         mySqlIdSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
-        mySqlIdSegmentDistributor = new JdbcIdSegmentDistributor("test", "test", 100, dataSource);
+        mySqlIdSegmentDistributor = new JdbcIdSegmentDistributor("JdbcIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 100, dataSource);
         mySqlIdSegmentInitializer.tryInitIdSegment(mySqlIdSegmentDistributor.getNamespacedName(), 0);
     }
 
@@ -62,7 +64,7 @@ class JdbcIdSegmentDistributorTest {
 
     @Test
     void missing() {
-        JdbcIdSegmentDistributor missingDistributor = new JdbcIdSegmentDistributor("test", UUID.randomUUID().toString(), 10, dataSource);
+        JdbcIdSegmentDistributor missingDistributor = new JdbcIdSegmentDistributor("JdbcIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 10, dataSource);
         Assertions.assertThrows(SegmentNameMissingException.class, new Executable() {
             @Override
             public void execute() throws Throwable {
@@ -74,7 +76,7 @@ class JdbcIdSegmentDistributorTest {
     @SneakyThrows
     @Test
     void missing_init() {
-        JdbcIdSegmentDistributor missingDistributor = new JdbcIdSegmentDistributor("test", UUID.randomUUID().toString(), 10, dataSource);
+        JdbcIdSegmentDistributor missingDistributor = new JdbcIdSegmentDistributor("JdbcIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 10, dataSource);
         Assertions.assertThrows(SegmentNameMissingException.class, new Executable() {
             @Override
             public void execute() throws Throwable {
@@ -99,7 +101,7 @@ class JdbcIdSegmentDistributorTest {
     @Test
     public void concurrent_generate_step_100() {
         String namespace = UUID.randomUUID().toString();
-        JdbcIdSegmentDistributor maxIdDistributor_generate_step_100 = new JdbcIdSegmentDistributor(namespace, UUID.randomUUID().toString(), 100, dataSource);
+        JdbcIdSegmentDistributor maxIdDistributor_generate_step_100 = new JdbcIdSegmentDistributor(namespace, MockIdGenerator.INSTANCE.generateAsString(), 100, dataSource);
         mySqlIdSegmentInitializer.initIdSegment(maxIdDistributor_generate_step_100.getNamespacedName(), 0);
         SegmentId segmentChainId = new SegmentChainId(maxIdDistributor_generate_step_100);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
@@ -141,5 +143,23 @@ class JdbcIdSegmentDistributorTest {
         }).join();
     }
 
+    @SneakyThrows
+    @Test
+    void nextMaxIdConcurrent() {
+        int times = 100;
+        CompletableFuture<Long>[] results = new CompletableFuture[100];
+        JdbcIdSegmentDistributor idSegmentDistributor = new JdbcIdSegmentDistributor("JdbcIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 10, dataSource);
+        mySqlIdSegmentInitializer.initIdSegment(idSegmentDistributor.getNamespacedName(), 0);
+        for (int i = 0; i < times; i++) {
+            results[i] = CompletableFuture.supplyAsync(() -> idSegmentDistributor.nextMaxId(1));
+        }
+
+        CompletableFuture.allOf(results).join();
+
+        Long[] machineIds = Arrays.stream(results).map(CompletableFuture::join).sorted().toArray(Long[]::new);
+        for (int i = 0; i < machineIds.length; i++) {
+            Assertions.assertEquals(i + 1, machineIds[i]);
+        }
+    }
 
 }

@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.redis;
 
+import me.ahoo.cosid.util.MockIdGenerator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,7 +21,6 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import java.util.UUID;
 
 /**
  * @author ahoo wang
@@ -35,7 +35,7 @@ class SpringRedisIdSegmentDistributorTest {
         LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
         lettuceConnectionFactory.afterPropertiesSet();
         stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
-        springRedisIdSegmentDistributor = new SpringRedisIdSegmentDistributor(UUID.randomUUID().toString(), "RedisIdGeneratorTest", stringRedisTemplate);
+        springRedisIdSegmentDistributor = new SpringRedisIdSegmentDistributor("SpringRedisIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), stringRedisTemplate);
 
     }
 

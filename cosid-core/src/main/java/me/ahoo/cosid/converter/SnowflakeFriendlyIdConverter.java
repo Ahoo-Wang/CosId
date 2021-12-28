@@ -14,12 +14,16 @@
 package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
 /**
  * @author ahoo wang
  */
 public class SnowflakeFriendlyIdConverter implements IdConverter {
+
+    public static final IdConverter INSTANCE = new SnowflakeFriendlyIdConverter(MillisecondSnowflakeIdStateParser.INSTANCE);
+
     private final SnowflakeIdStateParser snowflakeIdStateParser;
 
     public SnowflakeFriendlyIdConverter(SnowflakeIdStateParser snowflakeIdStateParser) {

@@ -47,7 +47,7 @@ application {
 dependencies {
     implementation(platform(project(":cosid-dependencies")))
     implementation(project(":cosid-spring-boot-starter"))
-
+    implementation(project(":cosid-jackson"))
     implementation("io.springfox:springfox-boot-starter")
 
     //region cosid-redis
@@ -80,7 +80,7 @@ dependencies {
     //endregion
 
     //region cosid-zookeeper
-    implementation(project(":cosid-zookeeper"))
+//    implementation(project(":cosid-zookeeper"))
     //endregion
 
     //region cosid-mybatis

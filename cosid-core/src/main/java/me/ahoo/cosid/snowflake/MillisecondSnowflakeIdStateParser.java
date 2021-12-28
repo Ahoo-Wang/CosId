@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.snowflake;
 
+import me.ahoo.cosid.CosId;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -27,6 +29,8 @@ import static java.time.temporal.ChronoField.*;
  * Creation time :2020/9/23 11:22
  */
 public class MillisecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
+
+    public static final SnowflakeIdStateParser INSTANCE = new MillisecondSnowflakeIdStateParser(CosId.COSID_EPOCH, MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT, MillisecondSnowflakeId.DEFAULT_MACHINE_BIT, MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT);
 
     public static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
             .appendValue(YEAR, 4)

@@ -106,6 +106,21 @@ public class AsStringTest {
         Assertions.assertEquals(dto.objectLong, deDto.objectLong);
     }
 
+
+    @SneakyThrows
+    @Test
+    public void serializeFriendlyId() {
+        FriendlyIdDto dto = new FriendlyIdDto();
+        dto.primitiveLong = 266231902451535872L;
+        dto.objectLong = 266231902451535873L;
+        String deStr = objectMapper.writeValueAsString(dto);
+        Assertions.assertEquals("{\"primitiveLong\":\"20211228155031894-1-0\",\"objectLong\":\"20211228155031894-1-1\"}", deStr);
+        FriendlyIdDto deDto = objectMapper.readValue(deStr, FriendlyIdDto.class);
+        Assertions.assertNotNull(deDto);
+        Assertions.assertEquals(dto.primitiveLong, deDto.primitiveLong);
+        Assertions.assertEquals(dto.objectLong, deDto.objectLong);
+    }
+
     @SneakyThrows
     @Test
     public void testNull() {
@@ -188,6 +203,29 @@ public class AsStringTest {
         @AsString(value = AsString.Type.RADIX, radixPadStart = true, radixCharSize = 5)
         private long primitiveLong;
         @AsString(value = AsString.Type.RADIX, radixPadStart = true, radixCharSize = 5)
+        private Long objectLong;
+
+        public long getPrimitiveLong() {
+            return primitiveLong;
+        }
+
+        public void setPrimitiveLong(long primitiveLong) {
+            this.primitiveLong = primitiveLong;
+        }
+
+        public Long getObjectLong() {
+            return objectLong;
+        }
+
+        public void setObjectLong(Long objectLong) {
+            this.objectLong = objectLong;
+        }
+    }
+
+    public static class FriendlyIdDto {
+        @AsString(value = AsString.Type.FRIENDLY_ID)
+        private long primitiveLong;
+        @AsString(value = AsString.Type.FRIENDLY_ID)
         private Long objectLong;
 
         public long getPrimitiveLong() {

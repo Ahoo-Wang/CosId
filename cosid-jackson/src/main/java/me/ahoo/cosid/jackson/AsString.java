@@ -16,6 +16,7 @@ package me.ahoo.cosid.jackson;
 import com.fasterxml.jackson.annotation.JacksonAnnotationsInside;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 
 import java.lang.annotation.*;
@@ -37,8 +38,11 @@ public @interface AsString {
 
     int radixCharSize() default Radix62IdConverter.MAX_CHAR_SIZE;
 
+    long friendlyIdEpoch() default CosId.COSID_EPOCH;
+
     enum Type {
         TO_STRING,
-        RADIX
+        RADIX,
+        FRIENDLY_ID
     }
 }

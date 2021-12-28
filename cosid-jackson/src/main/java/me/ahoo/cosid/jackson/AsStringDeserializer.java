@@ -21,9 +21,14 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
 import com.google.common.base.Strings;
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
+import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
+import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -37,6 +42,7 @@ public class AsStringDeserializer extends JsonDeserializer<Long> implements Cont
 
     private static final AsStringDeserializer DEFAULT_RADIX = new AsStringDeserializer(Radix62IdConverter.INSTANCE);
     private static final AsStringDeserializer DEFAULT_RADIX_PAD_START = new AsStringDeserializer(Radix62IdConverter.PAD_START);
+    private static final AsStringDeserializer DEFAULT_FRIENDLY_ID = new AsStringDeserializer(SnowflakeFriendlyIdConverter.INSTANCE);
 
     private final IdConverter converter;
 
@@ -54,16 +60,28 @@ public class AsStringDeserializer extends JsonDeserializer<Long> implements Cont
         if (Objects.isNull(asString)) {
             return TO_STRING;
         }
-        if (AsString.Type.TO_STRING.equals(asString.value())) {
-            return TO_STRING;
+        switch (asString.value()) {
+            case TO_STRING: {
+                return TO_STRING;
+            }
+            case RADIX: {
+                if (Radix62IdConverter.MAX_CHAR_SIZE != asString.radixCharSize()) {
+                    IdConverter idConverter = new Radix62IdConverter(asString.radixPadStart(), asString.radixCharSize());
+                    return new AsStringDeserializer(idConverter);
+                }
+                return asString.radixPadStart() ? DEFAULT_RADIX_PAD_START : DEFAULT_RADIX;
+            }
+            case FRIENDLY_ID: {
+                if (CosId.COSID_EPOCH == asString.friendlyIdEpoch()) {
+                    return DEFAULT_FRIENDLY_ID;
+                }
+                SnowflakeIdStateParser stateParser = new MillisecondSnowflakeIdStateParser(asString.friendlyIdEpoch(), MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT, MillisecondSnowflakeId.DEFAULT_MACHINE_BIT, MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT);
+                IdConverter idConverter = new SnowflakeFriendlyIdConverter(stateParser);
+                return new AsStringDeserializer(idConverter);
+            }
+            default:
+                throw new IllegalStateException("Unexpected value: " + asString.value());
         }
-
-        if (Radix62IdConverter.MAX_CHAR_SIZE != asString.radixCharSize()) {
-            IdConverter idConverter = new Radix62IdConverter(asString.radixPadStart(), asString.radixCharSize());
-            return new AsStringDeserializer(idConverter);
-        }
-
-        return asString.radixPadStart() ? DEFAULT_RADIX_PAD_START : DEFAULT_RADIX;
     }
 
     @Override

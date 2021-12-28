@@ -16,13 +16,11 @@ package me.ahoo.cosid.example.controller;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.example.dto.AsStringDto;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.SafeJavaScriptSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
 
@@ -70,5 +68,23 @@ public class IdController {
     public String shortId() {
         IdGenerator idGenerator = getIdGenerator("short_id");
         return idGenerator.generateAsString();
+    }
+
+    @GetMapping("asString")
+    public AsStringDto asString() {
+        IdGenerator idGenerator = getIdGenerator("short_id");
+        long id = idGenerator.generate();
+        AsStringDto dto = new AsStringDto();
+        dto.setId(id);
+        dto.setRadixId(id);
+        dto.setRadixPadStartId(id);
+        dto.setRadixPadStartCharSize10Id(id);
+        dto.setFriendlyId(id);
+        return dto;
+    }
+
+    @PostMapping("asStringDes")
+    public AsStringDto asStringDes(@RequestBody AsStringDto dto) {
+        return dto;
     }
 }

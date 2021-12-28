@@ -10,9 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/**
- * TODO
- */
 dependencies {
+    implementation(project(":cosid-core"))
     implementation("com.fasterxml.jackson.core:jackson-databind")
 }

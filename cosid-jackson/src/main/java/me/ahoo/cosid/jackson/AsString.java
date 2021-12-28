@@ -13,19 +13,32 @@
 
 package me.ahoo.cosid.jackson;
 
-import com.fasterxml.jackson.annotation.JacksonAnnotation;
+import com.fasterxml.jackson.annotation.JacksonAnnotationsInside;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import me.ahoo.cosid.converter.Radix62IdConverter;
 
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import java.lang.annotation.*;
 
 /**
  * @author ahoo wang
  */
-@Deprecated
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-@JacksonAnnotation
-public @interface OverflowDetection {
+@Inherited
+@JacksonAnnotationsInside
+@JsonSerialize(using = AsStringSerializer.class)
+@JsonDeserialize(using = AsStringDeserializer.class)
+public @interface AsString {
+
+    Type value() default Type.TO_STRING;
+
+    boolean radixPadStart() default false;
+
+    int radixCharSize() default Radix62IdConverter.MAX_CHAR_SIZE;
+
+    enum Type {
+        TO_STRING,
+        RADIX
+    }
 }

@@ -32,14 +32,21 @@ import java.util.concurrent.CompletableFuture;
  */
 class JdbcMachineIdDistributorTest {
     DataSource dataSource;
+    JdbcMachineIdInitializer jdbcMachineIdInitializer;
     JdbcMachineIdDistributor jdbcMachineIdDistributor;
 
 
     @BeforeEach
     void init() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
+        jdbcMachineIdInitializer = new JdbcMachineIdInitializer(dataSource);
         jdbcMachineIdDistributor = new JdbcMachineIdDistributor(dataSource, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
 
+    }
+
+    @Test
+    void tryInitCosIdMachineTable() {
+        jdbcMachineIdInitializer.tryInitCosIdMachineTable();
     }
 
     @SneakyThrows

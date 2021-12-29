@@ -1,4 +1,4 @@
-<p align="center">
+<p style="text-align:center">
 <img width="300"src="./document/docs/.vuepress/public/logo.png"/>
 </p>
 

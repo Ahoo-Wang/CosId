@@ -1,3 +1,7 @@
+<p align="center">
+<img width="100"src="./document/docs/.vuepress/public/logo.png"/>
+</p>
+
 # [CosId](https://github.com/Ahoo-Wang/CosId) 通用、灵活、高性能的**分布式ID**生成器
 
 > [English Document](https://github.com/Ahoo-Wang/CosId/blob/main/README.md)

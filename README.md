@@ -1,5 +1,5 @@
 <p align="center">
-<img width="200"src="./document/docs/.vuepress/public/logo.png"/>
+<img width="300"src="./document/docs/.vuepress/public/logo.png"/>
 </p>
 
 # [CosId](https://github.com/Ahoo-Wang/CosId) Universal, flexible, high-performance distributed ID generator

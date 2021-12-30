@@ -1,0 +1,23 @@
+{
+  "name": "cosid",
+  "version": "1.0.0",
+  "description": "通用、灵活、高性能的分布式ID生成器",
+  "main": "index.js",
+  "repository": "https://github.com/Ahoo-Wang/CosId",
+  "author": "ahoo wang",
+  "license": "Apache 2.0",
+  "scripts": {
+    "docs:dev": "vuepress dev docs",
+    "docs:build": "vuepress build docs"
+  },
+  "devDependencies": {
+    "@vuepress/plugin-back-to-top": "1.9.5",
+    "@vuepress/plugin-google-analytics": "^1.9.5",
+    "@vuepress/plugin-medium-zoom": "1.9.5",
+    "@vuepress/plugin-pwa": "1.9.5",
+    "@vuepress/theme-vue": "1.9.5",
+    "vue-toasted": "^1.1.25",
+    "vuepress": "^1.9.5",
+    "vuepress-plugin-flowchart": "^1.4.2"
+  }
+}

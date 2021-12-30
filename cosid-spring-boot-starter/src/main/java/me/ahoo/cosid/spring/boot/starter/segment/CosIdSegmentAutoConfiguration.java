@@ -74,7 +74,6 @@ public class CosIdSegmentAutoConfiguration {
         IdSegmentDistributorDefinition shareDistributorDefinition = asDistributorDefinition(IdGeneratorProvider.SHARE, shareIdDefinition);
         IdSegmentDistributor shareIdSegmentDistributor = distributorFactory.create(shareDistributorDefinition);
 
-
         SegmentId shareIdGen = createSegment(segmentIdProperties, shareIdDefinition, shareIdSegmentDistributor, prefetchWorkerExecutorService);
 
         if (Objects.isNull(idGeneratorProvider.getShare())) {

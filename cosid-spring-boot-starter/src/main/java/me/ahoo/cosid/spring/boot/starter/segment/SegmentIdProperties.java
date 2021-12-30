@@ -38,7 +38,6 @@ public class SegmentIdProperties {
 
     private boolean enabled = false;
     private Mode mode = Mode.CHAIN;
-    private long step;
     /**
      * idSegment time to live
      * unit {@link java.util.concurrent.TimeUnit#SECONDS}
@@ -69,14 +68,6 @@ public class SegmentIdProperties {
 
     public void setMode(Mode mode) {
         this.mode = mode;
-    }
-
-    public long getStep() {
-        return step;
-    }
-
-    public void setStep(int step) {
-        this.step = step;
     }
 
     public long getTtl() {

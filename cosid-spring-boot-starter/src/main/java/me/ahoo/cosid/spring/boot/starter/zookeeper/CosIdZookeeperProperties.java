@@ -87,33 +87,33 @@ public class CosIdZookeeperProperties {
 
     public static class Retry {
 
-        private Integer baseSleepTimeMs = 100;
+        private int baseSleepTimeMs = 100;
 
-        private Integer maxRetries = 5;
+        private int maxRetries = 5;
 
-        private Integer maxSleepMs = 500;
+        private int maxSleepMs = 500;
 
-        public Integer getBaseSleepTimeMs() {
+        public int getBaseSleepTimeMs() {
             return baseSleepTimeMs;
         }
 
-        public void setBaseSleepTimeMs(Integer baseSleepTimeMs) {
+        public void setBaseSleepTimeMs(int baseSleepTimeMs) {
             this.baseSleepTimeMs = baseSleepTimeMs;
         }
 
-        public Integer getMaxRetries() {
+        public int getMaxRetries() {
             return maxRetries;
         }
 
-        public void setMaxRetries(Integer maxRetries) {
+        public void setMaxRetries(int maxRetries) {
             this.maxRetries = maxRetries;
         }
 
-        public Integer getMaxSleepMs() {
+        public int getMaxSleepMs() {
             return maxSleepMs;
         }
 
-        public void setMaxSleepMs(Integer maxSleepMs) {
+        public void setMaxSleepMs(int maxSleepMs) {
             this.maxSleepMs = maxSleepMs;
         }
     }

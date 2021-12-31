@@ -564,7 +564,7 @@ spring:
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.6.5";
+    val cosidVersion = "1.6.6";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -580,7 +580,7 @@ spring:
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.6.5</cosid.version>
+        <cosid.version>1.6.6</cosid.version>
     </properties>
 
     <dependencies>
@@ -800,7 +800,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.6.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.6.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -818,42 +818,11 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 
 ![RedisChainIdBenchmark-Throughput](./docs/jmh/RedisChainIdBenchmark-Throughput.png)
 
-``` shell
-gradle cosid-redis:jmh
-# or
-java -jar cosid-redis/build/libs/cosid-redis-1.6.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
-```
-
-```
-Benchmark                                   Mode  Cnt          Score          Error  Units
-RedisChainIdBenchmark.atomicLong_baseline  thrpt    5  144541334.198 ±  5578137.471  ops/s
-RedisChainIdBenchmark.step_1               thrpt    5    1874168.687 ±   310274.706  ops/s
-RedisChainIdBenchmark.step_100             thrpt    5  114226113.524 ± 15789563.078  ops/s
-RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743.699  ops/s
-```
-
 #### Percentile-Sample (*P9999=0.208 us/op*)
 
 > In statistics, a [percentile](https://en.wikipedia.org/wiki/Percentile) (or a centile) is a score below which a given percentage of scores in its frequency distribution falls (exclusive definition) or a score at or below which a given percentage falls (inclusive definition). For example, the 50th percentile (the median) is the score below which (exclusive) or at or below which (inclusive) 50% of the scores in the distribution may be found.
 
 ![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
-
-```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.6.5-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
-```
-
-```
-Benchmark                                            Mode      Cnt   Score    Error  Units
-RedisChainIdBenchmark.step_1000                    sample  1336271   0.024 ±  0.001  us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.00    sample              ≈ 0           us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.50    sample            0.041           us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.90    sample            0.042           us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.95    sample            0.042           us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.99    sample            0.042           us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.999   sample            0.042           us/op
-RedisChainIdBenchmark.step_1000:step_1000·p0.9999  sample            0.208           us/op
-RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440           us/op
-```
 
 ### MySqlChainIdBenchmark
 
@@ -861,36 +830,6 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 
 ![MySqlChainIdBenchmark-Throughput](./docs/jmh/MySqlChainIdBenchmark-Throughput.png)
 
-``` shell
-gradle cosid-jdbc:jmh
-# or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.6.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
-```
-
-```
-Benchmark                                   Mode  Cnt          Score         Error  Units
-MySqlChainIdBenchmark.atomicLong_baseline  thrpt    5  145294642.937 ±  224876.284  ops/s
-MySqlChainIdBenchmark.step_1               thrpt    5      35058.790 ±   36226.041  ops/s
-MySqlChainIdBenchmark.step_100             thrpt    5   74575876.804 ± 5590390.811  ops/s
-MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.409  ops/s
-```
-
 #### Percentile-Sample (*P9999=0.208 us/op*)
 
 ![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
-
-```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.6.5-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
-```
-```
-Benchmark                                            Mode      Cnt    Score   Error  Units
-MySqlChainIdBenchmark.step_1000                    sample  1286774    0.024 ± 0.001  us/op
-MySqlChainIdBenchmark.step_1000:step_1000·p0.00    sample               ≈ 0          us/op
-MySqlChainIdBenchmark.step_1000:step_1000·p0.50    sample             0.041          us/op
-MySqlChainIdBenchmark.step_1000:step_1000·p0.90    sample             0.042          us/op
-MySqlChainIdBenchmark.step_1000:step_1000·p0.95    sample             0.042          us/op
-MySqlChainIdBenchmark.step_1000:step_1000·p0.99    sample             0.042          us/op
-MySqlChainIdBenchmark.step_1000:step_1000·p0.999   sample             0.083          us/op
-MySqlChainIdBenchmark.step_1000:step_1000·p0.9999  sample             0.208          us/op
-MySqlChainIdBenchmark.step_1000:step_1000·p1.00    sample           342.528          us/op
-```

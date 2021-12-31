@@ -2,30 +2,14 @@
 
 ## SegmentChainId-吞吐量 (ops/s)
 
-### RedisChainIdBenchmark-Throughput
-
 <p align="center" >
-  <img :src="$withBase('/assets/perf/RedisChainIdBenchmark-Throughput.png')" alt="RedisChainIdBenchmark-Throughput"/>
-</p>
-
-### MySqlChainIdBenchmark-Throughput
-
-<p align="center" >
-  <img :src="$withBase('/assets/perf/MySqlChainIdBenchmark-Throughput.png')" alt="MySqlChainIdBenchmark-Throughput"/>
+  <img :src="$withBase('/assets/perf/Throughput-Of-SegmentChainId.png')" alt="Throughput-Of-SegmentChainId"/>
 </p>
 
 ## SegmentChainId-每次操作耗时的百分位数(us/op)
 
-### RedisChainIdBenchmark-Percentile
-
 <p align="center" >
-  <img :src="$withBase('/assets/perf/RedisChainIdBenchmark-Sample.png')" alt="RedisChainIdBenchmark-Sample"/>
-</p>
-
-### MySqlChainIdBenchmark-Percentile
-
-<p align="center" >
-  <img :src="$withBase('/assets/perf/MySqlChainIdBenchmark-Sample.png')" alt="MySqlChainIdBenchmark-Sample"/>
+  <img :src="$withBase('/assets/perf/Percentile-Sample-Of-SegmentChainId.png')" alt="RedisChainIdBenchmark-Sample"/>
 </p>
 
 ## 基准测试报告运行环境说明

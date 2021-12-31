@@ -16,7 +16,7 @@
 - 步长（Step）：设置多大的步长是一个权衡问题，设置太小会影响整体性能，设置太大会导致全局ID乱序的程度增加。
 - 本机单调递增、全局趋势递增: 本地单调递增是我们期望看到的，但是如何理解/衡量全局趋势递增呢。下面我们来解释一下什么是全局趋势递增：
 
-![号段模式](../docs/SegmentId.png)
+![号段模式](../document/docs/.vuepress/public/assets/design/SegmentId.png)
 
 从上图的号段模式设计中我们可以看出：
 
@@ -25,7 +25,7 @@
 
 ---
 
-![趋势递增](img/trend-increasing.png)
+![趋势递增](../document/docs/.vuepress/public/assets/design/trend-increasing.png)
 
 > 全局趋势递增反向说明的是ID在一个时间周期内是会乱序的，所以我们要尽可能让ID的乱序程度降低。这是一个优化点。
 
@@ -40,7 +40,7 @@
 
 ## 号段链模式（SegmentChainId）的优势
 
-![SegmentChainId](../docs/SegmentChainId.png)
+![SegmentChainId](../document/docs/.vuepress/public/assets/design/SegmentChainId.png)
 
 通过**SegmentChainId**设计图中我们可以看到，号段链模式新增了一个角色**PrefetchWorker**。
 **PrefetchWorker**主要的职责是维护和保证号段链头部到尾部的**安全距离**，也可以近似理解为缓冲距离。

@@ -18,7 +18,7 @@
 
 ## SnowflakeId
 
-![Snowflake](../docs/Snowflake-identifier.png)
+![Snowflake](../document/docs/.vuepress/public/assets/design/Snowflake-identifier.png)
 
 > *SnowflakeId*使用`Long`（64-bit）位分区来生成ID的一种分布式ID算法。
 > 通用的位分配方案为：`timestamp`(64-bit)+`machineId`(10-bit)+`sequence`(12-bit)=63bit。
@@ -74,7 +74,7 @@ cosid:
 
 #### RedisMachineIdDistributor
 
-![RedisMachineIdDistributor](../docs/RedisMachineIdDistributor.png)
+![RedisMachineIdDistributor](../document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png)
 
 ```yaml
 cosid:
@@ -206,7 +206,7 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
 
 ## SegmentId (号段模式)
 
-![SegmentId](../docs/SegmentId.png)
+![SegmentId](../document/docs/.vuepress/public/assets/design/SegmentId.png)
 
 ### RedisIdSegmentDistributor (使用`Redis`作为号段分发后端存储)
 
@@ -261,7 +261,7 @@ insert into cosid
 
 ### SegmentChainId (号段链模式)
 
-![SegmentChainId](../docs/SegmentChainId.png)
+![SegmentChainId](../document/docs/.vuepress/public/assets/design/SegmentChainId.png)
 
 ```yaml
 cosid:
@@ -402,7 +402,7 @@ spring:
 
 #### 基于间隔的时间范围分片算法
 
-![CosIdIntervalShardingAlgorithm](../docs/CosIdIntervalShardingAlgorithm.png)
+![CosIdIntervalShardingAlgorithm](../document/docs/.vuepress/public/assets/design/CosIdIntervalShardingAlgorithm.png)
 
 - 易用性: 支持多种数据类型 (`Long`/`LocalDateTime`/`DATE`/ `String` / `SnowflakeId`)，而官方实现是先转换成字符串再转换成`LocalDateTime`，转换成功率受时间格式化字符影响。
 - 性能 : 相比于 `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm` 性能高出 *1200~4000* 倍。
@@ -489,7 +489,7 @@ spring:
 
 #### 取模分片算法
 
-![CosIdModShardingAlgorithm](../docs/CosIdModShardingAlgorithm.png)
+![CosIdModShardingAlgorithm](../document/docs/.vuepress/public/assets/design/CosIdModShardingAlgorithm.png)
 
 - 性能 : 相比于 `org.apache.shardingsphere.sharding.algorithm.sharding.mod.ModShardingAlgorithm` 性能高出 *1200~4000* 倍。并且稳定性更高，不会出现严重的性能退化。
 

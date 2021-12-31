@@ -20,7 +20,7 @@
 
 ## SnowflakeId
 
-![Snowflake](./docs/Snowflake-identifier.png)
+![Snowflake](./document/docs/.vuepress/public/assets/design/Snowflake-identifier.png)
 
 > *SnowflakeId* is a distributed ID algorithm that uses `Long` (64-bit) bit partition to generate ID.
 > The general bit allocation scheme is : `timestamp` (41-bit) + `machineId` (10-bit) + `sequence` (12-bit) = 63-bit。
@@ -75,7 +75,7 @@ cosid:
 
 #### RedisMachineIdDistributor
 
-![RedisMachineIdDistributor](./docs/RedisMachineIdDistributor.png)
+![RedisMachineIdDistributor](./document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png)
 
 ```yaml
 cosid:
@@ -406,7 +406,7 @@ spring:
 
 #### Interval-based time range sharding algorithm
 
-![CosIdIntervalShardingAlgorithm](docs/CosIdIntervalShardingAlgorithm.png)
+![CosIdIntervalShardingAlgorithm](./document/docs/.vuepress/public/assets/design/CosIdIntervalShardingAlgorithm.png)
 
 - Ease of use: supports multiple data types (`Long`/`LocalDateTime`/`DATE`/ `String` / `SnowflakeId`),The official implementation is to first convert to a string and then convert to `LocalDateTime`, the conversion success rate is affected by the time formatting characters.
 - Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`,The performance is *1200~4000* times higher.
@@ -493,7 +493,7 @@ spring:
 
 #### CosIdModShardingAlgorithm
 
-![CosIdModShardingAlgorithm](docs/CosIdModShardingAlgorithm.png)
+![CosIdModShardingAlgorithm](./document/docs/.vuepress/public/assets/design/CosIdModShardingAlgorithm.png)
 
 - Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`,The performance is *1200~4000* times higher.And it has higher stability and no serious performance degradation.
 

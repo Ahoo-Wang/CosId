@@ -1,4 +1,6 @@
-# Jackson 序列化/反序列化插件
+# CosId-Jackson 模块
+
+> **Jackson** 序列化/反序列化注解插件
 
 > Kotlin DSL
 

@@ -63,7 +63,8 @@ export function getConfigSidebar (groupA): SidebarConfigArray {
                 '',
                 'snowflake',
                 'segment',
-                'zookeeper'
+                'zookeeper',
+                'shardingsphere'
             ]
         }
     ]

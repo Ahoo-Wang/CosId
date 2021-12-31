@@ -15,7 +15,7 @@ import {
     NavItemsZH, SidebarZH
 } from './config/index'
 
-const GM_ID='G-SP6EEGK56L'
+const GM_ID = 'G-SP6EEGK56L'
 
 export default defineConfig(ctx => ({
     base: '/CosId/',
@@ -24,7 +24,7 @@ export default defineConfig(ctx => ({
         [
             'script',
             {},
-`
+            `
     (function (global, doc, tag, src, script, m) {
       script = doc.createElement(tag)
       m = doc.getElementsByTagName(tag)[0]
@@ -44,11 +44,12 @@ export default defineConfig(ctx => ({
         ]
     ],
     title: 'CosId',
-    description: '通用、灵活、高性能的分布式 ID 生成器',
+    description: '通用、灵活、高性能分布式 ID 生成器',
     themeConfig: {
-        repo: "/Ahoo-Wang/CosId",
+        repo: "Ahoo-Wang/CosId",
         editLinks: true,
-        docsDir: "document",
+        docsDir: "document/docs",
+        docsBranch: 'main',
         lastUpdated: '上次更新',
         nav: NavItemsZH,
         sidebar: SidebarZH

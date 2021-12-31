@@ -1,4 +1,4 @@
-# CosIdPlugin（MyBatis 插件）
+# CosId-MyBatis 模块
 
 > Kotlin DSL
 

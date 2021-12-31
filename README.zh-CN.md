@@ -387,25 +387,17 @@ spring:
 
 ## 性能测试报告
 
-### SegmentChainId-吞吐量 (ops/s)
+## SegmentChainId-吞吐量 (ops/s)
 
-#### RedisChainIdBenchmark-Throughput
+<p align="center" >
+  <img src="./document/docs/.vuepress/public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput-Of-SegmentChainId"/>
+</p>
 
-![RedisChainIdBenchmark-Throughput](docs/jmh/RedisChainIdBenchmark-Throughput.png)
+## SegmentChainId-每次操作耗时的百分位数(us/op)
 
-#### MySqlChainIdBenchmark-Throughput
-
-![MySqlChainIdBenchmark-Throughput](docs/jmh/MySqlChainIdBenchmark-Throughput.png)
-
-### SegmentChainId-每次操作耗时的百分位数(us/op)
-
-#### RedisChainIdBenchmark-Percentile
-
-![RedisChainIdBenchmark-Sample](docs/jmh/RedisChainIdBenchmark-Sample.png)
-
-#### MySqlChainIdBenchmark-Percentile
-
-![MySqlChainIdBenchmark-Sample](docs/jmh/MySqlChainIdBenchmark-Sample.png)
+<p align="center" >
+  <img src="./document/docs/.vuepress/public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="Percentile-Sample-Of-SegmentChainId"/>
+</p>
 
 ## 基准测试报告运行环境说明
 

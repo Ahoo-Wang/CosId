@@ -9,7 +9,7 @@
 ## SegmentChainId-每次操作耗时的百分位数(us/op)
 
 <p align="center" >
-  <img :src="$withBase('/assets/perf/Percentile-Sample-Of-SegmentChainId.png')" alt="RedisChainIdBenchmark-Sample"/>
+  <img :src="$withBase('/assets/perf/Percentile-Sample-Of-SegmentChainId.png')" alt="Percentile-Sample-Of-SegmentChainId"/>
 </p>
 
 ## 基准测试报告运行环境说明

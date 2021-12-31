@@ -812,24 +812,16 @@ SnowflakeIdBenchmark.safeJsSecondSnowflakeId_generate       thrpt        539818.
 SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.941          ops/s
 ```
 
-### RedisChainIdBenchmark
+### Throughput (ops/s) of SegmentChainId
 
-#### Throughput (ops/s)
+<p align="center" >
+  <img src="./document/docs/.vuepress/public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput-Of-SegmentChainId"/>
+</p>
 
-![RedisChainIdBenchmark-Throughput](./docs/jmh/RedisChainIdBenchmark-Throughput.png)
-
-#### Percentile-Sample (*P9999=0.208 us/op*)
+### Percentile-Sample (*P9999=0.208 us/op*)  of SegmentChainId
 
 > In statistics, a [percentile](https://en.wikipedia.org/wiki/Percentile) (or a centile) is a score below which a given percentage of scores in its frequency distribution falls (exclusive definition) or a score at or below which a given percentage falls (inclusive definition). For example, the 50th percentile (the median) is the score below which (exclusive) or at or below which (inclusive) 50% of the scores in the distribution may be found.
 
-![RedisChainIdBenchmark-Sample](./docs/jmh/RedisChainIdBenchmark-Sample.png)
-
-### MySqlChainIdBenchmark
-
-#### Throughput (ops/s)
-
-![MySqlChainIdBenchmark-Throughput](./docs/jmh/MySqlChainIdBenchmark-Throughput.png)
-
-#### Percentile-Sample (*P9999=0.208 us/op*)
-
-![MySqlChainIdBenchmark-Sample](./docs/jmh/MySqlChainIdBenchmark-Sample.png)
+<p align="center" >
+  <img src="./document/docs/.vuepress/public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="Percentile-Sample-Of-SegmentChainId"/>
+</p>

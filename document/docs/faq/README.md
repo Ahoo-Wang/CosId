@@ -1,8 +1,8 @@
 # 常见问题
 
-## CosId需要部署服务端吗？
+## CosId 需要部署服务端吗？
 
-[CosId](https://github.com/Ahoo-Wang/CosId)是以本地SDK的形式存在的，用户只需要安装一下**CosId**的依赖包做一些简单配置、[DEMO](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)）即可。
+虽然并没有规定 [CosId](https://github.com/Ahoo-Wang/CosId) 的使用方式，但是强烈推荐以本地 SDK 的方式使用，用户只需要安装一下 **CosId** 的依赖包做一些简单配置（ [DEMO](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example) ） 即可。
 
 > 分布式ID是不适合使用服务端部署模式的(C/S)。使用服务端部署模式，必然会产生网络IO（*Client*通过远程过程调用*Server*，获取ID），你想想我们费了那么大劲消除网络IO是为了什么？
 

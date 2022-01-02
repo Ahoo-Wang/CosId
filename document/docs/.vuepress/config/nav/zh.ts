@@ -43,5 +43,9 @@ export const NavItemsZH: NavItem[] = [
     {
         text: '性能评测',
         link: '/guide/perf-test/'
+    },
+    {
+        text: '更新日志',
+        link: 'https://github.com/Ahoo-Wang/CosId/releases'
     }
 ]

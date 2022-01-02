@@ -54,11 +54,12 @@ export function getGuideSidebar(groupA, groupB): SidebarConfigArray {
             collapsable: false,
             children: [
                 'api/',
+                'api/id-converter',
                 'api/provider',
                 'api/snowflake',
                 'api/segment',
-                'api/sharding',
-                'api/id-converter',
+                'api/cosid-annotation',
+                'api/sharding'
             ]
         },
         {

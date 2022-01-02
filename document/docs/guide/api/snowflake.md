@@ -1,5 +1,7 @@
 # SnowflakeId
 
+TODO
+
 ## MillisecondSnowflakeId
 
 ## SecondSnowflakeId

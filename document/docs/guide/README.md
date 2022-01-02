@@ -1,5 +1,9 @@
 # 简介
 
+<p align="center" >
+  <img :src="$withBase('/logo.png')" alt="Throughput-Of-SegmentChainId"/>
+</p>
+
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 目前提供了俩类 ID 生成器：
 
 - `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](../faq/perf-test.md) , 主要解决 *时钟回拨问题* 、*机器号分配问题* 并且提供更加友好、灵活的使用体验。

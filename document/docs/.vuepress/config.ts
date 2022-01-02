@@ -56,6 +56,7 @@ export default defineConfig(ctx => ({
     plugins: [
         ['@vuepress/back-to-top', true],
         ['@vuepress/medium-zoom', true],
+        // TODO
         // [
         //     '@vuepress/pwa',
         //     {

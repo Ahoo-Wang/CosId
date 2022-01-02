@@ -35,7 +35,7 @@ spring:
 |-------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
 | <img :src="$withBase('/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png')"/> | <img :src="$withBase('/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png')"/> |
 
-- SmartIntervalShardingAlgorithm
+- CosIdIntervalShardingAlgorithm
     - type: COSID_INTERVAL
 - SnowflakeIntervalShardingAlgorithm
     - type: COSID_INTERVAL_SNOWFLAKE

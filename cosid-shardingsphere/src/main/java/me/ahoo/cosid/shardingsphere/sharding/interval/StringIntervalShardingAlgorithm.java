@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
- * please use {@link SmartIntervalShardingAlgorithm} instead.
+ * please use {@link CosIdIntervalShardingAlgorithm} instead.
  *
  * @author ahoo wang
  */

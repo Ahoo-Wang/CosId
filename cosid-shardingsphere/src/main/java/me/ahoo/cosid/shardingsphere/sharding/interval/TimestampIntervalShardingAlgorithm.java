@@ -18,7 +18,7 @@ import me.ahoo.cosid.util.LocalDateTimeConvert;
 import java.time.LocalDateTime;
 
 /**
- * please use {@link SmartIntervalShardingAlgorithm} instead.
+ * please use {@link CosIdIntervalShardingAlgorithm} instead.
  *
  * @author ahoo wang
  */

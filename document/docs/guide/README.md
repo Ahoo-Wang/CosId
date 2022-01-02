@@ -1,7 +1,7 @@
 # 简介
 
 <p align="center" >
-  <img :src="$withBase('/logo.png')" alt="Throughput-Of-SegmentChainId"/>
+  <img width="200" :src="$withBase('/logo.png')" alt="Throughput-Of-SegmentChainId"/>
 </p>
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 目前提供了俩类 ID 生成器：

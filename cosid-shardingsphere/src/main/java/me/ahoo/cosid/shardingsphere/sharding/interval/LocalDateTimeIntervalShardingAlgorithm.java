@@ -18,7 +18,7 @@ import com.google.common.collect.Range;
 import java.time.LocalDateTime;
 
 /**
- * please use {@link SmartIntervalShardingAlgorithm} instead.
+ * please use {@link CosIdIntervalShardingAlgorithm} instead.
  *
  * @author ahoo wang
  */

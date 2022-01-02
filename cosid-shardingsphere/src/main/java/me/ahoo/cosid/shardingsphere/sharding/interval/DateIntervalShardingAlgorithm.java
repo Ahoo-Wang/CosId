@@ -21,7 +21,7 @@ import java.util.Date;
 /**
  * support types: {@link Date}/{@link java.sql.Date}/{@link java.sql.Timestamp}
  * <p>
- * please use {@link SmartIntervalShardingAlgorithm} instead.
+ * please use {@link CosIdIntervalShardingAlgorithm} instead.
  *
  * @author ahoo wang
  */

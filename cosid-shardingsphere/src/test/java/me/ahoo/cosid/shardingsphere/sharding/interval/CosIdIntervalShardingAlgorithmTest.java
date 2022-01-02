@@ -36,7 +36,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 /**
  * @author ahoo wang
  */
-class SmartIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorithmTest {
+class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorithmTest {
 
     private final static DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(StringIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
 
@@ -44,7 +44,7 @@ class SmartIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
 
     @BeforeEach
     void init() {
-        shardingAlgorithm = new SmartIntervalShardingAlgorithm();
+        shardingAlgorithm = new CosIdIntervalShardingAlgorithm();
         Properties properties = getProps();
         properties.setProperty(StringIntervalShardingAlgorithm.DATE_TIME_PATTERN_KEY, StringIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
         shardingAlgorithm.setProps(properties);

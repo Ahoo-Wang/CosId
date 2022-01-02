@@ -22,12 +22,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
 import static me.ahoo.cosid.shardingsphere.sharding.interval.StringIntervalShardingAlgorithm.DATE_TIME_PATTERN_KEY;
-import static me.ahoo.cosid.shardingsphere.sharding.interval.StringIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN;
 
 /**
  * @author ahoo wang
  */
-public class SmartIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Comparable<?>> {
+public class CosIdIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Comparable<?>> {
     public static final String TYPE = CosIdAlgorithm.TYPE_PREFIX + "INTERVAL";
     public static final String TIMESTAMP_SECOND_TYPE = "SECOND";
 

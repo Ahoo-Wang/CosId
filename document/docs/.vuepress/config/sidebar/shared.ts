@@ -34,7 +34,7 @@ export function getGuideSidebar(groupA, groupB): SidebarConfigArray {
             children: [
                 '',
                 'getting-started',
-                'segment-chain',
+                'segment-chain'
             ]
         },
         {
@@ -47,6 +47,18 @@ export function getGuideSidebar(groupA, groupB): SidebarConfigArray {
                 'cosid-jackson',
                 'cosid-mybatis',
                 'cosid-shardingsphere'
+            ]
+        },
+        {
+            title: "API",
+            collapsable: false,
+            children: [
+                'api/',
+                'api/provider',
+                'api/snowflake',
+                'api/segment',
+                'api/sharding',
+                'api/id-converter',
             ]
         },
         {
@@ -79,20 +91,6 @@ export function getConfigSidebar(groupA): SidebarConfigArray {
                 'segment',
                 'zookeeper',
                 'shardingsphere'
-            ]
-        }
-    ]
-    return sidebar
-}
-
-export function getFAQSidebar(groupA): SidebarConfigArray {
-    const sidebar: SidebarConfigArray = [
-        {
-            title: groupA,
-            collapsable: false,
-            children: [
-                '',
-                'perf-test'
             ]
         }
     ]

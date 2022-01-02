@@ -24,11 +24,10 @@
  * limitations under the License.
  */
 
-import { SidebarConfig4Multiple } from 'vuepress/config'
-import {getConfigSidebar, getFAQSidebar, getGuideSidebar} from "./shared";
+import {SidebarConfig4Multiple} from 'vuepress/config'
+import {getConfigSidebar, getGuideSidebar} from "./shared";
 
 export const SidebarZH: SidebarConfig4Multiple = {
-    '/guide/': getGuideSidebar('指南','集成'),
+    '/guide/': getGuideSidebar('指南', '集成'),
     '/config/': getConfigSidebar('配置'),
-    '/faq/': getFAQSidebar('FAQ')
 }

@@ -37,6 +37,10 @@ export const NavItemsZH: NavItem[] = [
         link: '/config/'
     },
     {
+        text: 'API',
+        link: '/guide/api/'
+    },
+    {
         text: '常见问题',
         link: '/guide/faq/'
     },

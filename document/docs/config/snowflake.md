@@ -5,7 +5,7 @@
 | 名称              | 数据类型                        | 说明        | 默认值                                             |
 |-----------------|-----------------------------|-----------|-------------------------------------------------|
 | enabled         | `boolean`                   | 是否启用      | `false`                                         |
-| zoneId          | `String`                    | 时区        | `ZoneId.systemDefault().getId()`                |
+| zone-id         | `String`                    | 时区        | `ZoneId.systemDefault().getId()`                |
 | epoch           | `long`                      | EPOCH     | `CosId.COSID_EPOCH` <br> (UTC 2019-12-24 16:00) |
 | clock-backwards | `ClockBackwards`            | 时钟回拨配置    |                                                 |
 | machine         | `Machine`                   | 机器号分配器配置  |                                                 |

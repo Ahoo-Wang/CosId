@@ -1,5 +1,7 @@
 # CosId-MyBatis 模块
 
+## 安装
+
 > Kotlin DSL
 
 ``` kotlin

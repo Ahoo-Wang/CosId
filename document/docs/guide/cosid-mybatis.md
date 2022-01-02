@@ -1,5 +1,7 @@
 # CosId-MyBatis 模块
 
+> [cosid-mybatis](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mybatis) 拦截**MyBatis**插入(`Insert`)请求,并解析 `@CosId` 注入**分布式ID**。
+
 ## 安装
 
 > Kotlin DSL
@@ -50,6 +52,7 @@ public interface OrderRepository {
     void insertList(List<FriendlyIdEntity> list);
 }
 ```
+
 ```java
         LongIdEntity entity=new LongIdEntity();
         entityRepository.insert(entity);

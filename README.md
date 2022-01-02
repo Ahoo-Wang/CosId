@@ -1,10 +1,10 @@
 <p align="center" style="text-align:center">
-<img width="300"src="./document/docs/.vuepress/public/logo.png"/>
+  <img width="300"src="./document/docs/.vuepress/public/logo.png"/>
 </p>
 
-# [CosId](https://github.com/Ahoo-Wang/CosId) Universal, flexible, high-performance distributed ID generator
+# [CosId](https://cosid.ahoo.me/) Universal, flexible, high-performance distributed ID generator
 
-> [中文文档](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md)
+> [中文文档](https://cosid.ahoo.me/)
 
 ## Introduction
 
@@ -20,7 +20,9 @@
 
 ## SnowflakeId
 
-![Snowflake](./document/docs/.vuepress/public/assets/design/Snowflake-identifier.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/Snowflake-identifier.png"/>
+</p>
 
 > *SnowflakeId* is a distributed ID algorithm that uses `Long` (64-bit) bit partition to generate ID.
 > The general bit allocation scheme is : `timestamp` (41-bit) + `machineId` (10-bit) + `sequence` (12-bit) = 63-bit。
@@ -75,7 +77,9 @@ cosid:
 
 #### RedisMachineIdDistributor
 
-![RedisMachineIdDistributor](./document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png"/>
+</p>
 
 ```yaml
 cosid:
@@ -203,7 +207,9 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
 ```
 ## SegmentId
 
-![SegmentId](./docs/SegmentId.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/SegmentId.png"/>
+</p>
 
 ### RedisIdSegmentDistributor
 
@@ -406,16 +412,18 @@ spring:
 
 #### Interval-based time range sharding algorithm
 
-![CosIdIntervalShardingAlgorithm](./document/docs/.vuepress/public/assets/design/CosIdIntervalShardingAlgorithm.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/CosIdIntervalShardingAlgorithm.png"/>
+</p>
 
 - Ease of use: supports multiple data types (`Long`/`LocalDateTime`/`DATE`/ `String` / `SnowflakeId`),The official implementation is to first convert to a string and then convert to `LocalDateTime`, the conversion success rate is affected by the time formatting characters.
 - Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`,The performance is *1200~4000* times higher.
 
-| **PreciseShardingValue**                                                                                                                     | **RangeShardingValue**                                                                                                                   |
-|----------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| ![Throughput Of IntervalShardingAlgorithm - PreciseShardingValue](wiki/img/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of IntervalShardingAlgorithm - RangeShardingValue](wiki/img/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png) |
+| **PreciseShardingValue**                                                                                                                                                                  | **RangeShardingValue**                                                                                                                                                                |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ![Throughput Of IntervalShardingAlgorithm - PreciseShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of IntervalShardingAlgorithm - RangeShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png) |
 
-- SmartIntervalShardingAlgorithm
+- CosIdIntervalShardingAlgorithm
     - type: COSID_INTERVAL
 - SnowflakeIntervalShardingAlgorithm
     - type: COSID_INTERVAL_SNOWFLAKE
@@ -440,13 +448,15 @@ spring:
 
 #### CosIdModShardingAlgorithm
 
-![CosIdModShardingAlgorithm](./document/docs/.vuepress/public/assets/design/CosIdModShardingAlgorithm.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/CosIdModShardingAlgorithm.png"/>
+</p>
 
 - Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`,The performance is *1200~4000* times higher.And it has higher stability and no serious performance degradation.
 
-| **PreciseShardingValue**                                                                                                           | **RangeShardingValue**                                                                                                         |
-|------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
-| ![Throughput Of ModShardingAlgorithm - PreciseShardingValue](wiki/img/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of ModShardingAlgorithm - RangeShardingValue](wiki/img/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png) |
+| **PreciseShardingValue**                                                                                                                                                        | **RangeShardingValue**                                                                                                                                                      |
+|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ![Throughput Of ModShardingAlgorithm - PreciseShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of ModShardingAlgorithm - RangeShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png) |
 
 ```yaml
 spring:
@@ -474,7 +484,7 @@ spring:
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.6.6";
+    val cosidVersion = "1.6.8";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -490,7 +500,7 @@ spring:
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.6.6</cosid.version>
+        <cosid.version>1.6.8</cosid.version>
     </properties>
 
     <dependencies>
@@ -710,7 +720,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.6.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.6.8-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```

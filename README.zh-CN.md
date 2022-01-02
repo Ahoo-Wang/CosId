@@ -1,8 +1,8 @@
 <p align="center" style="text-align:center">
-<img width="300"src="./document/docs/.vuepress/public/logo.png"/>
+  <img width="300"src="./document/docs/.vuepress/public/logo.png"/>
 </p>
 
-# [CosId](https://github.com/Ahoo-Wang/CosId) 通用、灵活、高性能的**分布式ID**生成器
+# [CosId](https://cosid.ahoo.me/) 通用、灵活、高性能分布式 ID 生成器
 
 > [English Document](https://github.com/Ahoo-Wang/CosId/blob/main/README.md)
 
@@ -10,15 +10,15 @@
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 目前提供了俩类 ID 生成器：
 
-- `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) , 主要解决 *时钟回拨问题* 、*机器号分配问题* 并且提供更加友好、灵活的使用体验。
+- `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](https://cosid.ahoo.me/guide/perf-test.html) , 主要解决 *时钟回拨问题* 、*机器号分配问题* 并且提供更加友好、灵活的使用体验。
 - `SegmentId`: 每次获取一段 (`Step`) ID，来降低号段分发器的网络IO请求频次提升性能。
   - `IdSegmentDistributor`: 号段分发器（号段存储器）
     - `RedisIdSegmentDistributor`: 基于 *Redis* 的号段分发器。
     - `JdbcIdSegmentDistributor`: 基于 *Jdbc* 的号段分发器，支持各种关系型数据库。
-  - `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](https://github.com/Ahoo-Wang/CosId/blob/main/README.zh-CN.md#jmh-benchmark) 。
+  - `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](https://cosid.ahoo.me/guide/perf-test.html) 。
     - `PrefetchWorker` 维护安全距离(`safeDistance`), 并且支持基于饥饿状态的动态`safeDistance`扩容/收缩。
 
-## [快速开始](wiki/getting-started.md)
+## [快速开始](https://cosid.ahoo.me/guide/getting-started.html)
 
 ## 背景（为什么需要*分布式ID*）
 
@@ -69,7 +69,9 @@
 
 #### 有序性之单调递增
 
-![单调递增](./document/docs/.vuepress/public/assets/design/monotonically-increasing.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/monotonically-increasing.png" alt="单调递增"/>
+</p>
 
 单调递增：T表示全局绝对时点，假设有T<sub>n+1</sub>>T<sub>n</sub>（绝对时间总是往前进的，这里不考虑相对论、时间机器等），那么必然有F(T<sub>n+1</sub>)>F(T<sub>n</sub>)，数据库自增主键就属于这一类。
 另外需要特别说明的是单调递增跟连续性递增是不同的概念。 连续性递增：`F(n+1)=(F(n)+step)`即下一次获取的ID一定等于当前`ID+Step`，当`Step=1`时类似于这样一个序列:`1->2->3->4->5`。
@@ -78,7 +80,9 @@
 
 #### 有序性之趋势递增
 
-![趋势递增](./document/docs/.vuepress/public/assets/design/trend-increasing.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/trend-increasing.png" alt="趋势递增"/>
+</p>
 
 趋势递增：T<sub>n</sub>>T<sub>n-s</sub>，那么大概率有F(T<sub>n</sub>)>F(T<sub>n-s</sub>)。虽然在一段时间间隔内有乱序，但是整体趋势是递增。从上图上看，是有上升趋势的（趋势线）。
 - 在**SnowflakeId**中<sub>n-s</sub>受到全局时钟同步影响。
@@ -97,7 +101,9 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 
 ### SnowflakeId
 
-![Snowflake](./document/docs/.vuepress/public/assets/design/Snowflake-identifier.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/Snowflake-identifier.png" alt="雪花算法"/>
+</p>
 
 > *SnowflakeId*使用`Long`（64-bit）位分区来生成ID的一种分布式ID算法。
 > 通用的位分配方案为：`timestamp`(41-bit)+`machineId`(10-bit)+`sequence`(12-bit)=63-bit。
@@ -126,7 +132,9 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 - StatefulSetMachineIdDistributor: 使用`Kubernetes`的`StatefulSet`提供的稳定的标识ID（HOSTNAME=service-01）作为机器号。
 - RedisMachineIdDistributor: 使用**Redis**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
 
-![RedisMachineIdDistributor](./document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png" alt="RedisMachineIdDistributor"/>
+</p>
 
 #### SnowflakeId之时钟回拨问题
 
@@ -154,7 +162,9 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 
 ## 号段模式（SegmentId）
 
-![SegmentId](./document/docs/.vuepress/public/assets/design/SegmentId.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/SegmentId.png" alt="SegmentId"/>
+</p>
 
 从上面的设计图中，不难看出**号段模式**基本设计思路是通过每次获取一定长度（Step）的可用ID（Id段/号段），来降低网络IO请求次数，提升性能。
 
@@ -170,9 +180,11 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 
 ## 号段链模式（SegmentChainId）
 
-[分布式ID(CosId)之号段链模式性能(1.2亿/s)解析](wiki/SegmentChainId.zh-CN.md)
+[分布式ID(CosId)之号段链模式性能(1.2亿/s)解析](https://cosid.ahoo.me/guide/segment-chain.html)
 
-![SegmentChainId](./document/docs/.vuepress/public/assets/design/SegmentChainId.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/SegmentChainId.png" alt="SegmentChainId"/>
+</p>
 
 **SegmentChainId**是**SegmentId**增强版，相比于**SegmentId**有以下优势：
 
@@ -244,16 +256,18 @@ spring:
 
 #### 基于间隔的时间范围分片算法
 
-![CosIdIntervalShardingAlgorithm](./document/docs/.vuepress/public/assets/design/CosIdIntervalShardingAlgorithm.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"/>
+</p>
 
 - 易用性: 支持多种数据类型 (`Long`/`LocalDateTime`/`DATE`/ `String` / `SnowflakeId`)，而官方实现是先转换成字符串再转换成`LocalDateTime`，转换成功率受时间格式化字符影响。
 - 性能 : 相比于 `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm` 性能高出 *1200~4000* 倍。
 
-| **PreciseShardingValue**                                                                                                                     | **RangeShardingValue**                                                                                                                   |
-|----------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
-| ![Throughput Of IntervalShardingAlgorithm - PreciseShardingValue](wiki/img/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of IntervalShardingAlgorithm - RangeShardingValue](wiki/img/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png) |
+| **PreciseShardingValue**                                                                                                                                                                  | **RangeShardingValue**                                                                                                                                                                |
+|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ![Throughput Of IntervalShardingAlgorithm - PreciseShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of IntervalShardingAlgorithm - RangeShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png) |
 
-- SmartIntervalShardingAlgorithm
+- CosIdIntervalShardingAlgorithm
   - type: COSID_INTERVAL
 - SnowflakeIntervalShardingAlgorithm
   - type: COSID_INTERVAL_SNOWFLAKE
@@ -278,13 +292,15 @@ spring:
 
 #### 取模分片算法
 
-![CosIdModShardingAlgorithm](./document/docs/.vuepress/public/assets/design/CosIdModShardingAlgorithm.png)
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/CosIdModShardingAlgorithm.png" alt="CosIdModShardingAlgorithm"/>
+</p>
 
 - 性能 : 相比于 `org.apache.shardingsphere.sharding.algorithm.sharding.mod.ModShardingAlgorithm` 性能高出 *1200~4000* 倍。并且稳定性更高，不会出现严重的性能退化。
 
-| **PreciseShardingValue**                                                                                                           | **RangeShardingValue**                                                                                                         |
-|------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
-| ![Throughput Of ModShardingAlgorithm - PreciseShardingValue](wiki/img/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of ModShardingAlgorithm - RangeShardingValue](wiki/img/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png) |
+| **PreciseShardingValue**                                                                                                                                                        | **RangeShardingValue**                                                                                                                                                      |
+|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ![Throughput Of ModShardingAlgorithm - PreciseShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of ModShardingAlgorithm - RangeShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png) |
 
 ```yaml
 spring:

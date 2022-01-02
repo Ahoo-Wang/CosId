@@ -18,8 +18,11 @@ import com.google.common.collect.Range;
 import java.time.LocalDateTime;
 
 /**
+ * please use {@link SmartIntervalShardingAlgorithm} instead.
+ *
  * @author ahoo wang
  */
+@Deprecated
 public class LocalDateTimeIntervalShardingAlgorithm extends AbstractIntervalShardingAlgorithm<LocalDateTime> {
     public static final String TYPE = TYPE_PREFIX + "LDT";
 

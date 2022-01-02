@@ -19,8 +19,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
+ * please use {@link SmartIntervalShardingAlgorithm} instead.
+ *
  * @author ahoo wang
  */
+@Deprecated
 public class StringIntervalShardingAlgorithm extends AbstractIntervalShardingAlgorithm<String> {
 
     public static final String TYPE = TYPE_PREFIX + "STRING";

@@ -20,9 +20,12 @@ import java.util.Date;
 
 /**
  * support types: {@link Date}/{@link java.sql.Date}/{@link java.sql.Timestamp}
+ * <p>
+ * please use {@link SmartIntervalShardingAlgorithm} instead.
  *
  * @author ahoo wang
  */
+@Deprecated
 public class DateIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Date> {
 
     public static final String TYPE = TYPE_PREFIX + "DATE";

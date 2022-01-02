@@ -417,20 +417,8 @@ spring:
 
 - SmartIntervalShardingAlgorithm
     - type: COSID_INTERVAL
-- DateIntervalShardingAlgorithm
-    - type: COSID_INTERVAL_DATE
-- LocalDateTimeIntervalShardingAlgorithm
-    - type: COSID_INTERVAL_LDT
-- StringIntervalShardingAlgorithm
-    - type: COSID_INTERVAL_STRING
-- TimestampIntervalShardingAlgorithm
-    - type: COSID_INTERVAL_TS
-- TimestampOfSecondIntervalShardingAlgorithm
-    - type: COSID_INTERVAL_TS_SECOND
 - SnowflakeIntervalShardingAlgorithm
     - type: COSID_INTERVAL_SNOWFLAKE
-- SnowflakeFriendlyIntervalShardingAlgorithm
-    - type: COSID_INTERVAL_SNOWFLAKE_FRIENDLY
 
 ```yaml
 spring:

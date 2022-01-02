@@ -18,8 +18,11 @@ import me.ahoo.cosid.util.LocalDateTimeConvert;
 import java.time.LocalDateTime;
 
 /**
+ * please use {@link SmartIntervalShardingAlgorithm} instead.
+ *
  * @author ahoo wang
  */
+@Deprecated
 public class TimestampOfSecondIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Long> {
 
     public static final String TYPE = TYPE_PREFIX + "TS_SECOND";

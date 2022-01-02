@@ -20,6 +20,7 @@ import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import java.time.LocalDateTime;
 
 /**
+ *
  * @author ahoo wang
  */
 public class SnowflakeIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Long> {

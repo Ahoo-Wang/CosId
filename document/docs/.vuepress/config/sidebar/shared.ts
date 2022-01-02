@@ -24,9 +24,9 @@
  * limitations under the License.
  */
 
-import { SidebarConfigArray } from 'vuepress/config';
+import {SidebarConfigArray} from 'vuepress/config';
 
-export function getGuideSidebar (groupA, groupB): SidebarConfigArray {
+export function getGuideSidebar(groupA, groupB): SidebarConfigArray {
     const sidebar: SidebarConfigArray = [
         {
             title: groupA,
@@ -34,7 +34,7 @@ export function getGuideSidebar (groupA, groupB): SidebarConfigArray {
             children: [
                 '',
                 'getting-started',
-                'segment-chain'
+                'segment-chain',
             ]
         },
         {
@@ -48,13 +48,27 @@ export function getGuideSidebar (groupA, groupB): SidebarConfigArray {
                 'cosid-mybatis',
                 'cosid-shardingsphere'
             ]
+        },
+        {
+            title: '常见问题',
+            collapsable: false,
+            children: [
+                "faq"
+            ]
+        },
+        {
+            title: '性能评测',
+            collapsable: false,
+            children: [
+                "perf-test"
+            ]
         }
     ]
 
     return sidebar
 }
 
-export function getConfigSidebar (groupA): SidebarConfigArray {
+export function getConfigSidebar(groupA): SidebarConfigArray {
     const sidebar: SidebarConfigArray = [
         {
             title: groupA,
@@ -71,7 +85,7 @@ export function getConfigSidebar (groupA): SidebarConfigArray {
     return sidebar
 }
 
-export function getFAQSidebar (groupA): SidebarConfigArray {
+export function getFAQSidebar(groupA): SidebarConfigArray {
     const sidebar: SidebarConfigArray = [
         {
             title: groupA,

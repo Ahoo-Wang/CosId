@@ -12,7 +12,7 @@
 
 **SegmentChainId**是**SegmentId**的增强版，相比于**SegmentId**有以下优势：
 
-- TPS性能：可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](../faq/perf-test.md)。通过引入了新的角色**PrefetchWorker**用以维护和保证**安全距离**，理想情况下使得获取ID的线程几乎完全不需要进行同步的等待`NextMaxId`获取。
+- TPS性能：可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](docs/guide/perf-test.md)。通过引入了新的角色**PrefetchWorker**用以维护和保证**安全距离**，理想情况下使得获取ID的线程几乎完全不需要进行同步的等待`NextMaxId`获取。
 - 稳定性：P9999=0.208(us/op)，通过上面的TPS性能描述中我们可以看到，**SegmentChainId**消除了同步等待的问题，所以稳定性问题也因此迎刃而解。
 - 适应性：从**SegmentId**介绍中我们知道了影响**ID乱序**的因素有俩个：集群规模、`Step`大小。集群规模是我们不能控制的，但是`Step`是可以调节的。
     - `Step`应该尽可能小才能使得**ID单调递增**的可能性增大。

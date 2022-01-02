@@ -35,18 +35,5 @@ export const NavItemsZH: NavItem[] = [
     {
         text: '配置',
         link: '/config/'
-    },
-    {
-        text: 'FAQ',
-        items: [
-            {
-                text: '常见问题',
-                link: '/faq/'
-            },
-            {
-                text: '性能评测',
-                link: '/faq/perf-test'
-            }
-        ]
     }
 ]

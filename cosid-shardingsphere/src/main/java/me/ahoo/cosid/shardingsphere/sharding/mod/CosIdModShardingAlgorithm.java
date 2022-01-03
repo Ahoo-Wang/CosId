@@ -28,7 +28,7 @@ import java.util.Properties;
 /**
  * @author ahoo wang
  */
-public class ModShardingAlgorithm<T extends Number & Comparable<T>> implements StandardShardingAlgorithm<T> {
+public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> implements StandardShardingAlgorithm<T> {
 
     public static final String TYPE = CosIdAlgorithm.TYPE_PREFIX + "MOD";
 

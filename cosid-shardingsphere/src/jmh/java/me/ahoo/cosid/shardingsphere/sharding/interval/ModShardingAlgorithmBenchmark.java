@@ -15,7 +15,7 @@ package me.ahoo.cosid.shardingsphere.sharding.interval;
 
 import com.google.common.collect.Range;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
-import me.ahoo.cosid.shardingsphere.sharding.mod.ModShardingAlgorithm;
+import me.ahoo.cosid.shardingsphere.sharding.mod.CosIdModShardingAlgorithm;
 
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
@@ -25,7 +25,7 @@ import java.util.Collection;
 import java.util.Properties;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static me.ahoo.cosid.shardingsphere.sharding.mod.ModShardingAlgorithm.MODULO_KEY;
+import static me.ahoo.cosid.shardingsphere.sharding.mod.CosIdModShardingAlgorithm.MODULO_KEY;
 
 /**
  * @author ahoo wang
@@ -39,7 +39,7 @@ public class ModShardingAlgorithmBenchmark {
     @Param({"10", "100", "1000", "10000", "100000"})
     private int divisor;
     private int randomBound;
-    ModShardingAlgorithm cosIdModShardingAlgorithm;
+    CosIdModShardingAlgorithm cosIdModShardingAlgorithm;
     org.apache.shardingsphere.sharding.algorithm.sharding.mod.ModShardingAlgorithm officeModShardingAlgorithm;
 
     @Setup
@@ -52,7 +52,7 @@ public class ModShardingAlgorithmBenchmark {
         properties.setProperty(MODULO_KEY, String.valueOf(divisor));
         properties.setProperty("sharding-count", String.valueOf(divisor));
 
-        cosIdModShardingAlgorithm = new ModShardingAlgorithm();
+        cosIdModShardingAlgorithm = new CosIdModShardingAlgorithm();
         cosIdModShardingAlgorithm.setProps(properties);
         cosIdModShardingAlgorithm.init();
 

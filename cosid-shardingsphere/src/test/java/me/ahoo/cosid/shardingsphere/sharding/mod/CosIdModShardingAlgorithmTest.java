@@ -34,7 +34,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 /**
  * @author ahoo wang
  */
-class ModShardingAlgorithmTest {
+class CosIdModShardingAlgorithmTest {
 
     public static final int DIVISOR = 4;
     public static final String LOGIC_NAME = "t_mod";
@@ -42,14 +42,14 @@ class ModShardingAlgorithmTest {
     public static final String LOGIC_NAME_PREFIX = LOGIC_NAME + "_";
     public static final ExactCollection<String> ALL_NODES = new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3");
 
-    private ModShardingAlgorithm shardingAlgorithm;
+    private CosIdModShardingAlgorithm shardingAlgorithm;
 
     @BeforeEach
     public void setup() {
         Properties properties = new Properties();
         properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, LOGIC_NAME_PREFIX);
-        properties.setProperty(ModShardingAlgorithm.MODULO_KEY, String.valueOf(DIVISOR));
-        shardingAlgorithm = new ModShardingAlgorithm();
+        properties.setProperty(CosIdModShardingAlgorithm.MODULO_KEY, String.valueOf(DIVISOR));
+        shardingAlgorithm = new CosIdModShardingAlgorithm();
         shardingAlgorithm.setProps(properties);
         shardingAlgorithm.init();
     }

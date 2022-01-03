@@ -23,4 +23,4 @@ me.ahoo.cosid.shardingsphere.sharding.interval.SnowflakeIntervalShardingAlgorith
 me.ahoo.cosid.shardingsphere.sharding.interval.SnowflakeFriendlyIntervalShardingAlgorithm
 
 
-me.ahoo.cosid.shardingsphere.sharding.mod.ModShardingAlgorithm
+me.ahoo.cosid.shardingsphere.sharding.mod.CosIdModShardingAlgorithm

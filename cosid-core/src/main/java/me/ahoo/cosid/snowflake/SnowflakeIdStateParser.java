@@ -136,11 +136,6 @@ public abstract class SnowflakeIdStateParser {
         return id & sequenceMask;
     }
 
-    public long shiftTimestamp(long timestamp) {
-        long diffTime = timestamp - epoch;
-        return (diffTime) << timestampLeft;
-    }
-
     public static SnowflakeIdStateParser of(SnowflakeId snowflakeId) {
         return of(snowflakeId, ZoneId.systemDefault());
     }

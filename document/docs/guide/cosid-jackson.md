@@ -1,6 +1,6 @@
 # CosId-Jackson 模块
 
-> **Jackson** 序列化/反序列化注解插件
+> **Jackson** 序列化/反序列化注解插件，相当于隔离了应用API边界内外的 *ID* 使用方式，应用内部使用 `long`、外部使用 `String`，做到了应用无侵入，无感知。
 
 ::: danger JavaScript Number 溢出问题
 

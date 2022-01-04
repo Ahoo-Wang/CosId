@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
+import com.google.common.base.Strings;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.provider.LazyIdGenerator;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
@@ -20,10 +21,9 @@ import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import java.time.LocalDateTime;
 
 /**
- *
  * @author ahoo wang
  */
-public class SnowflakeIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Long> {
+public class SnowflakeIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Comparable<?>> {
 
     public static final String TYPE = AbstractIntervalShardingAlgorithm.TYPE_PREFIX + "SNOWFLAKE";
 
@@ -39,8 +39,20 @@ public class SnowflakeIntervalShardingAlgorithm extends AbstractZoneIntervalShar
     }
 
     @Override
-    protected LocalDateTime convertShardingValue(Long shardingValue) {
-        return cosIdProvider.asFriendlyId(true).getParser().parseTimestamp(shardingValue);
+    protected LocalDateTime convertShardingValue(Comparable<?> shardingValue) {
+        Long snowflakeId = convertToSnowflakeId(shardingValue);
+        return cosIdProvider.asFriendlyId(true).getParser().parseTimestamp(snowflakeId);
+    }
+
+    private Long convertToSnowflakeId(Comparable<?> shardingValue) {
+        if (shardingValue instanceof Long) {
+            return (Long) shardingValue;
+        }
+        if (shardingValue instanceof String) {
+            String shardingValueStr = (String) shardingValue;
+            return cosIdProvider.idConverter().asLong(shardingValueStr);
+        }
+        throw new NotSupportIntervalShardingTypeException(Strings.lenientFormat("The current shard type:[%s] is not supported!", shardingValue.getClass()));
     }
 
     /**

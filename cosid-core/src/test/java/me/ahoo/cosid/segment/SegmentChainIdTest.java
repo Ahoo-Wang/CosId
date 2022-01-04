@@ -34,25 +34,25 @@ class SegmentChainIdTest {
     @SneakyThrows
     void sort() {
         IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
-        IdSegmentChain idSegmentClain1 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
-        IdSegmentChain idSegmentClain2 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
-        IdSegmentChain idSegmentClain3 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
-        List<IdSegmentChain> chainList = Arrays.asList(idSegmentClain2, idSegmentClain1, idSegmentClain3);
+        IdSegmentChain idSegmentChain1 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
+        IdSegmentChain idSegmentChain2 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
+        IdSegmentChain idSegmentChain3 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
+        List<IdSegmentChain> chainList = Arrays.asList(idSegmentChain2, idSegmentChain1, idSegmentChain3);
         chainList.sort(null);
-        Assertions.assertEquals(idSegmentClain1, chainList.get(0));
-        Assertions.assertEquals(idSegmentClain2, chainList.get(1));
-        Assertions.assertEquals(idSegmentClain3, chainList.get(2));
+        Assertions.assertEquals(idSegmentChain1, chainList.get(0));
+        Assertions.assertEquals(idSegmentChain2, chainList.get(1));
+        Assertions.assertEquals(idSegmentChain3, chainList.get(2));
     }
 
     @Test
     @SneakyThrows
-    void nextIdSegmentsClain() {
+    void nextIdSegmentsChain() {
         IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
-        IdSegmentChain rootClain = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(), 3,TIME_TO_LIVE_FOREVER);
-        Assertions.assertEquals(0, rootClain.getVersion());
-        Assertions.assertEquals(0, rootClain.getIdSegment().getOffset());
-        Assertions.assertEquals(300, rootClain.getStep());
-        Assertions.assertEquals(300, rootClain.getMaxId());
+        IdSegmentChain rootChain = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(), 3,TIME_TO_LIVE_FOREVER);
+        Assertions.assertEquals(0, rootChain.getVersion());
+        Assertions.assertEquals(0, rootChain.getIdSegment().getOffset());
+        Assertions.assertEquals(300, rootChain.getStep());
+        Assertions.assertEquals(300, rootChain.getMaxId());
 
     }
 

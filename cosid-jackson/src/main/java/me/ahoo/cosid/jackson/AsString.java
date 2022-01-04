@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.converter.Radix62IdConverter;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 
 import java.lang.annotation.*;
 
@@ -38,7 +39,18 @@ public @interface AsString {
 
     int radixCharSize() default Radix62IdConverter.MAX_CHAR_SIZE;
 
-    long friendlyIdEpoch() default CosId.COSID_EPOCH;
+    /**
+     * epoch of {@link me.ahoo.cosid.snowflake.SnowflakeId}
+     *
+     * @return epoch
+     */
+    long epoch() default CosId.COSID_EPOCH;
+
+    int timestampBit() default MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
+
+    int machineBit() default MillisecondSnowflakeId.DEFAULT_MACHINE_BIT;
+
+    int sequenceBit() default MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT;
 
     enum Type {
         TO_STRING,

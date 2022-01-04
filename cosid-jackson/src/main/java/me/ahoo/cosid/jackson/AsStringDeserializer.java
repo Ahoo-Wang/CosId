@@ -21,17 +21,17 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
 import com.google.common.base.Strings;
-import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
-import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
 import java.io.IOException;
 import java.util.Objects;
+
+import static me.ahoo.cosid.jackson.AsStringSerializer.isDefaultSnowflakeFriendlyIdConverter;
 
 /**
  * @author ahoo wang
@@ -72,10 +72,10 @@ public class AsStringDeserializer extends JsonDeserializer<Long> implements Cont
                 return asString.radixPadStart() ? DEFAULT_RADIX_PAD_START : DEFAULT_RADIX;
             }
             case FRIENDLY_ID: {
-                if (CosId.COSID_EPOCH == asString.friendlyIdEpoch()) {
+                if (isDefaultSnowflakeFriendlyIdConverter(asString)) {
                     return DEFAULT_FRIENDLY_ID;
                 }
-                SnowflakeIdStateParser stateParser = new MillisecondSnowflakeIdStateParser(asString.friendlyIdEpoch(), MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT, MillisecondSnowflakeId.DEFAULT_MACHINE_BIT, MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT);
+                SnowflakeIdStateParser stateParser = new MillisecondSnowflakeIdStateParser(asString.epoch(), asString.timestampBit(), asString.machineBit(), asString.sequenceBit());
                 IdConverter idConverter = new SnowflakeFriendlyIdConverter(stateParser);
                 return new AsStringDeserializer(idConverter);
             }

@@ -70,16 +70,23 @@ public class AsStringSerializer extends JsonSerializer<Long> implements Contextu
                 return asString.radixPadStart() ? DEFAULT_RADIX_PAD_START : DEFAULT_RADIX;
             }
             case FRIENDLY_ID: {
-                if (CosId.COSID_EPOCH == asString.friendlyIdEpoch()) {
+                if (isDefaultSnowflakeFriendlyIdConverter(asString)) {
                     return DEFAULT_FRIENDLY_ID;
                 }
-                SnowflakeIdStateParser stateParser = new MillisecondSnowflakeIdStateParser(asString.friendlyIdEpoch(), MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT, MillisecondSnowflakeId.DEFAULT_MACHINE_BIT, MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT);
+                SnowflakeIdStateParser stateParser = new MillisecondSnowflakeIdStateParser(asString.epoch(), asString.timestampBit(), asString.machineBit(), asString.sequenceBit());
                 IdConverter idConverter = new SnowflakeFriendlyIdConverter(stateParser);
                 return new AsStringSerializer(idConverter);
             }
             default:
                 throw new IllegalStateException("Unexpected value: " + asString.value());
         }
+    }
+
+    static boolean isDefaultSnowflakeFriendlyIdConverter(AsString asString) {
+        return CosId.COSID_EPOCH == asString.epoch()
+                && MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT == asString.timestampBit()
+                && MillisecondSnowflakeId.DEFAULT_MACHINE_BIT == asString.machineBit()
+                && MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT == asString.sequenceBit();
     }
 
     @Override

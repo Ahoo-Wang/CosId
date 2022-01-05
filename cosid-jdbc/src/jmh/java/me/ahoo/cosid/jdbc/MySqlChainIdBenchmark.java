@@ -13,35 +13,28 @@
 
 package me.ahoo.cosid.jdbc;
 
-import me.ahoo.cosid.jdbc.state.JdkIdState;
-import me.ahoo.cosid.jdbc.state.SegmentChainId1000State;
-import me.ahoo.cosid.jdbc.state.SegmentChainId100State;
-import me.ahoo.cosid.jdbc.state.SegmentChainIdState;
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.Threads;
+import me.ahoo.cosid.segment.SegmentChainId;
+import org.openjdk.jmh.annotations.*;
 
 /**
  * @author ahoo wang
  */
+@State(Scope.Benchmark)
 public class MySqlChainIdBenchmark {
 
-    @Benchmark
-    public long atomicLong_baseline(JdkIdState jdkIdState) {
-        return jdkIdState.jdkId.generate();
+    @Param({"1", "100", "1000"})
+    private int step;
+
+    SegmentChainId segmentChainId;
+
+    @Setup
+    public void setup() {
+        segmentChainId = DataSourceFactory.INSTANCE.createSegmentChainId(step);
     }
 
     @Benchmark
-    @Threads(2)
-    public long step_1(SegmentChainIdState segmentChainIdState) {
-        return segmentChainIdState.segmentId.generate();
-    }
-    @Benchmark
-    public long step_100(SegmentChainId100State segmentChainId100State) {
-        return segmentChainId100State.segmentId.generate();
-    }
-    @Benchmark
-    public long step_1000(SegmentChainId1000State segmentChainId1000State) {
-        return segmentChainId1000State.segmentId.generate();
+    public long generate() {
+        return segmentChainId.generate();
     }
 
 }

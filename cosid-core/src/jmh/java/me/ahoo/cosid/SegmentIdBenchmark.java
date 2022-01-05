@@ -37,11 +37,11 @@ public class SegmentIdBenchmark {
 
     SegmentId segmentId;
     SegmentChainId segmentChainId;
-    AtomicLongGenerator jdkId;
+    AtomicLongGenerator  atomicLongGenerator;
 
     @Setup
     public void setup() {
-        jdkId = new AtomicLongGenerator();
+        atomicLongGenerator = new AtomicLongGenerator();
         segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Mock(), PrefetchWorkerExecutorService.DEFAULT);
     }
@@ -52,8 +52,8 @@ public class SegmentIdBenchmark {
     }
 
     @Benchmark
-    public long jdkId_generate() {
-        return jdkId.generate();
+    public long atomicLong_generate() {
+        return atomicLongGenerator.generate();
     }
 
     @Benchmark

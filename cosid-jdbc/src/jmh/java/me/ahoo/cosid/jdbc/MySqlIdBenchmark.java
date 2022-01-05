@@ -13,27 +13,28 @@
 
 package me.ahoo.cosid.jdbc;
 
-import me.ahoo.cosid.jdbc.state.*;
-import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.Threads;
+import me.ahoo.cosid.segment.SegmentId;
+import org.openjdk.jmh.annotations.*;
 
 /**
  * @author ahoo wang
  */
+@State(Scope.Benchmark)
 public class MySqlIdBenchmark {
 
-    @Benchmark
-    @Threads(2)
-    public long step_1(SegmentIdState segmentIdState) {
-        return segmentIdState.segmentId.generate();
+    @Param({"1", "100", "1000"})
+    private int step;
+
+    SegmentId segmentId;
+
+    @Setup
+    public void setup() {
+        segmentId = DataSourceFactory.INSTANCE.createSegmentId(step);
     }
+
     @Benchmark
-    public long step_100(SegmentId100State segmentId100State) {
-        return segmentId100State.segmentId.generate();
-    }
-    @Benchmark
-    public long step_1000(SegmentId1000State segmentId1000State) {
-        return segmentId1000State.segmentId.generate();
+    public long generate() {
+        return segmentId.generate();
     }
 
 }

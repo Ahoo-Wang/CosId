@@ -13,30 +13,32 @@
 
 package me.ahoo.cosid.redis;
 
-import me.ahoo.cosid.redis.state.SegmentId1000State;
-import me.ahoo.cosid.redis.state.SegmentId100State;
-import me.ahoo.cosid.redis.state.SegmentIdState;
+import me.ahoo.cosid.segment.SegmentId;
 import org.openjdk.jmh.annotations.*;
 
 /**
  * @author ahoo wang
  */
+@State(Scope.Benchmark)
 public class RedisIdBenchmark {
 
-    @Benchmark
-    @Threads(28)
-    public long step_1(SegmentIdState segmentIdState) {
-        return segmentIdState.segmentId.generate();
+    @Param({"1", "100", "1000"})
+    private int step;
+
+    SegmentId segmentId;
+
+    @Setup
+    public void setup() {
+        segmentId = RedisIdFactory.INSTANCE.createSegmentId(step);
     }
 
     @Benchmark
-    public long step_100(SegmentId100State segmentId100State) {
-        return segmentId100State.segmentId.generate();
+    public long generate() {
+        return segmentId.generate();
     }
 
-    @Benchmark
-    public long step_1000(SegmentId1000State segmentId1000State) {
-        return segmentId1000State.segmentId.generate();
+    @TearDown
+    public void tearDown() {
+        RedisIdFactory.INSTANCE.close();
     }
-
 }

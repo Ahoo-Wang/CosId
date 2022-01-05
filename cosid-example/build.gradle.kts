@@ -94,8 +94,8 @@ dependencies {
     implementation("com.google.guava:guava")
     implementation("org.springframework.boot:spring-boot-starter-web")
     compileOnly("org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}")
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:${rootProject.ext.get("springBootVersion")}")
     annotationProcessor("org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}")
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:${rootProject.ext.get("springBootVersion")}")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 

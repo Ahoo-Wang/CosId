@@ -22,7 +22,7 @@ java {
 }
 
 application {
-    mainClass.set("me.ahoo.cosid.rest.RestApiServer")
+    mainClass.set("me.ahoo.cosid.example.RestApiServer")
     applicationDefaultJvmArgs = listOf(
         "-Xms512M",
         "-Xmx512M",

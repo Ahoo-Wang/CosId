@@ -1,5 +1,5 @@
 /*
- * Copyright [2021-2021] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -57,12 +57,13 @@ public class SegmentChainId implements SegmentId {
     /**
      * No lock, because it is not important, as long as the {@link #headChain} is trending forward.
      * -----
+     * <pre>
      * synchronized (this) {
-     * if (currentChain.getVersion() > headChain.getVersion()) {
-     * headChain = currentChain;
+     *   if (currentChain.getVersion() > headChain.getVersion()) {
+     *      headChain = currentChain;
+     *  }
      * }
-     * }
-     *
+     * </pre>
      * @param forwardChain
      */
     private void forward(IdSegmentChain forwardChain) {
@@ -113,7 +114,7 @@ public class SegmentChainId implements SegmentId {
     }
 
     public class PrefetchJob implements AffinityJob {
-        private final static int MAX_PREFETCH_DISTANCE = 100_000;
+        private final static int MAX_PREFETCH_DISTANCE = 100_000_000;
         /**
          * Duration.ofSeconds(5);
          */

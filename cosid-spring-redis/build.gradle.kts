@@ -1,5 +1,5 @@
 /*
- * Copyright [2021-2021] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -24,15 +24,37 @@ dependencies {
 }
 
 jmh {
+    val DELIMITER = ',';
+    val JMH_INCLUDES_KEY = "jmhIncludes"
+    val JMH_EXCLUDES_KEY = "jmhExcludes"
+    val JMH_THREADS_KEY = "jmhThreads"
+    val JMH_MODE_KEY = "jmhMode"
+
+    if (project.hasProperty(JMH_INCLUDES_KEY)) {
+        val jmhIncludes = project.properties[JMH_INCLUDES_KEY].toString().split(DELIMITER)
+        includes.set(jmhIncludes)
+    }
+    if (project.hasProperty(JMH_EXCLUDES_KEY)) {
+        val jmhExcludes = project.properties[JMH_EXCLUDES_KEY].toString().split(DELIMITER)
+        excludes.set(jmhExcludes)
+    }
+
     jmhVersion.set(rootProject.ext.get("jmhVersion").toString())
     warmupIterations.set(1)
     iterations.set(1)
     resultFormat.set("json")
-    benchmarkMode.set(
-        listOf(
-            "thrpt"
-        )
+
+    var jmhMode = listOf(
+        "thrpt"
     )
-//    threads.set(40)
+    if (project.hasProperty(JMH_MODE_KEY)) {
+        jmhMode = project.properties[JMH_MODE_KEY].toString().split(DELIMITER)
+    }
+    benchmarkMode.set(jmhMode)
+    var jmhThreads = 1
+    if (project.hasProperty(JMH_THREADS_KEY)) {
+        jmhThreads = Integer.valueOf(project.properties[JMH_THREADS_KEY].toString())
+    }
+    threads.set(jmhThreads)
     fork.set(1)
 }

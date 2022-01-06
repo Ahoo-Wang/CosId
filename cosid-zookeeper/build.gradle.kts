@@ -1,5 +1,5 @@
 /*
- * Copyright [2021-2021] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -10,7 +10,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 
 plugins {
     id("me.champeau.jmh") version "0.6.4"
@@ -24,6 +23,16 @@ dependencies {
 }
 
 jmh {
+
+    if (project.hasProperty("jmhIncludes")) {
+        val jmhIncludes =  project.properties["jmhIncludes"].toString().split(',')
+        includes.set(jmhIncludes)
+    }
+    if (project.hasProperty("jmhExcludes")) {
+        val jmhExcludes =  project.properties["jmhExcludes"].toString().split(',')
+        excludes.set(jmhExcludes)
+    }
+
     jmhVersion.set(rootProject.ext.get("jmhVersion").toString())
     warmupIterations.set(1)
     iterations.set(1)

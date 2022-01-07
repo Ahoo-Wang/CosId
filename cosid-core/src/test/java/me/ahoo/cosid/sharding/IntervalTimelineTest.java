@@ -48,7 +48,7 @@ class IntervalTimelineTest {
         intervalTimeline = new IntervalTimeline(LOGIC_NAME, Range.closed(LOWER_DATE_TIME, UPPER_DATE_TIME), step, SUFFIX_FORMATTER);
     }
 
-    static Stream<Arguments> shardingArgsProvider() {
+    public static Stream<Arguments> shardingArgsProvider() {
         return Stream.of(
                 arguments(LOWER_DATE_TIME, "table_202101"),
                 arguments(LocalDateTime.of(2021, 2, 14, 22, 0), "table_202102"),
@@ -71,7 +71,7 @@ class IntervalTimelineTest {
         });
     }
 
-    static Stream<Arguments> shardingRangeArgsProvider() {
+    public static Stream<Arguments> shardingRangeArgsProvider() {
         return Stream.of(
                 arguments(Range.all(), ALL_NODES),
                 arguments(Range.closed(LOWER_DATE_TIME, UPPER_DATE_TIME), ALL_NODES),

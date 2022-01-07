@@ -13,35 +13,51 @@
 
 package me.ahoo.cosid.sharding;
 
+import com.google.common.annotations.Beta;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Range;
 
 import java.util.Collection;
 
 /**
- * TODO
  *
  * @author ahoo wang
  */
-public class CachedSharding<T extends Comparable<T>> implements Sharding<T> {
+@Beta
+public class CachedSharding<T extends Comparable<?>> implements Sharding<T> {
 
-    private final Sharding<T> delegate;
+    private final Sharding<T> actual;
+    private final LoadingCache<Range<T>, Collection<String>> shardingCache;
 
-    public CachedSharding(Sharding<T> delegate) {
-        this.delegate = delegate;
+    public CachedSharding(Sharding<T> actual) {
+        this.actual = actual;
+        shardingCache = CacheBuilder
+                .newBuilder()
+                .build(new LoadShardingCache());
     }
 
     @Override
     public String sharding(T shardingValue) {
-        return delegate.sharding(shardingValue);
+        return actual.sharding(shardingValue);
     }
 
     @Override
     public Collection<String> sharding(Range<T> shardingValue) {
-        return null;
+        return shardingCache.getUnchecked(shardingValue);
     }
 
     @Override
     public Collection<String> getEffectiveNodes() {
-        return delegate.getEffectiveNodes();
+        return actual.getEffectiveNodes();
+    }
+
+    private class LoadShardingCache extends CacheLoader<Range<T>, Collection<String>> {
+
+        @Override
+        public Collection<String> load(Range<T> key) throws Exception {
+            return actual.sharding(key);
+        }
     }
 }

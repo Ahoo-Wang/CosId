@@ -15,15 +15,15 @@ plugins {
     id("io.github.gradle-nexus.publish-plugin") version ("1.1.0")
 }
 
-val bomProjects = listOf(
+val bomProjects = setOf(
     project(":cosid-bom"),
     project(":cosid-dependencies")
 )
 
-val coreProjects = listOf(
+val coreProjects = setOf(
     project(":cosid-core")
 )
-val serverProjects = listOf(
+val serverProjects = setOf(
     project(":cosid-example")
 )
 

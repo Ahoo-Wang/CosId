@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-val libraryProjects = rootProject.ext.get("libraryProjects") as java.util.LinkedHashSet<Project>;
+val libraryProjects = rootProject.ext.get("libraryProjects") as Iterable<Project>;
 
 dependencies {
     constraints {

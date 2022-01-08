@@ -22,7 +22,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -130,7 +129,7 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
         Interval lastInterval = effectiveIntervals[upperOffset];
 
         if (lowerOffset == upperOffset) {
-            return Collections.singleton(lastInterval.getNode());
+            return new ExactCollection<>(lastInterval.getNode());
         }
 
         if (lowerOffset == 0 && upperOffset == maxOffset) {

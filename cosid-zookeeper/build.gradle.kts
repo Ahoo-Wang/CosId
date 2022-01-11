@@ -11,35 +11,7 @@
  * limitations under the License.
  */
 
-plugins {
-    id("me.champeau.jmh") version "0.6.4"
-}
-
 dependencies {
     api(project(":cosid-core"))
     api("org.apache.curator:curator-recipes")
-    jmh("org.openjdk.jmh:jmh-core:${rootProject.ext.get("jmhVersion")}")
-    jmh("org.openjdk.jmh:jmh-generator-annprocess:${rootProject.ext.get("jmhVersion")}")
-}
-
-jmh {
-
-    if (project.hasProperty("jmhIncludes")) {
-        val jmhIncludes =  project.properties["jmhIncludes"].toString().split(',')
-        includes.set(jmhIncludes)
-    }
-    if (project.hasProperty("jmhExcludes")) {
-        val jmhExcludes =  project.properties["jmhExcludes"].toString().split(',')
-        excludes.set(jmhExcludes)
-    }
-
-    jmhVersion.set(rootProject.ext.get("jmhVersion").toString())
-    warmupIterations.set(1)
-    iterations.set(1)
-    resultFormat.set("json")
-    benchmarkMode.set(listOf(
-        "thrpt"
-    ))
-//    threads.set(40)
-    fork.set(1)
 }

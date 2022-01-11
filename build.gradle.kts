@@ -12,7 +12,7 @@
  */
 
 plugins {
-    id("io.github.gradle-nexus.publish-plugin") version ("1.1.0")
+    id("io.github.gradle-nexus.publish-plugin")
 }
 
 val bomProjects = setOf(
@@ -60,7 +60,6 @@ configure(bomProjects) {
     }
 }
 
-
 configure(libraryProjects) {
     apply<JavaLibraryPlugin>()
     configure<JavaPluginExtension> {
@@ -70,6 +69,42 @@ configure(libraryProjects) {
         withJavadocJar()
         withSourcesJar()
     }
+    apply<me.champeau.jmh.JMHPlugin>()
+    configure<me.champeau.jmh.JmhParameters> {
+        val DELIMITER = ',';
+        val JMH_INCLUDES_KEY = "jmhIncludes"
+        val JMH_EXCLUDES_KEY = "jmhExcludes"
+        val JMH_THREADS_KEY = "jmhThreads"
+        val JMH_MODE_KEY = "jmhMode"
+
+        if (project.hasProperty(JMH_INCLUDES_KEY)) {
+            val jmhIncludes = project.properties[JMH_INCLUDES_KEY].toString().split(DELIMITER)
+            includes.set(jmhIncludes)
+        }
+        if (project.hasProperty(JMH_EXCLUDES_KEY)) {
+            val jmhExcludes = project.properties[JMH_EXCLUDES_KEY].toString().split(DELIMITER)
+            excludes.set(jmhExcludes)
+        }
+
+        jmhVersion.set(rootProject.ext.get("jmhVersion").toString())
+        warmupIterations.set(1)
+        iterations.set(1)
+        resultFormat.set("json")
+
+        var jmhMode = listOf(
+            "thrpt"
+        )
+        if (project.hasProperty(JMH_MODE_KEY)) {
+            jmhMode = project.properties[JMH_MODE_KEY].toString().split(DELIMITER)
+        }
+        benchmarkMode.set(jmhMode)
+        var jmhThreads = 1
+        if (project.hasProperty(JMH_THREADS_KEY)) {
+            jmhThreads = Integer.valueOf(project.properties[JMH_THREADS_KEY].toString())
+        }
+        threads.set(jmhThreads)
+        fork.set(1)
+    }
 
     tasks.withType<Test> {
         useJUnitPlatform()
@@ -77,18 +112,20 @@ configure(libraryProjects) {
 
     dependencies {
         val depLombok = "org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}"
-        this.add("api", platform(project(":cosid-dependencies")))
-        this.add("compileOnly", depLombok)
-        this.add("annotationProcessor", depLombok)
-        this.add("testCompileOnly", depLombok)
-        this.add("testAnnotationProcessor", depLombok)
-        this.add("implementation", "com.google.guava:guava")
-        this.add("implementation", "org.slf4j:slf4j-api")
-        this.add("testImplementation", "ch.qos.logback:logback-classic")
-        this.add("testImplementation", "org.junit.jupiter:junit-jupiter-api")
-        this.add("testImplementation", "org.junit.jupiter:junit-jupiter-params")
-        this.add("testImplementation", "org.junit-pioneer:junit-pioneer")
-        this.add("testRuntimeOnly", "org.junit.jupiter:junit-jupiter-engine")
+        add("api", platform(project(":cosid-dependencies")))
+        add("compileOnly", depLombok)
+        add("annotationProcessor", depLombok)
+        add("testCompileOnly", depLombok)
+        add("testAnnotationProcessor", depLombok)
+        add("implementation", "com.google.guava:guava")
+        add("implementation", "org.slf4j:slf4j-api")
+        add("testImplementation", "ch.qos.logback:logback-classic")
+        add("testImplementation", "org.junit.jupiter:junit-jupiter-api")
+        add("testImplementation", "org.junit.jupiter:junit-jupiter-params")
+        add("testImplementation", "org.junit-pioneer:junit-pioneer")
+        add("testRuntimeOnly", "org.junit.jupiter:junit-jupiter-engine")
+        add("jmh", "org.openjdk.jmh:jmh-core:${rootProject.ext.get("jmhVersion")}")
+        add("jmh", "org.openjdk.jmh:jmh-generator-annprocess:${rootProject.ext.get("jmhVersion")}")
     }
 }
 

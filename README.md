@@ -1,5 +1,5 @@
 <p align="center" style="text-align:center">
-  <img width="300"src="./document/docs/.vuepress/public/logo.png"/>
+  <img width="300" src="./document/docs/.vuepress/public/logo.png"/>
 </p>
 
 # [CosId](https://cosid.ahoo.me/) Universal, flexible, high-performance distributed ID generator
@@ -484,7 +484,7 @@ spring:
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.7.5";
+    val cosidVersion = "1.7.6";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -500,7 +500,7 @@ spring:
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.7.5</cosid.version>
+        <cosid.version>1.7.6</cosid.version>
     </properties>
 
     <dependencies>
@@ -720,7 +720,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.7.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.7.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```

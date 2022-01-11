@@ -25,3 +25,13 @@ include(":cosid-example")
 include(":cosid-jackson")
 include(":cosid-shardingsphere")
 include(":cosid-zookeeper")
+
+buildscript{
+    repositories{
+        gradlePluginPortal()
+    }
+    dependencies{
+        classpath("me.champeau.jmh:jmh-gradle-plugin:0.6.6")
+        classpath("io.github.gradle-nexus:publish-plugin:1.1.0")
+    }
+}

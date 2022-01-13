@@ -13,16 +13,17 @@
 
 package me.ahoo.cosid.redis;
 
+import static me.ahoo.cosid.redis.RedisMachineIdDistributor.hashTag;
+
+import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.segment.IdSegmentDistributor;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.lettuce.core.cluster.api.reactive.RedisClusterReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.CosId;
-import me.ahoo.cosid.segment.IdSegmentDistributor;
 
 import java.time.Duration;
-
-import static me.ahoo.cosid.redis.RedisMachineIdDistributor.hashTag;
 
 /**
  * @author ahoo wang

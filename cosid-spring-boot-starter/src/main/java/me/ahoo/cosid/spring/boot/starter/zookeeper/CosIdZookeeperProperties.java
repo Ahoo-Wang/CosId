@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.zookeeper;
 
 import me.ahoo.cosid.CosId;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
@@ -23,7 +24,7 @@ import java.time.Duration;
  */
 @ConfigurationProperties(prefix = CosIdZookeeperProperties.PREFIX)
 public class CosIdZookeeperProperties {
-    public final static String PREFIX = CosId.COSID_PREFIX + "zookeeper";
+    public static final String PREFIX = CosId.COSID_PREFIX + "zookeeper";
 
     private boolean enabled = true;
 

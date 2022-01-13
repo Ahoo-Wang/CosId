@@ -16,7 +16,7 @@ package me.ahoo.cosid.snowflake;
 import me.ahoo.cosid.CosId;
 
 /**
- * Safe JavaScript Number Id
+ * Safe JavaScript Number ID.
  * Number.MAX_SAFE_INTEGER = 9007199254740991
  * Math.log2(Number.MAX_SAFE_INTEGER) = 53
  *
@@ -37,11 +37,6 @@ public final class SafeJavaScriptSnowflakeId {
         return new MillisecondSnowflakeId(epoch, timestampBit, machineBit, sequenceBit, machineId);
     }
 
-    public static SecondSnowflakeId ofSecond(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId) {
-        checkTotalBit(timestampBit, machineBit, sequenceBit);
-        return new SecondSnowflakeId(epoch, timestampBit, machineBit, sequenceBit, machineId);
-    }
-
     /**
      * Max Sequence (9 bits) = ((1&lt;&lt;)*1000) = 512000 (TPS)
      * Max Machine (3 bits) = 1&lt;&lt;3 = 8
@@ -56,6 +51,11 @@ public final class SafeJavaScriptSnowflakeId {
         final int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT - 3;
         checkTotalBit(timestampBit, machineBit, sequenceBit);
         return ofMillisecond(CosId.COSID_EPOCH_SECOND, timestampBit, machineBit, sequenceBit, machineId);
+    }
+
+    public static SecondSnowflakeId ofSecond(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId) {
+        checkTotalBit(timestampBit, machineBit, sequenceBit);
+        return new SecondSnowflakeId(epoch, timestampBit, machineBit, sequenceBit, machineId);
     }
 
     /**

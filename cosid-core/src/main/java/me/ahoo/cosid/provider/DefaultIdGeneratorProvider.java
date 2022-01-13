@@ -15,11 +15,10 @@ package me.ahoo.cosid.provider;
 
 import me.ahoo.cosid.IdGenerator;
 
-import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * @author ahoo wang

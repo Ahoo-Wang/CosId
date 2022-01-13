@@ -63,8 +63,8 @@ class ExactCollectionTest {
         exactCollection.add(1, "1");
         Assertions.assertEquals(new ExactCollection<String>("0", "1"), exactCollection);
         Assertions.assertEquals(new ExactCollection<String>("1", "0"), exactCollection);
-        Assertions.assertNotEquals(new ExactCollection<String>( "0"), exactCollection);
-        Assertions.assertNotEquals(new ExactCollection<String>( "0","2"), exactCollection);
+        Assertions.assertNotEquals(new ExactCollection<String>("0"), exactCollection);
+        Assertions.assertNotEquals(new ExactCollection<String>("0", "2"), exactCollection);
     }
 
 }

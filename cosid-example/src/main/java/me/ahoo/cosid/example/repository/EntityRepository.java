@@ -15,6 +15,7 @@ package me.ahoo.cosid.example.repository;
 
 import me.ahoo.cosid.example.entity.FriendlyIdEntity;
 import me.ahoo.cosid.example.entity.LongIdEntity;
+
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 

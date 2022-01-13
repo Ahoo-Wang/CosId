@@ -24,12 +24,13 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
         return getParser().parse(id);
     }
 
-    default SnowflakeIdState ofFriendlyId(String friendlyId) {
-        return getParser().parse(friendlyId);
-    }
-
     default SnowflakeIdState friendlyId() {
         long id = generate();
         return friendlyId(id);
     }
+
+    default SnowflakeIdState ofFriendlyId(String friendlyId) {
+        return getParser().parse(friendlyId);
+    }
+
 }

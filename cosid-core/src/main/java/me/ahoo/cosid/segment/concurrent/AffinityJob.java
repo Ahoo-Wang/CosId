@@ -16,6 +16,8 @@ package me.ahoo.cosid.segment.concurrent;
 import me.ahoo.cosid.util.Clock;
 
 /**
+ * Affinity Job.
+ *
  * @author ahoo wang
  */
 public interface AffinityJob extends Runnable {
@@ -32,7 +34,6 @@ public interface AffinityJob extends Runnable {
     }
 
     /**
-     *
      * @param hungerTime {@link java.util.concurrent.TimeUnit#SECONDS}
      */
     void setHungerTime(long hungerTime);

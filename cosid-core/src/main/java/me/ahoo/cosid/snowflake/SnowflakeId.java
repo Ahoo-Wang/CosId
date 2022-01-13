@@ -16,6 +16,8 @@ package me.ahoo.cosid.snowflake;
 import me.ahoo.cosid.IdGenerator;
 
 /**
+ * Snowflake algorithm ID generator.
+ *
  * @author ahoo wang
  */
 public interface SnowflakeId extends IdGenerator {
@@ -30,8 +32,8 @@ public interface SnowflakeId extends IdGenerator {
     int getSequenceBit();
 
     /**
-     * 是否是 Javascript  安全的 SnowflakeId
-     * {@link SafeJavaScriptSnowflakeId#JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT}
+     * 是否是 Javascript  安全的 SnowflakeId.
+     * {@link SafeJavaScriptSnowflakeId#JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT}.
      *
      * @return Is it a JavaScript secure snowflakeId
      */

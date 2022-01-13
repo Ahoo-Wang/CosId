@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter;
 
 import me.ahoo.cosid.CosId;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.lang.annotation.ElementType;

@@ -16,7 +16,7 @@ package me.ahoo.cosid;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * ID converter
+ * ID converter.
  *
  * @author ahoo wang
  */
@@ -24,7 +24,7 @@ import javax.annotation.concurrent.ThreadSafe;
 public interface IdConverter {
 
     /**
-     * convert {@link long} type ID to {@link String}
+     * convert {@link long} type ID to {@link String}.
      *
      * @param id {@link long} type ID
      * @return {@link String} type ID
@@ -32,7 +32,7 @@ public interface IdConverter {
     String asString(long id);
 
     /**
-     * convert {@link String} type ID to {@link long}
+     * convert {@link String} type ID to {@link long}.
      *
      * @param idString {@link String} type ID
      * @return {@link long} type ID

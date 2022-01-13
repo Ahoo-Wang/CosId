@@ -11,27 +11,24 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.repository;
-
-import me.ahoo.cosid.example.entity.Order;
-import me.ahoo.cosid.example.entity.OrderItem;
-
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
+package me.ahoo.cosid.util;
 
 /**
+ * get current process id .
+ *
  * @author ahoo wang
  */
-@Mapper
-public interface OrderRepository {
+public final class ProcessId {
 
-    void insert(Order order);
+    public static final ProcessId CURRENT = new ProcessId();
 
-    void insertItem(OrderItem orderItem);
+    private final int processId;
 
-    Order getById(@Param("orderId") long orderId);
+    public ProcessId() {
+        this.processId = Systems.getCurrentProcessId();
+    }
 
-    List<Order> getByIds(@Param("ids") List<Long> ids);
+    public int getProcessId() {
+        return processId;
+    }
 }

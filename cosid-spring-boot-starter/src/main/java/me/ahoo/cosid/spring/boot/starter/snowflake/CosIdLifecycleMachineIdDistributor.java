@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
 import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
+
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.SmartLifecycle;
 

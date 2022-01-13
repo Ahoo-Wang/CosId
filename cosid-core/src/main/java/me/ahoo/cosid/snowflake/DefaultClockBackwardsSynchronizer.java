@@ -13,10 +13,11 @@
 
 package me.ahoo.cosid.snowflake;
 
-import com.google.common.base.Preconditions;
-import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.snowflake.exception.ClockTooManyBackwardsException;
+
+import com.google.common.base.Preconditions;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.TimeUnit;
 

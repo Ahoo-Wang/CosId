@@ -16,6 +16,7 @@ package me.ahoo.cosid.example.controller;
 import me.ahoo.cosid.example.entity.FriendlyIdEntity;
 import me.ahoo.cosid.example.entity.LongIdEntity;
 import me.ahoo.cosid.example.repository.EntityRepository;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;

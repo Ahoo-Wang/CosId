@@ -13,15 +13,16 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import com.google.common.base.Strings;
+import static me.ahoo.cosid.shardingsphere.sharding.interval.StringIntervalShardingAlgorithm.DATE_TIME_PATTERN_KEY;
+
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.util.LocalDateTimeConvert;
+
+import com.google.common.base.Strings;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
-
-import static me.ahoo.cosid.shardingsphere.sharding.interval.StringIntervalShardingAlgorithm.DATE_TIME_PATTERN_KEY;
 
 /**
  * @author ahoo wang
@@ -44,7 +45,7 @@ public class CosIdIntervalShardingAlgorithm extends AbstractZoneIntervalSharding
     public void init() {
         super.init();
         if (getProps().containsKey(TIMESTAMP_TYPE_KEY)
-                && TIMESTAMP_SECOND_TYPE.equalsIgnoreCase(getProps().getProperty(TIMESTAMP_TYPE_KEY))) {
+            && TIMESTAMP_SECOND_TYPE.equalsIgnoreCase(getProps().getProperty(TIMESTAMP_TYPE_KEY))) {
             isSecondTs = true;
         }
         final String dateTimePattern = getProps().getProperty(DATE_TIME_PATTERN_KEY, DEFAULT_DATE_TIME_PATTERN);

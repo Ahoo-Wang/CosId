@@ -29,16 +29,16 @@ import java.sql.SQLIntegrityConstraintViolationException;
 @Slf4j
 public class JdbcIdSegmentInitializer {
 
-    public final static String INIT_COSID_TABLE_SQL =
-            "create table if not exists cosid\n" +
-                    "(\n" +
-                    "    name            varchar(100) not null comment '{namespace}.{name}',\n" +
-                    "    last_max_id     bigint       not null,\n" +
-                    "    last_fetch_time bigint       not null default unix_timestamp(),\n" +
-                    "    primary key (name)\n" +
-                    ") engine = InnoDB;";
+    public static final String INIT_COSID_TABLE_SQL =
+        "create table if not exists cosid\n"
+            + "(\n"
+            + "    name            varchar(100) not null comment '{namespace}.{name}',\n"
+            + "    last_max_id     bigint       not null,\n"
+            + "    last_fetch_time bigint       not null default unix_timestamp(),\n"
+            + "    primary key (name)\n"
+            + ") engine = InnoDB;";
     public static final String INIT_ID_SEGMENT_SQL
-            = "insert into cosid (name, last_max_id,last_fetch_time) value (?, ?,unix_timestamp());";
+        = "insert into cosid (name, last_max_id,last_fetch_time) value (?, ?,unix_timestamp());";
 
     private final String initCosIdTableSql;
     private final String initIdSegmentSql;

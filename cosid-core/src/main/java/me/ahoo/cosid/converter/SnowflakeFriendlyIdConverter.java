@@ -18,6 +18,8 @@ import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
 /**
+ * Snowflake FriendlyId Converter.
+ *
  * @author ahoo wang
  */
 public class SnowflakeFriendlyIdConverter implements IdConverter {

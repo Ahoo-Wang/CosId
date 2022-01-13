@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.snowflake.machine;
 
-import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * @author ahoo wang

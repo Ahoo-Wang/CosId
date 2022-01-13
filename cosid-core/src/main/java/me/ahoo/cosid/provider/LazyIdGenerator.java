@@ -13,13 +13,14 @@
 
 package me.ahoo.cosid.provider;
 
-import com.google.common.base.Strings;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
+
+import com.google.common.base.Strings;
 
 import java.util.Optional;
 

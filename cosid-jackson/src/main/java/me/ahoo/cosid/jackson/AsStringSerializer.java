@@ -13,12 +13,6 @@
 
 package me.ahoo.cosid.jackson;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.BeanProperty;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.ser.ContextualSerializer;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
@@ -27,6 +21,13 @@ import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
+
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.BeanProperty;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.ser.ContextualSerializer;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -84,9 +85,9 @@ public class AsStringSerializer extends JsonSerializer<Long> implements Contextu
 
     static boolean isDefaultSnowflakeFriendlyIdConverter(AsString asString) {
         return CosId.COSID_EPOCH == asString.epoch()
-                && MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT == asString.timestampBit()
-                && MillisecondSnowflakeId.DEFAULT_MACHINE_BIT == asString.machineBit()
-                && MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT == asString.sequenceBit();
+            && MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT == asString.timestampBit()
+            && MillisecondSnowflakeId.DEFAULT_MACHINE_BIT == asString.machineBit()
+            && MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT == asString.sequenceBit();
     }
 
     @Override

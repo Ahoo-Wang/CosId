@@ -16,6 +16,7 @@ package me.ahoo.cosid.annotation;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -23,15 +24,15 @@ import org.junit.jupiter.api.Test;
  * @author ahoo wang
  */
 public class CosIdAnnotationSupportTest {
-    private IdGeneratorProvider idGeneratorProvider = DefaultIdGeneratorProvider.INSTANCE;
-    private CosIdAnnotationSupport cosIdSupport = new CosIdAnnotationSupport(idGeneratorProvider);
+    private final IdGeneratorProvider idGeneratorProvider = DefaultIdGeneratorProvider.INSTANCE;
+    private final CosIdAnnotationSupport cosIdSupport = new CosIdAnnotationSupport(idGeneratorProvider);
 
     @Test
     void ensureId() {
         idGeneratorProvider.setShare(AtomicLongGenerator.INSTANCE);
         LongIdEntity entity = new LongIdEntity();
         cosIdSupport.ensureId(entity);
-        Assertions.assertTrue(entity.getId()>0);
+        Assertions.assertTrue(entity.getId() > 0);
     }
 
     @Test
@@ -39,13 +40,13 @@ public class CosIdAnnotationSupportTest {
         idGeneratorProvider.setShare(AtomicLongGenerator.INSTANCE);
         ChildEntity entity = new ChildEntity();
         cosIdSupport.ensureId(entity);
-        Assertions.assertTrue(entity.getId()>0);
+        Assertions.assertTrue(entity.getId() > 0);
     }
 
     @Test
     void ensureIdExists() {
         idGeneratorProvider.setShare(AtomicLongGenerator.INSTANCE);
-        long orderId=idGeneratorProvider.getShare().generate();
+        long orderId = idGeneratorProvider.getShare().generate();
         LongIdEntity entity = new LongIdEntity();
         entity.setId(888L);
         cosIdSupport.ensureId(entity);
@@ -59,7 +60,6 @@ public class CosIdAnnotationSupportTest {
             cosIdSupport.ensureId(entity);
         });
     }
-
 
 
 }

@@ -13,12 +13,12 @@
 
 package me.ahoo.cosid.util;
 
-import javax.annotation.concurrent.ThreadSafe;
 import java.time.Duration;
 import java.util.concurrent.locks.LockSupport;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * {@link System#currentTimeMillis()} is too slow!
+ * {@link System#currentTimeMillis()} is too slow.
  *
  * @author ahoo wang
  */
@@ -48,7 +48,7 @@ public interface Clock {
     }
 
     /**
-     * Fix the problem that {@link System#currentTimeMillis()} is too slow
+     * Fix the problem that {@link System#currentTimeMillis()} is too slow.
      * The accuracy is 1 second
      *
      * @author ahoo wang
@@ -74,17 +74,6 @@ public interface Clock {
             return lastTime;
         }
 
-        /**
-         * When an object implementing interface <code>Runnable</code> is used
-         * to create a thread, starting the thread causes the object's
-         * <code>run</code> method to be called in that separately executing
-         * thread.
-         * <p>
-         * The general contract of the method <code>run</code> is that it may
-         * take any action whatsoever.
-         *
-         * @see Thread#run()
-         */
         @Override
         public void run() {
             while (!thread.isInterrupted()) {

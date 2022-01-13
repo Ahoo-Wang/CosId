@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.snowflake.exception;
 
-import com.google.common.base.Strings;
 import me.ahoo.cosid.CosIdException;
+
+import com.google.common.base.Strings;
 
 /**
  * @author ahoo wang

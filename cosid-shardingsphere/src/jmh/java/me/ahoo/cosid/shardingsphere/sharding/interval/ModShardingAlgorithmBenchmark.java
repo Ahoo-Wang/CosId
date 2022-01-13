@@ -13,19 +13,24 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import com.google.common.collect.Range;
+import static me.ahoo.cosid.shardingsphere.sharding.mod.CosIdModShardingAlgorithm.MODULO_KEY;
+
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.shardingsphere.sharding.mod.CosIdModShardingAlgorithm;
 
+import com.google.common.collect.Range;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
-import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
 
 import java.util.Collection;
 import java.util.Properties;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static me.ahoo.cosid.shardingsphere.sharding.mod.CosIdModShardingAlgorithm.MODULO_KEY;
 
 /**
  * @author ahoo wang
@@ -33,9 +38,9 @@ import static me.ahoo.cosid.shardingsphere.sharding.mod.CosIdModShardingAlgorith
 @State(Scope.Benchmark)
 public class ModShardingAlgorithmBenchmark {
 
-    private final static String LOGIC_TABLE_NAME = "t_mod";
-    private final static String LOGIC_NAME_PREFIX = LOGIC_TABLE_NAME + "_";
-    private final static String ID_COLUMN_NAME = "id";
+    private static final String LOGIC_TABLE_NAME = "t_mod";
+    private static final String LOGIC_NAME_PREFIX = LOGIC_TABLE_NAME + "_";
+    private static final String ID_COLUMN_NAME = "id";
     @Param({"10", "100", "1000", "10000", "100000"})
     private int divisor;
     private int randomBound;

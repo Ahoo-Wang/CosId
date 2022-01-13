@@ -16,10 +16,12 @@ package me.ahoo.cosid.converter;
 import me.ahoo.cosid.IdConverter;
 
 /**
+ * ToString ID Converter.
+ *
  * @author ahoo wang
  */
 public class ToStringIdConverter implements IdConverter {
-    
+
     public static final IdConverter INSTANCE = new ToStringIdConverter();
 
     @Override

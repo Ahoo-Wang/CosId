@@ -17,6 +17,7 @@ import me.ahoo.cosid.example.entity.interval.DateLogEntity;
 import me.ahoo.cosid.example.entity.interval.LocalDateTimeLogEntity;
 import me.ahoo.cosid.example.entity.interval.SnowflakeLogEntity;
 import me.ahoo.cosid.example.entity.interval.TimestampLogEntity;
+
 import org.apache.ibatis.annotations.Mapper;
 
 /**
@@ -26,7 +27,9 @@ import org.apache.ibatis.annotations.Mapper;
 public interface IntervalShardingAlgorithmRepository {
 
     void insertDate(DateLogEntity log);
+
     void insertTimestamp(TimestampLogEntity log);
+
     void insertDateTime(LocalDateTimeLogEntity log);
 
     void insertSnowflake(SnowflakeLogEntity log);

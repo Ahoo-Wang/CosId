@@ -20,18 +20,18 @@ import me.ahoo.cosid.CosIdException;
  */
 public final class Exceptions {
 
-    public static <TResult> TResult invokeUnchecked(CheckedFunction<TResult> checkedFunction) {
+    public static <T> T invokeUnchecked(CheckedFunction<T> checkedFunction) {
         try {
             return checkedFunction.invoke();
         } catch (RuntimeException | Error runtimeException) {
             throw runtimeException;
         } catch (Exception exception) {
-            throw new CosIdException(exception.getMessage(),exception);
+            throw new CosIdException(exception.getMessage(), exception);
         }
     }
 
     @FunctionalInterface
-    public interface CheckedFunction<TResult> {
-        TResult invoke() throws Exception;
+    public interface CheckedFunction<T> {
+        T invoke() throws Exception;
     }
 }

@@ -19,9 +19,11 @@ import me.ahoo.cosid.annotation.IdMetadata;
 import java.lang.reflect.Field;
 
 /**
+ *
  * @author ahoo wang
  */
 public abstract class AbstractIdMetadata implements IdMetadata {
+
     private final CosIdDefinition cosIdDefinition;
     private final Field idField;
 

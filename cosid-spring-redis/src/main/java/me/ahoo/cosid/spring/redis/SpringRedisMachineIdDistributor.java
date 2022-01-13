@@ -13,17 +13,22 @@
 
 package me.ahoo.cosid.spring.redis;
 
+import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
+
+import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
+import me.ahoo.cosid.snowflake.machine.MachineState;
+import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
+
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.machine.*;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 
 import java.util.Collections;
 import java.util.List;
-
-import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
 
 /**
  * @author ahoo wang
@@ -79,7 +84,6 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
 
     /**
      * when {@link InstanceId#isStable()} is true,do not revert machineId
-     *
      */
     @Override
     protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {

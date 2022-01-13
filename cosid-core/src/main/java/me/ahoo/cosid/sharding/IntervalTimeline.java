@@ -103,7 +103,8 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
         }
 
         int maxOffset = size() - 1;
-        int lowerOffset = 0, upperOffset = maxOffset;
+        int lowerOffset = 0;
+        int upperOffset = maxOffset;
         if (shardingValue.hasLowerBound()) {
             LocalDateTime lowerEndpoint = shardingValue.lowerEndpoint();
             if (!lowerEndpoint.isBefore(startInterval.getLower())) {
@@ -117,7 +118,7 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
                 upperOffset = step.offsetUnit(startInterval.getLower(), shardingValue.upperEndpoint());
                 Interval lastInterval = effectiveIntervals[upperOffset];
                 if (BoundType.OPEN.equals(shardingValue.upperBoundType())
-                        && lastInterval.getLower().equals(upperEndpoint)) {
+                    && lastInterval.getLower().equals(upperEndpoint)) {
                     if (upperOffset == 0) {
                         return ExactCollection.empty();
                     }

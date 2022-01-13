@@ -13,11 +13,11 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.mod;
 
-
-import com.google.common.annotations.VisibleForTesting;
 import me.ahoo.cosid.sharding.ModCycle;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.shardingsphere.sharding.utils.PropertiesUtil;
+
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.StandardShardingAlgorithm;

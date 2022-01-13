@@ -25,25 +25,25 @@ import java.sql.SQLException;
  */
 @Slf4j
 public class JdbcMachineIdInitializer {
-    private final static String INIT_COSID_MACHINE_TABLE_SQL =
-            "create table if not exists cosid_machine\n" +
-                    "(\n" +
-                    "    name            varchar(100) not null comment '{namespace}.{machine_id}',\n" +
-                    "    namespace       varchar(100) not null,\n" +
-                    "    machine_id      integer      not null default 0,\n" +
-                    "    last_timestamp  bigint       not null default 0,\n" +
-                    "    instance_id     varchar(100) not null default '',\n" +
-                    "    distribute_time bigint       not null default 0,\n" +
-                    "    revert_time     bigint       not null default 0,\n" +
-                    "    constraint cosid_machine_pk\n" +
-                    "        primary key (name)\n" +
-                    ") engine = InnoDB;";
+    private static final String INIT_COSID_MACHINE_TABLE_SQL =
+        "create table if not exists cosid_machine\n"
+            + "(\n"
+            + "    name            varchar(100) not null comment '{namespace}.{machine_id}',\n"
+            + "    namespace       varchar(100) not null,\n"
+            + "    machine_id      integer      not null default 0,\n"
+            + "    last_timestamp  bigint       not null default 0,\n"
+            + "    instance_id     varchar(100) not null default '',\n"
+            + "    distribute_time bigint       not null default 0,\n"
+            + "    revert_time     bigint       not null default 0,\n"
+            + "    constraint cosid_machine_pk\n"
+            + "        primary key (name)\n"
+            + ") engine = InnoDB;";
 
-    private final static String INIT_NAMESPACE_IDX_SQL =
-            "create index if not exists idx_namespace on cosid_machine (namespace);";
+    private static final String INIT_NAMESPACE_IDX_SQL =
+        "create index if not exists idx_namespace on cosid_machine (namespace);";
 
-    private final static String INIT_INSTANCE_ID_IDX_SQL =
-            "create index if not exists idx_instance_id on cosid_machine (instance_id);";
+    private static final String INIT_INSTANCE_ID_IDX_SQL =
+        "create index if not exists idx_instance_id on cosid_machine (instance_id);";
 
     private final DataSource dataSource;
 

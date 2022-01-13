@@ -13,9 +13,19 @@
 
 package me.ahoo.cosid;
 
-import lombok.var;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
-import me.ahoo.cosid.snowflake.*;
+import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
+import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
+import me.ahoo.cosid.snowflake.SafeJavaScriptSnowflakeId;
+import me.ahoo.cosid.snowflake.SecondSnowflakeId;
+import me.ahoo.cosid.snowflake.SecondSnowflakeIdStateParser;
+import me.ahoo.cosid.snowflake.SnowflakeId;
+import me.ahoo.cosid.snowflake.SnowflakeIdState;
+
+import lombok.var;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -70,7 +80,8 @@ public class IdGeneratorTest {
     @Test
     public void test() {
         var id = 99191438008389632L;
-        var snowflakeIdStateParser = new MillisecondSnowflakeIdStateParser(CosId.COSID_EPOCH, MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT, MillisecondSnowflakeId.DEFAULT_MACHINE_BIT, MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT);
+        var snowflakeIdStateParser = new MillisecondSnowflakeIdStateParser(CosId.COSID_EPOCH, MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT, MillisecondSnowflakeId.DEFAULT_MACHINE_BIT,
+            MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT);
         var idState = snowflakeIdStateParser.parse(id);
         Assertions.assertNotNull(idState);
         var idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
@@ -93,9 +104,9 @@ public class IdGeneratorTest {
     public void secondSnowflakeIdTestEpoch() {
 
         var idGen = new SecondSnowflakeId(LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond(),
-                SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
-                SecondSnowflakeId.DEFAULT_MACHINE_BIT,
-                SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023);
+            SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
+            SecondSnowflakeId.DEFAULT_MACHINE_BIT,
+            SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023);
         var snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
         var id = idGen.generate();
         var id1 = idGen.generate();

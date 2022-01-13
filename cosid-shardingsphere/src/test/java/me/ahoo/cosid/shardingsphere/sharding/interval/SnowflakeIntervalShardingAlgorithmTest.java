@@ -13,12 +13,19 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import com.google.common.collect.Range;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.sharding.ExactCollection;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
-import me.ahoo.cosid.snowflake.*;
+import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
+import me.ahoo.cosid.snowflake.SnowflakeId;
+import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
+
+import com.google.common.collect.Range;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,14 +34,12 @@ import org.junit.jupiter.api.Test;
 import java.util.Collection;
 import java.util.Properties;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
 /**
  * @author ahoo wang
  */
 class SnowflakeIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorithmTest {
 
-    public final static String ID_NAME = "test_snowflake_friendly_interval";
+    public static final String ID_NAME = "test_snowflake_friendly_interval";
     SnowflakeIntervalShardingAlgorithm shardingAlgorithm;
     SnowflakeFriendlyId friendlyId;
 

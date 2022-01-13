@@ -16,6 +16,8 @@ package me.ahoo.cosid;
 import java.time.LocalDateTime;
 
 /**
+ * CosId constant.
+ *
  * @author ahoo wang
  */
 public final class CosId {

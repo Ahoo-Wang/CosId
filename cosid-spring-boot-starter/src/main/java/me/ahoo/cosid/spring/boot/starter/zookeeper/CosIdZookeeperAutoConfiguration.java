@@ -13,9 +13,10 @@
 
 package me.ahoo.cosid.spring.boot.starter.zookeeper;
 
-import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributorFactory;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
@@ -52,8 +53,8 @@ public class CosIdZookeeperAutoConfiguration {
         CuratorFrameworkFactory.Builder builder = CuratorFrameworkFactory.builder();
         builder.connectString(zookeeperProperties.getConnectString());
         builder.sessionTimeoutMs((int) zookeeperProperties.getSessionTimeout().toMillis())
-                .connectionTimeoutMs((int) zookeeperProperties.getConnectionTimeout().toMillis())
-                .retryPolicy(retryPolicy);
+            .connectionTimeoutMs((int) zookeeperProperties.getConnectionTimeout().toMillis())
+            .retryPolicy(retryPolicy);
         CuratorFramework curator = builder.build();
         curator.start();
         curator.blockUntilConnected((int) zookeeperProperties.getBlockUntilConnectedWait().toMillis(), TimeUnit.MILLISECONDS);

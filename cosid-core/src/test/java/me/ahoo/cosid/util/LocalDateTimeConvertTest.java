@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.util;
 
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -27,17 +28,16 @@ import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /**
  * @author ahoo wang
  */
 class LocalDateTimeConvertTest {
-    private final static ZoneId ZONE_ID_SHANGHAI = ZoneId.of("Asia/Shanghai");
-    private final static ZoneOffset ZONE_OFFSET_SHANGHAI = ZoneOffset.of("+8");
-    private final static LocalDateTime EXPECTED_DATE_TIME = LocalDateTime.of(2021, 12, 14, 22, 0);
-    private final static long TEST_TIMESTAMP = EXPECTED_DATE_TIME.toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli();
-    private final static long TEST_TIMESTAMP_SECOND = EXPECTED_DATE_TIME.toInstant(ZONE_OFFSET_SHANGHAI).getEpochSecond();
+    private static final ZoneId ZONE_ID_SHANGHAI = ZoneId.of("Asia/Shanghai");
+    private static final ZoneOffset ZONE_OFFSET_SHANGHAI = ZoneOffset.of("+8");
+    private static final LocalDateTime EXPECTED_DATE_TIME = LocalDateTime.of(2021, 12, 14, 22, 0);
+    private static final long TEST_TIMESTAMP = EXPECTED_DATE_TIME.toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli();
+    private static final long TEST_TIMESTAMP_SECOND = EXPECTED_DATE_TIME.toInstant(ZONE_OFFSET_SHANGHAI).getEpochSecond();
 
     @Test
     void fromDate() {
@@ -60,10 +60,10 @@ class LocalDateTimeConvertTest {
 
     static Stream<Arguments> fromStringArgsProvider() {
         return Stream.of(
-                arguments("yyyy-MM-dd HH:mm:ss", "2021-12-14 22:00:00", LocalDateTime.of(2021, 12, 14, 22, 0)),
-                arguments("yyyy-MM-dd HH:mm", "2021-12-14 22:00", LocalDateTime.of(2021, 12, 14, 22, 0)),
-                arguments("yyyy-MM-dd HH", "2021-12-14 22", LocalDateTime.of(2021, 12, 14, 22, 0)),
-                arguments("yyyy-MM-dd", "2021-12-14", LocalDateTime.of(2021, 12, 14, 0, 0))
+            arguments("yyyy-MM-dd HH:mm:ss", "2021-12-14 22:00:00", LocalDateTime.of(2021, 12, 14, 22, 0)),
+            arguments("yyyy-MM-dd HH:mm", "2021-12-14 22:00", LocalDateTime.of(2021, 12, 14, 22, 0)),
+            arguments("yyyy-MM-dd HH", "2021-12-14 22", LocalDateTime.of(2021, 12, 14, 22, 0)),
+            arguments("yyyy-MM-dd", "2021-12-14", LocalDateTime.of(2021, 12, 14, 0, 0))
         );
     }
 

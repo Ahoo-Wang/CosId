@@ -13,8 +13,11 @@
 
 package me.ahoo.cosid.segment;
 
-import lombok.SneakyThrows;
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -23,7 +26,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
 /**
  * @author ahoo wang
@@ -48,7 +50,7 @@ class SegmentChainIdTest {
     @SneakyThrows
     void nextIdSegmentsChain() {
         IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
-        IdSegmentChain rootChain = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(), 3,TIME_TO_LIVE_FOREVER);
+        IdSegmentChain rootChain = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(), 3, TIME_TO_LIVE_FOREVER);
         Assertions.assertEquals(0, rootChain.getVersion());
         Assertions.assertEquals(0, rootChain.getIdSegment().getOffset());
         Assertions.assertEquals(300, rootChain.getStep());
@@ -61,7 +63,6 @@ class SegmentChainIdTest {
     @SneakyThrows
     void generate() {
         SegmentChainId segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Atomic(2), PrefetchWorkerExecutorService.DEFAULT);
-//        Thread.sleep(10);
         segmentChainId.generate();
         segmentChainId.generate();
         segmentChainId.generate();
@@ -172,7 +173,7 @@ class SegmentChainIdTest {
                 totalIds.addAll(ids);
             }
             totalIds.sort(Long::compareTo);
-            ArrayList<IdSegment> idSegments = new ArrayList<IdSegment>((int)(totalIds.size() / testMaxIdDistributor.getStep() + 1000));
+            ArrayList<IdSegment> idSegments = new ArrayList<IdSegment>((int) (totalIds.size() / testMaxIdDistributor.getStep() + 1000));
             IdSegmentChain current = head1;
             while (current.getNext() != null) {
                 current = current.getNext();
@@ -200,12 +201,9 @@ class SegmentChainIdTest {
                     lastId = currentId;
                     continue;
                 }
-//                if (lastId + 1 != currentId) {
-//                    /**
-//                     * SegmentChainId 预取（安全间隙规则）导致实例1/实例2 预取到的IdSegment没有完全使用，导致ID空洞，只能保证趋势递增
-//                     */
-//                    Assertions.assertEquals(lastId + 1, currentId);
-//                }
+                /**
+                 * SegmentChainId 预取（安全间隙规则）导致实例1/实例2 预取到的IdSegment没有完全使用，导致ID空洞，只能保证趋势递增
+                 */
                 Assertions.assertTrue(lastId + 1 <= currentId);
 
                 lastId = currentId;

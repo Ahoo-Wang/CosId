@@ -13,12 +13,13 @@
 
 package me.ahoo.cosid.converter;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import me.ahoo.cosid.IdConverter;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+
 /**
- * [0-9][A-Z][a-z]{11}
+ * 62 bit string ID converter like this [0-9][A-Z][a-z]{11} .
  *
  * @author ahoo wang
  */
@@ -57,24 +58,24 @@ public final class Radix62IdConverter implements IdConverter {
      */
     private static final char LOWERCASE_Z = 'z';
 
-    private final static char[] digits = {
-            /**
-             * offset: 0
-             * [48-57]
-            */
-            ZERO, '1', '2', '3', '4', '5', '6', '7', '8', NINE,
-            /**
-             * offset: 10
-             * [64-90]
-            */
-            UPPERCASE_A, 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-            'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', UPPERCASE_Z,
-            /**
-             * offset: 36
-             * [97-122]
-            */
-            LOWERCASE_A, 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', LOWERCASE_Z,
+    private static final char[] digits = {
+        /**
+         * offset: 0
+         * [48-57]
+        */
+        ZERO, '1', '2', '3', '4', '5', '6', '7', '8', NINE,
+        /**
+         * offset: 10
+         * [64-90]
+        */
+        UPPERCASE_A, 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+        'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', UPPERCASE_Z,
+        /**
+         * offset: 36
+         * [97-122]
+        */
+        LOWERCASE_A, 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+        'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', LOWERCASE_Z,
     };
 
     private static final char PAD_CHAR = ZERO;

@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
-import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.context.SmartLifecycle;
 

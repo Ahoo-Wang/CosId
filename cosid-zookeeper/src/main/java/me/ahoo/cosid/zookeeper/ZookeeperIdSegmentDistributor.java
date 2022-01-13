@@ -13,14 +13,14 @@
 
 package me.ahoo.cosid.zookeeper;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.util.Exceptions;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.atomic.AtomicValue;

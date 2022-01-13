@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.redis;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
@@ -32,10 +33,10 @@ public class SpringRedisIdSegmentDistributorFactory implements IdSegmentDistribu
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         return new SpringRedisIdSegmentDistributor(
-                definition.getNamespace(),
-                definition.getName(),
-                definition.getOffset(),
-                definition.getStep(),
-                redisTemplate);
+            definition.getNamespace(),
+            definition.getName(),
+            definition.getOffset(),
+            definition.getStep(),
+            redisTemplate);
     }
 }

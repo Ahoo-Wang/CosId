@@ -18,6 +18,7 @@ import me.ahoo.cosid.snowflake.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.machine.LocalMachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
@@ -30,7 +31,7 @@ import java.util.Map;
  */
 @ConfigurationProperties(prefix = SnowflakeIdProperties.PREFIX)
 public class SnowflakeIdProperties {
-    public final static String PREFIX = CosId.COSID_PREFIX + "snowflake";
+    public static final String PREFIX = CosId.COSID_PREFIX + "snowflake";
 
     private boolean enabled = false;
     private String zoneId = ZoneId.systemDefault().getId();

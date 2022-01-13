@@ -13,13 +13,14 @@
 
 package me.ahoo.cosid.jdbc;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.jdbc.exception.NotFoundMaxIdException;
 import me.ahoo.cosid.jdbc.exception.SegmentNameMissingException;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -34,9 +35,9 @@ import java.sql.SQLException;
 public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
 
     public static final String INCREMENT_MAX_ID_SQL
-            = "update cosid set last_max_id=(last_max_id + ?),last_fetch_time=unix_timestamp() where name = ?;";
+        = "update cosid set last_max_id=(last_max_id + ?),last_fetch_time=unix_timestamp() where name = ?;";
     public static final String FETCH_MAX_ID_SQL
-            = "select last_max_id from cosid where name = ?;";
+        = "select last_max_id from cosid where name = ?;";
 
     private final String namespace;
     private final String name;

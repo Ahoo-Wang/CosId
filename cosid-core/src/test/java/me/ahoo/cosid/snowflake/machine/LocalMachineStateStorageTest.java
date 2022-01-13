@@ -47,7 +47,7 @@ class LocalMachineStateStorageTest {
     @Test
     void remove() {
         fileLocalMachineState.remove(namespace, InstanceId.NONE);
-        Assertions.assertTrue(!fileLocalMachineState.exists(namespace, InstanceId.NONE));
+        Assertions.assertFalse(fileLocalMachineState.exists(namespace, InstanceId.NONE));
     }
 
     @Test

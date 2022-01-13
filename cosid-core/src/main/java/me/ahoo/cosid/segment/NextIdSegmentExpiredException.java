@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.segment;
 
-import com.google.common.base.Strings;
 import me.ahoo.cosid.CosIdException;
+
+import com.google.common.base.Strings;
 
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -28,9 +29,9 @@ public class NextIdSegmentExpiredException extends CosIdException {
 
     public NextIdSegmentExpiredException(IdSegment current, IdSegment next) {
         super(Strings.lenientFormat("The next IdSegment:[%s] cannot be before the current IdSegment:[%s]-- times:[%s].",
-                next,
-                current,
-                times.incrementAndGet())
+            next,
+            current,
+            times.incrementAndGet())
         );
         this.current = current;
         this.next = next;

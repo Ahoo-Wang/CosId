@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.annotation.accessor;
 
-import lombok.SneakyThrows;
 import me.ahoo.cosid.annotation.ChildEntity;
 import me.ahoo.cosid.annotation.CosId;
 import me.ahoo.cosid.annotation.LongIdEntity;
@@ -21,9 +20,10 @@ import me.ahoo.cosid.annotation.accessor.field.FieldGetter;
 import me.ahoo.cosid.annotation.accessor.field.FieldSetter;
 import me.ahoo.cosid.annotation.accessor.method.MethodGetter;
 import me.ahoo.cosid.annotation.accessor.method.MethodSetter;
+
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-
 
 /**
  * @author ahoo wang
@@ -33,9 +33,9 @@ class CosIdAccessorSupportTest {
     @SneakyThrows
     @Test
     void getCosIdAccessor() {
-        DefaultCosIdAccessor cosIdAccessor = (DefaultCosIdAccessor)CosIdAccessorSupport.getCosIdAccessor(LongIdEntity.class);
+        DefaultCosIdAccessor cosIdAccessor = (DefaultCosIdAccessor) CosIdAccessorSupport.getCosIdAccessor(LongIdEntity.class);
 
-        Assertions.assertEquals(LongIdEntity.class.getDeclaredField("id"),cosIdAccessor.getIdField());
+        Assertions.assertEquals(LongIdEntity.class.getDeclaredField("id"), cosIdAccessor.getIdField());
 
         Assertions.assertTrue(cosIdAccessor.getGetter() instanceof MethodGetter);
         Assertions.assertTrue(cosIdAccessor.getSetter() instanceof MethodSetter);
@@ -54,7 +54,7 @@ class CosIdAccessorSupportTest {
     void noGetterSetter() {
         DefaultCosIdAccessor cosIdAccessor = (DefaultCosIdAccessor) CosIdAccessorSupport.getCosIdAccessor(NoGetterSetter.class);
 
-        Assertions.assertEquals(NoGetterSetter.class.getDeclaredField("id"),cosIdAccessor.getIdField());
+        Assertions.assertEquals(NoGetterSetter.class.getDeclaredField("id"), cosIdAccessor.getIdField());
 
         Assertions.assertTrue(cosIdAccessor.getGetter() instanceof FieldGetter);
         Assertions.assertTrue(cosIdAccessor.getSetter() instanceof FieldSetter);
@@ -65,7 +65,7 @@ class CosIdAccessorSupportTest {
     void finalId() {
         DefaultCosIdAccessor cosIdAccessor = (DefaultCosIdAccessor) CosIdAccessorSupport.getCosIdAccessor(FinalId.class);
 
-        Assertions.assertEquals(FinalId.class.getDeclaredField("id"),cosIdAccessor.getIdField());
+        Assertions.assertEquals(FinalId.class.getDeclaredField("id"), cosIdAccessor.getIdField());
 
         FinalId finalId = new FinalId();
         Assertions.assertEquals(0L, cosIdAccessor.get(finalId));
@@ -75,13 +75,13 @@ class CosIdAccessorSupportTest {
 
     @SneakyThrows
     @Test
-    void child(){
+    void child() {
         DefaultCosIdAccessor cosIdAccessor = (DefaultCosIdAccessor) CosIdAccessorSupport.getCosIdAccessor(ChildEntity.class);
-        Assertions.assertEquals(LongIdEntity.class.getDeclaredField("id"),cosIdAccessor.getIdField());
+        Assertions.assertEquals(LongIdEntity.class.getDeclaredField("id"), cosIdAccessor.getIdField());
     }
 
     @Test
-    void multipleId(){
+    void multipleId() {
         Assertions.assertThrows(MultipleIdNotSupportException.class, () -> {
             CosIdAccessorSupport.getCosIdAccessor(MultipleId.class);
         });
@@ -112,9 +112,9 @@ class CosIdAccessorSupportTest {
 
     public static class MultipleId {
         @CosId
-        private  long id ;
+        private long id;
         @CosId
-        private  long id2 ;
+        private long id2;
 
         public long getId() {
             return id;

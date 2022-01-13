@@ -45,8 +45,8 @@ public class IntervalStep {
     /**
      * 按照 {@link #unit} 保留单位时间精度
      *
-     * @param time
-     * @return
+     * @param time time
+     * @return Unit precision LocalDateTime
      */
     public LocalDateTime floorUnit(LocalDateTime time) {
         switch (unit) {
@@ -78,8 +78,8 @@ public class IntervalStep {
      * Start with 0
      *
      * @param start 最小值
-     * @param time
-     * @return
+     * @param time time
+     * @return offset
      */
     public int offsetUnit(LocalDateTime start, LocalDateTime time) {
         return getDiffUnit(start, time) / amount;

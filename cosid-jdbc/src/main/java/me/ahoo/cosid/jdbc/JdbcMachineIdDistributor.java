@@ -13,14 +13,23 @@
 
 package me.ahoo.cosid.jdbc;
 
-import com.google.common.base.Strings;
-import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.machine.*;
+import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
+import me.ahoo.cosid.snowflake.machine.MachineState;
+import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
+
+import com.google.common.base.Strings;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 
 /**
  * @author ahoo wang
@@ -31,27 +40,27 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     private final DataSource dataSource;
 
     private static final String GET_MACHINE_STATE =
-            "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id=?";
+        "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id=?";
 
     private static final String GET_REVERT_MACHINE_STATE =
-            "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id =''";
+        "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id =''";
 
     private static final String DISTRIBUTE_REVERT_MACHINE_STATE =
-            "update cosid_machine set instance_id=?,distribute_time=? where name=? and instance_id=''";
+        "update cosid_machine set instance_id=?,distribute_time=? where name=? and instance_id=''";
 
     private static final String NEXT_MACHINE_ID =
-            "select max(machine_id)+1 as next_machine_id from cosid_machine where namespace=?";
+        "select max(machine_id)+1 as next_machine_id from cosid_machine where namespace=?";
 
     private static final String DISTRIBUTE_MACHINE =
-            "insert into cosid_machine " +
-                    "(name, namespace, machine_id, last_timestamp, instance_id, distribute_time, revert_time) " +
-                    "values " +
-                    "(?,?,?,?,?,?,0);";
+        "insert into cosid_machine "
+            + "(name, namespace, machine_id, last_timestamp, instance_id, distribute_time, revert_time) "
+            + "values "
+            + "(?,?,?,?,?,?,0);";
 
     private static final String REVERT_MACHINE_STATE =
-            "update cosid_machine " +
-                    "set instance_id=?,last_timestamp=?,revert_time=? " +
-                    "where namespace=? and instance_id=?";
+        "update cosid_machine "
+            + "set instance_id=?,last_timestamp=?,revert_time=? "
+            + "where namespace=? and instance_id=?";
 
     public JdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
@@ -92,10 +101,14 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         try (Connection connection = dataSource.getConnection()) {
 
             MachineState machineState = getMachineStateBySelf(namespace, instanceId, connection);
-            if (machineState != null) return machineState;
+            if (machineState != null) {
+                return machineState;
+            }
 
             machineState = getMachineStateByRevert(namespace, instanceId, connection);
-            if (machineState != null) return machineState;
+            if (machineState != null) {
+                return machineState;
+            }
 
             return distributeMachine(namespace, machineBit, instanceId, connection);
         } catch (SQLException sqlException) {

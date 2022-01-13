@@ -13,14 +13,20 @@
 
 package me.ahoo.cosid.example.controller;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.example.dto.AsStringDto;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.SafeJavaScriptSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
-import org.springframework.web.bind.annotation.*;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Optional;
 

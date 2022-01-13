@@ -15,7 +15,11 @@ package me.ahoo.cosid.annotation;
 
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
-import java.lang.annotation.*;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * @author ahoo wang
@@ -25,7 +29,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface CosId {
     /**
-     * id generator name
+     * id generator name.
      * {@link IdGeneratorProvider#get(String)}
      *
      * @return id generator name
@@ -33,9 +37,9 @@ public @interface CosId {
     String value() default IdGeneratorProvider.SHARE;
 
     /**
-     * {@link me.ahoo.cosid.snowflake.SnowflakeFriendlyId}
+     * {@link me.ahoo.cosid.snowflake.SnowflakeFriendlyId}.
      *
-     * @return
+     * @return true when friendlyId
      */
     boolean friendlyId() default false;
 }

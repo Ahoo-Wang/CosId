@@ -13,9 +13,10 @@
 
 package me.ahoo.cosid.spring.redis;
 
+import me.ahoo.cosid.CosIdException;
+
 import com.google.common.base.Charsets;
 import com.google.common.io.Resources;
-import me.ahoo.cosid.CosIdException;
 
 import java.io.IOException;
 import java.net.URL;

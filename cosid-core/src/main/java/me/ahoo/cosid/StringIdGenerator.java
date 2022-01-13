@@ -14,6 +14,8 @@
 package me.ahoo.cosid;
 
 /**
+ * used to enhance the generated string ID.
+ *
  * @author ahoo wang
  */
 public class StringIdGenerator implements IdGenerator {

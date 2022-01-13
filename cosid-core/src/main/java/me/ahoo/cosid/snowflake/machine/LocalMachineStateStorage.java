@@ -13,13 +13,13 @@
 
 package me.ahoo.cosid.snowflake.machine;
 
+import me.ahoo.cosid.CosIdException;
+
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.io.Files;
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.CosIdException;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -134,7 +134,9 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             log.info("clear - namespace : [{}].", namespace);
         }
         File[] stateFiles = getStateFilesOf(namespace);
-        if (stateFiles == null) return;
+        if (stateFiles == null) {
+            return;
+        }
         for (File stateFile : stateFiles) {
             if (log.isInfoEnabled()) {
                 log.info("clear - stateLocation : [{}].", stateFile.getAbsolutePath());

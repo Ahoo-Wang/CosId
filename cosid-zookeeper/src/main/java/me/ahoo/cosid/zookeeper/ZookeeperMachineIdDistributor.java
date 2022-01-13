@@ -13,13 +13,18 @@
 
 package me.ahoo.cosid.zookeeper;
 
-import com.google.common.base.Strings;
-import lombok.extern.slf4j.Slf4j;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.machine.*;
+import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
+import me.ahoo.cosid.snowflake.machine.MachineState;
+import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.util.Exceptions;
+
+import com.google.common.base.Strings;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.atomic.AtomicValue;
@@ -94,10 +99,10 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         String counterPath = getCounterPath(namespace);
         String counterLockerPath = getCounterLockerPath(namespace);
         PromotedToLock promotedToLock = PromotedToLock.builder()
-                .lockPath(counterLockerPath)
-                .timeout(15, TimeUnit.SECONDS)
-                .retryPolicy(retryPolicy)
-                .build();
+            .lockPath(counterLockerPath)
+            .timeout(15, TimeUnit.SECONDS)
+            .retryPolicy(retryPolicy)
+            .build();
 
         DistributedAtomicInteger distributedAtomicInteger = new DistributedAtomicInteger(curatorFramework, counterPath, retryPolicy, promotedToLock);
         AtomicValue<Integer> atomicValue = Exceptions.invokeUnchecked(distributedAtomicInteger::increment);

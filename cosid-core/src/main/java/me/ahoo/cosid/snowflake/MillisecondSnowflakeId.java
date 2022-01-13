@@ -21,9 +21,9 @@ import me.ahoo.cosid.CosId;
  **/
 public class MillisecondSnowflakeId extends AbstractSnowflakeId {
 
-    public final static int DEFAULT_TIMESTAMP_BIT = 41;
-    public final static int DEFAULT_MACHINE_BIT = 10;
-    public final static int DEFAULT_SEQUENCE_BIT = 12;
+    public static final int DEFAULT_TIMESTAMP_BIT = 41;
+    public static final int DEFAULT_MACHINE_BIT = 10;
+    public static final int DEFAULT_SEQUENCE_BIT = 12;
 
     public MillisecondSnowflakeId(long machineId) {
         this(CosId.COSID_EPOCH, DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, machineId);

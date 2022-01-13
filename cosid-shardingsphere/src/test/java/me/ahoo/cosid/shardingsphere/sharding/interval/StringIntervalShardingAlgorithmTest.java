@@ -13,13 +13,16 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import com.google.common.collect.Range;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.sharding.ExactCollection;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
+
+import com.google.common.collect.Range;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,13 +31,12 @@ import org.junit.jupiter.api.Test;
 import java.util.Collection;
 import java.util.Properties;
 
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author ahoo wang
  */
 class StringIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorithmTest {
-    public final static String ID_NAME = "test_snowflake_friendly_interval";
+    public static final String ID_NAME = "test_snowflake_friendly_interval";
     StringIntervalShardingAlgorithm shardingAlgorithm;
     SnowflakeFriendlyId friendlyId;
 
@@ -52,15 +54,15 @@ class StringIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgori
     @Test
     public void doShardingPrecise() {
         String expected = "table_202112";
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, "2021-12-09 22:00:00");
+        PreciseShardingValue<String> shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, "2021-12-09 22:00:00");
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
 
     @Test
     public void doShardingRange() {
-        ExactCollection<String> expected = new ExactCollection<>("table_202111","table_202112");
-        RangeShardingValue shardingValue = new RangeShardingValue<>(LOGIC_NAME, COLUMN_NAME, Range.closed("2021-11-09 22:00:00", "2021-12-09 22:00:00"));
+        ExactCollection<String> expected = new ExactCollection<>("table_202111", "table_202112");
+        RangeShardingValue<String> shardingValue = new RangeShardingValue<>(LOGIC_NAME, COLUMN_NAME, Range.closed("2021-11-09 22:00:00", "2021-12-09 22:00:00"));
         Collection<String> actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }

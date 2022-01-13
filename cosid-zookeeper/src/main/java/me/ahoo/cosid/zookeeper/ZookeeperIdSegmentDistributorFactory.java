@@ -16,6 +16,7 @@ package me.ahoo.cosid.zookeeper;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 
@@ -34,12 +35,12 @@ public class ZookeeperIdSegmentDistributorFactory implements IdSegmentDistributo
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         return new ZookeeperIdSegmentDistributor(
-                definition.getNamespace(),
-                definition.getName(),
-                definition.getOffset(),
-                definition.getStep(),
-                curatorFramework,
-                retryPolicy
+            definition.getNamespace(),
+            definition.getName(),
+            definition.getOffset(),
+            definition.getStep(),
+            curatorFramework,
+            retryPolicy
         );
     }
 }

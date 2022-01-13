@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.mybatis;
 
 import me.ahoo.cosid.mybatis.CosIdPlugin;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 
 import java.lang.annotation.ElementType;

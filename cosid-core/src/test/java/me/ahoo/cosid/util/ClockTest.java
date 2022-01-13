@@ -15,6 +15,7 @@ package me.ahoo.cosid.util;
 
 import com.google.common.base.Strings;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -25,14 +26,15 @@ import java.util.concurrent.locks.LockSupport;
  */
 public class ClockTest {
 
-//    @Test
+    @Disabled
+    @Test
     public void cacheClock() {
-        final long MAX_TRY_TIMES = 1000;
+        final long maxTryTimes = 1000;
         final long parkNanos = Duration.ofMillis(100).toNanos();
         int currentTimes = 0;
         int diffTimes = 0;
 
-        while (currentTimes < MAX_TRY_TIMES) {
+        while (currentTimes < maxTryTimes) {
             currentTimes++;
             long cacheSecond = Clock.CACHE.secondTime();
             long systemSecond = Clock.getSystemSecondTime();

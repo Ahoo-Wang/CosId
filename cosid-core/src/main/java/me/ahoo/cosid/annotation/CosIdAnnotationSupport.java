@@ -14,8 +14,8 @@
 package me.ahoo.cosid.annotation;
 
 import me.ahoo.cosid.annotation.accessor.CosIdAccessor;
-import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.annotation.accessor.CosIdAccessorSupport;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import javax.annotation.concurrent.ThreadSafe;
 

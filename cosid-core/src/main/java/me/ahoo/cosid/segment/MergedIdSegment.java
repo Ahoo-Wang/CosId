@@ -42,7 +42,7 @@ public class MergedIdSegment implements IdSegment {
      * ID segment fetch time
      * unit {@link TimeUnit#MILLISECONDS}
      *
-     * @return
+     * @return Fetch Time
      */
     @Override
     public long getFetchTime() {
@@ -76,10 +76,10 @@ public class MergedIdSegment implements IdSegment {
 
     @Override
     public String toString() {
-        return "MergedIdSegment{" +
-                "segments=" + segments +
-                ", idSegment=" + idSegment +
-                ", singleStep=" + singleStep +
-                '}';
+        return "MergedIdSegment{"
+            + "segments=" + segments
+            + ", idSegment=" + idSegment
+            + ", singleStep=" + singleStep
+            + '}';
     }
 }

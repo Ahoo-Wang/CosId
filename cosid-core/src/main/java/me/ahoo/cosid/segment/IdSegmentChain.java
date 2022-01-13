@@ -13,10 +13,12 @@
 
 package me.ahoo.cosid.segment;
 
-import javax.annotation.concurrent.GuardedBy;
 import java.util.function.Function;
+import javax.annotation.concurrent.GuardedBy;
 
 /**
+ * Chained ID segment.
+ *
  * @author ahoo wang
  */
 public class IdSegmentChain implements IdSegment {
@@ -37,6 +39,14 @@ public class IdSegmentChain implements IdSegment {
         this.idSegment = idSegment;
     }
 
+    /**
+     * try set next Chained ID segment.
+     *
+     * @param idSegmentChainSupplier {@link IdSegmentChain} supplier
+     * @return true if set successfully
+     * @throws NextIdSegmentExpiredException This exception is thrown
+     *                                       if the provided {@link IdSegmentChain} has expired.
+     */
     public boolean trySetNext(Function<IdSegmentChain, IdSegmentChain> idSegmentChainSupplier) throws NextIdSegmentExpiredException {
         if (NOT_SET != next) {
             return false;
@@ -117,9 +127,9 @@ public class IdSegmentChain implements IdSegment {
 
     @Override
     public String toString() {
-        return "IdSegmentChain{" +
-                "version=" + version +
-                ", idSegment=" + idSegment +
-                '}';
+        return "IdSegmentChain{"
+            + "version=" + version
+            + ", idSegment=" + idSegment
+            + '}';
     }
 }

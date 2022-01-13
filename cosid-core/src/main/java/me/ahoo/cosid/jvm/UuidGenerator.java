@@ -18,11 +18,13 @@ import me.ahoo.cosid.IdGenerator;
 import java.util.UUID;
 
 /**
+ * UUID ID Generator.
+ *
  * @author ahoo wang
  */
 public class UuidGenerator implements IdGenerator {
 
-    public final static IdGenerator INSTANCE = new UuidGenerator();
+    public static final IdGenerator INSTANCE = new UuidGenerator();
 
     @Override
     public long generate() {

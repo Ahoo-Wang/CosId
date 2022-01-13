@@ -15,6 +15,7 @@ package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;

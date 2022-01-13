@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 dependencies {
     api(project(":cosid-core"))
     testImplementation("com.zaxxer:HikariCP")

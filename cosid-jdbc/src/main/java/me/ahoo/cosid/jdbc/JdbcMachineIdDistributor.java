@@ -133,7 +133,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             nextMachineStatement.setString(5, instanceId.getInstanceId());
             nextMachineStatement.setLong(6, System.currentTimeMillis());
             try {
-                int affected = nextMachineStatement.executeUpdate();
+                nextMachineStatement.executeUpdate();
                 return nextMachineState;
             } catch (SQLIntegrityConstraintViolationException sqlIntegrityConstraintViolationException) {
                 if (log.isInfoEnabled()) {

@@ -109,6 +109,7 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         final long nextMinMaxId = lastMaxId + step;
         Long nextMaxId = redisTemplate.opsForValue().increment(adderKey, step);
 
+        assert nextMaxId != null;
         Preconditions.checkNotNull(nextMaxId, "nextMaxId can not be null!");
         if (log.isDebugEnabled()) {
             log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);

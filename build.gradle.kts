@@ -62,8 +62,13 @@ configure(bomProjects) {
 
 configure(libraryProjects) {
     apply<CheckstylePlugin>()
-    configure<CheckstyleExtension>() {
+    configure<CheckstyleExtension> {
         toolVersion = "9.2.1"
+    }
+    apply<com.github.spotbugs.snom.SpotBugsPlugin>()
+    configure<com.github.spotbugs.snom.SpotBugsExtension> {
+//        toolVersion.set("5.0.4")
+        excludeFilter.set(file("${rootDir}/config/spotbugs/exclude.xml"))
     }
     apply<JavaLibraryPlugin>()
     configure<JavaPluginExtension> {

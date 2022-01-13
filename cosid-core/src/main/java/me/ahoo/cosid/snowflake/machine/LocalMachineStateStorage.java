@@ -122,7 +122,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             log.info("remove - stateLocation : [{}].", stateFile.getAbsolutePath());
         }
         if (stateFile.exists()) {
-            boolean ignored = stateFile.delete();
+            stateFile.delete();
         }
     }
 

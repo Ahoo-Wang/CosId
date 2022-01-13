@@ -65,8 +65,10 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         Object[] values = {instanceId.getInstanceId(), String.valueOf(maxMachineId(machineBit))};
         @SuppressWarnings("unchecked")
         List<Long> state = (List<Long>) redisTemplate.execute(MACHINE_ID_DISTRIBUTE, keys, values);
-        Preconditions.checkState(state != null, "state can not be null!");
-        Preconditions.checkState(state.size() > 0, "state.size must be greater than 0!");
+        Preconditions.checkState(state != null && !state.isEmpty(), "state can not be empty!");
+
+        assert state != null;
+
         int realMachineId = state.get(0).intValue();
         if (realMachineId == -1) {
             throw new MachineIdOverflowException(totalMachineIds(machineBit), instanceId);
@@ -107,6 +109,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     /**
      * redis hash-tag for redis-cluster
      *
+     * @param key key
      * @return hash-tag key
      */
     public static String hashTag(String key) {

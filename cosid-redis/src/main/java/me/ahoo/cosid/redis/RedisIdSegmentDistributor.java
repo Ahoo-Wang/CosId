@@ -115,7 +115,9 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
         }
         final long nextMinMaxId = lastMaxId + step;
 
-        long nextMaxId = redisCommands.incrby(adderKey, step).block(timeout);
+        Long nextMaxId = redisCommands.incrby(adderKey, step).block(timeout);
+        assert nextMaxId != null;
+        Preconditions.checkNotNull(nextMaxId, "nextMaxId can not be null!");
         if (log.isDebugEnabled()) {
             log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);
         }

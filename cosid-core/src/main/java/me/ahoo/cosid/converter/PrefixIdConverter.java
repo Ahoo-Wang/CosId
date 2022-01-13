@@ -16,6 +16,8 @@ package me.ahoo.cosid.converter;
 import me.ahoo.cosid.IdConverter;
 
 /**
+ * Converter for setting string ID prefix.
+ *
  * @author ahoo wang
  */
 public class PrefixIdConverter implements IdConverter {

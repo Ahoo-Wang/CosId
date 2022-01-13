@@ -13,8 +13,6 @@
 
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.converter.PrefixIdConverter;
@@ -22,13 +20,30 @@ import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.snowflake.*;
-import me.ahoo.cosid.snowflake.machine.*;
+import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
+import me.ahoo.cosid.snowflake.DefaultClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.snowflake.SecondSnowflakeId;
+import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
+import me.ahoo.cosid.snowflake.SnowflakeId;
+import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
+import me.ahoo.cosid.snowflake.StringSnowflakeId;
+import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.LocalMachineStateStorage;
+import me.ahoo.cosid.snowflake.machine.MachineId;
+import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
+import me.ahoo.cosid.snowflake.machine.ManualMachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.k8s.StatefulSetMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
-import me.ahoo.cosid.util.Systems;
+import me.ahoo.cosid.util.ProcessId;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -74,7 +89,7 @@ public class CosIdSnowflakeAutoConfiguration {
 
         InetUtils.HostInfo hostInfo = inetUtils.findFirstNonLoopbackHostInfo();
 
-        int port = (int) Systems.getCurrentProcessId();
+        int port = ProcessId.CURRENT.getProcessId();
         if (Objects.nonNull(machine.getPort()) && machine.getPort() > 0) {
             port = machine.getPort();
         }
@@ -127,7 +142,8 @@ public class CosIdSnowflakeAutoConfiguration {
     @Bean
     @Primary
     @ConditionalOnMissingBean
-    public SnowflakeId shareSnowflakeId(MachineIdDistributor machineIdDistributor, InstanceId instanceId, IdGeneratorProvider idGeneratorProvider, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+    public SnowflakeId shareSnowflakeId(MachineIdDistributor machineIdDistributor, InstanceId instanceId, IdGeneratorProvider idGeneratorProvider,
+                                        ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         SnowflakeIdProperties.IdDefinition shareIdDefinition = snowflakeIdProperties.getShare();
         SnowflakeId shareIdGen = createIdGen(machineIdDistributor, instanceId, shareIdDefinition, clockBackwardsSynchronizer);
         idGeneratorProvider.setShare(shareIdGen);
@@ -149,7 +165,8 @@ public class CosIdSnowflakeAutoConfiguration {
         return new MachineId(machineId);
     }
 
-    private SnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+    private SnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition,
+                                    ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         long epoch = getEpoch(idDefinition);
         Integer machineBit = getMachineBit(idDefinition);
         SnowflakeId snowflakeId;
@@ -198,7 +215,7 @@ public class CosIdSnowflakeAutoConfiguration {
             idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
         }
 
-        if (isFriendly){
+        if (isFriendly) {
             SnowflakeFriendlyId snowflakeFriendlyId = (SnowflakeFriendlyId) snowflakeId;
             return new DefaultSnowflakeFriendlyId(snowflakeId, idConverter, snowflakeFriendlyId.getParser());
         }

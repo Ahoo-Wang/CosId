@@ -13,13 +13,17 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import com.google.common.collect.Range;
+import static me.ahoo.cosid.shardingsphere.sharding.interval.SnowflakeIntervalShardingAlgorithmTest.ID_NAME;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.sharding.ExactCollection;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
+
+import com.google.common.collect.Range;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,8 +32,6 @@ import org.junit.jupiter.api.Test;
 import java.util.Collection;
 import java.util.Properties;
 
-import static me.ahoo.cosid.shardingsphere.sharding.interval.SnowflakeIntervalShardingAlgorithmTest.ID_NAME;
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author ahoo wang

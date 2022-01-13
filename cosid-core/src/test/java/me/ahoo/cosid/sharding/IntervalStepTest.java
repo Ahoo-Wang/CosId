@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.sharding;
 
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -24,7 +26,6 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /**
  * @author ahoo wang
@@ -58,8 +59,8 @@ class IntervalStepTest {
 
     static Stream<Arguments> floorUnitYearArgsProvider() {
         return Stream.of(
-                arguments(LocalDateTime.of(2021, 12, 14, 22, 0), LocalDateTime.of(2021, 1, 1, 0, 0)),
-                arguments(LocalDateTime.of(2022, 11, 14, 22, 1), LocalDateTime.of(2022, 1, 1, 0, 0))
+            arguments(LocalDateTime.of(2021, 12, 14, 22, 0), LocalDateTime.of(2021, 1, 1, 0, 0)),
+            arguments(LocalDateTime.of(2022, 11, 14, 22, 1), LocalDateTime.of(2022, 1, 1, 0, 0))
         );
     }
 
@@ -73,8 +74,8 @@ class IntervalStepTest {
 
     static Stream<Arguments> floorUnitMonthArgsProvider() {
         return Stream.of(
-                arguments(LocalDateTime.of(2021, 12, 14, 22, 0), LocalDateTime.of(2021, 12, 1, 0, 0)),
-                arguments(LocalDateTime.of(2022, 11, 14, 22, 1), LocalDateTime.of(2022, 11, 1, 0, 0))
+            arguments(LocalDateTime.of(2021, 12, 14, 22, 0), LocalDateTime.of(2021, 12, 1, 0, 0)),
+            arguments(LocalDateTime.of(2022, 11, 14, 22, 1), LocalDateTime.of(2022, 11, 1, 0, 0))
         );
     }
 
@@ -88,8 +89,8 @@ class IntervalStepTest {
 
     static Stream<Arguments> floorUnitDayArgsProvider() {
         return Stream.of(
-                arguments(LocalDateTime.of(2021, 12, 14, 22, 0), LocalDateTime.of(2021, 12, 14, 0, 0)),
-                arguments(LocalDateTime.of(2022, 11, 14, 22, 1), LocalDateTime.of(2022, 11, 14, 0, 0))
+            arguments(LocalDateTime.of(2021, 12, 14, 22, 0), LocalDateTime.of(2021, 12, 14, 0, 0)),
+            arguments(LocalDateTime.of(2022, 11, 14, 22, 1), LocalDateTime.of(2022, 11, 14, 0, 0))
         );
     }
 
@@ -104,8 +105,8 @@ class IntervalStepTest {
 
     static Stream<Arguments> floorUnitHourArgsProvider() {
         return Stream.of(
-                arguments(LocalDateTime.of(2021, 12, 14, 22, 0), LocalDateTime.of(2021, 12, 14, 22, 0)),
-                arguments(LocalDateTime.of(2022, 11, 14, 22, 1), LocalDateTime.of(2022, 11, 14, 22, 0))
+            arguments(LocalDateTime.of(2021, 12, 14, 22, 0), LocalDateTime.of(2021, 12, 14, 22, 0)),
+            arguments(LocalDateTime.of(2022, 11, 14, 22, 1), LocalDateTime.of(2022, 11, 14, 22, 0))
         );
     }
 
@@ -119,9 +120,9 @@ class IntervalStepTest {
 
     static Stream<Arguments> offsetUnitArgsProvider() {
         return Stream.of(
-                arguments(LocalDateTime.of(2021, 1, 28, 22, 1), 0),
-                arguments(LocalDateTime.of(2021, 12, 14, 22, 0), 11),
-                arguments(LocalDateTime.of(2022, 11, 14, 22, 1), 22)
+            arguments(LocalDateTime.of(2021, 1, 28, 22, 1), 0),
+            arguments(LocalDateTime.of(2021, 12, 14, 22, 0), 11),
+            arguments(LocalDateTime.of(2022, 11, 14, 22, 1), 22)
         );
     }
 
@@ -135,9 +136,9 @@ class IntervalStepTest {
 
     static Stream<Arguments> offsetUnitAmountTwoArgsProvider() {
         return Stream.of(
-                arguments(LocalDateTime.of(2021, 1, 28, 22, 1), 0),
-                arguments(LocalDateTime.of(2021, 12, 14, 22, 0), 5),
-                arguments(LocalDateTime.of(2022, 11, 14, 22, 1), 11)
+            arguments(LocalDateTime.of(2021, 1, 28, 22, 1), 0),
+            arguments(LocalDateTime.of(2021, 12, 14, 22, 0), 5),
+            arguments(LocalDateTime.of(2022, 11, 14, 22, 1), 11)
         );
     }
 
@@ -152,9 +153,9 @@ class IntervalStepTest {
 
     static Stream<Arguments> offsetUnitDayArgsProvider() {
         return Stream.of(
-                arguments(LocalDateTime.of(2021, 1, 28, 22, 1), 27),
-                arguments(LocalDateTime.of(2021, 12, 14, 22, 0), 347),
-                arguments(LocalDateTime.of(2022, 11, 14, 22, 1), 682)
+            arguments(LocalDateTime.of(2021, 1, 28, 22, 1), 27),
+            arguments(LocalDateTime.of(2021, 12, 14, 22, 0), 347),
+            arguments(LocalDateTime.of(2022, 11, 14, 22, 1), 682)
         );
     }
 

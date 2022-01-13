@@ -13,11 +13,12 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import com.google.common.collect.Range;
 import me.ahoo.cosid.sharding.ExactCollection;
 import me.ahoo.cosid.sharding.IntervalStep;
 import me.ahoo.cosid.sharding.IntervalTimeline;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
+
+import com.google.common.collect.Range;
 import org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
@@ -38,10 +39,10 @@ import java.util.Properties;
  */
 @Deprecated
 class IntervalShardingAlgorithmTest {
-    private final static String FORMATTER_PATTERN = "yyyyMM";
+    private static final String FORMATTER_PATTERN = "yyyyMM";
     private Properties properties;
     private final ZoneOffset zoneOffset = ZoneOffset.of("+8");
-    private final static DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern(FORMATTER_PATTERN);
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern(FORMATTER_PATTERN);
 
     @BeforeEach
     void init() {
@@ -129,7 +130,7 @@ class IntervalShardingAlgorithmTest {
         String node = shardingAlgorithm.doSharding(null, preciseshardingValue);
         Assertions.assertEquals("t_ldt_202112", node);
 
-        String shardingUpper ="2022-05-09 22:00:00";
+        String shardingUpper = "2022-05-09 22:00:00";
         RangeShardingValue rangeShardingValue = new RangeShardingValue<>("t_ldt", "create_time", Range.closed(shardingLower, shardingUpper));
         Collection<String> nodes = shardingAlgorithm.doSharding(null, rangeShardingValue);
         Assertions.assertEquals(new ExactCollection<>("t_ldt_202112", "t_ldt_202201", "t_ldt_202202", "t_ldt_202203", "t_ldt_202204", "t_ldt_202205"), nodes);

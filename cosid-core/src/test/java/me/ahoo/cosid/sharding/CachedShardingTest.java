@@ -13,6 +13,12 @@
 
 package me.ahoo.cosid.sharding;
 
+import static me.ahoo.cosid.sharding.IntervalTimelineTest.ALL_NODES;
+import static me.ahoo.cosid.sharding.IntervalTimelineTest.LOGIC_NAME;
+import static me.ahoo.cosid.sharding.IntervalTimelineTest.LOWER_DATE_TIME;
+import static me.ahoo.cosid.sharding.IntervalTimelineTest.SUFFIX_FORMATTER;
+import static me.ahoo.cosid.sharding.IntervalTimelineTest.UPPER_DATE_TIME;
+
 import com.google.common.collect.Range;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +30,6 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 
-import static me.ahoo.cosid.sharding.IntervalTimelineTest.*;
 
 /**
  * @author ahoo wang

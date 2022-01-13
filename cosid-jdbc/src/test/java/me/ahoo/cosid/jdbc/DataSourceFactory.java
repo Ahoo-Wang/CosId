@@ -13,9 +13,10 @@
 
 package me.ahoo.cosid.jdbc;
 
-import com.zaxxer.hikari.HikariDataSource;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.SegmentChainId;
+
+import com.zaxxer.hikari.HikariDataSource;
 
 import javax.sql.DataSource;
 import java.util.concurrent.atomic.AtomicInteger;

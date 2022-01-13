@@ -45,8 +45,12 @@ public class MachineState {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof MachineState)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof MachineState)) {
+            return false;
+        }
         MachineState that = (MachineState) o;
         return getMachineId() == that.getMachineId();
     }
@@ -58,10 +62,10 @@ public class MachineState {
 
     @Override
     public String toString() {
-        return "MachineState{" +
-                "machineId=" + machineId +
-                ", lastTimeStamp=" + lastTimeStamp +
-                '}';
+        return "MachineState{"
+            + "machineId=" + machineId
+            + ", lastTimeStamp=" + lastTimeStamp
+            + '}';
     }
 
     public String toStateString() {

@@ -16,6 +16,8 @@ package me.ahoo.cosid.segment.concurrent;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
+ * Prefetch Worker.
+ *
  * @author ahoo wang
  */
 @ThreadSafe

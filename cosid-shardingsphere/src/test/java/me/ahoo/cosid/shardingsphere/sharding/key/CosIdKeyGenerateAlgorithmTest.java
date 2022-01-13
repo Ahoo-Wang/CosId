@@ -13,6 +13,10 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.key;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
@@ -21,13 +25,12 @@ import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.util.MockIdGenerator;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author ahoo wang

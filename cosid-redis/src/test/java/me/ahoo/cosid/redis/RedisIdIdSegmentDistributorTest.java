@@ -13,18 +13,22 @@
 
 package me.ahoo.cosid.redis;
 
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.api.StatefulRedisConnection;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.util.MockIdGenerator;
-import org.junit.jupiter.api.*;
+
+import io.lettuce.core.RedisClient;
+import io.lettuce.core.api.StatefulRedisConnection;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-
 
 
 /**
@@ -41,7 +45,8 @@ public class RedisIdIdSegmentDistributorTest {
         System.out.println("--- initRedis ---");
         redisClient = RedisClient.create("redis://localhost:6379");
         redisConnection = redisClient.connect();
-        redisMaxIdDistributor = new RedisIdSegmentDistributor(MockIdGenerator.INSTANCE.generateAsString(), "RedisIdGeneratorTest", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
+        redisMaxIdDistributor =
+            new RedisIdSegmentDistributor(MockIdGenerator.INSTANCE.generateAsString(), "RedisIdGeneratorTest", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
     }
 
     @Test
@@ -70,7 +75,7 @@ public class RedisIdIdSegmentDistributorTest {
         Assertions.assertTrue(id > 0);
         String adderKey = redisMaxIdDistributor.getAdderKey();
         redisConnection.sync().set(adderKey, String.valueOf(id - 1));
-        Assertions.assertThrows(IllegalStateException.class,()->{
+        Assertions.assertThrows(IllegalStateException.class, () -> {
             long id2 = redisMaxIdDistributor.nextMaxId();
         });
     }
@@ -78,8 +83,9 @@ public class RedisIdIdSegmentDistributorTest {
     @Test
     public void generate_offset() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        RedisIdSegmentDistributor redisMaxIdDistributor_offset_10 = new RedisIdSegmentDistributor(namespace, "generate_offset", 10, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
-        long id = redisMaxIdDistributor_offset_10.nextMaxId();
+        RedisIdSegmentDistributor redisMaxIdDistributorOffset10 =
+            new RedisIdSegmentDistributor(namespace, "generate_offset", 10, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
+        long id = redisMaxIdDistributorOffset10.nextMaxId();
         Assertions.assertEquals(110, id);
     }
 
@@ -89,8 +95,9 @@ public class RedisIdIdSegmentDistributorTest {
     @Test
     public void concurrent_generate_step_100() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        RedisIdSegmentDistributor redisMaxIdDistributor_generate_step_100 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
-        SegmentId defaultSegmentId = new DefaultSegmentId(redisMaxIdDistributor_generate_step_100);
+        RedisIdSegmentDistributor redisMaxIdDistributorGenerateStep100 =
+            new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
+        SegmentId defaultSegmentId = new DefaultSegmentId(redisMaxIdDistributorGenerateStep100);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;
         while (threads < CONCURRENT_THREADS) {
@@ -136,8 +143,10 @@ public class RedisIdIdSegmentDistributorTest {
     @Test
     public void concurrent_generate_step_10_multi_instance() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        RedisIdSegmentDistributor redisMaxIdDistributor1 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
-        RedisIdSegmentDistributor redisMaxIdDistributor2 = new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
+        RedisIdSegmentDistributor redisMaxIdDistributor1 =
+            new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
+        RedisIdSegmentDistributor redisMaxIdDistributor2 =
+            new RedisIdSegmentDistributor(namespace, "generate_step_10", 0, 10, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
         SegmentId idGenerator1 = new DefaultSegmentId(redisMaxIdDistributor1);
         SegmentId idGenerator2 = new DefaultSegmentId(redisMaxIdDistributor2);
 

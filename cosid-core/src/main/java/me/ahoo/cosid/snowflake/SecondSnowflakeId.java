@@ -23,9 +23,9 @@ import java.util.concurrent.TimeUnit;
  **/
 public class SecondSnowflakeId extends AbstractSnowflakeId {
 
-    public final static int DEFAULT_TIMESTAMP_BIT = 31;
-    public final static int DEFAULT_MACHINE_BIT = 10;
-    public final static int DEFAULT_SEQUENCE_BIT = 22;
+    public static final int DEFAULT_TIMESTAMP_BIT = 31;
+    public static final int DEFAULT_MACHINE_BIT = 10;
+    public static final int DEFAULT_SEQUENCE_BIT = 22;
 
     public SecondSnowflakeId(long machineId) {
         this(CosId.COSID_EPOCH_SECOND, DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, machineId);

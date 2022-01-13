@@ -13,20 +13,21 @@
 
 package me.ahoo.cosid;
 
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 
 import java.util.UUID;
-
-import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
 
 /**
@@ -37,7 +38,7 @@ public class SegmentIdBenchmark {
 
     SegmentId segmentId;
     SegmentChainId segmentChainId;
-    AtomicLongGenerator  atomicLongGenerator;
+    AtomicLongGenerator atomicLongGenerator;
 
     @Setup
     public void setup() {

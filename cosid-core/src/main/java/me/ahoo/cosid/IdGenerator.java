@@ -18,14 +18,15 @@ import me.ahoo.cosid.converter.ToStringIdConverter;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
+ * Id Generator.
+ *
  * @author ahoo wang
- * Creation time: 2019/11/14 18:43
  */
 @ThreadSafe
 public interface IdGenerator {
 
     /**
-     * ID converter, used to convert {@link long} type ID to {@link String}
+     * ID converter, used to convert {@link long} type ID to {@link String}.
      *
      * @return ID converter
      */
@@ -34,14 +35,14 @@ public interface IdGenerator {
     }
 
     /**
-     * Generate distributed ID
+     * Generate distributed ID.
      *
      * @return distributed ID
      */
     long generate();
 
     /**
-     * Generate distributed ID as String
+     * Generate distributed ID as String.
      *
      * @return distributed ID as String
      */

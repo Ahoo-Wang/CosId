@@ -14,6 +14,7 @@
 package me.ahoo.cosid;
 
 import me.ahoo.cosid.util.Clock;
+
 import org.openjdk.jmh.annotations.Benchmark;
 
 /**

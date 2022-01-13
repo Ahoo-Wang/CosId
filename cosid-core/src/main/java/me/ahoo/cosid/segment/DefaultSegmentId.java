@@ -13,14 +13,17 @@
 
 package me.ahoo.cosid.segment;
 
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.concurrent.GuardedBy;
 
-import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
 /**
+ * Default segment algorithm ID generator.
+ *
  * @author ahoo wang
  */
 @Slf4j

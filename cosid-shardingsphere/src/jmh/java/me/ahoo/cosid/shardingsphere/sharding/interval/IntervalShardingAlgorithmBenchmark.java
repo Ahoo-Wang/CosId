@@ -13,12 +13,17 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import com.google.common.collect.Range;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
+
+import com.google.common.collect.Range;
 import org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
-import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
@@ -33,16 +38,16 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 @State(Scope.Benchmark)
 public class IntervalShardingAlgorithmBenchmark {
-    private final static ZoneOffset ZONE_OFFSET = ZoneOffset.of("+8");
-    private final static LocalDateTime LOWER_DATETIME = LocalDateTime.of(2021, 12, 8, 22, 0, 0);
-    private final static long LOWER_TS = LOWER_DATETIME.toInstant(ZONE_OFFSET).toEpochMilli();
+    private static final ZoneOffset ZONE_OFFSET = ZoneOffset.of("+8");
+    private static final LocalDateTime LOWER_DATETIME = LocalDateTime.of(2021, 12, 8, 22, 0, 0);
+    private static final long LOWER_TS = LOWER_DATETIME.toInstant(ZONE_OFFSET).toEpochMilli();
     @Param({"10", "100", "1000", "10000"})
     private int days;
     private int totalRange;
 
-    private final static String LOGIC_TABLE_NAME = "t_ldt";
-    private final static String LOGIC_NAME_PREFIX = LOGIC_TABLE_NAME + "_";
-    private final static String FORMATTER_PATTERN = "yyyyMMDD";
+    private static final String LOGIC_TABLE_NAME = "t_ldt";
+    private static final String LOGIC_NAME_PREFIX = LOGIC_TABLE_NAME + "_";
+    private static final String FORMATTER_PATTERN = "yyyyMMDD";
     AbstractIntervalShardingAlgorithm dateIntervalShardingAlgorithm;
     AbstractIntervalShardingAlgorithm datetimeIntervalShardingAlgorithm;
     IntervalShardingAlgorithm officeIntervalShardingAlgorithm;
@@ -97,7 +102,7 @@ public class IntervalShardingAlgorithmBenchmark {
 
     }
 
-    private final static String COLUMN_NAME = "create_time";
+    private static final String COLUMN_NAME = "create_time";
 
     private int getRandomInDays() {
         return getRandomInDays(0);

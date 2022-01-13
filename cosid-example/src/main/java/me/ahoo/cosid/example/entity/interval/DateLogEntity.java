@@ -20,6 +20,7 @@ import java.util.Date;
  * (
  * id varchar(25) not null primary key
  * );
+ *
  * @author ahoo wang
  */
 public class DateLogEntity {

@@ -13,12 +13,13 @@
 
 package me.ahoo.cosid.annotation.accessor;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.annotation.CosIdDefinition;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
@@ -34,7 +35,8 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter {
     default boolean ensureId(Object target, IdGeneratorProvider idGeneratorProvider) {
         CosIdDefinition cosIdDefinition = getCosIdDefinition();
         Preconditions.checkArgument(getIdDeclaringClass().isInstance(target), "target:[%s] is not instance of IdDeclaringClass:[%s]", target, getIdDeclaringClass());
-        IdGenerator idGenerator = idGeneratorProvider.get(cosIdDefinition.getGeneratorName()).orElseThrow(() -> new IllegalArgumentException(Strings.lenientFormat("idGenerator:[%s] not fond.", cosIdDefinition.getGeneratorName())));
+        IdGenerator idGenerator = idGeneratorProvider.get(cosIdDefinition.getGeneratorName())
+                .orElseThrow(() -> new IllegalArgumentException(Strings.lenientFormat("idGenerator:[%s] not fond.", cosIdDefinition.getGeneratorName())));
 
         Object previousId = get(target);
 

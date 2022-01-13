@@ -17,7 +17,10 @@ import me.ahoo.cosid.util.Clock;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+
 /**
+ * Id Segment.
+ *
  * @author ahoo wang
  */
 @ThreadSafe
@@ -61,7 +64,8 @@ public interface IdSegment extends Comparable<IdSegment> {
     default boolean isExpired() {
         if (TIME_TO_LIVE_FOREVER == getTtl()) {
             /**
-             * Very important! Avoid getting the current clock, because getting the clock is too slow.
+             * Very important! Avoid getting the current clock,
+             * because getting the clock is too slow.
              */
             return false;
         }

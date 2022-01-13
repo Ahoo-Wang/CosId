@@ -17,6 +17,7 @@ import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributorFactory;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -54,7 +55,7 @@ public class CosIdJdbcSegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public IdSegmentDistributorFactory idSegmentDistributorFactory(DataSource dataSource,JdbcIdSegmentInitializer jdbcIdSegmentInitializer) {
+    public IdSegmentDistributorFactory idSegmentDistributorFactory(DataSource dataSource, JdbcIdSegmentInitializer jdbcIdSegmentInitializer) {
         SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
         return new JdbcIdSegmentDistributorFactory(dataSource, jdbc.isEnableAutoInitIdSegment(), jdbcIdSegmentInitializer, jdbc.getIncrementMaxIdSql(), jdbc.getFetchMaxIdSql());
     }

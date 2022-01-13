@@ -61,6 +61,10 @@ configure(bomProjects) {
 }
 
 configure(libraryProjects) {
+    apply<CheckstylePlugin>()
+    configure<CheckstyleExtension>() {
+        toolVersion = "9.2.1"
+    }
     apply<JavaLibraryPlugin>()
     configure<JavaPluginExtension> {
         toolchain {

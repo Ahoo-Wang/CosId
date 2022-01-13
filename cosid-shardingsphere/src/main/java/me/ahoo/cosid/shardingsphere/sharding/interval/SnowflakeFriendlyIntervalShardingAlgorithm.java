@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 
 /**
  * please use {@link SnowflakeIntervalShardingAlgorithm} instead.
+ *
  * @author ahoo wang
  */
 @Deprecated

@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
@@ -20,13 +22,12 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 import java.time.Duration;
 import java.util.Map;
-
-import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
 /**
  * @author ahoo wang
@@ -34,7 +35,7 @@ import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 @ConfigurationProperties(prefix = SegmentIdProperties.PREFIX)
 public class SegmentIdProperties {
 
-    public final static String PREFIX = CosId.COSID_PREFIX + "segment";
+    public static final String PREFIX = CosId.COSID_PREFIX + "segment";
 
     private boolean enabled = false;
     private Mode mode = Mode.CHAIN;

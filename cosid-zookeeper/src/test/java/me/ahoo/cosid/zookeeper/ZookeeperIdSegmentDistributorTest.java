@@ -15,6 +15,7 @@ package me.ahoo.cosid.zookeeper;
 
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.util.MockIdGenerator;
+
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
@@ -41,31 +42,35 @@ class ZookeeperIdSegmentDistributorTest {
         retryPolicy = new ExponentialBackoffRetry(1000, 3, 3000);
         curatorFramework = CuratorFrameworkFactory.newClient("localhost:2181", retryPolicy);
         curatorFramework.start();
-        zookeeperIdSegmentDistributor = new ZookeeperIdSegmentDistributor("ZookeeperIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), IdSegmentDistributor.DEFAULT_OFFSET, IdSegmentDistributor.DEFAULT_STEP, curatorFramework, retryPolicy);
+        zookeeperIdSegmentDistributor =
+            new ZookeeperIdSegmentDistributor("ZookeeperIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), IdSegmentDistributor.DEFAULT_OFFSET, IdSegmentDistributor.DEFAULT_STEP,
+                curatorFramework, retryPolicy);
     }
 
     @Test
     void nextMaxId() {
-        long nextMaxID = zookeeperIdSegmentDistributor.nextMaxId(100);
-        Assertions.assertEquals(100, nextMaxID);
-        nextMaxID = zookeeperIdSegmentDistributor.nextMaxId(100);
-        Assertions.assertEquals(200, nextMaxID);
+        long nextMaxId = zookeeperIdSegmentDistributor.nextMaxId(100);
+        Assertions.assertEquals(100, nextMaxId);
+        nextMaxId = zookeeperIdSegmentDistributor.nextMaxId(100);
+        Assertions.assertEquals(200, nextMaxId);
     }
 
     @Test
     void nextMaxIdOffset() {
-        ZookeeperIdSegmentDistributor distributorOffset100 = new ZookeeperIdSegmentDistributor("ZookeeperIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 100, IdSegmentDistributor.DEFAULT_STEP, curatorFramework, retryPolicy);
-        long nextMaxID = distributorOffset100.nextMaxId(100);
-        Assertions.assertEquals(200, nextMaxID);
-        nextMaxID = distributorOffset100.nextMaxId(100);
-        Assertions.assertEquals(300, nextMaxID);
+        ZookeeperIdSegmentDistributor distributorOffset100 =
+            new ZookeeperIdSegmentDistributor("ZookeeperIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 100, IdSegmentDistributor.DEFAULT_STEP, curatorFramework, retryPolicy);
+        long nextMaxId = distributorOffset100.nextMaxId(100);
+        Assertions.assertEquals(200, nextMaxId);
+        nextMaxId = distributorOffset100.nextMaxId(100);
+        Assertions.assertEquals(300, nextMaxId);
     }
 
     @Test
     void nextMaxIdConcurrent() {
         int times = 100;
         CompletableFuture<Long>[] results = new CompletableFuture[100];
-        ZookeeperIdSegmentDistributor distributor = new ZookeeperIdSegmentDistributor("ZookeeperIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 0, IdSegmentDistributor.DEFAULT_STEP, curatorFramework, retryPolicy);
+        ZookeeperIdSegmentDistributor distributor =
+            new ZookeeperIdSegmentDistributor("ZookeeperIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 0, IdSegmentDistributor.DEFAULT_STEP, curatorFramework, retryPolicy);
 
         for (int i = 0; i < times; i++) {
             results[i] = CompletableFuture.supplyAsync(() -> distributor.nextMaxId(1));

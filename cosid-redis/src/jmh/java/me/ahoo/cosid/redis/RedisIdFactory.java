@@ -13,10 +13,10 @@
 
 package me.ahoo.cosid.redis;
 
-
-import io.lettuce.core.RedisClient;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.SegmentChainId;
+
+import io.lettuce.core.RedisClient;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -30,21 +30,23 @@ public class RedisIdFactory implements AutoCloseable {
 
     AtomicInteger counter = new AtomicInteger();
     RedisClient redisClient;
+
     private RedisIdFactory() {
 
     }
+
     public synchronized RedisIdSegmentDistributor createDistributor(int step) {
         if (redisClient == null) {
             redisClient = RedisClient.create("redis://localhost:6379");
         }
         String namespace = "rbh-" + counter.incrementAndGet();
         return new RedisIdSegmentDistributor(
-                namespace,
-                String.valueOf(step),
-                0,
-                step,
-                RedisIdSegmentDistributor.DEFAULT_TIMEOUT,
-                redisClient.connect().reactive());
+            namespace,
+            String.valueOf(step),
+            0,
+            step,
+            RedisIdSegmentDistributor.DEFAULT_TIMEOUT,
+            redisClient.connect().reactive());
     }
 
 

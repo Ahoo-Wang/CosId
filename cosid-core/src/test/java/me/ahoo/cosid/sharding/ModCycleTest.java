@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.sharding;
 
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+
 import com.google.common.collect.Range;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -24,7 +26,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.util.Collection;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /**
  * @author ahoo wang
@@ -34,6 +35,7 @@ class ModCycleTest {
     public static final int DIVISOR = 4;
     public static final String LOGIC_NAME_PREFIX = "t_mod_";
     public static final ExactCollection<String> ALL_NODES = new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3");
+
     public static ModCycle<Long> createModCycle(int divisor) {
         return new ModCycle<>(divisor, LOGIC_NAME_PREFIX);
     }
@@ -83,75 +85,75 @@ class ModCycleTest {
 
     static Stream<Arguments> shardingRangeArgsProvider() {
         return Stream.of(
-                arguments(Range.all(), ALL_NODES),
-                /**
-                 * Range.closed
-                 */
-                arguments(Range.closed(1L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3")),
-                arguments(Range.closed(0L, 3L), ALL_NODES),
-                arguments(Range.closed(0L, 4L), ALL_NODES),
-                arguments(Range.closed(0L, 1L), new ExactCollection<>("t_mod_0", "t_mod_1")),
-                arguments(Range.closed(3L, 4L), new ExactCollection<>("t_mod_0", "t_mod_3")),
-                /**
-                 * Range.closedOpen
-                 */
-                arguments(Range.closedOpen(1L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2")),
-                arguments(Range.closedOpen(0L, 3L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
-                arguments(Range.closedOpen(0L, 4L), ALL_NODES),
-                arguments(Range.closedOpen(0L, 1L), new ExactCollection<>("t_mod_0")),
-                arguments(Range.closedOpen(3L, 4L), new ExactCollection<>("t_mod_3")),
-                /**
-                 * Range.openClosed
-                 */
-                arguments(Range.openClosed(1L, 3L), new ExactCollection<>("t_mod_2", "t_mod_3")),
-                arguments(Range.openClosed(0L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3")),
-                arguments(Range.openClosed(0L, 4L), ALL_NODES),
-                arguments(Range.openClosed(0L, 1L), new ExactCollection<>("t_mod_1")),
-                arguments(Range.openClosed(3L, 4L), new ExactCollection<>("t_mod_0")),
-                /**
-                 * Range.open
-                 */
-                arguments(Range.open(1L, 3L), new ExactCollection<>( "t_mod_2")),
-                arguments(Range.open(0L, 3L), new ExactCollection<>( "t_mod_1", "t_mod_2")),
-                arguments(Range.open(0L, 4L), new ExactCollection<>( "t_mod_1", "t_mod_2", "t_mod_3")),
-                arguments(Range.open(0L, 1L), ExactCollection.empty()),
-                arguments(Range.open(3L, 4L), ExactCollection.empty()),
-                /**
-                 * Range.greaterThan
-                 */
-                arguments(Range.greaterThan(0L), ALL_NODES),
-                arguments(Range.greaterThan(1L), ALL_NODES),
-                arguments(Range.greaterThan(2L), ALL_NODES),
-                arguments(Range.greaterThan(3L), ALL_NODES),
-                arguments(Range.greaterThan(4L), ALL_NODES),
-                arguments(Range.greaterThan(5L), ALL_NODES),
-                /**
-                 * Range.atLeast
-                 */
-                arguments(Range.atLeast(0L), ALL_NODES),
-                arguments(Range.atLeast(1L), ALL_NODES),
-                arguments(Range.atLeast(2L), ALL_NODES),
-                arguments(Range.atLeast(3L), ALL_NODES),
-                arguments(Range.atLeast(4L), ALL_NODES),
-                arguments(Range.atLeast(5L), ALL_NODES),
-                /**
-                 * Range.lessThan
-                 */
-                arguments(Range.lessThan(0L), ExactCollection.empty()),
-                arguments(Range.lessThan(1L), new ExactCollection<>( "t_mod_0")),
-                arguments(Range.lessThan(2L), new ExactCollection<>( "t_mod_0", "t_mod_1")),
-                arguments(Range.lessThan(3L), new ExactCollection<>( "t_mod_0", "t_mod_1", "t_mod_2")),
-                arguments(Range.lessThan(4L), ALL_NODES),
-                arguments(Range.lessThan(5L), ALL_NODES),
-                /**
-                 * Range.atMost
-                 */
-                arguments(Range.atMost(0L), new ExactCollection<>( "t_mod_0")),
-                arguments(Range.atMost(1L), new ExactCollection<>( "t_mod_0", "t_mod_1")),
-                arguments(Range.atMost(2L), new ExactCollection<>( "t_mod_0", "t_mod_1", "t_mod_2")),
-                arguments(Range.atMost(3L), ALL_NODES),
-                arguments(Range.atMost(4L), ALL_NODES),
-                arguments(Range.atMost(5L), ALL_NODES)
+            arguments(Range.all(), ALL_NODES),
+            /**
+             * Range.closed
+             */
+            arguments(Range.closed(1L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3")),
+            arguments(Range.closed(0L, 3L), ALL_NODES),
+            arguments(Range.closed(0L, 4L), ALL_NODES),
+            arguments(Range.closed(0L, 1L), new ExactCollection<>("t_mod_0", "t_mod_1")),
+            arguments(Range.closed(3L, 4L), new ExactCollection<>("t_mod_0", "t_mod_3")),
+            /**
+             * Range.closedOpen
+             */
+            arguments(Range.closedOpen(1L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2")),
+            arguments(Range.closedOpen(0L, 3L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
+            arguments(Range.closedOpen(0L, 4L), ALL_NODES),
+            arguments(Range.closedOpen(0L, 1L), new ExactCollection<>("t_mod_0")),
+            arguments(Range.closedOpen(3L, 4L), new ExactCollection<>("t_mod_3")),
+            /**
+             * Range.openClosed
+             */
+            arguments(Range.openClosed(1L, 3L), new ExactCollection<>("t_mod_2", "t_mod_3")),
+            arguments(Range.openClosed(0L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3")),
+            arguments(Range.openClosed(0L, 4L), ALL_NODES),
+            arguments(Range.openClosed(0L, 1L), new ExactCollection<>("t_mod_1")),
+            arguments(Range.openClosed(3L, 4L), new ExactCollection<>("t_mod_0")),
+            /**
+             * Range.open
+             */
+            arguments(Range.open(1L, 3L), new ExactCollection<>("t_mod_2")),
+            arguments(Range.open(0L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2")),
+            arguments(Range.open(0L, 4L), new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3")),
+            arguments(Range.open(0L, 1L), ExactCollection.empty()),
+            arguments(Range.open(3L, 4L), ExactCollection.empty()),
+            /**
+             * Range.greaterThan
+             */
+            arguments(Range.greaterThan(0L), ALL_NODES),
+            arguments(Range.greaterThan(1L), ALL_NODES),
+            arguments(Range.greaterThan(2L), ALL_NODES),
+            arguments(Range.greaterThan(3L), ALL_NODES),
+            arguments(Range.greaterThan(4L), ALL_NODES),
+            arguments(Range.greaterThan(5L), ALL_NODES),
+            /**
+             * Range.atLeast
+             */
+            arguments(Range.atLeast(0L), ALL_NODES),
+            arguments(Range.atLeast(1L), ALL_NODES),
+            arguments(Range.atLeast(2L), ALL_NODES),
+            arguments(Range.atLeast(3L), ALL_NODES),
+            arguments(Range.atLeast(4L), ALL_NODES),
+            arguments(Range.atLeast(5L), ALL_NODES),
+            /**
+             * Range.lessThan
+             */
+            arguments(Range.lessThan(0L), ExactCollection.empty()),
+            arguments(Range.lessThan(1L), new ExactCollection<>("t_mod_0")),
+            arguments(Range.lessThan(2L), new ExactCollection<>("t_mod_0", "t_mod_1")),
+            arguments(Range.lessThan(3L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
+            arguments(Range.lessThan(4L), ALL_NODES),
+            arguments(Range.lessThan(5L), ALL_NODES),
+            /**
+             * Range.atMost
+             */
+            arguments(Range.atMost(0L), new ExactCollection<>("t_mod_0")),
+            arguments(Range.atMost(1L), new ExactCollection<>("t_mod_0", "t_mod_1")),
+            arguments(Range.atMost(2L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
+            arguments(Range.atMost(3L), ALL_NODES),
+            arguments(Range.atMost(4L), ALL_NODES),
+            arguments(Range.atMost(5L), ALL_NODES)
         );
     }
 

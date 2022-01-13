@@ -17,6 +17,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributor;
 import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributorFactory;
+
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;

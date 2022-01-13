@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.sharding;
 
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+
 import com.google.common.collect.Range;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,7 +29,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /**
  * @author ahoo wang
@@ -38,8 +39,8 @@ class IntervalTimelineTest {
     public static final LocalDateTime UPPER_DATE_TIME = IntervalStepTest.START_DATE_TIME.plusYears(1);
     public static final String LOGIC_NAME = "table";
     public static final DateTimeFormatter SUFFIX_FORMATTER = DateTimeFormatter.ofPattern("_yyyyMM");
-    public static final ExactCollection<String> ALL_NODES = new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105"
-            , "table_202106", "table_202107", "table_202108", "table_202109", "table_202110", "table_202111", "table_202112", "table_202201");
+    public static final ExactCollection<String> ALL_NODES = new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105",
+        "table_202106", "table_202107", "table_202108", "table_202109", "table_202110", "table_202111", "table_202112", "table_202201");
     private IntervalTimeline intervalTimeline;
 
     @BeforeEach
@@ -50,10 +51,10 @@ class IntervalTimelineTest {
 
     public static Stream<Arguments> shardingArgsProvider() {
         return Stream.of(
-                arguments(LOWER_DATE_TIME, "table_202101"),
-                arguments(LocalDateTime.of(2021, 2, 14, 22, 0), "table_202102"),
-                arguments(LocalDateTime.of(2021, 10, 1, 0, 0), "table_202110"),
-                arguments(UPPER_DATE_TIME, "table_202201")
+            arguments(LOWER_DATE_TIME, "table_202101"),
+            arguments(LocalDateTime.of(2021, 2, 14, 22, 0), "table_202102"),
+            arguments(LocalDateTime.of(2021, 10, 1, 0, 0), "table_202110"),
+            arguments(UPPER_DATE_TIME, "table_202201")
         );
     }
 
@@ -73,27 +74,31 @@ class IntervalTimelineTest {
 
     public static Stream<Arguments> shardingRangeArgsProvider() {
         return Stream.of(
-                arguments(Range.all(), ALL_NODES),
-                arguments(Range.closed(LOWER_DATE_TIME, UPPER_DATE_TIME), ALL_NODES),
-                arguments(Range.closed(LocalDateTime.of(2021, 1, 1, 0, 0), LocalDateTime.of(2021, 2, 1, 0, 0)), new ExactCollection<>("table_202101", "table_202102")),
-                arguments(Range.closed(LOWER_DATE_TIME.minusMonths(1), UPPER_DATE_TIME.plusMonths(1)), ALL_NODES),
-                arguments(Range.closed(LocalDateTime.of(2021, 12, 1, 0, 0), LocalDateTime.of(2022, 2, 1, 0, 0)), new ExactCollection<>("table_202112", "table_202201")),
-                arguments(Range.closedOpen(LOWER_DATE_TIME, UPPER_DATE_TIME), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105", "table_202106", "table_202107", "table_202108", "table_202109", "table_202110", "table_202111", "table_202112")),
-                arguments(Range.openClosed(LOWER_DATE_TIME, UPPER_DATE_TIME), ALL_NODES),
+            arguments(Range.all(), ALL_NODES),
+            arguments(Range.closed(LOWER_DATE_TIME, UPPER_DATE_TIME), ALL_NODES),
+            arguments(Range.closed(LocalDateTime.of(2021, 1, 1, 0, 0), LocalDateTime.of(2021, 2, 1, 0, 0)), new ExactCollection<>("table_202101", "table_202102")),
+            arguments(Range.closed(LOWER_DATE_TIME.minusMonths(1), UPPER_DATE_TIME.plusMonths(1)), ALL_NODES),
+            arguments(Range.closed(LocalDateTime.of(2021, 12, 1, 0, 0), LocalDateTime.of(2022, 2, 1, 0, 0)), new ExactCollection<>("table_202112", "table_202201")),
+            arguments(Range.closedOpen(LOWER_DATE_TIME, UPPER_DATE_TIME),
+                new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105", "table_202106", "table_202107", "table_202108", "table_202109", "table_202110",
+                    "table_202111", "table_202112")),
+            arguments(Range.openClosed(LOWER_DATE_TIME, UPPER_DATE_TIME), ALL_NODES),
 
-                arguments(Range.greaterThan(LOWER_DATE_TIME), ALL_NODES),
-                arguments(Range.atLeast(LOWER_DATE_TIME), ALL_NODES),
-                arguments(Range.greaterThan(UPPER_DATE_TIME), new ExactCollection<>("table_202201")),
-                arguments(Range.atLeast(UPPER_DATE_TIME), new ExactCollection<>("table_202201")),
-                arguments(Range.greaterThan(LocalDateTime.of(2021, 12, 5, 0, 0)), new ExactCollection<>("table_202112", "table_202201")),
-                arguments(Range.atLeast(LocalDateTime.of(2021, 12, 5, 0, 0)), new ExactCollection<>("table_202112", "table_202201")),
+            arguments(Range.greaterThan(LOWER_DATE_TIME), ALL_NODES),
+            arguments(Range.atLeast(LOWER_DATE_TIME), ALL_NODES),
+            arguments(Range.greaterThan(UPPER_DATE_TIME), new ExactCollection<>("table_202201")),
+            arguments(Range.atLeast(UPPER_DATE_TIME), new ExactCollection<>("table_202201")),
+            arguments(Range.greaterThan(LocalDateTime.of(2021, 12, 5, 0, 0)), new ExactCollection<>("table_202112", "table_202201")),
+            arguments(Range.atLeast(LocalDateTime.of(2021, 12, 5, 0, 0)), new ExactCollection<>("table_202112", "table_202201")),
 
-                arguments(Range.lessThan(LOWER_DATE_TIME), ExactCollection.empty()),
-                arguments(Range.atMost(LOWER_DATE_TIME), new ExactCollection<>("table_202101")),
-                arguments(Range.lessThan(UPPER_DATE_TIME), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105", "table_202106", "table_202107", "table_202108", "table_202109", "table_202110", "table_202111", "table_202112")),
-                arguments(Range.atMost(UPPER_DATE_TIME), ALL_NODES),
-                arguments(Range.lessThan(LocalDateTime.of(2021, 5, 5, 0, 0)), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105")),
-                arguments(Range.atMost(LocalDateTime.of(2021, 5, 5, 0, 0)), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105"))
+            arguments(Range.lessThan(LOWER_DATE_TIME), ExactCollection.empty()),
+            arguments(Range.atMost(LOWER_DATE_TIME), new ExactCollection<>("table_202101")),
+            arguments(Range.lessThan(UPPER_DATE_TIME),
+                new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105", "table_202106", "table_202107", "table_202108", "table_202109", "table_202110",
+                    "table_202111", "table_202112")),
+            arguments(Range.atMost(UPPER_DATE_TIME), ALL_NODES),
+            arguments(Range.lessThan(LocalDateTime.of(2021, 5, 5, 0, 0)), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105")),
+            arguments(Range.atMost(LocalDateTime.of(2021, 5, 5, 0, 0)), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105"))
         );
     }
 

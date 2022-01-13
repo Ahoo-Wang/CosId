@@ -18,6 +18,7 @@ import me.ahoo.cosid.example.entity.interval.LocalDateTimeLogEntity;
 import me.ahoo.cosid.example.entity.interval.SnowflakeLogEntity;
 import me.ahoo.cosid.example.entity.interval.TimestampLogEntity;
 import me.ahoo.cosid.example.repository.IntervalShardingAlgorithmRepository;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -53,6 +54,7 @@ public class IntervalShardingAlgorithmController {
         algorithmRepository.insertTimestamp(log);
         return log;
     }
+
     @PostMapping("/insertDateTime")
     public LocalDateTimeLogEntity insertDateTime() {
         LocalDateTimeLogEntity log = new LocalDateTimeLogEntity();

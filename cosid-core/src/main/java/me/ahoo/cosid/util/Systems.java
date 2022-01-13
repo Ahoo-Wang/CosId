@@ -16,20 +16,31 @@ package me.ahoo.cosid.util;
 import java.lang.management.ManagementFactory;
 
 /**
+ * System tool class.
+ *
  * @author ahoo wang
  */
 public final class Systems {
     private Systems() {
     }
 
-
+    /**
+     * get current process name .
+     *
+     * @return process name
+     */
     public static String getCurrentProcessName() {
         return ManagementFactory.getRuntimeMXBean().getName();
     }
 
-    public static long getCurrentProcessId() {
+    /**
+     * get current process id .
+     *
+     * @return process id
+     */
+    public static int getCurrentProcessId() {
         String processName = getCurrentProcessName();
         String processIdStr = processName.split("@")[0];
-        return Long.parseLong(processIdStr);
+        return Integer.parseInt(processIdStr);
     }
 }

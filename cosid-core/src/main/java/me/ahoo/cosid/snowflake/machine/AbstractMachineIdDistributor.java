@@ -13,12 +13,14 @@
 
 package me.ahoo.cosid.snowflake.machine;
 
+import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
+
+import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 
-import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
 
 /**
  * @author ahoo wang
@@ -39,11 +41,11 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
      * 2. when not found: {@link #distribute0}
      * 3. set {@link me.ahoo.cosid.snowflake.machine.MachineState} to {@link MachineStateStorage}
      *
-     * @param namespace
-     * @param machineBit
-     * @param instanceId
-     * @return
-     * @throws MachineIdOverflowException
+     * @param namespace  namespace
+     * @param machineBit machineBit
+     * @param instanceId instanceId
+     * @return Machine Id
+     * @throws MachineIdOverflowException This exception is thrown when the machine number allocation exceeds the threshold
      */
     @Override
     public int distribute(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
@@ -75,9 +77,9 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
      * 2. when not found: {@link #distribute0} , no need to revert
      * 3. revert
      *
-     * @param namespace
-     * @param instanceId
-     * @throws MachineIdOverflowException
+     * @param namespace  namespace
+     * @param instanceId instanceId
+     * @throws MachineIdOverflowException This exception is thrown when the machine number allocation exceeds the threshold
      */
     @Override
     public void revert(String namespace, InstanceId instanceId) throws MachineIdOverflowException {
@@ -93,7 +95,6 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
 
         revert0(namespace, instanceId, lastLocalState);
     }
-
 
     protected abstract void revert0(String namespace, InstanceId instanceId, MachineState machineState);
 

@@ -13,7 +13,8 @@
 
 package me.ahoo.cosid.annotation.accessor;
 
-import lombok.extern.slf4j.Slf4j;
+import static java.util.Locale.ENGLISH;
+
 import me.ahoo.cosid.annotation.CosId;
 import me.ahoo.cosid.annotation.CosIdDefinition;
 import me.ahoo.cosid.annotation.accessor.field.FieldGetter;
@@ -21,12 +22,12 @@ import me.ahoo.cosid.annotation.accessor.field.FieldSetter;
 import me.ahoo.cosid.annotation.accessor.method.MethodGetter;
 import me.ahoo.cosid.annotation.accessor.method.MethodSetter;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static java.util.Locale.ENGLISH;
 
 /**
  * @author ahoo wang

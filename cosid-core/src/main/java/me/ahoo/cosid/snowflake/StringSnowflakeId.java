@@ -13,9 +13,8 @@
 
 package me.ahoo.cosid.snowflake;
 
-
-import me.ahoo.cosid.StringIdGenerator;
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.StringIdGenerator;
 
 /**
  * @author ahoo wang

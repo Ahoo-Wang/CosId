@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.annotation.accessor;
 
-import com.google.common.base.Strings;
 import me.ahoo.cosid.CosIdException;
+
+import com.google.common.base.Strings;
 
 import java.lang.reflect.Field;
 

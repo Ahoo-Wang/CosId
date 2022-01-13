@@ -13,12 +13,15 @@
 
 package me.ahoo.cosid.segment;
 
-import com.google.common.base.Preconditions;
 import me.ahoo.cosid.util.Clock;
+
+import com.google.common.base.Preconditions;
 
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
+ * Default Id Segment.
+ *
  * @author ahoo wang
  */
 public class DefaultIdSegment implements IdSegment {
@@ -26,7 +29,7 @@ public class DefaultIdSegment implements IdSegment {
     public static final DefaultIdSegment OVERFLOW = new DefaultIdSegment(IdSegment.SEQUENCE_OVERFLOW, 0, Clock.CACHE.secondTime(), TIME_TO_LIVE_FOREVER);
 
     /**
-     * include
+     * include.
      */
     private final long maxId;
     private final long offset;
@@ -97,13 +100,13 @@ public class DefaultIdSegment implements IdSegment {
 
     @Override
     public String toString() {
-        return "DefaultIdSegment{" +
-                "maxId=" + maxId +
-                ", offset=" + offset +
-                ", step=" + step +
-                ", sequence=" + sequence +
-                ", fetchTime=" + fetchTime +
-                ", ttl=" + ttl +
-                '}';
+        return "DefaultIdSegment{"
+            + "maxId=" + maxId
+            + ", offset=" + offset
+            + ", step=" + step
+            + ", sequence=" + sequence
+            + ", fetchTime=" + fetchTime
+            + ", ttl=" + ttl
+            + '}';
     }
 }

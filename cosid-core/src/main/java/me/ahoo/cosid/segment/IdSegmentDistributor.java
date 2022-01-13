@@ -13,18 +13,22 @@
 
 package me.ahoo.cosid.segment;
 
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+
+import me.ahoo.cosid.util.Clock;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import me.ahoo.cosid.util.Clock;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
-import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
 /**
+ * Id Segment Distributor.
+ *
  * @author ahoo wang
  */
 public interface IdSegmentDistributor {
@@ -38,6 +42,10 @@ public interface IdSegmentDistributor {
 
     default String getNamespacedName() {
         return getNamespacedName(getNamespace(), getName());
+    }
+
+    static String getNamespacedName(String namespace, String name) {
+        return namespace + "." + name;
     }
 
     long getStep();
@@ -91,12 +99,9 @@ public interface IdSegmentDistributor {
         Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
     }
 
-    static String getNamespacedName(String namespace, String name) {
-        return namespace + "." + name;
-    }
 
     class Atomic implements IdSegmentDistributor {
-        private final static AtomicInteger ATOMIC_COUNTER = new AtomicInteger();
+        private static final AtomicInteger ATOMIC_COUNTER = new AtomicInteger();
         private final long step;
         private final String name;
         private final AtomicLong adder = new AtomicLong();
@@ -134,7 +139,7 @@ public interface IdSegmentDistributor {
 
     @VisibleForTesting
     class Mock implements IdSegmentDistributor {
-        private final static AtomicInteger MOCK_COUNTER = new AtomicInteger();
+        private static final AtomicInteger MOCK_COUNTER = new AtomicInteger();
         private final long step;
         private final String name;
         private final long ioWaiting;

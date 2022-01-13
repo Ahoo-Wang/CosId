@@ -20,40 +20,40 @@ import java.util.Collection;
 import java.util.Optional;
 
 /**
- * {@link IdGenerator} container
+ * {@link IdGenerator} container.
  *
  * @author ahoo wang
  */
 @ThreadSafe
 public interface IdGeneratorProvider {
     /**
-     * the key of shared ID generator
+     * the key of shared ID generator.
      */
     String SHARE = "__share__";
 
     /**
-     * Get shared ID generator
+     * Get shared ID generator.
      *
      * @return shared ID generator
      */
     IdGenerator getShare();
 
     /**
-     * Set shared ID generator
+     * Set shared ID generator.
      *
      * @param idGenerator Id Generator
      */
     void setShare(IdGenerator idGenerator);
 
     /**
-     * Remove shared ID generator
+     * Remove shared ID generator.
      *
      * @return Previous ID generator
      */
     IdGenerator removeShare();
 
     /**
-     * Get ID generator by name
+     * Get ID generator by name.
      *
      * @param name name of ID generator
      * @return ID generator
@@ -61,7 +61,7 @@ public interface IdGeneratorProvider {
     Optional<IdGenerator> get(String name);
 
     /**
-     * Set ID generator by name
+     * Set ID generator by name.
      *
      * @param name        name of ID generator
      * @param idGenerator ID generator
@@ -69,7 +69,7 @@ public interface IdGeneratorProvider {
     void set(String name, IdGenerator idGenerator);
 
     /**
-     * remove ID generator by name
+     * remove ID generator by name.
      *
      * @param name name of ID generator
      * @return Previous ID generator
@@ -77,12 +77,12 @@ public interface IdGeneratorProvider {
     IdGenerator remove(String name);
 
     /**
-     * clear all ID generator
+     * clear all ID generator.
      */
     void clear();
 
     /**
-     * get all ID generator
+     * get all ID generator.
      *
      * @return all ID generator
      */

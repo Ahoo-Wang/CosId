@@ -20,6 +20,8 @@ import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 
 /**
+ * Mock ID Generator for test.
+ *
  * @author ahoo wang
  */
 public class MockIdGenerator extends StringIdGenerator {
@@ -29,6 +31,6 @@ public class MockIdGenerator extends StringIdGenerator {
     public static final IdGenerator INSTANCE = new MockIdGenerator(TEST_PREFIX);
 
     public MockIdGenerator(String prefix) {
-        super(new MillisecondSnowflakeId(1,0), new PrefixIdConverter(prefix, Radix62IdConverter.INSTANCE));
+        super(new MillisecondSnowflakeId(1, 0), new PrefixIdConverter(prefix, Radix62IdConverter.INSTANCE));
     }
 }

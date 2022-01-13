@@ -17,11 +17,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 
-import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * @author ahoo wang
@@ -45,13 +45,11 @@ public abstract class SnowflakeIdStateParser {
     protected final long timestampMask;
     protected final int timestampLeft;
 
-    public SnowflakeIdStateParser(long epoch
-            , int timestampBit, int machineBit, int sequenceBit) {
+    public SnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit) {
         this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault());
     }
 
-    public SnowflakeIdStateParser(long epoch
-            , int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId) {
+    public SnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId) {
         this.epoch = epoch;
         this.sequenceMask = getMask(sequenceBit);
         this.sequenceBit = sequenceBit;
@@ -86,15 +84,15 @@ public abstract class SnowflakeIdStateParser {
         long sequence = Long.parseLong(segments.get(2));
         long diffTime = getDiffTime(timestamp);
         long id = (diffTime) << timestampLeft
-                | machineId << machineLeft
-                | sequence;
+            | machineId << machineLeft
+            | sequence;
         return SnowflakeIdState.builder()
-                .id(id)
-                .machineId(machineId)
-                .sequence(sequence)
-                .timestamp(timestamp)
-                .friendlyId(friendlyId)
-                .build();
+            .id(id)
+            .machineId(machineId)
+            .sequence(sequence)
+            .timestamp(timestamp)
+            .friendlyId(friendlyId)
+            .build();
     }
 
     public SnowflakeIdState parse(long id) {
@@ -104,19 +102,19 @@ public abstract class SnowflakeIdStateParser {
         LocalDateTime timestamp = parseTimestamp(id);
 
         String friendlyId = new StringBuilder(timestamp.format(getDateTimeFormatter()))
-                .append(DELIMITER)
-                .append(machineId)
-                .append(DELIMITER)
-                .append(sequence)
-                .toString();
+            .append(DELIMITER)
+            .append(machineId)
+            .append(DELIMITER)
+            .append(sequence)
+            .toString();
 
         return SnowflakeIdState.builder()
-                .id(id)
-                .machineId((int) machineId)
-                .sequence(sequence)
-                .timestamp(timestamp)
-                .friendlyId(friendlyId)
-                .build();
+            .id(id)
+            .machineId((int) machineId)
+            .sequence(sequence)
+            .timestamp(timestamp)
+            .friendlyId(friendlyId)
+            .build();
     }
 
     private long getMask(long bits) {

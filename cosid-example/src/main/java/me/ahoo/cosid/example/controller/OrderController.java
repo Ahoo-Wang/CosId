@@ -13,12 +13,17 @@
 
 package me.ahoo.cosid.example.controller;
 
-import com.google.common.base.Splitter;
 import me.ahoo.cosid.example.entity.Order;
 import me.ahoo.cosid.example.entity.OrderItem;
 import me.ahoo.cosid.example.repository.OrderRepository;
+
+import com.google.common.base.Splitter;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.stream.Collectors;

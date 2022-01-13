@@ -34,7 +34,7 @@ public class InstanceId {
     }
 
     /**
-     * 稳定的的实例拥有稳定的机器号
+     * 稳定的的实例拥有稳定的机器号.
      *
      * @return Is the instance deployment status stable?
      */
@@ -48,10 +48,10 @@ public class InstanceId {
 
     @Override
     public String toString() {
-        return "InstanceId{" +
-                "instanceId='" + instanceId + '\'' +
-                ", stable=" + stable +
-                '}';
+        return "InstanceId{"
+            + "instanceId='" + instanceId + '\''
+            + ", stable=" + stable
+            + '}';
     }
 
     public static InstanceId of(String host, int port, boolean stable) {
@@ -65,8 +65,12 @@ public class InstanceId {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof InstanceId)) return false;
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof InstanceId)) {
+            return false;
+        }
         InstanceId that = (InstanceId) o;
         return stable == that.stable && Objects.equal(instanceId, that.instanceId);
     }

@@ -13,20 +13,15 @@
 
 package me.ahoo.cosid.spring.redis;
 
+import static me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor.hashTag;
+
+import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.segment.IdSegmentDistributor;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.CosId;
-import me.ahoo.cosid.segment.IdSegmentDistributor;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.RedisScript;
-
-import java.util.Collections;
-import java.util.List;
-
-import static me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor.hashTag;
 
 /**
  * @author ahoo wang

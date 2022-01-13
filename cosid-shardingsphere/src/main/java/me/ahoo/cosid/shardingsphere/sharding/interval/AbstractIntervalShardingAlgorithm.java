@@ -13,13 +13,14 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
 import me.ahoo.cosid.sharding.IntervalStep;
 import me.ahoo.cosid.sharding.IntervalTimeline;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.shardingsphere.sharding.utils.PropertiesUtil;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.StandardShardingAlgorithm;
@@ -105,17 +106,16 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
         return intervalTimeline;
     }
 
-    /**
-     * Sharding.
-     *
-     * @param availableTargetNames available data sources or table names
-     * @param shardingValue        sharding value
-     * @return sharding result for data source or table name
-     */
     @Override
     public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<T> shardingValue) {
         LocalDateTime shardingTime = convertShardingValue(shardingValue.getValue());
         return this.intervalTimeline.sharding(shardingTime);
+    }
+
+    @Override
+    public Collection<String> doSharding(Collection<String> availableTargetNames, RangeShardingValue<T> shardingValue) {
+        Range<LocalDateTime> shardingRangeTime = convertRangeShardingValue(shardingValue.getValueRange());
+        return this.intervalTimeline.sharding(shardingRangeTime);
     }
 
     protected abstract LocalDateTime convertShardingValue(T shardingValue);
@@ -152,16 +152,4 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
         return Range.atMost(upper);
     }
 
-    /**
-     * Sharding.
-     *
-     * @param availableTargetNames available data sources or table names
-     * @param shardingValue        sharding value
-     * @return sharding results for data sources or table names
-     */
-    @Override
-    public Collection<String> doSharding(Collection<String> availableTargetNames, RangeShardingValue<T> shardingValue) {
-        Range<LocalDateTime> shardingRangeTime = convertRangeShardingValue(shardingValue.getValueRange());
-        return this.intervalTimeline.sharding(shardingRangeTime);
-    }
 }

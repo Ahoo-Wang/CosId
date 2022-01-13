@@ -13,17 +13,18 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import com.google.common.base.Strings;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.provider.LazyIdGenerator;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
+
+import com.google.common.base.Strings;
 
 import java.time.LocalDateTime;
 
 /**
  * @author ahoo wang
  */
-public class SnowflakeIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Comparable<?>> {
+public class SnowflakeIntervalShardingAlgorithm extends AbstractIntervalShardingAlgorithm<Comparable<?>> {
 
     public static final String TYPE = AbstractIntervalShardingAlgorithm.TYPE_PREFIX + "SNOWFLAKE";
 

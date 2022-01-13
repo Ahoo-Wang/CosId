@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.zookeeper;
 
 import me.ahoo.cosid.spring.boot.starter.EnabledSuffix;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.lang.annotation.ElementType;

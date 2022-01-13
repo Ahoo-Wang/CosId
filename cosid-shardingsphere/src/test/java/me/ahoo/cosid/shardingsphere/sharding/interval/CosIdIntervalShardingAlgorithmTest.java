@@ -13,8 +13,12 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import com.google.common.collect.Range;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+
 import me.ahoo.cosid.sharding.ExactCollection;
+
+import com.google.common.collect.Range;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,15 +34,13 @@ import java.util.Properties;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 /**
  * @author ahoo wang
  */
 class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorithmTest {
 
-    private final static DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(StringIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
+    private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(StringIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
 
     AbstractIntervalShardingAlgorithm shardingAlgorithm;
 
@@ -53,10 +55,10 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
 
     static Stream<Arguments> doShardingPreciseWhenLocalDateTimeArgsProvider() {
         return Stream.of(
-                arguments(LOWER_DATE_TIME, "table_202101"),
-                arguments(LocalDateTime.of(2021, 2, 14, 22, 0), "table_202102"),
-                arguments(LocalDateTime.of(2021, 10, 1, 0, 0), "table_202110"),
-                arguments(UPPER_DATE_TIME, "table_202201")
+            arguments(LOWER_DATE_TIME, "table_202101"),
+            arguments(LocalDateTime.of(2021, 2, 14, 22, 0), "table_202102"),
+            arguments(LocalDateTime.of(2021, 10, 1, 0, 0), "table_202110"),
+            arguments(UPPER_DATE_TIME, "table_202201")
         );
     }
 
@@ -70,8 +72,8 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
 
     static Stream<Arguments> doShardingPreciseWhenStringArgsProvider() {
         return Stream.of(
-                arguments("2021-02-14 22:00:00", "table_202102"),
-                arguments("2021-10-01 00:00:00", "table_202110")
+            arguments("2021-02-14 22:00:00", "table_202102"),
+            arguments("2021-10-01 00:00:00", "table_202110")
         );
     }
 
@@ -86,8 +88,8 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
 
     static Stream<Arguments> doShardingPreciseWhenDateArgsProvider() {
         return Stream.of(
-                arguments(new Date(LocalDateTime.of(2021, 2, 14, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli()), "table_202102"),
-                arguments(new Date(LocalDateTime.of(2021, 10, 1, 0, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli()), "table_202110")
+            arguments(new Date(LocalDateTime.of(2021, 2, 14, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli()), "table_202102"),
+            arguments(new Date(LocalDateTime.of(2021, 10, 1, 0, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli()), "table_202110")
         );
     }
 
@@ -101,8 +103,8 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
 
     static Stream<Arguments> doShardingPreciseWhenTimestampArgsProvider() {
         return Stream.of(
-                arguments(LocalDateTime.of(2021, 2, 14, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli(), "table_202102"),
-                arguments(LocalDateTime.of(2021, 10, 1, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli(), "table_202110")
+            arguments(LocalDateTime.of(2021, 2, 14, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli(), "table_202102"),
+            arguments(LocalDateTime.of(2021, 10, 1, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli(), "table_202110")
         );
     }
 
@@ -117,27 +119,33 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
 
     static Stream<Arguments> doShardingRangeArgsProvider(Function<LocalDateTime, ? extends Comparable<?>> datetimeConvert) {
         return Stream.of(
-                arguments(Range.all(), ALL_NODES),
-                arguments(Range.closed(datetimeConvert.apply(LOWER_DATE_TIME), datetimeConvert.apply(UPPER_DATE_TIME)), ALL_NODES),
-                arguments(Range.closed(datetimeConvert.apply(LocalDateTime.of(2021, 1, 1, 0, 0)), datetimeConvert.apply(LocalDateTime.of(2021, 2, 1, 0, 0))), new ExactCollection<>("table_202101", "table_202102")),
-                arguments(Range.closed(datetimeConvert.apply(LOWER_DATE_TIME.minusMonths(1)), datetimeConvert.apply(UPPER_DATE_TIME.plusMonths(1))), ALL_NODES),
-                arguments(Range.closed(datetimeConvert.apply(LocalDateTime.of(2021, 12, 1, 0, 0)), datetimeConvert.apply(LocalDateTime.of(2022, 2, 1, 0, 0))), new ExactCollection<>("table_202112", "table_202201")),
-                arguments(Range.closedOpen(datetimeConvert.apply(LOWER_DATE_TIME), datetimeConvert.apply(UPPER_DATE_TIME)), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105", "table_202106", "table_202107", "table_202108", "table_202109", "table_202110", "table_202111", "table_202112")),
-                arguments(Range.openClosed(datetimeConvert.apply(LOWER_DATE_TIME), datetimeConvert.apply(UPPER_DATE_TIME)), ALL_NODES),
+            arguments(Range.all(), ALL_NODES),
+            arguments(Range.closed(datetimeConvert.apply(LOWER_DATE_TIME), datetimeConvert.apply(UPPER_DATE_TIME)), ALL_NODES),
+            arguments(Range.closed(datetimeConvert.apply(LocalDateTime.of(2021, 1, 1, 0, 0)), datetimeConvert.apply(LocalDateTime.of(2021, 2, 1, 0, 0))),
+                new ExactCollection<>("table_202101", "table_202102")),
+            arguments(Range.closed(datetimeConvert.apply(LOWER_DATE_TIME.minusMonths(1)), datetimeConvert.apply(UPPER_DATE_TIME.plusMonths(1))), ALL_NODES),
+            arguments(Range.closed(datetimeConvert.apply(LocalDateTime.of(2021, 12, 1, 0, 0)), datetimeConvert.apply(LocalDateTime.of(2022, 2, 1, 0, 0))),
+                new ExactCollection<>("table_202112", "table_202201")),
+            arguments(Range.closedOpen(datetimeConvert.apply(LOWER_DATE_TIME), datetimeConvert.apply(UPPER_DATE_TIME)),
+                new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105", "table_202106", "table_202107", "table_202108", "table_202109", "table_202110",
+                    "table_202111", "table_202112")),
+            arguments(Range.openClosed(datetimeConvert.apply(LOWER_DATE_TIME), datetimeConvert.apply(UPPER_DATE_TIME)), ALL_NODES),
 
-                arguments(Range.greaterThan(datetimeConvert.apply(LOWER_DATE_TIME)), ALL_NODES),
-                arguments(Range.atLeast(datetimeConvert.apply(LOWER_DATE_TIME)), ALL_NODES),
-                arguments(Range.greaterThan(datetimeConvert.apply(UPPER_DATE_TIME)), new ExactCollection<>("table_202201")),
-                arguments(Range.atLeast(datetimeConvert.apply(UPPER_DATE_TIME)), new ExactCollection<>("table_202201")),
-                arguments(Range.greaterThan(datetimeConvert.apply(LocalDateTime.of(2021, 12, 5, 0, 0))), new ExactCollection<>("table_202112", "table_202201")),
-                arguments(Range.atLeast(datetimeConvert.apply(LocalDateTime.of(2021, 12, 5, 0, 0))), new ExactCollection<>("table_202112", "table_202201")),
+            arguments(Range.greaterThan(datetimeConvert.apply(LOWER_DATE_TIME)), ALL_NODES),
+            arguments(Range.atLeast(datetimeConvert.apply(LOWER_DATE_TIME)), ALL_NODES),
+            arguments(Range.greaterThan(datetimeConvert.apply(UPPER_DATE_TIME)), new ExactCollection<>("table_202201")),
+            arguments(Range.atLeast(datetimeConvert.apply(UPPER_DATE_TIME)), new ExactCollection<>("table_202201")),
+            arguments(Range.greaterThan(datetimeConvert.apply(LocalDateTime.of(2021, 12, 5, 0, 0))), new ExactCollection<>("table_202112", "table_202201")),
+            arguments(Range.atLeast(datetimeConvert.apply(LocalDateTime.of(2021, 12, 5, 0, 0))), new ExactCollection<>("table_202112", "table_202201")),
 
-                arguments(Range.lessThan(datetimeConvert.apply(LOWER_DATE_TIME)), ExactCollection.empty()),
-                arguments(Range.atMost(datetimeConvert.apply(LOWER_DATE_TIME)), new ExactCollection<>("table_202101")),
-                arguments(Range.lessThan(datetimeConvert.apply(UPPER_DATE_TIME)), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105", "table_202106", "table_202107", "table_202108", "table_202109", "table_202110", "table_202111", "table_202112")),
-                arguments(Range.atMost(datetimeConvert.apply(UPPER_DATE_TIME)), ALL_NODES),
-                arguments(Range.lessThan(datetimeConvert.apply(LocalDateTime.of(2021, 5, 5, 0, 0))), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105")),
-                arguments(Range.atMost(datetimeConvert.apply(LocalDateTime.of(2021, 5, 5, 0, 0))), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105"))
+            arguments(Range.lessThan(datetimeConvert.apply(LOWER_DATE_TIME)), ExactCollection.empty()),
+            arguments(Range.atMost(datetimeConvert.apply(LOWER_DATE_TIME)), new ExactCollection<>("table_202101")),
+            arguments(Range.lessThan(datetimeConvert.apply(UPPER_DATE_TIME)),
+                new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105", "table_202106", "table_202107", "table_202108", "table_202109", "table_202110",
+                    "table_202111", "table_202112")),
+            arguments(Range.atMost(datetimeConvert.apply(UPPER_DATE_TIME)), ALL_NODES),
+            arguments(Range.lessThan(datetimeConvert.apply(LocalDateTime.of(2021, 5, 5, 0, 0))), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105")),
+            arguments(Range.atMost(datetimeConvert.apply(LocalDateTime.of(2021, 5, 5, 0, 0))), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105"))
         );
     }
 

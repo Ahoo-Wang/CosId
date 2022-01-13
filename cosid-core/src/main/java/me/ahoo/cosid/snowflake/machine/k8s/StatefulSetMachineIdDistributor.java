@@ -13,10 +13,15 @@
 
 package me.ahoo.cosid.snowflake.machine.k8s;
 
+import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineState;
+import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
+
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.machine.*;
+
 
 /**
  * @author ahoo wang

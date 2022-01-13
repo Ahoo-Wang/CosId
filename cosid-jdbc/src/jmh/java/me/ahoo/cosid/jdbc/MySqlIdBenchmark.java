@@ -14,7 +14,12 @@
 package me.ahoo.cosid.jdbc;
 
 import me.ahoo.cosid.segment.SegmentId;
-import org.openjdk.jmh.annotations.*;
+
+import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.State;
 
 /**
  * @author ahoo wang

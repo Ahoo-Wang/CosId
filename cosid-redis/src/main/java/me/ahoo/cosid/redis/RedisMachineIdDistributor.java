@@ -13,18 +13,24 @@
 
 package me.ahoo.cosid.redis;
 
+import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
+
+import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
+import me.ahoo.cosid.snowflake.machine.MachineState;
+import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
+import me.ahoo.cosky.core.redis.RedisScripts;
+
 import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.cluster.api.reactive.RedisClusterReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.machine.*;
-import me.ahoo.cosky.core.redis.RedisScripts;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.List;
 
-import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
 
 /**
  * @author ahoo wang
@@ -68,11 +74,11 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
             log.info("distributeAsync0 - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
         return RedisScripts.doEnsureScript(MACHINE_ID_DISTRIBUTE, redisCommands,
-                (scriptSha) -> {
-                    String[] keys = {hashTag(namespace)};
-                    String[] values = {instanceId.getInstanceId(), String.valueOf(maxMachineId(machineBit))};
-                    return redisCommands.evalsha(scriptSha, ScriptOutputType.MULTI, keys, values).next();
-                }
+            (scriptSha) -> {
+                String[] keys = {hashTag(namespace)};
+                String[] values = {instanceId.getInstanceId(), String.valueOf(maxMachineId(machineBit))};
+                return redisCommands.evalsha(scriptSha, ScriptOutputType.MULTI, keys, values).next();
+            }
         ).map(distribution -> {
             @SuppressWarnings("unchecked")
             List<Long> state = (List<Long>) distribution;
@@ -100,10 +106,10 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     /**
      * when {@link InstanceId#isStable()} is true,do not revert machineId
      *
-     * @param namespace
-     * @param instanceId
-     * @param machineState
-     * @return
+     * @param namespace    namespace
+     * @param instanceId   instanceId
+     * @param machineState machineState
+     * @return Void of Mono
      */
     protected Mono<Void> revertAsync0(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
@@ -118,22 +124,22 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
 
     private Mono<Void> revertScriptAsync(String scriptName, String namespace, InstanceId instanceId, MachineState machineState) {
         return RedisScripts.doEnsureScript(scriptName, redisCommands,
-                (scriptSha) -> {
-                    long lastStamp = machineState.getLastTimeStamp();
-                    if (getBackwardsTimeStamp(lastStamp) < 0) {
-                        lastStamp = System.currentTimeMillis();
-                    }
-                    String[] keys = {hashTag(namespace)};
-                    String[] values = {instanceId.getInstanceId(), String.valueOf(lastStamp)};
-                    return redisCommands.evalsha(scriptSha, ScriptOutputType.INTEGER, keys, values).then();
+            (scriptSha) -> {
+                long lastStamp = machineState.getLastTimeStamp();
+                if (getBackwardsTimeStamp(lastStamp) < 0) {
+                    lastStamp = System.currentTimeMillis();
                 }
+                String[] keys = {hashTag(namespace)};
+                String[] values = {instanceId.getInstanceId(), String.valueOf(lastStamp)};
+                return redisCommands.evalsha(scriptSha, ScriptOutputType.INTEGER, keys, values).then();
+            }
         );
     }
 
     /**
      * redis hash tag for redis-cluster
      *
-     * @param key
+     * @param key key
      * @return hash tag key
      */
     public static String hashTag(String key) {

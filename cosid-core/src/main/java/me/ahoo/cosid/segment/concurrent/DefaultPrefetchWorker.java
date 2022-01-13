@@ -22,6 +22,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
 /**
+ * Default Prefetch Worker.
+ *
  * @author ahoo wang
  */
 @Slf4j

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.redis;
 
 import me.ahoo.cosid.util.MockIdGenerator;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,13 +45,14 @@ class SpringRedisIdSegmentDistributorTest {
         long nextMaxId = springRedisIdSegmentDistributor.nextMaxId();
         Assertions.assertEquals(springRedisIdSegmentDistributor.getStep(), nextMaxId);
     }
+
     @Test
     public void generateIfMaxIdBack() {
         long id = springRedisIdSegmentDistributor.nextMaxId();
         Assertions.assertTrue(id > 0);
         String adderKey = springRedisIdSegmentDistributor.getAdderKey();
         stringRedisTemplate.opsForValue().set(adderKey, String.valueOf(id - 1));
-        Assertions.assertThrows(IllegalStateException.class,()->{
+        Assertions.assertThrows(IllegalStateException.class, () -> {
             long id2 = springRedisIdSegmentDistributor.nextMaxId();
         });
     }

@@ -13,12 +13,13 @@
 
 package me.ahoo.cosid.jdbc;
 
-import lombok.SneakyThrows;
 import me.ahoo.cosid.jdbc.exception.SegmentNameMissingException;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.util.MockIdGenerator;
+
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -101,9 +102,9 @@ class JdbcIdSegmentDistributorTest {
     @Test
     public void concurrent_generate_step_100() {
         String namespace = UUID.randomUUID().toString();
-        JdbcIdSegmentDistributor maxIdDistributor_generate_step_100 = new JdbcIdSegmentDistributor(namespace, MockIdGenerator.INSTANCE.generateAsString(), 100, dataSource);
-        mySqlIdSegmentInitializer.initIdSegment(maxIdDistributor_generate_step_100.getNamespacedName(), 0);
-        SegmentId segmentChainId = new SegmentChainId(maxIdDistributor_generate_step_100);
+        JdbcIdSegmentDistributor maxIdDistributorGenerateStep100 = new JdbcIdSegmentDistributor(namespace, MockIdGenerator.INSTANCE.generateAsString(), 100, dataSource);
+        mySqlIdSegmentInitializer.initIdSegment(maxIdDistributorGenerateStep100.getNamespacedName(), 0);
+        SegmentId segmentChainId = new SegmentChainId(maxIdDistributorGenerateStep100);
         CompletableFuture<List<Long>>[] completableFutures = new CompletableFuture[CONCURRENT_THREADS];
         int threads = 0;
         while (threads < CONCURRENT_THREADS) {

@@ -17,6 +17,7 @@ import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -36,7 +37,8 @@ public class CosIdSpringRedisMachineIdDistributorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public SpringRedisMachineIdDistributor springRedisMachineIdDistributor(StringRedisTemplate redisTemplate, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+    public SpringRedisMachineIdDistributor springRedisMachineIdDistributor(StringRedisTemplate redisTemplate, MachineStateStorage localMachineState,
+                                                                           ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         return new SpringRedisMachineIdDistributor(redisTemplate, localMachineState, clockBackwardsSynchronizer);
     }
 }

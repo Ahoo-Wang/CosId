@@ -116,7 +116,12 @@ jobs:
     runs-on: ubuntu-latest
     services:
       mysql:
-        image: mysql:5.7
+        image: mysql
+        options: >-
+          --health-cmd "mysqladmin ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
         ports:
           - 3306:3306
         env:
@@ -134,7 +139,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Init CosId-Db
-        run: mysql -h 127.0.0.1 -uroot -p $MYSQL_ROOT_PASSWORD < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
+        run: mysql -h 127.0.0.1 -uroot -p root < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: Test CosId-Jdbc
         run: gradle cosid-jdbc:clean cosid-jdbc:check

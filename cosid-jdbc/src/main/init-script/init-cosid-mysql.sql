@@ -41,8 +41,8 @@ create table if not exists cosid_machine
         primary key (name)
 ) engine = InnoDB;
 
-create index if not exists idx_namespace on cosid_machine (namespace);
-create index if not exists idx_instance_id on cosid_machine (instance_id);
+create index idx_namespace on cosid_machine (namespace);
+create index idx_instance_id on cosid_machine (instance_id);
 
 
 

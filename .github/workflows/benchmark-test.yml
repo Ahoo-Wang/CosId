@@ -1,6 +1,24 @@
 name: Benchmark Test
 on: [ push ]
 jobs:
+  cosid-core-benchmark:
+    name: CosId Core Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: CosId-ShardingSphere
+        run: gradle cosid-core:clean cosid-core:jmh
+
   cosid-shardingsphere-benchmark:
     name: CosId ShardingSphere Benchmark
     runs-on: ubuntu-latest

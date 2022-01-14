@@ -116,7 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Start Mysql
-      - run:  sudo /etc/init.d/mysql start
+        run:  sudo /etc/init.d/mysql start
 
       - name: Checkout
         uses: actions/checkout@master

@@ -114,19 +114,10 @@ jobs:
     name: CosId Jdbc Test
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql:5.7
-        options: >-
-          --health-cmd "mysqladmin ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 3306:3306
-        env:
-          MYSQL_ROOT_PASSWORD: root
     steps:
+      - name: Start Mysql
+      - run:  sudo /etc/init.d/mysql start
+
       - name: Checkout
         uses: actions/checkout@master
 

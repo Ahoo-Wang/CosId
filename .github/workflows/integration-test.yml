@@ -113,7 +113,7 @@ jobs:
   cosid-jdbc-test:
     name: CosId Jdbc Test
     needs: [ cosid-core-test ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Start Mysql
         run:  sudo /etc/init.d/mysql start

@@ -42,11 +42,17 @@ public class PrefetchWorkerExecutorService {
     private final AtomicLong threadIdx = new AtomicLong();
 
     public PrefetchWorkerExecutorService(Duration prefetchPeriod, int corePoolSize) {
+        this(prefetchPeriod, corePoolSize, true);
+    }
+
+    public PrefetchWorkerExecutorService(Duration prefetchPeriod, int corePoolSize, boolean shutdownHook) {
         Preconditions.checkArgument(corePoolSize > 0, "corePoolSize:[%s] must be greater than 0.", corePoolSize);
         this.prefetchPeriod = prefetchPeriod;
         this.corePoolSize = corePoolSize;
         this.workers = new DefaultPrefetchWorker[corePoolSize];
-        Runtime.getRuntime().addShutdownHook(new GracefullyCloser());
+        if (shutdownHook) {
+            Runtime.getRuntime().addShutdownHook(new GracefullyCloser());
+        }
     }
 
     private void ensureInitWorkers() {

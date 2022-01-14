@@ -144,6 +144,7 @@ public class SegmentIdProperties {
 
             private Duration prefetchPeriod = PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD;
             private int corePoolSize = Runtime.getRuntime().availableProcessors();
+            private boolean shutdownHook = true;
 
             public Duration getPrefetchPeriod() {
                 return prefetchPeriod;
@@ -159,6 +160,14 @@ public class SegmentIdProperties {
 
             public void setCorePoolSize(int corePoolSize) {
                 this.corePoolSize = corePoolSize;
+            }
+
+            public boolean isShutdownHook() {
+                return shutdownHook;
+            }
+
+            public void setShutdownHook(boolean shutdownHook) {
+                this.shutdownHook = shutdownHook;
             }
         }
     }

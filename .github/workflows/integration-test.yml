@@ -1,23 +1,9 @@
 name: Integration Test
 on: [ push ]
 jobs:
-  integration-test:
+  cosid-core-test:
+    name: CosId Core Test
     runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-      zookeeper:
-        image: zookeeper
-        ports:
-          - 2181:2181
-
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -29,19 +15,71 @@ jobs:
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
-
+          
       - name: Test CosId-Core
         run: gradle cosid-core:clean cosid-core:check
 
+  cosid-jackson-test:
+    name: CosId Jackson Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
       - name: Test CosId-Jackson
         run: gradle cosid-jackson:clean cosid-jackson:check
 
+  cosid-shardingsphere-test:
+    name: CosId ShardingSphere Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
       - name: Test CosId-ShardingSphere
         run: gradle cosid-shardingsphere:clean cosid-shardingsphere:check
 
+  cosid-redis-test:
+    name: CosId Redis Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    steps:
       - name: Test CosId-Redis
         run: gradle cosid-redis:clean cosid-redis:check cosid-spring-redis:clean cosid-spring-redis:check
 
+  cosid-zookeeper-test:
+    name: CosId Zookeeper Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    services:
+      zookeeper:
+        image: zookeeper
+        ports:
+          - 2181:2181
+    steps:
       - name: Test CosId-Zookeeper
         run: gradle cosid-zookeeper:clean cosid-zookeeper:check
 
+  cosid-jdbc-test:
+    name: CosId Jdbc Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: root
+    steps:
+      - name: Init CosId-Db
+        run: mysql -uroot -p $MYSQL_ROOT_PASSWORD < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
+
+      - name: Test CosId-Jdbc
+        run: gradle cosid-jdbc:clean cosid-jdbc:check

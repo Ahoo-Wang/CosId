@@ -61,7 +61,7 @@ public class CosIdSegmentAutoConfiguration {
     public PrefetchWorkerExecutorService prefetchWorkerExecutorService() {
         SegmentIdProperties.Chain.PrefetchWorker prefetchWorker = segmentIdProperties.getChain().getPrefetchWorker();
         Preconditions.checkNotNull(prefetchWorker, "cosid.segment.chain.prefetch-worker can not be null!");
-        return new PrefetchWorkerExecutorService(prefetchWorker.getPrefetchPeriod(), prefetchWorker.getCorePoolSize());
+        return new PrefetchWorkerExecutorService(prefetchWorker.getPrefetchPeriod(), prefetchWorker.getCorePoolSize(), prefetchWorker.isShutdownHook());
     }
 
     @Bean

@@ -113,7 +113,7 @@ jobs:
   cosid-jdbc-test:
     name: CosId Jdbc Test
     needs: [ cosid-core-test ]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Start Mysql
         run:  sudo /etc/init.d/mysql start
@@ -130,7 +130,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Init CosId-Db
-        run: mysql -uroot -p root < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
+        run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: Test CosId-Jdbc
         run: gradle cosid-jdbc:clean cosid-jdbc:check

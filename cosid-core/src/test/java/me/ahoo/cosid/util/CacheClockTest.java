@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.util;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import lombok.SneakyThrows;
@@ -25,13 +24,15 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author ahoo wang
  */
-class CacheClock {
+class CacheClockTest {
 
     @Test
     void secondTime() {
         long actual = Clock.CACHE.secondTime();
         long expected = Clock.getSystemSecondTime();
-        assertEquals(expected, actual);
+        long diff = Math.abs(actual - expected);
+        long tolerance = 1L;
+        assertTrue(diff <= tolerance);
     }
 
     @SneakyThrows

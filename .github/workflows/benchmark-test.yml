@@ -16,7 +16,7 @@ jobs:
           server-id: github
           settings-path: ${{ github.workspace }}
 
-      - name: CosId-ShardingSphere
+      - name: CosId-Core
         run: gradle cosid-core:clean cosid-core:jmh
 
   cosid-shardingsphere-benchmark:

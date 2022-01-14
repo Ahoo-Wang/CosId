@@ -1,5 +1,5 @@
 name: Integration Test
-on: [push]
+on: [ push ]
 jobs:
   integration-test:
     runs-on: ubuntu-latest
@@ -17,6 +17,7 @@ jobs:
         image: zookeeper
         ports:
           - 2181:2181
+
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -32,11 +33,15 @@ jobs:
       - name: Test CosId-Core
         run: gradle cosid-core:clean cosid-core:check
 
+      - name: Test CosId-Jackson
+        run: gradle cosid-jackson:clean cosid-jackson:check
+
+      - name: Test CosId-ShardingSphere
+        run: gradle cosid-shardingsphere:clean cosid-shardingsphere:check
+
       - name: Test CosId-Redis
         run: gradle cosid-redis:clean cosid-redis:check cosid-spring-redis:clean cosid-spring-redis:check
-#
-#      - name: Test CosId-Jdbc
-#        run: gradle cosid-jdbc:clean cosid-jdbc:check
-#
+
       - name: Test CosId-Zookeeper
         run: gradle cosid-zookeeper:clean cosid-zookeeper:check
+

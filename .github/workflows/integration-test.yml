@@ -110,31 +110,30 @@ jobs:
       - name: Test CosId-Zookeeper
         run: gradle cosid-zookeeper:clean cosid-zookeeper:check
 
-#  cosid-jdbc-test:
-#    name: CosId Jdbc Test
-#    needs: [ cosid-core-test ]
-#    runs-on: ubuntu-latest
-#    services:
-#      mysql:
-#        image: mysql
-#        ports:
-#          - 3306:3306
-#        env:
-#          MYSQL_ROOT_PASSWORD: root
-#    steps:
-#      - name: Checkout
-#        uses: actions/checkout@master
-#
-#      - name: Set up JDK 8
-#        uses: actions/setup-java@v2
-#        with:
-#          java-version: '8'
-#          distribution: 'adopt'
-#          server-id: github
-#          settings-path: ${{ github.workspace }}
-#
-#      - name: Init CosId-Db
-#        run: mysql -h 127.0.0.1 -uroot -p $MYSQL_ROOT_PASSWORD < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
-#
-#      - name: Test CosId-Jdbc
-#        run: gradle cosid-jdbc:clean cosid-jdbc:check
+# https://github.com/actions/virtual-environments/issues/375
+# https://github.blog/changelog/2020-02-21-github-actions-breaking-change-ubuntu-virtual-environments-will-no-longer-start-the-mysql-service-automatically/
+  cosid-jdbc-test:
+    name: CosId Jdbc Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start Mysql
+        run:  sudo /etc/init.d/mysql start
+
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Init CosId-Db
+        run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
+
+      - name: Test CosId-Jdbc
+        run: gradle cosid-jdbc:clean cosid-jdbc:check
+

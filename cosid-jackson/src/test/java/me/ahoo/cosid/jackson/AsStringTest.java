@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.jackson;
 
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
@@ -114,7 +116,10 @@ public class AsStringTest {
         dto.primitiveLong = 266231902451535872L;
         dto.objectLong = 266231902451535873L;
         String deStr = objectMapper.writeValueAsString(dto);
-        Assertions.assertEquals("{\"primitiveLong\":\"20211228155031894-1-0\",\"objectLong\":\"20211228155031894-1-1\"}", deStr);
+        Assertions.assertEquals("{\"primitiveLong\":\""
+            + MillisecondSnowflakeIdStateParser.INSTANCE.parse(dto.primitiveLong).getFriendlyId()
+            + "\",\"objectLong\":\"" + MillisecondSnowflakeIdStateParser.INSTANCE.parse(dto.objectLong).getFriendlyId()
+            + "\"}", deStr);
         FriendlyIdDto deDto = objectMapper.readValue(deStr, FriendlyIdDto.class);
         Assertions.assertNotNull(deDto);
         Assertions.assertEquals(dto.primitiveLong, deDto.primitiveLong);

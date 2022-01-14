@@ -1,0 +1,28 @@
+name: Integration Test
+on: [push]
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Core
+        run: gradle cosid-core:clean cosid-core:check
+
+      - name: Test CosId-Redis
+        run: gradle cosid-redis:clean cosid-redis:check cosid-spring-redis:clean cosid-spring-redis:check
+#
+#      - name: Test CosId-Jdbc
+#        run: gradle cosid-jdbc:clean cosid-jdbc:check

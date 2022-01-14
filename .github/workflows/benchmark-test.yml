@@ -21,7 +21,6 @@ jobs:
 
   cosid-redis-benchmark:
     name: CosId Redis Benchmark
-    needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
     services:
       redis:

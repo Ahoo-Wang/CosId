@@ -13,6 +13,10 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
+      zookeeper:
+        image: zookeeper
+        ports:
+          - 2181:2181
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -33,3 +37,6 @@ jobs:
 #
 #      - name: Test CosId-Jdbc
 #        run: gradle cosid-jdbc:clean cosid-jdbc:check
+#
+      - name: Test CosId-Zookeeper
+        run: gradle cosid-zookeeper:clean cosid-zookeeper:check

@@ -26,7 +26,6 @@ import java.util.Properties;
  * @author ahoo wang
  */
 class AbstractIntervalShardingAlgorithmTest {
-    public static final ZoneId ZONE_ID_SHANGHAI = ZoneId.of("Asia/Shanghai");
     public static final ZoneOffset ZONE_OFFSET_SHANGHAI = ZoneOffset.of("+8");
     public static final LocalDateTime LOWER_DATE_TIME = LocalDateTime.of(2021, 1, 1, 0, 0);
     public static final LocalDateTime UPPER_DATE_TIME = LOWER_DATE_TIME.plusYears(1);
@@ -40,6 +39,7 @@ class AbstractIntervalShardingAlgorithmTest {
     Properties getProps() {
         Properties properties = new Properties();
         properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, LOGIC_NAME);
+        properties.setProperty(CosIdIntervalShardingAlgorithm.ZONE_ID_KEY, "Asia/Shanghai");
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_LOWER_KEY, LOWER_DATE_TIME.format(AbstractIntervalShardingAlgorithm.DEFAULT_DATE_TIME_FORMATTER));
         properties.setProperty(AbstractIntervalShardingAlgorithm.DATE_TIME_UPPER_KEY, UPPER_DATE_TIME.format(AbstractIntervalShardingAlgorithm.DEFAULT_DATE_TIME_FORMATTER));
         properties.setProperty(AbstractIntervalShardingAlgorithm.SHARDING_SUFFIX_FORMAT_KEY, SUFFIX_FORMATTER_STRING);

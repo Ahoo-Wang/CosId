@@ -110,31 +110,31 @@ jobs:
       - name: Test CosId-Zookeeper
         run: gradle cosid-zookeeper:clean cosid-zookeeper:check
 
-  cosid-jdbc-test:
-    name: CosId Jdbc Test
-    needs: [ cosid-core-test ]
-    runs-on: ubuntu-latest
-    services:
-      mysql:
-        image: mysql
-        ports:
-          - 3306:3306
-        env:
-          MYSQL_ROOT_PASSWORD: root
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 8
-        uses: actions/setup-java@v2
-        with:
-          java-version: '8'
-          distribution: 'adopt'
-          server-id: github
-          settings-path: ${{ github.workspace }}
-
-      - name: Init CosId-Db
-        run: mysql -h 127.0.0.1 -uroot -p $MYSQL_ROOT_PASSWORD < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
-
-      - name: Test CosId-Jdbc
-        run: gradle cosid-jdbc:clean cosid-jdbc:check
+#  cosid-jdbc-test:
+#    name: CosId Jdbc Test
+#    needs: [ cosid-core-test ]
+#    runs-on: ubuntu-latest
+#    services:
+#      mysql:
+#        image: mysql
+#        ports:
+#          - 3306:3306
+#        env:
+#          MYSQL_ROOT_PASSWORD: root
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@master
+#
+#      - name: Set up JDK 8
+#        uses: actions/setup-java@v2
+#        with:
+#          java-version: '8'
+#          distribution: 'adopt'
+#          server-id: github
+#          settings-path: ${{ github.workspace }}
+#
+#      - name: Init CosId-Db
+#        run: mysql -h 127.0.0.1 -uroot -p $MYSQL_ROOT_PASSWORD < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
+#
+#      - name: Test CosId-Jdbc
+#        run: gradle cosid-jdbc:clean cosid-jdbc:check

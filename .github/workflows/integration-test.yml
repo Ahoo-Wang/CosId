@@ -115,8 +115,8 @@ jobs:
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
     services:
-      mysql:
-        image: mysql
+      mariadb:
+        image: mariadb
         ports:
           - 3306:3306
         env:

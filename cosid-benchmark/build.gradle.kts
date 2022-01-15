@@ -22,6 +22,11 @@ java {
     }
 }
 
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
 //val jmhVersion = "1.33"
 
 dependencies {

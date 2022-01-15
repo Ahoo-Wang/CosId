@@ -1,3 +1,12 @@
+## :::::: WARNING ::::::
+## https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#supported-runners-and-hardware-resources
+## 因受到 GitHub Runner 资源限制，运行在 GitHub Runner 中的基准测试与真实环境基准测试对比有非常大的差距（近2倍），
+## 但是对于运行在同一环境配置资源情况下（都运行在 GitHub Runner），进行 commit 前后的基准对比、以及第三方库的对比依然是有价值。
+## :::::::::::::::::::::
+## Due to the resource constraints of GitHub runner, the benchmark running in GitHub runner is very different from the benchmark in the real environment (nearly twice),
+## However, it is still valuable to compare the benchmark before and after commit and the third-party library when running in the same environment and configuring resources (both running in GitHub runner).
+## :::::::::::::::::::::
+
 name: Benchmark Test
 on: [ push ]
 jobs:

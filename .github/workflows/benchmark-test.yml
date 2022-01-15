@@ -1,5 +1,6 @@
 ## :::::: WARNING ::::::
 ## https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#supported-runners-and-hardware-resources
+## :::::::::::::::::::::
 ## 因受到 GitHub Runner 资源限制，运行在 GitHub Runner 中的基准测试与真实环境基准测试对比有非常大的差距（近2倍），
 ## 但是对于运行在同一环境配置资源情况下（都运行在 GitHub Runner），进行 commit 前后的基准对比、以及第三方库的对比依然是有价值。
 ## :::::::::::::::::::::
@@ -10,12 +11,114 @@
 name: Benchmark Test
 on: [ push ]
 jobs:
-  cosid-core-benchmark:
-    name: CosId Core Benchmark
+#  cosid-core-benchmark:
+#    name: CosId Core Benchmark
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@master
+#
+#      - name: Set up JDK 8
+#        uses: actions/setup-java@v2
+#        with:
+#          java-version: '8'
+#          distribution: 'adopt'
+#          server-id: github
+#          settings-path: ${{ github.workspace }}
+#
+#      - name: CosId-Core
+#        run: gradle cosid-core:clean cosid-core:jmh
+#
+#  cosid-shardingsphere-benchmark:
+#    name: CosId ShardingSphere Benchmark
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@master
+#
+#      - name: Set up JDK 8
+#        uses: actions/setup-java@v2
+#        with:
+#          java-version: '8'
+#          distribution: 'adopt'
+#          server-id: github
+#          settings-path: ${{ github.workspace }}
+#
+#      - name: CosId-ShardingSphere
+#        run: gradle cosid-shardingsphere:clean cosid-shardingsphere:jmh
+#
+#  cosid-redis-benchmark:
+#    name: CosId Redis Benchmark
+#    runs-on: ubuntu-latest
+#    services:
+#      redis:
+#        image: redis
+#        options: >-
+#          --health-cmd "redis-cli ping"
+#          --health-interval 10s
+#          --health-timeout 5s
+#          --health-retries 5
+#        ports:
+#          - 6379:6379
+#    steps:
+#      - name: Checkout
+#        uses: actions/checkout@master
+#
+#      - name: Set up JDK 8
+#        uses: actions/setup-java@v2
+#        with:
+#          java-version: '8'
+#          distribution: 'adopt'
+#          server-id: github
+#          settings-path: ${{ github.workspace }}
+#
+#      - name: CosId-Redis
+#        run: gradle cosid-redis:clean cosid-redis:jmh
+#
+#  cosid-jdbc-benchmark:
+#    name: CosId Jdbc Benchmark
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: Start Mysql
+#        run: sudo /etc/init.d/mysql start
+#
+#      - name: Checkout
+#        uses: actions/checkout@master
+#
+#      - name: Set up JDK 8
+#        uses: actions/setup-java@v2
+#        with:
+#          java-version: '8'
+#          distribution: 'adopt'
+#          server-id: github
+#          settings-path: ${{ github.workspace }}
+#
+#      - name: Init CosId-Db
+#        run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
+#
+#      - name: CosId-Jdbc
+#        run: gradle cosid-jdbc:clean cosid-jdbc:jmh
+
+  # WARNING：中央仓库没有找到美团官方提供的Jar!!!
+  # git clone https://github.com/Meituan-Dianping/Leaf
+  # mvn install -Dmaven.test.skip=true
+  benchmark-test:
+    name: Benchmark Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout Leaf
         uses: actions/checkout@master
+        with:
+          repository: https://github.com/Meituan-Dianping/Leaf
+
+#      - name: Cache local Maven repository
+#        id: cache-maven-repo
+#        uses: actions/cache@v2
+#        with:
+#          path: ~/.m2/repository
+#          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+#          restore-keys: |
+#            ${{ runner.os }}-maven-
 
       - name: Set up JDK 8
         uses: actions/setup-java@v2
@@ -25,76 +128,18 @@ jobs:
           server-id: github
           settings-path: ${{ github.workspace }}
 
-      - name: CosId-Core
-        run: gradle cosid-core:clean cosid-core:jmh
+      - name: Install Leaf Package
+        run: mvn install -Dmaven.test.skip=true
 
-  cosid-shardingsphere-benchmark:
-    name: CosId ShardingSphere Benchmark
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 8
-        uses: actions/setup-java@v2
-        with:
-          java-version: '8'
-          distribution: 'adopt'
-          server-id: github
-          settings-path: ${{ github.workspace }}
-
-      - name: CosId-ShardingSphere
-        run: gradle cosid-shardingsphere:clean cosid-shardingsphere:jmh
-
-  cosid-redis-benchmark:
-    name: CosId Redis Benchmark
-    runs-on: ubuntu-latest
-    services:
-      redis:
-        image: redis
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 8
-        uses: actions/setup-java@v2
-        with:
-          java-version: '8'
-          distribution: 'adopt'
-          server-id: github
-          settings-path: ${{ github.workspace }}
-
-      - name: CosId-Redis
-        run: gradle cosid-redis:clean cosid-redis:jmh
-
-  cosid-jdbc-benchmark:
-    name: CosId Jdbc Benchmark
-    runs-on: ubuntu-latest
-    steps:
       - name: Start Mysql
-        run:  sudo /etc/init.d/mysql start
+        run: sudo /etc/init.d/mysql start
 
-      - name: Checkout
+      - name: Checkout CosId
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
-        uses: actions/setup-java@v2
-        with:
-          java-version: '8'
-          distribution: 'adopt'
-          server-id: github
-          settings-path: ${{ github.workspace }}
+      - name: Init Benchmark-Db
+        run: mysql -vvv -h localhost -uroot -proot < cosid-benchmark/src/jmh/init/init-script.sql
 
-      - name: Init CosId-Db
-        run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
-
-      - name: CosId-Jdbc
-        run: gradle cosid-jdbc:clean cosid-jdbc:jmh
-
+      - name: Benchmark Test
+        working-directory: cosid-benchmark
+        run: gradle clean jmh

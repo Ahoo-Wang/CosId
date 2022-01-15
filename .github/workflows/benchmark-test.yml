@@ -109,7 +109,7 @@ jobs:
       - name: Checkout Leaf
         uses: actions/checkout@master
         with:
-          repository: https://github.com/Meituan-Dianping/Leaf
+          repository: Meituan-Dianping/Leaf
 
 #      - name: Cache local Maven repository
 #        id: cache-maven-repo

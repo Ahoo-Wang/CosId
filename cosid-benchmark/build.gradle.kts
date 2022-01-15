@@ -22,6 +22,11 @@ java {
     }
 }
 
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
 //val jmhVersion = "1.33"
 
 dependencies {
@@ -39,7 +44,7 @@ dependencies {
      * git clone https://github.com/didi/tinyid
      * mvn install -Dmaven.test.skip=true
      */
-    testImplementation("com.xiaoju.uemc.tinyid:tinyid-client:0.1.0-SNAPSHOT")
+//    testImplementation("com.xiaoju.uemc.tinyid:tinyid-client:0.1.0-SNAPSHOT")
 
     jmh("org.openjdk.jmh:jmh-core:1.33")
     jmh("org.openjdk.jmh:jmh-generator-annprocess:1.33")

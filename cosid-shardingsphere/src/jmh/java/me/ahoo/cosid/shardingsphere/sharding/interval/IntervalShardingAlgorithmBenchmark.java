@@ -47,7 +47,7 @@ public class IntervalShardingAlgorithmBenchmark {
 
     private static final String LOGIC_TABLE_NAME = "t_ldt";
     private static final String LOGIC_NAME_PREFIX = LOGIC_TABLE_NAME + "_";
-    private static final String FORMATTER_PATTERN = "yyyyMMDD";
+    private static final String FORMATTER_PATTERN = "yyyyMMdd";
     AbstractIntervalShardingAlgorithm dateIntervalShardingAlgorithm;
     AbstractIntervalShardingAlgorithm datetimeIntervalShardingAlgorithm;
     IntervalShardingAlgorithm officeIntervalShardingAlgorithm;

@@ -17,28 +17,26 @@
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.6.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.7.9-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
-Benchmark                                   Mode  Cnt          Score          Error  Units
-RedisChainIdBenchmark.atomicLong_baseline  thrpt    5  144541334.198 ±  5578137.471  ops/s
-RedisChainIdBenchmark.step_1               thrpt    5    1874168.687 ±   310274.706  ops/s
-RedisChainIdBenchmark.step_100             thrpt    5  114226113.524 ± 15789563.078  ops/s
-RedisChainIdBenchmark.step_1000            thrpt    5  127439148.104 ±  1833743.699  ops/s
+Benchmark                       (step)   Mode  Cnt          Score          Error  Units
+RedisChainIdBenchmark.generate       1  thrpt    5  106188349.580 ± 26035022.285  ops/s
+RedisChainIdBenchmark.generate     100  thrpt    5  112276460.950 ±  4091990.852  ops/s
+RedisChainIdBenchmark.generate    1000  thrpt    5  110181522.770 ± 15531341.449  ops/s
 ```
 ``` shell
 gradle cosid-jdbc:jmh
 # or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.6.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.7.9-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
 
 ```
-Benchmark                                   Mode  Cnt          Score         Error  Units
-MySqlChainIdBenchmark.atomicLong_baseline  thrpt    5  145294642.937 ±  224876.284  ops/s
-MySqlChainIdBenchmark.step_1               thrpt    5      35058.790 ±   36226.041  ops/s
-MySqlChainIdBenchmark.step_100             thrpt    5   74575876.804 ± 5590390.811  ops/s
-MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.409  ops/s
+Benchmark                       (step)   Mode  Cnt          Score         Error  Units
+MySqlChainIdBenchmark.generate       1  thrpt    5  110020245.619 ± 4514432.472  ops/s
+MySqlChainIdBenchmark.generate     100  thrpt    5  111589201.024 ± 1565714.192  ops/s
+MySqlChainIdBenchmark.generate    1000  thrpt    5  115287146.614 ± 4471990.880  ops/s
 ```
 
 ### 每次操作耗时的百分位数(us/op)
@@ -50,7 +48,7 @@ MySqlChainIdBenchmark.step_1000            thrpt    5  123131804.260 ± 1488004.
 </p>
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.6.6-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.7.9-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -67,7 +65,7 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 ```
 
 ```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.6.6-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.7.9-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -88,7 +86,7 @@ MySqlChainIdBenchmark.step_1000:step_1000·p1.00    sample           342.528    
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.6.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.7.9-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```

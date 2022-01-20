@@ -13,9 +13,9 @@
 
 package me.ahoo.cosid.spring.boot.starter.mybatis;
 
+import me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry;
 import me.ahoo.cosid.mybatis.CosIdPlugin;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosid.annotation.CosIdAnnotationSupport;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -32,8 +32,8 @@ public class CosIdMybatisAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public CosIdPlugin cosIdPlugin(CosIdAnnotationSupport cosIdSupport) {
-        return new CosIdPlugin(cosIdSupport);
+    public CosIdPlugin cosIdPlugin(CosIdAccessorRegistry accessorRegistry) {
+        return new CosIdPlugin(accessorRegistry);
     }
 
 }

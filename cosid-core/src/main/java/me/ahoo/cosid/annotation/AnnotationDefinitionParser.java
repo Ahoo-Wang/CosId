@@ -11,28 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.entity;
+package me.ahoo.cosid.annotation;
 
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.accessor.IdDefinition;
+import me.ahoo.cosid.accessor.parser.FieldDefinitionParser;
+
+import lombok.extern.slf4j.Slf4j;
+
+import java.lang.reflect.Field;
 
 /**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );
- *
  * @author ahoo wang
  */
-public class FriendlyIdEntity {
+@Slf4j
+public class AnnotationDefinitionParser implements FieldDefinitionParser {
 
-    @CosId
-    private String id;
+    public static final AnnotationDefinitionParser INSTANCE = new AnnotationDefinitionParser();
 
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
+    @Override
+    public IdDefinition parse(Field field) {
+        if (!field.isAnnotationPresent(CosId.class)) {
+            return IdDefinition.NOT_FOUND;
+        }
+        CosId cosId = field.getAnnotation(CosId.class);
+        return new IdDefinition(cosId.value(), field);
     }
 }

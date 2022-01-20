@@ -11,28 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.entity;
+package me.ahoo.cosid.provider;
 
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.CosIdException;
 
 /**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );
- *
  * @author ahoo wang
  */
-public class FriendlyIdEntity {
+public class NotFoundIdGeneratorException extends CosIdException {
+    private final String generatorName;
 
-    @CosId
-    private String id;
-
-    public String getId() {
-        return id;
+    public NotFoundIdGeneratorException(String generatorName) {
+        super(String.format("IdGenerator name:[%s] not found.", generatorName));
+        this.generatorName = generatorName;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public String getGeneratorName() {
+        return generatorName;
     }
 }

@@ -13,27 +13,28 @@
 
 package me.ahoo.cosid.annotation;
 
+import me.ahoo.cosid.accessor.IdDefinition;
+import me.ahoo.cosid.annotation.entity.LongIdEntity;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+import lombok.SneakyThrows;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Field;
 
 /**
  * @author ahoo wang
  */
-@Target({ElementType.FIELD})
-@Documented
-@Retention(RetentionPolicy.RUNTIME)
-public @interface CosId {
-    /**
-     * id generator name.
-     * {@link IdGeneratorProvider#get(String)}
-     *
-     * @return id generator name
-     */
-    String value() default IdGeneratorProvider.SHARE;
+public class CosIdAnnotationAccessorParserTest {
 
+    @SneakyThrows
+    @Test
+    void parse() {
+        Field idField = LongIdEntity.class.getDeclaredField("id");
+        IdDefinition idDefinition = AnnotationDefinitionParser.INSTANCE.parse(idField);
+
+        Assertions.assertNotEquals(IdDefinition.NOT_FOUND, idDefinition);
+        Assertions.assertEquals(IdGeneratorProvider.SHARE, idDefinition.getGeneratorName());
+    }
 }

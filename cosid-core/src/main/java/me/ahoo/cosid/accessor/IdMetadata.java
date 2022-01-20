@@ -11,28 +11,36 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.entity;
+package me.ahoo.cosid.accessor;
 
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.IdGenerator;
+
+import javax.annotation.concurrent.Immutable;
+import java.lang.reflect.Field;
 
 /**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );
- *
  * @author ahoo wang
  */
-public class FriendlyIdEntity {
+@Immutable
+public interface IdMetadata {
 
-    @CosId
-    private String id;
+    IdDefinition getIdDefinition();
 
-    public String getId() {
-        return id;
+    default String getGeneratorName() {
+        return getIdDefinition().getGeneratorName();
     }
 
-    public void setId(String id) {
-        this.id = id;
+    IdGenerator getIdGenerator();
+
+    default Field getIdField() {
+        return getIdDefinition().getIdField();
+    }
+
+    default Class<?> getIdDeclaringClass() {
+        return getIdField().getDeclaringClass();
+    }
+
+    default Class<?> getIdType() {
+        return getIdField().getType();
     }
 }

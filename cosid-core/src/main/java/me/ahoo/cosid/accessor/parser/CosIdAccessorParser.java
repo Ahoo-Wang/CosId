@@ -11,28 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.entity;
+package me.ahoo.cosid.accessor.parser;
 
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.accessor.CosIdAccessor;
 
 /**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );
- *
  * @author ahoo wang
  */
-public class FriendlyIdEntity {
+public interface CosIdAccessorParser {
 
-    @CosId
-    private String id;
+    CosIdAccessor parse(Class<?> clazz);
 
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
 }

@@ -25,6 +25,7 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
+
     public static final IdGeneratorProvider INSTANCE = new DefaultIdGeneratorProvider();
     private volatile IdGenerator shareIdGenerator;
 

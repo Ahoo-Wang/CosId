@@ -13,8 +13,7 @@
 
 package me.ahoo.cosid.mybatis;
 
-
-import me.ahoo.cosid.annotation.CosIdAnnotationSupport;
+import me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry;
 
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.MappedStatement;
@@ -34,10 +33,10 @@ import java.util.Map;
 public class CosIdPlugin implements Interceptor {
 
     public static final String DEFAULT_LIST_KEY = "list";
-    private final CosIdAnnotationSupport cosIdSupport;
+    private final CosIdAccessorRegistry accessorRegistry;
 
-    public CosIdPlugin(CosIdAnnotationSupport cosIdSupport) {
-        this.cosIdSupport = cosIdSupport;
+    public CosIdPlugin(CosIdAccessorRegistry accessorRegistry) {
+        this.accessorRegistry = accessorRegistry;
     }
 
     @SuppressWarnings("rawtypes")
@@ -52,14 +51,14 @@ public class CosIdPlugin implements Interceptor {
 
         Object parameter = args[1];
         if (!(parameter instanceof Map)) {
-            cosIdSupport.ensureId(parameter);
+            accessorRegistry.ensureId(parameter);
             return invocation.proceed();
         }
 
         Collection entityList = (Collection) ((Map) parameter).get(DEFAULT_LIST_KEY);
 
         for (Object entity : entityList) {
-            cosIdSupport.ensureId(entity);
+            accessorRegistry.ensureId(entity);
         }
         return invocation.proceed();
     }

@@ -40,7 +40,7 @@ public class CosIdKeyGenerateAlgorithm implements TypedSPI, ShardingSphereAlgori
      */
     private volatile Properties props = new Properties();
 
-    protected volatile LazyIdGenerator cosIdProvider;
+    protected volatile LazyIdGenerator lazyIdGenerator;
     private volatile boolean asString;
 
     /**
@@ -68,10 +68,10 @@ public class CosIdKeyGenerateAlgorithm implements TypedSPI, ShardingSphereAlgori
      */
     @Override
     public void init() {
-        cosIdProvider = new LazyIdGenerator(getProps().getOrDefault(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE).toString());
+        lazyIdGenerator = new LazyIdGenerator(getProps().getOrDefault(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE).toString());
         String asStringStr = getProps().getProperty(AS_STRING_KEY, Boolean.FALSE.toString());
         this.asString = Boolean.parseBoolean(asStringStr);
-        cosIdProvider.tryGet(false);
+        lazyIdGenerator.tryGet(false);
     }
 
     /**
@@ -92,9 +92,9 @@ public class CosIdKeyGenerateAlgorithm implements TypedSPI, ShardingSphereAlgori
     @Override
     public Comparable<?> generateKey() {
         if (this.asString) {
-            return cosIdProvider.generateAsString();
+            return lazyIdGenerator.generateAsString();
         }
-        return cosIdProvider.generate();
+        return lazyIdGenerator.generate();
     }
 
 }

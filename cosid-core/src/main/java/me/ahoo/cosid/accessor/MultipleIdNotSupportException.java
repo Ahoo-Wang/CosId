@@ -11,28 +11,26 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.entity;
+package me.ahoo.cosid.accessor;
 
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.CosIdException;
+
+import com.google.common.base.Strings;
+
 
 /**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );
- *
  * @author ahoo wang
  */
-public class FriendlyIdEntity {
+public class MultipleIdNotSupportException extends CosIdException {
 
-    @CosId
-    private String id;
+    private final Class<?> declaringClass;
 
-    public String getId() {
-        return id;
+    public MultipleIdNotSupportException(Class<?> declaringClass) {
+        super(Strings.lenientFormat("Not support defining multiple CosIds, declaringClass:[%s]!", declaringClass));
+        this.declaringClass = declaringClass;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public Class<?> getDeclaringClass() {
+        return declaringClass;
     }
 }

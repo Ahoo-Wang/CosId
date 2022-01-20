@@ -11,28 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.entity;
+package me.ahoo.cosid.annotation.entity;
 
 import me.ahoo.cosid.annotation.CosId;
 
 /**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );
- *
  * @author ahoo wang
  */
-public class FriendlyIdEntity {
-
-    @CosId
-    private String id;
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
-    }
+public class MissingIdGenEntity {
+    @CosId("missing")
+    private long id;
 }

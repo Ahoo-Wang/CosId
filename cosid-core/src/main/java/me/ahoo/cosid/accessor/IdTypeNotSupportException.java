@@ -11,28 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.entity;
+package me.ahoo.cosid.accessor;
 
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.CosIdException;
+
+import com.google.common.base.Strings;
+
+import java.lang.reflect.Field;
 
 /**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );
- *
  * @author ahoo wang
  */
-public class FriendlyIdEntity {
+public class IdTypeNotSupportException extends CosIdException {
 
-    @CosId
-    private String id;
+    private final Field idField;
 
-    public String getId() {
-        return id;
+    public IdTypeNotSupportException(Field idField) {
+        super(Strings.lenientFormat("ID type only supports Long/long/String, idField:[%s]!", idField));
+        this.idField = idField;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public Field getIdField() {
+        return idField;
     }
 }

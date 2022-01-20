@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation;
+package me.ahoo.cosid.accessor.scanner;
 
 /**
+ * Scan the packages and register the qualified classes to {@link me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry}
+ *
  * @author ahoo wang
  */
-public class MissingIdGenEntity {
-    @CosId("missing")
-    private long id;
+public interface CosIdScanner {
+    void scan();
 }

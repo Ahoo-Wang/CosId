@@ -22,9 +22,9 @@ import me.ahoo.cosid.accessor.field.FieldSetter;
 import me.ahoo.cosid.accessor.method.MethodGetter;
 import me.ahoo.cosid.accessor.method.MethodSetter;
 import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
-import me.ahoo.cosid.annotation.ChildEntity;
+import me.ahoo.cosid.annotation.entity.ChildEntity;
 import me.ahoo.cosid.annotation.CosId;
-import me.ahoo.cosid.annotation.LongIdEntity;
+import me.ahoo.cosid.annotation.entity.LongIdEntity;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import lombok.SneakyThrows;

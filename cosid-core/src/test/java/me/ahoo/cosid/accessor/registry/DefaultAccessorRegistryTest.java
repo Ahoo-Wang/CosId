@@ -15,9 +15,9 @@ package me.ahoo.cosid.accessor.registry;
 
 import me.ahoo.cosid.accessor.parser.DefaultAccessorParser;
 import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
-import me.ahoo.cosid.annotation.LongIdEntity;
-import me.ahoo.cosid.annotation.MissingIdGenEntity;
-import me.ahoo.cosid.annotation.StringIdEntity;
+import me.ahoo.cosid.annotation.entity.LongIdEntity;
+import me.ahoo.cosid.annotation.entity.MissingIdGenEntity;
+import me.ahoo.cosid.annotation.entity.StringIdEntity;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.NotFoundIdGeneratorException;

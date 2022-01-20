@@ -11,11 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation;
+package me.ahoo.cosid.annotation.entity;
+
+import me.ahoo.cosid.annotation.CosId;
 
 /**
  * @author ahoo wang
  */
-public class ChildEntity extends LongIdEntity {
+public class PrimitiveLongIdEntity {
+    @CosId
+    private long id;
 
+    public long getId() {
+        return id;
+    }
+
+    public void setId(long id) {
+        this.id = id;
+    }
 }

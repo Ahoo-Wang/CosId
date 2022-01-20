@@ -11,7 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation;
+package me.ahoo.cosid.annotation.entity;
+
+import me.ahoo.cosid.annotation.CosId;
 
 /**
  * @author ahoo wang

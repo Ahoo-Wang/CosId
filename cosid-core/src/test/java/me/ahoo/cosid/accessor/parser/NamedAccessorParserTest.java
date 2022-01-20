@@ -14,7 +14,7 @@
 package me.ahoo.cosid.accessor.parser;
 
 import me.ahoo.cosid.accessor.IdDefinition;
-import me.ahoo.cosid.annotation.LongIdEntity;
+import me.ahoo.cosid.annotation.entity.LongIdEntity;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import lombok.SneakyThrows;

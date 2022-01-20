@@ -11,26 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation;
+package me.ahoo.cosid.provider;
 
-import javax.annotation.concurrent.Immutable;
-import java.lang.reflect.Field;
+import me.ahoo.cosid.CosIdException;
 
 /**
  * @author ahoo wang
  */
-@Immutable
-public interface IdMetadata {
+public class NotFoundIdGeneratorException extends CosIdException {
+    private final String generatorName;
 
-    CosIdDefinition getCosIdDefinition();
-
-    Field getIdField();
-
-    default Class<?> getIdDeclaringClass() {
-        return getIdField().getDeclaringClass();
+    public NotFoundIdGeneratorException(String generatorName) {
+        super(String.format("IdGenerator name:[%s] not found.", generatorName));
+        this.generatorName = generatorName;
     }
 
-    default Class<?> getIdType() {
-        return getIdField().getType();
+    public String getGeneratorName() {
+        return generatorName;
     }
 }

@@ -57,7 +57,7 @@ spring:
                 sharding-column: order_id
                 sharding-algorithm-name: order-db-inline
           t_date_log:
-            actual-data-nodes: ds0.t_date_log_202112
+            actual-data-nodes: ds0.t_date_log_202201
             key-generate-strategy:
               column: id
               key-generator-name: snowflake
@@ -66,7 +66,7 @@ spring:
                 sharding-column: create_time
                 sharding-algorithm-name: data-log-interval
           t_date_time_log:
-            actual-data-nodes: ds0.t_date_time_log_202112
+            actual-data-nodes: ds0.t_date_time_log_202201
             key-generate-strategy:
               column: id
               key-generator-name: snowflake
@@ -75,7 +75,7 @@ spring:
                 sharding-column: create_time
                 sharding-algorithm-name: data-time-log-interval
           t_timestamp_log:
-            actual-data-nodes: ds0.t_timestamp_log_202112
+            actual-data-nodes: ds0.t_timestamp_log_202201
             key-generate-strategy:
               column: id
               key-generator-name: snowflake
@@ -84,7 +84,7 @@ spring:
                 sharding-column: create_time
                 sharding-algorithm-name: timestamp-log-interval
           t_snowflake_log:
-            actual-data-nodes: ds0.t_snowflake_log_202112
+            actual-data-nodes: ds0.t_snowflake_log_202201
             table-strategy:
               standard:
                 sharding-column: id

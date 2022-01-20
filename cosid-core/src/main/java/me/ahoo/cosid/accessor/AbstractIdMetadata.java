@@ -11,28 +11,33 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.entity;
+package me.ahoo.cosid.accessor;
 
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.provider.LazyIdGenerator;
+
 
 /**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );
- *
  * @author ahoo wang
  */
-public class FriendlyIdEntity {
+public abstract class AbstractIdMetadata implements IdMetadata {
 
-    @CosId
-    private String id;
+    private final IdDefinition idDefinition;
+    private final LazyIdGenerator idGenerator;
 
-    public String getId() {
-        return id;
+    public AbstractIdMetadata(IdDefinition idDefinition) {
+        this.idDefinition = idDefinition;
+        this.idGenerator = new LazyIdGenerator(idDefinition.getGeneratorName());
     }
 
-    public void setId(String id) {
-        this.id = id;
+    @Override
+    public IdDefinition getIdDefinition() {
+        return idDefinition;
     }
+
+    @Override
+    public IdGenerator getIdGenerator() {
+        return idGenerator;
+    }
+
 }

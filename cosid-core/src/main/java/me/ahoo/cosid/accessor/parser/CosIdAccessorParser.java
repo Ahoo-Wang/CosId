@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation.accessor;
+package me.ahoo.cosid.accessor.parser;
 
-import me.ahoo.cosid.annotation.IdMetadata;
+import me.ahoo.cosid.accessor.CosIdAccessor;
 
 /**
  * @author ahoo wang
  */
-public interface CosIdGetter extends IdMetadata {
+public interface CosIdAccessorParser {
 
-    Object get(Object target);
+    CosIdAccessor parse(Class<?> clazz);
 
 }

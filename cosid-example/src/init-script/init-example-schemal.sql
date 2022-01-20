@@ -41,34 +41,37 @@ create table t_order_item
 
 -- interval
 
-create table t_date_log_202112
+create table t_date_log_202201
 (
     id          bigint   not null,
     create_time datetime not null,
-    constraint t_date_log_202112_pk
+    constraint t_date_log_202201_pk
         primary key (id)
 );
 
-create table t_date_time_log_202112
+
+create table t_date_time_log_202201
 (
     id          bigint   not null,
     create_time datetime not null,
-    constraint t_date_time_log_202112_pk
+    constraint t_date_time_log_202201_pk
         primary key (id)
 );
 
-create table t_timestamp_log_202112
+
+create table t_timestamp_log_202201
 (
     id          bigint   not null,
     create_time bigint not null,
-    constraint t_timestamp_log_202112_pk
+    constraint t_timestamp_log_202201_pk
         primary key (id)
 );
 
-create table t_snowflake_log_202112
+
+
+create table t_snowflake_log_202201
 (
     id          bigint   not null,
-    constraint t_snowflake_log_202112_pk
+    constraint t_snowflake_log_202201_pk
         primary key (id)
 );
-

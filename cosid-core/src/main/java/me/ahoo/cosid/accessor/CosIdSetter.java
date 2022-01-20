@@ -11,27 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation.accessor;
-
-import me.ahoo.cosid.CosIdException;
-
-import com.google.common.base.Strings;
-
-import java.lang.reflect.Field;
+package me.ahoo.cosid.accessor;
 
 /**
  * @author ahoo wang
  */
-public class IdTypeNotSupportException extends CosIdException {
+public interface CosIdSetter {
 
-    private final Field idField;
+    void setId(Object target, Object id);
 
-    public IdTypeNotSupportException(Field idField) {
-        super(Strings.lenientFormat("ID type only supports Long/long/String, idField:[%s]!", idField));
-        this.idField = idField;
-    }
-
-    public Field getIdField() {
-        return idField;
-    }
 }

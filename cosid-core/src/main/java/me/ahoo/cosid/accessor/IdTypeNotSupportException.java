@@ -11,32 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation.accessor.field;
+package me.ahoo.cosid.accessor;
 
 import me.ahoo.cosid.CosIdException;
-import me.ahoo.cosid.annotation.CosIdDefinition;
-import me.ahoo.cosid.annotation.accessor.AbstractIdMetadata;
-import me.ahoo.cosid.annotation.accessor.CosIdAccessor;
-import me.ahoo.cosid.annotation.accessor.CosIdSetter;
+
+import com.google.common.base.Strings;
 
 import java.lang.reflect.Field;
 
 /**
  * @author ahoo wang
  */
-public class FieldSetter extends AbstractIdMetadata implements CosIdSetter {
+public class IdTypeNotSupportException extends CosIdException {
 
-    public FieldSetter(CosIdDefinition cosIdDefinition, Field field) {
-        super(cosIdDefinition, field);
-        CosIdAccessor.ensureAccessible(field);
+    private final Field idField;
+
+    public IdTypeNotSupportException(Field idField) {
+        super(Strings.lenientFormat("ID type only supports Long/long/String, idField:[%s]!", idField));
+        this.idField = idField;
     }
 
-    @Override
-    public void set(Object target, Object value) {
-        try {
-            getIdField().set(target, value);
-        } catch (IllegalAccessException e) {
-            throw new CosIdException(e.getMessage(), e);
-        }
+    public Field getIdField() {
+        return idField;
     }
 }

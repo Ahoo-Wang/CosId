@@ -11,28 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.entity;
+package me.ahoo.cosid.accessor.field;
 
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.accessor.CosIdAccessor;
+import me.ahoo.cosid.accessor.CosIdGetter;
+
+import java.lang.reflect.Field;
 
 /**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );
- *
  * @author ahoo wang
  */
-public class FriendlyIdEntity {
+public class FieldGetter implements CosIdGetter {
+    private final Field idField;
 
-    @CosId
-    private String id;
-
-    public String getId() {
-        return id;
+    public FieldGetter(Field idField) {
+        CosIdAccessor.ensureAccessible(idField);
+        this.idField = idField;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    @Override
+    public Object getId(Object target) {
+        try {
+            return idField.get(target);
+        } catch (IllegalAccessException e) {
+            throw new CosIdException(e.getMessage(), e);
+        }
     }
 }

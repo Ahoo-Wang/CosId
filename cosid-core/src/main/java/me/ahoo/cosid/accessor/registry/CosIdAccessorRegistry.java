@@ -11,28 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.entity;
+package me.ahoo.cosid.accessor.registry;
 
-import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.accessor.CosIdAccessor;
+
+import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );
- *
  * @author ahoo wang
  */
-public class FriendlyIdEntity {
+@ThreadSafe
+public interface CosIdAccessorRegistry {
 
-    @CosId
-    private String id;
+    void register(Class<?> clazz);
 
-    public String getId() {
-        return id;
-    }
+    void register(Class<?> clazz, CosIdAccessor cosIdAccessor);
 
-    public void setId(String id) {
-        this.id = id;
+    CosIdAccessor get(Class<?> clazz);
+
+    default boolean ensureId(Object target) {
+        CosIdAccessor cosIdAccessor = get(target.getClass());
+        if (CosIdAccessor.NOT_FOUND.equals(cosIdAccessor)) {
+            return false;
+        }
+        return cosIdAccessor.ensureId(target);
     }
 }

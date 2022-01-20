@@ -13,9 +13,14 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
+import me.ahoo.cosid.accessor.parser.CosIdAccessorParser;
+import me.ahoo.cosid.accessor.parser.DefaultAccessorParser;
+import me.ahoo.cosid.accessor.parser.FieldDefinitionParser;
+import me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry;
+import me.ahoo.cosid.accessor.registry.DefaultAccessorRegistry;
+import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.annotation.CosIdAnnotationSupport;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -29,7 +34,7 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnCosIdEnabled
 @EnableConfigurationProperties(CosIdProperties.class)
 public class CosIdAutoConfiguration {
-    
+
     private final CosIdProperties cosIdProperties;
 
     public CosIdAutoConfiguration(CosIdProperties cosIdProperties) {
@@ -44,7 +49,19 @@ public class CosIdAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public CosIdAnnotationSupport cosIdAnnotationSupport(IdGeneratorProvider idGeneratorProvider) {
-        return new CosIdAnnotationSupport(idGeneratorProvider);
+    public FieldDefinitionParser fieldDefinitionParser() {
+        return AnnotationDefinitionParser.INSTANCE;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public CosIdAccessorParser cosIdAccessorParser(FieldDefinitionParser definitionParser) {
+        return new DefaultAccessorParser(definitionParser);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public CosIdAccessorRegistry cosIdAccessorRegistry(CosIdAccessorParser cosIdAccessorParser) {
+        return new DefaultAccessorRegistry(cosIdAccessorParser);
     }
 }

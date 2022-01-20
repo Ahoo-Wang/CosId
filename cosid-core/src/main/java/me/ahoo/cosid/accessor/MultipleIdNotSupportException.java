@@ -11,15 +11,26 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation.accessor;
+package me.ahoo.cosid.accessor;
 
-import me.ahoo.cosid.annotation.IdMetadata;
+import me.ahoo.cosid.CosIdException;
+
+import com.google.common.base.Strings;
+
 
 /**
  * @author ahoo wang
  */
-public interface CosIdSetter extends IdMetadata {
+public class MultipleIdNotSupportException extends CosIdException {
 
-    void set(Object target, Object value);
+    private final Class<?> declaringClass;
 
+    public MultipleIdNotSupportException(Class<?> declaringClass) {
+        super(Strings.lenientFormat("Not support defining multiple CosIds, declaringClass:[%s]!", declaringClass));
+        this.declaringClass = declaringClass;
+    }
+
+    public Class<?> getDeclaringClass() {
+        return declaringClass;
+    }
 }

@@ -11,34 +11,36 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation.accessor;
+package me.ahoo.cosid.accessor;
 
-import me.ahoo.cosid.annotation.CosIdDefinition;
-import me.ahoo.cosid.annotation.IdMetadata;
+import me.ahoo.cosid.IdGenerator;
 
+import javax.annotation.concurrent.Immutable;
 import java.lang.reflect.Field;
 
 /**
- *
  * @author ahoo wang
  */
-public abstract class AbstractIdMetadata implements IdMetadata {
+@Immutable
+public interface IdMetadata {
 
-    private final CosIdDefinition cosIdDefinition;
-    private final Field idField;
+    IdDefinition getIdDefinition();
 
-    public AbstractIdMetadata(CosIdDefinition cosIdDefinition, Field idField) {
-        this.cosIdDefinition = cosIdDefinition;
-        this.idField = idField;
+    default String getGeneratorName() {
+        return getIdDefinition().getGeneratorName();
     }
 
-    @Override
-    public CosIdDefinition getCosIdDefinition() {
-        return cosIdDefinition;
+    IdGenerator getIdGenerator();
+
+    default Field getIdField() {
+        return getIdDefinition().getIdField();
     }
 
-    @Override
-    public Field getIdField() {
-        return idField;
+    default Class<?> getIdDeclaringClass() {
+        return getIdField().getDeclaringClass();
+    }
+
+    default Class<?> getIdType() {
+        return getIdField().getType();
     }
 }

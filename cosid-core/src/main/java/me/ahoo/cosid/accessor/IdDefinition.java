@@ -11,32 +11,36 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation;
+package me.ahoo.cosid.accessor;
 
-import me.ahoo.cosid.annotation.accessor.CosIdAccessor;
-import me.ahoo.cosid.annotation.accessor.CosIdAccessorSupport;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
-import javax.annotation.concurrent.ThreadSafe;
+import java.lang.reflect.Field;
 
 /**
  * @author ahoo wang
  */
-@ThreadSafe
-public class CosIdAnnotationSupport {
+public class IdDefinition {
 
-    private final IdGeneratorProvider idGeneratorProvider;
+    public static final IdDefinition NOT_FOUND = new IdDefinition(null);
 
-    public CosIdAnnotationSupport(IdGeneratorProvider idGeneratorProvider) {
-        this.idGeneratorProvider = idGeneratorProvider;
+    private final String generatorName;
+    private final Field idField;
+
+    public IdDefinition(Field idField) {
+        this(IdGeneratorProvider.SHARE, idField);
     }
 
-    public boolean ensureId(Object entity) {
-        CosIdAccessor cosIdAccessor = CosIdAccessorSupport.getCosIdAccessor(entity.getClass());
-        if (CosIdAccessor.NOT_FOUND.equals(cosIdAccessor)) {
-            return false;
-        }
-        return cosIdAccessor.ensureId(entity, idGeneratorProvider);
+    public IdDefinition(String generatorName, Field idField) {
+        this.generatorName = generatorName;
+        this.idField = idField;
     }
 
+    public String getGeneratorName() {
+        return generatorName;
+    }
+
+    public Field getIdField() {
+        return idField;
+    }
 }

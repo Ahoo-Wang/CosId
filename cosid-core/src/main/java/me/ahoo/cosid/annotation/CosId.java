@@ -36,10 +36,4 @@ public @interface CosId {
      */
     String value() default IdGeneratorProvider.SHARE;
 
-    /**
-     * {@link me.ahoo.cosid.snowflake.SnowflakeFriendlyId}.
-     *
-     * @return true when friendlyId
-     */
-    boolean friendlyId() default false;
 }

@@ -11,30 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation.accessor.field;
+package me.ahoo.cosid.accessor.field;
 
 import me.ahoo.cosid.CosIdException;
-import me.ahoo.cosid.annotation.CosIdDefinition;
-import me.ahoo.cosid.annotation.accessor.AbstractIdMetadata;
-import me.ahoo.cosid.annotation.accessor.CosIdAccessor;
-import me.ahoo.cosid.annotation.accessor.CosIdGetter;
+import me.ahoo.cosid.accessor.CosIdAccessor;
+import me.ahoo.cosid.accessor.CosIdSetter;
 
 import java.lang.reflect.Field;
 
 /**
  * @author ahoo wang
  */
-public class FieldGetter extends AbstractIdMetadata implements CosIdGetter {
+public class FieldSetter implements CosIdSetter {
+    private final Field idField;
 
-    public FieldGetter(CosIdDefinition cosIdDefinition, Field field) {
-        super(cosIdDefinition, field);
-        CosIdAccessor.ensureAccessible(field);
+    public FieldSetter(Field idField) {
+        CosIdAccessor.ensureAccessible(idField);
+        this.idField = idField;
     }
 
     @Override
-    public Object get(Object target) {
+    public void setId(Object target, Object id) {
         try {
-            return getIdField().get(target);
+            idField.set(target, id);
         } catch (IllegalAccessException e) {
             throw new CosIdException(e.getMessage(), e);
         }

@@ -11,26 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation.accessor;
+package me.ahoo.cosid.annotation;
 
-import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.accessor.IdDefinition;
+import me.ahoo.cosid.accessor.parser.FieldDefinitionParser;
 
-import com.google.common.base.Strings;
+import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.Field;
 
 /**
  * @author ahoo wang
  */
-public class MultipleIdNotSupportException extends CosIdException {
+@Slf4j
+public class AnnotationDefinitionParser implements FieldDefinitionParser {
 
-    private final Class<?> declaringClass;
+    public static final AnnotationDefinitionParser INSTANCE = new AnnotationDefinitionParser();
 
-    public MultipleIdNotSupportException(Class<?> declaringClass) {
-        super(Strings.lenientFormat("Not support defining multiple CosIds, declaringClass:[%s]!", declaringClass));
-        this.declaringClass = declaringClass;
-    }
-
-    public Class<?> getDeclaringClass() {
-        return declaringClass;
+    @Override
+    public IdDefinition parse(Field field) {
+        if (!field.isAnnotationPresent(CosId.class)) {
+            return IdDefinition.NOT_FOUND;
+        }
+        CosId cosId = field.getAnnotation(CosId.class);
+        return new IdDefinition(cosId.value(), field);
     }
 }

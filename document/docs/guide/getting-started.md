@@ -29,7 +29,7 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.6.6</cosid.version>
+        <cosid.version>1.8.0</cosid.version>
     </properties>
 
     <dependencies>

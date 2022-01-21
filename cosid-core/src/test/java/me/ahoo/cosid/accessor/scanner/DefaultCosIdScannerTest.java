@@ -38,10 +38,9 @@ class DefaultCosIdScannerTest {
 
     @Test
     void scanAnnotationDefinitionParser() {
-        CosIdAccessorParser accessorParser = new DefaultAccessorParser(AnnotationDefinitionParser.INSTANCE);
         CosIdAccessorRegistry registry = new DefaultAccessorRegistry(new DefaultAccessorParser(AnnotationDefinitionParser.INSTANCE));
         DefaultCosIdScanner scanner =
-            new DefaultCosIdScanner(new String[] {"me.ahoo.cosid.accessor.annotation.entity"}, accessorParser, registry);
+            new DefaultCosIdScanner(new String[] {"me.ahoo.cosid.accessor.annotation.entity"}, AnnotationDefinitionParser.INSTANCE, registry);
         scanner.scan();
 
         CosIdAccessor cosIdAccessor = registry.get(LongIdEntity.class);
@@ -72,10 +71,9 @@ class DefaultCosIdScannerTest {
 
     @Test
     void scanNamedDefinitionParser() {
-        CosIdAccessorParser accessorParser = new DefaultAccessorParser(new NamedDefinitionParser("id"));
         CosIdAccessorRegistry registry = new DefaultAccessorRegistry(new DefaultAccessorParser(AnnotationDefinitionParser.INSTANCE));
         DefaultCosIdScanner scanner =
-            new DefaultCosIdScanner(new String[] {"me.ahoo.cosid.accessor.scanner.entity"}, accessorParser, registry);
+            new DefaultCosIdScanner(new String[] {"me.ahoo.cosid.accessor.scanner.entity"}, new NamedDefinitionParser("id"), registry);
         scanner.scan();
 
         CosIdAccessor cosIdAccessor = registry.get(OrderEntity.class);

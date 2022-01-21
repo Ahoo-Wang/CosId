@@ -79,22 +79,22 @@ public class ModShardingAlgorithmBenchmark {
 
     @Benchmark
     public String cosid_precise() {
-        return cosIdModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getModCycle().getEffectiveNodes(), getRandomId());
+        return cosIdModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomId());
     }
 
     @SuppressWarnings("unchecked")
     @Benchmark
     public Collection<String> cosid_range() {
-        return cosIdModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getModCycle().getEffectiveNodes(), getRandomRangeId());
+        return cosIdModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeId());
     }
 
     @Benchmark
     public String office_precise() {
-        return officeModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getModCycle().getEffectiveNodes(), getRandomId());
+        return officeModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomId());
     }
 
     @Benchmark
     public Collection<String> office_range() {
-        return officeModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getModCycle().getEffectiveNodes(), getRandomRangeId());
+        return officeModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeId());
     }
 }

@@ -169,34 +169,34 @@ public class IntervalShardingAlgorithmBenchmark {
     @SuppressWarnings("unchecked")
     @Benchmark
     public String cosid_precise_timestamp() {
-        return dateIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getIntervalTimeline().getEffectiveNodes(), getRandomTs());
+        return dateIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomTs());
     }
 
     @SuppressWarnings("unchecked")
     @Benchmark
     public Collection<String> cosid_range_timestamp() {
-        return dateIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getIntervalTimeline().getEffectiveNodes(), getRandomRangeTs());
+        return dateIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeTs());
     }
 
     @SuppressWarnings("unchecked")
     @Benchmark
     public String cosid_precise_local_date_time() {
-        return datetimeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getIntervalTimeline().getEffectiveNodes(), getRandomLocalDateTime());
+        return datetimeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomLocalDateTime());
     }
 
     @SuppressWarnings("unchecked")
     @Benchmark
     public Collection<String> cosid_range_local_date_time() {
-        return datetimeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getIntervalTimeline().getEffectiveNodes(), getRandomRangeLocalDateTime());
+        return datetimeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeLocalDateTime());
     }
 
     @Benchmark
     public String office_precise_timestamp() {
-        return officeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getIntervalTimeline().getEffectiveNodes(), getRandomTs());
+        return officeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomTs());
     }
 
     @Benchmark
     public Collection<String> office_range_timestamp() {
-        return officeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getIntervalTimeline().getEffectiveNodes(), getRandomRangeTs());
+        return officeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeTs());
     }
 }

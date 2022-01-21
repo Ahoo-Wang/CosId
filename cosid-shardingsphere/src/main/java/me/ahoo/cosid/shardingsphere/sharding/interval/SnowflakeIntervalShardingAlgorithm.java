@@ -28,7 +28,7 @@ public class SnowflakeIntervalShardingAlgorithm extends AbstractIntervalSharding
 
     public static final String TYPE = AbstractIntervalShardingAlgorithm.TYPE_PREFIX + "SNOWFLAKE";
 
-    private volatile LazyIdGenerator cosIdProvider;
+    private volatile LazyIdGenerator lazyIdGenerator;
 
     /**
      * Initialize algorithm.
@@ -36,13 +36,13 @@ public class SnowflakeIntervalShardingAlgorithm extends AbstractIntervalSharding
     @Override
     public void init() {
         super.init();
-        cosIdProvider = new LazyIdGenerator(getProps().getOrDefault(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE).toString());
+        lazyIdGenerator = new LazyIdGenerator(getProps().getOrDefault(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE).toString());
     }
 
     @Override
     protected LocalDateTime convertShardingValue(Comparable<?> shardingValue) {
         Long snowflakeId = convertToSnowflakeId(shardingValue);
-        return cosIdProvider.asFriendlyId(true).getParser().parseTimestamp(snowflakeId);
+        return lazyIdGenerator.asFriendlyId(true).getParser().parseTimestamp(snowflakeId);
     }
 
     private Long convertToSnowflakeId(Comparable<?> shardingValue) {
@@ -51,7 +51,7 @@ public class SnowflakeIntervalShardingAlgorithm extends AbstractIntervalSharding
         }
         if (shardingValue instanceof String) {
             String shardingValueStr = (String) shardingValue;
-            return cosIdProvider.idConverter().asLong(shardingValueStr);
+            return lazyIdGenerator.idConverter().asLong(shardingValueStr);
         }
         throw new NotSupportIntervalShardingTypeException(Strings.lenientFormat("The current shard type:[%s] is not supported!", shardingValue.getClass()));
     }

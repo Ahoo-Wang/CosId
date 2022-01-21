@@ -14,6 +14,7 @@
 package me.ahoo.cosid.shardingsphere.sharding.mod;
 
 import me.ahoo.cosid.sharding.ModCycle;
+import me.ahoo.cosid.sharding.Sharding;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.shardingsphere.sharding.utils.PropertiesUtil;
 
@@ -36,7 +37,7 @@ public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> impleme
 
     private Properties props = new Properties();
 
-    private volatile ModCycle<T> modCycle;
+    private volatile Sharding<T> sharding;
 
     /**
      * Get type.
@@ -69,8 +70,8 @@ public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> impleme
     }
 
     @VisibleForTesting
-    public ModCycle<T> getModCycle() {
-        return modCycle;
+    public Sharding<T> getSharding() {
+        return sharding;
     }
 
     /**
@@ -82,7 +83,7 @@ public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> impleme
      */
     @Override
     public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<T> shardingValue) {
-        return modCycle.sharding(shardingValue.getValue());
+        return sharding.sharding(shardingValue.getValue());
     }
 
     /**
@@ -94,7 +95,7 @@ public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> impleme
      */
     @Override
     public Collection<String> doSharding(Collection<String> availableTargetNames, RangeShardingValue<T> shardingValue) {
-        return modCycle.sharding(shardingValue.getValueRange());
+        return sharding.sharding(shardingValue.getValueRange());
     }
 
     /**
@@ -105,6 +106,6 @@ public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> impleme
         String divisorStr = PropertiesUtil.getRequiredValue(getProps(), MODULO_KEY);
         int divisor = Integer.parseInt(divisorStr);
         String logicNamePrefix = PropertiesUtil.getRequiredValue(getProps(), CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY);
-        this.modCycle = new ModCycle<>(divisor, logicNamePrefix);
+        this.sharding = new ModCycle<>(divisor, logicNamePrefix);
     }
 }

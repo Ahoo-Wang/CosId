@@ -40,7 +40,7 @@ import java.util.stream.Stream;
  */
 class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorithmTest {
 
-    private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(StringIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
+    private static final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(CosIdIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
 
     AbstractIntervalShardingAlgorithm shardingAlgorithm;
 
@@ -48,7 +48,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     void init() {
         shardingAlgorithm = new CosIdIntervalShardingAlgorithm();
         Properties properties = getProps();
-        properties.setProperty(StringIntervalShardingAlgorithm.DATE_TIME_PATTERN_KEY, StringIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
+        properties.setProperty(CosIdIntervalShardingAlgorithm.DATE_TIME_PATTERN_KEY, CosIdIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
         shardingAlgorithm.setProps(properties);
         shardingAlgorithm.init();
     }

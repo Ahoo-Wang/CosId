@@ -46,11 +46,8 @@ import java.util.Properties;
  * 分配策略=[逻辑名] + [分片算法]，分片算法KEY在全局唯一，这种方式显然是不利于缓存优化的，即{@link #doSharding(Collection, RangeShardingValue)}的第一个参数availableTargetNames应该在绑定时已知且稳定，作为实例变量更利于性能。
  *
  * @author ahoo wang
- * @see DateIntervalShardingAlgorithm
- * @see LocalDateTimeIntervalShardingAlgorithm
+ * @see CosIdIntervalShardingAlgorithm
  * @see CosIdSnowflakeIntervalShardingAlgorithm
- * @see TimestampIntervalShardingAlgorithm
- * @see TimestampOfSecondIntervalShardingAlgorithm
  */
 public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>> implements StandardShardingAlgorithm<T> {
 

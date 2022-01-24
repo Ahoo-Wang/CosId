@@ -13,8 +13,6 @@
 
 package me.ahoo.cosid.shardingsphere.sharding.interval;
 
-import static me.ahoo.cosid.shardingsphere.sharding.interval.StringIntervalShardingAlgorithm.DATE_TIME_PATTERN_KEY;
-
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.util.LocalDateTimeConvert;
 
@@ -29,12 +27,12 @@ import java.util.Date;
  */
 public class CosIdIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Comparable<?>> {
     public static final String TYPE = CosIdAlgorithm.TYPE_PREFIX + "INTERVAL";
-    public static final String TIMESTAMP_SECOND_TYPE = "SECOND";
-
+    public static final String DATE_TIME_PATTERN_KEY = "datetime-pattern";
+    public static final String TIMESTAMP_SECOND_UNIT = "SECOND";
     /**
      * type of timestamp
      */
-    public static final String TIMESTAMP_TYPE_KEY = "ts-type";
+    public static final String TIMESTAMP_UNIT_KEY = "ts-unit";
     private volatile boolean isSecondTs = false;
     private volatile DateTimeFormatter dateTimeFormatter;
 
@@ -44,8 +42,8 @@ public class CosIdIntervalShardingAlgorithm extends AbstractZoneIntervalSharding
     @Override
     public void init() {
         super.init();
-        if (getProps().containsKey(TIMESTAMP_TYPE_KEY)
-            && TIMESTAMP_SECOND_TYPE.equalsIgnoreCase(getProps().getProperty(TIMESTAMP_TYPE_KEY))) {
+        if (getProps().containsKey(TIMESTAMP_UNIT_KEY)
+            && TIMESTAMP_SECOND_UNIT.equalsIgnoreCase(getProps().getProperty(TIMESTAMP_UNIT_KEY))) {
             isSecondTs = true;
         }
         final String dateTimePattern = getProps().getProperty(DATE_TIME_PATTERN_KEY, DEFAULT_DATE_TIME_PATTERN);

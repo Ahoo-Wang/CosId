@@ -12,15 +12,5 @@
 #
 
 me.ahoo.cosid.shardingsphere.sharding.interval.CosIdIntervalShardingAlgorithm
-
-me.ahoo.cosid.shardingsphere.sharding.interval.DateIntervalShardingAlgorithm
-me.ahoo.cosid.shardingsphere.sharding.interval.LocalDateTimeIntervalShardingAlgorithm
-me.ahoo.cosid.shardingsphere.sharding.interval.StringIntervalShardingAlgorithm
-me.ahoo.cosid.shardingsphere.sharding.interval.TimestampIntervalShardingAlgorithm
-me.ahoo.cosid.shardingsphere.sharding.interval.TimestampOfSecondIntervalShardingAlgorithm
-
 me.ahoo.cosid.shardingsphere.sharding.interval.CosIdSnowflakeIntervalShardingAlgorithm
-me.ahoo.cosid.shardingsphere.sharding.interval.SnowflakeFriendlyIntervalShardingAlgorithm
-
-
 me.ahoo.cosid.shardingsphere.sharding.mod.CosIdModShardingAlgorithm

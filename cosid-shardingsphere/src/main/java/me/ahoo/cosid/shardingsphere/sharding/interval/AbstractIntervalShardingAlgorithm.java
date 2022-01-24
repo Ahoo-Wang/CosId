@@ -48,7 +48,7 @@ import java.util.Properties;
  * @author ahoo wang
  * @see DateIntervalShardingAlgorithm
  * @see LocalDateTimeIntervalShardingAlgorithm
- * @see SnowflakeIntervalShardingAlgorithm
+ * @see CosIdSnowflakeIntervalShardingAlgorithm
  * @see TimestampIntervalShardingAlgorithm
  * @see TimestampOfSecondIntervalShardingAlgorithm
  */

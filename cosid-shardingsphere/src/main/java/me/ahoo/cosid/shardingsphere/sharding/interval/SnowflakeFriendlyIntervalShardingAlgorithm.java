@@ -20,14 +20,14 @@ import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import java.time.LocalDateTime;
 
 /**
- * please use {@link SnowflakeIntervalShardingAlgorithm} instead.
+ * please use {@link CosIdSnowflakeIntervalShardingAlgorithm} instead.
  *
  * @author ahoo wang
  */
 @Deprecated
 public class SnowflakeFriendlyIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<String> {
 
-    public static final String TYPE = SnowflakeIntervalShardingAlgorithm.TYPE + "_FRIENDLY";
+    public static final String TYPE = CosIdSnowflakeIntervalShardingAlgorithm.TYPE + "_FRIENDLY";
 
     private volatile LazyIdGenerator cosIdProvider;
 

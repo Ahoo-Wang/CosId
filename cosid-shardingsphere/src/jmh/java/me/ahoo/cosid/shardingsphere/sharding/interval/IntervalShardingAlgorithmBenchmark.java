@@ -48,8 +48,7 @@ public class IntervalShardingAlgorithmBenchmark {
     private static final String LOGIC_TABLE_NAME = "t_ldt";
     private static final String LOGIC_NAME_PREFIX = LOGIC_TABLE_NAME + "_";
     private static final String FORMATTER_PATTERN = "yyyyMMdd";
-    AbstractIntervalShardingAlgorithm dateIntervalShardingAlgorithm;
-    AbstractIntervalShardingAlgorithm datetimeIntervalShardingAlgorithm;
+    CosIdIntervalShardingAlgorithm cosIdIntervalShardingAlgorithm;
     IntervalShardingAlgorithm officeIntervalShardingAlgorithm;
     private PreciseShardingValue<Comparable<?>>[] randomPreciseTsValues;
     private RangeShardingValue<Comparable<?>>[] randomRangeTsValues;
@@ -69,13 +68,9 @@ public class IntervalShardingAlgorithmBenchmark {
         properties.setProperty(AbstractIntervalShardingAlgorithm.SHARDING_SUFFIX_FORMAT_KEY, FORMATTER_PATTERN);
         properties.setProperty(AbstractIntervalShardingAlgorithm.INTERVAL_UNIT_KEY, "DAYS");
         properties.setProperty(AbstractIntervalShardingAlgorithm.INTERVAL_AMOUNT_KEY, "1");
-        dateIntervalShardingAlgorithm = new DateIntervalShardingAlgorithm();
-        dateIntervalShardingAlgorithm.setProps(properties);
-        dateIntervalShardingAlgorithm.init();
-
-        datetimeIntervalShardingAlgorithm = new LocalDateTimeIntervalShardingAlgorithm();
-        datetimeIntervalShardingAlgorithm.setProps(properties);
-        datetimeIntervalShardingAlgorithm.init();
+        cosIdIntervalShardingAlgorithm = new CosIdIntervalShardingAlgorithm();
+        cosIdIntervalShardingAlgorithm.setProps(properties);
+        cosIdIntervalShardingAlgorithm.init();
 
         officeIntervalShardingAlgorithm = new IntervalShardingAlgorithm();
         properties.setProperty("datetime-pattern", AbstractIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
@@ -169,34 +164,34 @@ public class IntervalShardingAlgorithmBenchmark {
     @SuppressWarnings("unchecked")
     @Benchmark
     public String cosid_precise_timestamp() {
-        return dateIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomTs());
+        return cosIdIntervalShardingAlgorithm.doSharding(cosIdIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomTs());
     }
 
     @SuppressWarnings("unchecked")
     @Benchmark
     public Collection<String> cosid_range_timestamp() {
-        return dateIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeTs());
+        return cosIdIntervalShardingAlgorithm.doSharding(cosIdIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeTs());
     }
 
     @SuppressWarnings("unchecked")
     @Benchmark
     public String cosid_precise_local_date_time() {
-        return datetimeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomLocalDateTime());
+        return cosIdIntervalShardingAlgorithm.doSharding(cosIdIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomLocalDateTime());
     }
 
     @SuppressWarnings("unchecked")
     @Benchmark
     public Collection<String> cosid_range_local_date_time() {
-        return datetimeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeLocalDateTime());
+        return cosIdIntervalShardingAlgorithm.doSharding(cosIdIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeLocalDateTime());
     }
 
     @Benchmark
     public String office_precise_timestamp() {
-        return officeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomTs());
+        return officeIntervalShardingAlgorithm.doSharding(cosIdIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomTs());
     }
 
     @Benchmark
     public Collection<String> office_range_timestamp() {
-        return officeIntervalShardingAlgorithm.doSharding(dateIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeTs());
+        return officeIntervalShardingAlgorithm.doSharding(cosIdIntervalShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeTs());
     }
 }

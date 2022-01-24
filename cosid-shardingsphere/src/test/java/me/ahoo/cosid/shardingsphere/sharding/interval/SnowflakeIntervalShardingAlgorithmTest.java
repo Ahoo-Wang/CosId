@@ -40,12 +40,12 @@ import java.util.Properties;
 class SnowflakeIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorithmTest {
 
     public static final String ID_NAME = "test_snowflake_friendly_interval";
-    SnowflakeIntervalShardingAlgorithm shardingAlgorithm;
+    CosIdSnowflakeIntervalShardingAlgorithm shardingAlgorithm;
     SnowflakeFriendlyId friendlyId;
 
     @BeforeEach
     void init() {
-        shardingAlgorithm = new SnowflakeIntervalShardingAlgorithm();
+        shardingAlgorithm = new CosIdSnowflakeIntervalShardingAlgorithm();
         Properties properties = getProps();
         properties.setProperty(CosIdAlgorithm.ID_NAME_KEY, ID_NAME);
         shardingAlgorithm.setProps(properties);
@@ -95,7 +95,7 @@ class SnowflakeIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlg
     @Test
     public void doShardingPreciseRadix62IdConverter() {
         String idName = "doShardingPreciseRadix62IdConverter";
-        SnowflakeIntervalShardingAlgorithm radix62ShardingAlgorithm = new SnowflakeIntervalShardingAlgorithm();
+        CosIdSnowflakeIntervalShardingAlgorithm radix62ShardingAlgorithm = new CosIdSnowflakeIntervalShardingAlgorithm();
         Properties properties = getProps();
         properties.setProperty(CosIdAlgorithm.ID_NAME_KEY, idName);
         radix62ShardingAlgorithm.setProps(properties);

@@ -27,11 +27,17 @@ import me.ahoo.cosid.accessor.field.FieldSetter;
 import me.ahoo.cosid.accessor.method.MethodGetter;
 import me.ahoo.cosid.accessor.method.MethodSetter;
 
+import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -94,10 +100,13 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
     protected CosIdAccessor parseClass(Class<?> clazz) {
         CosIdAccessor firstAccessor = CosIdAccessor.NOT_FOUND;
         Class<?> currentDeclaringClass = clazz;
+        List<Class<?>> lookupClassList = new ArrayList<>();
         while (!Object.class.equals(currentDeclaringClass)) {
+            lookupClassList.add(currentDeclaringClass);
+
             for (Field declaredField : currentDeclaringClass.getDeclaredFields()) {
 
-                IdDefinition idDefinition = definitionParser.parse(clazz, declaredField);
+                IdDefinition idDefinition = definitionParser.parse(lookupClassList, declaredField);
                 if (idDefinition == null
                     || IdDefinition.NOT_FOUND.equals(idDefinition)) {
                     continue;
@@ -106,9 +115,8 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
                 if (!CosIdAccessor.NOT_FOUND.equals(firstAccessor)) {
                     throw new MultipleIdNotSupportException(clazz);
                 }
-
-                firstAccessor = definitionAsAccessor(idDefinition);
-
+                IdDefinition fixedIdDefinition = fixGenericFieldActualType(lookupClassList, idDefinition);
+                firstAccessor = definitionAsAccessor(fixedIdDefinition);
             }
 
             currentDeclaringClass = currentDeclaringClass.getSuperclass();
@@ -116,9 +124,43 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
         return firstAccessor;
     }
 
+    private IdDefinition fixGenericFieldActualType(List<Class<?>> lookupClassList, IdDefinition idDefinition) {
+        Type fieldGenericType = idDefinition.getIdField().getGenericType();
+        if (!(fieldGenericType instanceof TypeVariable)) {
+            return idDefinition;
+        }
+
+        for (int i = lookupClassList.size() - 2; i >= 0; i--) {
+            Class<?> superClass = lookupClassList.get(i + 1);
+            Class<?> subClass = lookupClassList.get(i);
+            fieldGenericType = getActualFieldType(fieldGenericType, superClass, subClass);
+            if (fieldGenericType instanceof Class<?>) {
+                return new IdDefinition(idDefinition.getGeneratorName(), idDefinition.getIdField(), (Class<?>) fieldGenericType);
+            }
+        }
+        return idDefinition;
+    }
+
+    private Type getActualFieldType(Type typeVariable, Class<?> superClass, Class<?> subClass) {
+        int genericVarIdx = -1;
+        TypeVariable<?>[] typeVariables = superClass.getTypeParameters();
+        for (int i = 0; i < typeVariables.length; i++) {
+            if (typeVariable.equals(typeVariables[i])) {
+                genericVarIdx = i;
+            }
+        }
+        if (genericVarIdx == -1) {
+            throw new IllegalArgumentException(Strings.lenientFormat("Type Parameter:[%s] not found in Class:[%].", typeVariable, superClass));
+        }
+
+        ParameterizedType genericSuperclass = (ParameterizedType) subClass.getGenericSuperclass();
+        Type[] actualTypes = genericSuperclass.getActualTypeArguments();
+        return actualTypes[genericVarIdx];
+    }
+
     protected CosIdAccessor definitionAsAccessor(IdDefinition idDefinition) {
         Field idField = idDefinition.getIdField();
-        if (!CosIdAccessor.availableType(idField.getType())) {
+        if (!CosIdAccessor.availableType(idDefinition.getIdType())) {
             throw new IdTypeNotSupportException(idField);
         }
 

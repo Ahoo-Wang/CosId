@@ -22,18 +22,24 @@ import java.lang.reflect.Field;
  */
 public class IdDefinition {
 
-    public static final IdDefinition NOT_FOUND = new IdDefinition(null);
+    public static final IdDefinition NOT_FOUND = new IdDefinition(null, null, null);
 
     private final String generatorName;
     private final Field idField;
+    private final Class<?> idType;
 
     public IdDefinition(Field idField) {
         this(IdGeneratorProvider.SHARE, idField);
     }
 
     public IdDefinition(String generatorName, Field idField) {
+        this(generatorName, idField, idField.getType());
+    }
+
+    public IdDefinition(String generatorName, Field idField, Class<?> idType) {
         this.generatorName = generatorName;
         this.idField = idField;
+        this.idType = idType;
     }
 
     public String getGeneratorName() {
@@ -42,5 +48,9 @@ public class IdDefinition {
 
     public Field getIdField() {
         return idField;
+    }
+
+    public Class<?> getIdType() {
+        return idType;
     }
 }

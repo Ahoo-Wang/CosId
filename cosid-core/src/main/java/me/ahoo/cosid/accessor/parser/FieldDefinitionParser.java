@@ -16,11 +16,12 @@ package me.ahoo.cosid.accessor.parser;
 import me.ahoo.cosid.accessor.IdDefinition;
 
 import java.lang.reflect.Field;
+import java.util.List;
 
 /**
  * @author ahoo wang
  */
 @FunctionalInterface
 public interface FieldDefinitionParser {
-    IdDefinition parse(Class<?> clazz, Field field);
+    IdDefinition parse(List<Class<?>> lookupClassList, Field field);
 }

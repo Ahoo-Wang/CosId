@@ -36,7 +36,6 @@ import org.junit.jupiter.api.Test;
  */
 class DefaultAccessorParserTest {
 
-
     public static final DefaultAccessorParser ACCESSOR_PARSER = new DefaultAccessorParser(AnnotationDefinitionParser.INSTANCE);
 
     @SneakyThrows
@@ -167,6 +166,30 @@ class DefaultAccessorParserTest {
         DefaultCosIdAccessor cosIdAccessor = (DefaultCosIdAccessor) ACCESSOR_PARSER.parse(ClassCosIdInheritedType.class);
         Assertions.assertEquals(AbstractCosId.class.getDeclaredField("id"), cosIdAccessor.getIdField());
     }
+
+
+    @SneakyThrows
+    @Test
+    void abstractGenericCosId() {
+        Assertions.assertThrows(IdTypeNotSupportException.class, () -> {
+            ACCESSOR_PARSER.parse(AbstractGenericCosId.class);
+        });
+    }
+
+    @SneakyThrows
+    @Test
+    void classIdGenericInherited() {
+        DefaultCosIdAccessor cosIdAccessor = (DefaultCosIdAccessor) ACCESSOR_PARSER.parse(ClassIdGenericInheritedType.class);
+        Assertions.assertEquals(AbstractGenericCosId.class.getDeclaredField("id"), cosIdAccessor.getIdField());
+    }
+
+    @SneakyThrows
+    @Test
+    void classIdGenericFourInherited() {
+        DefaultCosIdAccessor cosIdAccessor = (DefaultCosIdAccessor) ACCESSOR_PARSER.parse(ClassIdGenericFourInheritedType.class);
+        Assertions.assertEquals(AbstractGenericCosId.class.getDeclaredField("id"), cosIdAccessor.getIdField());
+    }
+
 
     @Test
     void capitalize() {
@@ -331,4 +354,45 @@ class DefaultAccessorParserTest {
     public static class ClassCosIdInheritedType extends AbstractCosId {
 
     }
+
+    @CosId(field = "id")
+    public abstract static class AbstractGenericCosId<T, N> {
+        private T id;
+        private N name;
+
+        public T getId() {
+            return id;
+        }
+
+        public void setId(T id) {
+            this.id = id;
+        }
+
+        public N getName() {
+            return name;
+        }
+
+        public void setName(N name) {
+            this.name = name;
+        }
+    }
+
+
+    public static class ClassIdGenericInheritedType extends AbstractGenericCosId<Long, String> {
+
+    }
+
+    public static class ClassIdGenericTwoInheritedType<T, O> extends AbstractGenericCosId<O, T> {
+
+    }
+
+
+    public static class ClassIdGenericThreeInheritedType<H> extends ClassIdGenericTwoInheritedType<String, H> {
+
+    }
+
+    public static class ClassIdGenericFourInheritedType extends ClassIdGenericThreeInheritedType<Long> {
+
+    }
+
 }

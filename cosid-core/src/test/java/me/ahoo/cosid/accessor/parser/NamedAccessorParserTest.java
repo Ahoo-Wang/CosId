@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
+import java.util.Arrays;
 
 /**
  * @author ahoo wang
@@ -34,7 +35,7 @@ class NamedAccessorParserTest {
     @Test
     void parse() {
         Field idField = LongIdEntity.class.getDeclaredField("id");
-        IdDefinition idDefinition = NAMED_PARSER.parse(LongIdEntity.class, idField);
+        IdDefinition idDefinition = NAMED_PARSER.parse(Arrays.asList(LongIdEntity.class), idField);
         Assertions.assertNotEquals(IdDefinition.NOT_FOUND, idDefinition);
         Assertions.assertEquals(IdGeneratorProvider.SHARE, idDefinition.getGeneratorName());
     }

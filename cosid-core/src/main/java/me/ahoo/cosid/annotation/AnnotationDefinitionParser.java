@@ -19,6 +19,8 @@ import me.ahoo.cosid.accessor.parser.FieldDefinitionParser;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Field;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * @author ahoo wang
@@ -29,12 +31,16 @@ public class AnnotationDefinitionParser implements FieldDefinitionParser {
     public static final AnnotationDefinitionParser INSTANCE = new AnnotationDefinitionParser();
 
     @Override
-    public IdDefinition parse(Class<?> clazz, Field field) {
+    public IdDefinition parse(List<Class<?>> lookupClassList, Field field) {
 
-        CosId clazzCosId = clazz.getAnnotation(CosId.class) != null
-            ? clazz.getAnnotation(CosId.class) : field.getDeclaringClass().getAnnotation(CosId.class);
+        Optional<CosId> clazzCosIdOp = lookupClassList
+            .stream()
+            .filter(clazz -> clazz.isAnnotationPresent(CosId.class))
+            .map(clazz -> clazz.getAnnotation(CosId.class))
+            .findFirst();
 
-        if (null != clazzCosId) {
+        if (clazzCosIdOp.isPresent()) {
+            CosId clazzCosId = clazzCosIdOp.get();
             if (!field.getName().equals(clazzCosId.field())) {
                 return IdDefinition.NOT_FOUND;
             }

@@ -16,6 +16,7 @@ package me.ahoo.cosid.accessor.parser;
 import me.ahoo.cosid.accessor.IdDefinition;
 
 import java.lang.reflect.Field;
+import java.util.List;
 
 /**
  * @author ahoo wang
@@ -29,7 +30,7 @@ public class NamedDefinitionParser implements FieldDefinitionParser {
     }
 
     @Override
-    public IdDefinition parse(Class<?> clazz, Field field) {
+    public IdDefinition parse(List<Class<?>> lookupClassList, Field field) {
         if (!idFieldName.equals(field.getName())) {
             return IdDefinition.NOT_FOUND;
         }

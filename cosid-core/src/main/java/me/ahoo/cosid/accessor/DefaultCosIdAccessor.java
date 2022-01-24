@@ -69,7 +69,6 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
         return ensureId.ensureId(target);
     }
 
-
     public class EnsureStringId implements EnsureId {
 
         @Override

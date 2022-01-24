@@ -41,6 +41,6 @@ public interface IdMetadata {
     }
 
     default Class<?> getIdType() {
-        return getIdField().getType();
+        return getIdDefinition().getIdType();
     }
 }

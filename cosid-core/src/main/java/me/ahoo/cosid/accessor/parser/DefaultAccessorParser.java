@@ -97,7 +97,7 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
         while (!Object.class.equals(currentDeclaringClass)) {
             for (Field declaredField : currentDeclaringClass.getDeclaredFields()) {
 
-                IdDefinition idDefinition = definitionParser.parse(declaredField);
+                IdDefinition idDefinition = definitionParser.parse(clazz, declaredField);
                 if (idDefinition == null
                     || IdDefinition.NOT_FOUND.equals(idDefinition)) {
                     continue;

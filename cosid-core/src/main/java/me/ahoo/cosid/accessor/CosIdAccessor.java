@@ -21,16 +21,17 @@ import java.lang.reflect.Field;
 /**
  * @author ahoo wang
  */
-public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata {
+public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, EnsureId {
 
     NotFound NOT_FOUND = new NotFound();
-
-    boolean ensureId(Object target);
 
     static boolean availableType(Class<?> idType) {
         return String.class.equals(idType)
             || Long.class.equals(idType)
-            || long.class.equals(idType);
+            || long.class.equals(idType)
+            || Integer.class.equals(idType)
+            || int.class.equals(idType)
+            ;
     }
 
     static void ensureAccessible(AccessibleObject accessibleObject) {

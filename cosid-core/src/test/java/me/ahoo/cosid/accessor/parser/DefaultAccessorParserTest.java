@@ -49,6 +49,15 @@ class DefaultAccessorParserTest {
         Assertions.assertEquals(LongIdEntity.class.getDeclaredField("id"), cosIdAccessor.getIdField());
     }
 
+    @SneakyThrows
+    @Test
+    void parseInt() {
+        CosIdAccessor cosIdAccessor = ACCESSOR_PARSER.parse(IntIdType.class);
+        Assertions.assertNotEquals(CosIdAccessor.NOT_FOUND, cosIdAccessor);
+        Assertions.assertEquals(IdGeneratorProvider.SHARE, cosIdAccessor.getGeneratorName());
+        Assertions.assertEquals(IntIdType.class, cosIdAccessor.getIdDeclaringClass());
+        Assertions.assertEquals(IntIdType.class.getDeclaredField("id"), cosIdAccessor.getIdField());
+    }
 
     @SneakyThrows
     @Test
@@ -138,6 +147,27 @@ class DefaultAccessorParserTest {
         });
     }
 
+    @SneakyThrows
+    @Test
+    void classId() {
+        DefaultCosIdAccessor cosIdAccessor = (DefaultCosIdAccessor) ACCESSOR_PARSER.parse(ClassIdType.class);
+        Assertions.assertEquals(ClassIdType.class.getDeclaredField("id"), cosIdAccessor.getIdField());
+    }
+
+    @SneakyThrows
+    @Test
+    void classIdInherited() {
+        DefaultCosIdAccessor cosIdAccessor = (DefaultCosIdAccessor) ACCESSOR_PARSER.parse(ClassIdInheritedType.class);
+        Assertions.assertEquals(AbstractId.class.getDeclaredField("id"), cosIdAccessor.getIdField());
+    }
+
+    @SneakyThrows
+    @Test
+    void classCosIdInherited() {
+        DefaultCosIdAccessor cosIdAccessor = (DefaultCosIdAccessor) ACCESSOR_PARSER.parse(ClassCosIdInheritedType.class);
+        Assertions.assertEquals(AbstractCosId.class.getDeclaredField("id"), cosIdAccessor.getIdField());
+    }
+
     @Test
     void capitalize() {
     }
@@ -158,8 +188,20 @@ class DefaultAccessorParserTest {
     void definitionAsAccessor() {
     }
 
-
     public static class WrongIdType {
+        @CosId
+        private double id;
+
+        public double getId() {
+            return id;
+        }
+
+        public void setId(double id) {
+            this.id = id;
+        }
+    }
+
+    public static class IntIdType {
         @CosId
         private int id;
 
@@ -240,5 +282,53 @@ class DefaultAccessorParserTest {
         public void setName(String name) {
             this.name = name;
         }
+    }
+
+    @CosId(field = "id")
+    public static class ClassIdType {
+
+        private long id;
+
+        public long getId() {
+            return id;
+        }
+
+        public void setId(long id) {
+            this.id = id;
+        }
+    }
+
+    public abstract static class AbstractId {
+        private long id;
+
+        public long getId() {
+            return id;
+        }
+
+        public void setId(long id) {
+            this.id = id;
+        }
+    }
+
+    @CosId(field = "id")
+    public static class ClassIdInheritedType extends AbstractId {
+
+    }
+
+    @CosId(field = "id")
+    public abstract static class AbstractCosId {
+        private long id;
+
+        public long getId() {
+            return id;
+        }
+
+        public void setId(long id) {
+            this.id = id;
+        }
+    }
+
+    public static class ClassCosIdInheritedType extends AbstractCosId {
+
     }
 }

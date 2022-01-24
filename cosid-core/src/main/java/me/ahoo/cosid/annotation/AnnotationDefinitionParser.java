@@ -29,11 +29,22 @@ public class AnnotationDefinitionParser implements FieldDefinitionParser {
     public static final AnnotationDefinitionParser INSTANCE = new AnnotationDefinitionParser();
 
     @Override
-    public IdDefinition parse(Field field) {
-        if (!field.isAnnotationPresent(CosId.class)) {
+    public IdDefinition parse(Class<?> clazz, Field field) {
+
+        CosId clazzCosId = clazz.getAnnotation(CosId.class) != null
+            ? clazz.getAnnotation(CosId.class) : field.getDeclaringClass().getAnnotation(CosId.class);
+
+        if (null != clazzCosId) {
+            if (!field.getName().equals(clazzCosId.field())) {
+                return IdDefinition.NOT_FOUND;
+            }
+            return new IdDefinition(clazzCosId.value(), field);
+        }
+
+        CosId fieldCosId = field.getAnnotation(CosId.class);
+        if (null == fieldCosId) {
             return IdDefinition.NOT_FOUND;
         }
-        CosId cosId = field.getAnnotation(CosId.class);
-        return new IdDefinition(cosId.value(), field);
+        return new IdDefinition(fieldCosId.value(), field);
     }
 }

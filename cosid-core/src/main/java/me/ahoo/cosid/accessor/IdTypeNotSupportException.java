@@ -27,7 +27,7 @@ public class IdTypeNotSupportException extends CosIdException {
     private final Field idField;
 
     public IdTypeNotSupportException(Field idField) {
-        super(Strings.lenientFormat("ID type only supports Long/long/String, idField:[%s]!", idField));
+        super(Strings.lenientFormat("ID type only supports Long/long/Integer/int/String, idField:[%s]!", idField));
         this.idField = idField;
     }
 

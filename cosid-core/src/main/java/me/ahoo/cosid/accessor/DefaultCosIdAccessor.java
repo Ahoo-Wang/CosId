@@ -13,12 +13,10 @@
 
 package me.ahoo.cosid.accessor;
 
-import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.IntegerIdGenerator;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
-import java.util.Objects;
 
 /**
  * @author ahoo wang
@@ -27,11 +25,24 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
 
     private final CosIdGetter getter;
     private final CosIdSetter setter;
+    private final EnsureId ensureId;
 
     public DefaultCosIdAccessor(IdDefinition idDefinition, CosIdGetter getter, CosIdSetter setter) {
         super(idDefinition);
         this.getter = getter;
         this.setter = setter;
+        this.ensureId = getEnsureId();
+    }
+
+    private EnsureId getEnsureId() {
+        Class<?> idFieldType = getIdType();
+        if (Long.class.equals(idFieldType) || long.class.equals(idFieldType)) {
+            return new EnsureLongId();
+        }
+        if (Integer.class.equals(idFieldType) || int.class.equals(idFieldType)) {
+            return new EnsureIntegerId();
+        }
+        return new EnsureStringId();
     }
 
     @Override
@@ -54,26 +65,55 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
 
     @Override
     public boolean ensureId(Object target) {
-
         Preconditions.checkArgument(getIdDeclaringClass().isInstance(target), "target:[%s] is not instance of IdDeclaringClass:[%s]", target, getIdDeclaringClass());
+        return ensureId.ensureId(target);
+    }
 
-        IdGenerator idGenerator = getIdGenerator();
 
-        Object previousId = getId(target);
+    public class EnsureStringId implements EnsureId {
 
-        if (String.class.equals(getIdType())) {
-            if (Objects.nonNull(previousId) && !Strings.isNullOrEmpty(previousId.toString())) {
+        @Override
+        public boolean ensureId(Object target) {
+            Object previousId = getId(target);
+            if (null != previousId && !Strings.isNullOrEmpty((String) previousId)) {
                 return false;
             }
 
-            setId(target, idGenerator.generateAsString());
+            setId(target, getIdGenerator().generateAsString());
             return true;
+        }
+    }
+
+    public class EnsureLongId implements EnsureId {
+        private static final long MIN_ID = 0;
+
+        @Override
+        public boolean ensureId(Object target) {
+            Object previousId = getId(target);
+            if (null != previousId && (Long) previousId > MIN_ID) {
+                return false;
+            }
+            setId(target, getIdGenerator().generate());
+            return true;
+        }
+    }
+
+    public class EnsureIntegerId implements EnsureId {
+        private static final int MIN_ID = 0;
+        private final IntegerIdGenerator integerIdGenerator;
+
+        public EnsureIntegerId() {
+            this.integerIdGenerator = new IntegerIdGenerator(getIdGenerator());
         }
 
-        if (Objects.isNull(previousId) || (Long) previousId < 1) {
-            setId(target, idGenerator.generate());
+        @Override
+        public boolean ensureId(Object target) {
+            Object previousId = getId(target);
+            if (null != previousId && (Integer) previousId > MIN_ID) {
+                return false;
+            }
+            setId(target, integerIdGenerator.generate());
             return true;
         }
-        return false;
     }
 }

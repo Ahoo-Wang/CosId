@@ -22,5 +22,5 @@ import java.lang.reflect.Field;
  */
 @FunctionalInterface
 public interface FieldDefinitionParser {
-    IdDefinition parse(Field field);
+    IdDefinition parse(Class<?> clazz, Field field);
 }

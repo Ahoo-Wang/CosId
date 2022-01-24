@@ -11,32 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.annotation;
-
-import me.ahoo.cosid.provider.IdGeneratorProvider;
-
-import java.lang.annotation.Documented;
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
+package me.ahoo.cosid.accessor;
 
 /**
  * @author ahoo wang
  */
-@Target({ElementType.FIELD, ElementType.TYPE})
-@Documented
-@Retention(RetentionPolicy.RUNTIME)
-public @interface CosId {
-    String DEFAULT_FIELD = "id";
-
-    /**
-     * id generator name.
-     * {@link IdGeneratorProvider#get(String)}
-     *
-     * @return id generator name
-     */
-    String value() default IdGeneratorProvider.SHARE;
-
-    String field() default DEFAULT_FIELD;
+public interface EnsureId {
+    boolean ensureId(Object target);
 }

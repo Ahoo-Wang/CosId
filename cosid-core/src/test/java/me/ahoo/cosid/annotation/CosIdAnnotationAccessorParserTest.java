@@ -32,7 +32,7 @@ public class CosIdAnnotationAccessorParserTest {
     @Test
     void parse() {
         Field idField = LongIdEntity.class.getDeclaredField("id");
-        IdDefinition idDefinition = AnnotationDefinitionParser.INSTANCE.parse(idField);
+        IdDefinition idDefinition = AnnotationDefinitionParser.INSTANCE.parse(LongIdEntity.class, idField);
 
         Assertions.assertNotEquals(IdDefinition.NOT_FOUND, idDefinition);
         Assertions.assertEquals(IdGeneratorProvider.SHARE, idDefinition.getGeneratorName());

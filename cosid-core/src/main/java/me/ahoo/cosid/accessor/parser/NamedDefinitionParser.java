@@ -29,7 +29,7 @@ public class NamedDefinitionParser implements FieldDefinitionParser {
     }
 
     @Override
-    public IdDefinition parse(Field field) {
+    public IdDefinition parse(Class<?> clazz, Field field) {
         if (!idFieldName.equals(field.getName())) {
             return IdDefinition.NOT_FOUND;
         }

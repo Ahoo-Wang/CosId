@@ -34,7 +34,7 @@ class NamedAccessorParserTest {
     @Test
     void parse() {
         Field idField = LongIdEntity.class.getDeclaredField("id");
-        IdDefinition idDefinition = NAMED_PARSER.parse(idField);
+        IdDefinition idDefinition = NAMED_PARSER.parse(LongIdEntity.class, idField);
         Assertions.assertNotEquals(IdDefinition.NOT_FOUND, idDefinition);
         Assertions.assertEquals(IdGeneratorProvider.SHARE, idDefinition.getGeneratorName());
     }

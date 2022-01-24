@@ -82,7 +82,7 @@ public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> impleme
      * @return sharding result for data source or table name
      */
     @Override
-    public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<T> shardingValue) {
+    public String doSharding(final Collection<String> availableTargetNames, final PreciseShardingValue<T> shardingValue) {
         return sharding.sharding(shardingValue.getValue());
     }
 
@@ -94,7 +94,7 @@ public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> impleme
      * @return sharding results for data sources or table names
      */
     @Override
-    public Collection<String> doSharding(Collection<String> availableTargetNames, RangeShardingValue<T> shardingValue) {
+    public Collection<String> doSharding(final Collection<String> availableTargetNames, final RangeShardingValue<T> shardingValue) {
         return sharding.sharding(shardingValue.getValueRange());
     }
 

@@ -40,12 +40,12 @@ public class CosIdSnowflakeIntervalShardingAlgorithm extends AbstractIntervalSha
     }
 
     @Override
-    protected LocalDateTime convertShardingValue(Comparable<?> shardingValue) {
+    protected LocalDateTime convertShardingValue(final Comparable<?> shardingValue) {
         Long snowflakeId = convertToSnowflakeId(shardingValue);
         return lazyIdGenerator.asFriendlyId(true).getParser().parseTimestamp(snowflakeId);
     }
 
-    private Long convertToSnowflakeId(Comparable<?> shardingValue) {
+    private Long convertToSnowflakeId(final Comparable<?> shardingValue) {
         if (shardingValue instanceof Long) {
             return (Long) shardingValue;
         }

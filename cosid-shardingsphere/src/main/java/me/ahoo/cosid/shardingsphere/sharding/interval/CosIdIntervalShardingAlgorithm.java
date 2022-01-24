@@ -25,23 +25,21 @@ import java.util.Date;
 /**
  * @author ahoo wang
  */
-public class CosIdIntervalShardingAlgorithm extends AbstractZoneIntervalShardingAlgorithm<Comparable<?>> {
+public class CosIdIntervalShardingAlgorithm extends AbstractIntervalShardingAlgorithm<Comparable<?>> {
     public static final String TYPE = CosIdAlgorithm.TYPE_PREFIX + "INTERVAL";
     public static final String DATE_TIME_PATTERN_KEY = "datetime-pattern";
     public static final String TIMESTAMP_SECOND_UNIT = "SECOND";
     /**
-     * type of timestamp
+     * unit of timestamp
      */
     public static final String TIMESTAMP_UNIT_KEY = "ts-unit";
     private volatile boolean isSecondTs = false;
     private volatile DateTimeFormatter dateTimeFormatter;
 
-    /**
-     * Initialize algorithm.
-     */
     @Override
     public void init() {
         super.init();
+
         if (getProps().containsKey(TIMESTAMP_UNIT_KEY)
             && TIMESTAMP_SECOND_UNIT.equalsIgnoreCase(getProps().getProperty(TIMESTAMP_UNIT_KEY))) {
             isSecondTs = true;
@@ -51,7 +49,7 @@ public class CosIdIntervalShardingAlgorithm extends AbstractZoneIntervalSharding
     }
 
     @Override
-    protected LocalDateTime convertShardingValue(Comparable<?> shardingValue) {
+    protected LocalDateTime convertShardingValue(final Comparable<?> shardingValue) {
         if (shardingValue instanceof LocalDateTime) {
             return (LocalDateTime) shardingValue;
         }
@@ -73,11 +71,6 @@ public class CosIdIntervalShardingAlgorithm extends AbstractZoneIntervalSharding
         throw new NotSupportIntervalShardingTypeException(Strings.lenientFormat("The current shard type:[%s] is not supported!", shardingValue.getClass()));
     }
 
-    /**
-     * Get type.
-     *
-     * @return type
-     */
     @Override
     public String getType() {
         return TYPE;

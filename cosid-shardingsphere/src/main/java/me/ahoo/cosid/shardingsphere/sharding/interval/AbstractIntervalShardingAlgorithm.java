@@ -27,6 +27,7 @@ import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingVal
 import org.apache.shardingsphere.sharding.api.sharding.standard.StandardShardingAlgorithm;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
@@ -67,6 +68,10 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
 
     public static final String INTERVAL_AMOUNT_KEY = "datetime-interval-amount";
 
+    public static final String ZONE_ID_KEY = "zone-id";
+
+    private ZoneId zoneId = ZoneId.systemDefault();
+
     private Properties props = new Properties();
 
     private volatile Sharding<LocalDateTime> sharding;
@@ -81,11 +86,18 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
         this.props = props;
     }
 
+    protected ZoneId getZoneId() {
+        return zoneId;
+    }
+
     /**
      * Initialize algorithm.
      */
     @Override
     public void init() {
+        if (getProps().containsKey(ZONE_ID_KEY)) {
+            zoneId = ZoneId.of(getRequiredValue(ZONE_ID_KEY));
+        }
         String logicNamePrefix = getRequiredValue(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY);
         LocalDateTime effectiveLower = LocalDateTime.parse(getRequiredValue(DATE_TIME_LOWER_KEY), DEFAULT_DATE_TIME_FORMATTER);
         LocalDateTime effectiveUpper = LocalDateTime.parse(getRequiredValue(DATE_TIME_UPPER_KEY), DEFAULT_DATE_TIME_FORMATTER);
@@ -95,7 +107,7 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
         this.sharding = new IntervalTimeline(logicNamePrefix, Range.closed(effectiveLower, effectiveUpper), IntervalStep.of(stepUnit, stepAmount), suffixFormatter);
     }
 
-    protected String getRequiredValue(String key) {
+    protected String getRequiredValue(final String key) {
         return PropertiesUtil.getRequiredValue(getProps(), key);
     }
 
@@ -105,20 +117,20 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
     }
 
     @Override
-    public String doSharding(Collection<String> availableTargetNames, PreciseShardingValue<T> shardingValue) {
+    public String doSharding(final Collection<String> availableTargetNames, final PreciseShardingValue<T> shardingValue) {
         LocalDateTime shardingTime = convertShardingValue(shardingValue.getValue());
         return this.sharding.sharding(shardingTime);
     }
 
     @Override
-    public Collection<String> doSharding(Collection<String> availableTargetNames, RangeShardingValue<T> shardingValue) {
+    public Collection<String> doSharding(final Collection<String> availableTargetNames, final RangeShardingValue<T> shardingValue) {
         Range<LocalDateTime> shardingRangeTime = convertRangeShardingValue(shardingValue.getValueRange());
         return this.sharding.sharding(shardingRangeTime);
     }
 
     protected abstract LocalDateTime convertShardingValue(T shardingValue);
 
-    protected Range<LocalDateTime> convertRangeShardingValue(Range<T> shardingValue) {
+    protected Range<LocalDateTime> convertRangeShardingValue(final Range<T> shardingValue) {
         if (Range.all().equals(shardingValue)) {
             return Range.all();
         }

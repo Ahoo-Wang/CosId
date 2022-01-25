@@ -42,8 +42,8 @@ jobs:
       - name: CosId-Core
         run: gradle cosid-core:clean cosid-core:jmh
 
-  cosid-shardingsphere-benchmark:
-    name: CosId ShardingSphere Benchmark
+  cosid-shardingsphere-interval-benchmark:
+    name: CosId ShardingSphere Interval Benchmark
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -58,7 +58,25 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: CosId-ShardingSphere
-        run: gradle cosid-shardingsphere:clean cosid-shardingsphere:jmh
+        run: gradle cosid-shardingsphere:clean cosid-shardingsphere:jmh -PjmhIncludes=Interval
+
+  cosid-shardingsphere-mod-benchmark:
+    name: CosId ShardingSphere Mod Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: CosId-ShardingSphere
+        run: gradle cosid-shardingsphere:clean cosid-shardingsphere:jmh -PjmhIncludes=Mod
 
   cosid-redis-benchmark:
     name: CosId Redis Benchmark

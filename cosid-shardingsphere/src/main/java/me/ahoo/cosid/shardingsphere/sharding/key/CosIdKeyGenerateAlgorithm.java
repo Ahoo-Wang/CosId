@@ -59,7 +59,7 @@ public class CosIdKeyGenerateAlgorithm implements TypedSPI, ShardingSphereAlgori
      * @param props properties
      */
     @Override
-    public void setProps(Properties props) {
+    public void setProps(final Properties props) {
         this.props = props;
     }
 
@@ -74,21 +74,11 @@ public class CosIdKeyGenerateAlgorithm implements TypedSPI, ShardingSphereAlgori
         lazyIdGenerator.tryGet(false);
     }
 
-    /**
-     * Get type.
-     *
-     * @return type
-     */
     @Override
     public String getType() {
         return TYPE;
     }
 
-    /**
-     * Generate key.
-     *
-     * @return generated key
-     */
     @Override
     public Comparable<?> generateKey() {
         if (asString) {

@@ -29,9 +29,6 @@ public class CosIdIntervalShardingAlgorithm extends AbstractIntervalShardingAlgo
     public static final String TYPE = CosIdAlgorithm.TYPE_PREFIX + "INTERVAL";
     public static final String DATE_TIME_PATTERN_KEY = "datetime-pattern";
     public static final String TIMESTAMP_SECOND_UNIT = "SECOND";
-    /**
-     * unit of timestamp
-     */
     public static final String TIMESTAMP_UNIT_KEY = "ts-unit";
     private volatile boolean isSecondTs = false;
     private volatile DateTimeFormatter dateTimeFormatter;

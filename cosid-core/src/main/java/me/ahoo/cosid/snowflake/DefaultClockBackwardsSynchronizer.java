@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchronizer {
     public static final int DEFAULT_SPIN_THRESHOLD = 10;
-    public static final int DEFAULT_BROKEN_THRESHOLD = 2000;
+    public static final int DEFAULT_BROKEN_THRESHOLD = 500;
 
     private final int spinThreshold;
     private final int brokenThreshold;

@@ -90,9 +90,6 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
         return zoneId;
     }
 
-    /**
-     * Initialize algorithm.
-     */
     @Override
     public void init() {
         if (getProps().containsKey(ZONE_ID_KEY)) {
@@ -128,6 +125,12 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
         return this.sharding.sharding(shardingRangeTime);
     }
 
+    /**
+     * convert sharding value to {@link LocalDateTime}.
+     *
+     * @param shardingValue sharding value
+     * @return The {@link LocalDateTime} represented by the sharding value
+     */
     protected abstract LocalDateTime convertShardingValue(T shardingValue);
 
     protected Range<LocalDateTime> convertRangeShardingValue(final Range<T> shardingValue) {

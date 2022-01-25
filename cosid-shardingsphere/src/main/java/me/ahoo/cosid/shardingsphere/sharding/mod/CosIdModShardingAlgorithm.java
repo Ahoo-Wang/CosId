@@ -39,31 +39,16 @@ public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> impleme
 
     private volatile Sharding<T> sharding;
 
-    /**
-     * Get type.
-     *
-     * @return type
-     */
     @Override
     public String getType() {
         return TYPE;
     }
 
-    /**
-     * Get properties.
-     *
-     * @return properties
-     */
     @Override
     public Properties getProps() {
         return props;
     }
 
-    /**
-     * Set properties.
-     *
-     * @param props properties
-     */
     @Override
     public void setProps(Properties props) {
         this.props = props;
@@ -74,33 +59,16 @@ public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> impleme
         return sharding;
     }
 
-    /**
-     * Sharding.
-     *
-     * @param availableTargetNames available data sources or table names
-     * @param shardingValue        sharding value
-     * @return sharding result for data source or table name
-     */
     @Override
     public String doSharding(final Collection<String> availableTargetNames, final PreciseShardingValue<T> shardingValue) {
         return sharding.sharding(shardingValue.getValue());
     }
 
-    /**
-     * Sharding.
-     *
-     * @param availableTargetNames available data sources or table names
-     * @param shardingValue        sharding value
-     * @return sharding results for data sources or table names
-     */
     @Override
     public Collection<String> doSharding(final Collection<String> availableTargetNames, final RangeShardingValue<T> shardingValue) {
         return sharding.sharding(shardingValue.getValueRange());
     }
 
-    /**
-     * Initialize algorithm.
-     */
     @Override
     public void init() {
         String divisorStr = PropertiesUtil.getRequiredValue(getProps(), MODULO_KEY);

@@ -36,7 +36,7 @@ public class CosIdSnowflakeIntervalShardingAlgorithm extends AbstractIntervalSha
     @Override
     public void init() {
         super.init();
-        lazyIdGenerator = new LazyIdGenerator(getProps().getOrDefault(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE).toString());
+        lazyIdGenerator = new LazyIdGenerator(getProps().getProperty(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE));
     }
 
     @Override

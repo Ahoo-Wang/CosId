@@ -23,6 +23,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
 /**
+ * Interval-based time range sharding algorithm.
+ *
  * @author ahoo wang
  */
 public class CosIdIntervalShardingAlgorithm extends AbstractIntervalShardingAlgorithm<Comparable<?>> {

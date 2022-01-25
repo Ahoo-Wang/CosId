@@ -22,6 +22,8 @@ import com.google.common.base.Strings;
 import java.time.LocalDateTime;
 
 /**
+ * The algorithm parses the timestamp from snowflake-id as the sharding value of Interval-based time range sharding algorithm.
+ *
  * @author ahoo wang
  */
 public class CosIdSnowflakeIntervalShardingAlgorithm extends AbstractIntervalShardingAlgorithm<Comparable<?>> {
@@ -30,9 +32,6 @@ public class CosIdSnowflakeIntervalShardingAlgorithm extends AbstractIntervalSha
 
     private volatile LazyIdGenerator lazyIdGenerator;
 
-    /**
-     * Initialize algorithm.
-     */
     @Override
     public void init() {
         super.init();
@@ -56,11 +55,6 @@ public class CosIdSnowflakeIntervalShardingAlgorithm extends AbstractIntervalSha
         throw new NotSupportIntervalShardingTypeException(Strings.lenientFormat("The current shard type:[%s] is not supported!", shardingValue.getClass()));
     }
 
-    /**
-     * Get type.
-     *
-     * @return type
-     */
     @Override
     public String getType() {
         return TYPE;

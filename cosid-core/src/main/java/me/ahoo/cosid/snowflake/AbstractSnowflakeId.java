@@ -16,6 +16,8 @@ package me.ahoo.cosid.snowflake;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
+import com.google.common.base.Strings;
+
 /**
  * @author ahoo wang
  * Creation time: 2019/11/26 16:14
@@ -52,7 +54,7 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         this.machineLeft = sequenceBit;
         this.timestampLeft = this.machineLeft + machineBit;
         if (machineId > this.maxMachine || machineId < 0) {
-            throw new IllegalArgumentException("machineId can't be greater than maxMachine or less than 0 .");
+            throw new IllegalArgumentException(Strings.lenientFormat("machineId can't be greater than maxMachine[%s] or less than 0 .", maxMachine));
         }
         this.machineId = machineId;
     }
@@ -94,8 +96,8 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
             throw new TimestampOverflowException(epoch, diffTimestamp, maxTimestamp);
         }
         return diffTimestamp << timestampLeft
-                | machineId << machineLeft
-                | sequence;
+            | machineId << machineLeft
+            | sequence;
     }
 
     @Override

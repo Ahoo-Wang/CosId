@@ -17,7 +17,7 @@
 ``` shell
 gradle cosid-redis:jmh
 # or
-java -jar cosid-redis/build/libs/cosid-redis-1.7.9-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
+java -jar cosid-redis/build/libs/cosid-redis-1.8.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
 
 ```
@@ -29,7 +29,7 @@ RedisChainIdBenchmark.generate    1000  thrpt    5  110181522.770 ± 15531341.44
 ``` shell
 gradle cosid-jdbc:jmh
 # or
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.7.9-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.8.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
 
 ```
@@ -48,7 +48,7 @@ MySqlChainIdBenchmark.generate    1000  thrpt    5  115287146.614 ± 4471990.880
 </p>
 
 ```shell
-java -jar cosid-redis/build/libs/cosid-redis-1.7.9-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-redis/build/libs/cosid-redis-1.8.6-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -65,7 +65,7 @@ RedisChainIdBenchmark.step_1000:step_1000·p1.00    sample           37.440     
 ```
 
 ```shell
-java -jar cosid-jdbc/build/libs/cosid-jdbc-1.7.9-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
+java -jar cosid-jdbc/build/libs/cosid-jdbc-1.8.6-jmh.jar -bm sample -wi 1 -rf json -f 1 -tu us step_1000
 ```
 
 ```
@@ -86,7 +86,7 @@ MySqlChainIdBenchmark.step_1000:step_1000·p1.00    sample           342.528    
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.7.9-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.8.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```

@@ -39,7 +39,7 @@ spring:
 | sharding-suffix-pattern  | `String`     | 分片真实表/数据源后缀格式                       |                                  |
 | datetime-interval-unit   | `ChronoUnit` | 分片键时间间隔单位                           |                                  |
 | datetime-interval-amount | `int`        | 分片键时间间隔                             |                                  |
-| ts-type                  | `String`     | 时间戳单位：`SECOND`/`MILLISECOND`        | `MILLISECOND`                    |
+| ts-unit                  | `String`     | 时间戳单位：`SECOND`/`MILLISECOND`        | `MILLISECOND`                    |
 | zone-id                  | `String`     | 分片键时区                               | `ZoneId.systemDefault().getId()` |
 
 **YAML 配置样例**

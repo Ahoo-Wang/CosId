@@ -33,6 +33,8 @@ import java.io.IOException;
 import java.util.Objects;
 
 /**
+ * AsString Serializer.
+ *
  * @author ahoo wang
  */
 public class AsStringSerializer extends JsonSerializer<Long> implements ContextualSerializer {

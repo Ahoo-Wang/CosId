@@ -23,6 +23,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
+ * Conditional On CosId Zookeeper Enabled.
+ *
  * @author ahoo wang
  */
 @Retention(RetentionPolicy.RUNTIME)

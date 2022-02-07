@@ -24,8 +24,9 @@ import java.util.List;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
+ * SnowflakeId State Parser.
+ *
  * @author ahoo wang
- * Creation time: 2019/12/4 21:20
  */
 @ThreadSafe
 public abstract class SnowflakeIdStateParser {

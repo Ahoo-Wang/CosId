@@ -27,6 +27,8 @@ import java.time.ZoneId;
 import java.util.Map;
 
 /**
+ * SnowflakeId Properties.
+ *
  * @author ahoo wang
  */
 @ConfigurationProperties(prefix = SnowflakeIdProperties.PREFIX)

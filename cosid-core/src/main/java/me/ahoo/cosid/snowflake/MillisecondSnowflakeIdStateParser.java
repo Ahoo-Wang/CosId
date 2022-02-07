@@ -30,10 +30,10 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 
-
 /**
+ * Millisecond SnowflakeId State Parser.
+ *
  * @author ahoo wang
- * Creation time :2020/9/23 11:22
  */
 public class MillisecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
 

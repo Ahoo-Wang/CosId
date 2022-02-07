@@ -19,6 +19,8 @@ import me.ahoo.cosid.accessor.parser.CosIdAccessorParser;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * Default CosIdAccessorRegistry implementation.
+ *
  * @author ahoo wang
  */
 public class DefaultAccessorRegistry implements CosIdAccessorRegistry {

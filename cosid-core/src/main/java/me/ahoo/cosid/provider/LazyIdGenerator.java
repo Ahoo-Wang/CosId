@@ -25,6 +25,8 @@ import com.google.common.base.Strings;
 import java.util.Optional;
 
 /**
+ * Lazy loading IdGenerator.
+ *
  * @author ahoo wang
  */
 public final class LazyIdGenerator implements IdGenerator {

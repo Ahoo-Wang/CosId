@@ -23,15 +23,13 @@ import java.util.NoSuchElementException;
 import java.util.RandomAccess;
 
 /**
- * 准确式集合
- * <p>
+ * 准确式集合.
  * 用于 Interval 算法、Mod 算法可以提前预知节点数量的场景。
- * <p>
+ * <pre>
  * 主要针对以下问题：
- * <p>
  * -- 使用{@link java.util.HashSet}导致的内存空间浪费
- * <p>
  * -- 添加元素时导致的集合膨胀(也可以通过给定 expectedSize 计算准确 capacity 就像 {@link Sets#newHashSetWithExpectedSize(int)})
+ * </pre>
  *
  * @author ahoo wang
  */

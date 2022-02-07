@@ -16,6 +16,8 @@ package me.ahoo.cosid.snowflake.exception;
 import me.ahoo.cosid.CosIdException;
 
 /**
+ * Clock Backwards Exception.
+ *
  * @author ahoo wang
  */
 public class ClockBackwardsException extends CosIdException {

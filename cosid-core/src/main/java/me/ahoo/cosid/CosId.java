@@ -24,15 +24,15 @@ public final class CosId {
     public static final String COSID = "cosid";
     public static final String COSID_PREFIX = COSID + ".";
     /**
-     * UTC DATE
+     * UTC EPOCH DATE of CosId .
      */
     public static final LocalDateTime COSID_EPOCH_DATE;
     /**
-     * 1577203200000
+     * COSID_EPOCH:1577203200000 .
      */
     public static final long COSID_EPOCH = 1577203200000L;
     /**
-     * 1577203200
+     * COSID_EPOCH_SECOND:15772032000 .
      */
     public static final long COSID_EPOCH_SECOND = 1577203200L;
 

@@ -57,6 +57,8 @@ import java.time.ZoneId;
 import java.util.Objects;
 
 /**
+ * CosId Snowflake AutoConfiguration.
+ *
  * @author ahoo wang
  */
 @Configuration(proxyBeanMethods = false)

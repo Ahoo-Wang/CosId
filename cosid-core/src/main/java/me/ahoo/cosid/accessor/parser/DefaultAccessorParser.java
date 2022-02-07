@@ -41,6 +41,8 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * Default {@link CosIdAccessorParser} implementation.
+ *
  * @author ahoo wang
  */
 @Slf4j

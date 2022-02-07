@@ -27,6 +27,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
+ * CosId Spring Redis Segment AutoConfiguration.
+ *
  * @author ahoo wang
  */
 @Configuration(proxyBeanMethods = false)

@@ -19,6 +19,8 @@ import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 
 /**
+ * CosId Accessor.
+ *
  * @author ahoo wang
  */
 public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, EnsureId {

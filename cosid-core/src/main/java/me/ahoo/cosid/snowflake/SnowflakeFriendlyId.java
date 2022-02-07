@@ -14,6 +14,8 @@
 package me.ahoo.cosid.snowflake;
 
 /**
+ * Snowflake FriendlyId.
+ *
  * @author ahoo wang
  */
 public interface SnowflakeFriendlyId extends SnowflakeId {

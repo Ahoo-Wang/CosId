@@ -22,6 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Default Clock Backwards Synchronizer.
+ *
  * @author ahoo wang
  */
 @Slf4j
@@ -56,7 +58,7 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
 
         if (backwardsStamp <= spinThreshold) {
             while ((ClockBackwardsSynchronizer.getBackwardsTimeStamp(lastTimestamp)) > 0) {
-                /**
+                /*
                  * Spin until it catches the clock back
                  */
             }

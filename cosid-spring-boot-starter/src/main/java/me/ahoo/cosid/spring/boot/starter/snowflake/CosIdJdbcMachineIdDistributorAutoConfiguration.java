@@ -27,6 +27,8 @@ import org.springframework.context.annotation.Configuration;
 import javax.sql.DataSource;
 
 /**
+ * CosId Jdbc MachineIdDistributor AutoConfiguration.
+ *
  * @author ahoo wang
  */
 @Configuration(proxyBeanMethods = false)

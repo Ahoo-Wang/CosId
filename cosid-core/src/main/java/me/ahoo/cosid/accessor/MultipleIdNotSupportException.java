@@ -17,8 +17,9 @@ import me.ahoo.cosid.CosIdException;
 
 import com.google.common.base.Strings;
 
-
 /**
+ * Multiple Id Not Support Exception.
+ *
  * @author ahoo wang
  */
 public class MultipleIdNotSupportException extends CosIdException {

@@ -29,6 +29,8 @@ import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
 
 /**
+ * SnowflakeId Benchmark.
+ *
  * @author ahoo wang
  */
 @State(Scope.Benchmark)
@@ -39,6 +41,9 @@ public class SnowflakeIdBenchmark {
     SnowflakeId safeJsSecondSnowflakeId;
     SnowflakeFriendlyId snowflakeFriendlyId;
 
+    /**
+     * Initialize IdGenerator.
+     */
     @Setup
     public void setup() {
         millisecondSnowflakeId = new ClockSyncSnowflakeId(new MillisecondSnowflakeId(1));

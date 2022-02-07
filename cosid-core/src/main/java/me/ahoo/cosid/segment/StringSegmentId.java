@@ -17,6 +17,8 @@ import me.ahoo.cosid.StringIdGenerator;
 import me.ahoo.cosid.IdConverter;
 
 /**
+ * String SegmentId.
+ *
  * @author ahoo wang
  */
 public class StringSegmentId extends StringIdGenerator implements SegmentId {

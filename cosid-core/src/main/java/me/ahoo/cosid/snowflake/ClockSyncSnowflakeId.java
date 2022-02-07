@@ -18,6 +18,8 @@ import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import lombok.extern.slf4j.Slf4j;
 
 /**
+ * Clock Sync SnowflakeId.
+ *
  * @author ahoo wang
  */
 @Slf4j

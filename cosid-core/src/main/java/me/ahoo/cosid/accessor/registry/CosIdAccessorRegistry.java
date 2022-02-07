@@ -18,6 +18,8 @@ import me.ahoo.cosid.accessor.CosIdAccessor;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
+ * CosIdAccessor Registry.
+ *
  * @author ahoo wang
  */
 @ThreadSafe

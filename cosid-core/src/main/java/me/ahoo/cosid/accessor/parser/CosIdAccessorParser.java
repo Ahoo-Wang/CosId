@@ -16,6 +16,8 @@ package me.ahoo.cosid.accessor.parser;
 import me.ahoo.cosid.accessor.CosIdAccessor;
 
 /**
+ * CosIdAccessor Parser.
+ *
  * @author ahoo wang
  */
 public interface CosIdAccessorParser {

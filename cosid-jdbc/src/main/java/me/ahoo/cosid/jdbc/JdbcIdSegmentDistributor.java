@@ -29,6 +29,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /**
+ * Jdbc IdSegment Distributor.
+ *
  * @author ahoo wang
  */
 @Slf4j

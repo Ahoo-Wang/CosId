@@ -22,6 +22,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
+ * Define CosId.
+ *
  * @author ahoo wang
  */
 @Target({ElementType.FIELD, ElementType.TYPE})
@@ -38,5 +40,10 @@ public @interface CosId {
      */
     String value() default IdGeneratorProvider.SHARE;
 
+    /**
+     * cosid field.
+     *
+     * @return field name of id.
+     */
     String field() default DEFAULT_FIELD;
 }

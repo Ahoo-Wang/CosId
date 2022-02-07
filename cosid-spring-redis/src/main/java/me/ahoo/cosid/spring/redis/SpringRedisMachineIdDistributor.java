@@ -31,6 +31,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
+ * Spring Redis MachineIdDistributor.
+ *
  * @author ahoo wang
  */
 @Slf4j
@@ -85,7 +87,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     }
 
     /**
-     * when {@link InstanceId#isStable()} is true,do not revert machineId
+     * when {@link InstanceId#isStable()} is true,do not revert machineId.
      */
     @Override
     protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
@@ -107,7 +109,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     }
 
     /**
-     * redis hash-tag for redis-cluster
+     * redis hash-tag for redis-cluster.
      *
      * @param key key
      * @return hash-tag key

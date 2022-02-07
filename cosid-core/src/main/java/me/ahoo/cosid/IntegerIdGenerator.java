@@ -14,6 +14,8 @@
 package me.ahoo.cosid;
 
 /**
+ * Integer Id Generator.
+ *
  * @author ahoo wang
  */
 public class IntegerIdGenerator {
@@ -24,12 +26,24 @@ public class IntegerIdGenerator {
         this.actual = actual;
     }
 
+    /**
+     * Generate distributed ID of type int.
+     *
+     * @return generated distributed ID of type int
+     * @throws IdOverflowException This exception is thrown when the ID overflows
+     */
     public int generate() throws IdOverflowException {
         long id = actual.generate();
         ensureInteger(id);
         return (int) id;
     }
 
+    /**
+     * Generate distributed ID of type string.
+     *
+     * @return generated distributed ID of type string
+     * @throws IdOverflowException This exception is thrown when the ID overflows
+     */
     public String generateAsString() throws IdOverflowException {
         long id = actual.generate();
         ensureInteger(id);
@@ -42,6 +56,9 @@ public class IntegerIdGenerator {
         }
     }
 
+    /**
+     * ID Overflow Exception.
+     */
     public static class IdOverflowException extends CosIdException {
         private final long id;
 

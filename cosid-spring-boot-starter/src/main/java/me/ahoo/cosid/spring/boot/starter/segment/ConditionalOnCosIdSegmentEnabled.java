@@ -23,6 +23,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
+ * Conditional On CosId SegmentEnabled.
+ *
  * @author ahoo wang
  */
 @Retention(RetentionPolicy.RUNTIME)

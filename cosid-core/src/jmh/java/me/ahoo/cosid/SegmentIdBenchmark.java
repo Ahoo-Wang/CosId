@@ -31,6 +31,8 @@ import java.util.UUID;
 
 
 /**
+ * SegmentId Benchmark.
+ *
  * @author ahoo wang
  */
 @State(Scope.Benchmark)
@@ -40,6 +42,9 @@ public class SegmentIdBenchmark {
     SegmentChainId segmentChainId;
     AtomicLongGenerator atomicLongGenerator;
 
+    /**
+     * Initialize IdGenerator.
+     */
     @Setup
     public void setup() {
         atomicLongGenerator = new AtomicLongGenerator();

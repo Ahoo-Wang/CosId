@@ -40,6 +40,8 @@ import org.springframework.context.annotation.Configuration;
 import java.util.Objects;
 
 /**
+ * CosId Segment AutoConfiguration.
+ *
  * @author ahoo wang
  */
 @Configuration(proxyBeanMethods = false)

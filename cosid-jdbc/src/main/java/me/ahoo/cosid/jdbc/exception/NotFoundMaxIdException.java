@@ -16,6 +16,8 @@ package me.ahoo.cosid.jdbc.exception;
 import me.ahoo.cosid.CosIdException;
 
 /**
+ * Not Found Max Id Exception.
+ *
  * @author ahoo wang
  */
 public class NotFoundMaxIdException extends CosIdException {

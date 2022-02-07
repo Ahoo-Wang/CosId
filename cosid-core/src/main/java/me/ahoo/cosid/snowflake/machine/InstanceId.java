@@ -18,6 +18,8 @@ import com.google.common.base.Objects;
 import javax.annotation.concurrent.Immutable;
 
 /**
+ * InstanceId.
+ *
  * @author ahoo wang
  * @see MachineId
  */

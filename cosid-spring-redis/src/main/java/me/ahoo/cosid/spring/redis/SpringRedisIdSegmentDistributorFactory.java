@@ -20,6 +20,8 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
+ * Spring Redis IdSegmentDistributor Factory.
+ *
  * @author ahoo wang
  */
 public class SpringRedisIdSegmentDistributorFactory implements IdSegmentDistributorFactory {

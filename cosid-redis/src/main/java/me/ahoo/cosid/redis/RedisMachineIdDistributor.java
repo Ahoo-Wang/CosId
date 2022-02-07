@@ -31,8 +31,9 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.util.List;
 
-
 /**
+ * Redis MachineIdDistributor.
+ *
  * @author ahoo wang
  */
 @Slf4j
@@ -104,7 +105,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     }
 
     /**
-     * when {@link InstanceId#isStable()} is true,do not revert machineId
+     * when {@link InstanceId#isStable()} is true,do not revert machineId.
      *
      * @param namespace    namespace
      * @param instanceId   instanceId
@@ -137,7 +138,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     }
 
     /**
-     * redis hash tag for redis-cluster
+     * redis hash tag for redis-cluster.
      *
      * @param key key
      * @return hash tag key

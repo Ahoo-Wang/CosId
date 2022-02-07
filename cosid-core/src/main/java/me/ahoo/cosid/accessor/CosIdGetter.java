@@ -14,6 +14,8 @@
 package me.ahoo.cosid.accessor;
 
 /**
+ * CosId Getter.
+ *
  * @author ahoo wang
  */
 public interface CosIdGetter {

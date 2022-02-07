@@ -19,6 +19,8 @@ import javax.annotation.concurrent.Immutable;
 import java.lang.reflect.Field;
 
 /**
+ * Id Metadata.
+ *
  * @author ahoo wang
  */
 @Immutable

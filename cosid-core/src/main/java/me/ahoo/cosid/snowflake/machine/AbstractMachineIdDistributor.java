@@ -21,8 +21,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 
-
 /**
+ * Abstract MachineIdDistributor.
+ *
  * @author ahoo wang
  */
 @Slf4j

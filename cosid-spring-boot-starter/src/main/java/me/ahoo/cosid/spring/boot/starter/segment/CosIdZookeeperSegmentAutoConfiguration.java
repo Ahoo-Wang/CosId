@@ -28,6 +28,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
+ * CosId Zookeeper Segment AutoConfiguration.
+ *
  * @author ahoo wang
  */
 @Configuration(proxyBeanMethods = false)

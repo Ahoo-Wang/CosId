@@ -28,6 +28,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
+ * The AsString annotation defines how to convert IDs.
+ *
  * @author ahoo wang
  */
 @Target(ElementType.FIELD)
@@ -45,7 +47,7 @@ public @interface AsString {
     int radixCharSize() default Radix62IdConverter.MAX_CHAR_SIZE;
 
     /**
-     * epoch of {@link me.ahoo.cosid.snowflake.SnowflakeId}
+     * epoch of {@link me.ahoo.cosid.snowflake.SnowflakeId}.
      *
      * @return epoch
      */

@@ -20,6 +20,8 @@ import com.google.common.collect.Range;
 import java.util.Collection;
 
 /**
+ * ModCycle.
+ *
  * @author ahoo wang
  */
 public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {

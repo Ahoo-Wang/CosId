@@ -20,9 +20,8 @@
     </module>
     <!-- https://checkstyle.org/config_filters.html#SuppressionFilter -->
     <module name="SuppressionFilter">
-        <property name="file" value="${org.checkstyle.google.suppressionfilter.config}"
-                  default="checkstyle-suppressions.xml"/>
-        <property name="optional" value="true"/>
+        <property name="file" value="${config_loc}/suppressions.xml"/>
+        <property name="optional" value="false"/>
     </module>
 
     <!-- Checks for whitespace                               -->
@@ -287,39 +286,40 @@
             <property name="allowSamelineMultipleAnnotations" value="true"/>
         </module>
         <module name="NonEmptyAtclauseDescription"/>
-        <!--TODO-->
-        <!--        <module name="InvalidJavadocPosition"/>-->
-        <!--        <module name="JavadocTagContinuationIndentation"/>-->
-        <!--        <module name="SummaryJavadoc"/>-->
-        <!--        <module name="JavadocParagraph"/>-->
+        <module name="InvalidJavadocPosition"/>
+        <module name="JavadocTagContinuationIndentation"/>
+        <module name="SummaryJavadoc"/>
+        <module name="JavadocParagraph"/>
         <module name="RequireEmptyLineBeforeBlockTagGroup"/>
         <module name="AtclauseOrder">
             <property name="tagOrder" value="@param, @return, @throws, @deprecated"/>
             <property name="target"
                       value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF, METHOD_DEF, CTOR_DEF, VARIABLE_DEF"/>
         </module>
-        <!--TODO-->
-        <!--        <module name="JavadocMethod">-->
-        <!--            <property name="accessModifiers" value="public"/>-->
-        <!--            <property name="allowMissingParamTags" value="true"/>-->
-        <!--            <property name="allowMissingReturnTag" value="true"/>-->
-        <!--            <property name="allowedAnnotations" value="Override, Test"/>-->
-        <!--            <property name="tokens" value="METHOD_DEF, CTOR_DEF, ANNOTATION_FIELD_DEF, COMPACT_CTOR_DEF"/>-->
-        <!--        </module>-->
-        <!--        <module name="MissingJavadocMethod">-->
-        <!--            <property name="scope" value="public"/>-->
-        <!--            <property name="minLineCount" value="2"/>-->
-        <!--            <property name="allowedAnnotations" value="Override, Test"/>-->
-        <!--            <property name="tokens" value="METHOD_DEF, CTOR_DEF, ANNOTATION_FIELD_DEF,-->
-        <!--                                   COMPACT_CTOR_DEF"/>-->
-        <!--        </module>-->
-        <!--        <module name="MissingJavadocType">-->
-        <!--            <property name="scope" value="protected"/>-->
-        <!--            <property name="tokens"-->
-        <!--                      value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF,-->
-        <!--                      RECORD_DEF, ANNOTATION_DEF"/>-->
-        <!--            <property name="excludeScope" value="nothing"/>-->
-        <!--        </module>-->
+        <module name="JavadocMethod">
+            <property name="accessModifiers" value="public"/>
+            <property name="allowMissingParamTags" value="true"/>
+            <property name="allowMissingReturnTag" value="true"/>
+            <property name="allowedAnnotations" value="Override, Test"/>
+            <property name="tokens" value="METHOD_DEF, CTOR_DEF, ANNOTATION_FIELD_DEF, COMPACT_CTOR_DEF"/>
+        </module>
+        <module name="MissingJavadocMethod">
+            <!--TODO severity:error-->
+            <property name="severity" value="warning"/>
+            <property name="scope" value="public"/>
+            <property name="minLineCount" value="2"/>
+            <property name="allowedAnnotations" value="Override, Test"/>
+            <property name="tokens" value="METHOD_DEF, CTOR_DEF, ANNOTATION_FIELD_DEF, COMPACT_CTOR_DEF"/>
+        </module>
+        <module name="MissingJavadocType">
+            <!--TODO severity:error-->
+            <property name="severity" value="warning"/>
+            <property name="scope" value="protected"/>
+            <property name="tokens"
+                      value="CLASS_DEF, INTERFACE_DEF, ENUM_DEF,
+                                      RECORD_DEF, ANNOTATION_DEF"/>
+            <property name="excludeScope" value="nothing"/>
+        </module>
         <module name="MethodName">
             <property name="format" value="^[a-z][a-z0-9][a-zA-Z0-9_]*$"/>
             <message key="name.invalidPattern"
@@ -333,10 +333,10 @@
             <property name="tokens" value="SINGLE_LINE_COMMENT, BLOCK_COMMENT_BEGIN"/>
         </module>
         <!-- https://checkstyle.org/config_filters.html#SuppressionXpathFilter -->
-        <module name="SuppressionXpathFilter">
-            <property name="file" value="${org.checkstyle.google.suppressionxpathfilter.config}"
-                      default="checkstyle-xpath-suppressions.xml"/>
-            <property name="optional" value="true"/>
-        </module>
+        <!--        <module name="SuppressionXpathFilter">-->
+        <!--            <property name="file" value="${org.checkstyle.google.suppressionxpathfilter.config}"-->
+        <!--                      default="checkstyle-xpath-suppressions.xml"/>-->
+        <!--            <property name="optional" value="true"/>-->
+        <!--        </module>-->
     </module>
 </module>

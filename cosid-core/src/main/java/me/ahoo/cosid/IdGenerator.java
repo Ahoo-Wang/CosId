@@ -37,14 +37,14 @@ public interface IdGenerator {
     /**
      * Generate distributed ID.
      *
-     * @return distributed ID
+     * @return generated distributed ID
      */
     long generate();
 
     /**
      * Generate distributed ID as String.
      *
-     * @return distributed ID as String
+     * @return generated distributed ID as String
      */
     default String generateAsString() {
         return idConverter().asString(generate());

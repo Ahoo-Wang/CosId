@@ -30,6 +30,8 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Duration;
 
 /**
+ * CosId Redis Segment AutoConfiguration.
+ *
  * @author ahoo wang
  */
 @Configuration(proxyBeanMethods = false)

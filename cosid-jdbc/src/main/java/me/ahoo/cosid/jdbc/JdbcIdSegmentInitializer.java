@@ -24,6 +24,8 @@ import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
 
 /**
+ * Jdbc IdSegment Initializer.
+ *
  * @author ahoo wang
  */
 @Slf4j

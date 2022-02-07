@@ -19,6 +19,8 @@ import java.lang.reflect.Field;
 import java.util.List;
 
 /**
+ * Named {@link FieldDefinitionParser} implementation.
+ *
  * @author ahoo wang
  */
 public class NamedDefinitionParser implements FieldDefinitionParser {

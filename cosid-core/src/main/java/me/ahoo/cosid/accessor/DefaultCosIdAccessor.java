@@ -19,6 +19,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 /**
+ * Default {@link CosIdAccessor} implementation.
+ *
  * @author ahoo wang
  */
 public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAccessor {

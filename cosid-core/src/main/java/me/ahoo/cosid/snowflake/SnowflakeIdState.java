@@ -18,8 +18,9 @@ import java.util.Objects;
 import javax.annotation.concurrent.Immutable;
 
 /**
+ * SnowflakeId State.
+ *
  * @author ahoo wang
- * Creation time: 2019/12/4 21:25
  */
 @Immutable
 public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
@@ -32,7 +33,7 @@ public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
 
     private final LocalDateTime timestamp;
     /**
-     * {@link #timestamp}-{@link #machineId}-{@link #sequence}
+     * {@link #timestamp}-{@link #machineId}-{@link #sequence} .
      */
     private final String friendlyId;
 

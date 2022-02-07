@@ -19,6 +19,8 @@ import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
 import java.time.ZoneId;
 
 /**
+ * Default Snowflake FriendlyId.
+ *
  * @author ahoo wang
  */
 public class DefaultSnowflakeFriendlyId extends StringSnowflakeId implements SnowflakeFriendlyId {

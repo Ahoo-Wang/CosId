@@ -20,6 +20,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.time.Duration;
 
 /**
+ * CosId Zookeeper Properties.
+ *
  * @author ahoo wang
  */
 @ConfigurationProperties(prefix = CosIdZookeeperProperties.PREFIX)

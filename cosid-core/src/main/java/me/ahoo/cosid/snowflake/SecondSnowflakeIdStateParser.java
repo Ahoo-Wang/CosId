@@ -27,22 +27,21 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 
-
-
 /**
+ * Second SnowflakeId State Parser.
+ *
  * @author ahoo wang
- * Creation time :2020/9/23 11:21
  */
 public class SecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
 
     public static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
-            .appendValue(YEAR, 4)
-            .appendValue(MONTH_OF_YEAR, 2)
-            .appendValue(DAY_OF_MONTH, 2)
-            .appendValue(HOUR_OF_DAY, 2)
-            .appendValue(MINUTE_OF_HOUR, 2)
-            .appendValue(SECOND_OF_MINUTE, 2)
-            .toFormatter();
+        .appendValue(YEAR, 4)
+        .appendValue(MONTH_OF_YEAR, 2)
+        .appendValue(DAY_OF_MONTH, 2)
+        .appendValue(HOUR_OF_DAY, 2)
+        .appendValue(MINUTE_OF_HOUR, 2)
+        .appendValue(SECOND_OF_MINUTE, 2)
+        .toFormatter();
 
     public SecondSnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit) {
         this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault());

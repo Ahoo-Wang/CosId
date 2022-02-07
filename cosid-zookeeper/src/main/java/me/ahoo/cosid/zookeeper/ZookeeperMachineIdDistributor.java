@@ -40,18 +40,20 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Zookeeper MachineIdDistributor.
+ *
  * @author ahoo wang
  */
 @Slf4j
 public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor {
 
     /**
-     * /cosid/{namespace}/__itc_idx/{instanceId}
+     * /cosid/{namespace}/__itc_idx/{instanceId} .
      * data:{@link MachineState#toStateString()}
      */
     private static final String INSTANCE_IDX_PATH = "__itc_idx";
     /**
-     * /cosid/{namespace}/__revert/{machineId}
+     * /cosid/{namespace}/__revert/{machineId} .
      * data:lastStamp
      */
     private static final String REVERT_PATH = "__revert";
@@ -66,7 +68,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     }
 
     /**
-     * /cosid/{namespace}/__counter
+     * /cosid/{namespace}/__counter .
      *
      * @param namespace namespace of app
      * @return path of counter
@@ -134,7 +136,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
         String revertPath = getRevertPath(namespace);
         /**
-         * when {@link instanceId.stable} is true
+         * when {@link instanceId.stable} is true .
          */
         Stat instanceStat = curatorFramework.checkExists().forPath(instancePath);
         if (Objects.nonNull(instanceStat)) {

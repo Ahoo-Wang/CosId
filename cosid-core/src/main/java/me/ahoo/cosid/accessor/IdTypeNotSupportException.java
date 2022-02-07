@@ -20,6 +20,8 @@ import com.google.common.base.Strings;
 import java.lang.reflect.Field;
 
 /**
+ * ID Type Not Support Exception.
+ *
  * @author ahoo wang
  */
 public class IdTypeNotSupportException extends CosIdException {

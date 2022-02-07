@@ -20,6 +20,8 @@ import me.ahoo.cosid.accessor.CosIdSetter;
 import java.lang.reflect.Field;
 
 /**
+ * Field Setter.
+ *
  * @author ahoo wang
  */
 public class FieldSetter implements CosIdSetter {

@@ -23,7 +23,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
+ * Annotation FieldDefinitionParser.
+ *
  * @author ahoo wang
+ * @see CosId
  */
 @Slf4j
 public class AnnotationDefinitionParser implements FieldDefinitionParser {

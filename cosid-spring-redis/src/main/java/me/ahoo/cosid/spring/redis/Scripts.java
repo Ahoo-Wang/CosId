@@ -22,10 +22,17 @@ import java.io.IOException;
 import java.net.URL;
 
 /**
+ * Redis Script tool.
+ *
  * @author ahoo wang
  */
 public final class Scripts {
-
+    /**
+     * get script by resource name.
+     *
+     * @param resourceName resource name
+     * @return script
+     */
     public static String getScript(String resourceName) {
         URL resourceUrl = Resources.getResource(resourceName);
         try {

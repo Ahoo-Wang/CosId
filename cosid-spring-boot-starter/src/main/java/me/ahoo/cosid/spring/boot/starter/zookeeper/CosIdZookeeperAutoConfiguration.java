@@ -30,6 +30,8 @@ import org.springframework.context.annotation.Configuration;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * CosId Zookeeper Auto Configuration.
+ *
  * @author ahoo wang
  */
 @Slf4j

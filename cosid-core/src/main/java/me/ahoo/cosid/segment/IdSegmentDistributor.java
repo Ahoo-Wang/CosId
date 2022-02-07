@@ -150,6 +150,8 @@ public interface IdSegmentDistributor {
         }
 
         /**
+         * ctor.
+         *
          * @param step 单次获取IdSegment的区间长度
          * @param tps  发号器的TPS，用于模拟网络IO请求的等待时常
          */

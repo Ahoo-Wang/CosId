@@ -26,6 +26,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 /**
+ * LocalMachine State Storage.
+ *
  * @author ahoo wang
  */
 @Slf4j

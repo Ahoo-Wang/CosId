@@ -30,11 +30,13 @@ import org.apache.curator.framework.recipes.atomic.PromotedToLock;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Zookeeper IdSegment Distributor.
+ *
  * @author ahoo wang
  */
 @Slf4j
 public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
-
+    
     private final String namespace;
     private final String name;
     private final long offset;
@@ -44,11 +46,11 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
      */
     private final String counterPath;
     /**
-     * {counterPath}-locker
+     * {counterPath}-locker.
      */
     private final String counterLockerPath;
     private final DistributedAtomicLong distributedAtomicLong;
-
+    
     public ZookeeperIdSegmentDistributor(String namespace, String name, long offset, long step, CuratorFramework curatorFramework, RetryPolicy retryPolicy) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
@@ -61,29 +63,29 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
         this.counterPath = Strings.lenientFormat("/%s/%s", CosId.COSID, getNamespacedName());
         this.counterLockerPath = counterPath + "-locker";
         PromotedToLock promotedToLock = PromotedToLock.builder()
-                .lockPath(counterLockerPath)
-                .timeout(15, TimeUnit.SECONDS)
-                .retryPolicy(retryPolicy)
-                .build();
+            .lockPath(counterLockerPath)
+            .timeout(15, TimeUnit.SECONDS)
+            .retryPolicy(retryPolicy)
+            .build();
         this.distributedAtomicLong = new DistributedAtomicLong(curatorFramework, counterPath, retryPolicy, promotedToLock);
         this.ensureOffset();
     }
-
+    
     @Override
     public String getNamespace() {
         return namespace;
     }
-
+    
     @Override
     public String getName() {
         return name;
     }
-
+    
     @Override
     public long getStep() {
         return step;
     }
-
+    
     private void ensureOffset() {
         if (log.isDebugEnabled()) {
             log.debug("ensureOffset -[{}]- offset:[{}].", counterPath, offset);
@@ -94,28 +96,28 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
         } catch (Exception exception) {
             throw new CosIdException(exception.getMessage(), exception);
         }
-
+        
         if (log.isDebugEnabled()) {
             log.debug("ensureOffset -[{}]- offset:[{}] - notExists:[{}].", counterPath, offset, notExists);
         }
     }
-
+    
     @Override
     public long nextMaxId(long step) {
         IdSegmentDistributor.ensureStep(step);
         if (log.isDebugEnabled()) {
             log.debug("nextMaxId -[{}]- step:[{}].", counterPath, step);
         }
-
+        
         AtomicValue<Long> nextMaxId = Exceptions.invokeUnchecked(() -> distributedAtomicLong.add(step));
-
+        
         if (log.isDebugEnabled()) {
             log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{} -> {}].", counterPath, step, nextMaxId.preValue(), nextMaxId.postValue());
         }
         if (!nextMaxId.succeeded()) {
             throw new CosIdException(Strings.lenientFormat("nextMaxId - [%s][%s->%s] concurrency conflict!", counterPath, nextMaxId.preValue(), nextMaxId.postValue()));
         }
-
+        
         return nextMaxId.postValue();
     }
 }

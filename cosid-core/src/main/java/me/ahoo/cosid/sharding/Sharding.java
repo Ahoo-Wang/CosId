@@ -18,13 +18,15 @@ import com.google.common.collect.Range;
 import java.util.Collection;
 
 /**
+ * Sharding algorithm interface.
+ *
  * @author ahoo wang
  */
 public interface Sharding<T extends Comparable<?>> {
-    
+
     String sharding(T shardingValue);
 
     Collection<String> sharding(Range<T> shardingValue);
 
-    Collection<String>  getEffectiveNodes();
+    Collection<String> getEffectiveNodes();
 }

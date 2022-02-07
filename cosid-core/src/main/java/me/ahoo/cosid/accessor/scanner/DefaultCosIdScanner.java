@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.util.Arrays;
 
 /**
+ * Default {@link CosIdScanner} implementation.
+ *
  * @author ahoo wang
  */
 @Slf4j

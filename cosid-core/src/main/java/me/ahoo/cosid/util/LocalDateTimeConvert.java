@@ -41,6 +41,13 @@ public final class LocalDateTimeConvert {
         return LocalDateTime.ofInstant(Instant.ofEpochSecond(timestamp), zoneId);
     }
 
+    /**
+     * convert {@link String} to {@link LocalDateTime}.
+     *
+     * @param dateTime string type date time
+     * @param dateTimeFormatter date time formatter
+     * @return LocalDateTime from string
+     */
     public static LocalDateTime fromString(String dateTime, DateTimeFormatter dateTimeFormatter) {
         TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(dateTime, LocalDateTime::from, LocalDate::from);
         if (temporalAccessor instanceof LocalDateTime) {

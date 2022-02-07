@@ -16,7 +16,7 @@ package me.ahoo.cosid.snowflake.machine;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * 机器状态的本地缓存
+ * Machine State Storage.
  *
  * @author ahoo wang
  */

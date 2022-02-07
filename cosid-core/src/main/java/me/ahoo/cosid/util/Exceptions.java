@@ -16,10 +16,18 @@ package me.ahoo.cosid.util;
 import me.ahoo.cosid.CosIdException;
 
 /**
+ * Exception tool class.
+ *
  * @author ahoo wang
  */
 public final class Exceptions {
-
+    /**
+     * invoke Checked Exception Function as Unchecked.
+     *
+     * @param checkedFunction Checked Exception Function.
+     * @param <T>             return type
+     * @return result
+     */
     public static <T> T invokeUnchecked(CheckedFunction<T> checkedFunction) {
         try {
             return checkedFunction.invoke();
@@ -30,6 +38,11 @@ public final class Exceptions {
         }
     }
 
+    /**
+     * Checked Exception Function.
+     *
+     * @param <T> return type
+     */
     @FunctionalInterface
     public interface CheckedFunction<T> {
         T invoke() throws Exception;

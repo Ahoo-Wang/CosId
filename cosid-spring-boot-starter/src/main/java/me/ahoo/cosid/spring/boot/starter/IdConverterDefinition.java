@@ -52,7 +52,7 @@ public class IdConverterDefinition {
     }
     
     /**
-     * Radix62IdConverter Config
+     * Radix62IdConverter Config.
      */
     public static class Radix {
         
@@ -77,7 +77,7 @@ public class IdConverterDefinition {
     }
     
     /**
-     * IdConverter Type
+     * IdConverter Type.
      */
     public enum Type {
         TO_STRING,

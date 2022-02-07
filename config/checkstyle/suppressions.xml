@@ -20,4 +20,6 @@
     <suppress checks=".*" files=".*/src/test/.*"/>
     <suppress checks=".*" files=".*/src/jmh/.*"/>
     <suppress checks="InvalidJavadocPosition"/>
+    <suppress checks="MissingJavadocMethod"/>
+    <suppress checks="MissingJavadocType"/>
 </suppressions>

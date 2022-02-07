@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
-
+    
     private final String namespace;
     private final String name;
     private final long offset;
@@ -50,7 +50,7 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
      */
     private final String counterLockerPath;
     private final DistributedAtomicLong distributedAtomicLong;
-
+    
     public ZookeeperIdSegmentDistributor(String namespace, String name, long offset, long step, CuratorFramework curatorFramework, RetryPolicy retryPolicy) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
@@ -70,22 +70,22 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
         this.distributedAtomicLong = new DistributedAtomicLong(curatorFramework, counterPath, retryPolicy, promotedToLock);
         this.ensureOffset();
     }
-
+    
     @Override
     public String getNamespace() {
         return namespace;
     }
-
+    
     @Override
     public String getName() {
         return name;
     }
-
+    
     @Override
     public long getStep() {
         return step;
     }
-
+    
     private void ensureOffset() {
         if (log.isDebugEnabled()) {
             log.debug("ensureOffset -[{}]- offset:[{}].", counterPath, offset);
@@ -96,28 +96,28 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
         } catch (Exception exception) {
             throw new CosIdException(exception.getMessage(), exception);
         }
-
+        
         if (log.isDebugEnabled()) {
             log.debug("ensureOffset -[{}]- offset:[{}] - notExists:[{}].", counterPath, offset, notExists);
         }
     }
-
+    
     @Override
     public long nextMaxId(long step) {
         IdSegmentDistributor.ensureStep(step);
         if (log.isDebugEnabled()) {
             log.debug("nextMaxId -[{}]- step:[{}].", counterPath, step);
         }
-
+        
         AtomicValue<Long> nextMaxId = Exceptions.invokeUnchecked(() -> distributedAtomicLong.add(step));
-
+        
         if (log.isDebugEnabled()) {
             log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{} -> {}].", counterPath, step, nextMaxId.preValue(), nextMaxId.postValue());
         }
         if (!nextMaxId.succeeded()) {
             throw new CosIdException(Strings.lenientFormat("nextMaxId - [%s][%s->%s] concurrency conflict!", counterPath, nextMaxId.preValue(), nextMaxId.postValue()));
         }
-
+        
         return nextMaxId.postValue();
     }
 }

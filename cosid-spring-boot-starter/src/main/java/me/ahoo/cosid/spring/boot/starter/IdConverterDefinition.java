@@ -22,57 +22,63 @@ import me.ahoo.cosid.converter.Radix62IdConverter;
  * @author ahoo wang
  */
 public class IdConverterDefinition {
-
+    
     private Type type = Type.TO_STRING;
     private String prefix = PrefixIdConverter.EMPTY_PREFIX;
     private Radix radix = new Radix();
-
+    
     public Type getType() {
         return type;
     }
-
+    
     public void setType(Type type) {
         this.type = type;
     }
-
+    
     public String getPrefix() {
         return prefix;
     }
-
+    
     public void setPrefix(String prefix) {
         this.prefix = prefix;
     }
-
+    
     public Radix getRadix() {
         return radix;
     }
-
+    
     public void setRadix(Radix radix) {
         this.radix = radix;
     }
-
+    
+    /**
+     * Radix62IdConverter Config
+     */
     public static class Radix {
-
+        
         private boolean padStart;
         private int charSize = Radix62IdConverter.MAX_CHAR_SIZE;
-
+        
         public boolean isPadStart() {
             return padStart;
         }
-
+        
         public void setPadStart(boolean padStart) {
             this.padStart = padStart;
         }
-
+        
         public int getCharSize() {
             return charSize;
         }
-
+        
         public void setCharSize(int charSize) {
             this.charSize = charSize;
         }
     }
-
+    
+    /**
+     * IdConverter Type
+     */
     public enum Type {
         TO_STRING,
         SNOWFLAKE_FRIENDLY,

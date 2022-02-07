@@ -27,6 +27,8 @@ import java.util.Collection;
 import java.util.Properties;
 
 /**
+ * CosId Mod Sharding Algorithm.
+ *
  * @author ahoo wang
  */
 public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> implements StandardShardingAlgorithm<T> {

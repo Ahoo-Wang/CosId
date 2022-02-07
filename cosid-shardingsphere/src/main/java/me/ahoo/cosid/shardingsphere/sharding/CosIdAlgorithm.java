@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.shardingsphere.sharding;
 
-
 /**
+ * Common constant of CosId algorithm.
+ *
  * @author ahoo wang
  */
 public final class CosIdAlgorithm {

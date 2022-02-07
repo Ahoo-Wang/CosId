@@ -18,6 +18,8 @@ import me.ahoo.cosid.CosIdException;
 import com.google.common.base.Strings;
 
 /**
+ * MachineId Overflow Exception.
+ *
  * @author ahoo wang
  */
 public class MachineIdOverflowException extends CosIdException {

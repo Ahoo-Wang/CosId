@@ -18,6 +18,8 @@ import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import lombok.extern.slf4j.Slf4j;
 
 /**
+ * Manual Machine Id Distributor.
+ *
  * @author ahoo wang
  */
 @Slf4j

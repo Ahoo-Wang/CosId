@@ -30,6 +30,8 @@ import org.apache.curator.framework.recipes.atomic.PromotedToLock;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Zookeeper IdSegment Distributor.
+ *
  * @author ahoo wang
  */
 @Slf4j
@@ -44,7 +46,7 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
      */
     private final String counterPath;
     /**
-     * {counterPath}-locker
+     * {counterPath}-locker.
      */
     private final String counterLockerPath;
     private final DistributedAtomicLong distributedAtomicLong;
@@ -61,10 +63,10 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
         this.counterPath = Strings.lenientFormat("/%s/%s", CosId.COSID, getNamespacedName());
         this.counterLockerPath = counterPath + "-locker";
         PromotedToLock promotedToLock = PromotedToLock.builder()
-                .lockPath(counterLockerPath)
-                .timeout(15, TimeUnit.SECONDS)
-                .retryPolicy(retryPolicy)
-                .build();
+            .lockPath(counterLockerPath)
+            .timeout(15, TimeUnit.SECONDS)
+            .retryPolicy(retryPolicy)
+            .build();
         this.distributedAtomicLong = new DistributedAtomicLong(curatorFramework, counterPath, retryPolicy, promotedToLock);
         this.ensureOffset();
     }

@@ -26,6 +26,8 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.util.Properties;
 
 /**
+ * CosId KeyGenerateAlgorithm.
+ *
  * @author ahoo wang
  */
 @ThreadSafe
@@ -35,37 +37,22 @@ public class CosIdKeyGenerateAlgorithm implements TypedSPI, ShardingSphereAlgori
 
     public static final String AS_STRING_KEY = "as-string";
 
-    /**
-     * Need to declare volatile here ?
-     */
     private volatile Properties props = new Properties();
 
     protected volatile LazyIdGenerator lazyIdGenerator;
+
     private volatile boolean asString;
 
-    /**
-     * Get properties.
-     *
-     * @return properties
-     */
     @Override
     public Properties getProps() {
         return props;
     }
 
-    /**
-     * Set properties.
-     *
-     * @param props properties
-     */
     @Override
     public void setProps(final Properties props) {
         this.props = props;
     }
 
-    /**
-     * Initialize algorithm.
-     */
     @Override
     public void init() {
         lazyIdGenerator = new LazyIdGenerator(getProps().getOrDefault(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE).toString());

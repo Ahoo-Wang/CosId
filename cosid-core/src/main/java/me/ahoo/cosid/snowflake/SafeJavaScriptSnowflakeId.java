@@ -21,7 +21,6 @@ import me.ahoo.cosid.CosId;
  * Math.log2(Number.MAX_SAFE_INTEGER) = 53
  *
  * @author ahoo wang
- * Creation time 2020/9/22 21:25
  **/
 public final class SafeJavaScriptSnowflakeId {
 
@@ -59,7 +58,7 @@ public final class SafeJavaScriptSnowflakeId {
     }
 
     /**
-     * Max Sequence (19 bits) = (1&lt;&lt;19) = 524288 (TPS)
+     * Max Sequence (19 bits) = (1&lt;&lt;19) = 524288 (TPS).
      * Max Machine (3 bits) = 1&lt;&lt;3 = 8
      * Max Timestamp = 2147483647 s ~~ 68 years
      *

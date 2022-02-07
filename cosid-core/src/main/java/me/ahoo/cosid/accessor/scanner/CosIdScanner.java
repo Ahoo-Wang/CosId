@@ -14,7 +14,7 @@
 package me.ahoo.cosid.accessor.scanner;
 
 /**
- * Scan the packages and register the qualified classes to {@link me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry}
+ * Scan the packages and register the qualified classes to {@link me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry}.
  *
  * @author ahoo wang
  */

@@ -20,6 +20,8 @@ import com.google.common.base.Strings;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * Next IdSegment Expired Exception.
+ *
  * @author ahoo wang
  */
 public class NextIdSegmentExpiredException extends CosIdException {

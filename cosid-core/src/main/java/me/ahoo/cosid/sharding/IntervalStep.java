@@ -17,6 +17,8 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 /**
+ * Interval Step.
+ *
  * @author ahoo wang
  */
 public class IntervalStep {
@@ -43,7 +45,7 @@ public class IntervalStep {
     }
 
     /**
-     * 按照 {@link #unit} 保留单位时间精度
+     * 按照 {@link #unit} 保留单位时间精度.
      *
      * @param time time
      * @return Unit precision LocalDateTime
@@ -74,11 +76,11 @@ public class IntervalStep {
     }
 
     /**
-     * 计算单位偏移量
+     * 计算单位偏移量.
      * Start with 0
      *
      * @param start 最小值
-     * @param time time
+     * @param time  time
      * @return offset
      */
     public int offsetUnit(LocalDateTime start, LocalDateTime time) {

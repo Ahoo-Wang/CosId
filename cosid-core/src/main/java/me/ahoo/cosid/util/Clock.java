@@ -37,7 +37,7 @@ public interface Clock {
     class SystemClock implements Clock {
 
         /**
-         * {@link System#currentTimeMillis()} is too slow!
+         * {@link System#currentTimeMillis()} is too slow.
          *
          * @return second time from cache
          */
@@ -55,7 +55,7 @@ public interface Clock {
      */
     class CacheClock implements Clock, Runnable {
         /**
-         * Tolerate a one-second time limit
+         * Tolerate a one-second time limit.
          */
         public static final long ONE_SECOND_PERIOD = Duration.ofSeconds(1).toNanos();
         private final Thread thread;

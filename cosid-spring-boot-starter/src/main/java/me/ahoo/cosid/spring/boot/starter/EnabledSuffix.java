@@ -14,6 +14,8 @@
 package me.ahoo.cosid.spring.boot.starter;
 
 /**
+ * Enabled Suffix.
+ *
  * @author ahoo wang
  */
 public interface EnabledSuffix {

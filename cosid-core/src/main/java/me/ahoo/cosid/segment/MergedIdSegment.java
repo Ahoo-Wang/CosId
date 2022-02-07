@@ -16,6 +16,8 @@ package me.ahoo.cosid.segment;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Merged IdSegment.
+ *
  * @author ahoo wang
  */
 public class MergedIdSegment implements IdSegment {
@@ -39,7 +41,7 @@ public class MergedIdSegment implements IdSegment {
     }
 
     /**
-     * ID segment fetch time
+     * ID segment fetch time.
      * unit {@link TimeUnit#MILLISECONDS}
      *
      * @return Fetch Time

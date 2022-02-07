@@ -18,6 +18,8 @@ import me.ahoo.cosid.CosIdException;
 import com.google.common.base.Strings;
 
 /**
+ * Timestamp Overflow Exception.
+ *
  * @author ahoo wang
  */
 public class TimestampOverflowException extends CosIdException {

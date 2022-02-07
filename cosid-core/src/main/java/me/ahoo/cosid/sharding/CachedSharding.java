@@ -22,6 +22,7 @@ import com.google.common.collect.Range;
 import java.util.Collection;
 
 /**
+ * Cached Sharding.
  *
  * @author ahoo wang
  */
@@ -34,8 +35,8 @@ public class CachedSharding<T extends Comparable<?>> implements Sharding<T> {
     public CachedSharding(Sharding<T> actual) {
         this.actual = actual;
         shardingCache = CacheBuilder
-                .newBuilder()
-                .build(new LoadShardingCache());
+            .newBuilder()
+            .build(new LoadShardingCache());
     }
 
     @Override

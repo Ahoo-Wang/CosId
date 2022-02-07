@@ -21,6 +21,8 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
+ * Method Setter.
+ *
  * @author ahoo wang
  */
 public class MethodSetter implements CosIdSetter {

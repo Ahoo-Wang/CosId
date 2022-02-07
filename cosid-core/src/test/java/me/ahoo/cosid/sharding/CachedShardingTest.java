@@ -53,7 +53,6 @@ class CachedShardingTest {
         Assertions.assertEquals(expected, actual);
     }
 
-
     @ParameterizedTest
     @MethodSource("me.ahoo.cosid.sharding.IntervalTimelineTest#shardingRangeArgsProvider")
     void shardingRange(Range<LocalDateTime> shardingValue, Collection<String> expected) {

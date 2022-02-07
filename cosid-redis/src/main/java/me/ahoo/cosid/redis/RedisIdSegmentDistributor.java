@@ -26,12 +26,13 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Duration;
 
 /**
+ * Redis IdSegmentDistributor.
+ *
  * @author ahoo wang
  */
 @Slf4j
 public class RedisIdSegmentDistributor implements IdSegmentDistributor {
 
-    public static final String REDIS_ID_GENERATE = "redis_id_generate.lua";
     public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(1);
 
     private final String namespace;

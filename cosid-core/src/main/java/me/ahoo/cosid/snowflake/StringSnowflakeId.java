@@ -17,6 +17,8 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.StringIdGenerator;
 
 /**
+ * String SnowflakeId.
+ *
  * @author ahoo wang
  */
 public class StringSnowflakeId extends StringIdGenerator implements SnowflakeId {

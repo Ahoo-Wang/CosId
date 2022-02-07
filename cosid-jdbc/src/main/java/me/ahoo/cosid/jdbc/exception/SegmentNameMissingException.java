@@ -18,6 +18,8 @@ import me.ahoo.cosid.CosIdException;
 import com.google.common.base.Strings;
 
 /**
+ * Segment Name Missing Exception.
+ *
  * @author ahoo wang
  */
 public class SegmentNameMissingException extends CosIdException {

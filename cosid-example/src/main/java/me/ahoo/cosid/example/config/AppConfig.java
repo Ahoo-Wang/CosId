@@ -16,6 +16,8 @@ package me.ahoo.cosid.example.config;
 import org.springframework.context.annotation.Configuration;
 
 /**
+ * AppConfig.
+ *
  * @author ahoo wang
  */
 @Configuration

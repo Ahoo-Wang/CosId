@@ -34,16 +34,13 @@ import java.util.Collection;
 import java.util.Properties;
 
 /**
- * 基于间隔的时间范围分片算法
- * <p>
+ * 基于间隔的时间范围分片算法.
+ * <pre>
  * 1. 易用性 支持多种数据类型 (Long:时间戳、LocalDateTime、DATE)，而官方的实现是先转换成字符串再转换成 LocalDateTime，转换成功率受时间格式化字符影响
- * <p>
  * 2. 性能
- * <p>
  * -- 2.1 算法复杂度:[O(1)]，而官方的实现使用的是遍历查找[O(N)] {org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm}
- * <p>
  * -- 2.2 降低解析与转换成本，而官方的实现使用的是先转换成字符串，然后再转换成 LocalDateTime
- * <p>
+ * </pre>
  * 分配策略=[逻辑名] + [分片算法]，分片算法KEY在全局唯一，这种方式显然是不利于缓存优化的，即{@link #doSharding(Collection, RangeShardingValue)}的第一个参数availableTargetNames应该在绑定时已知且稳定，作为实例变量更利于性能。
  *
  * @author ahoo wang

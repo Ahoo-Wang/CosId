@@ -21,6 +21,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
+ * Default {@link IdGeneratorProvider} implementation.
+ *
  * @author ahoo wang
  */
 @ThreadSafe

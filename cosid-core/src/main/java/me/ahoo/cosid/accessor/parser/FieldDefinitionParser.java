@@ -19,6 +19,8 @@ import java.lang.reflect.Field;
 import java.util.List;
 
 /**
+ * Field IdDefinition Parser.
+ *
  * @author ahoo wang
  */
 @FunctionalInterface

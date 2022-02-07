@@ -32,46 +32,46 @@ public final class Radix62IdConverter implements IdConverter {
     public static final IdConverter PAD_START = new Radix62IdConverter(true, MAX_CHAR_SIZE);
 
     /**
-     * 48
+     * 48.
      */
     private static final char ZERO = '0';
     /**
-     * 57
+     * 57.
      */
     private static final char NINE = '9';
     /**
-     * 65
+     * 65.
      */
     private static final char UPPERCASE_A = 'A';
     private static final int UPPERCASE_OFFSET = 10;
     /**
-     * 90
+     * 90.
      */
     private static final char UPPERCASE_Z = 'Z';
     /**
-     * 97
+     * 97.
      */
     private static final char LOWERCASE_A = 'a';
     private static final int LOWERCASE_OFFSET = 36;
     /**
-     * 122
+     * 122.
      */
     private static final char LOWERCASE_Z = 'z';
 
     private static final char[] digits = {
-        /**
-         * offset: 0
+        /*
+         * offset: 0.
          * [48-57]
         */
         ZERO, '1', '2', '3', '4', '5', '6', '7', '8', NINE,
-        /**
-         * offset: 10
+        /*
+         * offset: 10.
          * [64-90]
         */
         UPPERCASE_A, 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
         'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', UPPERCASE_Z,
-        /**
-         * offset: 36
+        /*
+         * offset: 36.
          * [97-122]
         */
         LOWERCASE_A, 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',

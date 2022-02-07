@@ -27,6 +27,8 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
+ * CosId Plugin.
+ *
  * @author ahoo wang
  */
 @Intercepts({@Signature(type = Executor.class, method = "update", args = {MappedStatement.class, Object.class})})

@@ -21,6 +21,8 @@ import me.ahoo.cosky.core.redis.RedisConnectionFactory;
 import java.time.Duration;
 
 /**
+ * Redis IdSegmentDistributor Factory.
+ *
  * @author ahoo wang
  */
 public class RedisIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
@@ -35,11 +37,11 @@ public class RedisIdSegmentDistributorFactory implements IdSegmentDistributorFac
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         return new RedisIdSegmentDistributor(
-                definition.getNamespace(),
-                definition.getName(),
-                definition.getOffset(),
-                definition.getStep(),
-                timeout,
-                connectionFactory.getShareReactiveCommands());
+            definition.getNamespace(),
+            definition.getName(),
+            definition.getOffset(),
+            definition.getStep(),
+            timeout,
+            connectionFactory.getShareReactiveCommands());
     }
 }

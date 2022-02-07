@@ -17,7 +17,6 @@ import me.ahoo.cosid.sharding.ExactCollection;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Properties;

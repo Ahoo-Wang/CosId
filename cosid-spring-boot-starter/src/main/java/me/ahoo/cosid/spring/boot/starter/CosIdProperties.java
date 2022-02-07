@@ -18,6 +18,8 @@ import me.ahoo.cosid.CosId;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
+ * CosId Properties.
+ *
  * @author ahoo wang
  */
 @ConfigurationProperties(prefix = CosId.COSID)

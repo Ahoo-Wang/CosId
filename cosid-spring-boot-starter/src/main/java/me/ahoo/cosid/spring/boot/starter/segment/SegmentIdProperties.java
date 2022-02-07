@@ -30,6 +30,8 @@ import java.time.Duration;
 import java.util.Map;
 
 /**
+ * SegmentId Properties.
+ *
  * @author ahoo wang
  */
 @ConfigurationProperties(prefix = SegmentIdProperties.PREFIX)
@@ -40,7 +42,7 @@ public class SegmentIdProperties {
     private boolean enabled = false;
     private Mode mode = Mode.CHAIN;
     /**
-     * idSegment time to live
+     * idSegment time to live.
      * unit {@link java.util.concurrent.TimeUnit#SECONDS}
      */
     private long ttl = TIME_TO_LIVE_FOREVER;
@@ -292,7 +294,7 @@ public class SegmentIdProperties {
         private long offset = IdSegmentDistributor.DEFAULT_OFFSET;
         private long step = IdSegmentDistributor.DEFAULT_STEP;
         /**
-         * idSegmentTtl
+         * idSegment Ttl.
          * unit {@link java.util.concurrent.TimeUnit#SECONDS}
          */
         private Long ttl;

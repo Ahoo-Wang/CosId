@@ -14,8 +14,16 @@
 package me.ahoo.cosid.accessor;
 
 /**
+ * Ensure that the target object has an ID set.
+ *
  * @author ahoo wang
  */
 public interface EnsureId {
+    /**
+     * Ensure that the target object has an ID set.
+     *
+     * @param target target object
+     * @return Set successfully?
+     */
     boolean ensureId(Object target);
 }

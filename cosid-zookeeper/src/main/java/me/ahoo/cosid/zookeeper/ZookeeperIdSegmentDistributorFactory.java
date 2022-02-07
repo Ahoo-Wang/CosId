@@ -21,6 +21,8 @@ import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 
 /**
+ * Zookeeper IdSegmentDistributor Factory.
+ *
  * @author ahoo wang
  */
 public class ZookeeperIdSegmentDistributorFactory implements IdSegmentDistributorFactory {

@@ -36,6 +36,8 @@ import java.util.Objects;
 
 
 /**
+ * AsString Deserializer.
+ *
  * @author ahoo wang
  */
 public class AsStringDeserializer extends JsonDeserializer<Long> implements ContextualDeserializer {

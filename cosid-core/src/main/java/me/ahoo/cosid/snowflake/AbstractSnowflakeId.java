@@ -19,8 +19,9 @@ import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 import com.google.common.base.Strings;
 
 /**
+ * Abstract SnowflakeId.
+ *
  * @author ahoo wang
- * Creation time: 2019/11/26 16:14
  */
 public abstract class AbstractSnowflakeId implements SnowflakeId {
 
@@ -68,9 +69,9 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
     }
 
     /**
-     * 获取当前时间戳
+     * get current timestamp.
      *
-     * @return 当前时间戳
+     * @return current timestamp
      */
     protected abstract long getCurrentTime();
 

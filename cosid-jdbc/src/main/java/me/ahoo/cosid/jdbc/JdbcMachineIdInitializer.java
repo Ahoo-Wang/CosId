@@ -21,6 +21,8 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 /**
+ * Jdbc MachineId Initializer.
+ *
  * @author ahoo wang
  */
 @Slf4j

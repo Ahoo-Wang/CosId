@@ -18,7 +18,7 @@ import me.ahoo.cosid.snowflake.exception.ClockTooManyBackwardsException;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
- * 时钟回拨同步器
+ * Clock Backwards Synchronizer.
  *
  * @author ahoo wang
  */

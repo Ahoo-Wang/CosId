@@ -16,6 +16,8 @@ package me.ahoo.cosid.provider;
 import me.ahoo.cosid.CosIdException;
 
 /**
+ * Not Found IdGenerator Exception.
+ *
  * @author ahoo wang
  */
 public class NotFoundIdGeneratorException extends CosIdException {

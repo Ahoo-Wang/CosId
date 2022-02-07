@@ -21,6 +21,8 @@ import javax.annotation.concurrent.Immutable;
 import java.util.List;
 
 /**
+ * Machine State.
+ *
  * @author ahoo wang
  */
 @Immutable

@@ -14,6 +14,8 @@
 package me.ahoo.cosid.segment;
 
 /**
+ * {@link IdSegmentDistributor} Factory.
+ *
  * @author ahoo wang
  */
 public interface IdSegmentDistributorFactory {

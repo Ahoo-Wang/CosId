@@ -22,8 +22,9 @@ import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
-
 /**
+ * StatefulSet MachineId Distributor.
+ *
  * @author ahoo wang
  */
 @Slf4j

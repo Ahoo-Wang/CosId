@@ -18,6 +18,8 @@ import me.ahoo.cosid.provider.LazyIdGenerator;
 
 
 /**
+ * Abstract {@link IdMetadata}.
+ *
  * @author ahoo wang
  */
 public abstract class AbstractIdMetadata implements IdMetadata {

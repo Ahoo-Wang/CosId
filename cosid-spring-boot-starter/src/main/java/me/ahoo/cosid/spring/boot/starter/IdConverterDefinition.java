@@ -17,6 +17,8 @@ import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 
 /**
+ * IdConverter Definition.
+ *
  * @author ahoo wang
  */
 public class IdConverterDefinition {

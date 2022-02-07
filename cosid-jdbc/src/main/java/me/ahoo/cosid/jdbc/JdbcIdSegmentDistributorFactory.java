@@ -20,6 +20,8 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import javax.sql.DataSource;
 
 /**
+ * Jdbc IdSegment Distributor Factory.
+ *
  * @author ahoo wang
  */
 public class JdbcIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
@@ -43,8 +45,8 @@ public class JdbcIdSegmentDistributorFactory implements IdSegmentDistributorFact
             jdbcIdSegmentInitializer.tryInitIdSegment(definition.getNamespacedName(), definition.getOffset());
         }
         return new JdbcIdSegmentDistributor(
-                definition.getNamespace(), definition.getName(), definition.getStep(),
-                incrementMaxIdSql, fetchMaxIdSql, dataSource
+            definition.getNamespace(), definition.getName(), definition.getStep(),
+            incrementMaxIdSql, fetchMaxIdSql, dataSource
         );
     }
 }

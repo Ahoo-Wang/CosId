@@ -31,7 +31,7 @@ public interface IdSegment extends Comparable<IdSegment> {
     long TIME_TO_LIVE_FOREVER = Long.MAX_VALUE;
 
     /**
-     * ID segment fetch time
+     * ID segment fetch time.
      * unit {@link java.util.concurrent.TimeUnit#SECONDS}
      *
      * @return fetch time
@@ -47,7 +47,7 @@ public interface IdSegment extends Comparable<IdSegment> {
     long getStep();
 
     /**
-     * the id segment time to live
+     * the id segment time to live.
      * unit {@link java.util.concurrent.TimeUnit#SECONDS}
      *
      * @return time to live
@@ -57,13 +57,13 @@ public interface IdSegment extends Comparable<IdSegment> {
     }
 
     /**
-     * id segment has expired?
+     * id segment has expired?.
      *
      * @return expired?
      */
     default boolean isExpired() {
         if (TIME_TO_LIVE_FOREVER == getTtl()) {
-            /**
+            /*
              * Very important! Avoid getting the current clock,
              * because getting the clock is too slow.
              */
@@ -81,7 +81,7 @@ public interface IdSegment extends Comparable<IdSegment> {
     }
 
     /**
-     * not expired and not overflow
+     * not expired and not overflow.
      *
      * @return true when not expired and not overflow
      */

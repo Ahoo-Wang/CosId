@@ -18,8 +18,9 @@ import me.ahoo.cosid.CosId;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Second SnowflakeId.
+ *
  * @author ahoo wang
- * Creation time 2020/9/22 20:14
  **/
 public class SecondSnowflakeId extends AbstractSnowflakeId {
 

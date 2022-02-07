@@ -32,6 +32,8 @@ import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
 
 /**
+ * Jdbc MachineId Distributor.
+ *
  * @author ahoo wang
  */
 @Slf4j

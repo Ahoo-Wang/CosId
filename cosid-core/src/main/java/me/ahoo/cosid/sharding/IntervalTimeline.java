@@ -25,6 +25,8 @@ import java.util.Collection;
 import java.util.List;
 
 /**
+ * Interval Timeline.
+ *
  * @author ahoo wang
  */
 @ThreadSafe

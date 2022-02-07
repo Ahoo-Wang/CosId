@@ -14,6 +14,8 @@
 package me.ahoo.cosid.segment;
 
 /**
+ * IdSegment Distributor Definition.
+ *
  * @author ahoo wang
  */
 public class IdSegmentDistributorDefinition {

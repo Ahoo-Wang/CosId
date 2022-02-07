@@ -18,6 +18,8 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 import java.lang.reflect.Field;
 
 /**
+ * ID Definition.
+ *
  * @author ahoo wang
  */
 public class IdDefinition {

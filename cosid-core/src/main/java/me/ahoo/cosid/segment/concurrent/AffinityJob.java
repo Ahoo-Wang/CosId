@@ -34,6 +34,8 @@ public interface AffinityJob extends Runnable {
     }
 
     /**
+     * set hunger time.
+     *
      * @param hungerTime {@link java.util.concurrent.TimeUnit#SECONDS}
      */
     void setHungerTime(long hungerTime);

@@ -19,6 +19,8 @@ import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
+ * MachineId Distributor.
+ *
  * @author ahoo wang
  */
 @ThreadSafe
@@ -33,7 +35,7 @@ public interface MachineIdDistributor {
     }
 
     /**
-     * distribute machine id
+     * distribute machine id.
      *
      * @param namespace  namespace
      * @param machineBit machineBit
@@ -48,7 +50,7 @@ public interface MachineIdDistributor {
     }
 
     /**
-     * revert machine id
+     * revert machine id.
      *
      * @param namespace  namespace
      * @param instanceId instanceId

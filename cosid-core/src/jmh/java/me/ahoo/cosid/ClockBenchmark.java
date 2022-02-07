@@ -18,6 +18,8 @@ import me.ahoo.cosid.util.Clock;
 import org.openjdk.jmh.annotations.Benchmark;
 
 /**
+ * Clock Benchmark.
+ *
  * @author ahoo wang
  */
 public class ClockBenchmark {

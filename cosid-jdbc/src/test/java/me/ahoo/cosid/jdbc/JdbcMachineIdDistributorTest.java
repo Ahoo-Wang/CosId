@@ -19,7 +19,6 @@ import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.util.MockIdGenerator;
 
-import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,7 +49,6 @@ class JdbcMachineIdDistributorTest {
         jdbcMachineIdInitializer.tryInitCosIdMachineTable();
     }
 
-    @SneakyThrows
     @Test
     void distribute() {
         int machineBit = 1;

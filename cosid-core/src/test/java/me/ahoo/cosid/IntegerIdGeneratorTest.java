@@ -28,13 +28,13 @@ class IntegerIdGeneratorTest {
     @Test
     void generate() {
         IntegerIdGenerator idGen = new IntegerIdGenerator(AtomicLongGenerator.INSTANCE);
-        int id = idGen.generate();
-        int id2 = idGen.generate();
-        Assertions.assertTrue(id2 > id);
+        int idFirst = idGen.generate();
+        int idSecond = idGen.generate();
+        Assertions.assertTrue(idSecond > idFirst);
     }
 
     @Test
-    void generateOverflow() {
+    void generateWhenOverflow() {
         SnowflakeId snowflakeId = new MillisecondSnowflakeId(1);
         IntegerIdGenerator idGen = new IntegerIdGenerator(snowflakeId);
         Assertions.assertThrows(IntegerIdGenerator.IdOverflowException.class, idGen::generate);

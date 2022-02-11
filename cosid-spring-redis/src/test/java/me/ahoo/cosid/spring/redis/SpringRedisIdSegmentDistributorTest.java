@@ -29,7 +29,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 class SpringRedisIdSegmentDistributorTest {
     StringRedisTemplate stringRedisTemplate;
     SpringRedisIdSegmentDistributor springRedisIdSegmentDistributor;
-
+    
     @BeforeEach
     private void initRedis() {
         RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
@@ -37,23 +37,22 @@ class SpringRedisIdSegmentDistributorTest {
         lettuceConnectionFactory.afterPropertiesSet();
         stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
         springRedisIdSegmentDistributor = new SpringRedisIdSegmentDistributor("SpringRedisIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), stringRedisTemplate);
-
     }
-
+    
     @Test
     void nextMaxId() {
         long nextMaxId = springRedisIdSegmentDistributor.nextMaxId();
         Assertions.assertEquals(springRedisIdSegmentDistributor.getStep(), nextMaxId);
     }
-
+    
     @Test
-    public void generateIfMaxIdBack() {
+    public void generateWhenMaxIdBack() {
         long id = springRedisIdSegmentDistributor.nextMaxId();
         Assertions.assertTrue(id > 0);
         String adderKey = springRedisIdSegmentDistributor.getAdderKey();
         stringRedisTemplate.opsForValue().set(adderKey, String.valueOf(id - 1));
         Assertions.assertThrows(IllegalStateException.class, () -> {
-            long id2 = springRedisIdSegmentDistributor.nextMaxId();
+            springRedisIdSegmentDistributor.nextMaxId();
         });
     }
 }

@@ -13,17 +13,14 @@
 
 package me.ahoo.cosid;
 
-import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
-import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SafeJavaScriptSnowflakeId;
 import me.ahoo.cosid.snowflake.SecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeId;
-import me.ahoo.cosid.snowflake.SnowflakeIdState;
 
 import lombok.var;
 import org.junit.jupiter.api.Assertions;
@@ -41,42 +38,7 @@ import java.util.concurrent.CompletableFuture;
  * Creation time: 2019/11/21 20:56
  */
 public class IdGeneratorTest {
-    @Test
-    public void jdkTest() {
-        var id = AtomicLongGenerator.INSTANCE.generate();
-        var id1 = AtomicLongGenerator.INSTANCE.generate();
-        Assertions.assertTrue(id1 > id);
-    }
-
-    @Test
-    public void snowflakeTest() {
-        var idGen = new MillisecondSnowflakeId(1);
-        Assertions.assertEquals(1, idGen.getMachineId());
-        var id = idGen.generate();
-        var id1 = idGen.generate();
-
-        Assertions.assertTrue(id1 > id);
-        var snowflakeIdStateParser = MillisecondSnowflakeIdStateParser.of(idGen);
-        var idState = snowflakeIdStateParser.parse(id);
-        Assertions.assertNotNull(idState);
-    }
-
-    @Test
-    public void snowflakeFriendlyIdTest() {
-        MillisecondSnowflakeId idGen = new MillisecondSnowflakeId(1);
-        DefaultSnowflakeFriendlyId snowflakeFriendlyId = new DefaultSnowflakeFriendlyId(idGen);
-        long id = snowflakeFriendlyId.generate();
-        SnowflakeIdState snowflakeIdState = snowflakeFriendlyId.friendlyId(id);
-        Assertions.assertNotNull(snowflakeIdState);
-        Assertions.assertEquals(1, snowflakeIdState.getMachineId());
-        Assertions.assertEquals(id, snowflakeIdState.getId());
-        SnowflakeIdState snowflakeIdState2 = snowflakeFriendlyId.ofFriendlyId(snowflakeIdState.getFriendlyId());
-        Assertions.assertEquals(snowflakeIdState2, snowflakeIdState);
-    }
-
-    /***
-     *
-     */
+    
     @Test
     public void test() {
         var id = 99191438008389632L;
@@ -87,22 +49,22 @@ public class IdGeneratorTest {
         var idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
-
+    
     @Test
     public void customize_SnowflakeTest() {
         var idGen = new MillisecondSnowflakeId(CosId.COSID_EPOCH, 41, 5, 10, 1);
         var id = idGen.generate();
-
+        
         var snowflakeIdStateParser = MillisecondSnowflakeIdStateParser.of(idGen);
         var idState = snowflakeIdStateParser.parse(id);
-
+        
         var idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
-
+    
     @Test
     public void secondSnowflakeIdTestEpoch() {
-
+        
         var idGen = new SecondSnowflakeId(LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond(),
             SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
             SecondSnowflakeId.DEFAULT_MACHINE_BIT,
@@ -110,31 +72,31 @@ public class IdGeneratorTest {
         var snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
         var id = idGen.generate();
         var id1 = idGen.generate();
-
+        
         Assertions.assertTrue(id1 > id);
-
+        
         var idState = snowflakeIdStateParser.parse(id);
         Assertions.assertEquals(idState.getTimestamp().toLocalDate(), LocalDate.now());
         var idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
-
+    
     @Test
     public void secondSnowflakeIdTest() {
-
+        
         var idGen = new SecondSnowflakeId(1023);
         var snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
         var id = idGen.generate();
         var id1 = idGen.generate();
-
+        
         Assertions.assertTrue(id1 > id);
-
+        
         var idState = snowflakeIdStateParser.parse(id);
         var idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
-
-
+    
+    
     @Test
     public void safe_ofSecond() {
         var snowflakeId = SafeJavaScriptSnowflakeId.ofSecond(1);
@@ -144,7 +106,7 @@ public class IdGeneratorTest {
         var idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
-
+    
     @Test
     public void safe_ofMillisecond() {
         var snowflakeId = SafeJavaScriptSnowflakeId.ofMillisecond(1);
@@ -154,10 +116,10 @@ public class IdGeneratorTest {
         var idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
-
+    
     static final int CONCURRENT_THREADS = 30;
     static final int THREAD_REQUEST_NUM = 50000;
-
+    
     @Test
     public void concurrent_generate_step_10() {
         final SnowflakeId idGen = new ClockSyncSnowflakeId(new MillisecondSnowflakeId(1), ClockBackwardsSynchronizer.DEFAULT);
@@ -174,7 +136,7 @@ public class IdGeneratorTest {
                 }
                 return ids;
             });
-
+            
             threads++;
         }
         CompletableFuture.allOf(completableFutures).thenAccept(nil -> {
@@ -190,11 +152,11 @@ public class IdGeneratorTest {
                     lastId = currentId;
                     continue;
                 }
-
+                
                 Assertions.assertTrue(currentId > lastId);
                 lastId = currentId;
             }
-
+            
         }).join();
     }
 }

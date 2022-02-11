@@ -13,8 +13,7 @@
 
 package me.ahoo.cosid.jvm;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -24,7 +23,8 @@ class AtomicLongGeneratorTest {
 
     @Test
     void generate() {
-        long id = AtomicLongGenerator.INSTANCE.generate();
-        assertTrue(id > 0);
+        long idFirst = AtomicLongGenerator.INSTANCE.generate();
+        long idSecond = AtomicLongGenerator.INSTANCE.generate();
+        Assertions.assertTrue(idSecond > idFirst);
     }
 }

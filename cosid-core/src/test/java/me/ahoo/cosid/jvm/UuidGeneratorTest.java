@@ -26,9 +26,7 @@ class UuidGeneratorTest {
 
     @Test
     void generate() {
-        assertThrows(UnsupportedOperationException.class, () -> {
-            UuidGenerator.INSTANCE.generate();
-        });
+        assertThrows(UnsupportedOperationException.class, UuidGenerator.INSTANCE::generate);
     }
 
     @Test

@@ -85,7 +85,7 @@ class SegmentChainIdTest {
             
             @Override
             protected void assertGlobalLast(long lastId) {
-                Assertions.assertTrue(getMaxId() <= lastId);
+                Assertions.assertTrue(getIdSize() <= lastId);
             }
         }.assertConcurrentGenerate();
     }

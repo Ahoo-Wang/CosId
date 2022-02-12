@@ -13,15 +13,17 @@
 
 package me.ahoo.cosid.snowflake;
 
+import me.ahoo.cosid.IdGeneratorDecorator;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 
+import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * SnowflakeId State Parser.
@@ -30,26 +32,26 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public abstract class SnowflakeIdStateParser {
-
+    
     public static final String DELIMITER = "-";
     protected final ZoneId zoneId;
     protected final long epoch;
-
+    
     protected final int sequenceBit;
     protected final long sequenceMask;
-
+    
     protected final int machineBit;
     protected final long machineMask;
     protected final int machineLeft;
-
+    
     protected final int timestampBit;
     protected final long timestampMask;
     protected final int timestampLeft;
-
+    
     public SnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit) {
         this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault());
     }
-
+    
     public SnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId) {
         this.epoch = epoch;
         this.sequenceMask = getMask(sequenceBit);
@@ -62,17 +64,17 @@ public abstract class SnowflakeIdStateParser {
         this.machineLeft = sequenceBit;
         this.timestampLeft = machineLeft + machineBit;
     }
-
+    
     public ZoneId getZoneId() {
         return zoneId;
     }
-
+    
     protected abstract DateTimeFormatter getDateTimeFormatter();
-
+    
     protected abstract LocalDateTime getTimestamp(long diffTime);
-
+    
     protected abstract long getDiffTime(LocalDateTime timestamp);
-
+    
     public SnowflakeIdState parse(String friendlyId) {
         Preconditions.checkNotNull(friendlyId, "friendlyId can not be null!");
         List<String> segments = Splitter.on(DELIMITER).trimResults().omitEmptyStrings().splitToList(friendlyId);
@@ -95,20 +97,20 @@ public abstract class SnowflakeIdStateParser {
             .friendlyId(friendlyId)
             .build();
     }
-
+    
     public SnowflakeIdState parse(long id) {
-
+        
         long machineId = parseMachineId(id);
         long sequence = parseSequence(id);
         LocalDateTime timestamp = parseTimestamp(id);
-
+        
         String friendlyId = new StringBuilder(timestamp.format(getDateTimeFormatter()))
             .append(DELIMITER)
             .append(machineId)
             .append(DELIMITER)
             .append(sequence)
             .toString();
-
+        
         return SnowflakeIdState.builder()
             .id(id)
             .machineId((int) machineId)
@@ -117,32 +119,34 @@ public abstract class SnowflakeIdStateParser {
             .friendlyId(friendlyId)
             .build();
     }
-
+    
     private long getMask(long bits) {
         return ~(-1L << bits);
     }
-
+    
     public LocalDateTime parseTimestamp(long id) {
         long diffTime = (id >> timestampLeft) & timestampMask;
         return getTimestamp(diffTime);
     }
-
+    
     public long parseMachineId(long id) {
         return (id >> machineLeft) & machineMask;
     }
-
+    
     public long parseSequence(long id) {
         return id & sequenceMask;
     }
-
+    
     public static SnowflakeIdStateParser of(SnowflakeId snowflakeId) {
         return of(snowflakeId, ZoneId.systemDefault());
     }
-
+    
     public static SnowflakeIdStateParser of(SnowflakeId snowflakeId, ZoneId zoneId) {
-        if (snowflakeId instanceof SecondSnowflakeId) {
-            return SecondSnowflakeIdStateParser.of(snowflakeId, zoneId);
+        SnowflakeId actual = IdGeneratorDecorator.getActual(snowflakeId);
+        
+        if (actual instanceof SecondSnowflakeId) {
+            return SecondSnowflakeIdStateParser.of(actual, zoneId);
         }
-        return MillisecondSnowflakeIdStateParser.of(snowflakeId, zoneId);
+        return MillisecondSnowflakeIdStateParser.of(actual, zoneId);
     }
 }

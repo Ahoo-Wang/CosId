@@ -18,7 +18,7 @@ package me.ahoo.cosid;
  *
  * @author ahoo wang
  */
-public class StringIdGenerator implements IdGenerator {
+public class StringIdGenerator implements IdGeneratorDecorator {
 
     protected final IdGenerator actual;
     protected final IdConverter idConverter;
@@ -32,10 +32,10 @@ public class StringIdGenerator implements IdGenerator {
     public IdConverter idConverter() {
         return idConverter;
     }
-
+    
     @Override
-    public long generate() {
-        return actual.generate();
+    public IdGenerator getActual() {
+        return actual;
     }
 
 }

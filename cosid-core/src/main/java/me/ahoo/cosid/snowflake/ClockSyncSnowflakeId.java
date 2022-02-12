@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.snowflake;
 
+import me.ahoo.cosid.IdGeneratorDecorator;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 
 import lombok.extern.slf4j.Slf4j;
@@ -23,86 +24,88 @@ import lombok.extern.slf4j.Slf4j;
  * @author ahoo wang
  */
 @Slf4j
-public class ClockSyncSnowflakeId implements SnowflakeId {
-
-    private final SnowflakeId delegate;
+public class ClockSyncSnowflakeId implements SnowflakeId, IdGeneratorDecorator {
+    
+    private final SnowflakeId actual;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
-
-    public ClockSyncSnowflakeId(SnowflakeId delegate) {
-        this(delegate, ClockBackwardsSynchronizer.DEFAULT);
+    
+    public ClockSyncSnowflakeId(SnowflakeId actual) {
+        this(actual, ClockBackwardsSynchronizer.DEFAULT);
     }
-
-    public ClockSyncSnowflakeId(SnowflakeId delegate, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        this.delegate = delegate;
+    
+    public ClockSyncSnowflakeId(SnowflakeId actual, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        this.actual = actual;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
     }
-
+    
+    @Override
+    public SnowflakeId getActual() {
+        return actual;
+    }
+    
     @Override
     public long generate() {
         try {
-            return delegate.generate();
+            return actual.generate();
         } catch (ClockBackwardsException exception) {
             if (log.isWarnEnabled()) {
                 log.warn(exception.getMessage(), exception);
             }
-            clockBackwardsSynchronizer.syncUninterruptibly(delegate.getLastTimestamp());
-            return delegate.generate();
+            clockBackwardsSynchronizer.syncUninterruptibly(actual.getLastTimestamp());
+            return actual.generate();
         }
     }
-
-    public SnowflakeId getDelegate() {
-        return delegate;
-    }
-
+    
+    
     @Override
     public long getEpoch() {
-        return delegate.getEpoch();
+        return actual.getEpoch();
     }
-
+    
     @Override
     public int getTimestampBit() {
-        return delegate.getTimestampBit();
+        return actual.getTimestampBit();
     }
-
+    
     @Override
     public int getMachineBit() {
-        return delegate.getMachineBit();
+        return actual.getMachineBit();
     }
-
+    
     @Override
     public int getSequenceBit() {
-        return delegate.getSequenceBit();
+        return actual.getSequenceBit();
     }
-
+    
     @Override
     public boolean isSafeJavascript() {
-        return delegate.isSafeJavascript();
+        return actual.isSafeJavascript();
     }
-
+    
     @Override
     public long getMaxTimestamp() {
-        return delegate.getMaxTimestamp();
+        return actual.getMaxTimestamp();
     }
-
+    
     @Override
     public long getMaxMachine() {
-        return delegate.getMaxMachine();
+        return actual.getMaxMachine();
     }
-
+    
     @Override
     public long getMaxSequence() {
-        return delegate.getMaxSequence();
+        return actual.getMaxSequence();
     }
-
+    
     @Override
     public long getLastTimestamp() {
-        return delegate.getLastTimestamp();
+        return actual.getLastTimestamp();
     }
-
+    
     @Override
     public long getMachineId() {
-        return delegate.getMachineId();
+        return actual.getMachineId();
     }
-
-
+    
+    
 }

@@ -17,7 +17,7 @@ public class ConcurrentGenerateTest {
     private final IdGenerator[] idGenerators;
     
     private final int concurrentThreads;
-    private final long maxId;
+    private final long idSize;
     private final int singleGenerates;
     
     public ConcurrentGenerateTest(IdGenerator... idGenerators) {
@@ -28,7 +28,7 @@ public class ConcurrentGenerateTest {
         Preconditions.checkState(idGenerators.length > 0, "idGenerators can not be empty.");
         this.idGenerators = idGenerators;
         this.concurrentThreads = concurrentThreads;
-        this.maxId = maxId;
+        this.idSize = maxId;
         this.singleGenerates = (int) (maxId / concurrentThreads);
     }
     
@@ -36,8 +36,8 @@ public class ConcurrentGenerateTest {
         return concurrentThreads;
     }
     
-    public long getMaxId() {
-        return maxId;
+    public long getIdSize() {
+        return idSize;
     }
     
     private IdGenerator getIdGenerator(int threadIdx) {
@@ -57,7 +57,7 @@ public class ConcurrentGenerateTest {
     }
     
     protected void assertGlobalLast(long lastId) {
-        Preconditions.checkState(getMaxId() == lastId, "lastId:[%s] must equals maxId:[%s]", lastId, getMaxId());
+        Preconditions.checkState(getIdSize() == lastId, "lastId:[%s] must equals idSize:[%s]", lastId, getIdSize());
     }
     
     public void assertConcurrentGenerate() {
@@ -83,7 +83,7 @@ public class ConcurrentGenerateTest {
         CompletableFuture
             .allOf(completableFutures)
             .thenAccept(nil -> {
-                final long[] totalIds = new long[(int) maxId];
+                final long[] totalIds = new long[(int) idSize];
                 int totalIdx = 0;
                 for (CompletableFuture<long[]> completableFuture : completableFutures) {
                     long[] ids = completableFuture.join();

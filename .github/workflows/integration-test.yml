@@ -28,7 +28,7 @@ jobs:
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
-          
+
       - name: Test CosId-Core
         run: gradle cosid-core:clean cosid-core:check
 
@@ -123,15 +123,15 @@ jobs:
       - name: Test CosId-Zookeeper
         run: gradle cosid-zookeeper:clean cosid-zookeeper:check
 
-# https://github.com/actions/virtual-environments/issues/375
-# https://github.blog/changelog/2020-02-21-github-actions-breaking-change-ubuntu-virtual-environments-will-no-longer-start-the-mysql-service-automatically/
+  # https://github.com/actions/virtual-environments/issues/375
+  # https://github.blog/changelog/2020-02-21-github-actions-breaking-change-ubuntu-virtual-environments-will-no-longer-start-the-mysql-service-automatically/
   cosid-jdbc-test:
     name: CosId Jdbc Test
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
     steps:
       - name: Start Mysql
-        run:  sudo /etc/init.d/mysql start
+        run: sudo /etc/init.d/mysql start
 
       - name: Checkout
         uses: actions/checkout@master
@@ -149,4 +149,3 @@ jobs:
 
       - name: Test CosId-Jdbc
         run: gradle cosid-jdbc:clean cosid-jdbc:check
-

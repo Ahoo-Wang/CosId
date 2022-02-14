@@ -24,12 +24,12 @@ public class ConcurrentGenerateTest {
         this(20, 8000000, idGenerators);
     }
     
-    public ConcurrentGenerateTest(int concurrentThreads, long maxId, IdGenerator... idGenerators) {
+    public ConcurrentGenerateTest(int concurrentThreads, long idSize, IdGenerator... idGenerators) {
         Preconditions.checkState(idGenerators.length > 0, "idGenerators can not be empty.");
         this.idGenerators = idGenerators;
         this.concurrentThreads = concurrentThreads;
-        this.idSize = maxId;
-        this.singleGenerates = (int) (maxId / concurrentThreads);
+        this.idSize = idSize;
+        this.singleGenerates = (int) (idSize / concurrentThreads);
     }
     
     public int getConcurrentThreads() {
@@ -60,6 +60,7 @@ public class ConcurrentGenerateTest {
         Preconditions.checkState(getIdSize() == lastId, "lastId:[%s] must equals idSize:[%s]", lastId, getIdSize());
     }
     
+    @SuppressWarnings("unchecked")
     public void assertConcurrentGenerate() {
         
         CompletableFuture<long[]>[] completableFutures = new CompletableFuture[concurrentThreads];
@@ -106,6 +107,5 @@ public class ConcurrentGenerateTest {
                 }
                 assertGlobalLast(previousId);
             }).join();
-        
     }
 }

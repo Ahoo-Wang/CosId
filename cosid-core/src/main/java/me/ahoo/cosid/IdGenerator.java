@@ -24,7 +24,7 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public interface IdGenerator {
-
+    
     /**
      * ID converter, used to convert {@link long} type ID to {@link String}.
      *
@@ -33,14 +33,14 @@ public interface IdGenerator {
     default IdConverter idConverter() {
         return ToStringIdConverter.INSTANCE;
     }
-
+    
     /**
      * Generate distributed ID.
      *
      * @return generated distributed ID
      */
     long generate();
-
+    
     /**
      * Generate distributed ID as String.
      *

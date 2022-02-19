@@ -13,11 +13,14 @@
 
 package me.ahoo.cosid.util;
 
+import javax.annotation.concurrent.Immutable;
+
 /**
  * get current process id .
  *
  * @author ahoo wang
  */
+@Immutable
 public final class ProcessId {
 
     public static final ProcessId CURRENT = new ProcessId();

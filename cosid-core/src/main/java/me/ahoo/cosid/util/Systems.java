@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.util;
 
+import javax.annotation.concurrent.ThreadSafe;
 import java.lang.management.ManagementFactory;
 
 /**
@@ -20,6 +21,7 @@ import java.lang.management.ManagementFactory;
  *
  * @author ahoo wang
  */
+@ThreadSafe
 public final class Systems {
     private Systems() {
     }

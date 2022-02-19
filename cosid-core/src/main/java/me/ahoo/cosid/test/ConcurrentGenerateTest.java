@@ -2,16 +2,18 @@ package me.ahoo.cosid.test;
 
 import me.ahoo.cosid.IdGenerator;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * ConcurrentGenerateTest .
+ * Concurrent Generate Test .
  *
  * @author ahoo wang
  */
+@VisibleForTesting
 public class ConcurrentGenerateTest {
     
     private final IdGenerator[] idGenerators;

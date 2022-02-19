@@ -34,6 +34,6 @@ public final class PropertiesUtil {
      */
     public static String getRequiredValue(Properties properties, String key) {
         Preconditions.checkArgument(properties.containsKey(key), "%s can not be null.", key);
-        return properties.getProperty(key);
+        return properties.get(key).toString();
     }
 }

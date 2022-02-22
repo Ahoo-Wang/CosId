@@ -3,9 +3,10 @@
 > **分布式ID**生成器
 
 ```java
+
 @ThreadSafe
 public interface IdGenerator {
-
+    
     /**
      * ID converter, used to convert {@link long} type ID to {@link String}
      *
@@ -14,14 +15,14 @@ public interface IdGenerator {
     default IdConverter idConverter() {
         return ToStringIdConverter.INSTANCE;
     }
-
+    
     /**
      * Generate distributed ID
      *
      * @return distributed ID
      */
     long generate();
-
+    
     /**
      * Generate distributed ID as String
      *
@@ -33,3 +34,8 @@ public interface IdGenerator {
 }
 ```
 
+## IdGenerator implementation class diagram
+
+<p align="center">
+  <img :src="$withBase('/assets/design/IdGenerator-impl-class.png')" alt="IdGenerator implementation class diagram"/>
+</p>

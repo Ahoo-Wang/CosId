@@ -30,7 +30,7 @@ repositories {
 //val jmhVersion = "1.33"
 
 dependencies {
-    implementation("me.ahoo.cosid:cosid-jdbc:1.8.6")
+    implementation("me.ahoo.cosid:cosid-jdbc:1.8.9")
     testImplementation("com.zaxxer:HikariCP:3.4.5")
     testImplementation("mysql:mysql-connector-java:8.0.27")
     /**

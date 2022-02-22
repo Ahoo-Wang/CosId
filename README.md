@@ -429,8 +429,6 @@ spring:
 
 - CosIdIntervalShardingAlgorithm
     - type: COSID_INTERVAL
-- SnowflakeIntervalShardingAlgorithm
-    - type: COSID_INTERVAL_SNOWFLAKE
 
 ```yaml
 spring:
@@ -439,7 +437,7 @@ spring:
       sharding:
         sharding-algorithms:
           alg-name:
-            type: COSID_INTERVAL_{type_suffix}
+            type: COSID_INTERVAL
             props:
               logic-name-prefix: logic-name-prefix
               id-name: cosid-name
@@ -614,7 +612,7 @@ spring:
               mod: 2
               logic-name-prefix: ds
           data-log-interval:
-            type: COSID_INTERVAL_DATE
+            type: COSID_INTERVAL
             props:
               logic-name-prefix: t_date_log_
               datetime-lower: 2021-12-08 22:00:00
@@ -623,7 +621,7 @@ spring:
               datetime-interval-unit: MONTHS
               datetime-interval-amount: 1
           data-time-log-interval:
-            type: COSID_INTERVAL_LDT
+            type: COSID_INTERVAL
             props:
               logic-name-prefix: t_date_time_log_
               datetime-lower: 2021-12-08 22:00:00
@@ -632,7 +630,7 @@ spring:
               datetime-interval-unit: MONTHS
               datetime-interval-amount: 1
           timestamp-log-interval:
-            type: COSID_INTERVAL_TS
+            type: COSID_INTERVAL
             props:
               logic-name-prefix: t_timestamp_log_
               datetime-lower: 2021-12-08 22:00:00
@@ -641,7 +639,7 @@ spring:
               datetime-interval-unit: MONTHS
               datetime-interval-amount: 1
           snowflake-log-interval:
-            type: COSID_INTERVAL_SNOWFLAKE
+            type: COSID_INTERVAL
             props:
               logic-name-prefix: t_snowflake_log_
               id-name: snowflake

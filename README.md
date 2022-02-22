@@ -488,7 +488,7 @@ spring:
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.8.6";
+    val cosidVersion = "1.8.9";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -504,7 +504,7 @@ spring:
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.8.6</cosid.version>
+        <cosid.version>1.8.9</cosid.version>
     </properties>
 
     <dependencies>
@@ -724,7 +724,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.8.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.8.9-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```

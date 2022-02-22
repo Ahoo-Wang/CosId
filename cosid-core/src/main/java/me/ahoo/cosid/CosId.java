@@ -39,4 +39,7 @@ public final class CosId {
     static {
         COSID_EPOCH_DATE = LocalDateTime.of(2019, 12, 24, 16, 0);
     }
+    
+    private CosId() {
+    }
 }

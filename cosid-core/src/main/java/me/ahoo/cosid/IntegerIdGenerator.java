@@ -13,11 +13,14 @@
 
 package me.ahoo.cosid;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * Integer Id Generator.
  *
  * @author ahoo wang
  */
+@ThreadSafe
 public class IntegerIdGenerator {
 
     protected final IdGenerator actual;

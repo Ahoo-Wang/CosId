@@ -15,17 +15,23 @@ package me.ahoo.cosid.util;
 
 import me.ahoo.cosid.CosIdException;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * Exception tool class.
  *
  * @author ahoo wang
  */
+@ThreadSafe
 public final class Exceptions {
+    private Exceptions() {
+    }
+    
     /**
      * invoke Checked Exception Function as Unchecked.
      *
      * @param checkedFunction Checked Exception Function.
-     * @param <T>             return type
+     * @param <T> return type
      * @return result
      */
     public static <T> T invokeUnchecked(CheckedFunction<T> checkedFunction) {
@@ -37,7 +43,7 @@ public final class Exceptions {
             throw new CosIdException(exception.getMessage(), exception);
         }
     }
-
+    
     /**
      * Checked Exception Function.
      *

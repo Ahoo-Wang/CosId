@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.sharding;
 
+import javax.annotation.concurrent.Immutable;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
@@ -21,6 +22,7 @@ import java.time.temporal.ChronoUnit;
  *
  * @author ahoo wang
  */
+@Immutable
 public class IntervalStep {
     public static final int DEFAULT_AMOUNT = 1;
 

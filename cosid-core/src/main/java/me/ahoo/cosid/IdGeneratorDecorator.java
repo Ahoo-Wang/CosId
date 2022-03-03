@@ -16,6 +16,7 @@ public interface IdGeneratorDecorator extends IdGenerator {
      */
     IdGenerator getActual();
     
+    @SuppressWarnings("unchecked")
     static <T extends IdGenerator> T getActual(IdGenerator idGenerator) {
         if (idGenerator instanceof IdGeneratorDecorator) {
             return getActual(((IdGeneratorDecorator) idGenerator).getActual());

@@ -35,7 +35,7 @@ import java.util.Map;
 public class CosIdPlugin implements Interceptor {
     
     /**
-     * TODO: add support customize list key
+     * TODO: add support customize list key.
      */
     public static final String DEFAULT_LIST_KEY = "list";
     private final CosIdAccessorRegistry accessorRegistry;

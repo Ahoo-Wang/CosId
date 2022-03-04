@@ -459,9 +459,7 @@ spring:
 - Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`
   ,The performance is *1200~4000* times higher.
 
-| **
-PreciseShardingValue**                                                                                                                                                                  | **
-RangeShardingValue**                                                                                                                                                                |
+| **PreciseShardingValue**                                                                                                                                                                  | **RangeShardingValue**                                                                                                                                                                |
 |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | ![Throughput Of IntervalShardingAlgorithm - PreciseShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of IntervalShardingAlgorithm - RangeShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png) |
 
@@ -495,9 +493,7 @@ spring:
 - Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`
   ,The performance is *1200~4000* times higher.And it has higher stability and no serious performance degradation.
 
-| **
-PreciseShardingValue**                                                                                                                                                        | **
-RangeShardingValue**                                                                                                                                                      |
+| **PreciseShardingValue**                                                                                                                                                        | **RangeShardingValue**                                                                                                                                                      |
 |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | ![Throughput Of ModShardingAlgorithm - PreciseShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png) | ![Throughput Of ModShardingAlgorithm - RangeShardingValue](./document/docs/.vuepress/public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png) |
 

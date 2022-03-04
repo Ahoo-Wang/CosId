@@ -37,40 +37,39 @@ import java.util.List;
  */
 @Slf4j
 public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributor {
-
+    
     public static final String MACHINE_ID_DISTRIBUTE_SOURCE = Scripts.getScript("machine_id_distribute.lua");
+    @SuppressWarnings("rawtypes")
     public static final RedisScript<List> MACHINE_ID_DISTRIBUTE = RedisScript.of(MACHINE_ID_DISTRIBUTE_SOURCE, List.class);
-
+    
     public static final String MACHINE_ID_REVERT_SOURCE = Scripts.getScript("machine_id_revert.lua");
     public static final RedisScript<Long> MACHINE_ID_REVERT = RedisScript.of(MACHINE_ID_REVERT_SOURCE, Long.class);
-
+    
     public static final String MACHINE_ID_REVERT_STABLE_SOURCE = Scripts.getScript("machine_id_revert_stable.lua");
     public static final RedisScript<Long> MACHINE_ID_REVERT_STABLE = RedisScript.of(MACHINE_ID_REVERT_STABLE_SOURCE, Long.class);
-
+    
     private final StringRedisTemplate redisTemplate;
-
+    
     public SpringRedisMachineIdDistributor(StringRedisTemplate redisTemplate,
                                            MachineStateStorage machineStateStorage,
                                            ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
-
+        
         this.redisTemplate = redisTemplate;
     }
-
+    
     @Override
     protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
         if (log.isInfoEnabled()) {
             log.info("distribute0 - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
-
+        
         List<String> keys = Collections.singletonList(hashTag(namespace));
         Object[] values = {instanceId.getInstanceId(), String.valueOf(maxMachineId(machineBit))};
         @SuppressWarnings("unchecked")
         List<Long> state = (List<Long>) redisTemplate.execute(MACHINE_ID_DISTRIBUTE, keys, values);
         Preconditions.checkState(state != null && !state.isEmpty(), "state can not be empty!");
-
-        assert state != null;
-
+    
         int realMachineId = state.get(0).intValue();
         if (realMachineId == -1) {
             throw new MachineIdOverflowException(totalMachineIds(machineBit), instanceId);
@@ -85,7 +84,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         }
         return machineState;
     }
-
+    
     /**
      * when {@link InstanceId#isStable()} is true,do not revert machineId.
      */
@@ -104,10 +103,10 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         }
         List<String> keys = Collections.singletonList(hashTag(namespace));
         Object[] values = {instanceId.getInstanceId(), String.valueOf(lastStamp)};
-
+        
         redisTemplate.execute(script, keys, values);
     }
-
+    
     /**
      * redis hash-tag for redis-cluster.
      *
@@ -117,5 +116,5 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     public static String hashTag(String key) {
         return "{" + key + "}";
     }
-
+    
 }

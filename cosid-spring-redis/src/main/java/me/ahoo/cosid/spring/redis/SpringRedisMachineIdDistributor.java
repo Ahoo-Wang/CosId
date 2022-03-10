@@ -24,6 +24,8 @@ import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 
@@ -38,14 +40,14 @@ import java.util.List;
 @Slf4j
 public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributor {
     
-    public static final String MACHINE_ID_DISTRIBUTE_SOURCE = Scripts.getScript("machine_id_distribute.lua");
+    public static final Resource MACHINE_ID_DISTRIBUTE_SOURCE = new ClassPathResource("machine_id_distribute.lua");
     @SuppressWarnings("rawtypes")
     public static final RedisScript<List> MACHINE_ID_DISTRIBUTE = RedisScript.of(MACHINE_ID_DISTRIBUTE_SOURCE, List.class);
     
-    public static final String MACHINE_ID_REVERT_SOURCE = Scripts.getScript("machine_id_revert.lua");
+    public static final Resource MACHINE_ID_REVERT_SOURCE = new ClassPathResource("machine_id_revert.lua");
     public static final RedisScript<Long> MACHINE_ID_REVERT = RedisScript.of(MACHINE_ID_REVERT_SOURCE, Long.class);
     
-    public static final String MACHINE_ID_REVERT_STABLE_SOURCE = Scripts.getScript("machine_id_revert_stable.lua");
+    public static final Resource MACHINE_ID_REVERT_STABLE_SOURCE = new ClassPathResource("machine_id_revert_stable.lua");
     public static final RedisScript<Long> MACHINE_ID_REVERT_STABLE = RedisScript.of(MACHINE_ID_REVERT_STABLE_SOURCE, Long.class);
     
     private final StringRedisTemplate redisTemplate;

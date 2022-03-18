@@ -13,7 +13,7 @@
 
 plugins {
     `java-library`
-    id("me.champeau.jmh") version "0.6.4"
+    id("me.champeau.jmh") version "0.6.6"
 }
 
 java {
@@ -27,10 +27,8 @@ repositories {
     mavenCentral()
 }
 
-//val jmhVersion = "1.33"
-
 dependencies {
-    implementation("me.ahoo.cosid:cosid-jdbc:1.8.9")
+    implementation("me.ahoo.cosid:cosid-jdbc:1.8.11")
     testImplementation("com.zaxxer:HikariCP:3.4.5")
     testImplementation("mysql:mysql-connector-java:8.0.27")
     /**
@@ -46,8 +44,8 @@ dependencies {
      */
 //    testImplementation("com.xiaoju.uemc.tinyid:tinyid-client:0.1.0-SNAPSHOT")
 
-    jmh("org.openjdk.jmh:jmh-core:1.33")
-    jmh("org.openjdk.jmh:jmh-generator-annprocess:1.33")
+    jmh("org.openjdk.jmh:jmh-core:1.34")
+    jmh("org.openjdk.jmh:jmh-generator-annprocess:1.34")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.7.2")
@@ -70,7 +68,7 @@ jmh {
         excludes.set(jmhExcludes)
     }
 
-    jmhVersion.set("1.33")
+    jmhVersion.set("1.34")
     warmupIterations.set(1)
     iterations.set(1)
     resultFormat.set("json")

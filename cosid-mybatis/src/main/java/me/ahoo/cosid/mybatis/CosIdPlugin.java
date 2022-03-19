@@ -33,7 +33,10 @@ import java.util.Map;
  */
 @Intercepts({@Signature(type = Executor.class, method = "update", args = {MappedStatement.class, Object.class})})
 public class CosIdPlugin implements Interceptor {
-
+    
+    /**
+     * TODO: add support customize list key.
+     */
     public static final String DEFAULT_LIST_KEY = "list";
     private final CosIdAccessorRegistry accessorRegistry;
 

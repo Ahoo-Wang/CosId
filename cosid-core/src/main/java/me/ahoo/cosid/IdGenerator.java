@@ -26,7 +26,7 @@ import javax.annotation.concurrent.ThreadSafe;
 public interface IdGenerator {
     
     /**
-     * ID converter, used to convert {@link long} type ID to {@link String}.
+     * ID converter, used to convert {@code long} type ID to {@link String}.
      *
      * @return ID converter
      */

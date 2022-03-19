@@ -13,36 +13,22 @@
 
 package me.ahoo.cosid.util;
 
-import javax.annotation.concurrent.ThreadSafe;
-import java.lang.management.ManagementFactory;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 /**
- * System tool class.
- *
  * @author ahoo wang
  */
-@ThreadSafe
-public final class Systems {
-    private Systems() {
+class ProcessIdTest {
+
+    @Test
+    void getCurrentProcessName() {
+        String currentProcessName = ProcessId.getCurrentProcessName();
+        Assertions.assertNotNull(currentProcessName);
     }
 
-    /**
-     * get current process name .
-     *
-     * @return process name
-     */
-    public static String getCurrentProcessName() {
-        return ManagementFactory.getRuntimeMXBean().getName();
-    }
-
-    /**
-     * get current process id .
-     *
-     * @return process id
-     */
-    public static int getCurrentProcessId() {
-        String processName = getCurrentProcessName();
-        String processIdStr = processName.split("@")[0];
-        return Integer.parseInt(processIdStr);
+    @Test
+    void getCurrentProcessId() {
+        Assertions.assertTrue(ProcessId.CURRENT.getProcessId() > 0);
     }
 }

@@ -22,6 +22,11 @@ public interface IdConverter {
     long asLong(String idString);
 }
 ```
+## IdConverter implementation class diagram
+
+<p align="center">
+  <img :src="$withBase('/assets/design/IdConverter-impl-class.png')" alt="IdGenerator implementation class diagram"/>
+</p>
 
 ## ToStringIdConverter
 > String 转换器，用于将 `long` 转换成String 或者将 String 转换成 long 类型

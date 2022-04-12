@@ -71,7 +71,6 @@ configure(libraryProjects) {
         excludeFilter.set(file("${rootDir}/config/spotbugs/exclude.xml"))
     }
     apply<JacocoPlugin>()
-
     apply<JavaLibraryPlugin>()
     configure<JavaPluginExtension> {
         toolchain {

@@ -4,14 +4,52 @@ jobs:
   codecov:
     name: Codecov
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      zookeeper:
+        image: zookeeper
+        ports:
+          - 2181:2181
     steps:
+      - name: Start Mysql
+        run: sudo /etc/init.d/mysql start
+
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Run Codecov
+      - name: Set up JDK 8
+        uses: actions/setup-java@v2
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Init CosId-Db
+        run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
+
+      - name: Check
+        run: gradle check
+
+      - name: Build Code Coverage Report
+        run: gradle codeCoverageReport
+
+      - name: Upload Code Coverage Report to Codecov
         uses: codecov/codecov-action@v2
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests # optional
           name: codecov-umbrella # optional
           fail_ci_if_error: true # optional (default = false)
           verbose: true # optional (default = false)
+#          directory: ./build/reports/jacoco/codeCoverageReport/
+          files: ./build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
+          path_to_write_report: ./coverage/codecov_report.txt

@@ -37,13 +37,13 @@ jobs:
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: Check
-        run: gradle check
+        run: gradle clean cosid-core:check
 
       - name: Build Code Coverage Report
         run: gradle codeCoverageReport
 
       - name: Upload Code Coverage Report to Codecov
-        uses: codecov/codecov-action@v3.0.0
+        uses: codecov/codecov-action@v2.0.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: unittests # optional

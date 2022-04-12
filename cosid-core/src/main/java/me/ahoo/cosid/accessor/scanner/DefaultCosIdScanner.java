@@ -69,9 +69,7 @@ public class DefaultCosIdScanner implements CosIdScanner {
                     cosIdAccessorRegistry.register(clazz, cosIdAccessor);
                 }
             }
-        } catch (IOException e) {
-            throw new CosIdException(e.getMessage(), e);
-        } catch (ClassNotFoundException e) {
+        } catch (IOException | ClassNotFoundException e) {
             throw new CosIdException(e.getMessage(), e);
         }
     }

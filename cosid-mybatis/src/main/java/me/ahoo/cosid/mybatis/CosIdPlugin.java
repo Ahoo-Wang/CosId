@@ -34,34 +34,37 @@ import java.util.Map;
 @Intercepts({@Signature(type = Executor.class, method = "update", args = {MappedStatement.class, Object.class})})
 public class CosIdPlugin implements Interceptor {
     
-    /**
-     * TODO: add support customize list key.
-     */
     public static final String DEFAULT_LIST_KEY = "list";
     private final CosIdAccessorRegistry accessorRegistry;
-
+    private final String listKey;
+    
     public CosIdPlugin(CosIdAccessorRegistry accessorRegistry) {
-        this.accessorRegistry = accessorRegistry;
+        this(accessorRegistry, DEFAULT_LIST_KEY);
     }
-
+    
+    public CosIdPlugin(CosIdAccessorRegistry accessorRegistry, String listKey) {
+        this.accessorRegistry = accessorRegistry;
+        this.listKey = listKey;
+    }
+    
     @SuppressWarnings("rawtypes")
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
-
+        
         Object[] args = invocation.getArgs();
         MappedStatement statement = (MappedStatement) args[0];
         if (!SqlCommandType.INSERT.equals(statement.getSqlCommandType())) {
             return invocation.proceed();
         }
-
+        
         Object parameter = args[1];
         if (!(parameter instanceof Map)) {
             accessorRegistry.ensureId(parameter);
             return invocation.proceed();
         }
-
-        Collection entityList = (Collection) ((Map) parameter).get(DEFAULT_LIST_KEY);
-
+        
+        Collection entityList = (Collection) ((Map) parameter).get(listKey);
+        
         for (Object entity : entityList) {
             accessorRegistry.ensureId(entity);
         }

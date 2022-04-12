@@ -37,7 +37,7 @@ jobs:
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: Check
-        run: gradle clean cosid-core:check
+        run: gradle check
 
       - name: Build Code Coverage Report
         run: gradle codeCoverageReport

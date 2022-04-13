@@ -92,7 +92,7 @@ public class PrefetchWorkerExecutorService {
             log.info("submit - jobId:[{}].", affinityJob.getJobId());
         }
         if (shutdown) {
-            throw new IllegalArgumentException("PrefetchWorkerExecutorService is shutdown.");
+            throw new IllegalStateException("PrefetchWorkerExecutorService is shutdown.");
         }
         if (affinityJob.getPrefetchWorker() != null) {
             return;

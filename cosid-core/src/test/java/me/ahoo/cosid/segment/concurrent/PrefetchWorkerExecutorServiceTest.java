@@ -3,10 +3,12 @@ package me.ahoo.cosid.segment.concurrent;
 import me.ahoo.cosid.util.MockIdGenerator;
 
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -22,6 +24,13 @@ class PrefetchWorkerExecutorServiceTest {
     @BeforeEach
     void setup() {
         executorService = new PrefetchWorkerExecutorService(PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD, 2);
+    }
+    
+    @AfterEach
+    void destroy() {
+        if (Objects.nonNull(executorService)) {
+            executorService.shutdown();
+        }
     }
     
     @Test
@@ -62,6 +71,40 @@ class PrefetchWorkerExecutorServiceTest {
         });
     }
     
+    @Test
+    void submitWhenShutdown() {
+        executorService.shutdown();
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+            executorService.submit(new AffinityJob() {
+                @Override
+                public String getJobId() {
+                    return MockIdGenerator.INSTANCE.generateAsString();
+                }
+                
+                @Override
+                public void setHungerTime(long hungerTime) {
+                
+                }
+                
+                @Override
+                public PrefetchWorker getPrefetchWorker() {
+                    return null;
+                }
+                
+                @Override
+                public void setPrefetchWorker(PrefetchWorker prefetchWorker) {
+                
+                }
+                
+                @Override
+                public void run() {
+                
+                }
+            });
+        });
+        
+    }
+    
     @SneakyThrows
     @Test
     void checkBoundThread() {
@@ -100,5 +143,5 @@ class PrefetchWorkerExecutorServiceTest {
         });
         Assertions.assertTrue(countDownLatch.await(15, TimeUnit.SECONDS));
     }
-
+    
 }

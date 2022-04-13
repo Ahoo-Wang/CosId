@@ -21,7 +21,7 @@ class PrefetchWorkerExecutorServiceTest {
     
     @BeforeEach
     void setup() {
-        executorService = new PrefetchWorkerExecutorService(PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD, 1);
+        executorService = new PrefetchWorkerExecutorService(PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD, 2);
     }
     
     @Test

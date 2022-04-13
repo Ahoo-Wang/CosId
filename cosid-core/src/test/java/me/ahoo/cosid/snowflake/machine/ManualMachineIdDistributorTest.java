@@ -33,6 +33,15 @@ class ManualMachineIdDistributorTest {
     
     @Test
     void revert() {
-        machineIdDistributor.revert(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        machineIdDistributor.distribute(namespace, InstanceId.NONE);
+        machineIdDistributor.revert(namespace, InstanceId.NONE);
+    }
+    
+    @Test
+    void revertNone() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            machineIdDistributor.revert(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
+        });
     }
 }

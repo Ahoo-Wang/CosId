@@ -25,6 +25,7 @@ import org.apache.ibatis.plugin.Signature;
 
 import java.util.Collection;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * CosId Plugin.
@@ -58,13 +59,19 @@ public class CosIdPlugin implements Interceptor {
         }
         
         Object parameter = args[1];
+        if (Objects.isNull(parameter)) {
+            return invocation.proceed();
+        }
+        
         if (!(parameter instanceof Map)) {
             accessorRegistry.ensureId(parameter);
             return invocation.proceed();
         }
         
         Collection entityList = (Collection) ((Map) parameter).get(listKey);
-        
+        if (Objects.isNull(entityList)) {
+            return invocation.proceed();
+        }
         for (Object entity : entityList) {
             accessorRegistry.ensureId(entity);
         }

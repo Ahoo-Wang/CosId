@@ -54,6 +54,17 @@ class CosIdPluginTest {
     
     @SneakyThrows
     @Test
+    void interceptWhenParmIsNull() {
+        Configuration configuration = new Configuration();
+        MappedStatement statement = new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), SqlCommandType.INSERT)
+            .build();
+        Entity entity = null;
+        Invocation invocation = new Invocation(new InvocationTarget(), InvocationTarget.INVOKE_METHOD, new Object[] {statement, entity});
+        cosIdPlugin.intercept(invocation);
+    }
+    
+    @SneakyThrows
+    @Test
     void interceptWhenSqlCommandTypeIsUnknown() {
         Configuration configuration = new Configuration();
         MappedStatement statement = new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), SqlCommandType.UNKNOWN)
@@ -63,7 +74,6 @@ class CosIdPluginTest {
         cosIdPlugin.intercept(invocation);
         Assertions.assertEquals(0, entity.getId());
     }
-    
     
     @SneakyThrows
     @Test
@@ -79,6 +89,19 @@ class CosIdPluginTest {
         for (Entity entity : list) {
             Assertions.assertNotEquals(0, entity.getId());
         }
+    }
+    
+    @SneakyThrows
+    @Test
+    void interceptWhenParamIsMapAndListIsNull() {
+        Configuration configuration = new Configuration();
+        MappedStatement statement = new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), SqlCommandType.INSERT)
+            .build();
+        Map<String, List<Entity>> param = new HashMap<>();
+        List<Entity> list = null;
+        param.put(CosIdPlugin.DEFAULT_LIST_KEY, list);
+        Invocation invocation = new Invocation(new InvocationTarget(), InvocationTarget.INVOKE_METHOD, new Object[] {statement, param});
+        cosIdPlugin.intercept(invocation);
     }
     
     @SneakyThrows

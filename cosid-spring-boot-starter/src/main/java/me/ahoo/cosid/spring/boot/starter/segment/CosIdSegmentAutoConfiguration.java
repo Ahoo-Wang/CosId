@@ -88,7 +88,8 @@ public class CosIdSegmentAutoConfiguration {
         if (Objects.isNull(idGeneratorProvider.getShare())) {
             idGeneratorProvider.setShare(shareIdGen);
         }
-        if (Objects.isNull(segmentIdProperties.getProvider())) {
+        
+        if (segmentIdProperties.getProvider().isEmpty()) {
             return shareIdGen;
         }
 

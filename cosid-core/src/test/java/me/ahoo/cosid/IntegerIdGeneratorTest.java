@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
  * @author ahoo wang
  */
 class IntegerIdGeneratorTest {
-
+    
     @Test
     void generate() {
         IntegerIdGenerator idGen = new IntegerIdGenerator(AtomicLongGenerator.INSTANCE);
@@ -32,14 +32,21 @@ class IntegerIdGeneratorTest {
         int idSecond = idGen.generate();
         Assertions.assertTrue(idSecond > idFirst);
     }
-
+    
     @Test
     void generateWhenOverflow() {
         SnowflakeId snowflakeId = new MillisecondSnowflakeId(1);
         IntegerIdGenerator idGen = new IntegerIdGenerator(snowflakeId);
-        Assertions.assertThrows(IntegerIdGenerator.IdOverflowException.class, idGen::generate);
+        Assertions.assertThrows(IntegerIdGenerator.IdOverflowException.class, () -> {
+            try {
+                idGen.generate();
+            } catch (IntegerIdGenerator.IdOverflowException overflowException) {
+                Assertions.assertTrue(overflowException.getId() > Integer.MAX_VALUE);
+                throw overflowException;
+            }
+        });
     }
-
+    
     @Test
     void generateAsString() {
         IntegerIdGenerator idGen = new IntegerIdGenerator(AtomicLongGenerator.INSTANCE);

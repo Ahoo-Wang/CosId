@@ -44,7 +44,7 @@ dependencies {
      */
 //    testImplementation("com.xiaoju.uemc.tinyid:tinyid-client:0.1.0-SNAPSHOT")
 
-    jmh("org.openjdk.jmh:jmh-core:1.34")
+    jmh("org.openjdk.jmh:jmh-core:1.35")
     jmh("org.openjdk.jmh:jmh-generator-annprocess:1.34")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")

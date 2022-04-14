@@ -17,12 +17,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import me.ahoo.cosid.sharding.ExactCollection;
+import me.ahoo.cosid.sharding.ModCycle;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 
 import com.google.common.collect.Range;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -144,5 +147,42 @@ class CosIdModShardingAlgorithmTest {
         RangeShardingValue<Long> shardingValue = new RangeShardingValue<>(LOGIC_NAME, COLUMN_NAME, rangeValue);
         Collection<String> actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
+    }
+
+    @Test
+    void getType() {
+        Assertions.assertTrue(shardingAlgorithm.getType().equals(CosIdModShardingAlgorithm.TYPE));
+    }
+
+    @Test
+    void getProps() {
+        Assertions.assertTrue(shardingAlgorithm.getProps().get(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY).equals(LOGIC_NAME_PREFIX));
+    }
+
+    @Test
+    void setProps() {
+        Properties properties = new Properties();
+        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, "@");
+        properties.setProperty(CosIdModShardingAlgorithm.MODULO_KEY, "5");
+        shardingAlgorithm.setProps(properties);
+        Assertions.assertTrue(shardingAlgorithm.getProps().get(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY).equals("@"));
+    }
+
+    @Test
+    void getSharding() {
+
+    }
+
+    @Test
+    void doSharding() {
+    }
+
+    @Test
+    void testDoSharding() {
+    }
+
+    @Test
+    void init() {
+        Assertions.assertTrue(shardingAlgorithm.getSharding() instanceof ModCycle);
     }
 }

@@ -12,7 +12,7 @@
 #
 
 name: Integration Test
-on: [ push ]
+on: [ push, pull_request ]
 jobs:
   cosid-core-test:
     name: CosId Core Test

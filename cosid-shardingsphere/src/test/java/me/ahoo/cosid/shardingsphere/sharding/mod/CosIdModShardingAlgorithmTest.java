@@ -199,11 +199,6 @@ class CosIdModShardingAlgorithmTest {
         return new PreciseShardingValue(LOGIC_TABLE_NAME, COLUMN_NAME, ThreadLocalRandom.current().nextInt(0, 4));
     }
 
-    private int getRandomInDays(int origin) {
-        return ThreadLocalRandom.current().nextInt(origin, 10);
-    }
-
-
     @Test
     void testDoSharding() {
         Range<Integer> rangeInt= Range.closed(0,4);

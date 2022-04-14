@@ -1,5 +1,5 @@
 name: Codecov
-on: [ push ]
+on: [ push, pull_request ]
 jobs:
   codecov:
     name: Codecov
@@ -14,10 +14,7 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-      zookeeper:
-        image: zookeeper
-        ports:
-          - 2181:2181
+
     steps:
       - name: Start Mysql
         run: sudo /etc/init.d/mysql start

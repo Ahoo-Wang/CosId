@@ -4,9 +4,11 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperProperties;
 
+import lombok.SneakyThrows;
+import org.apache.curator.test.TestingServer;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 /**
@@ -17,17 +19,21 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 class CosIdZookeeperSegmentAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
     
+    @SneakyThrows
     @Test
     void contextLoads() {
-        this.contextRunner
-            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
-            .withUserConfiguration(RedisAutoConfiguration.class, CosIdZookeeperAutoConfiguration.class)
-            .run(context -> {
-                assertThat(context)
-                    .hasSingleBean(CosIdSpringRedisSegmentAutoConfiguration.class)
-                    .hasSingleBean(SegmentIdProperties.class)
-                    .hasSingleBean(IdSegmentDistributorFactory.class)
-                ;
-            });
+        try (TestingServer testingServer = new TestingServer()) {
+            testingServer.start();
+            this.contextRunner
+                .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+                .withPropertyValues(CosIdZookeeperProperties.PREFIX + ".connect-string=" + testingServer.getConnectString())
+                .withUserConfiguration(CosIdZookeeperAutoConfiguration.class, CosIdZookeeperSegmentAutoConfiguration.class)
+                .run(context -> {
+                    assertThat(context)
+                        .hasSingleBean(CosIdZookeeperSegmentAutoConfiguration.class)
+                        .hasSingleBean(IdSegmentDistributorFactory.class)
+                    ;
+                });
+        }
     }
 }

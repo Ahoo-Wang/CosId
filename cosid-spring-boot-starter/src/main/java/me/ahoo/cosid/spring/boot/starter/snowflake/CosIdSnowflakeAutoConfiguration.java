@@ -149,7 +149,7 @@ public class CosIdSnowflakeAutoConfiguration {
         SnowflakeIdProperties.IdDefinition shareIdDefinition = snowflakeIdProperties.getShare();
         SnowflakeId shareIdGen = createIdGen(machineIdDistributor, instanceId, shareIdDefinition, clockBackwardsSynchronizer);
         idGeneratorProvider.setShare(shareIdGen);
-        if (Objects.isNull(snowflakeIdProperties.getProvider())) {
+        if (snowflakeIdProperties.getProvider().isEmpty()) {
             return shareIdGen;
         }
         snowflakeIdProperties.getProvider().forEach((name, idDefinition) -> {

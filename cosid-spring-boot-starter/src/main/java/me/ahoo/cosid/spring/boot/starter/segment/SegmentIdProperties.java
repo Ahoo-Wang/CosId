@@ -26,6 +26,7 @@ import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
+import javax.annotation.Nonnull;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -107,6 +108,7 @@ public class SegmentIdProperties {
         this.share = share;
     }
     
+    @Nonnull
     public Map<String, IdDefinition> getProvider() {
         return provider;
     }

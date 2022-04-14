@@ -103,11 +103,11 @@ jobs:
     name: CosId Zookeeper Test
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
-    services:
-      zookeeper:
-        image: zookeeper
-        ports:
-          - 2181:2181
+#    services:
+#      zookeeper:
+#        image: zookeeper
+#        ports:
+#          - 2181:2181
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -149,3 +149,25 @@ jobs:
 
       - name: Test CosId-Jdbc
         run: gradle cosid-jdbc:clean cosid-jdbc:check
+
+  cosid-spring-boot-starter-test:
+    name: CosId Spring Boot Starter Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start Mysql
+        run: sudo /etc/init.d/mysql start
+
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v3
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Spring-Boot-Starter
+        run: gradle cosid-spring-boot-starter:clean cosid-spring-boot-starter:check

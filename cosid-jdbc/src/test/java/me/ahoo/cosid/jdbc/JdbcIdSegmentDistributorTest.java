@@ -15,6 +15,7 @@ package me.ahoo.cosid.jdbc;
 
 import me.ahoo.cosid.jdbc.exception.SegmentNameMissingException;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.test.ConcurrentGenerateTest;
@@ -41,12 +42,13 @@ class JdbcIdSegmentDistributorTest {
     private JdbcIdSegmentInitializer mySqlIdSegmentInitializer;
     private IdSegmentDistributor mySqlIdSegmentDistributor;
     
-    
     @BeforeAll
     private void setup() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
         mySqlIdSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
-        mySqlIdSegmentDistributor = new JdbcIdSegmentDistributor("JdbcIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 100, dataSource);
+        JdbcIdSegmentDistributorFactory distributorFactory =
+            new JdbcIdSegmentDistributorFactory(dataSource, true, mySqlIdSegmentInitializer, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
+        mySqlIdSegmentDistributor = distributorFactory.create(new IdSegmentDistributorDefinition("JdbcIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 0, 100));
         mySqlIdSegmentInitializer.tryInitIdSegment(mySqlIdSegmentDistributor.getNamespacedName(), 0);
     }
     

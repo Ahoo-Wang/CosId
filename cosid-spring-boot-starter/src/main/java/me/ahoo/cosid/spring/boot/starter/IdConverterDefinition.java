@@ -23,7 +23,7 @@ import me.ahoo.cosid.converter.Radix62IdConverter;
  */
 public class IdConverterDefinition {
     
-    private Type type = Type.TO_STRING;
+    private Type type = Type.RADIX;
     private String prefix = PrefixIdConverter.EMPTY_PREFIX;
     private Radix radix = new Radix();
     
@@ -56,7 +56,7 @@ public class IdConverterDefinition {
      */
     public static class Radix {
         
-        private boolean padStart;
+        private boolean padStart = true;
         private int charSize = Radix62IdConverter.MAX_CHAR_SIZE;
         
         public boolean isPadStart() {

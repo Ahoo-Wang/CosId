@@ -13,6 +13,10 @@
 
 package me.ahoo.cosid.spring.redis;
 
+import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_OFFSET;
+import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_STEP;
+
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.util.MockIdGenerator;
 
 import org.junit.jupiter.api.Assertions;
@@ -36,7 +40,9 @@ class SpringRedisIdSegmentDistributorTest {
         LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
         lettuceConnectionFactory.afterPropertiesSet();
         stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
-        springRedisIdSegmentDistributor = new SpringRedisIdSegmentDistributor("SpringRedisIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), stringRedisTemplate);
+        SpringRedisIdSegmentDistributorFactory distributorFactory = new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate);
+        springRedisIdSegmentDistributor = (SpringRedisIdSegmentDistributor) distributorFactory.create(
+            new IdSegmentDistributorDefinition("SpringRedisIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), DEFAULT_OFFSET, DEFAULT_STEP));
     }
     
     @Test

@@ -123,7 +123,7 @@ class SnowflakeIdPropertiesTest {
         @Test
         public void getStable() {
             SnowflakeIdProperties.Machine machine = new SnowflakeIdProperties.Machine();
-            Assertions.assertFalse(machine.getStable());
+            Assertions.assertNull(machine.getStable());
         }
         
         @Test

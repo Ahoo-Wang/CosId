@@ -16,6 +16,11 @@ package me.ahoo.cosid.sharding;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
 /**
  * @author ahoo wang
  */
@@ -67,4 +72,41 @@ class ExactCollectionTest {
         Assertions.assertNotEquals(new ExactCollection<String>("0", "2"), exactCollection);
     }
 
+    @Test
+    void toArray() {
+        ExactCollection<String> exactCollection = new ExactCollection<>(10);
+        exactCollection.add(0, "0");
+        exactCollection.add(1, "1");
+        Assertions.assertEquals(exactCollection.toArray()[0], exactCollection.get(0));
+    }
+
+
+    @Test
+    void remove() {
+        ExactCollection<String> exactCollection = new ExactCollection<>(10);
+        exactCollection.add(0, "0");
+        exactCollection.add(1, "1");
+        exactCollection.remove("1");
+        Assertions.assertTrue(exactCollection.stream().filter(x -> Objects.nonNull(x)).collect(Collectors.toList()).size() == 1);
+    }
+
+    @Test
+    void addAll() {
+        ExactCollection<String> exactCollection = new ExactCollection<>(10);
+        exactCollection.add(0, "0");
+        exactCollection.add(1, "1");
+        Collection<String> addCollection = new ArrayList<>();
+        addCollection.add("3");
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
+            exactCollection.addAll(addCollection);
+        });
+    }
+
+    @Test
+    void removeAll() {
+    }
+
+    @Test
+    void retainAll() {
+    }
 }

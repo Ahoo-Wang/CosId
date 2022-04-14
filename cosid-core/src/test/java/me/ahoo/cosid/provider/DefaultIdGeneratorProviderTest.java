@@ -73,11 +73,10 @@ class DefaultIdGeneratorProviderTest {
 
     @Test
     void set() {
-
-    }
-
-    @Test
-    void getOrCreate() {
+        String idName = "test-get";
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.set(idName, AtomicLongGenerator.INSTANCE);
+        assertEquals(AtomicLongGenerator.INSTANCE, provider.get(idName).get());
     }
 
     @Test

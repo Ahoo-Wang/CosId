@@ -5,6 +5,9 @@ spring:
     name: ${service.name:cosid-example}
   redis:
     url: redis://localhost:6379
+  datasource:
+    url
+    driver-class-name: com.mysql.jdbc.Driver
   shardingsphere:
     #    mode:
     #      type: standalone

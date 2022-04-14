@@ -24,6 +24,7 @@ public class CosIdAutoConfigurationTest {
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(CosIdAutoConfiguration.class)
+                    .hasSingleBean(CosIdProperties.class)
                     .hasSingleBean(IdGeneratorProvider.class)
                     .hasSingleBean(FieldDefinitionParser.class)
                     .hasSingleBean(CosIdAccessorParser.class);

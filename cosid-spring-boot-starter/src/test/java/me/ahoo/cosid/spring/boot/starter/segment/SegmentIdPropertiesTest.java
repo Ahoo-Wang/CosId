@@ -5,6 +5,9 @@ import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * SegmentIdPropertiesTest .
  *
@@ -60,6 +63,10 @@ class SegmentIdPropertiesTest {
     
     @Test
     void setDistributor() {
+        SegmentIdProperties.Distributor distributor = new SegmentIdProperties.Distributor();
+        SegmentIdProperties properties = new SegmentIdProperties();
+        properties.setDistributor(distributor);
+        Assertions.assertEquals(distributor, properties.getDistributor());
     }
     
     @Test
@@ -70,6 +77,10 @@ class SegmentIdPropertiesTest {
     
     @Test
     void setChain() {
+        SegmentIdProperties.Chain chain = new SegmentIdProperties.Chain();
+        SegmentIdProperties properties = new SegmentIdProperties();
+        properties.setChain(chain);
+        Assertions.assertEquals(chain, properties.getChain());
     }
     
     @Test
@@ -80,16 +91,24 @@ class SegmentIdPropertiesTest {
     
     @Test
     void setShare() {
-    
+        SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
+        SegmentIdProperties properties = new SegmentIdProperties();
+        properties.setShare(idDefinition);
+        Assertions.assertEquals(idDefinition, properties.getShare());
     }
     
     @Test
     void getProvider() {
         SegmentIdProperties properties = new SegmentIdProperties();
         Assertions.assertNotNull(properties.getProvider());
+        Assertions.assertTrue(properties.getProvider().isEmpty());
     }
     
     @Test
     void setProvider() {
+        Map<String, SegmentIdProperties.IdDefinition> provider = new HashMap<>();
+        SegmentIdProperties properties = new SegmentIdProperties();
+        properties.setProvider(provider);
+        Assertions.assertEquals(provider, properties.getProvider());
     }
 }

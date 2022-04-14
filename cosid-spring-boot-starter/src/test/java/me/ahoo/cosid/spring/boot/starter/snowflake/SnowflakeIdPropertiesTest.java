@@ -3,6 +3,7 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 import me.ahoo.cosid.util.MockIdGenerator;
 
 import org.junit.jupiter.api.Assertions;
@@ -235,5 +236,116 @@ class SnowflakeIdPropertiesTest {
             Assertions.assertEquals(brokenThreshold, clockBackwards.getBrokenThreshold());
         }
     }
-
+    
+    static class IdDefinitionTest {
+        @Test
+        public void isClockSync() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            Assertions.assertTrue(idDefinition.isClockSync());
+        }
+        
+        @Test
+        public void setClockSync() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            idDefinition.setClockSync(false);
+            Assertions.assertFalse(idDefinition.isClockSync());
+        }
+        
+        @Test
+        public void isFriendly() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            Assertions.assertTrue(idDefinition.isFriendly());
+        }
+        
+        @Test
+        public void setFriendly() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            idDefinition.setFriendly(false);
+            Assertions.assertFalse(idDefinition.isFriendly());
+        }
+        
+        @Test
+        public void getTimestampUnit() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            Assertions.assertEquals(SnowflakeIdProperties.IdDefinition.TimestampUnit.MILLISECOND, idDefinition.getTimestampUnit());
+        }
+        
+        @Test
+        public void setTimestampUnit() {
+            SnowflakeIdProperties.IdDefinition.TimestampUnit timestampUnit = SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND;
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            idDefinition.setTimestampUnit(timestampUnit);
+            Assertions.assertEquals(timestampUnit, idDefinition.getTimestampUnit());
+        }
+        
+        @Test
+        public void getEpoch() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            Assertions.assertEquals(0, idDefinition.getEpoch());
+        }
+        
+        @Test
+        public void setEpoch() {
+            long epoch = System.currentTimeMillis();
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            idDefinition.setEpoch(epoch);
+            Assertions.assertEquals(epoch, idDefinition.getEpoch());
+        }
+        
+        @Test
+        public void getTimestampBit() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            Assertions.assertEquals(MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT, idDefinition.getTimestampBit());
+        }
+        
+        @Test
+        public void setTimestampBit() {
+            int timestampBit = 45;
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            idDefinition.setTimestampBit(timestampBit);
+            Assertions.assertEquals(timestampBit, idDefinition.getTimestampBit());
+        }
+        
+        @Test
+        public void getMachineBit() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            Assertions.assertNull(idDefinition.getMachineBit());
+        }
+        
+        @Test
+        public void setMachineBit() {
+            Integer machineBit = 2;
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            idDefinition.setMachineBit(machineBit);
+            Assertions.assertEquals(machineBit, idDefinition.getMachineBit());
+        }
+        
+        @Test
+        public void getSequenceBit() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            Assertions.assertEquals(MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT, idDefinition.getSequenceBit());
+        }
+        
+        @Test
+        public void setSequenceBit() {
+            int sequenceBit = 10;
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            idDefinition.setSequenceBit(sequenceBit);
+            Assertions.assertEquals(sequenceBit, idDefinition.getSequenceBit());
+        }
+        
+        @Test
+        public void getConverter() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            Assertions.assertNull(idDefinition.getConverter());
+        }
+        
+        @Test
+        public void setConverter() {
+            IdConverterDefinition converter = new IdConverterDefinition();
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            idDefinition.setConverter(converter);
+            Assertions.assertEquals(converter, idDefinition.getConverter());
+        }
+    }
 }

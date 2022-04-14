@@ -31,8 +31,12 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Stream;
 
 /**
@@ -45,7 +49,10 @@ class CosIdModShardingAlgorithmTest {
     public static final String COLUMN_NAME = "id";
     public static final String LOGIC_NAME_PREFIX = LOGIC_NAME + "_";
     public static final ExactCollection<String> ALL_NODES = new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3");
-
+    private static final ZoneOffset ZONE_OFFSET = ZoneOffset.of("+8");
+    private static final LocalDateTime LOWER_DATETIME = LocalDateTime.of(2021, 12, 8, 22, 0, 0);
+    private static final long LOWER_TS = LOWER_DATETIME.toInstant(ZONE_OFFSET).toEpochMilli();
+    private static final String LOGIC_TABLE_NAME = "t_ldt";
     private CosIdModShardingAlgorithm shardingAlgorithm;
 
     @BeforeEach
@@ -69,75 +76,75 @@ class CosIdModShardingAlgorithmTest {
 
     static Stream<Arguments> shardingRangeArgsProvider() {
         return Stream.of(
-            arguments(Range.all(), ALL_NODES),
-            /**
-             * Range.closed
-             */
-            arguments(Range.closed(1L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3")),
-            arguments(Range.closed(0L, 3L), ALL_NODES),
-            arguments(Range.closed(0L, 4L), ALL_NODES),
-            arguments(Range.closed(0L, 1L), new ExactCollection<>("t_mod_0", "t_mod_1")),
-            arguments(Range.closed(3L, 4L), new ExactCollection<>("t_mod_0", "t_mod_3")),
-            /**
-             * Range.closedOpen
-             */
-            arguments(Range.closedOpen(1L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2")),
-            arguments(Range.closedOpen(0L, 3L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
-            arguments(Range.closedOpen(0L, 4L), ALL_NODES),
-            arguments(Range.closedOpen(0L, 1L), new ExactCollection<>("t_mod_0")),
-            arguments(Range.closedOpen(3L, 4L), new ExactCollection<>("t_mod_3")),
-            /**
-             * Range.openClosed
-             */
-            arguments(Range.openClosed(1L, 3L), new ExactCollection<>("t_mod_2", "t_mod_3")),
-            arguments(Range.openClosed(0L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3")),
-            arguments(Range.openClosed(0L, 4L), ALL_NODES),
-            arguments(Range.openClosed(0L, 1L), new ExactCollection<>("t_mod_1")),
-            arguments(Range.openClosed(3L, 4L), new ExactCollection<>("t_mod_0")),
-            /**
-             * Range.open
-             */
-            arguments(Range.open(1L, 3L), new ExactCollection<>("t_mod_2")),
-            arguments(Range.open(0L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2")),
-            arguments(Range.open(0L, 4L), new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3")),
-            arguments(Range.open(0L, 1L), ExactCollection.empty()),
-            arguments(Range.open(3L, 4L), ExactCollection.empty()),
-            /**
-             * Range.greaterThan
-             */
-            arguments(Range.greaterThan(0L), ALL_NODES),
-            arguments(Range.greaterThan(1L), ALL_NODES),
-            arguments(Range.greaterThan(2L), ALL_NODES),
-            arguments(Range.greaterThan(3L), ALL_NODES),
-            arguments(Range.greaterThan(4L), ALL_NODES),
-            arguments(Range.greaterThan(5L), ALL_NODES),
-            /**
-             * Range.atLeast
-             */
-            arguments(Range.atLeast(0L), ALL_NODES),
-            arguments(Range.atLeast(1L), ALL_NODES),
-            arguments(Range.atLeast(2L), ALL_NODES),
-            arguments(Range.atLeast(3L), ALL_NODES),
-            arguments(Range.atLeast(4L), ALL_NODES),
-            arguments(Range.atLeast(5L), ALL_NODES),
-            /**
-             * Range.lessThan
-             */
-            arguments(Range.lessThan(0L), ExactCollection.empty()),
-            arguments(Range.lessThan(1L), new ExactCollection<>("t_mod_0")),
-            arguments(Range.lessThan(2L), new ExactCollection<>("t_mod_0", "t_mod_1")),
-            arguments(Range.lessThan(3L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
-            arguments(Range.lessThan(4L), ALL_NODES),
-            arguments(Range.lessThan(5L), ALL_NODES),
-            /**
-             * Range.atMost
-             */
-            arguments(Range.atMost(0L), new ExactCollection<>("t_mod_0")),
-            arguments(Range.atMost(1L), new ExactCollection<>("t_mod_0", "t_mod_1")),
-            arguments(Range.atMost(2L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
-            arguments(Range.atMost(3L), ALL_NODES),
-            arguments(Range.atMost(4L), ALL_NODES),
-            arguments(Range.atMost(5L), ALL_NODES)
+                arguments(Range.all(), ALL_NODES),
+                /**
+                 * Range.closed
+                 */
+                arguments(Range.closed(1L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3")),
+                arguments(Range.closed(0L, 3L), ALL_NODES),
+                arguments(Range.closed(0L, 4L), ALL_NODES),
+                arguments(Range.closed(0L, 1L), new ExactCollection<>("t_mod_0", "t_mod_1")),
+                arguments(Range.closed(3L, 4L), new ExactCollection<>("t_mod_0", "t_mod_3")),
+                /**
+                 * Range.closedOpen
+                 */
+                arguments(Range.closedOpen(1L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2")),
+                arguments(Range.closedOpen(0L, 3L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
+                arguments(Range.closedOpen(0L, 4L), ALL_NODES),
+                arguments(Range.closedOpen(0L, 1L), new ExactCollection<>("t_mod_0")),
+                arguments(Range.closedOpen(3L, 4L), new ExactCollection<>("t_mod_3")),
+                /**
+                 * Range.openClosed
+                 */
+                arguments(Range.openClosed(1L, 3L), new ExactCollection<>("t_mod_2", "t_mod_3")),
+                arguments(Range.openClosed(0L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3")),
+                arguments(Range.openClosed(0L, 4L), ALL_NODES),
+                arguments(Range.openClosed(0L, 1L), new ExactCollection<>("t_mod_1")),
+                arguments(Range.openClosed(3L, 4L), new ExactCollection<>("t_mod_0")),
+                /**
+                 * Range.open
+                 */
+                arguments(Range.open(1L, 3L), new ExactCollection<>("t_mod_2")),
+                arguments(Range.open(0L, 3L), new ExactCollection<>("t_mod_1", "t_mod_2")),
+                arguments(Range.open(0L, 4L), new ExactCollection<>("t_mod_1", "t_mod_2", "t_mod_3")),
+                arguments(Range.open(0L, 1L), ExactCollection.empty()),
+                arguments(Range.open(3L, 4L), ExactCollection.empty()),
+                /**
+                 * Range.greaterThan
+                 */
+                arguments(Range.greaterThan(0L), ALL_NODES),
+                arguments(Range.greaterThan(1L), ALL_NODES),
+                arguments(Range.greaterThan(2L), ALL_NODES),
+                arguments(Range.greaterThan(3L), ALL_NODES),
+                arguments(Range.greaterThan(4L), ALL_NODES),
+                arguments(Range.greaterThan(5L), ALL_NODES),
+                /**
+                 * Range.atLeast
+                 */
+                arguments(Range.atLeast(0L), ALL_NODES),
+                arguments(Range.atLeast(1L), ALL_NODES),
+                arguments(Range.atLeast(2L), ALL_NODES),
+                arguments(Range.atLeast(3L), ALL_NODES),
+                arguments(Range.atLeast(4L), ALL_NODES),
+                arguments(Range.atLeast(5L), ALL_NODES),
+                /**
+                 * Range.lessThan
+                 */
+                arguments(Range.lessThan(0L), ExactCollection.empty()),
+                arguments(Range.lessThan(1L), new ExactCollection<>("t_mod_0")),
+                arguments(Range.lessThan(2L), new ExactCollection<>("t_mod_0", "t_mod_1")),
+                arguments(Range.lessThan(3L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
+                arguments(Range.lessThan(4L), ALL_NODES),
+                arguments(Range.lessThan(5L), ALL_NODES),
+                /**
+                 * Range.atMost
+                 */
+                arguments(Range.atMost(0L), new ExactCollection<>("t_mod_0")),
+                arguments(Range.atMost(1L), new ExactCollection<>("t_mod_0", "t_mod_1")),
+                arguments(Range.atMost(2L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
+                arguments(Range.atMost(3L), ALL_NODES),
+                arguments(Range.atMost(4L), ALL_NODES),
+                arguments(Range.atMost(5L), ALL_NODES)
         );
     }
 
@@ -170,15 +177,39 @@ class CosIdModShardingAlgorithmTest {
 
     @Test
     void getSharding() {
-
+        Assertions.assertTrue(Objects.nonNull(shardingAlgorithm.getSharding()));
     }
 
     @Test
     void doSharding() {
+        String shardingStr=shardingAlgorithm.doSharding(shardingAlgorithm.getSharding().getEffectiveNodes(), getRandomInt());
+        Assertions.assertNotNull(shardingStr);
     }
+
+    private PreciseShardingValue<Comparable<?>> getRandomInt() {
+        PreciseShardingValue<Comparable<?>>[] randomPreciseTsValues = new PreciseShardingValue[100];
+        for (int i = 0; i < randomPreciseTsValues.length; i++) {
+            randomPreciseTsValues[i] = generateRandomInt();
+        }
+        int randomIdx = ThreadLocalRandom.current().nextInt(0, 100);
+        return randomPreciseTsValues[randomIdx];
+    }
+
+    private PreciseShardingValue<Comparable<?>> generateRandomInt() {
+        return new PreciseShardingValue(LOGIC_TABLE_NAME, COLUMN_NAME, ThreadLocalRandom.current().nextInt(0, 4));
+    }
+
+    private int getRandomInDays(int origin) {
+        return ThreadLocalRandom.current().nextInt(origin, 10);
+    }
+
 
     @Test
     void testDoSharding() {
+        Range<Integer> rangeInt= Range.closed(0,4);
+        RangeShardingValue<Integer> rsv=new RangeShardingValue<Integer>("table_","id",rangeInt);
+        Collection<Integer> shardingCollection=shardingAlgorithm.doSharding(shardingAlgorithm.getSharding().getEffectiveNodes(), rsv);
+        Assertions.assertNotNull(shardingCollection);
     }
 
     @Test

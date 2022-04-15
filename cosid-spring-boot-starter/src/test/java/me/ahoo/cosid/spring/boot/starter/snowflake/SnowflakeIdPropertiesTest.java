@@ -3,15 +3,19 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.snowflake.machine.LocalMachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
+import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
 import me.ahoo.cosid.util.MockIdGenerator;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
@@ -346,6 +350,128 @@ class SnowflakeIdPropertiesTest {
             SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
             idDefinition.setConverter(converter);
             Assertions.assertEquals(converter, idDefinition.getConverter());
+        }
+    }
+    
+    public static class StateStorageTest {
+        @Test
+        public void isEnabled() {
+            SnowflakeIdProperties.Machine.StateStorage stateStorage = new SnowflakeIdProperties.Machine.StateStorage();
+            Assertions.assertTrue(stateStorage.isEnabled());
+        }
+        
+        @Test
+        public void setEnabled() {
+            SnowflakeIdProperties.Machine.StateStorage stateStorage = new SnowflakeIdProperties.Machine.StateStorage();
+            stateStorage.setEnabled(false);
+            Assertions.assertFalse(stateStorage.isEnabled());
+        }
+        
+        @Test
+        public void getLocal() {
+            SnowflakeIdProperties.Machine.StateStorage stateStorage = new SnowflakeIdProperties.Machine.StateStorage();
+            Assertions.assertNotNull(stateStorage.getLocal());
+        }
+        
+        @Test
+        public void setLocal() {
+            SnowflakeIdProperties.Machine.StateStorage.Local local = new SnowflakeIdProperties.Machine.StateStorage.Local();
+            SnowflakeIdProperties.Machine.StateStorage stateStorage = new SnowflakeIdProperties.Machine.StateStorage();
+            stateStorage.setLocal(local);
+            Assertions.assertEquals(local, stateStorage.getLocal());
+        }
+    }
+    
+    public static class LocalTest {
+        @Test
+        public void getStateLocation() {
+            SnowflakeIdProperties.Machine.StateStorage.Local local = new SnowflakeIdProperties.Machine.StateStorage.Local();
+            Assertions.assertEquals(LocalMachineStateStorage.DEFAULT_STATE_LOCATION_PATH, local.getStateLocation());
+        }
+        
+        @Test
+        public void setStateLocation() {
+            String stateLocation = MockIdGenerator.INSTANCE.generateAsString();
+            SnowflakeIdProperties.Machine.StateStorage.Local local = new SnowflakeIdProperties.Machine.StateStorage.Local();
+            local.setStateLocation(stateLocation);
+            Assertions.assertEquals(stateLocation, local.getStateLocation());
+        }
+    }
+    
+    public static class DistributorTest {
+        @Test
+        public void getType() {
+            SnowflakeIdProperties.Machine.Distributor distributor = new SnowflakeIdProperties.Machine.Distributor();
+            Assertions.assertEquals(SnowflakeIdProperties.Machine.Distributor.Type.MANUAL, distributor.getType());
+        }
+        
+        @Test
+        public void setType() {
+            SnowflakeIdProperties.Machine.Distributor.Type type = SnowflakeIdProperties.Machine.Distributor.Type.JDBC;
+            SnowflakeIdProperties.Machine.Distributor distributor = new SnowflakeIdProperties.Machine.Distributor();
+            distributor.setType(type);
+            Assertions.assertEquals(type, distributor.getType());
+        }
+        
+        @Test
+        public void getManual() {
+            SnowflakeIdProperties.Machine.Distributor distributor = new SnowflakeIdProperties.Machine.Distributor();
+            Assertions.assertNull(distributor.getManual());
+        }
+        
+        @Test
+        public void setManual() {
+            SnowflakeIdProperties.Machine.Manual manual = new SnowflakeIdProperties.Machine.Manual();
+            SnowflakeIdProperties.Machine.Distributor distributor = new SnowflakeIdProperties.Machine.Distributor();
+            distributor.setManual(manual);
+            Assertions.assertEquals(manual, distributor.getManual());
+        }
+        
+        @Test
+        public void getRedis() {
+            SnowflakeIdProperties.Machine.Distributor distributor = new SnowflakeIdProperties.Machine.Distributor();
+            Assertions.assertNotNull(distributor.getRedis());
+        }
+        
+        @Test
+        public void setRedis() {
+            SnowflakeIdProperties.Machine.Redis redis = new SnowflakeIdProperties.Machine.Redis();
+            SnowflakeIdProperties.Machine.Distributor distributor = new SnowflakeIdProperties.Machine.Distributor();
+            distributor.setRedis(redis);
+            Assertions.assertEquals(redis, distributor.getRedis());
+        }
+    }
+    
+    public static class ManualTest {
+        
+        @Test
+        public void getMachineId() {
+            SnowflakeIdProperties.Machine.Manual manual = new SnowflakeIdProperties.Machine.Manual();
+            Assertions.assertNull(manual.getMachineId());
+        }
+        
+        @Test
+        public void setMachineId() {
+            Integer machineId = 1;
+            SnowflakeIdProperties.Machine.Manual manual = new SnowflakeIdProperties.Machine.Manual();
+            manual.setMachineId(machineId);
+            Assertions.assertEquals(machineId, manual.getMachineId());
+        }
+    }
+    
+    public static class RedisTest {
+        @Test
+        public void getTimeout() {
+            SnowflakeIdProperties.Machine.Redis redis = new SnowflakeIdProperties.Machine.Redis();
+            Assertions.assertEquals(Duration.ofSeconds(1), redis.getTimeout());
+        }
+        
+        @Test
+        public void setTimeout() {
+            Duration timeout = Duration.ofSeconds(2);
+            SnowflakeIdProperties.Machine.Redis redis = new SnowflakeIdProperties.Machine.Redis();
+            redis.setTimeout(timeout);
+            Assertions.assertEquals(timeout, redis.getTimeout());
         }
     }
 }

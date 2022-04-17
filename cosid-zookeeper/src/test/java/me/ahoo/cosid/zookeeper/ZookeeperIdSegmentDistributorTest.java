@@ -15,6 +15,7 @@ package me.ahoo.cosid.zookeeper;
 
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.test.ConcurrentGenerateTest;
 import me.ahoo.cosid.util.MockIdGenerator;
@@ -51,9 +52,9 @@ class ZookeeperIdSegmentDistributorTest {
         retryPolicy = new ExponentialBackoffRetry(1000, 3, 3000);
         curatorFramework = CuratorFrameworkFactory.newClient(testingServer.getConnectString(), retryPolicy);
         curatorFramework.start();
-        zookeeperIdSegmentDistributor =
-            new ZookeeperIdSegmentDistributor("ZookeeperIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), IdSegmentDistributor.DEFAULT_OFFSET, IdSegmentDistributor.DEFAULT_STEP,
-                curatorFramework, retryPolicy);
+        
+        ZookeeperIdSegmentDistributorFactory distributorFactory = new ZookeeperIdSegmentDistributorFactory(curatorFramework, retryPolicy);
+        zookeeperIdSegmentDistributor = (ZookeeperIdSegmentDistributor)distributorFactory.create(new IdSegmentDistributorDefinition("ZookeeperIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(),IdSegmentDistributor.DEFAULT_OFFSET, IdSegmentDistributor.DEFAULT_STEP));
     }
     
     @SneakyThrows

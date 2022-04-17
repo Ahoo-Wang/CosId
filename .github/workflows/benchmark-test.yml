@@ -22,7 +22,7 @@
 ## :::::::::::::::::::::
 
 name: Benchmark CosId Test
-on: [ push ]
+on: [ push, pull_request ]
 jobs:
   cosid-core-benchmark:
     name: CosId Core Benchmark

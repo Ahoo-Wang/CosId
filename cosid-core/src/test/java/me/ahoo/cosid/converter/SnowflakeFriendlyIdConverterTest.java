@@ -13,10 +13,16 @@
 
 package me.ahoo.cosid.converter;
 
+import me.ahoo.cosid.snowflake.SecondSnowflakeId;
+import me.ahoo.cosid.snowflake.SecondSnowflakeIdStateParser;
+import me.ahoo.cosid.snowflake.SnowflakeId;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 /**
  * @author rocher kong
@@ -42,6 +48,18 @@ class SnowflakeFriendlyIdConverterTest {
     void asLong2(String argId) {
         long actual = SnowflakeFriendlyIdConverter.INSTANCE.asLong(argId);
         Assertions.assertNotNull(actual);
+    }
+
+    @Test
+    void getParser(){
+        SnowflakeId idGen = new SecondSnowflakeId(LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond(),
+                SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
+                SecondSnowflakeId.DEFAULT_MACHINE_BIT,
+                SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023);
+        SecondSnowflakeIdStateParser snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
+        SnowflakeFriendlyIdConverter snowflakeFriendlyIdConverter=new SnowflakeFriendlyIdConverter(snowflakeIdStateParser);
+        Assertions.assertNotNull(snowflakeFriendlyIdConverter.getParser());
+
     }
 
 

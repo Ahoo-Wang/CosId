@@ -31,6 +31,9 @@ class MillisecondSnowflakeIdTest {
         SnowflakeIdState idState = snowflakeId.getParser().parse(idFirst);
         Assertions.assertNotNull(idState);
         Assertions.assertEquals(TEST_MACHINE_ID, idState.getMachineId());
+        Assertions.assertNotNull(idState.getSequence());
+        Assertions.assertNotNull(idState.toString());
+        Assertions.assertNotNull(idState.hashCode());
     }
     
     @Test
@@ -40,6 +43,15 @@ class MillisecondSnowflakeIdTest {
         Assertions.assertNotNull(snowflakeIdState);
         Assertions.assertEquals(TEST_MACHINE_ID, snowflakeIdState.getMachineId());
         Assertions.assertEquals(id, snowflakeIdState.getId());
+        SnowflakeIdState snowflakeIdState2 = snowflakeId.ofFriendlyId(snowflakeIdState.getFriendlyId());
+        Assertions.assertEquals(snowflakeIdState2, snowflakeIdState);
+    }
+
+    @Test
+    public void friendlyId2() {
+        SnowflakeIdState snowflakeIdState = snowflakeId.friendlyId();
+        Assertions.assertNotNull(snowflakeIdState);
+        Assertions.assertEquals(TEST_MACHINE_ID, snowflakeIdState.getMachineId());
         SnowflakeIdState snowflakeIdState2 = snowflakeId.ofFriendlyId(snowflakeIdState.getFriendlyId());
         Assertions.assertEquals(snowflakeIdState2, snowflakeIdState);
     }

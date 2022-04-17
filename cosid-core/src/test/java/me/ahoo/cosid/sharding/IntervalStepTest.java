@@ -15,7 +15,6 @@ package me.ahoo.cosid.sharding;
 
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
-import lombok.var;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -25,9 +24,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 
@@ -120,6 +116,54 @@ class IntervalStepTest {
         IntervalStep step = IntervalStep.of(ChronoUnit.HOURS);
         LocalDateTime actual = step.floorUnit(dateTime);
         Assertions.assertEquals(expected, actual);
+    }
+
+
+    static Stream<Arguments> floorUnitMinutesArgsProvider() {
+        return Stream.of(
+                arguments(LocalDateTime.of(2021, 12, 14, 22, 0, 0), LocalDateTime.of(2021, 12, 14, 22, 0)),
+                arguments(LocalDateTime.of(2022, 11, 14, 22, 0, 1), LocalDateTime.of(2022, 11, 14, 22, 0))
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("floorUnitMinutesArgsProvider")
+    void floorUnitMinutes(LocalDateTime dateTime, LocalDateTime expected) {
+        IntervalStep step = IntervalStep.of(ChronoUnit.MINUTES);
+        LocalDateTime actual = step.floorUnit(dateTime);
+        Assertions.assertEquals(expected, actual);
+    }
+
+
+    static Stream<Arguments> floorUnitSecondArgsProvider() {
+        return Stream.of(
+                arguments(LocalDateTime.of(2021, 12, 14, 22, 0, 0, 0), LocalDateTime.of(2021, 12, 14, 22, 0, 0)),
+                arguments(LocalDateTime.of(2022, 11, 14, 22, 0, 0, 1), LocalDateTime.of(2022, 11, 14, 22, 0, 0))
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("floorUnitSecondArgsProvider")
+    void floorUnitSeconds(LocalDateTime dateTime, LocalDateTime expected) {
+        IntervalStep step = IntervalStep.of(ChronoUnit.MINUTES);
+        LocalDateTime actual = step.floorUnit(dateTime);
+        Assertions.assertEquals(expected, actual);
+    }
+
+    static Stream<Arguments> floorUnitDefaultArgsProvider() {
+        return Stream.of(
+                arguments(LocalDateTime.of(2021, 12, 14, 22, 0, 0, 0), LocalDateTime.of(2021, 12, 14, 22, 0, 0)),
+                arguments(LocalDateTime.of(2022, 11, 14, 22, 0, 0, 1), LocalDateTime.of(2022, 11, 14, 22, 0, 0))
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("floorUnitDefaultArgsProvider")
+    void floorUnitDefaults(LocalDateTime dateTime, LocalDateTime expected) {
+        IntervalStep step = IntervalStep.of(ChronoUnit.NANOS);
+        Assertions.assertThrows(IllegalStateException.class, () -> {
+            step.floorUnit(dateTime);
+        });
     }
 
     static Stream<Arguments> offsetUnitArgsProvider() {

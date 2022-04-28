@@ -93,7 +93,7 @@ spring:
           table-inline:
             type: COSID_MOD
             props:
-`              mod: 2
+              mod: 2
               logic-name-prefix: t_table_
           order-db-inline:
             type: COSID_MOD

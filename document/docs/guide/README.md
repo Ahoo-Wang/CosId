@@ -1,8 +1,8 @@
+# 简介
+
 <p align="center" >
   <img width="200" :src="$withBase('/logo.png')" alt="CosId Logo"/>
 </p>
-
-# 简介
 
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 [![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/CosId.svg)](https://github.com/Ahoo-Wang/CosId/releases)

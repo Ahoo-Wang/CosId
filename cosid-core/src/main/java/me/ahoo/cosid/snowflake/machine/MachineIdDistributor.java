@@ -16,6 +16,8 @@ package me.ahoo.cosid.snowflake.machine;
 
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 
+import com.google.common.annotations.Beta;
+
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -25,37 +27,47 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public interface MachineIdDistributor {
-
+    
     default int maxMachineId(int machineBit) {
         return ~(-1 << machineBit);
     }
-
+    
     default int totalMachineIds(int machineBit) {
         return maxMachineId(machineBit) + 1;
     }
-
+    
     /**
      * distribute machine id.
      *
-     * @param namespace  namespace
+     * @param namespace namespace
      * @param machineBit machineBit
      * @param instanceId instanceId
      * @return machine id
      * @throws MachineIdOverflowException This exception is thrown when the machine number allocation exceeds the threshold
      */
     int distribute(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException;
-
+    
     default int distribute(String namespace, InstanceId instanceId) throws MachineIdOverflowException {
         return distribute(namespace, MillisecondSnowflakeId.DEFAULT_MACHINE_BIT, instanceId);
     }
-
+    
     /**
      * revert machine id.
      *
-     * @param namespace  namespace
+     * @param namespace namespace
      * @param instanceId instanceId
      * @throws MachineIdOverflowException This exception is thrown when the machine number allocation exceeds the threshold
      */
     void revert(String namespace, InstanceId instanceId) throws MachineIdOverflowException;
-
+    
+    /**
+     * Guard the machine id by heartbeat.
+     *
+     * @param namespace namespace
+     * @param instanceId instanceId
+     */
+    @Beta
+    default void guard(String namespace, InstanceId instanceId) {
+        throw new UnsupportedOperationException();
+    }
 }

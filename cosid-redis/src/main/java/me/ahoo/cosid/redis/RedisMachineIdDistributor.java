@@ -126,17 +126,22 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     private Mono<Void> revertScriptAsync(String scriptName, String namespace, InstanceId instanceId, MachineState machineState) {
         return RedisScripts.doEnsureScript(scriptName, redisCommands,
             (scriptSha) -> {
-                long lastStamp = machineState.getLastTimeStamp();
-                if (getBackwardsTimeStamp(lastStamp) < 0) {
-                    lastStamp = System.currentTimeMillis();
-                }
+                long lastStamp = getLastStamp(machineState);
                 String[] keys = {hashTag(namespace)};
                 String[] values = {instanceId.getInstanceId(), String.valueOf(lastStamp)};
                 return redisCommands.evalsha(scriptSha, ScriptOutputType.INTEGER, keys, values).then();
             }
         );
     }
-
+    
+    private long getLastStamp(MachineState machineState) {
+        long lastStamp = machineState.getLastTimeStamp();
+        if (getBackwardsTimeStamp(lastStamp) < 0) {
+            lastStamp = System.currentTimeMillis();
+        }
+        return lastStamp;
+    }
+    
     /**
      * redis hash tag for redis-cluster.
      *

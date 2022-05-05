@@ -9,20 +9,20 @@ local maxMachineId = tonumber(ARGV[2]);
 local instanceIdxKey = 'cosid' .. ':' .. namespace .. ':itc_idx';
 local machineIdAdderKey = 'cosid' .. ':' .. namespace .. ':adder';
 
-local function convertStateFromString(machineState)
+local function convertStingToState(machineState)
     local splitIdx = string.find(machineState, stateDelimiter, 1);
     local machineId = string.sub(machineState, 1, splitIdx - 1);
-    local stamp = string.sub(machineState, splitIdx + 1, -1);
-    return { machineId, stamp }
+    local timestamp = string.sub(machineState, splitIdx + 1, -1);
+    return { tonumber(machineId), tonumber(timestamp) }
 end
 
-local function convertToStringState(machineId, lastStamp)
-    return tostring(machineId) .. stateDelimiter .. tostring(lastStamp);
+local function convertStateToString(machineId, timestamp)
+    return tostring(machineId) .. stateDelimiter .. tostring(timestamp);
 end
 
 local machineState = redis.call('hget', instanceIdxKey, instanceId)
 if machineState then
-    local states = convertStateFromString(machineState);
+    local states = convertStingToState(machineState);
     return { tonumber(states[1]), tonumber(states[2]) };
 end
 
@@ -32,7 +32,7 @@ local machineId = 0;
 if #machineData > 0 then
     machineId = machineData[1];
     local lastStamp = machineData[2];
-    machineState = convertToStringState(machineId, lastStamp);
+    machineState = convertStateToString(machineId, lastStamp);
     redis.call('hset', instanceIdxKey, instanceId, machineState);
     redis.call('hdel', instanceRevertKey, machineId)
     return { tonumber(machineId), tonumber(lastStamp) };
@@ -49,7 +49,7 @@ if lastMachineId < maxMachineId then
     if lastMachineId ~= -1 then
         machineId = redis.call('incr', machineIdAdderKey);
     end
-    machineState = convertToStringState(machineId, 0);
+    machineState = convertStateToString(machineId, 0);
     redis.call('hset', instanceIdxKey, instanceId, machineState);
     return { machineId, 0 };
 end

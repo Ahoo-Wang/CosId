@@ -120,7 +120,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     }
 
     @Override
-    protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
+    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId) {
         if (log.isInfoEnabled()) {
             log.info("distribute0 - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
@@ -175,7 +175,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     }
 
     @Override
-    protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
+    protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
             log.info("revert0 - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }

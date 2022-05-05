@@ -61,7 +61,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
 
 
     @Override
-    protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
+    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId) {
 
         MachineState machineState = distributeAsync0(namespace, machineBit, instanceId).block(timeout);
         if (log.isInfoEnabled()) {
@@ -100,7 +100,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
 
 
     @Override
-    protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
+    protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
         revertAsync0(namespace, instanceId, machineState).block(timeout);
     }
 

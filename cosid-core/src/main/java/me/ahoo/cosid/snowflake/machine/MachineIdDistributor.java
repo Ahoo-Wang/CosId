@@ -66,8 +66,5 @@ public interface MachineIdDistributor {
      * @param namespace namespace
      * @param instanceId instanceId
      */
-    @Beta
-    default void guard(String namespace, InstanceId instanceId) {
-        throw new UnsupportedOperationException();
-    }
+    void guard(String namespace, InstanceId instanceId);
 }

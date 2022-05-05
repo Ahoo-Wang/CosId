@@ -5,17 +5,17 @@ local lastStamp = ARGV[2];
 local instanceIdxKey = 'cosid' .. ':' .. namespace .. ':itc_idx';
 local instanceRevertKey = 'cosid' .. ':' .. namespace .. ':revert';
 
-local function convertStateFromString(machineState)
+local function convertStingToState(machineState)
     local splitIdx = string.find(machineState, stateDelimiter, 1);
     local machineId = string.sub(machineState, 1, splitIdx - 1);
-    local stamp = string.sub(machineState, splitIdx + 1, -1);
-    return { machineId, stamp }
+    local timestamp = string.sub(machineState, splitIdx + 1, -1);
+    return { tonumber(machineId), tonumber(timestamp) }
 end
 
 local machineState = redis.call('hget', instanceIdxKey, instanceId)
 if machineState then
     redis.call('hdel', instanceIdxKey, instanceId);
-    local states = convertStateFromString(machineState);
+    local states = convertStingToState(machineState);
     local machineId = states[1];
     redis.call('hset', instanceRevertKey, machineId, lastStamp);
     return 1;

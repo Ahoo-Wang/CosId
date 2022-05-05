@@ -30,4 +30,6 @@ public interface MachineIdGuarder {
     void start();
     
     void stop();
+    
+    boolean isRunning();
 }

@@ -18,6 +18,7 @@ import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
 import me.ahoo.cosid.snowflake.machine.MachineState;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
@@ -41,12 +42,13 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Zookeeper MachineIdDistributor.
+ * TODO Adapt Guard Machine Id.
  *
  * @author ahoo wang
  */
 @Slf4j
 public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor {
-
+    
     /**
      * /cosid/{namespace}/__itc_idx/{instanceId} .
      * data:{@link MachineState#toStateString()}
@@ -57,16 +59,16 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
      * data:lastStamp
      */
     private static final String REVERT_PATH = "__revert";
-
+    
     private final CuratorFramework curatorFramework;
     private final RetryPolicy retryPolicy;
-
+    
     public ZookeeperMachineIdDistributor(CuratorFramework curatorFramework, RetryPolicy retryPolicy, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
         this.curatorFramework = curatorFramework;
         this.retryPolicy = retryPolicy;
     }
-
+    
     /**
      * /cosid/{namespace}/__counter .
      *
@@ -76,27 +78,27 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     private static String getCounterPath(String namespace) {
         return Strings.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, "__counter");
     }
-
+    
     private static String getCounterLockerPath(String namespace) {
         return Strings.lenientFormat("%s-locker", getCounterPath(namespace));
     }
-
+    
     private static String getInstanceIdxPath(String namespace) {
         return Strings.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, INSTANCE_IDX_PATH);
     }
-
+    
     private static String getInstancePath(String namespace, String instanceId) {
         return Strings.lenientFormat("%s/%s", getInstanceIdxPath(namespace), instanceId);
     }
-
+    
     private static String getRevertPath(String namespace) {
         return Strings.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, REVERT_PATH);
     }
-
+    
     private static String getRevertMachinePath(String namespace, int machineId) {
         return Strings.lenientFormat("%s/%s", getRevertPath(namespace), machineId);
     }
-
+    
     private int nextMachineId(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
         String counterPath = getCounterPath(namespace);
         String counterLockerPath = getCounterLockerPath(namespace);
@@ -105,33 +107,33 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
             .timeout(15, TimeUnit.SECONDS)
             .retryPolicy(retryPolicy)
             .build();
-
+        
         DistributedAtomicInteger distributedAtomicInteger = new DistributedAtomicInteger(curatorFramework, counterPath, retryPolicy, promotedToLock);
         AtomicValue<Integer> atomicValue = Exceptions.invokeUnchecked(distributedAtomicInteger::increment);
         if (!atomicValue.succeeded()) {
             throw new CosIdException(Strings.lenientFormat("nextMachineId - [%s][%s->%s] concurrency conflict!", counterPath, atomicValue.preValue(), atomicValue.postValue()));
         }
         int machineId = atomicValue.postValue() - 1;
-
+        
         if (machineId > maxMachineId(machineBit)) {
             throw new MachineIdOverflowException(machineBit, instanceId);
         }
         return machineId;
     }
-
+    
     @Override
     protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId) {
         if (log.isInfoEnabled()) {
-            log.info("distribute0 - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
+            log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
-
+        
         MachineState machineState = Exceptions.invokeUnchecked(() -> tryDistribute(namespace, machineBit, instanceId));
         if (log.isInfoEnabled()) {
-            log.info("distribute0 - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
+            log.info("distributeRemote - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
         }
         return machineState;
     }
-
+    
     private MachineState tryDistribute(String namespace, int machineBit, InstanceId instanceId) throws Exception {
         String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
         String revertPath = getRevertPath(namespace);
@@ -160,7 +162,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
                     curatorFramework.delete().forPath(revertMachinePath);
                 } catch (KeeperException.NoNodeException noNodeException) {
                     if (log.isDebugEnabled()) {
-                        log.debug("distribute0 - delete revertMachinePath:[{}] failed!", revertMachinePath);
+                        log.debug("tryDistribute - delete revertMachinePath:[{}] failed!", revertMachinePath);
                     }
                     continue;
                 }
@@ -173,11 +175,11 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         setMachineState(instancePath, machineState);
         return machineState;
     }
-
+    
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
-            log.info("revert0 - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+            log.info("revertRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         MachineState revertMachineState = machineState;
         if (MachineState.NOT_FOUND.equals(revertMachineState)) {
@@ -186,12 +188,12 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
             if (Objects.isNull(instanceStat)) {
                 return;
             }
-
+            
             byte[] stateBuf = Exceptions.invokeUnchecked(() -> curatorFramework.getData().forPath(instancePath));
             MachineState remoteMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
             revertMachineState = MachineState.of(remoteMachineState.getMachineId(), machineState.getLastTimeStamp());
         }
-
+        
         if (instanceId.isStable()) {
             revertStable(namespace, instanceId.getInstanceId(), revertMachineState);
             return;
@@ -201,7 +203,19 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
-    
+        if (log.isInfoEnabled()) {
+            log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+        }
+        String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
+        try {
+            curatorFramework.setData().forPath(instancePath, machineState.toStateString().getBytes(StandardCharsets.UTF_8));
+        } catch (KeeperException.NoNodeException noNodeException) {
+            throw new MachineIdLostException(namespace, instanceId, machineState);
+        } catch (RuntimeException | Error runtimeException) {
+            throw runtimeException;
+        } catch (Exception exception) {
+            throw new CosIdException(exception.getMessage(), exception);
+        }
     }
     
     private void revertTemporary(String namespace, String instanceId, MachineState machineState) {
@@ -210,14 +224,14 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         Exceptions.invokeUnchecked(() -> curatorFramework.delete().forPath(instancePath));
         setMachineState(revertMachinePath, machineState);
     }
-
+    
     private void revertStable(String namespace, String instanceId, MachineState machineState) {
         String instancePath = getInstancePath(namespace, instanceId);
         setMachineState(instancePath, machineState);
     }
-
+    
     private void setMachineState(String path, MachineState machineState) {
         Exceptions.invokeUnchecked(() -> curatorFramework.create().orSetData().creatingParentsIfNeeded().forPath(path, machineState.toStateString().getBytes(StandardCharsets.UTF_8)));
     }
-
+    
 }

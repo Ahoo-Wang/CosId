@@ -40,7 +40,7 @@ class ManualMachineIdDistributorTest {
     
     @Test
     void revertNone() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+        Assertions.assertThrows(IllegalStateException.class, () -> {
             machineIdDistributor.revert(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
         });
     }

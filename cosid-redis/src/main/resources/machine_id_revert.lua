@@ -1,7 +1,7 @@
 local stateDelimiter = "|";
 local namespace = KEYS[1];
 local instanceId = ARGV[1];
-local lastStamp = ARGV[2];
+local currentStamp = ARGV[2];
 local instanceIdxKey = 'cosid' .. ':' .. namespace .. ':itc_idx';
 local instanceRevertKey = 'cosid' .. ':' .. namespace .. ':revert';
 
@@ -17,7 +17,7 @@ if machineState then
     redis.call('hdel', instanceIdxKey, instanceId);
     local states = convertStingToState(machineState);
     local machineId = states[1];
-    redis.call('hset', instanceRevertKey, machineId, lastStamp);
+    redis.call('hset', instanceRevertKey, machineId, currentStamp);
     return 1;
 end
 

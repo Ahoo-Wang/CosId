@@ -64,5 +64,10 @@ public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributo
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
 
     }
-
+    
+    @Override
+    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+    
+    }
+    
 }

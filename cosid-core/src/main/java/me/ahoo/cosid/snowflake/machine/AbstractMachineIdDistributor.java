@@ -21,6 +21,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
+
 /**
  * Abstract MachineIdDistributor.
  *
@@ -29,12 +31,39 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class AbstractMachineIdDistributor implements MachineIdDistributor {
     public static final int NOT_FOUND_LAST_STAMP = -1;
+    public static final Duration FOREVER_SAFE_GUARD_DURATION = Duration.ofMillis(Long.MAX_VALUE);
     private final MachineStateStorage machineStateStorage;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
+    private final Duration safeGuardDuration;
     
     public AbstractMachineIdDistributor(MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        this(machineStateStorage, clockBackwardsSynchronizer, FOREVER_SAFE_GUARD_DURATION);
+    }
+    
+    public AbstractMachineIdDistributor(MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer, Duration safeGuardDuration) {
         this.machineStateStorage = machineStateStorage;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
+        this.safeGuardDuration = safeGuardDuration;
+    }
+    
+    public Duration getSafeGuardDuration() {
+        return safeGuardDuration;
+    }
+    
+    public long getSafeGuardAt(boolean stable) {
+        if (stable) {
+            return 0L;
+        }
+        
+        if (FOREVER_SAFE_GUARD_DURATION.equals(safeGuardDuration)) {
+            return 0L;
+        }
+        
+        long safeGuardAt = System.currentTimeMillis() - safeGuardDuration.toMillis();
+        if (safeGuardAt < 0) {
+            return 0L;
+        }
+        return safeGuardAt;
     }
     
     /**
@@ -110,7 +139,6 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
         return lastLocalState;
     }
     
-    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
-    }
+    protected abstract void guardRemote(String namespace, InstanceId instanceId, MachineState machineState);
     
 }

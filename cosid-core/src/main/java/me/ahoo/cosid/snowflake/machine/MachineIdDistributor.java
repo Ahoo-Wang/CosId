@@ -16,8 +16,6 @@ package me.ahoo.cosid.snowflake.machine;
 
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 
-import com.google.common.annotations.Beta;
-
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -66,5 +64,5 @@ public interface MachineIdDistributor {
      * @param namespace namespace
      * @param instanceId instanceId
      */
-    void guard(String namespace, InstanceId instanceId);
+    void guard(String namespace, InstanceId instanceId) throws MachineIdLostException;
 }

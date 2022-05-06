@@ -2,7 +2,6 @@ local stateDelimiter = "|";
 local namespace = KEYS[1];
 local instanceId = ARGV[1];
 local currentStamp = ARGV[2];
-
 local instanceIdxKey = 'cosid' .. ':' .. namespace .. ':itc_idx';
 
 local function convertStingToState(machineState)
@@ -25,7 +24,7 @@ local machineState = redis.call('hget', instanceIdxKey, instanceId)
 if machineState then
     local states = convertStingToState(machineState)
     local machineId = states[1];
-    setState(machineId,currentStamp);
+    setState(machineId, currentStamp);
     return 1;
 end
 

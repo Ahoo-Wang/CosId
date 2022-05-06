@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.redis;
 
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.util.MockIdGenerator;
@@ -114,4 +115,22 @@ class SpringRedisMachineIdDistributorTest {
         Assertions.assertEquals(0, machineId);
     }
     
+    @Test
+    void guard() {
+        int machineBit = 1;
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        InstanceId instanceId = InstanceId.of("127.0.0.1", 80, false);
+        int machineId = redisMachineIdDistributor.distribute(namespace, machineBit, instanceId);
+        Assertions.assertEquals(0, machineId);
+        redisMachineIdDistributor.guard(namespace, instanceId);
+    }
+    
+    @Test
+    void guardWhenMachineIdLost() {
+        int machineBit = 1;
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        InstanceId instanceId = InstanceId.of("127.0.0.1", 80, false);
+        MachineStateStorage.LOCAL.set(namespace, machineBit, instanceId);
+        Assertions.assertThrows(MachineIdLostException.class,()-> redisMachineIdDistributor.guard(namespace, instanceId));
+    }
 }

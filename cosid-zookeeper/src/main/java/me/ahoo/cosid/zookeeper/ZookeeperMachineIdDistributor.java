@@ -198,7 +198,12 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         }
         revertTemporary(namespace, instanceId.getInstanceId(), revertMachineState);
     }
-
+    
+    @Override
+    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+    
+    }
+    
     private void revertTemporary(String namespace, String instanceId, MachineState machineState) {
         String revertMachinePath = getRevertMachinePath(namespace, machineState.getMachineId());
         String instancePath = getInstancePath(namespace, instanceId);

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.jdbc;
 
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
@@ -34,21 +35,21 @@ class JdbcMachineIdDistributorTest {
     DataSource dataSource;
     JdbcMachineIdInitializer jdbcMachineIdInitializer;
     JdbcMachineIdDistributor jdbcMachineIdDistributor;
-
-
+    
+    
     @BeforeEach
     void init() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
         jdbcMachineIdInitializer = new JdbcMachineIdInitializer(dataSource);
         jdbcMachineIdDistributor = new JdbcMachineIdDistributor(dataSource, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
-
+        
     }
-
+    
     @Test
     void tryInitCosIdMachineTable() {
         jdbcMachineIdInitializer.tryInitCosIdMachineTable();
     }
-
+    
     @Test
     void distribute() {
         int machineBit = 1;
@@ -58,11 +59,11 @@ class JdbcMachineIdDistributorTest {
         Assertions.assertEquals(0, machineId);
         machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId);
         Assertions.assertEquals(0, machineId);
-
+        
         InstanceId instanceId1 = InstanceId.of("127.0.0.1", 82, false);
         machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId1);
         Assertions.assertEquals(1, machineId);
-
+        
         Assertions.assertThrows(MachineIdOverflowException.class, () -> {
             InstanceId instanceId2 = InstanceId.of("127.0.0.1", 83, false);
             jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId2);
@@ -72,7 +73,7 @@ class JdbcMachineIdDistributorTest {
         int machineId3 = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId3);
         Assertions.assertEquals(0, machineId3);
     }
-
+    
     @Test
     void distributeWhenStable() {
         int machineBit = 1;
@@ -82,46 +83,64 @@ class JdbcMachineIdDistributorTest {
         Assertions.assertEquals(0, machineId);
         machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId);
         Assertions.assertEquals(0, machineId);
-
+        
         InstanceId instanceId1 = InstanceId.of("127.0.0.1", 82, true);
         machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId1);
         Assertions.assertEquals(1, machineId);
-
+        
         Assertions.assertThrows(MachineIdOverflowException.class, () -> {
             InstanceId instanceId2 = InstanceId.of("127.0.0.1", 83, true);
             jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId2);
         });
-
+        
         jdbcMachineIdDistributor.revert(namespace, instanceId);
-
+        
         Assertions.assertThrows(MachineIdOverflowException.class, () -> {
             InstanceId instanceId3 = InstanceId.of("127.0.0.1", 84, true);
             jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId3);
         });
-
+        
         machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId);
         Assertions.assertEquals(0, machineId);
     }
-
+    
     @Test
     void distributeConcurrent() {
         int machineBit = 5;
         int totalMachine = ~(-1 << machineBit) + 1;
         CompletableFuture<Integer>[] results = new CompletableFuture[totalMachine];
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
-
+        
         for (int i = 0; i < totalMachine; i++) {
             results[i] = CompletableFuture.supplyAsync(() -> {
                 InstanceId instanceId = InstanceId.of(MockIdGenerator.INSTANCE.generateAsString(), false);
                 return jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId);
             });
         }
-
+        
         CompletableFuture.allOf(results).join();
-
+        
         Integer[] machineIds = Arrays.stream(results).map(CompletableFuture::join).sorted().toArray(Integer[]::new);
         for (int i = 0; i < machineIds.length; i++) {
             Assertions.assertEquals(i, machineIds[i]);
         }
+    }
+    
+    @Test
+    void guard() {
+        int machineBit = 1;
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        InstanceId instanceId = InstanceId.of("127.0.0.1", 80, true);
+        int machineId = jdbcMachineIdDistributor.distribute(namespace, machineBit, instanceId);
+        jdbcMachineIdDistributor.guard(namespace, instanceId);
+    }
+    
+    @Test
+    void guardWhenMachineIdLost() {
+        int machineBit = 1;
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        InstanceId instanceId = InstanceId.of("127.0.0.1", 80, true);
+        MachineStateStorage.LOCAL.set(namespace, machineBit, instanceId);
+        Assertions.assertThrows(MachineIdLostException.class, () -> jdbcMachineIdDistributor.guard(namespace, instanceId));
     }
 }

@@ -16,6 +16,7 @@ package me.ahoo.cosid.jdbc;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
 import me.ahoo.cosid.snowflake.machine.MachineState;
@@ -38,51 +39,60 @@ import java.sql.SQLIntegrityConstraintViolationException;
  */
 @Slf4j
 public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
-
+    
     private final DataSource dataSource;
-
+    
     private static final String GET_MACHINE_STATE =
-        "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id=?";
-
+        "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id=? and last_timestamp>safe_guard_at";
+    
     private static final String GET_REVERT_MACHINE_STATE =
-        "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id =''";
-
+        "select machine_id, last_timestamp from cosid_machine where namespace=? and last_timestamp<=safe_guard_at";
+    
     private static final String DISTRIBUTE_REVERT_MACHINE_STATE =
-        "update cosid_machine set instance_id=?,distribute_time=? where name=? and instance_id=''";
-
+        "update cosid_machine "
+            + "set instance_id=?,last_timestamp=?,safe_guard_at=?,distribute_time=? "
+            + "where name=? and last_timestamp<=safe_guard_at";
+    
     private static final String NEXT_MACHINE_ID =
         "select max(machine_id)+1 as next_machine_id from cosid_machine where namespace=?";
-
+    
     private static final String DISTRIBUTE_MACHINE =
         "insert into cosid_machine "
-            + "(name, namespace, machine_id, last_timestamp, instance_id, distribute_time, revert_time) "
+            + "(name, namespace, machine_id, last_timestamp, instance_id, safe_guard_at,distribute_time, revert_time) "
             + "values "
-            + "(?,?,?,?,?,?,0);";
-
+            + "(?,?,?,?,?,?,?,0);";
+    
     private static final String REVERT_MACHINE_STATE =
         "update cosid_machine "
-            + "set instance_id=?,last_timestamp=?,revert_time=? "
+            + "set last_timestamp=?,safe_guard_at=?,revert_time=? "
             + "where namespace=? and instance_id=?";
-
+    
+    private static final String GUARD_MACHINE_STATE =
+        "update cosid_machine "
+            + "set last_timestamp=?,safe_guard_at=? "
+            + "where namespace=? and instance_id=? and machine_id=?";
+    
     public JdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
         this.dataSource = dataSource;
     }
-
+    
     private String getNamespacedMachineId(String namespace, int machineId) {
         return namespace + "." + Strings.padStart(String.valueOf(machineId), 4, '0');
     }
-
+    
     private int distributeRevertMachineState(Connection connection, String namespace, int machineId, InstanceId instanceId) throws SQLException {
         try (PreparedStatement revertMachineStatement = connection.prepareStatement(DISTRIBUTE_REVERT_MACHINE_STATE)) {
             revertMachineStatement.setString(1, instanceId.getInstanceId());
             revertMachineStatement.setLong(2, System.currentTimeMillis());
-            revertMachineStatement.setString(3, getNamespacedMachineId(namespace, machineId));
+            revertMachineStatement.setLong(3, getSafeGuardAt(instanceId.isStable()));
+            revertMachineStatement.setLong(4, System.currentTimeMillis());
+            revertMachineStatement.setString(5, getNamespacedMachineId(namespace, machineId));
             int affected = revertMachineStatement.executeUpdate();
             return affected;
         }
     }
-
+    
     private int nextMachineId(Connection connection, String namespace) throws SQLException {
         try (PreparedStatement nextMachineStatement = connection.prepareStatement(NEXT_MACHINE_ID)) {
             nextMachineStatement.setString(1, namespace);
@@ -94,24 +104,23 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             }
         }
     }
-
+    
     @Override
     protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId) {
         if (log.isInfoEnabled()) {
-            log.info("distribute0 - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
+            log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
         try (Connection connection = dataSource.getConnection()) {
-
-            MachineState machineState = getMachineStateBySelf(namespace, instanceId, connection);
+            MachineState machineState = distributeBySelf(namespace, instanceId, connection);
             if (machineState != null) {
                 return machineState;
             }
-
-            machineState = getMachineStateByRevert(namespace, instanceId, connection);
+            
+            machineState = distributeByRevert(namespace, instanceId, connection);
             if (machineState != null) {
                 return machineState;
             }
-
+            
             return distributeMachine(namespace, machineBit, instanceId, connection);
         } catch (SQLException sqlException) {
             if (log.isErrorEnabled()) {
@@ -120,7 +129,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             throw new CosIdException(sqlException.getMessage(), sqlException);
         }
     }
-
+    
     private MachineState distributeMachine(String namespace, int machineBit, InstanceId instanceId, Connection connection) throws SQLException {
         int nextMachineId = nextMachineId(connection, namespace);
         if (nextMachineId > maxMachineId(machineBit)) {
@@ -133,7 +142,8 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             nextMachineStatement.setInt(3, nextMachineId);
             nextMachineStatement.setLong(4, nextMachineState.getLastTimeStamp());
             nextMachineStatement.setString(5, instanceId.getInstanceId());
-            nextMachineStatement.setLong(6, System.currentTimeMillis());
+            nextMachineStatement.setLong(6, getSafeGuardAt(instanceId.isStable()));
+            nextMachineStatement.setLong(7, System.currentTimeMillis());
             try {
                 nextMachineStatement.executeUpdate();
                 return nextMachineState;
@@ -145,8 +155,8 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             }
         }
     }
-
-    private MachineState getMachineStateByRevert(String namespace, InstanceId instanceId, Connection connection) throws SQLException {
+    
+    private MachineState distributeByRevert(String namespace, InstanceId instanceId, Connection connection) throws SQLException {
         try (PreparedStatement getRevertMachineStatement = connection.prepareStatement(GET_REVERT_MACHINE_STATE)) {
             getRevertMachineStatement.setString(1, namespace);
             try (ResultSet resultSet = getRevertMachineStatement.executeQuery()) {
@@ -161,37 +171,68 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         }
         return null;
     }
-
-    private MachineState getMachineStateBySelf(String namespace, InstanceId instanceId, Connection connection) throws SQLException {
+    
+    private MachineState distributeBySelf(String namespace, InstanceId instanceId, Connection connection) throws SQLException {
         try (PreparedStatement getMachineStatement = connection.prepareStatement(GET_MACHINE_STATE)) {
             getMachineStatement.setString(1, namespace);
             getMachineStatement.setString(2, instanceId.getInstanceId());
             try (ResultSet resultSet = getMachineStatement.executeQuery()) {
                 if (resultSet.next()) {
                     int machineId = resultSet.getInt(1);
-                    long lastTimeStamp = resultSet.getLong(2);
-                    return MachineState.of(machineId, lastTimeStamp);
+                    MachineState machineState = MachineState.of(machineId, System.currentTimeMillis());
+                    guardRemote(namespace, instanceId, machineState);
+                    return machineState;
                 }
             }
         }
         return null;
     }
-
+    
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
-            log.info("revert0 - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+            log.info("revertRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         try (Connection connection = dataSource.getConnection()) {
             try (PreparedStatement revertMachineStatement = connection.prepareStatement(REVERT_MACHINE_STATE)) {
-                revertMachineStatement.setString(1, instanceId.isStable() ? instanceId.getInstanceId() : "");
-                revertMachineStatement.setLong(2, machineState.getLastTimeStamp());
+                revertMachineStatement.setLong(1, machineState.getLastTimeStamp());
+                revertMachineStatement.setLong(2, instanceId.isStable() ? 0 : System.currentTimeMillis());
                 revertMachineStatement.setLong(3, System.currentTimeMillis());
                 revertMachineStatement.setString(4, namespace);
                 revertMachineStatement.setString(5, instanceId.getInstanceId());
                 int affected = revertMachineStatement.executeUpdate();
                 if (log.isInfoEnabled()) {
-                    log.info("revert0 - affected:[{}]", affected);
+                    log.info("revertRemote - affected:[{}]", affected);
+                }
+            }
+        } catch (SQLException sqlException) {
+            if (log.isErrorEnabled()) {
+                log.error(sqlException.getMessage(), sqlException);
+            }
+            throw new CosIdException(sqlException.getMessage(), sqlException);
+        }
+    }
+    
+    @Override
+    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+        if (log.isInfoEnabled()) {
+            log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+        }
+        
+        try (Connection connection = dataSource.getConnection()) {
+            try (PreparedStatement guardMachineStatement = connection.prepareStatement(GUARD_MACHINE_STATE)) {
+                guardMachineStatement.setLong(1, machineState.getLastTimeStamp());
+                guardMachineStatement.setLong(2, getSafeGuardAt(instanceId.isStable()));
+                guardMachineStatement.setString(3, namespace);
+                guardMachineStatement.setString(4, instanceId.getInstanceId());
+                guardMachineStatement.setInt(5, machineState.getMachineId());
+                int affected = guardMachineStatement.executeUpdate();
+                if (log.isInfoEnabled()) {
+                    log.info("guardRemote - affected:[{}]", affected);
+                }
+                
+                if (0 == affected) {
+                    throw new MachineIdLostException(namespace, instanceId, machineState);
                 }
             }
         } catch (SQLException sqlException) {

@@ -162,8 +162,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
         return getStateFilesOf(namespace).length;
     }
-
-
+    
     @Override
     public boolean exists(String namespace, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");

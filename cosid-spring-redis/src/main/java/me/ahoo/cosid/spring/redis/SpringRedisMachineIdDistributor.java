@@ -36,6 +36,8 @@ import java.util.List;
 /**
  * Spring Redis MachineIdDistributor.
  *
+ * <p><img src="doc-files/RedisMachineIdDistributor.png" alt="RedisMachineIdDistributor"></p>
+ *
  * @author ahoo wang
  */
 @Slf4j

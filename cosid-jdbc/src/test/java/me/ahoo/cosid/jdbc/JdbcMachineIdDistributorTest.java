@@ -42,7 +42,6 @@ class JdbcMachineIdDistributorTest {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
         jdbcMachineIdInitializer = new JdbcMachineIdInitializer(dataSource);
         jdbcMachineIdDistributor = new JdbcMachineIdDistributor(dataSource, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
-        
     }
     
     @Test

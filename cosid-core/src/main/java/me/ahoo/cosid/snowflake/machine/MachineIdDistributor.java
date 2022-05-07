@@ -61,6 +61,8 @@ public interface MachineIdDistributor {
     /**
      * Guard the machine id by heartbeat.
      *
+     * <p><img src="../../doc-files/Machine-Id-Safe-Guard.png" alt="Machine-Id-Safe-Guard"></p>
+     *
      * @param namespace namespace
      * @param instanceId instanceId
      */

@@ -17,34 +17,44 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import me.ahoo.cosid.sharding.ExactCollection;
+import me.ahoo.cosid.sharding.ModCycle;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 
 import com.google.common.collect.Range;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Collection;
+import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Stream;
 
 /**
  * @author ahoo wang
  */
 class CosIdModShardingAlgorithmTest {
-
+    
     public static final int DIVISOR = 4;
     public static final String LOGIC_NAME = "t_mod";
     public static final String COLUMN_NAME = "id";
     public static final String LOGIC_NAME_PREFIX = LOGIC_NAME + "_";
     public static final ExactCollection<String> ALL_NODES = new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2", "t_mod_3");
-
+    private static final ZoneOffset ZONE_OFFSET = ZoneOffset.of("+8");
+    private static final LocalDateTime LOWER_DATETIME = LocalDateTime.of(2021, 12, 8, 22, 0, 0);
+    private static final long LOWER_TS = LOWER_DATETIME.toInstant(ZONE_OFFSET).toEpochMilli();
+    private static final String LOGIC_TABLE_NAME = "t_ldt";
     private CosIdModShardingAlgorithm shardingAlgorithm;
-
+    
     @BeforeEach
     public void setup() {
         Properties properties = new Properties();
@@ -54,7 +64,7 @@ class CosIdModShardingAlgorithmTest {
         shardingAlgorithm.setProps(properties);
         shardingAlgorithm.init();
     }
-
+    
     @ParameterizedTest
     @ValueSource(ints = {1, 2, 3, 4, 5})
     public void doShardingPrecise(long value) {
@@ -63,7 +73,7 @@ class CosIdModShardingAlgorithmTest {
         String expected = LOGIC_NAME_PREFIX + (value % DIVISOR);
         assertEquals(expected, actual);
     }
-
+    
     static Stream<Arguments> shardingRangeArgsProvider() {
         return Stream.of(
             arguments(Range.all(), ALL_NODES),
@@ -137,12 +147,68 @@ class CosIdModShardingAlgorithmTest {
             arguments(Range.atMost(5L), ALL_NODES)
         );
     }
-
+    
     @ParameterizedTest
     @MethodSource("shardingRangeArgsProvider")
     public void doShardingRange(Range<Long> rangeValue, Collection<String> expected) {
         RangeShardingValue<Long> shardingValue = new RangeShardingValue<>(LOGIC_NAME, COLUMN_NAME, rangeValue);
         Collection<String> actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
+    }
+    
+    @Test
+    void getType() {
+        Assertions.assertTrue(shardingAlgorithm.getType().equals(CosIdModShardingAlgorithm.TYPE));
+    }
+    
+    @Test
+    void getProps() {
+        Assertions.assertTrue(shardingAlgorithm.getProps().get(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY).equals(LOGIC_NAME_PREFIX));
+    }
+    
+    @Test
+    void setProps() {
+        Properties properties = new Properties();
+        properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, "@");
+        properties.setProperty(CosIdModShardingAlgorithm.MODULO_KEY, "5");
+        shardingAlgorithm.setProps(properties);
+        Assertions.assertTrue(shardingAlgorithm.getProps().get(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY).equals("@"));
+    }
+    
+    @Test
+    void getSharding() {
+        Assertions.assertTrue(Objects.nonNull(shardingAlgorithm.getSharding()));
+    }
+    
+    @Test
+    void doSharding() {
+        String shardingStr = shardingAlgorithm.doSharding(shardingAlgorithm.getSharding().getEffectiveNodes(), getRandomInt());
+        Assertions.assertNotNull(shardingStr);
+    }
+    
+    private PreciseShardingValue<Comparable<?>> getRandomInt() {
+        PreciseShardingValue<Comparable<?>>[] randomPreciseTsValues = new PreciseShardingValue[100];
+        for (int i = 0; i < randomPreciseTsValues.length; i++) {
+            randomPreciseTsValues[i] = generateRandomInt();
+        }
+        int randomIdx = ThreadLocalRandom.current().nextInt(0, 100);
+        return randomPreciseTsValues[randomIdx];
+    }
+    
+    private PreciseShardingValue<Comparable<?>> generateRandomInt() {
+        return new PreciseShardingValue(LOGIC_TABLE_NAME, COLUMN_NAME, ThreadLocalRandom.current().nextInt(0, 4));
+    }
+    
+    @Test
+    void testDoSharding() {
+        Range<Integer> rangeInt = Range.closed(0, 4);
+        RangeShardingValue<Integer> rsv = new RangeShardingValue<Integer>("table_", "id", rangeInt);
+        Collection<Integer> shardingCollection = shardingAlgorithm.doSharding(shardingAlgorithm.getSharding().getEffectiveNodes(), rsv);
+        Assertions.assertNotNull(shardingCollection);
+    }
+    
+    @Test
+    void init() {
+        Assertions.assertTrue(shardingAlgorithm.getSharding() instanceof ModCycle);
     }
 }

@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid;
 
-import me.ahoo.cosid.converter.ToStringIdConverter;
+import me.ahoo.cosid.converter.Radix62IdConverter;
 
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -26,12 +26,12 @@ import javax.annotation.concurrent.ThreadSafe;
 public interface IdGenerator {
     
     /**
-     * ID converter, used to convert {@link long} type ID to {@link String}.
+     * ID converter, used to convert {@code long} type ID to {@link String}.
      *
      * @return ID converter
      */
     default IdConverter idConverter() {
-        return ToStringIdConverter.INSTANCE;
+        return Radix62IdConverter.PAD_START;
     }
     
     /**

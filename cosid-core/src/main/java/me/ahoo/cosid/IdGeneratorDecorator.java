@@ -1,10 +1,13 @@
 package me.ahoo.cosid;
 
+import javax.annotation.concurrent.ThreadSafe;
+
 /**
  * IdGenerator decorator.
  *
  * @author ahoo wang
  */
+@ThreadSafe
 public interface IdGeneratorDecorator extends IdGenerator {
     /**
      * Get decorator actual id generator.
@@ -13,6 +16,7 @@ public interface IdGeneratorDecorator extends IdGenerator {
      */
     IdGenerator getActual();
     
+    @SuppressWarnings("unchecked")
     static <T extends IdGenerator> T getActual(IdGenerator idGenerator) {
         if (idGenerator instanceof IdGeneratorDecorator) {
             return getActual(((IdGeneratorDecorator) idGenerator).getActual());

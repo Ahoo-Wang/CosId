@@ -58,9 +58,6 @@ public class AsStringSerializer extends JsonSerializer<Long> implements Contextu
     @Override
     public JsonSerializer<?> createContextual(SerializerProvider prov, BeanProperty property) throws JsonMappingException {
         AsString asString = property.getAnnotation(AsString.class);
-        if (Objects.isNull(asString)) {
-            return TO_STRING;
-        }
         switch (asString.value()) {
             case TO_STRING: {
                 return TO_STRING;

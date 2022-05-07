@@ -11,36 +11,34 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.util;
+package me.ahoo.cosid.jackson.dto;
 
-import java.lang.management.ManagementFactory;
+import me.ahoo.cosid.jackson.AsString;
 
 /**
- * System tool class.
+ * RadixPadDto .
  *
  * @author ahoo wang
  */
-public final class Systems {
-    private Systems() {
+public class RadixNonePadDto {
+    @AsString(value = AsString.Type.RADIX, radixPadStart = false)
+    private long primitiveLong;
+    @AsString(value = AsString.Type.RADIX, radixPadStart = false)
+    private Long objectLong;
+    
+    public long getPrimitiveLong() {
+        return primitiveLong;
     }
-
-    /**
-     * get current process name .
-     *
-     * @return process name
-     */
-    public static String getCurrentProcessName() {
-        return ManagementFactory.getRuntimeMXBean().getName();
+    
+    public void setPrimitiveLong(long primitiveLong) {
+        this.primitiveLong = primitiveLong;
     }
-
-    /**
-     * get current process id .
-     *
-     * @return process id
-     */
-    public static int getCurrentProcessId() {
-        String processName = getCurrentProcessName();
-        String processIdStr = processName.split("@")[0];
-        return Integer.parseInt(processIdStr);
+    
+    public Long getObjectLong() {
+        return objectLong;
+    }
+    
+    public void setObjectLong(Long objectLong) {
+        this.objectLong = objectLong;
     }
 }

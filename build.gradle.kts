@@ -13,6 +13,8 @@
 
 plugins {
     id("io.github.gradle-nexus.publish-plugin")
+    java
+    jacoco
 }
 
 val bomProjects = setOf(
@@ -36,15 +38,14 @@ ext {
     set("springBootVersion", "2.4.13")
     set("springCloudVersion", "2020.0.5")
     set("springfoxVersion", "3.0.0")
-    set("jmhVersion", "1.33")
+    set("jmhVersion", "1.34")
     set("junitPioneerVersion", "1.4.2")
     set("mybatisVersion", "3.5.7")
     set("mybatisBootVersion", "2.1.4")
-    set("coskyVersion", "1.3.16")
+    set("coskyVersion", "1.3.20")
     set("shardingsphereVersion", "5.0.0")
     set("libraryProjects", libraryProjects)
 }
-
 
 allprojects {
     repositories {
@@ -69,6 +70,7 @@ configure(libraryProjects) {
     configure<com.github.spotbugs.snom.SpotBugsExtension> {
         excludeFilter.set(file("${rootDir}/config/spotbugs/exclude.xml"))
     }
+    apply<JacocoPlugin>()
     apply<JavaLibraryPlugin>()
     configure<JavaPluginExtension> {
         toolchain {
@@ -210,4 +212,16 @@ nexusPublishing {
 
 fun getPropertyOf(name: String) = project.properties[name]?.toString()
 
-
+tasks.register<JacocoReport>("codeCoverageReport") {
+    executionData(fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec"))
+    libraryProjects.forEach {
+        sourceSets(it.sourceSets.main.get())
+    }
+    reports {
+        xml.required.set(true)
+        html.outputLocation.set(file("${buildDir}/reports/jacoco/report.xml"))
+        csv.required.set(false)
+        html.required.set(true)
+        html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/"))
+    }
+}

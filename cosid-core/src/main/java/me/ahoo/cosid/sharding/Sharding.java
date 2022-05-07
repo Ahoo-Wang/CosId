@@ -15,6 +15,7 @@ package me.ahoo.cosid.sharding;
 
 import com.google.common.collect.Range;
 
+import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collection;
 
 /**
@@ -22,6 +23,7 @@ import java.util.Collection;
  *
  * @author ahoo wang
  */
+@ThreadSafe
 public interface Sharding<T extends Comparable<?>> {
 
     String sharding(T shardingValue);

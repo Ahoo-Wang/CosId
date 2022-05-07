@@ -7,47 +7,67 @@
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 [![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/CosId.svg)](https://github.com/Ahoo-Wang/CosId/releases)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/dfd1d6237a1644409548ebfbca300dc1)](https://app.codacy.com/gh/Ahoo-Wang/CosId?utm_source=github.com&utm_medium=referral&utm_content=Ahoo-Wang/CosId&utm_campaign=Badge_Grade_Settings)
+[![codecov](https://codecov.io/gh/Ahoo-Wang/CosId/branch/main/graph/badge.svg?token=L0N51NB7ET)](https://codecov.io/gh/Ahoo-Wang/CosId)
 
 > [中文文档](https://cosid.ahoo.me/)
 
 ## Introduction
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* aims to provide a universal, flexible and high-performance distributed ID generator. 
+*[CosId](https://github.com/Ahoo-Wang/CosId)* aims to provide a universal, flexible and high-performance distributed ID
+generator.
 
-- `SnowflakeId` : Stand-alone *TPS performance：4,096,000* [JMH Benchmark](#jmh-benchmark) , It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and provide a more friendly and flexible experience.
-- `SegmentId`: Get a segment (`Step`) ID every time to reduce the network IO request frequency of the `IdSegment` distributor and improve performance.
-    - `IdSegmentDistributor`: 
+- `SnowflakeId` : Stand-alone *TPS performance：4,096,000* [JMH Benchmark](#jmh-benchmark) , It mainly solves two major
+  problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and provide a more friendly
+  and flexible experience.
+- `SegmentId`: Get a segment (`Step`) ID every time to reduce the network IO request frequency of the `IdSegment`
+  distributor and improve performance.
+    - `IdSegmentDistributor`:
         - `RedisIdSegmentDistributor`: `IdSegment` distributor based on *Redis*.
         - `JdbcIdSegmentDistributor`: The *Jdbc-based* `IdSegment` distributor supports various relational databases.
-    - `SegmentChainId`(**recommend**):`SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves approximately `AtomicLong` *TPS performance (Step 1000): 127,439,148+/s* [JMH Benchmark](#jmh-benchmark) .
-        - `PrefetchWorker` maintains a safe distance (`safeDistance`), and supports dynamic `safeDistance` expansion and contraction based on hunger status.
+        - `ZookeeperIdSegmentDistributor`: `IdSegment` distributor based on *Zookeeper*.
+- `SegmentChainId`(**recommend**):`SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design
+  diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves
+  approximately `AtomicLong` *TPS performance (Step 1000): 127,439,148+/s* [JMH Benchmark](#jmh-benchmark) .
+    - `PrefetchWorker` maintains a safe distance (`safeDistance`), and supports dynamic `safeDistance` expansion and
+      contraction based on hunger status.
 
 ## SnowflakeId
 
 <p align="center">
-     <img src="./document/docs/.vuepress/public/assets/design/Snowflake-identifier.png"/>
+     <img src="./document/docs/.vuepress/public/assets/design/Snowflake-identifier.png" alt="Snowflake"/>
 </p>
 
 > *SnowflakeId* is a distributed ID algorithm that uses `Long` (64-bit) bit partition to generate ID.
 > The general bit allocation scheme is : `timestamp` (41-bit) + `machineId` (10-bit) + `sequence` (12-bit) = 63-bit。
 
-- 41-bit `timestamp` = (1L<<41)/(1000/3600/365) approximately 69 years of timestamp can be stored, that is, the usable absolute time is `EPOCH` + 69 years. Generally, we need to customize `EPOCH` as the product development time. In addition, we can increase the number of allocated bits by compressing other areas， The number of timestamp bits to extend the available time.
-- 10-bit `machineId` = (1L<<10) = 1024 That is, 1024 copies of the same business can be deployed (there is no master-slave copy in the Kubernetes concept, and the definition of Kubernetes is directly used here) instances. Generally, there is no need to use so many, so it will be redefined according to the scale of deployment.
-- 12-bit `sequence` = (1L<<12) * 1000 = 4096000 That is, a single machine can generate about 409W ID per second, and a global same-service cluster can generate `4096000*1024=4194304000=4.19 billion (TPS)`.
+- 41-bit `timestamp` = (1L<<41)/(1000/3600/365) approximately 69 years of timestamp can be stored, that is, the usable
+  absolute time is `EPOCH` + 69 years. Generally, we need to customize `EPOCH` as the product development time. In
+  addition, we can increase the number of allocated bits by compressing other areas， The number of timestamp bits to
+  extend the available time.
+- 10-bit `machineId` = (1L<<10) = 1024 That is, 1024 copies of the same business can be deployed (there is no
+  master-slave copy in the Kubernetes concept, and the definition of Kubernetes is directly used here) instances.
+  Generally, there is no need to use so many, so it will be redefined according to the scale of deployment.
+- 12-bit `sequence` = (1L<<12) * 1000 = 4096000 That is, a single machine can generate about 409W ID per second, and a
+  global same-service cluster can generate `4096000*1024=4194304000=4.19 billion (TPS)`.
 
 It can be seen from the design of SnowflakeId:
 
-- :thumbsup: The first 41-bit are a `timestamp`,So *SnowflakeId* is local monotonically increasing, and affected by global clock synchronization *SnowflakeId* is global trend increasing.
-- :thumbsup: `SnowflakeId` does not have a strong dependency on any third-party middleware, and its performance is also very high.
-- :thumbsup: The bit allocation scheme can be flexibly configured according to the needs of the business system to achieve the optimal use effect.
+- :thumbsup: The first 41-bit are a `timestamp`,So *SnowflakeId* is local monotonically increasing, and affected by
+  global clock synchronization *SnowflakeId* is global trend increasing.
+- :thumbsup: `SnowflakeId` does not have a strong dependency on any third-party middleware, and its performance is also
+  very high.
+- :thumbsup: The bit allocation scheme can be flexibly configured according to the needs of the business system to
+  achieve the optimal use effect.
 - :thumbsdown: Strong reliance on the local clock, potential clock moved backwards problems will cause ID duplication.
-- :thumbsdown: The `machineId` needs to be set manually. If the `machineId` is manually assigned during actual deployment, it will be very inefficient.
+- :thumbsdown: The `machineId` needs to be set manually. If the `machineId` is manually assigned during actual
+  deployment, it will be very inefficient.
 
 ---
 
 *[CosId-SnowflakeId](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-core/src/main/java/me/ahoo/cosid/snowflake)*
 
-It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and provide a more friendly and flexible experience.
+It mainly solves two major problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and
+provide a more friendly and flexible experience.
 
 ### MachineIdDistributor
 
@@ -82,7 +102,7 @@ cosid:
 #### RedisMachineIdDistributor
 
 <p align="center">
-     <img src="./document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png"/>
+     <img src="./document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png" alt="Redis Machine Id Distributor"/>
 </p>
 
 ```yaml
@@ -105,32 +125,35 @@ cosid:
       broken-threshold: 2000
 ```
 
-The default `DefaultClockBackwardsSynchronizer` clock moved backwards synchronizer uses active wait synchronization strategy, `spinThreshold` (default value 10 milliseconds) is used to set the spin wait threshold, when it is greater than `spinThreshold`, use thread sleep to wait for clock synchronization, if it exceeds` BrokenThreshold` (default value 2 seconds) will directly throw a `ClockTooManyBackwardsException` exception.
+The default `DefaultClockBackwardsSynchronizer` clock moved backwards synchronizer uses active wait synchronization
+strategy, `spinThreshold` (default value 10 milliseconds) is used to set the spin wait threshold, when it is greater
+than `spinThreshold`, use thread sleep to wait for clock synchronization, if it exceeds` BrokenThreshold` (default value
+2 seconds) will directly throw a `ClockTooManyBackwardsException` exception.
 
 ### MachineStateStorage
 
 ```java
 public class MachineState {
-  public static final MachineState NOT_FOUND = of(-1, -1);
-  private final int machineId;
-  private final long lastTimeStamp;
-
-  public MachineState(int machineId, long lastTimeStamp) {
-    this.machineId = machineId;
-    this.lastTimeStamp = lastTimeStamp;
-  }
-
-  public int getMachineId() {
-    return machineId;
-  }
-
-  public long getLastTimeStamp() {
-    return lastTimeStamp;
-  }
-
-  public static MachineState of(int machineId, long lastStamp) {
-    return new MachineState(machineId, lastStamp);
-  }
+    public static final MachineState NOT_FOUND = of(-1, -1);
+    private final int machineId;
+    private final long lastTimeStamp;
+    
+    public MachineState(int machineId, long lastTimeStamp) {
+        this.machineId = machineId;
+        this.lastTimeStamp = lastTimeStamp;
+    }
+    
+    public int getMachineId() {
+        return machineId;
+    }
+    
+    public long getLastTimeStamp() {
+        return lastTimeStamp;
+    }
+    
+    public static MachineState of(int machineId, long lastStamp) {
+        return new MachineState(machineId, lastStamp);
+    }
 }
 ```
 
@@ -143,7 +166,8 @@ cosid:
           state-location: ./cosid-machine-state/
 ```
 
-The default `LocalMachineStateStorage` local machine state storage uses a local file to store the machine number and the most recent timestamp, which is used as a `MachineState` cache.
+The default `LocalMachineStateStorage` local machine state storage uses a local file to store the machine number and the
+most recent timestamp, which is used as a `MachineState` cache.
 
 ### ClockSyncSnowflakeId
 
@@ -154,15 +178,20 @@ cosid:
       clock-sync: true
 ```
 
-The default `SnowflakeId` will directly throw a `ClockBackwardsException` when a clock moved backwards occurs, while using the `ClockSyncSnowflakeId` will use the `ClockBackwardsSynchronizer` to actively wait for clock synchronization to regenerate the ID, providing a more user-friendly experience.
+The default `SnowflakeId` will directly throw a `ClockBackwardsException` when a clock moved backwards occurs, while
+using the `ClockSyncSnowflakeId` will use the `ClockBackwardsSynchronizer` to actively wait for clock synchronization to
+regenerate the ID, providing a more user-friendly experience.
 
 ### SafeJavaScriptSnowflakeId
 
 ```java
-SnowflakeId snowflakeId = SafeJavaScriptSnowflakeId.ofMillisecond(1);
+SnowflakeId snowflakeId=SafeJavaScriptSnowflakeId.ofMillisecond(1);
 ```
 
-The `Number.MAX_SAFE_INTEGER` of `JavaScript` has only 53-bit. If the 63-bit `SnowflakeId` is directly returned to the front end, the value will overflow. Usually we can convert `SnowflakeId` to String type or customize `SnowflakeId` Bit allocation is used to shorten the number of bits of `SnowflakeId` so that `ID` does not overflow when it is provided to the front end.
+The `Number.MAX_SAFE_INTEGER` of `JavaScript` has only 53-bit. If the 63-bit `SnowflakeId` is directly returned to the
+front end, the value will overflow. Usually we can convert `SnowflakeId` to String type or customize `SnowflakeId` Bit
+allocation is used to shorten the number of bits of `SnowflakeId` so that `ID` does not overflow when it is provided to
+the front end.
 
 ### SnowflakeFriendlyId (Can parse `SnowflakeId` into a more readable `SnowflakeIdState`)
 
@@ -175,13 +204,13 @@ cosid:
 
 ```java
 public class SnowflakeIdState {
-
+    
     private final long id;
-
+    
     private final int machineId;
-
+    
     private final long sequence;
-
+    
     private final LocalDateTime timestamp;
     /**
      * {@link #timestamp}-{@link #machineId}-{@link #sequence}
@@ -192,11 +221,11 @@ public class SnowflakeIdState {
 
 ```java
 public interface SnowflakeFriendlyId extends SnowflakeId {
-
+    
     SnowflakeIdState friendlyId(long id);
-
+    
     SnowflakeIdState ofFriendlyId(String friendlyId);
-
+    
     default SnowflakeIdState friendlyId() {
         long id = generate();
         return friendlyId(id);
@@ -205,14 +234,15 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
 ```
 
 ```java
-        SnowflakeFriendlyId snowflakeFriendlyId=new DefaultSnowflakeFriendlyId(snowflakeId);
-        SnowflakeIdState idState = snowflakeFriendlyId.friendlyId();
-        idState.getFriendlyId(); //20210623131730192-1-0
+    SnowflakeFriendlyId snowflakeFriendlyId=new DefaultSnowflakeFriendlyId(snowflakeId);
+    SnowflakeIdState idState=snowflakeFriendlyId.friendlyId();
+    idState.getFriendlyId(); //20210623131730192-1-0
 ```
+
 ## SegmentId
 
 <p align="center">
-     <img src="./document/docs/.vuepress/public/assets/design/SegmentId.png"/>
+     <img src="./document/docs/.vuepress/public/assets/design/SegmentId.png" alt="Segment Id"/>
 </p>
 
 ### RedisIdSegmentDistributor
@@ -256,7 +286,9 @@ cosid:
         enable-auto-init-id-segment: true
 ```
 
-After enabling `enable-auto-init-id-segment:true`, the application will try to create the `idSegment` record when it starts to avoid manual creation. Similar to the execution of the following initialization sql script, there is no need to worry about misoperation, because `name` is the primary key.
+After enabling `enable-auto-init-id-segment:true`, the application will try to create the `idSegment` record when it
+starts to avoid manual creation. Similar to the execution of the following initialization sql script, there is no need
+to worry about misoperation, because `name` is the primary key.
 
 ```mysql
 insert into cosid
@@ -308,10 +340,12 @@ cosid:
 ```
 
 ```java
-IdGenerator idGenerator = idGeneratorProvider.get("bizA");
+IdGenerator idGenerator=idGeneratorProvider.get("bizA");
 ```
 
-In actual use, we generally do not use the same `IdGenerator` for all business services, but different businesses use different `IdGenerator`, then `IdGeneratorProvider` exists to solve this problem, and it is the container of `IdGenerator` , You can get the corresponding `IdGenerator` by the business name.
+In actual use, we generally do not use the same `IdGenerator` for all business services, but different businesses use
+different `IdGenerator`, then `IdGeneratorProvider` exists to solve this problem, and it is the container
+of `IdGenerator` , You can get the corresponding `IdGenerator` by the business name.
 
 ### CosIdPlugin (MyBatis Plugin)
 
@@ -335,28 +369,28 @@ public @interface CosId {
 
 ```java
 public class LongIdEntity {
-
+    
     @CosId(value = "safeJs")
     private Long id;
-
+    
     public Long getId() {
         return id;
     }
-
+    
     public void setId(Long id) {
         this.id = id;
     }
 }
 
 public class FriendlyIdEntity {
-
+    
     @CosId(friendlyId = true)
     private String id;
-
+    
     public String getId() {
         return id;
     }
-
+    
     public void setId(String id) {
         this.id = id;
     }
@@ -364,32 +398,33 @@ public class FriendlyIdEntity {
 ```
 
 ```java
+
 @Mapper
 public interface OrderRepository {
     @Insert("insert into t_table (id) value (#{id});")
     void insert(LongIdEntity order);
-
+    
     @Insert({
-            "<script>",
-            "insert into t_friendly_table (id)",
-            "VALUES" +
-                    "<foreach item='item' collection='list' open='' separator=',' close=''>" +
-                    "(#{item.id})" +
-                    "</foreach>",
-            "</script>"})
+        "<script>",
+        "insert into t_friendly_table (id)",
+        "VALUES" +
+            "<foreach item='item' collection='list' open='' separator=',' close=''>" +
+            "(#{item.id})" +
+            "</foreach>",
+        "</script>"})
     void insertList(List<FriendlyIdEntity> list);
 }
 ```
 
 ```java
-        LongIdEntity entity = new LongIdEntity();
-        entityRepository.insert(entity);
-        /**
-         * {
-         *   "id": 208796080181248
-         * }
-         */
-        return entity;
+        LongIdEntity entity=new LongIdEntity();
+    entityRepository.insert(entity);
+    /**
+     * {
+     *   "id": 208796080181248
+     * }
+     */
+    return entity;
 ```
 
 ### ShardingSphere Plugin
@@ -417,11 +452,14 @@ spring:
 #### Interval-based time range sharding algorithm
 
 <p align="center">
-     <img src="./document/docs/.vuepress/public/assets/design/CosIdIntervalShardingAlgorithm.png"/>
+     <img src="./document/docs/.vuepress/public/assets/design/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"/>
 </p>
 
-- Ease of use: supports multiple data types (`Long`/`LocalDateTime`/`DATE`/ `String` / `SnowflakeId`),The official implementation is to first convert to a string and then convert to `LocalDateTime`, the conversion success rate is affected by the time formatting characters.
-- Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`,The performance is *1200~4000* times higher.
+- Ease of use: supports multiple data types (`Long`/`LocalDateTime`/`DATE`/ `String` / `SnowflakeId`),The official
+  implementation is to first convert to a string and then convert to `LocalDateTime`, the conversion success rate is
+  affected by the time formatting characters.
+- Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`
+  ,The performance is *1200~4000* times higher.
 
 | **PreciseShardingValue**                                                                                                                                                                  | **RangeShardingValue**                                                                                                                                                                |
 |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -429,8 +467,6 @@ spring:
 
 - CosIdIntervalShardingAlgorithm
     - type: COSID_INTERVAL
-- SnowflakeIntervalShardingAlgorithm
-    - type: COSID_INTERVAL_SNOWFLAKE
 
 ```yaml
 spring:
@@ -439,7 +475,7 @@ spring:
       sharding:
         sharding-algorithms:
           alg-name:
-            type: COSID_INTERVAL_{type_suffix}
+            type: COSID_INTERVAL
             props:
               logic-name-prefix: logic-name-prefix
               id-name: cosid-name
@@ -453,10 +489,11 @@ spring:
 #### CosIdModShardingAlgorithm
 
 <p align="center">
-     <img src="./document/docs/.vuepress/public/assets/design/CosIdModShardingAlgorithm.png"/>
+     <img src="./document/docs/.vuepress/public/assets/design/CosIdModShardingAlgorithm.png" alt="CosId Mod Sharding Algorithm"/>
 </p>
 
-- Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`,The performance is *1200~4000* times higher.And it has higher stability and no serious performance degradation.
+- Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`
+  ,The performance is *1200~4000* times higher.And it has higher stability and no serious performance degradation.
 
 | **PreciseShardingValue**                                                                                                                                                        | **RangeShardingValue**                                                                                                                                                      |
 |---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -488,7 +525,7 @@ spring:
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.8.6";
+    val cosidVersion = "1.8.9";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -504,7 +541,7 @@ spring:
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.8.6</cosid.version>
+        <cosid.version>1.8.9</cosid.version>
     </properties>
 
     <dependencies>
@@ -552,23 +589,6 @@ spring:
               standard:
                 sharding-column: id
                 sharding-algorithm-name: table-inline
-          t_friendly_table:
-            actual-data-nodes: ds0.t_friendly_table
-          t_order:
-            actual-data-nodes: ds$->{0..1}.t_order
-            database-strategy:
-              standard:
-                sharding-column: order_id
-                sharding-algorithm-name: order-db-inline
-            key-generate-strategy:
-              column: order_id
-              key-generator-name: order
-          t_order_item:
-            actual-data-nodes: ds$->{0..1}.t_order_item
-            database-strategy:
-              standard:
-                sharding-column: order_id
-                sharding-algorithm-name: order-db-inline
           t_date_log:
             actual-data-nodes: ds0.t_date_log_202112
             key-generate-strategy:
@@ -578,73 +598,16 @@ spring:
               standard:
                 sharding-column: create_time
                 sharding-algorithm-name: data-log-interval
-          t_date_time_log:
-            actual-data-nodes: ds0.t_date_time_log_202112
-            key-generate-strategy:
-              column: id
-              key-generator-name: snowflake
-            table-strategy:
-              standard:
-                sharding-column: create_time
-                sharding-algorithm-name: data-time-log-interval
-          t_timestamp_log:
-            actual-data-nodes: ds0.t_timestamp_log_202112
-            key-generate-strategy:
-              column: id
-              key-generator-name: snowflake
-            table-strategy:
-              standard:
-                sharding-column: create_time
-                sharding-algorithm-name: timestamp-log-interval
-          t_snowflake_log:
-            actual-data-nodes: ds0.t_snowflake_log_202112
-            table-strategy:
-              standard:
-                sharding-column: id
-                sharding-algorithm-name: snowflake-log-interval
         sharding-algorithms:
           table-inline:
             type: COSID_MOD
             props:
               mod: 2
               logic-name-prefix: t_table_
-          order-db-inline:
-            type: COSID_MOD
-            props:
-              mod: 2
-              logic-name-prefix: ds
           data-log-interval:
-            type: COSID_INTERVAL_DATE
+            type: COSID_INTERVAL
             props:
               logic-name-prefix: t_date_log_
-              datetime-lower: 2021-12-08 22:00:00
-              datetime-upper: 2022-12-01 00:00:00
-              sharding-suffix-pattern: yyyyMM
-              datetime-interval-unit: MONTHS
-              datetime-interval-amount: 1
-          data-time-log-interval:
-            type: COSID_INTERVAL_LDT
-            props:
-              logic-name-prefix: t_date_time_log_
-              datetime-lower: 2021-12-08 22:00:00
-              datetime-upper: 2022-12-01 00:00:00
-              sharding-suffix-pattern: yyyyMM
-              datetime-interval-unit: MONTHS
-              datetime-interval-amount: 1
-          timestamp-log-interval:
-            type: COSID_INTERVAL_TS
-            props:
-              logic-name-prefix: t_timestamp_log_
-              datetime-lower: 2021-12-08 22:00:00
-              datetime-upper: 2022-12-01 00:00:00
-              sharding-suffix-pattern: yyyyMM
-              datetime-interval-unit: MONTHS
-              datetime-interval-amount: 1
-          snowflake-log-interval:
-            type: COSID_INTERVAL_SNOWFLAKE
-            props:
-              logic-name-prefix: t_snowflake_log_
-              id-name: snowflake
               datetime-lower: 2021-12-08 22:00:00
               datetime-upper: 2022-12-01 00:00:00
               sharding-suffix-pattern: yyyyMM
@@ -655,10 +618,7 @@ spring:
             type: COSID
             props:
               id-name: snowflake
-          order:
-            type: COSID
-            props:
-              id-name: order
+
 
 cosid:
   namespace: ${spring.application.name}
@@ -724,7 +684,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.8.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.8.9-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```
@@ -749,3 +709,9 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 <p align="center" >
   <img src="./document/docs/.vuepress/public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="Percentile-Sample-Of-SegmentChainId"/>
 </p>
+
+## Community Partners and Sponsors
+
+<a href="https://www.jetbrains.com/?from=CosId" target="_blank">
+    <img src="./docs/jetbrains-logo.png" title="JetBrains" width=130 />
+</a>

@@ -51,7 +51,6 @@ class SegmentChainIdTest {
         Assertions.assertEquals(0, rootChain.getIdSegment().getOffset());
         Assertions.assertEquals(300, rootChain.getStep());
         Assertions.assertEquals(300, rootChain.getMaxId());
-        
     }
     
     @Test

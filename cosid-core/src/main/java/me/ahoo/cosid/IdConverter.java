@@ -24,18 +24,18 @@ import javax.annotation.concurrent.ThreadSafe;
 public interface IdConverter {
 
     /**
-     * convert {@link long} type ID to {@link String}.
+     * convert {@code long} type ID to {@link String}.
      *
-     * @param id {@link long} type ID
+     * @param id {@code long} type ID
      * @return {@link String} type ID
      */
     String asString(long id);
 
     /**
-     * convert {@link String} type ID to {@link long}.
+     * convert {@link String} type ID to {@code long}.
      *
      * @param idString {@link String} type ID
-     * @return {@link long} type ID
+     * @return {@code long} type ID
      */
     long asLong(String idString);
 }

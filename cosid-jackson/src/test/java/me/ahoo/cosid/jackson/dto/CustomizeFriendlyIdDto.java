@@ -11,25 +11,34 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.util;
+package me.ahoo.cosid.jackson.dto;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import me.ahoo.cosid.jackson.AsString;
 
 /**
+ * FriendlyIdDto .
+ *
  * @author ahoo wang
  */
-class SystemsTest {
-
-    @Test
-    void getCurrentProcessName() {
-        String currentProcessName = Systems.getCurrentProcessName();
-        Assertions.assertNotNull(currentProcessName);
+public class CustomizeFriendlyIdDto {
+    @AsString(value = AsString.Type.FRIENDLY_ID, machineBit = 2)
+    private long primitiveLong;
+    @AsString(value = AsString.Type.FRIENDLY_ID, machineBit = 2)
+    private Long objectLong;
+    
+    public long getPrimitiveLong() {
+        return primitiveLong;
     }
-
-    @Test
-    void getCurrentProcessId() {
-        long processId = Systems.getCurrentProcessId();
-        Assertions.assertTrue(processId > 0);
+    
+    public void setPrimitiveLong(long primitiveLong) {
+        this.primitiveLong = primitiveLong;
+    }
+    
+    public Long getObjectLong() {
+        return objectLong;
+    }
+    
+    public void setObjectLong(Long objectLong) {
+        this.objectLong = objectLong;
     }
 }

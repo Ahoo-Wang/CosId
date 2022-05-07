@@ -13,7 +13,7 @@
 
 plugins {
     `java-library`
-    id("me.champeau.jmh") version "0.6.4"
+    id("me.champeau.jmh") version "0.6.6"
 }
 
 java {
@@ -27,12 +27,10 @@ repositories {
     mavenCentral()
 }
 
-//val jmhVersion = "1.33"
-
 dependencies {
-    implementation("me.ahoo.cosid:cosid-jdbc:1.8.6")
+    implementation("me.ahoo.cosid:cosid-jdbc:1.8.15")
     testImplementation("com.zaxxer:HikariCP:3.4.5")
-    testImplementation("mysql:mysql-connector-java:8.0.27")
+    testImplementation("mysql:mysql-connector-java:8.0.29")
     /**
      * WARNING：中央仓库没有找到美团官方提供的Jar!!!
      * git clone https://github.com/Meituan-Dianping/Leaf
@@ -46,12 +44,12 @@ dependencies {
      */
 //    testImplementation("com.xiaoju.uemc.tinyid:tinyid-client:0.1.0-SNAPSHOT")
 
-    jmh("org.openjdk.jmh:jmh-core:1.33")
-    jmh("org.openjdk.jmh:jmh-generator-annprocess:1.33")
+    jmh("org.openjdk.jmh:jmh-core:1.35")
+    jmh("org.openjdk.jmh:jmh-generator-annprocess:1.35")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.7.2")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.8.2")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.2")
 }
 
 jmh {
@@ -70,7 +68,7 @@ jmh {
         excludes.set(jmhExcludes)
     }
 
-    jmhVersion.set("1.33")
+    jmhVersion.set("1.34")
     warmupIterations.set(1)
     iterations.set(1)
     resultFormat.set("json")

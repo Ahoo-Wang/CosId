@@ -21,27 +21,27 @@ import me.ahoo.cosid.util.Clock;
  * @author ahoo wang
  */
 public interface AffinityJob extends Runnable {
-
+    
     String getJobId();
-
+    
     default String affinity() {
         return getJobId();
     }
-
+    
     default void hungry() {
         setHungerTime(Clock.CACHE.secondTime());
         getPrefetchWorker().wakeup(this);
     }
-
+    
     /**
      * set hunger time.
      *
      * @param hungerTime {@link java.util.concurrent.TimeUnit#SECONDS}
      */
     void setHungerTime(long hungerTime);
-
+    
     PrefetchWorker getPrefetchWorker();
-
+    
     void setPrefetchWorker(PrefetchWorker prefetchWorker);
-
+    
 }

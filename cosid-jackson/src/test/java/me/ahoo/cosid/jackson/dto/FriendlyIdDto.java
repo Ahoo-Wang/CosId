@@ -11,34 +11,34 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.spring.redis;
+package me.ahoo.cosid.jackson.dto;
 
-import me.ahoo.cosid.CosIdException;
-
-import com.google.common.base.Charsets;
-import com.google.common.io.Resources;
-
-import java.io.IOException;
-import java.net.URL;
+import me.ahoo.cosid.jackson.AsString;
 
 /**
- * Redis Script tool.
+ * FriendlyIdDto .
  *
  * @author ahoo wang
  */
-public final class Scripts {
-    /**
-     * get script by resource name.
-     *
-     * @param resourceName resource name
-     * @return script
-     */
-    public static String getScript(String resourceName) {
-        URL resourceUrl = Resources.getResource(resourceName);
-        try {
-            return Resources.toString(resourceUrl, Charsets.UTF_8);
-        } catch (IOException e) {
-            throw new CosIdException(e.getMessage(), e);
-        }
+public class FriendlyIdDto {
+    @AsString(value = AsString.Type.FRIENDLY_ID)
+    private long primitiveLong;
+    @AsString(value = AsString.Type.FRIENDLY_ID)
+    private Long objectLong;
+    
+    public long getPrimitiveLong() {
+        return primitiveLong;
+    }
+    
+    public void setPrimitiveLong(long primitiveLong) {
+        this.primitiveLong = primitiveLong;
+    }
+    
+    public Long getObjectLong() {
+        return objectLong;
+    }
+    
+    public void setObjectLong(Long objectLong) {
+        this.objectLong = objectLong;
     }
 }

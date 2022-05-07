@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.util;
 
+import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,6 +28,7 @@ import java.util.Date;
  *
  * @author ahoo wang
  */
+@ThreadSafe
 public final class LocalDateTimeConvert {
 
     public static LocalDateTime fromDate(Date date, ZoneId zoneId) {

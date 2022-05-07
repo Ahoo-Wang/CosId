@@ -39,26 +39,26 @@ import java.lang.annotation.Target;
 @JsonSerialize(using = AsStringSerializer.class)
 @JsonDeserialize(using = AsStringDeserializer.class)
 public @interface AsString {
-
-    Type value() default Type.TO_STRING;
-
-    boolean radixPadStart() default false;
-
+    
+    Type value() default Type.RADIX;
+    
+    boolean radixPadStart() default true;
+    
     int radixCharSize() default Radix62IdConverter.MAX_CHAR_SIZE;
-
+    
     /**
      * epoch of {@link me.ahoo.cosid.snowflake.SnowflakeId}.
      *
      * @return epoch
      */
     long epoch() default CosId.COSID_EPOCH;
-
+    
     int timestampBit() default MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
-
+    
     int machineBit() default MillisecondSnowflakeId.DEFAULT_MACHINE_BIT;
-
+    
     int sequenceBit() default MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT;
-
+    
     enum Type {
         TO_STRING,
         RADIX,

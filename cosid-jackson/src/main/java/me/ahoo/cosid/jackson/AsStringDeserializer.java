@@ -32,7 +32,6 @@ import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
 import com.google.common.base.Strings;
 
 import java.io.IOException;
-import java.util.Objects;
 
 
 /**
@@ -61,9 +60,6 @@ public class AsStringDeserializer extends JsonDeserializer<Long> implements Cont
     @Override
     public JsonDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) throws JsonMappingException {
         AsString asString = property.getAnnotation(AsString.class);
-        if (Objects.isNull(asString)) {
-            return TO_STRING;
-        }
         switch (asString.value()) {
             case TO_STRING: {
                 return TO_STRING;

@@ -13,22 +13,45 @@
 
 package me.ahoo.cosid.util;
 
+import javax.annotation.concurrent.Immutable;
+import java.lang.management.ManagementFactory;
+
 /**
  * get current process id .
  *
  * @author ahoo wang
  */
-public final class ProcessId {
-
-    public static final ProcessId CURRENT = new ProcessId();
-
+@Immutable
+public enum ProcessId {
+    CURRENT;
+    
     private final int processId;
-
-    public ProcessId() {
-        this.processId = Systems.getCurrentProcessId();
+    
+    ProcessId() {
+        this.processId = getCurrentProcessId();
     }
-
+    
     public int getProcessId() {
         return processId;
+    }
+    
+    /**
+     * get current process name .
+     *
+     * @return process name
+     */
+    public static String getCurrentProcessName() {
+        return ManagementFactory.getRuntimeMXBean().getName();
+    }
+    
+    /**
+     * get current process id .
+     *
+     * @return process id
+     */
+    public static int getCurrentProcessId() {
+        String processName = getCurrentProcessName();
+        String processIdStr = processName.split("@")[0];
+        return Integer.parseInt(processIdStr);
     }
 }

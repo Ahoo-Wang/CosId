@@ -15,14 +15,17 @@ package me.ahoo.cosid.zookeeper;
 
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.test.ConcurrentGenerateTest;
 import me.ahoo.cosid.util.MockIdGenerator;
 
+import lombok.SneakyThrows;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.curator.test.TestingServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,15 +42,30 @@ class ZookeeperIdSegmentDistributorTest {
     CuratorFramework curatorFramework;
     RetryPolicy retryPolicy;
     ZookeeperIdSegmentDistributor zookeeperIdSegmentDistributor;
+    TestingServer testingServer;
     
+    @SneakyThrows
     @BeforeEach
-    void init() {
+    void setup() {
+        testingServer = new TestingServer();
+        testingServer.start();
         retryPolicy = new ExponentialBackoffRetry(1000, 3, 3000);
-        curatorFramework = CuratorFrameworkFactory.newClient("localhost:2181", retryPolicy);
+        curatorFramework = CuratorFrameworkFactory.newClient(testingServer.getConnectString(), retryPolicy);
         curatorFramework.start();
-        zookeeperIdSegmentDistributor =
-            new ZookeeperIdSegmentDistributor("ZookeeperIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), IdSegmentDistributor.DEFAULT_OFFSET, IdSegmentDistributor.DEFAULT_STEP,
-                curatorFramework, retryPolicy);
+        
+        ZookeeperIdSegmentDistributorFactory distributorFactory = new ZookeeperIdSegmentDistributorFactory(curatorFramework, retryPolicy);
+        zookeeperIdSegmentDistributor = (ZookeeperIdSegmentDistributor)distributorFactory.create(new IdSegmentDistributorDefinition("ZookeeperIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(),IdSegmentDistributor.DEFAULT_OFFSET, IdSegmentDistributor.DEFAULT_STEP));
+    }
+    
+    @SneakyThrows
+    @AfterEach
+    void destroy() {
+        if (Objects.nonNull(curatorFramework)) {
+            curatorFramework.close();
+        }
+        if (Objects.nonNull(testingServer)) {
+            testingServer.stop();
+        }
     }
     
     @Test
@@ -106,10 +124,4 @@ class ZookeeperIdSegmentDistributorTest {
         new ConcurrentGenerateTest(10, 800000, idGenerator1, idGenerator2).assertConcurrentGenerate();
     }
     
-    @AfterEach
-    void destroy() {
-        if (Objects.nonNull(curatorFramework)) {
-            curatorFramework.close();
-        }
-    }
 }

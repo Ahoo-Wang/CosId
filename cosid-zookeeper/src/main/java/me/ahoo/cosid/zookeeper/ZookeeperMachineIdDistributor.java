@@ -18,6 +18,7 @@ import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
 import me.ahoo.cosid.snowflake.machine.MachineState;
@@ -36,6 +37,7 @@ import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
@@ -63,8 +65,21 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     private final CuratorFramework curatorFramework;
     private final RetryPolicy retryPolicy;
     
-    public ZookeeperMachineIdDistributor(CuratorFramework curatorFramework, RetryPolicy retryPolicy, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        super(machineStateStorage, clockBackwardsSynchronizer);
+    public ZookeeperMachineIdDistributor(CuratorFramework curatorFramework,
+                                         RetryPolicy retryPolicy,
+                                         MachineStateStorage machineStateStorage,
+                                         ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        super(machineStateStorage, clockBackwardsSynchronizer, FOREVER_SAFE_GUARD_DURATION);
+        this.curatorFramework = curatorFramework;
+        this.retryPolicy = retryPolicy;
+    }
+    
+    public ZookeeperMachineIdDistributor(CuratorFramework curatorFramework,
+                                         RetryPolicy retryPolicy,
+                                         MachineStateStorage machineStateStorage,
+                                         ClockBackwardsSynchronizer clockBackwardsSynchronizer,
+                                         Duration safeGuardDuration) {
+        super(machineStateStorage, clockBackwardsSynchronizer, safeGuardDuration);
         this.curatorFramework = curatorFramework;
         this.retryPolicy = retryPolicy;
     }
@@ -115,7 +130,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         }
         int machineId = atomicValue.postValue() - 1;
         
-        if (machineId > maxMachineId(machineBit)) {
+        if (machineId > MachineIdDistributor.maxMachineId(machineBit)) {
             throw new MachineIdOverflowException(machineBit, instanceId);
         }
         return machineId;

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.util;
+package me.ahoo.cosid.test;
 
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.StringIdGenerator;
@@ -25,12 +25,16 @@ import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
  * @author ahoo wang
  */
 public class MockIdGenerator extends StringIdGenerator {
-
+    
     private static final String TEST_PREFIX = "test_";
-
-    public static final IdGenerator INSTANCE = new MockIdGenerator(TEST_PREFIX);
-
+    
+    public static final IdGenerator INSTANCE = usePrefix(TEST_PREFIX);
+    
     public MockIdGenerator(String prefix) {
         super(new MillisecondSnowflakeId(1, 0), new PrefixIdConverter(prefix, Radix62IdConverter.INSTANCE));
+    }
+    
+    public static IdGenerator usePrefix(String prefix) {
+        return new MockIdGenerator(prefix);
     }
 }

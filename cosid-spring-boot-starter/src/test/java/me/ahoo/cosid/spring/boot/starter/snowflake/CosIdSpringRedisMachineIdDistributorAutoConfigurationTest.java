@@ -14,13 +14,8 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
-import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.segment.ConditionalOnCosIdSegmentEnabled;
-import me.ahoo.cosid.spring.boot.starter.segment.CosIdSpringRedisSegmentAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
 import me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor;
 
 import org.junit.jupiter.api.Test;

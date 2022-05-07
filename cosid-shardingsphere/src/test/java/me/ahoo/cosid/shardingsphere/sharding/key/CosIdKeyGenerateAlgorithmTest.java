@@ -24,7 +24,7 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;

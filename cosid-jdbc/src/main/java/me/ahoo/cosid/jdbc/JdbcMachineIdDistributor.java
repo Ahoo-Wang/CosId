@@ -16,6 +16,7 @@ package me.ahoo.cosid.jdbc;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
@@ -31,6 +32,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
+import java.time.Duration;
 
 /**
  * Jdbc MachineId Distributor.
@@ -73,7 +75,12 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             + "where namespace=? and instance_id=? and machine_id=?";
     
     public JdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        super(machineStateStorage, clockBackwardsSynchronizer);
+        super(machineStateStorage, clockBackwardsSynchronizer, FOREVER_SAFE_GUARD_DURATION);
+        this.dataSource = dataSource;
+    }
+    
+    public JdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer, Duration safeGuardDuration) {
+        super(machineStateStorage, clockBackwardsSynchronizer, safeGuardDuration);
         this.dataSource = dataSource;
     }
     
@@ -132,8 +139,8 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     
     private MachineState distributeMachine(String namespace, int machineBit, InstanceId instanceId, Connection connection) throws SQLException {
         int nextMachineId = nextMachineId(connection, namespace);
-        if (nextMachineId > maxMachineId(machineBit)) {
-            throw new MachineIdOverflowException(totalMachineIds(machineBit), instanceId);
+        if (nextMachineId > MachineIdDistributor.maxMachineId(machineBit)) {
+            throw new MachineIdOverflowException(MachineIdDistributor.totalMachineIds(machineBit), instanceId);
         }
         MachineState nextMachineState = MachineState.of(nextMachineId, System.currentTimeMillis());
         try (PreparedStatement nextMachineStatement = connection.prepareStatement(DISTRIBUTE_MACHINE)) {

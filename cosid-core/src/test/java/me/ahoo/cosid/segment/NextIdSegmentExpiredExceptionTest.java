@@ -1,13 +1,13 @@
 package me.ahoo.cosid.segment;
 
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-
-import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author : Rocher Kong

@@ -15,8 +15,8 @@ package me.ahoo.cosid.redis;
 
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.SegmentId;
-import me.ahoo.cosid.test.ConcurrentGenerateTest;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.ConcurrentGenerateSpec;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -92,7 +92,7 @@ public class RedisIdIdSegmentDistributorTest {
         RedisIdSegmentDistributor redisMaxIdDistributorGenerateStep100 =
             new RedisIdSegmentDistributor(namespace, "Concurrent", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
         SegmentId defaultSegmentId = new DefaultSegmentId(redisMaxIdDistributorGenerateStep100);
-        new ConcurrentGenerateTest(defaultSegmentId).assertConcurrentGenerate();
+        new ConcurrentGenerateSpec(defaultSegmentId).verify();
     }
     
     @Test
@@ -104,7 +104,7 @@ public class RedisIdIdSegmentDistributorTest {
             new RedisIdSegmentDistributor(namespace, "MultiInstanceConcurrent", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
         SegmentId idGenerator1 = new DefaultSegmentId(redisMaxIdDistributor1);
         SegmentId idGenerator2 = new DefaultSegmentId(redisMaxIdDistributor2);
-        new ConcurrentGenerateTest(idGenerator1, idGenerator2).assertConcurrentGenerate();
+        new ConcurrentGenerateSpec(idGenerator1, idGenerator2).verify();
     }
     
     @AfterAll

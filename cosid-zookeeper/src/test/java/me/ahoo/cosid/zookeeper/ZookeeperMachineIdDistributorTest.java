@@ -14,11 +14,9 @@
 package me.ahoo.cosid.zookeeper;
 
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.machine.InstanceId;
-import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
-import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
+import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec;
 
 import lombok.SneakyThrows;
 import org.apache.curator.RetryPolicy;
@@ -28,20 +26,17 @@ import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.retry.RetryNTimes;
 import org.apache.curator.test.TestingServer;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
-import java.util.Arrays;
+import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * @author ahoo wang
  */
-class ZookeeperMachineIdDistributorTest {
+class ZookeeperMachineIdDistributorTest extends DistributorSpec {
+    RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3, 3000);
     CuratorFramework curatorFramework;
-    ZookeeperMachineIdDistributor zookeeperMachineIdDistributor;
     TestingServer testingServer;
     
     @SneakyThrows
@@ -51,8 +46,6 @@ class ZookeeperMachineIdDistributorTest {
         testingServer.start();
         curatorFramework = CuratorFrameworkFactory.newClient(testingServer.getConnectString(), new RetryNTimes(1, 10));
         curatorFramework.start();
-        RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3, 3000);
-        zookeeperMachineIdDistributor = new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
     }
     
     @SneakyThrows
@@ -66,101 +59,13 @@ class ZookeeperMachineIdDistributorTest {
         }
     }
     
-    @SneakyThrows
-    @Test
-    void distribute() {
-        int machineBit = 1;
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        InstanceId instanceId = InstanceId.of("127.0.0.1", 80, false);
-        int machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
-        Assertions.assertEquals(0, machineId);
-        machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
-        Assertions.assertEquals(0, machineId);
-        
-        InstanceId instanceId1 = InstanceId.of("127.0.0.1", 82, false);
-        machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId1);
-        Assertions.assertEquals(1, machineId);
-        
-        Assertions.assertThrows(MachineIdOverflowException.class, () -> {
-            InstanceId instanceId2 = InstanceId.of("127.0.0.1", 83, false);
-            zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId2);
-        });
-        zookeeperMachineIdDistributor.revert(namespace, instanceId);
-        InstanceId instanceId3 = InstanceId.of("127.0.0.1", 84, false);
-        int machineId3 = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId3);
-        Assertions.assertEquals(0, machineId3);
+    @Override
+    protected MachineIdDistributor getDistributor() {
+        return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
     }
     
-    @Test
-    void distributeWhenStable() {
-        int machineBit = 1;
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        InstanceId instanceId = InstanceId.of("127.0.0.1", 80, true);
-        int machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
-        Assertions.assertEquals(0, machineId);
-        machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
-        Assertions.assertEquals(0, machineId);
-        
-        InstanceId instanceId1 = InstanceId.of("127.0.0.1", 82, true);
-        machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId1);
-        Assertions.assertEquals(1, machineId);
-        
-        Assertions.assertThrows(MachineIdOverflowException.class, () -> {
-            InstanceId instanceId2 = InstanceId.of("127.0.0.1", 83, true);
-            zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId2);
-        });
-        
-        zookeeperMachineIdDistributor.revert(namespace, instanceId);
-        
-        Assertions.assertThrows(MachineIdOverflowException.class, () -> {
-            InstanceId instanceId3 = InstanceId.of("127.0.0.1", 84, true);
-            zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId3);
-        });
-        
-        machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
-        Assertions.assertEquals(0, machineId);
+    @Override
+    protected MachineIdDistributor getDistributor(Duration safeGuardDuration) {
+        return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT, safeGuardDuration);
     }
-    
-    @Test
-    void guard() {
-        int machineBit = 1;
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        InstanceId instanceId = InstanceId.of("127.0.0.1", 80, false);
-        int machineId = zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
-        Assertions.assertEquals(0, machineId);
-        zookeeperMachineIdDistributor.guard(namespace, instanceId);
-    }
-    
-    @Test
-    void guardWhenMachineIdLost() {
-        int machineBit = 1;
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        InstanceId instanceId = InstanceId.of("127.0.0.1", 80, false);
-        MachineStateStorage.LOCAL.set(namespace, machineBit, instanceId);
-        Assertions.assertThrows(MachineIdLostException.class,()-> zookeeperMachineIdDistributor.guard(namespace, instanceId));
-    }
-    
-    @Test
-    void distributeConcurrent() {
-        int machineBit = 5;
-        int totalMachine = ~(-1 << machineBit) + 1;
-        CompletableFuture<Integer>[] results = new CompletableFuture[totalMachine];
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        
-        for (int i = 0; i < totalMachine; i++) {
-            results[i] = CompletableFuture.supplyAsync(() -> {
-                InstanceId instanceId = InstanceId.of(MockIdGenerator.INSTANCE.generateAsString(), false);
-                return zookeeperMachineIdDistributor.distribute(namespace, machineBit, instanceId);
-            });
-        }
-        
-        CompletableFuture.allOf(results).join();
-        
-        Integer[] machineIds = Arrays.stream(results).map(CompletableFuture::join).sorted().toArray(Integer[]::new);
-        for (int i = 0; i < machineIds.length; i++) {
-            Assertions.assertEquals(i, machineIds[i]);
-        }
-    }
-    
-    
 }

@@ -1,7 +1,5 @@
 package me.ahoo.cosid.spring.boot.starter.zookeeper;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

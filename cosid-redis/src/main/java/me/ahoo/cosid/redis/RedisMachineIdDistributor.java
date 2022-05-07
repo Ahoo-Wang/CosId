@@ -18,6 +18,7 @@ import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTim
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
 import me.ahoo.cosid.snowflake.machine.MachineState;
@@ -50,13 +51,14 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     public RedisMachineIdDistributor(RedisClusterReactiveCommands<String, String> redisCommands,
                                      MachineStateStorage machineStateStorage,
                                      ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        this(DEFAULT_TIMEOUT, redisCommands, machineStateStorage, clockBackwardsSynchronizer);
+        this(DEFAULT_TIMEOUT, redisCommands, machineStateStorage, clockBackwardsSynchronizer, FOREVER_SAFE_GUARD_DURATION);
     }
     
     public RedisMachineIdDistributor(Duration timeout, RedisClusterReactiveCommands<String, String> redisCommands,
                                      MachineStateStorage machineStateStorage,
-                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        super(machineStateStorage, clockBackwardsSynchronizer);
+                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer,
+                                     Duration safeGuardDuration) {
+        super(machineStateStorage, clockBackwardsSynchronizer, safeGuardDuration);
         this.timeout = timeout;
         this.redisCommands = redisCommands;
     }
@@ -81,7 +83,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
                 String[] keys = {hashTag(namespace)};
                 String[] values = {
                     instanceId.getInstanceId(),
-                    String.valueOf(maxMachineId(machineBit)),
+                    String.valueOf(MachineIdDistributor.maxMachineId(machineBit)),
                     String.valueOf(System.currentTimeMillis()),
                     String.valueOf(getSafeGuardAt(instanceId.isStable()))
                 };
@@ -93,7 +95,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
             int realMachineId = state.get(0).intValue();
             
             if (realMachineId == -1) {
-                throw new MachineIdOverflowException(totalMachineIds(machineBit), instanceId);
+                throw new MachineIdOverflowException(MachineIdDistributor.totalMachineIds(machineBit), instanceId);
             }
             
             long lastStamp = NOT_FOUND_LAST_STAMP;

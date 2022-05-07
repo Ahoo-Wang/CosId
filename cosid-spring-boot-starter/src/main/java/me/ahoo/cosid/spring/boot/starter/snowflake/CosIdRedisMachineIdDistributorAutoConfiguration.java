@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
+import static me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor.FOREVER_SAFE_GUARD_DURATION;
+
 import me.ahoo.cosid.redis.RedisMachineIdDistributor;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
@@ -40,13 +42,13 @@ import java.time.Duration;
 @ConditionalOnClass(RedisMachineIdDistributor.class)
 @ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "redis")
 public class CosIdRedisMachineIdDistributorAutoConfiguration {
-
+    
     private final SnowflakeIdProperties snowflakeIdProperties;
-
+    
     public CosIdRedisMachineIdDistributorAutoConfiguration(SnowflakeIdProperties snowflakeIdProperties) {
         this.snowflakeIdProperties = snowflakeIdProperties;
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(RedisConnectionFactory.class)
@@ -54,8 +56,8 @@ public class CosIdRedisMachineIdDistributorAutoConfiguration {
                                                                ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         Preconditions.checkNotNull(redisConnectionFactory, "redisConnectionFactory can not be null.");
         Duration timeout = snowflakeIdProperties.getMachine().getDistributor().getRedis().getTimeout();
-        return new RedisMachineIdDistributor(timeout, redisConnectionFactory.getShareReactiveCommands(), localMachineState, clockBackwardsSynchronizer);
+        return new RedisMachineIdDistributor(timeout, redisConnectionFactory.getShareReactiveCommands(), localMachineState, clockBackwardsSynchronizer, FOREVER_SAFE_GUARD_DURATION);
     }
-
-
+    
+    
 }

@@ -5,8 +5,7 @@ import me.ahoo.cosid.snowflake.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.machine.LocalMachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
-import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -15,7 +14,6 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**

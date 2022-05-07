@@ -26,11 +26,11 @@ import javax.annotation.concurrent.ThreadSafe;
 @ThreadSafe
 public interface MachineIdDistributor {
     
-    default int maxMachineId(int machineBit) {
+    static int maxMachineId(int machineBit) {
         return ~(-1 << machineBit);
     }
     
-    default int totalMachineIds(int machineBit) {
+    static int totalMachineIds(int machineBit) {
         return maxMachineId(machineBit) + 1;
     }
     

@@ -1,7 +1,7 @@
 package me.ahoo.cosid.snowflake.machine;
 
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;

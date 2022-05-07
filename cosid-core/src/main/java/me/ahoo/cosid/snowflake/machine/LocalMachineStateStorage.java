@@ -49,8 +49,8 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
 
         File stateFile = getStateFile(namespace, instanceId);
-        if (log.isInfoEnabled()) {
-            log.info("get - read from stateLocation : [{}].", stateFile.getAbsolutePath());
+        if (log.isDebugEnabled()) {
+            log.debug("get - read from stateLocation : [{}].", stateFile.getAbsolutePath());
         }
 
         if (!stateFile.exists()) {
@@ -71,8 +71,8 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             }
             return MachineState.NOT_FOUND;
         }
-        if (log.isInfoEnabled()) {
-            log.info("get - state data : [{}].", stateString);
+        if (log.isDebugEnabled()) {
+            log.debug("get - state data : [{}].", stateString);
         }
         return MachineState.of(stateString);
     }
@@ -93,8 +93,8 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
 
         File stateFile = getStateFile(namespace, instanceId);
-        if (log.isInfoEnabled()) {
-            log.info("set - write machineId:[{}] to stateLocation : [{}].", machineId, stateFile.getAbsolutePath());
+        if (log.isDebugEnabled()) {
+            log.debug("set - write machineId:[{}] to stateLocation : [{}].", machineId, stateFile.getAbsolutePath());
         }
 
         String stateString = MachineState.of(machineId, System.currentTimeMillis()).toStateString();

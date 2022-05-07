@@ -32,6 +32,7 @@ import java.time.Duration;
 public abstract class AbstractMachineIdDistributor implements MachineIdDistributor {
     public static final int NOT_FOUND_LAST_STAMP = -1;
     public static final Duration FOREVER_SAFE_GUARD_DURATION = Duration.ofMillis(Long.MAX_VALUE);
+
     private final MachineStateStorage machineStateStorage;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
     private final Duration safeGuardDuration;

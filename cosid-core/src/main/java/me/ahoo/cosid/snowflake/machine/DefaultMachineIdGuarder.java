@@ -13,12 +13,14 @@
 
 package me.ahoo.cosid.snowflake.machine;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -40,8 +42,12 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     private volatile ScheduledFuture<?> scheduledFuture;
     private final AtomicBoolean running = new AtomicBoolean(false);
     
-    public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, ScheduledExecutorService executorService) {
-        this(machineIdDistributor, executorService, DEFAULT_INITIAL_DELAY, DEFAULT_DELAY);
+    public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor) {
+        this(machineIdDistributor, executorService(), DEFAULT_INITIAL_DELAY, DEFAULT_DELAY);
+    }
+    
+    public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, Duration initialDelay, Duration delay) {
+        this(machineIdDistributor, executorService(), initialDelay, delay);
     }
     
     public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, ScheduledExecutorService executorService,
@@ -51,6 +57,10 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         this.executorService = executorService;
         this.initialDelay = initialDelay;
         this.delay = delay;
+    }
+    
+    private static ScheduledExecutorService executorService() {
+        return new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder().setDaemon(true).setNameFormat("DefaultMachineIdGuarder-").build());
     }
     
     @Override

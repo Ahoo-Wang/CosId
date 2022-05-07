@@ -29,6 +29,7 @@ val serverProjects = setOf(
     project(":cosid-example")
 )
 
+val testProject = project(":cosid-test")
 val publishProjects = subprojects - serverProjects
 val libraryProjects = publishProjects - bomProjects
 
@@ -40,7 +41,7 @@ ext {
     set("springfoxVersion", "3.0.0")
     set("jmhVersion", "1.34")
     set("junitPioneerVersion", "1.4.2")
-    set("hamcrestVersion","2.2")
+    set("hamcrestVersion", "2.2")
     set("mybatisVersion", "3.5.7")
     set("mybatisBootVersion", "2.1.4")
     set("coskyVersion", "1.3.20")
@@ -217,7 +218,9 @@ fun getPropertyOf(name: String) = project.properties[name]?.toString()
 tasks.register<JacocoReport>("codeCoverageReport") {
     executionData(fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec"))
     libraryProjects.forEach {
-        sourceSets(it.sourceSets.main.get())
+        if (testProject != it) {
+            sourceSets(it.sourceSets.main.get())
+        }
     }
     reports {
         xml.required.set(true)

@@ -22,6 +22,7 @@ import com.google.common.annotations.Beta;
  */
 @Beta
 public interface MachineIdGuarder {
+    MachineIdGuarder NONE = new MachineIdGuarder.None();
     
     void register(String namespace, InstanceId instanceId);
     
@@ -32,4 +33,32 @@ public interface MachineIdGuarder {
     void stop();
     
     boolean isRunning();
+    
+    class None implements MachineIdGuarder {
+        
+        @Override
+        public void register(String namespace, InstanceId instanceId) {
+        
+        }
+        
+        @Override
+        public void unregister(String namespace, InstanceId instanceId) {
+        
+        }
+        
+        @Override
+        public void start() {
+        
+        }
+        
+        @Override
+        public void stop() {
+        
+        }
+        
+        @Override
+        public boolean isRunning() {
+            return false;
+        }
+    }
 }

@@ -44,7 +44,6 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Zookeeper MachineIdDistributor.
- * TODO Adapt Guard Machine Id.
  *
  * @author ahoo wang
  */
@@ -151,7 +150,30 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     
     private MachineState tryDistribute(String namespace, int machineBit, InstanceId instanceId) throws Exception {
         String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
-        String revertPath = getRevertPath(namespace);
+        MachineState selfState = distributeBySelf(instancePath);
+        if (selfState != null) {
+            return selfState;
+        }
+        MachineState revertState = distributeByRevert(namespace, instancePath);
+        if (revertState != null) {
+            return revertState;
+        }
+        
+        try {
+            int machineId = nextMachineId(namespace, machineBit, instanceId);
+            MachineState machineState = MachineState.of(machineId);
+            setMachineState(instancePath, machineState);
+            return machineState;
+        } catch (MachineIdOverflowException overflowException) {
+            MachineState recyclableState = distributeByRecyclable(namespace, instancePath, instanceId);
+            if (recyclableState != null) {
+                return recyclableState;
+            }
+            throw overflowException;
+        }
+    }
+    
+    private MachineState distributeBySelf(String instancePath) throws Exception {
         /**
          * when {@link instanceId.stable} is true .
          */
@@ -162,6 +184,11 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
                 return MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
             }
         }
+        return null;
+    }
+    
+    private MachineState distributeByRevert(String namespace, String instancePath) throws Exception {
+        String revertPath = getRevertPath(namespace);
         Stat revertStat = curatorFramework.checkExists().forPath(revertPath);
         if (Objects.nonNull(revertStat) && revertStat.getNumChildren() > 0) {
             List<String> revertMachines = curatorFramework.getChildren().forPath(revertPath);
@@ -185,10 +212,27 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
                 return revertMachineState;
             }
         }
-        int machineId = nextMachineId(namespace, machineBit, instanceId);
-        MachineState machineState = MachineState.of(machineId);
-        setMachineState(instancePath, machineState);
-        return machineState;
+        return null;
+    }
+    
+    protected MachineState distributeByRecyclable(String namespace, String instancePath, InstanceId instanceId) throws Exception {
+        String instanceIdxPath = getInstanceIdxPath(namespace);
+        List<String> instanceMachines = curatorFramework.getChildren().forPath(instanceIdxPath);
+        for (String eachInstance : instanceMachines) {
+            String eachInstancePath = ZKPaths.makePath(instanceIdxPath, eachInstance);
+            byte[] stateBuf = curatorFramework.getData().forPath(eachInstancePath);
+            MachineState instanceMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+            long safeGuardAt = getSafeGuardAt(instanceId.isStable());
+            
+            if (instanceMachineState.getLastTimeStamp() > safeGuardAt) {
+                continue;
+            }
+            curatorFramework.delete().forPath(eachInstancePath);
+            MachineState machineState = MachineState.of(instanceMachineState.getMachineId(), System.currentTimeMillis());
+            setMachineState(instancePath, machineState);
+            return machineState;
+        }
+        return null;
     }
     
     @Override

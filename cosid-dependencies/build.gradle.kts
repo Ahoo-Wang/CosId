@@ -21,6 +21,7 @@ dependencies {
         api("org.mybatis.spring.boot:mybatis-spring-boot-starter:${rootProject.ext.get("mybatisBootVersion")}")
         api("com.google.guava:guava:${rootProject.ext.get("guavaVersion")}")
         api("org.junit-pioneer:junit-pioneer:${rootProject.ext.get("junitPioneerVersion")}")
+        api("org.hamcrest:hamcrest:${rootProject.ext.get("hamcrestVersion")}")
         api("io.springfox:springfox-boot-starter:${rootProject.ext.get("springfoxVersion")}")
     }
 }

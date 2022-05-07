@@ -17,7 +17,7 @@ import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_OFFSET;
 import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_STEP;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;

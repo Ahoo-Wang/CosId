@@ -1,7 +1,7 @@
 local stateDelimiter = "|";
 local namespace = KEYS[1];
 local instanceId = ARGV[1];
-local lastStamp = ARGV[2];
+local currentStamp = ARGV[2];
 
 local instanceIdxKey = 'cosid' .. ':' .. namespace .. ':itc_idx';
 
@@ -16,12 +16,16 @@ local function convertStateToString(machineId, timestamp)
     return tostring(machineId) .. stateDelimiter .. tostring(timestamp);
 end
 
+local function setState(machineId, lastStamp)
+    local machineState = convertStateToString(machineId, lastStamp);
+    redis.call('hset', instanceIdxKey, instanceId, machineState);
+end
+
 local machineState = redis.call('hget', instanceIdxKey, instanceId)
 if machineState then
     local states = convertStingToState(machineState)
     local machineId = states[1];
-    machineState = convertStateToString(machineId, lastStamp);
-    redis.call('hset', instanceIdxKey, instanceId, machineState);
+    setState(machineId,currentStamp);
     return 1;
 end
 

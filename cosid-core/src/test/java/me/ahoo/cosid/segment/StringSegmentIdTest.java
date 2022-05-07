@@ -1,7 +1,5 @@
 package me.ahoo.cosid.segment;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import me.ahoo.cosid.converter.Radix62IdConverter;
 
 import org.junit.jupiter.api.Assertions;

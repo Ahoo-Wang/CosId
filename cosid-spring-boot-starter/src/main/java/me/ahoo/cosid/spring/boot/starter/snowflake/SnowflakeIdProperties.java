@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.snowflake.machine.DefaultMachineIdGuarder;
 import me.ahoo.cosid.snowflake.machine.LocalMachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 
@@ -119,10 +120,12 @@ public class SnowflakeIdProperties {
         
         private StateStorage stateStorage;
         private Distributor distributor;
+        private Guarder guarder;
         
         public Machine() {
             stateStorage = new StateStorage();
             distributor = new Distributor();
+            guarder = new Guarder();
         }
         
         public Boolean getStable() {
@@ -173,6 +176,15 @@ public class SnowflakeIdProperties {
             this.distributor = distributor;
         }
         
+        public Guarder getGuarder() {
+            return guarder;
+        }
+        
+        public Machine setGuarder(Guarder guarder) {
+            this.guarder = guarder;
+            return this;
+        }
+        
         public static class StateStorage {
             
             private boolean enabled = true;
@@ -215,6 +227,8 @@ public class SnowflakeIdProperties {
         public static class Distributor {
             public static final String TYPE = PREFIX + ".machine.distributor.type";
             private Type type = Type.MANUAL;
+            public static final Duration DEFAULT_SAFE_GUARD_DURATION = Duration.ofMinutes(5);
+            private Duration safeGuardDuration = DEFAULT_SAFE_GUARD_DURATION;
             private Manual manual;
             private Redis redis;
             
@@ -228,6 +242,15 @@ public class SnowflakeIdProperties {
             
             public void setType(Type type) {
                 this.type = type;
+            }
+            
+            public Duration getSafeGuardDuration() {
+                return safeGuardDuration;
+            }
+            
+            public Distributor setSafeGuardDuration(Duration safeGuardDuration) {
+                this.safeGuardDuration = safeGuardDuration;
+                return this;
             }
             
             public Manual getManual() {
@@ -278,6 +301,39 @@ public class SnowflakeIdProperties {
             
             public void setTimeout(Duration timeout) {
                 this.timeout = timeout;
+            }
+        }
+        
+        public static class Guarder {
+            private boolean enabled = false;
+            private Duration initialDelay = DefaultMachineIdGuarder.DEFAULT_INITIAL_DELAY;
+            private Duration delay = DefaultMachineIdGuarder.DEFAULT_DELAY;
+            
+            public boolean isEnabled() {
+                return enabled;
+            }
+            
+            public Guarder setEnabled(boolean enabled) {
+                this.enabled = enabled;
+                return this;
+            }
+            
+            public Duration getInitialDelay() {
+                return initialDelay;
+            }
+            
+            public Guarder setInitialDelay(Duration initialDelay) {
+                this.initialDelay = initialDelay;
+                return this;
+            }
+            
+            public Duration getDelay() {
+                return delay;
+            }
+            
+            public Guarder setDelay(Duration delay) {
+                this.delay = delay;
+                return this;
             }
         }
     }

@@ -1,7 +1,5 @@
 package me.ahoo.cosid.snowflake.machine;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

@@ -15,7 +15,6 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
-import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.snowflake.machine.InstanceId;

@@ -5,7 +5,7 @@ import me.ahoo.cosid.accessor.registry.DefaultAccessorRegistry;
 import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
 import me.ahoo.cosid.annotation.CosId;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import lombok.SneakyThrows;
 import org.apache.ibatis.builder.StaticSqlSource;

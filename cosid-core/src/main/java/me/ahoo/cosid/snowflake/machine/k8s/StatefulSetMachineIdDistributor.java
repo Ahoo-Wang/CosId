@@ -50,7 +50,7 @@ public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributo
     }
 
     @Override
-    protected MachineState distribute0(String namespace, int machineBit, InstanceId instanceId) {
+    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId) {
         int machineId = resolveMachineId();
         MachineState machineState = MachineState.of(machineId, NOT_FOUND_LAST_STAMP);
         if (log.isInfoEnabled()) {
@@ -61,8 +61,13 @@ public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributo
 
 
     @Override
-    protected void revert0(String namespace, InstanceId instanceId, MachineState machineState) {
+    protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
 
     }
-
+    
+    @Override
+    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+    
+    }
+    
 }

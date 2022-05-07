@@ -167,6 +167,8 @@ cosid:
       state-storage:
         local:
           state-location: ./cosid-machine-state/
+      guarder:
+        enabled: true
     share:
       clock-sync: true
       friendly: true

@@ -30,10 +30,12 @@ import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.StringSnowflakeId;
+import me.ahoo.cosid.snowflake.machine.DefaultMachineIdGuarder;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
 import me.ahoo.cosid.snowflake.machine.LocalMachineStateStorage;
 import me.ahoo.cosid.snowflake.machine.MachineId;
 import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.MachineIdGuarder;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.snowflake.machine.ManualMachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.k8s.StatefulSetMachineIdDistributor;
@@ -68,37 +70,37 @@ import java.util.Objects;
 public class CosIdSnowflakeAutoConfiguration {
     private final CosIdProperties cosIdProperties;
     private final SnowflakeIdProperties snowflakeIdProperties;
-
+    
     public CosIdSnowflakeAutoConfiguration(CosIdProperties cosIdProperties, SnowflakeIdProperties snowflakeIdProperties) {
         this.cosIdProperties = cosIdProperties;
         this.snowflakeIdProperties = snowflakeIdProperties;
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public InstanceId instanceId(InetUtils inetUtils) {
         SnowflakeIdProperties.Machine machine = snowflakeIdProperties.getMachine();
         Preconditions.checkNotNull(machine, "cosid.snowflake.machine can not be null.");
-
+        
         boolean stable = false;
         if (Objects.nonNull(machine.getStable()) && machine.getStable()) {
             stable = machine.getStable();
         }
-
+        
         if (!Strings.isNullOrEmpty(machine.getInstanceId())) {
             return InstanceId.of(machine.getInstanceId(), stable);
         }
-
+        
         InetUtils.HostInfo hostInfo = inetUtils.findFirstNonLoopbackHostInfo();
-
+        
         int port = ProcessId.CURRENT.getProcessId();
         if (Objects.nonNull(machine.getPort()) && machine.getPort() > 0) {
             port = machine.getPort();
         }
-
+        
         return InstanceId.of(hostInfo.getIpAddress(), port, stable);
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public MachineStateStorage localMachineState() {
@@ -107,7 +109,7 @@ public class CosIdSnowflakeAutoConfiguration {
         }
         return new LocalMachineStateStorage(snowflakeIdProperties.getMachine().getStateStorage().getLocal().getStateLocation());
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public ClockBackwardsSynchronizer clockBackwardsSynchronizer() {
@@ -115,7 +117,7 @@ public class CosIdSnowflakeAutoConfiguration {
         Preconditions.checkNotNull(clockBackwards, "cosid.snowflake.clockBackwards can not be null.");
         return new DefaultClockBackwardsSynchronizer(clockBackwards.getSpinThreshold(), clockBackwards.getBrokenThreshold());
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, matchIfMissing = true, havingValue = "manual")
@@ -127,20 +129,37 @@ public class CosIdSnowflakeAutoConfiguration {
         Preconditions.checkArgument(machineId >= 0, "cosid.snowflake.machine.distributor.manual.machineId can not be less than 0.");
         return new ManualMachineIdDistributor(machineId, localMachineState, clockBackwardsSynchronizer);
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "stateful_set")
     public StatefulSetMachineIdDistributor statefulSetMachineIdDistributor(MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         return new StatefulSetMachineIdDistributor(localMachineState, clockBackwardsSynchronizer);
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
-    public CosIdLifecycleMachineIdDistributor lifecycleMachineIdDistributor(InstanceId instanceId, MachineIdDistributor machineIdDistributor) {
+    public CosIdLifecycleMachineIdDistributor cosIdLifecycleMachineIdDistributor(InstanceId instanceId, MachineIdDistributor machineIdDistributor) {
         return new CosIdLifecycleMachineIdDistributor(cosIdProperties, instanceId, machineIdDistributor);
     }
-
+    
+    
+    @Bean
+    @ConditionalOnMissingBean
+    public MachineIdGuarder machineIdGuarder(MachineIdDistributor machineIdDistributor) {
+        SnowflakeIdProperties.Machine.Guarder guarder = snowflakeIdProperties.getMachine().getGuarder();
+        if (!guarder.isEnabled()) {
+            return MachineIdGuarder.NONE;
+        }
+        return new DefaultMachineIdGuarder(machineIdDistributor, guarder.getInitialDelay(), guarder.getDelay());
+    }
+    
+    @Bean
+    @ConditionalOnMissingBean
+    public CosIdLifecycleMachineIdGuarder cosIdLifecycleMachineIdGuarder(InstanceId instanceId, MachineIdGuarder machineIdGuarder) {
+        return new CosIdLifecycleMachineIdGuarder(cosIdProperties, instanceId, machineIdGuarder);
+    }
+    
     @Bean
     @Primary
     @ConditionalOnMissingBean
@@ -156,17 +175,17 @@ public class CosIdSnowflakeAutoConfiguration {
             IdGenerator idGenerator = createIdGen(machineIdDistributor, instanceId, idDefinition, clockBackwardsSynchronizer);
             idGeneratorProvider.set(name, idGenerator);
         });
-
+        
         return shareIdGen;
     }
-
+    
     @Bean
     @ConditionalOnBean(value = SnowflakeId.class)
     public MachineId machineId(SnowflakeId snowflakeId) {
         long machineId = snowflakeId.getMachineId();
         return new MachineId(machineId);
     }
-
+    
     private SnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         long epoch = getEpoch(idDefinition);
@@ -181,20 +200,20 @@ public class CosIdSnowflakeAutoConfiguration {
         if (idDefinition.isClockSync()) {
             snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
         }
-
+        
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
-
+        
         boolean isFriendly = idDefinition.isFriendly();
         final ZoneId zoneId = ZoneId.of(snowflakeIdProperties.getZoneId());
-
+        
         if (isFriendly) {
             snowflakeId = new DefaultSnowflakeFriendlyId(snowflakeId, zoneId);
         }
-
+        
         if (Objects.isNull(converterDefinition)) {
             return snowflakeId;
         }
-
+        
         IdConverter idConverter = ToStringIdConverter.INSTANCE;
         switch (converterDefinition.getType()) {
             case TO_STRING: {
@@ -212,18 +231,18 @@ public class CosIdSnowflakeAutoConfiguration {
             default:
                 throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
         }
-
+        
         if (!PrefixIdConverter.EMPTY_PREFIX.equals(converterDefinition.getPrefix())) {
             idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
         }
-
+        
         if (isFriendly) {
             SnowflakeFriendlyId snowflakeFriendlyId = (SnowflakeFriendlyId) snowflakeId;
             return new DefaultSnowflakeFriendlyId(snowflakeId, idConverter, snowflakeFriendlyId.getParser());
         }
         return new StringSnowflakeId(snowflakeId, idConverter);
     }
-
+    
     private Integer getMachineBit(SnowflakeIdProperties.IdDefinition idDefinition) {
         Integer machineBit = idDefinition.getMachineBit();
         if (Objects.isNull(machineBit) || machineBit <= 0) {
@@ -231,12 +250,12 @@ public class CosIdSnowflakeAutoConfiguration {
         }
         return machineBit;
     }
-
+    
     private long getEpoch(SnowflakeIdProperties.IdDefinition idDefinition) {
         if (idDefinition.getEpoch() > 0) {
             return idDefinition.getEpoch();
         }
         return snowflakeIdProperties.getEpoch();
     }
-
+    
 }

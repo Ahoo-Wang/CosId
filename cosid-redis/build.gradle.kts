@@ -15,4 +15,5 @@ dependencies {
     api(project(":cosid-core"))
     implementation("me.ahoo.cosky:cosky-core")
     api("io.lettuce:lettuce-core")
+    testImplementation(project(":cosid-test"))
 }

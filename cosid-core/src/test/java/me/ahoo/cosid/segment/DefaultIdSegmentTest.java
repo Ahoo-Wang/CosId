@@ -1,6 +1,6 @@
 package me.ahoo.cosid.segment;
 
-import me.ahoo.cosid.test.ConcurrentGenerateTest;
+import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -29,6 +29,6 @@ class DefaultIdSegmentTest {
     @Test
     void incrementAndGetWhenConcurrent() {
         final DefaultIdSegment segment = new DefaultIdSegment(Long.MAX_VALUE, Long.MAX_VALUE);
-        new ConcurrentGenerateTest(segment::incrementAndGet).assertConcurrentGenerate();
+        new ConcurrentGenerateSpec(segment::incrementAndGet).verify();
     }
 }

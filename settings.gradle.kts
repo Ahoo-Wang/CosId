@@ -25,6 +25,7 @@ include(":cosid-example")
 include(":cosid-jackson")
 include(":cosid-shardingsphere")
 include(":cosid-zookeeper")
+include(":cosid-test")
 
 buildscript{
     repositories{
@@ -36,3 +37,4 @@ buildscript{
         classpath("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.6")
     }
 }
+

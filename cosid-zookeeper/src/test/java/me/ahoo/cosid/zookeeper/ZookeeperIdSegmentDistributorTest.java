@@ -17,8 +17,8 @@ import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.SegmentId;
-import me.ahoo.cosid.test.ConcurrentGenerateTest;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.ConcurrentGenerateSpec;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import lombok.SneakyThrows;
 import org.apache.curator.RetryPolicy;
@@ -111,7 +111,7 @@ class ZookeeperIdSegmentDistributorTest {
             new ZookeeperIdSegmentDistributor("generateWhenConcurrent", MockIdGenerator.INSTANCE.generateAsString(), 0, IdSegmentDistributor.DEFAULT_STEP, curatorFramework, retryPolicy);
         
         SegmentId defaultSegmentId = new DefaultSegmentId(distributor);
-        new ConcurrentGenerateTest(10, 800000, defaultSegmentId).assertConcurrentGenerate();
+        new ConcurrentGenerateSpec(10, 800000, defaultSegmentId).verify();
     }
     
     @Test
@@ -121,7 +121,7 @@ class ZookeeperIdSegmentDistributorTest {
         
         SegmentId idGenerator1 = new DefaultSegmentId(distributor);
         SegmentId idGenerator2 = new DefaultSegmentId(distributor);
-        new ConcurrentGenerateTest(10, 800000, idGenerator1, idGenerator2).assertConcurrentGenerate();
+        new ConcurrentGenerateSpec(10, 800000, idGenerator1, idGenerator2).verify();
     }
     
 }

@@ -37,11 +37,20 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "zookeeper")
 @ConditionalOnClass(ZookeeperMachineIdDistributor.class)
 public class CosIdZookeeperMachineIdDistributorAutoConfiguration {
-
+    private final SnowflakeIdProperties snowflakeIdProperties;
+    
+    public CosIdZookeeperMachineIdDistributorAutoConfiguration(SnowflakeIdProperties snowflakeIdProperties) {
+        this.snowflakeIdProperties = snowflakeIdProperties;
+    }
+    
     @Bean
     @ConditionalOnMissingBean
     public ZookeeperMachineIdDistributor zookeeperMachineIdDistributor(CuratorFramework curatorFramework, RetryPolicy retryPolicy, MachineStateStorage localMachineState,
                                                                        ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, localMachineState, clockBackwardsSynchronizer);
+        if (!snowflakeIdProperties.getMachine().getGuarder().isEnabled()) {
+            return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, localMachineState, clockBackwardsSynchronizer);
+        }
+        return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, localMachineState, clockBackwardsSynchronizer,
+            snowflakeIdProperties.getMachine().getDistributor().getSafeGuardDuration());
     }
 }

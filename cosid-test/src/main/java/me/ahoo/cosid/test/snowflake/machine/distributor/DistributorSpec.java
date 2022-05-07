@@ -102,4 +102,10 @@ public abstract class DistributorSpec {
     public void distributeConcurrent() {
         new DistributeConcurrent(this::getDistributor).verify();
     }
+    
+    @Test
+    public void distributeIdempotent() {
+        new DistributeIdempotent(this::getDistributor).verify();
+    }
+    
 }

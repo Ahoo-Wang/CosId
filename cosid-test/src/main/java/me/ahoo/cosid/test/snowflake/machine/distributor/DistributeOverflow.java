@@ -49,7 +49,7 @@ public class DistributeOverflow implements TestSpec {
         assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT) + 1));
         
         for (int i = 0; i < allInstances.size() - 1; i++) {
-            int machineId = distributor.distribute(namespace, allInstances.get(i));
+            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i));
             assertThat(machineId, equalTo(i));
         }
         
@@ -57,6 +57,6 @@ public class DistributeOverflow implements TestSpec {
         Assert.assertThrows(MachineIdOverflowException.class, () -> {
             distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId);
         });
-
+        
     }
 }

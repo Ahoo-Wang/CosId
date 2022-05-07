@@ -33,7 +33,7 @@ import java.util.function.Supplier;
  *
  * @author ahoo wang
  */
-public  class DistributeRevert implements TestSpec {
+public class DistributeRevert implements TestSpec {
     private final Supplier<MachineIdDistributor> implFactory;
     
     public DistributeRevert(Supplier<MachineIdDistributor> implFactory) {
@@ -48,7 +48,7 @@ public  class DistributeRevert implements TestSpec {
         assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT)));
         
         for (int i = 0; i < allInstances.size(); i++) {
-            int machineId = distributor.distribute(namespace, allInstances.get(i));
+            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i));
             assertThat(machineId, equalTo(i));
         }
         
@@ -56,6 +56,6 @@ public  class DistributeRevert implements TestSpec {
         distributor.revert(namespace, firstInstanceId);
         
         InstanceId newInstanceId = mockInstance(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT), false);
-        distributor.distribute(namespace, newInstanceId);
+        distributor.distribute(namespace, TEST_MACHINE_BIT, newInstanceId);
     }
 }

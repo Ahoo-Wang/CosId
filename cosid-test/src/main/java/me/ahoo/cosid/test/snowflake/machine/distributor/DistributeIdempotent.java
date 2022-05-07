@@ -29,20 +29,20 @@ import me.ahoo.cosid.test.TestSpec;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.locks.LockSupport;
 import java.util.function.Function;
 
 /**
- * DistributeSafeGuard .
+ * DistributeIdempotent .
+ * Multiple assignments to the same instance are idempotent.
  *
  * @author ahoo wang
  */
-public class DistributeSafeGuard implements TestSpec {
+public class DistributeIdempotent implements TestSpec {
     
     public static final Duration SAFE_GUARD_DURATION = Duration.ofSeconds(5);
     private final Function<Duration, MachineIdDistributor> implFactory;
     
-    public DistributeSafeGuard(Function<Duration, MachineIdDistributor> implFactory) {
+    public DistributeIdempotent(Function<Duration, MachineIdDistributor> implFactory) {
         this.implFactory = implFactory;
     }
     
@@ -51,37 +51,23 @@ public class DistributeSafeGuard implements TestSpec {
         MachineIdDistributor distributor = implFactory.apply(SAFE_GUARD_DURATION);
         
         String namespace = MockIdGenerator.usePrefix("DistributeSafeGuard").generateAsString();
-        int machineBit = TEST_MACHINE_BIT;
-        int moreMachineBit = machineBit + 1;
-        List<InstanceId> allInstances = allInstances(moreMachineBit, false);
-        int endIdx = MachineIdDistributor.totalMachineIds(machineBit);
-        List<InstanceId> availableInstances = allInstances.subList(0, endIdx);
-        assertThat(availableInstances, hasSize(MachineIdDistributor.totalMachineIds(machineBit)));
         
-        for (int i = 0; i < availableInstances.size(); i++) {
+        List<InstanceId> allInstances = allInstances(TEST_MACHINE_BIT, false);
+        assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT)));
+        
+        for (int i = 0; i < allInstances.size(); i++) {
             int machineId = distributor.distribute(namespace, allInstances.get(i));
             assertThat(machineId, equalTo(i));
         }
         
-        InstanceId overflowInstanceId = mockInstance(MachineIdDistributor.totalMachineIds(machineBit), false);
+        InstanceId overflowInstanceId = mockInstance(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT), false);
         Assert.assertThrows(MachineIdOverflowException.class, () -> {
-            distributor.distribute(namespace, machineBit, overflowInstanceId);
+            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId);
         });
         
-        /*
-         * 等待所有实例到达安全守护点(SafeGuardAt)，即变成可回收状态.
-         */
-        LockSupport.parkNanos(this, SAFE_GUARD_DURATION.plusMillis(10).toNanos());
-        availableInstances = allInstances.subList(endIdx, MachineIdDistributor.totalMachineIds(moreMachineBit));
-        
-        Integer[] machineIds = availableInstances
-            .stream()
-            .map(instanceId -> distributor.distribute(namespace, machineBit, instanceId))
-            .sorted().toArray(Integer[]::new);
-        
-        for (int i = 0; i < machineIds.length; i++) {
-            assertThat(machineIds[i], equalTo(i));
+        for (int i = 0; i < allInstances.size(); i++) {
+            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i));
+            assertThat(machineId, equalTo(i));
         }
-
     }
 }

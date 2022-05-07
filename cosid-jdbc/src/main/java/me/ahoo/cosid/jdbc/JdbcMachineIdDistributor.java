@@ -45,33 +45,33 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     private final DataSource dataSource;
     
     private static final String GET_MACHINE_STATE =
-        "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id=? and last_timestamp>safe_guard_at";
+        "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id=? and last_timestamp>?";
     
     private static final String GET_REVERT_MACHINE_STATE =
-        "select machine_id, last_timestamp from cosid_machine where namespace=? and last_timestamp<=safe_guard_at";
+        "select machine_id, last_timestamp from cosid_machine where namespace=? and (instance_id='' or last_timestamp<=?)";
     
     private static final String DISTRIBUTE_REVERT_MACHINE_STATE =
         "update cosid_machine "
-            + "set instance_id=?,last_timestamp=?,safe_guard_at=?,distribute_time=? "
-            + "where name=? and last_timestamp<=safe_guard_at";
+            + "set instance_id=?,last_timestamp=?,distribute_time=? "
+            + "where name=? and (instance_id='' or last_timestamp<=?)";
     
     private static final String NEXT_MACHINE_ID =
         "select max(machine_id)+1 as next_machine_id from cosid_machine where namespace=?";
     
     private static final String DISTRIBUTE_MACHINE =
         "insert into cosid_machine "
-            + "(name, namespace, machine_id, last_timestamp, instance_id, safe_guard_at,distribute_time, revert_time) "
+            + "(name, namespace, machine_id, last_timestamp, instance_id, distribute_time, revert_time) "
             + "values "
-            + "(?,?,?,?,?,?,?,0);";
+            + "(?,?,?,?,?,?,0);";
     
     private static final String REVERT_MACHINE_STATE =
         "update cosid_machine "
-            + "set last_timestamp=?,safe_guard_at=?,revert_time=? "
+            + "set instance_id=?,last_timestamp=?,revert_time=? "
             + "where namespace=? and instance_id=?";
     
     private static final String GUARD_MACHINE_STATE =
         "update cosid_machine "
-            + "set last_timestamp=?,safe_guard_at=? "
+            + "set last_timestamp=? "
             + "where namespace=? and instance_id=? and machine_id=?";
     
     public JdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
@@ -92,9 +92,9 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         try (PreparedStatement revertMachineStatement = connection.prepareStatement(DISTRIBUTE_REVERT_MACHINE_STATE)) {
             revertMachineStatement.setString(1, instanceId.getInstanceId());
             revertMachineStatement.setLong(2, System.currentTimeMillis());
-            revertMachineStatement.setLong(3, getSafeGuardAt(instanceId.isStable()));
-            revertMachineStatement.setLong(4, System.currentTimeMillis());
-            revertMachineStatement.setString(5, getNamespacedMachineId(namespace, machineId));
+            revertMachineStatement.setLong(3, System.currentTimeMillis());
+            revertMachineStatement.setString(4, getNamespacedMachineId(namespace, machineId));
+            revertMachineStatement.setLong(5, getSafeGuardAt(instanceId.isStable()));
             int affected = revertMachineStatement.executeUpdate();
             return affected;
         }
@@ -149,8 +149,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             nextMachineStatement.setInt(3, nextMachineId);
             nextMachineStatement.setLong(4, nextMachineState.getLastTimeStamp());
             nextMachineStatement.setString(5, instanceId.getInstanceId());
-            nextMachineStatement.setLong(6, getSafeGuardAt(instanceId.isStable()));
-            nextMachineStatement.setLong(7, System.currentTimeMillis());
+            nextMachineStatement.setLong(6, System.currentTimeMillis());
             try {
                 nextMachineStatement.executeUpdate();
                 return nextMachineState;
@@ -166,6 +165,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     private MachineState distributeByRevert(String namespace, InstanceId instanceId, Connection connection) throws SQLException {
         try (PreparedStatement getRevertMachineStatement = connection.prepareStatement(GET_REVERT_MACHINE_STATE)) {
             getRevertMachineStatement.setString(1, namespace);
+            getRevertMachineStatement.setLong(2, getSafeGuardAt(instanceId.isStable()));
             try (ResultSet resultSet = getRevertMachineStatement.executeQuery()) {
                 if (resultSet.next()) {
                     int machineId = resultSet.getInt(1);
@@ -183,6 +183,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         try (PreparedStatement getMachineStatement = connection.prepareStatement(GET_MACHINE_STATE)) {
             getMachineStatement.setString(1, namespace);
             getMachineStatement.setString(2, instanceId.getInstanceId());
+            getMachineStatement.setLong(3, getSafeGuardAt(instanceId.isStable()));
             try (ResultSet resultSet = getMachineStatement.executeQuery()) {
                 if (resultSet.next()) {
                     int machineId = resultSet.getInt(1);
@@ -202,8 +203,8 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         }
         try (Connection connection = dataSource.getConnection()) {
             try (PreparedStatement revertMachineStatement = connection.prepareStatement(REVERT_MACHINE_STATE)) {
-                revertMachineStatement.setLong(1, machineState.getLastTimeStamp());
-                revertMachineStatement.setLong(2, instanceId.isStable() ? 0 : System.currentTimeMillis());
+                revertMachineStatement.setString(1, instanceId.isStable() ? instanceId.getInstanceId() : "");
+                revertMachineStatement.setLong(2, machineState.getLastTimeStamp());
                 revertMachineStatement.setLong(3, System.currentTimeMillis());
                 revertMachineStatement.setString(4, namespace);
                 revertMachineStatement.setString(5, instanceId.getInstanceId());
@@ -229,10 +230,9 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         try (Connection connection = dataSource.getConnection()) {
             try (PreparedStatement guardMachineStatement = connection.prepareStatement(GUARD_MACHINE_STATE)) {
                 guardMachineStatement.setLong(1, machineState.getLastTimeStamp());
-                guardMachineStatement.setLong(2, getSafeGuardAt(instanceId.isStable()));
-                guardMachineStatement.setString(3, namespace);
-                guardMachineStatement.setString(4, instanceId.getInstanceId());
-                guardMachineStatement.setInt(5, machineState.getMachineId());
+                guardMachineStatement.setString(2, namespace);
+                guardMachineStatement.setString(3, instanceId.getInstanceId());
+                guardMachineStatement.setInt(4, machineState.getMachineId());
                 int affected = guardMachineStatement.executeUpdate();
                 if (log.isInfoEnabled()) {
                     log.info("guardRemote - affected:[{}]", affected);

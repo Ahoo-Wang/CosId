@@ -35,7 +35,6 @@ create table if not exists cosid_machine
     machine_id      integer unsigned not null default 0,
     last_timestamp  bigint unsigned  not null default 0,
     instance_id     varchar(100)     not null default '',
-    safe_guard_at   bigint unsigned  not null default 0,
     distribute_time bigint unsigned  not null default 0,
     revert_time     bigint unsigned  not null default 0,
     constraint cosid_machine_pk

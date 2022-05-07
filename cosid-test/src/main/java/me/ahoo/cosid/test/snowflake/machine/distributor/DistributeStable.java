@@ -50,11 +50,11 @@ public class DistributeStable implements TestSpec {
         assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT)));
         
         for (int i = 0; i < allInstances.size(); i++) {
-            int machineId = distributor.distribute(namespace, allInstances.get(i));
+            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i));
             assertThat(machineId, equalTo(i));
         }
         InstanceId overflowInstanceId = InstanceId.of(TEST_HOST, MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT), true);
-    
+        
         Assert.assertThrows(MachineIdOverflowException.class, () -> {
             distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId);
         });
@@ -64,7 +64,7 @@ public class DistributeStable implements TestSpec {
          * 稳定实例不会回收机器号
          */
         distributor.revert(namespace, firstInstanceId);
-    
+        
         Assert.assertThrows(MachineIdOverflowException.class, () -> {
             /*
              * 稳定实例不会回收机器号，所以依然抛出异常

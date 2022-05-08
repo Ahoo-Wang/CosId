@@ -129,6 +129,8 @@ jobs:
     name: CosId Jdbc Test
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
+    env:
+      MYSQL: 5.1
     steps:
       - name: Start Mysql
         run: sudo /etc/init.d/mysql start
@@ -154,8 +156,6 @@ jobs:
     name: CosId Spring Boot Starter Test
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
-    env:
-      MYSQL: 5.1
     steps:
       - name: Start Mysql
         run: sudo /etc/init.d/mysql start

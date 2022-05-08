@@ -1,13 +1,13 @@
 # 简介
 
+<p align="center" >
+  <img width="200" :src="$withBase('/logo.png')" alt="CosId Logo"/>
+</p>
+
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 [![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/CosId.svg)](https://github.com/Ahoo-Wang/CosId/releases)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/dfd1d6237a1644409548ebfbca300dc1)](https://app.codacy.com/gh/Ahoo-Wang/CosId?utm_source=github.com&utm_medium=referral&utm_content=Ahoo-Wang/CosId&utm_campaign=Badge_Grade_Settings)
 [![codecov](https://codecov.io/gh/Ahoo-Wang/CosId/branch/main/graph/badge.svg?token=L0N51NB7ET)](https://codecov.io/gh/Ahoo-Wang/CosId)
-
-<p align="center" >
-  <img width="200" :src="$withBase('/logo.png')" alt="Throughput-Of-SegmentChainId"/>
-</p>
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 
 
@@ -16,14 +16,31 @@
   - `IdSegmentDistributor`: 号段分发器（号段存储器）
     - `RedisIdSegmentDistributor`: 基于 *Redis* 的号段分发器。
     - `JdbcIdSegmentDistributor`: 基于 *Jdbc* 的号段分发器，支持各种关系型数据库。
-  - `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](perf-test.md) 。
-    - `PrefetchWorker` 维护安全距离(`safeDistance`), 并且支持基于饥饿状态的动态`safeDistance`扩容/收缩。
+    - `ZookeeperIdSegmentDistributor`: 基于 *Zookeeper* 的号段分发器。
+- `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](perf-test.md) 。
+  - `PrefetchWorker` 维护安全距离(`safeDistance`), 并且支持基于饥饿状态的动态`safeDistance`扩容/收缩。
 
 ## 背景（为什么需要*分布式ID*）
 
-在软件系统演进过程中，随着业务规模的增长，我们需要进行集群化部署来分摊计算、存储压力，应用服务我们可以很轻松做到无状态、弹性伸缩。
-但是仅仅增加服务副本数就够了吗？显然不够，因为性能瓶颈往往是在数据库层面，那么这个时候我们就需要考虑如何进行数据库的扩容、伸缩、集群化，通常使用分库、分表的方式来处理。
-那么我如何分片(水平分片，当然还有垂直分片不过不是本文需要讨论的内容)呢，分片得前提是我们得先有一个ID，然后才能根据分片算法来分片。（比如比较简单常用的ID取模分片算法，这个跟Hash算法的概念类似，我们得先有key才能进行Hash取得插入槽位。）
+在软件系统演进过程中，随着业务规模的增长 (TPS/存储容量)，我们需要通过集群化部署来分摊计算、存储压力。
+应用服务的无状态设计使其具备了伸缩性。在使用 **Kubernetes** 部署时我们只需要一行命令即可完成服务伸缩
+(`kubectl scale --replicas=5 deployment/order-service`)。
+
+但对于有状态的数据库就不那么容易了，此时数据库变成系统的性能瓶颈是显而易见的。
+
+### 分库分表
+
+> 从微服务的角度来理解垂直拆分其实就是微服务拆分。以限界上下文来定义服务边界将大服务/单体应用拆分成多个自治的粒度更小的服务，因为自治性规范要求，数据库也需要进行业务拆分。
+> 但垂直拆分后的单个微服务依然会面临 TPS/存储容量 的挑战，所以这里我们重点讨论水平拆分的方式。
+
+<p align="center" >
+  <img  :src="$withBase('/assets/shardingsphere/sharding-db.png')" alt="分库分表"/>
+</p>
+
+数据库分库分表方案是逻辑统一，物理分区自治的方案。其核心设计在于中间层映射方案的设计 (上图 **Mapping**)，即分片算法的设计。
+几乎所有编程语言都内置实现了散列表(java:`HashMap`/csharp:`Dictionary`/python:`dict`/go:`map` ...)。分片算法跟散列表高度相似(`hashCode`)，都得通过 `key`/`shardingValue` 映射到对应的槽位(`slot`)。
+
+那么 `shardingValue` 从哪里来呢？**CosId**！！！
 
 > 当然还有很多分布式场景需要*分布式ID*，这里不再一一列举。
 
@@ -133,6 +150,10 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 
 <p align="center" >
   <img :src="$withBase('/assets/design/RedisMachineIdDistributor.png')" alt="RedisMachineIdDistributor"/>
+</p>
+
+<p align="center">
+  <img :src="$withBase('/assets/design/Machine-Id-Safe-Guard.png')" alt="Machine Id Safe Guard"/>
 </p>
 
 #### SnowflakeId之时钟回拨问题

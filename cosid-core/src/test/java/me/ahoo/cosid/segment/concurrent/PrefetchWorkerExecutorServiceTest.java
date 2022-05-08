@@ -1,6 +1,6 @@
 package me.ahoo.cosid.segment.concurrent;
 
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;

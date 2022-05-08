@@ -16,7 +16,7 @@ package me.ahoo.cosid.segment;
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
-import me.ahoo.cosid.test.ConcurrentGenerateTest;
+import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -65,14 +65,14 @@ class SegmentChainIdTest {
     public void concurrent_generate() {
         SegmentChainId segmentChainId = new SegmentChainId(new IdSegmentDistributor.Mock());
         
-        new ConcurrentGenerateTest(segmentChainId).assertConcurrentGenerate();
+        new ConcurrentGenerateSpec(segmentChainId).verify();
     }
     
     @Test
     public void concurrent_generate_multi_instance() {
         
         IdSegmentDistributor testMaxIdDistributor = new IdSegmentDistributor.Mock();
-        new ConcurrentGenerateTest(new SegmentChainId(testMaxIdDistributor), new SegmentChainId(testMaxIdDistributor)) {
+        new ConcurrentGenerateSpec(new SegmentChainId(testMaxIdDistributor), new SegmentChainId(testMaxIdDistributor)) {
             
             @Override
             protected void assertGlobalEach(long previousId, long id) {
@@ -86,6 +86,6 @@ class SegmentChainIdTest {
             protected void assertGlobalLast(long lastId) {
                 Assertions.assertTrue(getIdSize() <= lastId);
             }
-        }.assertConcurrentGenerate();
+        }.verify();
     }
 }

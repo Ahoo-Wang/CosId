@@ -13,6 +13,7 @@
 
 dependencies {
     api(project(":cosid-core"))
+    testImplementation(project(":cosid-test"))
     testImplementation("com.zaxxer:HikariCP")
     testImplementation("mysql:mysql-connector-java")
 }

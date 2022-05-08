@@ -56,7 +56,7 @@ public class CosIdKeyGenerateAlgorithm implements TypedSPI, ShardingSphereAlgori
     @Override
     public void init() {
         lazyIdGenerator = new LazyIdGenerator(getProps().getOrDefault(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE).toString());
-        String asStringStr = getProps().getProperty(AS_STRING_KEY, Boolean.FALSE.toString());
+        String asStringStr = getProps().getOrDefault(AS_STRING_KEY, Boolean.FALSE.toString()).toString();
         asString = Boolean.parseBoolean(asStringStr);
         lazyIdGenerator.tryGet(false);
     }

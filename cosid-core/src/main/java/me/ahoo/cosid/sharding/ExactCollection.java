@@ -39,7 +39,7 @@ public class ExactCollection<E> extends AbstractCollection<E> implements RandomA
     private static final ExactCollection EMPTY = new ExactCollection(0);
 
     @SuppressWarnings("unchecked")
-    public static final <E> ExactCollection<E> empty() {
+    public static <E> ExactCollection<E> empty() {
         return (ExactCollection<E>) EMPTY;
     }
 

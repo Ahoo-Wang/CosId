@@ -26,23 +26,24 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Segment chain algorithm ID generator.
+ * <p><img src="../doc-files/SegmentChainId.png" alt="SegmentChainId"></p>
  *
  * @author ahoo wang
  */
 @Slf4j
 public class SegmentChainId implements SegmentId {
     public static final int DEFAULT_SAFE_DISTANCE = 10;
-
+    
     private final long idSegmentTtl;
     private final int safeDistance;
     private final IdSegmentDistributor maxIdDistributor;
     private final PrefetchJob prefetchJob;
     private volatile IdSegmentChain headChain = IdSegmentChain.newRoot();
-
+    
     public SegmentChainId(IdSegmentDistributor maxIdDistributor) {
         this(TIME_TO_LIVE_FOREVER, DEFAULT_SAFE_DISTANCE, maxIdDistributor, PrefetchWorkerExecutorService.DEFAULT);
     }
-
+    
     public SegmentChainId(long idSegmentTtl, int safeDistance, IdSegmentDistributor maxIdDistributor, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         Preconditions.checkArgument(idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
         Preconditions.checkArgument(safeDistance > 0, "The safety distance must be greater than 0.");
@@ -52,11 +53,11 @@ public class SegmentChainId implements SegmentId {
         prefetchJob = new PrefetchJob(headChain);
         prefetchWorkerExecutorService.submit(prefetchJob);
     }
-
+    
     public IdSegmentChain getHead() {
         return headChain;
     }
-
+    
     /**
      * No lock, because it is not important, as long as the {@link #headChain} is trending forward.
      * -----
@@ -78,11 +79,11 @@ public class SegmentChainId implements SegmentId {
             headChain = forwardChain;
         }
     }
-
+    
     private IdSegmentChain generateNext(IdSegmentChain previousChain, int segments) {
         return maxIdDistributor.nextIdSegmentChain(previousChain, segments, idSegmentTtl);
     }
-
+    
     @Override
     public long generate() {
         while (true) {
@@ -97,10 +98,10 @@ public class SegmentChainId implements SegmentId {
                 }
                 currentChain = currentChain.getNext();
             }
-
+            
             try {
                 final IdSegmentChain preIdSegmentChain = headChain;
-
+                
                 if (preIdSegmentChain.trySetNext((preChain) -> generateNext(preChain, safeDistance))) {
                     IdSegmentChain nextChain = preIdSegmentChain.getNext();
                     forward(nextChain);
@@ -116,7 +117,7 @@ public class SegmentChainId implements SegmentId {
             this.prefetchJob.hungry();
         }
     }
-
+    
     public class PrefetchJob implements AffinityJob {
         private static final int MAX_PREFETCH_DISTANCE = 100_000_000;
         /**
@@ -132,26 +133,26 @@ public class SegmentChainId implements SegmentId {
          * @see java.util.concurrent.TimeUnit#SECONDS
          */
         private volatile long lastHungerTime;
-
+        
         public PrefetchJob(IdSegmentChain tailChain) {
             this.tailChain = tailChain;
         }
-
+        
         @Override
         public String getJobId() {
             return maxIdDistributor.getNamespacedName();
         }
-
+        
         @Override
         public void setHungerTime(long hungerTime) {
             lastHungerTime = hungerTime;
         }
-
+        
         @Override
         public PrefetchWorker getPrefetchWorker() {
             return prefetchWorker;
         }
-
+        
         @Override
         public void setPrefetchWorker(PrefetchWorker prefetchWorker) {
             if (this.prefetchWorker != null) {
@@ -159,17 +160,17 @@ public class SegmentChainId implements SegmentId {
             }
             this.prefetchWorker = prefetchWorker;
         }
-
+        
         @Override
         public void run() {
             prefetch();
         }
-
+        
         public void prefetch() {
-
+            
             long wakeupTimeGap = Clock.CACHE.secondTime() - lastHungerTime;
             final boolean hunger = wakeupTimeGap < hungerThreshold;
-
+            
             final int prePrefetchDistance = this.prefetchDistance;
             if (hunger) {
                 this.prefetchDistance = Math.min(Math.multiplyExact(this.prefetchDistance, 2), MAX_PREFETCH_DISTANCE);
@@ -184,7 +185,7 @@ public class SegmentChainId implements SegmentId {
                     }
                 }
             }
-
+            
             IdSegmentChain availableHeadChain = SegmentChainId.this.headChain;
             while (!availableHeadChain.getIdSegment().isAvailable()) {
                 availableHeadChain = availableHeadChain.getNext();
@@ -193,12 +194,12 @@ public class SegmentChainId implements SegmentId {
                     break;
                 }
             }
-
+            
             forward(availableHeadChain);
-
+            
             final int headToTailGap = availableHeadChain.gap(tailChain, maxIdDistributor.getStep());
             final int safeGap = safeDistance - headToTailGap;
-
+            
             if (safeGap <= 0 && !hunger) {
                 if (log.isTraceEnabled()) {
                     log.trace("prefetch - [{}] - safeGap is less than or equal to 0, and is not hungry - headChain.version:[{}] - tailChain.version:[{}].", maxIdDistributor.getNamespacedName(),
@@ -206,19 +207,19 @@ public class SegmentChainId implements SegmentId {
                 }
                 return;
             }
-
+            
             final int prefetchSegments = hunger ? this.prefetchDistance : safeGap;
-
+            
             appendChain(availableHeadChain, prefetchSegments);
         }
-
+        
         private void appendChain(IdSegmentChain availableHeadChain, int prefetchSegments) {
-
+            
             if (log.isDebugEnabled()) {
                 log.debug("appendChain - [{}] - headChain.version:[{}] - tailChain.version:[{}] - prefetchSegments:[{}].", maxIdDistributor.getNamespacedName(), availableHeadChain.getVersion(),
                     tailChain.getVersion(), prefetchSegments);
             }
-
+            
             try {
                 final IdSegmentChain preTail = tailChain;
                 tailChain = tailChain.ensureSetNext((preChain) -> generateNext(preChain, prefetchSegments)).getNext();

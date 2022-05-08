@@ -13,109 +13,59 @@
 
 package me.ahoo.cosid.redis;
 
-import me.ahoo.cosid.segment.DefaultSegmentId;
-import me.ahoo.cosid.segment.SegmentId;
-import me.ahoo.cosid.test.ConcurrentGenerateTest;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.test.MockIdGenerator;
+import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
+import me.ahoo.cosky.core.redis.RedisConfig;
+import me.ahoo.cosky.core.redis.RedisConnectionFactory;
 
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.api.StatefulRedisConnection;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
+import io.lettuce.core.resource.ClientResources;
+import lombok.SneakyThrows;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 
+import java.time.Duration;
 import java.util.Objects;
-
 
 /**
  * @author ahoo wang
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class RedisIdIdSegmentDistributorTest {
-    protected RedisClient redisClient;
-    protected StatefulRedisConnection<String, String> redisConnection;
+public class RedisIdIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     protected RedisIdSegmentDistributor redisMaxIdDistributor;
-    
-    @BeforeAll
-    private void initRedis() {
-        System.out.println("--- initRedis ---");
-        redisClient = RedisClient.create("redis://localhost:6379");
-        redisConnection = redisClient.connect();
+    protected RedisConnectionFactory redisConnectionFactory;
+    protected ClientResources clientResources;
+    @BeforeEach
+    private void setup() {
+        RedisConfig redisConfig = new RedisConfig();
+        redisConfig.setUrl("redis://localhost:6379");
+        clientResources= ClientResources.builder().build();
+        redisConnectionFactory = new RedisConnectionFactory(clientResources, redisConfig);
         redisMaxIdDistributor =
-            new RedisIdSegmentDistributor(MockIdGenerator.INSTANCE.generateAsString(), "RedisIdGeneratorTest", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
+            new RedisIdSegmentDistributor(MockIdGenerator.INSTANCE.generateAsString(), "RedisIdGeneratorTest", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT,
+                redisConnectionFactory.getShareReactiveCommands());
     }
     
-    @Test
-    public void nextMaxId() {
-        long nextMaxId = new RedisIdSegmentDistributor(MockIdGenerator.INSTANCE.generateAsString(), "nextMaxId", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive())
-            .nextMaxId();
-        Assertions.assertEquals(100, nextMaxId);
-    }
-    
-    @Test
-    public void generate() {
-        long id = redisMaxIdDistributor.nextMaxId();
-        Assertions.assertTrue(id > 0);
-        
-        long id2 = redisMaxIdDistributor.nextMaxId();
-        Assertions.assertTrue(id2 > 0);
-        Assertions.assertTrue(id2 > id);
-        
-        long id3 = redisMaxIdDistributor.nextMaxId();
-        Assertions.assertTrue(id3 > 0);
-        Assertions.assertTrue(id3 > id2);
-    }
-    
-    @Test
-    public void generateWhenMaxIdBack() {
-        long id = redisMaxIdDistributor.nextMaxId();
-        Assertions.assertTrue(id > 0);
-        String adderKey = redisMaxIdDistributor.getAdderKey();
-        redisConnection.sync().set(adderKey, String.valueOf(id - 1));
-        Assertions.assertThrows(IllegalStateException.class, () -> redisMaxIdDistributor.nextMaxId());
-    }
-    
-    @Test
-    public void generateWhenOffset10() {
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        RedisIdSegmentDistributor redisMaxIdDistributorOffset10 =
-            new RedisIdSegmentDistributor(namespace, "generate_offset", 10, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
-        long id = redisMaxIdDistributorOffset10.nextMaxId();
-        Assertions.assertEquals(110, id);
-    }
-    
-    @Test
-    public void generateWhenConcurrent() {
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        RedisIdSegmentDistributor redisMaxIdDistributorGenerateStep100 =
-            new RedisIdSegmentDistributor(namespace, "Concurrent", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
-        SegmentId defaultSegmentId = new DefaultSegmentId(redisMaxIdDistributorGenerateStep100);
-        new ConcurrentGenerateTest(defaultSegmentId).assertConcurrentGenerate();
-    }
-    
-    @Test
-    public void generateWhenMultiInstanceConcurrent() {
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        RedisIdSegmentDistributor redisMaxIdDistributor1 =
-            new RedisIdSegmentDistributor(namespace, "MultiInstanceConcurrent", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
-        RedisIdSegmentDistributor redisMaxIdDistributor2 =
-            new RedisIdSegmentDistributor(namespace, "MultiInstanceConcurrent", 0, 100, RedisIdSegmentDistributor.DEFAULT_TIMEOUT, redisClient.connect().reactive());
-        SegmentId idGenerator1 = new DefaultSegmentId(redisMaxIdDistributor1);
-        SegmentId idGenerator2 = new DefaultSegmentId(redisMaxIdDistributor2);
-        new ConcurrentGenerateTest(idGenerator1, idGenerator2).assertConcurrentGenerate();
-    }
-    
-    @AfterAll
-    private void destroyRedis() {
-        System.out.println("--- destroyRedis ---");
-        
-        if (Objects.nonNull(redisConnection)) {
-            redisConnection.close();
+    @SneakyThrows
+    @AfterEach
+    private void destroy() {
+        if (Objects.nonNull(redisConnectionFactory)) {
+            redisConnectionFactory.close();
         }
-        if (Objects.nonNull(redisClient)) {
-            redisClient.shutdown();
+        if (Objects.nonNull(clientResources)) {
+            clientResources.shutdown();
         }
     }
+    
+    @Override
+    protected IdSegmentDistributorFactory getFactory() {
+        return new RedisIdSegmentDistributorFactory(redisConnectionFactory, Duration.ofSeconds(2));
+    }
+    
+    @Override
+    protected void setMaxIdBack(IdSegmentDistributor distributor, long maxId) {
+        String adderKey = ((RedisIdSegmentDistributor) distributor).getAdderKey();
+        redisConnectionFactory.getShareSyncCommands().set(adderKey, String.valueOf(maxId - 1));
+    }
+    
 }

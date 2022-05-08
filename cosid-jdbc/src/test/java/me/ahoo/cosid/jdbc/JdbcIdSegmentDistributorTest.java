@@ -18,8 +18,8 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
-import me.ahoo.cosid.test.ConcurrentGenerateTest;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.ConcurrentGenerateSpec;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
@@ -86,7 +86,7 @@ class JdbcIdSegmentDistributorTest {
         JdbcIdSegmentDistributor maxIdDistributorGenerateStep100 = new JdbcIdSegmentDistributor(namespace, MockIdGenerator.INSTANCE.generateAsString(), 100, dataSource);
         mySqlIdSegmentInitializer.initIdSegment(maxIdDistributorGenerateStep100.getNamespacedName(), 0);
         SegmentId segmentChainId = new SegmentChainId(maxIdDistributorGenerateStep100);
-        new ConcurrentGenerateTest(segmentChainId).assertConcurrentGenerate();
+        new ConcurrentGenerateSpec(segmentChainId).verify();
     }
     
     @SneakyThrows

@@ -1,32 +1,41 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.ahoo.cosid.test;
 
 import me.ahoo.cosid.IdGenerator;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Concurrent Generate Test .
+ * Concurrent Generate Spec .
  *
  * @author ahoo wang
  */
-@VisibleForTesting
-public class ConcurrentGenerateTest {
-    
+public class ConcurrentGenerateSpec implements TestSpec {
     private final IdGenerator[] idGenerators;
-    
     private final int concurrentThreads;
     private final long idSize;
     private final int singleGenerates;
     
-    public ConcurrentGenerateTest(IdGenerator... idGenerators) {
+    public ConcurrentGenerateSpec(IdGenerator... idGenerators) {
         this(20, 8000000, idGenerators);
     }
     
-    public ConcurrentGenerateTest(int concurrentThreads, long idSize, IdGenerator... idGenerators) {
+    public ConcurrentGenerateSpec(int concurrentThreads, long idSize, IdGenerator... idGenerators) {
         Preconditions.checkState(idGenerators.length > 0, "idGenerators can not be empty.");
         this.idGenerators = idGenerators;
         this.concurrentThreads = concurrentThreads;
@@ -62,8 +71,9 @@ public class ConcurrentGenerateTest {
         Preconditions.checkState(getIdSize() == lastId, "lastId:[%s] must equals idSize:[%s]", lastId, getIdSize());
     }
     
+    @Override
     @SuppressWarnings("unchecked")
-    public void assertConcurrentGenerate() {
+    public void verify() {
         
         CompletableFuture<long[]>[] completableFutures = new CompletableFuture[concurrentThreads];
         

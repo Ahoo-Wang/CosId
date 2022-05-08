@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import me.ahoo.cosid.redis.RedisMachineIdDistributor;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosky.core.redis.RedisConnectionFactory;
@@ -40,13 +41,13 @@ import java.time.Duration;
 @ConditionalOnClass(RedisMachineIdDistributor.class)
 @ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "redis")
 public class CosIdRedisMachineIdDistributorAutoConfiguration {
-
+    
     private final SnowflakeIdProperties snowflakeIdProperties;
-
+    
     public CosIdRedisMachineIdDistributorAutoConfiguration(SnowflakeIdProperties snowflakeIdProperties) {
         this.snowflakeIdProperties = snowflakeIdProperties;
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBean(RedisConnectionFactory.class)
@@ -54,8 +55,14 @@ public class CosIdRedisMachineIdDistributorAutoConfiguration {
                                                                ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         Preconditions.checkNotNull(redisConnectionFactory, "redisConnectionFactory can not be null.");
         Duration timeout = snowflakeIdProperties.getMachine().getDistributor().getRedis().getTimeout();
-        return new RedisMachineIdDistributor(timeout, redisConnectionFactory.getShareReactiveCommands(), localMachineState, clockBackwardsSynchronizer);
+        if (!snowflakeIdProperties.getMachine().getGuarder().isEnabled()) {
+            return new RedisMachineIdDistributor(timeout, redisConnectionFactory.getShareReactiveCommands(), localMachineState, clockBackwardsSynchronizer,
+                AbstractMachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+        }
+        return new RedisMachineIdDistributor(timeout, redisConnectionFactory.getShareReactiveCommands(), localMachineState, clockBackwardsSynchronizer,
+            snowflakeIdProperties.getMachine().getDistributor()
+                .getSafeGuardDuration());
     }
-
-
+    
+    
 }

@@ -19,10 +19,13 @@ package me.ahoo.cosid.shardingsphere.sharding;
  * @author ahoo wang
  */
 public final class CosIdAlgorithm {
-
+    
     public static final String TYPE_PREFIX = "COSID_";
-
+    
     public static final String ID_NAME_KEY = "id-name";
-
+    
     public static final String LOGIC_NAME_PREFIX_KEY = "logic-name-prefix";
+    
+    private CosIdAlgorithm() {
+    }
 }

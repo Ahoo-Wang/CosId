@@ -1,13 +1,10 @@
 package me.ahoo.cosid.spring.boot.starter.segment;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
-import me.ahoo.cosid.mybatis.CosIdPlugin;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.mybatis.CosIdMybatisAutoConfiguration;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;

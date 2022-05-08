@@ -40,10 +40,10 @@ public class CosIdIntervalShardingAlgorithm extends AbstractIntervalShardingAlgo
         super.init();
 
         if (getProps().containsKey(TIMESTAMP_UNIT_KEY)
-            && TIMESTAMP_SECOND_UNIT.equalsIgnoreCase(getProps().getProperty(TIMESTAMP_UNIT_KEY))) {
+            && TIMESTAMP_SECOND_UNIT.equalsIgnoreCase(getProps().get(TIMESTAMP_UNIT_KEY).toString())) {
             isSecondTs = true;
         }
-        final String dateTimePattern = getProps().getProperty(DATE_TIME_PATTERN_KEY, DEFAULT_DATE_TIME_PATTERN);
+        final String dateTimePattern = getProps().getOrDefault(DATE_TIME_PATTERN_KEY, DEFAULT_DATE_TIME_PATTERN).toString();
         dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern);
     }
 

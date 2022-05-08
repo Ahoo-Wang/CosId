@@ -22,6 +22,8 @@ import java.util.Collection;
 /**
  * ModCycle.
  *
+ * <p><img src="../doc-files/CosIdModShardingAlgorithm.png" alt="CosIdModShardingAlgorithm"></p>
+ *
  * @author ahoo wang
  */
 public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {

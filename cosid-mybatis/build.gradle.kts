@@ -14,4 +14,5 @@
 dependencies {
     api(project(":cosid-core"))
     implementation("org.mybatis:mybatis")
+    testImplementation(project(":cosid-test"))
 }

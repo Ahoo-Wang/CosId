@@ -24,16 +24,17 @@ generator.
     - `IdSegmentDistributor`:
         - `RedisIdSegmentDistributor`: `IdSegment` distributor based on *Redis*.
         - `JdbcIdSegmentDistributor`: The *Jdbc-based* `IdSegment` distributor supports various relational databases.
-    - `SegmentChainId`(**recommend**):`SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design
-      diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves
-      approximately `AtomicLong` *TPS performance (Step 1000): 127,439,148+/s* [JMH Benchmark](#jmh-benchmark) .
-        - `PrefetchWorker` maintains a safe distance (`safeDistance`), and supports dynamic `safeDistance` expansion and
-          contraction based on hunger status.
+        - `ZookeeperIdSegmentDistributor`: `IdSegment` distributor based on *Zookeeper*.
+- `SegmentChainId`(**recommend**):`SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design
+  diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves
+  approximately `AtomicLong` *TPS performance (Step 1000): 127,439,148+/s* [JMH Benchmark](#jmh-benchmark) .
+    - `PrefetchWorker` maintains a safe distance (`safeDistance`), and supports dynamic `safeDistance` expansion and
+      contraction based on hunger status.
 
 ## SnowflakeId
 
 <p align="center">
-     <img src="./document/docs/.vuepress/public/assets/design/Snowflake-identifier.png"/>
+     <img src="./document/docs/.vuepress/public/assets/design/Snowflake-identifier.png" alt="Snowflake"/>
 </p>
 
 > *SnowflakeId* is a distributed ID algorithm that uses `Long` (64-bit) bit partition to generate ID.
@@ -101,9 +102,11 @@ cosid:
 #### RedisMachineIdDistributor
 
 <p align="center">
-     <img src="./document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png"/>
+     <img src="./document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png" alt="Redis Machine Id Distributor"/>
 </p>
-
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
+</p>
 ```yaml
 cosid:
   snowflake:
@@ -233,7 +236,7 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
 ```
 
 ```java
-        SnowflakeFriendlyId snowflakeFriendlyId=new DefaultSnowflakeFriendlyId(snowflakeId);
+    SnowflakeFriendlyId snowflakeFriendlyId=new DefaultSnowflakeFriendlyId(snowflakeId);
     SnowflakeIdState idState=snowflakeFriendlyId.friendlyId();
     idState.getFriendlyId(); //20210623131730192-1-0
 ```
@@ -241,7 +244,7 @@ public interface SnowflakeFriendlyId extends SnowflakeId {
 ## SegmentId
 
 <p align="center">
-     <img src="./document/docs/.vuepress/public/assets/design/SegmentId.png"/>
+     <img src="./document/docs/.vuepress/public/assets/design/SegmentId.png" alt="Segment Id"/>
 </p>
 
 ### RedisIdSegmentDistributor
@@ -451,7 +454,7 @@ spring:
 #### Interval-based time range sharding algorithm
 
 <p align="center">
-     <img src="./document/docs/.vuepress/public/assets/design/CosIdIntervalShardingAlgorithm.png"/>
+     <img src="./document/docs/.vuepress/public/assets/design/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"/>
 </p>
 
 - Ease of use: supports multiple data types (`Long`/`LocalDateTime`/`DATE`/ `String` / `SnowflakeId`),The official
@@ -488,7 +491,7 @@ spring:
 #### CosIdModShardingAlgorithm
 
 <p align="center">
-     <img src="./document/docs/.vuepress/public/assets/design/CosIdModShardingAlgorithm.png"/>
+     <img src="./document/docs/.vuepress/public/assets/design/CosIdModShardingAlgorithm.png" alt="CosId Mod Sharding Algorithm"/>
 </p>
 
 - Performance: Compared to  `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`
@@ -588,23 +591,6 @@ spring:
               standard:
                 sharding-column: id
                 sharding-algorithm-name: table-inline
-          t_friendly_table:
-            actual-data-nodes: ds0.t_friendly_table
-          t_order:
-            actual-data-nodes: ds$->{0..1}.t_order
-            database-strategy:
-              standard:
-                sharding-column: order_id
-                sharding-algorithm-name: order-db-inline
-            key-generate-strategy:
-              column: order_id
-              key-generator-name: order
-          t_order_item:
-            actual-data-nodes: ds$->{0..1}.t_order_item
-            database-strategy:
-              standard:
-                sharding-column: order_id
-                sharding-algorithm-name: order-db-inline
           t_date_log:
             actual-data-nodes: ds0.t_date_log_202112
             key-generate-strategy:
@@ -614,73 +600,16 @@ spring:
               standard:
                 sharding-column: create_time
                 sharding-algorithm-name: data-log-interval
-          t_date_time_log:
-            actual-data-nodes: ds0.t_date_time_log_202112
-            key-generate-strategy:
-              column: id
-              key-generator-name: snowflake
-            table-strategy:
-              standard:
-                sharding-column: create_time
-                sharding-algorithm-name: data-time-log-interval
-          t_timestamp_log:
-            actual-data-nodes: ds0.t_timestamp_log_202112
-            key-generate-strategy:
-              column: id
-              key-generator-name: snowflake
-            table-strategy:
-              standard:
-                sharding-column: create_time
-                sharding-algorithm-name: timestamp-log-interval
-          t_snowflake_log:
-            actual-data-nodes: ds0.t_snowflake_log_202112
-            table-strategy:
-              standard:
-                sharding-column: id
-                sharding-algorithm-name: snowflake-log-interval
         sharding-algorithms:
           table-inline:
             type: COSID_MOD
             props:
               mod: 2
               logic-name-prefix: t_table_
-          order-db-inline:
-            type: COSID_MOD
-            props:
-              mod: 2
-              logic-name-prefix: ds
           data-log-interval:
             type: COSID_INTERVAL
             props:
               logic-name-prefix: t_date_log_
-              datetime-lower: 2021-12-08 22:00:00
-              datetime-upper: 2022-12-01 00:00:00
-              sharding-suffix-pattern: yyyyMM
-              datetime-interval-unit: MONTHS
-              datetime-interval-amount: 1
-          data-time-log-interval:
-            type: COSID_INTERVAL
-            props:
-              logic-name-prefix: t_date_time_log_
-              datetime-lower: 2021-12-08 22:00:00
-              datetime-upper: 2022-12-01 00:00:00
-              sharding-suffix-pattern: yyyyMM
-              datetime-interval-unit: MONTHS
-              datetime-interval-amount: 1
-          timestamp-log-interval:
-            type: COSID_INTERVAL
-            props:
-              logic-name-prefix: t_timestamp_log_
-              datetime-lower: 2021-12-08 22:00:00
-              datetime-upper: 2022-12-01 00:00:00
-              sharding-suffix-pattern: yyyyMM
-              datetime-interval-unit: MONTHS
-              datetime-interval-amount: 1
-          snowflake-log-interval:
-            type: COSID_INTERVAL
-            props:
-              logic-name-prefix: t_snowflake_log_
-              id-name: snowflake
               datetime-lower: 2021-12-08 22:00:00
               datetime-upper: 2022-12-01 00:00:00
               sharding-suffix-pattern: yyyyMM
@@ -691,10 +620,7 @@ spring:
             type: COSID
             props:
               id-name: snowflake
-          order:
-            type: COSID
-            props:
-              id-name: order
+
 
 cosid:
   namespace: ${spring.application.name}

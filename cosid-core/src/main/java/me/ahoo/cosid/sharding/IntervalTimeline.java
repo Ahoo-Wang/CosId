@@ -27,6 +27,8 @@ import java.util.List;
 /**
  * Interval Timeline.
  *
+ * <p><img src="../doc-files/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"></p>
+ *
  * @author ahoo wang
  */
 @ThreadSafe

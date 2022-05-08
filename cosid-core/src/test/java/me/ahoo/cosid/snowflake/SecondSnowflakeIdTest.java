@@ -1,6 +1,6 @@
 package me.ahoo.cosid.snowflake;
 
-import me.ahoo.cosid.test.ConcurrentGenerateTest;
+import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,7 +73,7 @@ class SecondSnowflakeIdTest {
     }
     @Test
     public void generateWhenConcurrent() {
-        new ConcurrentGenerateTest(snowflakeId) {
+        new ConcurrentGenerateSpec(snowflakeId) {
             @Override
             protected void assertGlobalFirst(long id) {
             }
@@ -87,6 +87,6 @@ class SecondSnowflakeIdTest {
             protected void assertGlobalLast(long lastId) {
             }
             
-        }.assertConcurrentGenerate();
+        }.verify();
     }
 }

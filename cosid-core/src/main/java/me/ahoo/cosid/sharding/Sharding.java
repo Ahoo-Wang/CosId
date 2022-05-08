@@ -21,14 +21,16 @@ import java.util.Collection;
 /**
  * Sharding algorithm interface.
  *
+ * <p><img src="../doc-files/Sharding.png" alt="Sharding"></p>
+ *
  * @author ahoo wang
  */
 @ThreadSafe
 public interface Sharding<T extends Comparable<?>> {
-
+    
     String sharding(T shardingValue);
-
+    
     Collection<String> sharding(Range<T> shardingValue);
-
+    
     Collection<String> getEffectiveNodes();
 }

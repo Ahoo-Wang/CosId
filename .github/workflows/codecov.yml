@@ -4,6 +4,8 @@ jobs:
   codecov:
     name: Codecov
     runs-on: ubuntu-latest
+    env:
+      MYSQL: 5.1
     services:
       redis:
         image: redis

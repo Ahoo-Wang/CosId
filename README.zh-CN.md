@@ -158,6 +158,10 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
      <img src="./document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png" alt="Redis MachineId Distributor"/>
 </p>
 
+<p align="center">
+     <img src="./document/docs/.vuepress/public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
+</p>
+
 #### SnowflakeId之时钟回拨问题
 
 时钟回拨的致命问题是会导致ID重复、冲突（这一点不难理解），ID重复显然是不能被容忍的。

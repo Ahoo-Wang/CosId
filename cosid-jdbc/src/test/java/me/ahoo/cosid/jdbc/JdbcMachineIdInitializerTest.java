@@ -16,6 +16,7 @@ package me.ahoo.cosid.jdbc;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 import javax.sql.DataSource;
 
@@ -25,6 +26,8 @@ import javax.sql.DataSource;
  * @author ahoo wang
  */
 class JdbcMachineIdInitializerTest {
+    
+    
     DataSource dataSource;
     private JdbcMachineIdInitializer machineIdInitializer;
     
@@ -35,11 +38,13 @@ class JdbcMachineIdInitializerTest {
     }
     
     @SneakyThrows
+    @DisabledIfEnvironmentVariable(named = "MYSQL", matches = "5.1")
     @Test
     void initCosIdMachineTable() {
         machineIdInitializer.initCosIdMachineTable();
     }
     
+    @DisabledIfEnvironmentVariable(named = "MYSQL", matches = "5.1")
     @Test
     void tryInitCosIdMachineTable() {
         machineIdInitializer.tryInitCosIdMachineTable();

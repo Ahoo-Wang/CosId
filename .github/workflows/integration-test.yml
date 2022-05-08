@@ -103,11 +103,11 @@ jobs:
     name: CosId Zookeeper Test
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
-#    services:
-#      zookeeper:
-#        image: zookeeper
-#        ports:
-#          - 2181:2181
+    #    services:
+    #      zookeeper:
+    #        image: zookeeper
+    #        ports:
+    #          - 2181:2181
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -154,6 +154,8 @@ jobs:
     name: CosId Spring Boot Starter Test
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
+    env:
+      MYSQL: 5.1
     steps:
       - name: Start Mysql
         run: sudo /etc/init.d/mysql start

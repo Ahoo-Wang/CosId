@@ -41,7 +41,6 @@ class JdbcIdSegmentInitializerTest {
         idSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
     }
     
-    
     @SneakyThrows
     @Test
     void initCosIdTable() {

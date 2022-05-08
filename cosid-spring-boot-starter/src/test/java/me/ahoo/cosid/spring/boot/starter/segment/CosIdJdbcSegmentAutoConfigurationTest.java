@@ -21,7 +21,7 @@ class CosIdJdbcSegmentAutoConfigurationTest {
     void contextLoads() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues("spring.datasource.url=jdbc:mysql://localhost:3306/cosid_db_0")
+            .withPropertyValues("spring.datasource.url=jdbc:mysql://localhost:3306/cosid_db")
             .withUserConfiguration(DataSourceAutoConfiguration.class, CosIdJdbcSegmentAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)

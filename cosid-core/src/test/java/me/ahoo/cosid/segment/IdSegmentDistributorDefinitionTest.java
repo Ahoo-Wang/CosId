@@ -3,13 +3,13 @@ package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_OFFSET;
 import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_STEP;
+
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author : Rocher Kong

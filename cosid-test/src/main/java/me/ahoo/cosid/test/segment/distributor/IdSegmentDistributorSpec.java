@@ -39,19 +39,15 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * IdSegmentDistributorSpec .
- * TODO
  *
  * @author ahoo wang
  */
 public abstract class IdSegmentDistributorSpec {
+    
     static final long TEST_OFFSET = 0;
     static final long TEST_STEP = 100;
     
     protected abstract IdSegmentDistributorFactory getFactory();
-    
-    protected void prepare(IdSegmentDistributor distributor) {
-    
-    }
     
     @Test
     public void getNamespace() {
@@ -241,15 +237,4 @@ public abstract class IdSegmentDistributorSpec {
         SegmentId segmentId2 = new DefaultSegmentId(distributor2);
         new ConcurrentGenerateSpec(segmentId, segmentId2).verify();
     }
-    
-    //    @Test
-    //    public void generateMultiInstanceConcurrentOfChain() {
-    //        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-    //        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "generateMultiInstanceConcurrentOfChain", TEST_OFFSET, TEST_STEP);
-    //        IdSegmentDistributor distributor = getFactory().create(definition);
-    //        SegmentId segmentId = new SegmentChainId(distributor);
-    //        IdSegmentDistributor distributor2 = getFactory().create(definition);
-    //        SegmentId segmentId2 = new SegmentChainId(distributor2);
-    //        new ConcurrentGenerateSpec(segmentId, segmentId2).verify();
-    //    }
 }

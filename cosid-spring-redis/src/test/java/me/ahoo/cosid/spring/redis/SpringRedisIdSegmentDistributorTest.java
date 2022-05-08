@@ -13,52 +13,40 @@
 
 package me.ahoo.cosid.spring.redis;
 
-import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_OFFSET;
-import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_STEP;
+import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
-import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
-import me.ahoo.cosid.test.MockIdGenerator;
-
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-
 /**
  * @author ahoo wang
  */
-class SpringRedisIdSegmentDistributorTest {
+class SpringRedisIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     StringRedisTemplate stringRedisTemplate;
-    SpringRedisIdSegmentDistributor springRedisIdSegmentDistributor;
+    SpringRedisIdSegmentDistributorFactory distributorFactory;
     
     @BeforeEach
-    private void initRedis() {
+    private void setup() {
         RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
         LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
         lettuceConnectionFactory.afterPropertiesSet();
         stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
-        SpringRedisIdSegmentDistributorFactory distributorFactory = new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate);
-        springRedisIdSegmentDistributor = (SpringRedisIdSegmentDistributor) distributorFactory.create(
-            new IdSegmentDistributorDefinition("SpringRedisIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), DEFAULT_OFFSET, DEFAULT_STEP));
+        distributorFactory = new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate);
     }
     
-    @Test
-    void nextMaxId() {
-        long nextMaxId = springRedisIdSegmentDistributor.nextMaxId();
-        Assertions.assertEquals(springRedisIdSegmentDistributor.getStep(), nextMaxId);
+    
+    @Override
+    protected IdSegmentDistributorFactory getFactory() {
+        return distributorFactory;
     }
     
-    @Test
-    public void generateWhenMaxIdBack() {
-        long id = springRedisIdSegmentDistributor.nextMaxId();
-        Assertions.assertTrue(id > 0);
-        String adderKey = springRedisIdSegmentDistributor.getAdderKey();
-        stringRedisTemplate.opsForValue().set(adderKey, String.valueOf(id - 1));
-        Assertions.assertThrows(IllegalStateException.class, () -> {
-            springRedisIdSegmentDistributor.nextMaxId();
-        });
+    @Override
+    protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
+        String adderKey = ((SpringRedisIdSegmentDistributor)distributor).getAdderKey();
+        stringRedisTemplate.opsForValue().set(adderKey, String.valueOf(maxId - 1));
     }
 }

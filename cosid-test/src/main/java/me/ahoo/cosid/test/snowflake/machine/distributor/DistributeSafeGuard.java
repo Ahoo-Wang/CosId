@@ -13,9 +13,9 @@
 
 package me.ahoo.cosid.test.snowflake.machine.distributor;
 
-import static me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec.TEST_MACHINE_BIT;
-import static me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec.allInstances;
-import static me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec.mockInstance;
+import static me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec.TEST_MACHINE_BIT;
+import static me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec.allInstances;
+import static me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec.mockInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;

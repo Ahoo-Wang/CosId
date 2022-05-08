@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.test.snowflake.machine.distributor;
 
-import static me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec.TEST_MACHINE_BIT;
-import static me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec.allInstancesMoreOne;
+import static me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec.TEST_MACHINE_BIT;
+import static me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec.allInstancesMoreOne;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;

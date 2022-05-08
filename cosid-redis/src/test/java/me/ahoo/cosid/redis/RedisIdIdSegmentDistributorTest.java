@@ -39,7 +39,7 @@ public class RedisIdIdSegmentDistributorTest {
     protected RedisIdSegmentDistributor redisMaxIdDistributor;
     
     @BeforeAll
-    private void initRedis() {
+    private void setup() {
         System.out.println("--- initRedis ---");
         redisClient = RedisClient.create("redis://localhost:6379");
         redisConnection = redisClient.connect();
@@ -108,7 +108,7 @@ public class RedisIdIdSegmentDistributorTest {
     }
     
     @AfterAll
-    private void destroyRedis() {
+    private void destroy() {
         System.out.println("--- destroyRedis ---");
         
         if (Objects.nonNull(redisConnection)) {

@@ -14,20 +14,15 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.segment.ConditionalOnCosIdSegmentEnabled;
 import me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperProperties;
 import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
 
 import lombok.SneakyThrows;
-import org.apache.curator.RetryPolicy;
-import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 

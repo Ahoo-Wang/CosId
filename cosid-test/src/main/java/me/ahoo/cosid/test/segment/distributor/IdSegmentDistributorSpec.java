@@ -195,11 +195,11 @@ public abstract class IdSegmentDistributorSpec {
     @Test
     public void nextMaxIdConcurrent() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        int times = 100;
-        CompletableFuture<Long>[] results = new CompletableFuture[100];
+        int concurrency = 20;
+        CompletableFuture<Long>[] results = new CompletableFuture[concurrency];
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxIdConcurrent", TEST_OFFSET, TEST_STEP);
         IdSegmentDistributor distributor = getFactory().create(definition);
-        for (int i = 0; i < times; i++) {
+        for (int i = 0; i < concurrency; i++) {
             results[i] = CompletableFuture.supplyAsync(() -> distributor.nextMaxId(1));
         }
         CompletableFuture.allOf(results).join();

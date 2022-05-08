@@ -169,5 +169,8 @@ jobs:
           server-id: github
           settings-path: ${{ github.workspace }}
 
+      - name: Init CosId-Db
+        run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
+
       - name: Test CosId-Spring-Boot-Starter
         run: gradle cosid-spring-boot-starter:clean cosid-spring-boot-starter:check

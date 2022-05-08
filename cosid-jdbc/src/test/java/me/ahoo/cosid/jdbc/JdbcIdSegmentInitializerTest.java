@@ -33,42 +33,42 @@ import java.sql.SQLIntegrityConstraintViolationException;
  */
 class JdbcIdSegmentInitializerTest {
     DataSource dataSource;
-    private JdbcIdSegmentInitializer mySqlIdSegmentInitializer;
+    private JdbcIdSegmentInitializer idSegmentInitializer;
     
     @BeforeEach
     private void setup() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
-        mySqlIdSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
+        idSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
     }
     
     
     @SneakyThrows
     @Test
     void initCosIdTable() {
-        mySqlIdSegmentInitializer.initCosIdTable();
+        idSegmentInitializer.initCosIdTable();
     }
     
     @Test
     void tryInitCosIdTable() {
-        mySqlIdSegmentInitializer.tryInitCosIdTable();
+        idSegmentInitializer.tryInitCosIdTable();
     }
     
     @SneakyThrows
     @Test
     void initIdSegment() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        int actual = mySqlIdSegmentInitializer.initIdSegment(namespace, 0);
+        int actual = idSegmentInitializer.initIdSegment(namespace, 0);
         assertThat(actual, Matchers.equalTo(1));
-        Assert.assertThrows(SQLIntegrityConstraintViolationException.class, () -> mySqlIdSegmentInitializer.initIdSegment(namespace, 0));
+        Assert.assertThrows(SQLIntegrityConstraintViolationException.class, () -> idSegmentInitializer.initIdSegment(namespace, 0));
     }
     
     @Test
     void tryInitIdSegment() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        boolean actual = mySqlIdSegmentInitializer.tryInitIdSegment(namespace, 0);
+        boolean actual = idSegmentInitializer.tryInitIdSegment(namespace, 0);
         assertThat(actual, Matchers.equalTo(true));
         
-        actual = mySqlIdSegmentInitializer.tryInitIdSegment(namespace, 0);
+        actual = idSegmentInitializer.tryInitIdSegment(namespace, 0);
         assertThat(actual, Matchers.equalTo(false));
     }
 }

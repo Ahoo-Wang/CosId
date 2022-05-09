@@ -64,7 +64,7 @@ public interface IdGeneratorProvider {
     
     default IdGenerator getRequired(String name) {
         return get(name)
-            .orElseThrow(() -> new IllegalArgumentException(Strings.commonPrefix("Can not found IdGenerator:[%s]!", name)));
+            .orElseThrow(() -> new IllegalArgumentException(Strings.lenientFormat("Not found ID generator named:[%s]!", name)));
     }
     
     /**

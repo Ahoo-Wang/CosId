@@ -63,5 +63,4 @@ public class IdController {
             .getRequired(name)
             .generateAsString();
     }
-    
 }

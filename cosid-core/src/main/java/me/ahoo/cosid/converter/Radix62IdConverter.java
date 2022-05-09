@@ -24,32 +24,30 @@ import com.google.common.base.Strings;
  * @author ahoo wang
  */
 public final class Radix62IdConverter implements IdConverter {
-
+    
     public static final int MAX_CHAR_SIZE = 11;
     public static final int RADIX = 62;
-
+    
     public static final Radix62IdConverter INSTANCE = new Radix62IdConverter(false, MAX_CHAR_SIZE);
     public static final Radix62IdConverter PAD_START = new Radix62IdConverter(true, MAX_CHAR_SIZE);
-
+    
     /**
-     * Return an instance representing the specified parameter. If new instances are not required, static cached instances are used to provide space and time efficiency.
-     * @param padStart
-     * @param charSize
-     * @return
+     * Return an instance representing the specified parameter.
+     * If new instances are not required, static cached instances are used to provide space and time efficiency.
      */
     public static Radix62IdConverter of(boolean padStart, int charSize) {
-
+        
         if (INSTANCE.padStart == padStart && INSTANCE.charSize == charSize) {
             return INSTANCE;
         }
-
+        
         if (PAD_START.padStart == padStart && PAD_START.charSize == charSize) {
             return PAD_START;
         }
-
+        
         return new Radix62IdConverter(padStart, charSize);
     }
-
+    
     /**
      * 48.
      */
@@ -76,32 +74,32 @@ public final class Radix62IdConverter implements IdConverter {
      * 122.
      */
     private static final char LOWERCASE_Z = 'z';
-
+    
     private static final char[] digits = {
-            /*
-             * offset: 0.
-             * [48-57]
-            */
-            ZERO, '1', '2', '3', '4', '5', '6', '7', '8', NINE,
-            /*
-             * offset: 10.
-             * [64-90]
-            */
-            UPPERCASE_A, 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-            'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', UPPERCASE_Z,
-            /*
-             * offset: 36.
-             * [97-122]
-            */
-            LOWERCASE_A, 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', LOWERCASE_Z,
+        /*
+         * offset: 0.
+         * [48-57]
+        */
+        ZERO, '1', '2', '3', '4', '5', '6', '7', '8', NINE,
+        /*
+         * offset: 10.
+         * [64-90]
+        */
+        UPPERCASE_A, 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+        'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', UPPERCASE_Z,
+        /*
+         * offset: 36.
+         * [97-122]
+        */
+        LOWERCASE_A, 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+        'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', LOWERCASE_Z,
     };
-
+    
     private static final char PAD_CHAR = ZERO;
     private final boolean padStart;
     private final int charSize;
     private final long maxId;
-
+    
     public Radix62IdConverter(boolean padStart, int charSize) {
         Preconditions.checkArgument(charSize > 0 && charSize <= MAX_CHAR_SIZE, "charSize cannot be greater than MAX_CHAR_SIZE[%s]!", MAX_CHAR_SIZE);
         this.padStart = padStart;
@@ -112,34 +110,34 @@ public final class Radix62IdConverter implements IdConverter {
             this.maxId = Double.valueOf(Math.pow(RADIX, charSize)).longValue();
         }
     }
-
+    
     @Override
     public String asString(long id) {
-
+        
         Preconditions.checkArgument(id > 0, "id[%s] must be greater than 0!", id);
-
+        
         if (charSize < MAX_CHAR_SIZE) {
             Preconditions.checkArgument(id < maxId, "id[%s] cannot be greater than maxId:[%s]!", id, maxId);
         }
-
+        
         char[] buf = new char[charSize];
         int charIdx = charSize;
-
+        
         while (id > 0) {
             int mod = (int) (id % RADIX);
             buf[--charIdx] = digits[mod];
             id = id / RADIX;
         }
-
+        
         if (padStart && charIdx > 0) {
             while (charIdx > 0) {
                 buf[--charIdx] = PAD_CHAR;
             }
         }
-
+        
         return new String(buf, charIdx, (charSize - charIdx));
     }
-
+    
     static int offset(char digitChar) {
         if (digitChar >= ZERO && digitChar <= NINE) {
             return digitChar - ZERO;
@@ -152,7 +150,7 @@ public final class Radix62IdConverter implements IdConverter {
         }
         return -1;
     }
-
+    
     @Override
     public long asLong(String idString) {
         char firstChar = idString.charAt(0);
@@ -176,5 +174,5 @@ public final class Radix62IdConverter implements IdConverter {
         }
         return result;
     }
-
+    
 }

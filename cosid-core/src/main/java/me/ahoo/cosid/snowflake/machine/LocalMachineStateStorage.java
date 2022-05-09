@@ -124,7 +124,10 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             log.info("remove - stateLocation : [{}].", stateFile.getAbsolutePath());
         }
         if (stateFile.exists()) {
-            stateFile.delete();
+            boolean isDeleted = stateFile.delete();
+            if (!isDeleted) {
+                log.warn("remove and delete instance :[{}] stateFile in namespace[{}] not successful! FilePath:[{}]", instanceId, namespace,stateFile.getAbsolutePath());
+            }
         }
     }
 
@@ -162,7 +165,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
         return getStateFilesOf(namespace).length;
     }
-    
+
     @Override
     public boolean exists(String namespace, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");

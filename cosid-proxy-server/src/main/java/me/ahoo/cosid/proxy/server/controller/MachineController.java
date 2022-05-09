@@ -13,14 +13,45 @@
 
 package me.ahoo.cosid.proxy.server.controller;
 
+import me.ahoo.cosid.snowflake.machine.InstanceId;
+import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
+import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
+import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
+
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
- * MachineController .
+ * Machine resource controller .
+ * Used for snowflake algorithm machine number distribution.
  *
  * @author ahoo wang
  */
+@RestController
 @RequestMapping("machines")
 public class MachineController {
-
+    private final MachineIdDistributor distributor;
+    
+    public MachineController(MachineIdDistributor distributor) {
+        this.distributor = distributor;
+    }
+    
+    @PostMapping("/{namespace}")
+    public int distribute(@PathVariable String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
+        return distributor.distribute(namespace, machineBit, instanceId);
+    }
+    
+    @DeleteMapping("/{namespace}")
+    public void revert(@PathVariable String namespace, InstanceId instanceId) throws MachineIdOverflowException {
+        distributor.revert(namespace, instanceId);
+    }
+    
+    @PutMapping("/{namespace}")
+    public void guard(@PathVariable String namespace, InstanceId instanceId) throws MachineIdLostException {
+        distributor.guard(namespace, instanceId);
+    }
 }

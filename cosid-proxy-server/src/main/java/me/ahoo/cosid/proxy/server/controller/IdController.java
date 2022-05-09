@@ -18,12 +18,16 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
- * IdController .
+ * ID resource controller .
+ * Important: Due to network IO performance problems caused by high request frequency,
+ * it is not recommended to use this method to obtain IDs.
  *
  * @author ahoo wang
  */
+@RestController
 @RequestMapping("ids")
 public class IdController {
     private final IdGeneratorProvider provider;
@@ -32,17 +36,32 @@ public class IdController {
         this.provider = provider;
     }
     
+    @GetMapping
+    public long generate() {
+        return provider
+            .getShare()
+            .generate();
+    }
+    
     @GetMapping("{name}")
-    public long generate(@PathVariable("name") String name) {
+    public long generate(@PathVariable String name) {
         return provider
             .getRequired(name)
             .generate();
     }
     
-    @GetMapping("{name}")
-    public String generateAsString(@PathVariable("name") String name) {
+    @GetMapping("/as-string")
+    public String generateAsString() {
+        return provider
+            .getShare()
+            .generateAsString();
+    }
+    
+    @GetMapping("/as-string/{name}")
+    public String generateAsString(@PathVariable String name) {
         return provider
             .getRequired(name)
             .generateAsString();
     }
+    
 }

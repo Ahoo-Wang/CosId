@@ -38,23 +38,23 @@ import java.util.Objects;
  * @author ahoo wang
  */
 public class AsStringSerializer extends JsonSerializer<Long> implements ContextualSerializer {
-
+    
     private static final AsStringSerializer TO_STRING = new AsStringSerializer();
-
+    
     private static final AsStringSerializer DEFAULT_RADIX = new AsStringSerializer(Radix62IdConverter.INSTANCE);
     private static final AsStringSerializer DEFAULT_RADIX_PAD_START = new AsStringSerializer(Radix62IdConverter.PAD_START);
     private static final AsStringSerializer DEFAULT_FRIENDLY_ID = new AsStringSerializer(SnowflakeFriendlyIdConverter.INSTANCE);
-
+    
     private final IdConverter converter;
-
+    
     public AsStringSerializer() {
         this(ToStringIdConverter.INSTANCE);
     }
-
+    
     public AsStringSerializer(IdConverter converter) {
         this.converter = converter;
     }
-
+    
     @Override
     public JsonSerializer<?> createContextual(SerializerProvider prov, BeanProperty property) throws JsonMappingException {
         AsString asString = property.getAnnotation(AsString.class);
@@ -81,14 +81,14 @@ public class AsStringSerializer extends JsonSerializer<Long> implements Contextu
                 throw new IllegalStateException("Unexpected value: " + asString.value());
         }
     }
-
+    
     static boolean isDefaultSnowflakeFriendlyIdConverter(AsString asString) {
         return CosId.COSID_EPOCH == asString.epoch()
             && MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT == asString.timestampBit()
             && MillisecondSnowflakeId.DEFAULT_MACHINE_BIT == asString.machineBit()
             && MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT == asString.sequenceBit();
     }
-
+    
     @Override
     public void serialize(Long value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
         if (Objects.isNull(value)) {

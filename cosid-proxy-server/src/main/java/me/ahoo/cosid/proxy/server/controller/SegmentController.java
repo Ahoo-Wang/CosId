@@ -13,13 +13,50 @@
 
 package me.ahoo.cosid.proxy.server.controller;
 
+import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
+import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+
+import com.google.common.base.Preconditions;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * SegmentController .
+ * Segment Controller .
  *
  * @author ahoo wang
  */
+@RestController
 @RequestMapping("segments")
 public class SegmentController {
+    private final IdSegmentDistributorFactory distributorFactory;
+    private final ConcurrentHashMap<String, IdSegmentDistributor> distributors;
+    
+    public SegmentController(IdSegmentDistributorFactory distributorFactory) {
+        this.distributorFactory = distributorFactory;
+        this.distributors = new ConcurrentHashMap<>();
+    }
+    
+    /**
+     * Creates a ID segment dispatcher, the operation is idempotent.
+     */
+    @PostMapping("/distributor/{namespace}/{name}")
+    public void createDistributor(@PathVariable String namespace, @PathVariable String name) {
+        String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);
+        distributors.computeIfAbsent(namespacedName,
+            key -> distributorFactory.create(new IdSegmentDistributorDefinition(namespace, name, IdSegmentDistributor.DEFAULT_OFFSET, IdSegmentDistributor.DEFAULT_STEP)));
+    }
+    
+    @GetMapping("/{namespace}/{name}")
+    public long nextMaxId(@PathVariable String namespace, @PathVariable String name, long step) {
+        String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);
+        IdSegmentDistributor distributor = distributors.get(namespacedName);
+        Preconditions.checkNotNull(distributor);
+        return distributor.nextMaxId(step);
+    }
 }

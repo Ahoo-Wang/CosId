@@ -22,8 +22,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @author ahoo wang
  */
 @SpringBootApplication
-public class AppServer {
+public class ProxyServer {
     public static void main(String[] args) {
-        SpringApplication.run(AppServer.class, args);
+        SpringApplication.run(ProxyServer.class, args);
     }
 }

@@ -339,7 +339,7 @@ class SnowflakeIdPropertiesTest {
         @Test
         public void getConverter() {
             SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            Assertions.assertNull(idDefinition.getConverter());
+            Assertions.assertNotNull(idDefinition.getConverter());
         }
         
         @Test

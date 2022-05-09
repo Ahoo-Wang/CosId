@@ -16,7 +16,7 @@ package me.ahoo.cosid.jdbc;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
-import me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec;
+import me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,7 +27,7 @@ import java.time.Duration;
 /**
  * @author ahoo wang
  */
-class JdbcMachineIdDistributorTest extends DistributorSpec {
+class JdbcMachineIdDistributorTest extends MachineIdDistributorSpec {
     DataSource dataSource;
     JdbcMachineIdInitializer jdbcMachineIdInitializer;
     

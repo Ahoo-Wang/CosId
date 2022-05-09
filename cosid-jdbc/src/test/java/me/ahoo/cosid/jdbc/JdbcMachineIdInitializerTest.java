@@ -13,43 +13,40 @@
 
 package me.ahoo.cosid.jdbc;
 
-import me.ahoo.cosid.segment.IdSegmentDistributor;
-import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
-import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
-
+import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 import javax.sql.DataSource;
 
 /**
+ * JdbcMachineIdInitializerTest .
+ *
  * @author ahoo wang
  */
-class JdbcIdSegmentDistributorTest extends IdSegmentDistributorSpec {
+class JdbcMachineIdInitializerTest {
+    
+    
     DataSource dataSource;
-    JdbcIdSegmentDistributorFactory distributorFactory;
-
+    private JdbcMachineIdInitializer machineIdInitializer;
     
     @BeforeEach
     private void setup() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
-        JdbcIdSegmentInitializer  mySqlIdSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
-        distributorFactory =
-            new JdbcIdSegmentDistributorFactory(dataSource, true, mySqlIdSegmentInitializer, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
+        machineIdInitializer = new JdbcMachineIdInitializer(dataSource);
     }
     
-    @Override
-    protected IdSegmentDistributorFactory getFactory() {
-        return distributorFactory;
+    @SneakyThrows
+    @DisabledIfEnvironmentVariable(named = "MYSQL", matches = "5.1")
+    @Test
+    void initCosIdMachineTable() {
+        machineIdInitializer.initCosIdMachineTable();
     }
     
-    
-    @Override
-    protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
-    
-    }
-    
-    @Override
-    public void nextMaxIdWhenBack() {
-        //TODO
+    @DisabledIfEnvironmentVariable(named = "MYSQL", matches = "5.1")
+    @Test
+    void tryInitCosIdMachineTable() {
+        machineIdInitializer.tryInitCosIdMachineTable();
     }
 }

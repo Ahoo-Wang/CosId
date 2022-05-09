@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.test.snowflake.machine.distributor;
 
-import static me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec.TEST_MACHINE_BIT;
-import static me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec.mockInstance;
+import static me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec.TEST_MACHINE_BIT;
+import static me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec.mockInstance;
 
 import me.ahoo.cosid.snowflake.machine.InstanceId;
 import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;

@@ -18,7 +18,7 @@ import static me.ahoo.cosid.redis.RedisMachineIdDistributor.DEFAULT_TIMEOUT;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
-import me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec;
+import me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec;
 
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -31,7 +31,7 @@ import java.util.Objects;
 /**
  * @author ahoo wang
  */
-class RedisMachineIdDistributorTest extends DistributorSpec {
+class RedisMachineIdDistributorTest extends MachineIdDistributorSpec {
     protected RedisClient redisClient;
     protected StatefulRedisConnection<String, String> redisConnection;
     protected RedisMachineIdDistributor redisMachineIdDistributor;

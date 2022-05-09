@@ -25,17 +25,21 @@ import static org.hamcrest.Matchers.isA;
 public class Assert {
     
     @SuppressWarnings("unchecked")
-    public static <T extends Throwable> T execute(Runnable runnable) {
+    public static <T extends Throwable> T execute(Executable executable) {
         try {
-            runnable.run();
+            executable.execute();
         } catch (Throwable throwable) {
             return (T) throwable;
         }
         return null;
     }
     
-    public static <T extends Throwable> void assertThrows(Class<T> expectedType, Runnable runnable) {
-        assertThat(execute(runnable), isA(expectedType));
+    public static <T extends Throwable> void assertThrows(Class<T> expectedType, Executable executable) {
+        assertThat(execute(executable), isA(expectedType));
     }
     
+    
+    public interface Executable {
+        void execute() throws Throwable;
+    }
 }

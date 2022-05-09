@@ -30,45 +30,45 @@ public class JdbcMachineIdInitializer {
     private static final String INIT_COSID_MACHINE_TABLE_SQL =
         "create table if not exists cosid_machine\n"
             + "(\n"
-            + "    name            varchar(100) not null comment '{namespace}.{machine_id}',\n"
-            + "    namespace       varchar(100) not null,\n"
-            + "    machine_id      integer      not null default 0,\n"
-            + "    last_timestamp  bigint       not null default 0,\n"
-            + "    instance_id     varchar(100) not null default '',\n"
-            + "    distribute_time bigint       not null default 0,\n"
-            + "    revert_time     bigint       not null default 0,\n"
+            + "    name            varchar(100)     not null comment '{namespace}.{machine_id}',\n"
+            + "    namespace       varchar(100)     not null,\n"
+            + "    machine_id      integer unsigned not null default 0,\n"
+            + "    last_timestamp  bigint unsigned  not null default 0,\n"
+            + "    instance_id     varchar(100)     not null default '',\n"
+            + "    distribute_time bigint unsigned  not null default 0,\n"
+            + "    revert_time     bigint unsigned  not null default 0,\n"
             + "    constraint cosid_machine_pk\n"
             + "        primary key (name)\n"
             + ") engine = InnoDB;";
-
+    
     private static final String INIT_NAMESPACE_IDX_SQL =
         "create index if not exists idx_namespace on cosid_machine (namespace);";
-
+    
     private static final String INIT_INSTANCE_ID_IDX_SQL =
         "create index if not exists idx_instance_id on cosid_machine (instance_id);";
-
+    
     private final DataSource dataSource;
-
+    
     private final String initCosIdMachineTableSql;
     private final String initNamespaceIdxSql;
     private final String initInstanceIdIdxSql;
-
+    
     public JdbcMachineIdInitializer(DataSource dataSource) {
         this(dataSource, INIT_COSID_MACHINE_TABLE_SQL, INIT_NAMESPACE_IDX_SQL, INIT_INSTANCE_ID_IDX_SQL);
     }
-
+    
     public JdbcMachineIdInitializer(DataSource dataSource, String initCosIdMachineTableSql, String initNamespaceIdxSql, String initInstanceIdIdxSql) {
         this.dataSource = dataSource;
         this.initCosIdMachineTableSql = initCosIdMachineTableSql;
         this.initNamespaceIdxSql = initNamespaceIdxSql;
         this.initInstanceIdIdxSql = initInstanceIdIdxSql;
     }
-
+    
     public void initCosIdMachineTable() throws SQLException {
         if (log.isInfoEnabled()) {
             log.info("initCosIdMachineTable");
         }
-
+        
         try (Connection connection = dataSource.getConnection()) {
             try (PreparedStatement initStatement = connection.prepareStatement(initCosIdMachineTableSql)) {
                 initStatement.executeUpdate();
@@ -81,7 +81,7 @@ public class JdbcMachineIdInitializer {
             }
         }
     }
-
+    
     public boolean tryInitCosIdMachineTable() {
         try {
             initCosIdMachineTable();

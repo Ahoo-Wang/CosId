@@ -27,7 +27,7 @@ import java.util.List;
  *
  * @author ahoo wang
  */
-public abstract class DistributorSpec {
+public abstract class MachineIdDistributorSpec {
     public static final String TEST_HOST = "127.0.0.1";
     public static final int TEST_MACHINE_BIT = 5;
     

@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
@@ -92,6 +93,12 @@ class CosIdKeyGenerateAlgorithmTest {
         Comparable<?> key = stringCosIdKeyAlg.generateKey();
         Assertions.assertTrue(key instanceof String);
         Assertions.assertTrue(key.toString().startsWith("test_"));
+    }
+
+    @Test
+    void getType(){
+        CosIdKeyGenerateAlgorithm stringCosIdKeyAlg = new CosIdKeyGenerateAlgorithm();
+        Assertions.assertTrue(stringCosIdKeyAlg.getType().equals(CosId.COSID.toUpperCase()));
     }
 
 }

@@ -34,7 +34,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     
     public static final Duration DEFAULT_INITIAL_DELAY = Duration.ofMinutes(1);
     public static final Duration DEFAULT_DELAY = Duration.ofMinutes(1);
-    private final CopyOnWriteArraySet<NamespacedInstanceId> registeredInstances;
+    private final CopyOnWriteArraySet<NamespacedInstanceId> registeredInstanceIds;
     private final MachineIdDistributor machineIdDistributor;
     private final ScheduledExecutorService executorService;
     private final Duration initialDelay;
@@ -52,7 +52,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     
     public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, ScheduledExecutorService executorService,
                                    Duration initialDelay, Duration delay) {
-        this.registeredInstances = new CopyOnWriteArraySet<>();
+        this.registeredInstanceIds = new CopyOnWriteArraySet<>();
         this.machineIdDistributor = machineIdDistributor;
         this.executorService = executorService;
         this.initialDelay = initialDelay;
@@ -65,18 +65,22 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     
     @Override
     public void register(String namespace, InstanceId instanceId) {
-        registeredInstances.add(new NamespacedInstanceId(namespace, instanceId));
+        registeredInstanceIds.add(new NamespacedInstanceId(namespace, instanceId));
     }
     
     @Override
     public void unregister(String namespace, InstanceId instanceId) {
-        registeredInstances.remove(new NamespacedInstanceId(namespace, instanceId));
+        registeredInstanceIds.remove(new NamespacedInstanceId(namespace, instanceId));
+    }
+    
+    public CopyOnWriteArraySet<NamespacedInstanceId> getRegisteredInstanceIds() {
+        return registeredInstanceIds;
     }
     
     @Override
     public void start() {
         if (log.isDebugEnabled()) {
-            log.debug("start - registeredInstances:[{}].", registeredInstances.size());
+            log.debug("start - registeredInstances:[{}].", registeredInstanceIds.size());
         }
         if (running.compareAndSet(false, true)) {
             scheduledFuture = executorService.scheduleWithFixedDelay(this::safeGuard, initialDelay.toMillis(), delay.toMillis(), TimeUnit.MILLISECONDS);
@@ -85,9 +89,9 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     
     private void safeGuard() {
         if (log.isDebugEnabled()) {
-            log.debug("safeGuard - registeredInstances:[{}].", registeredInstances.size());
+            log.debug("safeGuard - registeredInstances:[{}].", registeredInstanceIds.size());
         }
-        for (NamespacedInstanceId registeredInstance : registeredInstances) {
+        for (NamespacedInstanceId registeredInstance : registeredInstanceIds) {
             try {
                 machineIdDistributor.guard(registeredInstance.getNamespace(), registeredInstance.getInstanceId());
             } catch (Throwable throwable) {
@@ -101,7 +105,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     @Override
     public void stop() {
         if (log.isDebugEnabled()) {
-            log.debug("stop - registeredInstances:[{}].", registeredInstances.size());
+            log.debug("stop - registeredInstances:[{}].", registeredInstanceIds.size());
         }
         if (running.compareAndSet(true, false)) {
             scheduledFuture.cancel(true);

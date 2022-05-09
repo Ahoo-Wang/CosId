@@ -16,7 +16,7 @@ package me.ahoo.cosid.zookeeper;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
-import me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec;
+import me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec;
 
 import lombok.SneakyThrows;
 import org.apache.curator.RetryPolicy;
@@ -34,7 +34,7 @@ import java.util.Objects;
 /**
  * @author ahoo wang
  */
-class ZookeeperMachineIdDistributorTest extends DistributorSpec {
+class ZookeeperMachineIdDistributorTest extends MachineIdDistributorSpec {
     RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 3, 3000);
     CuratorFramework curatorFramework;
     TestingServer testingServer;

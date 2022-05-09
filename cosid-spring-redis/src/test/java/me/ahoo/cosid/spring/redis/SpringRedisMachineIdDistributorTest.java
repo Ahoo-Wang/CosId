@@ -16,7 +16,7 @@ package me.ahoo.cosid.spring.redis;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
-import me.ahoo.cosid.test.snowflake.machine.distributor.DistributorSpec;
+import me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
@@ -28,7 +28,7 @@ import java.time.Duration;
 /**
  * @author ahoo wang
  */
-class SpringRedisMachineIdDistributorTest extends DistributorSpec {
+class SpringRedisMachineIdDistributorTest extends MachineIdDistributorSpec {
     StringRedisTemplate stringRedisTemplate;
     
     @BeforeEach

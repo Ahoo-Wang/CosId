@@ -1,5 +1,6 @@
 package me.ahoo.cosid.segment;
 
+
 import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_OFFSET;
 import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_STEP;
 

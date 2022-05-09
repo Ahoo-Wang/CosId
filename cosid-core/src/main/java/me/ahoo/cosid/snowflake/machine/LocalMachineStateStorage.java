@@ -126,7 +126,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         if (stateFile.exists()) {
             boolean isDeleted = stateFile.delete();
             if (!isDeleted) {
-                log.warn("remove and delete instance :[{}] stateFile in namespace[{}] not successful! FilePath:[{}]", instanceId, namespace,stateFile.getAbsolutePath());
+                log.warn("remove and delete instance :[{}] stateFile in namespace[{}] not successful! FilePath:[{}]", instanceId, namespace, stateFile.getAbsolutePath());
             }
         }
     }

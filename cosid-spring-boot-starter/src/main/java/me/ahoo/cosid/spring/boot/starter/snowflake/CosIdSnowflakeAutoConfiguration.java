@@ -185,7 +185,7 @@ public class CosIdSnowflakeAutoConfiguration {
         long machineId = snowflakeId.getMachineId();
         return new MachineId(machineId);
     }
-    
+
     private SnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         long epoch = getEpoch(idDefinition);
@@ -200,20 +200,8 @@ public class CosIdSnowflakeAutoConfiguration {
         if (idDefinition.isClockSync()) {
             snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
         }
-        
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
-        
-        boolean isFriendly = idDefinition.isFriendly();
         final ZoneId zoneId = ZoneId.of(snowflakeIdProperties.getZoneId());
-        
-        if (isFriendly) {
-            snowflakeId = new DefaultSnowflakeFriendlyId(snowflakeId, zoneId);
-        }
-        
-        if (Objects.isNull(converterDefinition)) {
-            return snowflakeId;
-        }
-        
         IdConverter idConverter = ToStringIdConverter.INSTANCE;
         switch (converterDefinition.getType()) {
             case TO_STRING: {
@@ -231,14 +219,12 @@ public class CosIdSnowflakeAutoConfiguration {
             default:
                 throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
         }
-        
         if (!PrefixIdConverter.EMPTY_PREFIX.equals(converterDefinition.getPrefix())) {
             idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
         }
-        
-        if (isFriendly) {
-            SnowflakeFriendlyId snowflakeFriendlyId = (SnowflakeFriendlyId) snowflakeId;
-            return new DefaultSnowflakeFriendlyId(snowflakeId, idConverter, snowflakeFriendlyId.getParser());
+        if (idDefinition.isFriendly()) {
+            SnowflakeIdStateParser snowflakeIdStateParser = SnowflakeIdStateParser.of(snowflakeId, zoneId);;
+            return new DefaultSnowflakeFriendlyId(snowflakeId, idConverter, snowflakeIdStateParser);
         }
         return new StringSnowflakeId(snowflakeId, idConverter);
     }

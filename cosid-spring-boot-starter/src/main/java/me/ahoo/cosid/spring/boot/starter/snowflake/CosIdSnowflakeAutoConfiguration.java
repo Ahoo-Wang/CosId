@@ -225,7 +225,7 @@ public class CosIdSnowflakeAutoConfiguration {
             }
             case RADIX: {
                 IdConverterDefinition.Radix radix = converterDefinition.getRadix();
-                idConverter = new Radix62IdConverter(radix.isPadStart(), radix.getCharSize());
+                idConverter = Radix62IdConverter.of(radix.isPadStart(), radix.getCharSize());
                 break;
             }
             default:

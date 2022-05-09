@@ -52,7 +52,7 @@ class Radix62IdConverterTest {
     @Test
     void asLongWhenNumberFormat() {
         int charSize = 2;
-        Radix62IdConverter idConvert = new Radix62IdConverter(false, charSize);
+        Radix62IdConverter idConvert = Radix62IdConverter.of(false, charSize);
 
         Assertions.assertThrows(NumberFormatException.class, () -> {
             idConvert.asLong("-1");
@@ -93,7 +93,7 @@ class Radix62IdConverterTest {
     @Test
     void asStringCharSize10() {
         int charSize = 10;
-        Radix62IdConverter idConvert = new Radix62IdConverter(false, charSize);
+        Radix62IdConverter idConvert = Radix62IdConverter.of(false, charSize);
         long maxId = Double.valueOf(Math.pow(Radix62IdConverter.RADIX, charSize)).longValue();
         Assertions.assertThrows(IllegalArgumentException.class, () -> idConvert.asString(maxId));
         long id = maxId - 1;
@@ -109,7 +109,7 @@ class Radix62IdConverterTest {
     @Test
     void asStringPadCharSize10() {
         int charSize = 10;
-        Radix62IdConverter idConvert = new Radix62IdConverter(true, charSize);
+        Radix62IdConverter idConvert = Radix62IdConverter.of(true, charSize);
         String actualIdStr = idConvert.asString(1L);
         Assertions.assertEquals(charSize, actualIdStr.length());
     }

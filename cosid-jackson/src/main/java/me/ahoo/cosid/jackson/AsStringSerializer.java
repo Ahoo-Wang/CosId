@@ -64,7 +64,7 @@ public class AsStringSerializer extends JsonSerializer<Long> implements Contextu
             }
             case RADIX: {
                 if (Radix62IdConverter.MAX_CHAR_SIZE != asString.radixCharSize()) {
-                    IdConverter idConverter = new Radix62IdConverter(asString.radixPadStart(), asString.radixCharSize());
+                    IdConverter idConverter = Radix62IdConverter.of(asString.radixPadStart(), asString.radixCharSize());
                     return new AsStringSerializer(idConverter);
                 }
                 return asString.radixPadStart() ? DEFAULT_RADIX_PAD_START : DEFAULT_RADIX;

@@ -1,8 +1,10 @@
 # IdGeneratorProvider
 
-TODO
-
 > `IdGenerator` 容器
+
+<p align="center">
+  <img :src="$withBase('/assets/design/IdGeneratorProvider-impl-class.png')" alt="IdGenerator implementation class diagram"/>
+</p>
 
 ## DefaultIdGeneratorProvider
 

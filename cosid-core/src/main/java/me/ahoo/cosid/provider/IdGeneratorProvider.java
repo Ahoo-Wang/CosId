@@ -15,6 +15,8 @@ package me.ahoo.cosid.provider;
 
 import me.ahoo.cosid.IdGenerator;
 
+import com.google.common.base.Strings;
+
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collection;
 import java.util.Optional;
@@ -59,6 +61,11 @@ public interface IdGeneratorProvider {
      * @return ID generator
      */
     Optional<IdGenerator> get(String name);
+    
+    default IdGenerator getRequired(String name) {
+        return get(name)
+            .orElseThrow(() -> new IllegalArgumentException(Strings.commonPrefix("Can not found IdGenerator:[%s]!", name)));
+    }
     
     /**
      * Set ID generator by name.

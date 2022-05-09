@@ -11,10 +11,15 @@
  * limitations under the License.
  */
 
-description = "CosId test specification module"
+package me.ahoo.cosid.proxy.server.controller;
 
-dependencies {
-    implementation(project(":cosid-core"))
-    implementation("org.junit.jupiter:junit-jupiter-api")
-    implementation("org.hamcrest:hamcrest")
+import org.springframework.web.bind.annotation.RequestMapping;
+
+/**
+ * SegmentController .
+ *
+ * @author ahoo wang
+ */
+@RequestMapping("segments")
+public class SegmentController {
 }

@@ -26,7 +26,8 @@ val coreProjects = setOf(
     project(":cosid-core")
 )
 val serverProjects = setOf(
-    project(":cosid-example")
+    project(":cosid-example"),
+    project(":cosid-proxy-server")
 )
 
 val testProject = project(":cosid-test")

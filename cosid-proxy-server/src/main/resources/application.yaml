@@ -1,0 +1,52 @@
+server:
+  port: 8008
+spring:
+  application:
+    name: ${service.name:cosid-proxy}
+  redis:
+    url: redis://localhost:6379
+  autoconfigure:
+    # TODO
+    exclude:
+
+cosid:
+  namespace: ${spring.application.name}
+  snowflake:
+    enabled: true
+    #    epoch: 1577203200000
+    clock-backwards:
+      spin-threshold: 10
+      broken-threshold: 2000
+    machine:
+      #      stable: true
+      #      machine-bit: 10
+      #      instance-id: ${HOSTNAME}
+      distributor:
+        type: redis
+      #        manual:
+      #          machine-id: 0
+      state-storage:
+        local:
+          state-location: ./cosid-machine-state/
+      guarder:
+        enabled: true
+    share:
+      clock-sync: true
+      friendly: true
+  segment:
+    enabled: true
+    mode: chain
+    chain:
+      safe-distance: 5
+      prefetch-worker:
+        core-pool-size: 2
+        prefetch-period: 1s
+    distributor:
+      type: redis
+    share:
+      offset: 0
+      step: 100
+
+logging:
+  level:
+    me.ahoo.cosid: debug

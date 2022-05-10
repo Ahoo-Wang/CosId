@@ -199,7 +199,16 @@ configure(publishProjects) {
             }
         }
     }
+
     configure<SigningExtension> {
+        val isInCI = null != System.getenv("CI");
+        if (isInCI) {
+            val signingKeyId = System.getenv("SIGNING_KEYID")
+            val signingKey = System.getenv("SIGNING_SECRETKEY")
+            val signingPassword = System.getenv("SIGNING_PASSWORD")
+            useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
+        }
+
         if (isBom) {
             sign(extensions.getByType(PublishingExtension::class).publications.get("mavenBom"))
         } else {

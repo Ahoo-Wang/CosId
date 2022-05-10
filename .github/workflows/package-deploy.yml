@@ -38,6 +38,9 @@ jobs:
         run: gradle publishAllPublicationsToGitHubPackagesRepository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
+          SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
   central-deploy:
     runs-on: ubuntu-latest
     steps:
@@ -57,3 +60,6 @@ jobs:
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+          SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
+          SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}

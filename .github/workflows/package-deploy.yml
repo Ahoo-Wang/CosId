@@ -12,10 +12,10 @@
 #
 
 name: Packages Deploy
-#on:
-#  release:
-#    types: [created]
-on: [ push ]
+on:
+  release:
+    types: [created]
+
 jobs:
   github-deploy:
     runs-on: ubuntu-latest

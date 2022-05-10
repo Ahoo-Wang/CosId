@@ -60,6 +60,11 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v3
         with:
+          platforms: linux/amd64,linux/arm64
           context: cosid-proxy-server
           push: true
-          tags: "ahoowang/cosid-proxy:latest"
+          tags: |
+            ahoowang/cosid-proxy:latest
+            ahoowang/cosid-proxy:${{ github.ref_name }}
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.ref_name }}

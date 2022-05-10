@@ -11,10 +11,21 @@
  * limitations under the License.
  */
 
-description = "CosId test specification module"
+package me.ahoo.cosid.proxy;
 
-dependencies {
-    implementation(project(":cosid-core"))
-    implementation("org.junit.jupiter:junit-jupiter-api")
-    implementation("org.hamcrest:hamcrest")
+import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
+import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+
+/**
+ * ProxyIdSegmentDistributorFactory .
+ * TODO
+ *
+ * @author ahoo wang
+ */
+public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
+    @Override
+    public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
+        return null;
+    }
 }

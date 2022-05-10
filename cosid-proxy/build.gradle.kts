@@ -11,10 +11,7 @@
  * limitations under the License.
  */
 
-description = "CosId test specification module"
-
 dependencies {
-    implementation(project(":cosid-core"))
-    implementation("org.junit.jupiter:junit-jupiter-api")
-    implementation("org.hamcrest:hamcrest")
+    api(project(":cosid-core"))
+    testImplementation(project(":cosid-test"))
 }

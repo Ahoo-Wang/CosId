@@ -11,10 +11,27 @@
  * limitations under the License.
  */
 
-description = "CosId test specification module"
+package me.ahoo.cosid.proxy.server.error;
 
-dependencies {
-    implementation(project(":cosid-core"))
-    implementation("org.junit.jupiter:junit-jupiter-api")
-    implementation("org.hamcrest:hamcrest")
+/**
+ * ArgumentError .
+ *
+ * @author ahoo wang
+ */
+public class ArgumentError {
+    private final String field;
+    private final String msg;
+    
+    public ArgumentError(String field, String msg) {
+        this.field = field;
+        this.msg = msg;
+    }
+    
+    public String getField() {
+        return field;
+    }
+    
+    public String getMsg() {
+        return msg;
+    }
 }

@@ -1,0 +1,32 @@
+server:
+  port: 8088
+spring:
+  application:
+    name: ${service.name:cosid-proxy}
+#  redis:
+#    url: redis://localhost:6379
+  autoconfigure:
+    exclude:
+#     - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+     - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+#  datasource:
+#    url: jdbc:mysql://localhost:3306/cosid_db
+#    username: root
+#    password: root
+cosid:
+  namespace: ${spring.application.name}
+  snowflake:
+    enabled: true
+    machine:
+      distributor:
+        type: redis
+      guarder:
+        enabled: true
+  segment:
+    enabled: true
+    mode: chain
+    distributor:
+      type: redis
+logging:
+  level:
+    me.ahoo.cosid: debug

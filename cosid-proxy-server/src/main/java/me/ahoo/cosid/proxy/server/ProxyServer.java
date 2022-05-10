@@ -11,10 +11,19 @@
  * limitations under the License.
  */
 
-description = "CosId test specification module"
+package me.ahoo.cosid.proxy.server;
 
-dependencies {
-    implementation(project(":cosid-core"))
-    implementation("org.junit.jupiter:junit-jupiter-api")
-    implementation("org.hamcrest:hamcrest")
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+/**
+ * AppServer .
+ *
+ * @author ahoo wang
+ */
+@SpringBootApplication
+public class ProxyServer {
+    public static void main(String[] args) {
+        SpringApplication.run(ProxyServer.class, args);
+    }
 }

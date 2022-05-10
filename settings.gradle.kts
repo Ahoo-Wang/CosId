@@ -26,6 +26,8 @@ include(":cosid-jackson")
 include(":cosid-shardingsphere")
 include(":cosid-zookeeper")
 include(":cosid-test")
+include(":cosid-proxy")
+include(":cosid-proxy-server")
 
 buildscript{
     repositories{

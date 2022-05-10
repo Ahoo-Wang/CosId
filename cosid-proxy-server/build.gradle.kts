@@ -21,8 +21,18 @@ java {
     }
 }
 
+tasks.jar.configure {
+    exclude("application.yaml")
+    manifest {
+        attributes(
+            "Implementation-Title" to application.applicationName,
+            "Implementation-Version" to archiveVersion
+        )
+    }
+}
+
 application {
-    mainClass.set("me.ahoo.cosid.proxy.ProxyServer")
+    mainClass.set("me.ahoo.cosid.proxy.server.ProxyServer")
     applicationDefaultJvmArgs = listOf(
         "-Xms512M",
         "-Xmx512M",

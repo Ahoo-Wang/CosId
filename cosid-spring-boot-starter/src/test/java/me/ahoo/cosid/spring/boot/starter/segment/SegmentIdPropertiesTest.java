@@ -411,7 +411,7 @@ class SegmentIdPropertiesTest {
         @Test
         public void getConverter() {
             SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            Assertions.assertNull(idDefinition.getConverter());
+            Assertions.assertNotNull(idDefinition.getConverter());
         }
         
         @Test

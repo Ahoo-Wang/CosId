@@ -157,8 +157,8 @@ configure(publishProjects) {
                 name = "GitHubPackages"
                 url = uri("https://maven.pkg.github.com/Ahoo-Wang/CosId")
                 credentials {
-                    username = project.findProperty("gitHubPackagesUserName") as? String
-                    password = project.findProperty("gitHubPackagesToken") as? String?
+                    username = System.getenv("GITHUB_ACTOR")
+                    password = System.getenv("GITHUB_TOKEN")
                 }
             }
         }
@@ -210,7 +210,10 @@ configure(publishProjects) {
 
 nexusPublishing {
     repositories {
-        sonatype()
+        sonatype {
+            username.set(System.getenv("MAVEN_USERNAME"))
+            password.set(System.getenv("MAVEN_PASSWORD"))
+        }
     }
 }
 

@@ -19,9 +19,9 @@ import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -40,17 +40,26 @@ public class MachineController {
         this.distributor = distributor;
     }
     
+    /**
+     * Distribute a machine ID, the operation is idempotent.
+     */
     @PostMapping("/{namespace}")
     public int distribute(@PathVariable String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
         return distributor.distribute(namespace, machineBit, instanceId);
     }
     
+    /**
+     * Revert a machine ID, the operation is idempotent.
+     */
     @DeleteMapping("/{namespace}")
     public void revert(@PathVariable String namespace, InstanceId instanceId) throws MachineIdOverflowException {
         distributor.revert(namespace, instanceId);
     }
     
-    @PutMapping("/{namespace}")
+    /**
+     * Guard a machine ID.
+     */
+    @PatchMapping("/{namespace}")
     public void guard(@PathVariable String namespace, InstanceId instanceId) throws MachineIdLostException {
         distributor.guard(namespace, instanceId);
     }

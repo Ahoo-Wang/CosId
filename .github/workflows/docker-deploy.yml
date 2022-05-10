@@ -12,18 +12,17 @@
 #
 
 name: Docker Image Deploy
-#on:
-#  schedule:
-#    - cron: '0 10 * * *'
-#  push:
-#    branches:
-#      - '**'
-#    tags:
-#      - 'v*.*.*'
-#  pull_request:
-#    branches:
-#      - 'main'
-on: [ push ]
+on:
+  schedule:
+    - cron: '0 10 * * *'
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches:
+      - 'main'
 jobs:
   docker-deploy:
     name: Push Docker image

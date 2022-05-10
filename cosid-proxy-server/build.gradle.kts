@@ -33,6 +33,7 @@ tasks.jar.configure {
 
 application {
     mainClass.set("me.ahoo.cosid.proxy.server.ProxyServer")
+
     applicationDefaultJvmArgs = listOf(
         "-Xms512M",
         "-Xmx512M",

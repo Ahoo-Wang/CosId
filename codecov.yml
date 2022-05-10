@@ -2,9 +2,10 @@ coverage:
   status:
     patch:
       default:
-        threshold: 0.1%
+        threshold: 1%
 
 ignore:
   - "cosid-test/.*"
   - "cosid-example/.*"
   - "cosid-benchmark/.*"
+  - "cosid-proxy-server/.*"

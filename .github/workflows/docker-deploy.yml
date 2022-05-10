@@ -13,8 +13,16 @@
 
 name: Docker Image Deploy
 #on:
-#  release:
-#    types: [created]
+#  schedule:
+#    - cron: '0 10 * * *'
+#  push:
+#    branches:
+#      - '**'
+#    tags:
+#      - 'v*.*.*'
+#  pull_request:
+#    branches:
+#      - 'main'
 on: [ push ]
 jobs:
   docker-deploy:
@@ -63,7 +71,7 @@ jobs:
         with:
           images: |
             ahoowang/cosid-proxy
-            ghcr.io/ahoo-wang/cosid
+            ghcr.io/ahoo-wang/cosid-proxy
           tags: |
             type=ref,event=branch
             type=ref,event=pr

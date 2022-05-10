@@ -16,7 +16,7 @@ package me.ahoo.cosid.benchmark;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.segment.SegmentChainId;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.MockIdGenerator;
 import org.openjdk.jmh.annotations.*;
 
 import javax.sql.DataSource;

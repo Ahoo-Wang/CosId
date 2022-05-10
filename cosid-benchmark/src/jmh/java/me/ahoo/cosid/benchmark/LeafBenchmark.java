@@ -20,7 +20,7 @@ import com.sankuai.inf.leaf.common.Status;
 import com.sankuai.inf.leaf.segment.SegmentIDGenImpl;
 import com.sankuai.inf.leaf.segment.dao.IDAllocDao;
 import com.sankuai.inf.leaf.segment.dao.impl.IDAllocDaoImpl;
-import me.ahoo.cosid.util.MockIdGenerator;
+import me.ahoo.cosid.test.MockIdGenerator;
 import org.openjdk.jmh.annotations.*;
 
 import javax.sql.DataSource;

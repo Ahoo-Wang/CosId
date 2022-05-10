@@ -304,7 +304,7 @@ public class SegmentIdProperties {
         private Long ttl;
         private Chain chain;
         @NestedConfigurationProperty
-        private IdConverterDefinition converter;
+        private IdConverterDefinition converter = new IdConverterDefinition();
         
         public Mode getMode() {
             return mode;

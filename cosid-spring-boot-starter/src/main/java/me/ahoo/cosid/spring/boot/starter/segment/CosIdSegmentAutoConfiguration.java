@@ -49,15 +49,15 @@ import java.util.Objects;
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
 public class CosIdSegmentAutoConfiguration {
-
+    
     private final CosIdProperties cosIdProperties;
     private final SegmentIdProperties segmentIdProperties;
-
+    
     public CosIdSegmentAutoConfiguration(CosIdProperties cosIdProperties, SegmentIdProperties segmentIdProperties) {
         this.cosIdProperties = cosIdProperties;
         this.segmentIdProperties = segmentIdProperties;
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public PrefetchWorkerExecutorService prefetchWorkerExecutorService() {
@@ -65,26 +65,26 @@ public class CosIdSegmentAutoConfiguration {
         Preconditions.checkNotNull(prefetchWorker, "cosid.segment.chain.prefetch-worker can not be null!");
         return new PrefetchWorkerExecutorService(prefetchWorker.getPrefetchPeriod(), prefetchWorker.getCorePoolSize(), prefetchWorker.isShutdownHook());
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public CosIdLifecyclePrefetchWorkerExecutorService lifecycleSegmentChainId(PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         return new CosIdLifecyclePrefetchWorkerExecutorService(prefetchWorkerExecutorService);
     }
-
+    
     private IdSegmentDistributorDefinition asDistributorDefinition(String name, SegmentIdProperties.IdDefinition idDefinition) {
         return new IdSegmentDistributorDefinition(cosIdProperties.getNamespace(), name, idDefinition.getOffset(), idDefinition.getStep());
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public SegmentId shareSegmentId(IdSegmentDistributorFactory distributorFactory, IdGeneratorProvider idGeneratorProvider, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         SegmentIdProperties.IdDefinition shareIdDefinition = segmentIdProperties.getShare();
         IdSegmentDistributorDefinition shareDistributorDefinition = asDistributorDefinition(IdGeneratorProvider.SHARE, shareIdDefinition);
         IdSegmentDistributor shareIdSegmentDistributor = distributorFactory.create(shareDistributorDefinition);
-
+        
         SegmentId shareIdGen = createSegment(segmentIdProperties, shareIdDefinition, shareIdSegmentDistributor, prefetchWorkerExecutorService);
-
+        
         if (Objects.isNull(idGeneratorProvider.getShare())) {
             idGeneratorProvider.setShare(shareIdGen);
         }
@@ -92,23 +92,23 @@ public class CosIdSegmentAutoConfiguration {
         if (segmentIdProperties.getProvider().isEmpty()) {
             return shareIdGen;
         }
-
+        
         segmentIdProperties.getProvider().forEach((name, idDefinition) -> {
             IdSegmentDistributorDefinition distributorDefinition = asDistributorDefinition(name, shareIdDefinition);
             IdSegmentDistributor idSegmentDistributor = distributorFactory.create(distributorDefinition);
             SegmentId idGenerator = createSegment(segmentIdProperties, idDefinition, idSegmentDistributor, prefetchWorkerExecutorService);
             idGeneratorProvider.set(name, idGenerator);
         });
-
+        
         return shareIdGen;
     }
-
-
+    
+    
     private static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor,
                                            PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         long ttl = MoreObjects.firstNonNull(idDefinition.getTtl(), segmentIdProperties.getTtl());
         SegmentIdProperties.Mode mode = MoreObjects.firstNonNull(idDefinition.getMode(), segmentIdProperties.getMode());
-
+        
         SegmentId segmentId;
         if (SegmentIdProperties.Mode.DEFAULT.equals(mode)) {
             segmentId = new DefaultSegmentId(ttl, idSegmentDistributor);
@@ -116,13 +116,9 @@ public class CosIdSegmentAutoConfiguration {
             SegmentIdProperties.Chain chain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
             segmentId = new SegmentChainId(ttl, chain.getSafeDistance(), idSegmentDistributor, prefetchWorkerExecutorService);
         }
-
+        
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
-
-        if (Objects.isNull(converterDefinition)) {
-            return segmentId;
-        }
-
+        
         IdConverter idConverter = ToStringIdConverter.INSTANCE;
         switch (converterDefinition.getType()) {
             case TO_STRING: {
@@ -136,12 +132,12 @@ public class CosIdSegmentAutoConfiguration {
             default:
                 throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
         }
-
+        
         if (!PrefixIdConverter.EMPTY_PREFIX.equals(converterDefinition.getPrefix())) {
             idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
         }
-
+        
         return new StringSegmentId(segmentId, idConverter);
-
+        
     }
 }

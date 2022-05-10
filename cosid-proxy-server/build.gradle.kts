@@ -22,7 +22,7 @@ java {
 }
 
 application {
-    mainClass.set("me.ahoo.cosid.proxy.AppServer")
+    mainClass.set("me.ahoo.cosid.proxy.ProxyServer")
     applicationDefaultJvmArgs = listOf(
         "-Xms512M",
         "-Xmx512M",

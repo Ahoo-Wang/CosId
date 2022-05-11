@@ -19,7 +19,9 @@ import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec;
 
 import okhttp3.OkHttpClient;
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
+@DisabledIfEnvironmentVariable(named = "CI", matches = "true")
 class ProxyMachineIdDistributorTest extends MachineIdDistributorSpec {
     public final static String PROXY_HOST = "http://localhost:8688";
     

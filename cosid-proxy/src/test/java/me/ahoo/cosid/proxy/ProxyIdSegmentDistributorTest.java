@@ -18,7 +18,9 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
 import okhttp3.OkHttpClient;
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
+@DisabledIfEnvironmentVariable(named = "CI", matches = "true")
 class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     
     @Override

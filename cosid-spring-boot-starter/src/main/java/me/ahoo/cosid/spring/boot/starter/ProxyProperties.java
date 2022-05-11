@@ -19,7 +19,7 @@ package me.ahoo.cosid.spring.boot.starter;
  * @author ahoo wang
  */
 public class ProxyProperties {
-    private String host = "http://localhost:8088";
+    private String host = "http://localhost:8688";
     
     public String getHost() {
         return host;

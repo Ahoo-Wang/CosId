@@ -21,6 +21,6 @@ LABEL maintainer="ahoowang@qq.com"
 COPY --from=build ${WORK_HOME} ${WORK_HOME}
 
 WORKDIR ${WORK_HOME}
-EXPOSE 8088
+EXPOSE 8688
 
 ENTRYPOINT ["bin/cosid-proxy-server"]

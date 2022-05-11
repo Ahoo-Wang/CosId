@@ -28,7 +28,7 @@ import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
  */
 @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
 class ProxyMachineIdDistributorTest extends MachineIdDistributorSpec {
-    public final static String PROXY_HOST = "http://localhost:8088";
+    public final static String PROXY_HOST = "http://localhost:8688";
     
     @Override
     protected MachineIdDistributor getDistributor() {

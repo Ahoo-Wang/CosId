@@ -75,12 +75,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             + "where namespace=? and instance_id=? and machine_id=?";
     
     public JdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        super(machineStateStorage, clockBackwardsSynchronizer, FOREVER_SAFE_GUARD_DURATION);
-        this.dataSource = dataSource;
-    }
-    
-    public JdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer, Duration safeGuardDuration) {
-        super(machineStateStorage, clockBackwardsSynchronizer, safeGuardDuration);
+        super(machineStateStorage, clockBackwardsSynchronizer);
         this.dataSource = dataSource;
     }
     
@@ -88,13 +83,13 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         return namespace + "." + Strings.padStart(String.valueOf(machineId), 4, '0');
     }
     
-    private int distributeRevertMachineState(Connection connection, String namespace, int machineId, InstanceId instanceId) throws SQLException {
+    private int distributeRevertMachineState(Connection connection, String namespace, int machineId, InstanceId instanceId, Duration safeGuardDuration) throws SQLException {
         try (PreparedStatement revertMachineStatement = connection.prepareStatement(DISTRIBUTE_REVERT_MACHINE_STATE)) {
             revertMachineStatement.setString(1, instanceId.getInstanceId());
             revertMachineStatement.setLong(2, System.currentTimeMillis());
             revertMachineStatement.setLong(3, System.currentTimeMillis());
             revertMachineStatement.setString(4, getNamespacedMachineId(namespace, machineId));
-            revertMachineStatement.setLong(5, getSafeGuardAt(instanceId.isStable()));
+            revertMachineStatement.setLong(5, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()));
             int affected = revertMachineStatement.executeUpdate();
             return affected;
         }
@@ -113,17 +108,17 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     }
     
     @Override
-    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId) {
+    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
             log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
         try (Connection connection = dataSource.getConnection()) {
-            MachineState machineState = distributeBySelf(namespace, instanceId, connection);
+            MachineState machineState = distributeBySelf(namespace, instanceId, connection, safeGuardDuration);
             if (machineState != null) {
                 return machineState;
             }
             
-            machineState = distributeByRevert(namespace, instanceId, connection);
+            machineState = distributeByRevert(namespace, instanceId, connection, safeGuardDuration);
             if (machineState != null) {
                 return machineState;
             }
@@ -162,15 +157,15 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         }
     }
     
-    private MachineState distributeByRevert(String namespace, InstanceId instanceId, Connection connection) throws SQLException {
+    private MachineState distributeByRevert(String namespace, InstanceId instanceId, Connection connection, Duration safeGuardDuration) throws SQLException {
         try (PreparedStatement getRevertMachineStatement = connection.prepareStatement(GET_REVERT_MACHINE_STATE)) {
             getRevertMachineStatement.setString(1, namespace);
-            getRevertMachineStatement.setLong(2, getSafeGuardAt(instanceId.isStable()));
+            getRevertMachineStatement.setLong(2, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()));
             try (ResultSet resultSet = getRevertMachineStatement.executeQuery()) {
                 if (resultSet.next()) {
                     int machineId = resultSet.getInt(1);
                     long lastTimeStamp = resultSet.getLong(2);
-                    if (distributeRevertMachineState(connection, namespace, machineId, instanceId) > 0) {
+                    if (distributeRevertMachineState(connection, namespace, machineId, instanceId, safeGuardDuration) > 0) {
                         return MachineState.of(machineId, lastTimeStamp);
                     }
                 }
@@ -179,16 +174,16 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         return null;
     }
     
-    private MachineState distributeBySelf(String namespace, InstanceId instanceId, Connection connection) throws SQLException {
+    private MachineState distributeBySelf(String namespace, InstanceId instanceId, Connection connection, Duration safeGuardDuration) throws SQLException {
         try (PreparedStatement getMachineStatement = connection.prepareStatement(GET_MACHINE_STATE)) {
             getMachineStatement.setString(1, namespace);
             getMachineStatement.setString(2, instanceId.getInstanceId());
-            getMachineStatement.setLong(3, getSafeGuardAt(instanceId.isStable()));
+            getMachineStatement.setLong(3, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()));
             try (ResultSet resultSet = getMachineStatement.executeQuery()) {
                 if (resultSet.next()) {
                     int machineId = resultSet.getInt(1);
                     MachineState machineState = MachineState.of(machineId, System.currentTimeMillis());
-                    guardRemote(namespace, instanceId, machineState);
+                    guardRemote(namespace, instanceId, machineState, safeGuardDuration);
                     return machineState;
                 }
             }
@@ -222,7 +217,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     }
     
     @Override
-    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
             log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }

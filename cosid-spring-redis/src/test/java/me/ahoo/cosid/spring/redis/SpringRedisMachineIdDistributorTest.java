@@ -23,8 +23,6 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import java.time.Duration;
-
 /**
  * @author ahoo wang
  */
@@ -42,11 +40,6 @@ class SpringRedisMachineIdDistributorTest extends MachineIdDistributorSpec {
     @Override
     protected MachineIdDistributor getDistributor() {
         return new SpringRedisMachineIdDistributor(stringRedisTemplate, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
-    }
-    
-    @Override
-    protected MachineIdDistributor getDistributor(Duration safeGuardDuration) {
-        return new SpringRedisMachineIdDistributor(stringRedisTemplate, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT, safeGuardDuration);
     }
     
 }

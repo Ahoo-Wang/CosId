@@ -51,30 +51,29 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     public RedisMachineIdDistributor(RedisClusterReactiveCommands<String, String> redisCommands,
                                      MachineStateStorage machineStateStorage,
                                      ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        this(DEFAULT_TIMEOUT, redisCommands, machineStateStorage, clockBackwardsSynchronizer, FOREVER_SAFE_GUARD_DURATION);
+        this(DEFAULT_TIMEOUT, redisCommands, machineStateStorage, clockBackwardsSynchronizer);
     }
     
     public RedisMachineIdDistributor(Duration timeout, RedisClusterReactiveCommands<String, String> redisCommands,
                                      MachineStateStorage machineStateStorage,
-                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer,
-                                     Duration safeGuardDuration) {
-        super(machineStateStorage, clockBackwardsSynchronizer, safeGuardDuration);
+                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        super(machineStateStorage, clockBackwardsSynchronizer);
         this.timeout = timeout;
         this.redisCommands = redisCommands;
     }
     
     
     @Override
-    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId) {
+    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         
-        MachineState machineState = distributeAsync(namespace, machineBit, instanceId).block(timeout);
+        MachineState machineState = distributeAsync(namespace, machineBit, instanceId, safeGuardDuration).block(timeout);
         if (log.isInfoEnabled()) {
             log.info("distributeRemote - [{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
         }
         return machineState;
     }
     
-    protected Mono<MachineState> distributeAsync(String namespace, int machineBit, InstanceId instanceId) {
+    protected Mono<MachineState> distributeAsync(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
             log.info("distributeAsync - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
@@ -85,7 +84,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
                     instanceId.getInstanceId(),
                     String.valueOf(MachineIdDistributor.maxMachineId(machineBit)),
                     String.valueOf(System.currentTimeMillis()),
-                    String.valueOf(getSafeGuardAt(instanceId.isStable()))
+                    String.valueOf(MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()))
                 };
                 return redisCommands.evalsha(scriptSha, ScriptOutputType.MULTI, keys, values).next();
             }
@@ -114,7 +113,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     }
     
     @Override
-    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
             log.info("guardRemote - instanceId:[{}]@[{}] - machineState:[{}].", instanceId, namespace, machineState);
         }

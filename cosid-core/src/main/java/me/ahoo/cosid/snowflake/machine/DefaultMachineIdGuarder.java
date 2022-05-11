@@ -39,27 +39,25 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     private final ScheduledExecutorService executorService;
     private final Duration initialDelay;
     private final Duration delay;
+    private final Duration safeGuardDuration;
     private volatile ScheduledFuture<?> scheduledFuture;
     private final AtomicBoolean running = new AtomicBoolean(false);
     
-    public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor) {
-        this(machineIdDistributor, executorService(), DEFAULT_INITIAL_DELAY, DEFAULT_DELAY);
-    }
-    
-    public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, Duration initialDelay, Duration delay) {
-        this(machineIdDistributor, executorService(), initialDelay, delay);
+    public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, Duration safeGuardDuration) {
+        this(machineIdDistributor, executorService(), DEFAULT_INITIAL_DELAY, DEFAULT_DELAY, safeGuardDuration);
     }
     
     public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, ScheduledExecutorService executorService,
-                                   Duration initialDelay, Duration delay) {
+                                   Duration initialDelay, Duration delay, Duration safeGuardDuration) {
         this.registeredInstanceIds = new CopyOnWriteArraySet<>();
         this.machineIdDistributor = machineIdDistributor;
         this.executorService = executorService;
         this.initialDelay = initialDelay;
         this.delay = delay;
+        this.safeGuardDuration = safeGuardDuration;
     }
     
-    private static ScheduledExecutorService executorService() {
+    public static ScheduledExecutorService executorService() {
         return new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder().setDaemon(true).setNameFormat("DefaultMachineIdGuarder-").build());
     }
     
@@ -93,7 +91,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         }
         for (NamespacedInstanceId registeredInstance : registeredInstanceIds) {
             try {
-                machineIdDistributor.guard(registeredInstance.getNamespace(), registeredInstance.getInstanceId());
+                machineIdDistributor.guard(registeredInstance.getNamespace(), registeredInstance.getInstanceId(), safeGuardDuration);
             } catch (Throwable throwable) {
                 if (log.isErrorEnabled()) {
                     log.error("Guard Failed:[{}]!", throwable.getMessage(), throwable);

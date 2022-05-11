@@ -25,20 +25,22 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  * @author ahoo wang
  */
 public class SpringRedisIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
-
+    
     private final StringRedisTemplate redisTemplate;
-
+    
     public SpringRedisIdSegmentDistributorFactory(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
-
+    
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
-        return new SpringRedisIdSegmentDistributor(
+        SpringRedisIdSegmentDistributor springRedisIdSegmentDistributor = new SpringRedisIdSegmentDistributor(
             definition.getNamespace(),
             definition.getName(),
             definition.getOffset(),
             definition.getStep(),
             redisTemplate);
+        springRedisIdSegmentDistributor.ensureOffset();
+        return springRedisIdSegmentDistributor;
     }
 }

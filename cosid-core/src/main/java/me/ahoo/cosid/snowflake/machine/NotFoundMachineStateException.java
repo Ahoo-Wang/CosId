@@ -13,23 +13,30 @@
 
 package me.ahoo.cosid.snowflake.machine;
 
-import me.ahoo.cosid.snowflake.machine.k8s.StatefulSetMachineIdDistributor;
+import me.ahoo.cosid.CosIdException;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junitpioneer.jupiter.SetEnvironmentVariable;
+import com.google.common.base.Strings;
 
 /**
+ * NotFoundMachineStateException .
+ *
  * @author ahoo wang
  */
-class StatefulSetMachineIdDistributorTest {
+public class NotFoundMachineStateException extends CosIdException {
+    private final String namespace;
+    private final InstanceId instanceId;
     
-    @Test
-    @SetEnvironmentVariable(
-        key = StatefulSetMachineIdDistributor.HOSTNAME_KEY,
-        value = "cosid-host-6")
-    void distribute() {
-        int machineId = StatefulSetMachineIdDistributor.INSTANCE.distribute("k8s", 1, InstanceId.NONE, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
-        Assertions.assertEquals(6, machineId);
+    public NotFoundMachineStateException(String namespace, InstanceId instanceId) {
+        super(Strings.lenientFormat("Not found the MachineState of instance[%s]@[%s]!", instanceId, namespace));
+        this.namespace = namespace;
+        this.instanceId = instanceId;
+    }
+    
+    public String getNamespace() {
+        return namespace;
+    }
+    
+    public InstanceId getInstanceId() {
+        return instanceId;
     }
 }

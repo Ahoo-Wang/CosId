@@ -34,7 +34,7 @@ class DefaultMachineIdGuarderTest {
     @Test
     void register() {
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
-        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor);
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         guarder.register(namespacedInstanceId.getNamespace(), namespacedInstanceId.getInstanceId());
         assertThat(guarder.getRegisteredInstanceIds(), hasItem(namespacedInstanceId));
     }
@@ -42,7 +42,7 @@ class DefaultMachineIdGuarderTest {
     @Test
     void unregister() {
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
-        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor);
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         guarder.register(namespacedInstanceId.getNamespace(), namespacedInstanceId.getInstanceId());
         assertThat(guarder.getRegisteredInstanceIds(), hasItem(namespacedInstanceId));
         guarder.unregister(namespacedInstanceId.getNamespace(), namespacedInstanceId.getInstanceId());
@@ -51,7 +51,7 @@ class DefaultMachineIdGuarderTest {
     
     @Test
     void start() {
-        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor);
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         assertThat(guarder.isRunning(), equalTo(false));
         guarder.start();
         assertThat(guarder.isRunning(), equalTo(true));
@@ -59,7 +59,7 @@ class DefaultMachineIdGuarderTest {
     
     @Test
     void stop() {
-        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor);
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         guarder.start();
         guarder.stop();
         assertThat(guarder.isRunning(), equalTo(false));

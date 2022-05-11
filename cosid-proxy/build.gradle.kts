@@ -12,6 +12,8 @@
  */
 
 dependencies {
+    api("com.fasterxml.jackson.core:jackson-databind")
+    api("com.squareup.okhttp3:okhttp")
     api(project(":cosid-core"))
     testImplementation(project(":cosid-test"))
 }

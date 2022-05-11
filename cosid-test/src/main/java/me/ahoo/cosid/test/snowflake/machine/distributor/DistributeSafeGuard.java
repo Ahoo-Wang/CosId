@@ -31,6 +31,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * DistributeSafeGuard .
@@ -40,15 +41,15 @@ import java.util.function.Function;
 public class DistributeSafeGuard implements TestSpec {
     
     public static final Duration SAFE_GUARD_DURATION = Duration.ofSeconds(5);
-    private final Function<Duration, MachineIdDistributor> implFactory;
+    private final Supplier<MachineIdDistributor> implFactory;
     
-    public DistributeSafeGuard(Function<Duration, MachineIdDistributor> implFactory) {
+    public DistributeSafeGuard(Supplier<MachineIdDistributor> implFactory) {
         this.implFactory = implFactory;
     }
     
     @Override
     public void verify() {
-        MachineIdDistributor distributor = implFactory.apply(SAFE_GUARD_DURATION);
+        MachineIdDistributor distributor = implFactory.get();
         
         String namespace = MockIdGenerator.usePrefix("DistributeSafeGuard").generateAsString();
         int machineBit = TEST_MACHINE_BIT;
@@ -59,13 +60,13 @@ public class DistributeSafeGuard implements TestSpec {
         assertThat(availableInstances, hasSize(MachineIdDistributor.totalMachineIds(machineBit)));
         
         for (int i = 0; i < availableInstances.size(); i++) {
-            int machineId = distributor.distribute(namespace, allInstances.get(i));
+            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i), SAFE_GUARD_DURATION).getMachineId();
             assertThat(machineId, equalTo(i));
         }
         
         InstanceId overflowInstanceId = mockInstance(MachineIdDistributor.totalMachineIds(machineBit), false);
         Assert.assertThrows(MachineIdOverflowException.class, () -> {
-            distributor.distribute(namespace, machineBit, overflowInstanceId);
+            distributor.distribute(namespace, machineBit, overflowInstanceId, SAFE_GUARD_DURATION);
         });
         
         /*
@@ -76,12 +77,12 @@ public class DistributeSafeGuard implements TestSpec {
         
         Integer[] machineIds = availableInstances
             .stream()
-            .map(instanceId -> distributor.distribute(namespace, machineBit, instanceId))
+            .map(instanceId -> distributor.distribute(namespace, machineBit, instanceId, SAFE_GUARD_DURATION).getMachineId())
             .sorted().toArray(Integer[]::new);
         
         for (int i = 0; i < machineIds.length; i++) {
             assertThat(machineIds[i], equalTo(i));
         }
-
+        
     }
 }

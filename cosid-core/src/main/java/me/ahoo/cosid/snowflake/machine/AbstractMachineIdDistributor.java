@@ -31,55 +31,22 @@ import java.time.Duration;
 @Slf4j
 public abstract class AbstractMachineIdDistributor implements MachineIdDistributor {
     public static final int NOT_FOUND_LAST_STAMP = -1;
-    public static final Duration FOREVER_SAFE_GUARD_DURATION = Duration.ofMillis(Long.MAX_VALUE);
-
     private final MachineStateStorage machineStateStorage;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
-    private final Duration safeGuardDuration;
     
     public AbstractMachineIdDistributor(MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        this(machineStateStorage, clockBackwardsSynchronizer, FOREVER_SAFE_GUARD_DURATION);
-    }
-    
-    public AbstractMachineIdDistributor(MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer, Duration safeGuardDuration) {
         this.machineStateStorage = machineStateStorage;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
-        this.safeGuardDuration = safeGuardDuration;
-    }
-    
-    public Duration getSafeGuardDuration() {
-        return safeGuardDuration;
-    }
-    
-    public long getSafeGuardAt(boolean stable) {
-        if (stable) {
-            return 0L;
-        }
-        
-        if (FOREVER_SAFE_GUARD_DURATION.equals(safeGuardDuration)) {
-            return 0L;
-        }
-        
-        long safeGuardAt = System.currentTimeMillis() - safeGuardDuration.toMillis();
-        if (safeGuardAt < 0) {
-            return 0L;
-        }
-        return safeGuardAt;
     }
     
     /**
      * 1. get from {@link MachineStateStorage}
      * 2. when not found: {@link #distributeRemote}
      * 3. set {@link me.ahoo.cosid.snowflake.machine.MachineState} to {@link MachineStateStorage}
-     *
-     * @param namespace namespace
-     * @param machineBit machineBit
-     * @param instanceId instanceId
-     * @return Machine Id
-     * @throws MachineIdOverflowException This exception is thrown when the machine number allocation exceeds the threshold
      */
     @Override
-    public int distribute(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
+    public MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException {
+        
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkArgument(machineBit > 0, "machineBit:[%s] must be greater than 0!", machineBit);
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
@@ -87,21 +54,20 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
         MachineState localState = machineStateStorage.get(namespace, instanceId);
         if (!MachineState.NOT_FOUND.equals(localState)) {
             clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastTimeStamp());
-            return localState.getMachineId();
+            return localState;
         }
         
-        localState = distributeRemote(namespace, machineBit, instanceId);
+        localState = distributeRemote(namespace, machineBit, instanceId, safeGuardDuration);
         if (ClockBackwardsSynchronizer.getBackwardsTimeStamp(localState.getLastTimeStamp()) > 0) {
             clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastTimeStamp());
             localState = MachineState.of(localState.getMachineId(), System.currentTimeMillis());
         }
         
         machineStateStorage.set(namespace, localState.getMachineId(), instanceId);
-        return localState.getMachineId();
+        return localState;
     }
     
-    protected abstract MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId);
-    
+    protected abstract MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration);
     
     /**
      * 1. get from {@link MachineStateStorage}
@@ -110,10 +76,9 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
      *
      * @param namespace namespace
      * @param instanceId instanceId
-     * @throws MachineIdOverflowException This exception is thrown when the machine number allocation exceeds the threshold
      */
     @Override
-    public void revert(String namespace, InstanceId instanceId) throws MachineIdOverflowException {
+    public void revert(String namespace, InstanceId instanceId) {
         MachineState lastLocalState = resetStorage(namespace, instanceId);
         
         revertRemote(namespace, instanceId, lastLocalState);
@@ -122,17 +87,20 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     protected abstract void revertRemote(String namespace, InstanceId instanceId, MachineState machineState);
     
     @Override
-    public void guard(String namespace, InstanceId instanceId) {
+    public void guard(String namespace, InstanceId instanceId, Duration safeGuardDuration) throws NotFoundMachineStateException, MachineIdLostException {
         MachineState lastLocalState = resetStorage(namespace, instanceId);
-        guardRemote(namespace, instanceId, lastLocalState);
+        guardRemote(namespace, instanceId, lastLocalState, safeGuardDuration);
     }
+    
     
     private MachineState resetStorage(String namespace, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
         
         MachineState lastLocalState = machineStateStorage.get(namespace, instanceId);
-        Preconditions.checkState(!MachineState.NOT_FOUND.equals(lastLocalState), "lastLocalState can not found!");
+        if (MachineState.NOT_FOUND.equals(lastLocalState)) {
+            throw new NotFoundMachineStateException(namespace, instanceId);
+        }
         if (getBackwardsTimeStamp(lastLocalState.getLastTimeStamp()) < 0) {
             lastLocalState = MachineState.of(lastLocalState.getMachineId(), System.currentTimeMillis());
             machineStateStorage.set(namespace, lastLocalState.getMachineId(), instanceId);
@@ -140,6 +108,6 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
         return lastLocalState;
     }
     
-    protected abstract void guardRemote(String namespace, InstanceId instanceId, MachineState machineState);
+    protected abstract void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration);
     
 }

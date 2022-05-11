@@ -28,19 +28,20 @@ class ManualMachineIdDistributorTest {
     
     @Test
     void distribute() {
-        Assertions.assertEquals(TEST_MANUAL_MACHINE_ID, machineIdDistributor.distribute(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE));
+        Assertions.assertEquals(TEST_MANUAL_MACHINE_ID,
+            machineIdDistributor.distribute(MockIdGenerator.INSTANCE.generateAsString(), TEST_MANUAL_MACHINE_ID, InstanceId.NONE, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId());
     }
     
     @Test
     void revert() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        machineIdDistributor.distribute(namespace, InstanceId.NONE);
+        machineIdDistributor.distribute(namespace, TEST_MANUAL_MACHINE_ID, InstanceId.NONE, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         machineIdDistributor.revert(namespace, InstanceId.NONE);
     }
     
     @Test
     void revertNone() {
-        Assertions.assertThrows(IllegalStateException.class, () -> {
+        Assertions.assertThrows(NotFoundMachineStateException.class, () -> {
             machineIdDistributor.revert(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
         });
     }

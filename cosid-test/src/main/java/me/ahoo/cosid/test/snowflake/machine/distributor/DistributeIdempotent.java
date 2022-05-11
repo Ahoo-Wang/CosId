@@ -30,6 +30,7 @@ import me.ahoo.cosid.test.TestSpec;
 import java.time.Duration;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * DistributeIdempotent .
@@ -40,15 +41,15 @@ import java.util.function.Function;
 public class DistributeIdempotent implements TestSpec {
     
     public static final Duration SAFE_GUARD_DURATION = Duration.ofSeconds(5);
-    private final Function<Duration, MachineIdDistributor> implFactory;
+    private final Supplier<MachineIdDistributor> implFactory;
     
-    public DistributeIdempotent(Function<Duration, MachineIdDistributor> implFactory) {
+    public DistributeIdempotent(Supplier<MachineIdDistributor> implFactory) {
         this.implFactory = implFactory;
     }
     
     @Override
     public void verify() {
-        MachineIdDistributor distributor = implFactory.apply(SAFE_GUARD_DURATION);
+        MachineIdDistributor distributor = implFactory.get();
         
         String namespace = MockIdGenerator.usePrefix("DistributeSafeGuard").generateAsString();
         
@@ -56,17 +57,17 @@ public class DistributeIdempotent implements TestSpec {
         assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT)));
         
         for (int i = 0; i < allInstances.size(); i++) {
-            int machineId = distributor.distribute(namespace, allInstances.get(i));
+            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i), SAFE_GUARD_DURATION).getMachineId();
             assertThat(machineId, equalTo(i));
         }
         
         InstanceId overflowInstanceId = mockInstance(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT), false);
         Assert.assertThrows(MachineIdOverflowException.class, () -> {
-            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId);
+            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId, SAFE_GUARD_DURATION);
         });
         
         for (int i = 0; i < allInstances.size(); i++) {
-            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i));
+            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i), SAFE_GUARD_DURATION).getMachineId();
             assertThat(machineId, equalTo(i));
         }
     }

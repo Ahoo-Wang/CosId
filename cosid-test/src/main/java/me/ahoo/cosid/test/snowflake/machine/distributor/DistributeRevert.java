@@ -48,7 +48,7 @@ public class DistributeRevert implements TestSpec {
         assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT)));
         
         for (int i = 0; i < allInstances.size(); i++) {
-            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i));
+            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i), MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
             assertThat(machineId, equalTo(i));
         }
         
@@ -56,6 +56,6 @@ public class DistributeRevert implements TestSpec {
         distributor.revert(namespace, firstInstanceId);
         
         InstanceId newInstanceId = mockInstance(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT), false);
-        distributor.distribute(namespace, TEST_MACHINE_BIT, newInstanceId);
+        distributor.distribute(namespace, TEST_MACHINE_BIT, newInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
     }
 }

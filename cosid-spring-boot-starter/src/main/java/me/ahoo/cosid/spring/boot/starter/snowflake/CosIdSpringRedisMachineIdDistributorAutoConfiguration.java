@@ -36,19 +36,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "redis")
 @ConditionalOnClass(SpringRedisMachineIdDistributor.class)
 public class CosIdSpringRedisMachineIdDistributorAutoConfiguration {
-    private final SnowflakeIdProperties snowflakeIdProperties;
-    
-    public CosIdSpringRedisMachineIdDistributorAutoConfiguration(SnowflakeIdProperties snowflakeIdProperties) {
-        this.snowflakeIdProperties = snowflakeIdProperties;
-    }
     
     @Bean
     @ConditionalOnMissingBean
     public SpringRedisMachineIdDistributor springRedisMachineIdDistributor(StringRedisTemplate redisTemplate, MachineStateStorage localMachineState,
                                                                            ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        if (!snowflakeIdProperties.getMachine().getGuarder().isEnabled()) {
-            return new SpringRedisMachineIdDistributor(redisTemplate, localMachineState, clockBackwardsSynchronizer);
-        }
-        return new SpringRedisMachineIdDistributor(redisTemplate, localMachineState, clockBackwardsSynchronizer, snowflakeIdProperties.getMachine().getDistributor().getSafeGuardDuration());
+        return new SpringRedisMachineIdDistributor(redisTemplate, localMachineState, clockBackwardsSynchronizer);
     }
 }

@@ -37,20 +37,11 @@ import javax.sql.DataSource;
 @ConditionalOnClass(JdbcMachineIdDistributor.class)
 @ConditionalOnProperty(value = SnowflakeIdProperties.Machine.Distributor.TYPE, havingValue = "jdbc")
 public class CosIdJdbcMachineIdDistributorAutoConfiguration {
-    private final SnowflakeIdProperties snowflakeIdProperties;
-    
-    public CosIdJdbcMachineIdDistributorAutoConfiguration(SnowflakeIdProperties snowflakeIdProperties) {
-        this.snowflakeIdProperties = snowflakeIdProperties;
-    }
     
     @Bean
     @ConditionalOnMissingBean
     public JdbcMachineIdDistributor jdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        //TODO 配置过于复杂？
-        if (!snowflakeIdProperties.getMachine().getGuarder().isEnabled()) {
-            return new JdbcMachineIdDistributor(dataSource, localMachineState, clockBackwardsSynchronizer);
-        }
-        return new JdbcMachineIdDistributor(dataSource, localMachineState, clockBackwardsSynchronizer, snowflakeIdProperties.getMachine().getDistributor().getSafeGuardDuration());
+        return new JdbcMachineIdDistributor(dataSource, localMachineState, clockBackwardsSynchronizer);
     }
     
 }

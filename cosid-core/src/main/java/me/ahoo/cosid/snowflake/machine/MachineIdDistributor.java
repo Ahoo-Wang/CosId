@@ -14,9 +14,8 @@
 package me.ahoo.cosid.snowflake.machine;
 
 
-import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
-
 import javax.annotation.concurrent.ThreadSafe;
+import java.time.Duration;
 
 /**
  * MachineId Distributor.
@@ -25,6 +24,7 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public interface MachineIdDistributor {
+    Duration FOREVER_SAFE_GUARD_DURATION = Duration.ofMillis(Long.MAX_VALUE);
     
     static int maxMachineId(int machineBit) {
         return ~(-1 << machineBit);
@@ -34,29 +34,41 @@ public interface MachineIdDistributor {
         return maxMachineId(machineBit) + 1;
     }
     
+    static long getSafeGuardAt(Duration safeGuardDuration, boolean stable) {
+        if (stable) {
+            return 0L;
+        }
+        
+        if (FOREVER_SAFE_GUARD_DURATION.equals(safeGuardDuration)) {
+            return 0L;
+        }
+        
+        long safeGuardAt = System.currentTimeMillis() - safeGuardDuration.toMillis();
+        if (safeGuardAt < 0) {
+            return 0L;
+        }
+        return safeGuardAt;
+    }
+    
     /**
      * distribute machine id.
      *
      * @param namespace namespace
      * @param machineBit machineBit
      * @param instanceId instanceId
-     * @return machine id
+     * @param safeGuardDuration safe Guard Duration
+     * @return machine state
      * @throws MachineIdOverflowException This exception is thrown when the machine number allocation exceeds the threshold
      */
-    int distribute(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException;
-    
-    default int distribute(String namespace, InstanceId instanceId) throws MachineIdOverflowException {
-        return distribute(namespace, MillisecondSnowflakeId.DEFAULT_MACHINE_BIT, instanceId);
-    }
-    
+    MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException;
+
     /**
      * revert machine id.
      *
      * @param namespace namespace
      * @param instanceId instanceId
-     * @throws MachineIdOverflowException This exception is thrown when the machine number allocation exceeds the threshold
      */
-    void revert(String namespace, InstanceId instanceId) throws MachineIdOverflowException;
+    void revert(String namespace, InstanceId instanceId) throws NotFoundMachineStateException;
     
     /**
      * Guard the machine id by heartbeat.
@@ -65,6 +77,8 @@ public interface MachineIdDistributor {
      *
      * @param namespace namespace
      * @param instanceId instanceId
+     * @param safeGuardDuration safe Guard Duration
      */
-    void guard(String namespace, InstanceId instanceId) throws MachineIdLostException;
+    void guard(String namespace, InstanceId instanceId, Duration safeGuardDuration) throws NotFoundMachineStateException, MachineIdLostException;
+
 }

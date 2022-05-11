@@ -55,6 +55,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
+import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Objects;
 
@@ -143,6 +144,13 @@ public class CosIdSnowflakeAutoConfiguration {
         return new CosIdLifecycleMachineIdDistributor(cosIdProperties, instanceId, machineIdDistributor);
     }
     
+    private Duration getSafeGuardDuration() {
+        SnowflakeIdProperties.Machine.Guarder guarder = snowflakeIdProperties.getMachine().getGuarder();
+        if (guarder.isEnabled()) {
+            return guarder.getSafeGuardDuration();
+        }
+        return MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION;
+    }
     
     @Bean
     @ConditionalOnMissingBean
@@ -151,7 +159,7 @@ public class CosIdSnowflakeAutoConfiguration {
         if (!guarder.isEnabled()) {
             return MachineIdGuarder.NONE;
         }
-        return new DefaultMachineIdGuarder(machineIdDistributor, guarder.getInitialDelay(), guarder.getDelay());
+        return new DefaultMachineIdGuarder(machineIdDistributor, DefaultMachineIdGuarder.executorService(), guarder.getInitialDelay(), guarder.getDelay(), getSafeGuardDuration());
     }
     
     @Bean
@@ -185,13 +193,13 @@ public class CosIdSnowflakeAutoConfiguration {
         long machineId = snowflakeId.getMachineId();
         return new MachineId(machineId);
     }
-
+    
     private SnowflakeId createIdGen(MachineIdDistributor machineIdDistributor, InstanceId instanceId, SnowflakeIdProperties.IdDefinition idDefinition,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         long epoch = getEpoch(idDefinition);
         Integer machineBit = getMachineBit(idDefinition);
         SnowflakeId snowflakeId;
-        int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), machineBit, instanceId);
+        int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), machineBit, instanceId, getSafeGuardDuration()).getMachineId();
         if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {
             snowflakeId = new SecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId);
         } else {
@@ -223,7 +231,7 @@ public class CosIdSnowflakeAutoConfiguration {
             idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
         }
         if (idDefinition.isFriendly()) {
-            SnowflakeIdStateParser snowflakeIdStateParser = SnowflakeIdStateParser.of(snowflakeId, zoneId);;
+            SnowflakeIdStateParser snowflakeIdStateParser = SnowflakeIdStateParser.of(snowflakeId, zoneId);
             return new DefaultSnowflakeFriendlyId(snowflakeId, idConverter, snowflakeIdStateParser);
         }
         return new StringSnowflakeId(snowflakeId, idConverter);

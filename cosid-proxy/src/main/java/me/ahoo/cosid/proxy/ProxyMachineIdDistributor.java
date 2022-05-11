@@ -13,31 +13,110 @@
 
 package me.ahoo.cosid.proxy;
 
+import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.InstanceId;
-import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
 import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
+import me.ahoo.cosid.snowflake.machine.MachineState;
+import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
+import me.ahoo.cosid.snowflake.machine.NotFoundMachineStateException;
+
+import com.google.common.base.Strings;
+import lombok.SneakyThrows;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+
+import java.time.Duration;
 
 /**
  * ProxyMachineIdDistributor .
- * TODO
  *
  * @author ahoo wang
  */
-public class ProxyMachineIdDistributor implements MachineIdDistributor {
+public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
     
-    @Override
-    public int distribute(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
-        return 0;
+    public static final MediaType JSON
+        = MediaType.get("application/json; charset=utf-8");
+    private final OkHttpClient client = new OkHttpClient();
+    
+    private final String proxyHost;
+    
+    public ProxyMachineIdDistributor(String proxyHost, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        super(machineStateStorage, clockBackwardsSynchronizer);
+        this.proxyHost = proxyHost;
     }
     
+    @SneakyThrows
     @Override
-    public void revert(String namespace, InstanceId instanceId) throws MachineIdOverflowException {
-    
+    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
+        String apiUrl =
+            Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&machineBit=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), machineBit,
+                safeGuardDuration);
+        
+        Request request = new Request.Builder()
+            .url(apiUrl)
+            .post(RequestBody.create(JSON, ""))
+            .build();
+        try (Response response = client.newCall(request).execute()) {
+            ResponseBody responseBody = response.body();
+            assert responseBody != null;
+            if (response.isSuccessful()) {
+                return Jsons.OBJECT_MAPPER.readValue(responseBody.bytes(), MachineStateDto.class);
+            }
+            ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(responseBody.bytes(), ErrorResponse.class);
+            switch (errorResponse.getCode()) {
+                case "M-01":
+                    throw new MachineIdOverflowException(machineBit, instanceId);
+                default:
+                    throw new IllegalStateException("Unexpected value: " + errorResponse.getCode());
+            }
+        }
     }
     
+    @SneakyThrows
     @Override
-    public void guard(String namespace, InstanceId instanceId) throws MachineIdLostException {
+    protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+        String apiUrl = Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable());
+        
+        Request request = new Request.Builder()
+            .url(apiUrl)
+            .delete()
+            .build();
+        try (Response response = client.newCall(request).execute()) {
+            //ignored
+        }
+    }
     
+    @SneakyThrows
+    @Override
+    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
+        String apiUrl =
+            Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration);
+        
+        Request request = new Request.Builder()
+            .url(apiUrl)
+            .patch(RequestBody.create(JSON, ""))
+            .build();
+        try (Response response = client.newCall(request).execute()) {
+            if (response.isSuccessful()) {
+                return;
+            }
+            ResponseBody responseBody = response.body();
+            assert responseBody != null;
+            ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(responseBody.bytes(), ErrorResponse.class);
+            switch (errorResponse.getCode()) {
+                case "M-02":
+                    throw new NotFoundMachineStateException(namespace, instanceId);
+                case "M-03":
+                    throw new MachineIdLostException(namespace, instanceId, machineState);
+                default:
+                    throw new IllegalStateException("Unexpected value: " + errorResponse.getCode());
+            }
+        }
     }
 }

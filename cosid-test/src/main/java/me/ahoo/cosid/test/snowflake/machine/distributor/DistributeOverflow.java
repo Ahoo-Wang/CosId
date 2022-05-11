@@ -49,13 +49,13 @@ public class DistributeOverflow implements TestSpec {
         assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT) + 1));
         
         for (int i = 0; i < allInstances.size() - 1; i++) {
-            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i));
+            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i), MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
             assertThat(machineId, equalTo(i));
         }
         
         InstanceId overflowInstanceId = allInstances.get(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT));
         Assert.assertThrows(MachineIdOverflowException.class, () -> {
-            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId);
+            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         });
         
     }

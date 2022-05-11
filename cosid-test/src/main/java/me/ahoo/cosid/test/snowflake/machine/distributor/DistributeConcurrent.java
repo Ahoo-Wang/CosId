@@ -49,7 +49,7 @@ public class DistributeConcurrent implements TestSpec {
         
         for (int i = 0; i < totalMachineIds; i++) {
             InstanceId instanceId = mockInstance(i, false);
-            results[i] = CompletableFuture.supplyAsync(() -> distributor.distribute(namespace, machineBit, instanceId));
+            results[i] = CompletableFuture.supplyAsync(() -> distributor.distribute(namespace, machineBit, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId());
         }
         
         CompletableFuture.allOf(results).join();

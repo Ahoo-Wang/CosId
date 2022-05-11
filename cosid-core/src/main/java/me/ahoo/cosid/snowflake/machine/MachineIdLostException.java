@@ -17,6 +17,8 @@ import me.ahoo.cosid.CosIdException;
 
 import com.google.common.base.Strings;
 
+import javax.annotation.Nullable;
+
 /**
  * MachineId Lost Exception .
  *
@@ -27,7 +29,7 @@ public class MachineIdLostException extends CosIdException {
     private final InstanceId instanceId;
     private final MachineState machineState;
     
-    public MachineIdLostException(String namespace, InstanceId instanceId, MachineState machineState) {
+    public MachineIdLostException(String namespace, InstanceId instanceId, @Nullable MachineState machineState) {
         super(Strings.lenientFormat("The machine id[%s] bound to the instance[%s]@[%s] has been lost!.", machineState, instanceId, namespace));
         this.namespace = namespace;
         this.instanceId = instanceId;

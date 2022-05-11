@@ -42,7 +42,7 @@ public class Distribute implements TestSpec {
         MachineIdDistributor distributor = implFactory.get();
         String namespace = MockIdGenerator.usePrefix("Distribute").generateAsString();
         InstanceId instanceId = mockInstance(0, false);
-        int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, instanceId);
+        int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
         assertThat(machineId, equalTo(0));
     }
 }

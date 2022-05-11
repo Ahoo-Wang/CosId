@@ -8,4 +8,5 @@ ignore:
   - "cosid-test/.*"
   - "cosid-example/.*"
   - "cosid-benchmark/.*"
+  - "cosid-proxy/.*"
   - "cosid-proxy-server/.*"

@@ -28,15 +28,15 @@ import org.apache.curator.framework.CuratorFramework;
 public class ZookeeperIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     private final CuratorFramework curatorFramework;
     private final RetryPolicy retryPolicy;
-
+    
     public ZookeeperIdSegmentDistributorFactory(CuratorFramework curatorFramework, RetryPolicy retryPolicy) {
         this.curatorFramework = curatorFramework;
         this.retryPolicy = retryPolicy;
     }
-
+    
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
-        return new ZookeeperIdSegmentDistributor(
+        ZookeeperIdSegmentDistributor zookeeperIdSegmentDistributor = new ZookeeperIdSegmentDistributor(
             definition.getNamespace(),
             definition.getName(),
             definition.getOffset(),
@@ -44,5 +44,7 @@ public class ZookeeperIdSegmentDistributorFactory implements IdSegmentDistributo
             curatorFramework,
             retryPolicy
         );
+        zookeeperIdSegmentDistributor.ensureOffset();
+        return zookeeperIdSegmentDistributor;
     }
 }

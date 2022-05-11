@@ -65,10 +65,9 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         this.step = step;
         this.redisTemplate = redisTemplate;
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
-        this.ensureOffset();
     }
 
-    private void ensureOffset() {
+     void ensureOffset() {
         if (log.isDebugEnabled()) {
             log.debug("ensureOffset -[{}]- offset:[{}].", adderKey, offset);
         }

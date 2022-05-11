@@ -22,6 +22,8 @@ import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
+
 /**
  * StatefulSet MachineId Distributor.
  *
@@ -31,12 +33,11 @@ import lombok.extern.slf4j.Slf4j;
 public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributor {
     public static final StatefulSetMachineIdDistributor INSTANCE = new StatefulSetMachineIdDistributor(MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
     public static final String HOSTNAME_KEY = "HOSTNAME";
-
+    
     public StatefulSetMachineIdDistributor(MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
     }
-
-
+    
     public static int resolveMachineId() {
         String hostName = System.getenv(HOSTNAME_KEY);
         Preconditions.checkNotNull(hostName, "HOSTNAME can not be null.");
@@ -48,9 +49,9 @@ public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributo
         }
         return Integer.parseInt(idStr);
     }
-
+    
     @Override
-    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId) {
+    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         int machineId = resolveMachineId();
         MachineState machineState = MachineState.of(machineId, NOT_FOUND_LAST_STAMP);
         if (log.isInfoEnabled()) {
@@ -58,15 +59,15 @@ public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributo
         }
         return machineState;
     }
-
-
+    
+    
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
-
+    
     }
     
     @Override
-    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
     
     }
     

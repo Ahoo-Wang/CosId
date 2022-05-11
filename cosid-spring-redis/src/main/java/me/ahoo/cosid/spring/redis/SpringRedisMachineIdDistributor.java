@@ -64,27 +64,20 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     public SpringRedisMachineIdDistributor(StringRedisTemplate redisTemplate,
                                            MachineStateStorage machineStateStorage,
                                            ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        this(redisTemplate, machineStateStorage, clockBackwardsSynchronizer, FOREVER_SAFE_GUARD_DURATION);
-    }
-    
-    public SpringRedisMachineIdDistributor(StringRedisTemplate redisTemplate,
-                                           MachineStateStorage machineStateStorage,
-                                           ClockBackwardsSynchronizer clockBackwardsSynchronizer,
-                                           Duration safeGuardDuration) {
-        super(machineStateStorage, clockBackwardsSynchronizer, safeGuardDuration);
+        super(machineStateStorage, clockBackwardsSynchronizer);
         
         this.redisTemplate = redisTemplate;
     }
     
     @Override
-    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId) {
+    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
             log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
         
         List<String> keys = Collections.singletonList(hashTag(namespace));
         Object[] values = {instanceId.getInstanceId(), String.valueOf(MachineIdDistributor.maxMachineId(machineBit)), String.valueOf(System.currentTimeMillis()),
-            String.valueOf(getSafeGuardAt(instanceId.isStable()))};
+            String.valueOf(MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()))};
         @SuppressWarnings("unchecked")
         List<Long> state = (List<Long>) redisTemplate.execute(MACHINE_ID_DISTRIBUTE, keys, values);
         assert state != null;
@@ -130,7 +123,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     }
     
     @Override
-    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
             log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }

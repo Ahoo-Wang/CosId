@@ -55,13 +55,7 @@ public class CosIdRedisMachineIdDistributorAutoConfiguration {
                                                                ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         Preconditions.checkNotNull(redisConnectionFactory, "redisConnectionFactory can not be null.");
         Duration timeout = snowflakeIdProperties.getMachine().getDistributor().getRedis().getTimeout();
-        if (!snowflakeIdProperties.getMachine().getGuarder().isEnabled()) {
-            return new RedisMachineIdDistributor(timeout, redisConnectionFactory.getShareReactiveCommands(), localMachineState, clockBackwardsSynchronizer,
-                AbstractMachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
-        }
-        return new RedisMachineIdDistributor(timeout, redisConnectionFactory.getShareReactiveCommands(), localMachineState, clockBackwardsSynchronizer,
-            snowflakeIdProperties.getMachine().getDistributor()
-                .getSafeGuardDuration());
+        return new RedisMachineIdDistributor(timeout, redisConnectionFactory.getShareReactiveCommands(), localMachineState, clockBackwardsSynchronizer);
     }
     
     

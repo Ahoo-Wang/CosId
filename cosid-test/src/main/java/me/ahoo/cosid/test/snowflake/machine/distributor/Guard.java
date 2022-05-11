@@ -30,7 +30,7 @@ import java.util.function.Supplier;
  *
  * @author ahoo wang
  */
-public  class Guard implements TestSpec {
+public class Guard implements TestSpec {
     private final Supplier<MachineIdDistributor> implFactory;
     
     public Guard(Supplier<MachineIdDistributor> implFactory) {
@@ -42,8 +42,8 @@ public  class Guard implements TestSpec {
         MachineIdDistributor distributor = implFactory.get();
         String namespace = MockIdGenerator.usePrefix("Guard").generateAsString();
         InstanceId instanceId = mockInstance(0, false);
-        int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, instanceId);
+        int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
         assertThat(machineId, equalTo(0));
-        distributor.guard(namespace, instanceId);
+        distributor.guard(namespace, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
     }
 }

@@ -17,6 +17,8 @@ import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
+
 /**
  * Manual Machine Id Distributor.
  *
@@ -24,35 +26,35 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class ManualMachineIdDistributor extends AbstractMachineIdDistributor {
-
+    
     private final int machineId;
     private final MachineState machineState;
-
+    
     public ManualMachineIdDistributor(int machineId, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
         this.machineId = machineId;
         this.machineState = MachineState.of(machineId, NOT_FOUND_LAST_STAMP);
     }
-
+    
     public int getMachineId() {
         return machineId;
     }
-
+    
     @Override
-    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId) {
+    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
             log.info("distribute0 - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
         }
         return machineState;
     }
-
+    
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
-
+    
     }
     
     @Override
-    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
     
     }
     

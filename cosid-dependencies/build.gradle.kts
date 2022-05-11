@@ -14,6 +14,7 @@
 dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.get("springBootVersion")}"))
     api(platform("org.springframework.cloud:spring-cloud-dependencies:${rootProject.ext.get("springCloudVersion")}"))
+    api(platform("com.squareup.okhttp3:okhttp:${rootProject.ext.get("okhttpVersion")}"))
     api(platform("me.ahoo.cosky:cosky-bom:${rootProject.ext.get("coskyVersion")}"))
     constraints {
         api("org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}")

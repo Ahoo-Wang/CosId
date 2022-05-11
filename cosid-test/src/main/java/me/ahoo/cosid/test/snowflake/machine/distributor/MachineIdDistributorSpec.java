@@ -56,8 +56,6 @@ public abstract class MachineIdDistributorSpec {
     
     protected abstract MachineIdDistributor getDistributor();
     
-    protected abstract MachineIdDistributor getDistributor(Duration safeGuardDuration);
-    
     @Test
     public void distribute() {
         new Distribute(this::getDistributor).verify();

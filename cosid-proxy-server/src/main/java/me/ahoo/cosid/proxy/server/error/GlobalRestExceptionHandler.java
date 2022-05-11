@@ -13,6 +13,10 @@
 
 package me.ahoo.cosid.proxy.server.error;
 
+import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
+import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
+import me.ahoo.cosid.snowflake.machine.NotFoundMachineStateException;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,7 +43,7 @@ import java.util.stream.Collectors;
 public class GlobalRestExceptionHandler {
     
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleCoSecException(IllegalArgumentException ex) {
+    public ResponseEntity<ErrorResponse> handleClientException(IllegalArgumentException ex) {
         if (log.isInfoEnabled()) {
             log.info(ex.getMessage(), ex);
         }
@@ -48,6 +52,26 @@ public class GlobalRestExceptionHandler {
             .body(ErrorResponse.unknown(ex.getMessage()));
     }
     
+    @ExceptionHandler(MachineIdOverflowException.class)
+    public ResponseEntity<ErrorResponse> handleCosIdException(MachineIdOverflowException ex) {
+        return ResponseEntity
+            .badRequest()
+            .body(ErrorResponse.of("M-01", ex.getMessage()));
+    }
+    
+    @ExceptionHandler(NotFoundMachineStateException.class)
+    public ResponseEntity<ErrorResponse> handleCosIdException(NotFoundMachineStateException ex) {
+        return ResponseEntity
+            .badRequest()
+            .body(ErrorResponse.of("M-02", ex.getMessage()));
+    }
+    
+    @ExceptionHandler(MachineIdLostException.class)
+    public ResponseEntity<ErrorResponse> handleCosIdException(MachineIdLostException ex) {
+        return ResponseEntity
+            .badRequest()
+            .body(ErrorResponse.of("M-03", ex.getMessage()));
+    }
     
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler({MethodArgumentNotValidException.class})

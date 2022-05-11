@@ -68,17 +68,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
                                          RetryPolicy retryPolicy,
                                          MachineStateStorage machineStateStorage,
                                          ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        super(machineStateStorage, clockBackwardsSynchronizer, FOREVER_SAFE_GUARD_DURATION);
-        this.curatorFramework = curatorFramework;
-        this.retryPolicy = retryPolicy;
-    }
-    
-    public ZookeeperMachineIdDistributor(CuratorFramework curatorFramework,
-                                         RetryPolicy retryPolicy,
-                                         MachineStateStorage machineStateStorage,
-                                         ClockBackwardsSynchronizer clockBackwardsSynchronizer,
-                                         Duration safeGuardDuration) {
-        super(machineStateStorage, clockBackwardsSynchronizer, safeGuardDuration);
+        super(machineStateStorage, clockBackwardsSynchronizer);
         this.curatorFramework = curatorFramework;
         this.retryPolicy = retryPolicy;
     }
@@ -136,19 +126,19 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     }
     
     @Override
-    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId) {
+    protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
             log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
         
-        MachineState machineState = Exceptions.invokeUnchecked(() -> tryDistribute(namespace, machineBit, instanceId));
+        MachineState machineState = Exceptions.invokeUnchecked(() -> tryDistribute(namespace, machineBit, instanceId, safeGuardDuration));
         if (log.isInfoEnabled()) {
             log.info("distributeRemote - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
         }
         return machineState;
     }
     
-    private MachineState tryDistribute(String namespace, int machineBit, InstanceId instanceId) throws Exception {
+    private MachineState tryDistribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws Exception {
         String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
         MachineState selfState = distributeBySelf(instancePath);
         if (selfState != null) {
@@ -165,7 +155,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
             setMachineState(instancePath, machineState);
             return machineState;
         } catch (MachineIdOverflowException overflowException) {
-            MachineState recyclableState = distributeByRecyclable(namespace, instancePath, instanceId);
+            MachineState recyclableState = distributeByRecyclable(namespace, instancePath, instanceId, safeGuardDuration);
             if (recyclableState != null) {
                 return recyclableState;
             }
@@ -215,14 +205,14 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         return null;
     }
     
-    protected MachineState distributeByRecyclable(String namespace, String instancePath, InstanceId instanceId) throws Exception {
+    protected MachineState distributeByRecyclable(String namespace, String instancePath, InstanceId instanceId, Duration safeGuardDuration) throws Exception {
         String instanceIdxPath = getInstanceIdxPath(namespace);
         List<String> instanceMachines = curatorFramework.getChildren().forPath(instanceIdxPath);
         for (String eachInstance : instanceMachines) {
             String eachInstancePath = ZKPaths.makePath(instanceIdxPath, eachInstance);
             byte[] stateBuf = curatorFramework.getData().forPath(eachInstancePath);
             MachineState instanceMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
-            long safeGuardAt = getSafeGuardAt(instanceId.isStable());
+            long safeGuardAt = MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable());
             
             if (instanceMachineState.getLastTimeStamp() > safeGuardAt) {
                 continue;
@@ -261,7 +251,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     }
     
     @Override
-    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+    protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
             log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }

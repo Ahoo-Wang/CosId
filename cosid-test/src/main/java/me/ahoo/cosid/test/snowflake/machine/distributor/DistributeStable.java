@@ -50,13 +50,13 @@ public class DistributeStable implements TestSpec {
         assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT)));
         
         for (int i = 0; i < allInstances.size(); i++) {
-            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i));
+            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i), MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
             assertThat(machineId, equalTo(i));
         }
         InstanceId overflowInstanceId = InstanceId.of(TEST_HOST, MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT), true);
         
         Assert.assertThrows(MachineIdOverflowException.class, () -> {
-            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId);
+            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         });
         
         InstanceId firstInstanceId = allInstances.get(0);
@@ -69,14 +69,14 @@ public class DistributeStable implements TestSpec {
             /*
              * 稳定实例不会回收机器号，所以依然抛出异常
              */
-            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId);
+            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         });
         
         
         /*
          * 由自己继续使用
          */
-        int firstMachineId = distributor.distribute(namespace, TEST_MACHINE_BIT, firstInstanceId);
+        int firstMachineId = distributor.distribute(namespace, TEST_MACHINE_BIT, firstInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
         assertThat(firstMachineId, equalTo(0));
     }
 }

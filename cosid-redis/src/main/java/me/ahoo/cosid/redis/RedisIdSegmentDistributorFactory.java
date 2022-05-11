@@ -28,20 +28,22 @@ import java.time.Duration;
 public class RedisIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     private final RedisConnectionFactory connectionFactory;
     private final Duration timeout;
-
+    
     public RedisIdSegmentDistributorFactory(RedisConnectionFactory connectionFactory, Duration timeout) {
         this.connectionFactory = connectionFactory;
         this.timeout = timeout;
     }
-
+    
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
-        return new RedisIdSegmentDistributor(
+        RedisIdSegmentDistributor redisIdSegmentDistributor = new RedisIdSegmentDistributor(
             definition.getNamespace(),
             definition.getName(),
             definition.getOffset(),
             definition.getStep(),
             timeout,
             connectionFactory.getShareReactiveCommands());
+        redisIdSegmentDistributor.ensureOffset();
+        return redisIdSegmentDistributor;
     }
 }

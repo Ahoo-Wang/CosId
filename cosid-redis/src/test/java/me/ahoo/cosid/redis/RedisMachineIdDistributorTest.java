@@ -13,8 +13,6 @@
 
 package me.ahoo.cosid.redis;
 
-import static me.ahoo.cosid.redis.RedisMachineIdDistributor.DEFAULT_TIMEOUT;
-
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
@@ -25,7 +23,6 @@ import io.lettuce.core.api.StatefulRedisConnection;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
-import java.time.Duration;
 import java.util.Objects;
 
 /**
@@ -57,9 +54,5 @@ class RedisMachineIdDistributorTest extends MachineIdDistributorSpec {
     protected MachineIdDistributor getDistributor() {
         return new RedisMachineIdDistributor(redisConnection.reactive(), MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
     }
-    
-    @Override
-    protected MachineIdDistributor getDistributor(Duration safeGuardDuration) {
-        return new RedisMachineIdDistributor(DEFAULT_TIMEOUT, redisConnection.reactive(), MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT, safeGuardDuration);
-    }
+
 }

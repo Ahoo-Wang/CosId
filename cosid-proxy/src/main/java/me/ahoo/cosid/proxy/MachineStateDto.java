@@ -13,19 +13,34 @@
 
 package me.ahoo.cosid.proxy;
 
-import me.ahoo.cosid.segment.IdSegmentDistributor;
-import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
-import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.snowflake.machine.MachineState;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * ProxyIdSegmentDistributorFactory .
- * TODO
+ * MachineStateDto .
  *
  * @author ahoo wang
  */
-public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
+public class MachineStateDto extends MachineState {
+    @JsonCreator
+    public MachineStateDto(@JsonProperty("machineId")int machineId, @JsonProperty("lastTimeStamp") long lastTimeStamp) {
+        super(machineId, lastTimeStamp);
+    }
+    
     @Override
-    public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
-        return new ProxyIdSegmentDistributor(definition.getNamespace(), definition.getName(), definition.getStep());
+    public boolean equals(Object o) {
+        return super.equals(o);
+    }
+    
+    @Override
+    public int hashCode() {
+        return super.hashCode();
+    }
+    
+    @Override
+    public String toString() {
+        return super.toString();
     }
 }

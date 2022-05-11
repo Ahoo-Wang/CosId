@@ -29,6 +29,8 @@ import okhttp3.ResponseBody;
 /**
  * ProxyIdSegmentDistributor .
  *
+ * <p><img src="doc-files/CosId-Proxy.png" alt="CosId-Proxy"></p>
+ *
  * @author ahoo wang
  */
 public class ProxyIdSegmentDistributor implements IdSegmentDistributor {

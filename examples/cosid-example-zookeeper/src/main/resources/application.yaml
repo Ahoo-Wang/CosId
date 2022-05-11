@@ -1,0 +1,26 @@
+server:
+  port: 8602
+spring:
+  application:
+    name: ${service.name:cosid-example-zookeeper}
+cosid:
+  zookeeper:
+    connect-string: localhost:2181
+  namespace: ${spring.application.name}
+  snowflake:
+    enabled: true
+    machine:
+      distributor:
+        type: zookeeper
+      guarder:
+        enabled: true
+
+#  segment:
+#    enabled: true
+#    mode: chain
+#    distributor:
+#      type: zookeeper
+
+logging:
+  level:
+    me.ahoo.cosid: debug

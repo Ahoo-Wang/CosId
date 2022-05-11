@@ -27,6 +27,9 @@ val coreProjects = setOf(
 )
 val serverProjects = setOf(
     project(":cosid-example"),
+    project(":cosid-example-proxy"),
+    project(":cosid-example-redis"),
+    project(":cosid-example-zookeeper"),
     project(":cosid-proxy-server")
 )
 
@@ -45,7 +48,7 @@ ext {
     set("hamcrestVersion", "2.2")
     set("mybatisVersion", "3.5.7")
     set("mybatisBootVersion", "2.1.4")
-    set("okhttpVersion","3.14.9")
+    set("okhttpVersion", "3.14.9")
     set("coskyVersion", "1.3.20")
     set("shardingsphereVersion", "5.0.0")
     set("libraryProjects", libraryProjects)

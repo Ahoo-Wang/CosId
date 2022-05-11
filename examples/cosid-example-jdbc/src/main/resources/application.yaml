@@ -1,0 +1,28 @@
+server:
+  port: 8600
+spring:
+  application:
+    name: ${service.name:cosid-example-jdbc}
+  datasource:
+    url: jdbc:mysql://localhost:3306/cosid_db
+    username: root
+    password: root
+
+cosid:
+  namespace: ${spring.application.name}
+  snowflake:
+    enabled: true
+    machine:
+      distributor:
+        type: jdbc
+      guarder:
+        enabled: true
+#  segment:
+#    enabled: true
+#    mode: chain
+#    distributor:
+#      type: proxy
+
+logging:
+  level:
+    me.ahoo.cosid: debug

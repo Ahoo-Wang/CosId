@@ -1,0 +1,25 @@
+server:
+  port: 8601
+spring:
+  application:
+    name: ${service.name:cosid-example-redis}
+  redis:
+    host: localhost
+cosid:
+  namespace: ${spring.application.name}
+  snowflake:
+    enabled: true
+    machine:
+      distributor:
+        type: redis
+      guarder:
+        enabled: true
+#  segment:
+#    enabled: true
+#    mode: chain
+#    distributor:
+#      type: redis
+
+logging:
+  level:
+    me.ahoo.cosid: debug

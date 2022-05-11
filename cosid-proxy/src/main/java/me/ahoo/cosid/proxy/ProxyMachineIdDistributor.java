@@ -24,6 +24,7 @@ import me.ahoo.cosid.snowflake.machine.NotFoundMachineStateException;
 
 import com.google.common.base.Strings;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -35,9 +36,11 @@ import java.time.Duration;
 
 /**
  * ProxyMachineIdDistributor .
+ * <p><img src="doc-files/CosId-Proxy.png" alt="CosId-Proxy"></p>
  *
  * @author ahoo wang
  */
+@Slf4j
 public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
     
     public static final MediaType JSON
@@ -55,6 +58,9 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
     @SneakyThrows
     @Override
     protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
+        if (log.isInfoEnabled()) {
+            log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
+        }
         String apiUrl =
             Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&machineBit=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), machineBit,
                 safeGuardDuration);
@@ -82,6 +88,9 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
     @SneakyThrows
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+        if (log.isInfoEnabled()) {
+            log.info("revertRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+        }
         String apiUrl = Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable());
         
         Request request = new Request.Builder()
@@ -96,6 +105,9 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
     @SneakyThrows
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
+        if (log.isInfoEnabled()) {
+            log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+        }
         String apiUrl =
             Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration);
         

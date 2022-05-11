@@ -6,7 +6,7 @@ coverage:
 
 ignore:
   - "cosid-test/.*"
-  - "cosid-example/.*"
+  - "examples/.*"
   - "cosid-benchmark/.*"
   - "cosid-proxy/.*"
   - "cosid-proxy-server/.*"

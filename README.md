@@ -516,9 +516,7 @@ spring:
 
 ## Examples
 
-[CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)
-
-> http://localhost:8008/swagger-ui/index.html#/
+[Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples)
 
 ## Installation
 

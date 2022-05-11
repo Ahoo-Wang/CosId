@@ -2,9 +2,7 @@
 
 ## Examples
 
-[CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)
-
-> http://localhost:8008/swagger-ui/index.html#/
+[CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples)
 
 ## 安装
 

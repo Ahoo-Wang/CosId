@@ -12,7 +12,10 @@
 #
 
 name: Document Build and Deploy
-on: [ push ]
+on:
+  push:
+    paths:
+      - 'document/**'
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest

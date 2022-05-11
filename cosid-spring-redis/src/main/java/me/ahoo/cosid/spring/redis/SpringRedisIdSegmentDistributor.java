@@ -30,7 +30,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  */
 @Slf4j
 public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
-
+    
     private final String namespace;
     private final String name;
     /**
@@ -42,13 +42,13 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
     private final long step;
     private final StringRedisTemplate redisTemplate;
     private volatile long lastMaxId;
-
+    
     public SpringRedisIdSegmentDistributor(String namespace,
                                            String name,
                                            StringRedisTemplate redisTemplate) {
         this(namespace, name, DEFAULT_OFFSET, DEFAULT_STEP, redisTemplate);
     }
-
+    
     public SpringRedisIdSegmentDistributor(String namespace,
                                            String name,
                                            long offset,
@@ -58,7 +58,7 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
         Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
         Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
-
+        
         this.namespace = namespace;
         this.name = name;
         this.offset = offset;
@@ -66,8 +66,8 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         this.redisTemplate = redisTemplate;
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
     }
-
-     void ensureOffset() {
+    
+    void ensureOffset() {
         if (log.isDebugEnabled()) {
             log.debug("ensureOffset -[{}]- offset:[{}].", adderKey, offset);
         }
@@ -76,50 +76,50 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
             log.debug("ensureOffset -[{}]- offset:[{}] - notExists:[{}].", adderKey, offset, notExists);
         }
     }
-
+    
     public String getAdderKey() {
         return adderKey;
     }
-
+    
     @Override
     public String getNamespace() {
         return namespace;
     }
-
+    
     @Override
     public String getName() {
         return name;
     }
-
+    
     public long getOffset() {
         return offset;
     }
-
+    
     @Override
     public long getStep() {
         return step;
     }
-
+    
     @Override
     public long nextMaxId(long step) {
         IdSegmentDistributor.ensureStep(step);
         if (log.isDebugEnabled()) {
             log.debug("nextMaxId -[{}]- step:[{}].", adderKey, step);
         }
-
+        
         final long nextMinMaxId = lastMaxId + step;
         Long nextMaxId = redisTemplate.opsForValue().increment(adderKey, step);
-
+        
         assert nextMaxId != null;
         Preconditions.checkNotNull(nextMaxId, "nextMaxId can not be null!");
         if (log.isDebugEnabled()) {
             log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);
         }
-
+        
         Preconditions.checkState(nextMaxId >= nextMinMaxId, "nextMaxId:[%s] must be greater than nextMinMaxId:[%s]!", nextMaxId, nextMinMaxId);
         this.lastMaxId = nextMaxId;
         return nextMaxId;
     }
-
-
+    
+    
 }

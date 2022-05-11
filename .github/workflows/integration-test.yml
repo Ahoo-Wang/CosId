@@ -147,6 +147,40 @@ jobs:
       - name: Test CosId-Jdbc
         run: gradle cosid-jdbc:clean cosid-jdbc:check
 
+  cosid-proxy-test:
+    name: CosId Proxy Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      cosid-proxy:
+        image: ahoowang/cosid-proxy:main
+        ports:
+          - 8688:8688
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v3
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Proxy
+        run: gradle cosid-proxy:clean cosid-proxy:check
+
   cosid-spring-boot-starter-test:
     name: CosId Spring Boot Starter Test
     needs: [ cosid-core-test ]

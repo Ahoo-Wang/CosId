@@ -42,12 +42,13 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
     
     public static final MediaType JSON
         = MediaType.get("application/json; charset=utf-8");
-    private final OkHttpClient client = new OkHttpClient();
+    private final OkHttpClient client;
     
     private final String proxyHost;
     
-    public ProxyMachineIdDistributor(String proxyHost, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+    public ProxyMachineIdDistributor(OkHttpClient client, String proxyHost, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
+        this.client = client;
         this.proxyHost = proxyHost;
     }
     
@@ -119,4 +120,5 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             }
         }
     }
+    
 }

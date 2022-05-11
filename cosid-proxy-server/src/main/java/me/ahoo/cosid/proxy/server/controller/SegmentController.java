@@ -46,10 +46,10 @@ public class SegmentController {
      * Create an ID segment dispatcher, the operation is idempotent.
      */
     @PostMapping("/distributor/{namespace}/{name}")
-    public void createDistributor(@PathVariable String namespace, @PathVariable String name) {
+    public void createDistributor(@PathVariable String namespace, @PathVariable String name, long offset, long step) {
         String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);
         distributors.computeIfAbsent(namespacedName,
-            key -> distributorFactory.create(new IdSegmentDistributorDefinition(namespace, name, IdSegmentDistributor.DEFAULT_OFFSET, IdSegmentDistributor.DEFAULT_STEP)));
+            key -> distributorFactory.create(new IdSegmentDistributorDefinition(namespace, name, offset, step)));
     }
     
     @PatchMapping("/{namespace}/{name}")

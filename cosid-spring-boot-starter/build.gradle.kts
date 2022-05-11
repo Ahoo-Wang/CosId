@@ -28,6 +28,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "zookeeper-support", version.toString())
     }
+    registerFeature("proxySupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "proxy-support", version.toString())
+    }
     registerFeature("mybatisSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "mybatis-support", version.toString())
@@ -44,8 +48,9 @@ dependencies {
     "redisSupportImplementation"("me.ahoo.cosky:cosky-spring-cloud-core")
 
     "jdbcSupportImplementation"(project(":cosid-jdbc"))
-
     "zookeeperSupportImplementation"(project(":cosid-zookeeper"))
+
+    "proxySupportImplementation"(project(":cosid-proxy"))
 
     "mybatisSupportImplementation"(project(":cosid-mybatis"))
     api("org.springframework.boot:spring-boot-starter")

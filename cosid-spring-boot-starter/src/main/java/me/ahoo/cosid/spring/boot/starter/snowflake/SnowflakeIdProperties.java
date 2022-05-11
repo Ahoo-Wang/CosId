@@ -264,7 +264,8 @@ public class SnowflakeIdProperties {
                 STATEFUL_SET,
                 JDBC,
                 REDIS,
-                ZOOKEEPER
+                ZOOKEEPER,
+                PROXY
             }
         }
         

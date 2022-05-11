@@ -13,20 +13,34 @@
 
 package me.ahoo.cosid.proxy;
 
+import static me.ahoo.cosid.proxy.ProxyMachineIdDistributor.JSON;
+
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import lombok.SneakyThrows;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 /**
  * ProxyIdSegmentDistributor .
- * TODO
  *
  * @author ahoo wang
  */
 public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
+    private final OkHttpClient client;
+    private final String proxyHost;
     private final String namespace;
     private final String name;
     private final long step;
     
-    public ProxyIdSegmentDistributor(String namespace, String name, long step) {
+    public ProxyIdSegmentDistributor(OkHttpClient client, String proxyHost, String namespace, String name, long step) {
+        this.client = client;
+        this.proxyHost = proxyHost;
         this.namespace = namespace;
         this.name = name;
         this.step = step;
@@ -47,8 +61,22 @@ public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
         return step;
     }
     
+    @SneakyThrows
     @Override
     public long nextMaxId(long step) {
-        return 0;
+        String apiUrl =
+            Strings.lenientFormat("%s/segments/%s/%s?step=%s", proxyHost, getNamespace(), getName(), step);
+        
+        Request request = new Request.Builder()
+            .url(apiUrl)
+            .patch(RequestBody.create(JSON, ""))
+            .build();
+        try (Response response = client.newCall(request).execute()) {
+            ResponseBody responseBody = response.body();
+            assert responseBody != null;
+            String bodyStr = responseBody.string();
+            Preconditions.checkNotNull(bodyStr);
+            return Long.parseLong(bodyStr);
+        }
     }
 }

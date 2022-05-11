@@ -13,19 +13,50 @@
 
 package me.ahoo.cosid.proxy;
 
+import static me.ahoo.cosid.proxy.ProxyMachineIdDistributor.JSON;
+
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
+import com.google.common.base.Strings;
+import lombok.SneakyThrows;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
 /**
  * ProxyIdSegmentDistributorFactory .
- * TODO
  *
  * @author ahoo wang
  */
 public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
+    
+    private final OkHttpClient client;
+    
+    private final String proxyHost;
+    
+    public ProxyIdSegmentDistributorFactory(OkHttpClient client, String proxyHost) {
+        this.client = client;
+        this.proxyHost = proxyHost;
+    }
+    
+    @SneakyThrows
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
-        return new ProxyIdSegmentDistributor(definition.getNamespace(), definition.getName(), definition.getStep());
+        
+        String apiUrl =
+            Strings.lenientFormat("%s/segments/distributor/%s/%s?offset=%s&step=%s", proxyHost, definition.getNamespace(), definition.getName(), definition.getOffset(), definition.getStep());
+        
+        Request request = new Request.Builder()
+            .url(apiUrl)
+            .post(RequestBody.create(JSON, ""))
+            .build();
+        try (Response response = client.newCall(request).execute()) {
+            //ignored
+        }
+        
+        return new ProxyIdSegmentDistributor(client, proxyHost, definition.getNamespace(), definition.getName(), definition.getStep());
     }
 }

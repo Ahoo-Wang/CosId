@@ -49,7 +49,7 @@ dependencies {
     implementation(project(":cosid-spring-boot-starter"))
     implementation(project(":cosid-jackson"))
     implementation("io.springfox:springfox-boot-starter")
-
+    implementation(project(":cosid-proxy"))
     //region cosid-redis
 //    implementation(project(":cosid-redis"))
 //    implementation("me.ahoo.cosky:cosky-spring-cloud-core")

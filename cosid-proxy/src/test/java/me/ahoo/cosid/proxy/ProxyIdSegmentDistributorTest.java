@@ -13,29 +13,28 @@
 
 package me.ahoo.cosid.proxy;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
-import org.junit.jupiter.api.Disabled;
+import okhttp3.OkHttpClient;
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
-/**
- * ProxyIdSegmentDistributorTest .
- *
- * @author ahoo wang
- */
-@Disabled
+@DisabledIfEnvironmentVariable(named = "CI", matches = "true")
 class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
-
+    
     @Override
     protected IdSegmentDistributorFactory getFactory() {
-        return null;
+        return new ProxyIdSegmentDistributorFactory(new OkHttpClient(), ProxyMachineIdDistributorTest.PROXY_HOST);
     }
-
+    
     @Override
     protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
-
+        //TODO
+    }
+    
+    @Override
+    public void nextMaxIdWhenBack() {
+        //TODO
     }
 }

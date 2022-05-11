@@ -288,7 +288,8 @@ public class SegmentIdProperties {
         public enum Type {
             REDIS,
             JDBC,
-            ZOOKEEPER
+            ZOOKEEPER,
+            PROXY
         }
     }
     

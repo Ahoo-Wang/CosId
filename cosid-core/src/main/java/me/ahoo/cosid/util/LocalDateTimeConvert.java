@@ -30,19 +30,21 @@ import java.util.Date;
  */
 @ThreadSafe
 public final class LocalDateTimeConvert {
-
+    private LocalDateTimeConvert() {
+    }
+    
     public static LocalDateTime fromDate(Date date, ZoneId zoneId) {
         return LocalDateTime.ofInstant(date.toInstant(), zoneId);
     }
-
+    
     public static LocalDateTime fromTimestamp(Long timestamp, ZoneId zoneId) {
         return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), zoneId);
     }
-
+    
     public static LocalDateTime fromTimestampSecond(Long timestamp, ZoneId zoneId) {
         return LocalDateTime.ofInstant(Instant.ofEpochSecond(timestamp), zoneId);
     }
-
+    
     /**
      * convert {@link String} to {@link LocalDateTime}.
      *

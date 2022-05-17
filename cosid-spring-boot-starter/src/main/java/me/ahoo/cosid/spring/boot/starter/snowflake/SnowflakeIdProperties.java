@@ -296,7 +296,7 @@ public class SnowflakeIdProperties {
         }
         
         public static class Guarder {
-            private boolean enabled = false;
+            private boolean enabled = true;
             private Duration initialDelay = DefaultMachineIdGuarder.DEFAULT_INITIAL_DELAY;
             private Duration delay = DefaultMachineIdGuarder.DEFAULT_DELAY;
             

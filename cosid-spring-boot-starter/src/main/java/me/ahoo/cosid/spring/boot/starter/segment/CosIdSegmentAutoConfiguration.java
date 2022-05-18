@@ -94,7 +94,7 @@ public class CosIdSegmentAutoConfiguration {
         }
         
         segmentIdProperties.getProvider().forEach((name, idDefinition) -> {
-            IdSegmentDistributorDefinition distributorDefinition = asDistributorDefinition(name, shareIdDefinition);
+            IdSegmentDistributorDefinition distributorDefinition = asDistributorDefinition(name, idDefinition);
             IdSegmentDistributor idSegmentDistributor = distributorFactory.create(distributorDefinition);
             SegmentId idGenerator = createSegment(segmentIdProperties, idDefinition, idSegmentDistributor, prefetchWorkerExecutorService);
             idGeneratorProvider.set(name, idGenerator);

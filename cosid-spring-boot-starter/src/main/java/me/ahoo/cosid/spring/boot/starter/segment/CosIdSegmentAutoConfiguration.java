@@ -32,6 +32,7 @@ import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -133,7 +134,7 @@ public class CosIdSegmentAutoConfiguration {
                 throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
         }
         
-        if (!PrefixIdConverter.EMPTY_PREFIX.equals(converterDefinition.getPrefix())) {
+        if (!Strings.isNullOrEmpty(converterDefinition.getPrefix())) {
             idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
         }
         

@@ -227,7 +227,7 @@ public class CosIdSnowflakeAutoConfiguration {
             default:
                 throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
         }
-        if (!PrefixIdConverter.EMPTY_PREFIX.equals(converterDefinition.getPrefix())) {
+        if (!Strings.isNullOrEmpty(converterDefinition.getPrefix())) {
             idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
         }
         if (idDefinition.isFriendly()) {

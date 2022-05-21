@@ -24,7 +24,7 @@ import me.ahoo.cosid.converter.Radix62IdConverter;
 public class IdConverterDefinition {
     
     private Type type = Type.RADIX;
-    private String prefix = PrefixIdConverter.EMPTY_PREFIX;
+    private String prefix;
     private Radix radix = new Radix();
     
     public Type getType() {

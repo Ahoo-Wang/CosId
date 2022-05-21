@@ -48,7 +48,6 @@ dependencies {
     implementation(platform(project(":cosid-dependencies")))
     implementation(project(":cosid-spring-boot-starter"))
     implementation(project(":cosid-jackson"))
-    implementation("io.springfox:springfox-boot-starter")
 
     //region cosid-jdbc
     implementation(project(":cosid-jdbc"))

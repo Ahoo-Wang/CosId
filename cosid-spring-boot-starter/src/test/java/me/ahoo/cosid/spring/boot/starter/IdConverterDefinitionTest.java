@@ -1,6 +1,5 @@
 package me.ahoo.cosid.spring.boot.starter;
 
-import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 
 import org.junit.jupiter.api.Assertions;
@@ -29,7 +28,7 @@ class IdConverterDefinitionTest {
     @Test
     void getPrefix() {
         IdConverterDefinition definition = new IdConverterDefinition();
-        Assertions.assertEquals(PrefixIdConverter.EMPTY_PREFIX, definition.getPrefix());
+        Assertions.assertNull(definition.getPrefix());
     }
     
     @Test

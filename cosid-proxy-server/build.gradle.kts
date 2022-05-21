@@ -78,6 +78,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
     implementation("com.google.guava:guava")
+    implementation("io.netty:netty-all")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     compileOnly("org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}")
     annotationProcessor("org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}")

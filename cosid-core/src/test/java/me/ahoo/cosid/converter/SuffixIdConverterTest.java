@@ -16,53 +16,35 @@ package me.ahoo.cosid.converter;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * @author rocher kong
+ * SuffixIdConverterTest .
+ *
+ * @author ahoo wang
  */
-class PrefixIdConverterTest {
-    private static final String PREFIX = "prefix_";
-    private final PrefixIdConverter idConverter = new PrefixIdConverter(PREFIX, ToStringIdConverter.INSTANCE);
+class SuffixIdConverterTest {
+    private static final String SUFFIX = "-suffix";
+    private final SuffixIdConverter idConverter = new SuffixIdConverter(SUFFIX, ToStringIdConverter.INSTANCE);
     
     @Test
     void getSuffix() {
-        assertThat(idConverter.getPrefix(), equalTo(PREFIX));
+        assertThat(idConverter.getSuffix(), equalTo(SUFFIX));
     }
     
     @Test
     void asString() {
         long randomId = ThreadLocalRandom.current().nextLong();
         String actual = idConverter.asString(randomId);
-        assertThat(actual, equalTo(PREFIX + randomId));
+        assertThat(actual, equalTo(randomId + SUFFIX));
     }
     
     @Test
     void asLong() {
         long randomId = ThreadLocalRandom.current().nextLong();
-        long actual = idConverter.asLong(PREFIX + randomId);
+        long actual = idConverter.asLong(randomId + SUFFIX);
         assertThat(actual, equalTo(randomId));
     }
-    
-    @Test
-    void asLongWhenNumberFormat() {
-        Assertions.assertDoesNotThrow(() -> {
-            idConverter.asLong("prefix_-1");
-        });
-        Assertions.assertThrows(StringIndexOutOfBoundsException.class, () -> {
-            idConverter.asLong("-1");
-        });
-        Assertions.assertDoesNotThrow(() -> {
-            idConverter.asLong("prefix_111");
-        });
-        Assertions.assertThrows(NumberFormatException.class, () -> {
-            idConverter.asLong("prefix_1_");
-        });
-    }
-    
 }

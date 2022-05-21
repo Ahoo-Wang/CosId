@@ -13,42 +13,42 @@
 
 package me.ahoo.cosid.converter;
 
+
 import me.ahoo.cosid.IdConverter;
 
 import com.google.common.base.Preconditions;
 
 /**
- * Converter for setting string ID prefix.
+ * Suffix IdConverter .
  *
  * @author ahoo wang
  */
-public class PrefixIdConverter implements IdConverter {
-    
-    private final String prefix;
+public class SuffixIdConverter implements IdConverter {
+    private final String suffix;
     private final IdConverter idConverter;
     
-    public PrefixIdConverter(String prefix, IdConverter idConverter) {
-        Preconditions.checkNotNull(prefix, "prefix can not be null!");
-        this.prefix = prefix;
+    public SuffixIdConverter(String suffix, IdConverter idConverter) {
+        Preconditions.checkNotNull(suffix, "suffix can not be null!");
+        this.suffix = suffix;
         this.idConverter = idConverter;
     }
     
-    public String getPrefix() {
-        return prefix;
+    public String getSuffix() {
+        return suffix;
     }
     
     @Override
     public String asString(long id) {
         String idStr = idConverter.asString(id);
-        if (prefix.isEmpty()) {
+        if (suffix.isEmpty()) {
             return idStr;
         }
-        return prefix + idStr;
+        return idStr + suffix;
     }
     
     @Override
     public long asLong(String idString) {
-        String idStr = idString.substring(prefix.length());
+        String idStr = idString.substring(0, idString.length() - suffix.length());
         return idConverter.asLong(idStr);
     }
 }

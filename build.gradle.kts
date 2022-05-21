@@ -49,7 +49,7 @@ ext {
     set("hamcrestVersion", "2.2")
     set("mybatisVersion", "3.5.7")
     set("mybatisBootVersion", "2.2.2")
-    set("okhttpVersion", "3.14.9")
+    set("okhttpVersion", "4.9.3")
     set("coskyVersion", "1.3.20")
     set("shardingsphereVersion", "5.0.0")
     set("libraryProjects", libraryProjects)

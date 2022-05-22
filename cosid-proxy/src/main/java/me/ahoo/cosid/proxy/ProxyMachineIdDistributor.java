@@ -58,12 +58,12 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
     @SneakyThrows
     @Override
     protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
-        if (log.isInfoEnabled()) {
-            log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
-        }
         String apiUrl =
             Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&machineBit=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), machineBit,
                 safeGuardDuration);
+        if (log.isInfoEnabled()) {
+            log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}] - apiUrl:[{}].", instanceId, machineBit, namespace, apiUrl);
+        }
         
         Request request = new Request.Builder()
             .url(apiUrl)
@@ -72,15 +72,20 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
         try (Response response = client.newCall(request).execute()) {
             ResponseBody responseBody = response.body();
             assert responseBody != null;
-            if (response.isSuccessful()) {
-                return Jsons.OBJECT_MAPPER.readValue(responseBody.bytes(), MachineStateDto.class);
+            String bodyStr = responseBody.string();
+            if (log.isInfoEnabled()) {
+                log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}] - response:[{}].", instanceId, machineBit, namespace, bodyStr);
             }
-            ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(responseBody.bytes(), ErrorResponse.class);
+            
+            if (response.isSuccessful()) {
+                return Jsons.OBJECT_MAPPER.readValue(bodyStr, MachineStateDto.class);
+            }
+            ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(bodyStr, ErrorResponse.class);
             switch (errorResponse.getCode()) {
                 case "M-01":
                     throw new MachineIdOverflowException(machineBit, instanceId);
                 default:
-                    throw new IllegalStateException("Unexpected value: " + errorResponse.getCode());
+                    throw new IllegalStateException(Strings.lenientFormat("Unexpected code:[%s] - message:[%s].", errorResponse.getCode(), errorResponse.getMsg()));
             }
         }
     }
@@ -88,40 +93,51 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
     @SneakyThrows
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
-        if (log.isInfoEnabled()) {
-            log.info("revertRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
-        }
         String apiUrl = Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable());
+        if (log.isInfoEnabled()) {
+            log.info("revertRemote - [{}] instanceId:[{}] @ namespace:[{}] - apiUrl:[{}].", machineState, instanceId, namespace, apiUrl);
+        }
         
         Request request = new Request.Builder()
             .url(apiUrl)
             .delete()
             .build();
         try (Response response = client.newCall(request).execute()) {
-            //ignored
+            if (log.isInfoEnabled()) {
+                ResponseBody responseBody = response.body();
+                assert responseBody != null;
+                String bodyStr = responseBody.string();
+                log.info("revertRemote - [{}] instanceId:[{}] @ namespace:[{}] - response:[{}].", machineState, instanceId, namespace, bodyStr);
+            }
         }
     }
     
     @SneakyThrows
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
-        if (log.isInfoEnabled()) {
-            log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
-        }
         String apiUrl =
             Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration);
+        
+        if (log.isInfoEnabled()) {
+            log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}] - apiUrl:[{}].", machineState, instanceId, namespace, apiUrl);
+        }
         
         Request request = new Request.Builder()
             .url(apiUrl)
             .patch(RequestBody.create(JSON, ""))
             .build();
         try (Response response = client.newCall(request).execute()) {
+            ResponseBody responseBody = response.body();
+            assert responseBody != null;
+            String bodyStr = responseBody.string();
+            if (log.isInfoEnabled()) {
+                log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}] - response:[{}].", machineState, instanceId, namespace, bodyStr);
+            }
             if (response.isSuccessful()) {
                 return;
             }
-            ResponseBody responseBody = response.body();
-            assert responseBody != null;
-            ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(responseBody.bytes(), ErrorResponse.class);
+            
+            ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(bodyStr, ErrorResponse.class);
             switch (errorResponse.getCode()) {
                 case "M-02":
                     throw new NotFoundMachineStateException(namespace, instanceId);

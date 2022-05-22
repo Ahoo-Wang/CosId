@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
-import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 
 /**
@@ -25,6 +24,7 @@ public class IdConverterDefinition {
     
     private Type type = Type.RADIX;
     private String prefix;
+    private String suffix;
     private Radix radix = new Radix();
     
     public Type getType() {
@@ -41,6 +41,14 @@ public class IdConverterDefinition {
     
     public void setPrefix(String prefix) {
         this.prefix = prefix;
+    }
+    
+    public String getSuffix() {
+        return suffix;
+    }
+    
+    public void setSuffix(String suffix) {
+        this.suffix = suffix;
     }
     
     public Radix getRadix() {

@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
+import me.ahoo.cosid.converter.SuffixIdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.segment.DefaultSegmentId;
@@ -137,7 +138,9 @@ public class CosIdSegmentAutoConfiguration {
         if (!Strings.isNullOrEmpty(converterDefinition.getPrefix())) {
             idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
         }
-        
+        if (!Strings.isNullOrEmpty(converterDefinition.getSuffix())) {
+            idConverter = new SuffixIdConverter(converterDefinition.getSuffix(), idConverter);
+        }
         return new StringSegmentId(segmentId, idConverter);
         
     }

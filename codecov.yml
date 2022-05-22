@@ -2,8 +2,12 @@ coverage:
   status:
     patch:
       default:
+        target: 60%
         threshold: 1%
-
+    project:
+      default:
+        target: 80%
+        threshold: 1%
 ignore:
   - "cosid-test/.*"
   - "examples/.*"

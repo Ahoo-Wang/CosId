@@ -18,6 +18,7 @@ import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
+import me.ahoo.cosid.converter.SuffixIdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
@@ -26,7 +27,6 @@ import me.ahoo.cosid.snowflake.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SecondSnowflakeId;
-import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.StringSnowflakeId;
@@ -229,6 +229,9 @@ public class CosIdSnowflakeAutoConfiguration {
         }
         if (!Strings.isNullOrEmpty(converterDefinition.getPrefix())) {
             idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
+        }
+        if (!Strings.isNullOrEmpty(converterDefinition.getSuffix())) {
+            idConverter = new SuffixIdConverter(converterDefinition.getSuffix(), idConverter);
         }
         if (idDefinition.isFriendly()) {
             SnowflakeIdStateParser snowflakeIdStateParser = SnowflakeIdStateParser.of(snowflakeId, zoneId);

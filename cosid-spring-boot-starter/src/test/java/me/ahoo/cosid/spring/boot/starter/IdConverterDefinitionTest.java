@@ -40,12 +40,27 @@ class IdConverterDefinitionTest {
     }
     
     @Test
+    void getSuffix() {
+        IdConverterDefinition definition = new IdConverterDefinition();
+        Assertions.assertNull(definition.getSuffix());
+    }
+    
+    @Test
+    void setSuffix() {
+        String suffix = "test";
+        IdConverterDefinition definition = new IdConverterDefinition();
+        definition.setSuffix(suffix);
+        Assertions.assertEquals(suffix, definition.getSuffix());
+    }
+    
+    @Test
     void getRadix() {
         IdConverterDefinition definition = new IdConverterDefinition();
         Assertions.assertNotNull(definition.getRadix());
         Assertions.assertTrue(definition.getRadix().isPadStart());
         Assertions.assertEquals(Radix62IdConverter.MAX_CHAR_SIZE, definition.getRadix().getCharSize());
     }
+    
     
     @Test
     void setRadix() {

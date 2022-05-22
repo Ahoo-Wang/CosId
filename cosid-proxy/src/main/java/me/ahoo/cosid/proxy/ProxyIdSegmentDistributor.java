@@ -20,6 +20,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -33,6 +34,7 @@ import okhttp3.ResponseBody;
  *
  * @author ahoo wang
  */
+@Slf4j
 public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
     private final OkHttpClient client;
     private final String proxyHost;
@@ -77,6 +79,12 @@ public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
             ResponseBody responseBody = response.body();
             assert responseBody != null;
             String bodyStr = responseBody.string();
+            if (log.isInfoEnabled()) {
+                log.info("nextMaxId -[{}]- step:[{}] - response:[{}].", getNamespacedName(), step, bodyStr);
+            }
+            if (!response.isSuccessful()) {
+                throw new IllegalStateException(Strings.lenientFormat("Distributor:[%s] - response:[%s]", getNamespacedName(), bodyStr));
+            }
             Preconditions.checkNotNull(bodyStr);
             return Long.parseLong(bodyStr);
         }

@@ -21,16 +21,19 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import com.google.common.base.Strings;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 /**
  * ProxyIdSegmentDistributorFactory .
  *
  * @author ahoo wang
  */
+@Slf4j
 public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     
     private final OkHttpClient client;
@@ -45,16 +48,27 @@ public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFac
     @SneakyThrows
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
-        
         String apiUrl =
             Strings.lenientFormat("%s/segments/distributor/%s/%s?offset=%s&step=%s", proxyHost, definition.getNamespace(), definition.getName(), definition.getOffset(), definition.getStep());
-        
+    
+        if (log.isInfoEnabled()) {
+            log.info("create - [{}] - apiUrl:[{}].", definition.getNamespacedName(), apiUrl);
+        }
+
         Request request = new Request.Builder()
             .url(apiUrl)
             .post(RequestBody.create(JSON, ""))
             .build();
         try (Response response = client.newCall(request).execute()) {
-            //ignored
+            ResponseBody responseBody = response.body();
+            assert responseBody != null;
+            String bodyStr = responseBody.string();
+            if (log.isInfoEnabled()) {
+                log.info("create - [{}] - response:[{}].", definition.getNamespacedName(), bodyStr);
+            }
+            if (!response.isSuccessful()) {
+                throw new IllegalStateException(Strings.lenientFormat("Create Distributor:[%s] - response:[%s].", definition.getNamespacedName(), responseBody.string()));
+            }
         }
         
         return new ProxyIdSegmentDistributor(client, proxyHost, definition.getNamespace(), definition.getName(), definition.getStep());

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.example.redis;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 import org.springframework.boot.test.context.SpringBootTest;
 
 /**
@@ -21,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  *
  * @author ahoo wang
  */
+@DisabledIfEnvironmentVariable(named = "CODECOV", matches = "true")
 @SpringBootTest
 class AppServerTest {
     

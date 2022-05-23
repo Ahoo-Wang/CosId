@@ -22,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  *
  * @author ahoo wang
  */
+@DisabledIfEnvironmentVariable(named = "CODECOV", matches = "true")
 @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
 @SpringBootTest
 class AppServerTest {

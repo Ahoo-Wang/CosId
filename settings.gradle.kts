@@ -43,6 +43,9 @@ project(":cosid-example-zookeeper").projectDir = file("examples/cosid-example-zo
 include("cosid-example-jdbc")
 project(":cosid-example-jdbc").projectDir = file("examples/cosid-example-jdbc")
 
+include("cosid-example-shardingsphere")
+project(":cosid-example-shardingsphere").projectDir = file("examples/cosid-example-shardingsphere")
+
 buildscript {
     repositories {
         gradlePluginPortal()
@@ -53,3 +56,4 @@ buildscript {
         classpath("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.6")
     }
 }
+

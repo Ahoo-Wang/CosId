@@ -31,6 +31,7 @@ val serverProjects = setOf(
     project(":cosid-example-proxy"),
     project(":cosid-example-redis"),
     project(":cosid-example-zookeeper"),
+    project(":cosid-example-shardingsphere"),
     project(":cosid-proxy-server")
 )
 

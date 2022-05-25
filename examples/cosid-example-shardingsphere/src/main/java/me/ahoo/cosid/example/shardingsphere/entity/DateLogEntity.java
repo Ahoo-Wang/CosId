@@ -11,17 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.jdbc.entity.interval;
+package me.ahoo.cosid.example.shardingsphere.entity;
+
+import java.util.Date;
 
 /**
- * TimestampLogEntity.
+ * create table t_friendly_table
+ * (
+ * id varchar(25) not null primary key
+ * );.
  *
  * @author Rocher Kong
  */
-public class TimestampLogEntity {
+public class DateLogEntity {
 
     private long id;
-    private long createTime;
+    private Date createTime;
 
     public long getId() {
         return id;
@@ -31,11 +36,11 @@ public class TimestampLogEntity {
         this.id = id;
     }
 
-    public long getCreateTime() {
+    public Date getCreateTime() {
         return createTime;
     }
 
-    public void setCreateTime(long createTime) {
+    public void setCreateTime(Date createTime) {
         this.createTime = createTime;
     }
 }

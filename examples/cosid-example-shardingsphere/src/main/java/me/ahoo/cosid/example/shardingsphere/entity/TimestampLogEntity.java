@@ -11,26 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.jdbc.repository;
-
-import me.ahoo.cosid.example.jdbc.entity.interval.DateLogEntity;
-import me.ahoo.cosid.example.jdbc.entity.interval.LocalDateTimeLogEntity;
-import me.ahoo.cosid.example.jdbc.entity.interval.SnowflakeLogEntity;
-import me.ahoo.cosid.example.jdbc.entity.interval.TimestampLogEntity;
-
-import org.apache.ibatis.annotations.Mapper;
+package me.ahoo.cosid.example.shardingsphere.entity;
 
 /**
+ * TimestampLogEntity.
+ *
  * @author Rocher Kong
  */
-@Mapper
-public interface IntervalShardingAlgorithmRepository {
+public class TimestampLogEntity {
 
-    void insertDate(DateLogEntity log);
+    private long id;
+    private long createTime;
 
-    void insertTimestamp(TimestampLogEntity log);
+    public long getId() {
+        return id;
+    }
 
-    void insertDateTime(LocalDateTimeLogEntity log);
+    public void setId(long id) {
+        this.id = id;
+    }
 
-    void insertSnowflake(SnowflakeLogEntity log);
+    public long getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(long createTime) {
+        this.createTime = createTime;
+    }
 }

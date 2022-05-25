@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.jdbc.controller;
+package me.ahoo.cosid.example.shardingsphere.controller;
 
 
 
-import me.ahoo.cosid.example.jdbc.entity.interval.DateLogEntity;
-import me.ahoo.cosid.example.jdbc.entity.interval.LocalDateTimeLogEntity;
-import me.ahoo.cosid.example.jdbc.entity.interval.SnowflakeLogEntity;
-import me.ahoo.cosid.example.jdbc.entity.interval.TimestampLogEntity;
-import me.ahoo.cosid.example.jdbc.repository.IntervalShardingAlgorithmRepository;
+import me.ahoo.cosid.example.shardingsphere.entity.DateLogEntity;
+import me.ahoo.cosid.example.shardingsphere.entity.LocalDateTimeLogEntity;
+import me.ahoo.cosid.example.shardingsphere.entity.SnowflakeLogEntity;
+import me.ahoo.cosid.example.shardingsphere.entity.TimestampLogEntity;
+import me.ahoo.cosid.example.shardingsphere.repository.IntervalShardingAlgorithmRepository;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

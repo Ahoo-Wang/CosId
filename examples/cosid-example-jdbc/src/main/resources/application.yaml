@@ -56,39 +56,6 @@ spring:
               standard:
                 sharding-column: order_id
                 sharding-algorithm-name: order-db-inline
-          t_date_log:
-            actual-data-nodes: ds0.t_date_log_202205
-            key-generate-strategy:
-              column: id
-              key-generator-name: snowflake
-            table-strategy:
-              standard:
-                sharding-column: create_time
-                sharding-algorithm-name: data-log-interval
-          t_date_time_log:
-            actual-data-nodes: ds0.t_date_time_log_202205
-            key-generate-strategy:
-              column: id
-              key-generator-name: snowflake
-            table-strategy:
-              standard:
-                sharding-column: create_time
-                sharding-algorithm-name: data-time-log-interval
-          t_timestamp_log:
-            actual-data-nodes: ds0.t_timestamp_log_202205
-            key-generate-strategy:
-              column: id
-              key-generator-name: snowflake
-            table-strategy:
-              standard:
-                sharding-column: create_time
-                sharding-algorithm-name: timestamp-log-interval
-          t_snowflake_log:
-            actual-data-nodes: ds0.t_snowflake_log_202205
-            table-strategy:
-              standard:
-                sharding-column: id
-                sharding-algorithm-name: snowflake-log-interval
         sharding-algorithms:
           table-inline:
             type: COSID_MOD
@@ -100,43 +67,6 @@ spring:
             props:
               mod: "2"
               logic-name-prefix: ds
-          data-log-interval:
-            type: COSID_INTERVAL
-            props:
-              logic-name-prefix: t_date_log_
-              datetime-lower: 2021-12-08 22:00:00
-              datetime-upper: 2022-12-01 00:00:00
-              sharding-suffix-pattern: yyyyMM
-              datetime-interval-unit: MONTHS
-              datetime-interval-amount: 1
-            data-time-log-interval:
-              type: COSID_INTERVAL
-              props:
-                logic-name-prefix: t_date_time_log_
-                datetime-lower: 2021-12-08 22:00:00
-                datetime-upper: 2022-12-01 00:00:00
-                sharding-suffix-pattern: yyyyMM
-                datetime-interval-unit: MONTHS
-                datetime-interval-amount: 1
-            timestamp-log-interval:
-              type: COSID_INTERVAL
-              props:
-                logic-name-prefix: t_timestamp_log_
-                datetime-lower: 2021-12-08 22:00:00
-                datetime-upper: 2022-12-01 00:00:00
-                sharding-suffix-pattern: yyyyMM
-                datetime-interval-unit: MONTHS
-                datetime-interval-amount: 1
-            snowflake-log-interval:
-              type: COSID_INTERVAL_SNOWFLAKE
-              props:
-                logic-name-prefix: t_snowflake_log_
-                id-name: snowflake
-                datetime-lower: 2021-12-08 22:00:00
-                datetime-upper: 2022-12-01 00:00:00
-                sharding-suffix-pattern: yyyyMM
-                datetime-interval-unit: MONTHS
-                datetime-interval-amount: 1
         key-generators:
           snowflake:
             type: COSID

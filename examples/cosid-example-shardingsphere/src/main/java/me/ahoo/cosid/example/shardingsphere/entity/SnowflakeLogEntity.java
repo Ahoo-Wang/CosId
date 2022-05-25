@@ -11,22 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.jdbc.entity.interval;
+package me.ahoo.cosid.example.shardingsphere.entity;
 
-import java.util.Date;
+import me.ahoo.cosid.annotation.CosId;
 
 /**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );.
+ * SnowflakeLogEntity.
  *
  * @author Rocher Kong
  */
-public class DateLogEntity {
-
+public class SnowflakeLogEntity {
+    @CosId("snowflake")
     private long id;
-    private Date createTime;
 
     public long getId() {
         return id;
@@ -34,13 +30,5 @@ public class DateLogEntity {
 
     public void setId(long id) {
         this.id = id;
-    }
-
-    public Date getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(Date createTime) {
-        this.createTime = createTime;
     }
 }

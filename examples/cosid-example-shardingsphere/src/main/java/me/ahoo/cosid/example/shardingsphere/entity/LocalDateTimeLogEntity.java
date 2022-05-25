@@ -11,18 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.jdbc.entity.interval;
+package me.ahoo.cosid.example.shardingsphere.entity;
 
-import me.ahoo.cosid.annotation.CosId;
+import java.time.LocalDateTime;
 
 /**
- * SnowflakeLogEntity.
+ * LocalDateTimeLogEntity.
  *
  * @author Rocher Kong
  */
-public class SnowflakeLogEntity {
-    @CosId("snowflake")
+public class LocalDateTimeLogEntity {
     private long id;
+    private LocalDateTime createTime;
 
     public long getId() {
         return id;
@@ -30,5 +30,13 @@ public class SnowflakeLogEntity {
 
     public void setId(long id) {
         this.id = id;
+    }
+
+    public LocalDateTime getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(LocalDateTime createTime) {
+        this.createTime = createTime;
     }
 }

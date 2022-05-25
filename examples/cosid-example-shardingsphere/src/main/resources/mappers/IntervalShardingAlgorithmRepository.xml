@@ -13,7 +13,7 @@
   -->
 
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="me.ahoo.cosid.example.jdbc.repository.IntervalShardingAlgorithmRepository">
+<mapper namespace="me.ahoo.cosid.example.shardingsphere.repository.IntervalShardingAlgorithmRepository">
     <insert id="insertDate" useGeneratedKeys="true" keyProperty="id">
         insert into t_date_log (create_time) value (#{createTime});
     </insert>

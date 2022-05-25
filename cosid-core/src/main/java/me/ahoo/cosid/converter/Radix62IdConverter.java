@@ -30,10 +30,14 @@ public final class Radix62IdConverter implements IdConverter {
     
     public static final Radix62IdConverter INSTANCE = new Radix62IdConverter(false, MAX_CHAR_SIZE);
     public static final Radix62IdConverter PAD_START = new Radix62IdConverter(true, MAX_CHAR_SIZE);
-    
+
     /**
      * Return an instance representing the specified parameter.
      * If new instances are not required, static cached instances are used to provide space and time efficiency.
+     *
+     * @param padStart padStart
+     * @param charSize Size
+     * @return Radix62IdConverter
      */
     public static Radix62IdConverter of(boolean padStart, int charSize) {
         

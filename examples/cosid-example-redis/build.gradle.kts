@@ -51,7 +51,6 @@ dependencies {
 
     implementation(project(":cosid-spring-redis"))
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    implementation("io.springfox:springfox-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.google.guava:guava")
     implementation("org.springframework.boot:spring-boot-starter-web")

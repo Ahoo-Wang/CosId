@@ -49,7 +49,6 @@ dependencies {
     implementation(project(":cosid-spring-boot-starter"))
     implementation(project(":cosid-jackson"))
     implementation(project(":cosid-proxy"))
-    implementation("io.springfox:springfox-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.google.guava:guava")
     implementation("org.springframework.boot:spring-boot-starter-web")

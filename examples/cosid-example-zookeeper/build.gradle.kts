@@ -51,7 +51,6 @@ dependencies {
     //region cosid-zookeeper
     implementation(project(":cosid-zookeeper"))
     //endregion
-    implementation("io.springfox:springfox-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.google.guava:guava")
     implementation("org.springframework.boot:spring-boot-starter-web")

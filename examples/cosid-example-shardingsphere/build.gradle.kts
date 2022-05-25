@@ -47,16 +47,14 @@ application {
 dependencies {
     implementation(platform(project(":cosid-dependencies")))
     implementation(project(":cosid-spring-boot-starter"))
+    implementation(project(":cosid-jackson"))
 
     //region cosid-jdbc
     implementation(project(":cosid-jdbc"))
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("mysql:mysql-connector-java")
-    implementation(project(":cosid-shardingsphere"))
-    implementation("org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter:${rootProject.ext.get("shardingsphereVersion")}")
     //endregion
 
-    implementation("io.springfox:springfox-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.google.guava:guava")
     implementation("org.springframework.boot:spring-boot-starter-web")

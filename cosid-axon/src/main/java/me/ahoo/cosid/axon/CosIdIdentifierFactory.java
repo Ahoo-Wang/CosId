@@ -24,7 +24,7 @@ import org.axonframework.common.IdentifierFactory;
  * @author ahoo wang
  */
 public class CosIdIdentifierFactory extends IdentifierFactory {
-    public static final String ID_KEY = "axon.cosid";
+    public static final String ID_KEY = "cosid.axon";
     private static final String ID_NAME;
     private static final LazyIdGenerator ID_GENERATOR;
     

@@ -12,7 +12,22 @@
 #
 
 name: Integration Test
-on: [ push, pull_request ]
+on:
+  push:
+    paths-ignore:
+      - 'cosid-benchmark/**'
+      - 'docs/**'
+      - 'document/**'
+      - 'examples/**'
+      - 'wiki/**'
+  pull_request:
+    paths-ignore:
+      - 'cosid-benchmark/**'
+      - 'docs/**'
+      - 'document/**'
+      - 'examples/**'
+      - 'wiki/**'
+
 jobs:
   cosid-core-test:
     name: CosId Core Test

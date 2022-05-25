@@ -22,7 +22,11 @@
 ## :::::::::::::::::::::
 
 name: Benchmark VS Test
-on: [ push, pull_request ]
+on:
+  push:
+    paths:
+      - 'cosid-benchmark/**'
+
 jobs:
   # WARNING：中央仓库没有找到美团官方提供的Jar!!!
   # git clone https://github.com/Meituan-Dianping/Leaf

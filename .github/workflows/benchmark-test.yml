@@ -22,7 +22,22 @@
 ## :::::::::::::::::::::
 
 name: Benchmark CosId Test
-on: [ push, pull_request ]
+on:
+  push:
+    paths-ignore:
+      - 'cosid-benchmark/**'
+      - 'docs/**'
+      - 'document/**'
+      - 'examples/**'
+      - 'wiki/**'
+  pull_request:
+    paths-ignore:
+      - 'cosid-benchmark/**'
+      - 'docs/**'
+      - 'document/**'
+      - 'examples/**'
+      - 'wiki/**'
+
 jobs:
   cosid-core-benchmark:
     name: CosId Core Benchmark

@@ -1,5 +1,19 @@
 name: Codecov
-on: [ push, pull_request ]
+on:
+  push:
+    paths-ignore:
+      - 'cosid-benchmark/**'
+      - 'docs/**'
+      - 'document/**'
+      - 'examples/**'
+      - 'wiki/**'
+  pull_request:
+    paths-ignore:
+      - 'cosid-benchmark/**'
+      - 'docs/**'
+      - 'document/**'
+      - 'examples/**'
+      - 'wiki/**'
 jobs:
   codecov:
     name: Codecov

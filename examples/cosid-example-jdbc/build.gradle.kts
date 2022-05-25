@@ -62,7 +62,6 @@ dependencies {
     implementation("org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter:${rootProject.ext.get("shardingsphereVersion")}")
     //endregion
 
-    implementation("io.springfox:springfox-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.google.guava:guava")
     implementation("org.springframework.boot:spring-boot-starter-web")

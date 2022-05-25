@@ -27,6 +27,7 @@ include(":cosid-zookeeper")
 include(":cosid-test")
 include(":cosid-proxy")
 include(":cosid-proxy-server")
+include(":cosid-axon")
 
 include("cosid-example")
 project(":cosid-example").projectDir = file("examples/cosid-example")

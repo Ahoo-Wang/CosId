@@ -26,7 +26,7 @@ import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
  */
 public class MockIdGenerator extends StringIdGenerator {
     
-    private static final String TEST_PREFIX = "test_";
+    public static final String TEST_PREFIX = "test_";
     
     public static final IdGenerator INSTANCE = usePrefix(TEST_PREFIX);
     

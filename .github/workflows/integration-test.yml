@@ -51,6 +51,25 @@ jobs:
       - name: Test CosId-Jackson
         run: gradle cosid-jackson:clean cosid-jackson:check
 
+  cosid-axon-test:
+    name: CosId Axon Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v3
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Axon
+        run: gradle cosid-axon:clean cosid-axon:check
+
   cosid-shardingsphere-test:
     name: CosId ShardingSphere Test
     needs: [ cosid-core-test ]

@@ -15,9 +15,9 @@ dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.get("springBootVersion")}"))
     api(platform("org.springframework.cloud:spring-cloud-dependencies:${rootProject.ext.get("springCloudVersion")}"))
     api(platform("com.squareup.okhttp3:okhttp-bom:${rootProject.ext.get("okhttpVersion")}"))
+    api(platform("org.axonframework:axon-bom:${rootProject.ext.get("axonBomVersion")}"))
     api(platform("me.ahoo.cosky:cosky-bom:${rootProject.ext.get("coskyVersion")}"))
     constraints {
-        api("org.axonframework:axon-messaging:${rootProject.ext.get("axonVersion")}")
         api("org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}")
         api("org.mybatis:mybatis:${rootProject.ext.get("mybatisVersion")}")
         api("org.mybatis.spring.boot:mybatis-spring-boot-starter:${rootProject.ext.get("mybatisBootVersion")}")

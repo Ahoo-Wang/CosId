@@ -11,31 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.repository;
-
-import me.ahoo.cosid.example.entity.Order;
-import me.ahoo.cosid.example.entity.OrderItem;
-
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
+package me.ahoo.cosid.example.shardingsphere.entity;
 
 /**
- * Order Repository
+ * TimestampLogEntity.
  *
- * @author ahoo wang
+ * @author Rocher Kong
  */
-@Mapper
-public interface OrderRepository {
+public class TimestampLogEntity {
 
-    void insert(Order order);
+    private long id;
+    private long createTime;
 
-    void insertItem(OrderItem orderItem);
+    public long getId() {
+        return id;
+    }
 
-    Order getById(@Param("orderId") long orderId);
+    public void setId(long id) {
+        this.id = id;
+    }
 
-    List<Order> query();
+    public long getCreateTime() {
+        return createTime;
+    }
 
-    List<Order> getByIds(@Param("ids") List<Long> ids);
+    public void setCreateTime(long createTime) {
+        this.createTime = createTime;
+    }
 }

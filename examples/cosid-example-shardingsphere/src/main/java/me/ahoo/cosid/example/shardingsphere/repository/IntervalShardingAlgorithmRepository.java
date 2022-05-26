@@ -11,31 +11,28 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.repository;
+package me.ahoo.cosid.example.shardingsphere.repository;
 
-import me.ahoo.cosid.example.entity.Order;
-import me.ahoo.cosid.example.entity.OrderItem;
+import me.ahoo.cosid.example.shardingsphere.entity.DateLogEntity;
+import me.ahoo.cosid.example.shardingsphere.entity.LocalDateTimeLogEntity;
+import me.ahoo.cosid.example.shardingsphere.entity.SnowflakeLogEntity;
+import me.ahoo.cosid.example.shardingsphere.entity.TimestampLogEntity;
 
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
 
 /**
- * Order Repository
+ * IntervalShardingAlgorithmRepository.
  *
- * @author ahoo wang
+ * @author Rocher Kong
  */
 @Mapper
-public interface OrderRepository {
+public interface IntervalShardingAlgorithmRepository {
 
-    void insert(Order order);
+    void insertDate(DateLogEntity log);
 
-    void insertItem(OrderItem orderItem);
+    void insertTimestamp(TimestampLogEntity log);
 
-    Order getById(@Param("orderId") long orderId);
+    void insertDateTime(LocalDateTimeLogEntity log);
 
-    List<Order> query();
-
-    List<Order> getByIds(@Param("ids") List<Long> ids);
+    void insertSnowflake(SnowflakeLogEntity log);
 }

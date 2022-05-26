@@ -1,0 +1,149 @@
+server:
+  port: 8600
+spring:
+  application:
+    name: ${service.name:cosid-example-jdbc}
+  redis:
+    url: redis://localhost:6379
+  shardingsphere:
+#    mode:
+#      type: standalone
+#      repository:
+#        type: file
+    datasource:
+      names: ds0,ds1
+      ds0:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbcUrl: jdbc:mysql://localhost:3306/cosid_db_0
+        username: root
+        password: root
+      ds1:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbcUrl: jdbc:mysql://localhost:3306/cosid_db_1
+        username: root
+        password: root
+    props:
+      sql-show: true
+    rules:
+      sharding:
+        tables:
+          cosid:
+            actual-data-nodes: ds0.cosid
+          t_date_log:
+            actual-data-nodes: ds0.t_date_log_202205
+            key-generate-strategy:
+              column: id
+              key-generator-name: snowflake
+            table-strategy:
+              standard:
+                sharding-column: create_time
+                sharding-algorithm-name: data-log-interval
+          t_date_time_log:
+            actual-data-nodes: ds0.t_date_time_log_202205
+            key-generate-strategy:
+              column: id
+              key-generator-name: snowflake
+            table-strategy:
+              standard:
+                sharding-column: create_time
+                sharding-algorithm-name: data-time-log-interval
+          t_timestamp_log:
+            actual-data-nodes: ds0.t_timestamp_log_202205
+            key-generate-strategy:
+              column: id
+              key-generator-name: snowflake
+            table-strategy:
+              standard:
+                sharding-column: create_time
+                sharding-algorithm-name: timestamp-log-interval
+          t_snowflake_log:
+            actual-data-nodes: ds0.t_snowflake_log_202205
+            table-strategy:
+              standard:
+                sharding-column: id
+                sharding-algorithm-name: snowflake-log-interval
+        sharding-algorithms:
+          data-log-interval:
+            type: COSID_INTERVAL
+            props:
+              logic-name-prefix: t_date_log_
+              datetime-lower: 2021-12-08 22:00:00
+              datetime-upper: 2022-12-01 00:00:00
+              sharding-suffix-pattern: yyyyMM
+              datetime-interval-unit: MONTHS
+              datetime-interval-amount: 1
+            data-time-log-interval:
+              type: COSID_INTERVAL
+              props:
+                logic-name-prefix: t_date_time_log_
+                datetime-lower: 2021-12-08 22:00:00
+                datetime-upper: 2022-12-01 00:00:00
+                sharding-suffix-pattern: yyyyMM
+                datetime-interval-unit: MONTHS
+                datetime-interval-amount: 1
+            timestamp-log-interval:
+              type: COSID_INTERVAL
+              props:
+                logic-name-prefix: t_timestamp_log_
+                datetime-lower: 2021-12-08 22:00:00
+                datetime-upper: 2022-12-01 00:00:00
+                sharding-suffix-pattern: yyyyMM
+                datetime-interval-unit: MONTHS
+                datetime-interval-amount: 1
+            snowflake-log-interval:
+              type: COSID_INTERVAL_SNOWFLAKE
+              props:
+                logic-name-prefix: t_snowflake_log_
+                id-name: snowflake
+                datetime-lower: 2021-12-08 22:00:00
+                datetime-upper: 2022-12-01 00:00:00
+                sharding-suffix-pattern: yyyyMM
+                datetime-interval-unit: MONTHS
+                datetime-interval-amount: 1
+        key-generators:
+          snowflake:
+            type: COSID
+            props:
+              id-name: snowflake
+
+cosid:
+  namespace: ${spring.application.name}
+  snowflake:
+    enabled: true
+    machine:
+      distributor:
+        type: jdbc
+      guarder:
+        enabled: true
+    provider:
+      short_id:
+        converter:
+          prefix: cosid_
+          type: radix
+          radix:
+            char-size: 11
+            pad-start: false
+      snowflake:
+        sequence-bit: 12
+      safeJs:
+        machine-bit: 3
+        sequence-bit: 9
+  segment:
+    enabled: true
+    mode: chain
+    distributor:
+      type: jdbc
+    provider:
+      longId:
+        offset: 10000
+        step: 100
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath:/mappers/*.xml
+
+logging:
+  level:
+    me.ahoo.cosid: debug

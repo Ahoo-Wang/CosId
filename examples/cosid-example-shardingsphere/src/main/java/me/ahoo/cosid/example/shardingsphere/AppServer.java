@@ -11,31 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.repository;
+package me.ahoo.cosid.example.shardingsphere;
 
-import me.ahoo.cosid.example.entity.Order;
-import me.ahoo.cosid.example.entity.OrderItem;
-
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * Order Repository
+ * AppServer .
  *
  * @author ahoo wang
  */
-@Mapper
-public interface OrderRepository {
-
-    void insert(Order order);
-
-    void insertItem(OrderItem orderItem);
-
-    Order getById(@Param("orderId") long orderId);
-
-    List<Order> query();
-
-    List<Order> getByIds(@Param("ids") List<Long> ids);
+@SpringBootApplication
+public class AppServer {
+    public static void main(String[] args) {
+        SpringApplication.run(AppServer.class, args);
+    }
 }

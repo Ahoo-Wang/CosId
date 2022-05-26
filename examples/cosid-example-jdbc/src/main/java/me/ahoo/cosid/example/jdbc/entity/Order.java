@@ -11,31 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.repository;
+package me.ahoo.cosid.example.jdbc.entity;
 
-import me.ahoo.cosid.example.entity.Order;
-import me.ahoo.cosid.example.entity.OrderItem;
 
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
+import me.ahoo.cosid.annotation.CosId;
 
-import java.util.List;
+public class Order {
+    @CosId
+    private Long orderId;
+    private Long userId;
 
-/**
- * Order Repository
- *
- * @author ahoo wang
- */
-@Mapper
-public interface OrderRepository {
+    public Long getOrderId() {
+        return orderId;
+    }
 
-    void insert(Order order);
+    public void setOrderId(Long orderId) {
+        this.orderId = orderId;
+    }
 
-    void insertItem(OrderItem orderItem);
+    public Long getUserId() {
+        return userId;
+    }
 
-    Order getById(@Param("orderId") long orderId);
-
-    List<Order> query();
-
-    List<Order> getByIds(@Param("ids") List<Long> ids);
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
 }

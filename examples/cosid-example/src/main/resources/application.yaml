@@ -182,7 +182,6 @@ cosid:
             char-size: 11
             pad-start: false
       order_item:
-        #        timestamp-bit:
         sequence-bit: 12
       snowflake:
         sequence-bit: 12

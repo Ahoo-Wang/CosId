@@ -11,31 +11,28 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.repository;
+package me.ahoo.cosid.example.jdbc.entity;
 
-import me.ahoo.cosid.example.entity.Order;
-import me.ahoo.cosid.example.entity.OrderItem;
-
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
+import me.ahoo.cosid.annotation.CosId;
 
 /**
- * Order Repository
+ * create table t_friendly_table
+ * (
+ * id varchar(25) not null primary key
+ * );.
  *
- * @author ahoo wang
+ * @author Rocher Kong
  */
-@Mapper
-public interface OrderRepository {
+public class FriendlyIdEntity {
 
-    void insert(Order order);
+    @CosId
+    private String id;
 
-    void insertItem(OrderItem orderItem);
+    public String getId() {
+        return id;
+    }
 
-    Order getById(@Param("orderId") long orderId);
-
-    List<Order> query();
-
-    List<Order> getByIds(@Param("ids") List<Long> ids);
+    public void setId(String id) {
+        this.id = id;
+    }
 }

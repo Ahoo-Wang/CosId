@@ -14,6 +14,7 @@
 package me.ahoo.cosid.example.jdbc.controller;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.SafeJavaScriptSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
@@ -37,8 +38,8 @@ import java.util.Optional;
 public class IdController {
     private final IdGeneratorProvider provider;
 
-    public IdController(IdGeneratorProvider provider) {
-        this.provider = provider;
+    public IdController() {
+        this.provider = DefaultIdGeneratorProvider.INSTANCE;
     }
 
     private IdGenerator getIdGenerator(String name) {

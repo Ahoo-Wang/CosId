@@ -16,11 +16,7 @@ create table t_friendly_table
     id varchar(25) not null primary key
 );
 
-create table t_table_0
-(
-    id bigint not null primary key
-);
-create table t_table_1
+create table t_table
 (
     id bigint not null primary key
 );
@@ -44,42 +40,4 @@ create table t_order_item
 (
     order_item_id       bigint not null primary key,
     order_id bigint not null
-);
-
-
--- interval
-
-create table t_date_log_202205
-(
-    id          bigint   not null,
-    create_time datetime not null,
-    constraint t_date_log_202205_pk
-        primary key (id)
-);
-
-
-create table t_date_time_log_202205
-(
-    id          bigint   not null,
-    create_time datetime not null,
-    constraint t_date_time_log_202205_pk
-        primary key (id)
-);
-
-
-create table t_timestamp_log_202205
-(
-    id          bigint   not null,
-    create_time bigint not null,
-    constraint t_timestamp_log_202205_pk
-        primary key (id)
-);
-
-
-
-create table t_snowflake_log_202205
-(
-    id          bigint   not null,
-    constraint t_snowflake_log_202205_pk
-        primary key (id)
 );

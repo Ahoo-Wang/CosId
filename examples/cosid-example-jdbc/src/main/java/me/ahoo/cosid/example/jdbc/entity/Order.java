@@ -13,8 +13,11 @@
 
 package me.ahoo.cosid.example.jdbc.entity;
 
-public class Order {
 
+import me.ahoo.cosid.annotation.CosId;
+
+public class Order {
+    @CosId
     private Long orderId;
     private Long userId;
 

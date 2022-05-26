@@ -17,7 +17,7 @@
 
     <!--me.ahoo.cosid.shardingsphere.sharding.key.CosIdKeyGenerateAlgorithm-->
     <insert id="insert" useGeneratedKeys="true" keyProperty="orderId">
-        insert into t_order (user_id) value (#{userId});
+        insert into t_order (user_id,order_id) value (#{userId},#{orderId});
     </insert>
     <!--me.ahoo.cosid.annotation.CosId-->
     <insert id="insertItem">

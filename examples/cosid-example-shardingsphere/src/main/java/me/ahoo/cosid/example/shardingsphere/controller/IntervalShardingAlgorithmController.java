@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 
 /**
@@ -62,7 +63,7 @@ public class IntervalShardingAlgorithmController {
     @PostMapping("/insertDateTime")
     public LocalDateTimeLogEntity insertDateTime() {
         LocalDateTimeLogEntity log = new LocalDateTimeLogEntity();
-        log.setCreateTime(LocalDateTime.now());
+        log.setCreateTime(LocalDateTime.now(ZoneId.systemDefault()));
         algorithmRepository.insertDateTime(log);
         return log;
     }

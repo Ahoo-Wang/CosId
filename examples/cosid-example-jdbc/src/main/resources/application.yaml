@@ -3,81 +3,14 @@ server:
 spring:
   application:
     name: ${service.name:cosid-example-jdbc}
-  redis:
-    url: redis://localhost:6379
-  shardingsphere:
-#    mode:
-#      type: standalone
-#      repository:
-#        type: file
-    datasource:
-      names: ds0,ds1
-      ds0:
-        type: com.zaxxer.hikari.HikariDataSource
-        driver-class-name: com.mysql.cj.jdbc.Driver
-        jdbcUrl: jdbc:mysql://localhost:3306/cosid_db_0
-        username: root
-        password: root
-      ds1:
-        type: com.zaxxer.hikari.HikariDataSource
-        driver-class-name: com.mysql.cj.jdbc.Driver
-        jdbcUrl: jdbc:mysql://localhost:3306/cosid_db_1
-        username: root
-        password: root
-    props:
-      sql-show: true
-    rules:
-      sharding:
-        binding-tables:
-          - t_order,t_order_item
-        tables:
-          cosid:
-            actual-data-nodes: ds0.cosid
-          t_table:
-            actual-data-nodes: ds0.t_table_$->{0..1}
-            table-strategy:
-              standard:
-                sharding-column: id
-                sharding-algorithm-name: table-inline
-          t_friendly_table:
-            actual-data-nodes: ds0.t_friendly_table
-          t_order:
-            actual-data-nodes: ds$->{0..1}.t_order
-            database-strategy:
-              standard:
-                sharding-column: order_id
-                sharding-algorithm-name: order-db-inline
-            key-generate-strategy:
-              column: order_id
-              key-generator-name: order
-          t_order_item:
-            actual-data-nodes: ds$->{0..1}.t_order_item
-            database-strategy:
-              standard:
-                sharding-column: order_id
-                sharding-algorithm-name: order-db-inline
-        sharding-algorithms:
-          table-inline:
-            type: COSID_MOD
-            props:
-              mod: "2"
-              logic-name-prefix: t_table_
-          order-db-inline:
-            type: COSID_MOD
-            props:
-              mod: "2"
-              logic-name-prefix: ds
-        key-generators:
-          snowflake:
-            type: COSID
-            props:
-              id-name: snowflake
-          order:
-            type: COSID
-            props:
-              id-name: order
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/cosid_db_0
+    username: root
+    password: root
 
 cosid:
+  enabled: true
   namespace: ${spring.application.name}
   snowflake:
     enabled: true
@@ -106,6 +39,15 @@ cosid:
     mode: chain
     distributor:
       type: jdbc
+    share:
+      offset: 0
+      step: 100
+      converter:
+        prefix: cosid_
+        type: radix
+        radix:
+          char-size: 6
+          pad-start: false
     provider:
       order:
         offset: 10000
@@ -113,6 +55,7 @@ cosid:
       longId:
         offset: 10000
         step: 100
+
 mybatis:
   configuration:
     map-underscore-to-camel-case: true

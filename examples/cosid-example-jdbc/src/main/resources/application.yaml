@@ -4,11 +4,13 @@ spring:
   application:
     name: ${service.name:cosid-example-jdbc}
   datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/cosid_db
     username: root
     password: root
 
 cosid:
+  enabled: true
   namespace: ${spring.application.name}
   snowflake:
     enabled: true
@@ -17,11 +19,47 @@ cosid:
         type: jdbc
       guarder:
         enabled: true
-#  segment:
-#    enabled: true
-#    mode: chain
-#    distributor:
-#      type: proxy
+    provider:
+      short_id:
+        converter:
+          prefix: cosid_
+          type: radix
+          radix:
+            char-size: 11
+            pad-start: false
+      order_item:
+        sequence-bit: 12
+      snowflake:
+        sequence-bit: 12
+      safeJs:
+        machine-bit: 3
+        sequence-bit: 9
+  segment:
+    enabled: true
+    mode: chain
+    distributor:
+      type: jdbc
+    share:
+      offset: 0
+      step: 100
+      converter:
+        prefix: cosid_
+        type: radix
+        radix:
+          char-size: 6
+          pad-start: false
+    provider:
+      order:
+        offset: 10000
+        step: 100
+      longId:
+        offset: 10000
+        step: 100
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+  mapper-locations: classpath:/mappers/*.xml
 
 logging:
   level:

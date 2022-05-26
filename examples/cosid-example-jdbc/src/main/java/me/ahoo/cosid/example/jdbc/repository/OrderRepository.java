@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.repository;
+package me.ahoo.cosid.example.jdbc.repository;
 
-import me.ahoo.cosid.example.entity.Order;
-import me.ahoo.cosid.example.entity.OrderItem;
+import me.ahoo.cosid.example.jdbc.entity.Order;
+import me.ahoo.cosid.example.jdbc.entity.OrderItem;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -22,9 +22,9 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
 /**
- * Order Repository
+ * OrderRepository.
  *
- * @author ahoo wang
+ * @author Rocher Kong
  */
 @Mapper
 public interface OrderRepository {

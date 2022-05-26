@@ -50,7 +50,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Init CosId-Db
-        run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
+        run: mysql -vvv -h localhost -uroot -proot < examples/cosid-example-jdbc/init-script/init-example-schemal.sql
 
       - name: Test Example-Jdbc
         run: gradle cosid-example-jdbc:clean cosid-example-jdbc:check

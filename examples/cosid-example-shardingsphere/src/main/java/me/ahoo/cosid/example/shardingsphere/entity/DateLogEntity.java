@@ -11,31 +11,36 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.repository;
+package me.ahoo.cosid.example.shardingsphere.entity;
 
-import me.ahoo.cosid.example.entity.Order;
-import me.ahoo.cosid.example.entity.OrderItem;
-
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
+import java.util.Date;
 
 /**
- * Order Repository
+ * create table t_friendly_table
+ * (
+ * id varchar(25) not null primary key
+ * );.
  *
- * @author ahoo wang
+ * @author Rocher Kong
  */
-@Mapper
-public interface OrderRepository {
+public class DateLogEntity {
 
-    void insert(Order order);
+    private long id;
+    private Date createTime;
 
-    void insertItem(OrderItem orderItem);
+    public long getId() {
+        return id;
+    }
 
-    Order getById(@Param("orderId") long orderId);
+    public void setId(long id) {
+        this.id = id;
+    }
 
-    List<Order> query();
+    public Date getCreateTime() {
+        return createTime;
+    }
 
-    List<Order> getByIds(@Param("ids") List<Long> ids);
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
 }

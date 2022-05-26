@@ -59,4 +59,3 @@ buildscript {
         classpath("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.6")
     }
 }
-

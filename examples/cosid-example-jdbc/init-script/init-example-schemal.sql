@@ -10,7 +10,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
--- ds0
+create database if not exists cosid_db;
+use cosid_db;
+
+create table if not exists cosid
+(
+    name            varchar(100)    not null comment '{namespace}.{name}',
+    last_max_id     bigint unsigned not null default 0,
+    last_fetch_time bigint unsigned not null default 0,
+    constraint cosid_pk
+    primary key (name)
+    ) engine = InnoDB;
+
+insert into cosid
+(name, last_max_id, last_fetch_time)
+    value
+    ('namespace.name', 0, unix_timestamp());
+
+create table if not exists cosid_machine
+(
+    name            varchar(100)     not null comment '{namespace}.{machine_id}',
+    namespace       varchar(100)     not null,
+    machine_id      integer unsigned not null default 0,
+    last_timestamp  bigint unsigned  not null default 0,
+    instance_id     varchar(100)     not null default '',
+    distribute_time bigint unsigned  not null default 0,
+    revert_time     bigint unsigned  not null default 0,
+    constraint cosid_machine_pk
+    primary key (name)
+    ) engine = InnoDB;
+
+create index idx_namespace on cosid_machine (namespace);
+create index idx_instance_id on cosid_machine (instance_id);
+
 create table t_friendly_table
 (
     id varchar(25) not null primary key
@@ -21,15 +53,7 @@ create table t_table
     id bigint not null primary key
 );
 
-create table cosid
-(
-    name varchar(100) not null comment '{namespace}.{name}'
-        primary key,
-    last_max_id bigint default 0 not null,
-    last_fetch_time bigint not null
-);
 
--- ds0 & ds1
 create table t_order
 (
     order_id      bigint not null primary key,

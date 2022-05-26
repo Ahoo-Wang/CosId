@@ -5,7 +5,7 @@ spring:
     name: ${service.name:cosid-example-jdbc}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/cosid_db_0
+    url: jdbc:mysql://localhost:3306/cosid_db
     username: root
     password: root
 

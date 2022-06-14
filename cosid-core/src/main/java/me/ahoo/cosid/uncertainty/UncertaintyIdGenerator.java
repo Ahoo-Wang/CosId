@@ -18,7 +18,6 @@ import me.ahoo.cosid.IdGeneratorDecorator;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 
 import com.google.common.annotations.Beta;
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 
 import java.util.concurrent.ThreadLocalRandom;

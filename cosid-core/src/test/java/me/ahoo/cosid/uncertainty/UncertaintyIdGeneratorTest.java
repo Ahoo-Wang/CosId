@@ -60,7 +60,17 @@ class UncertaintyIdGeneratorTest {
         };
         UncertaintyIdGenerator idGenerator = new UncertaintyIdGenerator(overflowIdGen, UNCERTAINTY_BITS);
         idGenerator.generate();
-        Assertions.assertThrows(OriginalIdOverflowException.class, idGenerator::generate);
+        boolean thrown = false;
+        try {
+            idGenerator.generate();
+        } catch (OriginalIdOverflowException overflowException) {
+            thrown = true;
+            assertThat(overflowException.maxOriginalId(), equalTo(idGenerator.maxOriginalId()));
+            assertThat(overflowException.originalIdBits(), equalTo(idGenerator.originalIdBits()));
+            assertThat(overflowException.originalId(), equalTo(idGenerator.maxOriginalId() + 1));
+        }
+        
+        assertThat(thrown, equalTo(true));
     }
     
     @Test

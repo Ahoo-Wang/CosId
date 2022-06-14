@@ -20,6 +20,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
@@ -29,6 +30,8 @@ import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 class UncertaintyIdGeneratorTest {
     private static final int UNCERTAINTY_BITS = 5;
     
@@ -36,9 +39,28 @@ class UncertaintyIdGeneratorTest {
     void generateGivenSnowflakeId() {
         SnowflakeId snowflakeId = new MillisecondSnowflakeId(CosId.COSID_EPOCH, DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT - UNCERTAINTY_BITS, DEFAULT_SEQUENCE_BIT, 0);
         UncertaintyIdGenerator idGenerator = new UncertaintyIdGenerator(snowflakeId, UNCERTAINTY_BITS);
+        assertThat(idGenerator.uncertaintyBits(), equalTo(UNCERTAINTY_BITS));
+        assertThat(idGenerator.originalIdBits(), equalTo(SnowflakeId.TOTAL_BIT - UNCERTAINTY_BITS));
+        assertThat(idGenerator.uncertaintyBound(), equalTo(~(-1L << UNCERTAINTY_BITS) + 1));
+        assertThat(idGenerator.maxOriginalId(), equalTo(~(-1L << (SnowflakeId.TOTAL_BIT - UNCERTAINTY_BITS))));
         long beforeId = idGenerator.generate();
         long afterId = idGenerator.generate();
         assertThat(beforeId, lessThan(afterId));
+    }
+    
+    @Test
+    void generateGivenOverflow() {
+        IdGenerator overflowIdGen = new IdGenerator() {
+            private final AtomicLong actual = new AtomicLong(~(-1L << (SnowflakeId.TOTAL_BIT - UNCERTAINTY_BITS)));
+            
+            @Override
+            public long generate() {
+                return actual.getAndIncrement();
+            }
+        };
+        UncertaintyIdGenerator idGenerator = new UncertaintyIdGenerator(overflowIdGen, UNCERTAINTY_BITS);
+        idGenerator.generate();
+        Assertions.assertThrows(OriginalIdOverflowException.class, idGenerator::generate);
     }
     
     @Test

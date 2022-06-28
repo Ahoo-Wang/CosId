@@ -109,6 +109,7 @@ cosid:
 <p align="center">
      <img src="./document/docs/.vuepress/public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
 </p>
+
 ```yaml
 cosid:
   snowflake:

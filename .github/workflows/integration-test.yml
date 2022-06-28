@@ -133,6 +133,25 @@ jobs:
       - name: Test CosId-Redis
         run: gradle cosid-redis:clean cosid-redis:check cosid-spring-redis:clean cosid-spring-redis:check
 
+  cosid-proxy-test:
+    name: CosId Proxy Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v3
+        with:
+          java-version: '8'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Proxy
+        run: gradle cosid-proxy:clean cosid-proxy:check
+
   cosid-zookeeper-test:
     name: CosId Zookeeper Test
     needs: [ cosid-core-test ]

@@ -18,14 +18,12 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
 import okhttp3.OkHttpClient;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
-@DisabledIfEnvironmentVariable(named = "CI", matches = "true")
 class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     
     @Override
     protected IdSegmentDistributorFactory getFactory() {
-        return new ProxyIdSegmentDistributorFactory(new OkHttpClient(), ProxyMachineIdDistributorTest.PROXY_HOST);
+        return new ProxyIdSegmentDistributorFactory(new OkHttpClient(), ProxyServerLauncher.COSID_PROXY_HOST);
     }
     
     @Override

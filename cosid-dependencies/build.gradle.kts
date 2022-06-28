@@ -17,6 +17,7 @@ dependencies {
     api(platform("com.squareup.okhttp3:okhttp-bom:${rootProject.ext.get("okhttpVersion")}"))
     api(platform("org.axonframework:axon-bom:${rootProject.ext.get("axonBomVersion")}"))
     api(platform("me.ahoo.cosky:cosky-bom:${rootProject.ext.get("coskyVersion")}"))
+    api(platform("org.testcontainers:testcontainers-bom:${rootProject.ext.get("testcontainersVersion")}"))
     constraints {
         api("org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}")
         api("org.mybatis:mybatis:${rootProject.ext.get("mybatisVersion")}")

@@ -16,4 +16,6 @@ dependencies {
     api("com.squareup.okhttp3:okhttp")
     api(project(":cosid-core"))
     testImplementation(project(":cosid-test"))
+    testImplementation("org.testcontainers:testcontainers")
+    testImplementation("org.testcontainers:junit-jupiter")
 }

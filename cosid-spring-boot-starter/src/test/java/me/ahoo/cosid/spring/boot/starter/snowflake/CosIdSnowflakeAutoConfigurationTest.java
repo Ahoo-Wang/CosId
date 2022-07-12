@@ -15,14 +15,18 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.SnowflakeId;
-import me.ahoo.cosid.snowflake.machine.InstanceId;
-import me.ahoo.cosid.snowflake.machine.MachineId;
-import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
-import me.ahoo.cosid.snowflake.machine.ManualMachineIdDistributor;
-import me.ahoo.cosid.snowflake.machine.k8s.StatefulSetMachineIdDistributor;
+import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineId;
+import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.ManualMachineIdDistributor;
+import me.ahoo.cosid.machine.k8s.StatefulSetMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdLifecycleMachineIdDistributor;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import org.junit.jupiter.api.Test;
 import org.junitpioneer.jupiter.SetEnvironmentVariable;
@@ -40,9 +44,13 @@ class CosIdSnowflakeAutoConfigurationTest {
     @Test
     void contextLoads() {
         this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".machine.distributor.manual.machineId=1")
-            .withUserConfiguration(UtilAutoConfiguration.class, CosIdAutoConfiguration.class, CosIdSnowflakeAutoConfiguration.class)
+            .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
+            .withUserConfiguration(UtilAutoConfiguration.class,
+                CosIdAutoConfiguration.class,
+                CosIdMachineAutoConfiguration.class,
+                CosIdSnowflakeAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(CosIdSnowflakeAutoConfiguration.class)
@@ -50,35 +58,11 @@ class CosIdSnowflakeAutoConfigurationTest {
                     .hasSingleBean(InstanceId.class)
                     .hasSingleBean(MachineStateStorage.class)
                     .hasSingleBean(ClockBackwardsSynchronizer.class)
-                    .hasSingleBean(ManualMachineIdDistributor.class)
+                    .hasSingleBean(MachineId.class)
                     .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
                     .hasSingleBean(SnowflakeId.class)
-                    .hasSingleBean(MachineId.class)
                 ;
             });
     }
     
-    @Test
-    @SetEnvironmentVariable(
-        key = StatefulSetMachineIdDistributor.HOSTNAME_KEY,
-        value = "cosid-host-6")
-    void contextLoadsWhenMachineIdDistributorIsStatefulSet() {
-        this.contextRunner
-            .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".machine.distributor.type=stateful_set")
-            .withUserConfiguration(UtilAutoConfiguration.class, CosIdAutoConfiguration.class, CosIdSnowflakeAutoConfiguration.class)
-            .run(context -> {
-                assertThat(context)
-                    .hasSingleBean(CosIdSnowflakeAutoConfiguration.class)
-                    .hasSingleBean(SnowflakeIdProperties.class)
-                    .hasSingleBean(InstanceId.class)
-                    .hasSingleBean(MachineStateStorage.class)
-                    .hasSingleBean(ClockBackwardsSynchronizer.class)
-                    .hasSingleBean(StatefulSetMachineIdDistributor.class)
-                    .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
-                    .hasSingleBean(SnowflakeId.class)
-                    .hasSingleBean(MachineId.class)
-                ;
-            });
-    }
 }

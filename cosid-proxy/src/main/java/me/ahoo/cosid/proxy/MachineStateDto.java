@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.proxy;
 
-import me.ahoo.cosid.snowflake.machine.MachineState;
+import me.ahoo.cosid.machine.MachineState;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

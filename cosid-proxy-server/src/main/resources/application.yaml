@@ -15,13 +15,14 @@ spring:
 #    password: root
 cosid:
   namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    distributor:
+      type: redis
+    guarder:
+      enabled: true
   snowflake:
     enabled: true
-    machine:
-      distributor:
-        type: redis
-      guarder:
-        enabled: true
   segment:
     enabled: true
     mode: chain

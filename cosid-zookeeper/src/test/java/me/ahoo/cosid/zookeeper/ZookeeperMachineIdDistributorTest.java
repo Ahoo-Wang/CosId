@@ -13,10 +13,10 @@
 
 package me.ahoo.cosid.zookeeper;
 
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
-import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
-import me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
+import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
 import lombok.SneakyThrows;
 import org.apache.curator.RetryPolicy;
@@ -28,7 +28,6 @@ import org.apache.curator.test.TestingServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
-import java.time.Duration;
 import java.util.Objects;
 
 /**

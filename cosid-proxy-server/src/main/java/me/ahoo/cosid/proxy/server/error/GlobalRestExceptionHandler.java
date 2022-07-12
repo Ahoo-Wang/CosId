@@ -13,9 +13,9 @@
 
 package me.ahoo.cosid.proxy.server.error;
 
-import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
-import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
-import me.ahoo.cosid.snowflake.machine.NotFoundMachineStateException;
+import me.ahoo.cosid.machine.MachineIdLostException;
+import me.ahoo.cosid.machine.MachineIdOverflowException;
+import me.ahoo.cosid.machine.NotFoundMachineStateException;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;

@@ -7,14 +7,14 @@ cosid:
   zookeeper:
     connect-string: localhost:2181
   namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    distributor:
+      type: zookeeper
+    guarder:
+      enabled: true
   snowflake:
     enabled: true
-    machine:
-      distributor:
-        type: zookeeper
-      guarder:
-        enabled: true
-
 #  segment:
 #    enabled: true
 #    mode: chain

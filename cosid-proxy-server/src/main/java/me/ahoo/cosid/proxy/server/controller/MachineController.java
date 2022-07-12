@@ -13,11 +13,11 @@
 
 package me.ahoo.cosid.proxy.server.controller;
 
-import me.ahoo.cosid.snowflake.machine.InstanceId;
-import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
-import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
-import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
-import me.ahoo.cosid.snowflake.machine.MachineState;
+import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineIdDistributor;
+import me.ahoo.cosid.machine.MachineIdLostException;
+import me.ahoo.cosid.machine.MachineIdOverflowException;
+import me.ahoo.cosid.machine.MachineState;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;

@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid;
 
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
 import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;

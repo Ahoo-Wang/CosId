@@ -150,29 +150,29 @@ spring:
 
 cosid:
   namespace: ${spring.application.name}
-  snowflake:
+  machine:
     enabled: true
-    #    epoch: 1577203200000
     clock-backwards:
       spin-threshold: 10
       broken-threshold: 2000
-    machine:
       #      stable: true
       #      machine-bit: 10
       #      instance-id: ${HOSTNAME}
-      distributor:
-        type: redis
-      #        manual:
-      #          machine-id: 0
-      state-storage:
-        local:
-          state-location: ./cosid-machine-state/
-      guarder:
-        enabled: true
+    distributor:
+      type: redis
+    #        manual:
+    #          machine-id: 0
+    state-storage:
+      local:
+        state-location: ./cosid-machine-state/
+    guarder:
+      enabled: true
+  snowflake:
+    enabled: true
+    #    epoch: 1577203200000
     share:
       clock-sync: true
       friendly: true
-
     provider:
       short_id:
         converter:
@@ -208,6 +208,7 @@ cosid:
       longId:
         offset: 10000
         step: 100
+
 
 mybatis:
   configuration:

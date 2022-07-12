@@ -18,6 +18,8 @@ import me.ahoo.cosid.IdGenerator;
 /**
  * Segment algorithm ID generator.
  *
+ * <p><img src="../doc-files/SegmentId.png" alt="SegmentId"></p>
+ *
  * @author ahoo wang
  */
 public interface SegmentId extends IdGenerator {

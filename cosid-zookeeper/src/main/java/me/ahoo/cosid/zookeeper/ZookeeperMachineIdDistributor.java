@@ -15,14 +15,14 @@ package me.ahoo.cosid.zookeeper;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.CosIdException;
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
-import me.ahoo.cosid.snowflake.machine.InstanceId;
-import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
-import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
-import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
-import me.ahoo.cosid.snowflake.machine.MachineState;
-import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineIdDistributor;
+import me.ahoo.cosid.machine.MachineIdLostException;
+import me.ahoo.cosid.machine.MachineIdOverflowException;
+import me.ahoo.cosid.machine.MachineState;
+import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.util.Exceptions;
 
 import com.google.common.base.Strings;

@@ -13,16 +13,16 @@
 
 package me.ahoo.cosid.redis;
 
-import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
+import static me.ahoo.cosid.machine.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
 
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
-import me.ahoo.cosid.snowflake.machine.InstanceId;
-import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
-import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
-import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
-import me.ahoo.cosid.snowflake.machine.MachineState;
-import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineIdDistributor;
+import me.ahoo.cosid.machine.MachineIdLostException;
+import me.ahoo.cosid.machine.MachineIdOverflowException;
+import me.ahoo.cosid.machine.MachineState;
+import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosky.core.redis.RedisScripts;
 
 import io.lettuce.core.ScriptOutputType;

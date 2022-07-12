@@ -13,10 +13,10 @@
 
 package me.ahoo.cosid.redis;
 
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
-import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
-import me.ahoo.cosid.test.snowflake.machine.distributor.MachineIdDistributorSpec;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
+import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;

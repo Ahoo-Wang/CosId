@@ -13,16 +13,16 @@
 
 package me.ahoo.cosid.spring.redis;
 
-import static me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
+import static me.ahoo.cosid.machine.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
 
-import me.ahoo.cosid.snowflake.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.machine.AbstractMachineIdDistributor;
-import me.ahoo.cosid.snowflake.machine.InstanceId;
-import me.ahoo.cosid.snowflake.machine.MachineIdDistributor;
-import me.ahoo.cosid.snowflake.machine.MachineIdLostException;
-import me.ahoo.cosid.snowflake.machine.MachineIdOverflowException;
-import me.ahoo.cosid.snowflake.machine.MachineState;
-import me.ahoo.cosid.snowflake.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineIdDistributor;
+import me.ahoo.cosid.machine.MachineIdLostException;
+import me.ahoo.cosid.machine.MachineIdOverflowException;
+import me.ahoo.cosid.machine.MachineState;
+import me.ahoo.cosid.machine.MachineStateStorage;
 
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +34,6 @@ import org.springframework.data.redis.core.script.RedisScript;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Spring Redis MachineIdDistributor.

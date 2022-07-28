@@ -5,7 +5,7 @@
 ARG APP_NAME=cosid-proxy-server
 ARG WORK_HOME=/opt/${APP_NAME}
 
-FROM openjdk:17-jdk-slim AS base
+FROM openjdk:20-jdk-slim AS base
 
 FROM base as build
 ARG WORK_HOME

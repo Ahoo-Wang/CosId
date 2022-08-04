@@ -33,7 +33,7 @@ public class SecondSnowflakeId extends AbstractSnowflakeId {
     }
 
     public SecondSnowflakeId(int machineBit, long machineId) {
-        super(CosId.COSID_EPOCH, DEFAULT_TIMESTAMP_BIT, machineBit, DEFAULT_SEQUENCE_BIT, machineId);
+        super(CosId.COSID_EPOCH_SECOND, DEFAULT_TIMESTAMP_BIT, machineBit, DEFAULT_SEQUENCE_BIT, machineId);
     }
 
     public SecondSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId) {

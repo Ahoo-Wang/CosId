@@ -36,9 +36,9 @@ class Radix62IdConverterTest {
     }
     
     @Test
-    void asStringWhenIdZero() {
+    void asStringWhenIdNegative() {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            Radix62IdConverter.INSTANCE.asString(0L);
+            Radix62IdConverter.INSTANCE.asString(-1L);
         });
     }
     

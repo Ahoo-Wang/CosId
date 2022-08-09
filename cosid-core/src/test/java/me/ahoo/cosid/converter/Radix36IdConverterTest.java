@@ -33,11 +33,11 @@ class Radix36IdConverterTest {
         Assertions.assertNotNull(idStr);
         Assertions.assertTrue(idStr.length() <= Radix36IdConverter.MAX_CHAR_SIZE);
     }
-
+    
     @Test
-    void asStringWhenIdZero() {
+    void asStringWhenIdNegative() {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            Radix36IdConverter.INSTANCE.asString(0L);
+            Radix36IdConverter.INSTANCE.asString(-1L);
         });
     }
 

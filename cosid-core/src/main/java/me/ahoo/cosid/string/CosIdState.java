@@ -13,32 +13,65 @@
 
 package me.ahoo.cosid.string;
 
-public final class CosIdState {
-    private long timestamp;
-    private int machineId;
-    private int sequence;
+import com.google.common.base.MoreObjects;
+
+import java.util.Objects;
+
+public final class CosIdState implements Comparable<CosIdState> {
+    private final long timestamp;
+    private final int machineId;
+    private final int sequence;
+    
+    public CosIdState(long timestamp, int machineId, int sequence) {
+        this.timestamp = timestamp;
+        this.machineId = machineId;
+        this.sequence = sequence;
+    }
     
     public long getTimestamp() {
         return timestamp;
-    }
-    
-    public void setTimestamp(long timestamp) {
-        this.timestamp = timestamp;
     }
     
     public int getMachineId() {
         return machineId;
     }
     
-    public void setMachineId(int machineId) {
-        this.machineId = machineId;
-    }
-    
     public int getSequence() {
         return sequence;
     }
     
-    public void setSequence(int sequence) {
-        this.sequence = sequence;
+    @Override
+    public int compareTo(CosIdState o) {
+        int timestampCompared = Long.compare(timestamp, o.timestamp);
+        if (timestampCompared != 0) {
+            return timestampCompared;
+        }
+        return Integer.compare(sequence, o.sequence);
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof CosIdState)) {
+            return false;
+        }
+        CosIdState that = (CosIdState) o;
+        return getTimestamp() == that.getTimestamp() && getMachineId() == that.getMachineId() && getSequence() == that.getSequence();
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(getTimestamp(), getMachineId(), getSequence());
+    }
+    
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+            .add("timestamp", timestamp)
+            .add("machineId", machineId)
+            .add("sequence", sequence)
+            .toString();
     }
 }

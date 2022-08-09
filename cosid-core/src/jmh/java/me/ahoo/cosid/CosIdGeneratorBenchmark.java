@@ -13,14 +13,9 @@
 
 package me.ahoo.cosid;
 
-import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
-
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
-import me.ahoo.cosid.segment.DefaultSegmentId;
-import me.ahoo.cosid.segment.IdSegmentDistributor;
-import me.ahoo.cosid.segment.SegmentChainId;
-import me.ahoo.cosid.segment.SegmentId;
-import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.string.CosIdGenerator;
 import me.ahoo.cosid.string.CosIdState;
 
@@ -31,17 +26,13 @@ import org.openjdk.jmh.annotations.State;
 
 import java.util.UUID;
 
-
 /**
  * SegmentId Benchmark.
  *
  * @author ahoo wang
  */
 @State(Scope.Benchmark)
-public class SegmentIdBenchmark {
-    
-    SegmentId segmentId;
-    SegmentChainId segmentChainId;
+public class CosIdGeneratorBenchmark {
     AtomicLongGenerator atomicLongGenerator;
     CosIdGenerator cosIdGenerator;
     
@@ -51,8 +42,7 @@ public class SegmentIdBenchmark {
     @Setup
     public void setup() {
         atomicLongGenerator = new AtomicLongGenerator();
-        segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
-        segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Mock(), PrefetchWorkerExecutorService.DEFAULT);
+        cosIdGenerator = new CosIdGenerator(CosIdGenerator.DEFAULT_TIMESTAMP_BIT, CosIdGenerator.DEFAULT_MACHINE_BIT, CosIdGenerator.DEFAULT_SEQUENCE_BIT, 1);
     }
     
     @Benchmark
@@ -61,28 +51,38 @@ public class SegmentIdBenchmark {
     }
     
     @Benchmark
+    public long currentTimeMillis() {
+        return System.currentTimeMillis();
+    }
+    
+    @Benchmark
+    public long nanoTime() {
+        return System.nanoTime();
+    }
+    
+    @Benchmark
     public long atomicLong_generate() {
         return atomicLongGenerator.generate();
     }
     
     @Benchmark
-    public long segmentId_generate() {
-        return segmentId.generate();
-    }
-    
-    @Benchmark
-    public long segmentChainId_generate() {
-        return segmentChainId.generate();
-    }
-    
-    @Benchmark
     public String cosIdGenerator_generateAsString() {
-        return cosIdGenerator.generateAsString();
+        try {
+            return cosIdGenerator.generateAsString();
+        } catch (ClockBackwardsException exception) {
+            ClockBackwardsSynchronizer.DEFAULT.syncUninterruptibly(cosIdGenerator.getLastTimestamp());
+            return cosIdGenerator.generateAsString();
+        }
     }
     
     @Benchmark
     public CosIdState cosIdGenerator_generateAsState() {
-        return cosIdGenerator.generateAsState();
+        try {
+            return cosIdGenerator.generateAsState();
+        } catch (ClockBackwardsException exception) {
+            ClockBackwardsSynchronizer.DEFAULT.syncUninterruptibly(cosIdGenerator.getLastTimestamp());
+            return cosIdGenerator.generateAsState();
+        }
     }
     
 }

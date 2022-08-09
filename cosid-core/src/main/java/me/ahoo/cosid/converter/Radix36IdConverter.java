@@ -46,7 +46,6 @@ public final class Radix36IdConverter extends RadixIdConverter {
         
         return new Radix36IdConverter(padStart, charSize);
     }
-
     
     public Radix36IdConverter(boolean padStart, int charSize) {
         super(padStart, charSize);

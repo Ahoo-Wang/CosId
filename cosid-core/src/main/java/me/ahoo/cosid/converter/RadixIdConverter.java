@@ -100,7 +100,7 @@ public abstract class RadixIdConverter implements IdConverter {
         return padStart;
     }
     
-    int getCharSize() {
+    public int getCharSize() {
         return charSize;
     }
     
@@ -111,7 +111,7 @@ public abstract class RadixIdConverter implements IdConverter {
     @Override
     public String asString(long id) {
         
-        Preconditions.checkArgument(id > 0, "id[%s] must be greater than 0!", id);
+        Preconditions.checkArgument(id > -1, "id[%s] must be greater than -1!", id);
         
         final int maxCharSize = getMaxCharSize();
         

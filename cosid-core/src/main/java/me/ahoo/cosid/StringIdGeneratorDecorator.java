@@ -13,41 +13,29 @@
 
 package me.ahoo.cosid;
 
-import me.ahoo.cosid.converter.Radix62IdConverter;
-
-import javax.annotation.concurrent.ThreadSafe;
-
 /**
- * Id Generator.
+ * used to enhance the generated string ID.
  *
  * @author ahoo wang
  */
-@ThreadSafe
-public interface IdGenerator extends StringIdGenerator {
-    
-    /**
-     * ID converter, used to convert {@code long} type ID to {@link String}.
-     *
-     * @return ID converter
-     */
-    default IdConverter idConverter() {
-        return Radix62IdConverter.PAD_START;
+public class StringIdGeneratorDecorator implements IdGeneratorDecorator {
+
+    protected final IdGenerator actual;
+    protected final IdConverter idConverter;
+
+    public StringIdGeneratorDecorator(IdGenerator actual, IdConverter idConverter) {
+        this.actual = actual;
+        this.idConverter = idConverter;
     }
-    
-    /**
-     * Generate distributed ID.
-     *
-     * @return generated distributed ID
-     */
-    long generate();
-    
-    /**
-     * Generate distributed ID as String.
-     *
-     * @return generated distributed ID as String
-     */
+
     @Override
-    default String generateAsString() {
-        return idConverter().asString(generate());
+    public IdConverter idConverter() {
+        return idConverter;
     }
+    
+    @Override
+    public IdGenerator getActual() {
+        return actual;
+    }
+
 }

@@ -11,21 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid;
+package me.ahoo.cosid.string;
 
-import javax.annotation.concurrent.ThreadSafe;
+import me.ahoo.cosid.StringIdGenerator;
 
 /**
- * String type ID generator.
- *
- * @author ahoo wang
+ * [timestamp(48)]-[machineId-(16)]-[sequence-(16)] = 80 BITS = 10 BYTES.
  */
-@ThreadSafe
-public interface StringIdGenerator {
-    /**
-     * Generate string type distributed ID.
-     *
-     * @return string type distributed ID
-     */
-    String generateAsString();
+public class CosIdGenerator implements StringIdGenerator {
+    
+    @Override
+    public String generateAsString() {
+        return null;
+    }
 }

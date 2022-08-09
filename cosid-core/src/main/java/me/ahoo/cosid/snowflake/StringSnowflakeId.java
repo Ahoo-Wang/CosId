@@ -14,14 +14,14 @@
 package me.ahoo.cosid.snowflake;
 
 import me.ahoo.cosid.IdConverter;
-import me.ahoo.cosid.StringIdGenerator;
+import me.ahoo.cosid.StringIdGeneratorDecorator;
 
 /**
  * String SnowflakeId.
  *
  * @author ahoo wang
  */
-public class StringSnowflakeId extends StringIdGenerator implements SnowflakeId {
+public class StringSnowflakeId extends StringIdGeneratorDecorator implements SnowflakeId {
     private final SnowflakeId snowflakeId;
 
     public StringSnowflakeId(SnowflakeId actual, IdConverter idConverter) {

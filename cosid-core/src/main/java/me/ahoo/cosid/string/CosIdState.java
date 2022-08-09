@@ -11,21 +11,34 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid;
+package me.ahoo.cosid.string;
 
-import javax.annotation.concurrent.ThreadSafe;
-
-/**
- * String type ID generator.
- *
- * @author ahoo wang
- */
-@ThreadSafe
-public interface StringIdGenerator {
-    /**
-     * Generate string type distributed ID.
-     *
-     * @return string type distributed ID
-     */
-    String generateAsString();
+public final class CosIdState {
+    private long timestamp;
+    private int machineId;
+    private int sequence;
+    
+    public long getTimestamp() {
+        return timestamp;
+    }
+    
+    public void setTimestamp(long timestamp) {
+        this.timestamp = timestamp;
+    }
+    
+    public int getMachineId() {
+        return machineId;
+    }
+    
+    public void setMachineId(int machineId) {
+        this.machineId = machineId;
+    }
+    
+    public int getSequence() {
+        return sequence;
+    }
+    
+    public void setSequence(int sequence) {
+        this.sequence = sequence;
+    }
 }

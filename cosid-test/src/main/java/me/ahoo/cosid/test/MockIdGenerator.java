@@ -14,7 +14,7 @@
 package me.ahoo.cosid.test;
 
 import me.ahoo.cosid.IdGenerator;
-import me.ahoo.cosid.StringIdGenerator;
+import me.ahoo.cosid.StringIdGeneratorDecorator;
 import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
@@ -24,7 +24,7 @@ import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
  *
  * @author ahoo wang
  */
-public class MockIdGenerator extends StringIdGenerator {
+public class MockIdGenerator extends StringIdGeneratorDecorator {
     
     public static final String TEST_PREFIX = "test_";
     

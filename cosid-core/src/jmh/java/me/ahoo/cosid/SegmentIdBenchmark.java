@@ -43,7 +43,6 @@ public class SegmentIdBenchmark {
     SegmentId segmentId;
     SegmentChainId segmentChainId;
     AtomicLongGenerator atomicLongGenerator;
-    CosIdGenerator cosIdGenerator;
     
     /**
      * Initialize IdGenerator.
@@ -74,15 +73,5 @@ public class SegmentIdBenchmark {
     public long segmentChainId_generate() {
         return segmentChainId.generate();
     }
-    
-    @Benchmark
-    public String cosIdGenerator_generateAsString() {
-        return cosIdGenerator.generateAsString();
-    }
-    
-    @Benchmark
-    public CosIdState cosIdGenerator_generateAsState() {
-        return cosIdGenerator.generateAsState();
-    }
-    
+
 }

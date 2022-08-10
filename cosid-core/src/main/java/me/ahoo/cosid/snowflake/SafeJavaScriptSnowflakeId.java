@@ -23,19 +23,19 @@ import me.ahoo.cosid.CosId;
  * @author ahoo wang
  **/
 public final class SafeJavaScriptSnowflakeId {
-
+    
     public static final int JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT = 53;
     public static final long JAVA_SCRIPT_MAX_SAFE_NUMBER = 9007199254740991L;
-
+    
     public static boolean isSafeJavaScript(long id) {
         return id < JAVA_SCRIPT_MAX_SAFE_NUMBER;
     }
-
-    public static MillisecondSnowflakeId ofMillisecond(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId) {
+    
+    public static MillisecondSnowflakeId ofMillisecond(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId, long sequenceResetThreshold) {
         checkTotalBit(timestampBit, machineBit, sequenceBit);
-        return new MillisecondSnowflakeId(epoch, timestampBit, machineBit, sequenceBit, machineId);
+        return new MillisecondSnowflakeId(epoch, timestampBit, machineBit, sequenceBit, machineId, sequenceResetThreshold);
     }
-
+    
     /**
      * Max Sequence (9 bits) = ((1&lt;&lt;)*1000) = 512000 (TPS)
      * Max Machine (3 bits) = 1&lt;&lt;3 = 8
@@ -49,14 +49,14 @@ public final class SafeJavaScriptSnowflakeId {
         final int machineBit = MillisecondSnowflakeId.DEFAULT_MACHINE_BIT - 7;
         final int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT - 3;
         checkTotalBit(timestampBit, machineBit, sequenceBit);
-        return ofMillisecond(CosId.COSID_EPOCH_SECOND, timestampBit, machineBit, sequenceBit, machineId);
+        return ofMillisecond(CosId.COSID_EPOCH_SECOND, timestampBit, machineBit, sequenceBit, machineId, SnowflakeId.defaultSequenceResetThreshold(sequenceBit));
     }
-
-    public static SecondSnowflakeId ofSecond(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId) {
+    
+    public static SecondSnowflakeId ofSecond(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId, long sequenceResetThreshold) {
         checkTotalBit(timestampBit, machineBit, sequenceBit);
-        return new SecondSnowflakeId(epoch, timestampBit, machineBit, sequenceBit, machineId);
+        return new SecondSnowflakeId(epoch, timestampBit, machineBit, sequenceBit, machineId, sequenceResetThreshold);
     }
-
+    
     /**
      * Max Sequence (19 bits) = (1&lt;&lt;19) = 524288 (TPS).
      * Max Machine (3 bits) = 1&lt;&lt;3 = 8
@@ -70,9 +70,9 @@ public final class SafeJavaScriptSnowflakeId {
         final int machineBit = SecondSnowflakeId.DEFAULT_MACHINE_BIT - 7;
         final int sequenceBit = SecondSnowflakeId.DEFAULT_SEQUENCE_BIT - 3;
         checkTotalBit(timestampBit, machineBit, sequenceBit);
-        return ofSecond(CosId.COSID_EPOCH_SECOND, timestampBit, machineBit, sequenceBit, machineId);
+        return ofSecond(CosId.COSID_EPOCH_SECOND, timestampBit, machineBit, sequenceBit, machineId, SnowflakeId.defaultSequenceResetThreshold(sequenceBit));
     }
-
+    
     private static void checkTotalBit(int timestampBit, int machineBit, int sequenceBit) {
         if (timestampBit + machineBit + sequenceBit > JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT) {
             throw new IllegalArgumentException(String.format("total bit can't be greater than JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT:[%s].", JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT));

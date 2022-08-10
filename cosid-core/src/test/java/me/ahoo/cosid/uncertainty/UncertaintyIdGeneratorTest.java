@@ -104,7 +104,8 @@ class UncertaintyIdGeneratorTest {
     
     @Test
     void generateWhenConcurrentGivenSnowflakeId() {
-        SnowflakeId snowflakeId = new MillisecondSnowflakeId(CosId.COSID_EPOCH, DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT - UNCERTAINTY_BITS, DEFAULT_SEQUENCE_BIT, 0);
+        SnowflakeId snowflakeId = new MillisecondSnowflakeId(CosId.COSID_EPOCH, DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT - UNCERTAINTY_BITS, DEFAULT_SEQUENCE_BIT, 0,
+            SnowflakeId.defaultSequenceResetThreshold(DEFAULT_SEQUENCE_BIT));
         
         UncertaintyIdGenerator idGenerator = new UncertaintyIdGenerator(snowflakeId, UNCERTAINTY_BITS);
         new ConcurrentGenerateSpec(idGenerator) {

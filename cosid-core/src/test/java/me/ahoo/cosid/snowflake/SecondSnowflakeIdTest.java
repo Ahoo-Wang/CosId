@@ -55,11 +55,11 @@ class SecondSnowflakeIdTest {
     
     @Test
     public void customizeEpoch() {
-    
+        
         SnowflakeId idGen = new SecondSnowflakeId(LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond(),
             SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
             SecondSnowflakeId.DEFAULT_MACHINE_BIT,
-            SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023);
+            SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023, 512);
         SecondSnowflakeIdStateParser snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
         long idFirst = idGen.generate();
         long idSecond = idGen.generate();
@@ -71,6 +71,7 @@ class SecondSnowflakeIdTest {
         SnowflakeIdState idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
+    
     @Test
     public void generateWhenConcurrent() {
         new ConcurrentGenerateSpec(snowflakeId) {

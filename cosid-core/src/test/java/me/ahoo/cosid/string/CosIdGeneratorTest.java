@@ -39,6 +39,7 @@ class CosIdGeneratorTest {
     void generateAsState() {
         CosIdState state1 = cosIdGenerator.generateAsState();
         CosIdState state2 = cosIdGenerator.generateAsState();
+        CosIdState state3 = cosIdGenerator.generateAsState();
         assertThat(state2, greaterThan(state1));
     }
 }

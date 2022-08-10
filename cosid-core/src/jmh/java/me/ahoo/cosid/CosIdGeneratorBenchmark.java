@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid;
 
+import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
@@ -63,6 +64,11 @@ public class CosIdGeneratorBenchmark {
     @Benchmark
     public long atomicLong_generate() {
         return atomicLongGenerator.generate();
+    }
+    
+    @Benchmark
+    public String atomicLong_generateAsString() {
+        return Radix62IdConverter.PAD_START.asString(atomicLongGenerator.generate());
     }
     
     @Benchmark

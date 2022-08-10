@@ -39,6 +39,8 @@ class CosIdIdStateParserTest {
     @Test
     void asState() {
         CosIdState cosIdState = cosIdGenerator.generateAsState();
+        String tStr = Long.toString(cosIdState.getTimestamp(), 36);
+        
         String idStr = cosIdGenerator.getStateParser().asString(cosIdState);
         CosIdState cosIdState2 = cosIdGenerator.getStateParser().asState(idStr);
         assertThat(cosIdState, equalTo(cosIdState2));

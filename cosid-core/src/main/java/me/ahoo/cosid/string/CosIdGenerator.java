@@ -29,11 +29,10 @@ public class CosIdGenerator implements StringIdGenerator {
     public static final int DEFAULT_TIMESTAMP_BIT = 44;
     public static final int DEFAULT_MACHINE_BIT = 16;
     public static final int DEFAULT_SEQUENCE_BIT = 16;
-    
     private final long maxTimestamp;
     private final int maxMachine;
     private final int maxSequence;
-    
+    private final int sequenceResetThreshold;
     private final CosIdIdStateParser stateParser;
     private final int machineId;
     private int sequence = 0;
@@ -47,6 +46,7 @@ public class CosIdGenerator implements StringIdGenerator {
         this.maxTimestamp = ~(-1L << timestampBits);
         this.maxMachine = ~(-1 << machineIdBits);
         this.maxSequence = ~(-1 << sequenceBits);
+        this.sequenceResetThreshold = maxSequence / 2;
         if (machineId > this.maxMachine || machineId < 0) {
             throw new IllegalArgumentException(Strings.lenientFormat("machineId can't be greater than maxMachine[%s] or less than 0 .", maxMachine));
         }
@@ -78,28 +78,41 @@ public class CosIdGenerator implements StringIdGenerator {
         return time;
     }
     
-    private void generate() {
+    public synchronized CosIdState generateAsState() {
         long currentTimestamp = System.currentTimeMillis();
         if (currentTimestamp < lastTimestamp) {
             throw new ClockBackwardsException(lastTimestamp, currentTimestamp);
         }
+        //region Optional-1: Reset sequence based on timestamp change
+        //        if (currentTimestamp == lastTimestamp) {
+        //            sequence = (sequence + 1) & maxSequence;
+        //            if (sequence == 0) {
+        //                currentTimestamp = nextTime();
+        //            }
+        //        } else {
+        //            sequence = 0;
+        //        }
+        //endregion
         
-        if (currentTimestamp == lastTimestamp) {
-            sequence = (sequence + 1) & maxSequence;
-            if (sequence == 0) {
-                currentTimestamp = nextTime();
-            }
-        } else {
+        //region TODO Optional-2: Reset sequence based on timestamp threshold,Optimize the problem of uneven sharding.
+        
+        if (currentTimestamp > lastTimestamp
+            && sequence >= sequenceResetThreshold) {
             sequence = 0;
         }
+        
+        sequence = (sequence + 1) & maxSequence;
+        
+        if (sequence == 0) {
+            currentTimestamp = nextTime();
+        }
+        //endregion
+        
+        
         if (currentTimestamp > maxTimestamp) {
             throw new TimestampOverflowException(0, currentTimestamp, maxTimestamp);
         }
         lastTimestamp = currentTimestamp;
-    }
-    
-    public synchronized CosIdState generateAsState() {
-        generate();
         return new CosIdState(lastTimestamp, machineId, sequence);
     }
     

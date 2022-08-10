@@ -14,13 +14,14 @@
 package me.ahoo.cosid.string;
 
 import me.ahoo.cosid.converter.Radix62IdConverter;
+import me.ahoo.cosid.converter.RadixIdConverter;
 
 public final class CosIdIdStateParser {
-    private final Radix62IdConverter timestampConvert;
-    private final Radix62IdConverter machineConvert;
-    private final Radix62IdConverter sequenceConvert;
+    private final RadixIdConverter timestampConvert;
+    private final RadixIdConverter machineConvert;
+    private final RadixIdConverter sequenceConvert;
     
-    public CosIdIdStateParser(Radix62IdConverter timestampConvert, Radix62IdConverter machineConvert, Radix62IdConverter sequenceConvert) {
+    public CosIdIdStateParser(RadixIdConverter timestampConvert, RadixIdConverter machineConvert, RadixIdConverter sequenceConvert) {
         this.timestampConvert = timestampConvert;
         this.machineConvert = machineConvert;
         this.sequenceConvert = sequenceConvert;

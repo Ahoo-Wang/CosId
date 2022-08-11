@@ -37,11 +37,11 @@ import java.util.UUID;
  */
 @State(Scope.Benchmark)
 public class SegmentIdBenchmark {
-
+    
     SegmentId segmentId;
     SegmentChainId segmentChainId;
     AtomicLongGenerator atomicLongGenerator;
-
+    
     /**
      * Initialize IdGenerator.
      */
@@ -51,22 +51,22 @@ public class SegmentIdBenchmark {
         segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Mock(), PrefetchWorkerExecutorService.DEFAULT);
     }
-
+    
     @Benchmark
     public UUID uuid_generate() {
         return UUID.randomUUID();
     }
-
+    
     @Benchmark
     public long atomicLong_generate() {
         return atomicLongGenerator.generate();
     }
-
+    
     @Benchmark
     public long segmentId_generate() {
         return segmentId.generate();
     }
-
+    
     @Benchmark
     public long segmentChainId_generate() {
         return segmentChainId.generate();

@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.segment;
 
-import me.ahoo.cosid.StringIdGenerator;
+import me.ahoo.cosid.StringIdGeneratorDecorator;
 import me.ahoo.cosid.IdConverter;
 
 /**
@@ -21,7 +21,7 @@ import me.ahoo.cosid.IdConverter;
  *
  * @author ahoo wang
  */
-public class StringSegmentId extends StringIdGenerator implements SegmentId {
+public class StringSegmentId extends StringIdGeneratorDecorator implements SegmentId {
 
     public StringSegmentId(SegmentId actual, IdConverter idConverter) {
         super(actual, idConverter);

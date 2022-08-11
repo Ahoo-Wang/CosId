@@ -23,7 +23,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * @author ahoo wang
  */
 @ThreadSafe
-public interface IdGenerator {
+public interface IdGenerator extends StringIdGenerator {
     
     /**
      * ID converter, used to convert {@code long} type ID to {@link String}.
@@ -41,11 +41,7 @@ public interface IdGenerator {
      */
     long generate();
     
-    /**
-     * Generate distributed ID as String.
-     *
-     * @return generated distributed ID as String
-     */
+    @Override
     default String generateAsString() {
         return idConverter().asString(generate());
     }

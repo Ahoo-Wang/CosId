@@ -1,11 +1,19 @@
 package me.ahoo.cosid.snowflake;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
+import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * SnowflakeIdTest .
@@ -27,13 +35,10 @@ class MillisecondSnowflakeIdTest {
         long idFirst = snowflakeId.generate();
         long idSecond = snowflakeId.generate();
         Assertions.assertTrue(idSecond > idFirst);
-        
         SnowflakeIdState idState = snowflakeId.getParser().parse(idFirst);
         Assertions.assertNotNull(idState);
         Assertions.assertEquals(TEST_MACHINE_ID, idState.getMachineId());
-        Assertions.assertNotNull(idState.getSequence());
         Assertions.assertNotNull(idState.toString());
-        Assertions.assertNotNull(idState.hashCode());
     }
     
     @Test
@@ -46,7 +51,20 @@ class MillisecondSnowflakeIdTest {
         SnowflakeIdState snowflakeIdState2 = snowflakeId.ofFriendlyId(snowflakeIdState.getFriendlyId());
         Assertions.assertEquals(snowflakeIdState2, snowflakeIdState);
     }
-
+    
+    @Test
+    public void sequenceIncrement() {
+        long id = snowflakeId.generate();
+        SnowflakeIdState snowflakeIdState = snowflakeId.friendlyId(id);
+        
+        LockSupport.parkNanos(Duration.ofMillis(1).toNanos());
+        
+        long id2 = snowflakeId.generate();
+        SnowflakeIdState snowflakeIdState2 = snowflakeId.friendlyId(id2);
+        assertThat(snowflakeIdState2.getTimestamp(), greaterThan(snowflakeIdState.getTimestamp()));
+        assertThat(snowflakeIdState2.getSequence(), greaterThan(snowflakeIdState.getSequence()));
+    }
+    
     @Test
     public void friendlyId2() {
         SnowflakeIdState snowflakeIdState = snowflakeId.friendlyId();
@@ -96,5 +114,10 @@ class MillisecondSnowflakeIdTest {
             }
             
         }.verify();
+    }
+    
+    @Test
+    public void generateWhenConcurrentString() {
+        new ConcurrentGenerateStingSpec(new StringSnowflakeId(snowflakeId, Radix62IdConverter.PAD_START)).verify();
     }
 }

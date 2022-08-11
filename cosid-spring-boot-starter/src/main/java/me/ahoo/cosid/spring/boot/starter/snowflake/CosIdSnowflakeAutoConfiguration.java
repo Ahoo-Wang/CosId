@@ -91,9 +91,10 @@ public class CosIdSnowflakeAutoConfiguration {
         int machineBit = machineProperties.getMachineBit();
         SnowflakeId snowflakeId;
         if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {
-            snowflakeId = new SecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId.getMachineId());
+            snowflakeId = new SecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId.getMachineId(), idDefinition.getSequenceResetThreshold());
         } else {
-            snowflakeId = new MillisecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId.getMachineId());
+            snowflakeId =
+                new MillisecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId.getMachineId(), idDefinition.getSequenceResetThreshold());
         }
         if (idDefinition.isClockSync()) {
             snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);

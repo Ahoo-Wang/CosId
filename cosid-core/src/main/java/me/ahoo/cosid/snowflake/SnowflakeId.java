@@ -52,4 +52,9 @@ public interface SnowflakeId extends IdGenerator {
     long getLastTimestamp();
     
     long getMachineId();
+    
+    
+    static long defaultSequenceResetThreshold(int sequenceBit) {
+        return ~(-1L << (sequenceBit - 1));
+    }
 }

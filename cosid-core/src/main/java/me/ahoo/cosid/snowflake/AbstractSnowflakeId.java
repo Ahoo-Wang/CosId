@@ -24,24 +24,30 @@ import com.google.common.base.Strings;
  * @author ahoo wang
  */
 public abstract class AbstractSnowflakeId implements SnowflakeId {
-
+    
     protected final long epoch;
     protected final int timestampBit;
     protected final int machineBit;
     protected final int sequenceBit;
-
+    
     protected final long maxTimestamp;
     protected final long maxSequence;
     protected final long maxMachine;
-
+    
     protected final long machineLeft;
     protected final long timestampLeft;
-
+    
     protected final long machineId;
+    private final long sequenceResetThreshold;
     protected long sequence = 0L;
     protected long lastTimestamp = -1L;
-
-    public AbstractSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId) {
+    
+    public AbstractSnowflakeId(long epoch,
+                               int timestampBit,
+                               int machineBit,
+                               int sequenceBit,
+                               long machineId,
+                               long sequenceResetThreshold) {
         if ((timestampBit + machineBit + sequenceBit) > TOTAL_BIT) {
             throw new IllegalArgumentException("total bit can't be greater than TOTAL_BIT[63] .");
         }
@@ -58,8 +64,9 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
             throw new IllegalArgumentException(Strings.lenientFormat("machineId can't be greater than maxMachine[%s] or less than 0 .", maxMachine));
         }
         this.machineId = machineId;
+        this.sequenceResetThreshold = sequenceResetThreshold;
     }
-
+    
     protected long nextTime() {
         long time = getCurrentTime();
         while (time <= lastTimestamp) {
@@ -67,30 +74,35 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         }
         return time;
     }
-
+    
     /**
      * get current timestamp.
      *
      * @return current timestamp
      */
     protected abstract long getCurrentTime();
-
+    
     @Override
     public synchronized long generate() {
         long currentTimestamp = getCurrentTime();
         if (currentTimestamp < lastTimestamp) {
             throw new ClockBackwardsException(lastTimestamp, currentTimestamp);
         }
-
-        if (currentTimestamp == lastTimestamp) {
-            sequence = (sequence + 1) & maxSequence;
-            if (sequence == 0L) {
-                currentTimestamp = nextTime();
-            }
-        } else {
+        
+        //region Reset sequence based on sequence reset threshold,Optimize the problem of uneven sharding.
+        
+        if (currentTimestamp > lastTimestamp
+            && sequence >= sequenceResetThreshold) {
             sequence = 0L;
         }
-
+        
+        sequence = (sequence + 1) & maxSequence;
+        
+        if (sequence == 0L) {
+            currentTimestamp = nextTime();
+        }
+        
+        //endregion
         lastTimestamp = currentTimestamp;
         long diffTimestamp = (currentTimestamp - epoch);
         if (diffTimestamp > maxTimestamp) {
@@ -100,50 +112,50 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
             | machineId << machineLeft
             | sequence;
     }
-
+    
     @Override
     public long getEpoch() {
         return epoch;
     }
-
+    
     @Override
     public int getTimestampBit() {
         return timestampBit;
     }
-
+    
     @Override
     public int getMachineBit() {
         return machineBit;
     }
-
+    
     @Override
     public int getSequenceBit() {
         return sequenceBit;
     }
-
+    
     @Override
     public long getMaxTimestamp() {
         return maxTimestamp;
     }
-
+    
     @Override
     public long getMaxMachine() {
         return maxMachine;
     }
-
+    
     @Override
     public long getMaxSequence() {
         return maxSequence;
     }
-
+    
     @Override
     public long getLastTimestamp() {
         return lastTimestamp;
     }
-
+    
     @Override
     public long getMachineId() {
         return machineId;
     }
-
+    
 }

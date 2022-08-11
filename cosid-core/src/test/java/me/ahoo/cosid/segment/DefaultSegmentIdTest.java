@@ -14,6 +14,7 @@
 package me.ahoo.cosid.segment;
 
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
+import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -41,5 +42,11 @@ class DefaultSegmentIdTest {
         IdSegmentDistributor testMaxIdDistributor = new IdSegmentDistributor.Mock();
         new ConcurrentGenerateSpec(new DefaultSegmentId(testMaxIdDistributor), new DefaultSegmentId(testMaxIdDistributor))
             .verify();
+    }
+    
+    @Test
+    public void generateWhenConcurrentString() {
+        IdSegmentDistributor testMaxIdDistributor = new IdSegmentDistributor.Mock();
+        new ConcurrentGenerateStingSpec(new DefaultSegmentId(testMaxIdDistributor)).verify();
     }
 }

@@ -1,6 +1,8 @@
 package me.ahoo.cosid.snowflake;
 
+import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
+import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,11 +57,11 @@ class SecondSnowflakeIdTest {
     
     @Test
     public void customizeEpoch() {
-    
+        
         SnowflakeId idGen = new SecondSnowflakeId(LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond(),
             SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
             SecondSnowflakeId.DEFAULT_MACHINE_BIT,
-            SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023);
+            SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023, 512);
         SecondSnowflakeIdStateParser snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
         long idFirst = idGen.generate();
         long idSecond = idGen.generate();
@@ -71,6 +73,7 @@ class SecondSnowflakeIdTest {
         SnowflakeIdState idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
+    
     @Test
     public void generateWhenConcurrent() {
         new ConcurrentGenerateSpec(snowflakeId) {
@@ -88,5 +91,10 @@ class SecondSnowflakeIdTest {
             }
             
         }.verify();
+    }
+    
+    @Test
+    public void generateWhenConcurrentString() {
+        new ConcurrentGenerateStingSpec(new StringSnowflakeId(snowflakeId, Radix62IdConverter.PAD_START)).verify();
     }
 }

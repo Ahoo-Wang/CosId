@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.machine;
 
-import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.MachineIdDistributor;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
 import me.ahoo.cosid.machine.k8s.StatefulSetMachineIdDistributor;
 
 import org.junit.jupiter.api.Assertions;
@@ -30,8 +31,23 @@ class StatefulSetMachineIdDistributorTest {
     @SetEnvironmentVariable(
         key = StatefulSetMachineIdDistributor.HOSTNAME_KEY,
         value = "cosid-host-6")
+    void resolveMachineId() {
+        int machineId = StatefulSetMachineIdDistributor.resolveMachineId();
+        assertThat(machineId, equalTo(6));
+    }
+    
+    @Test
+    @SetEnvironmentVariable(
+        key = StatefulSetMachineIdDistributor.HOSTNAME_KEY,
+        value = "cosid-host-6")
     void distribute() {
-        int machineId = StatefulSetMachineIdDistributor.INSTANCE.distribute("k8s", 1, InstanceId.NONE, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
+        int machineId = StatefulSetMachineIdDistributor.INSTANCE
+            .distribute("k8s", 1, InstanceId.NONE, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
         Assertions.assertEquals(6, machineId);
+    }
+    
+    @Test
+    void revert() {
+        StatefulSetMachineIdDistributor.INSTANCE.revert("k8s", InstanceId.NONE);
     }
 }

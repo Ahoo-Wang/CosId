@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.cosid;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator;
 import me.ahoo.cosid.cosid.CosIdGenerator;
+import me.ahoo.cosid.cosid.Radix36CosIdGenerator;
 import me.ahoo.cosid.cosid.Radix62CosIdGenerator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineId;
@@ -47,15 +48,31 @@ public class CosIdGeneratorAutoConfiguration {
         this.cosIdGeneratorProperties = cosIdGeneratorProperties;
     }
     
+    @SuppressWarnings("checkstyle:MissingSwitchDefault")
     @Bean
     @Primary
     @ConditionalOnMissingBean
     public CosIdGenerator cosIdGenerator(final MachineId machineId, IdGeneratorProvider idGeneratorProvider,
                                          ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        Radix62CosIdGenerator cosIdGenerator =
-            new Radix62CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                machineProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), (int) machineId.getMachineId(),
-                cosIdGeneratorProperties.getSequenceResetThreshold());
+        CosIdGenerator cosIdGenerator;
+        switch (cosIdGeneratorProperties.getType()) {
+            case RADIX62: {
+                cosIdGenerator =
+                    new Radix62CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
+                        machineProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), (int) machineId.getMachineId(),
+                        cosIdGeneratorProperties.getSequenceResetThreshold());
+                break;
+            }
+            case RADIX36: {
+                cosIdGenerator =
+                    new Radix36CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
+                        machineProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), (int) machineId.getMachineId(),
+                        cosIdGeneratorProperties.getSequenceResetThreshold());
+                break;
+            }
+            default:
+                throw new IllegalStateException("Unexpected value: " + cosIdGeneratorProperties.getType());
+        }
         
         CosIdGenerator clockSyncCosIdGenerator = new ClockSyncCosIdGenerator(cosIdGenerator, clockBackwardsSynchronizer);
         idGeneratorProvider.set(CosId.COSID, clockSyncCosIdGenerator);

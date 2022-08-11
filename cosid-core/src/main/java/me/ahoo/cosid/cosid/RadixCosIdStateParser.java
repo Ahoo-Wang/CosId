@@ -13,11 +13,13 @@
 
 package me.ahoo.cosid.cosid;
 
+import me.ahoo.cosid.converter.Radix36IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.RadixIdConverter;
 
 public class RadixCosIdStateParser implements CosIdIdStateParser {
     public static final RadixCosIdStateParser DEFAULT = ofRadix62(Radix62CosIdGenerator.DEFAULT_TIMESTAMP_BIT, Radix62CosIdGenerator.DEFAULT_MACHINE_BIT, Radix62CosIdGenerator.DEFAULT_SEQUENCE_BIT);
+    
     private final RadixIdConverter timestampConvert;
     private final RadixIdConverter machineConvert;
     private final RadixIdConverter sequenceConvert;
@@ -56,4 +58,17 @@ public class RadixCosIdStateParser implements CosIdIdStateParser {
             new Radix62IdConverter(true, sequenceMaxCharSize)
         );
     }
+    
+    static RadixCosIdStateParser ofRadix36(int timestampBits, int machineIdBits, int sequenceBits) {
+        final int radix = 36;
+        final int timestampMaxCharSize = RadixIdConverter.maxCharSize(radix, timestampBits);
+        final int machineIdMaxCharSize = RadixIdConverter.maxCharSize(radix, machineIdBits);
+        final int sequenceMaxCharSize = RadixIdConverter.maxCharSize(radix, sequenceBits);
+        return new RadixCosIdStateParser(
+            new Radix36IdConverter(true, timestampMaxCharSize),
+            new Radix36IdConverter(true, machineIdMaxCharSize),
+            new Radix36IdConverter(true, sequenceMaxCharSize)
+        );
+    }
+
 }

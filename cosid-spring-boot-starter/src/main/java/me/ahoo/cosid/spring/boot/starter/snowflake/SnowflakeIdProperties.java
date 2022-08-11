@@ -97,6 +97,7 @@ public class SnowflakeIdProperties {
         private long epoch;
         private int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
         private int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT;
+        private long sequenceResetThreshold = MillisecondSnowflakeId.DEFAULT_SEQUENCE_RESET_THRESHOLD;
         @NestedConfigurationProperty
         private IdConverterDefinition converter = new IdConverterDefinition();
         
@@ -148,6 +149,14 @@ public class SnowflakeIdProperties {
             this.sequenceBit = sequenceBit;
         }
         
+        public long getSequenceResetThreshold() {
+            return sequenceResetThreshold;
+        }
+        
+        public void setSequenceResetThreshold(long sequenceResetThreshold) {
+            this.sequenceResetThreshold = sequenceResetThreshold;
+        }
+        
         public IdConverterDefinition getConverter() {
             return converter;
         }
@@ -161,5 +170,5 @@ public class SnowflakeIdProperties {
             MILLISECOND
         }
     }
-
+    
 }

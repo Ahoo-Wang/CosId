@@ -25,7 +25,8 @@ import org.junit.jupiter.params.provider.ValueSource;
  * @author ahoo wang
  */
 class Radix62IdConverterTest {
-
+    
+    
     @ParameterizedTest
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})
     void asString(long argId) {
@@ -33,14 +34,14 @@ class Radix62IdConverterTest {
         Assertions.assertNotNull(idStr);
         Assertions.assertTrue(idStr.length() <= Radix62IdConverter.MAX_CHAR_SIZE);
     }
-
+    
     @Test
-    void asStringWhenIdZero() {
+    void asStringWhenIdNegative() {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            Radix62IdConverter.INSTANCE.asString(0L);
+            Radix62IdConverter.INSTANCE.asString(-1L);
         });
     }
-
+    
     @ParameterizedTest
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})
     void asLong(long argId) {
@@ -48,12 +49,12 @@ class Radix62IdConverterTest {
         long actual = Radix62IdConverter.INSTANCE.asLong(idStr);
         Assertions.assertEquals(argId, actual);
     }
-
+    
     @Test
     void asLongWhenNumberFormat() {
         int charSize = 2;
         Radix62IdConverter idConvert = Radix62IdConverter.of(false, charSize);
-
+        
         Assertions.assertThrows(NumberFormatException.class, () -> {
             idConvert.asLong("-1");
         });
@@ -64,7 +65,7 @@ class Radix62IdConverterTest {
             idConvert.asLong("1_");
         });
     }
-
+    
     @ParameterizedTest
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})
     void asStringPad(long argId) {
@@ -72,7 +73,7 @@ class Radix62IdConverterTest {
         Assertions.assertNotNull(idStr);
         Assertions.assertEquals(Radix62IdConverter.MAX_CHAR_SIZE, idStr.length());
     }
-
+    
     @ParameterizedTest
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})
     void asLongPad(long argId) {
@@ -80,7 +81,7 @@ class Radix62IdConverterTest {
         long actual = Radix62IdConverter.PAD_START.asLong(idStr);
         Assertions.assertEquals(argId, actual);
     }
-
+    
     @Test
     void asStringSnowflakeId() {
         IdGenerator idGenerator = new MillisecondSnowflakeId(1);
@@ -89,7 +90,7 @@ class Radix62IdConverterTest {
         Assertions.assertNotNull(idStr);
         Assertions.assertEquals(Radix62IdConverter.MAX_CHAR_SIZE, idStr.length());
     }
-
+    
     @Test
     void asStringCharSize10() {
         int charSize = 10;
@@ -101,11 +102,11 @@ class Radix62IdConverterTest {
         Assertions.assertEquals(charSize, actualIdStr.length());
         long actualId = idConvert.asLong(actualIdStr);
         Assertions.assertEquals(id, actualId);
-
+        
         actualIdStr = idConvert.asString(1L);
         Assertions.assertEquals(1, actualIdStr.length());
     }
-
+    
     @Test
     void asStringPadCharSize10() {
         int charSize = 10;
@@ -113,5 +114,5 @@ class Radix62IdConverterTest {
         String actualIdStr = idConvert.asString(1L);
         Assertions.assertEquals(charSize, actualIdStr.length());
     }
-
+    
 }

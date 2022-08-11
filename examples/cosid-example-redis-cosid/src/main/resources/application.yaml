@@ -1,0 +1,22 @@
+server:
+  port: 8610
+spring:
+  application:
+    name: ${service.name:cosid-example-redis}
+  redis:
+    host: localhost
+cosid:
+  namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    machine-bit: 16
+    distributor:
+      type: redis
+    guarder:
+      enabled: true
+  generator:
+    enabled: true
+
+logging:
+  level:
+    me.ahoo.cosid: debug

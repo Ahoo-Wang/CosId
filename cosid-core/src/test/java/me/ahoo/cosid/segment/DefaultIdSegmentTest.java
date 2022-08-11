@@ -31,4 +31,5 @@ class DefaultIdSegmentTest {
         final DefaultIdSegment segment = new DefaultIdSegment(Long.MAX_VALUE, Long.MAX_VALUE);
         new ConcurrentGenerateSpec(segment::incrementAndGet).verify();
     }
+    
 }

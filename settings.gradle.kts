@@ -38,6 +38,9 @@ project(":cosid-example-proxy").projectDir = file("examples/cosid-example-proxy"
 include("cosid-example-redis")
 project(":cosid-example-redis").projectDir = file("examples/cosid-example-redis")
 
+include("cosid-example-redis-cosid")
+project(":cosid-example-redis-cosid").projectDir = file("examples/cosid-example-redis-cosid")
+
 include("cosid-example-zookeeper")
 project(":cosid-example-zookeeper").projectDir = file("examples/cosid-example-zookeeper")
 

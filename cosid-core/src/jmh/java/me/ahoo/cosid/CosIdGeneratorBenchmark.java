@@ -13,9 +13,12 @@
 
 package me.ahoo.cosid;
 
+import static me.ahoo.cosid.cosid.Radix62CosIdGenerator.*;
+
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator;
 import me.ahoo.cosid.cosid.CosIdGenerator;
+import me.ahoo.cosid.cosid.Radix36CosIdGenerator;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.cosid.Radix62CosIdGenerator;
 import me.ahoo.cosid.cosid.CosIdState;
@@ -36,6 +39,8 @@ import java.util.UUID;
 public class CosIdGeneratorBenchmark {
     AtomicLongGenerator atomicLongGenerator;
     CosIdGenerator radix62CosIdGenerator;
+    CosIdGenerator radix36CosIdGenerator;
+    CosIdGenerator customizeRadix62CosIdGenerator;
     
     /**
      * Initialize IdGenerator.
@@ -44,6 +49,11 @@ public class CosIdGeneratorBenchmark {
     public void setup() {
         atomicLongGenerator = new AtomicLongGenerator();
         radix62CosIdGenerator = new ClockSyncCosIdGenerator(new Radix62CosIdGenerator(1));
+        radix36CosIdGenerator = new ClockSyncCosIdGenerator(new Radix36CosIdGenerator(1));
+        final int customizeSequenceBit = 18;
+        final int customizeSequenceResetThreshold = ~(-1 << (customizeSequenceBit - 1));
+        customizeRadix62CosIdGenerator =
+            new ClockSyncCosIdGenerator(new Radix62CosIdGenerator(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, customizeSequenceBit, 1, customizeSequenceResetThreshold));
     }
     
     @Benchmark
@@ -62,13 +72,27 @@ public class CosIdGeneratorBenchmark {
     }
     
     @Benchmark
-    public String cosIdGenerator_generateAsString() {
+    public String cosIdGenerator62_generateAsString() {
         return radix62CosIdGenerator.generateAsString();
     }
     
     @Benchmark
-    public CosIdState cosIdGenerator_generateAsState() {
+    public CosIdState cosIdGenerator62_generateAsState() {
         return radix62CosIdGenerator.generateAsState();
     }
     
+    @Benchmark
+    public String cosIdGenerator36_generateAsString() {
+        return radix36CosIdGenerator.generateAsString();
+    }
+    
+    @Benchmark
+    public String cosIdGeneratorCustomize62_generateAsString() {
+        return customizeRadix62CosIdGenerator.generateAsString();
+    }
+    
+    @Benchmark
+    public CosIdState cosIdGeneratorCustomize62_generateAsState() {
+        return customizeRadix62CosIdGenerator.generateAsState();
+    }
 }

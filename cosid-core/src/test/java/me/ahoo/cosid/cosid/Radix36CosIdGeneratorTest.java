@@ -13,8 +13,11 @@
 
 package me.ahoo.cosid.cosid;
 
-import static me.ahoo.cosid.cosid.Radix62CosIdGenerator.*;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static me.ahoo.cosid.cosid.Radix36CosIdGenerator.DEFAULT_MACHINE_BIT;
+import static me.ahoo.cosid.cosid.Radix36CosIdGenerator.DEFAULT_SEQUENCE_BIT;
+import static me.ahoo.cosid.cosid.Radix36CosIdGenerator.DEFAULT_TIMESTAMP_BIT;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
@@ -25,30 +28,30 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.concurrent.locks.LockSupport;
 
-class Radix62CosIdGeneratorTest {
-    private final Radix62CosIdGenerator radix62CosIdGenerator = new Radix62CosIdGenerator(1);
+class Radix36CosIdGeneratorTest {
+    private final Radix36CosIdGenerator radix36CosIdGenerator = new Radix36CosIdGenerator(1);
     
     @Test
     void generateAsString() {
-        String id1 = radix62CosIdGenerator.generateAsString();
-        String id2 = radix62CosIdGenerator.generateAsString();
-        assertThat(id1.length(), equalTo(15));
+        String id1 = radix36CosIdGenerator.generateAsString();
+        String id2 = radix36CosIdGenerator.generateAsString();
+        assertThat(id1.length(), equalTo(17));
         assertThat(id2, greaterThan(id1));
         assertThat(id2.length(), equalTo(id1.length()));
-        assertThat(radix62CosIdGenerator.getLastTimestamp(), greaterThan(0L));
+        assertThat(radix36CosIdGenerator.getLastTimestamp(), greaterThan(0L));
     }
     
     @Test
     void generateAsState() {
-        CosIdState state1 = radix62CosIdGenerator.generateAsState();
-        CosIdState state2 = radix62CosIdGenerator.generateAsState();
+        CosIdState state1 = radix36CosIdGenerator.generateAsState();
+        CosIdState state2 = radix36CosIdGenerator.generateAsState();
         assertThat(state2, greaterThan(state1));
     }
     
     @Test
     void customizeOverflowMachineId() {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            new Radix62CosIdGenerator(65536);
+            new Radix36CosIdGenerator(65536);
         });
     }
     
@@ -70,6 +73,6 @@ class Radix62CosIdGeneratorTest {
     
     @Test
     public void generateWhenConcurrentString() {
-        new ConcurrentGenerateStingSpec(new Radix62CosIdGenerator(1)).verify();
+        new ConcurrentGenerateStingSpec(new Radix36CosIdGenerator(1)).verify();
     }
 }

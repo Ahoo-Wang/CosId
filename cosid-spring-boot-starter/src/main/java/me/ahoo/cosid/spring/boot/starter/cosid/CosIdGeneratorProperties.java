@@ -14,7 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.cosid;
 
 import me.ahoo.cosid.CosId;
-import me.ahoo.cosid.cosid.Radix62CosIdGenerator;
+import me.ahoo.cosid.cosid.RadixCosIdGenerator;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -22,10 +22,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class CosIdGeneratorProperties {
     public static final String PREFIX = CosId.COSID_PREFIX + "generator";
     private boolean enabled = false;
-    
-    private int timestampBit = Radix62CosIdGenerator.DEFAULT_TIMESTAMP_BIT;
-    private int sequenceBit = Radix62CosIdGenerator.DEFAULT_SEQUENCE_BIT;
-    private int sequenceResetThreshold = Radix62CosIdGenerator.DEFAULT_SEQUENCE_RESET_THRESHOLD;
+    private Type type = Type.RADIX62;
+    private int timestampBit = RadixCosIdGenerator.DEFAULT_TIMESTAMP_BIT;
+    private int sequenceBit = RadixCosIdGenerator.DEFAULT_SEQUENCE_BIT;
+    private int sequenceResetThreshold = RadixCosIdGenerator.DEFAULT_SEQUENCE_RESET_THRESHOLD;
     
     public boolean isEnabled() {
         return enabled;
@@ -57,5 +57,18 @@ public class CosIdGeneratorProperties {
     
     public void setSequenceResetThreshold(int sequenceResetThreshold) {
         this.sequenceResetThreshold = sequenceResetThreshold;
+    }
+    
+    public Type getType() {
+        return type;
+    }
+    
+    public void setType(Type type) {
+        this.type = type;
+    }
+    
+    public enum Type {
+        RADIX62,
+        RADIX36
     }
 }

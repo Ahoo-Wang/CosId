@@ -75,6 +75,7 @@ export function getConfigSidebar(groupA): SidebarConfigArray {
             collapsable: false,
             children: [
                 '',
+                'machine',
                 'snowflake',
                 'segment',
                 'zookeeper',

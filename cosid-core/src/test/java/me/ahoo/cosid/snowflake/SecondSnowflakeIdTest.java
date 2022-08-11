@@ -1,6 +1,8 @@
 package me.ahoo.cosid.snowflake;
 
+import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
+import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -89,5 +91,10 @@ class SecondSnowflakeIdTest {
             }
             
         }.verify();
+    }
+    
+    @Test
+    public void generateWhenConcurrentString() {
+        new ConcurrentGenerateStingSpec(new StringSnowflakeId(snowflakeId, Radix62IdConverter.PAD_START)).verify();
     }
 }

@@ -14,11 +14,11 @@
 package me.ahoo.cosid;
 
 import me.ahoo.cosid.converter.Radix62IdConverter;
-import me.ahoo.cosid.id.ClockSyncCosIdGenerator;
-import me.ahoo.cosid.id.CosIdGenerator;
+import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator;
+import me.ahoo.cosid.cosid.CosIdGenerator;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
-import me.ahoo.cosid.id.Radix62CosIdGenerator;
-import me.ahoo.cosid.id.CosIdState;
+import me.ahoo.cosid.cosid.Radix62CosIdGenerator;
+import me.ahoo.cosid.cosid.CosIdState;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;

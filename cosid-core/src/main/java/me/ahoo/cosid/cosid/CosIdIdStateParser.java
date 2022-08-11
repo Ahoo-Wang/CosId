@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.id;
+package me.ahoo.cosid.cosid;
 
 public interface CosIdIdStateParser {
     

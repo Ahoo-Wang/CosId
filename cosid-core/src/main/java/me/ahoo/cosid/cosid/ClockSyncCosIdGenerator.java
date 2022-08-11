@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.id;
+package me.ahoo.cosid.cosid;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
@@ -54,4 +54,5 @@ public class ClockSyncCosIdGenerator implements CosIdGenerator {
             return actual.generateAsState();
         }
     }
+    
 }

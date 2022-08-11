@@ -11,29 +11,31 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.id;
+package me.ahoo.cosid.cosid;
 
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
 import org.junit.jupiter.api.Test;
 
-class Radix62CosIdGeneratorTest {
+class ClockSyncCosIdGeneratorTest {
     private final Radix62CosIdGenerator radix62CosIdGenerator = new Radix62CosIdGenerator(1);
+    private final ClockSyncCosIdGenerator clockSyncCosIdGenerator = new ClockSyncCosIdGenerator(radix62CosIdGenerator);
     
     @Test
-    void generateAsString() {
-        String id1 = radix62CosIdGenerator.generateAsString();
-        String id2 = radix62CosIdGenerator.generateAsString();
-        assertThat(id2, greaterThan(id1));
-        assertThat(id2.length(), equalTo(id1.length()));
+    void getLastTimestamp() {
+        assertThat(clockSyncCosIdGenerator.getLastTimestamp(), equalTo(radix62CosIdGenerator.getLastTimestamp()));
+    }
+    
+    @Test
+    void getStateParser() {
+        assertThat(clockSyncCosIdGenerator.getStateParser(), equalTo(radix62CosIdGenerator.getStateParser()));
     }
     
     @Test
     void generateAsState() {
-        CosIdState state1 = radix62CosIdGenerator.generateAsState();
-        CosIdState state2 = radix62CosIdGenerator.generateAsState();
-
+        CosIdState state1 = clockSyncCosIdGenerator.generateAsState();
+        CosIdState state2 = clockSyncCosIdGenerator.generateAsState();
         assertThat(state2, greaterThan(state1));
     }
 }

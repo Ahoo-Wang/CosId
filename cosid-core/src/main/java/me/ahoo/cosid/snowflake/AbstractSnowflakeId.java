@@ -93,12 +93,12 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         
         if (currentTimestamp > lastTimestamp
             && sequence >= sequenceResetThreshold) {
-            sequence = 0;
+            sequence = 0L;
         }
         
         sequence = (sequence + 1) & maxSequence;
         
-        if (sequence == 0) {
+        if (sequence == 0L) {
             currentTimestamp = nextTime();
         }
         

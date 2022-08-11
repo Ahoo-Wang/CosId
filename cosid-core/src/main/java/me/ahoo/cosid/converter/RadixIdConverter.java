@@ -22,31 +22,31 @@ public abstract class RadixIdConverter implements IdConverter {
     /**
      * 48.
      */
-    public static final char ZERO = '0';
+    static final char ZERO = '0';
     /**
      * 57.
      */
-    public static final char NINE = '9';
+    static final char NINE = '9';
     /**
      * 65.
      */
-    public static final char UPPERCASE_A = 'A';
-    public static final int UPPERCASE_OFFSET = 10;
+    static final char UPPERCASE_A = 'A';
+    static final int UPPERCASE_OFFSET = 10;
     /**
      * 90.
      */
-    public static final char UPPERCASE_Z = 'Z';
+    static final char UPPERCASE_Z = 'Z';
     /**
      * 97.
      */
-    public static final char LOWERCASE_A = 'a';
-    public static final int LOWERCASE_OFFSET = 36;
+    static final char LOWERCASE_A = 'a';
+    static final int LOWERCASE_OFFSET = 36;
     /**
      * 122.
      */
-    public static final char LOWERCASE_Z = 'z';
+    static final char LOWERCASE_Z = 'z';
     
-    public static final char[] digits = {
+    static final char[] digits = {
         /*
          * offset: 0.
          * [48-57]

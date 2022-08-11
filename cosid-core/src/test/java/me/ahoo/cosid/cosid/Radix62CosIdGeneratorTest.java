@@ -48,7 +48,7 @@ class Radix62CosIdGeneratorTest {
     @Test
     void customizeOverflowMachineId() {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            new Radix62CosIdGenerator(65536);
+            new Radix62CosIdGenerator(~(-1 << DEFAULT_MACHINE_BIT) + 1);
         });
     }
     

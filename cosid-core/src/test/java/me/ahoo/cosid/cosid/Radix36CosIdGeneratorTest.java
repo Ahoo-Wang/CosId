@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
+import me.ahoo.cosid.converter.RadixIdConverter;
 import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
 
 import org.junit.jupiter.api.Assertions;
@@ -51,7 +52,7 @@ class Radix36CosIdGeneratorTest {
     @Test
     void customizeOverflowMachineId() {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            new Radix36CosIdGenerator(65536);
+            new Radix36CosIdGenerator(~(-1 << DEFAULT_MACHINE_BIT) + 1);
         });
     }
     

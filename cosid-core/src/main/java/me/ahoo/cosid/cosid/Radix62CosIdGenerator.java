@@ -44,16 +44,16 @@ public class Radix62CosIdGenerator implements CosIdGenerator {
         this(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, machineId, DEFAULT_SEQUENCE_RESET_THRESHOLD);
     }
     
-    public Radix62CosIdGenerator(int timestampBits, int machineIdBits, int sequenceBits, int machineId, int sequenceResetThreshold) {
-        this.maxTimestamp = ~(-1L << timestampBits);
-        this.maxMachine = ~(-1 << machineIdBits);
-        this.maxSequence = ~(-1 << sequenceBits);
+    public Radix62CosIdGenerator(int timestampBit, int machineIdBit, int sequenceBit, int machineId, int sequenceResetThreshold) {
+        this.maxTimestamp = ~(-1L << timestampBit);
+        this.maxMachine = ~(-1 << machineIdBit);
+        this.maxSequence = ~(-1 << sequenceBit);
         this.sequenceResetThreshold = sequenceResetThreshold;
         if (machineId > this.maxMachine || machineId < 0) {
             throw new IllegalArgumentException(Strings.lenientFormat("machineId can't be greater than maxMachine[%s] or less than 0 .", maxMachine));
         }
         this.machineId = machineId;
-        this.stateParser = RadixCosIdStateParser.ofRadix62(timestampBits, machineIdBits, sequenceBits);
+        this.stateParser = RadixCosIdStateParser.ofRadix62(timestampBit, machineIdBit, sequenceBit);
     }
     
     @Override

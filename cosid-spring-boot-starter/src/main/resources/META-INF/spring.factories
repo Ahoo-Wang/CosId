@@ -3,6 +3,7 @@ org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
   me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration,\
+  me.ahoo.cosid.spring.boot.starter.cosid.CosIdGeneratorAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.machine.CosIdJdbcMachineIdDistributorAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.machine.CosIdRedisMachineIdDistributorAutoConfiguration,\
   me.ahoo.cosid.spring.boot.starter.machine.CosIdSpringRedisMachineIdDistributorAutoConfiguration,\

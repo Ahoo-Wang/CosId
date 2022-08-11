@@ -14,11 +14,11 @@
 package me.ahoo.cosid;
 
 import me.ahoo.cosid.converter.Radix62IdConverter;
+import me.ahoo.cosid.id.ClockSyncCosIdGenerator;
+import me.ahoo.cosid.id.CosIdGenerator;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
-import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
-import me.ahoo.cosid.string.CosIdGenerator;
-import me.ahoo.cosid.string.CosIdState;
+import me.ahoo.cosid.id.Radix62CosIdGenerator;
+import me.ahoo.cosid.id.CosIdState;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
@@ -35,7 +35,7 @@ import java.util.UUID;
 @State(Scope.Benchmark)
 public class CosIdGeneratorBenchmark {
     AtomicLongGenerator atomicLongGenerator;
-    CosIdGenerator cosIdGenerator;
+    CosIdGenerator radix62CosIdGenerator;
     
     /**
      * Initialize IdGenerator.
@@ -43,22 +43,12 @@ public class CosIdGeneratorBenchmark {
     @Setup
     public void setup() {
         atomicLongGenerator = new AtomicLongGenerator();
-        cosIdGenerator = new CosIdGenerator(CosIdGenerator.DEFAULT_TIMESTAMP_BIT, CosIdGenerator.DEFAULT_MACHINE_BIT, CosIdGenerator.DEFAULT_SEQUENCE_BIT, 1);
+        radix62CosIdGenerator = new ClockSyncCosIdGenerator(new Radix62CosIdGenerator(1));
     }
     
     @Benchmark
     public UUID uuid_generate() {
         return UUID.randomUUID();
-    }
-    
-    @Benchmark
-    public long currentTimeMillis() {
-        return System.currentTimeMillis();
-    }
-    
-    @Benchmark
-    public long nanoTime() {
-        return System.nanoTime();
     }
     
     @Benchmark
@@ -73,22 +63,12 @@ public class CosIdGeneratorBenchmark {
     
     @Benchmark
     public String cosIdGenerator_generateAsString() {
-        try {
-            return cosIdGenerator.generateAsString();
-        } catch (ClockBackwardsException exception) {
-            ClockBackwardsSynchronizer.DEFAULT.syncUninterruptibly(cosIdGenerator.getLastTimestamp());
-            return cosIdGenerator.generateAsString();
-        }
+        return radix62CosIdGenerator.generateAsString();
     }
     
     @Benchmark
     public CosIdState cosIdGenerator_generateAsState() {
-        try {
-            return cosIdGenerator.generateAsState();
-        } catch (ClockBackwardsException exception) {
-            ClockBackwardsSynchronizer.DEFAULT.syncUninterruptibly(cosIdGenerator.getLastTimestamp());
-            return cosIdGenerator.generateAsState();
-        }
+        return radix62CosIdGenerator.generateAsState();
     }
     
 }

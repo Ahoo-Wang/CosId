@@ -11,46 +11,46 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.string;
+package me.ahoo.cosid.id;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
 import org.junit.jupiter.api.Test;
 
-class CosIdIdStateParserTest {
-    private final CosIdGenerator cosIdGenerator = new CosIdGenerator(1);
+class RadixCosIdStateParserTest {
+    private final Radix62CosIdGenerator radix62CosIdGenerator = new Radix62CosIdGenerator(1);
     
     @Test
     void generateAsString() {
-        String id1 = cosIdGenerator.generateAsString();
-        String id2 = cosIdGenerator.generateAsString();
+        String id1 = radix62CosIdGenerator.generateAsString();
+        String id2 = radix62CosIdGenerator.generateAsString();
         assertThat(id2, greaterThan(id1));
         assertThat(id2.length(), equalTo(id1.length()));
     }
     
     @Test
     void generateAsState() {
-        CosIdState state1 = cosIdGenerator.generateAsState();
-        CosIdState state2 = cosIdGenerator.generateAsState();
+        CosIdState state1 = radix62CosIdGenerator.generateAsState();
+        CosIdState state2 = radix62CosIdGenerator.generateAsState();
         assertThat(state2, greaterThan(state1));
     }
     
     @Test
     void asState() {
-        CosIdState cosIdState = cosIdGenerator.generateAsState();
+        CosIdState cosIdState = radix62CosIdGenerator.generateAsState();
         String tStr = Long.toString(cosIdState.getTimestamp(), 36);
         
-        String idStr = cosIdGenerator.getStateParser().asString(cosIdState);
-        CosIdState cosIdState2 = cosIdGenerator.getStateParser().asState(idStr);
+        String idStr = radix62CosIdGenerator.getStateParser().asString(cosIdState);
+        CosIdState cosIdState2 = radix62CosIdGenerator.getStateParser().asState(idStr);
         assertThat(cosIdState, equalTo(cosIdState2));
     }
     
     @Test
     void asString() {
-        String id = cosIdGenerator.generateAsString();
-        CosIdState cosIdState = cosIdGenerator.getStateParser().asState(id);
-        String id2 = cosIdGenerator.getStateParser().asString(cosIdState);
+        String id = radix62CosIdGenerator.generateAsString();
+        CosIdState cosIdState = radix62CosIdGenerator.getStateParser().asState(id);
+        String id2 = radix62CosIdGenerator.getStateParser().asString(cosIdState);
         assertThat(id, equalTo(id2));
     }
 }

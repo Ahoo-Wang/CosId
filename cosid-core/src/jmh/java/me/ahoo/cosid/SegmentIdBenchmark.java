@@ -21,8 +21,6 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
-import me.ahoo.cosid.string.CosIdGenerator;
-import me.ahoo.cosid.string.CosIdState;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;

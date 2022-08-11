@@ -11,35 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.string;
+package me.ahoo.cosid.id;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import org.junit.jupiter.api.Test;
 
-class CosIdGeneratorTest {
-    private final CosIdGenerator cosIdGenerator = new CosIdGenerator(1);
-    
-    @Test
-    void charSize() {
-        int charSize = CosIdGenerator.charSize(44);
-        assertThat(charSize, equalTo(8));
-    }
+class Radix62CosIdGeneratorTest {
+    private final Radix62CosIdGenerator radix62CosIdGenerator = new Radix62CosIdGenerator(1);
     
     @Test
     void generateAsString() {
-        String id1 = cosIdGenerator.generateAsString();
-        String id2 = cosIdGenerator.generateAsString();
+        String id1 = radix62CosIdGenerator.generateAsString();
+        String id2 = radix62CosIdGenerator.generateAsString();
         assertThat(id2, greaterThan(id1));
         assertThat(id2.length(), equalTo(id1.length()));
     }
     
     @Test
     void generateAsState() {
-        CosIdState state1 = cosIdGenerator.generateAsState();
-        CosIdState state2 = cosIdGenerator.generateAsState();
-        CosIdState state3 = cosIdGenerator.generateAsState();
+        CosIdState state1 = radix62CosIdGenerator.generateAsState();
+        CosIdState state2 = radix62CosIdGenerator.generateAsState();
+
         assertThat(state2, greaterThan(state1));
     }
 }

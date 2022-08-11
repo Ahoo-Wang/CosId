@@ -42,7 +42,12 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
     protected long sequence = 0L;
     protected long lastTimestamp = -1L;
     
-    public AbstractSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId, long sequenceResetThreshold) {
+    public AbstractSnowflakeId(long epoch,
+                               int timestampBit,
+                               int machineBit,
+                               int sequenceBit,
+                               long machineId,
+                               long sequenceResetThreshold) {
         if ((timestampBit + machineBit + sequenceBit) > TOTAL_BIT) {
             throw new IllegalArgumentException("total bit can't be greater than TOTAL_BIT[63] .");
         }
@@ -84,15 +89,20 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
             throw new ClockBackwardsException(lastTimestamp, currentTimestamp);
         }
         
+        //region Reset sequence based on sequence reset threshold,Optimize the problem of uneven sharding.
+        
         if (currentTimestamp > lastTimestamp
             && sequence >= sequenceResetThreshold) {
             sequence = 0;
         }
+        
         sequence = (sequence + 1) & maxSequence;
-        if (sequence == 0L) {
+        
+        if (sequence == 0) {
             currentTimestamp = nextTime();
         }
         
+        //endregion
         lastTimestamp = currentTimestamp;
         long diffTimestamp = (currentTimestamp - epoch);
         if (diffTimestamp > maxTimestamp) {

@@ -11,10 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.string;
+package me.ahoo.cosid.id;
 
-import me.ahoo.cosid.StringIdGenerator;
-import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
@@ -25,49 +23,47 @@ import com.google.common.base.Strings;
  * [timestamp(44)]-[machineId-(16)]-[sequence-(16)] = 76 BITS.
  */
 @Beta
-public class CosIdGenerator implements StringIdGenerator {
+public class Radix62CosIdGenerator implements CosIdGenerator {
+    public static final int RADIX = 62;
     public static final int DEFAULT_TIMESTAMP_BIT = 44;
     public static final int DEFAULT_MACHINE_BIT = 16;
     public static final int DEFAULT_SEQUENCE_BIT = 16;
+    public static final int DEFAULT_SEQUENCE_RESET_THRESHOLD = ~(-1 << (DEFAULT_SEQUENCE_BIT - 1));
+    
     private final long maxTimestamp;
     private final int maxMachine;
     private final int maxSequence;
     private final int sequenceResetThreshold;
     private final CosIdIdStateParser stateParser;
+    // converted
     private final int machineId;
     private int sequence = 0;
     private long lastTimestamp = -1L;
     
-    public CosIdGenerator(int machineId) {
-        this(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, machineId);
+    public Radix62CosIdGenerator(int machineId) {
+        this(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, machineId, DEFAULT_SEQUENCE_RESET_THRESHOLD);
     }
     
-    public CosIdGenerator(int timestampBits, int machineIdBits, int sequenceBits, int machineId) {
+    public Radix62CosIdGenerator(int timestampBits, int machineIdBits, int sequenceBits, int machineId, int sequenceResetThreshold) {
         this.maxTimestamp = ~(-1L << timestampBits);
         this.maxMachine = ~(-1 << machineIdBits);
         this.maxSequence = ~(-1 << sequenceBits);
-        this.sequenceResetThreshold = maxSequence / 2;
+        this.sequenceResetThreshold = sequenceResetThreshold;
         if (machineId > this.maxMachine || machineId < 0) {
             throw new IllegalArgumentException(Strings.lenientFormat("machineId can't be greater than maxMachine[%s] or less than 0 .", maxMachine));
         }
         this.machineId = machineId;
-        this.stateParser =
-            new CosIdIdStateParser(new Radix62IdConverter(true, charSize(timestampBits)),
-                new Radix62IdConverter(true, charSize(machineIdBits)),
-                new Radix62IdConverter(true, charSize(sequenceBits)));
+        this.stateParser = RadixCosIdStateParser.ofRadix62(timestampBits, machineIdBits, sequenceBits);
     }
     
+    @Override
     public long getLastTimestamp() {
         return lastTimestamp;
     }
     
+    @Override
     public CosIdIdStateParser getStateParser() {
         return stateParser;
-    }
-    
-    static int charSize(int bits) {
-        long maxId = ~(-1L << bits);
-        return Radix62IdConverter.INSTANCE.asString(maxId).length();
     }
     
     private long nextTime() {
@@ -83,18 +79,8 @@ public class CosIdGenerator implements StringIdGenerator {
         if (currentTimestamp < lastTimestamp) {
             throw new ClockBackwardsException(lastTimestamp, currentTimestamp);
         }
-        //region Optional-1: Reset sequence based on timestamp change
-        //        if (currentTimestamp == lastTimestamp) {
-        //            sequence = (sequence + 1) & maxSequence;
-        //            if (sequence == 0) {
-        //                currentTimestamp = nextTime();
-        //            }
-        //        } else {
-        //            sequence = 0;
-        //        }
-        //endregion
         
-        //region TODO Optional-2: Reset sequence based on timestamp threshold,Optimize the problem of uneven sharding.
+        //region Reset sequence based on sequence reset threshold,Optimize the problem of uneven sharding.
         
         if (currentTimestamp > lastTimestamp
             && sequence >= sequenceResetThreshold) {
@@ -106,8 +92,8 @@ public class CosIdGenerator implements StringIdGenerator {
         if (sequence == 0) {
             currentTimestamp = nextTime();
         }
-        //endregion
         
+        //endregion
         
         if (currentTimestamp > maxTimestamp) {
             throw new TimestampOverflowException(0, currentTimestamp, maxTimestamp);

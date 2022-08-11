@@ -22,31 +22,31 @@ public abstract class RadixIdConverter implements IdConverter {
     /**
      * 48.
      */
-    private static final char ZERO = '0';
+    public static final char ZERO = '0';
     /**
      * 57.
      */
-    private static final char NINE = '9';
+    public static final char NINE = '9';
     /**
      * 65.
      */
-    private static final char UPPERCASE_A = 'A';
-    private static final int UPPERCASE_OFFSET = 10;
+    public static final char UPPERCASE_A = 'A';
+    public static final int UPPERCASE_OFFSET = 10;
     /**
      * 90.
      */
-    private static final char UPPERCASE_Z = 'Z';
+    public static final char UPPERCASE_Z = 'Z';
     /**
      * 97.
      */
-    private static final char LOWERCASE_A = 'a';
-    private static final int LOWERCASE_OFFSET = 36;
+    public static final char LOWERCASE_A = 'a';
+    public static final int LOWERCASE_OFFSET = 36;
     /**
      * 122.
      */
-    private static final char LOWERCASE_Z = 'z';
+    public static final char LOWERCASE_Z = 'z';
     
-    private static final char[] digits = {
+    public static final char[] digits = {
         /*
          * offset: 0.
          * [48-57]
@@ -66,7 +66,7 @@ public abstract class RadixIdConverter implements IdConverter {
         'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', LOWERCASE_Z,
     };
     
-    private static final char PAD_CHAR = ZERO;
+    public static final char PAD_CHAR = ZERO;
     
     private final boolean padStart;
     private final int charSize;
@@ -83,7 +83,7 @@ public abstract class RadixIdConverter implements IdConverter {
         }
     }
     
-    static int offset(char digitChar) {
+    public static int offset(char digitChar) {
         if (digitChar >= ZERO && digitChar <= NINE) {
             return digitChar - ZERO;
         }
@@ -94,6 +94,16 @@ public abstract class RadixIdConverter implements IdConverter {
             return digitChar - LOWERCASE_A + LOWERCASE_OFFSET;
         }
         return -1;
+    }
+    
+    public static int maxCharSize(int radix, int bits) {
+        long maxId = ~(-1L << bits);
+        int divideTimes = 0;
+        while (maxId > 0) {
+            divideTimes++;
+            maxId = maxId / radix;
+        }
+        return divideTimes;
     }
     
     boolean isPadStart() {

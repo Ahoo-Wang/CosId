@@ -11,38 +11,30 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid;
+package me.ahoo.cosid.id;
 
-import me.ahoo.cosid.converter.Radix62IdConverter;
+import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.IdGenerator;
 
-import javax.annotation.concurrent.ThreadSafe;
-
-/**
- * Id Generator.
- *
- * @author ahoo wang
- */
-@ThreadSafe
-public interface IdGenerator extends StringIdGenerator {
+public interface CosIdGenerator extends IdGenerator {
+    long getLastTimestamp();
     
-    /**
-     * ID converter, used to convert {@code long} type ID to {@link String}.
-     *
-     * @return ID converter
-     */
+    CosIdIdStateParser getStateParser();
+    
+    @Override
     default IdConverter idConverter() {
-        return Radix62IdConverter.PAD_START;
+        throw new UnsupportedOperationException("CosIdGenerator does not support IdConverter,please use CosIdIdStateParser instead!");
     }
     
-    /**
-     * Generate distributed ID.
-     *
-     * @return generated distributed ID
-     */
-    long generate();
+    @Override
+    default long generate() {
+        throw new UnsupportedOperationException("CosIdGenerator does not support the generation of long IDs!");
+    }
+    
+    CosIdState generateAsState();
     
     @Override
     default String generateAsString() {
-        return idConverter().asString(generate());
+        return getStateParser().asString(generateAsState());
     }
 }

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.string;
+package me.ahoo.cosid.id;
 
 import com.google.common.base.MoreObjects;
 

@@ -29,7 +29,7 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
-@ConditionalOnProperty(value = ConditionalOnCosIdGeneratorEnabled.ENABLED_KEY, matchIfMissing = true, havingValue = "true")
+@ConditionalOnProperty(value = ConditionalOnCosIdGeneratorEnabled.ENABLED_KEY, matchIfMissing = false, havingValue = "true")
 public @interface ConditionalOnCosIdGeneratorEnabled {
     String ENABLED_KEY = CosIdGeneratorProperties.PREFIX + EnabledSuffix.KEY;
 }

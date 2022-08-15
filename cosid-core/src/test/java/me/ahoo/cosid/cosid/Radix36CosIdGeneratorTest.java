@@ -16,11 +16,9 @@ package me.ahoo.cosid.cosid;
 import static me.ahoo.cosid.cosid.Radix36CosIdGenerator.DEFAULT_MACHINE_BIT;
 import static me.ahoo.cosid.cosid.Radix36CosIdGenerator.DEFAULT_SEQUENCE_BIT;
 import static me.ahoo.cosid.cosid.Radix36CosIdGenerator.DEFAULT_TIMESTAMP_BIT;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
-import me.ahoo.cosid.converter.RadixIdConverter;
 import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
 
 import org.junit.jupiter.api.Assertions;

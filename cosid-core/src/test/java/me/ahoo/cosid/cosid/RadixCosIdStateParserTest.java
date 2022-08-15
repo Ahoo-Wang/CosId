@@ -53,4 +53,13 @@ class RadixCosIdStateParserTest {
         String id2 = radix62CosIdGenerator.getStateParser().asString(cosIdState);
         assertThat(id, equalTo(id2));
     }
+    
+    @Test
+    void asString36() {
+        Radix36CosIdGenerator radix36CosIdGenerator = new Radix36CosIdGenerator(1);
+        String id = radix36CosIdGenerator.generateAsString();
+        CosIdState cosIdState = radix36CosIdGenerator.getStateParser().asState(id);
+        String id2 = radix36CosIdGenerator.getStateParser().asString(cosIdState);
+        assertThat(id, equalTo(id2));
+    }
 }

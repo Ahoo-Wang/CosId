@@ -17,6 +17,9 @@ import me.ahoo.cosid.converter.Radix36IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.RadixIdConverter;
 
+import com.google.common.base.Preconditions;
+
+
 public class RadixCosIdStateParser implements CosIdIdStateParser {
     public static final RadixCosIdStateParser DEFAULT = ofRadix62(Radix62CosIdGenerator.DEFAULT_TIMESTAMP_BIT, Radix62CosIdGenerator.DEFAULT_MACHINE_BIT, Radix62CosIdGenerator.DEFAULT_SEQUENCE_BIT);
     
@@ -32,6 +35,8 @@ public class RadixCosIdStateParser implements CosIdIdStateParser {
     
     @Override
     public CosIdState asState(String id) {
+        int totalCharSize = timestampConvert.getCharSize() + machineConvert.getCharSize() + sequenceConvert.getCharSize();
+        Preconditions.checkArgument(id.length() == totalCharSize, "id[%s] length must equal to totalCharSize:[%s].", id, totalCharSize);
         String timestampPart = id.substring(0, timestampConvert.getCharSize());
         String machineIdPart = id.substring(timestampConvert.getCharSize(), timestampConvert.getCharSize() + machineConvert.getCharSize());
         String sequencePart = id.substring(timestampConvert.getCharSize() + machineConvert.getCharSize());
@@ -70,5 +75,5 @@ public class RadixCosIdStateParser implements CosIdIdStateParser {
             new Radix36IdConverter(true, sequenceMaxCharSize)
         );
     }
-
+    
 }

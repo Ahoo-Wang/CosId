@@ -16,6 +16,7 @@ package me.ahoo.cosid.cosid;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class RadixCosIdStateParserTest {
@@ -39,11 +40,16 @@ class RadixCosIdStateParserTest {
     @Test
     void asState() {
         CosIdState cosIdState = radix62CosIdGenerator.generateAsState();
-        String tStr = Long.toString(cosIdState.getTimestamp(), 36);
-        
         String idStr = radix62CosIdGenerator.getStateParser().asString(cosIdState);
         CosIdState cosIdState2 = radix62CosIdGenerator.getStateParser().asState(idStr);
         assertThat(cosIdState, equalTo(cosIdState2));
+    }
+    
+    @Test
+    void asStateFailed() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            radix62CosIdGenerator.getStateParser().asState("cosIdState");
+        });
     }
     
     @Test

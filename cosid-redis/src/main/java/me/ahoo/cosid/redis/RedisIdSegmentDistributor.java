@@ -76,11 +76,11 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
     
     void ensureOffset() {
         if (log.isDebugEnabled()) {
-            log.debug("ensureOffset -[{}]- offset:[{}].", adderKey, offset);
+            log.debug("Ensure Offset [{}] offset:[{}].", adderKey, offset);
         }
         Boolean notExists = redisCommands.setnx(this.adderKey, String.valueOf(offset)).block(timeout);
         if (log.isDebugEnabled()) {
-            log.debug("ensureOffset -[{}]- offset:[{}] - notExists:[{}].", adderKey, offset, notExists);
+            log.debug("Ensure Offset [{}] offset:[{}] - notExists:[{}].", adderKey, offset, notExists);
         }
     }
     
@@ -111,7 +111,7 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
     public long nextMaxId(long step) {
         IdSegmentDistributor.ensureStep(step);
         if (log.isDebugEnabled()) {
-            log.debug("nextMaxId -[{}]- step:[{}].", adderKey, step);
+            log.debug("Next MaxId [{}] step:[{}].", adderKey, step);
         }
         final long nextMinMaxId = lastMaxId + step;
         
@@ -119,7 +119,7 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
         assert nextMaxId != null;
         Preconditions.checkNotNull(nextMaxId, "nextMaxId can not be null!");
         if (log.isDebugEnabled()) {
-            log.debug("nextMaxId -[{}]- step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);
+            log.debug("Next MaxId [{}] step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);
         }
         
         Preconditions.checkState(nextMaxId >= nextMinMaxId, "nextMaxId:[%s] must be greater than nextMinMaxId:[%s]!", nextMaxId, nextMinMaxId);

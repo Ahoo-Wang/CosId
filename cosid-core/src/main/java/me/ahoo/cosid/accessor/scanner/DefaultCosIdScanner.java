@@ -52,7 +52,7 @@ public class DefaultCosIdScanner implements CosIdScanner {
     @Override
     public void scan() {
         if (log.isInfoEnabled()) {
-            log.info("scan - basePackages:{}.", Arrays.toString(basePackages));
+            log.info("Scan basePackages:{}.", Arrays.toString(basePackages));
         }
         try {
             ClassLoader classLoader = getClass().getClassLoader();

@@ -53,7 +53,7 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
             return;
         }
         if (log.isWarnEnabled()) {
-            log.warn("sync - backwardsStamp:[{}] - lastStamp:[{}].", backwardsStamp, lastTimestamp);
+            log.warn("Sync backwardsStamp:[{}] - lastStamp:[{}].", backwardsStamp, lastTimestamp);
         }
 
         if (backwardsStamp <= spinThreshold) {

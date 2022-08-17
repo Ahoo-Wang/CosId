@@ -128,12 +128,12 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     @Override
     protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
-            log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
+            log.info("Distribute Remote instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
         
         MachineState machineState = Exceptions.invokeUnchecked(() -> tryDistribute(namespace, machineBit, instanceId, safeGuardDuration));
         if (log.isInfoEnabled()) {
-            log.info("distributeRemote - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
+            log.info("Distribute Remote machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
         }
         return machineState;
     }
@@ -194,7 +194,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
                     curatorFramework.delete().forPath(revertMachinePath);
                 } catch (KeeperException.NoNodeException noNodeException) {
                     if (log.isDebugEnabled()) {
-                        log.debug("tryDistribute - delete revertMachinePath:[{}] failed!", revertMachinePath);
+                        log.debug("Try Distribute - delete revertMachinePath:[{}] failed!", revertMachinePath);
                     }
                     continue;
                 }
@@ -228,7 +228,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
-            log.info("revertRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+            log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         MachineState revertMachineState = machineState;
         if (MachineState.NOT_FOUND.equals(revertMachineState)) {
@@ -253,7 +253,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
-            log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+            log.info("Guard Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
         try {

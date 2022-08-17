@@ -52,7 +52,7 @@ public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFac
             Strings.lenientFormat("%s/segments/distributor/%s/%s?offset=%s&step=%s", proxyHost, definition.getNamespace(), definition.getName(), definition.getOffset(), definition.getStep());
     
         if (log.isInfoEnabled()) {
-            log.info("create - [{}] - apiUrl:[{}].", definition.getNamespacedName(), apiUrl);
+            log.info("Create [{}] - apiUrl:[{}].", definition.getNamespacedName(), apiUrl);
         }
 
         Request request = new Request.Builder()
@@ -64,7 +64,7 @@ public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFac
             assert responseBody != null;
             String bodyStr = responseBody.string();
             if (log.isInfoEnabled()) {
-                log.info("create - [{}] - response:[{}].", definition.getNamespacedName(), bodyStr);
+                log.info("Create [{}] - response:[{}].", definition.getNamespacedName(), bodyStr);
             }
             if (!response.isSuccessful()) {
                 throw new IllegalStateException(Strings.lenientFormat("Create Distributor:[%s] - response:[%s].", definition.getNamespacedName(), responseBody.string()));

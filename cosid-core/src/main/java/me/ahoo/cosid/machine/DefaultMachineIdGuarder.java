@@ -78,7 +78,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     @Override
     public void start() {
         if (log.isDebugEnabled()) {
-            log.debug("start - registeredInstances:[{}].", registeredInstanceIds.size());
+            log.debug("Start registered Instances:[{}].", registeredInstanceIds.size());
         }
         if (running.compareAndSet(false, true)) {
             scheduledFuture = executorService.scheduleWithFixedDelay(this::safeGuard, initialDelay.toMillis(), delay.toMillis(), TimeUnit.MILLISECONDS);
@@ -87,7 +87,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     
     private void safeGuard() {
         if (log.isDebugEnabled()) {
-            log.debug("safeGuard - registeredInstances:[{}].", registeredInstanceIds.size());
+            log.debug("Safe guard registered Instances:[{}].", registeredInstanceIds.size());
         }
         for (NamespacedInstanceId registeredInstance : registeredInstanceIds) {
             try {
@@ -103,7 +103,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     @Override
     public void stop() {
         if (log.isDebugEnabled()) {
-            log.debug("stop - registeredInstances:[{}].", registeredInstanceIds.size());
+            log.debug("Stop registered Instances:[{}].", registeredInstanceIds.size());
         }
         if (running.compareAndSet(true, false)) {
             scheduledFuture.cancel(true);

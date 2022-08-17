@@ -63,7 +63,7 @@ public class JdbcIdSegmentInitializer {
     
     public int initCosIdTable() throws SQLException {
         if (log.isInfoEnabled()) {
-            log.info("initCosIdTable");
+            log.info("Init CosIdTable");
         }
         
         try (Connection connection = dataSource.getConnection()) {
@@ -80,7 +80,7 @@ public class JdbcIdSegmentInitializer {
             return true;
         } catch (Throwable throwable) {
             if (log.isInfoEnabled()) {
-                log.info("tryInitCosIdTable failed.[{}]", throwable.getMessage());
+                log.info("Try Init CosIdTable failed.[{}]", throwable.getMessage());
             }
             return false;
         }
@@ -91,7 +91,7 @@ public class JdbcIdSegmentInitializer {
         Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
         
         if (log.isInfoEnabled()) {
-            log.info("initIdSegment - segmentName:[{}] - offset:[{}]", segmentName, offset);
+            log.info("Init IdSegment - segmentName:[{}] - offset:[{}]", segmentName, offset);
         }
         try (Connection connection = dataSource.getConnection()) {
             try (PreparedStatement initStatement = connection.prepareStatement(initIdSegmentSql)) {
@@ -109,7 +109,7 @@ public class JdbcIdSegmentInitializer {
             return true;
         } catch (Throwable throwable) {
             if (log.isInfoEnabled()) {
-                log.info("tryInitIdSegment failed.[{}]", throwable.getMessage());
+                log.info("Try Init IdSegment failed.[{}]", throwable.getMessage());
             }
             return false;
         }

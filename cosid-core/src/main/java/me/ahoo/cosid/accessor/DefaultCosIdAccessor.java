@@ -67,7 +67,7 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
 
     @Override
     public boolean ensureId(Object target) {
-        Preconditions.checkArgument(getIdDeclaringClass().isInstance(target), "target:[%s] is not instance of IdDeclaringClass:[%s]", target, getIdDeclaringClass());
+        Preconditions.checkArgument(getIdDeclaringClass().isInstance(target), "Target:[%s] is not instance of IdDeclaringClass:[%s]", target, getIdDeclaringClass());
         return ensureId.ensureId(target);
     }
 

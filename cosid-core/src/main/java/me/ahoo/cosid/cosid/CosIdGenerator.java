@@ -16,6 +16,13 @@ package me.ahoo.cosid.cosid;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
 
+/**
+ * CosIdGenerator algorithm ID generator.
+ *
+ * <p><img src="../doc-files/CosIdGenerator.png" alt="CosIdGenerator"></p>
+ *
+ * @author ahoo wang
+ */
 public interface CosIdGenerator extends IdGenerator {
     long getLastTimestamp();
     

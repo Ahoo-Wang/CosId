@@ -66,7 +66,7 @@ public class JdbcMachineIdInitializer {
     
     public void initCosIdMachineTable() throws SQLException {
         if (log.isInfoEnabled()) {
-            log.info("initCosIdMachineTable");
+            log.info("Init CosIdMachineTable");
         }
         
         try (Connection connection = dataSource.getConnection()) {
@@ -88,7 +88,7 @@ public class JdbcMachineIdInitializer {
             return true;
         } catch (Throwable throwable) {
             if (log.isInfoEnabled()) {
-                log.info("tryInitCosIdTable failed.[{}]", throwable.getMessage());
+                log.info("Try Init CosIdMachineTable failed.[{}]", throwable.getMessage());
             }
             return false;
         }

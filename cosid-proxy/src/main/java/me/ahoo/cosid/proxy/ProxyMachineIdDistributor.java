@@ -62,7 +62,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&machineBit=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), machineBit,
                 safeGuardDuration);
         if (log.isInfoEnabled()) {
-            log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}] - apiUrl:[{}].", instanceId, machineBit, namespace, apiUrl);
+            log.info("Distribute Remote instanceId:[{}] - machineBit:[{}] @ namespace:[{}] - apiUrl:[{}].", instanceId, machineBit, namespace, apiUrl);
         }
         
         Request request = new Request.Builder()
@@ -74,7 +74,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             assert responseBody != null;
             String bodyStr = responseBody.string();
             if (log.isInfoEnabled()) {
-                log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}] - response:[{}].", instanceId, machineBit, namespace, bodyStr);
+                log.info("Distribute Remote instanceId:[{}] - machineBit:[{}] @ namespace:[{}] - response:[{}].", instanceId, machineBit, namespace, bodyStr);
             }
             
             if (response.isSuccessful()) {
@@ -95,7 +95,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
         String apiUrl = Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable());
         if (log.isInfoEnabled()) {
-            log.info("revertRemote - [{}] instanceId:[{}] @ namespace:[{}] - apiUrl:[{}].", machineState, instanceId, namespace, apiUrl);
+            log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}] - apiUrl:[{}].", machineState, instanceId, namespace, apiUrl);
         }
         
         Request request = new Request.Builder()
@@ -107,7 +107,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
                 ResponseBody responseBody = response.body();
                 assert responseBody != null;
                 String bodyStr = responseBody.string();
-                log.info("revertRemote - [{}] instanceId:[{}] @ namespace:[{}] - response:[{}].", machineState, instanceId, namespace, bodyStr);
+                log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}] - response:[{}].", machineState, instanceId, namespace, bodyStr);
             }
         }
     }
@@ -119,7 +119,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration);
         
         if (log.isInfoEnabled()) {
-            log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}] - apiUrl:[{}].", machineState, instanceId, namespace, apiUrl);
+            log.info("Guard Remote [{}] instanceId:[{}] @ namespace:[{}] - apiUrl:[{}].", machineState, instanceId, namespace, apiUrl);
         }
         
         Request request = new Request.Builder()
@@ -131,7 +131,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             assert responseBody != null;
             String bodyStr = responseBody.string();
             if (log.isInfoEnabled()) {
-                log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}] - response:[{}].", machineState, instanceId, namespace, bodyStr);
+                log.info("Guard Remote [{}] instanceId:[{}] @ namespace:[{}] - response:[{}].", machineState, instanceId, namespace, bodyStr);
             }
             if (response.isSuccessful()) {
                 return;

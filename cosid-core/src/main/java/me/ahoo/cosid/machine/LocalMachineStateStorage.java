@@ -50,12 +50,12 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isDebugEnabled()) {
-            log.debug("get - read from stateLocation : [{}].", stateFile.getAbsolutePath());
+            log.debug("Get from stateLocation : [{}].", stateFile.getAbsolutePath());
         }
 
         if (!stateFile.exists()) {
             if (log.isInfoEnabled()) {
-                log.info("get - read from stateLocation : [{}] not found.", stateFile.getAbsolutePath());
+                log.info("Get from stateLocation : [{}] not found.", stateFile.getAbsolutePath());
             }
             return MachineState.NOT_FOUND;
         }
@@ -67,12 +67,12 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         }
         if (Strings.isNullOrEmpty(stateString)) {
             if (log.isWarnEnabled()) {
-                log.warn("get - read from stateLocation : [{}] state data is empty.", stateFile.getAbsolutePath());
+                log.warn("Get from stateLocation : [{}] state data is empty.", stateFile.getAbsolutePath());
             }
             return MachineState.NOT_FOUND;
         }
         if (log.isDebugEnabled()) {
-            log.debug("get - state data : [{}].", stateString);
+            log.debug("Get state data : [{}].", stateString);
         }
         return MachineState.of(stateString);
     }
@@ -94,7 +94,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isDebugEnabled()) {
-            log.debug("set - write machineId:[{}] to stateLocation : [{}].", machineId, stateFile.getAbsolutePath());
+            log.debug("Set machineId:[{}] to stateLocation : [{}].", machineId, stateFile.getAbsolutePath());
         }
 
         String stateString = MachineState.of(machineId, System.currentTimeMillis()).toStateString();
@@ -121,12 +121,12 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isInfoEnabled()) {
-            log.info("remove - stateLocation : [{}].", stateFile.getAbsolutePath());
+            log.info("Remove stateLocation : [{}].", stateFile.getAbsolutePath());
         }
         if (stateFile.exists()) {
             boolean isDeleted = stateFile.delete();
             if (!isDeleted) {
-                log.warn("remove and delete instance :[{}] stateFile in namespace[{}] not successful! FilePath:[{}]", instanceId, namespace, stateFile.getAbsolutePath());
+                log.warn("Remove and delete instance :[{}] stateFile in namespace[{}] not successful! FilePath:[{}]", instanceId, namespace, stateFile.getAbsolutePath());
             }
         }
     }
@@ -136,7 +136,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
 
         if (log.isInfoEnabled()) {
-            log.info("clear - namespace : [{}].", namespace);
+            log.info("Clear namespace : [{}].", namespace);
         }
         File[] stateFiles = getStateFilesOf(namespace);
         if (stateFiles == null) {
@@ -144,7 +144,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         }
         for (File stateFile : stateFiles) {
             if (log.isInfoEnabled()) {
-                log.info("clear - stateLocation : [{}].", stateFile.getAbsolutePath());
+                log.info("Clear stateLocation : [{}].", stateFile.getAbsolutePath());
             }
             boolean ignored = stateFile.delete();
         }

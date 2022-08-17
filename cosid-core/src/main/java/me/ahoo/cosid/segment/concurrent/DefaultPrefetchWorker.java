@@ -42,7 +42,7 @@ public class DefaultPrefetchWorker extends Thread implements PrefetchWorker {
     @Override
     public void shutdown() {
         if (log.isInfoEnabled()) {
-            log.info("shutdown!");
+            log.info("Shutdown!");
         }
         if (shutdown) {
             return;
@@ -53,7 +53,7 @@ public class DefaultPrefetchWorker extends Thread implements PrefetchWorker {
     @Override
     public void submit(AffinityJob affinityJob) {
         if (log.isInfoEnabled()) {
-            log.info("submit - [{}] jobSize:[{}].", affinityJob.getJobId(), affinityJobs.size());
+            log.info("Submit [{}] jobSize:[{}].", affinityJob.getJobId(), affinityJobs.size());
         }
 
         if (shutdown) {
@@ -65,7 +65,7 @@ public class DefaultPrefetchWorker extends Thread implements PrefetchWorker {
     @Override
     public void cancel(AffinityJob affinityJob) {
         if (log.isInfoEnabled()) {
-            log.info("cancel - [{}] jobSize:[{}].", affinityJob.getJobId(), affinityJobs.size());
+            log.info("Cancel [{}] jobSize:[{}].", affinityJob.getJobId(), affinityJobs.size());
         }
         affinityJobs.remove(affinityJob);
     }
@@ -73,18 +73,18 @@ public class DefaultPrefetchWorker extends Thread implements PrefetchWorker {
     @Override
     public void wakeup(AffinityJob affinityJob) {
         if (log.isDebugEnabled()) {
-            log.debug("wakeup - [{}] - state:[{}].", affinityJob.getJobId(), this.getState());
+            log.debug("Wakeup [{}] - state:[{}].", affinityJob.getJobId(), this.getState());
         }
         if (shutdown) {
             if (log.isWarnEnabled()) {
-                log.warn("wakeup - [{}] - PrefetchWorker is shutdown,Can't be awakened!", affinityJob.getJobId());
+                log.warn("Wakeup [{}] - PrefetchWorker is shutdown,Can't be awakened!", affinityJob.getJobId());
             }
             return;
         }
 
         if (State.RUNNABLE.equals(this.getState())) {
             if (log.isDebugEnabled()) {
-                log.debug("wakeup - [{}] - PrefetchWorker is running ,Don't need to be awakened.", affinityJob.getJobId());
+                log.debug("Wakeup [{}] - PrefetchWorker is running ,Don't need to be awakened.", affinityJob.getJobId());
             }
             return;
         }

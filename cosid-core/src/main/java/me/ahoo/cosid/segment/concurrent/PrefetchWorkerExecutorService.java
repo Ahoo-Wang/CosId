@@ -65,14 +65,14 @@ public class PrefetchWorkerExecutorService {
             prefetchWorker.setDaemon(true);
             workers[i] = prefetchWorker;
             if (log.isDebugEnabled()) {
-                log.debug("initWorkers - [{}].", prefetchWorker.getName());
+                log.debug("Init Workers - [{}].", prefetchWorker.getName());
             }
         }
     }
 
     public void shutdown() {
         if (log.isInfoEnabled()) {
-            log.info("shutdown!");
+            log.info("Shutdown!");
         }
         if (shutdown) {
             return;
@@ -89,7 +89,7 @@ public class PrefetchWorkerExecutorService {
     public void submit(AffinityJob affinityJob) {
         Preconditions.checkNotNull(affinityJob, "affinityJob can not be null!");
         if (log.isInfoEnabled()) {
-            log.info("submit - jobId:[{}].", affinityJob.getJobId());
+            log.info("Submit jobId:[{}].", affinityJob.getJobId());
         }
         if (shutdown) {
             throw new IllegalStateException("PrefetchWorkerExecutorService is shutdown.");
@@ -104,12 +104,12 @@ public class PrefetchWorkerExecutorService {
             ensureInitWorkers();
             DefaultPrefetchWorker prefetchWorker = chooseWorker();
             if (log.isInfoEnabled()) {
-                log.info("submit - jobId:[{}] is bound to thread:[{}].", affinityJob.getJobId(), prefetchWorker.getName());
+                log.info("Submit jobId:[{}] is bound to thread:[{}].", affinityJob.getJobId(), prefetchWorker.getName());
             }
 
             if (Thread.State.NEW.equals(prefetchWorker.getState())) {
                 if (log.isInfoEnabled()) {
-                    log.info("submit - jobId:[{}] is bound to thread:[{}] start.", affinityJob.getJobId(), prefetchWorker.getName());
+                    log.info("Submit jobId:[{}] is bound to thread:[{}] start.", affinityJob.getJobId(), prefetchWorker.getName());
                 }
                 prefetchWorker.start();
             }

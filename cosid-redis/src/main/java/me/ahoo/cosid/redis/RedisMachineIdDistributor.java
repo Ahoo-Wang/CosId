@@ -68,14 +68,14 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
         
         MachineState machineState = distributeAsync(namespace, machineBit, instanceId, safeGuardDuration).block(timeout);
         if (log.isInfoEnabled()) {
-            log.info("distributeRemote - [{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
+            log.info("Distribute Remote [{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
         }
         return machineState;
     }
     
     protected Mono<MachineState> distributeAsync(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
-            log.info("distributeAsync - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
+            log.info("Distribute Async instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
         return RedisScripts.doEnsureScript(MACHINE_ID_DISTRIBUTE, redisCommands,
             (scriptSha) -> {
@@ -115,7 +115,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
-            log.info("guardRemote - instanceId:[{}]@[{}] - machineState:[{}].", instanceId, namespace, machineState);
+            log.info("Guard Remote instanceId:[{}]@[{}] - machineState:[{}].", instanceId, namespace, machineState);
         }
         Long affected = RedisScripts.doEnsureScript(MACHINE_ID_GUARD, redisCommands,
                 (scriptSha) -> {
@@ -145,7 +145,7 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
      */
     protected Mono<Void> revertAsync(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
-            log.info("revertAsync - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+            log.info("Revert Async [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         if (instanceId.isStable()) {
             return revertScriptAsync(MACHINE_ID_REVERT_STABLE, namespace, instanceId, machineState);

@@ -45,7 +45,7 @@ public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributo
         Preconditions.checkArgument(lastSplitIdx > 0, "The format of hostName:[%s] is incorrect.", hostName);
         String idStr = hostName.substring(lastSplitIdx + 1);
         if (log.isInfoEnabled()) {
-            log.info("resolveMachineId - machineId:[{}] from Env HOSTNAME:[{}]", idStr, hostName);
+            log.info("Resolve MachineId[{}] from Env HOSTNAME:[{}]", idStr, hostName);
         }
         return Integer.parseInt(idStr);
     }
@@ -55,7 +55,7 @@ public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributo
         int machineId = resolveMachineId();
         MachineState machineState = MachineState.of(machineId, NOT_FOUND_LAST_STAMP);
         if (log.isInfoEnabled()) {
-            log.info("distribute0 - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
+            log.info("Distribute Remote machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
         }
         return machineState;
     }

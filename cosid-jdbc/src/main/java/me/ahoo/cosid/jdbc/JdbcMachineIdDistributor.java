@@ -110,7 +110,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     @Override
     protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
-            log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
+            log.info("Distribute Remote instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
         try (Connection connection = dataSource.getConnection()) {
             MachineState machineState = distributeBySelf(namespace, instanceId, connection, safeGuardDuration);
@@ -150,7 +150,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
                 return nextMachineState;
             } catch (SQLIntegrityConstraintViolationException sqlIntegrityConstraintViolationException) {
                 if (log.isInfoEnabled()) {
-                    log.info("distributeMachine - [{}]", sqlIntegrityConstraintViolationException.getMessage());
+                    log.info("Distribute Machine [{}]", sqlIntegrityConstraintViolationException.getMessage());
                 }
                 return distributeMachine(namespace, machineBit, instanceId, connection);
             }
@@ -194,7 +194,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
-            log.info("revertRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+            log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         try (Connection connection = dataSource.getConnection()) {
             try (PreparedStatement revertMachineStatement = connection.prepareStatement(REVERT_MACHINE_STATE)) {
@@ -205,7 +205,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
                 revertMachineStatement.setString(5, instanceId.getInstanceId());
                 int affected = revertMachineStatement.executeUpdate();
                 if (log.isInfoEnabled()) {
-                    log.info("revertRemote - affected:[{}]", affected);
+                    log.info("Revert Remote affected:[{}]", affected);
                 }
             }
         } catch (SQLException sqlException) {
@@ -219,7 +219,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
-            log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+            log.info("Guard Remote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         
         try (Connection connection = dataSource.getConnection()) {
@@ -230,7 +230,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
                 guardMachineStatement.setInt(4, machineState.getMachineId());
                 int affected = guardMachineStatement.executeUpdate();
                 if (log.isInfoEnabled()) {
-                    log.info("guardRemote - affected:[{}]", affected);
+                    log.info("Guard Remote - affected:[{}]", affected);
                 }
                 
                 if (0 == affected) {

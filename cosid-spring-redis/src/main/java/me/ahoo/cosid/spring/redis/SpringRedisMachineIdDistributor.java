@@ -71,7 +71,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     @Override
     protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
-            log.info("distributeRemote - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
+            log.info("Distribute Remote instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
         
         List<String> keys = Collections.singletonList(hashTag(namespace));
@@ -94,7 +94,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         }
         MachineState machineState = MachineState.of(realMachineId, lastStamp);
         if (log.isInfoEnabled()) {
-            log.info("distributeRemote - machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
+            log.info("Distribute Remote machineState:[{}] - instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", machineState, instanceId, machineBit, namespace);
         }
         return machineState;
     }
@@ -105,7 +105,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
-            log.info("revertRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+            log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         RedisScript<Long> script = MACHINE_ID_REVERT;
         if (instanceId.isStable()) {
@@ -124,7 +124,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
-            log.info("guardRemote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+            log.info("Guard Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         
         List<String> keys = Collections.singletonList(hashTag(namespace));

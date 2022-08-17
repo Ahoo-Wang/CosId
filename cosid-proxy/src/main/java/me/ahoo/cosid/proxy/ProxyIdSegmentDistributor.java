@@ -80,7 +80,7 @@ public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
             assert responseBody != null;
             String bodyStr = responseBody.string();
             if (log.isInfoEnabled()) {
-                log.info("nextMaxId -[{}]- step:[{}] - response:[{}].", getNamespacedName(), step, bodyStr);
+                log.info("Next Max Id -[{}]- step:[{}] - response:[{}].", getNamespacedName(), step, bodyStr);
             }
             if (!response.isSuccessful()) {
                 throw new IllegalStateException(Strings.lenientFormat("Distributor:[%s] - response:[%s]", getNamespacedName(), bodyStr));

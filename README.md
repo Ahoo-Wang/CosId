@@ -518,8 +518,9 @@ spring:
 ```
 
 ## Examples
+> 项目中根据使用的场景（`jdbc`/`proxy`/`redis-cosid`/`redis`/`shardingsphere`/`zookeeper`等）提供了对应的例子，实践过程中可以参照配置快速接入。
 
-[Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples)
+[点击查看Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples)
 
 ## Installation
 

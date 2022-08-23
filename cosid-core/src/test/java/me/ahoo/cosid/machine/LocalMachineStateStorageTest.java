@@ -13,10 +13,6 @@
 
 package me.ahoo.cosid.machine;
 
-import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.LocalMachineStateStorage;
-import me.ahoo.cosid.machine.MachineState;
-
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -24,7 +20,7 @@ import org.junit.jupiter.api.Test;
  * @author ahoo wang
  */
 class LocalMachineStateStorageTest {
-    private static final String namespace = "test";
+    private static final String namespace = "{test}";
     private final LocalMachineStateStorage fileLocalMachineState = new LocalMachineStateStorage();
 
     @Test

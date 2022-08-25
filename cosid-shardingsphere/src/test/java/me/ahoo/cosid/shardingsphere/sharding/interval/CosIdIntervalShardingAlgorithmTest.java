@@ -93,7 +93,6 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
         );
     }
     
-    
     @ParameterizedTest
     @MethodSource("doShardingPreciseWhenDateArgsProvider")
     public void doShardingPreciseWhenDate(Date dateTime, String expected) {

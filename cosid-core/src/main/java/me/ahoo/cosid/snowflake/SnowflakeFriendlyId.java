@@ -19,20 +19,20 @@ package me.ahoo.cosid.snowflake;
  * @author ahoo wang
  */
 public interface SnowflakeFriendlyId extends SnowflakeId {
-
+    
     SnowflakeIdStateParser getParser();
-
+    
     default SnowflakeIdState friendlyId(long id) {
         return getParser().parse(id);
     }
-
+    
     default SnowflakeIdState friendlyId() {
         long id = generate();
         return friendlyId(id);
     }
-
+    
     default SnowflakeIdState ofFriendlyId(String friendlyId) {
         return getParser().parse(friendlyId);
     }
-
+    
 }

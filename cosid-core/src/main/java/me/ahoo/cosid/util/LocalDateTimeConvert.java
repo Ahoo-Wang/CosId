@@ -34,15 +34,19 @@ public final class LocalDateTimeConvert {
     }
     
     public static LocalDateTime fromDate(Date date, ZoneId zoneId) {
-        return LocalDateTime.ofInstant(date.toInstant(), zoneId);
+        return fromTimestamp(date.getTime(), zoneId);
     }
     
-    public static LocalDateTime fromTimestamp(Long timestamp, ZoneId zoneId) {
-        return LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), zoneId);
+    public static LocalDateTime fromTimestamp(long timestamp, ZoneId zoneId) {
+        return fromInstant(Instant.ofEpochMilli(timestamp), zoneId);
     }
     
-    public static LocalDateTime fromTimestampSecond(Long timestamp, ZoneId zoneId) {
-        return LocalDateTime.ofInstant(Instant.ofEpochSecond(timestamp), zoneId);
+    public static LocalDateTime fromTimestampSecond(long timestamp, ZoneId zoneId) {
+        return fromInstant(Instant.ofEpochSecond(timestamp), zoneId);
+    }
+    
+    public static LocalDateTime fromInstant(Instant instant, ZoneId zoneId) {
+        return LocalDateTime.ofInstant(instant, zoneId);
     }
     
     /**

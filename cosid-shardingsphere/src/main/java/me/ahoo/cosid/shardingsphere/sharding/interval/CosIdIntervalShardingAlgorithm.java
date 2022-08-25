@@ -19,7 +19,13 @@ import me.ahoo.cosid.util.LocalDateTimeConvert;
 import com.google.common.base.Strings;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
+import java.time.Year;
+import java.time.YearMonth;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
@@ -60,6 +66,27 @@ public class CosIdIntervalShardingAlgorithm extends AbstractIntervalShardingAlgo
         
         if (shardingValue instanceof Instant) {
             return LocalDateTimeConvert.fromInstant((Instant) shardingValue, getZoneId());
+        }
+        
+        if (shardingValue instanceof OffsetDateTime) {
+            return ((OffsetDateTime) shardingValue).toLocalDateTime();
+        }
+        
+        if (shardingValue instanceof ZonedDateTime) {
+            return ((ZonedDateTime) shardingValue).toLocalDateTime();
+        }
+        
+        if (shardingValue instanceof LocalDate) {
+            return LocalDateTime.of(((LocalDate) shardingValue), LocalTime.MIN);
+        }
+        
+        if (shardingValue instanceof Year) {
+            return LocalDateTime.of(((Year) shardingValue).getValue(), 1, 1, 0, 0);
+        }
+        
+        if (shardingValue instanceof YearMonth) {
+            YearMonth yearMonth = (YearMonth) shardingValue;
+            return LocalDateTime.of(yearMonth.getYear(), yearMonth.getMonthValue(), 1, 0, 0);
         }
         
         if (shardingValue instanceof Long) {

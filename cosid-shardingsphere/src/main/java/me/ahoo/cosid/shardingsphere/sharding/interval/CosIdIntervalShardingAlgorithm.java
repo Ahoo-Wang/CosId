@@ -57,6 +57,9 @@ public class CosIdIntervalShardingAlgorithm extends AbstractIntervalShardingAlgo
     
     @Override
     protected LocalDateTime convertShardingValue(final Comparable<?> shardingValue) {
+        if (shardingValue instanceof Instant) {
+            return LocalDateTimeConvert.fromInstant((Instant) shardingValue, getZoneId());
+        }
         if (shardingValue instanceof TemporalAccessor) {
             return LocalDateTime.from((TemporalAccessor) shardingValue);
         }
@@ -64,7 +67,7 @@ public class CosIdIntervalShardingAlgorithm extends AbstractIntervalShardingAlgo
         if (shardingValue instanceof Date) {
             return LocalDateTimeConvert.fromDate((Date) shardingValue, getZoneId());
         }
-    
+        
         if (shardingValue instanceof Long) {
             if (isSecondTs) {
                 return LocalDateTimeConvert.fromTimestampSecond((Long) shardingValue, getZoneId());

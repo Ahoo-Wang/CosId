@@ -18,6 +18,7 @@ import me.ahoo.cosid.util.LocalDateTimeConvert;
 
 import com.google.common.base.Strings;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
@@ -34,11 +35,11 @@ public class CosIdIntervalShardingAlgorithm extends AbstractIntervalShardingAlgo
     public static final String TIMESTAMP_UNIT_KEY = "ts-unit";
     private volatile boolean isSecondTs = false;
     private volatile DateTimeFormatter dateTimeFormatter;
-
+    
     @Override
     public void init() {
         super.init();
-
+        
         if (getProps().containsKey(TIMESTAMP_UNIT_KEY)
             && TIMESTAMP_SECOND_UNIT.equalsIgnoreCase(getProps().get(TIMESTAMP_UNIT_KEY).toString())) {
             isSecondTs = true;
@@ -46,30 +47,34 @@ public class CosIdIntervalShardingAlgorithm extends AbstractIntervalShardingAlgo
         final String dateTimePattern = getProps().getOrDefault(DATE_TIME_PATTERN_KEY, DEFAULT_DATE_TIME_PATTERN).toString();
         dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern);
     }
-
+    
     @Override
     protected LocalDateTime convertShardingValue(final Comparable<?> shardingValue) {
         if (shardingValue instanceof LocalDateTime) {
             return (LocalDateTime) shardingValue;
         }
-
+        
         if (shardingValue instanceof Date) {
             return LocalDateTimeConvert.fromDate((Date) shardingValue, getZoneId());
         }
-
+        
+        if (shardingValue instanceof Instant) {
+            return LocalDateTimeConvert.fromInstant((Instant) shardingValue, getZoneId());
+        }
+        
         if (shardingValue instanceof Long) {
             if (isSecondTs) {
                 return LocalDateTimeConvert.fromTimestampSecond((Long) shardingValue, getZoneId());
             }
             return LocalDateTimeConvert.fromTimestamp((Long) shardingValue, getZoneId());
         }
-
+        
         if (shardingValue instanceof String) {
             return LocalDateTimeConvert.fromString((String) shardingValue, dateTimeFormatter);
         }
         throw new NotSupportIntervalShardingTypeException(Strings.lenientFormat("The current shard type:[%s] is not supported!", shardingValue.getClass()));
     }
-
+    
     @Override
     public String getType() {
         return TYPE;

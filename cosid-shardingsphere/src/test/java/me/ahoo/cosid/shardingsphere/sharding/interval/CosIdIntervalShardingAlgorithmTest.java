@@ -27,7 +27,11 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.YearMonth;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.Date;
@@ -51,118 +55,151 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
         properties.setProperty(CosIdIntervalShardingAlgorithm.DATE_TIME_PATTERN_KEY, CosIdIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
         shardingAlgorithm.setProps(properties);
         shardingAlgorithm.init();
+        assertEquals(shardingAlgorithm.getType(), "COSID_INTERVAL");
     }
     
-    static Stream<Arguments> doShardingPreciseWhenLocalDateTimeArgsProvider() {
+    static Stream<Arguments> shardingPreciseArgsProvider(Function<LocalDateTime, ? extends Comparable<?>> datetimeConvert) {
         return Stream.of(
-            arguments(LOWER_DATE_TIME, "table_202101"),
-            arguments(LocalDateTime.of(2021, 2, 14, 22, 0), "table_202102"),
-            arguments(LocalDateTime.of(2021, 10, 1, 0, 0), "table_202110"),
-            arguments(UPPER_DATE_TIME, "table_202201")
+            arguments(datetimeConvert.apply(LOWER_DATE_TIME), "table_202101"),
+            arguments(datetimeConvert.apply(LocalDateTime.of(2021, 2, 14, 22, 0)), "table_202102"),
+            arguments(datetimeConvert.apply(LocalDateTime.of(2021, 10, 1, 0, 0)), "table_202110"),
+            arguments(datetimeConvert.apply(UPPER_DATE_TIME), "table_202201")
         );
     }
     
+    static Stream<Arguments> shardingPreciseArgsProviderAsLocalDateTime() {
+        return shardingPreciseArgsProvider(ldt -> ldt);
+    }
+    
     @ParameterizedTest
-    @MethodSource("doShardingPreciseWhenLocalDateTimeArgsProvider")
+    @MethodSource("shardingPreciseArgsProviderAsLocalDateTime")
     public void doShardingPreciseWhenLocalDateTime(LocalDateTime dateTime, String expected) {
         PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
     
-    static Stream<Arguments> doShardingPreciseWhenStringArgsProvider() {
-        return Stream.of(
-            arguments("2021-02-14 22:00:00", "table_202102"),
-            arguments("2021-10-01 00:00:00", "table_202110")
-        );
+    static Stream<Arguments> shardingPreciseArgsProviderAsString() {
+        return shardingPreciseArgsProvider((ldt -> ldt.format(dateTimeFormatter)));
     }
     
     @ParameterizedTest
-    @MethodSource("doShardingPreciseWhenStringArgsProvider")
+    @MethodSource("shardingPreciseArgsProviderAsString")
     public void doShardingPreciseWhenString(String dateTime, String expected) {
         PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
     
-    
-    static Stream<Arguments> doShardingPreciseWhenDateArgsProvider() {
-        return Stream.of(
-            arguments(new Date(LocalDateTime.of(2021, 2, 14, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli()), "table_202102"),
-            arguments(new Date(LocalDateTime.of(2021, 10, 1, 0, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli()), "table_202110")
-        );
+    static Stream<Arguments> shardingPreciseArgsProviderAsZonedDateTime() {
+        return shardingPreciseArgsProvider((ldt -> ZonedDateTime.of(ldt, ZONE_OFFSET_SHANGHAI)));
     }
     
     @ParameterizedTest
-    @MethodSource("doShardingPreciseWhenDateArgsProvider")
+    @MethodSource("shardingPreciseArgsProviderAsZonedDateTime")
+    public void doShardingPreciseWhenOffsetDateTime(ZonedDateTime dateTime, String expected) {
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
+        assertEquals(expected, actual);
+    }
+    
+    static Stream<Arguments> shardingPreciseArgsProviderAsOffsetDateTime() {
+        return shardingPreciseArgsProvider((ldt -> OffsetDateTime.of(ldt, ZONE_OFFSET_SHANGHAI)));
+    }
+    
+    @ParameterizedTest
+    @MethodSource("shardingPreciseArgsProviderAsOffsetDateTime")
+    public void doShardingPreciseWhenOffsetDateTime(OffsetDateTime dateTime, String expected) {
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
+        assertEquals(expected, actual);
+    }
+    
+    static Stream<Arguments> shardingPreciseArgsProviderAsLocalDate() {
+        return shardingPreciseArgsProvider((LocalDateTime::toLocalDate));
+    }
+    
+    @ParameterizedTest
+    @MethodSource("shardingPreciseArgsProviderAsLocalDate")
+    public void doShardingPreciseWhenOffsetDateTime(LocalDate dateTime, String expected) {
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
+        assertEquals(expected, actual);
+    }
+    
+    static Stream<Arguments> shardingPreciseArgsProviderAsYearMonth() {
+        return shardingPreciseArgsProvider((ldt -> YearMonth.of(ldt.getYear(), ldt.getMonth())));
+    }
+    
+    @ParameterizedTest
+    @MethodSource("shardingPreciseArgsProviderAsYearMonth")
+    public void doShardingPreciseWhenYearMonth(YearMonth dateTime, String expected) {
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
+        assertEquals(expected, actual);
+    }
+    
+    static Stream<Arguments> shardingPreciseArgsProviderAsDate() {
+        return shardingPreciseArgsProvider((ldt -> new Date(ldt.toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli())));
+    }
+    
+    @ParameterizedTest
+    @MethodSource("shardingPreciseArgsProviderAsDate")
     public void doShardingPreciseWhenDate(Date dateTime, String expected) {
         PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
     
-    static Stream<Arguments> doShardingPreciseWhenSqlDateArgsProvider() {
-        return Stream.of(
-            arguments(new java.sql.Date(LocalDateTime.of(2021, 2, 14, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli()), "table_202102"),
-            arguments(new java.sql.Date(LocalDateTime.of(2021, 10, 1, 0, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli()), "table_202110")
-        );
+    static Stream<Arguments> shardingPreciseArgsProviderAsSqlDate() {
+        return shardingPreciseArgsProvider((ldt -> new java.sql.Date(ldt.toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli())));
     }
     
     @ParameterizedTest
-    @MethodSource("doShardingPreciseWhenSqlDateArgsProvider")
+    @MethodSource("shardingPreciseArgsProviderAsSqlDate")
     public void doShardingPreciseWhenSqlDate(java.sql.Date dateTime, String expected) {
         PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
     
-    static Stream<Arguments> doShardingPreciseWhenSqlTimestampArgsProvider() {
-        return Stream.of(
-            arguments(new java.sql.Timestamp(LocalDateTime.of(2021, 2, 14, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli()), "table_202102"),
-            arguments(new java.sql.Timestamp(LocalDateTime.of(2021, 10, 1, 0, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli()), "table_202110")
-        );
+    static Stream<Arguments> shardingPreciseArgsProviderAsSqlTimestamp() {
+        return shardingPreciseArgsProvider((ldt -> new java.sql.Timestamp(ldt.toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli())));
     }
     
     @ParameterizedTest
-    @MethodSource("doShardingPreciseWhenSqlTimestampArgsProvider")
+    @MethodSource("shardingPreciseArgsProviderAsSqlTimestamp")
     public void doShardingPreciseWhenSqlTimestamp(java.sql.Timestamp dateTime, String expected) {
         PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
     
-    
-    static Stream<Arguments> doShardingPreciseWhenInstantArgsProvider() {
-        return Stream.of(
-            arguments(LocalDateTime.of(2021, 2, 14, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI), "table_202102"),
-            arguments(LocalDateTime.of(2021, 10, 1, 0, 0).toInstant(ZONE_OFFSET_SHANGHAI), "table_202110")
-        );
+    static Stream<Arguments> shardingPreciseArgsProviderAsInstant() {
+        return shardingPreciseArgsProvider((ldt -> ldt.toInstant(ZONE_OFFSET_SHANGHAI)));
     }
     
     @ParameterizedTest
-    @MethodSource("doShardingPreciseWhenInstantArgsProvider")
+    @MethodSource("shardingPreciseArgsProviderAsInstant")
     public void doShardingPreciseWhenSqlTimestamp(Instant dateTime, String expected) {
         PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
     
-    static Stream<Arguments> doShardingPreciseWhenTimestampArgsProvider() {
-        return Stream.of(
-            arguments(LocalDateTime.of(2021, 2, 14, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli(), "table_202102"),
-            arguments(LocalDateTime.of(2021, 10, 1, 22, 0).toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli(), "table_202110")
-        );
+    static Stream<Arguments> shardingPreciseArgsProviderAsLong() {
+        return shardingPreciseArgsProvider((ldt -> ldt.toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli()));
     }
     
     @ParameterizedTest
-    @MethodSource("doShardingPreciseWhenTimestampArgsProvider")
-    public void doShardingPreciseWhenTimestamp(long dateTime, String expected) {
+    @MethodSource("shardingPreciseArgsProviderAsLong")
+    public void doShardingPreciseWhenLong(long dateTime, String expected) {
         PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
     
-    static Stream<Arguments> doShardingRangeArgsProvider(Function<LocalDateTime, ? extends Comparable<?>> datetimeConvert) {
+    static Stream<Arguments> shardingRangeArgsProvider(Function<LocalDateTime, ? extends Comparable<?>> datetimeConvert) {
         return Stream.of(
             arguments(Range.all(), ALL_NODES),
             arguments(Range.closed(datetimeConvert.apply(LOWER_DATE_TIME), datetimeConvert.apply(UPPER_DATE_TIME)), ALL_NODES),
@@ -195,16 +232,16 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     }
     
     
-    static Stream<Arguments> doShardingRangeArgsProviderAsLocalDateTime() {
-        return doShardingRangeArgsProvider((ldt -> ldt));
+    static Stream<Arguments> shardingRangeArgsProviderAsLocalDateTime() {
+        return shardingRangeArgsProvider((ldt -> ldt));
     }
     
-    static Stream<Arguments> doShardingRangeArgsProviderAsString() {
-        return doShardingRangeArgsProvider((ldt -> ldt.format(dateTimeFormatter)));
+    static Stream<Arguments> shardingRangeArgsProviderAsString() {
+        return shardingRangeArgsProvider((ldt -> ldt.format(dateTimeFormatter)));
     }
     
     @ParameterizedTest
-    @MethodSource("doShardingRangeArgsProviderAsLocalDateTime")
+    @MethodSource("shardingRangeArgsProviderAsLocalDateTime")
     public void doShardingRange(Range<LocalDateTime> rangeValue, Collection<String> expected) {
         RangeShardingValue<LocalDateTime> shardingValue = new RangeShardingValue<>(LOGIC_NAME, COLUMN_NAME, rangeValue);
         Collection<String> actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
@@ -213,7 +250,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     
     
     @ParameterizedTest
-    @MethodSource("doShardingRangeArgsProviderAsString")
+    @MethodSource("shardingRangeArgsProviderAsString")
     public void doShardingRangeWhenString(Range<String> rangeValue, Collection<String> expected) {
         RangeShardingValue<String> shardingValue = new RangeShardingValue<>(LOGIC_NAME, COLUMN_NAME, rangeValue);
         Collection<String> actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);

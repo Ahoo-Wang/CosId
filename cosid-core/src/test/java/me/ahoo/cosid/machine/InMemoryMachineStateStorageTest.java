@@ -13,27 +13,11 @@
 
 package me.ahoo.cosid.machine;
 
-import javax.annotation.concurrent.ThreadSafe;
 
-/**
- * Machine State Storage.
- *
- * @author ahoo wang
- */
-@ThreadSafe
-public interface MachineStateStorage {
-    MachineStateStorage LOCAL = new LocalMachineStateStorage();
-    MachineStateStorage IN_MEMORY = new InMemoryMachineStateStorage();
+class InMemoryMachineStateStorageTest extends MachineStateStorageSpec {
     
-    MachineState get(String namespace, InstanceId instanceId);
-    
-    void set(String namespace, int machineId, InstanceId instanceId);
-    
-    void remove(String namespace, InstanceId instanceId);
-    
-    void clear(String namespace);
-    
-    int size(String namespace);
-    
-    boolean exists(String namespace, InstanceId instanceId);
+    @Override
+    MachineStateStorage createMachineStateStorage() {
+        return new InMemoryMachineStateStorage();
+    }
 }

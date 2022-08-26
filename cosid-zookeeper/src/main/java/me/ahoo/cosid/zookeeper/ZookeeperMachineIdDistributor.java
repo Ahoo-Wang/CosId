@@ -252,8 +252,8 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
-        if (log.isInfoEnabled()) {
-            log.info("Guard Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+        if (log.isDebugEnabled()) {
+            log.debug("Guard Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
         try {

@@ -16,6 +16,8 @@ package me.ahoo.cosid.spring.boot.starter.cosid;
 import static me.ahoo.cosid.cosid.Radix62CosIdGenerator.DEFAULT_SEQUENCE_BIT;
 import static me.ahoo.cosid.cosid.Radix62CosIdGenerator.DEFAULT_SEQUENCE_RESET_THRESHOLD;
 import static me.ahoo.cosid.cosid.Radix62CosIdGenerator.DEFAULT_TIMESTAMP_BIT;
+import static me.ahoo.cosid.cosid.RadixCosIdGenerator.DEFAULT_MACHINE_BIT;
+import static me.ahoo.cosid.spring.boot.starter.CosIdProperties.DEFAULT_NAMESPACE;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,34 @@ class CosIdGeneratorPropertiesTest {
         CosIdGeneratorProperties properties = new CosIdGeneratorProperties();
         properties.setEnabled(true);
         Assertions.assertTrue(properties.isEnabled());
+    }
+    
+    @Test
+    void getNamespace() {
+        CosIdGeneratorProperties properties = new CosIdGeneratorProperties();
+        Assertions.assertEquals(DEFAULT_NAMESPACE, properties.getNamespace());
+    }
+    
+    @Test
+    void setNamespace() {
+        CosIdGeneratorProperties properties = new CosIdGeneratorProperties();
+        String namespace = "wow cosid";
+        properties.setNamespace(namespace);
+        Assertions.assertEquals(namespace, properties.getNamespace());
+    }
+    
+    @Test
+    void getMachineBit() {
+        CosIdGeneratorProperties properties = new CosIdGeneratorProperties();
+        Assertions.assertEquals(DEFAULT_MACHINE_BIT, properties.getMachineBit());
+    }
+    
+    @Test
+    void setMachineBit() {
+        CosIdGeneratorProperties properties = new CosIdGeneratorProperties();
+        int machineBit = 12;
+        properties.setMachineBit(machineBit);
+        Assertions.assertEquals(machineBit, properties.getMachineBit());
     }
     
     @Test

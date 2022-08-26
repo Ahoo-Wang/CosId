@@ -218,8 +218,8 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
-        if (log.isInfoEnabled()) {
-            log.info("Guard Remote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
+        if (log.isDebugEnabled()) {
+            log.debug("Guard Remote - [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         
         try (Connection connection = dataSource.getConnection()) {
@@ -229,8 +229,8 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
                 guardMachineStatement.setString(3, instanceId.getInstanceId());
                 guardMachineStatement.setInt(4, machineState.getMachineId());
                 int affected = guardMachineStatement.executeUpdate();
-                if (log.isInfoEnabled()) {
-                    log.info("Guard Remote - affected:[{}]", affected);
+                if (log.isDebugEnabled()) {
+                    log.debug("Guard Remote - affected:[{}]", affected);
                 }
                 
                 if (0 == affected) {

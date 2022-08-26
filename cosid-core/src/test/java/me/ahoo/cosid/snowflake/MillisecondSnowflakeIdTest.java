@@ -102,7 +102,6 @@ class MillisecondSnowflakeIdTest {
             }
             int wait = ThreadLocalRandom.current().nextInt(0, 1000);
             LockSupport.parkNanos(wait);
-            
         }
         assertThat((double) mod0Counter, closeTo(avg, diff));
         assertThat((double) mod1Counter, closeTo(avg, diff));

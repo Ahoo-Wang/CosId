@@ -114,8 +114,8 @@ public class RedisMachineIdDistributor extends AbstractMachineIdDistributor {
     
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
-        if (log.isInfoEnabled()) {
-            log.info("Guard Remote instanceId:[{}]@[{}] - machineState:[{}].", instanceId, namespace, machineState);
+        if (log.isDebugEnabled()) {
+            log.debug("Guard Remote instanceId:[{}]@[{}] - machineState:[{}].", instanceId, namespace, machineState);
         }
         Long affected = RedisScripts.doEnsureScript(MACHINE_ID_GUARD, redisCommands,
                 (scriptSha) -> {

@@ -19,7 +19,9 @@ import me.ahoo.cosid.cosid.CosIdGenerator;
 import me.ahoo.cosid.cosid.Radix36CosIdGenerator;
 import me.ahoo.cosid.cosid.Radix62CosIdGenerator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.machine.MachineId;
+import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineIdDistributor;
+import me.ahoo.cosid.machine.MachineIdGuarder;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
@@ -40,6 +42,7 @@ import org.springframework.context.annotation.Primary;
 @ConditionalOnCosIdGeneratorEnabled
 @EnableConfigurationProperties(CosIdGeneratorProperties.class)
 public class CosIdGeneratorAutoConfiguration {
+    
     private final MachineProperties machineProperties;
     private final CosIdGeneratorProperties cosIdGeneratorProperties;
     
@@ -48,25 +51,27 @@ public class CosIdGeneratorAutoConfiguration {
         this.cosIdGeneratorProperties = cosIdGeneratorProperties;
     }
     
-    @SuppressWarnings("checkstyle:MissingSwitchDefault")
     @Bean
     @Primary
     @ConditionalOnMissingBean
-    public CosIdGenerator cosIdGenerator(final MachineId machineId, IdGeneratorProvider idGeneratorProvider,
+    public CosIdGenerator cosIdGenerator(MachineIdDistributor machineIdDistributor, MachineIdGuarder machineIdGuarder, final InstanceId instanceId, IdGeneratorProvider idGeneratorProvider,
                                          ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        int machineId =
+            machineIdDistributor.distribute(cosIdGeneratorProperties.getNamespace(), cosIdGeneratorProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
+        machineIdGuarder.register(cosIdGeneratorProperties.getNamespace(), instanceId);
         CosIdGenerator cosIdGenerator;
         switch (cosIdGeneratorProperties.getType()) {
             case RADIX62: {
                 cosIdGenerator =
                     new Radix62CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                        machineProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), (int) machineId.getMachineId(),
+                        machineProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
                         cosIdGeneratorProperties.getSequenceResetThreshold());
                 break;
             }
             case RADIX36: {
                 cosIdGenerator =
                     new Radix36CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                        machineProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), (int) machineId.getMachineId(),
+                        machineProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
                         cosIdGeneratorProperties.getSequenceResetThreshold());
                 break;
             }

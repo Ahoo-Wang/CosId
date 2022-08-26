@@ -33,6 +33,11 @@ public class ClockSyncCosIdGenerator implements CosIdGenerator {
     }
     
     @Override
+    public int getMachineId() {
+        return actual.getMachineId();
+    }
+    
+    @Override
     public long getLastTimestamp() {
         return actual.getLastTimestamp();
     }

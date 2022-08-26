@@ -13,6 +13,9 @@
 
 package me.ahoo.cosid.spring.boot.starter.cosid;
 
+import static me.ahoo.cosid.cosid.RadixCosIdGenerator.DEFAULT_MACHINE_BIT;
+import static me.ahoo.cosid.spring.boot.starter.CosIdProperties.DEFAULT_NAMESPACE;
+
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.cosid.RadixCosIdGenerator;
 
@@ -23,6 +26,8 @@ public class CosIdGeneratorProperties {
     public static final String PREFIX = CosId.COSID_PREFIX + "generator";
     private boolean enabled = false;
     private Type type = Type.RADIX62;
+    private String namespace = DEFAULT_NAMESPACE;
+    private int machineBit = DEFAULT_MACHINE_BIT;
     private int timestampBit = RadixCosIdGenerator.DEFAULT_TIMESTAMP_BIT;
     private int sequenceBit = RadixCosIdGenerator.DEFAULT_SEQUENCE_BIT;
     private int sequenceResetThreshold = RadixCosIdGenerator.DEFAULT_SEQUENCE_RESET_THRESHOLD;
@@ -33,6 +38,22 @@ public class CosIdGeneratorProperties {
     
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+    
+    public String getNamespace() {
+        return namespace;
+    }
+    
+    public void setNamespace(String namespace) {
+        this.namespace = namespace;
+    }
+    
+    public int getMachineBit() {
+        return machineBit;
+    }
+    
+    public void setMachineBit(int machineBit) {
+        this.machineBit = machineBit;
     }
     
     public int getTimestampBit() {

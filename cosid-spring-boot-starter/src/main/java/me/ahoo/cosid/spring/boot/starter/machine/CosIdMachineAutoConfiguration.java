@@ -24,14 +24,12 @@ import me.ahoo.cosid.machine.MachineIdGuarder;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.ManualMachineIdDistributor;
 import me.ahoo.cosid.machine.k8s.StatefulSetMachineIdDistributor;
-import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.util.ProcessId;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

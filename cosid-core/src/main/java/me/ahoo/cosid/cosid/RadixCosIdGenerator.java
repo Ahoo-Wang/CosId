@@ -55,6 +55,11 @@ public class RadixCosIdGenerator implements CosIdGenerator {
     }
     
     @Override
+    public int getMachineId() {
+        return machineId;
+    }
+    
+    @Override
     public long getLastTimestamp() {
         return lastTimestamp;
     }

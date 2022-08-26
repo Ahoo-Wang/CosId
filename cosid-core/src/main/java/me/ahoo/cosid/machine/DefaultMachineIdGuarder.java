@@ -63,7 +63,11 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     
     @Override
     public void register(String namespace, InstanceId instanceId) {
-        registeredInstanceIds.add(new NamespacedInstanceId(namespace, instanceId));
+        NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
+        boolean absent = registeredInstanceIds.add(namespacedInstanceId);
+        if (log.isDebugEnabled()) {
+            log.debug("Register Instance:[{}] - [{}].", namespacedInstanceId, absent);
+        }
     }
     
     @Override

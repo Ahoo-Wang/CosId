@@ -24,6 +24,8 @@ import me.ahoo.cosid.IdGenerator;
  * @author ahoo wang
  */
 public interface CosIdGenerator extends IdGenerator {
+    int getMachineId();
+    
     long getLastTimestamp();
     
     CosIdIdStateParser getStateParser();

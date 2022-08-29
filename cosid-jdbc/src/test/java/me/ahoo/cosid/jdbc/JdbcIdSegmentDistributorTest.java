@@ -13,11 +13,16 @@
 
 package me.ahoo.cosid.jdbc;
 
+import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.jdbc.exception.SegmentNameMissingException;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
 
@@ -27,12 +32,12 @@ import javax.sql.DataSource;
 class JdbcIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     DataSource dataSource;
     JdbcIdSegmentDistributorFactory distributorFactory;
-
+    JdbcIdSegmentInitializer mySqlIdSegmentInitializer;
     
     @BeforeEach
     private void setup() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
-        JdbcIdSegmentInitializer  mySqlIdSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
+        mySqlIdSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
         distributorFactory =
             new JdbcIdSegmentDistributorFactory(dataSource, true, mySqlIdSegmentInitializer, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
     }
@@ -51,5 +56,23 @@ class JdbcIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     @Override
     public void nextMaxIdWhenBack() {
         //TODO
+    }
+    
+    @Test
+    void nextMaxIdWhenSegmentNameMissing() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        JdbcIdSegmentDistributor jdbcIdSegmentDistributor = new JdbcIdSegmentDistributor(namespace, "SegmentNameMissing", 100, dataSource);
+        Assertions.assertThrows(SegmentNameMissingException.class, () -> {
+            jdbcIdSegmentDistributor.nextMaxId(1);
+        });
+    }
+    
+    @Test
+    void nextMaxIdWhenWrongSql() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        JdbcIdSegmentDistributor jdbcIdSegmentDistributor = new JdbcIdSegmentDistributor(namespace, "WrongSql", 100,"WrongSql","WrongSql", dataSource);
+        Assertions.assertThrows(CosIdException.class, () -> {
+            jdbcIdSegmentDistributor.nextMaxId(1);
+        });
     }
 }

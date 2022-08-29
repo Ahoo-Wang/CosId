@@ -17,7 +17,6 @@
 
 | 名称      | 数据类型                 | 说明         | 默认值    |
 |---------|----------------------|------------|--------|
-| enabled | `boolean`            | 是否启用状态存储   | `true` |
 | local   | `StateStorage.Local` | 本地机器状态存储配置 |        |
 
 #### StateStorage.Local

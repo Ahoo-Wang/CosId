@@ -13,34 +13,19 @@
 
 package me.ahoo.cosid.proxy;
 
-import me.ahoo.cosid.machine.MachineState;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.junit.jupiter.api.Test;
 
-/**
- * MachineStateDto .
- *
- * @author ahoo wang
- */
-public class MachineStateDto extends MachineState {
-    @JsonCreator
-    public MachineStateDto(@JsonProperty("machineId") int machineId, @JsonProperty("lastTimeStamp") long lastTimeStamp) {
-        super(machineId, lastTimeStamp);
+class JsonsTest {
+    
+    @Test
+    void serialize() {
+        ErrorResponse errorResponse = ErrorResponse.badRequest("badRequest");
+        String jsonStr = Jsons.serialize(errorResponse);
+        ErrorResponse actual = Jsons.deserialize(jsonStr, ErrorResponse.class);
+        assertThat(actual, equalTo(errorResponse));
     }
     
-    @Override
-    public boolean equals(Object o) {
-        return super.equals(o);
-    }
-    
-    @Override
-    public int hashCode() {
-        return super.hashCode();
-    }
-    
-    @Override
-    public String toString() {
-        return super.toString();
-    }
 }

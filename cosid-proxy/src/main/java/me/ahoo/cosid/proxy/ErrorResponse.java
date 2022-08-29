@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Error Response.
@@ -51,6 +52,23 @@ public class ErrorResponse {
     
     public List<?> getErrors() {
         return errors;
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof ErrorResponse)) {
+            return false;
+        }
+        ErrorResponse that = (ErrorResponse) o;
+        return Objects.equals(getCode(), that.getCode()) && Objects.equals(getMsg(), that.getMsg()) && Objects.equals(getErrors(), that.getErrors());
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(getCode(), getMsg(), getErrors());
     }
     
     public static ErrorResponse of(String code, String msg) {

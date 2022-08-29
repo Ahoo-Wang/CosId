@@ -529,7 +529,7 @@ spring:
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.8.9";
+    val cosidVersion = "1.14.5";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -545,7 +545,7 @@ spring:
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.8.9</cosid.version>
+        <cosid.version>1.14.5</cosid.version>
     </properties>
 
     <dependencies>
@@ -626,23 +626,21 @@ spring:
 
 cosid:
   namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    #      stable: true
+    #      machine-bit: 10
+    #      instance-id: ${HOSTNAME}
+    distributor:
+      type: redis
+    #        manual:
+    #          machine-id: 0
   snowflake:
     enabled: true
     #    epoch: 1577203200000
     clock-backwards:
       spin-threshold: 10
       broken-threshold: 2000
-    machine:
-      #      stable: true
-      #      machine-bit: 10
-      #      instance-id: ${HOSTNAME}
-      distributor:
-        type: redis
-      #        manual:
-      #          machine-id: 0
-      state-storage:
-        local:
-          state-location: ./cosid-machine-state/
     share:
       clock-sync: true
       friendly: true
@@ -688,7 +686,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.8.9-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-1.14.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```

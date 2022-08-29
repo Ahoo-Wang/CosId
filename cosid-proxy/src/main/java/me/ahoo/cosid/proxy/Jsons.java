@@ -25,7 +25,7 @@ public final class Jsons {
     
     public static final ObjectMapper OBJECT_MAPPER = mapper();
     
-    public static ObjectMapper mapper() {
+    static ObjectMapper mapper() {
         return new ObjectMapper()
             .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .configure(JsonParser.Feature.IGNORE_UNDEFINED, true)

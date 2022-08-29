@@ -34,8 +34,7 @@ cosid:
   segment:
     distributor:
       type: zookeeper
-  snowflake:
-    machine:
-      distributor:
-        type: zookeeper
+  machine:
+    distributor:
+      type: zookeeper
 ```

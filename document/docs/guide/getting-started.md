@@ -11,7 +11,7 @@
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.8.6";
+    val cosidVersion = "1.14.5";
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
 
@@ -27,7 +27,7 @@
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.8.6</cosid.version>
+        <cosid.version>1.14.5</cosid.version>
     </properties>
 
     <dependencies>

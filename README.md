@@ -18,7 +18,8 @@
 *[CosId](https://github.com/Ahoo-Wang/CosId)* aims to provide a universal, flexible and high-performance distributed ID
 generator.
 
-- `SnowflakeId` : Stand-alone *TPS performance：4,096,000* [JMH Benchmark](#jmh-benchmark) , It mainly solves two major
+- `CosIdGenerator` : Stand-alone *TPS performance：15,570,085 ops/s* , three times that of `UUID.randomUUID()`.
+- `SnowflakeId` : Stand-alone *TPS performance：4,096,000 ops/s* [JMH Benchmark](#jmh-benchmark) , It mainly solves two major
   problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and provide a more friendly
   and flexible experience.
 - `SegmentId`: Get a segment (`Step`) ID every time to reduce the network IO request frequency of the `IdSegment`
@@ -29,7 +30,7 @@ generator.
         - `ZookeeperIdSegmentDistributor`: `IdSegment` distributor based on *Zookeeper*.
 - `SegmentChainId`(**recommend**):`SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design
   diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves
-  approximately `AtomicLong` *TPS performance (Step 1000): 127,439,148+/s* [JMH Benchmark](#jmh-benchmark) .
+  approximately `AtomicLong` *TPS performance: 127,439,148+ ops/s* [JMH Benchmark](#jmh-benchmark) .
     - `PrefetchWorker` maintains a safe distance (`safeDistance`), and supports dynamic `safeDistance` expansion and
       contraction based on hunger status.
 

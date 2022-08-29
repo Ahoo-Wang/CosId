@@ -130,19 +130,10 @@ public class MachineProperties {
     
     public static class StateStorage {
         
-        private boolean enabled = true;
         private MachineProperties.StateStorage.Local local;
         
         public StateStorage() {
             this.local = new MachineProperties.StateStorage.Local();
-        }
-        
-        public boolean isEnabled() {
-            return enabled;
-        }
-        
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
         }
         
         public MachineProperties.StateStorage.Local getLocal() {
@@ -165,6 +156,7 @@ public class MachineProperties {
                 this.stateLocation = stateLocation;
             }
         }
+
     }
     
     public static class Distributor {

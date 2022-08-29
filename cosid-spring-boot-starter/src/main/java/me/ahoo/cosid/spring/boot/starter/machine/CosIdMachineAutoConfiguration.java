@@ -56,10 +56,7 @@ public class CosIdMachineAutoConfiguration {
     @ConditionalOnMissingBean
     public InstanceId instanceId(InetUtils inetUtils) {
         
-        boolean stable = false;
-        if (Objects.nonNull(machineProperties.getStable()) && machineProperties.getStable()) {
-            stable = machineProperties.getStable();
-        }
+        boolean stable = Boolean.TRUE.equals(machineProperties.getStable());
         
         if (!Strings.isNullOrEmpty(machineProperties.getInstanceId())) {
             return InstanceId.of(machineProperties.getInstanceId(), stable);
@@ -85,10 +82,10 @@ public class CosIdMachineAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public MachineStateStorage localMachineState() {
-        if (!machineProperties.getStateStorage().isEnabled()) {
-            return MachineStateStorage.IN_MEMORY;
+        if (Boolean.TRUE.equals(machineProperties.getStable())) {
+            return new LocalMachineStateStorage(machineProperties.getStateStorage().getLocal().getStateLocation());
         }
-        return new LocalMachineStateStorage(machineProperties.getStateStorage().getLocal().getStateLocation());
+        return MachineStateStorage.IN_MEMORY;
     }
     
     @Bean

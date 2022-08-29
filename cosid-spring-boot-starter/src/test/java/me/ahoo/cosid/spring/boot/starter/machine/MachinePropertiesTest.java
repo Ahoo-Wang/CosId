@@ -164,18 +164,6 @@ class MachinePropertiesTest {
     }
     
     public static class StateStorageTest {
-        @Test
-        public void isEnabled() {
-            MachineProperties.StateStorage stateStorage = new MachineProperties.StateStorage();
-            Assertions.assertTrue(stateStorage.isEnabled());
-        }
-        
-        @Test
-        public void setEnabled() {
-            MachineProperties.StateStorage stateStorage = new MachineProperties.StateStorage();
-            stateStorage.setEnabled(false);
-            Assertions.assertFalse(stateStorage.isEnabled());
-        }
         
         @Test
         public void getLocal() {

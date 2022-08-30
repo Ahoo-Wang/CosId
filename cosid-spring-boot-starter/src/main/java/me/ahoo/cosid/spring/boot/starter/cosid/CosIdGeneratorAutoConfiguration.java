@@ -64,14 +64,14 @@ public class CosIdGeneratorAutoConfiguration {
             case RADIX62: {
                 cosIdGenerator =
                     new Radix62CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                        machineProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
+                        cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
                         cosIdGeneratorProperties.getSequenceResetThreshold());
                 break;
             }
             case RADIX36: {
                 cosIdGenerator =
                     new Radix36CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                        machineProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
+                        cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
                         cosIdGeneratorProperties.getSequenceResetThreshold());
                 break;
             }

@@ -44,7 +44,7 @@ public class EntityController {
     }
 
     @PostMapping("/asStringDto")
-    public AsStringDto getJacksonDto() throws Exception {
+    public AsStringDto getJacksonDto() {
         AsStringDto dto = new AsStringDto();
         dto.setId(123456L);
         dto.setFriendlyId(123456L);

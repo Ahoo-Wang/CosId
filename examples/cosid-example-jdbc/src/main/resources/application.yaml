@@ -3,12 +3,49 @@ server:
 spring:
   application:
     name: ${service.name:cosid-example-jdbc}
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/cosid_db
-    username: root
-    password: root
-
+  shardingsphere:
+    datasource:
+      datasource-0:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://localhost:3306/cosid_db
+        username: root
+        password: root
+      names: datasource-0
+    rules:
+      sharding:
+        key-generators:
+          cosid:
+            type: COSID
+            props:
+              id-name: __share__
+        tables:
+          t_user:
+            actual-data-nodes: datasource-0.t_user_$->{0..3}
+            #分库策略
+            database-strategy:
+              standard: # 用于单分片键的标准分片场景
+                sharding-column: id
+                sharding-algorithm-name: db-inline
+            #分表策略
+            table-strategy:
+              #标准策略
+              standard:
+                sharding-column: id
+                sharding-algorithm-name: user-inline
+            key-generate-strategy:
+              column: id
+              key-generator-name: cosid
+        sharding-algorithms:
+          db-inline:
+            type: MOD
+            props:
+              sharding-count: 1  # 表示有1个分片库数量
+          user-inline:
+            type: COSID_MOD
+            props:
+              mod: 4
+              logic-name-prefix: t_user_
 cosid:
   enabled: true
   namespace: ${spring.application.name}

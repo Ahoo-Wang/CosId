@@ -65,3 +65,41 @@ create table t_order_item
     order_item_id       bigint not null primary key,
     order_id bigint not null
 );
+
+
+create table t_user_0
+(
+    id bigint not null
+        primary key,
+    age int null,
+    name varchar(50) null,
+    create_time datetime null
+);
+
+create table t_user_1
+(
+    id bigint not null
+        primary key,
+    age int null,
+    name varchar(50) null,
+    create_time datetime null
+);
+
+create table t_user_2
+(
+    id bigint not null
+        primary key,
+    age int null,
+    name varchar(50) null,
+    create_time datetime null
+);
+
+create table t_user_3
+(
+    id bigint not null
+        primary key,
+    age int null,
+    name varchar(50) null,
+    create_time datetime null
+);
+

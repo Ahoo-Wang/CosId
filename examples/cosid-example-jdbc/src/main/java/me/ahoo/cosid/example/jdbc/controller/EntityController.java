@@ -1,5 +1,6 @@
 package me.ahoo.cosid.example.jdbc.controller;
 
+import me.ahoo.cosid.example.jdbc.dto.AsStringDto;
 import me.ahoo.cosid.example.jdbc.entity.FriendlyIdEntity;
 import me.ahoo.cosid.example.jdbc.entity.LongIdEntity;
 import me.ahoo.cosid.example.jdbc.repository.EntityRepository;
@@ -40,5 +41,16 @@ public class EntityController {
         FriendlyIdEntity entity = new FriendlyIdEntity();
         entityRepository.insertFriendly(entity);
         return entity;
+    }
+
+    @PostMapping("/asStringDto")
+    public AsStringDto getJacksonDto() throws Exception {
+        AsStringDto dto = new AsStringDto();
+        dto.setId(123456L);
+        dto.setFriendlyId(123456L);
+        dto.setRadixPadStartId(123456L);
+        dto.setRadixPadStartCharSize10Id(123456L);
+        dto.setRadixId(123456L);
+        return dto;
     }
 }

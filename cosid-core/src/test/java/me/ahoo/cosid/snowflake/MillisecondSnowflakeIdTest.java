@@ -59,7 +59,7 @@ class MillisecondSnowflakeIdTest {
         long id = snowflakeId.generate();
         SnowflakeIdState snowflakeIdState = snowflakeId.friendlyId(id);
         
-        LockSupport.parkNanos(Duration.ofMillis(1).toNanos());
+        LockSupport.parkNanos(Duration.ofMillis(2).toNanos());
         
         long id2 = snowflakeId.generate();
         SnowflakeIdState snowflakeIdState2 = snowflakeId.friendlyId(id2);

@@ -23,36 +23,51 @@ import java.lang.reflect.Field;
  * @author ahoo wang
  */
 public class IdDefinition {
-
-    public static final IdDefinition NOT_FOUND = new IdDefinition(null, null, null);
-
+    
+    public static final IdDefinition NOT_FOUND = new IdDefinition(NotFoundIdDefinition.NAME, NotFoundIdDefinition.ID_FIELD, long.class);
+    
     private final String generatorName;
     private final Field idField;
     private final Class<?> idType;
-
+    
     public IdDefinition(Field idField) {
         this(IdGeneratorProvider.SHARE, idField);
     }
-
+    
     public IdDefinition(String generatorName, Field idField) {
         this(generatorName, idField, idField.getType());
     }
-
+    
     public IdDefinition(String generatorName, Field idField, Class<?> idType) {
         this.generatorName = generatorName;
         this.idField = idField;
         this.idType = idType;
     }
-
+    
     public String getGeneratorName() {
         return generatorName;
     }
-
+    
     public Field getIdField() {
         return idField;
     }
-
+    
     public Class<?> getIdType() {
         return idType;
+    }
+    
+    private static class NotFoundIdDefinition {
+        static final String NAME = "NOT_FOUND";
+        static final Field ID_FIELD;
+        
+        static {
+            try {
+                ID_FIELD = NotFoundIdDefinition.class.getDeclaredField("id");
+            } catch (NoSuchFieldException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        
+        private final long id = 0L;
     }
 }

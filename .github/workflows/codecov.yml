@@ -50,7 +50,7 @@ jobs:
       - name: Init CosId-Db
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
-      - name: Build Code Coverage Report
+      - name: Check And Build Code Coverage Report
         run: gradle check codeCoverageReport -Dlogging.level.root=debug --stacktrace
 
       - name: Upload Code Coverage Report to Codecov

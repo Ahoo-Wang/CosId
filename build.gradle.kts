@@ -239,6 +239,7 @@ fun getPropertyOf(name: String) = project.properties[name]?.toString()
 tasks.register<JacocoReport>("codeCoverageReport") {
     executionData(fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec"))
     libraryProjects.forEach {
+        dependsOn(it.tasks.test)
         if (testProject != it) {
             sourceSets(it.sourceSets.main.get())
         }

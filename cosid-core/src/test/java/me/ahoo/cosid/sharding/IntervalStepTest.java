@@ -16,6 +16,7 @@ package me.ahoo.cosid.sharding;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -197,8 +198,7 @@ class IntervalStepTest {
         int actual = step.offsetUnit(START_DATE_TIME, dateTime);
         Assertions.assertEquals(expected, actual);
     }
-
-
+    
     static Stream<Arguments> offsetUnitDayArgsProvider() {
         return Stream.of(
                 arguments(LocalDateTime.of(2021, 1, 28, 22, 1), 27),
@@ -211,6 +211,21 @@ class IntervalStepTest {
     @MethodSource("offsetUnitDayArgsProvider")
     void offsetUnitDay(LocalDateTime dateTime, int expected) {
         IntervalStep step = IntervalStep.of(ChronoUnit.DAYS);
+        int actual = step.offsetUnit(START_DATE_TIME, dateTime);
+        Assertions.assertEquals(expected, actual);
+    }
+    
+    static Stream<Arguments> offsetUnitHourArgsProvider() {
+        return Stream.of(
+            arguments(LocalDateTime.of(2021, 1, 1, 22, 1), 22),
+            arguments(LocalDateTime.of(2021, 1, 2, 1, 0), 25)
+        );
+    }
+    
+    @ParameterizedTest
+    @MethodSource("offsetUnitHourArgsProvider")
+    void offsetUnitHour(LocalDateTime dateTime, int expected) {
+        IntervalStep step = IntervalStep.of(ChronoUnit.HOURS);
         int actual = step.offsetUnit(START_DATE_TIME, dateTime);
         Assertions.assertEquals(expected, actual);
     }

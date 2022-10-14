@@ -25,27 +25,27 @@ import java.time.temporal.ChronoUnit;
 @Immutable
 public class IntervalStep {
     public static final int DEFAULT_AMOUNT = 1;
-
+    
     private final ChronoUnit unit;
     private final int amount;
-
+    
     public IntervalStep(ChronoUnit unit, int amount) {
         this.unit = unit;
         this.amount = amount;
     }
-
+    
     public ChronoUnit getUnit() {
         return unit;
     }
-
+    
     public int getAmount() {
         return amount;
     }
-
+    
     public LocalDateTime next(LocalDateTime previous) {
         return previous.plus(amount, unit);
     }
-
+    
     /**
      * 按照 {@link #unit} 保留单位时间精度.
      *
@@ -76,60 +76,23 @@ public class IntervalStep {
                 throw new IllegalStateException("Unexpected value: " + unit);
         }
     }
-
+    
     /**
      * 计算单位偏移量.
      * Start with 0
      *
      * @param start 最小值
-     * @param time  time
+     * @param time time
      * @return offset
      */
     public int offsetUnit(LocalDateTime start, LocalDateTime time) {
-        return getDiffUnit(start, time) / amount;
+        return (int) (start.until(time, unit) / amount);
     }
-
-    private int getDiffUnit(LocalDateTime startInterval, LocalDateTime time) {
-        switch (unit) {
-            case YEARS: {
-                return getDiffYear(startInterval, time);
-            }
-            case MONTHS: {
-                return getDiffYearMonth(startInterval, time);
-            }
-            case DAYS: {
-                return getDiffYearMonthDay(startInterval, time);
-            }
-            case HOURS: {
-                return getDiffYearMonthDay(startInterval, time) * 24;
-            }
-            case MINUTES: {
-                return getDiffYearMonthDay(startInterval, time) * 24 * 60;
-            }
-            case SECONDS: {
-                return getDiffYearMonthDay(startInterval, time) * 24 * 60 * 60;
-            }
-            default:
-                throw new IllegalStateException("Unexpected value: " + unit);
-        }
-    }
-
-    private int getDiffYearMonthDay(LocalDateTime startInterval, LocalDateTime time) {
-        return (int) (time.toLocalDate().toEpochDay() - startInterval.toLocalDate().toEpochDay());
-    }
-
-    private int getDiffYearMonth(LocalDateTime startInterval, LocalDateTime time) {
-        return getDiffYear(startInterval, time) * 12 + (time.getMonthValue() - startInterval.getMonthValue());
-    }
-
-    private int getDiffYear(LocalDateTime startInterval, LocalDateTime time) {
-        return time.getYear() - startInterval.getYear();
-    }
-
+    
     public static IntervalStep of(ChronoUnit unit) {
         return new IntervalStep(unit, DEFAULT_AMOUNT);
     }
-
+    
     public static IntervalStep of(ChronoUnit unit, int amount) {
         return new IntervalStep(unit, amount);
     }

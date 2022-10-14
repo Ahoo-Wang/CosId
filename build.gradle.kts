@@ -44,7 +44,7 @@ ext {
     set("lombokVersion", "1.18.20")
     set("guavaVersion", "30.0-jre")
     set("springBootVersion", "2.6.9")
-    set("springCloudVersion", "2021.0.3")
+    set("springCloudVersion", "2021.0.4")
     set("jmhVersion", "1.34")
     set("junitPioneerVersion", "1.4.2")
     set("hamcrestVersion", "2.2")

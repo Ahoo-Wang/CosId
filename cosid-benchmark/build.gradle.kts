@@ -31,7 +31,7 @@ dependencies {
     implementation("me.ahoo.cosid:cosid-jdbc:1.14.8")
     implementation("me.ahoo.cosid:cosid-test:1.14.8")
     testImplementation("com.zaxxer:HikariCP:5.0.1")
-    testImplementation("mysql:mysql-connector-java:8.0.30")
+    testImplementation("mysql:mysql-connector-java:8.0.31")
     /**
      * WARNING：中央仓库没有找到美团官方提供的Jar!!!
      * git clone https://github.com/Meituan-Dianping/Leaf

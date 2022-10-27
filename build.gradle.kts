@@ -13,7 +13,8 @@
 
 plugins {
     id("io.github.gradle-nexus.publish-plugin")
-    java
+    id("me.champeau.jmh")
+    `java-library`
     jacoco
 }
 
@@ -41,20 +42,6 @@ val publishProjects = subprojects - serverProjects
 val libraryProjects = publishProjects - bomProjects
 
 ext {
-    set("lombokVersion", "1.18.20")
-    set("guavaVersion", "30.0-jre")
-    set("springBootVersion", "2.6.9")
-    set("springCloudVersion", "2021.0.4")
-    set("jmhVersion", "1.34")
-    set("junitPioneerVersion", "1.4.2")
-    set("hamcrestVersion", "2.2")
-    set("mybatisVersion", "3.5.10")
-    set("mybatisBootVersion", "2.2.2")
-    set("axonBomVersion", "4.5.12")
-    set("okhttpVersion", "4.9.3")
-    set("coskyVersion", "1.3.20")
-    set("shardingsphereVersion", "5.0.0")
-    set("testcontainersVersion", "1.17.2")
     set("libraryProjects", libraryProjects)
 }
 
@@ -92,22 +79,21 @@ configure(libraryProjects) {
     }
     apply<me.champeau.jmh.JMHPlugin>()
     configure<me.champeau.jmh.JmhParameters> {
-        val DELIMITER = ',';
-        val JMH_INCLUDES_KEY = "jmhIncludes"
-        val JMH_EXCLUDES_KEY = "jmhExcludes"
-        val JMH_THREADS_KEY = "jmhThreads"
-        val JMH_MODE_KEY = "jmhMode"
+        val delimiter = ',';
+        val jmhIncludesKey = "jmhIncludes"
+        val jmhExcludesKey = "jmhExcludes"
+        val jmhThreadsKey = "jmhThreads"
+        val jmhModeKey = "jmhMode"
 
-        if (project.hasProperty(JMH_INCLUDES_KEY)) {
-            val jmhIncludes = project.properties[JMH_INCLUDES_KEY].toString().split(DELIMITER)
+        if (project.hasProperty(jmhIncludesKey)) {
+            val jmhIncludes = project.properties[jmhIncludesKey].toString().split(delimiter)
             includes.set(jmhIncludes)
         }
-        if (project.hasProperty(JMH_EXCLUDES_KEY)) {
-            val jmhExcludes = project.properties[JMH_EXCLUDES_KEY].toString().split(DELIMITER)
+        if (project.hasProperty(jmhExcludesKey)) {
+            val jmhExcludes = project.properties[jmhExcludesKey].toString().split(delimiter)
             excludes.set(jmhExcludes)
         }
 
-        jmhVersion.set(rootProject.ext.get("jmhVersion").toString())
         warmupIterations.set(1)
         iterations.set(1)
         resultFormat.set("json")
@@ -115,13 +101,13 @@ configure(libraryProjects) {
         var jmhMode = listOf(
             "thrpt"
         )
-        if (project.hasProperty(JMH_MODE_KEY)) {
-            jmhMode = project.properties[JMH_MODE_KEY].toString().split(DELIMITER)
+        if (project.hasProperty(jmhModeKey)) {
+            jmhMode = project.properties[jmhModeKey].toString().split(delimiter)
         }
         benchmarkMode.set(jmhMode)
         var jmhThreads = 1
-        if (project.hasProperty(JMH_THREADS_KEY)) {
-            jmhThreads = Integer.valueOf(project.properties[JMH_THREADS_KEY].toString())
+        if (project.hasProperty(jmhThreadsKey)) {
+            jmhThreads = Integer.valueOf(project.properties[jmhThreadsKey].toString())
         }
         threads.set(jmhThreads)
         fork.set(1)
@@ -132,22 +118,24 @@ configure(libraryProjects) {
     }
 
     dependencies {
-        val depLombok = "org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}"
-        add("api", platform(project(":cosid-dependencies")))
-        add("compileOnly", depLombok)
-        add("annotationProcessor", depLombok)
-        add("testCompileOnly", depLombok)
-        add("testAnnotationProcessor", depLombok)
-        add("implementation", "com.google.guava:guava")
-        add("implementation", "org.slf4j:slf4j-api")
-        add("testImplementation", "ch.qos.logback:logback-classic")
-        add("testImplementation", "org.junit.jupiter:junit-jupiter-api")
-        add("testImplementation", "org.junit.jupiter:junit-jupiter-params")
-        add("testImplementation", "org.junit-pioneer:junit-pioneer")
-        add("testImplementation", "org.hamcrest:hamcrest")
-        add("testRuntimeOnly", "org.junit.jupiter:junit-jupiter-engine")
-        add("jmh", "org.openjdk.jmh:jmh-core:${rootProject.ext.get("jmhVersion")}")
-        add("jmh", "org.openjdk.jmh:jmh-generator-annprocess:${rootProject.ext.get("jmhVersion")}")
+        api(platform(project(":cosid-dependencies")))
+        annotationProcessor(platform(project(":cosid-dependencies")))
+        testAnnotationProcessor(platform(project(":cosid-dependencies")))
+        jmh(platform(project(":cosid-dependencies")))
+        compileOnly("org.projectlombok:lombok")
+        annotationProcessor("org.projectlombok:lombok")
+        testCompileOnly("org.projectlombok:lombok")
+        testAnnotationProcessor("org.projectlombok:lombok")
+        implementation("com.google.guava:guava")
+        implementation("org.slf4j:slf4j-api")
+        testImplementation("ch.qos.logback:logback-classic")
+        testImplementation("org.junit.jupiter:junit-jupiter-api")
+        testImplementation("org.junit.jupiter:junit-jupiter-params")
+        testImplementation("org.junit-pioneer:junit-pioneer")
+        testImplementation("org.hamcrest:hamcrest")
+        testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+        jmh("org.openjdk.jmh:jmh-core")
+        jmh("org.openjdk.jmh:jmh-generator-annprocess")
     }
 }
 

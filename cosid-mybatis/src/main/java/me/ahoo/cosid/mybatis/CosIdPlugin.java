@@ -15,6 +15,7 @@ package me.ahoo.cosid.mybatis;
 
 import me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry;
 
+import org.apache.ibatis.binding.MapperMethod;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.SqlCommandType;
@@ -67,11 +68,11 @@ public class CosIdPlugin implements Interceptor {
             accessorRegistry.ensureId(parameter);
             return invocation.proceed();
         }
-        
-        Collection entityList = (Collection) ((Map) parameter).get(listKey);
-        if (Objects.isNull(entityList)) {
+        boolean isList = ((Map) parameter).containsKey(listKey);
+        if (!isList) {
             return invocation.proceed();
         }
+        Collection entityList = (Collection) ((Map) parameter).get(listKey);
         for (Object entity : entityList) {
             accessorRegistry.ensureId(entity);
         }

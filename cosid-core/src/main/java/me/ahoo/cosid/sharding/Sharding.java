@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.sharding;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collection;
 
@@ -25,6 +26,6 @@ import java.util.Collection;
  */
 @ThreadSafe
 public interface Sharding<T extends Comparable<?>> extends PreciseSharding<T>, RangeSharding<T> {
-    
+    @Nonnull
     Collection<String> getEffectiveNodes();
 }

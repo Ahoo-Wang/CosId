@@ -19,6 +19,8 @@ import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 import com.google.common.annotations.Beta;
 import com.google.common.base.Strings;
 
+import javax.annotation.Nonnull;
+
 @Beta
 public class RadixCosIdGenerator implements CosIdGenerator {
     public static final int DEFAULT_TIMESTAMP_BIT = 44;
@@ -64,6 +66,7 @@ public class RadixCosIdGenerator implements CosIdGenerator {
         return lastTimestamp;
     }
     
+    @Nonnull
     @Override
     public CosIdIdStateParser getStateParser() {
         return stateParser;
@@ -77,6 +80,7 @@ public class RadixCosIdGenerator implements CosIdGenerator {
         return time;
     }
     
+    @Nonnull
     public synchronized CosIdState generateAsState() {
         long currentTimestamp = System.currentTimeMillis();
         if (currentTimestamp < lastTimestamp) {
@@ -105,6 +109,7 @@ public class RadixCosIdGenerator implements CosIdGenerator {
         return new CosIdState(lastTimestamp, machineId, sequence);
     }
     
+    @Nonnull
     @Override
     public String generateAsString() {
         CosIdState state = generateAsState();

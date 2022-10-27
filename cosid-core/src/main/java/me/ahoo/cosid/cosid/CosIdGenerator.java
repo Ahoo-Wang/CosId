@@ -16,6 +16,8 @@ package me.ahoo.cosid.cosid;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
 
+import javax.annotation.Nonnull;
+
 /**
  * CosIdGenerator algorithm ID generator.
  *
@@ -28,8 +30,10 @@ public interface CosIdGenerator extends IdGenerator {
     
     long getLastTimestamp();
     
+    @Nonnull
     CosIdIdStateParser getStateParser();
     
+    @Nonnull
     @Override
     default IdConverter idConverter() {
         throw new UnsupportedOperationException("CosIdGenerator does not support IdConverter,please use CosIdIdStateParser instead!");
@@ -40,8 +44,10 @@ public interface CosIdGenerator extends IdGenerator {
         throw new UnsupportedOperationException("CosIdGenerator does not support the generation of long IDs!");
     }
     
+    @Nonnull
     CosIdState generateAsState();
     
+    @Nonnull
     @Override
     default String generateAsString() {
         return getStateParser().asString(generateAsState());

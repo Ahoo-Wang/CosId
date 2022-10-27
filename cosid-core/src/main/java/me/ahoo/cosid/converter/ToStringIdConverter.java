@@ -15,6 +15,8 @@ package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.IdConverter;
 
+import javax.annotation.Nonnull;
+
 /**
  * ToString ID Converter.
  *
@@ -24,13 +26,14 @@ public class ToStringIdConverter implements IdConverter {
 
     public static final IdConverter INSTANCE = new ToStringIdConverter();
 
+    @Nonnull
     @Override
     public String asString(long id) {
         return String.valueOf(id);
     }
 
     @Override
-    public long asLong(String idString) {
+    public long asLong(@Nonnull String idString) {
         return Long.parseLong(idString);
     }
 }

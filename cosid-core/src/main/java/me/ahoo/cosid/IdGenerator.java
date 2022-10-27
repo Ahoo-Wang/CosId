@@ -15,6 +15,7 @@ package me.ahoo.cosid;
 
 import me.ahoo.cosid.converter.Radix62IdConverter;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -30,6 +31,7 @@ public interface IdGenerator extends StringIdGenerator {
      *
      * @return ID converter
      */
+    @Nonnull
     default IdConverter idConverter() {
         return Radix62IdConverter.PAD_START;
     }
@@ -41,6 +43,7 @@ public interface IdGenerator extends StringIdGenerator {
      */
     long generate();
     
+    @Nonnull
     @Override
     default String generateAsString() {
         return idConverter().asString(generate());

@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.util;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -33,18 +34,22 @@ public final class LocalDateTimeConvert {
     private LocalDateTimeConvert() {
     }
     
+    @Nonnull
     public static LocalDateTime fromDate(Date date, ZoneId zoneId) {
         return fromTimestamp(date.getTime(), zoneId);
     }
     
+    @Nonnull
     public static LocalDateTime fromTimestamp(long timestamp, ZoneId zoneId) {
         return fromInstant(Instant.ofEpochMilli(timestamp), zoneId);
     }
     
+    @Nonnull
     public static LocalDateTime fromTimestampSecond(long timestamp, ZoneId zoneId) {
         return fromInstant(Instant.ofEpochSecond(timestamp), zoneId);
     }
     
+    @Nonnull
     public static LocalDateTime fromInstant(Instant instant, ZoneId zoneId) {
         return LocalDateTime.ofInstant(instant, zoneId);
     }
@@ -56,6 +61,7 @@ public final class LocalDateTimeConvert {
      * @param dateTimeFormatter date time formatter
      * @return LocalDateTime from string
      */
+    @Nonnull
     public static LocalDateTime fromString(String dateTime, DateTimeFormatter dateTimeFormatter) {
         TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(dateTime, LocalDateTime::from, LocalDate::from);
         if (temporalAccessor instanceof LocalDateTime) {

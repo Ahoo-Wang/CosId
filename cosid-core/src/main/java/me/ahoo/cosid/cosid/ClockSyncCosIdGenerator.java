@@ -18,6 +18,8 @@ import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.Nonnull;
+
 @Slf4j
 public class ClockSyncCosIdGenerator implements CosIdGenerator {
     private final CosIdGenerator actual;
@@ -42,11 +44,13 @@ public class ClockSyncCosIdGenerator implements CosIdGenerator {
         return actual.getLastTimestamp();
     }
     
+    @Nonnull
     @Override
     public CosIdIdStateParser getStateParser() {
         return actual.getStateParser();
     }
     
+    @Nonnull
     @Override
     public CosIdState generateAsState() {
         try {

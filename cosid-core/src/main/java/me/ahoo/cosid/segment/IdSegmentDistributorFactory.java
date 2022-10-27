@@ -13,11 +13,14 @@
 
 package me.ahoo.cosid.segment;
 
+import javax.annotation.Nonnull;
+
 /**
  * {@link IdSegmentDistributor} Factory.
  *
  * @author ahoo wang
  */
 public interface IdSegmentDistributorFactory {
+    @Nonnull
     IdSegmentDistributor create(IdSegmentDistributorDefinition definition);
 }

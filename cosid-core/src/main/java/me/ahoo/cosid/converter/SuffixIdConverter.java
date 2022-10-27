@@ -18,6 +18,8 @@ import me.ahoo.cosid.IdConverter;
 
 import com.google.common.base.Preconditions;
 
+import javax.annotation.Nonnull;
+
 /**
  * Suffix IdConverter .
  *
@@ -37,6 +39,7 @@ public class SuffixIdConverter implements IdConverter {
         return suffix;
     }
     
+    @Nonnull
     @Override
     public String asString(long id) {
         String idStr = idConverter.asString(id);
@@ -47,7 +50,7 @@ public class SuffixIdConverter implements IdConverter {
     }
     
     @Override
-    public long asLong(String idString) {
+    public long asLong(@Nonnull String idString) {
         String idStr = idString.substring(0, idString.length() - suffix.length());
         return idConverter.asLong(idStr);
     }

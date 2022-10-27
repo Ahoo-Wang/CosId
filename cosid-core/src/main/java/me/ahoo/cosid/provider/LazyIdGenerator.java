@@ -23,6 +23,7 @@ import me.ahoo.cosid.snowflake.SnowflakeId;
 
 import com.google.common.base.Strings;
 
+import javax.annotation.Nonnull;
 import java.util.Optional;
 
 /**
@@ -99,11 +100,13 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
         throw new CosIdException(Strings.lenientFormat("IdGenerator:[%s] is not instanceof SegmentId!", generatorName));
     }
     
+    @Nonnull
     @Override
     public IdGenerator getActual() {
         return tryGet(true);
     }
     
+    @Nonnull
     @Override
     public IdConverter idConverter() {
         return getActual().idConverter();

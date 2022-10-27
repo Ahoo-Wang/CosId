@@ -1,5 +1,6 @@
 package me.ahoo.cosid;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -14,6 +15,7 @@ public interface IdGeneratorDecorator extends IdGenerator {
      *
      * @return actual id generator
      */
+    @Nonnull
     IdGenerator getActual();
     
     @SuppressWarnings("unchecked")

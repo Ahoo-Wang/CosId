@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -27,5 +28,6 @@ public interface StringIdGenerator {
      *
      * @return string type distributed ID
      */
+    @Nonnull
     String generateAsString();
 }

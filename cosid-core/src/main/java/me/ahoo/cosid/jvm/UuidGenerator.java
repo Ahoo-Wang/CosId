@@ -15,6 +15,7 @@ package me.ahoo.cosid.jvm;
 
 import me.ahoo.cosid.IdGenerator;
 
+import javax.annotation.Nonnull;
 import java.util.UUID;
 
 /**
@@ -31,6 +32,7 @@ public class UuidGenerator implements IdGenerator {
         throw new UnsupportedOperationException("UuidGenerator does not support the generation of long IDs!");
     }
 
+    @Nonnull
     @Override
     public String generateAsString() {
         return UUID.randomUUID().toString();

@@ -19,6 +19,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.Nonnull;
 import java.time.Duration;
 
 /**
@@ -42,6 +43,7 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
      * 2. when not found: {@link #distributeRemote}
      * 3. set {@link MachineState} to {@link MachineStateStorage}
      */
+    @Nonnull
     @Override
     public MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException {
         

@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.machine;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -24,7 +25,7 @@ import javax.annotation.concurrent.ThreadSafe;
 public interface MachineStateStorage {
     MachineStateStorage LOCAL = new LocalMachineStateStorage();
     MachineStateStorage IN_MEMORY = new InMemoryMachineStateStorage();
-    
+    @Nonnull
     MachineState get(String namespace, InstanceId instanceId);
     
     void set(String namespace, int machineId, InstanceId instanceId);

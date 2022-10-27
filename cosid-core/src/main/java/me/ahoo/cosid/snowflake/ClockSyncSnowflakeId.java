@@ -19,6 +19,8 @@ import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.Nonnull;
+
 /**
  * Clock Sync SnowflakeId.
  *
@@ -39,6 +41,7 @@ public class ClockSyncSnowflakeId implements SnowflakeId, IdGeneratorDecorator {
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
     }
     
+    @Nonnull
     @Override
     public SnowflakeId getActual() {
         return actual;

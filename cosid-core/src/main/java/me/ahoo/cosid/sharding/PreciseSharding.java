@@ -13,6 +13,9 @@
 
 package me.ahoo.cosid.sharding;
 
+import javax.annotation.Nonnull;
+
 public interface PreciseSharding<T extends Comparable<?>> {
+    @Nonnull
     String sharding(T shardingValue);
 }

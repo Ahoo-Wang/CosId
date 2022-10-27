@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid;
 
+import javax.annotation.Nonnull;
+
 /**
  * used to enhance the generated string ID.
  *
@@ -28,11 +30,13 @@ public class StringIdGeneratorDecorator implements IdGeneratorDecorator {
         this.idConverter = idConverter;
     }
 
+    @Nonnull
     @Override
     public IdConverter idConverter() {
         return idConverter;
     }
     
+    @Nonnull
     @Override
     public IdGenerator getActual() {
         return actual;

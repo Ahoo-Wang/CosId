@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -47,6 +48,7 @@ public class IntegerIdGenerator implements StringIdGenerator {
      * @return generated distributed ID of type string
      * @throws IdOverflowException This exception is thrown when the ID overflows
      */
+    @Nonnull
     @Override
     public String generateAsString() throws IdOverflowException {
         long id = actual.generate();

@@ -17,6 +17,8 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
+import javax.annotation.Nonnull;
+
 /**
  * Snowflake FriendlyId Converter.
  *
@@ -36,13 +38,14 @@ public class SnowflakeFriendlyIdConverter implements IdConverter {
         return snowflakeIdStateParser;
     }
 
+    @Nonnull
     @Override
     public String asString(long id) {
         return snowflakeIdStateParser.parse(id).getFriendlyId();
     }
 
     @Override
-    public long asLong(String idString) {
+    public long asLong(@Nonnull String idString) {
         return snowflakeIdStateParser.parse(idString).getId();
     }
 }

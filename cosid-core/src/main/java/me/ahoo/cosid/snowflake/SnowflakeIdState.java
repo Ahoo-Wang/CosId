@@ -15,6 +15,7 @@ package me.ahoo.cosid.snowflake;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 
 /**
@@ -24,19 +25,19 @@ import javax.annotation.concurrent.Immutable;
  */
 @Immutable
 public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
-
+    
     private final long id;
-
+    
     private final long machineId;
-
+    
     private final long sequence;
-
+    
     private final LocalDateTime timestamp;
     /**
      * {@link #timestamp}-{@link #machineId}-{@link #sequence} .
      */
     private final String friendlyId;
-
+    
     SnowflakeIdState(long id, long machineId, long sequence, LocalDateTime timestamp, String friendlyId) {
         this.id = id;
         this.machineId = machineId;
@@ -44,31 +45,33 @@ public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
         this.timestamp = timestamp;
         this.friendlyId = friendlyId;
     }
-
+    
     public static SnowflakeIdStateBuilder builder() {
         return new SnowflakeIdStateBuilder();
     }
-
+    
     public long getId() {
         return id;
     }
-
+    
     public long getMachineId() {
         return machineId;
     }
-
+    
     public long getSequence() {
         return sequence;
     }
-
+    
+    @Nonnull
     public LocalDateTime getTimestamp() {
         return timestamp;
     }
-
+    
+    @Nonnull
     public String getFriendlyId() {
         return friendlyId;
     }
-
+    
     @Override
     public boolean equals(Object other) {
         if (this == other) {
@@ -80,61 +83,61 @@ public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
         SnowflakeIdState that = (SnowflakeIdState) other;
         return id == that.id;
     }
-
+    
     @Override
     public int hashCode() {
         return Objects.hashCode(id);
     }
-
+    
     @Override
     public String toString() {
         return friendlyId;
     }
-
+    
     @Override
     public int compareTo(SnowflakeIdState other) {
         return Long.compare(this.id, other.id);
     }
-
+    
     public static class SnowflakeIdStateBuilder {
         private long id;
         private long machineId;
         private long sequence;
         private LocalDateTime timestamp;
         private String friendlyId;
-
+        
         SnowflakeIdStateBuilder() {
         }
-
+        
         public SnowflakeIdStateBuilder id(long id) {
             this.id = id;
             return this;
         }
-
+        
         public SnowflakeIdStateBuilder machineId(long machineId) {
             this.machineId = machineId;
             return this;
         }
-
+        
         public SnowflakeIdStateBuilder sequence(long sequence) {
             this.sequence = sequence;
             return this;
         }
-
+        
         public SnowflakeIdStateBuilder timestamp(LocalDateTime timestamp) {
             this.timestamp = timestamp;
             return this;
         }
-
+        
         public SnowflakeIdStateBuilder friendlyId(String friendlyId) {
             this.friendlyId = friendlyId;
             return this;
         }
-
+        
         public SnowflakeIdState build() {
             return new SnowflakeIdState(id, machineId, sequence, timestamp, friendlyId);
         }
-
+        
         public String toString() {
             return "SnowflakeIdState.SnowflakeIdStateBuilder(id="
                 + this.id

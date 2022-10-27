@@ -19,6 +19,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Range;
 
+import javax.annotation.Nonnull;
 import java.util.Collection;
 
 /**
@@ -39,16 +40,19 @@ public class CachedSharding<T extends Comparable<?>> implements Sharding<T> {
             .build(new LoadShardingCache());
     }
 
+    @Nonnull
     @Override
     public String sharding(T shardingValue) {
         return actual.sharding(shardingValue);
     }
 
+    @Nonnull
     @Override
     public Collection<String> sharding(Range<T> shardingValue) {
         return shardingCache.getUnchecked(shardingValue);
     }
 
+    @Nonnull
     @Override
     public Collection<String> getEffectiveNodes() {
         return actual.getEffectiveNodes();
@@ -57,7 +61,7 @@ public class CachedSharding<T extends Comparable<?>> implements Sharding<T> {
     private class LoadShardingCache extends CacheLoader<Range<T>, Collection<String>> {
 
         @Override
-        public Collection<String> load(Range<T> key) throws Exception {
+        public Collection<String> load(@Nonnull Range<T> key) {
             return actual.sharding(key);
         }
     }

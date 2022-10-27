@@ -13,7 +13,7 @@
 
 dependencies {
     api(project(":cosid-core"))
-    api("org.apache.shardingsphere:shardingsphere-sharding-api:${rootProject.ext.get("shardingsphereVersion")}")
+    api("org.apache.shardingsphere:shardingsphere-sharding-api")
     testImplementation(project(":cosid-test"))
-    testImplementation("org.apache.shardingsphere:shardingsphere-sharding-core:${rootProject.ext.get("shardingsphereVersion")}")
+    testImplementation("org.apache.shardingsphere:shardingsphere-sharding-core")
 }

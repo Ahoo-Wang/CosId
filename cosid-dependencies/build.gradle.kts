@@ -12,18 +12,23 @@
  */
 
 dependencies {
-    api(platform("org.springframework.boot:spring-boot-dependencies:${rootProject.ext.get("springBootVersion")}"))
-    api(platform("org.springframework.cloud:spring-cloud-dependencies:${rootProject.ext.get("springCloudVersion")}"))
-    api(platform("com.squareup.okhttp3:okhttp-bom:${rootProject.ext.get("okhttpVersion")}"))
-    api(platform("org.axonframework:axon-bom:${rootProject.ext.get("axonBomVersion")}"))
-    api(platform("me.ahoo.cosky:cosky-bom:${rootProject.ext.get("coskyVersion")}"))
-    api(platform("org.testcontainers:testcontainers-bom:${rootProject.ext.get("testcontainersVersion")}"))
+    api(platform("org.springframework.boot:spring-boot-dependencies:2.6.9"))
+    api(platform("org.springframework.cloud:spring-cloud-dependencies:2021.0.4"))
+    api(platform("com.squareup.okhttp3:okhttp-bom:4.9.3"))
+    api(platform("org.axonframework:axon-bom:4.5.12"))
+    api(platform("me.ahoo.cosky:cosky-bom:1.3.20"))
+    api(platform("org.testcontainers:testcontainers-bom:1.17.5"))
     constraints {
-        api("org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}")
-        api("org.mybatis:mybatis:${rootProject.ext.get("mybatisVersion")}")
-        api("org.mybatis.spring.boot:mybatis-spring-boot-starter:${rootProject.ext.get("mybatisBootVersion")}")
-        api("com.google.guava:guava:${rootProject.ext.get("guavaVersion")}")
-        api("org.junit-pioneer:junit-pioneer:${rootProject.ext.get("junitPioneerVersion")}")
-        api("org.hamcrest:hamcrest:${rootProject.ext.get("hamcrestVersion")}")
+        api("org.projectlombok:lombok:1.18.22")
+        api("org.mybatis:mybatis:3.5.10")
+        api("org.mybatis.spring.boot:mybatis-spring-boot-starter:2.2.2")
+        api("com.google.guava:guava:30.0-jre")
+        api("org.junit-pioneer:junit-pioneer:1.4.2")
+        api("org.hamcrest:hamcrest:2.2")
+        api("org.apache.shardingsphere:shardingsphere-sharding-api:5.0.0")
+        api("org.apache.shardingsphere:shardingsphere-sharding-core:5.0.0")
+        api("org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter:5.0.0")
+        api("org.openjdk.jmh:jmh-core:1.34")
+        api("org.openjdk.jmh:jmh-generator-annprocess:1.34")
     }
 }

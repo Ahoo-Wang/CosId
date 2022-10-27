@@ -46,15 +46,17 @@ application {
 
 dependencies {
     implementation(platform(project(":cosid-dependencies")))
+    annotationProcessor(platform(project(":cosid-dependencies")))
     implementation(project(":cosid-spring-boot-starter"))
     implementation(project(":cosid-spring-redis"))
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.google.guava:guava")
     implementation("org.springframework.boot:spring-boot-starter-web")
-    compileOnly("org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}")
-    annotationProcessor("org.projectlombok:lombok:${rootProject.ext.get("lombokVersion")}")
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:${rootProject.ext.get("springBootVersion")}")
+    compileOnly("org.projectlombok:lombok")
+    annotationProcessor("org.projectlombok:lombok")
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
+    annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 

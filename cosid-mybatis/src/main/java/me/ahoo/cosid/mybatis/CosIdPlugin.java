@@ -68,11 +68,14 @@ public class CosIdPlugin implements Interceptor {
             accessorRegistry.ensureId(parameter);
             return invocation.proceed();
         }
-        boolean isList = ((Map) parameter).containsKey(listKey);
-        if (!isList) {
+        boolean hasList = ((Map) parameter).containsKey(listKey);
+        if (!hasList) {
             return invocation.proceed();
         }
         Collection entityList = (Collection) ((Map) parameter).get(listKey);
+        if (Objects.isNull(entityList)) {
+            return invocation.proceed();
+        }
         for (Object entity : entityList) {
             accessorRegistry.ensureId(entity);
         }

@@ -8,6 +8,7 @@ import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import lombok.SneakyThrows;
+import org.apache.ibatis.binding.MapperMethod;
 import org.apache.ibatis.builder.StaticSqlSource;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.SqlCommandType;
@@ -120,6 +121,18 @@ class CosIdPluginTest {
         for (Entity entity : list) {
             Assertions.assertNotEquals(0, entity.getId());
         }
+    }
+    
+    @SneakyThrows
+    @Test
+    void interceptWhenParamMapNotFoundListKey() {
+        CosIdPlugin plugin = new CosIdPlugin(accessorRegistry);
+        Configuration configuration = new Configuration();
+        MappedStatement statement = new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), SqlCommandType.INSERT)
+            .build();
+        Map<String, List<Entity>> param = new MapperMethod.ParamMap<>();
+        Invocation invocation = new Invocation(new InvocationTarget(), InvocationTarget.INVOKE_METHOD, new Object[] {statement, param});
+        plugin.intercept(invocation);
     }
     
     public static class Entity {

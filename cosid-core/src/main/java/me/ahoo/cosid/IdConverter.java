@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid;
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -22,20 +23,21 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public interface IdConverter {
-
+    
     /**
      * convert {@code long} type ID to {@link String}.
      *
      * @param id {@code long} type ID
      * @return {@link String} type ID
      */
+    @Nonnull
     String asString(long id);
-
+    
     /**
      * convert {@link String} type ID to {@code long}.
      *
      * @param idString {@link String} type ID
      * @return {@code long} type ID
      */
-    long asLong(String idString);
+    long asLong(@Nonnull String idString);
 }

@@ -28,6 +28,8 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
+import javax.annotation.Nonnull;
+
 /**
  * ProxyIdSegmentDistributorFactory .
  *
@@ -45,19 +47,20 @@ public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFac
         this.proxyHost = proxyHost;
     }
     
+    @Nonnull
     @SneakyThrows
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         String apiUrl =
             Strings.lenientFormat("%s/segments/distributor/%s/%s?offset=%s&step=%s", proxyHost, definition.getNamespace(), definition.getName(), definition.getOffset(), definition.getStep());
-    
+        
         if (log.isInfoEnabled()) {
             log.info("Create [{}] - apiUrl:[{}].", definition.getNamespacedName(), apiUrl);
         }
-
+        
         Request request = new Request.Builder()
             .url(apiUrl)
-            .post(RequestBody.create(JSON, ""))
+            .post(RequestBody.Companion.create("", JSON))
             .build();
         try (Response response = client.newCall(request).execute()) {
             ResponseBody responseBody = response.body();

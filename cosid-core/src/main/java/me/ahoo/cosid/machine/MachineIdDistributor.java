@@ -14,6 +14,7 @@
 package me.ahoo.cosid.machine;
 
 
+import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 import java.time.Duration;
 
@@ -60,6 +61,7 @@ public interface MachineIdDistributor {
      * @return machine state
      * @throws MachineIdOverflowException This exception is thrown when the machine number allocation exceeds the threshold
      */
+    @Nonnull
     MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException;
 
     /**

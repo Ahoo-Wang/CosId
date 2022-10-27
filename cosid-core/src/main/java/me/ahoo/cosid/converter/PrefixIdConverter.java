@@ -17,6 +17,8 @@ import me.ahoo.cosid.IdConverter;
 
 import com.google.common.base.Preconditions;
 
+import javax.annotation.Nonnull;
+
 /**
  * Converter for setting string ID prefix.
  *
@@ -37,6 +39,7 @@ public class PrefixIdConverter implements IdConverter {
         return prefix;
     }
     
+    @Nonnull
     @Override
     public String asString(long id) {
         String idStr = idConverter.asString(id);
@@ -47,7 +50,7 @@ public class PrefixIdConverter implements IdConverter {
     }
     
     @Override
-    public long asLong(String idString) {
+    public long asLong(@Nonnull String idString) {
         String idStr = idString.substring(prefix.length());
         return idConverter.asLong(idStr);
     }

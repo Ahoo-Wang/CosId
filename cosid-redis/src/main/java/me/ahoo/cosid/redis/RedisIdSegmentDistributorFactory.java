@@ -18,6 +18,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosky.core.redis.RedisConnectionFactory;
 
+import javax.annotation.Nonnull;
 import java.time.Duration;
 
 /**
@@ -34,6 +35,7 @@ public class RedisIdSegmentDistributorFactory implements IdSegmentDistributorFac
         this.timeout = timeout;
     }
     
+    @Nonnull
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         RedisIdSegmentDistributor redisIdSegmentDistributor = new RedisIdSegmentDistributor(

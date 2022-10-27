@@ -18,6 +18,8 @@ import me.ahoo.cosid.IdConverter;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+import javax.annotation.Nonnull;
+
 public abstract class RadixIdConverter implements IdConverter {
     /**
      * 48.
@@ -118,6 +120,7 @@ public abstract class RadixIdConverter implements IdConverter {
     
     abstract int getMaxCharSize();
     
+    @Nonnull
     @Override
     public String asString(long id) {
         
@@ -147,7 +150,7 @@ public abstract class RadixIdConverter implements IdConverter {
         return new String(buf, charIdx, (charSize - charIdx));
     }
     
-    public long asLong(String idString) {
+    public long asLong(@Nonnull String idString) {
         char firstChar = idString.charAt(0);
         if (firstChar < ZERO) {
             throw new NumberFormatException(Strings.lenientFormat("For input string: [%s]!", idString));

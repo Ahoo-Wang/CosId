@@ -20,7 +20,7 @@ dependencies {
     api(platform("org.testcontainers:testcontainers-bom:1.17.5"))
     constraints {
         api("org.projectlombok:lombok:1.18.22")
-        api("org.mybatis:mybatis:3.5.10")
+        api("org.mybatis:mybatis:3.5.11")
         api("org.mybatis.spring.boot:mybatis-spring-boot-starter:2.2.2")
         api("com.google.guava:guava:30.0-jre")
         api("org.junit-pioneer:junit-pioneer:1.4.2")

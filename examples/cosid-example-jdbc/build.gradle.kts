@@ -17,7 +17,7 @@ plugins {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(8))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 
@@ -50,11 +50,6 @@ dependencies {
     implementation(project(":cosid-spring-boot-starter"))
     implementation(project(":cosid-jackson"))
 
-    //region cosid-mybatis
-    implementation(project(":cosid-mybatis"))
-    implementation("org.mybatis.spring.boot:mybatis-spring-boot-starter")
-    //endregion
-
     //region cosid-jdbc
     implementation(project(":cosid-jdbc"))
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
@@ -69,7 +64,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor:2.6.9")
+    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
 

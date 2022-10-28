@@ -36,10 +36,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -55,10 +55,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -74,10 +74,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -93,10 +93,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -122,10 +122,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -141,10 +141,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -160,10 +160,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -186,10 +186,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -211,10 +211,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}

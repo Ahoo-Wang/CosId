@@ -48,6 +48,7 @@ ext {
 allprojects {
     repositories {
         mavenLocal()
+        maven { url = uri("https://repo.spring.io/milestone") }
         mavenCentral()
     }
 }
@@ -72,7 +73,7 @@ configure(libraryProjects) {
     apply<JavaLibraryPlugin>()
     configure<JavaPluginExtension> {
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(8))
+            languageVersion.set(JavaLanguageVersion.of(17))
         }
         withJavadocJar()
         withSourcesJar()
@@ -115,6 +116,7 @@ configure(libraryProjects) {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+        jvmArgs = listOf("--add-opens=java.base/java.util=ALL-UNNAMED")
     }
 
     dependencies {

@@ -12,8 +12,8 @@
  */
 
 dependencies {
-    api(platform("org.springframework.boot:spring-boot-dependencies:2.7.5"))
-    api(platform("org.springframework.cloud:spring-cloud-dependencies:2021.0.4"))
+    api(platform("org.springframework.boot:spring-boot-dependencies:3.0.0-RC1"))
+    api(platform("org.springframework.cloud:spring-cloud-dependencies:2022.0.0-M5"))
     api(platform("com.squareup.okhttp3:okhttp-bom:4.10.0"))
     api(platform("org.axonframework:axon-bom:4.6.1"))
     api(platform("me.ahoo.cosky:cosky-bom:1.3.20"))

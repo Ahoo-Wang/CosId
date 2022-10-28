@@ -29,7 +29,7 @@ class RedisIdSegmentDistributorFactoryTest {
     protected IdSegmentDistributorDefinition idSegmentDistributorDefinition;
     
     @BeforeEach
-    private void setup() {
+    void setup() {
         System.out.println("--- initRedis ---");
         String redisUrl = "redis://localhost:6379";
         redisClient = RedisClient.create(redisUrl);

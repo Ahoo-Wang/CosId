@@ -36,7 +36,7 @@ class JdbcIdSegmentInitializerTest {
     private JdbcIdSegmentInitializer idSegmentInitializer;
     
     @BeforeEach
-    private void setup() {
+    void setup() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
         idSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
     }

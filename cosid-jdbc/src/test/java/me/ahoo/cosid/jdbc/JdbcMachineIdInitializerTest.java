@@ -32,7 +32,7 @@ class JdbcMachineIdInitializerTest {
     private JdbcMachineIdInitializer machineIdInitializer;
     
     @BeforeEach
-    private void setup() {
+    void setup() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
         machineIdInitializer = new JdbcMachineIdInitializer(dataSource);
     }

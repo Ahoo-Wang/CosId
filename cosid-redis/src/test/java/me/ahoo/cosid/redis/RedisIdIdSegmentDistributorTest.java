@@ -36,7 +36,7 @@ public class RedisIdIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     protected RedisConnectionFactory redisConnectionFactory;
     protected ClientResources clientResources;
     @BeforeEach
-    private void setup() {
+    void setup() {
         RedisConfig redisConfig = new RedisConfig();
         redisConfig.setUrl("redis://localhost:6379");
         clientResources= ClientResources.builder().build();
@@ -48,7 +48,7 @@ public class RedisIdIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     
     @SneakyThrows
     @AfterEach
-    private void destroy() {
+    void destroy() {
         if (Objects.nonNull(redisConnectionFactory)) {
             redisConnectionFactory.close();
         }

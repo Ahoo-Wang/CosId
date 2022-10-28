@@ -23,6 +23,8 @@ import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import javax.annotation.Nonnull;
+
 /**
  * Spring Redis IdSegmentDistributor.
  *
@@ -81,11 +83,13 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         return adderKey;
     }
     
+    @Nonnull
     @Override
     public String getNamespace() {
         return namespace;
     }
     
+    @Nonnull
     @Override
     public String getName() {
         return name;

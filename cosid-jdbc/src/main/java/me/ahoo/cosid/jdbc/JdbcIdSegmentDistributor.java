@@ -22,6 +22,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.Nonnull;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -68,11 +69,13 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
         this.dataSource = dataSource;
     }
 
+    @Nonnull
     @Override
     public String getNamespace() {
         return namespace;
     }
 
+    @Nonnull
     @Override
     public String getName() {
         return name;

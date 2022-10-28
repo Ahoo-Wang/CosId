@@ -51,11 +51,6 @@ public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> impleme
         return props;
     }
 
-    @Override
-    public void setProps(Properties props) {
-        this.props = props;
-    }
-
     @VisibleForTesting
     public Sharding<T> getSharding() {
         return sharding;
@@ -72,7 +67,8 @@ public class CosIdModShardingAlgorithm<T extends Number & Comparable<T>> impleme
     }
 
     @Override
-    public void init() {
+    public void init(final Properties props) {
+        this.props = props;
         String divisorStr = PropertiesUtil.getRequiredValue(getProps(), MODULO_KEY);
         int divisor = Integer.parseInt(divisorStr);
         String logicNamePrefix = PropertiesUtil.getRequiredValue(getProps(), CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY);

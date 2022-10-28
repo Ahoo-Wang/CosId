@@ -19,6 +19,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import me.ahoo.cosid.sharding.ExactCollection;
 
 import com.google.common.collect.Range;
+import org.apache.shardingsphere.infra.datanode.DataNodeInfo;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,8 +54,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
         shardingAlgorithm = new CosIdIntervalShardingAlgorithm();
         Properties properties = getProps();
         properties.setProperty(CosIdIntervalShardingAlgorithm.DATE_TIME_PATTERN_KEY, CosIdIntervalShardingAlgorithm.DEFAULT_DATE_TIME_PATTERN);
-        shardingAlgorithm.setProps(properties);
-        shardingAlgorithm.init();
+        shardingAlgorithm.init(properties);
         assertEquals(shardingAlgorithm.getType(), "COSID_INTERVAL");
     }
     
@@ -74,7 +74,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingPreciseArgsProviderAsLocalDateTime")
     public void doShardingPreciseWhenLocalDateTime(LocalDateTime dateTime, String expected) {
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -86,7 +86,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingPreciseArgsProviderAsString")
     public void doShardingPreciseWhenString(String dateTime, String expected) {
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -98,7 +98,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingPreciseArgsProviderAsZonedDateTime")
     public void doShardingPreciseWhenOffsetDateTime(ZonedDateTime dateTime, String expected) {
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -110,7 +110,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingPreciseArgsProviderAsOffsetDateTime")
     public void doShardingPreciseWhenOffsetDateTime(OffsetDateTime dateTime, String expected) {
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -122,7 +122,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingPreciseArgsProviderAsLocalDate")
     public void doShardingPreciseWhenOffsetDateTime(LocalDate dateTime, String expected) {
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -134,7 +134,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingPreciseArgsProviderAsYearMonth")
     public void doShardingPreciseWhenYearMonth(YearMonth dateTime, String expected) {
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -146,7 +146,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingPreciseArgsProviderAsDate")
     public void doShardingPreciseWhenDate(Date dateTime, String expected) {
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -158,7 +158,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingPreciseArgsProviderAsSqlDate")
     public void doShardingPreciseWhenSqlDate(java.sql.Date dateTime, String expected) {
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -170,7 +170,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingPreciseArgsProviderAsSqlTimestamp")
     public void doShardingPreciseWhenSqlTimestamp(java.sql.Timestamp dateTime, String expected) {
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -182,7 +182,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingPreciseArgsProviderAsInstant")
     public void doShardingPreciseWhenSqlTimestamp(Instant dateTime, String expected) {
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -194,7 +194,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingPreciseArgsProviderAsLong")
     public void doShardingPreciseWhenLong(long dateTime, String expected) {
-        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, dateTime);
+        PreciseShardingValue shardingValue = new PreciseShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, dateTime);
         String actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -243,7 +243,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingRangeArgsProviderAsLocalDateTime")
     public void doShardingRange(Range<LocalDateTime> rangeValue, Collection<String> expected) {
-        RangeShardingValue<LocalDateTime> shardingValue = new RangeShardingValue<>(LOGIC_NAME, COLUMN_NAME, rangeValue);
+        RangeShardingValue<LocalDateTime> shardingValue = new RangeShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, rangeValue);
         Collection<String> actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }
@@ -252,7 +252,7 @@ class CosIdIntervalShardingAlgorithmTest extends AbstractIntervalShardingAlgorit
     @ParameterizedTest
     @MethodSource("shardingRangeArgsProviderAsString")
     public void doShardingRangeWhenString(Range<String> rangeValue, Collection<String> expected) {
-        RangeShardingValue<String> shardingValue = new RangeShardingValue<>(LOGIC_NAME, COLUMN_NAME, rangeValue);
+        RangeShardingValue<String> shardingValue = new RangeShardingValue<>(LOGIC_NAME, COLUMN_NAME, DATA_NODE_INFO, rangeValue);
         Collection<String> actual = shardingAlgorithm.doSharding(ALL_NODES, shardingValue);
         assertEquals(expected, actual);
     }

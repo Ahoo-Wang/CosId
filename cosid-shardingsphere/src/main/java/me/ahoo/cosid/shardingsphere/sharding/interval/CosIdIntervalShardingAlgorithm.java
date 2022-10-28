@@ -29,6 +29,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.Date;
+import java.util.Properties;
 
 /**
  * Interval-based time range sharding algorithm.
@@ -44,8 +45,8 @@ public class CosIdIntervalShardingAlgorithm extends AbstractIntervalShardingAlgo
     private volatile DateTimeFormatter dateTimeFormatter;
     
     @Override
-    public void init() {
-        super.init();
+    public void init(final Properties props) {
+        super.init(props);
         
         if (getProps().containsKey(TIMESTAMP_UNIT_KEY)
             && TIMESTAMP_SECOND_UNIT.equalsIgnoreCase(getProps().get(TIMESTAMP_UNIT_KEY).toString())) {

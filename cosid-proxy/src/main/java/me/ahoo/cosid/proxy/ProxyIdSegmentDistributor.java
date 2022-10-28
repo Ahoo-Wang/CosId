@@ -27,6 +27,8 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 
+import javax.annotation.Nonnull;
+
 /**
  * ProxyIdSegmentDistributor .
  *
@@ -50,11 +52,13 @@ public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
         this.step = step;
     }
     
+    @Nonnull
     @Override
     public String getNamespace() {
         return namespace;
     }
     
+    @Nonnull
     @Override
     public String getName() {
         return name;

@@ -27,7 +27,7 @@ dependencies {
         api("org.hamcrest:hamcrest:2.2")
         api("org.apache.shardingsphere:shardingsphere-sharding-api:5.0.0")
         api("org.apache.shardingsphere:shardingsphere-sharding-core:5.2.1")
-        api("org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter:5.0.0")
+        api("org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter:5.2.1")
         api("org.openjdk.jmh:jmh-core:1.34")
         api("org.openjdk.jmh:jmh-generator-annprocess:1.34")
     }

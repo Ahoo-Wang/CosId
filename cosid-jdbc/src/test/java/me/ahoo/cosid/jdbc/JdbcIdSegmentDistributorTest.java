@@ -35,7 +35,7 @@ class JdbcIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     JdbcIdSegmentInitializer mySqlIdSegmentInitializer;
     
     @BeforeEach
-    private void setup() {
+    void setup() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
         mySqlIdSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
         distributorFactory =

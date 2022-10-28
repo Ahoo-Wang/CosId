@@ -19,6 +19,7 @@ import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import me.ahoo.cosid.shardingsphere.sharding.mod.CosIdModShardingAlgorithm;
 
 import com.google.common.collect.Range;
+import org.apache.shardingsphere.infra.datanode.DataNodeInfo;
 import org.apache.shardingsphere.sharding.api.sharding.standard.PreciseShardingValue;
 import org.apache.shardingsphere.sharding.api.sharding.standard.RangeShardingValue;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -37,62 +38,61 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 @State(Scope.Benchmark)
 public class ModShardingAlgorithmBenchmark {
-
+    
     private static final String LOGIC_TABLE_NAME = "t_mod";
     private static final String LOGIC_NAME_PREFIX = LOGIC_TABLE_NAME + "_";
     private static final String ID_COLUMN_NAME = "id";
+    public static final DataNodeInfo DATA_NODE_INFO = new DataNodeInfo(LOGIC_NAME_PREFIX, 1, '0');
     @Param({"10", "100", "1000", "10000", "100000"})
     private int divisor;
     private int randomBound;
     CosIdModShardingAlgorithm cosIdModShardingAlgorithm;
     org.apache.shardingsphere.sharding.algorithm.sharding.mod.ModShardingAlgorithm officeModShardingAlgorithm;
-
+    
     @Setup
     public void init() {
-
+        
         randomBound = divisor * 10;
         Properties properties = new Properties();
-
+        
         properties.setProperty(CosIdAlgorithm.LOGIC_NAME_PREFIX_KEY, LOGIC_NAME_PREFIX);
         properties.setProperty(MODULO_KEY, String.valueOf(divisor));
         properties.setProperty("sharding-count", String.valueOf(divisor));
-
+        
         cosIdModShardingAlgorithm = new CosIdModShardingAlgorithm();
-        cosIdModShardingAlgorithm.setProps(properties);
-        cosIdModShardingAlgorithm.init();
-
+        cosIdModShardingAlgorithm.init(properties);
+        
         officeModShardingAlgorithm = new org.apache.shardingsphere.sharding.algorithm.sharding.mod.ModShardingAlgorithm();
-        officeModShardingAlgorithm.setProps(properties);
-        officeModShardingAlgorithm.init();
+        officeModShardingAlgorithm.init(properties);
     }
-
+    
     public PreciseShardingValue<Comparable<?>> getRandomId() {
         long id = ThreadLocalRandom.current().nextLong(0, randomBound);
-        return new PreciseShardingValue(LOGIC_TABLE_NAME, ID_COLUMN_NAME, id);
+        return new PreciseShardingValue(LOGIC_TABLE_NAME, ID_COLUMN_NAME, DATA_NODE_INFO, id);
     }
-
+    
     public RangeShardingValue<Comparable<?>> getRandomRangeId() {
         long randomLower = ThreadLocalRandom.current().nextLong(0, randomBound);
         long randomUpper = ThreadLocalRandom.current().nextLong(randomLower, randomBound);
-        return new RangeShardingValue<>(LOGIC_TABLE_NAME, ID_COLUMN_NAME, Range.closed(randomLower, randomUpper));
+        return new RangeShardingValue<>(LOGIC_TABLE_NAME, ID_COLUMN_NAME, DATA_NODE_INFO, Range.closed(randomLower, randomUpper));
     }
-
+    
     @Benchmark
     public String cosid_precise() {
         return cosIdModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomId());
     }
-
+    
     @SuppressWarnings("unchecked")
     @Benchmark
     public Collection<String> cosid_range() {
         return cosIdModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeId());
     }
-
+    
     @Benchmark
     public String office_precise() {
         return officeModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomId());
     }
-
+    
     @Benchmark
     public Collection<String> office_range() {
         return officeModShardingAlgorithm.doSharding(cosIdModShardingAlgorithm.getSharding().getEffectiveNodes(), getRandomRangeId());

@@ -18,9 +18,7 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.provider.LazyIdGenerator;
 import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 
-import org.apache.shardingsphere.infra.config.algorithm.ShardingSphereAlgorithmPostProcessor;
 import org.apache.shardingsphere.sharding.spi.KeyGenerateAlgorithm;
-import org.apache.shardingsphere.spi.typed.TypedSPI;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.Properties;
@@ -31,7 +29,7 @@ import java.util.Properties;
  * @author ahoo wang
  */
 @ThreadSafe
-public class CosIdKeyGenerateAlgorithm implements TypedSPI, ShardingSphereAlgorithmPostProcessor, KeyGenerateAlgorithm {
+public class CosIdKeyGenerateAlgorithm implements KeyGenerateAlgorithm {
 
     public static final String TYPE = CosId.COSID.toUpperCase();
 
@@ -49,12 +47,8 @@ public class CosIdKeyGenerateAlgorithm implements TypedSPI, ShardingSphereAlgori
     }
 
     @Override
-    public void setProps(final Properties props) {
+    public void init(final Properties props) {
         this.props = props;
-    }
-
-    @Override
-    public void init() {
         lazyIdGenerator = new LazyIdGenerator(getProps().getOrDefault(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE).toString());
         String asStringStr = getProps().getOrDefault(AS_STRING_KEY, Boolean.FALSE.toString()).toString();
         asString = Boolean.parseBoolean(asStringStr);

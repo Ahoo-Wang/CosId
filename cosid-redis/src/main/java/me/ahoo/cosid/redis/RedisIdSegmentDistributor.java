@@ -23,6 +23,7 @@ import com.google.common.base.Strings;
 import io.lettuce.core.cluster.api.reactive.RedisClusterReactiveCommands;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.annotation.Nonnull;
 import java.time.Duration;
 
 /**
@@ -88,11 +89,13 @@ public class RedisIdSegmentDistributor implements IdSegmentDistributor {
         return adderKey;
     }
     
+    @Nonnull
     @Override
     public String getNamespace() {
         return namespace;
     }
     
+    @Nonnull
     @Override
     public String getName() {
         return name;

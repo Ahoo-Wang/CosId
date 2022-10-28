@@ -20,6 +20,7 @@ import me.ahoo.cosid.shardingsphere.sharding.CosIdAlgorithm;
 import com.google.common.base.Strings;
 
 import java.time.LocalDateTime;
+import java.util.Properties;
 
 /**
  * The algorithm parses the timestamp from snowflake-id as the sharding value of Interval-based time range sharding algorithm.
@@ -31,10 +32,10 @@ public class CosIdSnowflakeIntervalShardingAlgorithm extends AbstractIntervalSha
     public static final String TYPE = AbstractIntervalShardingAlgorithm.TYPE_PREFIX + "SNOWFLAKE";
 
     private volatile LazyIdGenerator lazyIdGenerator;
-
+    
     @Override
-    public void init() {
-        super.init();
+    public void init(final Properties props) {
+        super.init(props);
         lazyIdGenerator = new LazyIdGenerator(getProps().getOrDefault(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE).toString());
     }
 

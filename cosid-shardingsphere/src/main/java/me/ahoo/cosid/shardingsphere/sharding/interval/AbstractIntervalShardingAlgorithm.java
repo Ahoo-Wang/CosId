@@ -78,17 +78,13 @@ public abstract class AbstractIntervalShardingAlgorithm<T extends Comparable<?>>
         return props;
     }
 
-    @Override
-    public void setProps(Properties props) {
-        this.props = props;
-    }
-
     protected ZoneId getZoneId() {
         return zoneId;
     }
 
     @Override
-    public void init() {
+    public void init(final Properties props) {
+        this.props = props;
         if (getProps().containsKey(ZONE_ID_KEY)) {
             zoneId = ZoneId.of(getRequiredValue(ZONE_ID_KEY));
         }

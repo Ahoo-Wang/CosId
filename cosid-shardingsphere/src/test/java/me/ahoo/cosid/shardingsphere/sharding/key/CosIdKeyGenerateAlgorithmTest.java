@@ -45,8 +45,7 @@ class CosIdKeyGenerateAlgorithmTest {
         Properties properties = new Properties();
         properties.setProperty(CosIdAlgorithm.ID_NAME_KEY, IdGeneratorProvider.SHARE);
         cosIdKeyGenerateAlgorithm = new CosIdKeyGenerateAlgorithm();
-        cosIdKeyGenerateAlgorithm.setProps(properties);
-        cosIdKeyGenerateAlgorithm.init();
+        cosIdKeyGenerateAlgorithm.init(properties);
         DefaultIdGeneratorProvider.INSTANCE.setShare(AtomicLongGenerator.INSTANCE);
     }
 
@@ -62,8 +61,7 @@ class CosIdKeyGenerateAlgorithmTest {
         DefaultIdGeneratorProvider.INSTANCE.setShare(defaultSegmentId);
         CosIdKeyGenerateAlgorithm keyGenerateAlgorithm = new CosIdKeyGenerateAlgorithm();
         Properties properties = new Properties();
-        keyGenerateAlgorithm.setProps(properties);
-        keyGenerateAlgorithm.init();
+        keyGenerateAlgorithm.init(properties);
         assertEquals(1L, cosIdKeyGenerateAlgorithm.generateKey());
         assertEquals(2L, cosIdKeyGenerateAlgorithm.generateKey());
     }
@@ -73,8 +71,7 @@ class CosIdKeyGenerateAlgorithmTest {
         DefaultIdGeneratorProvider.INSTANCE.clear();
         CosIdKeyGenerateAlgorithm keyGenerateAlgorithm = new CosIdKeyGenerateAlgorithm();
         Properties properties = new Properties();
-        keyGenerateAlgorithm.setProps(properties);
-        keyGenerateAlgorithm.init();
+        keyGenerateAlgorithm.init(properties);
         assertThrows(CosIdException.class, keyGenerateAlgorithm::generateKey);
     }
 
@@ -86,8 +83,7 @@ class CosIdKeyGenerateAlgorithmTest {
         properties.setProperty(CosIdAlgorithm.ID_NAME_KEY, idName);
         properties.setProperty(CosIdKeyGenerateAlgorithm.AS_STRING_KEY, "true");
         CosIdKeyGenerateAlgorithm stringCosIdKeyAlg = new CosIdKeyGenerateAlgorithm();
-        stringCosIdKeyAlg.setProps(properties);
-        stringCosIdKeyAlg.init();
+        stringCosIdKeyAlg.init(properties);
         DefaultIdGeneratorProvider.INSTANCE.set(idName, MockIdGenerator.INSTANCE);
 
         Comparable<?> key = stringCosIdKeyAlg.generateKey();

@@ -48,7 +48,7 @@ public class RedisIdIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     
     @SneakyThrows
     @AfterEach
-    private void destroy() {
+    void destroy() {
         if (Objects.nonNull(redisConnectionFactory)) {
             redisConnectionFactory.close();
         }

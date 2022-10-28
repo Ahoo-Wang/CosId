@@ -36,7 +36,7 @@ class SpringRedisIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     protected IdSegmentDistributorDefinition idSegmentDistributorDefinition;
 
     @BeforeEach
-    private void setup() {
+    void setup() {
         RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
         LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
         lettuceConnectionFactory.afterPropertiesSet();

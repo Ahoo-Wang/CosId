@@ -30,7 +30,7 @@ class SpringRedisMachineIdDistributorTest extends MachineIdDistributorSpec {
     StringRedisTemplate stringRedisTemplate;
     
     @BeforeEach
-    private void setup() {
+    void setup() {
         RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
         LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
         lettuceConnectionFactory.afterPropertiesSet();

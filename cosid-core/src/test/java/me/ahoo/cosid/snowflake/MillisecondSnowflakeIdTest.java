@@ -23,7 +23,7 @@ import java.util.concurrent.locks.LockSupport;
  * @author ahoo wang
  */
 class MillisecondSnowflakeIdTest {
-    public static final long TEST_MACHINE_ID = 1;
+    public static final int TEST_MACHINE_ID = 1;
     SnowflakeFriendlyId snowflakeId;
     
     @BeforeEach

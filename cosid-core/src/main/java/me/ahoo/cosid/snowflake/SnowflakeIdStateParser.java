@@ -86,12 +86,15 @@ public abstract class SnowflakeIdStateParser {
         long machineId = Long.parseLong(segments.get(1));
         long sequence = Long.parseLong(segments.get(2));
         long diffTime = getDiffTime(timestamp);
+        /**
+         * machineLeft greater than 30 will cause overflow, so machineId should be long when calculating.
+         */
         long id = (diffTime) << timestampLeft
             | machineId << machineLeft
             | sequence;
         return SnowflakeIdState.builder()
             .id(id)
-            .machineId(machineId)
+            .machineId((int) machineId)
             .sequence(sequence)
             .timestamp(timestamp)
             .friendlyId(friendlyId)
@@ -99,8 +102,7 @@ public abstract class SnowflakeIdStateParser {
     }
     
     public SnowflakeIdState parse(long id) {
-        
-        long machineId = parseMachineId(id);
+        int machineId = parseMachineId(id);
         long sequence = parseSequence(id);
         LocalDateTime timestamp = parseTimestamp(id);
         
@@ -113,7 +115,7 @@ public abstract class SnowflakeIdStateParser {
         
         return SnowflakeIdState.builder()
             .id(id)
-            .machineId((int) machineId)
+            .machineId(machineId)
             .sequence(sequence)
             .timestamp(timestamp)
             .friendlyId(friendlyId)
@@ -129,8 +131,8 @@ public abstract class SnowflakeIdStateParser {
         return getTimestamp(diffTime);
     }
     
-    public long parseMachineId(long id) {
-        return (id >> machineLeft) & machineMask;
+    public int parseMachineId(long id) {
+        return (int) ((id >> machineLeft) & machineMask);
     }
     
     public long parseSequence(long id) {

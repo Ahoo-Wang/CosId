@@ -28,19 +28,19 @@ public class MillisecondSnowflakeId extends AbstractSnowflakeId {
     public static final long DEFAULT_SEQUENCE_RESET_THRESHOLD = ~(-1L << (DEFAULT_SEQUENCE_BIT - 1));
     
     
-    public MillisecondSnowflakeId(long machineId) {
+    public MillisecondSnowflakeId(int machineId) {
         this(CosId.COSID_EPOCH, DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, machineId, DEFAULT_SEQUENCE_RESET_THRESHOLD);
     }
     
-    public MillisecondSnowflakeId(int machineBit, long machineId) {
+    public MillisecondSnowflakeId(int machineBit, int machineId) {
         super(CosId.COSID_EPOCH, DEFAULT_TIMESTAMP_BIT, machineBit, DEFAULT_SEQUENCE_BIT, machineId, DEFAULT_SEQUENCE_RESET_THRESHOLD);
     }
     
-    public MillisecondSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId) {
+    public MillisecondSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, int machineId) {
         super(epoch, timestampBit, machineBit, sequenceBit, machineId, SnowflakeId.defaultSequenceResetThreshold(sequenceBit));
     }
     
-    public MillisecondSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, long machineId, long sequenceResetThreshold) {
+    public MillisecondSnowflakeId(long epoch, int timestampBit, int machineBit, int sequenceBit, int machineId, long sequenceResetThreshold) {
         super(epoch, timestampBit, machineBit, sequenceBit, machineId, sequenceResetThreshold);
     }
     

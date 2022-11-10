@@ -25,13 +25,13 @@ import javax.annotation.concurrent.Immutable;
  */
 @Immutable
 public class MachineId {
-    private final long machineId;
+    private final int machineId;
 
-    public MachineId(long machineId) {
+    public MachineId(int machineId) {
         this.machineId = machineId;
     }
 
-    public long getMachineId() {
+    public int getMachineId() {
         return machineId;
     }
 

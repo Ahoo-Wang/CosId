@@ -1,5 +1,9 @@
 package me.ahoo.cosid.snowflake;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
@@ -18,7 +22,7 @@ import java.time.ZoneId;
  * @author ahoo wang
  */
 class SecondSnowflakeIdTest {
-    public static final long TEST_MACHINE_ID = 1;
+    public static final int TEST_MACHINE_ID = 1;
     SnowflakeFriendlyId snowflakeId;
     
     @BeforeEach
@@ -36,6 +40,15 @@ class SecondSnowflakeIdTest {
         SnowflakeIdState idState = snowflakeId.getParser().parse(idFirst);
         Assertions.assertNotNull(idState);
         Assertions.assertEquals(TEST_MACHINE_ID, idState.getMachineId());
+    }
+    
+    @Test
+    public void generateWhenMachineLeftGreaterThen30() {
+        SecondSnowflakeId idGen = new SecondSnowflakeId(CosId.COSID_EPOCH_SECOND, SnowflakeId.TOTAL_BIT - 31, 1, 30, 1, TEST_MACHINE_ID);
+        long idFirst = idGen.generate();
+        assertThat(idFirst, greaterThan(0L));
+        long idSecond = idGen.generate();
+        assertThat(idSecond, greaterThan(idFirst));
     }
     
     @Test

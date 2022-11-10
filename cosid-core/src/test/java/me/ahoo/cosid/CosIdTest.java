@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
  */
 class CosIdTest {
     @Test
-    void testStatic(){
+    void testStatic() {
         Assertions.assertEquals(CosId.COSID_EPOCH_DATE, LocalDateTime.of(2019, 12, 24, 16, 0));
     }
 }

@@ -45,13 +45,13 @@ public interface SnowflakeId extends IdGenerator {
     
     long getMaxTimestamp();
     
-    long getMaxMachine();
+    int getMaxMachine();
     
     long getMaxSequence();
     
     long getLastTimestamp();
     
-    long getMachineId();
+    int getMachineId();
     
     
     static long defaultSequenceResetThreshold(int sequenceBit) {

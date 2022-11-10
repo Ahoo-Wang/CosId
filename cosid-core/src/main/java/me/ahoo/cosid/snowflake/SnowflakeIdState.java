@@ -28,7 +28,7 @@ public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
     
     private final long id;
     
-    private final long machineId;
+    private final int machineId;
     
     private final long sequence;
     
@@ -38,7 +38,7 @@ public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
      */
     private final String friendlyId;
     
-    SnowflakeIdState(long id, long machineId, long sequence, LocalDateTime timestamp, String friendlyId) {
+    SnowflakeIdState(long id, int machineId, long sequence, LocalDateTime timestamp, String friendlyId) {
         this.id = id;
         this.machineId = machineId;
         this.sequence = sequence;
@@ -54,7 +54,7 @@ public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
         return id;
     }
     
-    public long getMachineId() {
+    public int getMachineId() {
         return machineId;
     }
     
@@ -101,7 +101,7 @@ public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
     
     public static class SnowflakeIdStateBuilder {
         private long id;
-        private long machineId;
+        private int machineId;
         private long sequence;
         private LocalDateTime timestamp;
         private String friendlyId;
@@ -114,7 +114,7 @@ public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
             return this;
         }
         
-        public SnowflakeIdStateBuilder machineId(long machineId) {
+        public SnowflakeIdStateBuilder machineId(int machineId) {
             this.machineId = machineId;
             return this;
         }

@@ -29,6 +29,6 @@ dependencies {
         api("org.apache.shardingsphere:shardingsphere-sharding-core:5.2.1")
         api("org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter:5.2.1")
         api("org.openjdk.jmh:jmh-core:1.34")
-        api("org.openjdk.jmh:jmh-generator-annprocess:1.34")
+        api("org.openjdk.jmh:jmh-generator-annprocess:1.36")
     }
 }

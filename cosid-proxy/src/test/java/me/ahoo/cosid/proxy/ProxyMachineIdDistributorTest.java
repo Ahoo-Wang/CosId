@@ -24,7 +24,7 @@ class ProxyMachineIdDistributorTest extends MachineIdDistributorSpec {
     
     @Override
     protected MachineIdDistributor getDistributor() {
-        return new ProxyMachineIdDistributor(new OkHttpClient(), ProxyServerLauncher.COSID_PROXY_HOST, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
+        return new ProxyMachineIdDistributor(new OkHttpClient(), ProxyServerLauncher.COSID_PROXY_HOST, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
     }
     
     @Override

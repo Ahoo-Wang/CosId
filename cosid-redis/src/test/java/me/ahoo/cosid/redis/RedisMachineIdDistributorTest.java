@@ -37,7 +37,7 @@ class RedisMachineIdDistributorTest extends MachineIdDistributorSpec {
     void setup() {
         redisClient = RedisClient.create("redis://localhost:6379");
         redisConnection = redisClient.connect();
-        redisMachineIdDistributor = new RedisMachineIdDistributor(redisConnection.reactive(), MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
+        redisMachineIdDistributor = new RedisMachineIdDistributor(redisConnection.reactive(), MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
     }
     
     @AfterEach
@@ -52,7 +52,7 @@ class RedisMachineIdDistributorTest extends MachineIdDistributorSpec {
     
     @Override
     protected MachineIdDistributor getDistributor() {
-        return new RedisMachineIdDistributor(redisConnection.reactive(), MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
+        return new RedisMachineIdDistributor(redisConnection.reactive(), MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
     }
 
 }

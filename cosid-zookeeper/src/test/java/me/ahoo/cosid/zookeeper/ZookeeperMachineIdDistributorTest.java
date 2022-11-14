@@ -60,7 +60,7 @@ class ZookeeperMachineIdDistributorTest extends MachineIdDistributorSpec {
     
     @Override
     protected MachineIdDistributor getDistributor() {
-        return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
+        return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
     }
 
 }

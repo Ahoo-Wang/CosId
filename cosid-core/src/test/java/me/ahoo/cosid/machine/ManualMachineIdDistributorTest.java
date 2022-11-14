@@ -36,7 +36,7 @@ class ManualMachineIdDistributorTest {
     
     @BeforeEach
     void setup() {
-        machineIdDistributor = new ManualMachineIdDistributor(TEST_MANUAL_MACHINE_ID, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
+        machineIdDistributor = new ManualMachineIdDistributor(TEST_MANUAL_MACHINE_ID, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
     }
     
     @Test

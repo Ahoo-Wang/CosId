@@ -43,7 +43,7 @@ public class GuardLost implements TestSpec {
         MachineIdDistributor distributor = implFactory.get();
         String namespace = MockIdGenerator.usePrefix("GuardLost").generateAsString();
         InstanceId instanceId = mockInstance(0, false);
-        MachineStateStorage.LOCAL.set(namespace, TEST_MACHINE_BIT, instanceId);
+        MachineStateStorage.IN_MEMORY.set(namespace, TEST_MACHINE_BIT, instanceId);
         
         Assert.assertThrows(MachineIdLostException.class, () -> {
             distributor.guard(namespace, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);

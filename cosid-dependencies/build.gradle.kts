@@ -23,7 +23,7 @@ dependencies {
         api("org.mybatis:mybatis:3.5.11")
         api("org.mybatis.spring.boot:mybatis-spring-boot-starter:2.2.2")
         api("com.google.guava:guava:30.0-jre")
-        api("org.junit-pioneer:junit-pioneer:1.8.0")
+        api("org.junit-pioneer:junit-pioneer:1.9.0")
         api("org.hamcrest:hamcrest:2.2")
         api("org.apache.shardingsphere:shardingsphere-sharding-api:5.2.1")
         api("org.apache.shardingsphere:shardingsphere-sharding-core:5.2.1")

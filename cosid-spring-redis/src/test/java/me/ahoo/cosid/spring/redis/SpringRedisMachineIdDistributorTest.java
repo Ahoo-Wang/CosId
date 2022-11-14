@@ -39,7 +39,7 @@ class SpringRedisMachineIdDistributorTest extends MachineIdDistributorSpec {
     
     @Override
     protected MachineIdDistributor getDistributor() {
-        return new SpringRedisMachineIdDistributor(stringRedisTemplate, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
+        return new SpringRedisMachineIdDistributor(stringRedisTemplate, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
     }
     
 }

@@ -29,7 +29,7 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnCosIdEnabled
-@ConditionalOnClass(CosIdPlugin.class)
+@ConditionalOnCosIdMybatisEnabled
 public class CosIdMybatisAutoConfiguration {
 
     @Bean

@@ -81,7 +81,7 @@ public class CosIdMachineAutoConfiguration {
     
     @Bean
     @ConditionalOnMissingBean
-    public MachineStateStorage localMachineState() {
+    public MachineStateStorage machineStateStorage() {
         if (Boolean.TRUE.equals(machineProperties.getStable())) {
             return new LocalMachineStateStorage(machineProperties.getStateStorage().getLocal().getStateLocation());
         }

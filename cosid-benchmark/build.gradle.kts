@@ -24,6 +24,7 @@ java {
 
 repositories {
     mavenLocal()
+    maven { url = uri("https://repo.spring.io/milestone") }
     mavenCentral()
 }
 

@@ -13,8 +13,6 @@
 
 package me.ahoo.cosid.spring.boot.starter.mybatis;
 
-import me.ahoo.cosid.mybatis.CosIdPlugin;
-
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 
 import java.lang.annotation.ElementType;
@@ -29,6 +27,6 @@ import java.lang.annotation.Target;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
-@ConditionalOnClass(CosIdPlugin.class)
+@ConditionalOnClass(name = "me.ahoo.cosid.mybatis.CosIdPlugin")
 public @interface ConditionalOnCosIdMybatisEnabled {
 }

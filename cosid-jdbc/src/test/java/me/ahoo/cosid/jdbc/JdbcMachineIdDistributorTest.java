@@ -43,7 +43,7 @@ class JdbcMachineIdDistributorTest extends MachineIdDistributorSpec {
     
     @Override
     protected MachineIdDistributor getDistributor() {
-        return new JdbcMachineIdDistributor(dataSource, MachineStateStorage.LOCAL, ClockBackwardsSynchronizer.DEFAULT);
+        return new JdbcMachineIdDistributor(dataSource, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
     }
     
 }

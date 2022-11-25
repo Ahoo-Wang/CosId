@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
  * @author ahoo wang
  */
 class StringSnowflakeIdTest {
-    public static final long TEST_MACHINE_ID = 1;
+    public static final int TEST_MACHINE_ID = 1;
     SnowflakeId delegate = new MillisecondSnowflakeId(TEST_MACHINE_ID);
     StringSnowflakeId snowflakeId;
     

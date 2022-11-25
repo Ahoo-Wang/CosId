@@ -32,11 +32,13 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
     
     protected final long maxTimestamp;
     protected final long maxSequence;
-    protected final long maxMachine;
+    protected final int maxMachine;
     
     protected final long machineLeft;
     protected final long timestampLeft;
-    
+    /**
+     * WARN:machineLeft greater than 30 will cause overflow, so machineId should be long when calculating.
+     */
     protected final long machineId;
     private final long sequenceResetThreshold;
     protected long sequence = 0L;
@@ -46,7 +48,7 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
                                int timestampBit,
                                int machineBit,
                                int sequenceBit,
-                               long machineId,
+                               int machineId,
                                long sequenceResetThreshold) {
         if ((timestampBit + machineBit + sequenceBit) > TOTAL_BIT) {
             throw new IllegalArgumentException("total bit can't be greater than TOTAL_BIT[63] .");
@@ -57,7 +59,7 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         this.sequenceBit = sequenceBit;
         this.maxTimestamp = ~(-1L << timestampBit);
         this.maxSequence = ~(-1L << sequenceBit);
-        this.maxMachine = ~(-1L << machineBit);
+        this.maxMachine = ~(-1 << machineBit);
         this.machineLeft = sequenceBit;
         this.timestampLeft = this.machineLeft + machineBit;
         if (machineId > this.maxMachine || machineId < 0) {
@@ -139,7 +141,7 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
     }
     
     @Override
-    public long getMaxMachine() {
+    public int getMaxMachine() {
         return maxMachine;
     }
     
@@ -154,8 +156,8 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
     }
     
     @Override
-    public long getMachineId() {
-        return machineId;
+    public int getMachineId() {
+        return (int) machineId;
     }
     
 }

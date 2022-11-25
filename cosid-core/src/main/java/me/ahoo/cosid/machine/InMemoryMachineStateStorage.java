@@ -32,8 +32,8 @@ public class InMemoryMachineStateStorage implements MachineStateStorage {
     public void set(String namespace, int machineId, InstanceId instanceId) {
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
         MachineState machineState = MachineState.of(machineId, System.currentTimeMillis());
-        if (log.isInfoEnabled()) {
-            log.info("Set : [{}] to [{}].", namespacedInstanceId, machineState);
+        if (log.isDebugEnabled()) {
+            log.debug("Set [{}] to [{}].", namespacedInstanceId, machineState);
         }
         states.put(namespacedInstanceId, machineState);
     }

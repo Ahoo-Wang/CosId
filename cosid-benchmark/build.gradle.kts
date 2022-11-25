@@ -28,8 +28,8 @@ repositories {
 }
 
 dependencies {
-    implementation("me.ahoo.cosid:cosid-jdbc:1.15.0")
-    implementation("me.ahoo.cosid:cosid-test:1.15.0")
+    implementation("me.ahoo.cosid:cosid-jdbc:1.16.5")
+    implementation("me.ahoo.cosid:cosid-test:1.16.5")
     testImplementation("com.zaxxer:HikariCP:5.0.1")
     testImplementation("mysql:mysql-connector-java:8.0.31")
     /**
@@ -45,8 +45,8 @@ dependencies {
      */
 //    testImplementation("com.xiaoju.uemc.tinyid:tinyid-client:0.1.0-SNAPSHOT")
 
-    jmh("org.openjdk.jmh:jmh-core:1.35")
-    jmh("org.openjdk.jmh:jmh-generator-annprocess:1.35")
+    jmh("org.openjdk.jmh:jmh-core:1.36")
+    jmh("org.openjdk.jmh:jmh-generator-annprocess:1.36")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.1")
     testImplementation("org.junit.jupiter:junit-jupiter-params:5.9.1")

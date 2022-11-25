@@ -13,75 +13,77 @@
 
 package me.ahoo.cosid.machine;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
-import static org.junit.jupiter.api.Assertions.*;
-
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author : Rocher Kong
  */
 class ClockSyncSnowflakeIdTest {
-    public static final long TEST_MACHINE_ID = 1;
+    public static final int TEST_MACHINE_ID = 1;
     ClockSyncSnowflakeId clockSyncSnowflakeId;
-
+    
     @BeforeEach
     void setup() {
         MillisecondSnowflakeId idGen = new MillisecondSnowflakeId(TEST_MACHINE_ID);
         clockSyncSnowflakeId = new ClockSyncSnowflakeId(idGen);
     }
-
+    
     @Test
     void getEpoch() {
-        Assertions.assertNotNull(clockSyncSnowflakeId.getEpoch());
+        assertThat(clockSyncSnowflakeId.getEpoch(), equalTo(CosId.COSID_EPOCH));
     }
-
+    
     @Test
     void getTimestampBit() {
-        Assertions.assertNotNull(clockSyncSnowflakeId.getTimestampBit());
+        assertThat(clockSyncSnowflakeId.getTimestampBit(), equalTo(41));
     }
-
+    
     @Test
     void getMachineBit() {
-        Assertions.assertNotNull(clockSyncSnowflakeId.getMachineBit());
+        assertThat(clockSyncSnowflakeId.getMachineBit(), equalTo(10));
     }
-
+    
     @Test
     void getSequenceBit() {
-        Assertions.assertNotNull(clockSyncSnowflakeId.getSequenceBit());
+        assertThat(clockSyncSnowflakeId.getSequenceBit(), equalTo(12));
     }
-
+    
     @Test
     void isSafeJavascript() {
-        Assertions.assertNotNull(clockSyncSnowflakeId.isSafeJavascript());
+        assertThat(clockSyncSnowflakeId.isSafeJavascript(), equalTo(false));
     }
-
+    
     @Test
     void getMaxTimestamp() {
-        Assertions.assertNotNull(clockSyncSnowflakeId.getMaxTimestamp());
+        assertThat(clockSyncSnowflakeId.getMaxTimestamp(), greaterThan(0L));
     }
-
+    
     @Test
     void getMaxMachine() {
-        Assertions.assertNotNull(clockSyncSnowflakeId.getMaxMachine());
+        assertThat(clockSyncSnowflakeId.getMaxMachine(), equalTo(1023));
     }
-
+    
     @Test
     void getMaxSequence() {
-        Assertions.assertNotNull(clockSyncSnowflakeId.getMaxSequence());
+        assertThat(clockSyncSnowflakeId.getMaxSequence(), equalTo(4095L));
     }
-
+    
     @Test
     void getLastTimestamp() {
-        Assertions.assertNotNull(clockSyncSnowflakeId.getLastTimestamp());
+        clockSyncSnowflakeId.generate();
+        assertThat(clockSyncSnowflakeId.getLastTimestamp(), greaterThan(0L));
     }
-
+    
     @Test
     void getMachineId() {
-        Assertions.assertNotNull(clockSyncSnowflakeId.getMachineId());
+        assertThat(clockSyncSnowflakeId.getMachineId(), equalTo(TEST_MACHINE_ID));
     }
 }

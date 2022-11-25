@@ -12,23 +12,23 @@
  */
 
 dependencies {
-    api(platform("org.springframework.boot:spring-boot-dependencies:3.0.0-RC1"))
-    api(platform("org.springframework.cloud:spring-cloud-dependencies:2022.0.0-M5"))
+    api(platform("org.springframework.boot:spring-boot-dependencies:3.0.0"))
+    api(platform("org.springframework.cloud:spring-cloud-dependencies:2022.0.0-RC2"))
     api(platform("com.squareup.okhttp3:okhttp-bom:4.10.0"))
-    api(platform("org.axonframework:axon-bom:4.6.1"))
+    api(platform("org.axonframework:axon-bom:4.6.2"))
     api(platform("me.ahoo.cosky:cosky-bom:1.3.20"))
-    api(platform("org.testcontainers:testcontainers-bom:1.17.5"))
+    api(platform("org.testcontainers:testcontainers-bom:1.17.6"))
     constraints {
         api("org.projectlombok:lombok:1.18.24")
         api("org.mybatis:mybatis:3.5.11")
         api("org.mybatis.spring.boot:mybatis-spring-boot-starter:2.2.2")
         api("com.google.guava:guava:30.0-jre")
-        api("org.junit-pioneer:junit-pioneer:1.7.1")
+        api("org.junit-pioneer:junit-pioneer:1.9.0")
         api("org.hamcrest:hamcrest:2.2")
         api("org.apache.shardingsphere:shardingsphere-sharding-api:5.2.1")
         api("org.apache.shardingsphere:shardingsphere-sharding-core:5.2.1")
         api("org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter:5.2.1")
-        api("org.openjdk.jmh:jmh-core:1.34")
-        api("org.openjdk.jmh:jmh-generator-annprocess:1.34")
+        api("org.openjdk.jmh:jmh-core:1.36")
+        api("org.openjdk.jmh:jmh-generator-annprocess:1.36")
     }
 }

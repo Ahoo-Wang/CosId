@@ -21,7 +21,7 @@ dependencies {
     constraints {
         api("org.projectlombok:lombok:1.18.24")
         api("org.mybatis:mybatis:3.5.11")
-        api("org.mybatis.spring.boot:mybatis-spring-boot-starter:2.2.2")
+        api("org.mybatis.spring.boot:mybatis-spring-boot-starter:2.3.0")
         api("com.google.guava:guava:30.0-jre")
         api("org.junit-pioneer:junit-pioneer:1.9.1")
         api("org.hamcrest:hamcrest:2.2")

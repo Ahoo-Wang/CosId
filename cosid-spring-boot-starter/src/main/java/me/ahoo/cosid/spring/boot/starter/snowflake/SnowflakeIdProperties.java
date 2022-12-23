@@ -14,17 +14,13 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import me.ahoo.cosid.CosId;
-import me.ahoo.cosid.machine.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
-import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
-import me.ahoo.cosid.machine.LocalMachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 import javax.annotation.Nonnull;
-import java.time.Duration;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;

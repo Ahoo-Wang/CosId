@@ -20,6 +20,16 @@
 > 
 >[timestamp(44)]-[machineId(20)]-[sequence(16)] = 80 BITS = 17 CHARS=[timestamp(8)]-[machineId(4)]-[sequence(3)].
 
+36进制的CosId生成器会将
+- 时间戳由原来的44位缩减为8位
+- 机器号由原来20位缩减为4位
+- 序列号由原来的16位缩减为3位
+
 ## Radix62CosIdGenerator
 > 62进制CosId生成器
 > [timestamp(44)]-[machineId-(20)]-[sequence-(16)] = 80 BITS = 15 CHARS=[timestamp(9)]-[machineId(4)]-[sequence(4)]
+
+62进制的CosId生成器会将
+- 时间戳由原来的44位缩减为9位
+- 机器号由原来20位缩减为4位
+- 序列号由原来的16位缩减为3位

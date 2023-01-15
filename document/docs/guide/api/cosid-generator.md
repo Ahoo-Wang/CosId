@@ -27,6 +27,7 @@
 
 ## Radix62CosIdGenerator
 > 62进制CosId生成器
+> 
 > [timestamp(44)]-[machineId-(20)]-[sequence-(16)] = 80 BITS = 15 CHARS=[timestamp(9)]-[machineId(4)]-[sequence(4)]
 
 62进制的CosId生成器会将

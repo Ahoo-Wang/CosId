@@ -58,7 +58,7 @@ dependencies {
     //region cosid-jdbc
     implementation(project(":cosid-jdbc"))
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
-    implementation("mysql:mysql-connector-java")
+    implementation("com.mysql:mysql-connector-j")
     implementation(project(":cosid-shardingsphere"))
     implementation("org.apache.shardingsphere:shardingsphere-jdbc-core-spring-boot-starter")
     //endregion

@@ -3,9 +3,9 @@
 
 ## 特点介绍
 
-- 全局趋势增加
+- 全局趋势递增
 - 局部单调递增
-- 高性能:15,570,085 ops/s(generateAsString),3倍于 ```UUID.randomUUID()```
+- 高性能:15,570,085 ops/s(generateAsString),3倍于 `UUID.randomUUID()`
 - 反向解析ID状态（时间戳，机器号，序列号）
 - 易于扩展
 - 更小的存储空间：15个字符

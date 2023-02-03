@@ -1,3 +1,4 @@
+
 /*
  * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +16,6 @@ dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:2.7.8"))
     api(platform("org.springframework.cloud:spring-cloud-dependencies:2021.0.5"))
     api(platform("com.squareup.okhttp3:okhttp-bom:4.10.0"))
-    api(platform("org.axonframework:axon-bom:4.7.0"))
     api(platform("me.ahoo.cosky:cosky-bom:1.3.20"))
     api(platform("org.testcontainers:testcontainers-bom:1.17.6"))
     constraints {

@@ -17,15 +17,33 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
+import com.mongodb.client.MongoDatabase;
+
 /**
- * Jdbc IdSegment Distributor Factory.
+ * Mongo IdSegment Distributor Factory.
  *
  * @author ahoo wang
  */
 public class MongoIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
+    private final MongoDatabase mongoDatabase;
+    private final MongoIdSegmentInitializer idSegmentInitializer;
+    private final boolean enableAutoInitIdSegment;
+    public static final String COSID_COLLECTION_NAME = "cosid";
+    
+    public MongoIdSegmentDistributorFactory(MongoDatabase mongoDatabase, MongoIdSegmentInitializer idSegmentInitializer, boolean enableAutoInitIdSegment) {
+        this.mongoDatabase = mongoDatabase;
+        this.idSegmentInitializer = idSegmentInitializer;
+        this.enableAutoInitIdSegment = enableAutoInitIdSegment;
+    }
     
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
-        return null;
+        if (enableAutoInitIdSegment) {
+            idSegmentInitializer.tryInitIdSegment(definition.getNamespacedName(), definition.getOffset());
+        }
+        return new MongoIdSegmentDistributor(definition.getNamespace(),
+            definition.getName(),
+            definition.getStep(),
+            mongoDatabase.getCollection(COSID_COLLECTION_NAME));
     }
 }

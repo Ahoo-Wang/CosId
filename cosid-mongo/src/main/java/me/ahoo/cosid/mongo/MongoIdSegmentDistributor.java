@@ -15,34 +15,66 @@ package me.ahoo.cosid.mongo;
 
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
+import com.google.common.base.Preconditions;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.mongodb.core.MongoTemplate;
+import org.bson.Document;
+
+import javax.annotation.Nonnull;
+import java.util.Objects;
 
 /**
- * Jdbc IdSegment Distributor.
+ * Mongo IdSegment Distributor.
  *
  * @author ahoo wang
  */
 @Slf4j
 public class MongoIdSegmentDistributor implements IdSegmentDistributor {
+    private final String namespace;
+    private final String name;
+    private final long step;
+    private final MongoCollection<Document> cosidCollection;
     
-    @Override
-    public String getNamespace() {
-        return null;
+    public MongoIdSegmentDistributor(String namespace, String name, long step, MongoCollection<Document> cosidCollection) {
+        this.namespace = namespace;
+        this.name = name;
+        this.step = step;
+        this.cosidCollection = cosidCollection;
     }
     
+    @Nonnull
+    @Override
+    public String getNamespace() {
+        return namespace;
+    }
+    
+    @Nonnull
     @Override
     public String getName() {
-        return null;
+        return name;
     }
     
     @Override
     public long getStep() {
-        return 0;
+        return step;
     }
     
     @Override
     public long nextMaxId(long step) {
-        return 0;
+        String namespacedName = getNamespacedName();
+        Document afterDoc = cosidCollection.findOneAndUpdate(
+            Filters.eq(Documents.ID_FIELD, namespacedName),
+            Updates.combine(
+                Updates.inc(Documents.LAST_MAX_ID_FIELD, step),
+                Updates.set(Documents.LAST_FETCH_TIME_FIELD, System.currentTimeMillis())
+            ),
+            Documents.INC_OPTIONS);
+        
+        assert afterDoc != null;
+        Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
+        Long lastMaxId = afterDoc.getLong(Documents.LAST_MAX_ID_FIELD);
+        return Objects.requireNonNull(lastMaxId);
     }
 }

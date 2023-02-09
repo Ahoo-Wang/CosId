@@ -11,13 +11,15 @@
  * limitations under the License.
  */
 
-dependencies {
-    api(project(":cosid-core"))
-    api("org.springframework.data:spring-data-mongodb")
-    implementation("org.mongodb:mongodb-driver-sync")
-//    compileOnly("org.mongodb:mongodb-driver-reactivestreams")
-    testImplementation(project(":cosid-test"))
-    testImplementation("org.testcontainers:testcontainers")
-    testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.testcontainers:mongodb")
+package me.ahoo.cosid.mongo;
+
+import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.ReturnDocument;
+
+public interface Documents {
+    String ID_FIELD = "_id";
+    String LAST_MAX_ID_FIELD = "lastMaxId";
+    String LAST_FETCH_TIME_FIELD = "lastFetchTime";
+    FindOneAndUpdateOptions INC_OPTIONS = new FindOneAndUpdateOptions()
+        .returnDocument(ReturnDocument.AFTER);
 }

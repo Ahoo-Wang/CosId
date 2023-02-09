@@ -11,7 +11,8 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.redis;
+package me.ahoo.cosid.spring.redis;
+
 
 import me.ahoo.cosid.segment.SegmentChainId;
 
@@ -42,3 +43,4 @@ public class RedisChainIdBenchmark {
         return segmentChainId.generate();
     }
 }
+

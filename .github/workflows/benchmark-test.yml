@@ -93,8 +93,8 @@ jobs:
       - name: CosId-ShardingSphere
         run: gradle cosid-shardingsphere:clean cosid-shardingsphere:jmh -PjmhIncludes=Mod
 
-  cosid-redis-benchmark:
-    name: CosId Redis Benchmark
+  cosid-spring-redis-benchmark:
+    name: CosId Spring Redis Benchmark
     runs-on: ubuntu-latest
     services:
       redis:
@@ -118,8 +118,8 @@ jobs:
           server-id: github
           settings-path: ${{ github.workspace }}
 
-      - name: CosId-Redis
-        run: gradle cosid-redis:clean cosid-redis:jmh
+      - name: CosId-Spring-Redis
+        run: gradle cosid-spring-redis:clean cosid-spring-redis:jmh
 
   cosid-jdbc-benchmark:
     name: CosId Jdbc Benchmark

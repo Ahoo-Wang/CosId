@@ -11,60 +11,60 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.redis;
+package me.ahoo.cosid.spring.redis;
 
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.SegmentChainId;
 
 import io.lettuce.core.RedisClient;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * @author ahoo wang
- */
 public class RedisIdFactory implements AutoCloseable {
-
+    
     public static final RedisIdFactory INSTANCE = new RedisIdFactory();
-
+    
     AtomicInteger counter = new AtomicInteger();
-    RedisClient redisClient;
-
+    LettuceConnectionFactory connectionFactory;
+    StringRedisTemplate stringRedisTemplate;
+    
     private RedisIdFactory() {
-
+        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+        connectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
+        connectionFactory.afterPropertiesSet();
+        stringRedisTemplate = new StringRedisTemplate(connectionFactory);
     }
-
-    public synchronized RedisIdSegmentDistributor createDistributor(int step) {
-        if (redisClient == null) {
-            redisClient = RedisClient.create("redis://localhost:6379");
-        }
+    
+    public synchronized SpringRedisIdSegmentDistributor createDistributor(int step) {
         String namespace = "rbh-" + counter.incrementAndGet();
-        return new RedisIdSegmentDistributor(
+        return new SpringRedisIdSegmentDistributor(
             namespace,
             String.valueOf(step),
             0,
             step,
-            RedisIdSegmentDistributor.DEFAULT_TIMEOUT,
-            redisClient.connect().reactive());
+            stringRedisTemplate);
     }
-
-
+    
+    
     public DefaultSegmentId createSegmentId(int step) {
-        RedisIdSegmentDistributor distributor = createDistributor(step);
+        SpringRedisIdSegmentDistributor distributor = createDistributor(step);
         return new DefaultSegmentId(distributor);
     }
-
-
+    
+    
     public SegmentChainId createSegmentChainId(int step) {
-        RedisIdSegmentDistributor distributor = createDistributor(step);
+        SpringRedisIdSegmentDistributor distributor = createDistributor(step);
         return new SegmentChainId(distributor);
     }
-
+    
     @Override
     public void close() {
-        if (Objects.nonNull(redisClient)) {
-            redisClient.shutdown();
+        if (Objects.nonNull(connectionFactory)) {
+            connectionFactory.destroy();
         }
     }
 }

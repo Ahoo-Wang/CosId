@@ -16,6 +16,7 @@ package me.ahoo.cosid.mongo.reactive;
 import static me.ahoo.cosid.mongo.CosIdSegmentCollection.COLLECTION_NAME;
 
 import me.ahoo.cosid.mongo.IdSegmentInitializer;
+
 import com.mongodb.MongoCommandException;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import lombok.extern.slf4j.Slf4j;

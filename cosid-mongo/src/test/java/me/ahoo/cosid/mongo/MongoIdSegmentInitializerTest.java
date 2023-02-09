@@ -26,24 +26,26 @@ import org.junit.jupiter.api.Test;
 class MongoIdSegmentInitializerTest {
     MongoDatabase mongoDatabase;
     MongoIdSegmentInitializer idSegmentInitializer;
+    MongoCosIdSegmentCollection cosIdSegmentCollection;
     
     @BeforeEach
     void setup() {
         mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
         idSegmentInitializer = new MongoIdSegmentInitializer(mongoDatabase);
+        cosIdSegmentCollection = new MongoCosIdSegmentCollection(mongoDatabase.getCollection(CosIdSegmentCollection.COLLECTION_NAME));
     }
     
     @Test
-    void tryInitCosIdCollection() {
-        idSegmentInitializer.tryInitCosIdCollection();
+    void ensureCosIdCollection() {
+        idSegmentInitializer.ensureCosIdCollection();
     }
     
     @Test
-    void tryInitIdSegment() {
+    void ensureIdSegment() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        boolean actual = idSegmentInitializer.tryInitIdSegment(namespace, 0);
+        boolean actual = cosIdSegmentCollection.ensureIdSegment(namespace, 0);
         assertThat(actual, Matchers.equalTo(true));
-        actual = idSegmentInitializer.tryInitIdSegment(namespace, 0);
+        actual = cosIdSegmentCollection.ensureIdSegment(namespace, 0);
         assertThat(actual, Matchers.equalTo(false));
     }
 }

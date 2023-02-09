@@ -13,12 +13,11 @@
 
 package me.ahoo.cosid.mongo;
 
+import static me.ahoo.cosid.mongo.CosIdSegmentCollection.COLLECTION_NAME;
+
 import com.mongodb.MongoCommandException;
-import com.mongodb.MongoWriteException;
-import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import lombok.extern.slf4j.Slf4j;
-import org.bson.Document;
 
 @Slf4j
 public class MongoIdSegmentInitializer {
@@ -28,39 +27,19 @@ public class MongoIdSegmentInitializer {
         this.mongoDatabase = mongoDatabase;
     }
     
-    public boolean tryInitCosIdCollection() {
+    public boolean ensureCosIdCollection() {
         if (log.isInfoEnabled()) {
-            log.info("Try Init CosIdCollection");
+            log.info("Ensure CosIdCollection");
         }
         try {
-            mongoDatabase.createCollection(MongoIdSegmentDistributorFactory.COSID_COLLECTION_NAME);
+            mongoDatabase.createCollection(COLLECTION_NAME);
             return true;
         } catch (MongoCommandException mongoCommandException) {
             if (log.isInfoEnabled()) {
-                log.info("Init CosIdCollection Failed", mongoCommandException);
+                log.info("Ensure CosIdCollection Failed", mongoCommandException);
             }
             return false;
         }
     }
-    
-    public boolean tryInitIdSegment(String segmentName, long offset) {
-        if (log.isInfoEnabled()) {
-            log.info("Try Init IdSegment:[{}]", segmentName);
-        }
-        try {
-            MongoCollection<Document> cosidCollection = mongoDatabase.getCollection(MongoIdSegmentDistributorFactory.COSID_COLLECTION_NAME);
-            cosidCollection.insertOne(new Document()
-                .append(Documents.ID_FIELD, segmentName)
-                .append(Documents.LAST_MAX_ID_FIELD, offset)
-                .append(Documents.LAST_FETCH_TIME_FIELD, 0L)
-            );
-            return true;
-        } catch (MongoWriteException mongoWriteException) {
-            if (log.isInfoEnabled()) {
-                log.info("Init IdSegment:[{}] Failed", segmentName, mongoWriteException);
-            }
-            return false;
-        }
-        
-    }
+
 }

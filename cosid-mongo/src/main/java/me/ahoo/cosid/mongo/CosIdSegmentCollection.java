@@ -11,16 +11,13 @@
  * limitations under the License.
  */
 
-dependencies {
-    api(project(":cosid-core"))
-    api("org.springframework.data:spring-data-mongodb")
-    compileOnly("org.mongodb:mongodb-driver-sync")
-    compileOnly("org.mongodb:mongodb-driver-reactivestreams")
-    compileOnly("io.projectreactor:reactor-core")
-    testImplementation(project(":cosid-test"))
-    testImplementation("org.mongodb:mongodb-driver-sync")
-    testImplementation("org.mongodb:mongodb-driver-reactivestreams")
-    testImplementation("org.testcontainers:testcontainers")
-    testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.testcontainers:mongodb")
+package me.ahoo.cosid.mongo;
+
+public interface CosIdSegmentCollection {
+    String COLLECTION_NAME = "cosid";
+    
+    long incrementAndGet(String namespacedName, long step);
+    
+    boolean ensureIdSegment(String segmentName, long offset);
+    
 }

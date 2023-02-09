@@ -30,9 +30,9 @@ class MongoIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     void setup() {
         mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
         idSegmentInitializer = new MongoIdSegmentInitializer(mongoDatabase);
-        idSegmentInitializer.tryInitCosIdCollection();
+        idSegmentInitializer.ensureCosIdCollection();
         distributorFactory =
-            new MongoIdSegmentDistributorFactory(mongoDatabase, idSegmentInitializer, true);
+            new MongoIdSegmentDistributorFactory(mongoDatabase, true);
     }
     
     @Override

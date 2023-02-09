@@ -15,15 +15,9 @@ package me.ahoo.cosid.mongo;
 
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
-import com.google.common.base.Preconditions;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Updates;
 import lombok.extern.slf4j.Slf4j;
-import org.bson.Document;
 
 import javax.annotation.Nonnull;
-import java.util.Objects;
 
 /**
  * Mongo IdSegment Distributor.
@@ -35,13 +29,13 @@ public class MongoIdSegmentDistributor implements IdSegmentDistributor {
     private final String namespace;
     private final String name;
     private final long step;
-    private final MongoCollection<Document> cosidCollection;
+    private final CosIdSegmentCollection cosIdSegmentCollection;
     
-    public MongoIdSegmentDistributor(String namespace, String name, long step, MongoCollection<Document> cosidCollection) {
+    public MongoIdSegmentDistributor(String namespace, String name, long step, CosIdSegmentCollection cosIdSegmentCollection) {
         this.namespace = namespace;
         this.name = name;
         this.step = step;
-        this.cosidCollection = cosidCollection;
+        this.cosIdSegmentCollection = cosIdSegmentCollection;
     }
     
     @Nonnull
@@ -64,17 +58,6 @@ public class MongoIdSegmentDistributor implements IdSegmentDistributor {
     @Override
     public long nextMaxId(long step) {
         String namespacedName = getNamespacedName();
-        Document afterDoc = cosidCollection.findOneAndUpdate(
-            Filters.eq(Documents.ID_FIELD, namespacedName),
-            Updates.combine(
-                Updates.inc(Documents.LAST_MAX_ID_FIELD, step),
-                Updates.set(Documents.LAST_FETCH_TIME_FIELD, System.currentTimeMillis())
-            ),
-            Documents.INC_OPTIONS);
-        
-        assert afterDoc != null;
-        Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
-        Long lastMaxId = afterDoc.getLong(Documents.LAST_MAX_ID_FIELD);
-        return Objects.requireNonNull(lastMaxId);
+        return cosIdSegmentCollection.incrementAndGet(namespacedName, step);
     }
 }

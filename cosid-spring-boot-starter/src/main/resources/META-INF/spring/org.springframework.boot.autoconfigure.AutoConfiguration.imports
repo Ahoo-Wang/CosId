@@ -11,6 +11,7 @@ me.ahoo.cosid.spring.boot.starter.snowflake.CosIdSnowflakeAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdRedisSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdSpringRedisSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdJdbcSegmentAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.segment.CosIdMongoSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdZookeeperSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdProxySegmentAutoConfiguration

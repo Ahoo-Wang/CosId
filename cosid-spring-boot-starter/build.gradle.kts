@@ -24,6 +24,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "jdbc-support", version.toString())
     }
+    registerFeature("mongoSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "mongo-support", version.toString())
+    }
     registerFeature("zookeeperSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "zookeeper-support", version.toString())
@@ -51,14 +55,18 @@ dependencies {
     "zookeeperSupportImplementation"(project(":cosid-zookeeper"))
 
     "proxySupportImplementation"(project(":cosid-proxy"))
+    "mongoSupportImplementation"(project(":cosid-mongo"))
 
     "mybatisSupportImplementation"(project(":cosid-mybatis"))
     api("org.springframework.boot:spring-boot-starter")
     api("org.springframework.cloud:spring-cloud-commons")
-
+    compileOnly("org.mongodb:mongodb-driver-sync")
+    compileOnly("org.mongodb:mongodb-driver-reactivestreams")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
     testImplementation(project(":cosid-test"))
+    testImplementation("org.mongodb:mongodb-driver-sync")
+    testImplementation("org.mongodb:mongodb-driver-reactivestreams")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("com.mysql:mysql-connector-j")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc")

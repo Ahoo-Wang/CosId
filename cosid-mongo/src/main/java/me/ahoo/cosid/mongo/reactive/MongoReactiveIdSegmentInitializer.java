@@ -11,29 +11,29 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.mongo;
+package me.ahoo.cosid.mongo.reactive;
 
 import static me.ahoo.cosid.mongo.CosIdSegmentCollection.COLLECTION_NAME;
 
 import com.mongodb.MongoCommandException;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Mono;
 
 @Slf4j
-public class MongoIdSegmentInitializer implements IdSegmentInitializer {
+public class MongoReactiveIdSegmentInitializer  {
     private final MongoDatabase mongoDatabase;
     
-    public MongoIdSegmentInitializer(MongoDatabase mongoDatabase) {
+    public MongoReactiveIdSegmentInitializer(MongoDatabase mongoDatabase) {
         this.mongoDatabase = mongoDatabase;
     }
     
-    @Override
     public boolean ensureCosIdCollection() {
         if (log.isInfoEnabled()) {
             log.info("Ensure CosIdCollection");
         }
         try {
-            mongoDatabase.createCollection(COLLECTION_NAME);
+            Mono.from(mongoDatabase.createCollection(COLLECTION_NAME)).block();
             return true;
         } catch (MongoCommandException mongoCommandException) {
             if (log.isInfoEnabled()) {
@@ -42,5 +42,5 @@ public class MongoIdSegmentInitializer implements IdSegmentInitializer {
             return false;
         }
     }
-
+    
 }

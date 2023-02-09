@@ -13,26 +13,28 @@
 
 package me.ahoo.cosid.mongo;
 
+import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentDistributorFactory;
+import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.reactivestreams.client.MongoClients;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.junit.jupiter.api.BeforeEach;
 
-class MongoIdSegmentDistributorTest extends IdSegmentDistributorSpec {
+class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     MongoDatabase mongoDatabase;
     IdSegmentDistributorFactory distributorFactory;
-    MongoIdSegmentInitializer idSegmentInitializer;
+    MongoReactiveIdSegmentInitializer idSegmentInitializer;
     
     @BeforeEach
     void setup() {
         mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
-        idSegmentInitializer = new MongoIdSegmentInitializer(mongoDatabase);
+        idSegmentInitializer = new MongoReactiveIdSegmentInitializer(mongoDatabase);
         idSegmentInitializer.ensureCosIdCollection();
         distributorFactory =
-            new MongoIdSegmentDistributorFactory(mongoDatabase, true);
+            new MongoReactiveIdSegmentDistributorFactory(mongoDatabase, true);
     }
     
     @Override

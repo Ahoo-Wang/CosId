@@ -104,8 +104,8 @@ jobs:
       - name: Test CosId-ShardingSphere
         run: gradle cosid-shardingsphere:clean cosid-shardingsphere:check
 
-  cosid-redis-test:
-    name: CosId Redis Test
+  cosid-spring-redis-test:
+    name: CosId Spring Redis Test
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
     services:
@@ -130,8 +130,8 @@ jobs:
           server-id: github
           settings-path: ${{ github.workspace }}
 
-      - name: Test CosId-Redis
-        run: gradle cosid-redis:clean cosid-redis:check cosid-spring-redis:clean cosid-spring-redis:check
+      - name: Test CosId-Spring-Redis
+        run: gradle cosid-spring-redis:clean cosid-spring-redis:check
 
   cosid-proxy-test:
     name: CosId Proxy Test

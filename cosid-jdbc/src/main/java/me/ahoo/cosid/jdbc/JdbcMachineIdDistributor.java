@@ -80,7 +80,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     }
     
     private String getNamespacedMachineId(String namespace, int machineId) {
-        return namespace + "." + Strings.padStart(String.valueOf(machineId), 4, '0');
+        return namespace + "." + Strings.padStart(String.valueOf(machineId), 8, '0');
     }
     
     private int distributeRevertMachineState(Connection connection, String namespace, int machineId, InstanceId instanceId, Duration safeGuardDuration) throws SQLException {

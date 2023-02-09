@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.MongoIdSegmentInitializer;
+import me.ahoo.cosid.spring.boot.starter.mongo.MongoLauncher;
 
 import org.assertj.core.api.AssertionsForInterfaceTypes;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ class CosIdMongoSegmentAutoConfigurationTest {
     void contextLoads() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
-//            .withPropertyValues("spring.data.mongodb.uri=mongodb://root:root@localhost")
+            .withPropertyValues("spring.data.mongodb.uri=" + MongoLauncher.getConnectionString())
             .withUserConfiguration(MongoAutoConfiguration.class, CosIdMongoSegmentAutoConfiguration.class)
             .run(context -> {
                 AssertionsForInterfaceTypes.assertThat(context)

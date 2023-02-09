@@ -44,6 +44,8 @@ java {
 
 dependencies {
     api(project(":cosid-core"))
+    testImplementation(project(mapOf("path" to ":cosid-mongo")))
+    testImplementation(project(mapOf("path" to ":cosid-mongo")))
 
     "springRedisSupportImplementation"(project(":cosid-spring-redis"))
     "springRedisSupportImplementation"("org.springframework.boot:spring-boot-starter-data-redis")
@@ -71,6 +73,9 @@ dependencies {
     testImplementation("com.mysql:mysql-connector-j")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc")
     testImplementation("org.apache.curator:curator-test")
+    testImplementation("org.testcontainers:testcontainers")
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:mongodb")
 }
 
 

@@ -183,10 +183,12 @@ public class SegmentIdProperties {
         private Type type = Type.REDIS;
         private Redis redis;
         private Jdbc jdbc;
+        private Mongo mongo;
         
         public Distributor() {
             this.redis = new Redis();
             this.jdbc = new Jdbc();
+            this.mongo = new Mongo();
         }
         
         public Type getType() {
@@ -211,6 +213,14 @@ public class SegmentIdProperties {
         
         public void setJdbc(Jdbc jdbc) {
             this.jdbc = jdbc;
+        }
+        
+        public Mongo getMongo() {
+            return mongo;
+        }
+        
+        public void setMongo(Mongo mongo) {
+            this.mongo = mongo;
         }
         
         public static class Redis {
@@ -285,9 +295,22 @@ public class SegmentIdProperties {
             
         }
         
+        public static class Mongo {
+            private String database = "cosid_db";
+            
+            public String getDatabase() {
+                return database;
+            }
+            
+            public void setDatabase(String database) {
+                this.database = database;
+            }
+        }
+        
         public enum Type {
             REDIS,
             JDBC,
+            MONGO,
             ZOOKEEPER,
             PROXY
         }

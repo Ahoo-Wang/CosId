@@ -39,7 +39,7 @@ public class MongoCosIdSegmentCollection implements CosIdSegmentCollection {
                 Updates.inc(Documents.LAST_MAX_ID_FIELD, step),
                 Updates.set(Documents.LAST_FETCH_TIME_FIELD, System.currentTimeMillis())
             ),
-            Documents.INC_OPTIONS);
+            Documents.UPDATE_AFTER_OPTIONS);
         
         assert afterDoc != null;
         Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);

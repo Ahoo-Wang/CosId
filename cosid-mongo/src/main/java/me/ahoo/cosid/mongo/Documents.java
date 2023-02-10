@@ -18,8 +18,19 @@ import com.mongodb.client.model.ReturnDocument;
 
 public interface Documents {
     String ID_FIELD = "_id";
+    //region IdSegment
     String LAST_MAX_ID_FIELD = "lastMaxId";
     String LAST_FETCH_TIME_FIELD = "lastFetchTime";
-    FindOneAndUpdateOptions INC_OPTIONS = new FindOneAndUpdateOptions()
+    //endregion
+    //region Machine
+    String NAMESPACE_FIELD = "namespace";
+    String MACHINE_ID_FIELD = "machineId";
+    String LAST_TIMESTAMP_FIELD = "lastTimestamp";
+    String INSTANCE_ID_FIELD = "instanceId";
+    String DISTRIBUTE_TIME_FIELD = "distributeTime";
+    String REVERT_TIME_FIELD = "revertTime";
+    //endregion
+    
+    FindOneAndUpdateOptions UPDATE_AFTER_OPTIONS = new FindOneAndUpdateOptions()
         .returnDocument(ReturnDocument.AFTER);
 }

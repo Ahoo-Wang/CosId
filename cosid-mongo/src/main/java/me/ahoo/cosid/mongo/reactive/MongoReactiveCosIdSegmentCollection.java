@@ -44,7 +44,7 @@ public class MongoReactiveCosIdSegmentCollection implements CosIdSegmentCollecti
                 Updates.inc(Documents.LAST_MAX_ID_FIELD, step),
                 Updates.set(Documents.LAST_FETCH_TIME_FIELD, System.currentTimeMillis())
             ),
-            Documents.INC_OPTIONS));
+            Documents.UPDATE_AFTER_OPTIONS));
         if (Schedulers.isInNonBlockingThread()) {
             publisher = publisher.subscribeOn(Schedulers.boundedElastic());
         }

@@ -13,39 +13,33 @@
 
 package me.ahoo.cosid.mongo;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-
-import me.ahoo.cosid.test.MockIdGenerator;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
+import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
-class MongoIdSegmentInitializerTest {
+class MongoMachineIdDistributorTest extends MachineIdDistributorSpec {
     MongoDatabase mongoDatabase;
-    MongoIdSegmentInitializer idSegmentInitializer;
-    MongoIdSegmentCollection cosIdSegmentCollection;
+    MachineIdDistributor machineIdDistributor;
+    MongoMachineInitializer machineInitializer;
     
     @BeforeEach
     void setup() {
         mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
-        idSegmentInitializer = new MongoIdSegmentInitializer(mongoDatabase);
-        cosIdSegmentCollection = new MongoIdSegmentCollection(mongoDatabase.getCollection(IdSegmentCollection.COLLECTION_NAME));
+        machineInitializer = new MongoMachineInitializer(mongoDatabase);
+        machineInitializer.ensureMachineCollection();
+        machineIdDistributor = new MongoMachineIdDistributor(
+            new MongoMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME)),
+            MachineStateStorage.IN_MEMORY,
+            ClockBackwardsSynchronizer.DEFAULT);
     }
     
-    @Test
-    void ensureCosIdCollection() {
-        idSegmentInitializer.ensureCosIdCollection();
-    }
-    
-    @Test
-    void ensureIdSegment() {
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        boolean actual = cosIdSegmentCollection.ensureIdSegment(namespace, 0);
-        assertThat(actual, Matchers.equalTo(true));
-        actual = cosIdSegmentCollection.ensureIdSegment(namespace, 0);
-        assertThat(actual, Matchers.equalTo(false));
+    @Override
+    protected MachineIdDistributor getDistributor() {
+        return machineIdDistributor;
     }
 }

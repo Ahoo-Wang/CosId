@@ -29,13 +29,13 @@ public class MongoIdSegmentDistributor implements IdSegmentDistributor {
     private final String namespace;
     private final String name;
     private final long step;
-    private final CosIdSegmentCollection cosIdSegmentCollection;
+    private final IdSegmentCollection idSegmentCollection;
     
-    public MongoIdSegmentDistributor(String namespace, String name, long step, CosIdSegmentCollection cosIdSegmentCollection) {
+    public MongoIdSegmentDistributor(String namespace, String name, long step, IdSegmentCollection idSegmentCollection) {
         this.namespace = namespace;
         this.name = name;
         this.step = step;
-        this.cosIdSegmentCollection = cosIdSegmentCollection;
+        this.idSegmentCollection = idSegmentCollection;
     }
     
     @Nonnull
@@ -58,6 +58,6 @@ public class MongoIdSegmentDistributor implements IdSegmentDistributor {
     @Override
     public long nextMaxId(long step) {
         String namespacedName = getNamespacedName();
-        return cosIdSegmentCollection.incrementAndGet(namespacedName, step);
+        return idSegmentCollection.incrementAndGet(namespacedName, step);
     }
 }

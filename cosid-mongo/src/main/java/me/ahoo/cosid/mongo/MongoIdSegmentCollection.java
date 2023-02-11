@@ -11,44 +11,36 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.mongo.reactive;
-
-import me.ahoo.cosid.mongo.CosIdSegmentCollection;
-import me.ahoo.cosid.mongo.Documents;
+package me.ahoo.cosid.mongo;
 
 import com.google.common.base.Preconditions;
 import com.mongodb.MongoWriteException;
+import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
-import com.mongodb.reactivestreams.client.MongoCollection;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
-import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.Objects;
 
 @Slf4j
-public class MongoReactiveCosIdSegmentCollection implements CosIdSegmentCollection {
+public class MongoIdSegmentCollection implements IdSegmentCollection {
     private final MongoCollection<Document> cosidCollection;
     
-    public MongoReactiveCosIdSegmentCollection(MongoCollection<Document> cosidCollection) {
+    public MongoIdSegmentCollection(MongoCollection<Document> cosidCollection) {
         this.cosidCollection = cosidCollection;
     }
     
     @Override
     public long incrementAndGet(String namespacedName, long step) {
-        Mono<Document> publisher = Mono.from(cosidCollection.findOneAndUpdate(
+        Document afterDoc = cosidCollection.findOneAndUpdate(
             Filters.eq(Documents.ID_FIELD, namespacedName),
             Updates.combine(
                 Updates.inc(Documents.LAST_MAX_ID_FIELD, step),
                 Updates.set(Documents.LAST_FETCH_TIME_FIELD, System.currentTimeMillis())
             ),
-            Documents.INC_OPTIONS));
-        if (Schedulers.isInNonBlockingThread()) {
-            publisher = publisher.subscribeOn(Schedulers.boundedElastic());
-        }
-        Document afterDoc = publisher.block();
+            Documents.UPDATE_AFTER_OPTIONS);
+        
         assert afterDoc != null;
         Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
         Long lastMaxId = afterDoc.getLong(Documents.LAST_MAX_ID_FIELD);
@@ -61,13 +53,11 @@ public class MongoReactiveCosIdSegmentCollection implements CosIdSegmentCollecti
             log.info("Ensure IdSegment:[{}]", segmentName);
         }
         try {
-            Mono.from(cosidCollection.insertOne(new Document()
-                    .append(Documents.ID_FIELD, segmentName)
-                    .append(Documents.LAST_MAX_ID_FIELD, offset)
-                    .append(Documents.LAST_FETCH_TIME_FIELD, 0L)
-                ))
-                .subscribeOn(Schedulers.boundedElastic())
-                .block();
+            cosidCollection.insertOne(new Document()
+                .append(Documents.ID_FIELD, segmentName)
+                .append(Documents.LAST_MAX_ID_FIELD, offset)
+                .append(Documents.LAST_FETCH_TIME_FIELD, 0L)
+            );
             return true;
         } catch (MongoWriteException mongoWriteException) {
             if (log.isInfoEnabled()) {

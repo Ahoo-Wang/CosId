@@ -13,11 +13,6 @@
 
 package me.ahoo.cosid.mongo;
 
-public interface CosIdSegmentCollection {
-    String COLLECTION_NAME = "cosid";
-    
-    long incrementAndGet(String namespacedName, long step);
-    
-    boolean ensureIdSegment(String segmentName, long offset);
-    
+public interface MachineInitializer {
+    boolean ensureMachineCollection();
 }

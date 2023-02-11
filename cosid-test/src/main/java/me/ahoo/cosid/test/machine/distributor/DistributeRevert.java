@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.test.machine.distributor;
 
-import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.TEST_MACHINE_BIT;
 import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.allInstances;
 import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.mockInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -35,27 +34,29 @@ import java.util.function.Supplier;
  */
 public class DistributeRevert implements TestSpec {
     private final Supplier<MachineIdDistributor> implFactory;
+    private final int machineBit;
     
-    public DistributeRevert(Supplier<MachineIdDistributor> implFactory) {
+    public DistributeRevert(Supplier<MachineIdDistributor> implFactory, int machineBit) {
         this.implFactory = implFactory;
+        this.machineBit = machineBit;
     }
     
     @Override
     public void verify() {
         MachineIdDistributor distributor = implFactory.get();
         String namespace = MockIdGenerator.usePrefix("DistributeRevert").generateAsString();
-        List<InstanceId> allInstances = allInstances(TEST_MACHINE_BIT, false);
-        assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT)));
+        List<InstanceId> allInstances = allInstances(machineBit, false);
+        assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(machineBit)));
         
         for (int i = 0; i < allInstances.size(); i++) {
-            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i), MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
+            int machineId = distributor.distribute(namespace, machineBit, allInstances.get(i), MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
             assertThat(machineId, equalTo(i));
         }
         
         InstanceId firstInstanceId = allInstances.get(0);
         distributor.revert(namespace, firstInstanceId);
         
-        InstanceId newInstanceId = mockInstance(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT), false);
-        distributor.distribute(namespace, TEST_MACHINE_BIT, newInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+        InstanceId newInstanceId = mockInstance(MachineIdDistributor.totalMachineIds(machineBit), false);
+        distributor.distribute(namespace, machineBit, newInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
     }
 }

@@ -22,6 +22,8 @@ import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 import org.junit.jupiter.api.BeforeEach;
 
+import java.time.Duration;
+
 class MongoMachineIdDistributorTest extends MachineIdDistributorSpec {
     MongoDatabase mongoDatabase;
     MachineIdDistributor machineIdDistributor;
@@ -41,5 +43,13 @@ class MongoMachineIdDistributorTest extends MachineIdDistributorSpec {
     @Override
     protected MachineIdDistributor getDistributor() {
         return machineIdDistributor;
+    }
+    
+    @Override
+    protected Duration getSafeGuardDuration() {
+        if (System.getenv().containsKey("CI")) {
+            return Duration.ofSeconds(10);
+        }
+        return super.getSafeGuardDuration();
     }
 }

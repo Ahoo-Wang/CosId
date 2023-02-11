@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.test.machine.distributor;
 
-import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.TEST_MACHINE_BIT;
 import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.allInstances;
 import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.mockInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -39,11 +38,14 @@ import java.util.function.Supplier;
  */
 public class DistributeIdempotent implements TestSpec {
     
-    public static final Duration SAFE_GUARD_DURATION = Duration.ofSeconds(5);
     private final Supplier<MachineIdDistributor> implFactory;
+    private final int machineBit;
+    private final Duration safeGuardDuration;
     
-    public DistributeIdempotent(Supplier<MachineIdDistributor> implFactory) {
+    public DistributeIdempotent(Supplier<MachineIdDistributor> implFactory, int machineBit, Duration safeGuardDuration) {
         this.implFactory = implFactory;
+        this.machineBit = machineBit;
+        this.safeGuardDuration = safeGuardDuration;
     }
     
     @Override
@@ -52,21 +54,21 @@ public class DistributeIdempotent implements TestSpec {
         
         String namespace = MockIdGenerator.usePrefix("DistributeSafeGuard").generateAsString();
         
-        List<InstanceId> allInstances = allInstances(TEST_MACHINE_BIT, false);
-        assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT)));
+        List<InstanceId> allInstances = allInstances(machineBit, false);
+        assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(machineBit)));
         
         for (int i = 0; i < allInstances.size(); i++) {
-            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i), SAFE_GUARD_DURATION).getMachineId();
+            int machineId = distributor.distribute(namespace, machineBit, allInstances.get(i), safeGuardDuration).getMachineId();
             assertThat(machineId, equalTo(i));
         }
         
-        InstanceId overflowInstanceId = mockInstance(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT), false);
+        InstanceId overflowInstanceId = mockInstance(MachineIdDistributor.totalMachineIds(machineBit), false);
         Assert.assertThrows(MachineIdOverflowException.class, () -> {
-            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId, SAFE_GUARD_DURATION);
+            distributor.distribute(namespace, machineBit, overflowInstanceId, safeGuardDuration);
         });
         
         for (int i = 0; i < allInstances.size(); i++) {
-            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i), SAFE_GUARD_DURATION).getMachineId();
+            int machineId = distributor.distribute(namespace, machineBit, allInstances.get(i), safeGuardDuration).getMachineId();
             assertThat(machineId, equalTo(i));
         }
     }

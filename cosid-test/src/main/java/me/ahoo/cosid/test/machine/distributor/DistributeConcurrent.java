@@ -13,10 +13,9 @@
 
 package me.ahoo.cosid.test.machine.distributor;
 
-import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.TEST_MACHINE_BIT;
 import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.mockInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
@@ -34,14 +33,15 @@ import java.util.function.Supplier;
  */
 public class DistributeConcurrent implements TestSpec {
     private final Supplier<MachineIdDistributor> implFactory;
+    private final int machineBit;
     
-    public DistributeConcurrent(Supplier<MachineIdDistributor> implFactory) {
+    public DistributeConcurrent(Supplier<MachineIdDistributor> implFactory, int machineBit) {
         this.implFactory = implFactory;
+        this.machineBit = machineBit;
     }
     
     @Override
     public void verify() {
-        int machineBit = TEST_MACHINE_BIT;
         MachineIdDistributor distributor = implFactory.get();
         int totalMachineIds = MachineIdDistributor.totalMachineIds(machineBit);
         CompletableFuture<Integer>[] results = new CompletableFuture[totalMachineIds];

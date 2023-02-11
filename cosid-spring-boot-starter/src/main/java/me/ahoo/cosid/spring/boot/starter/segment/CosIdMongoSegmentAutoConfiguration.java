@@ -22,9 +22,12 @@ import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
+import org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -41,6 +44,7 @@ import org.springframework.context.annotation.Primary;
 @EnableConfigurationProperties(SegmentIdProperties.class)
 @ConditionalOnClass(MongoIdSegmentDistributorFactory.class)
 @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "mongo")
+@AutoConfigureAfter(value = {MongoAutoConfiguration.class, MongoReactiveAutoConfiguration.class})
 public class CosIdMongoSegmentAutoConfiguration {
     
     private final SegmentIdProperties segmentIdProperties;

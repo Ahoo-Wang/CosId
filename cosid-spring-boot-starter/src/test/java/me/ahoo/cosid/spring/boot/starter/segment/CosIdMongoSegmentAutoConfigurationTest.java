@@ -15,11 +15,14 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.MongoIdSegmentInitializer;
+import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentDistributorFactory;
+import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
 import me.ahoo.cosid.spring.boot.starter.mongo.MongoLauncher;
 
 import org.assertj.core.api.AssertionsForInterfaceTypes;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
+import org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class CosIdMongoSegmentAutoConfigurationTest {
@@ -31,13 +34,15 @@ class CosIdMongoSegmentAutoConfigurationTest {
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=mongo")
             .withPropertyValues("spring.data.mongodb.uri=" + MongoLauncher.getConnectionString())
-            .withUserConfiguration(MongoAutoConfiguration.class, CosIdMongoSegmentAutoConfiguration.class)
+            .withUserConfiguration(MongoAutoConfiguration.class, MongoReactiveAutoConfiguration.class, CosIdMongoSegmentAutoConfiguration.class)
             .run(context -> {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .hasSingleBean(CosIdMongoSegmentAutoConfiguration.class)
                     .hasSingleBean(SegmentIdProperties.class)
                     .hasSingleBean(MongoIdSegmentInitializer.class)
                     .hasSingleBean(MongoIdSegmentDistributorFactory.class)
+                    .hasSingleBean(MongoReactiveIdSegmentInitializer.class)
+                    .hasSingleBean(MongoReactiveIdSegmentDistributorFactory.class)
                 ;
             });
     }

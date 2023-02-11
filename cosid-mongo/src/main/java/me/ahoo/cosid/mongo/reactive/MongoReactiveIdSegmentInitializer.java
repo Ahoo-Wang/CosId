@@ -40,7 +40,7 @@ public class MongoReactiveIdSegmentInitializer implements IdSegmentInitializer {
             return true;
         } catch (MongoCommandException mongoCommandException) {
             if (log.isInfoEnabled()) {
-                log.info("Ensure CosIdCollection Failed", mongoCommandException);
+                log.info("Ensure CosIdCollection Failed:[{}]", mongoCommandException.getMessage());
             }
             return false;
         }

@@ -65,7 +65,7 @@ public class MongoReactiveIdSegmentCollection implements IdSegmentCollection {
             return true;
         } catch (MongoWriteException mongoWriteException) {
             if (log.isInfoEnabled()) {
-                log.info("Ensure IdSegment:[{}] Failed", segmentName, mongoWriteException);
+                log.info("Ensure IdSegment:[{}] Failed:[{}]", segmentName, mongoWriteException.getMessage());
             }
             return false;
         }

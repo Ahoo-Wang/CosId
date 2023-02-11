@@ -18,12 +18,10 @@ import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.MongoIdSegmentInitializer;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
-import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -51,50 +49,55 @@ public class CosIdMongoSegmentAutoConfiguration {
         this.segmentIdProperties = segmentIdProperties;
     }
     
-    @Bean
-    @Primary
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(MongoClient.class)
-    public IdSegmentInitializer idSegmentInitializer(MongoClient mongoClient) {
-        MongoDatabase mongoDatabase = mongoClient.getDatabase(
-            segmentIdProperties.getDistributor().getMongo().getDatabase()
-        );
-        return new MongoIdSegmentInitializer(mongoDatabase);
-    }
-    
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(com.mongodb.reactivestreams.client.MongoClient.class)
-    public IdSegmentInitializer reactiveIdSegmentInitializer(com.mongodb.reactivestreams.client.MongoClient mongoClient) {
-        com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
-            segmentIdProperties.getDistributor().getMongo().getDatabase()
-        );
-        return new MongoReactiveIdSegmentInitializer(mongoDatabase);
-    }
-    
-    @Bean
-    @Primary
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(MongoClient.class)
-    public IdSegmentDistributorFactory idSegmentDistributorFactory(MongoClient mongoClient, IdSegmentInitializer idSegmentInitializer) {
-        MongoDatabase mongoDatabase = mongoClient.getDatabase(
-            segmentIdProperties.getDistributor().getMongo().getDatabase()
-        );
-        idSegmentInitializer.ensureCosIdCollection();
-        return new MongoIdSegmentDistributorFactory(mongoDatabase, true);
-    }
-    
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(com.mongodb.reactivestreams.client.MongoClient.class)
-    public IdSegmentDistributorFactory reacticeIdSegmentDistributorFactory(com.mongodb.reactivestreams.client.MongoClient mongoClient, IdSegmentInitializer idSegmentInitializer) {
-        idSegmentInitializer.ensureCosIdCollection();
+    @Configuration
+    @ConditionalOnClass(MongoClient.class)
+    class Sync {
+        @Bean
+        @Primary
+        @ConditionalOnMissingBean
+        public MongoIdSegmentInitializer mongoIdSegmentInitializer(MongoClient mongoClient) {
+            MongoDatabase mongoDatabase = mongoClient.getDatabase(
+                segmentIdProperties.getDistributor().getMongo().getDatabase()
+            );
+            return new MongoIdSegmentInitializer(mongoDatabase);
+        }
         
-        com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
-            segmentIdProperties.getDistributor().getMongo().getDatabase()
-        );
-        return new MongoReactiveIdSegmentDistributorFactory(
-            mongoDatabase,
-            true);
+        @Bean
+        @Primary
+        @ConditionalOnMissingBean
+        public MongoIdSegmentDistributorFactory mongoIdSegmentDistributorFactory(MongoClient mongoClient, IdSegmentInitializer idSegmentInitializer) {
+            MongoDatabase mongoDatabase = mongoClient.getDatabase(
+                segmentIdProperties.getDistributor().getMongo().getDatabase()
+            );
+            idSegmentInitializer.ensureCosIdCollection();
+            return new MongoIdSegmentDistributorFactory(mongoDatabase, true);
+        }
+    }
+    
+    @Configuration
+    @ConditionalOnClass(com.mongodb.reactivestreams.client.MongoClient.class)
+    class Reactive {
+        @Bean
+        @ConditionalOnMissingBean
+        public MongoReactiveIdSegmentInitializer mongoReactiveIdSegmentInitializer(com.mongodb.reactivestreams.client.MongoClient mongoClient) {
+            com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
+                segmentIdProperties.getDistributor().getMongo().getDatabase()
+            );
+            return new MongoReactiveIdSegmentInitializer(mongoDatabase);
+        }
+        
+        @Bean
+        @ConditionalOnMissingBean
+        public MongoReactiveIdSegmentDistributorFactory mongoReactiveIdSegmentDistributorFactory(com.mongodb.reactivestreams.client.MongoClient mongoClient,
+                                                                                                 IdSegmentInitializer idSegmentInitializer) {
+            idSegmentInitializer.ensureCosIdCollection();
+            
+            com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
+                segmentIdProperties.getDistributor().getMongo().getDatabase()
+            );
+            return new MongoReactiveIdSegmentDistributorFactory(
+                mongoDatabase,
+                true);
+        }
     }
 }

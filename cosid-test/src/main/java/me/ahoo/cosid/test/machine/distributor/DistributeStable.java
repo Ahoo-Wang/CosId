@@ -14,7 +14,6 @@
 package me.ahoo.cosid.test.machine.distributor;
 
 import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.TEST_HOST;
-import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.TEST_MACHINE_BIT;
 import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.allInstances;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -37,26 +36,28 @@ import java.util.function.Supplier;
  */
 public class DistributeStable implements TestSpec {
     private final Supplier<MachineIdDistributor> implFactory;
+    private final int machineBit;
     
-    public DistributeStable(Supplier<MachineIdDistributor> implFactory) {
+    public DistributeStable(Supplier<MachineIdDistributor> implFactory, int machineBit) {
         this.implFactory = implFactory;
+        this.machineBit = machineBit;
     }
     
     @Override
     public void verify() {
         MachineIdDistributor distributor = implFactory.get();
         String namespace = MockIdGenerator.usePrefix("DistributeStable").generateAsString();
-        List<InstanceId> allInstances = allInstances(TEST_MACHINE_BIT, true);
-        assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT)));
+        List<InstanceId> allInstances = allInstances(machineBit, true);
+        assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(machineBit)));
         
         for (int i = 0; i < allInstances.size(); i++) {
-            int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, allInstances.get(i), MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
+            int machineId = distributor.distribute(namespace, machineBit, allInstances.get(i), MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
             assertThat(machineId, equalTo(i));
         }
-        InstanceId overflowInstanceId = InstanceId.of(TEST_HOST, MachineIdDistributor.totalMachineIds(TEST_MACHINE_BIT), true);
+        InstanceId overflowInstanceId = InstanceId.of(TEST_HOST, MachineIdDistributor.totalMachineIds(machineBit), true);
         
         Assert.assertThrows(MachineIdOverflowException.class, () -> {
-            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+            distributor.distribute(namespace, machineBit, overflowInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         });
         
         InstanceId firstInstanceId = allInstances.get(0);
@@ -69,14 +70,14 @@ public class DistributeStable implements TestSpec {
             /*
              * 稳定实例不会回收机器号，所以依然抛出异常
              */
-            distributor.distribute(namespace, TEST_MACHINE_BIT, overflowInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+            distributor.distribute(namespace, machineBit, overflowInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         });
         
         
         /*
          * 由自己继续使用
          */
-        int firstMachineId = distributor.distribute(namespace, TEST_MACHINE_BIT, firstInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
+        int firstMachineId = distributor.distribute(namespace, machineBit, firstInstanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
         assertThat(firstMachineId, equalTo(0));
     }
 }

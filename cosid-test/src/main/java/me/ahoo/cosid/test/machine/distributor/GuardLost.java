@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.test.machine.distributor;
 
-import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.TEST_MACHINE_BIT;
 import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.mockInstance;
 
 import me.ahoo.cosid.machine.InstanceId;
@@ -33,9 +32,11 @@ import java.util.function.Supplier;
  */
 public class GuardLost implements TestSpec {
     private final Supplier<MachineIdDistributor> implFactory;
+    private final int machineBit;
     
-    public GuardLost(Supplier<MachineIdDistributor> implFactory) {
+    public GuardLost(Supplier<MachineIdDistributor> implFactory, int machineBit) {
         this.implFactory = implFactory;
+        this.machineBit = machineBit;
     }
     
     @Override
@@ -43,7 +44,7 @@ public class GuardLost implements TestSpec {
         MachineIdDistributor distributor = implFactory.get();
         String namespace = MockIdGenerator.usePrefix("GuardLost").generateAsString();
         InstanceId instanceId = mockInstance(0, false);
-        MachineStateStorage.IN_MEMORY.set(namespace, TEST_MACHINE_BIT, instanceId);
+        MachineStateStorage.IN_MEMORY.set(namespace, machineBit, instanceId);
         
         Assert.assertThrows(MachineIdLostException.class, () -> {
             distributor.guard(namespace, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);

@@ -16,6 +16,8 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import me.ahoo.cosid.mongo.MongoMachineCollection;
 import me.ahoo.cosid.mongo.MongoMachineIdDistributor;
 import me.ahoo.cosid.mongo.MongoMachineInitializer;
+import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineCollection;
+import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineInitializer;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.mongo.MongoLauncher;
 import me.ahoo.cosid.test.MockIdGenerator;
@@ -23,6 +25,7 @@ import me.ahoo.cosid.test.MockIdGenerator;
 import org.assertj.core.api.AssertionsForInterfaceTypes;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
+import org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 
@@ -33,11 +36,12 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
     void contextLoads() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues("cosid.namespace="+ MockIdGenerator.INSTANCE.generateAsString())
+            .withPropertyValues("cosid.namespace=" + MockIdGenerator.INSTANCE.generateAsString())
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=mongo")
             .withPropertyValues("spring.data.mongodb.uri=" + MongoLauncher.getConnectionString())
             .withUserConfiguration(UtilAutoConfiguration.class,
                 MongoAutoConfiguration.class,
+                MongoReactiveAutoConfiguration.class,
                 CosIdAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class,
                 CosIdMongoMachineIdDistributorAutoConfiguration.class)
@@ -47,6 +51,9 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
                     .hasSingleBean(MachineProperties.class)
                     .hasSingleBean(MongoMachineInitializer.class)
                     .hasSingleBean(MongoMachineCollection.class)
+                    .hasSingleBean(MongoMachineIdDistributor.class)
+                    .hasSingleBean(MongoReactiveMachineInitializer.class)
+                    .hasSingleBean(MongoReactiveMachineCollection.class)
                     .hasSingleBean(MongoMachineIdDistributor.class)
                 ;
             });

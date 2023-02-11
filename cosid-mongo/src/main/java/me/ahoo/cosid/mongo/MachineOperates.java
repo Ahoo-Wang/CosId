@@ -70,8 +70,11 @@ public interface MachineOperates {
         );
     }
     
-    static Bson distributeByRevertUpdate(long lastTimestamp) {
-        return Updates.set(LAST_TIMESTAMP_FIELD, lastTimestamp);
+    static Bson distributeByRevertUpdate(InstanceId instanceId, long lastTimestamp) {
+        return Updates.combine(
+            Updates.set(INSTANCE_ID_FIELD, instanceId.getInstanceId()),
+            Updates.set(LAST_TIMESTAMP_FIELD, lastTimestamp)
+        );
     }
     
     static Bson distributeBySelfFilter(String namespace, InstanceId instanceId, Duration safeGuardDuration) {

@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.mongo.reactive;
 
-import static me.ahoo.cosid.machine.MachineIdDistributor.namespacedMachineId;
 import static me.ahoo.cosid.mongo.MachineOperates.MACHINE_ID_FIELD;
 import static me.ahoo.cosid.mongo.MachineOperates.distributeByRevertFilter;
 import static me.ahoo.cosid.mongo.MachineOperates.distributeByRevertUpdate;
@@ -84,7 +83,7 @@ public class MongoReactiveMachineCollection implements MachineCollection {
         } catch (MongoWriteException mongoWriteException) {
             if (mongoWriteException.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
                 if (log.isInfoEnabled()) {
-                    log.info("Distribute [{}]", mongoWriteException.getMessage(), mongoWriteException);
+                    log.info("Distribute Failed:[{}]", mongoWriteException.getMessage());
                 }
                 return distribute(namespace, machineBit, instanceId);
             }
@@ -97,7 +96,7 @@ public class MongoReactiveMachineCollection implements MachineCollection {
         long lastTimestamp = System.currentTimeMillis();
         Publisher<Document> afterDocPublisher = machineCollection.findOneAndUpdate(
             distributeByRevertFilter(namespace, instanceId, safeGuardDuration),
-            distributeByRevertUpdate(lastTimestamp),
+            distributeByRevertUpdate(instanceId, lastTimestamp),
             Documents.UPDATE_AFTER_OPTIONS
         );
         Document afterDoc = BlockingAdapter.block(afterDocPublisher);

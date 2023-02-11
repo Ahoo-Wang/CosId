@@ -16,7 +16,6 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.mongo.MachineCollection;
-import me.ahoo.cosid.mongo.MachineInitializer;
 import me.ahoo.cosid.mongo.MongoMachineCollection;
 import me.ahoo.cosid.mongo.MongoMachineIdDistributor;
 import me.ahoo.cosid.mongo.MongoMachineInitializer;
@@ -26,10 +25,12 @@ import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
+import org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -44,6 +45,7 @@ import org.springframework.context.annotation.Primary;
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnClass(MongoMachineIdDistributor.class)
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "mongo")
+@AutoConfigureAfter(value = {MongoAutoConfiguration.class, MongoReactiveAutoConfiguration.class})
 public class CosIdMongoMachineIdDistributorAutoConfiguration {
     private final MachineProperties machineProperties;
     
@@ -52,51 +54,54 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
     }
     
     @Bean
-    @Primary
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(MongoClient.class)
-    public MachineInitializer machineInitializer(MongoClient mongoClient) {
-        MongoDatabase mongoDatabase = mongoClient.getDatabase(
-            machineProperties.getDistributor().getMongo().getDatabase()
-        );
-        return new MongoMachineInitializer(mongoDatabase);
-    }
-    
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(com.mongodb.reactivestreams.client.MongoClient.class)
-    public MachineInitializer reactiveMachineInitializer(com.mongodb.reactivestreams.client.MongoClient mongoClient) {
-        com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
-            machineProperties.getDistributor().getMongo().getDatabase()
-        );
-        return new MongoReactiveMachineInitializer(mongoDatabase);
-    }
-    
-    @Bean
-    @Primary
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(MongoClient.class)
-    public MachineCollection machineCollection(MongoClient mongoClient) {
-        MongoDatabase mongoDatabase = mongoClient.getDatabase(
-            machineProperties.getDistributor().getMongo().getDatabase()
-        );
-        return new MongoMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME));
-    }
-    
-    @Bean
-    @ConditionalOnMissingBean
-    @ConditionalOnBean(com.mongodb.reactivestreams.client.MongoClient.class)
-    public MachineCollection reactiveMachineCollection(com.mongodb.reactivestreams.client.MongoClient mongoClient) {
-        com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
-            machineProperties.getDistributor().getMongo().getDatabase()
-        );
-        return new MongoReactiveMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME));
-    }
-    
-    @Bean
     @ConditionalOnMissingBean
     public MongoMachineIdDistributor mongoMachineIdDistributor(MachineCollection machineCollection, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         return new MongoMachineIdDistributor(machineCollection, localMachineState, clockBackwardsSynchronizer);
     }
     
+    @Configuration
+    @ConditionalOnClass(MongoClient.class)
+    class Sync {
+        @Bean
+        @Primary
+        @ConditionalOnMissingBean
+        public MongoMachineInitializer mongoMachineInitializer(MongoClient mongoClient) {
+            MongoDatabase mongoDatabase = mongoClient.getDatabase(
+                machineProperties.getDistributor().getMongo().getDatabase()
+            );
+            return new MongoMachineInitializer(mongoDatabase);
+        }
+        
+        @Bean
+        @Primary
+        @ConditionalOnMissingBean
+        public MongoMachineCollection mongoMachineCollection(MongoClient mongoClient) {
+            MongoDatabase mongoDatabase = mongoClient.getDatabase(
+                machineProperties.getDistributor().getMongo().getDatabase()
+            );
+            return new MongoMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME));
+        }
+    }
+    
+    @Configuration
+    @ConditionalOnClass(com.mongodb.reactivestreams.client.MongoClient.class)
+    class Reactive {
+        @Bean
+        @ConditionalOnMissingBean
+        public MongoReactiveMachineInitializer mongoReactiveMachineInitializer(com.mongodb.reactivestreams.client.MongoClient mongoClient) {
+            com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
+                machineProperties.getDistributor().getMongo().getDatabase()
+            );
+            return new MongoReactiveMachineInitializer(mongoDatabase);
+        }
+        
+        @Bean
+        @ConditionalOnMissingBean
+        public MongoReactiveMachineCollection mongoReactiveMachineCollection(com.mongodb.reactivestreams.client.MongoClient mongoClient) {
+            com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
+                machineProperties.getDistributor().getMongo().getDatabase()
+            );
+            return new MongoReactiveMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME));
+        }
+    }
 }

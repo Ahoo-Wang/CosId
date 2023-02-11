@@ -15,8 +15,8 @@ package me.ahoo.cosid.mongo.reactive;
 
 import static me.ahoo.cosid.mongo.MachineCollection.COLLECTION_NAME;
 
-import me.ahoo.cosid.mongo.Documents;
 import me.ahoo.cosid.mongo.MachineInitializer;
+import me.ahoo.cosid.mongo.MachineOperates;
 
 import com.mongodb.MongoCommandException;
 import com.mongodb.client.model.Indexes;
@@ -41,8 +41,8 @@ public class MongoReactiveMachineInitializer implements MachineInitializer {
         try {
             BlockingAdapter.block(mongoDatabase.createCollection(COLLECTION_NAME));
             MongoCollection<Document> machineCollection = mongoDatabase.getCollection(COLLECTION_NAME);
-            BlockingAdapter.block(machineCollection.createIndex(Indexes.hashed(Documents.MACHINE_ID_FIELD)));
-            BlockingAdapter.block(machineCollection.createIndex(Indexes.hashed(Documents.INSTANCE_ID_FIELD)));
+            BlockingAdapter.block(machineCollection.createIndex(Indexes.hashed(MachineOperates.MACHINE_ID_FIELD)));
+            BlockingAdapter.block(machineCollection.createIndex(Indexes.hashed(MachineOperates.INSTANCE_ID_FIELD)));
             return true;
         } catch (MongoCommandException mongoCommandException) {
             if (log.isInfoEnabled()) {

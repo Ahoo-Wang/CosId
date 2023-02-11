@@ -14,6 +14,17 @@
 package me.ahoo.cosid.mongo;
 
 import static me.ahoo.cosid.machine.MachineIdDistributor.namespacedMachineId;
+import static me.ahoo.cosid.mongo.MachineOperates.MACHINE_ID_FIELD;
+import static me.ahoo.cosid.mongo.MachineOperates.distributeByRevertFilter;
+import static me.ahoo.cosid.mongo.MachineOperates.distributeByRevertUpdate;
+import static me.ahoo.cosid.mongo.MachineOperates.distributeBySelfFilter;
+import static me.ahoo.cosid.mongo.MachineOperates.distributeBySelfUpdate;
+import static me.ahoo.cosid.mongo.MachineOperates.distributeDocument;
+import static me.ahoo.cosid.mongo.MachineOperates.guardFilter;
+import static me.ahoo.cosid.mongo.MachineOperates.guardUpdate;
+import static me.ahoo.cosid.mongo.MachineOperates.nextMachineIdPipeline;
+import static me.ahoo.cosid.mongo.MachineOperates.revertFilter;
+import static me.ahoo.cosid.mongo.MachineOperates.revertUpdate;
 
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
@@ -21,18 +32,14 @@ import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.MachineState;
 
+import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.Accumulators;
-import com.mongodb.client.model.Aggregates;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.UpdateResult;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Objects;
 
 @Slf4j
@@ -46,17 +53,12 @@ public class MongoMachineCollection implements MachineCollection {
     @Override
     public int nextMachineId(String namespace) {
         Document maxMachineIdDoc = machineCollection.aggregate(
-            Arrays.asList(
-                Aggregates.match(Filters.eq(Documents.NAMESPACE_FIELD, namespace)),
-                Aggregates.group("$" + Documents.NAMESPACE_FIELD,
-                    Accumulators.max(Documents.MAX_MACHINE_ID_FIELD, "$" + Documents.MACHINE_ID_FIELD)
-                )
-            )
+            nextMachineIdPipeline(namespace)
         ).first();
         if (maxMachineIdDoc == null) {
             return 0;
         }
-        Integer maxMachineId = maxMachineIdDoc.getInteger(Documents.MAX_MACHINE_ID_FIELD);
+        Integer maxMachineId = maxMachineIdDoc.getInteger(MachineOperates.MAX_MACHINE_ID_FIELD);
         return Objects.requireNonNull(maxMachineId) + 1;
     }
     
@@ -67,24 +69,19 @@ public class MongoMachineCollection implements MachineCollection {
             throw new MachineIdOverflowException(MachineIdDistributor.totalMachineIds(machineBit), instanceId);
         }
         MachineState nextMachineState = MachineState.of(nextMachineId, System.currentTimeMillis());
-        String namespacedMachineId = namespacedMachineId(namespace, nextMachineId);
         try {
             machineCollection.insertOne(
-                new Document()
-                    .append(Documents.ID_FIELD, namespacedMachineId)
-                    .append(Documents.NAMESPACE_FIELD, namespace)
-                    .append(Documents.MACHINE_ID_FIELD, nextMachineId)
-                    .append(Documents.LAST_TIMESTAMP_FIELD, nextMachineState.getLastTimeStamp())
-                    .append(Documents.INSTANCE_ID_FIELD, instanceId.getInstanceId())
-                    .append(Documents.DISTRIBUTE_TIME_FIELD, System.currentTimeMillis())
-                    .append(Documents.REVERT_TIME_FIELD, 0L)
+                distributeDocument(namespace, instanceId, nextMachineState)
             );
             return nextMachineState;
         } catch (MongoWriteException mongoWriteException) {
-            if (log.isInfoEnabled()) {
-                log.info("Distribute [{}]", mongoWriteException.getMessage(), mongoWriteException);
+            if (mongoWriteException.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+                if (log.isInfoEnabled()) {
+                    log.info("Distribute [{}]", mongoWriteException.getMessage(), mongoWriteException);
+                }
+                return distribute(namespace, machineBit, instanceId);
             }
-            return distribute(namespace, machineBit, instanceId);
+            throw mongoWriteException;
         }
     }
     
@@ -92,22 +89,14 @@ public class MongoMachineCollection implements MachineCollection {
     public MachineState distributeByRevert(String namespace, InstanceId instanceId, Duration safeGuardDuration) {
         long lastTimestamp = System.currentTimeMillis();
         Document afterDoc = machineCollection.findOneAndUpdate(
-            Filters.and(
-                Filters.eq(Documents.NAMESPACE_FIELD, namespace),
-                Filters.or(
-                    Filters.eq(Documents.INSTANCE_ID_FIELD, ""),
-                    Filters.lte(Documents.LAST_TIMESTAMP_FIELD, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()))
-                )
-            ),
-            Updates.combine(
-                Updates.set(Documents.LAST_TIMESTAMP_FIELD, lastTimestamp)
-            ),
+            distributeByRevertFilter(namespace, instanceId, safeGuardDuration),
+            distributeByRevertUpdate(lastTimestamp),
             Documents.UPDATE_AFTER_OPTIONS
         );
         if (afterDoc == null) {
             return null;
         }
-        int machineId = afterDoc.getInteger(Documents.MACHINE_ID_FIELD);
+        int machineId = afterDoc.getInteger(MACHINE_ID_FIELD);
         return MachineState.of(machineId, lastTimestamp);
     }
     
@@ -115,20 +104,14 @@ public class MongoMachineCollection implements MachineCollection {
     public MachineState distributeBySelf(String namespace, InstanceId instanceId, Duration safeGuardDuration) {
         long lastTimestamp = System.currentTimeMillis();
         Document afterDoc = machineCollection.findOneAndUpdate(
-            Filters.and(
-                Filters.eq(Documents.NAMESPACE_FIELD, namespace),
-                Filters.eq(Documents.INSTANCE_ID_FIELD, instanceId.getInstanceId()),
-                Filters.gt(Documents.LAST_TIMESTAMP_FIELD, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()))
-            ),
-            Updates.combine(
-                Updates.set(Documents.LAST_TIMESTAMP_FIELD, lastTimestamp)
-            ),
+            distributeBySelfFilter(namespace, instanceId, safeGuardDuration),
+            distributeBySelfUpdate(lastTimestamp),
             Documents.UPDATE_AFTER_OPTIONS
         );
         if (afterDoc == null) {
             return null;
         }
-        int machineId = afterDoc.getInteger(Documents.MACHINE_ID_FIELD);
+        int machineId = afterDoc.getInteger(MACHINE_ID_FIELD);
         return MachineState.of(machineId, lastTimestamp);
     }
     
@@ -138,15 +121,8 @@ public class MongoMachineCollection implements MachineCollection {
             log.info("Revert [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         UpdateResult updateResult = machineCollection.updateOne(
-            Filters.and(
-                Filters.eq(Documents.ID_FIELD, namespacedMachineId(namespace, machineState.getMachineId())),
-                Filters.eq(Documents.INSTANCE_ID_FIELD, instanceId.getInstanceId())
-            ),
-            Updates.combine(
-                Updates.set(Documents.INSTANCE_ID_FIELD, instanceId.isStable() ? instanceId.getInstanceId() : ""),
-                Updates.set(Documents.REVERT_TIME_FIELD, System.currentTimeMillis()),
-                Updates.set(Documents.LAST_TIMESTAMP_FIELD, machineState.getLastTimeStamp())
-            )
+            revertFilter(namespace, instanceId, machineState),
+            revertUpdate(instanceId, machineState)
         );
         if (updateResult.getModifiedCount() == 0) {
             throw new MachineIdLostException(namespace, instanceId, machineState);
@@ -160,11 +136,8 @@ public class MongoMachineCollection implements MachineCollection {
         }
         
         UpdateResult updateResult = machineCollection.updateOne(
-            Filters.and(
-                Filters.eq(Documents.ID_FIELD, namespacedMachineId(namespace, machineState.getMachineId())),
-                Filters.eq(Documents.INSTANCE_ID_FIELD, instanceId.getInstanceId())
-            ),
-            Updates.set(Documents.LAST_TIMESTAMP_FIELD, machineState.getLastTimeStamp())
+            guardFilter(namespace, instanceId, machineState),
+            guardUpdate(machineState.getLastTimeStamp())
         );
         if (updateResult.getModifiedCount() == 0) {
             throw new MachineIdLostException(namespace, instanceId, machineState);

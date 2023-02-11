@@ -13,11 +13,13 @@
 
 package me.ahoo.cosid.mongo;
 
+import static me.ahoo.cosid.mongo.IdSegmentOperates.ensureIdSegmentDocument;
+import static me.ahoo.cosid.mongo.IdSegmentOperates.incrementAndGetUpdates;
+
 import com.google.common.base.Preconditions;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Updates;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 
@@ -35,15 +37,12 @@ public class MongoIdSegmentCollection implements IdSegmentCollection {
     public long incrementAndGet(String namespacedName, long step) {
         Document afterDoc = cosidCollection.findOneAndUpdate(
             Filters.eq(Documents.ID_FIELD, namespacedName),
-            Updates.combine(
-                Updates.inc(Documents.LAST_MAX_ID_FIELD, step),
-                Updates.set(Documents.LAST_FETCH_TIME_FIELD, System.currentTimeMillis())
-            ),
+            incrementAndGetUpdates(step),
             Documents.UPDATE_AFTER_OPTIONS);
         
         assert afterDoc != null;
         Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
-        Long lastMaxId = afterDoc.getLong(Documents.LAST_MAX_ID_FIELD);
+        Long lastMaxId = afterDoc.getLong(IdSegmentOperates.LAST_MAX_ID_FIELD);
         return Objects.requireNonNull(lastMaxId);
     }
     
@@ -53,11 +52,8 @@ public class MongoIdSegmentCollection implements IdSegmentCollection {
             log.info("Ensure IdSegment:[{}]", segmentName);
         }
         try {
-            cosidCollection.insertOne(new Document()
-                .append(Documents.ID_FIELD, segmentName)
-                .append(Documents.LAST_MAX_ID_FIELD, offset)
-                .append(Documents.LAST_FETCH_TIME_FIELD, 0L)
-            );
+            Document document = ensureIdSegmentDocument(segmentName, offset);
+            cosidCollection.insertOne(document);
             return true;
         } catch (MongoWriteException mongoWriteException) {
             if (log.isInfoEnabled()) {

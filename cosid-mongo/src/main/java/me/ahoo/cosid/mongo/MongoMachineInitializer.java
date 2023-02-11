@@ -38,8 +38,8 @@ public class MongoMachineInitializer implements MachineInitializer {
         try {
             mongoDatabase.createCollection(COLLECTION_NAME);
             MongoCollection<Document> machineCollection = mongoDatabase.getCollection(COLLECTION_NAME);
-            machineCollection.createIndex(Indexes.hashed(Documents.MACHINE_ID_FIELD));
-            machineCollection.createIndex(Indexes.hashed(Documents.INSTANCE_ID_FIELD));
+            machineCollection.createIndex(Indexes.hashed(MachineOperates.MACHINE_ID_FIELD));
+            machineCollection.createIndex(Indexes.hashed(MachineOperates.INSTANCE_ID_FIELD));
             return true;
         } catch (MongoCommandException mongoCommandException) {
             if (log.isInfoEnabled()) {

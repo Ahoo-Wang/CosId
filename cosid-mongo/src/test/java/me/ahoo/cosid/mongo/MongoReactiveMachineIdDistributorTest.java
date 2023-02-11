@@ -16,24 +16,26 @@ package me.ahoo.cosid.mongo;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineCollection;
+import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineInitializer;
 import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.reactivestreams.client.MongoClients;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.junit.jupiter.api.BeforeEach;
 
-class MongoMachineIdDistributorTest extends MachineIdDistributorSpec {
+class MongoReactiveMachineIdDistributorTest extends MachineIdDistributorSpec {
     MongoDatabase mongoDatabase;
     MachineIdDistributor machineIdDistributor;
-    MongoMachineInitializer machineInitializer;
+    MongoReactiveMachineInitializer machineInitializer;
     
     @BeforeEach
     void setup() {
         mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
-        machineInitializer = new MongoMachineInitializer(mongoDatabase);
+        machineInitializer = new MongoReactiveMachineInitializer(mongoDatabase);
         machineInitializer.ensureMachineCollection();
         machineIdDistributor = new MongoMachineIdDistributor(
-            new MongoMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME)),
+            new MongoReactiveMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME)),
             MachineStateStorage.IN_MEMORY,
             ClockBackwardsSynchronizer.DEFAULT);
     }

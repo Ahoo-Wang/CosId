@@ -13,34 +13,40 @@
 
 package me.ahoo.cosid.mongo.reactive;
 
-import static me.ahoo.cosid.mongo.IdSegmentCollection.COLLECTION_NAME;
+import static me.ahoo.cosid.mongo.MachineCollection.COLLECTION_NAME;
 
-import me.ahoo.cosid.mongo.IdSegmentInitializer;
+import me.ahoo.cosid.mongo.Documents;
+import me.ahoo.cosid.mongo.MachineInitializer;
 
 import com.mongodb.MongoCommandException;
+import com.mongodb.client.model.Indexes;
+import com.mongodb.reactivestreams.client.MongoCollection;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.Document;
 
 @Slf4j
-public class MongoReactiveIdSegmentInitializer implements IdSegmentInitializer {
-    
+public class MongoReactiveMachineInitializer implements MachineInitializer {
     private final MongoDatabase mongoDatabase;
     
-    public MongoReactiveIdSegmentInitializer(MongoDatabase mongoDatabase) {
+    public MongoReactiveMachineInitializer(MongoDatabase mongoDatabase) {
         this.mongoDatabase = mongoDatabase;
     }
     
     @Override
-    public boolean ensureCosIdCollection() {
+    public boolean ensureMachineCollection() {
         if (log.isInfoEnabled()) {
-            log.info("Ensure CosIdCollection");
+            log.info("Ensure MachineCollection");
         }
         try {
             BlockingAdapter.block(mongoDatabase.createCollection(COLLECTION_NAME));
+            MongoCollection<Document> machineCollection = mongoDatabase.getCollection(COLLECTION_NAME);
+            BlockingAdapter.block(machineCollection.createIndex(Indexes.hashed(Documents.MACHINE_ID_FIELD)));
+            BlockingAdapter.block(machineCollection.createIndex(Indexes.hashed(Documents.INSTANCE_ID_FIELD)));
             return true;
         } catch (MongoCommandException mongoCommandException) {
             if (log.isInfoEnabled()) {
-                log.info("Ensure CosIdCollection Failed", mongoCommandException);
+                log.info("Ensure MachineCollection Failed", mongoCommandException);
             }
             return false;
         }

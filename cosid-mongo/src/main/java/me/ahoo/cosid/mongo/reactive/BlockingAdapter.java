@@ -11,9 +11,25 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.mongo;
+package me.ahoo.cosid.mongo.reactive;
 
-public interface CosIdMachineCollection {
-    String COLLECTION_NAME = "cosid_machine";
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+
+public class BlockingAdapter {
+    private BlockingAdapter() {
+    }
     
+    public static <R> R block(Publisher<R> publisher) {
+        Mono<R> mono = Mono.from(publisher);
+        return block(mono);
+    }
+    
+    public static <R> R block(Mono<R> mono) {
+        if (Schedulers.isInNonBlockingThread()) {
+            mono = mono.subscribeOn(Schedulers.boundedElastic());
+        }
+        return mono.block();
+    }
 }

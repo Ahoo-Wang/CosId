@@ -13,9 +13,9 @@
 
 package me.ahoo.cosid.mongo.reactive;
 
-import static me.ahoo.cosid.mongo.CosIdSegmentCollection.COLLECTION_NAME;
+import static me.ahoo.cosid.mongo.IdSegmentCollection.COLLECTION_NAME;
 
-import me.ahoo.cosid.mongo.CosIdSegmentCollection;
+import me.ahoo.cosid.mongo.IdSegmentCollection;
 import me.ahoo.cosid.mongo.MongoIdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
@@ -34,14 +34,14 @@ public class MongoReactiveIdSegmentDistributorFactory implements IdSegmentDistri
     
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
-        CosIdSegmentCollection cosIdSegmentCollection = new MongoReactiveCosIdSegmentCollection(mongoDatabase.getCollection(COLLECTION_NAME));
+        IdSegmentCollection idSegmentCollection = new MongoReactiveIdSegmentCollection(mongoDatabase.getCollection(COLLECTION_NAME));
         if (enableAutoInitIdSegment) {
-            cosIdSegmentCollection.ensureIdSegment(definition.getNamespacedName(), definition.getOffset());
+            idSegmentCollection.ensureIdSegment(definition.getNamespacedName(), definition.getOffset());
         }
         
         return new MongoIdSegmentDistributor(definition.getNamespace(),
             definition.getName(),
             definition.getStep(),
-            cosIdSegmentCollection);
+            idSegmentCollection);
     }
 }

@@ -11,35 +11,41 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.mongo;
+package me.ahoo.cosid.mongo.reactive;
+
+import me.ahoo.cosid.mongo.IdSegmentCollection;
+import me.ahoo.cosid.mongo.Documents;
 
 import com.google.common.base.Preconditions;
 import com.mongodb.MongoWriteException;
-import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.Updates;
+import com.mongodb.client.result.InsertOneResult;
+import com.mongodb.reactivestreams.client.MongoCollection;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
+import org.reactivestreams.Publisher;
 
 import java.util.Objects;
 
 @Slf4j
-public class MongoCosIdSegmentCollection implements CosIdSegmentCollection {
+public class MongoReactiveIdSegmentCollection implements IdSegmentCollection {
     private final MongoCollection<Document> cosidCollection;
     
-    public MongoCosIdSegmentCollection(MongoCollection<Document> cosidCollection) {
+    public MongoReactiveIdSegmentCollection(MongoCollection<Document> cosidCollection) {
         this.cosidCollection = cosidCollection;
     }
     
     @Override
     public long incrementAndGet(String namespacedName, long step) {
-        Document afterDoc = cosidCollection.findOneAndUpdate(
+        Publisher<Document> publisher = cosidCollection.findOneAndUpdate(
             Filters.eq(Documents.ID_FIELD, namespacedName),
             Updates.combine(
                 Updates.inc(Documents.LAST_MAX_ID_FIELD, step),
                 Updates.set(Documents.LAST_FETCH_TIME_FIELD, System.currentTimeMillis())
             ),
             Documents.UPDATE_AFTER_OPTIONS);
+        Document afterDoc = BlockingAdapter.block(publisher);
         
         assert afterDoc != null;
         Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
@@ -53,11 +59,12 @@ public class MongoCosIdSegmentCollection implements CosIdSegmentCollection {
             log.info("Ensure IdSegment:[{}]", segmentName);
         }
         try {
-            cosidCollection.insertOne(new Document()
+            Publisher<InsertOneResult> publisher = cosidCollection.insertOne(new Document()
                 .append(Documents.ID_FIELD, segmentName)
                 .append(Documents.LAST_MAX_ID_FIELD, offset)
                 .append(Documents.LAST_FETCH_TIME_FIELD, 0L)
             );
+            BlockingAdapter.block(publisher);
             return true;
         } catch (MongoWriteException mongoWriteException) {
             if (log.isInfoEnabled()) {

@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.mongo;
 
-import static me.ahoo.cosid.mongo.CosIdSegmentCollection.COLLECTION_NAME;
+import static me.ahoo.cosid.mongo.IdSegmentCollection.COLLECTION_NAME;
 
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
@@ -37,7 +37,7 @@ public class MongoIdSegmentDistributorFactory implements IdSegmentDistributorFac
     
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
-        MongoCosIdSegmentCollection cosIdSegmentCollection = new MongoCosIdSegmentCollection(mongoDatabase.getCollection(COLLECTION_NAME));
+        MongoIdSegmentCollection cosIdSegmentCollection = new MongoIdSegmentCollection(mongoDatabase.getCollection(COLLECTION_NAME));
         if (enableAutoInitIdSegment) {
             cosIdSegmentCollection.ensureIdSegment(definition.getNamespacedName(), definition.getOffset());
         }

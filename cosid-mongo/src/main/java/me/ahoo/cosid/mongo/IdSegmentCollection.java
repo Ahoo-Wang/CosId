@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.mongo;
 
-public interface CosIdSegmentCollection {
+public interface IdSegmentCollection {
     String COLLECTION_NAME = "cosid";
     
     long incrementAndGet(String namespacedName, long step);

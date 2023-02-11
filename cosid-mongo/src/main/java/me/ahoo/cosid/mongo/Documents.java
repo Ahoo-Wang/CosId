@@ -29,6 +29,7 @@ public interface Documents {
     String INSTANCE_ID_FIELD = "instanceId";
     String DISTRIBUTE_TIME_FIELD = "distributeTime";
     String REVERT_TIME_FIELD = "revertTime";
+    String MAX_MACHINE_ID_FIELD = "maxMachineId";
     //endregion
     
     FindOneAndUpdateOptions UPDATE_AFTER_OPTIONS = new FindOneAndUpdateOptions()

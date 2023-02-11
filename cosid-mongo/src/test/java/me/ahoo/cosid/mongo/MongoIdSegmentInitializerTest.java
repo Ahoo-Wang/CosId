@@ -26,13 +26,13 @@ import org.junit.jupiter.api.Test;
 class MongoIdSegmentInitializerTest {
     MongoDatabase mongoDatabase;
     MongoIdSegmentInitializer idSegmentInitializer;
-    MongoCosIdSegmentCollection cosIdSegmentCollection;
+    MongoIdSegmentCollection cosIdSegmentCollection;
     
     @BeforeEach
     void setup() {
         mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
         idSegmentInitializer = new MongoIdSegmentInitializer(mongoDatabase);
-        cosIdSegmentCollection = new MongoCosIdSegmentCollection(mongoDatabase.getCollection(CosIdSegmentCollection.COLLECTION_NAME));
+        cosIdSegmentCollection = new MongoIdSegmentCollection(mongoDatabase.getCollection(IdSegmentCollection.COLLECTION_NAME));
     }
     
     @Test

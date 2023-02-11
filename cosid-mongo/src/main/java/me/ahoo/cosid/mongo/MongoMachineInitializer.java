@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.mongo;
 
-import static me.ahoo.cosid.mongo.CosIdMachineCollection.COLLECTION_NAME;
+import static me.ahoo.cosid.mongo.MachineCollection.COLLECTION_NAME;
 
 import com.mongodb.MongoCommandException;
 import com.mongodb.client.MongoCollection;

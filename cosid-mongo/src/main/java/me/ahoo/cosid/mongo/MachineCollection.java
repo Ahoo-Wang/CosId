@@ -17,16 +17,10 @@ import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineState;
 
-import com.google.common.base.Strings;
-
 import java.time.Duration;
 
 public interface MachineCollection {
     String COLLECTION_NAME = "cosid_machine";
-    
-    static String namespacedMachineId(String namespace, int machineId) {
-        return namespace + "." + Strings.padStart(String.valueOf(machineId), 8, '0');
-    }
     
     int nextMachineId(String namespace);
     

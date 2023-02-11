@@ -13,17 +13,18 @@
 
 package me.ahoo.cosid.jdbc;
 
+import static me.ahoo.cosid.machine.MachineIdDistributor.namespacedMachineId;
+
 import me.ahoo.cosid.CosIdException;
-import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdLostException;
-import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.MachineStateStorage;
 
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.sql.DataSource;
@@ -79,16 +80,12 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         this.dataSource = dataSource;
     }
     
-    private String getNamespacedMachineId(String namespace, int machineId) {
-        return namespace + "." + Strings.padStart(String.valueOf(machineId), 8, '0');
-    }
-    
     private int distributeRevertMachineState(Connection connection, String namespace, int machineId, InstanceId instanceId, Duration safeGuardDuration) throws SQLException {
         try (PreparedStatement revertMachineStatement = connection.prepareStatement(DISTRIBUTE_REVERT_MACHINE_STATE)) {
             revertMachineStatement.setString(1, instanceId.getInstanceId());
             revertMachineStatement.setLong(2, System.currentTimeMillis());
             revertMachineStatement.setLong(3, System.currentTimeMillis());
-            revertMachineStatement.setString(4, getNamespacedMachineId(namespace, machineId));
+            revertMachineStatement.setString(4, namespacedMachineId(namespace, machineId));
             revertMachineStatement.setLong(5, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()));
             int affected = revertMachineStatement.executeUpdate();
             return affected;
@@ -139,7 +136,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         }
         MachineState nextMachineState = MachineState.of(nextMachineId, System.currentTimeMillis());
         try (PreparedStatement nextMachineStatement = connection.prepareStatement(DISTRIBUTE_MACHINE)) {
-            nextMachineStatement.setString(1, getNamespacedMachineId(namespace, nextMachineId));
+            nextMachineStatement.setString(1, namespacedMachineId(namespace, nextMachineId));
             nextMachineStatement.setString(2, namespace);
             nextMachineStatement.setInt(3, nextMachineId);
             nextMachineStatement.setLong(4, nextMachineState.getLastTimeStamp());

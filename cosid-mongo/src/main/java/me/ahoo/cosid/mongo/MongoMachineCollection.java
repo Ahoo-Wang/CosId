@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.mongo;
 
-import static me.ahoo.cosid.mongo.MachineCollection.namespacedMachineId;
+import static me.ahoo.cosid.machine.MachineIdDistributor.namespacedMachineId;
 
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;

@@ -42,7 +42,7 @@ import org.springframework.context.annotation.Primary;
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
 @ConditionalOnClass(MongoIdSegmentDistributorFactory.class)
-@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "mongo")
+@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "mongo")
 public class CosIdMongoSegmentAutoConfiguration {
     
     private final SegmentIdProperties segmentIdProperties;

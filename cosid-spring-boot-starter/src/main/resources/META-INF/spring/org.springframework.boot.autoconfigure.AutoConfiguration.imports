@@ -3,6 +3,7 @@ me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.cosid.CosIdGeneratorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdJdbcMachineIdDistributorAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.machine.CosIdMongoMachineIdDistributorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdSpringRedisMachineIdDistributorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdZookeeperMachineIdDistributorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdProxyMachineIdDistributorAutoConfiguration

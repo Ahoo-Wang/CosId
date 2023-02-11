@@ -11,33 +11,43 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.spring.boot.starter.segment;
+package me.ahoo.cosid.spring.boot.starter.machine;
 
-import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
-import me.ahoo.cosid.mongo.MongoIdSegmentInitializer;
+import me.ahoo.cosid.mongo.MongoMachineCollection;
+import me.ahoo.cosid.mongo.MongoMachineIdDistributor;
+import me.ahoo.cosid.mongo.MongoMachineInitializer;
+import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.mongo.MongoLauncher;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.assertj.core.api.AssertionsForInterfaceTypes;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 
-class CosIdMongoSegmentAutoConfigurationTest {
+class CosIdMongoMachineIdDistributorAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
     
     @Test
     void contextLoads() {
         this.contextRunner
-            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=mongo")
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues("cosid.namespace="+ MockIdGenerator.INSTANCE.generateAsString())
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=mongo")
             .withPropertyValues("spring.data.mongodb.uri=" + MongoLauncher.getConnectionString())
-            .withUserConfiguration(MongoAutoConfiguration.class, CosIdMongoSegmentAutoConfiguration.class)
+            .withUserConfiguration(UtilAutoConfiguration.class,
+                MongoAutoConfiguration.class,
+                CosIdAutoConfiguration.class,
+                CosIdMachineAutoConfiguration.class,
+                CosIdMongoMachineIdDistributorAutoConfiguration.class)
             .run(context -> {
                 AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(CosIdMongoSegmentAutoConfiguration.class)
-                    .hasSingleBean(SegmentIdProperties.class)
-                    .hasSingleBean(MongoIdSegmentInitializer.class)
-                    .hasSingleBean(MongoIdSegmentDistributorFactory.class)
+                    .hasSingleBean(CosIdMongoMachineIdDistributorAutoConfiguration.class)
+                    .hasSingleBean(MachineProperties.class)
+                    .hasSingleBean(MongoMachineInitializer.class)
+                    .hasSingleBean(MongoMachineCollection.class)
+                    .hasSingleBean(MongoMachineIdDistributor.class)
                 ;
             });
     }

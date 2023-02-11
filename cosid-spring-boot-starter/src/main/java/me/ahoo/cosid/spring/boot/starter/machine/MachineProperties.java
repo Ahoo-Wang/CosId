@@ -156,7 +156,7 @@ public class MachineProperties {
                 this.stateLocation = stateLocation;
             }
         }
-
+        
     }
     
     public static class Distributor {
@@ -165,9 +165,11 @@ public class MachineProperties {
         
         private MachineProperties.Manual manual;
         private MachineProperties.Redis redis;
+        private MachineProperties.Mongo mongo;
         
         public Distributor() {
             this.redis = new MachineProperties.Redis();
+            this.mongo = new MachineProperties.Mongo();
         }
         
         public MachineProperties.Distributor.Type getType() {
@@ -194,10 +196,19 @@ public class MachineProperties {
             this.redis = redis;
         }
         
+        public Mongo getMongo() {
+            return mongo;
+        }
+        
+        public void setMongo(Mongo mongo) {
+            this.mongo = mongo;
+        }
+        
         public enum Type {
             MANUAL,
             STATEFUL_SET,
             JDBC,
+            MONGO,
             REDIS,
             ZOOKEEPER,
             PROXY
@@ -227,6 +238,18 @@ public class MachineProperties {
         
         public void setTimeout(Duration timeout) {
             this.timeout = timeout;
+        }
+    }
+    
+    public static class Mongo {
+        private String database = "cosid_db";
+        
+        public String getDatabase() {
+            return database;
+        }
+        
+        public void setDatabase(String database) {
+            this.database = database;
         }
     }
     

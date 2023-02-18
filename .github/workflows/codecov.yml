@@ -50,8 +50,8 @@ jobs:
       - name: Init CosId-Db
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
-      - name: Check And Build Code Coverage Report
-        run: gradle check codeCoverageReport --stacktrace
+      - name: Build Code Coverage Report
+        run: gradle codeCoverageReport --stacktrace
 
       - name: Upload Code Coverage Report to Codecov
         uses: codecov/codecov-action@v3
@@ -62,5 +62,5 @@ jobs:
           fail_ci_if_error: true # optional (default = false)
           verbose: true # optional (default = false)
 #          directory: ./build/reports/jacoco/codeCoverageReport/
-          files: ./build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
+          files: ./code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml
           path_to_write_report: ./coverage/codecov_report.txt

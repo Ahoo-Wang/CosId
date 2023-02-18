@@ -15,7 +15,7 @@ plugins {
     id("io.github.gradle-nexus.publish-plugin")
     id("me.champeau.jmh")
     `java-library`
-    id("jacoco-report-aggregation")
+    jacoco
 }
 
 val bomProjects = setOf(
@@ -38,7 +38,8 @@ val serverProjects = setOf(
 )
 
 val testProject = project(":cosid-test")
-val publishProjects = subprojects - serverProjects
+val codeCoverageReportProject = project(":code-coverage-report")
+val publishProjects = subprojects - serverProjects - codeCoverageReportProject
 val libraryProjects = publishProjects - bomProjects
 
 ext {
@@ -68,6 +69,7 @@ configure(libraryProjects) {
     configure<com.github.spotbugs.snom.SpotBugsExtension> {
         excludeFilter.set(file("${rootDir}/config/spotbugs/exclude.xml"))
     }
+    apply<JacocoPlugin>()
     apply<JavaLibraryPlugin>()
     configure<JavaPluginExtension> {
         toolchain {
@@ -225,21 +227,3 @@ nexusPublishing {
 }
 
 fun getPropertyOf(name: String) = project.properties[name]?.toString()
-
-//region jacocoAggregation
-dependencies {
-    libraryProjects.forEach {
-        jacocoAggregation(it)
-    }
-}
-reporting {
-    reports {
-        val codeCoverageReport by creating(JacocoCoverageReport::class) {
-            testType.set(TestSuiteType.UNIT_TEST)
-        }
-    }
-}
-tasks.check {
-    dependsOn(tasks.named<JacocoReport>("codeCoverageReport"))
-}
-//endregion

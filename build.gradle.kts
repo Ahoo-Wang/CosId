@@ -15,7 +15,7 @@ plugins {
     id("io.github.gradle-nexus.publish-plugin")
     id("me.champeau.jmh")
     `java-library`
-    jacoco
+    id("jacoco-report-aggregation")
 }
 
 val bomProjects = setOf(
@@ -68,7 +68,6 @@ configure(libraryProjects) {
     configure<com.github.spotbugs.snom.SpotBugsExtension> {
         excludeFilter.set(file("${rootDir}/config/spotbugs/exclude.xml"))
     }
-    apply<JacocoPlugin>()
     apply<JavaLibraryPlugin>()
     configure<JavaPluginExtension> {
         toolchain {
@@ -227,19 +226,20 @@ nexusPublishing {
 
 fun getPropertyOf(name: String) = project.properties[name]?.toString()
 
-tasks.register<JacocoReport>("codeCoverageReport") {
-    executionData(fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec"))
+//region jacocoAggregation
+dependencies {
     libraryProjects.forEach {
-        dependsOn(it.tasks.test)
-        if (testProject != it) {
-            sourceSets(it.sourceSets.main.get())
-        }
-    }
-    reports {
-        xml.required.set(true)
-        html.outputLocation.set(file("${buildDir}/reports/jacoco/report.xml"))
-        csv.required.set(false)
-        html.required.set(true)
-        html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/"))
+        jacocoAggregation(it)
     }
 }
+reporting {
+    reports {
+        val codeCoverageReport by creating(JacocoCoverageReport::class) {
+            testType.set(TestSuiteType.UNIT_TEST)
+        }
+    }
+}
+tasks.check {
+    dependsOn(tasks.named<JacocoReport>("codeCoverageReport"))
+}
+//endregion

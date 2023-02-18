@@ -29,6 +29,8 @@ include(":cosid-proxy-server")
 include(":cosid-axon")
 include(":cosid-mongo")
 
+include(":code-coverage-report")
+
 include("cosid-example")
 project(":cosid-example").projectDir = file("examples/cosid-example")
 
@@ -61,3 +63,4 @@ buildscript {
         classpath("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.13")
     }
 }
+

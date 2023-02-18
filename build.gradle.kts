@@ -38,7 +38,8 @@ val serverProjects = setOf(
 )
 
 val testProject = project(":cosid-test")
-val publishProjects = subprojects - serverProjects
+val codeCoverageReportProject = project(":code-coverage-report")
+val publishProjects = subprojects - serverProjects - codeCoverageReportProject
 val libraryProjects = publishProjects - bomProjects
 
 ext {
@@ -226,20 +227,3 @@ nexusPublishing {
 }
 
 fun getPropertyOf(name: String) = project.properties[name]?.toString()
-
-tasks.register<JacocoReport>("codeCoverageReport") {
-    executionData(fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec"))
-    libraryProjects.forEach {
-        dependsOn(it.tasks.test)
-        if (testProject != it) {
-            sourceSets(it.sourceSets.main.get())
-        }
-    }
-    reports {
-        xml.required.set(true)
-        html.outputLocation.set(file("${buildDir}/reports/jacoco/report.xml"))
-        csv.required.set(false)
-        html.required.set(true)
-        html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/"))
-    }
-}

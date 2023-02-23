@@ -13,7 +13,7 @@
  */
 
 dependencies {
-    api(platform("org.springframework.boot:spring-boot-dependencies:2.7.8"))
+    api(platform("org.springframework.boot:spring-boot-dependencies:2.7.9"))
     api(platform("org.springframework.cloud:spring-cloud-dependencies:2021.0.5"))
     api(platform("com.squareup.okhttp3:okhttp-bom:4.10.0"))
     api(platform("org.testcontainers:testcontainers-bom:1.17.6"))

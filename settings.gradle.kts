@@ -59,7 +59,7 @@ buildscript {
     }
     dependencies {
         classpath("me.champeau.jmh:jmh-gradle-plugin:0.7.0")
-        classpath("io.github.gradle-nexus:publish-plugin:1.2.0")
+        classpath("io.github.gradle-nexus:publish-plugin:1.3.0")
         classpath("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.13")
     }
 }

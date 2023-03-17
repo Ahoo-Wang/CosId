@@ -17,7 +17,7 @@
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 
 
-- `CosIdGenerator` : *单机 TPS 性能：1557W/s*，三倍于 `UUID.randomUUID()`。
+- `CosIdGenerator` : *单机 TPS 性能：1557W/s*，三倍于 `UUID.randomUUID()`，基于时钟的全局趋势递增ID。
 - `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](https://cosid.ahoo.me/guide/perf-test.html) , 主要解决 *时钟回拨问题* 、*机器号分配问题*、*取模分片不均匀问题* 并且提供更加友好、灵活的使用体验。
 - `SegmentId`: 每次获取一段 (`Step`) ID，来降低号段分发器的网络IO请求频次提升性能。
   - `IdSegmentDistributor`: 号段分发器（号段存储器）

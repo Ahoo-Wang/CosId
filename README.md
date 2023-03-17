@@ -18,7 +18,7 @@
 *[CosId](https://github.com/Ahoo-Wang/CosId)* aims to provide a universal, flexible and high-performance distributed ID
 generator.
 
-- `CosIdGenerator` : Stand-alone *TPS performance：15,570,085 ops/s* , three times that of `UUID.randomUUID()`.
+- `CosIdGenerator` : Stand-alone *TPS performance：15,570,085 ops/s* , three times that of `UUID.randomUUID()`,global trend increasing based-time.
 - `SnowflakeId` : Stand-alone *TPS performance：4,096,000 ops/s* [JMH Benchmark](#jmh-benchmark) , It mainly solves two major
   problems of `SnowflakeId`: machine number allocation problem and clock backwards problem and provide a more friendly
   and flexible experience.

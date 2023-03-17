@@ -11,24 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.shardingsphere.entity;
+package me.ahoo.cosid.sharding;
 
-import me.ahoo.cosid.annotation.CosId;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
-/**
- * SnowflakeLogEntity.
- *
- * @author Rocher Kong
- */
-public class SnowflakeLogEntity {
-    @CosId("snowflake")
-    private long id;
+import org.junit.jupiter.api.Test;
 
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
+class SnowflakeCosIdLocalDateTimeConvertorTest {
+    
+    @Test
+    void toLocalDateTime() {
     }
 }

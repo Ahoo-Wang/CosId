@@ -11,31 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.shardingsphere.entity;
+package me.ahoo.cosid.sharding;
 
-/**
- * TimestampLogEntity.
- *
- * @author Rocher Kong
- */
-public class TimestampLogEntity {
+import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
-    private long id;
-    private long createTime;
+import org.junit.jupiter.api.Test;
 
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public long getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(long createTime) {
-        this.createTime = createTime;
+class StandardLocalDateTimeConvertorTest {
+    
+    @Test
+    void toLocalDateTime() {
     }
 }

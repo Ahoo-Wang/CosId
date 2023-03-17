@@ -21,7 +21,6 @@ include(":cosid-spring-redis")
 include(":cosid-jdbc")
 include(":cosid-mybatis")
 include(":cosid-jackson")
-include(":cosid-shardingsphere")
 include(":cosid-zookeeper")
 include(":cosid-test")
 include(":cosid-proxy")
@@ -48,9 +47,6 @@ project(":cosid-example-zookeeper").projectDir = file("examples/cosid-example-zo
 
 include("cosid-example-jdbc")
 project(":cosid-example-jdbc").projectDir = file("examples/cosid-example-jdbc")
-
-include("cosid-example-shardingsphere")
-project(":cosid-example-shardingsphere").projectDir = file("examples/cosid-example-shardingsphere")
 
 
 buildscript {

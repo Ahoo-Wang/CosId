@@ -11,36 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.shardingsphere.entity;
+package me.ahoo.cosid.sharding;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 
-/**
- * create table t_friendly_table
- * (
- * id varchar(25) not null primary key
- * );.
- *
- * @author Rocher Kong
- */
-public class DateLogEntity {
-
-    private long id;
-    private Date createTime;
-
-    public long getId() {
-        return id;
-    }
-
-    public void setId(long id) {
-        this.id = id;
-    }
-
-    public Date getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(Date createTime) {
-        this.createTime = createTime;
-    }
+public interface LocalDateTimeConvertor {
+    /**
+     * To local date time.
+     *
+     * @param value value to be converted
+     * @return converted local date time
+     */
+    LocalDateTime toLocalDateTime(Comparable<?> value);
 }

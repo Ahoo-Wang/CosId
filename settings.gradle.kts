@@ -30,9 +30,6 @@ include(":cosid-mongo")
 
 include(":code-coverage-report")
 
-include("cosid-example")
-project(":cosid-example").projectDir = file("examples/cosid-example")
-
 include("cosid-example-proxy")
 project(":cosid-example-proxy").projectDir = file("examples/cosid-example-proxy")
 
@@ -44,10 +41,6 @@ project(":cosid-example-redis-cosid").projectDir = file("examples/cosid-example-
 
 include("cosid-example-zookeeper")
 project(":cosid-example-zookeeper").projectDir = file("examples/cosid-example-zookeeper")
-
-include("cosid-example-jdbc")
-project(":cosid-example-jdbc").projectDir = file("examples/cosid-example-jdbc")
-
 
 buildscript {
     repositories {

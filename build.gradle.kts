@@ -27,8 +27,6 @@ val coreProjects = setOf(
     project(":cosid-core")
 )
 val serverProjects = setOf(
-    project(":cosid-example"),
-    project(":cosid-example-jdbc"),
     project(":cosid-example-proxy"),
     project(":cosid-example-redis"),
     project(":cosid-example-redis-cosid"),

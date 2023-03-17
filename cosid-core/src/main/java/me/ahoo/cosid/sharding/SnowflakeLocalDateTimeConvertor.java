@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 import java.time.LocalDateTime;
 
 @RequiredArgsConstructor
-public class SnowflakeCosIdLocalDateTimeConvertor implements LocalDateTimeConvertor {
+public class SnowflakeLocalDateTimeConvertor implements LocalDateTimeConvertor {
     private final SnowflakeIdStateParser snowflakeIdStateParser;
     
     @Override

@@ -26,8 +26,8 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.time.LocalDate;
 import java.util.stream.Stream;
 
-class SnowflakeCosIdLocalDateTimeConvertorTest {
-    private final SnowflakeCosIdLocalDateTimeConvertor convertor = new SnowflakeCosIdLocalDateTimeConvertor(MillisecondSnowflakeIdStateParser.INSTANCE);
+class SnowflakeLocalDateTimeConvertorTest {
+    private final SnowflakeLocalDateTimeConvertor convertor = new SnowflakeLocalDateTimeConvertor(MillisecondSnowflakeIdStateParser.INSTANCE);
     
     @ParameterizedTest
     @MethodSource("argsProvider")

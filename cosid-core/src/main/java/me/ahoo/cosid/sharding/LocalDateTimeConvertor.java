@@ -11,31 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.example.jdbc.repository;
+package me.ahoo.cosid.sharding;
 
-import me.ahoo.cosid.example.jdbc.entity.Order;
-import me.ahoo.cosid.example.jdbc.entity.OrderItem;
+import java.time.LocalDateTime;
 
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
-
-/**
- * OrderRepository.
- *
- * @author Rocher Kong
- */
-@Mapper
-public interface OrderRepository {
-
-    void insert(Order order);
-
-    void insertItem(OrderItem orderItem);
-
-    Order getById(@Param("orderId") long orderId);
-
-    List<Order> query();
-
-    List<Order> getByIds(@Param("ids") List<Long> ids);
+public interface LocalDateTimeConvertor {
+    /**
+     * To local date time.
+     *
+     * @param value value to be converted
+     * @return converted local date time
+     */
+    LocalDateTime toLocalDateTime(Comparable<?> value);
 }

@@ -17,13 +17,17 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.Year;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -42,18 +46,25 @@ class StandardLocalDateTimeConvertorTest {
         assertThat(convertor.toLocalDateTime(shardingValue), equalTo(expected));
     }
     
+    @Test
+    void toLocalDateTimeGivenUnknownType() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> convertor.toLocalDateTime(1));
+    }
+    
     static Stream<Arguments> argsProvider() {
         LocalDateTime localDateTime = LocalDateTime.of(2021, 12, 14, 22, 0);
         ZoneOffset zoneOffset = ZoneOffset.ofHours(8);
         return Stream.of(
             arguments(localDateTime, localDateTime),
             arguments(ZonedDateTime.of(localDateTime, zoneId), localDateTime),
+            arguments(OffsetDateTime.of(localDateTime, zoneOffset), localDateTime),
             arguments(localDateTime.toInstant(zoneOffset), localDateTime),
             arguments(localDateTime.toLocalDate(), LocalDateTime.of(localDateTime.toLocalDate(), LocalTime.MIN)),
             arguments(new Date(localDateTime.toEpochSecond(zoneOffset) * 1000), localDateTime),
             arguments(localDateTime.toEpochSecond(zoneOffset) * 1000, localDateTime),
             arguments("2021-12-14 22:00:00", localDateTime),
-            arguments(Year.of(2021), LocalDateTime.of(2021, 1, 1, 0, 0))
+            arguments(Year.of(2021), LocalDateTime.of(2021, 1, 1, 0, 0)),
+            arguments(YearMonth.of(2021, 12), LocalDateTime.of(2021, 12, 1, 0, 0))
         );
     }
 }

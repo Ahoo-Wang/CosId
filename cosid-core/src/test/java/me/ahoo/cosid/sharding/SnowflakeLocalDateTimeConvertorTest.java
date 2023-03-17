@@ -19,6 +19,8 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -33,6 +35,11 @@ class SnowflakeLocalDateTimeConvertorTest {
     @MethodSource("argsProvider")
     void toLocalDateTime(Comparable<?> shardingValue, LocalDate expected) {
         assertThat(convertor.toLocalDateTime(shardingValue).toLocalDate(), equalTo(expected));
+    }
+    
+    @Test
+    void toLocalDateTimeGivenUnknownType() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> convertor.toLocalDateTime(1));
     }
     
     static Stream<Arguments> argsProvider() {

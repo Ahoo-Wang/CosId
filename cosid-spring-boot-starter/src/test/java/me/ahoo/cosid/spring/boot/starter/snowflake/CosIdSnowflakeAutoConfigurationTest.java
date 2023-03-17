@@ -65,4 +65,32 @@ class CosIdSnowflakeAutoConfigurationTest {
             });
     }
     
+    @Test
+    void contextLoadsWithConfig() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
+            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".share.test.converter.type=to_string")
+            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".share.test.converter.to_string.pad-start=true")
+            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.test.converter.type=to_string")
+            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.test.converter.to_string.pad-start=true")
+            .withUserConfiguration(UtilAutoConfiguration.class,
+                CosIdAutoConfiguration.class,
+                CosIdMachineAutoConfiguration.class,
+                CosIdSnowflakeAutoConfiguration.class)
+            .run(context -> {
+                assertThat(context)
+                    .hasSingleBean(CosIdSnowflakeAutoConfiguration.class)
+                    .hasSingleBean(SnowflakeIdProperties.class)
+                    .hasSingleBean(InstanceId.class)
+                    .hasSingleBean(MachineStateStorage.class)
+                    .hasSingleBean(ClockBackwardsSynchronizer.class)
+                    .hasSingleBean(MachineId.class)
+                    .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
+                    .hasSingleBean(SnowflakeId.class)
+                ;
+            });
+    }
+    
 }

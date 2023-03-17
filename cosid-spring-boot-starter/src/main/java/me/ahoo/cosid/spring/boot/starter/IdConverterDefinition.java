@@ -26,6 +26,7 @@ public class IdConverterDefinition {
     private String prefix;
     private String suffix;
     private Radix radix = new Radix();
+    private ToString toString;
     
     public Type getType() {
         return type;
@@ -59,14 +60,23 @@ public class IdConverterDefinition {
         this.radix = radix;
     }
     
+    public ToString getToString() {
+        return toString;
+    }
+    
+    public void setToString(ToString toString) {
+        this.toString = toString;
+    }
+    
     /**
      * Radix62IdConverter Config.
      */
-    public static class Radix {
+    public static class Radix implements PadStartIdConverter {
         
         private boolean padStart = true;
         private int charSize = Radix62IdConverter.MAX_CHAR_SIZE;
         
+        @Override
         public boolean isPadStart() {
             return padStart;
         }
@@ -75,6 +85,31 @@ public class IdConverterDefinition {
             this.padStart = padStart;
         }
         
+        @Override
+        public int getCharSize() {
+            return charSize;
+        }
+        
+        public void setCharSize(int charSize) {
+            this.charSize = charSize;
+        }
+    }
+    
+    public static class ToString implements PadStartIdConverter {
+        
+        private boolean padStart = false;
+        private int charSize = Radix62IdConverter.MAX_CHAR_SIZE;
+        
+        @Override
+        public boolean isPadStart() {
+            return padStart;
+        }
+        
+        public void setPadStart(boolean padStart) {
+            this.padStart = padStart;
+        }
+        
+        @Override
         public int getCharSize() {
             return charSize;
         }
@@ -91,5 +126,11 @@ public class IdConverterDefinition {
         TO_STRING,
         SNOWFLAKE_FRIENDLY,
         RADIX
+    }
+    
+    interface PadStartIdConverter {
+        boolean isPadStart();
+        
+        int getCharSize();
     }
 }

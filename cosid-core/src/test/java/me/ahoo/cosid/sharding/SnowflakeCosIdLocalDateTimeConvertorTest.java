@@ -13,15 +13,33 @@
 
 package me.ahoo.cosid.sharding;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
-import org.junit.jupiter.api.Test;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
+
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.time.LocalDate;
+import java.util.stream.Stream;
 
 class SnowflakeCosIdLocalDateTimeConvertorTest {
+    private final SnowflakeCosIdLocalDateTimeConvertor convertor = new SnowflakeCosIdLocalDateTimeConvertor(MillisecondSnowflakeIdStateParser.INSTANCE);
     
-    @Test
-    void toLocalDateTime() {
+    @ParameterizedTest
+    @MethodSource("argsProvider")
+    void toLocalDateTime(Comparable<?> shardingValue, LocalDate expected) {
+        assertThat(convertor.toLocalDateTime(shardingValue).toLocalDate(), equalTo(expected));
+    }
+    
+    static Stream<Arguments> argsProvider() {
+        LocalDate localDate = LocalDate.of(2023, 3, 17);
+        return Stream.of(
+            arguments(427238791191728130L, localDate),
+            arguments("0VYl5qVAX6h", localDate)
+        );
     }
 }

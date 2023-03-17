@@ -263,13 +263,7 @@ public class Order {
 
 ### ShardingSphere 插件
 
-> `CosIdKeyGenerateAlgorithm`、`CosIdModShardingAlgorithm`、`CosIdIntervalShardingAlgorithm` 已合并至 [ShardingSphere](https://github.com/apache/shardingsphere/pull/14132) 官方，未来 *[cosid-shardingsphere](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-shardingsphere)* 模块的维护可能会以官方为主。
-
-> Kotlin DSL
-
-``` kotlin
-    implementation("me.ahoo.cosid:cosid-shardingsphere:${cosidVersion}")
-```
+> [cosid-shardingsphere](https://github.com/apache/shardingsphere/tree/master/features/sharding/plugin/cosid)
 
 #### CosIdKeyGenerateAlgorithm (分布式主键)
 

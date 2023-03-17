@@ -435,11 +435,7 @@ public interface OrderRepository {
 
 ### ShardingSphere Plugin
 
-> Kotlin DSL
-
-``` kotlin
-    implementation("me.ahoo.cosid:cosid-shardingsphere:${cosidVersion}")
-```
+> [cosid-shardingsphere](https://github.com/apache/shardingsphere/tree/master/features/sharding/plugin/cosid)
 
 #### CosIdKeyGenerateAlgorithm (Distributed-Id)
 

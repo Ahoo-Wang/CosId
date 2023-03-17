@@ -14,12 +14,17 @@ cosid:
     guarder:
       enabled: true
   snowflake:
+    enabled: false
+  segment:
     enabled: true
-#  segment:
-#    enabled: true
-#    mode: chain
-#    distributor:
-#      type: redis
+    mode: chain
+    distributor:
+      type: redis
+    share:
+      converter:
+        type: to_string
+        to-string:
+          pad-start: true
 
 logging:
   level:

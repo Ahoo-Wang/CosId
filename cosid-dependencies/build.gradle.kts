@@ -16,7 +16,7 @@ dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:2.7.10"))
     api(platform("org.springframework.cloud:spring-cloud-dependencies:2021.0.6"))
     api(platform("com.squareup.okhttp3:okhttp-bom:4.10.0"))
-    api(platform("org.testcontainers:testcontainers-bom:1.17.6"))
+    api(platform("org.testcontainers:testcontainers-bom:1.18.0"))
     constraints {
         api("org.projectlombok:lombok:1.18.26")
         api("org.mybatis:mybatis:3.5.13")

@@ -41,6 +41,7 @@ export function getGuideSidebar(groupA, groupB): SidebarConfigArray {
             collapsable: false,
             children: [
                 'api/',
+                'api/cosid-generator',
                 'api/id-converter',
                 'api/provider',
                 'api/snowflake',

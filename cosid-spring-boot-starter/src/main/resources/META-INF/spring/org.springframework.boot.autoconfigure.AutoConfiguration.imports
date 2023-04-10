@@ -3,14 +3,14 @@ me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.cosid.CosIdGeneratorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdJdbcMachineIdDistributorAutoConfiguration
-me.ahoo.cosid.spring.boot.starter.machine.CosIdRedisMachineIdDistributorAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.machine.CosIdMongoMachineIdDistributorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdSpringRedisMachineIdDistributorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdZookeeperMachineIdDistributorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdProxyMachineIdDistributorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.snowflake.CosIdSnowflakeAutoConfiguration
-me.ahoo.cosid.spring.boot.starter.segment.CosIdRedisSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdSpringRedisSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdJdbcSegmentAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.segment.CosIdMongoSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdZookeeperSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdProxySegmentAutoConfiguration

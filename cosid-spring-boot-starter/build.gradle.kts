@@ -12,10 +12,6 @@
  */
 
 java {
-    registerFeature("redisSupport") {
-        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
-        capability(group.toString(), "redis-support", version.toString())
-    }
     registerFeature("springRedisSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "spring-redis-support", version.toString())
@@ -23,6 +19,10 @@ java {
     registerFeature("jdbcSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "jdbc-support", version.toString())
+    }
+    registerFeature("mongoSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "mongo-support", version.toString())
     }
     registerFeature("zookeeperSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
@@ -40,27 +40,33 @@ java {
 
 dependencies {
     api(project(":cosid-core"))
+    testImplementation(project(mapOf("path" to ":cosid-mongo")))
+    testImplementation(project(mapOf("path" to ":cosid-mongo")))
 
     "springRedisSupportImplementation"(project(":cosid-spring-redis"))
     "springRedisSupportImplementation"("org.springframework.boot:spring-boot-starter-data-redis")
-
-    "redisSupportImplementation"(project(":cosid-redis"))
-    "redisSupportImplementation"("me.ahoo.cosky:cosky-spring-cloud-core")
 
     "jdbcSupportImplementation"(project(":cosid-jdbc"))
     "zookeeperSupportImplementation"(project(":cosid-zookeeper"))
 
     "proxySupportImplementation"(project(":cosid-proxy"))
+    "mongoSupportImplementation"(project(":cosid-mongo"))
 
     "mybatisSupportImplementation"(project(":cosid-mybatis"))
     api("org.springframework.boot:spring-boot-starter")
     api("org.springframework.cloud:spring-cloud-commons")
-
+    compileOnly("org.mongodb:mongodb-driver-sync")
+    compileOnly("org.mongodb:mongodb-driver-reactivestreams")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
     testImplementation(project(":cosid-test"))
+    testImplementation("org.mongodb:mongodb-driver-sync")
+    testImplementation("org.mongodb:mongodb-driver-reactivestreams")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("mysql:mysql-connector-java")
+    testImplementation("com.mysql:mysql-connector-j")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc")
     testImplementation("org.apache.curator:curator-test")
+    testImplementation("org.testcontainers:testcontainers")
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:mongodb")
 }

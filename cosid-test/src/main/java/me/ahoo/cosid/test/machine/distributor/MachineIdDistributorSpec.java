@@ -19,6 +19,7 @@ import me.ahoo.cosid.machine.MachineIdDistributor;
 import com.google.common.collect.Lists;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -28,7 +29,8 @@ import java.util.List;
  */
 public abstract class MachineIdDistributorSpec {
     public static final String TEST_HOST = "127.0.0.1";
-    public static final int TEST_MACHINE_BIT = 5;
+    private static final int TEST_MACHINE_BIT = 5;
+    private static final Duration TEST_SAFE_GUARD_DURATION = Duration.ofSeconds(5);
     
     static InstanceId mockInstance(int port, boolean stable) {
         return InstanceId.of(TEST_HOST, port, stable);
@@ -53,56 +55,64 @@ public abstract class MachineIdDistributorSpec {
         return mockInstances(totalMachineIds + 1, stable);
     }
     
+    protected Duration getSafeGuardDuration() {
+        return TEST_SAFE_GUARD_DURATION;
+    }
+    
+    protected int getMachineBit() {
+        return TEST_MACHINE_BIT;
+    }
+    
     protected abstract MachineIdDistributor getDistributor();
     
     @Test
     public void distribute() {
-        new Distribute(this::getDistributor).verify();
+        new Distribute(this::getDistributor, getMachineBit()).verify();
     }
     
     @Test
     public void distributeOverflow() {
-        new DistributeOverflow(this::getDistributor).verify();
+        new DistributeOverflow(this::getDistributor, getMachineBit()).verify();
     }
     
     @Test
     public void distributeRevert() {
-        new DistributeRevert(this::getDistributor).verify();
+        new DistributeRevert(this::getDistributor, getMachineBit()).verify();
     }
     
     @Test
     public void distributeSafeGuard() {
-        new DistributeSafeGuard(this::getDistributor).verify();
+        new DistributeSafeGuard(this::getDistributor, getMachineBit(), getSafeGuardDuration()).verify();
     }
     
     @Test
     public void guard() {
-        new Guard(this::getDistributor).verify();
+        new Guard(this::getDistributor, getMachineBit()).verify();
     }
     
     @Test
     public void guardLost() {
-        new GuardLost(this::getDistributor).verify();
+        new GuardLost(this::getDistributor, getMachineBit()).verify();
     }
     
     @Test
     public void distributeStable() {
-        new DistributeStable(this::getDistributor).verify();
+        new DistributeStable(this::getDistributor, getMachineBit()).verify();
     }
     
     @Test
     public void revert() {
-        new Revert(this::getDistributor).verify();
+        new Revert(this::getDistributor, getMachineBit()).verify();
     }
     
     @Test
     public void distributeConcurrent() {
-        new DistributeConcurrent(this::getDistributor).verify();
+        new DistributeConcurrent(this::getDistributor, getMachineBit()).verify();
     }
     
     @Test
     public void distributeIdempotent() {
-        new DistributeIdempotent(this::getDistributor).verify();
+        new DistributeIdempotent(this::getDistributor, getMachineBit(), getSafeGuardDuration()).verify();
     }
     
 }

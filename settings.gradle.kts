@@ -17,20 +17,18 @@ include(":cosid-bom")
 include(":cosid-dependencies")
 include(":cosid-core")
 include(":cosid-spring-boot-starter")
-include(":cosid-redis")
 include(":cosid-spring-redis")
 include(":cosid-jdbc")
 include(":cosid-mybatis")
 include(":cosid-jackson")
-include(":cosid-shardingsphere")
 include(":cosid-zookeeper")
 include(":cosid-test")
 include(":cosid-proxy")
 include(":cosid-proxy-server")
 include(":cosid-axon")
+include(":cosid-mongo")
 
-include("cosid-example")
-project(":cosid-example").projectDir = file("examples/cosid-example")
+include(":code-coverage-report")
 
 include("cosid-example-proxy")
 project(":cosid-example-proxy").projectDir = file("examples/cosid-example-proxy")
@@ -44,20 +42,14 @@ project(":cosid-example-redis-cosid").projectDir = file("examples/cosid-example-
 include("cosid-example-zookeeper")
 project(":cosid-example-zookeeper").projectDir = file("examples/cosid-example-zookeeper")
 
-include("cosid-example-jdbc")
-project(":cosid-example-jdbc").projectDir = file("examples/cosid-example-jdbc")
-
-include("cosid-example-shardingsphere")
-project(":cosid-example-shardingsphere").projectDir = file("examples/cosid-example-shardingsphere")
-
-
 buildscript {
     repositories {
         gradlePluginPortal()
     }
     dependencies {
-        classpath("me.champeau.jmh:jmh-gradle-plugin:0.6.8")
-        classpath("io.github.gradle-nexus:publish-plugin:1.1.0")
-        classpath("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.13")
+        classpath("me.champeau.jmh:jmh-gradle-plugin:0.7.0")
+        classpath("io.github.gradle-nexus:publish-plugin:1.3.0")
+        classpath("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.14")
     }
 }
+

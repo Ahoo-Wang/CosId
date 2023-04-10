@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.test.machine.distributor;
 
-import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.TEST_MACHINE_BIT;
 import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.mockInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
@@ -32,9 +31,11 @@ import java.util.function.Supplier;
  */
 public class Distribute implements TestSpec {
     private final Supplier<MachineIdDistributor> implFactory;
+    private final int machineBit;
     
-    public Distribute(Supplier<MachineIdDistributor> implFactory) {
+    public Distribute(Supplier<MachineIdDistributor> implFactory, int machineBit) {
         this.implFactory = implFactory;
+        this.machineBit = machineBit;
     }
     
     @Override
@@ -42,7 +43,7 @@ public class Distribute implements TestSpec {
         MachineIdDistributor distributor = implFactory.get();
         String namespace = MockIdGenerator.usePrefix("Distribute").generateAsString();
         InstanceId instanceId = mockInstance(0, false);
-        int machineId = distributor.distribute(namespace, TEST_MACHINE_BIT, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
+        int machineId = distributor.distribute(namespace, machineBit, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
         assertThat(machineId, equalTo(0));
     }
 }

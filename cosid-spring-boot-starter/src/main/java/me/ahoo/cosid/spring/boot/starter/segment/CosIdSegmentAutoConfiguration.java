@@ -124,6 +124,10 @@ public class CosIdSegmentAutoConfiguration {
         IdConverter idConverter = ToStringIdConverter.INSTANCE;
         switch (converterDefinition.getType()) {
             case TO_STRING: {
+                IdConverterDefinition.ToString toString = converterDefinition.getToString();
+                if (toString != null) {
+                    idConverter = new ToStringIdConverter(toString.isPadStart(), toString.getCharSize());
+                }
                 break;
             }
             case RADIX: {

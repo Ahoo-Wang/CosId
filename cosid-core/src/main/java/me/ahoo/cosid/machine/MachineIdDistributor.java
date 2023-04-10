@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.machine;
 
+import com.google.common.base.Strings;
 
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
@@ -33,6 +34,10 @@ public interface MachineIdDistributor {
     
     static int totalMachineIds(int machineBit) {
         return maxMachineId(machineBit) + 1;
+    }
+    
+    static String namespacedMachineId(String namespace, int machineId) {
+        return namespace + "." + Strings.padStart(String.valueOf(machineId), 8, '0');
     }
     
     static long getSafeGuardAt(Duration safeGuardDuration, boolean stable) {
@@ -63,7 +68,7 @@ public interface MachineIdDistributor {
      */
     @Nonnull
     MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException;
-
+    
     /**
      * revert machine id.
      *
@@ -82,5 +87,5 @@ public interface MachineIdDistributor {
      * @param safeGuardDuration safe Guard Duration
      */
     void guard(String namespace, InstanceId instanceId, Duration safeGuardDuration) throws NotFoundMachineStateException, MachineIdLostException;
-
+    
 }

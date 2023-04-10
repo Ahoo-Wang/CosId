@@ -33,4 +33,24 @@ class CosIdSegmentAutoConfigurationTest {
                 ;
             });
     }
+    
+    @Test
+    void contextLoadsWithConfig() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues("spring.datasource.url=jdbc:mysql://localhost:3306/cosid_db_0")
+            .withPropertyValues(SegmentIdProperties.PREFIX + ".share.test.converter.type=to_string")
+            .withPropertyValues(SegmentIdProperties.PREFIX + ".share.test.converter.to_string.pad-start=true")
+            .withPropertyValues(SegmentIdProperties.PREFIX + ".provider.test.converter.type=to_string")
+            .withPropertyValues(SegmentIdProperties.PREFIX + ".provider.test.converter.to_string.pad-start=true")
+            .withUserConfiguration(CosIdAutoConfiguration.class, DataSourceAutoConfiguration.class, CosIdJdbcSegmentAutoConfiguration.class, CosIdSegmentAutoConfiguration.class)
+            .run(context -> {
+                assertThat(context)
+                    .hasSingleBean(CosIdSegmentAutoConfiguration.class)
+                    .hasSingleBean(PrefetchWorkerExecutorService.class)
+                    .hasSingleBean(CosIdLifecyclePrefetchWorkerExecutorService.class)
+                    .hasSingleBean(SegmentId.class)
+                ;
+            });
+    }
 }

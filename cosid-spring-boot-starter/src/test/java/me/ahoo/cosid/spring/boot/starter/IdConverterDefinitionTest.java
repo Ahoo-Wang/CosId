@@ -73,4 +73,22 @@ class IdConverterDefinitionTest {
         Assertions.assertFalse(definition.getRadix().isPadStart());
         Assertions.assertEquals(10, definition.getRadix().getCharSize());
     }
+    
+    @Test
+    void getToString() {
+        IdConverterDefinition definition = new IdConverterDefinition();
+        Assertions.assertNull(definition.getToString());
+    }
+    
+    @Test
+    void setToString() {
+        IdConverterDefinition definition = new IdConverterDefinition();
+        IdConverterDefinition.ToString toString = new IdConverterDefinition.ToString();
+        toString.setPadStart(false);
+        toString.setCharSize(10);
+        definition.setToString(toString);
+        Assertions.assertNotNull(definition.getToString());
+        Assertions.assertFalse(definition.getToString().isPadStart());
+        Assertions.assertEquals(10, definition.getToString().getCharSize());
+    }
 }

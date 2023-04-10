@@ -115,11 +115,12 @@ configure(libraryProjects) {
 
     tasks.withType<Test> {
         useJUnitPlatform()
-        // fix logging missing code for JacocoPlugin
-        jvmArgs = listOf(
-            "--add-opens=java.base/java.util=ALL-UNNAMED",
-            "-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml"
-        )
+        jvmArgs =
+            listOf(
+                // fix logging missing code for JacocoPlugin
+                "-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml",
+                "--add-opens=java.base/java.util=ALL-UNNAMED"
+            )
     }
 
     dependencies {

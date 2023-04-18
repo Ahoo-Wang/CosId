@@ -20,7 +20,7 @@ dependencies {
     constraints {
         api("org.projectlombok:lombok:1.18.26")
         api("org.mybatis:mybatis:3.5.13")
-        api("com.google.guava:guava:30.0-jre")
+        api("com.google.guava:guava:30.1.1-jre")
         api("org.junit-pioneer:junit-pioneer:1.9.1")
         api("org.hamcrest:hamcrest:2.2")
         api("org.openjdk.jmh:jmh-core:1.36")

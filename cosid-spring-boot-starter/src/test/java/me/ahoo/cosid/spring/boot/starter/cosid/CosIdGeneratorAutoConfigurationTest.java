@@ -64,4 +64,29 @@ class CosIdGeneratorAutoConfigurationTest {
                 ;
             });
     }
+    
+    @Test
+    void contextLoadsWithType() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(ConditionalOnCosIdGeneratorEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
+            .withPropertyValues(CosIdGeneratorProperties.PREFIX + ".type=RADIX36")
+            .withUserConfiguration(UtilAutoConfiguration.class,
+                CosIdAutoConfiguration.class,
+                CosIdMachineAutoConfiguration.class,
+                CosIdGeneratorAutoConfiguration.class)
+            .run(context -> {
+                assertThat(context)
+                    .hasSingleBean(CosIdGeneratorAutoConfiguration.class)
+                    .hasSingleBean(CosIdGeneratorProperties.class)
+                    .hasSingleBean(InstanceId.class)
+                    .hasSingleBean(MachineStateStorage.class)
+                    .hasSingleBean(ClockBackwardsSynchronizer.class)
+                    .hasSingleBean(MachineId.class)
+                    .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
+                    .hasSingleBean(CosIdGenerator.class)
+                ;
+            });
+    }
 }

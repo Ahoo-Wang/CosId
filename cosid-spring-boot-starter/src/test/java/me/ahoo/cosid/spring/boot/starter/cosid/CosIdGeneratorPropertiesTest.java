@@ -17,7 +17,6 @@ import static me.ahoo.cosid.cosid.Radix62CosIdGenerator.DEFAULT_SEQUENCE_BIT;
 import static me.ahoo.cosid.cosid.Radix62CosIdGenerator.DEFAULT_SEQUENCE_RESET_THRESHOLD;
 import static me.ahoo.cosid.cosid.Radix62CosIdGenerator.DEFAULT_TIMESTAMP_BIT;
 import static me.ahoo.cosid.cosid.RadixCosIdGenerator.DEFAULT_MACHINE_BIT;
-import static me.ahoo.cosid.spring.boot.starter.CosIdProperties.DEFAULT_NAMESPACE;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -40,7 +39,7 @@ class CosIdGeneratorPropertiesTest {
     @Test
     void getNamespace() {
         CosIdGeneratorProperties properties = new CosIdGeneratorProperties();
-        Assertions.assertEquals(DEFAULT_NAMESPACE, properties.getNamespace());
+        Assertions.assertNull(properties.getNamespace());
     }
     
     @Test

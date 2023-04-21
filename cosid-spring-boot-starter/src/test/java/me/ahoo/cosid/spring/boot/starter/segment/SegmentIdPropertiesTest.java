@@ -339,6 +339,20 @@ class SegmentIdPropertiesTest {
     
     public static class IdDefinitionTest {
         @Test
+        public void getNamespace() {
+            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
+            Assertions.assertNull(idDefinition.getNamespace());
+        }
+        
+        @Test
+        public void setNamespace() {
+            String namespace = "segment-namespace";
+            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
+            idDefinition.setNamespace(namespace);
+            Assertions.assertEquals(namespace, idDefinition.getNamespace());
+        }
+        
+        @Test
         public void getMode() {
             SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
             Assertions.assertNull(idDefinition.getMode());

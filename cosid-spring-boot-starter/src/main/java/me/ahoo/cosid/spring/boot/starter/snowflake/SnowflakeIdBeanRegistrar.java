@@ -20,7 +20,8 @@ import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
 import me.ahoo.cosid.converter.SuffixIdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.machine.MachineId;
+import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
 import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
@@ -29,9 +30,12 @@ import me.ahoo.cosid.snowflake.SecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.StringSnowflakeId;
+import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
+import me.ahoo.cosid.spring.boot.starter.Namespaces;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -39,23 +43,29 @@ import org.springframework.context.ConfigurableApplicationContext;
 import java.time.ZoneId;
 
 public class SnowflakeIdBeanRegistrar implements InitializingBean {
+    private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
     private final SnowflakeIdProperties snowflakeIdProperties;
-    private final MachineId machineId;
+    private final InstanceId instanceId;
     private final IdGeneratorProvider idGeneratorProvider;
+    private final MachineIdDistributor machineIdDistributor;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
     private final ConfigurableApplicationContext applicationContext;
     
-    public SnowflakeIdBeanRegistrar(MachineProperties machineProperties,
+    public SnowflakeIdBeanRegistrar(CosIdProperties cosIdProperties,
+                                    MachineProperties machineProperties,
                                     SnowflakeIdProperties snowflakeIdProperties,
-                                    MachineId machineId,
+                                    InstanceId instanceId,
                                     IdGeneratorProvider idGeneratorProvider,
+                                    MachineIdDistributor machineIdDistributor,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer,
                                     ConfigurableApplicationContext applicationContext) {
+        this.cosIdProperties = cosIdProperties;
         this.machineProperties = machineProperties;
         this.snowflakeIdProperties = snowflakeIdProperties;
-        this.machineId = machineId;
+        this.instanceId = instanceId;
         this.idGeneratorProvider = idGeneratorProvider;
+        this.machineIdDistributor = machineIdDistributor;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
         this.applicationContext = applicationContext;
     }
@@ -74,7 +84,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     }
     
     private void registerIdDefinition(String name, SnowflakeIdProperties.IdDefinition idDefinition) {
-        SnowflakeId idGenerator = createIdGen(machineId, idDefinition, clockBackwardsSynchronizer);
+        SnowflakeId idGenerator = createIdGen(idDefinition, clockBackwardsSynchronizer);
         registerSnowflakeId(name, idGenerator);
     }
     
@@ -87,16 +97,19 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         applicationContext.getBeanFactory().registerSingleton(beanName, snowflakeId);
     }
     
-    private SnowflakeId createIdGen(final MachineId machineId, SnowflakeIdProperties.IdDefinition idDefinition,
+    private SnowflakeId createIdGen(SnowflakeIdProperties.IdDefinition idDefinition,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         long epoch = getEpoch(idDefinition);
-        int machineBit = machineProperties.getMachineBit();
+        int machineBit = MoreObjects.firstNonNull(idDefinition.getMachineBit(), machineProperties.getMachineBit());
+        String namespace = Namespaces.firstNotBlank(idDefinition.getNamespace(), cosIdProperties.getNamespace());
+        int machineId = machineIdDistributor.distribute(namespace, machineBit, instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
+        
         SnowflakeId snowflakeId;
         if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {
-            snowflakeId = new SecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId.getMachineId(), idDefinition.getSequenceResetThreshold());
+            snowflakeId = new SecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId, idDefinition.getSequenceResetThreshold());
         } else {
             snowflakeId =
-                new MillisecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId.getMachineId(), idDefinition.getSequenceResetThreshold());
+                new MillisecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId, idDefinition.getSequenceResetThreshold());
         }
         if (idDefinition.isClockSync()) {
             snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);

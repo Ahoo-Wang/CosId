@@ -317,7 +317,7 @@ public class SegmentIdProperties {
     }
     
     public static class IdDefinition {
-        
+        private String namespace;
         private Mode mode;
         private long offset = IdSegmentDistributor.DEFAULT_OFFSET;
         private long step = IdSegmentDistributor.DEFAULT_STEP;
@@ -329,6 +329,14 @@ public class SegmentIdProperties {
         private Chain chain;
         @NestedConfigurationProperty
         private IdConverterDefinition converter = new IdConverterDefinition();
+        
+        public String getNamespace() {
+            return namespace;
+        }
+        
+        public void setNamespace(String namespace) {
+            this.namespace = namespace;
+        }
         
         public Mode getMode() {
             return mode;

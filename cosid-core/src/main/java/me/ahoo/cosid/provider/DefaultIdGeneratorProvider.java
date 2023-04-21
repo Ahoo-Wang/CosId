@@ -15,11 +15,10 @@ package me.ahoo.cosid.provider;
 
 import me.ahoo.cosid.IdGenerator;
 
+import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collection;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * Default {@link IdGeneratorProvider} implementation.
@@ -28,39 +27,39 @@ import javax.annotation.concurrent.ThreadSafe;
  */
 @ThreadSafe
 public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
-
+    
     public static final IdGeneratorProvider INSTANCE = new DefaultIdGeneratorProvider();
     private volatile IdGenerator shareIdGenerator;
-
+    
     private final ConcurrentHashMap<String, IdGenerator> nameMapIdGen;
-
+    
     public DefaultIdGeneratorProvider() {
         nameMapIdGen = new ConcurrentHashMap<>();
     }
-
+    
     @Override
     public IdGenerator getShare() {
         return shareIdGenerator;
     }
-
+    
     @Override
     public void setShare(IdGenerator idGenerator) {
         shareIdGenerator = idGenerator;
-        set(SHARE, idGenerator);
+        nameMapIdGen.put(SHARE, idGenerator);
     }
-
+    
     @Override
     public IdGenerator removeShare() {
         shareIdGenerator = null;
         return nameMapIdGen.remove(SHARE);
     }
-
+    
     @Override
     public Optional<IdGenerator> get(String name) {
         IdGenerator idGen = nameMapIdGen.get(name);
         return Optional.ofNullable(idGen);
     }
-
+    
     @Override
     public IdGenerator remove(String name) {
         if (SHARE.equals(name)) {
@@ -68,21 +67,25 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
         }
         return nameMapIdGen.remove(name);
     }
-
+    
     @Override
     public void set(String name, IdGenerator idGenerator) {
+        if (SHARE.equals(name)) {
+            setShare(idGenerator);
+            return;
+        }
         nameMapIdGen.put(name, idGenerator);
     }
-
+    
     @Override
     public void clear() {
         shareIdGenerator = null;
         nameMapIdGen.clear();
     }
-
+    
     @Override
     public Collection<IdGenerator> getAll() {
         return nameMapIdGen.values();
     }
-
+    
 }

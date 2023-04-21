@@ -50,8 +50,8 @@ class SegmentChainIdTest {
         IdSegmentChain rootChain = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(), 3, TIME_TO_LIVE_FOREVER);
         Assertions.assertEquals(0, rootChain.getVersion());
         Assertions.assertEquals(0, rootChain.getIdSegment().getOffset());
-        Assertions.assertEquals(300, rootChain.getStep());
-        Assertions.assertEquals(300, rootChain.getMaxId());
+        Assertions.assertEquals(30, rootChain.getStep());
+        Assertions.assertEquals(30, rootChain.getMaxId());
     }
     
     @Test

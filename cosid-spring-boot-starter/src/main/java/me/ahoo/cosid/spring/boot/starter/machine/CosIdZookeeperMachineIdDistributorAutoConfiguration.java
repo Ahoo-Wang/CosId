@@ -16,24 +16,22 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosid.spring.boot.starter.snowflake.ConditionalOnCosIdSnowflakeEnabled;
-import me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties;
 import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 /**
  * CosId Zookeeper MachineIdDistributor AutoConfiguration.
  *
  * @author ahoo wang
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "zookeeper")

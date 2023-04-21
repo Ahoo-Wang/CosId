@@ -37,11 +37,11 @@ public class SnowflakeIdProperties {
     private boolean enabled = false;
     private String zoneId = ZoneId.systemDefault().getId();
     private long epoch = CosId.COSID_EPOCH;
-    private IdDefinition share;
+    private ShardIdDefinition share;
     private Map<String, IdDefinition> provider;
     
     public SnowflakeIdProperties() {
-        share = new IdDefinition();
+        share = new ShardIdDefinition();
         provider = new HashMap<>();
     }
     
@@ -69,11 +69,11 @@ public class SnowflakeIdProperties {
         this.epoch = epoch;
     }
     
-    public IdDefinition getShare() {
+    public ShardIdDefinition getShare() {
         return share;
     }
     
-    public void setShare(IdDefinition share) {
+    public void setShare(ShardIdDefinition share) {
         this.share = share;
     }
     
@@ -167,4 +167,15 @@ public class SnowflakeIdProperties {
         }
     }
     
+    public static class ShardIdDefinition extends IdDefinition {
+        private boolean enabled = true;
+        
+        public boolean isEnabled() {
+            return enabled;
+        }
+        
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
 }

@@ -22,17 +22,17 @@ import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 /**
  * CosId Auto Configuration.
  *
  * @author ahoo wang
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration
 @ConditionalOnCosIdEnabled
 @EnableConfigurationProperties(CosIdProperties.class)
 public class CosIdAutoConfiguration {

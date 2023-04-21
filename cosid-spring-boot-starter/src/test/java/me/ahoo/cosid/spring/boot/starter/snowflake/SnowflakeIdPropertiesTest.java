@@ -74,7 +74,7 @@ class SnowflakeIdPropertiesTest {
     
     @Test
     void setShare() {
-        SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+        SnowflakeIdProperties.ShardIdDefinition idDefinition = new SnowflakeIdProperties.ShardIdDefinition();
         SnowflakeIdProperties properties = new SnowflakeIdProperties();
         properties.setShare(idDefinition);
         Assertions.assertEquals(idDefinition, properties.getShare());

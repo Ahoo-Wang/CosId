@@ -35,7 +35,7 @@ import java.util.concurrent.locks.LockSupport;
 public interface IdSegmentDistributor {
     int DEFAULT_SEGMENTS = 1;
     long DEFAULT_OFFSET = 0;
-    long DEFAULT_STEP = 100;
+    long DEFAULT_STEP = 10;
     
     @Nonnull
     String getNamespace();

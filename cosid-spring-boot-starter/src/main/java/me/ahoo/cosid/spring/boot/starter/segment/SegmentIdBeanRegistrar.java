@@ -29,6 +29,7 @@ import me.ahoo.cosid.segment.StringSegmentId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
+import me.ahoo.cosid.spring.boot.starter.Namespaces;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Strings;
@@ -88,11 +89,10 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
         applicationContext.getBeanFactory().registerSingleton(beanName, segmentId);
     }
     
-    
     private IdSegmentDistributorDefinition asDistributorDefinition(String name, SegmentIdProperties.IdDefinition idDefinition) {
-        return new IdSegmentDistributorDefinition(cosIdProperties.getNamespace(), name, idDefinition.getOffset(), idDefinition.getStep());
+        String namespace = Namespaces.firstNotBlank(idDefinition.getNamespace(), cosIdProperties.getNamespace());
+        return new IdSegmentDistributorDefinition(namespace, name, idDefinition.getOffset(), idDefinition.getStep());
     }
-    
     
     private static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor,
                                            PrefetchWorkerExecutorService prefetchWorkerExecutorService) {

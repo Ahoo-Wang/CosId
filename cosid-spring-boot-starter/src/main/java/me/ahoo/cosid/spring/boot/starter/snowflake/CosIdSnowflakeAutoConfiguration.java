@@ -14,9 +14,11 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.machine.MachineId;
+import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -34,20 +36,32 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnCosIdSnowflakeEnabled
 @EnableConfigurationProperties(SnowflakeIdProperties.class)
 public class CosIdSnowflakeAutoConfiguration {
+    private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
     private final SnowflakeIdProperties snowflakeIdProperties;
     
-    public CosIdSnowflakeAutoConfiguration(MachineProperties machineProperties, SnowflakeIdProperties snowflakeIdProperties) {
+    public CosIdSnowflakeAutoConfiguration(CosIdProperties cosIdProperties,
+                                           MachineProperties machineProperties,
+                                           SnowflakeIdProperties snowflakeIdProperties) {
+        this.cosIdProperties = cosIdProperties;
         this.machineProperties = machineProperties;
         this.snowflakeIdProperties = snowflakeIdProperties;
     }
     
     @Bean
-    public SnowflakeIdBeanRegistrar snowflakeIdBeanRegistrar(final MachineId machineId,
+    public SnowflakeIdBeanRegistrar snowflakeIdBeanRegistrar(final InstanceId instanceId,
                                                              IdGeneratorProvider idGeneratorProvider,
+                                                             MachineIdDistributor machineIdDistributor,
                                                              ClockBackwardsSynchronizer clockBackwardsSynchronizer,
                                                              ConfigurableApplicationContext applicationContext) {
-        return new SnowflakeIdBeanRegistrar(machineProperties, snowflakeIdProperties, machineId, idGeneratorProvider, clockBackwardsSynchronizer, applicationContext);
+        return new SnowflakeIdBeanRegistrar(cosIdProperties,
+            machineProperties,
+            snowflakeIdProperties,
+            instanceId,
+            idGeneratorProvider,
+            machineIdDistributor,
+            clockBackwardsSynchronizer,
+            applicationContext);
     }
     
 }

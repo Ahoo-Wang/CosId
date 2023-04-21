@@ -87,15 +87,25 @@ public class SnowflakeIdProperties {
     }
     
     public static class IdDefinition {
+        private String namespace;
         private boolean clockSync = true;
         private boolean friendly = true;
         private TimestampUnit timestampUnit = TimestampUnit.MILLISECOND;
         private long epoch;
+        private Integer machineBit;
         private int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
         private int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT;
         private long sequenceResetThreshold = MillisecondSnowflakeId.DEFAULT_SEQUENCE_RESET_THRESHOLD;
         @NestedConfigurationProperty
         private IdConverterDefinition converter = new IdConverterDefinition();
+        
+        public String getNamespace() {
+            return namespace;
+        }
+        
+        public void setNamespace(String namespace) {
+            this.namespace = namespace;
+        }
         
         public boolean isClockSync() {
             return clockSync;
@@ -127,6 +137,14 @@ public class SnowflakeIdProperties {
         
         public void setEpoch(long epoch) {
             this.epoch = epoch;
+        }
+        
+        public Integer getMachineBit() {
+            return machineBit;
+        }
+        
+        public void setMachineBit(Integer machineBit) {
+            this.machineBit = machineBit;
         }
         
         public int getTimestampBit() {

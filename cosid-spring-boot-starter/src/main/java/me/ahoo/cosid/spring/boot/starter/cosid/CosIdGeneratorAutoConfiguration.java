@@ -24,6 +24,8 @@ import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdGuarder;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
+import me.ahoo.cosid.spring.boot.starter.Namespaces;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -42,11 +44,12 @@ import org.springframework.context.annotation.Primary;
 @ConditionalOnCosIdGeneratorEnabled
 @EnableConfigurationProperties(CosIdGeneratorProperties.class)
 public class CosIdGeneratorAutoConfiguration {
-    
+    private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
     private final CosIdGeneratorProperties cosIdGeneratorProperties;
     
-    public CosIdGeneratorAutoConfiguration(MachineProperties machineProperties, CosIdGeneratorProperties cosIdGeneratorProperties) {
+    public CosIdGeneratorAutoConfiguration(CosIdProperties cosIdProperties, MachineProperties machineProperties, CosIdGeneratorProperties cosIdGeneratorProperties) {
+        this.cosIdProperties = cosIdProperties;
         this.machineProperties = machineProperties;
         this.cosIdGeneratorProperties = cosIdGeneratorProperties;
     }
@@ -56,8 +59,9 @@ public class CosIdGeneratorAutoConfiguration {
     @ConditionalOnMissingBean
     public CosIdGenerator cosIdGenerator(MachineIdDistributor machineIdDistributor, MachineIdGuarder machineIdGuarder, final InstanceId instanceId, IdGeneratorProvider idGeneratorProvider,
                                          ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        String namespace = Namespaces.firstNotBlank(cosIdGeneratorProperties.getNamespace(), cosIdProperties.getNamespace());
         int machineId =
-            machineIdDistributor.distribute(cosIdGeneratorProperties.getNamespace(), cosIdGeneratorProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
+            machineIdDistributor.distribute(namespace, cosIdGeneratorProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
         machineIdGuarder.register(cosIdGeneratorProperties.getNamespace(), instanceId);
         CosIdGenerator cosIdGenerator;
         switch (cosIdGeneratorProperties.getType()) {

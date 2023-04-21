@@ -62,7 +62,7 @@ public class CosIdGeneratorAutoConfiguration {
         String namespace = Namespaces.firstNotBlank(cosIdGeneratorProperties.getNamespace(), cosIdProperties.getNamespace());
         int machineId =
             machineIdDistributor.distribute(namespace, cosIdGeneratorProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
-        machineIdGuarder.register(cosIdGeneratorProperties.getNamespace(), instanceId);
+        machineIdGuarder.register(namespace, instanceId);
         CosIdGenerator cosIdGenerator;
         switch (cosIdGeneratorProperties.getType()) {
             case RADIX62: {

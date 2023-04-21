@@ -14,19 +14,11 @@
 package me.ahoo.cosid.machine;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.*;
 
-import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
-import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.MachineIdDistributor;
-import me.ahoo.cosid.machine.MachineStateStorage;
-import me.ahoo.cosid.machine.ManualMachineIdDistributor;
-import me.ahoo.cosid.machine.NamespacedInstanceId;
-import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.test.MockIdGenerator;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -43,6 +35,14 @@ class DefaultMachineIdGuarderTest {
         DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         guarder.register(namespacedInstanceId.getNamespace(), namespacedInstanceId.getInstanceId());
         assertThat(guarder.getRegisteredInstanceIds(), hasItem(namespacedInstanceId));
+        guarder.safeGuard();
+    }
+    
+    @Test
+    void registerIfNullNamespace() {
+        NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+        Assertions.assertThrows(IllegalArgumentException.class, () -> guarder.register(null, namespacedInstanceId.getInstanceId()));
     }
     
     @Test

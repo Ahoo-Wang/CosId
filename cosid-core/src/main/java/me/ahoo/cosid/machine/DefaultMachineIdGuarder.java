@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.machine;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.extern.slf4j.Slf4j;
 
@@ -63,6 +65,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     
     @Override
     public void register(String namespace, InstanceId instanceId) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
         boolean absent = registeredInstanceIds.add(namespacedInstanceId);
         if (log.isDebugEnabled()) {

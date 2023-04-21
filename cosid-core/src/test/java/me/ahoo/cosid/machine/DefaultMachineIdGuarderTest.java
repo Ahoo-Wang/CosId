@@ -35,6 +35,7 @@ class DefaultMachineIdGuarderTest {
         DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         guarder.register(namespacedInstanceId.getNamespace(), namespacedInstanceId.getInstanceId());
         assertThat(guarder.getRegisteredInstanceIds(), hasItem(namespacedInstanceId));
+        guarder.safeGuard();
     }
     
     @Test

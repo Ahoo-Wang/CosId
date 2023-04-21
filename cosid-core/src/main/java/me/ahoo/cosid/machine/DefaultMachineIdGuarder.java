@@ -92,7 +92,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         }
     }
     
-    private void safeGuard() {
+    void safeGuard() {
         if (log.isDebugEnabled()) {
             log.debug("Safe guard registered Instances:[{}].", registeredInstanceIds.size());
         }

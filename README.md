@@ -43,7 +43,7 @@ generator.
 > *SnowflakeId* is a distributed ID algorithm that uses `Long` (64-bit) bit partition to generate ID.
 > The general bit allocation scheme is : `timestamp` (41-bit) + `machineId` (10-bit) + `sequence` (12-bit) = 63-bit。
 
-- 41-bit `timestamp` = (1L<<41)/(1000/3600/365) approximately 69 years of timestamp can be stored, that is, the usable
+- 41-bit `timestamp` = (1L<<41)/(1000/3600/24/365) approximately 69 years of timestamp can be stored, that is, the usable
   absolute time is `EPOCH` + 69 years. Generally, we need to customize `EPOCH` as the product development time. In
   addition, we can increase the number of allocated bits by compressing other areas， The number of timestamp bits to
   extend the available time.

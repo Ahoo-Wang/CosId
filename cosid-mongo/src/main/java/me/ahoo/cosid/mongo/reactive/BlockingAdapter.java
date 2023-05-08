@@ -15,9 +15,15 @@ package me.ahoo.cosid.mongo.reactive;
 
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Schedulers;
 
-public class BlockingAdapter {
+import java.time.Duration;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+public final class BlockingAdapter {
+    private static final Duration DEFAULT_TIME_OUT = Duration.ofSeconds(10);
+    
     private BlockingAdapter() {
     }
     
@@ -27,9 +33,15 @@ public class BlockingAdapter {
     }
     
     public static <R> R block(Mono<R> mono) {
-        if (Schedulers.isInNonBlockingThread()) {
-            mono = mono.subscribeOn(Schedulers.boundedElastic());
+        try {
+            return mono.toFuture().get(DEFAULT_TIME_OUT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | TimeoutException e) {
+            throw new RuntimeException(e);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof RuntimeException) {
+                throw (RuntimeException) e.getCause();
+            }
+            throw new RuntimeException(e.getCause());
         }
-        return mono.block();
     }
 }

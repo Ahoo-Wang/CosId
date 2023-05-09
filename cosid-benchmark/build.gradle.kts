@@ -28,7 +28,7 @@ repositories {
 }
 
 dependencies {
-    implementation("me.ahoo.cosid:cosid-jdbc:1.19.1")
+    implementation("me.ahoo.cosid:cosid-jdbc:1.19.2")
     implementation("me.ahoo.cosid:cosid-test:1.19.1")
     testImplementation("com.zaxxer:HikariCP:5.0.1")
     testImplementation("mysql:mysql-connector-java:8.0.33")

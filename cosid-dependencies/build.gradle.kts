@@ -18,7 +18,7 @@ dependencies {
     api(platform("com.squareup.okhttp3:okhttp-bom:4.11.0"))
     api(platform("org.testcontainers:testcontainers-bom:1.18.1"))
     constraints {
-        api("org.projectlombok:lombok:1.18.26")
+        api("org.projectlombok:lombok:1.18.28")
         api("org.mybatis:mybatis:3.5.13")
         api("com.google.guava:guava:30.0-jre")
         api("org.junit-pioneer:junit-pioneer:1.9.1")

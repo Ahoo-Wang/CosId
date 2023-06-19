@@ -29,7 +29,8 @@ public class ProxyServerLauncher {
     static {
         REDIS_CONTAINER = new GenericContainer(DockerImageName.parse("redis:latest"))
             .withNetwork(NETWORK_CONTAINER)
-            .withNetworkAliases("redis");
+            .withNetworkAliases("redis")
+            .withReuse(true);
         REDIS_CONTAINER.start();
         
         int cosidProxyExposedPort = 8688;

@@ -19,6 +19,7 @@ dependencies {
     compileOnly("io.projectreactor:reactor-core")
     testImplementation(project(":cosid-test"))
     testImplementation("org.mongodb:mongodb-driver-sync")
+    testImplementation("io.projectreactor:reactor-core")
     testImplementation("org.mongodb:mongodb-driver-reactivestreams")
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")

@@ -71,8 +71,7 @@ class CosIdSnowflakeAutoConfigurationTest {
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
-            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".share.test.converter.type=to_string")
-            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".share.test.converter.to_string.pad-start=true")
+            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".share.enabled=false")
             .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.test.converter.type=to_string")
             .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.test.converter.to_string.pad-start=true")
             .withUserConfiguration(UtilAutoConfiguration.class,
@@ -88,7 +87,8 @@ class CosIdSnowflakeAutoConfigurationTest {
                     .hasSingleBean(ClockBackwardsSynchronizer.class)
                     .hasSingleBean(MachineId.class)
                     .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
-                    .hasSingleBean(SnowflakeId.class)
+                    .doesNotHaveBean("__share__SnowflakeId")
+                    .hasBean("testSnowflakeId")
                 ;
             });
     }

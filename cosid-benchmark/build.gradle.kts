@@ -13,7 +13,7 @@
 
 plugins {
     `java-library`
-    id("me.champeau.jmh") version "0.7.0"
+    id("me.champeau.jmh") version "0.7.1"
 }
 
 java {
@@ -32,7 +32,7 @@ dependencies {
     implementation("me.ahoo.cosid:cosid-jdbc:2.0.0-RC1")
     implementation("me.ahoo.cosid:cosid-test:2.0.0-RC1")
     testImplementation("com.zaxxer:HikariCP:5.0.1")
-    testImplementation("mysql:mysql-connector-java:8.0.32")
+    testImplementation("mysql:mysql-connector-java:8.0.33")
     /**
      * WARNING：中央仓库没有找到美团官方提供的Jar!!!
      * git clone https://github.com/Meituan-Dianping/Leaf
@@ -49,9 +49,9 @@ dependencies {
     jmh("org.openjdk.jmh:jmh-core:1.36")
     jmh("org.openjdk.jmh:jmh-generator-annprocess:1.36")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.9.2")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.2")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.9.3")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.3")
 }
 
 jmh {

@@ -26,6 +26,7 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Paths;
 
 /**
  * LocalMachine State Storage.
@@ -34,7 +35,7 @@ import java.io.IOException;
  */
 @Slf4j
 public class LocalMachineStateStorage implements MachineStateStorage {
-    public static final String DEFAULT_STATE_LOCATION_PATH = "./cosid-machine-state/";
+    public static final String DEFAULT_STATE_LOCATION_PATH = Paths.get(System.getProperty("user.home"), ".cosid-machine-state").toString();
     public final String stateLocation;
     
     public LocalMachineStateStorage(String stateLocation) {
@@ -87,7 +88,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         }
         String fileName = namespace + "__" + instanceId.getInstanceId();
         String encodedName = BaseEncoding.base64().encode(fileName.getBytes(Charsets.UTF_8));
-        String statePath = stateLocation + encodedName;
+        String statePath = Paths.get(stateLocation, encodedName).toString();
         return new File(statePath);
     }
     

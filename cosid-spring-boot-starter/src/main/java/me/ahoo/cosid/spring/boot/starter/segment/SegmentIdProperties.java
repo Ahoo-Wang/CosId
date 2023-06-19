@@ -50,11 +50,11 @@ public class SegmentIdProperties {
     private long ttl = TIME_TO_LIVE_FOREVER;
     private Distributor distributor;
     private Chain chain;
-    private IdDefinition share;
+    private ShardIdDefinition share;
     private Map<String, IdDefinition> provider;
     
     public SegmentIdProperties() {
-        share = new IdDefinition();
+        share = new ShardIdDefinition();
         distributor = new Distributor();
         chain = new Chain();
         provider = new HashMap<>();
@@ -100,11 +100,11 @@ public class SegmentIdProperties {
         this.chain = chain;
     }
     
-    public IdDefinition getShare() {
+    public ShardIdDefinition getShare() {
         return share;
     }
     
-    public void setShare(IdDefinition share) {
+    public void setShare(ShardIdDefinition share) {
         this.share = share;
     }
     
@@ -118,7 +118,7 @@ public class SegmentIdProperties {
     }
     
     public enum Mode {
-        DEFAULT,
+        SEGMENT,
         CHAIN
     }
     
@@ -317,7 +317,7 @@ public class SegmentIdProperties {
     }
     
     public static class IdDefinition {
-        
+        private String namespace;
         private Mode mode;
         private long offset = IdSegmentDistributor.DEFAULT_OFFSET;
         private long step = IdSegmentDistributor.DEFAULT_STEP;
@@ -329,6 +329,14 @@ public class SegmentIdProperties {
         private Chain chain;
         @NestedConfigurationProperty
         private IdConverterDefinition converter = new IdConverterDefinition();
+        
+        public String getNamespace() {
+            return namespace;
+        }
+        
+        public void setNamespace(String namespace) {
+            this.namespace = namespace;
+        }
         
         public Mode getMode() {
             return mode;
@@ -378,5 +386,17 @@ public class SegmentIdProperties {
             this.converter = converter;
         }
         
+    }
+    
+    public static class ShardIdDefinition extends IdDefinition {
+        private boolean enabled = true;
+        
+        public boolean isEnabled() {
+            return enabled;
+        }
+        
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
     }
 }

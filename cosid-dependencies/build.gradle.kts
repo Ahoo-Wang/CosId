@@ -1,3 +1,4 @@
+
 /*
  * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,10 +15,10 @@
 dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:3.0.5"))
     api(platform("org.springframework.cloud:spring-cloud-dependencies:2022.0.2"))
-    api(platform("com.squareup.okhttp3:okhttp-bom:4.10.0"))
-    api(platform("org.testcontainers:testcontainers-bom:1.18.0"))
+    api(platform("com.squareup.okhttp3:okhttp-bom:4.11.0"))
+    api(platform("org.testcontainers:testcontainers-bom:1.18.3"))
     constraints {
-        api("org.projectlombok:lombok:1.18.26")
+        api("org.projectlombok:lombok:1.18.28")
         api("org.mybatis:mybatis:3.5.13")
         api("org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.1")
         api("com.google.guava:guava:30.0-jre")

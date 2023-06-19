@@ -13,26 +13,24 @@
 
 package me.ahoo.cosid.spring.boot.starter.machine;
 
-import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
-import me.ahoo.cosid.spring.boot.starter.snowflake.ConditionalOnCosIdSnowflakeEnabled;
-import me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties;
 
 import okhttp3.OkHttpClient;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 /**
  * CosId Spring Redis MachineIdDistributor AutoConfiguration.
  *
  * @author ahoo wang
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "proxy")

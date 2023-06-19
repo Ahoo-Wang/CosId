@@ -18,9 +18,10 @@ plugins {
     jacoco
 }
 
+val dependenciesProject = project(":cosid-dependencies")
 val bomProjects = setOf(
     project(":cosid-bom"),
-    project(":cosid-dependencies")
+    dependenciesProject,
 )
 
 val coreProjects = setOf(
@@ -124,10 +125,10 @@ configure(libraryProjects) {
     }
 
     dependencies {
-        api(platform(project(":cosid-dependencies")))
-        annotationProcessor(platform(project(":cosid-dependencies")))
-        testAnnotationProcessor(platform(project(":cosid-dependencies")))
-        jmh(platform(project(":cosid-dependencies")))
+        api(platform(dependenciesProject))
+        annotationProcessor(platform(dependenciesProject))
+        testAnnotationProcessor(platform(dependenciesProject))
+        jmh(platform(dependenciesProject))
         compileOnly("org.projectlombok:lombok")
         annotationProcessor("org.projectlombok:lombok")
         testCompileOnly("org.projectlombok:lombok")

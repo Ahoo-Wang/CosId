@@ -45,8 +45,8 @@ class SegmentIdPropertiesTest {
     @Test
     void setMode() {
         SegmentIdProperties properties = new SegmentIdProperties();
-        properties.setMode(SegmentIdProperties.Mode.DEFAULT);
-        Assertions.assertEquals(SegmentIdProperties.Mode.DEFAULT, properties.getMode());
+        properties.setMode(SegmentIdProperties.Mode.SEGMENT);
+        Assertions.assertEquals(SegmentIdProperties.Mode.SEGMENT, properties.getMode());
     }
     
     @Test
@@ -99,7 +99,7 @@ class SegmentIdPropertiesTest {
     
     @Test
     void setShare() {
-        SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
+        SegmentIdProperties.ShardIdDefinition idDefinition = new SegmentIdProperties.ShardIdDefinition();
         SegmentIdProperties properties = new SegmentIdProperties();
         properties.setShare(idDefinition);
         Assertions.assertEquals(idDefinition, properties.getShare());
@@ -339,6 +339,20 @@ class SegmentIdPropertiesTest {
     
     public static class IdDefinitionTest {
         @Test
+        public void getNamespace() {
+            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
+            Assertions.assertNull(idDefinition.getNamespace());
+        }
+        
+        @Test
+        public void setNamespace() {
+            String namespace = "segment-namespace";
+            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
+            idDefinition.setNamespace(namespace);
+            Assertions.assertEquals(namespace, idDefinition.getNamespace());
+        }
+        
+        @Test
         public void getMode() {
             SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
             Assertions.assertNull(idDefinition.getMode());
@@ -346,7 +360,7 @@ class SegmentIdPropertiesTest {
         
         @Test
         public void setMode() {
-            SegmentIdProperties.Mode mode = SegmentIdProperties.Mode.DEFAULT;
+            SegmentIdProperties.Mode mode = SegmentIdProperties.Mode.SEGMENT;
             SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
             idDefinition.setMode(mode);
             Assertions.assertEquals(mode, idDefinition.getMode());

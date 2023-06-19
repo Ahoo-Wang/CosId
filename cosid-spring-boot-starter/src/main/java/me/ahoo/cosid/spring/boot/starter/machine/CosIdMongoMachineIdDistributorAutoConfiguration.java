@@ -25,6 +25,7 @@ import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -40,7 +41,7 @@ import org.springframework.context.annotation.Primary;
  *
  * @author ahoo wang
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnClass(MongoMachineIdDistributor.class)

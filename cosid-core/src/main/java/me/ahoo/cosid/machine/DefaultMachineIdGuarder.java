@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.machine;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.extern.slf4j.Slf4j;
 
@@ -58,11 +60,12 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     }
     
     public static ScheduledExecutorService executorService() {
-        return new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder().setDaemon(true).setNameFormat("DefaultMachineIdGuarder-").build());
+        return new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder().setDaemon(true).setNameFormat("MachineIdGuarder").build());
     }
     
     @Override
     public void register(String namespace, InstanceId instanceId) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
         boolean absent = registeredInstanceIds.add(namespacedInstanceId);
         if (log.isDebugEnabled()) {
@@ -89,7 +92,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         }
     }
     
-    private void safeGuard() {
+    void safeGuard() {
         if (log.isDebugEnabled()) {
             log.debug("Safe guard registered Instances:[{}].", registeredInstanceIds.size());
         }

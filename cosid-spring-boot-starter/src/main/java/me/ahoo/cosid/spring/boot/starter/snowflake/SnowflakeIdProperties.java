@@ -37,11 +37,11 @@ public class SnowflakeIdProperties {
     private boolean enabled = false;
     private String zoneId = ZoneId.systemDefault().getId();
     private long epoch = CosId.COSID_EPOCH;
-    private IdDefinition share;
+    private ShardIdDefinition share;
     private Map<String, IdDefinition> provider;
     
     public SnowflakeIdProperties() {
-        share = new IdDefinition();
+        share = new ShardIdDefinition();
         provider = new HashMap<>();
     }
     
@@ -69,11 +69,11 @@ public class SnowflakeIdProperties {
         this.epoch = epoch;
     }
     
-    public IdDefinition getShare() {
+    public ShardIdDefinition getShare() {
         return share;
     }
     
-    public void setShare(IdDefinition share) {
+    public void setShare(ShardIdDefinition share) {
         this.share = share;
     }
     
@@ -87,15 +87,25 @@ public class SnowflakeIdProperties {
     }
     
     public static class IdDefinition {
+        private String namespace;
         private boolean clockSync = true;
         private boolean friendly = true;
         private TimestampUnit timestampUnit = TimestampUnit.MILLISECOND;
         private long epoch;
+        private Integer machineBit;
         private int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
         private int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT;
         private long sequenceResetThreshold = MillisecondSnowflakeId.DEFAULT_SEQUENCE_RESET_THRESHOLD;
         @NestedConfigurationProperty
         private IdConverterDefinition converter = new IdConverterDefinition();
+        
+        public String getNamespace() {
+            return namespace;
+        }
+        
+        public void setNamespace(String namespace) {
+            this.namespace = namespace;
+        }
         
         public boolean isClockSync() {
             return clockSync;
@@ -127,6 +137,14 @@ public class SnowflakeIdProperties {
         
         public void setEpoch(long epoch) {
             this.epoch = epoch;
+        }
+        
+        public Integer getMachineBit() {
+            return machineBit;
+        }
+        
+        public void setMachineBit(Integer machineBit) {
+            this.machineBit = machineBit;
         }
         
         public int getTimestampBit() {
@@ -167,4 +185,15 @@ public class SnowflakeIdProperties {
         }
     }
     
+    public static class ShardIdDefinition extends IdDefinition {
+        private boolean enabled = true;
+        
+        public boolean isEnabled() {
+            return enabled;
+        }
+        
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
 }

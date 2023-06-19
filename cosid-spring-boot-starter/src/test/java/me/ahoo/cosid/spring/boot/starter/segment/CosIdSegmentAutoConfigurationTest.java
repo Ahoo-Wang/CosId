@@ -22,7 +22,9 @@ class CosIdSegmentAutoConfigurationTest {
     void contextLoads() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues("spring.datasource.url=jdbc:mysql://localhost:3306/cosid_db_0")
+            .withPropertyValues("spring.datasource.url=jdbc:mysql://localhost:3306/cosid_db")
+            .withPropertyValues("spring.datasource.username=root")
+            .withPropertyValues("spring.datasource.password=root")
             .withUserConfiguration(CosIdAutoConfiguration.class, DataSourceAutoConfiguration.class, CosIdJdbcSegmentAutoConfiguration.class, CosIdSegmentAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)
@@ -38,9 +40,10 @@ class CosIdSegmentAutoConfigurationTest {
     void contextLoadsWithConfig() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues("spring.datasource.url=jdbc:mysql://localhost:3306/cosid_db_0")
-            .withPropertyValues(SegmentIdProperties.PREFIX + ".share.test.converter.type=to_string")
-            .withPropertyValues(SegmentIdProperties.PREFIX + ".share.test.converter.to_string.pad-start=true")
+            .withPropertyValues("spring.datasource.url=jdbc:mysql://localhost:3306/cosid_db")
+            .withPropertyValues("spring.datasource.username=root")
+            .withPropertyValues("spring.datasource.password=root")
+            .withPropertyValues(SegmentIdProperties.PREFIX + ".share.enabled=false")
             .withPropertyValues(SegmentIdProperties.PREFIX + ".provider.test.converter.type=to_string")
             .withPropertyValues(SegmentIdProperties.PREFIX + ".provider.test.converter.to_string.pad-start=true")
             .withUserConfiguration(CosIdAutoConfiguration.class, DataSourceAutoConfiguration.class, CosIdJdbcSegmentAutoConfiguration.class, CosIdSegmentAutoConfiguration.class)
@@ -49,7 +52,8 @@ class CosIdSegmentAutoConfigurationTest {
                     .hasSingleBean(CosIdSegmentAutoConfiguration.class)
                     .hasSingleBean(PrefetchWorkerExecutorService.class)
                     .hasSingleBean(CosIdLifecyclePrefetchWorkerExecutorService.class)
-                    .hasSingleBean(SegmentId.class)
+                    .doesNotHaveBean("__share__SegmentId")
+                    .hasBean("testSegmentId")
                 ;
             });
     }

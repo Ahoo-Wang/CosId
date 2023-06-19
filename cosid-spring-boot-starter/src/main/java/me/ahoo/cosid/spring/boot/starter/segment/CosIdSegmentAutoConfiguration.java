@@ -13,40 +13,25 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
-import me.ahoo.cosid.IdConverter;
-import me.ahoo.cosid.converter.PrefixIdConverter;
-import me.ahoo.cosid.converter.Radix62IdConverter;
-import me.ahoo.cosid.converter.SuffixIdConverter;
-import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.segment.DefaultSegmentId;
-import me.ahoo.cosid.segment.IdSegmentDistributor;
-import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
-import me.ahoo.cosid.segment.SegmentChainId;
-import me.ahoo.cosid.segment.SegmentId;
-import me.ahoo.cosid.segment.StringSegmentId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
-import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
-import java.util.Objects;
 
 /**
  * CosId Segment AutoConfiguration.
  *
  * @author ahoo wang
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
@@ -74,78 +59,17 @@ public class CosIdSegmentAutoConfiguration {
         return new CosIdLifecyclePrefetchWorkerExecutorService(prefetchWorkerExecutorService);
     }
     
-    private IdSegmentDistributorDefinition asDistributorDefinition(String name, SegmentIdProperties.IdDefinition idDefinition) {
-        return new IdSegmentDistributorDefinition(cosIdProperties.getNamespace(), name, idDefinition.getOffset(), idDefinition.getStep());
-    }
-    
     @Bean
-    @ConditionalOnMissingBean
-    public SegmentId shareSegmentId(IdSegmentDistributorFactory distributorFactory, IdGeneratorProvider idGeneratorProvider, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
-        SegmentIdProperties.IdDefinition shareIdDefinition = segmentIdProperties.getShare();
-        IdSegmentDistributorDefinition shareDistributorDefinition = asDistributorDefinition(IdGeneratorProvider.SHARE, shareIdDefinition);
-        IdSegmentDistributor shareIdSegmentDistributor = distributorFactory.create(shareDistributorDefinition);
+    public SegmentIdBeanRegistrar segmentIdBeanRegistrar(IdSegmentDistributorFactory distributorFactory,
+                                                       IdGeneratorProvider idGeneratorProvider,
+                                                       PrefetchWorkerExecutorService prefetchWorkerExecutorService,
+                                                       ConfigurableApplicationContext applicationContext) {
         
-        SegmentId shareIdGen = createSegment(segmentIdProperties, shareIdDefinition, shareIdSegmentDistributor, prefetchWorkerExecutorService);
-        
-        if (Objects.isNull(idGeneratorProvider.getShare())) {
-            idGeneratorProvider.setShare(shareIdGen);
-        }
-        
-        if (segmentIdProperties.getProvider().isEmpty()) {
-            return shareIdGen;
-        }
-        
-        segmentIdProperties.getProvider().forEach((name, idDefinition) -> {
-            IdSegmentDistributorDefinition distributorDefinition = asDistributorDefinition(name, idDefinition);
-            IdSegmentDistributor idSegmentDistributor = distributorFactory.create(distributorDefinition);
-            SegmentId idGenerator = createSegment(segmentIdProperties, idDefinition, idSegmentDistributor, prefetchWorkerExecutorService);
-            idGeneratorProvider.set(name, idGenerator);
-        });
-        
-        return shareIdGen;
-    }
-    
-    
-    private static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor,
-                                           PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
-        long ttl = MoreObjects.firstNonNull(idDefinition.getTtl(), segmentIdProperties.getTtl());
-        SegmentIdProperties.Mode mode = MoreObjects.firstNonNull(idDefinition.getMode(), segmentIdProperties.getMode());
-        
-        SegmentId segmentId;
-        if (SegmentIdProperties.Mode.DEFAULT.equals(mode)) {
-            segmentId = new DefaultSegmentId(ttl, idSegmentDistributor);
-        } else {
-            SegmentIdProperties.Chain chain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
-            segmentId = new SegmentChainId(ttl, chain.getSafeDistance(), idSegmentDistributor, prefetchWorkerExecutorService);
-        }
-        
-        IdConverterDefinition converterDefinition = idDefinition.getConverter();
-        
-        IdConverter idConverter = ToStringIdConverter.INSTANCE;
-        switch (converterDefinition.getType()) {
-            case TO_STRING: {
-                IdConverterDefinition.ToString toString = converterDefinition.getToString();
-                if (toString != null) {
-                    idConverter = new ToStringIdConverter(toString.isPadStart(), toString.getCharSize());
-                }
-                break;
-            }
-            case RADIX: {
-                IdConverterDefinition.Radix radix = converterDefinition.getRadix();
-                idConverter = Radix62IdConverter.of(radix.isPadStart(), radix.getCharSize());
-                break;
-            }
-            default:
-                throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
-        }
-        
-        if (!Strings.isNullOrEmpty(converterDefinition.getPrefix())) {
-            idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
-        }
-        if (!Strings.isNullOrEmpty(converterDefinition.getSuffix())) {
-            idConverter = new SuffixIdConverter(converterDefinition.getSuffix(), idConverter);
-        }
-        return new StringSegmentId(segmentId, idConverter);
-        
+        return new SegmentIdBeanRegistrar(cosIdProperties,
+            segmentIdProperties,
+            distributorFactory,
+            idGeneratorProvider,
+            prefetchWorkerExecutorService,
+            applicationContext);
     }
 }

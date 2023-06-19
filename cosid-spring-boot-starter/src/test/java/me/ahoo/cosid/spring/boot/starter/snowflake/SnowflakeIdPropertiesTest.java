@@ -1,16 +1,12 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import me.ahoo.cosid.CosId;
-import me.ahoo.cosid.machine.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
-import me.ahoo.cosid.machine.LocalMachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
-import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
@@ -74,7 +70,7 @@ class SnowflakeIdPropertiesTest {
     
     @Test
     void setShare() {
-        SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+        SnowflakeIdProperties.ShardIdDefinition idDefinition = new SnowflakeIdProperties.ShardIdDefinition();
         SnowflakeIdProperties properties = new SnowflakeIdProperties();
         properties.setShare(idDefinition);
         Assertions.assertEquals(idDefinition, properties.getShare());
@@ -93,8 +89,22 @@ class SnowflakeIdPropertiesTest {
         properties.setProvider(provider);
         Assertions.assertEquals(provider, properties.getProvider());
     }
-
+    
     static class IdDefinitionTest {
+        @Test
+        public void getNamespace() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            Assertions.assertNull(idDefinition.getNamespace());
+        }
+        
+        @Test
+        public void setNamespace() {
+            String namespace = "snowflake-namespace";
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            idDefinition.setNamespace(namespace);
+            Assertions.assertEquals(namespace, idDefinition.getNamespace());
+        }
+        
         @Test
         public void isClockSync() {
             SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
@@ -147,6 +157,21 @@ class SnowflakeIdPropertiesTest {
             SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
             idDefinition.setEpoch(epoch);
             Assertions.assertEquals(epoch, idDefinition.getEpoch());
+        }
+        
+        
+        @Test
+        public void getMachineBit() {
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            Assertions.assertNull(idDefinition.getMachineBit());
+        }
+        
+        @Test
+        public void setMachineBit() {
+            int machineBit = 6;
+            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
+            idDefinition.setMachineBit(machineBit);
+            Assertions.assertEquals(machineBit, idDefinition.getMachineBit());
         }
         
         @Test

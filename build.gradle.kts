@@ -47,6 +47,7 @@ ext {
 allprojects {
     repositories {
         mavenLocal()
+        maven { url = uri("https://repo.spring.io/milestone") }
         mavenCentral()
     }
 }
@@ -71,7 +72,7 @@ configure(libraryProjects) {
     apply<JavaLibraryPlugin>()
     configure<JavaPluginExtension> {
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(8))
+            languageVersion.set(JavaLanguageVersion.of(17))
         }
         withJavadocJar()
         withSourcesJar()
@@ -115,8 +116,12 @@ configure(libraryProjects) {
 
     tasks.withType<Test> {
         useJUnitPlatform()
-        // fix logging missing code for JacocoPlugin
-        jvmArgs = listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml")
+        jvmArgs =
+            listOf(
+                // fix logging missing code for JacocoPlugin
+                "-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml",
+                "--add-opens=java.base/java.util=ALL-UNNAMED"
+            )
     }
 
     dependencies {

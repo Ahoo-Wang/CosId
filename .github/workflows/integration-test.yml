@@ -36,10 +36,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -55,10 +55,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -74,10 +74,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -103,10 +103,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -122,10 +122,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -141,10 +141,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -167,10 +167,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}
@@ -180,27 +180,6 @@ jobs:
 
       - name: Test CosId-Jdbc
         run: gradle cosid-jdbc:clean cosid-jdbc:check
-
-  cosid-mongo-test:
-    name: CosId Mongo Test
-    needs: [ cosid-core-test ]
-    runs-on: ubuntu-latest
-    env:
-      CI: GITHUB_ACTIONS
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 8
-        uses: actions/setup-java@v3
-        with:
-          java-version: '8'
-          distribution: 'adopt'
-          server-id: github
-          settings-path: ${{ github.workspace }}
-
-      - name: Test CosId-Mongo
-        run: gradle cosid-mongo:clean cosid-mongo:check
 
   cosid-spring-boot-starter-test:
     name: CosId Spring Boot Starter Test
@@ -213,10 +192,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Set up JDK 8
+      - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
-          java-version: '8'
+          java-version: '17'
           distribution: 'adopt'
           server-id: github
           settings-path: ${{ github.workspace }}

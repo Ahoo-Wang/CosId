@@ -13,14 +13,14 @@
  */
 
 dependencies {
-    api(platform("org.springframework.boot:spring-boot-dependencies:3.0.5"))
-    api(platform("org.springframework.cloud:spring-cloud-dependencies:2022.0.2"))
+    api(platform("org.springframework.boot:spring-boot-dependencies:3.1.0"))
+    api(platform("org.springframework.cloud:spring-cloud-dependencies:2022.0.3"))
     api(platform("com.squareup.okhttp3:okhttp-bom:4.11.0"))
     api(platform("org.testcontainers:testcontainers-bom:1.18.3"))
     constraints {
         api("org.projectlombok:lombok:1.18.28")
         api("org.mybatis:mybatis:3.5.13")
-        api("org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.1")
+        api("org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.2")
         api("com.google.guava:guava:30.0-jre")
         api("org.junit-pioneer:junit-pioneer:1.9.1")
         api("org.hamcrest:hamcrest:2.2")

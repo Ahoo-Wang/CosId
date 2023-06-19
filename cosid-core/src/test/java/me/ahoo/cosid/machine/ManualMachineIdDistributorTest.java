@@ -13,12 +13,6 @@
 
 package me.ahoo.cosid.machine;
 
-import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.MachineIdDistributor;
-import me.ahoo.cosid.machine.MachineStateStorage;
-import me.ahoo.cosid.machine.ManualMachineIdDistributor;
-import me.ahoo.cosid.machine.NotFoundMachineStateException;
-import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Assertions;

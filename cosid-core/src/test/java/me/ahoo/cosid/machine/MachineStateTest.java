@@ -13,8 +13,6 @@
 
 package me.ahoo.cosid.machine;
 
-import me.ahoo.cosid.machine.MachineState;
-
 import com.google.common.base.Objects;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;

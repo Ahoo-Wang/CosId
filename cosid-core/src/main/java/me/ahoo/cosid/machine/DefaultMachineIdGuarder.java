@@ -60,7 +60,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     }
     
     public static ScheduledExecutorService executorService() {
-        return new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder().setDaemon(true).setNameFormat("DefaultMachineIdGuarder-").build());
+        return new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder().setDaemon(true).setNameFormat("MachineIdGuarder").build());
     }
     
     @Override

@@ -13,23 +13,17 @@
 
 package me.ahoo.cosid.jdbc;
 
-import me.ahoo.cosid.CosIdException;
-import me.ahoo.cosid.jdbc.exception.SegmentNameMissingException;
-import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
-import me.ahoo.cosid.test.MockIdGenerator;
-import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
+import me.ahoo.cosid.test.segment.distributor.GroupedIdSegmentDistributorSpec;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
 
 /**
  * @author ahoo wang
  */
-class JdbcIdSegmentDistributorTest extends IdSegmentDistributorSpec {
+class GroupedJdbcIdSegmentDistributorTest extends GroupedIdSegmentDistributorSpec {
     DataSource dataSource;
     JdbcIdSegmentDistributorFactory distributorFactory;
     JdbcIdSegmentInitializer mySqlIdSegmentInitializer;
@@ -45,34 +39,5 @@ class JdbcIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     @Override
     protected IdSegmentDistributorFactory getFactory() {
         return distributorFactory;
-    }
-    
-    
-    @Override
-    protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
-    
-    }
-    
-    @Override
-    public void nextMaxIdWhenBack() {
-    
-    }
-    
-    @Test
-    void nextMaxIdWhenSegmentNameMissing() {
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        JdbcIdSegmentDistributor jdbcIdSegmentDistributor = new JdbcIdSegmentDistributor(namespace, "SegmentNameMissing", 100, dataSource);
-        Assertions.assertThrows(SegmentNameMissingException.class, () -> {
-            jdbcIdSegmentDistributor.nextMaxId(1);
-        });
-    }
-    
-    @Test
-    void nextMaxIdWhenWrongSql() {
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        JdbcIdSegmentDistributor jdbcIdSegmentDistributor = new JdbcIdSegmentDistributor(namespace, "WrongSql", 100,"WrongSql","WrongSql", dataSource);
-        Assertions.assertThrows(CosIdException.class, () -> {
-            jdbcIdSegmentDistributor.nextMaxId(1);
-        });
     }
 }

@@ -11,17 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.segment;
+package me.ahoo.cosid.segment.grouped;
 
-import javax.annotation.Nonnull;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
-/**
- * {@link IdSegmentDistributor} Factory.
- *
- * @author ahoo wang
- */
-@FunctionalInterface
-public interface IdSegmentDistributorFactory {
-    @Nonnull
-    IdSegmentDistributor create(IdSegmentDistributorDefinition definition);
+import org.junit.jupiter.api.Test;
+
+class DateGroupedSupplierTest {
+    
+    @Test
+    void year() {
+        assertThat(DateGroupedSupplier.YEAR.get(), notNullValue());
+    }
+
 }

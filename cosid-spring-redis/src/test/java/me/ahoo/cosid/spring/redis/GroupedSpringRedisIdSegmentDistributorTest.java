@@ -16,8 +16,8 @@ package me.ahoo.cosid.spring.redis;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
-import me.ahoo.cosid.test.Assert;
 import me.ahoo.cosid.test.MockIdGenerator;
+import me.ahoo.cosid.test.segment.distributor.GroupedIdSegmentDistributorSpec;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
 import org.junit.jupiter.api.Assertions;
@@ -30,7 +30,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 /**
  * @author ahoo wang
  */
-class SpringRedisIdSegmentDistributorTest extends IdSegmentDistributorSpec {
+class GroupedSpringRedisIdSegmentDistributorTest extends GroupedIdSegmentDistributorSpec {
     StringRedisTemplate stringRedisTemplate;
     SpringRedisIdSegmentDistributorFactory distributorFactory;
     protected IdSegmentDistributorDefinition idSegmentDistributorDefinition;
@@ -42,21 +42,13 @@ class SpringRedisIdSegmentDistributorTest extends IdSegmentDistributorSpec {
         lettuceConnectionFactory.afterPropertiesSet();
         stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
         distributorFactory = new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate);
-        idSegmentDistributorDefinition = new IdSegmentDistributorDefinition("SpringRedisIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 0, 100);
+        idSegmentDistributorDefinition = new IdSegmentDistributorDefinition("GroupedSpringRedisIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 0, 100);
     }
-    
     
     @Override
     protected IdSegmentDistributorFactory getFactory() {
         return distributorFactory;
     }
-    
-    @Override
-    protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
-        String adderKey = ((SpringRedisIdSegmentDistributor) distributor).getAdderKey();
-        stringRedisTemplate.opsForValue().set(adderKey, String.valueOf(maxId - 1));
-    }
-    
     
     @Test
     protected void distributorFactoryTest() {

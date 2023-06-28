@@ -11,17 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.segment;
+package me.ahoo.cosid.segment.grouped;
 
-import javax.annotation.Nonnull;
+import java.util.function.Supplier;
 
-/**
- * {@link IdSegmentDistributor} Factory.
- *
- * @author ahoo wang
- */
-@FunctionalInterface
-public interface IdSegmentDistributorFactory {
-    @Nonnull
-    IdSegmentDistributor create(IdSegmentDistributorDefinition definition);
+public interface GroupedSupplier extends Supplier<GroupedKey> {
 }
+

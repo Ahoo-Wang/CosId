@@ -61,7 +61,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     }
     
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void afterPropertiesSet() {
         register();
     }
     

@@ -136,8 +136,9 @@ public class IdConverterDefinition {
             return type;
         }
         
-        public void setType(Class<? extends IdConverter> type) {
+        public Custom setType(Class<? extends IdConverter> type) {
             this.type = type;
+            return this;
         }
     }
     

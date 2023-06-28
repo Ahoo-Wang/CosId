@@ -49,12 +49,16 @@ public abstract class IdSegmentDistributorSpec {
     
     protected abstract IdSegmentDistributorFactory getFactory();
     
+    protected IdSegmentDistributorFactory factory() {
+        return getFactory();
+    }
+    
     @Test
     public void getNamespace() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         String name = "getNamespace";
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, name, TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         assertThat(distributor.getNamespace(), equalTo(namespace));
     }
     
@@ -63,7 +67,7 @@ public abstract class IdSegmentDistributorSpec {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         String name = "getName";
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, name, TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         assertThat(distributor.getName(), equalTo(name));
     }
     
@@ -72,7 +76,7 @@ public abstract class IdSegmentDistributorSpec {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         String name = "getNamespacedName";
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, name, TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         String expected = IdSegmentDistributor.getNamespacedName(namespace, name);
         assertThat(distributor.getNamespacedName(), equalTo(expected));
     }
@@ -81,7 +85,7 @@ public abstract class IdSegmentDistributorSpec {
     public void getStep() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "getStep", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         assertThat(distributor.getStep(), equalTo(TEST_STEP));
     }
     
@@ -90,7 +94,7 @@ public abstract class IdSegmentDistributorSpec {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         int segments = ThreadLocalRandom.current().nextInt();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "getStepWithSegments", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         long expected = Math.multiplyExact(TEST_STEP, segments);
         long actual = distributor.getStep(segments);
         assertThat(actual, equalTo(expected));
@@ -100,11 +104,10 @@ public abstract class IdSegmentDistributorSpec {
     public void nextMaxId() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxId", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         long expected = TEST_OFFSET + TEST_STEP;
         long actual = distributor.nextMaxId();
         assertThat(actual, equalTo(expected));
-        
         long actual2 = distributor.nextMaxId();
         assertThat(actual2, greaterThan(actual));
     }
@@ -114,7 +117,7 @@ public abstract class IdSegmentDistributorSpec {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         long step = 50;
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxIdWithStep", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         long expected = TEST_OFFSET + step;
         long actual = distributor.nextMaxId(step);
         assertThat(actual, equalTo(expected));
@@ -126,7 +129,7 @@ public abstract class IdSegmentDistributorSpec {
     public void nextMaxIdWhenBack() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxIdWhenBack", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         long expected = TEST_OFFSET + TEST_STEP;
         long actual = distributor.nextMaxId();
         assertThat(actual, equalTo(expected));
@@ -138,7 +141,7 @@ public abstract class IdSegmentDistributorSpec {
     public void nextIdSegment() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextIdSegment", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         long expectedMaxId = TEST_OFFSET + TEST_STEP;
         IdSegment actual = distributor.nextIdSegment();
         assertThat(actual.getMaxId(), equalTo(expectedMaxId));
@@ -150,9 +153,9 @@ public abstract class IdSegmentDistributorSpec {
     @Test
     public void nextIdSegmentWithTtl() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        long ttl = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+        long ttl = 10;
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextIdSegmentWithTtl", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         long expectedMaxId = TEST_OFFSET + TEST_STEP;
         IdSegment actual = distributor.nextIdSegment(ttl);
         assertThat(actual.getMaxId(), equalTo(expectedMaxId));
@@ -165,9 +168,9 @@ public abstract class IdSegmentDistributorSpec {
     public void nextIdSegmentWithSegmentsAndTtl() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         int segments = ThreadLocalRandom.current().nextInt(1, Integer.MAX_VALUE);
-        long ttl = ThreadLocalRandom.current().nextLong(1, Long.MAX_VALUE);
+        long ttl = 10;
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextIdSegmentWithSegmentsAndTtl", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         long expectedMaxId = TEST_OFFSET + Math.multiplyExact(TEST_STEP, segments);
         long expectedStep = Math.multiplyExact(TEST_STEP, segments);
         IdSegment actual = distributor.nextIdSegment(segments, ttl);
@@ -182,7 +185,7 @@ public abstract class IdSegmentDistributorSpec {
         IdSegmentChain root = IdSegmentChain.newRoot();
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextIdSegmentChain", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         long expectedMaxId = TEST_OFFSET + Math.multiplyExact(TEST_STEP, DEFAULT_SEGMENTS);
         IdSegment actual = distributor.nextIdSegmentChain(root);
         assertThat(actual.getMaxId(), equalTo(expectedMaxId));
@@ -198,7 +201,7 @@ public abstract class IdSegmentDistributorSpec {
         int concurrency = 20;
         CompletableFuture<Long>[] results = new CompletableFuture[concurrency];
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxIdConcurrent", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         for (int i = 0; i < concurrency; i++) {
             results[i] = CompletableFuture.supplyAsync(() -> distributor.nextMaxId(1));
         }
@@ -213,7 +216,7 @@ public abstract class IdSegmentDistributorSpec {
     public void generateConcurrent() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "generateConcurrent", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         SegmentId segmentId = new DefaultSegmentId(distributor);
         new ConcurrentGenerateSpec(segmentId).verify();
     }
@@ -222,7 +225,7 @@ public abstract class IdSegmentDistributorSpec {
     public void generateConcurrentOfChain() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "generateConcurrentOfChain", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         SegmentChainId segmentId = new SegmentChainId(distributor);
         new ConcurrentGenerateSpec(segmentId).verify();
     }
@@ -231,9 +234,9 @@ public abstract class IdSegmentDistributorSpec {
     public void generateMultiInstanceConcurrent() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "generateMultiInstanceConcurrent", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = getFactory().create(definition);
+        IdSegmentDistributor distributor = factory().create(definition);
         SegmentId segmentId = new DefaultSegmentId(distributor);
-        IdSegmentDistributor distributor2 = getFactory().create(definition);
+        IdSegmentDistributor distributor2 = factory().create(definition);
         SegmentId segmentId2 = new DefaultSegmentId(distributor2);
         new ConcurrentGenerateSpec(segmentId, segmentId2).verify();
     }

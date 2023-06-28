@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
+import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 
 /**
@@ -27,6 +28,7 @@ public class IdConverterDefinition {
     private String suffix;
     private Radix radix = new Radix();
     private ToString toString;
+    private Custom custom;
     
     public Type getType() {
         return type;
@@ -66,6 +68,14 @@ public class IdConverterDefinition {
     
     public void setToString(ToString toString) {
         this.toString = toString;
+    }
+    
+    public Custom getCustom() {
+        return custom;
+    }
+    
+    public void setCustom(Custom custom) {
+        this.custom = custom;
     }
     
     /**
@@ -119,13 +129,27 @@ public class IdConverterDefinition {
         }
     }
     
+    public static class Custom {
+        private Class<? extends IdConverter> type;
+        
+        public Class<? extends IdConverter> getType() {
+            return type;
+        }
+        
+        public Custom setType(Class<? extends IdConverter> type) {
+            this.type = type;
+            return this;
+        }
+    }
+    
     /**
      * IdConverter Type.
      */
     public enum Type {
         TO_STRING,
         SNOWFLAKE_FRIENDLY,
-        RADIX
+        RADIX,
+        CUSTOM
     }
     
     interface PadStartIdConverter {

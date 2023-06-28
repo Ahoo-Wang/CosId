@@ -13,11 +13,6 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
-import me.ahoo.cosid.IdConverter;
-import me.ahoo.cosid.converter.PrefixIdConverter;
-import me.ahoo.cosid.converter.Radix62IdConverter;
-import me.ahoo.cosid.converter.SuffixIdConverter;
-import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
@@ -25,14 +20,12 @@ import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
-import me.ahoo.cosid.segment.StringSegmentId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 import me.ahoo.cosid.spring.boot.starter.Namespaces;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -108,34 +101,7 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
         }
         
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
-        
-        IdConverter idConverter = ToStringIdConverter.INSTANCE;
-        switch (converterDefinition.getType()) {
-            case TO_STRING: {
-                IdConverterDefinition.ToString toString = converterDefinition.getToString();
-                if (toString != null) {
-                    idConverter = new ToStringIdConverter(toString.isPadStart(), toString.getCharSize());
-                }
-                break;
-            }
-            case RADIX: {
-                IdConverterDefinition.Radix radix = converterDefinition.getRadix();
-                idConverter = Radix62IdConverter.of(radix.isPadStart(), radix.getCharSize());
-                break;
-            }
-            default:
-                throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
-        }
-        
-        if (!Strings.isNullOrEmpty(converterDefinition.getPrefix())) {
-            idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
-        }
-        if (!Strings.isNullOrEmpty(converterDefinition.getSuffix())) {
-            idConverter = new SuffixIdConverter(converterDefinition.getSuffix(), idConverter);
-        }
-        return new StringSegmentId(segmentId, idConverter);
-        
+        return new SegmentIdConverterDecorator(segmentId, converterDefinition).decorate();
     }
-    
     
 }

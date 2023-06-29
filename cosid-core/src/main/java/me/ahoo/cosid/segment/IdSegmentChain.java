@@ -24,21 +24,21 @@ import javax.annotation.concurrent.GuardedBy;
 public class IdSegmentChain implements IdSegment {
     public static final int ROOT_VERSION = -1;
     public static final IdSegmentChain NOT_SET = null;
-
+    
     private final long version;
     private final IdSegment idSegment;
     @GuardedBy("this")
     private volatile IdSegmentChain next;
-
+    
     public IdSegmentChain(IdSegmentChain previousChain, IdSegment idSegment) {
         this(previousChain.getVersion() + 1, idSegment);
     }
-
+    
     public IdSegmentChain(long version, IdSegment idSegment) {
         this.version = version;
         this.idSegment = idSegment;
     }
-
+    
     /**
      * try set next Chained ID segment.
      *
@@ -51,7 +51,7 @@ public class IdSegmentChain implements IdSegment {
         if (NOT_SET != next) {
             return false;
         }
-
+        
         synchronized (this) {
             if (NOT_SET != next) {
                 return false;
@@ -61,12 +61,12 @@ public class IdSegmentChain implements IdSegment {
             return true;
         }
     }
-
+    
     public void setNext(IdSegmentChain nextIdSegmentChain) {
         ensureNextIdSegment(nextIdSegmentChain);
         next = nextIdSegmentChain;
     }
-
+    
     public IdSegmentChain ensureSetNext(Function<IdSegmentChain, IdSegmentChain> idSegmentChainSupplier) throws NextIdSegmentExpiredException {
         IdSegmentChain currentChain = this;
         while (!currentChain.trySetNext(idSegmentChainSupplier)) {
@@ -74,57 +74,62 @@ public class IdSegmentChain implements IdSegment {
         }
         return currentChain;
     }
-
+    
     public IdSegmentChain getNext() {
         return next;
     }
-
+    
     public IdSegment getIdSegment() {
         return idSegment;
     }
-
+    
     public long getVersion() {
         return version;
     }
-
+    
     public int gap(IdSegmentChain end, long step) {
         return (int) ((end.getMaxId() - getSequence()) / step);
     }
-
+    
     public static IdSegmentChain newRoot() {
         return new IdSegmentChain(IdSegmentChain.ROOT_VERSION, DefaultIdSegment.OVERFLOW);
     }
-
+    
     @Override
     public long getFetchTime() {
         return idSegment.getFetchTime();
     }
-
+    
     @Override
     public long getMaxId() {
         return idSegment.getMaxId();
     }
-
+    
     @Override
     public long getOffset() {
         return idSegment.getOffset();
     }
-
+    
     @Override
     public long getSequence() {
         return idSegment.getSequence();
     }
-
+    
     @Override
     public long getStep() {
         return idSegment.getStep();
     }
-
+    
     @Override
     public long incrementAndGet() {
         return idSegment.incrementAndGet();
     }
-
+    
+    @Override
+    public boolean allowReset() {
+        return idSegment.allowReset();
+    }
+    
     @Override
     public String toString() {
         return "IdSegmentChain{"

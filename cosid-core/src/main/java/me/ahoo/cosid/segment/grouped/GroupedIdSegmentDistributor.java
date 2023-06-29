@@ -17,5 +17,9 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 
 public interface GroupedIdSegmentDistributor extends IdSegmentDistributor {
     GroupBySupplier groupBySupplier();
-
+    
+    @Override
+    default boolean allowReset() {
+        return true;
+    }
 }

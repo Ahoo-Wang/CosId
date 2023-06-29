@@ -63,8 +63,8 @@ public class SegmentChainId implements SegmentId {
      * -----
      * <pre>
      * synchronized (this) {
-     *   if (currentChain.getVersion() > headChain.getVersion()) {
-     *      headChain = currentChain;
+     *   if (forwardChain.getVersion() > headChain.getVersion()) {
+     *      headChain = forwardChain;
      *  }
      * }
      * </pre>
@@ -72,12 +72,18 @@ public class SegmentChainId implements SegmentId {
      * @param forwardChain forward IdSegmentChain
      */
     private void forward(IdSegmentChain forwardChain) {
-        if (forwardChain.compareTo(headChain) > 0) {
-            if (log.isDebugEnabled()) {
-                log.debug("Forward [{}] - [{}] -> [{}].", maxIdDistributor.getNamespacedName(), headChain, forwardChain);
-            }
+        if (headChain.getVersion() >= forwardChain.getVersion()) {
+            return;
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("Forward [{}] - [{}] -> [{}].", maxIdDistributor.getNamespacedName(), headChain, forwardChain);
+        }
+        if (forwardChain.allowReset()) {
+            headChain = forwardChain;
+        } else if (forwardChain.compareTo(headChain) > 0) {
             headChain = forwardChain;
         }
+        
     }
     
     private IdSegmentChain generateNext(IdSegmentChain previousChain, int segments) {

@@ -57,6 +57,10 @@ public interface IdSegmentDistributor {
         return Math.multiplyExact(getStep(), segments);
     }
     
+    default boolean allowReset() {
+        return false;
+    }
+    
     long nextMaxId(long step);
     
     default long nextMaxId() {
@@ -73,7 +77,7 @@ public interface IdSegmentDistributor {
         Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
         
         final long maxId = nextMaxId();
-        return new DefaultIdSegment(maxId, getStep(), Clock.CACHE.secondTime(), ttl);
+        return new DefaultIdSegment(maxId, getStep(), Clock.CACHE.secondTime(), ttl, allowReset());
     }
     
     @Nonnull
@@ -83,7 +87,7 @@ public interface IdSegmentDistributor {
         
         final long totalStep = getStep(segments);
         final long maxId = nextMaxId(totalStep);
-        final IdSegment nextIdSegment = new DefaultIdSegment(maxId, totalStep, Clock.CACHE.secondTime(), ttl);
+        final IdSegment nextIdSegment = new DefaultIdSegment(maxId, totalStep, Clock.CACHE.secondTime(), ttl, allowReset());
         return new MergedIdSegment(segments, nextIdSegment);
     }
     

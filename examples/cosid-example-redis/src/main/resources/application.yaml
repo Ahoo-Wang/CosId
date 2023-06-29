@@ -33,6 +33,7 @@ cosid:
           delimiter: "-"
       group:
         by: year
+      mode: chain
 
 logging:
   level:

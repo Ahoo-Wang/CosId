@@ -82,7 +82,7 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
     }
     
     private long getMinTtl(long ttl) {
-        long groupedTtl = currentGroup.group().ttl();
+        long groupedTtl = ensureGrouped().group.ttl();
         return Math.min(groupedTtl, ttl);
     }
     
@@ -143,5 +143,9 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
             return idSegmentDistributor.nextMaxId(step);
         }
         
+        @Override
+        public boolean allowReset() {
+            return true;
+        }
     }
 }

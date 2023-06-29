@@ -77,6 +77,11 @@ public class MergedIdSegment implements IdSegment {
     }
     
     @Override
+    public boolean allowReset() {
+        return idSegment.allowReset();
+    }
+    
+    @Override
     public long incrementAndGet() {
         return idSegment.incrementAndGet();
     }

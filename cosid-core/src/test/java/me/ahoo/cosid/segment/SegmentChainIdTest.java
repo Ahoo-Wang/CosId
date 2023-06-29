@@ -34,9 +34,9 @@ class SegmentChainIdTest {
     @Test
     void sort() {
         IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
-        IdSegmentChain idSegmentChain1 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
-        IdSegmentChain idSegmentChain2 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
-        IdSegmentChain idSegmentChain3 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot());
+        IdSegmentChain idSegmentChain1 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(false));
+        IdSegmentChain idSegmentChain2 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(false));
+        IdSegmentChain idSegmentChain3 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(false));
         List<IdSegmentChain> chainList = Arrays.asList(idSegmentChain2, idSegmentChain1, idSegmentChain3);
         chainList.sort(null);
         Assertions.assertEquals(idSegmentChain1, chainList.get(0));
@@ -47,7 +47,7 @@ class SegmentChainIdTest {
     @Test
     void nextIdSegmentsChain() {
         IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
-        IdSegmentChain rootChain = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(), 3, TIME_TO_LIVE_FOREVER);
+        IdSegmentChain rootChain = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(true), 3, TIME_TO_LIVE_FOREVER);
         Assertions.assertEquals(0, rootChain.getVersion());
         Assertions.assertEquals(0, rootChain.getIdSegment().getOffset());
         Assertions.assertEquals(30, rootChain.getStep());

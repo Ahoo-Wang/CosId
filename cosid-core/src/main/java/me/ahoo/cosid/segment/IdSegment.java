@@ -70,7 +70,8 @@ public interface IdSegment extends Comparable<IdSegment> {
              */
             return false;
         }
-        return Clock.CACHE.secondTime() - getFetchTime() > getTtl();
+        
+        return Clock.SYSTEM.secondTime() - getFetchTime() > getTtl();
     }
     
     default boolean isOverflow() {

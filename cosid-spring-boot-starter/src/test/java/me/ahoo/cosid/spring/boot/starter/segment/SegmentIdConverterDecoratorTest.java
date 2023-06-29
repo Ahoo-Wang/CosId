@@ -13,12 +13,12 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.SuffixIdConverter;
+import me.ahoo.cosid.converter.YearPrefixIdConverter;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentId;
@@ -59,6 +59,25 @@ public class SegmentIdConverterDecoratorTest {
         SegmentId segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         SegmentId newIdGen = new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate();
         assertThat(newIdGen.idConverter(), instanceOf(SuffixIdConverter.class));
+    }
+    
+    @Test
+    void withYearPrefix() {
+        IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
+        idConverterDefinition.setYearPrefix(new IdConverterDefinition.YearPrefix().setEnabled(true));
+        SegmentId segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
+        SegmentId newIdGen = new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate();
+        assertThat(newIdGen.idConverter(), instanceOf(YearPrefixIdConverter.class));
+    }
+    
+    @Test
+    void withYearPrefixAfterPrefix() {
+        IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
+        idConverterDefinition.setYearPrefix(new IdConverterDefinition.YearPrefix().setEnabled(true).setBeforePrefix(false));
+        idConverterDefinition.setPrefix("prefix-");
+        SegmentId segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
+        SegmentId newIdGen = new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate();
+        assertThat(newIdGen.idConverter(), instanceOf(YearPrefixIdConverter.class));
     }
     
     public static class CustomIdConverter implements IdConverter {

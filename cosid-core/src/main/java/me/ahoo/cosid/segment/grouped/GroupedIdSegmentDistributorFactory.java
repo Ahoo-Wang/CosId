@@ -20,17 +20,17 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import javax.annotation.Nonnull;
 
 public class GroupedIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
-    private final GroupedSupplier groupedSupplier;
+    private final GroupBySupplier groupBySupplier;
     private final IdSegmentDistributorFactory actual;
     
-    public GroupedIdSegmentDistributorFactory(GroupedSupplier groupedSupplier, IdSegmentDistributorFactory actual) {
-        this.groupedSupplier = groupedSupplier;
+    public GroupedIdSegmentDistributorFactory(GroupBySupplier groupBySupplier, IdSegmentDistributorFactory actual) {
+        this.groupBySupplier = groupBySupplier;
         this.actual = actual;
     }
     
     @Nonnull
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
-        return new DefaultGroupedIdSegmentDistributor(groupedSupplier, definition, actual);
+        return new DefaultGroupedIdSegmentDistributor(groupBySupplier, definition, actual);
     }
 }

@@ -182,7 +182,7 @@ public abstract class IdSegmentDistributorSpec {
     
     @Test
     public void nextIdSegmentChain() {
-        IdSegmentChain root = IdSegmentChain.newRoot();
+        IdSegmentChain root = IdSegmentChain.newRoot(false);
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextIdSegmentChain", TEST_OFFSET, TEST_STEP);
         IdSegmentDistributor distributor = factory().create(definition);

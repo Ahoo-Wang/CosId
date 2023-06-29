@@ -25,9 +25,9 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  * @author ahoo wang
  */
 public class DefaultIdSegment implements IdSegment {
-
-    public static final DefaultIdSegment OVERFLOW = new DefaultIdSegment(IdSegment.SEQUENCE_OVERFLOW, 0, Clock.CACHE.secondTime(), TIME_TO_LIVE_FOREVER);
-
+    
+    public static final DefaultIdSegment OVERFLOW = new DefaultIdSegment(IdSegment.SEQUENCE_OVERFLOW, 0, Clock.SYSTEM.secondTime(), TIME_TO_LIVE_FOREVER);
+    
     /**
      * include.
      */
@@ -37,13 +37,12 @@ public class DefaultIdSegment implements IdSegment {
     private volatile long sequence;
     private final long fetchTime;
     private final long ttl;
-
     private static final AtomicLongFieldUpdater<DefaultIdSegment> S = AtomicLongFieldUpdater.newUpdater(DefaultIdSegment.class, "sequence");
-
+    
     public DefaultIdSegment(long maxId, long step) {
-        this(maxId, step, Clock.CACHE.secondTime(), TIME_TO_LIVE_FOREVER);
+        this(maxId, step, Clock.SYSTEM.secondTime(), TIME_TO_LIVE_FOREVER);
     }
-
+    
     public DefaultIdSegment(long maxId, long step, long fetchTime, long ttl) {
         Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
         this.maxId = maxId;
@@ -53,51 +52,51 @@ public class DefaultIdSegment implements IdSegment {
         this.fetchTime = fetchTime;
         this.ttl = ttl;
     }
-
+    
     @Override
     public long getFetchTime() {
         return fetchTime;
     }
-
+    
     @Override
     public long getTtl() {
         return ttl;
     }
-
+    
     @Override
     public long getMaxId() {
         return maxId;
     }
-
+    
     @Override
     public long getOffset() {
         return offset;
     }
-
+    
     @Override
     public long getSequence() {
         return sequence;
     }
-
+    
     @Override
     public long getStep() {
         return step;
     }
-
+    
     @Override
     public long incrementAndGet() {
         if (isOverflow()) {
             return SEQUENCE_OVERFLOW;
         }
-
+        
         final long nextSeq = S.incrementAndGet(this);
-
+        
         if (isOverflow(nextSeq)) {
             return SEQUENCE_OVERFLOW;
         }
         return nextSeq;
     }
-
+    
     @Override
     public String toString() {
         return "DefaultIdSegment{"

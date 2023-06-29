@@ -25,6 +25,7 @@ public class IdConverterDefinition {
     
     private Type type = Type.RADIX;
     private String prefix;
+    private YearPrefix yearPrefix = new YearPrefix();
     private String suffix;
     private Radix radix = new Radix();
     private ToString toString;
@@ -44,6 +45,14 @@ public class IdConverterDefinition {
     
     public void setPrefix(String prefix) {
         this.prefix = prefix;
+    }
+    
+    public YearPrefix getYearPrefix() {
+        return yearPrefix;
+    }
+    
+    public void setYearPrefix(YearPrefix yearPrefix) {
+        this.yearPrefix = yearPrefix;
     }
     
     public String getSuffix() {
@@ -126,6 +135,39 @@ public class IdConverterDefinition {
         
         public void setCharSize(int charSize) {
             this.charSize = charSize;
+        }
+    }
+    
+    public static class YearPrefix {
+        private boolean enabled = false;
+        private String delimiter = "";
+        private boolean beforePrefix = true;
+        
+        public boolean isEnabled() {
+            return enabled;
+        }
+        
+        public YearPrefix setEnabled(boolean enabled) {
+            this.enabled = enabled;
+            return this;
+        }
+        
+        public String getDelimiter() {
+            return delimiter;
+        }
+        
+        public YearPrefix setDelimiter(String delimiter) {
+            this.delimiter = delimiter;
+            return this;
+        }
+        
+        public boolean isBeforePrefix() {
+            return beforePrefix;
+        }
+        
+        public YearPrefix setBeforePrefix(boolean beforePrefix) {
+            this.beforePrefix = beforePrefix;
+            return this;
         }
     }
     

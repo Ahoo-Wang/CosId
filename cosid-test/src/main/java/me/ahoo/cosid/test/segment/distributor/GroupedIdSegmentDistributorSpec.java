@@ -13,25 +13,26 @@
 
 package me.ahoo.cosid.test.segment.distributor;
 
-import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_SEGMENTS;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.segment.IdSegment;
+import me.ahoo.cosid.segment.IdSegmentChain;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
-import me.ahoo.cosid.segment.grouped.DateGroupedSupplier;
+import me.ahoo.cosid.segment.grouped.DateGroupBySupplier;
+import me.ahoo.cosid.segment.grouped.GroupBySupplier;
 import me.ahoo.cosid.segment.grouped.GroupedIdSegmentDistributorFactory;
-import me.ahoo.cosid.segment.grouped.GroupedSupplier;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Test;
 
 public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistributorSpec {
     
-    protected GroupedSupplier groupedSupplier() {
-        return DateGroupedSupplier.YEAR;
+    protected GroupBySupplier groupedSupplier() {
+        return DateGroupBySupplier.YEAR;
     }
     
     @Override
@@ -62,5 +63,19 @@ public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistribut
         assertThat(actual.getSequence(), equalTo(0L));
         assertThat(actual.getTtl(), equalTo(groupedSupplier().get().ttl()));
     }
-
+    
+    @Test
+    @Override
+    public void nextIdSegmentChain() {
+        IdSegmentChain root = IdSegmentChain.newRoot(false);
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextIdSegmentChain", TEST_OFFSET, TEST_STEP);
+        IdSegmentDistributor distributor = factory().create(definition);
+        long expectedMaxId = TEST_OFFSET + Math.multiplyExact(TEST_STEP, DEFAULT_SEGMENTS);
+        IdSegment actual = distributor.nextIdSegmentChain(root);
+        assertThat(actual.getMaxId(), equalTo(expectedMaxId));
+        assertThat(actual.getStep(), equalTo(TEST_STEP));
+        assertThat(actual.getSequence(), equalTo(0L));
+        assertThat(actual.getTtl(), equalTo(groupedSupplier().get().ttl()));
+    }
 }

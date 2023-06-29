@@ -13,16 +13,8 @@
 
 package me.ahoo.cosid.segment.grouped;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import java.util.function.Supplier;
 
-import org.junit.jupiter.api.Test;
-
-class DateGroupedSupplierTest {
-    
-    @Test
-    void year() {
-        assertThat(DateGroupedSupplier.YEAR.get(), notNullValue());
-    }
-
+public interface GroupBySupplier extends Supplier<GroupedKey> {
 }
+

@@ -22,20 +22,20 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import javax.annotation.Nonnull;
 
 public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistributor {
-    private final GroupedSupplier groupedSupplier;
+    private final GroupBySupplier groupBySupplier;
     private final IdSegmentDistributorDefinition idSegmentDistributorDefinition;
     private final IdSegmentDistributorFactory idSegmentDistributorFactory;
     private volatile GroupedBinding currentGroup;
     
-    public DefaultGroupedIdSegmentDistributor(GroupedSupplier groupedSupplier, IdSegmentDistributorDefinition idSegmentDistributorDefinition, IdSegmentDistributorFactory idSegmentDistributorFactory) {
-        this.groupedSupplier = groupedSupplier;
+    public DefaultGroupedIdSegmentDistributor(GroupBySupplier groupBySupplier, IdSegmentDistributorDefinition idSegmentDistributorDefinition, IdSegmentDistributorFactory idSegmentDistributorFactory) {
+        this.groupBySupplier = groupBySupplier;
         this.idSegmentDistributorDefinition = idSegmentDistributorDefinition;
         this.idSegmentDistributorFactory = idSegmentDistributorFactory;
         this.ensureGrouped();
     }
     
     private GroupedBinding ensureGrouped() {
-        GroupedKey groupedKey = groupedSupplier.get();
+        GroupedKey groupedKey = groupBySupplier.get();
         if (currentGroup != null && currentGroup.group().equals(groupedKey)) {
             return currentGroup;
         }
@@ -43,7 +43,7 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
             if (currentGroup != null && currentGroup.group().equals(groupedKey)) {
                 return currentGroup;
             }
-            String groupedName = idSegmentDistributorDefinition.getName() + "@" + groupedKey;
+            String groupedName = idSegmentDistributorDefinition.getName() + "@" + groupedKey.getKey();
             IdSegmentDistributorDefinition groupedDef = new IdSegmentDistributorDefinition(idSegmentDistributorDefinition.getNamespace(),
                 groupedName,
                 idSegmentDistributorDefinition.getOffset(),
@@ -55,25 +55,25 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
     }
     
     @Override
-    public GroupedSupplier groupedSupplier() {
-        return groupedSupplier;
+    public GroupBySupplier groupBySupplier() {
+        return groupBySupplier;
     }
     
     @Nonnull
     @Override
     public String getNamespace() {
-        return idSegmentDistributorDefinition.getNamespace();
+        return this.idSegmentDistributorDefinition.getNamespace();
     }
     
     @Nonnull
     @Override
     public String getName() {
-        return idSegmentDistributorDefinition.getName();
+        return this.idSegmentDistributorDefinition.getName();
     }
     
     @Override
     public long getStep() {
-        return idSegmentDistributorDefinition.getStep();
+        return this.idSegmentDistributorDefinition.getStep();
     }
     
     @Override
@@ -82,7 +82,7 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
     }
     
     private long getMinTtl(long ttl) {
-        long groupedTtl = currentGroup.group().ttl();
+        long groupedTtl = ensureGrouped().group.ttl();
         return Math.min(groupedTtl, ttl);
     }
     
@@ -143,5 +143,9 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
             return idSegmentDistributor.nextMaxId(step);
         }
         
+        @Override
+        public boolean allowReset() {
+            return true;
+        }
     }
 }

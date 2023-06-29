@@ -3,8 +3,9 @@ server:
 spring:
   application:
     name: ${service.name:cosid-example-redis}
-  redis:
-    host: localhost
+  data:
+    redis:
+      host: localhost
 cosid:
   namespace: ${spring.application.name}
   machine:
@@ -25,6 +26,14 @@ cosid:
         type: to_string
         to-string:
           pad-start: true
+          char-size: 8
+        prefix: COSID-
+        year-prefix:
+          enabled: true
+          delimiter: "-"
+      group:
+        by: year
+      mode: chain
 
 logging:
   level:

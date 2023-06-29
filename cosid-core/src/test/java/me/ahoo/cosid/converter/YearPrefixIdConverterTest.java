@@ -11,10 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.segment.grouped;
+package me.ahoo.cosid.converter;
 
-import java.util.function.Supplier;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
-public interface GroupedSupplier extends Supplier<GroupedKey> {
+import org.junit.jupiter.api.Test;
+
+import java.time.Year;
+
+class YearPrefixIdConverterTest {
+    
+    @Test
+    void asString() {
+        YearPrefixIdConverter converter = new YearPrefixIdConverter("-", ToStringIdConverter.INSTANCE);
+        assertThat(converter.getDelimiter(), equalTo("-"));
+        assertThat(converter.asString(1), equalTo(Year.now() + "-1"));
+        assertThat(converter.asLong("2023-1"), equalTo(1L));
+    }
 }
-

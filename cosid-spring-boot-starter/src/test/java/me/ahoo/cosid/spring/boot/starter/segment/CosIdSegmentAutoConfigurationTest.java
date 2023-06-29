@@ -46,6 +46,7 @@ class CosIdSegmentAutoConfigurationTest {
             .withPropertyValues(SegmentIdProperties.PREFIX + ".share.enabled=false")
             .withPropertyValues(SegmentIdProperties.PREFIX + ".provider.test.group.by=year")
             .withPropertyValues(SegmentIdProperties.PREFIX + ".provider.test.converter.type=to_string")
+            .withPropertyValues(SegmentIdProperties.PREFIX + ".provider.test.converter.year-prefix.enabled=true")
             .withPropertyValues(SegmentIdProperties.PREFIX + ".provider.test.converter.to_string.pad-start=true")
             .withUserConfiguration(CosIdAutoConfiguration.class, DataSourceAutoConfiguration.class, CosIdJdbcSegmentAutoConfiguration.class, CosIdSegmentAutoConfiguration.class)
             .run(context -> {

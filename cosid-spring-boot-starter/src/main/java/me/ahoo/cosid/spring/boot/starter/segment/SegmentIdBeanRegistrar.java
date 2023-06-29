@@ -71,7 +71,7 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
     private void registerIdDefinition(String name, SegmentIdProperties.IdDefinition idDefinition) {
         IdSegmentDistributorDefinition distributorDefinition = asDistributorDefinition(name, idDefinition);
         IdSegmentDistributor idSegmentDistributor;
-        if (idDefinition.getGroupBy() == SegmentIdProperties.IdDefinition.GroupBy.YEAR) {
+        if (idDefinition.getGroup().getBy() == SegmentIdProperties.IdDefinition.GroupBy.YEAR) {
             idSegmentDistributor = new GroupedIdSegmentDistributorFactory(DateGroupBySupplier.YEAR, distributorFactory).create(distributorDefinition);
         } else {
             idSegmentDistributor = distributorFactory.create(distributorDefinition);

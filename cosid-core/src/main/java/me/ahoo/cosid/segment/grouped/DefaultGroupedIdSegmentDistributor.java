@@ -62,18 +62,18 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
     @Nonnull
     @Override
     public String getNamespace() {
-        return this.ensureGrouped().getNamespace();
+        return this.idSegmentDistributorDefinition.getNamespace();
     }
     
     @Nonnull
     @Override
     public String getName() {
-        return this.ensureGrouped().getName();
+        return this.idSegmentDistributorDefinition.getName();
     }
     
     @Override
     public long getStep() {
-        return this.ensureGrouped().getStep();
+        return this.idSegmentDistributorDefinition.getStep();
     }
     
     @Override

@@ -21,7 +21,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
-import me.ahoo.cosid.segment.grouped.DateGroupedSupplier;
+import me.ahoo.cosid.segment.grouped.DateGroupBySupplier;
 import me.ahoo.cosid.segment.grouped.GroupedIdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
@@ -71,8 +71,8 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
     private void registerIdDefinition(String name, SegmentIdProperties.IdDefinition idDefinition) {
         IdSegmentDistributorDefinition distributorDefinition = asDistributorDefinition(name, idDefinition);
         IdSegmentDistributor idSegmentDistributor;
-        if (idDefinition.getGrouped() == SegmentIdProperties.IdDefinition.Grouped.YEAR) {
-            idSegmentDistributor = new GroupedIdSegmentDistributorFactory(DateGroupedSupplier.YEAR, distributorFactory).create(distributorDefinition);
+        if (idDefinition.getGroupBy() == SegmentIdProperties.IdDefinition.GroupBy.YEAR) {
+            idSegmentDistributor = new GroupedIdSegmentDistributorFactory(DateGroupBySupplier.YEAR, distributorFactory).create(distributorDefinition);
         } else {
             idSegmentDistributor = distributorFactory.create(distributorDefinition);
         }

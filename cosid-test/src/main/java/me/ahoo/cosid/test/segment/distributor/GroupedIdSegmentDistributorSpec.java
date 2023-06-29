@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.test.segment.distributor;
 
-import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
@@ -21,17 +20,17 @@ import me.ahoo.cosid.segment.IdSegment;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
-import me.ahoo.cosid.segment.grouped.DateGroupedSupplier;
+import me.ahoo.cosid.segment.grouped.DateGroupBySupplier;
 import me.ahoo.cosid.segment.grouped.GroupedIdSegmentDistributorFactory;
-import me.ahoo.cosid.segment.grouped.GroupedSupplier;
+import me.ahoo.cosid.segment.grouped.GroupBySupplier;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Test;
 
 public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistributorSpec {
     
-    protected GroupedSupplier groupedSupplier() {
-        return DateGroupedSupplier.YEAR;
+    protected GroupBySupplier groupedSupplier() {
+        return DateGroupBySupplier.YEAR;
     }
     
     @Override

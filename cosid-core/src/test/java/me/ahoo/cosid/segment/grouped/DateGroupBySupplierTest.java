@@ -13,25 +13,16 @@
 
 package me.ahoo.cosid.segment.grouped;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.Year;
-import java.time.ZoneId;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
-public enum DateGroupedSupplier implements GroupedSupplier {
-    YEAR {
-        @Override
-        public GroupedKey get() {
-            Year nowYear = Year.now();
-            String key = nowYear.toString();
-            
-            LocalDateTime lastTs = LocalDateTime.of(LocalDate.MAX.withYear(nowYear.getValue()), LocalTime.MAX);
-            ZoneId currentZone = ZoneId.systemDefault();
-            long ttlAt = lastTs.atZone(currentZone).toInstant().toEpochMilli() / 1000;
-            return new GroupedKey(key, ttlAt);
-        }
+import org.junit.jupiter.api.Test;
+
+class DateGroupBySupplierTest {
+    
+    @Test
+    void year() {
+        assertThat(DateGroupBySupplier.YEAR.get(), notNullValue());
     }
-    
-    
+
 }

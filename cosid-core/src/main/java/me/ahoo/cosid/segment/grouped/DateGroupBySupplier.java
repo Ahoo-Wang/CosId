@@ -13,8 +13,25 @@
 
 package me.ahoo.cosid.segment.grouped;
 
-import java.util.function.Supplier;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.Year;
+import java.time.ZoneId;
 
-public interface GroupedSupplier extends Supplier<GroupedKey> {
+public enum DateGroupBySupplier implements GroupBySupplier {
+    YEAR {
+        @Override
+        public GroupedKey get() {
+            Year nowYear = Year.now();
+            String key = nowYear.toString();
+            
+            LocalDateTime lastTs = LocalDateTime.of(LocalDate.MAX.withYear(nowYear.getValue()), LocalTime.MAX);
+            ZoneId currentZone = ZoneId.systemDefault();
+            long ttlAt = lastTs.atZone(currentZone).toInstant().toEpochMilli() / 1000;
+            return new GroupedKey(key, ttlAt);
+        }
+    }
+    
+    
 }
-

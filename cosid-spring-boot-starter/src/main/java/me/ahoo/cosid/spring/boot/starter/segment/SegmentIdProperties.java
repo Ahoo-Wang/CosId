@@ -329,7 +329,7 @@ public class SegmentIdProperties {
         private Chain chain;
         @NestedConfigurationProperty
         private IdConverterDefinition converter = new IdConverterDefinition();
-        private Grouped grouped = Grouped.NEVER;
+        private GroupBy groupBy = GroupBy.NEVER;
         
         public String getNamespace() {
             return namespace;
@@ -387,15 +387,16 @@ public class SegmentIdProperties {
             this.converter = converter;
         }
         
-        public Grouped getGrouped() {
-            return grouped;
+        public GroupBy getGroupBy() {
+            return groupBy;
         }
         
-        public void setGrouped(Grouped grouped) {
-            this.grouped = grouped;
+        public IdDefinition setGroupBy(GroupBy groupBy) {
+            this.groupBy = groupBy;
+            return this;
         }
         
-        public enum Grouped {
+        public enum GroupBy {
             YEAR,
             NEVER
         }

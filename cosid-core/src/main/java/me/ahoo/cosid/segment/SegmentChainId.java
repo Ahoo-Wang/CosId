@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class SegmentChainId implements SegmentId {
-    public static final int DEFAULT_SAFE_DISTANCE = 1;
+    public static final int DEFAULT_SAFE_DISTANCE = 2;
     
     private final long idSegmentTtl;
     private final int safeDistance;

@@ -26,7 +26,7 @@ class DefaultGroupedIdSegmentDistributorTest {
     
     @Test
     void ensureGrouped() {
-        MockGroupedSupplier groupedSupplier = new MockGroupedSupplier(GroupedKey.forever("group-1"));
+        MockGroupBySupplier groupedSupplier = new MockGroupBySupplier(GroupedKey.forever("group-1"));
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition("ns", "n", 0, 1);
         IdSegmentDistributorFactory actual = definition1 -> new IdSegmentDistributor.Mock();
         DefaultGroupedIdSegmentDistributor distributor = new DefaultGroupedIdSegmentDistributor(groupedSupplier, definition, actual);
@@ -34,20 +34,20 @@ class DefaultGroupedIdSegmentDistributorTest {
         assertThat(maxId1, equalTo(1L));
         long maxId2 = distributor.nextMaxId(1);
         assertThat(maxId2, equalTo(2L));
-        assertThat(distributor.groupedSupplier().get().getKey(), equalTo("group-1"));
+        assertThat(distributor.groupBySupplier().get().getKey(), equalTo("group-1"));
         
         groupedSupplier.setGroup(GroupedKey.forever("group-2"));
         maxId1 = distributor.nextMaxId(1);
         assertThat(maxId1, equalTo(1L));
         maxId2 = distributor.nextMaxId(1);
         assertThat(maxId2, equalTo(2L));
-        assertThat(distributor.groupedSupplier().get().getKey(), equalTo("group-2"));
+        assertThat(distributor.groupBySupplier().get().getKey(), equalTo("group-2"));
     }
     
-    public static class MockGroupedSupplier implements GroupedSupplier {
+    public static class MockGroupBySupplier implements GroupBySupplier {
         private GroupedKey group;
         
-        public MockGroupedSupplier(GroupedKey group) {
+        public MockGroupBySupplier(GroupedKey group) {
             this.group = group;
         }
         
@@ -55,7 +55,7 @@ class DefaultGroupedIdSegmentDistributorTest {
             return group;
         }
         
-        public MockGroupedSupplier setGroup(GroupedKey group) {
+        public MockGroupBySupplier setGroup(GroupedKey group) {
             this.group = group;
             return this;
         }

@@ -16,6 +16,6 @@ package me.ahoo.cosid.segment.grouped;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
 public interface GroupedIdSegmentDistributor extends IdSegmentDistributor {
-    GroupedSupplier groupedSupplier();
+    GroupBySupplier groupBySupplier();
 
 }

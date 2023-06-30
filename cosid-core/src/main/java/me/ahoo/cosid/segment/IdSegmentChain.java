@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.segment;
 
+import me.ahoo.cosid.segment.grouped.GroupedKey;
+
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
 
@@ -86,6 +88,11 @@ public class IdSegmentChain implements IdSegment {
     
     public IdSegment getIdSegment() {
         return idSegment;
+    }
+    
+    @Override
+    public GroupedKey group() {
+        return idSegment.group();
     }
     
     public long getVersion() {

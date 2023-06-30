@@ -27,6 +27,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.test.Assert;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 import me.ahoo.cosid.test.MockIdGenerator;
@@ -51,6 +52,15 @@ public abstract class IdSegmentDistributorSpec {
     
     protected IdSegmentDistributorFactory factory() {
         return getFactory();
+    }
+    
+    @Test
+    public void getGroup() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        String name = "getGroup";
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, name, TEST_OFFSET, TEST_STEP);
+        IdSegmentDistributor distributor = factory().create(definition);
+        assertThat(distributor.group(), equalTo(GroupedKey.NEVER));
     }
     
     @Test

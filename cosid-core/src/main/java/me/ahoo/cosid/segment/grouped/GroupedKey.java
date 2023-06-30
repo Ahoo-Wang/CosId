@@ -21,6 +21,7 @@ import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
 public final class GroupedKey {
+    public static final GroupedKey NEVER = new GroupedKey("", IdSegment.TIME_TO_LIVE_FOREVER);
     private final String key;
     private final long ttlAt;
     

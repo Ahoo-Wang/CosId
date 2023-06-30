@@ -15,6 +15,8 @@ package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
+import me.ahoo.cosid.segment.grouped.Grouped;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.util.Clock;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -32,7 +34,7 @@ import java.util.concurrent.locks.LockSupport;
  *
  * @author ahoo wang
  */
-public interface IdSegmentDistributor {
+public interface IdSegmentDistributor extends Grouped {
     int DEFAULT_SEGMENTS = 1;
     long DEFAULT_OFFSET = 0;
     long DEFAULT_STEP = 10;
@@ -58,7 +60,7 @@ public interface IdSegmentDistributor {
     }
     
     default boolean allowReset() {
-        return false;
+        return GroupedKey.NEVER.equals(group());
     }
     
     long nextMaxId(long step);
@@ -77,7 +79,7 @@ public interface IdSegmentDistributor {
         Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
         
         final long maxId = nextMaxId();
-        return new DefaultIdSegment(maxId, getStep(), Clock.SYSTEM.secondTime(), ttl);
+        return new DefaultIdSegment(maxId, getStep(), Clock.SYSTEM.secondTime(), ttl, group());
     }
     
     @Nonnull
@@ -87,7 +89,7 @@ public interface IdSegmentDistributor {
         
         final long totalStep = getStep(segments);
         final long maxId = nextMaxId(totalStep);
-        final IdSegment nextIdSegment = new DefaultIdSegment(maxId, totalStep, Clock.SYSTEM.secondTime(), ttl);
+        final IdSegment nextIdSegment = new DefaultIdSegment(maxId, totalStep, Clock.SYSTEM.secondTime(), ttl, group());
         return new MergedIdSegment(segments, nextIdSegment);
     }
     

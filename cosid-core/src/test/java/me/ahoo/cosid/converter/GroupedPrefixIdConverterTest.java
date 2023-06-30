@@ -13,20 +13,28 @@
 
 package me.ahoo.cosid.converter;
 
+import static me.ahoo.cosid.converter.GroupedPrefixIdConverter.DEFAULT_DELIMITER;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
+import me.ahoo.cosid.segment.grouped.GroupedAccessor;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
+
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.time.Year;
-
 class GroupedPrefixIdConverterTest {
+    GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter(DEFAULT_DELIMITER, ToStringIdConverter.INSTANCE);
     
     @Test
     void asString() {
-        GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter("-", ToStringIdConverter.INSTANCE);
+        GroupedAccessor.set(GroupedKey.forever("2023"));
         assertThat(converter.getDelimiter(), equalTo("-"));
-        assertThat(converter.asString(1), equalTo(Year.now() + "-1"));
-        assertThat(converter.asLong("2023-1"), equalTo(1L));
+        assertThat(converter.asString(1), equalTo("2023-1"));
+    }
+    
+    @Test
+    void asLong() {
+        Assertions.assertThrows(UnsupportedOperationException.class, () -> converter.asLong("2023-1"));
     }
 }

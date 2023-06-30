@@ -52,7 +52,7 @@ public class DefaultSegmentId implements SegmentId {
     public long generate() {
         
         if (maxIdDistributor.getStep() == ONE_STEP) {
-            GroupedAccessor.setIfNotNever(segment.group());
+            GroupedAccessor.setIfNotNever(maxIdDistributor.group());
             return maxIdDistributor.nextMaxId();
         }
         long nextSeq;

@@ -35,7 +35,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Publish package
-        run: gradle publishAllPublicationsToGitHubPackagesRepository
+        run: ./gradlew publishAllPublicationsToGitHubPackagesRepository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
@@ -56,7 +56,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Publish package
-        run: gradle publishToSonatype closeAndReleaseSonatypeStagingRepository
+        run: ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}

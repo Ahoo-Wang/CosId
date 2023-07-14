@@ -71,4 +71,4 @@ jobs:
 
       - name: Benchmark Test
         working-directory: cosid-benchmark
-        run: gradle clean jmh
+        run: ./gradlew clean jmh

@@ -56,7 +56,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Build Dist
-        run: gradle cosid-proxy-server:installDist
+        run: ./gradlew cosid-proxy-server:installDist
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2

@@ -12,8 +12,9 @@
  */
 
 plugins {
-    id("io.github.gradle-nexus.publish-plugin")
-    id("me.champeau.jmh")
+    alias(libs.plugins.publishPlugin)
+    alias(libs.plugins.jmhPlugin)
+    alias(libs.plugins.spotbugsPlugin)
     `java-library`
     jacoco
 }
@@ -40,9 +41,7 @@ val codeCoverageReportProject = project(":code-coverage-report")
 val publishProjects = subprojects - serverProjects - codeCoverageReportProject
 val libraryProjects = publishProjects - bomProjects
 
-ext {
-    set("libraryProjects", libraryProjects)
-}
+ext.set("libraryProjects", libraryProjects)
 
 allprojects {
     repositories {
@@ -221,7 +220,7 @@ configure(publishProjects) {
 }
 
 nexusPublishing {
-    repositories {
+    this.repositories {
         sonatype {
             username.set(System.getenv("MAVEN_USERNAME"))
             password.set(System.getenv("MAVEN_PASSWORD"))

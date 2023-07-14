@@ -83,7 +83,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: CosId-Spring-Redis
-        run: gradle cosid-spring-redis:clean cosid-spring-redis:jmh
+        run: ./gradlew cosid-spring-redis:clean cosid-spring-redis:jmh
 
   cosid-jdbc-benchmark:
     name: CosId Jdbc Benchmark

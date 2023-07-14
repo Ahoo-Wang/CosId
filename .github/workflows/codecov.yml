@@ -51,7 +51,7 @@ jobs:
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: Build Code Coverage Report
-        run: gradle codeCoverageReport --stacktrace
+        run: ./gradlew codeCoverageReport --stacktrace
 
       - name: Upload Code Coverage Report to Codecov
         uses: codecov/codecov-action@v3

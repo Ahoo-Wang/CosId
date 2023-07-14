@@ -14,3 +14,9 @@
 dependencies {
     testImplementation(project(":cosid-test"))
 }
+
+tasks.withType<Test>().all {
+    jvmArgs(
+        "--add-opens=java.base/java.lang=ALL-UNNAMED"
+    )
+}

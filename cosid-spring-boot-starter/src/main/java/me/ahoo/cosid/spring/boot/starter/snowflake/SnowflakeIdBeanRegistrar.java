@@ -29,6 +29,7 @@ import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 import com.google.common.base.MoreObjects;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.lang.Nullable;
 
 import java.time.ZoneId;
 
@@ -41,6 +42,8 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     private final MachineIdDistributor machineIdDistributor;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
     private final ConfigurableApplicationContext applicationContext;
+    @Nullable
+    private final CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties;
     
     public SnowflakeIdBeanRegistrar(CosIdProperties cosIdProperties,
                                     MachineProperties machineProperties,
@@ -49,7 +52,8 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
                                     IdGeneratorProvider idGeneratorProvider,
                                     MachineIdDistributor machineIdDistributor,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer,
-                                    ConfigurableApplicationContext applicationContext) {
+                                    ConfigurableApplicationContext applicationContext,
+                                    @Nullable CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties) {
         this.cosIdProperties = cosIdProperties;
         this.machineProperties = machineProperties;
         this.snowflakeIdProperties = snowflakeIdProperties;
@@ -58,6 +62,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         this.machineIdDistributor = machineIdDistributor;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
         this.applicationContext = applicationContext;
+        this.customizeSnowflakeIdProperties = customizeSnowflakeIdProperties;
     }
     
     @Override
@@ -66,6 +71,9 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     }
     
     public void register() {
+        if (customizeSnowflakeIdProperties != null) {
+            customizeSnowflakeIdProperties.customize(snowflakeIdProperties);
+        }
         SnowflakeIdProperties.ShardIdDefinition shareIdDefinition = snowflakeIdProperties.getShare();
         if (shareIdDefinition.isEnabled()) {
             registerIdDefinition(IdGeneratorProvider.SHARE, shareIdDefinition);

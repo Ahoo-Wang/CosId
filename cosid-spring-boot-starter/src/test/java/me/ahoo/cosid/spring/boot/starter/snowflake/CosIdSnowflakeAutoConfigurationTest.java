@@ -16,12 +16,9 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineId;
 import me.ahoo.cosid.machine.MachineStateStorage;
-import me.ahoo.cosid.machine.ManualMachineIdDistributor;
-import me.ahoo.cosid.machine.k8s.StatefulSetMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdLifecycleMachineIdDistributor;
@@ -29,7 +26,6 @@ import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import org.junit.jupiter.api.Test;
-import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 
@@ -47,7 +43,7 @@ class CosIdSnowflakeAutoConfigurationTest {
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
-            .withBean(CustomizeSnowflakeIdProvider.class, () -> idProvider -> idProvider.put("test", new SnowflakeIdProperties.IdDefinition()))
+            .withBean(CustomizeSnowflakeIdProperties.class, () -> idProperties -> idProperties.getProvider().put("test", new SnowflakeIdProperties.IdDefinition()))
             .withUserConfiguration(UtilAutoConfiguration.class,
                 CosIdAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class,

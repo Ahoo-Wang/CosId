@@ -42,7 +42,7 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
     private final PrefetchWorkerExecutorService prefetchWorkerExecutorService;
     private final ConfigurableApplicationContext applicationContext;
     @Nullable
-    private final CustomizeSegmentIdProvider customizeSegmentIdProvider;
+    private final CustomizeSegmentIdProperties customizeSegmentIdProperties;
     
     public SegmentIdBeanRegistrar(CosIdProperties cosIdProperties,
                                   SegmentIdProperties segmentIdProperties,
@@ -50,14 +50,14 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
                                   IdGeneratorProvider idGeneratorProvider,
                                   PrefetchWorkerExecutorService prefetchWorkerExecutorService,
                                   ConfigurableApplicationContext applicationContext,
-                                  @Nullable CustomizeSegmentIdProvider customizeSegmentIdProvider) {
+                                  @Nullable CustomizeSegmentIdProperties customizeSegmentIdProperties) {
         this.cosIdProperties = cosIdProperties;
         this.segmentIdProperties = segmentIdProperties;
         this.distributorFactory = distributorFactory;
         this.idGeneratorProvider = idGeneratorProvider;
         this.prefetchWorkerExecutorService = prefetchWorkerExecutorService;
         this.applicationContext = applicationContext;
-        this.customizeSegmentIdProvider = customizeSegmentIdProvider;
+        this.customizeSegmentIdProperties = customizeSegmentIdProperties;
     }
     
     @Override
@@ -66,8 +66,8 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
     }
     
     public void register() {
-        if (customizeSegmentIdProvider != null) {
-            customizeSegmentIdProvider.customize(segmentIdProperties.getProvider());
+        if (customizeSegmentIdProperties != null) {
+            customizeSegmentIdProperties.customize(segmentIdProperties);
         }
         SegmentIdProperties.ShardIdDefinition shareIdDefinition = segmentIdProperties.getShare();
         if (shareIdDefinition.isEnabled()) {

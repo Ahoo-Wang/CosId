@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
-import me.ahoo.cosid.spring.boot.starter.CustomizeIdProvider;
+import me.ahoo.cosid.spring.boot.starter.CustomizeIdProperties;
 
-public interface CustomizeSnowflakeIdProvider extends CustomizeIdProvider<SnowflakeIdProperties.IdDefinition> {
+public interface CustomizeSnowflakeIdProperties extends CustomizeIdProperties<SnowflakeIdProperties> {
 }

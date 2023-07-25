@@ -43,7 +43,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
     private final ConfigurableApplicationContext applicationContext;
     @Nullable
-    private final CustomizeSnowflakeIdProvider customizeSnowflakeIdProvider;
+    private final CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties;
     
     public SnowflakeIdBeanRegistrar(CosIdProperties cosIdProperties,
                                     MachineProperties machineProperties,
@@ -53,7 +53,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
                                     MachineIdDistributor machineIdDistributor,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer,
                                     ConfigurableApplicationContext applicationContext,
-                                    @Nullable CustomizeSnowflakeIdProvider customizeSnowflakeIdProvider) {
+                                    @Nullable CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties) {
         this.cosIdProperties = cosIdProperties;
         this.machineProperties = machineProperties;
         this.snowflakeIdProperties = snowflakeIdProperties;
@@ -62,7 +62,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         this.machineIdDistributor = machineIdDistributor;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
         this.applicationContext = applicationContext;
-        this.customizeSnowflakeIdProvider = customizeSnowflakeIdProvider;
+        this.customizeSnowflakeIdProperties = customizeSnowflakeIdProperties;
     }
     
     @Override
@@ -71,8 +71,8 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     }
     
     public void register() {
-        if (customizeSnowflakeIdProvider != null) {
-            customizeSnowflakeIdProvider.customize(snowflakeIdProperties.getProvider());
+        if (customizeSnowflakeIdProperties != null) {
+            customizeSnowflakeIdProperties.customize(snowflakeIdProperties);
         }
         SnowflakeIdProperties.ShardIdDefinition shareIdDefinition = snowflakeIdProperties.getShare();
         if (shareIdDefinition.isEnabled()) {

@@ -56,7 +56,7 @@ public class CosIdSnowflakeAutoConfiguration {
                                                              ClockBackwardsSynchronizer clockBackwardsSynchronizer,
                                                              ConfigurableApplicationContext applicationContext,
                                                              @Nullable
-                                                             CustomizeSnowflakeIdProvider customizeSnowflakeIdProvider
+                                                             CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties
     ) {
         return new SnowflakeIdBeanRegistrar(cosIdProperties,
             machineProperties,
@@ -66,7 +66,7 @@ public class CosIdSnowflakeAutoConfiguration {
             machineIdDistributor,
             clockBackwardsSynchronizer,
             applicationContext,
-            customizeSnowflakeIdProvider);
+            customizeSnowflakeIdProperties);
     }
     
 }

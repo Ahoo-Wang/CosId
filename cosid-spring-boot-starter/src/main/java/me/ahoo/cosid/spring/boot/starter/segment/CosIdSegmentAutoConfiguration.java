@@ -66,7 +66,7 @@ public class CosIdSegmentAutoConfiguration {
                                                          PrefetchWorkerExecutorService prefetchWorkerExecutorService,
                                                          ConfigurableApplicationContext applicationContext,
                                                          @Nullable
-                                                         CustomizeSegmentIdProvider customizeSegmentIdProvider
+                                                         CustomizeSegmentIdProperties customizeSegmentIdProperties
     ) {
         
         return new SegmentIdBeanRegistrar(cosIdProperties,
@@ -74,6 +74,6 @@ public class CosIdSegmentAutoConfiguration {
             distributorFactory,
             idGeneratorProvider,
             prefetchWorkerExecutorService,
-            applicationContext, customizeSegmentIdProvider);
+            applicationContext, customizeSegmentIdProperties);
     }
 }

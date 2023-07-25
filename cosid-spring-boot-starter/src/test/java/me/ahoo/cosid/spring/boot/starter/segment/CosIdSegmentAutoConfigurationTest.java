@@ -24,7 +24,7 @@ class CosIdSegmentAutoConfigurationTest {
             .withPropertyValues("spring.datasource.url=jdbc:mysql://localhost:3306/cosid_db")
             .withPropertyValues("spring.datasource.username=root")
             .withPropertyValues("spring.datasource.password=root")
-            .withBean(CustomizeSegmentIdProvider.class, () -> idProvider -> idProvider.put("test", new SegmentIdProperties.IdDefinition()))
+            .withBean(CustomizeSegmentIdProperties.class, () -> idProperties -> idProperties.getProvider().put("test", new SegmentIdProperties.IdDefinition()))
             .withUserConfiguration(CosIdAutoConfiguration.class, DataSourceAutoConfiguration.class, CosIdJdbcSegmentAutoConfiguration.class, CosIdSegmentAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)

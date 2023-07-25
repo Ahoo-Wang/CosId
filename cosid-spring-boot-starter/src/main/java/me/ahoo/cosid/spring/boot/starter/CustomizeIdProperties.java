@@ -11,9 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.spring.boot.starter.segment;
+package me.ahoo.cosid.spring.boot.starter;
 
-import me.ahoo.cosid.spring.boot.starter.CustomizeIdProvider;
-
-public interface CustomizeSegmentIdProvider extends CustomizeIdProvider<SegmentIdProperties.IdDefinition> {
+@FunctionalInterface
+public interface CustomizeIdProperties<P> {
+    void customize(P idProperties);
 }

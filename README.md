@@ -28,6 +28,7 @@ generator.
         - `RedisIdSegmentDistributor`: `IdSegment` distributor based on *Redis*.
         - `JdbcIdSegmentDistributor`: The *Jdbc-based* `IdSegment` distributor supports various relational databases.
         - `ZookeeperIdSegmentDistributor`: `IdSegment` distributor based on *Zookeeper*.
+        - `MongoIdSegmentDistributor`: `IdSegment` distributor based on *MongoDB*.
 - `SegmentChainId`(**recommend**):`SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design
   diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves
   approximately `AtomicLong` *TPS performance: 127,439,148+ ops/s* [JMH Benchmark](#jmh-benchmark) .

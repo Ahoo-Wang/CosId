@@ -25,6 +25,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.lang.Nullable;
 
 /**
  * CosId Segment AutoConfiguration.
@@ -61,15 +62,18 @@ public class CosIdSegmentAutoConfiguration {
     
     @Bean
     public SegmentIdBeanRegistrar segmentIdBeanRegistrar(IdSegmentDistributorFactory distributorFactory,
-                                                       IdGeneratorProvider idGeneratorProvider,
-                                                       PrefetchWorkerExecutorService prefetchWorkerExecutorService,
-                                                       ConfigurableApplicationContext applicationContext) {
+                                                         IdGeneratorProvider idGeneratorProvider,
+                                                         PrefetchWorkerExecutorService prefetchWorkerExecutorService,
+                                                         ConfigurableApplicationContext applicationContext,
+                                                         @Nullable
+                                                         CustomizeSegmentIdProvider customizeSegmentIdProvider
+    ) {
         
         return new SegmentIdBeanRegistrar(cosIdProperties,
             segmentIdProperties,
             distributorFactory,
             idGeneratorProvider,
             prefetchWorkerExecutorService,
-            applicationContext);
+            applicationContext, customizeSegmentIdProvider);
     }
 }

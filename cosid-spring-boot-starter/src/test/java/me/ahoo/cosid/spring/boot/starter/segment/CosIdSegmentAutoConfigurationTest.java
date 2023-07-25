@@ -2,7 +2,6 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
-import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 
@@ -25,13 +24,15 @@ class CosIdSegmentAutoConfigurationTest {
             .withPropertyValues("spring.datasource.url=jdbc:mysql://localhost:3306/cosid_db")
             .withPropertyValues("spring.datasource.username=root")
             .withPropertyValues("spring.datasource.password=root")
+            .withBean(CustomizeSegmentIdProvider.class, () -> idProvider -> idProvider.put("test", new SegmentIdProperties.IdDefinition()))
             .withUserConfiguration(CosIdAutoConfiguration.class, DataSourceAutoConfiguration.class, CosIdJdbcSegmentAutoConfiguration.class, CosIdSegmentAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(CosIdSegmentAutoConfiguration.class)
                     .hasSingleBean(PrefetchWorkerExecutorService.class)
                     .hasSingleBean(CosIdLifecyclePrefetchWorkerExecutorService.class)
-                    .hasSingleBean(SegmentId.class)
+                    .hasBean("__share__SegmentId")
+                    .hasBean("testSegmentId")
                 ;
             });
     }

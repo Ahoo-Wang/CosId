@@ -47,6 +47,7 @@ class CosIdSnowflakeAutoConfigurationTest {
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
+            .withBean(CustomizeSnowflakeIdProvider.class, () -> idProvider -> idProvider.put("test", new SnowflakeIdProperties.IdDefinition()))
             .withUserConfiguration(UtilAutoConfiguration.class,
                 CosIdAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class,
@@ -60,7 +61,8 @@ class CosIdSnowflakeAutoConfigurationTest {
                     .hasSingleBean(ClockBackwardsSynchronizer.class)
                     .hasSingleBean(MachineId.class)
                     .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
-                    .hasSingleBean(SnowflakeId.class)
+                    .hasBean("__share__SnowflakeId")
+                    .hasBean("testSnowflakeId")
                 ;
             });
     }

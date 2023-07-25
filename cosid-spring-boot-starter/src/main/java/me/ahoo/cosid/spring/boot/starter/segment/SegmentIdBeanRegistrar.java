@@ -31,6 +31,7 @@ import com.google.common.base.MoreObjects;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.lang.Nullable;
 
 @Slf4j
 public class SegmentIdBeanRegistrar implements InitializingBean {
@@ -40,19 +41,23 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
     private final IdGeneratorProvider idGeneratorProvider;
     private final PrefetchWorkerExecutorService prefetchWorkerExecutorService;
     private final ConfigurableApplicationContext applicationContext;
+    @Nullable
+    private final CustomizeSegmentIdProvider customizeSegmentIdProvider;
     
     public SegmentIdBeanRegistrar(CosIdProperties cosIdProperties,
                                   SegmentIdProperties segmentIdProperties,
                                   IdSegmentDistributorFactory distributorFactory,
                                   IdGeneratorProvider idGeneratorProvider,
                                   PrefetchWorkerExecutorService prefetchWorkerExecutorService,
-                                  ConfigurableApplicationContext applicationContext) {
+                                  ConfigurableApplicationContext applicationContext,
+                                  @Nullable CustomizeSegmentIdProvider customizeSegmentIdProvider) {
         this.cosIdProperties = cosIdProperties;
         this.segmentIdProperties = segmentIdProperties;
         this.distributorFactory = distributorFactory;
         this.idGeneratorProvider = idGeneratorProvider;
         this.prefetchWorkerExecutorService = prefetchWorkerExecutorService;
         this.applicationContext = applicationContext;
+        this.customizeSegmentIdProvider = customizeSegmentIdProvider;
     }
     
     @Override
@@ -61,6 +66,9 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
     }
     
     public void register() {
+        if (customizeSegmentIdProvider != null) {
+            customizeSegmentIdProvider.customize(segmentIdProperties.getProvider());
+        }
         SegmentIdProperties.ShardIdDefinition shareIdDefinition = segmentIdProperties.getShare();
         if (shareIdDefinition.isEnabled()) {
             registerIdDefinition(IdGeneratorProvider.SHARE, shareIdDefinition);

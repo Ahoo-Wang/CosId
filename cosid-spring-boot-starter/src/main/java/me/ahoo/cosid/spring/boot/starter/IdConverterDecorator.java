@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.converter.PrefixIdConverter;
+import me.ahoo.cosid.converter.Radix36IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.SuffixIdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
@@ -39,6 +40,7 @@ public abstract class IdConverterDecorator<T extends IdGenerator> {
         switch (converterDefinition.getType()) {
             case TO_STRING -> idConverter = newToString(idConverter);
             case RADIX -> idConverter = newRadix();
+            case RADIX36 -> idConverter = newRadix36();
             case SNOWFLAKE_FRIENDLY -> idConverter = newSnowflakeFriendly();
             case CUSTOM -> idConverter = newCustom();
             default -> throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
@@ -65,6 +67,11 @@ public abstract class IdConverterDecorator<T extends IdGenerator> {
     protected IdConverter newRadix() {
         IdConverterDefinition.Radix radix = converterDefinition.getRadix();
         return Radix62IdConverter.of(radix.isPadStart(), radix.getCharSize());
+    }
+    
+    protected IdConverter newRadix36() {
+        IdConverterDefinition.Radix36 radix36 = converterDefinition.getRadix36();
+        return Radix36IdConverter.of(radix36.isPadStart(), radix36.getCharSize());
     }
     
     protected IdConverter newToString(IdConverter defaultIdConverter) {

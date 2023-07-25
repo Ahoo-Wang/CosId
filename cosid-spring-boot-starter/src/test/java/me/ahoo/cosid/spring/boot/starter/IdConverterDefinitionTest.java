@@ -1,5 +1,6 @@
 package me.ahoo.cosid.spring.boot.starter;
 
+import me.ahoo.cosid.converter.Radix36IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 
 import org.junit.jupiter.api.Assertions;
@@ -72,6 +73,26 @@ class IdConverterDefinitionTest {
         Assertions.assertNotNull(definition.getRadix());
         Assertions.assertFalse(definition.getRadix().isPadStart());
         Assertions.assertEquals(10, definition.getRadix().getCharSize());
+    }
+    
+    @Test
+    void getRadix36() {
+        IdConverterDefinition definition = new IdConverterDefinition();
+        Assertions.assertNotNull(definition.getRadix36());
+        Assertions.assertTrue(definition.getRadix36().isPadStart());
+        Assertions.assertEquals(Radix36IdConverter.MAX_CHAR_SIZE, definition.getRadix36().getCharSize());
+    }
+    
+    @Test
+    void setRadix36() {
+        IdConverterDefinition definition = new IdConverterDefinition();
+        IdConverterDefinition.Radix36 radix = new IdConverterDefinition.Radix36();
+        radix.setPadStart(false);
+        radix.setCharSize(10);
+        definition.setRadix36(radix);
+        Assertions.assertNotNull(definition.getRadix36());
+        Assertions.assertFalse(definition.getRadix36().isPadStart());
+        Assertions.assertEquals(10, definition.getRadix36().getCharSize());
     }
     
     @Test

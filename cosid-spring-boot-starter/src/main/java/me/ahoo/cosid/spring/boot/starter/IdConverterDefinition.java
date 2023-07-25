@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.boot.starter;
 
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.GroupedPrefixIdConverter;
+import me.ahoo.cosid.converter.Radix36IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 
 /**
@@ -29,6 +30,7 @@ public class IdConverterDefinition {
     private GroupPrefix groupPrefix = new GroupPrefix();
     private String suffix;
     private Radix radix = new Radix();
+    private Radix36 radix36 = new Radix36();
     private ToString toString;
     private Custom custom;
     
@@ -72,6 +74,14 @@ public class IdConverterDefinition {
         this.radix = radix;
     }
     
+    public Radix36 getRadix36() {
+        return radix36;
+    }
+    
+    public void setRadix36(Radix36 radix36) {
+        this.radix36 = radix36;
+    }
+    
     public ToString getToString() {
         return toString;
     }
@@ -95,6 +105,30 @@ public class IdConverterDefinition {
         
         private boolean padStart = true;
         private int charSize = Radix62IdConverter.MAX_CHAR_SIZE;
+        
+        @Override
+        public boolean isPadStart() {
+            return padStart;
+        }
+        
+        public void setPadStart(boolean padStart) {
+            this.padStart = padStart;
+        }
+        
+        @Override
+        public int getCharSize() {
+            return charSize;
+        }
+        
+        public void setCharSize(int charSize) {
+            this.charSize = charSize;
+        }
+    }
+    
+    public static class Radix36 implements PadStartIdConverter {
+        
+        private boolean padStart = true;
+        private int charSize = Radix36IdConverter.MAX_CHAR_SIZE;
         
         @Override
         public boolean isPadStart() {
@@ -192,6 +226,7 @@ public class IdConverterDefinition {
         TO_STRING,
         SNOWFLAKE_FRIENDLY,
         RADIX,
+        RADIX36,
         CUSTOM
     }
     

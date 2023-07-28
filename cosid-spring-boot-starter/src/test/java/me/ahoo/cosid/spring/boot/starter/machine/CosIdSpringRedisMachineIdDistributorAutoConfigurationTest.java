@@ -40,7 +40,10 @@ class CosIdSpringRedisMachineIdDistributorAutoConfigurationTest {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
-            .withUserConfiguration(UtilAutoConfiguration.class, CosIdAutoConfiguration.class, CosIdMachineAutoConfiguration.class)
+            .withUserConfiguration(UtilAutoConfiguration.class,
+                CosIdAutoConfiguration.class,
+                CosIdHostNameAutoConfiguration.class,
+                CosIdMachineAutoConfiguration.class)
             .withUserConfiguration(RedisAutoConfiguration.class, CosIdSpringRedisMachineIdDistributorAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)

@@ -42,7 +42,10 @@ class CosIdMachineAutoConfigurationTest {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=stateful_set")
-            .withUserConfiguration(UtilAutoConfiguration.class, CosIdAutoConfiguration.class, CosIdMachineAutoConfiguration.class)
+            .withUserConfiguration(UtilAutoConfiguration.class,
+                CosIdAutoConfiguration.class,
+                CosIdHostNameAutoConfiguration.class,
+                CosIdMachineAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(CosIdMachineAutoConfiguration.class)

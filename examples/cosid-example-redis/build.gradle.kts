@@ -49,8 +49,8 @@ dependencies {
     annotationProcessor(platform(project(":cosid-dependencies")))
     implementation(project(":cosid-spring-boot-starter"))
     implementation(project(":cosid-jackson"))
-
     implementation(project(":cosid-spring-redis"))
+//    implementation("org.springframework.cloud:spring-cloud-commons")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.google.guava:guava")

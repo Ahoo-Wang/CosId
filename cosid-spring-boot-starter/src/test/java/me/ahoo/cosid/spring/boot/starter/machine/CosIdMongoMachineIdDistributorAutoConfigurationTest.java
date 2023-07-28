@@ -43,6 +43,7 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
                 MongoAutoConfiguration.class,
                 MongoReactiveAutoConfiguration.class,
                 CosIdAutoConfiguration.class,
+                CosIdHostNameAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class,
                 CosIdMongoMachineIdDistributorAutoConfiguration.class)
             .run(context -> {

@@ -36,6 +36,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "mybatis-support", version.toString())
     }
+    registerFeature("cloudSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "cloud-support", version.toString())
+    }
 }
 
 dependencies {
@@ -54,7 +58,7 @@ dependencies {
 
     "mybatisSupportImplementation"(project(":cosid-mybatis"))
     api("org.springframework.boot:spring-boot-starter")
-    api("org.springframework.cloud:spring-cloud-commons")
+    "cloudSupportImplementation"("org.springframework.cloud:spring-cloud-commons")
     compileOnly("org.mongodb:mongodb-driver-sync")
     compileOnly("org.mongodb:mongodb-driver-reactivestreams")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")

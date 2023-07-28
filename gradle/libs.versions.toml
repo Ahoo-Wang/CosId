@@ -1,7 +1,7 @@
 [versions]
 # libraries
 springBoot = "3.1.2"
-springCloud = "2022.0.3"
+springCloud = "2022.0.4"
 okhttp = "4.11.0"
 testcontainers = "1.18.3"
 guava = "32.1.1-jre"

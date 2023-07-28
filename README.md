@@ -710,6 +710,12 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
   <img src="./document/docs/.vuepress/public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="Percentile-Sample-Of-SegmentChainId"/>
 </p>
 
+### CosId VS MeiTuan Leaf
+
+<p align="center" >
+  <img  src="./document/docs/.vuepress/public/assets/perf/CosId-VS-Leaf.png" alt="CosId VS MeiTuan Leaf"/>
+</p>
+
 ## Community Partners and Sponsors
 
 <a href="https://www.jetbrains.com/?from=CosId" target="_blank">

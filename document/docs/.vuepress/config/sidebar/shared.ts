@@ -61,7 +61,8 @@ export function getGuideSidebar(groupA, groupB): SidebarConfigArray {
             title: '性能评测',
             collapsable: false,
             children: [
-                "perf-test"
+                "perf-test",
+                "Performance-CosId-Leaf"
             ]
         }
     ]

@@ -47,7 +47,11 @@ class CosIdZookeeperMachineIdDistributorAutoConfigurationTest {
                 .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
                 .withPropertyValues(MachineProperties.Distributor.TYPE + "=zookeeper")
                 .withPropertyValues(CosIdZookeeperProperties.PREFIX + ".connect-string=" + testingServer.getConnectString())
-                .withUserConfiguration(UtilAutoConfiguration.class, CosIdAutoConfiguration.class, CosIdZookeeperAutoConfiguration.class, CosIdMachineAutoConfiguration.class)
+                .withUserConfiguration(UtilAutoConfiguration.class,
+                    CosIdAutoConfiguration.class,
+                    CosIdZookeeperAutoConfiguration.class,
+                    CosIdHostNameAutoConfiguration.class,
+                    CosIdMachineAutoConfiguration.class)
                 .withUserConfiguration(CosIdZookeeperMachineIdDistributorAutoConfiguration.class)
                 .run(context -> {
                     assertThat(context)

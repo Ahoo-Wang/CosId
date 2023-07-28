@@ -35,7 +35,7 @@ import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
     
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
-
+    
     @Test
     void contextLoads() {
         this.contextRunner
@@ -44,7 +44,11 @@ class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues("spring.datasource.url=jdbc:mysql://localhost:3306/cosid_db")
             .withPropertyValues("spring.datasource.username=root")
             .withPropertyValues("spring.datasource.password=root")
-            .withUserConfiguration(UtilAutoConfiguration.class, DataSourceAutoConfiguration.class, CosIdAutoConfiguration.class, CosIdMachineAutoConfiguration.class)
+            .withUserConfiguration(UtilAutoConfiguration.class,
+                DataSourceAutoConfiguration.class,
+                CosIdAutoConfiguration.class,
+                CosIdHostNameAutoConfiguration.class,
+                CosIdMachineAutoConfiguration.class)
             .withUserConfiguration(CosIdJdbcMachineIdDistributorAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)

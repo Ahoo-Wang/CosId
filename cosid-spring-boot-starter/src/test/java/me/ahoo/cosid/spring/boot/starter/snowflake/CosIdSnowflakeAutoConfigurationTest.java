@@ -21,6 +21,7 @@ import me.ahoo.cosid.machine.MachineId;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdHostNameAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdLifecycleMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
@@ -46,6 +47,7 @@ class CosIdSnowflakeAutoConfigurationTest {
             .withBean(CustomizeSnowflakeIdProperties.class, () -> idProperties -> idProperties.getProvider().put("test", new SnowflakeIdProperties.IdDefinition()))
             .withUserConfiguration(UtilAutoConfiguration.class,
                 CosIdAutoConfiguration.class,
+                CosIdHostNameAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class,
                 CosIdSnowflakeAutoConfiguration.class)
             .run(context -> {

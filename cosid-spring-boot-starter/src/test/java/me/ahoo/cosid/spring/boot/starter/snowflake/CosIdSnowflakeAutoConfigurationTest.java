@@ -76,6 +76,7 @@ class CosIdSnowflakeAutoConfigurationTest {
             .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.test.converter.to_string.pad-start=true")
             .withUserConfiguration(UtilAutoConfiguration.class,
                 CosIdAutoConfiguration.class,
+                CosIdHostNameAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class,
                 CosIdSnowflakeAutoConfiguration.class)
             .run(context -> {

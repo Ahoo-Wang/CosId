@@ -5,7 +5,7 @@
 - MacBook Pro (M1)
 - JDK 17
 - JMH 1.36
-- 运行在本机的 mariadb:10.6.4 
+- 运行在本机 Docker 内的 mariadb:10.6.4 
 
 ## 运行
 
@@ -15,6 +15,11 @@
 git clone git@github.com:Ahoo-Wang/CosId.git
 cd cosid-benchmark
 ./gradlew jmh
+```
+or
+```shell
+gradle jmhJar
+java -jar build/libs/cosid-benchmark-2.2.6-jmh.jar -wi 1 -rf json -f 1
 ```
 
 ## 报告

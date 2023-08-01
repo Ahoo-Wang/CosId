@@ -53,6 +53,6 @@ LeafBenchmark.generate          1000  thrpt        23550106.538          ops/s
 
 ## 结论
 
-1. CosId 性能优于 Leaf，CosId 性能是 Leaf 的 5 倍左右。
+1. CosId (`SegmentChainId`) 性能是 Leaf (`segment`) 的 5 倍。
 2. CosId 、Leaf 的性能与号段步长(Step) 无关。
 3. CosId TPS 基本接近 `AtomicLong` 。

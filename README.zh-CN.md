@@ -359,6 +359,8 @@ spring:
 
 ### CosId VS 美团 Leaf
 
+> CosId (`SegmentChainId`) 性能是 Leaf(`segment`) 的 5 倍。
+
 <p align="center" >
   <img  src="./document/docs/.vuepress/public/assets/perf/CosId-VS-Leaf.png" alt="CosId VS 美团 Leaf"/>
 </p>

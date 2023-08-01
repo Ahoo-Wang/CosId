@@ -712,6 +712,8 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 
 ### CosId VS MeiTuan Leaf
 
+> CosId (`SegmentChainId`) is 5 times faster than Leaf(`segment`).
+
 <p align="center" >
   <img  src="./document/docs/.vuepress/public/assets/perf/CosId-VS-Leaf.png" alt="CosId VS MeiTuan Leaf"/>
 </p>

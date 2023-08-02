@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.boot.starter.actuate;
 
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import org.assertj.core.api.AssertionsForInterfaceTypes;
@@ -25,15 +26,12 @@ class CosIdEndpointAutoConfigurationTest {
     @Test
     void contextLoads() {
         this.contextRunner
-            .withBean(IdGeneratorProvider.class, () -> IdGeneratorProvider.DEFAULT)
+            .withBean(IdGeneratorProvider.class, () -> DefaultIdGeneratorProvider.INSTANCE)
             .withUserConfiguration(CosIdEndpointAutoConfiguration.class)
-            .run(context -> {
-                AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(CosIdEndpointAutoConfiguration.class)
-                    .hasSingleBean(CosIdEndpoint.class)
-                    .hasSingleBean(CosIdGeneratorEndpoint.class)
-                    .hasSingleBean(CosIdStringGeneratorEndpoint.class)
-                ;
-            });
+            .run(context -> AssertionsForInterfaceTypes.assertThat(context)
+                .hasSingleBean(CosIdEndpointAutoConfiguration.class)
+                .hasSingleBean(CosIdEndpoint.class)
+                .hasSingleBean(CosIdGeneratorEndpoint.class)
+                .hasSingleBean(CosIdStringGeneratorEndpoint.class));
     }
 }

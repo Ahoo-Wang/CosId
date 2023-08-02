@@ -87,7 +87,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     }
     
     private void registerSnowflakeId(String name, SnowflakeId snowflakeId) {
-        if (!idGeneratorProvider.get(name).isPresent()) {
+        if (idGeneratorProvider.get(name).isEmpty()) {
             idGeneratorProvider.set(name, snowflakeId);
         }
         

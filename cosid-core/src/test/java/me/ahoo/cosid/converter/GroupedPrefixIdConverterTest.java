@@ -31,6 +31,7 @@ class GroupedPrefixIdConverterTest {
         GroupedAccessor.set(GroupedKey.forever("2023"));
         assertThat(converter.getDelimiter(), equalTo("-"));
         assertThat(converter.asString(1), equalTo("2023-1"));
+        assertThat(converter.getActual(), equalTo(ToStringIdConverter.INSTANCE));
     }
     
     @Test

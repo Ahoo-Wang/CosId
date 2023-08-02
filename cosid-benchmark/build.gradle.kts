@@ -30,7 +30,7 @@ repositories {
 
 dependencies {
     implementation("me.ahoo.cosid:cosid-jdbc:2.3.0")
-    implementation("me.ahoo.cosid:cosid-test:2.2.6")
+    implementation("me.ahoo.cosid:cosid-test:2.3.0")
     testImplementation("com.zaxxer:HikariCP:5.0.1")
     testImplementation("mysql:mysql-connector-java:8.0.33")
     /**

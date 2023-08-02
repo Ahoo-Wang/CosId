@@ -40,4 +40,8 @@ public final class GroupedAccessor {
     public static GroupedKey requiredGet() {
         return Objects.requireNonNull(get(), "The current thread has not set the GroupedKey.");
     }
+    
+    public static void clear() {
+        CURRENT.remove();
+    }
 }

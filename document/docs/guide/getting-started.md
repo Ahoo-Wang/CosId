@@ -10,7 +10,7 @@
 
 ### Redis 分发器
 
-[CosId-Example-Redis](hhttps://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-redis)
+[CosId-Example-Redis](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-redis)
 
 #### Gradle Kotlin DSL
 
@@ -67,7 +67,7 @@ spring:
 cosid:
   namespace: ${spring.application.name}
   machine:
-    enabled: true
+    enabled: true # 可选，当需要使用雪花算法时，需要设置为 true
     distributor:
       type: redis
   snowflake:
@@ -77,8 +77,7 @@ cosid:
     distributor:
       type: redis
 ```
-
-> 默认情况下，开启 `snowflake`/`segment` 会生成一个共享的`IdGenerator` 注册到 `Spring` 容器 以及 `DefaultIdGeneratorProvider.INSTANCE`。
+> TIPS: 默认情况下，开启 `snowflake`/`segment` 会生成一个共享的`IdGenerator` 注册到 `Spring` 容器 以及 `DefaultIdGeneratorProvider.INSTANCE`。
 
 ## 使用
 

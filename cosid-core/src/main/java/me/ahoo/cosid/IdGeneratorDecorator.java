@@ -18,7 +18,7 @@ public interface IdGeneratorDecorator extends IdGenerator, Decorator<IdGenerator
     @Nonnull
     IdGenerator getActual();
     
-    static <T extends IdGenerator> T getActual(IdGenerator idGenerator) {
+    static <T extends IdGenerator> T getActual(T idGenerator) {
         return Decorator.getActual(idGenerator);
     }
     

@@ -33,6 +33,12 @@ class PrefixIdConverterTest {
     @Test
     void getSuffix() {
         assertThat(idConverter.getPrefix(), equalTo(PREFIX));
+        
+    }
+    
+    @Test
+    void getActual() {
+        assertThat(idConverter.getActual(), equalTo(ToStringIdConverter.INSTANCE));
     }
     
     @Test

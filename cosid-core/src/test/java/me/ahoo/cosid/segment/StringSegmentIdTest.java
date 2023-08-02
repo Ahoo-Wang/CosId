@@ -17,5 +17,6 @@ class StringSegmentIdTest {
         DefaultSegmentId delegate = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         StringSegmentId stringSegmentId = new StringSegmentId(delegate, Radix62IdConverter.PAD_START);
         Assertions.assertNotNull(stringSegmentId);
+        Assertions.assertNotNull(stringSegmentId.current());
     }
 }

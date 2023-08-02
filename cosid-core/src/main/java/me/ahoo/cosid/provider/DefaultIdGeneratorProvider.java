@@ -17,7 +17,9 @@ import me.ahoo.cosid.IdGenerator;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -81,6 +83,11 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
     public void clear() {
         shareIdGenerator = null;
         nameMapIdGen.clear();
+    }
+    
+    @Override
+    public Set<Map.Entry<String, IdGenerator>> entries() {
+        return nameMapIdGen.entrySet();
     }
     
     @Override

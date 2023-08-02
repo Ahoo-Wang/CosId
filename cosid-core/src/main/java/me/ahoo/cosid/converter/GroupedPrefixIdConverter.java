@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.converter;
 
+import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 
@@ -20,15 +21,21 @@ import com.google.common.base.Preconditions;
 
 import javax.annotation.Nonnull;
 
-public class GroupedPrefixIdConverter implements IdConverter {
+public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConverter> {
     public static final String DEFAULT_DELIMITER = "-";
     private final String delimiter;
-    private final IdConverter idConverter;
+    private final IdConverter actual;
     
-    public GroupedPrefixIdConverter(String delimiter, IdConverter idConverter) {
+    public GroupedPrefixIdConverter(String delimiter, IdConverter actual) {
         Preconditions.checkNotNull(delimiter, "prefix can not be null!");
         this.delimiter = delimiter;
-        this.idConverter = idConverter;
+        this.actual = actual;
+    }
+    
+    @Nonnull
+    @Override
+    public IdConverter getActual() {
+        return actual;
     }
     
     public String getDelimiter() {
@@ -38,7 +45,7 @@ public class GroupedPrefixIdConverter implements IdConverter {
     @Nonnull
     @Override
     public String asString(long id) {
-        String idStr = idConverter.asString(id);
+        String idStr = actual.asString(id);
         String groupKey = GroupedAccessor.requiredGet().getKey();
         if (delimiter.isEmpty()) {
             return groupKey + idStr;

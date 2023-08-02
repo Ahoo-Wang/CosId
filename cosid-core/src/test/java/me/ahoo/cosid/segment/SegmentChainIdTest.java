@@ -14,6 +14,8 @@
 package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
@@ -42,6 +44,12 @@ class SegmentChainIdTest {
         Assertions.assertEquals(idSegmentChain1, chainList.get(0));
         Assertions.assertEquals(idSegmentChain2, chainList.get(1));
         Assertions.assertEquals(idSegmentChain3, chainList.get(2));
+    }
+    
+    @Test
+    void current() {
+        SegmentChainId segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Atomic(2), PrefetchWorkerExecutorService.DEFAULT);
+        assertThat(segmentChainId.current().isAvailable(), equalTo(false));
     }
     
     @Test

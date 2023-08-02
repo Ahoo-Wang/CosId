@@ -55,6 +55,11 @@ public class SegmentChainId implements SegmentId {
         prefetchWorkerExecutorService.submit(prefetchJob);
     }
     
+    @Override
+    public IdSegment current() {
+        return headChain;
+    }
+    
     public IdSegmentChain getHead() {
         return headChain;
     }

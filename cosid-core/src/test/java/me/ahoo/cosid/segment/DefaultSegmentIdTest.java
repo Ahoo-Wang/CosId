@@ -13,6 +13,9 @@
 
 package me.ahoo.cosid.segment;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
 
@@ -28,6 +31,12 @@ class DefaultSegmentIdTest {
     void generate() {
         DefaultSegmentId defaultSegmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         Assertions.assertTrue(defaultSegmentId.generate() > 0);
+    }
+    
+    @Test
+    void current() {
+        DefaultSegmentId defaultSegmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
+        assertThat(defaultSegmentId.current(), equalTo(DefaultIdSegment.OVERFLOW));
     }
     
     @Test

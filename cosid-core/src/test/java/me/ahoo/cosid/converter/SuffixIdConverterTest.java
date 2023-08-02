@@ -35,6 +35,11 @@ class SuffixIdConverterTest {
     }
     
     @Test
+    void getActual() {
+        assertThat(idConverter.getActual(), equalTo(ToStringIdConverter.INSTANCE));
+    }
+    
+    @Test
     void asString() {
         long randomId = ThreadLocalRandom.current().nextLong();
         String actual = idConverter.asString(randomId);

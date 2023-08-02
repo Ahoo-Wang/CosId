@@ -30,6 +30,8 @@ import java.util.Set;
  */
 @ThreadSafe
 public interface IdGeneratorProvider {
+    
+    IdGeneratorProvider DEFAULT = DefaultIdGeneratorProvider.INSTANCE;
     /**
      * the key of shared ID generator.
      */

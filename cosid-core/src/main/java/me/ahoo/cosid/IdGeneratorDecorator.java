@@ -9,7 +9,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * @author ahoo wang
  */
 @ThreadSafe
-public interface IdGeneratorDecorator extends IdGenerator {
+public interface IdGeneratorDecorator extends IdGenerator, Decorator<IdGenerator> {
     /**
      * Get decorator actual id generator.
      *
@@ -18,12 +18,8 @@ public interface IdGeneratorDecorator extends IdGenerator {
     @Nonnull
     IdGenerator getActual();
     
-    @SuppressWarnings("unchecked")
     static <T extends IdGenerator> T getActual(IdGenerator idGenerator) {
-        if (idGenerator instanceof IdGeneratorDecorator) {
-            return getActual(((IdGeneratorDecorator) idGenerator).getActual());
-        }
-        return (T) idGenerator;
+        return Decorator.getActual(idGenerator);
     }
     
     @Override

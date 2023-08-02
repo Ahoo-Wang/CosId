@@ -19,7 +19,9 @@ import com.google.common.base.Strings;
 
 import javax.annotation.concurrent.ThreadSafe;
 import java.util.Collection;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * {@link IdGenerator} container.
@@ -87,6 +89,8 @@ public interface IdGeneratorProvider {
      * clear all ID generator.
      */
     void clear();
+    
+    Set<Map.Entry<String, IdGenerator>> entries();
     
     /**
      * get all ID generator.

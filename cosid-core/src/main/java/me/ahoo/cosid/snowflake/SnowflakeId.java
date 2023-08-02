@@ -53,7 +53,6 @@ public interface SnowflakeId extends IdGenerator {
     
     int getMachineId();
     
-    
     static long defaultSequenceResetThreshold(int sequenceBit) {
         return ~(-1L << (sequenceBit - 1));
     }

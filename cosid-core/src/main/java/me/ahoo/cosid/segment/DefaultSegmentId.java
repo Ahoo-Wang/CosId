@@ -49,6 +49,11 @@ public class DefaultSegmentId implements SegmentId {
     }
     
     @Override
+    public IdSegment current() {
+        return segment;
+    }
+    
+    @Override
     public long generate() {
         
         if (maxIdDistributor.getStep() == ONE_STEP) {

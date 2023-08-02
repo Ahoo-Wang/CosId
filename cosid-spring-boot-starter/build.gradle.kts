@@ -40,6 +40,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "cloud-support", version.toString())
     }
+    registerFeature("actuatorSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "actuator-support", version.toString())
+    }
 }
 
 dependencies {
@@ -59,6 +63,7 @@ dependencies {
     "mybatisSupportImplementation"(project(":cosid-mybatis"))
     api("org.springframework.boot:spring-boot-starter")
     "cloudSupportImplementation"("org.springframework.cloud:spring-cloud-commons")
+    "actuatorSupportImplementation"("org.springframework.boot:spring-boot-starter-actuator")
     compileOnly("org.mongodb:mongodb-driver-sync")
     compileOnly("org.mongodb:mongodb-driver-reactivestreams")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")

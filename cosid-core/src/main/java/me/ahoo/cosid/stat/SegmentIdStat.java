@@ -11,19 +11,17 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.segment;
+package me.ahoo.cosid.stat;
 
-import me.ahoo.cosid.IdGenerator;
-
-/**
- * Segment algorithm ID generator.
- *
- * <p><img src="../doc-files/SegmentId.png" alt="SegmentId"></p>
- *
- * @author ahoo wang
- */
-public interface SegmentId extends IdGenerator {
-    int ONE_STEP = 1;
-    
-    IdSegment current();
+public record SegmentIdStat(String kind,
+                            String converterKind,
+                            long fetchTime,
+                            long maxId,
+                            long offset,
+                            long sequence,
+                            long step,
+                            boolean isExpired,
+                            boolean isOverflow,
+                            boolean isAvailable
+) implements Stat {
 }

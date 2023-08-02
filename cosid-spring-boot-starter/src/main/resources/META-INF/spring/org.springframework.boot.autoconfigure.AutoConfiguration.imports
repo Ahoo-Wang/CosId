@@ -16,3 +16,4 @@ me.ahoo.cosid.spring.boot.starter.segment.CosIdZookeeperSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdProxySegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.mybatis.CosIdMybatisAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.actuate.CosIdEndpointAutoConfiguration

@@ -13,8 +13,12 @@
 
 package me.ahoo.cosid.accessor.registry;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
 import me.ahoo.cosid.accessor.parser.DefaultAccessorParser;
 import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
+import me.ahoo.cosid.annotation.entity.IntIdEntity;
 import me.ahoo.cosid.annotation.entity.LongIdEntity;
 import me.ahoo.cosid.annotation.entity.MissingIdGenEntity;
 import me.ahoo.cosid.annotation.entity.StringIdEntity;
@@ -30,9 +34,9 @@ import org.junit.jupiter.api.Test;
  * @author ahoo wang
  */
 class DefaultAccessorRegistryTest {
-
+    
     CosIdAccessorRegistry accessorRegistry = new DefaultAccessorRegistry(new DefaultAccessorParser(AnnotationDefinitionParser.INSTANCE));
-
+    
     @Test
     void ensureIdExistsByAnnotation() {
         DefaultIdGeneratorProvider.INSTANCE.setShare(AtomicLongGenerator.INSTANCE);
@@ -41,7 +45,7 @@ class DefaultAccessorRegistryTest {
         accessorRegistry.ensureId(entity);
         Assertions.assertEquals(888, entity.getId());
     }
-
+    
     @Test
     void ensureIdNotFindByAnnotation() {
         MissingIdGenEntity entity = new MissingIdGenEntity();
@@ -49,7 +53,7 @@ class DefaultAccessorRegistryTest {
             accessorRegistry.ensureId(entity);
         });
     }
-
+    
     @Test
     void ensureStringId() {
         DefaultIdGeneratorProvider.INSTANCE.setShare(AtomicLongGenerator.INSTANCE);
@@ -57,5 +61,12 @@ class DefaultAccessorRegistryTest {
         accessorRegistry.ensureId(entity);
         Assertions.assertFalse(Strings.isNullOrEmpty(entity.getId()));
     }
-
+    
+    @Test
+    void ensureIntId() {
+        DefaultIdGeneratorProvider.INSTANCE.setShare(AtomicLongGenerator.INSTANCE);
+        IntIdEntity entity = new IntIdEntity();
+        accessorRegistry.ensureId(entity);
+        assertThat(entity.getId(), not(0));
+    }
 }

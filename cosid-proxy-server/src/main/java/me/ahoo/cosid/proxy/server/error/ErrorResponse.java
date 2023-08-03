@@ -31,7 +31,7 @@ public class ErrorResponse {
     
     private final String code;
     private final String msg;
-    @Nullable
+    
     private final List<?> errors;
     
     public ErrorResponse(String code, String msg, List<?> errors) {
@@ -48,6 +48,7 @@ public class ErrorResponse {
         return msg;
     }
     
+    @Nullable
     public List<?> getErrors() {
         return errors;
     }

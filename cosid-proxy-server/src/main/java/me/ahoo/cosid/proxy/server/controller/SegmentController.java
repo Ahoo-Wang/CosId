@@ -18,6 +18,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import com.google.common.base.Preconditions;
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,6 +46,7 @@ public class SegmentController {
     /**
      * Create an ID segment dispatcher, the operation is idempotent.
      */
+    @Operation(summary = "Create an ID segment dispatcher, the operation is idempotent.")
     @PostMapping("/distributor/{namespace}/{name}")
     public void createDistributor(@PathVariable String namespace, @PathVariable String name, long offset, long step) {
         String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);
@@ -52,6 +54,7 @@ public class SegmentController {
             key -> distributorFactory.create(new IdSegmentDistributorDefinition(namespace, name, offset, step)));
     }
     
+    @Operation(summary = "Get next max id.")
     @PatchMapping("/{namespace}/{name}")
     public long nextMaxId(@PathVariable String namespace, @PathVariable String name, long step) {
         String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);

@@ -9,6 +9,7 @@ mybatis = "3.5.13"
 mybatisSpringBoot = "3.0.2"
 junitPioneer = "2.0.1"
 axon = "4.8.1"
+springDoc = "2.1.0"
 hamcrest = "2.2"
 mockk = "1.13.5"
 detektFormatting = "1.23.1"
@@ -27,6 +28,7 @@ testcontainersBom = { module = "org.testcontainers:testcontainers-bom", version.
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 mybatis = { module = "org.mybatis:mybatis", version.ref = "mybatis" }
 mybatisSpringBoot = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatisSpringBoot" }
+springDocStarterWebfluxUi = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springDoc" }
 junitPioneer = { module = "org.junit-pioneer:junit-pioneer", version.ref = "junitPioneer" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }

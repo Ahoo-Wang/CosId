@@ -20,6 +20,7 @@ dependencies {
         api(libs.guava)
         api(libs.mybatis)
         api(libs.mybatisSpringBoot)
+        api(libs.springDocStarterWebfluxUi)
         api(libs.junitPioneer)
         api(libs.hamcrest)
         api(libs.jmhCore)

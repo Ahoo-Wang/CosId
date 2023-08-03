@@ -29,6 +29,9 @@ import java.util.Objects;
 public class ErrorResponse {
     
     public static final String BAD_REQUEST = "400";
+    public static final String MACHINE_ID_OVERFLOW = "M-01";
+    public static final String NOT_FOUND_MACHINE_STATE = "M-02";
+    public static final String MACHINE_ID_LOST = "M-03";
     
     private final String code;
     private final String msg;

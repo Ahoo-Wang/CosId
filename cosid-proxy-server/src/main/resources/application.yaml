@@ -1,3 +1,13 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - cosid
+          - cosidGenerator
+          - cosidStringGenerator
+springdoc:
+  show-actuator: true
 server:
   port: 8688
 spring:
@@ -28,3 +38,4 @@ cosid:
 logging:
   level:
     me.ahoo.cosid: debug
+

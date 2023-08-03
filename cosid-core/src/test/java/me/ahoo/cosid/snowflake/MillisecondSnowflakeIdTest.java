@@ -63,8 +63,14 @@ class MillisecondSnowflakeIdTest {
         
         long id2 = snowflakeId.generate();
         SnowflakeIdState snowflakeIdState2 = snowflakeId.friendlyId(id2);
-        assertThat(snowflakeIdState2.getTimestamp(), greaterThan(snowflakeIdState.getTimestamp()));
-        assertThat(snowflakeIdState2.getSequence(), greaterThan(snowflakeIdState.getSequence()));
+        assertThat(
+            snowflakeIdState2.getTimestamp() + ">" + snowflakeIdState.getTimestamp(),
+            snowflakeIdState2.getTimestamp(), greaterThan(snowflakeIdState.getTimestamp())
+        );
+        assertThat(
+            snowflakeIdState2.getSequence() + ">" + snowflakeIdState.getSequence(),
+            snowflakeIdState2.getSequence(), greaterThan(snowflakeIdState.getSequence())
+        );
     }
     
     

@@ -32,7 +32,7 @@ public abstract class MachineIdDistributorSpec {
     private static final int TEST_MACHINE_BIT = 5;
     private static final Duration TEST_SAFE_GUARD_DURATION = Duration.ofSeconds(5);
     
-    static InstanceId mockInstance(int port, boolean stable) {
+    protected static InstanceId mockInstance(int port, boolean stable) {
         return InstanceId.of(TEST_HOST, port, stable);
     }
     

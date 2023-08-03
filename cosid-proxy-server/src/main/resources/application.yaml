@@ -3,6 +3,7 @@ management:
     web:
       exposure:
         include:
+          - health
           - cosid
           - cosidGenerator
           - cosidStringGenerator
@@ -13,8 +14,6 @@ server:
 spring:
   application:
     name: ${service.name:cosid-proxy}
-#  redis:
-#    url: redis://localhost:6379
   autoconfigure:
     exclude:
 #     - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration

@@ -27,7 +27,7 @@ include(":cosid-proxy")
 include(":cosid-proxy-server")
 include(":cosid-axon")
 include(":cosid-mongo")
-
+include(":cosid-spring-data-jdbc")
 include(":code-coverage-report")
 
 include("cosid-example-proxy")
@@ -41,5 +41,4 @@ project(":cosid-example-redis-cosid").projectDir = file("examples/cosid-example-
 
 include("cosid-example-zookeeper")
 project(":cosid-example-zookeeper").projectDir = file("examples/cosid-example-zookeeper")
-
 

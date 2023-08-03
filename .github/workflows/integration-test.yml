@@ -27,7 +27,8 @@ on:
       - 'document/**'
       - 'examples/**'
       - 'wiki/**'
-
+env:
+  CI: true
 jobs:
   cosid-core-test:
     name: CosId Core Test
@@ -85,6 +86,44 @@ jobs:
       - name: Test CosId-Axon
         run: ./gradlew cosid-axon:clean cosid-axon:check
 
+  cosid-mybatis-test:
+    name: CosId Mybatis Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Mybatis
+        run: ./gradlew cosid-mybatis:clean cosid-mybatis:check
+
+  cosid-spring-jdbc-test:
+    name: CosId Spring Jdbc Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Spring-Jdbc
+        run: ./gradlew cosid-spring-data-jdbc:clean cosid-spring-data-jdbc:check
+
   cosid-spring-redis-test:
     name: CosId Spring Redis Test
     needs: [ cosid-core-test ]
@@ -113,6 +152,25 @@ jobs:
 
       - name: Test CosId-Spring-Redis
         run: ./gradlew cosid-spring-redis:clean cosid-spring-redis:check
+
+  cosid-mongo-test:
+    name: CosId Mongo Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Mongo
+        run: ./gradlew cosid-mongo:clean cosid-mongo:check
 
   cosid-proxy-test:
     name: CosId Proxy Test

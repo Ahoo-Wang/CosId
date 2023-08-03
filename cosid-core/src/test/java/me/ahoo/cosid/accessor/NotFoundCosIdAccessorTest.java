@@ -11,23 +11,41 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.proxy;
+package me.ahoo.cosid.accessor;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import org.junit.jupiter.api.Test;
 
-class JsonsTest {
-    
+class NotFoundCosIdAccessorTest {
     @Test
-    void serialize() {
-        ErrorResponse errorResponse = ErrorResponse.badRequest("badRequest");
-        String jsonStr = Jsons.serialize(errorResponse);
-        ErrorResponse actual = Jsons.deserialize(jsonStr, ErrorResponse.class);
-        assertThat(actual.getCode(), equalTo(errorResponse.getCode()));
-        assertThat(actual.getMsg(), equalTo(errorResponse.getMsg()));
-        assertThat(actual.getErrors(), equalTo(errorResponse.getErrors()));
+    public void getIdDefinition() {
+        assertThat(CosIdAccessor.NOT_FOUND.getIdDefinition(), nullValue());
     }
     
+    @Test
+    public void getIdGenerator() {
+        assertThat(CosIdAccessor.NOT_FOUND.getIdGenerator(), nullValue());
+    }
+    
+    @Test
+    public void getIdField() {
+        assertThat(CosIdAccessor.NOT_FOUND.getIdField(), nullValue());
+    }
+    
+    @Test
+    public void getId() {
+        assertThat(CosIdAccessor.NOT_FOUND.getId(new Object()), nullValue());
+    }
+    
+    @Test
+    public void setId() {
+        CosIdAccessor.NOT_FOUND.setId(new Object(), new Object());
+    }
+    
+    @Test
+    public void ensureId() {
+        assertThat(CosIdAccessor.NOT_FOUND.ensureId(new Object()), equalTo(false));
+    }
 }

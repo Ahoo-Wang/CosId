@@ -13,6 +13,10 @@
 
 package me.ahoo.cosid.proxy.server.error;
 
+import static me.ahoo.cosid.proxy.server.error.ErrorResponse.MACHINE_ID_LOST;
+import static me.ahoo.cosid.proxy.server.error.ErrorResponse.MACHINE_ID_OVERFLOW;
+import static me.ahoo.cosid.proxy.server.error.ErrorResponse.NOT_FOUND_MACHINE_STATE;
+
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.NotFoundMachineStateException;
@@ -56,21 +60,21 @@ public class GlobalRestExceptionHandler {
     public ResponseEntity<ErrorResponse> handleCosIdException(MachineIdOverflowException ex) {
         return ResponseEntity
             .badRequest()
-            .body(ErrorResponse.of("M-01", ex.getMessage()));
+            .body(ErrorResponse.of(MACHINE_ID_OVERFLOW, ex.getMessage()));
     }
     
     @ExceptionHandler(NotFoundMachineStateException.class)
     public ResponseEntity<ErrorResponse> handleCosIdException(NotFoundMachineStateException ex) {
         return ResponseEntity
             .badRequest()
-            .body(ErrorResponse.of("M-02", ex.getMessage()));
+            .body(ErrorResponse.of(NOT_FOUND_MACHINE_STATE, ex.getMessage()));
     }
     
     @ExceptionHandler(MachineIdLostException.class)
     public ResponseEntity<ErrorResponse> handleCosIdException(MachineIdLostException ex) {
         return ResponseEntity
             .badRequest()
-            .body(ErrorResponse.of("M-03", ex.getMessage()));
+            .body(ErrorResponse.of(MACHINE_ID_LOST, ex.getMessage()));
     }
     
     @ResponseStatus(HttpStatus.BAD_REQUEST)

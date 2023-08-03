@@ -11,23 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.proxy;
+package me.ahoo.cosid.annotation.entity;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import me.ahoo.cosid.annotation.CosId;
 
-import org.junit.jupiter.api.Test;
+/**
+ * @author ahoo wang
+ */
+public class IntIdEntity {
+    @CosId
+    private int id;
 
-class JsonsTest {
-    
-    @Test
-    void serialize() {
-        ErrorResponse errorResponse = ErrorResponse.badRequest("badRequest");
-        String jsonStr = Jsons.serialize(errorResponse);
-        ErrorResponse actual = Jsons.deserialize(jsonStr, ErrorResponse.class);
-        assertThat(actual.getCode(), equalTo(errorResponse.getCode()));
-        assertThat(actual.getMsg(), equalTo(errorResponse.getMsg()));
-        assertThat(actual.getErrors(), equalTo(errorResponse.getErrors()));
+    public int getId() {
+        return id;
     }
-    
+
+    public void setId(int id) {
+        this.id = id;
+    }
 }

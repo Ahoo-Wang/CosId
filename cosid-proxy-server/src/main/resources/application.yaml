@@ -1,3 +1,13 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - cosid
+          - cosidGenerator
+          - cosidStringGenerator
+springdoc:
+  show-actuator: true
 server:
   port: 8688
 spring:
@@ -19,15 +29,13 @@ cosid:
     enabled: true
     distributor:
       type: redis
-    guarder:
-      enabled: true
   snowflake:
     enabled: true
   segment:
     enabled: true
-    mode: chain
     distributor:
       type: redis
 logging:
   level:
     me.ahoo.cosid: debug
+

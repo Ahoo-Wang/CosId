@@ -13,8 +13,6 @@
 
 package me.ahoo.cosid.proxy;
 
-import static me.ahoo.cosid.proxy.ProxyMachineIdDistributor.JSON;
-
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
@@ -24,9 +22,9 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import okhttp3.internal.Util;
 
 import javax.annotation.Nonnull;
 
@@ -60,7 +58,7 @@ public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFac
         
         Request request = new Request.Builder()
             .url(apiUrl)
-            .post(RequestBody.Companion.create("", JSON))
+            .post(Util.EMPTY_REQUEST)
             .build();
         try (Response response = client.newCall(request).execute()) {
             ResponseBody responseBody = response.body();

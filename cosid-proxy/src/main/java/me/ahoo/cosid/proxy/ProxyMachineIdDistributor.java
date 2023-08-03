@@ -13,8 +13,12 @@
 
 package me.ahoo.cosid.proxy;
 
-import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import static me.ahoo.cosid.proxy.ErrorResponse.MACHINE_ID_LOST;
+import static me.ahoo.cosid.proxy.ErrorResponse.MACHINE_ID_OVERFLOW;
+import static me.ahoo.cosid.proxy.ErrorResponse.NOT_FOUND_MACHINE_STATE;
+
 import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
@@ -25,12 +29,11 @@ import me.ahoo.cosid.machine.NotFoundMachineStateException;
 import com.google.common.base.Strings;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import okhttp3.internal.Util;
 
 import java.time.Duration;
 
@@ -43,8 +46,6 @@ import java.time.Duration;
 @Slf4j
 public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
     
-    public static final MediaType JSON
-        = MediaType.get("application/json; charset=utf-8");
     private final OkHttpClient client;
     
     private final String proxyHost;
@@ -67,7 +68,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
         
         Request request = new Request.Builder()
             .url(apiUrl)
-            .post(RequestBody.create(JSON, ""))
+            .post(Util.EMPTY_REQUEST)
             .build();
         try (Response response = client.newCall(request).execute()) {
             ResponseBody responseBody = response.body();
@@ -81,12 +82,10 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
                 return Jsons.OBJECT_MAPPER.readValue(bodyStr, MachineStateDto.class);
             }
             ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(bodyStr, ErrorResponse.class);
-            switch (errorResponse.getCode()) {
-                case "M-01":
-                    throw new MachineIdOverflowException(machineBit, instanceId);
-                default:
-                    throw new IllegalStateException(Strings.lenientFormat("Unexpected code:[%s] - message:[%s].", errorResponse.getCode(), errorResponse.getMsg()));
+            if (errorResponse.getCode().equals(MACHINE_ID_OVERFLOW)) {
+                throw new MachineIdOverflowException(machineBit, instanceId);
             }
+            throw new IllegalStateException(Strings.lenientFormat("Unexpected code:[%s] - message:[%s].", errorResponse.getCode(), errorResponse.getMsg()));
         }
     }
     
@@ -124,7 +123,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
         
         Request request = new Request.Builder()
             .url(apiUrl)
-            .patch(RequestBody.create(JSON, ""))
+            .patch(Util.EMPTY_REQUEST)
             .build();
         try (Response response = client.newCall(request).execute()) {
             ResponseBody responseBody = response.body();
@@ -139,12 +138,9 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             
             ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(bodyStr, ErrorResponse.class);
             switch (errorResponse.getCode()) {
-                case "M-02":
-                    throw new NotFoundMachineStateException(namespace, instanceId);
-                case "M-03":
-                    throw new MachineIdLostException(namespace, instanceId, machineState);
-                default:
-                    throw new IllegalStateException("Unexpected value: " + errorResponse.getCode());
+                case NOT_FOUND_MACHINE_STATE -> throw new NotFoundMachineStateException(namespace, instanceId);
+                case MACHINE_ID_LOST -> throw new MachineIdLostException(namespace, instanceId, machineState);
+                default -> throw new IllegalStateException("Unexpected value: " + errorResponse.getCode());
             }
         }
     }

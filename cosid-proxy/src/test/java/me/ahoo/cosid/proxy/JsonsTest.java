@@ -25,7 +25,9 @@ class JsonsTest {
         ErrorResponse errorResponse = ErrorResponse.badRequest("badRequest");
         String jsonStr = Jsons.serialize(errorResponse);
         ErrorResponse actual = Jsons.deserialize(jsonStr, ErrorResponse.class);
-        assertThat(actual, equalTo(errorResponse));
+        assertThat(actual.getCode(), equalTo(errorResponse.getCode()));
+        assertThat(actual.getMsg(), equalTo(errorResponse.getMsg()));
+        assertThat(actual.getErrors(), equalTo(errorResponse.getErrors()));
     }
     
 }

@@ -36,6 +36,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "mybatis-support", version.toString())
     }
+    registerFeature("dataJdbcSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "data-jdbc-support", version.toString())
+    }
     registerFeature("cloudSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "cloud-support", version.toString())
@@ -61,6 +65,7 @@ dependencies {
     "mongoSupportImplementation"(project(":cosid-mongo"))
 
     "mybatisSupportImplementation"(project(":cosid-mybatis"))
+    "dataJdbcSupportImplementation"(project(":cosid-spring-data-jdbc"))
     api("org.springframework.boot:spring-boot-starter")
     "cloudSupportImplementation"("org.springframework.cloud:spring-cloud-commons")
     "actuatorSupportImplementation"("org.springframework.boot:spring-boot-starter-actuator")

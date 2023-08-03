@@ -2,8 +2,10 @@ package me.ahoo.cosid.spring.boot.starter;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
+import me.ahoo.cosid.accessor.parser.CompositeFieldDefinitionParser;
 import me.ahoo.cosid.accessor.parser.CosIdAccessorParser;
 import me.ahoo.cosid.accessor.parser.FieldDefinitionParser;
+import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import org.junit.jupiter.api.Test;
@@ -21,13 +23,12 @@ public class CosIdAutoConfigurationTest {
     void contextLoads() {
         this.contextRunner
             .withUserConfiguration(CosIdAutoConfiguration.class)
-            .run(context -> {
-                assertThat(context)
-                    .hasSingleBean(CosIdAutoConfiguration.class)
-                    .hasSingleBean(CosIdProperties.class)
-                    .hasSingleBean(IdGeneratorProvider.class)
-                    .hasSingleBean(FieldDefinitionParser.class)
-                    .hasSingleBean(CosIdAccessorParser.class);
-            });
+            .run(context -> assertThat(context)
+                .hasSingleBean(CosIdAutoConfiguration.class)
+                .hasSingleBean(CosIdProperties.class)
+                .hasSingleBean(IdGeneratorProvider.class)
+                .hasSingleBean(AnnotationDefinitionParser.class)
+                .hasSingleBean(CompositeFieldDefinitionParser.class)
+                .hasSingleBean(CosIdAccessorParser.class));
     }
 }

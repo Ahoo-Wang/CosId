@@ -17,8 +17,8 @@ import static me.ahoo.cosid.proxy.ErrorResponse.MACHINE_ID_LOST;
 import static me.ahoo.cosid.proxy.ErrorResponse.MACHINE_ID_OVERFLOW;
 import static me.ahoo.cosid.proxy.ErrorResponse.NOT_FOUND_MACHINE_STATE;
 
-import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
@@ -29,10 +29,8 @@ import me.ahoo.cosid.machine.NotFoundMachineStateException;
 import com.google.common.base.Strings;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import okhttp3.internal.Util;
@@ -48,8 +46,6 @@ import java.time.Duration;
 @Slf4j
 public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
     
-    public static final MediaType JSON
-        = MediaType.get("application/json; charset=utf-8");
     private final OkHttpClient client;
     
     private final String proxyHost;

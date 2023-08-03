@@ -1,0 +1,4 @@
+[versions]
+cosid = "2.3.1"
+[libraries]
+cosidBom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }

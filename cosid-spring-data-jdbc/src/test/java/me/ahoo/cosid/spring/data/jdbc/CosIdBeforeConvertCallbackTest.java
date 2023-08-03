@@ -56,6 +56,14 @@ class CosIdBeforeConvertCallbackTest {
         assertThat(entity.getId(), not(0));
     }
     
+    @Test
+    void onBeforeConvertIfNotFound() {
+        var entity = new NotFoundEntity();
+        DefaultIdGeneratorProvider.INSTANCE.setShare(MockIdGenerator.INSTANCE);
+        cosIdBeforeConvertCallback.onBeforeConvert(entity);
+        assertThat(entity.getId(), equalTo(0L));
+    }
+    
     static class IdEntity {
         @Id
         private long id;
@@ -79,6 +87,20 @@ class CosIdBeforeConvertCallbackTest {
         }
         
         public CosIdEntity setId(int id) {
+            this.id = id;
+            return this;
+        }
+    }
+    
+    static class NotFoundEntity {
+        
+        private long id;
+        
+        public long getId() {
+            return id;
+        }
+        
+        public NotFoundEntity setId(int id) {
             this.id = id;
             return this;
         }

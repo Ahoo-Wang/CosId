@@ -71,7 +71,7 @@ jmh {
         excludes.set(jmhExcludes)
     }
 
-    jmhVersion.set("1.36")
+    jmhVersion.set("1.37")
     warmupIterations.set(1)
     iterations.set(1)
     resultFormat.set("json")

@@ -26,7 +26,7 @@ public class SwaggerConfiguration {
     
     @Bean
     public OpenApiCustomizer openApiCustomizer() {
-        var version = MoreObjects.firstNonNull(getClass().getPackage().getImplementationVersion(), "2.3.0");
+        var version = MoreObjects.firstNonNull(getClass().getPackage().getImplementationVersion(), "2.4.0");
         return openApi -> {
             var info = new Info()
                 .title("CosId Proxy Server")

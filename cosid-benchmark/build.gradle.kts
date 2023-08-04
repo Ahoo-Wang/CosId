@@ -13,7 +13,7 @@
 
 plugins {
     `java-library`
-    id("me.champeau.jmh") version "0.7.1"
+    alias(libs.plugins.jmhPlugin)
 }
 
 java {
@@ -32,8 +32,8 @@ dependencies {
     api(platform(libs.cosidBom))
     implementation("me.ahoo.cosid:cosid-jdbc")
     implementation("me.ahoo.cosid:cosid-test")
-    testImplementation("com.zaxxer:HikariCP:5.0.1")
-    testImplementation("mysql:mysql-connector-java:8.0.33")
+    testImplementation(libs.hikariCP)
+    testImplementation(libs.mysql)
     /**
      * WARNING：中央仓库没有找到美团官方提供的Jar!!!
      * git clone https://github.com/Meituan-Dianping/Leaf
@@ -47,12 +47,12 @@ dependencies {
      */
 //    testImplementation("com.xiaoju.uemc.tinyid:tinyid-client:0.1.0-SNAPSHOT")
 
-    jmh("org.openjdk.jmh:jmh-core:1.37")
-    jmh("org.openjdk.jmh:jmh-generator-annprocess:1.36")
+    jmh(libs.jmhCore)
+    jmh(libs.jmhGeneratorAnnprocess)
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.0")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")
+    testImplementation(libs.junitJupiterApi)
+    testImplementation(libs.junitJupiterParams)
+    testRuntimeOnly(libs.junitJupiterEngine)
 }
 
 jmh {
@@ -71,7 +71,7 @@ jmh {
         excludes.set(jmhExcludes)
     }
 
-    jmhVersion.set("1.37")
+    jmhVersion.set(libs.versions.jmh)
     warmupIterations.set(1)
     iterations.set(1)
     resultFormat.set("json")

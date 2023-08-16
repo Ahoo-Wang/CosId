@@ -17,7 +17,6 @@ import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.stat.Stat;
-import me.ahoo.cosid.stat.Statistical;
 
 import org.springframework.boot.actuate.endpoint.annotation.DeleteOperation;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;

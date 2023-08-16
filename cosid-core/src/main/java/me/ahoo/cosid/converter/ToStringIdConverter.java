@@ -16,10 +16,10 @@ package me.ahoo.cosid.converter;
 import static me.ahoo.cosid.converter.RadixIdConverter.PAD_CHAR;
 
 import me.ahoo.cosid.IdConverter;
-
-import com.google.common.base.Strings;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.ToStringConverterStat;
+
+import com.google.common.base.Strings;
 
 import javax.annotation.Nonnull;
 

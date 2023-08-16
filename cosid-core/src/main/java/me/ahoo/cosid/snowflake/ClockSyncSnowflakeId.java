@@ -16,9 +16,9 @@ package me.ahoo.cosid.snowflake;
 import me.ahoo.cosid.IdGeneratorDecorator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
+import me.ahoo.cosid.stat.Stat;
 
 import lombok.extern.slf4j.Slf4j;
-import me.ahoo.cosid.stat.Stat;
 
 import javax.annotation.Nonnull;
 

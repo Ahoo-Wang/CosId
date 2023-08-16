@@ -13,13 +13,12 @@
 
 package me.ahoo.cosid.converter;
 
-
 import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
-
-import com.google.common.base.Preconditions;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.SuffixConverterStat;
+
+import com.google.common.base.Preconditions;
 
 import javax.annotation.Nonnull;
 

@@ -34,6 +34,8 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 
+import javax.annotation.Nonnull;
+
 /**
  * CosId Auto Configuration.
  *
@@ -63,28 +65,27 @@ public class CosIdGeneratorAutoConfiguration {
         int machineId =
             machineIdDistributor.distribute(namespace, cosIdGeneratorProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
         machineIdGuarder.register(namespace, instanceId);
-        CosIdGenerator cosIdGenerator;
-        switch (cosIdGeneratorProperties.getType()) {
-            case RADIX62: {
-                cosIdGenerator =
-                    new Radix62CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                        cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
-                        cosIdGeneratorProperties.getSequenceResetThreshold());
-                break;
-            }
-            case RADIX36: {
-                cosIdGenerator =
-                    new Radix36CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                        cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
-                        cosIdGeneratorProperties.getSequenceResetThreshold());
-                break;
-            }
-            default:
-                throw new IllegalStateException("Unexpected value: " + cosIdGeneratorProperties.getType());
-        }
+        CosIdGenerator cosIdGenerator = createCosIdGenerator(machineId);
         
         CosIdGenerator clockSyncCosIdGenerator = new ClockSyncCosIdGenerator(cosIdGenerator, clockBackwardsSynchronizer);
         idGeneratorProvider.set(CosId.COSID, clockSyncCosIdGenerator);
         return clockSyncCosIdGenerator;
+    }
+    
+    @Nonnull
+    private CosIdGenerator createCosIdGenerator(int machineId) {
+        switch (cosIdGeneratorProperties.getType()) {
+            case RADIX62 -> {
+                return new Radix62CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
+                    cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
+                    cosIdGeneratorProperties.getSequenceResetThreshold());
+            }
+            case RADIX36 -> {
+                return new Radix36CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
+                    cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
+                    cosIdGeneratorProperties.getSequenceResetThreshold());
+            }
+            default -> throw new IllegalStateException("Unexpected value: " + cosIdGeneratorProperties.getType());
+        }
     }
 }

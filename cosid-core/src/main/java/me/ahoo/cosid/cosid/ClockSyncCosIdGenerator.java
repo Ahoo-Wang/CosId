@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.cosid;
 
+import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 
@@ -21,7 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import javax.annotation.Nonnull;
 
 @Slf4j
-public class ClockSyncCosIdGenerator implements CosIdGenerator {
+public class ClockSyncCosIdGenerator implements CosIdGenerator, Decorator<CosIdGenerator> {
     private final CosIdGenerator actual;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
     
@@ -32,6 +33,12 @@ public class ClockSyncCosIdGenerator implements CosIdGenerator {
     public ClockSyncCosIdGenerator(CosIdGenerator actual, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         this.actual = actual;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
+    }
+    
+    @Nonnull
+    @Override
+    public CosIdGenerator getActual() {
+        return actual;
     }
     
     @Override

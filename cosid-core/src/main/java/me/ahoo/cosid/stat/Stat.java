@@ -24,7 +24,11 @@ public interface Stat {
         return null;
     }
     
+    static Stat simple(String kind, @Nullable Stat actual) {
+        return new SimpleStat(kind, actual);
+    }
+    
     static Stat simple(String kind) {
-        return new SimpleStat(kind);
+        return simple(kind, null);
     }
 }

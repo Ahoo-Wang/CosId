@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.stat;
+package me.ahoo.cosid.stat.converter;
 
-public record SimpleStat(String kind, Stat actual) implements Stat {
+import me.ahoo.cosid.stat.Stat;
+
+public record SuffixConverterStat(String kind, String suffix, Stat actual) implements Stat {
+
 }

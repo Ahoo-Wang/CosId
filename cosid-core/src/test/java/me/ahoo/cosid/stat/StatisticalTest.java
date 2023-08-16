@@ -21,43 +21,64 @@ import me.ahoo.cosid.cosid.Radix36CosIdGenerator;
 import me.ahoo.cosid.jvm.UuidGenerator;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.StringSegmentId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.StringSnowflakeId;
+import me.ahoo.cosid.stat.generator.CosIdGeneratorStat;
+import me.ahoo.cosid.stat.generator.SegmentIdStat;
 
+import me.ahoo.cosid.stat.generator.SimpleIdGeneratorStat;
+import me.ahoo.cosid.stat.generator.SnowflakeIdStat;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class StatisticalTest {
-    
+
     @Test
     void statUuidGenerator() {
-        var stat = Statistical.stat(UuidGenerator.INSTANCE);
+        var stat = UuidGenerator.INSTANCE.stat();
         Assertions.assertNotNull(stat);
     }
-    
+
     @Test
     void statSnowflakeId() {
-        var snowflakeId = new StringSnowflakeId(new MillisecondSnowflakeId(0), Radix62IdConverter.INSTANCE);
-        var stat = Statistical.stat(snowflakeId);
+        var snowflakeId = new MillisecondSnowflakeId(0);
+        var stat = snowflakeId.stat();
         Assertions.assertNotNull(stat);
         assertThat(stat, Matchers.instanceOf(SnowflakeIdStat.class));
         var snowflakeIdStat = (SnowflakeIdStat) stat;
         assertThat(snowflakeIdStat.machineId(), equalTo(0));
     }
-    
+
+    @Test
+    void statStringSnowflakeId() {
+        var snowflakeId = new StringSnowflakeId(new MillisecondSnowflakeId(0), Radix62IdConverter.INSTANCE);
+        var stat = snowflakeId.stat();
+        Assertions.assertNotNull(stat);
+        assertThat(stat, Matchers.instanceOf(SimpleIdGeneratorStat.class));
+    }
+
     @Test
     void statSegmentId() {
         var segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
-        var stat = Statistical.stat(segmentId);
+        var stat = segmentId.stat();
         Assertions.assertNotNull(stat);
         assertThat(stat, Matchers.instanceOf(SegmentIdStat.class));
     }
-    
+
+    @Test
+    void statStringSegmentId() {
+        var segmentId = new StringSegmentId(new DefaultSegmentId(new IdSegmentDistributor.Mock()), Radix62IdConverter.INSTANCE);
+        var stat = segmentId.stat();
+        Assertions.assertNotNull(stat);
+        assertThat(stat, Matchers.instanceOf(SimpleIdGeneratorStat.class));
+    }
+
     @Test
     void statCosIdGenerator() {
         var cosIdGenerator = new Radix36CosIdGenerator(0);
-        var stat = Statistical.stat(cosIdGenerator);
+        var stat = cosIdGenerator.stat();
         Assertions.assertNotNull(stat);
         assertThat(stat, Matchers.instanceOf(CosIdGeneratorStat.class));
         var cosIdGeneratorStat = (CosIdGeneratorStat) stat;

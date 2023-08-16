@@ -11,11 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.stat;
+package me.ahoo.cosid.stat.generator;
 
-record CosIdGeneratorStat(String kind,
-                          String converterKind,
-                          int machineId,
-                          long lastTimestamp) implements Stat {
-    
+import me.ahoo.cosid.stat.Stat;
+
+public record CosIdGeneratorStat(String kind,
+                                 int machineId,
+                                 long lastTimestamp,
+                                 Stat converter) implements IdGeneratorStat {
+
 }

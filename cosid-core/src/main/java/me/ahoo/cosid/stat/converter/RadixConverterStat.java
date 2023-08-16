@@ -11,7 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.stat;
+package me.ahoo.cosid.stat.converter;
 
-public record SimpleStat(String kind, Stat actual) implements Stat {
+import me.ahoo.cosid.stat.Stat;
+
+public record RadixConverterStat(String kind, int radix, int charSize, boolean padStart, long maxId) implements Stat {
 }

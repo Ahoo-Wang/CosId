@@ -13,6 +13,11 @@
 
 package me.ahoo.cosid.converter;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
+import me.ahoo.cosid.stat.converter.ToStringConverterStat;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -58,5 +63,10 @@ class ToStringIdConverterTest {
         ToStringIdConverter idConvert = new ToStringIdConverter(true, 5);
         Assertions.assertEquals("00001", idConvert.asString(1));
         Assertions.assertEquals(1, idConvert.asLong("00001"));
+    }
+    
+    @Test
+    void stat() {
+        assertThat(ToStringIdConverter.INSTANCE.stat(), instanceOf(ToStringConverterStat.class));
     }
 }

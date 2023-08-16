@@ -14,6 +14,8 @@
 package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.stat.Stat;
+import me.ahoo.cosid.stat.converter.RadixConverterStat;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -116,6 +118,10 @@ public abstract class RadixIdConverter implements IdConverter {
         return charSize;
     }
     
+    public long getMaxId() {
+        return maxId;
+    }
+    
     abstract int getRadix();
     
     abstract int getMaxCharSize();
@@ -172,5 +178,10 @@ public abstract class RadixIdConverter implements IdConverter {
             result += digit;
         }
         return result;
+    }
+    
+    @Override
+    public Stat stat() {
+        return new RadixConverterStat(getClass().getSimpleName(), getRadix(), getCharSize(), isPadStart(), getMaxId());
     }
 }

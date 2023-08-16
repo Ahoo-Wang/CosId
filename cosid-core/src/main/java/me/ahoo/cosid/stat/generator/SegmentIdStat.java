@@ -11,16 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.stat;
+package me.ahoo.cosid.stat.generator;
 
-record SnowflakeIdStat(String kind,
-                       String converterKind,
-                       long epoch,
-                       int timestampBit,
-                       int machineBit,
-                       int sequenceBit,
-                       boolean isSafeJavascript,
-                       int machineId,
-                       long lastTimestamp) implements Stat {
-    
+import me.ahoo.cosid.stat.Stat;
+
+public record SegmentIdStat(String kind,
+                            long fetchTime,
+                            long maxId,
+                            long offset,
+                            long sequence,
+                            long step,
+                            boolean isExpired,
+                            boolean isOverflow,
+                            boolean isAvailable,
+                            Stat converter) implements IdGeneratorStat {
 }

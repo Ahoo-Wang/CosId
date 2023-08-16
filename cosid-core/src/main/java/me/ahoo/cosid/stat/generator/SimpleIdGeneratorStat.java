@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.stat;
+package me.ahoo.cosid.stat.generator;
 
-public record SimpleStat(String kind, Stat actual) implements Stat {
+import me.ahoo.cosid.stat.Stat;
+
+public record SimpleIdGeneratorStat(String kind, IdGeneratorStat actual, Stat converter) implements IdGeneratorStat {
+
 }

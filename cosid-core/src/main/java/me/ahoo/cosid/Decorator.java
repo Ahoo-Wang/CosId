@@ -25,17 +25,5 @@ public interface Decorator<D> {
         }
         return any;
     }
-    
-    @SuppressWarnings({"rawtypes"})
-    static String chain(Object any) {
-        StringBuilder builder = new StringBuilder();
-        builder.append(any.getClass().getSimpleName());
-        
-        while (any instanceof Decorator decorator) {
-            any = decorator.getActual();
-            builder.append(" -> ").append(any.getClass().getSimpleName());
-        }
-        
-        return builder.toString();
-    }
+
 }

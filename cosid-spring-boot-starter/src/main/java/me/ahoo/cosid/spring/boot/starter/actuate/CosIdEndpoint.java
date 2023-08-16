@@ -16,8 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.actuate;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.stat.Stat;
-import me.ahoo.cosid.stat.Statistical;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import org.springframework.boot.actuate.endpoint.annotation.DeleteOperation;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
@@ -36,26 +35,25 @@ public class CosIdEndpoint {
     }
     
     @ReadOperation
-    public Map<String, Stat> stat() {
-        Map<String, Stat> statMap = new HashMap<>();
+    public Map<String, IdGeneratorStat> stat() {
+        Map<String, IdGeneratorStat> statMap = new HashMap<>();
         for (Map.Entry<String, IdGenerator> entry : idGeneratorProvider.entries()) {
-            var stat = Statistical.stat(entry.getValue());
+            var stat = entry.getValue().stat();
             statMap.put(entry.getKey(), stat);
         }
         return statMap;
     }
     
     @ReadOperation
-    public Stat getStat(@Selector String name) {
+    public IdGeneratorStat getStat(@Selector String name) {
         var idGenerator = idGeneratorProvider.getRequired(name);
-        return Statistical.stat(idGenerator);
+        return idGenerator.stat();
     }
     
     @DeleteOperation
-    public Stat remove(@Selector String name) {
+    public IdGeneratorStat remove(@Selector String name) {
         var idGenerator = idGeneratorProvider.remove(name);
-        return Statistical.stat(idGenerator);
+        return idGenerator.stat();
     }
-    
     
 }

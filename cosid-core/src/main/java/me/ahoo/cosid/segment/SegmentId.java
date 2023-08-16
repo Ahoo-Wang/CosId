@@ -14,6 +14,8 @@
 package me.ahoo.cosid.segment;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
+import me.ahoo.cosid.stat.generator.SegmentIdStat;
 
 /**
  * Segment algorithm ID generator.
@@ -24,6 +26,21 @@ import me.ahoo.cosid.IdGenerator;
  */
 public interface SegmentId extends IdGenerator {
     int ONE_STEP = 1;
-    
+
     IdSegment current();
+
+    @Override
+    default IdGeneratorStat stat() {
+        return new SegmentIdStat(getClass().getSimpleName(),
+                current().getFetchTime(),
+                current().getMaxId(),
+                current().getOffset(),
+                current().getSequence(),
+                current().getStep(),
+                current().isExpired(),
+                current().isOverflow(),
+                current().isAvailable(),
+                idConverter().stat()
+        );
+    }
 }

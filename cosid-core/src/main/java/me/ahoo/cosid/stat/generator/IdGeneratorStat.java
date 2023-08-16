@@ -11,32 +11,27 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.segment;
+package me.ahoo.cosid.stat.generator;
 
-import me.ahoo.cosid.IdConverter;
-import me.ahoo.cosid.StringIdGeneratorDecorator;
-import me.ahoo.cosid.stat.generator.IdGeneratorStat;
+import me.ahoo.cosid.stat.Stat;
 
-/**
- * String SegmentId.
- *
- * @author ahoo wang
- */
-public class StringSegmentId extends StringIdGeneratorDecorator implements SegmentId {
-    private final SegmentId actualSegmentId;
-    
-    public StringSegmentId(SegmentId actual, IdConverter idConverter) {
-        super(actual, idConverter);
-        this.actualSegmentId = actual;
+import javax.annotation.Nullable;
+
+public interface IdGeneratorStat extends Stat {
+    @Nullable
+    @Override
+    default IdGeneratorStat actual() {
+        return null;
     }
     
-    @Override
-    public IdSegment current() {
-        return actualSegmentId.current();
+    @Nullable
+    Stat converter();
+    
+    static IdGeneratorStat simple(String kind, @Nullable IdGeneratorStat actual, Stat converter) {
+        return new SimpleIdGeneratorStat(kind, actual, converter);
     }
-
-    @Override
-    public IdGeneratorStat stat() {
-        return super.stat();
+    
+    static IdGeneratorStat simple(String kind, Stat converter) {
+        return simple(kind, null, converter);
     }
 }

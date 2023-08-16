@@ -15,6 +15,8 @@ package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.stat.Stat;
+import me.ahoo.cosid.stat.converter.PrefixConverterStat;
 
 import com.google.common.base.Preconditions;
 
@@ -60,5 +62,10 @@ public class PrefixIdConverter implements IdConverter, Decorator<IdConverter> {
     public long asLong(@Nonnull String idString) {
         String idStr = idString.substring(prefix.length());
         return actual.asLong(idStr);
+    }
+    
+    @Override
+    public Stat stat() {
+        return new PrefixConverterStat(getClass().getSimpleName(), prefix, actual.stat());
     }
 }

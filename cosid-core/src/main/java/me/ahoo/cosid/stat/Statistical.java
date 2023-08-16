@@ -19,6 +19,8 @@ import me.ahoo.cosid.cosid.CosIdGenerator;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 
+import me.ahoo.cosid.stat.generator.SegmentIdStat;
+
 import java.util.Objects;
 
 @FunctionalInterface
@@ -74,7 +76,6 @@ public interface Statistical {
             );
         }
         
-        
-        return Stat.simple(kind, converterKind);
+        return Stat.simple(kind);
     }
 }

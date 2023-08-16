@@ -13,6 +13,5 @@
 
 package me.ahoo.cosid.stat;
 
-record SimpleStat(String kind, String converterKind) implements Stat {
-
+record SimpleStat(String kind) implements Stat {
 }

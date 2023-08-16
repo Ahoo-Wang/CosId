@@ -11,16 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.stat;
+package me.ahoo.cosid.stat.converter;
 
-record SnowflakeIdStat(String kind,
-                       String converterKind,
-                       long epoch,
-                       int timestampBit,
-                       int machineBit,
-                       int sequenceBit,
-                       boolean isSafeJavascript,
-                       int machineId,
-                       long lastTimestamp) implements Stat {
-    
+import me.ahoo.cosid.stat.Stat;
+
+record ToStringConverterStat(String kind, boolean padStart, int charSize, Stat actual) implements Stat {
+
 }

@@ -11,11 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.stat;
+package me.ahoo.cosid.stat.converter;
 
-record CosIdGeneratorStat(String kind,
-                          String converterKind,
-                          int machineId,
-                          long lastTimestamp) implements Stat {
-    
+import me.ahoo.cosid.stat.Stat;
+
+record SuffixConverterStat(String kind, String suffix, Stat actual) implements Stat {
+
 }

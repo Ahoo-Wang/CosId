@@ -11,20 +11,18 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.stat;
+package me.ahoo.cosid.stat.generator;
 
-import javax.annotation.Nullable;
+import me.ahoo.cosid.stat.Stat;
 
-public interface Stat {
+record SnowflakeIdStat(String kind,
+                       long epoch,
+                       int timestampBit,
+                       int machineBit,
+                       int sequenceBit,
+                       boolean isSafeJavascript,
+                       int machineId,
+                       long lastTimestamp,
+                       Stat converter) implements Stat {
     
-    String kind();
-    
-    @Nullable
-    default Stat actual() {
-        return null;
-    }
-    
-    static Stat simple(String kind) {
-        return new SimpleStat(kind);
-    }
 }

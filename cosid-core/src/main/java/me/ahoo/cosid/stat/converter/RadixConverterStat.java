@@ -11,17 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.stat;
+package me.ahoo.cosid.stat.converter;
 
-public record SegmentIdStat(String kind,
-                            String converterKind,
-                            long fetchTime,
-                            long maxId,
-                            long offset,
-                            long sequence,
-                            long step,
-                            boolean isExpired,
-                            boolean isOverflow,
-                            boolean isAvailable
-) implements Stat {
+import me.ahoo.cosid.stat.Stat;
+
+record RadixConverterStat(String kind, int radix, int maxCharSize, boolean padStart, long maxId) implements Stat {
 }

@@ -23,6 +23,9 @@ import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.StringSnowflakeId;
+import me.ahoo.cosid.stat.converter.CosIdGeneratorStat;
+import me.ahoo.cosid.stat.generator.SegmentIdStat;
+import me.ahoo.cosid.stat.converter.SnowflakeIdStat;
 
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Assertions;

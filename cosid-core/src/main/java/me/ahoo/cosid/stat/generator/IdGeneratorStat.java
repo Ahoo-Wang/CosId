@@ -11,20 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.stat;
+package me.ahoo.cosid.stat.generator;
 
-import javax.annotation.Nullable;
+import me.ahoo.cosid.stat.Stat;
 
-public interface Stat {
-    
-    String kind();
-    
-    @Nullable
-    default Stat actual() {
-        return null;
-    }
-    
-    static Stat simple(String kind) {
-        return new SimpleStat(kind);
-    }
+interface IdGeneratorStat extends Stat {
+    Stat converter();
 }

@@ -182,6 +182,6 @@ public abstract class RadixIdConverter implements IdConverter {
     
     @Override
     public Stat stat() {
-        return new RadixConverterStat(getClass().getSimpleName(), getRadix(), getMaxCharSize(), isPadStart(), getMaxId());
+        return new RadixConverterStat(getClass().getSimpleName(), getRadix(), getCharSize(), isPadStart(), getMaxId());
     }
 }

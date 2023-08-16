@@ -15,5 +15,5 @@ package me.ahoo.cosid.stat.converter;
 
 import me.ahoo.cosid.stat.Stat;
 
-public record RadixConverterStat(String kind, int radix, int maxCharSize, boolean padStart, long maxId) implements Stat {
+public record RadixConverterStat(String kind, int radix, int charSize, boolean padStart, long maxId) implements Stat {
 }

@@ -164,14 +164,6 @@ configure(publishProjects) {
                     password = System.getenv("GITHUB_TOKEN")
                 }
             }
-            maven {
-                name = "LinYiPackages"
-                url = uri(project.properties["linyiPackageReleaseUrl"].toString())
-                credentials {
-                    username = project.properties["linyiPackageUsername"]?.toString()
-                    password = project.properties["linyiPackagePwd"]?.toString()
-                }
-            }
         }
         publications {
             val publishName = if (isBom) "mavenBom" else "mavenLibrary"

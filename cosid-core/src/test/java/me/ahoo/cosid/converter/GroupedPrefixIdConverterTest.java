@@ -19,6 +19,7 @@ import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
+import me.ahoo.cosid.stat.converter.GroupedPrefixConverterStat;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,6 @@ class GroupedPrefixIdConverterTest {
         assertThat(converter.asString(1), equalTo("2023-1"));
         assertThat(converter.getActual(), equalTo(ToStringIdConverter.INSTANCE));
         GroupedAccessor.clear();
-        
     }
     
     @Test
@@ -47,5 +47,10 @@ class GroupedPrefixIdConverterTest {
     @Test
     void asLong() {
         Assertions.assertThrows(UnsupportedOperationException.class, () -> converter.asLong("2023-1"));
+    }
+    
+    @Test
+    void stat() {
+        assertThat(converter.stat(), instanceOf(GroupedPrefixConverterStat.class));
     }
 }

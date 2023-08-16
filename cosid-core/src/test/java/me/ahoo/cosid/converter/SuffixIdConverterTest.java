@@ -14,7 +14,9 @@
 package me.ahoo.cosid.converter;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
+
+import me.ahoo.cosid.stat.converter.SuffixConverterStat;
 
 import org.junit.jupiter.api.Test;
 
@@ -51,5 +53,10 @@ class SuffixIdConverterTest {
         long randomId = ThreadLocalRandom.current().nextLong();
         long actual = idConverter.asLong(randomId + SUFFIX);
         assertThat(actual, equalTo(randomId));
+    }
+    
+    @Test
+    void stat() {
+        assertThat(idConverter.stat(), instanceOf(SuffixConverterStat.class));
     }
 }

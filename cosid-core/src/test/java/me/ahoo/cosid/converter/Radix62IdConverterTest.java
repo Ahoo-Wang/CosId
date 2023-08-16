@@ -13,8 +13,12 @@
 
 package me.ahoo.cosid.converter;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.stat.converter.RadixConverterStat;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -115,4 +119,8 @@ class Radix62IdConverterTest {
         Assertions.assertEquals(charSize, actualIdStr.length());
     }
     
+    @Test
+    void stat() {
+        assertThat(Radix62IdConverter.INSTANCE.stat(), instanceOf(RadixConverterStat.class));
+    }
 }

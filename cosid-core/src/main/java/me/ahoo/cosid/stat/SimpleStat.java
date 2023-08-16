@@ -13,5 +13,5 @@
 
 package me.ahoo.cosid.stat;
 
-record SimpleStat(String kind, Stat actual) implements Stat {
+public record SimpleStat(String kind, Stat actual) implements Stat {
 }

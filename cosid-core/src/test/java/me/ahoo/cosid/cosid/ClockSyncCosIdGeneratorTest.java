@@ -28,6 +28,11 @@ class ClockSyncCosIdGeneratorTest {
     }
     
     @Test
+    void getMachineId() {
+        assertThat(clockSyncCosIdGenerator.getMachineId(), equalTo(1));
+    }
+    
+    @Test
     void getLastTimestamp() {
         assertThat(clockSyncCosIdGenerator.getLastTimestamp(), equalTo(radix62CosIdGenerator.getLastTimestamp()));
     }

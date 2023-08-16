@@ -77,13 +77,22 @@ cosid:
     distributor:
       type: redis
 ```
-> TIPS: 默认情况下，开启 `snowflake`/`segment` 会生成一个共享的`IdGenerator` 注册到 `Spring` 容器 以及 `DefaultIdGeneratorProvider.INSTANCE`。
+
+> TIPS: 默认情况下，开启 `snowflake`/`segment` 会生成共享的(`__share__`) `IdGenerator` 注册到 `Spring` 容器 以及 `DefaultIdGeneratorProvider.INSTANCE`。
+> 
+> WARN: 当同时开启 `snowflake`/`segment` 时，只有其中一个共享的(`__share__`) `IdGenerator` 会注入到 `Spring` 容器(名称冲突)，另一个会被忽略。
+
+`IdGenerator` `Bean Name` 规则：
+- SegmentId: `[name]SegmentId` , 比如 : `__share__SegmentId`
+- SnowflakeId: `[name]SnowflakeId`， 比如 : `__share__SnowflakeId`
 
 ## 使用
 
 > 通过 `@Autowired` 注入 `IdGenerator` 。
 
 ```java
+    @Qualifier("__share__SegmentId")
+    @Lazy
     @Autowired
     private IdGenerator idGenerator;
 ``` 

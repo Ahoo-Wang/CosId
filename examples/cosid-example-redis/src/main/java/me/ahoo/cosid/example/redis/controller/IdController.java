@@ -13,8 +13,12 @@
 
 package me.ahoo.cosid.example.redis.controller;
 
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,6 +32,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("ids")
 public class IdController {
     private final IdGeneratorProvider provider;
+    @Qualifier("__share__SegmentId")
+    @Autowired
+    @Lazy
+    private IdGenerator idGenerator;
     
     public IdController(IdGeneratorProvider provider) {
         this.provider = provider;

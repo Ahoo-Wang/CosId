@@ -15,6 +15,7 @@ package me.ahoo.cosid.segment;
 
 import me.ahoo.cosid.StringIdGeneratorDecorator;
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.stat.Stat;
 
 /**
  * String SegmentId.
@@ -32,5 +33,10 @@ public class StringSegmentId extends StringIdGeneratorDecorator implements Segme
     @Override
     public IdSegment current() {
         return actualSegmentId.current();
+    }
+
+    @Override
+    public Stat stat() {
+        return super.stat();
     }
 }

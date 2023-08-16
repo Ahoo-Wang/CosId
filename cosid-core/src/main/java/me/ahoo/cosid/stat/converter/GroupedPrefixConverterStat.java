@@ -15,5 +15,5 @@ package me.ahoo.cosid.stat.converter;
 
 import me.ahoo.cosid.stat.Stat;
 
-record GroupedPrefixConverterStat(String kind, String delimiter, Stat actual) implements Stat {
+public record GroupedPrefixConverterStat(String kind, String delimiter, Stat actual) implements Stat {
 }

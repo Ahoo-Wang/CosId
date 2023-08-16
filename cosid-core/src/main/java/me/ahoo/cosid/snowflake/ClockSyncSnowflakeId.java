@@ -18,6 +18,7 @@ import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 
 import lombok.extern.slf4j.Slf4j;
+import me.ahoo.cosid.stat.Stat;
 
 import javax.annotation.Nonnull;
 
@@ -27,26 +28,26 @@ import javax.annotation.Nonnull;
  * @author ahoo wang
  */
 @Slf4j
-public class ClockSyncSnowflakeId implements SnowflakeId, IdGeneratorDecorator {
-    
+public class ClockSyncSnowflakeId implements IdGeneratorDecorator, SnowflakeId {
+
     private final SnowflakeId actual;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
-    
+
     public ClockSyncSnowflakeId(SnowflakeId actual) {
         this(actual, ClockBackwardsSynchronizer.DEFAULT);
     }
-    
+
     public ClockSyncSnowflakeId(SnowflakeId actual, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         this.actual = actual;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
     }
-    
+
     @Nonnull
     @Override
     public SnowflakeId getActual() {
         return actual;
     }
-    
+
     @Override
     public long generate() {
         try {
@@ -59,57 +60,60 @@ public class ClockSyncSnowflakeId implements SnowflakeId, IdGeneratorDecorator {
             return actual.generate();
         }
     }
-    
-    
+
+    @Override
+    public Stat stat() {
+        return IdGeneratorDecorator.super.stat();
+    }
+
     @Override
     public long getEpoch() {
         return actual.getEpoch();
     }
-    
+
     @Override
     public int getTimestampBit() {
         return actual.getTimestampBit();
     }
-    
+
     @Override
     public int getMachineBit() {
         return actual.getMachineBit();
     }
-    
+
     @Override
     public int getSequenceBit() {
         return actual.getSequenceBit();
     }
-    
+
     @Override
     public boolean isSafeJavascript() {
         return actual.isSafeJavascript();
     }
-    
+
     @Override
     public long getMaxTimestamp() {
         return actual.getMaxTimestamp();
     }
-    
+
     @Override
     public int getMaxMachine() {
         return actual.getMaxMachine();
     }
-    
+
     @Override
     public long getMaxSequence() {
         return actual.getMaxSequence();
     }
-    
+
     @Override
     public long getLastTimestamp() {
         return actual.getLastTimestamp();
     }
-    
+
     @Override
     public int getMachineId() {
         return actual.getMachineId();
     }
-    
-    
+
 }

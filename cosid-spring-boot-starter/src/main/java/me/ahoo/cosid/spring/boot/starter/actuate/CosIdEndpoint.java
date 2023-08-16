@@ -30,32 +30,32 @@ import java.util.Map;
 @Endpoint(id = CosId.COSID)
 public class CosIdEndpoint {
     private final IdGeneratorProvider idGeneratorProvider;
-    
+
     public CosIdEndpoint(IdGeneratorProvider idGeneratorProvider) {
         this.idGeneratorProvider = idGeneratorProvider;
     }
-    
+
     @ReadOperation
     public Map<String, Stat> stat() {
         Map<String, Stat> statMap = new HashMap<>();
         for (Map.Entry<String, IdGenerator> entry : idGeneratorProvider.entries()) {
-            var stat = Statistical.stat(entry.getValue());
+            var stat = entry.getValue().stat();
             statMap.put(entry.getKey(), stat);
         }
         return statMap;
     }
-    
+
     @ReadOperation
     public Stat getStat(@Selector String name) {
         var idGenerator = idGeneratorProvider.getRequired(name);
-        return Statistical.stat(idGenerator);
+        return idGenerator.stat();
     }
-    
+
     @DeleteOperation
     public Stat remove(@Selector String name) {
         var idGenerator = idGeneratorProvider.remove(name);
-        return Statistical.stat(idGenerator);
+        return idGenerator.stat();
     }
-    
-    
+
+
 }

@@ -15,6 +15,6 @@ package me.ahoo.cosid.stat.converter;
 
 import me.ahoo.cosid.stat.Stat;
 
-record SuffixConverterStat(String kind, String suffix, Stat actual) implements Stat {
+public record SuffixConverterStat(String kind, String suffix, Stat actual) implements Stat {
 
 }

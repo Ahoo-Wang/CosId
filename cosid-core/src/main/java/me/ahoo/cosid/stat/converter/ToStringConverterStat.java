@@ -15,6 +15,6 @@ package me.ahoo.cosid.stat.converter;
 
 import me.ahoo.cosid.stat.Stat;
 
-record ToStringConverterStat(String kind, boolean padStart, int charSize, Stat actual) implements Stat {
+public record ToStringConverterStat(String kind, boolean padStart, int charSize) implements Stat {
 
 }

@@ -17,13 +17,14 @@ import me.ahoo.cosid.stat.Stat;
 
 import javax.annotation.Nullable;
 
-interface IdGeneratorStat extends Stat {
+public interface IdGeneratorStat extends Stat {
+    @Nullable
     Stat converter();
-    
+
     static IdGeneratorStat simple(String kind, @Nullable Stat actual, Stat converter) {
         return new SimpleIdGeneratorStat(kind, actual, converter);
     }
-    
+
     static IdGeneratorStat simple(String kind, Stat converter) {
         return simple(kind, null, converter);
     }

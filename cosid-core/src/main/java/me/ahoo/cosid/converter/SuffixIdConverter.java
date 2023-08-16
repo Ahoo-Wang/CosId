@@ -18,6 +18,8 @@ import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
 
 import com.google.common.base.Preconditions;
+import me.ahoo.cosid.stat.Stat;
+import me.ahoo.cosid.stat.converter.SuffixConverterStat;
 
 import javax.annotation.Nonnull;
 
@@ -29,23 +31,23 @@ import javax.annotation.Nonnull;
 public class SuffixIdConverter implements IdConverter, Decorator<IdConverter> {
     private final String suffix;
     private final IdConverter actual;
-    
+
     public SuffixIdConverter(String suffix, IdConverter actual) {
         Preconditions.checkNotNull(suffix, "suffix can not be null!");
         this.suffix = suffix;
         this.actual = actual;
     }
-    
+
     @Nonnull
     @Override
     public IdConverter getActual() {
         return actual;
     }
-    
+
     public String getSuffix() {
         return suffix;
     }
-    
+
     @Nonnull
     @Override
     public String asString(long id) {
@@ -55,10 +57,15 @@ public class SuffixIdConverter implements IdConverter, Decorator<IdConverter> {
         }
         return idStr + suffix;
     }
-    
+
     @Override
     public long asLong(@Nonnull String idString) {
         String idStr = idString.substring(0, idString.length() - suffix.length());
         return actual.asLong(idStr);
+    }
+
+    @Override
+    public Stat stat() {
+        return new SuffixConverterStat(getClass().getSimpleName(), suffix, actual.stat());
     }
 }

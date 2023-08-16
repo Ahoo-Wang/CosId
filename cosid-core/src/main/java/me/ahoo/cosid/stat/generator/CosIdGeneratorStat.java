@@ -15,9 +15,9 @@ package me.ahoo.cosid.stat.generator;
 
 import me.ahoo.cosid.stat.Stat;
 
-record CosIdGeneratorStat(String kind,
-                          int machineId,
-                          long lastTimestamp,
-                          Stat converter) implements IdGeneratorStat {
-    
+public record CosIdGeneratorStat(String kind,
+                                 int machineId,
+                                 long lastTimestamp,
+                                 Stat converter) implements IdGeneratorStat {
+
 }

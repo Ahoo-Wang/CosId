@@ -38,4 +38,5 @@ public interface Decorator<D> {
         
         return builder.toString();
     }
+
 }

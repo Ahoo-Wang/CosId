@@ -16,18 +16,18 @@ package me.ahoo.cosid.stat;
 import javax.annotation.Nullable;
 
 public interface Stat {
-    
+
     String kind();
-    
+
     @Nullable
     default Stat actual() {
         return null;
     }
-    
+
     static Stat simple(String kind, @Nullable Stat actual) {
         return new SimpleStat(kind, actual);
     }
-    
+
     static Stat simple(String kind) {
         return simple(kind, null);
     }

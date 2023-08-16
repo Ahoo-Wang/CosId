@@ -15,6 +15,7 @@ package me.ahoo.cosid.snowflake;
 
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.StringIdGeneratorDecorator;
+import me.ahoo.cosid.stat.Stat;
 
 /**
  * String SnowflakeId.
@@ -72,5 +73,11 @@ public class StringSnowflakeId extends StringIdGeneratorDecorator implements Sno
     @Override
     public int getMachineId() {
         return snowflakeId.getMachineId();
+    }
+
+
+    @Override
+    public Stat stat() {
+        return super.stat();
     }
 }

@@ -48,4 +48,5 @@ public class SnowflakeFriendlyIdConverter implements IdConverter {
     public long asLong(@Nonnull String idString) {
         return snowflakeIdStateParser.parse(idString).getId();
     }
+
 }

@@ -15,7 +15,7 @@ package me.ahoo.cosid.stat.generator;
 
 import me.ahoo.cosid.stat.Stat;
 
-record SnowflakeIdStat(String kind,
+public record SnowflakeIdStat(String kind,
                        long epoch,
                        int timestampBit,
                        int machineBit,

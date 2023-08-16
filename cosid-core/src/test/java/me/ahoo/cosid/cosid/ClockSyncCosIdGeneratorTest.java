@@ -23,6 +23,11 @@ class ClockSyncCosIdGeneratorTest {
     private final ClockSyncCosIdGenerator clockSyncCosIdGenerator = new ClockSyncCosIdGenerator(radix62CosIdGenerator);
     
     @Test
+    void getActual() {
+        assertThat(clockSyncCosIdGenerator.getActual(), sameInstance(radix62CosIdGenerator));
+    }
+    
+    @Test
     void getLastTimestamp() {
         assertThat(clockSyncCosIdGenerator.getLastTimestamp(), equalTo(radix62CosIdGenerator.getLastTimestamp()));
     }

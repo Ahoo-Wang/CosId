@@ -19,12 +19,18 @@ import javax.annotation.Nullable;
 
 public interface IdGeneratorStat extends Stat {
     @Nullable
+    @Override
+    default IdGeneratorStat actual() {
+        return null;
+    }
+    
+    @Nullable
     Stat converter();
-
-    static IdGeneratorStat simple(String kind, @Nullable Stat actual, Stat converter) {
+    
+    static IdGeneratorStat simple(String kind, @Nullable IdGeneratorStat actual, Stat converter) {
         return new SimpleIdGeneratorStat(kind, actual, converter);
     }
-
+    
     static IdGeneratorStat simple(String kind, Stat converter) {
         return simple(kind, null, converter);
     }

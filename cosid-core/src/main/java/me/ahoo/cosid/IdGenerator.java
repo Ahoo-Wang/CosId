@@ -53,7 +53,7 @@ public interface IdGenerator extends StringIdGenerator, Statistical {
     }
     
     @Override
-    default Stat stat() {
+    default IdGeneratorStat stat() {
         return IdGeneratorStat.simple(getClass().getSimpleName(), idConverter().stat());
     }
 }

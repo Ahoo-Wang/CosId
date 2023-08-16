@@ -1,6 +1,5 @@
 package me.ahoo.cosid;
 
-import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import javax.annotation.Nonnull;
@@ -31,7 +30,7 @@ public interface IdGeneratorDecorator extends IdGenerator, Decorator<IdGenerator
     }
 
     @Override
-    default Stat stat() {
+    default IdGeneratorStat stat() {
         return IdGeneratorStat.simple(getClass().getSimpleName(), getActual().stat(), idConverter().stat());
     }
 }

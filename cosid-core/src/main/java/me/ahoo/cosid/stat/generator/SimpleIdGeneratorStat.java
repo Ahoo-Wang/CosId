@@ -15,6 +15,6 @@ package me.ahoo.cosid.stat.generator;
 
 import me.ahoo.cosid.stat.Stat;
 
-public record SimpleIdGeneratorStat(String kind, Stat actual, Stat converter) implements IdGeneratorStat {
+public record SimpleIdGeneratorStat(String kind, IdGeneratorStat actual, Stat converter) implements IdGeneratorStat {
 
 }

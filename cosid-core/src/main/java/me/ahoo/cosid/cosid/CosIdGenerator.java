@@ -17,6 +17,7 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.generator.CosIdGeneratorStat;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import javax.annotation.Nonnull;
 
@@ -29,34 +30,34 @@ import javax.annotation.Nonnull;
  */
 public interface CosIdGenerator extends IdGenerator {
     int getMachineId();
-
+    
     long getLastTimestamp();
-
+    
     @Nonnull
     CosIdIdStateParser getStateParser();
-
+    
     @Nonnull
     @Override
     default IdConverter idConverter() {
         throw new UnsupportedOperationException("CosIdGenerator does not support IdConverter,please use CosIdIdStateParser instead!");
     }
-
+    
     @Override
     default long generate() {
         throw new UnsupportedOperationException("CosIdGenerator does not support the generation of long IDs!");
     }
-
+    
     @Nonnull
     CosIdState generateAsState();
-
+    
     @Nonnull
     @Override
     default String generateAsString() {
         return getStateParser().asString(generateAsState());
     }
-
+    
     @Override
-    default Stat stat() {
-        return new CosIdGeneratorStat(getClass().getSimpleName(), getMachineId(), getLastTimestamp(), Stat.simple("CosIdIdStateParser"));
+    default IdGeneratorStat stat() {
+        return new CosIdGeneratorStat(getClass().getSimpleName(), getMachineId(), getLastTimestamp(), Stat.simple(getStateParser().getClass().getSimpleName()));
     }
 }

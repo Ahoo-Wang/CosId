@@ -14,7 +14,7 @@
 package me.ahoo.cosid.segment;
 
 import me.ahoo.cosid.IdGenerator;
-import me.ahoo.cosid.stat.Stat;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 import me.ahoo.cosid.stat.generator.SegmentIdStat;
 
 /**
@@ -30,7 +30,7 @@ public interface SegmentId extends IdGenerator {
     IdSegment current();
 
     @Override
-    default Stat stat() {
+    default IdGeneratorStat stat() {
         return new SegmentIdStat(getClass().getSimpleName(),
                 current().getFetchTime(),
                 current().getMaxId(),

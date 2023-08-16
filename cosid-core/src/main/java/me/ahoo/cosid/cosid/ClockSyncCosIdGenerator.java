@@ -16,6 +16,8 @@ package me.ahoo.cosid.cosid;
 import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
+import me.ahoo.cosid.stat.Stat;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -71,4 +73,8 @@ public class ClockSyncCosIdGenerator implements CosIdGenerator, Decorator<CosIdG
         }
     }
     
+    @Override
+    public IdGeneratorStat stat() {
+        return IdGeneratorStat.simple(getClass().getSimpleName(), actual.stat(), Stat.simple(getStateParser().getClass().getSimpleName()));
+    }
 }

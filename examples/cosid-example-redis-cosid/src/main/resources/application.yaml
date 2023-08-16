@@ -1,10 +1,20 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include:
+          - cosid
+          - cosidGenerator
+          - cosidStringGenerator
+
 server:
   port: 8610
 spring:
   application:
     name: ${service.name:cosid-example-redis}
-  redis:
-    host: localhost
+  data:
+    redis:
+      host: localhost
 cosid:
   namespace: ${spring.application.name}
   machine:

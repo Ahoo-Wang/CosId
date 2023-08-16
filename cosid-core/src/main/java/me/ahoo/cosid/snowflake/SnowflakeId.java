@@ -14,7 +14,7 @@
 package me.ahoo.cosid.snowflake;
 
 import me.ahoo.cosid.IdGenerator;
-import me.ahoo.cosid.stat.Stat;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 import me.ahoo.cosid.stat.generator.SnowflakeIdStat;
 
 /**
@@ -60,7 +60,7 @@ public interface SnowflakeId extends IdGenerator {
     }
 
     @Override
-    default Stat stat() {
+    default IdGeneratorStat stat() {
         return new SnowflakeIdStat(
                 getClass().getSimpleName(),
                 getEpoch(),

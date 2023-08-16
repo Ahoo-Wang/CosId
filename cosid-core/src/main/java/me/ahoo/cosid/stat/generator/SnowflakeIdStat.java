@@ -23,6 +23,6 @@ public record SnowflakeIdStat(String kind,
                        boolean isSafeJavascript,
                        int machineId,
                        long lastTimestamp,
-                       Stat converter) implements Stat {
+                       Stat converter) implements IdGeneratorStat {
     
 }

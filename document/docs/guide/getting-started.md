@@ -94,7 +94,12 @@ cosid:
     @Qualifier("__share__SegmentId")
     @Lazy
     @Autowired
-    private IdGenerator idGenerator;
+    private SegmentId segmentId;
+
+    @Qualifier("__share__SnowflakeId")
+    @Lazy
+    @Autowired
+    private SnowflakeId snowflakeId;
 ``` 
 
 > 通过 `DefaultIdGeneratorProvider.INSTANCE` 获取共享 `IdGenerator` 。

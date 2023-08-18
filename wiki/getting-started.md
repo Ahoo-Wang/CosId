@@ -21,7 +21,7 @@
 ![Snowflake](../document/docs/.vuepress/public/assets/design/Snowflake-identifier.png)
 
 > *SnowflakeId*使用`Long`（64-bit）位分区来生成ID的一种分布式ID算法。
-> 通用的位分配方案为：`timestamp`(64-bit)+`machineId`(10-bit)+`sequence`(12-bit)=63bit。
+> 通用的位分配方案为：`timestamp`(41-bit)+`machineId`(10-bit)+`sequence`(12-bit)=63bit。
 
 - 41-bit `timestamp` = (1L<<41)/(1000/3600/24/365) 约可以存储 69 年的时间戳，即可以使用的绝对时间为 `EPOCH` + 69 年，一般我们需要自定义 `EPOCH`
   为产品开发时间，另外还可以通过压缩其他区域的分配位数，来增加时间戳位数来延长可用时间。

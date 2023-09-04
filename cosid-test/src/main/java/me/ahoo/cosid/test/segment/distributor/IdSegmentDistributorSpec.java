@@ -45,8 +45,8 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 public abstract class IdSegmentDistributorSpec {
     
-    static final long TEST_OFFSET = 0;
-    static final long TEST_STEP = 100;
+    protected static final long TEST_OFFSET = 0;
+    protected static final long TEST_STEP = 100;
     
     protected abstract IdSegmentDistributorFactory getFactory();
     

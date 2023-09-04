@@ -13,15 +13,24 @@
 
 package me.ahoo.cosid.mongo;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+import reactor.test.StepVerifier;
 
 class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     MongoDatabase mongoDatabase;
@@ -50,5 +59,20 @@ class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     @Override
     public void nextMaxIdWhenBack() {
     
+    }
+    
+    @Test
+    public void nextMaxIdInParallel() {
+        var mono = Mono.fromRunnable(() -> {
+            String namespace = MockIdGenerator.INSTANCE.generateAsString();
+            IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxIdIParallel", TEST_OFFSET, TEST_STEP);
+            IdSegmentDistributor distributor = factory().create(definition);
+            long expected = TEST_OFFSET + TEST_STEP;
+            long actual = distributor.nextMaxId();
+            assertThat(actual, equalTo(expected));
+            long actual2 = distributor.nextMaxId();
+            assertThat(actual2, greaterThan(actual));
+        }).subscribeOn(Schedulers.parallel());
+        StepVerifier.create(mono).verifyComplete();
     }
 }

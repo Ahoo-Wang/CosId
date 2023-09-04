@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.mongo;
 
+import me.ahoo.cosid.mongo.reactive.BlockingAdapter;
+
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.ReturnDocument;
 
@@ -20,5 +22,6 @@ public interface Documents {
     String ID_FIELD = "_id";
     
     FindOneAndUpdateOptions UPDATE_AFTER_OPTIONS = new FindOneAndUpdateOptions()
-        .returnDocument(ReturnDocument.AFTER);
+        .returnDocument(ReturnDocument.AFTER)
+        .maxTime(BlockingAdapter.DEFAULT_TIME_OUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
 }

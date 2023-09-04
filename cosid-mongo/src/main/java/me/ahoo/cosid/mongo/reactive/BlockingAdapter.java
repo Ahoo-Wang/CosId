@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public final class BlockingAdapter {
-    private static final Duration DEFAULT_TIME_OUT = Duration.ofSeconds(10);
+    public static final Duration DEFAULT_TIME_OUT = Duration.ofSeconds(10);
     
     private BlockingAdapter() {
     }

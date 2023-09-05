@@ -21,6 +21,7 @@ import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
@@ -41,6 +42,7 @@ class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     void setup() {
         mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
         idSegmentInitializer = new MongoReactiveIdSegmentInitializer(mongoDatabase);
+        
         idSegmentInitializer.ensureCosIdCollection();
         distributorFactory =
             new MongoReactiveIdSegmentDistributorFactory(mongoDatabase, true);
@@ -73,6 +75,23 @@ class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
             long actual2 = distributor.nextMaxId();
             assertThat(actual2, greaterThan(actual));
         }).subscribeOn(Schedulers.parallel());
+        StepVerifier.create(mono).verifyComplete();
+    }
+    
+    @Test
+    public void batchNextMaxId() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "batchNextMaxId", 1, 1);
+        IdSegmentDistributor distributor = factory().create(definition);
+        var segmentChainId = new SegmentChainId(distributor);
+        for (int i = 0; i < 1000; i++) {
+            segmentChainId.generateAsString();
+        }
+        var mono = Mono.fromRunnable(() -> {
+            for (int i = 0; i < 1000; i++) {
+                segmentChainId.generateAsString();
+            }
+        }).subscribeOn(Schedulers.single());
         StepVerifier.create(mono).verifyComplete();
     }
 }

@@ -11,7 +11,7 @@ junitPioneer = "2.1.0"
 axon = "4.8.3"
 springDoc = "2.2.0"
 hamcrest = "2.2"
-mockk = "1.13.7"
+mockk = "1.13.8"
 detektFormatting = "1.23.1"
 jmh = "1.37"
 # plugins

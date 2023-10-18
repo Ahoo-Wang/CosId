@@ -9,20 +9,38 @@
         <Package name="~me\.ahoo\.cosid\..*\.*jmh_generated"/>
     </Match>
     <Match>
-        <Class name="~.*\.*Test.*" />
+        <Class name="~.*\.*Test.*"/>
     </Match>
     <Match>
-        <Bug pattern="EI_EXPOSE_REP" />
+        <Bug pattern="EI_EXPOSE_REP"/>
     </Match>
     <Match>
-        <Bug pattern="EI_EXPOSE_REP2" />
+        <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
     <Match>
-        <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE" />
+        <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE"/>
+    </Match>
+    <Match>
+        <!--https://github.com/spotbugs/spotbugs/issues/2627-->
+        <!--https://github.com/Ahoo-Wang/CosId/pull/450-->
+        <Bug pattern="PI_DO_NOT_REUSE_PUBLIC_IDENTIFIERS_CLASS_NAMES"/>
     </Match>
     <Match>
         <Class name="me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor"/>
-        <Method name="distribute0" />
+        <Method name="distribute0"/>
         <Bug pattern="NP_NULL_ON_SOME_PATH"/>
+    </Match>
+    <Match>
+        <Class name="me.ahoo.cosid.accessor.IdDefinition$NotFoundIdDefinition"/>
+        <Field name="id"/>
+        <Bug pattern="SS_SHOULD_BE_STATIC"/>
+    </Match>
+    <Match>
+        <Class name="me.ahoo.cosid.snowflake.AbstractSnowflakeId"/>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+    </Match>
+    <Match>
+        <Class name="me.ahoo.cosid.cosid.RadixCosIdGenerator"/>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
     </Match>
 </FindBugsFilter>

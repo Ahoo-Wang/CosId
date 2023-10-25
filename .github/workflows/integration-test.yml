@@ -86,6 +86,25 @@ jobs:
       - name: Test CosId-Axon
         run: ./gradlew cosid-axon:clean cosid-axon:check
 
+  cosid-flowable-test:
+    name: CosId Flowable Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Flowable
+        run: ./gradlew cosid-flowable:clean cosid-flowable:check
+
   cosid-mybatis-test:
     name: CosId Mybatis Test
     needs: [ cosid-core-test ]

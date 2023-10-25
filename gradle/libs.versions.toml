@@ -9,6 +9,7 @@ mybatis = "3.5.13"
 mybatisSpringBoot = "3.0.2"
 junitPioneer = "2.1.0"
 axon = "4.8.4"
+flowable = "6.8.0"
 springDoc = "2.2.0"
 hamcrest = "2.2"
 mockk = "1.13.8"
@@ -23,12 +24,13 @@ spotbugs = "5.2.1"
 springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
 springCloudDependencies = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "springCloud" }
 okhttpBom = { module = "com.squareup.okhttp3:okhttp-bom", version.ref = "okhttp" }
-axonBom= { module = "org.axonframework:axon-bom", version.ref = "axon" }
+axonBom = { module = "org.axonframework:axon-bom", version.ref = "axon" }
 testcontainersBom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 mybatis = { module = "org.mybatis:mybatis", version.ref = "mybatis" }
 mybatisSpringBoot = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatisSpringBoot" }
 springDocStarterWebfluxUi = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springDoc" }
+flowableEngineCommon = { module = "org.flowable:flowable-engine-common", version.ref = "flowable" }
 junitPioneer = { module = "org.junit-pioneer:junit-pioneer", version.ref = "junitPioneer" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }

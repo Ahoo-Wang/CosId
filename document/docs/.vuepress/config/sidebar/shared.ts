@@ -33,7 +33,9 @@ export function getGuideSidebar(groupA, groupB): SidebarConfigArray {
                 'cosid-zookeeper',
                 'cosid-jackson',
                 'cosid-mybatis',
-                'cosid-shardingsphere'
+                'cosid-shardingsphere',
+                'cosid-axon',
+                'cosid-flowable'
             ]
         },
         {

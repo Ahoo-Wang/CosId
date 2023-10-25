@@ -31,6 +31,8 @@ mybatis = { module = "org.mybatis:mybatis", version.ref = "mybatis" }
 mybatisSpringBoot = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatisSpringBoot" }
 springDocStarterWebfluxUi = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springDoc" }
 flowableEngineCommon = { module = "org.flowable:flowable-engine-common", version.ref = "flowable" }
+flowableSpring = { module = "org.flowable:flowable-spring", version.ref = "flowable" }
+flowableSpringBootAutoconfigure = { module = "org.flowable:flowable-spring-boot-autoconfigure", version.ref = "flowable" }
 junitPioneer = { module = "org.junit-pioneer:junit-pioneer", version.ref = "junitPioneer" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }

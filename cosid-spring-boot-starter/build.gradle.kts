@@ -40,6 +40,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "data-jdbc-support", version.toString())
     }
+    registerFeature("flowableSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "flowable-support", version.toString())
+    }
     registerFeature("cloudSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "cloud-support", version.toString())
@@ -63,7 +67,9 @@ dependencies {
 
     "proxySupportImplementation"(project(":cosid-proxy"))
     "mongoSupportImplementation"(project(":cosid-mongo"))
-
+    "flowableSupportImplementation"(project(":cosid-flowable"))
+    "flowableSupportImplementation"(libs.flowableSpring)
+    "flowableSupportImplementation"(libs.flowableSpringBootAutoconfigure)
     "mybatisSupportImplementation"(project(":cosid-mybatis"))
     "dataJdbcSupportImplementation"(project(":cosid-spring-data-jdbc"))
     api("org.springframework.boot:spring-boot-starter")

@@ -18,3 +18,4 @@ me.ahoo.cosid.spring.boot.starter.segment.CosIdProxySegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.mybatis.CosIdMybatisAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.actuate.CosIdEndpointAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.jdbc.CosIdJdbcAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.flowable.FlowableIdGeneratorAutoConfiguration

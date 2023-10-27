@@ -5,7 +5,7 @@ junit="5.10.0"
 hikariCP = "5.0.1"
 mysql="8.0.33"
 
-jmhPlugin = "0.7.1"
+jmhPlugin = "0.7.2"
 
 [libraries]
 cosidBom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }

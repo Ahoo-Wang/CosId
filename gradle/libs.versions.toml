@@ -10,6 +10,7 @@ mybatisSpringBoot = "3.0.2"
 junitPioneer = "2.1.0"
 axon = "4.9.0"
 flowable = "6.8.0"
+activiti = "6.0.0"
 springDoc = "2.2.0"
 hamcrest = "2.2"
 jmh = "1.37"
@@ -31,6 +32,7 @@ springDocStarterWebfluxUi = { module = "org.springdoc:springdoc-openapi-starter-
 flowableEngineCommon = { module = "org.flowable:flowable-engine-common", version.ref = "flowable" }
 flowableSpring = { module = "org.flowable:flowable-spring", version.ref = "flowable" }
 flowableSpringBootAutoconfigure = { module = "org.flowable:flowable-spring-boot-autoconfigure", version.ref = "flowable" }
+activitiEngine = { module = "org.activiti:activiti-engine", version.ref = "activiti" }
 junitPioneer = { module = "org.junit-pioneer:junit-pioneer", version.ref = "junitPioneer" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 jmhCore = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }

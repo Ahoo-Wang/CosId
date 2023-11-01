@@ -40,6 +40,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "data-jdbc-support", version.toString())
     }
+    registerFeature("activitiSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "activiti-support", version.toString())
+    }
     registerFeature("flowableSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "flowable-support", version.toString())
@@ -67,6 +71,8 @@ dependencies {
 
     "proxySupportImplementation"(project(":cosid-proxy"))
     "mongoSupportImplementation"(project(":cosid-mongo"))
+    "activitiSupportImplementation"(project(":cosid-activiti"))
+    "activitiSupportImplementation"(libs.activitiSpringBootStarter)
     "flowableSupportImplementation"(project(":cosid-flowable"))
     "flowableSupportImplementation"(libs.flowableSpring)
     "flowableSupportImplementation"(libs.flowableSpringBootAutoconfigure)

@@ -2,7 +2,7 @@
 cosid = "2.5.6"
 jmh = "1.37"
 junit="5.10.0"
-hikariCP = "5.0.1"
+hikariCP = "5.1.0"
 mysql="8.0.33"
 
 jmhPlugin = "0.7.2"

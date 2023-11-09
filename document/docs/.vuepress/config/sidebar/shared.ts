@@ -13,8 +13,8 @@
 
 import {SidebarConfigArray} from 'vuepress/config';
 
-export function getGuideSidebar(groupA, groupB): SidebarConfigArray {
-    const sidebar: SidebarConfigArray = [
+export function getGuideSidebar(groupA: string, groupB: string): SidebarConfigArray {
+    return [
         {
             title: groupA,
             collapsable: false,
@@ -68,12 +68,10 @@ export function getGuideSidebar(groupA, groupB): SidebarConfigArray {
             ]
         }
     ]
-
-    return sidebar
 }
 
-export function getConfigSidebar(groupA): SidebarConfigArray {
-    const sidebar: SidebarConfigArray = [
+export function getConfigSidebar(groupA: string): SidebarConfigArray {
+    return [
         {
             title: groupA,
             collapsable: false,
@@ -87,5 +85,4 @@ export function getConfigSidebar(groupA): SidebarConfigArray {
             ]
         }
     ]
-    return sidebar
 }

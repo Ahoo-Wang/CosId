@@ -4,7 +4,7 @@ heroImage: /logo.png
 heroText: CosId
 tagline: 通用、灵活、高性能分布式ID生成器
 actionText: 快速上手 →
-actionLink: /guide/
+actionLink: /guide/getting-started
 features:
 - title: 通用
   details: 支持多种类型的分布式ID算法：SnowflakeId、SegmentId、SegmentChainId。 并且支持多种号段分发器、机器号分发器。

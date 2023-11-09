@@ -18,6 +18,7 @@ import {
 const GM_ID = 'G-SP6EEGK56L'
 
 export default defineConfig(ctx => ({
+    base: '',
     head: [
         ['link', {rel: 'icon', href: `/favicon.ico`}],
         [

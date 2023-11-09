@@ -32,3 +32,14 @@ jobs:
           BUILD_SCRIPT: cd document && yarn && yarn docs:build
           BUILD_DIR: docs/.vuepress/dist/
           CNAME: cosid.ahoo.me
+
+      - name: Build and Deploy With Site Base
+        uses: jenkey2011/vuepress-deploy@master
+        env:
+          SITE_BASE: /cosid/
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          TARGET_REPO: Ahoo-Wang/CosId
+          TARGET_BRANCH: gh-pages-with-site-base
+          BUILD_SCRIPT: cd document && yarn && yarn docs:build
+          BUILD_DIR: docs/.vuepress/dist/
+          CNAME: cosid.ahoo.me

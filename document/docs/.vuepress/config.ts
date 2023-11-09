@@ -15,10 +15,13 @@ import {
     NavItemsZH, SidebarZH
 } from './config/index'
 
+const siteBase: `/${string}/` = process.env.SITE_BASE || "/"
+
+console.log('Configured SiteBase is:' + siteBase)
+
 const GM_ID = 'G-SP6EEGK56L'
 
 export default defineConfig(ctx => ({
-    base: '',
     head: [
         ['link', {rel: 'icon', href: `/favicon.ico`}],
         [
@@ -84,5 +87,6 @@ export default defineConfig(ctx => ({
         ['vuepress-plugin-flowchart']
     ],
     extraWatchFiles: ['.vuepress/config/**'],
-    evergreen: !ctx.isProd
+    evergreen: !ctx.isProd,
+    base: siteBase
 }));

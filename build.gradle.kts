@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+
 /*
  * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -115,6 +117,9 @@ configure(libraryProjects) {
 
     tasks.withType<Test> {
         useJUnitPlatform()
+        testLogging {
+            exceptionFormat = TestExceptionFormat.FULL
+        }
         jvmArgs =
             listOf(
                 // fix logging missing code for JacocoPlugin
@@ -162,6 +167,14 @@ configure(publishProjects) {
                 credentials {
                     username = System.getenv("GITHUB_ACTOR")
                     password = System.getenv("GITHUB_TOKEN")
+                }
+            }
+            maven {
+                name = "LinYiPackages"
+                url = uri(project.properties["linyiPackageReleaseUrl"].toString())
+                credentials {
+                    username = project.properties["linyiPackageUsername"]?.toString()
+                    password = project.properties["linyiPackagePwd"]?.toString()
                 }
             }
         }

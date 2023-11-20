@@ -1,4 +1,5 @@
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.testretry.TestRetryPlugin
 
 /*
  * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
@@ -14,6 +15,7 @@ import org.gradle.api.tasks.testing.logging.TestExceptionFormat
  */
 
 plugins {
+    alias(libs.plugins.testRetry)
     alias(libs.plugins.publishPlugin)
     alias(libs.plugins.jmhPlugin)
     alias(libs.plugins.spotbugsPlugin)
@@ -42,7 +44,7 @@ val testProject = project(":cosid-test")
 val codeCoverageReportProject = project(":code-coverage-report")
 val publishProjects = subprojects - serverProjects - codeCoverageReportProject
 val libraryProjects = publishProjects - bomProjects
-
+val isInCI = null != System.getenv("CI")
 ext.set("libraryProjects", libraryProjects)
 
 allprojects {
@@ -114,7 +116,7 @@ configure(libraryProjects) {
         fork.set(1)
         jvmArgs.set(listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback-jmh.xml"))
     }
-
+    apply<TestRetryPlugin>()
     tasks.withType<Test> {
         useJUnitPlatform()
         testLogging {
@@ -127,6 +129,13 @@ configure(libraryProjects) {
                 "--add-opens=java.base/java.util=ALL-UNNAMED",
                 "--add-opens=java.base/java.lang=ALL-UNNAMED"
             )
+        retry {
+            if (isInCI) {
+                maxRetries = 2
+                maxFailures = 20
+            }
+            failOnPassedAfterRetry = true
+        }
     }
 
     dependencies {
@@ -169,14 +178,6 @@ configure(publishProjects) {
                     password = System.getenv("GITHUB_TOKEN")
                 }
             }
-            maven {
-                name = "LinYiPackages"
-                url = uri(project.properties["linyiPackageReleaseUrl"].toString())
-                credentials {
-                    username = project.properties["linyiPackageUsername"]?.toString()
-                    password = project.properties["linyiPackagePwd"]?.toString()
-                }
-            }
         }
         publications {
             val publishName = if (isBom) "mavenBom" else "mavenLibrary"
@@ -217,7 +218,6 @@ configure(publishProjects) {
     }
 
     configure<SigningExtension> {
-        val isInCI = null != System.getenv("CI");
         if (isInCI) {
             val signingKeyId = System.getenv("SIGNING_KEYID")
             val signingKey = System.getenv("SIGNING_SECRETKEY")

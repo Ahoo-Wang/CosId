@@ -15,6 +15,7 @@ springDoc = "2.2.0"
 hamcrest = "2.2"
 jmh = "1.37"
 # plugins
+testRetry= "1.5.6"
 publishPlugin = "1.3.0"
 jmhPlugin = "0.7.2"
 spotbugs = "5.2.3"
@@ -39,7 +40,7 @@ hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 jmhCore = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmhGeneratorAnnprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 [plugins]
-
+testRetry = { id = "org.gradle.test-retry", version.ref = "testRetry" }
 publishPlugin = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "publishPlugin" }
 jmhPlugin = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
 spotbugsPlugin = { id = "com.github.spotbugs", version.ref = "spotbugs" }

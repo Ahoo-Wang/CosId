@@ -44,12 +44,5 @@ class MongoMachineIdDistributorTest extends MachineIdDistributorSpec {
     protected MachineIdDistributor getDistributor() {
         return machineIdDistributor;
     }
-    
-    @Override
-    protected Duration getSafeGuardDuration() {
-        if (System.getenv().containsKey("CI")) {
-            return Duration.ofSeconds(10);
-        }
-        return super.getSafeGuardDuration();
-    }
+
 }

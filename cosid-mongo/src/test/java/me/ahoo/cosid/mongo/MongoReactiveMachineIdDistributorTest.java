@@ -33,7 +33,7 @@ class MongoReactiveMachineIdDistributorTest extends MachineIdDistributorSpec {
     
     @BeforeEach
     void setup() {
-        mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
+        mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db_reactive");
         machineInitializer = new MongoReactiveMachineInitializer(mongoDatabase);
         machineInitializer.ensureMachineCollection();
         machineIdDistributor = new MongoMachineIdDistributor(
@@ -46,12 +46,5 @@ class MongoReactiveMachineIdDistributorTest extends MachineIdDistributorSpec {
     protected MachineIdDistributor getDistributor() {
         return machineIdDistributor;
     }
-    
-    @Override
-    protected Duration getSafeGuardDuration() {
-        if (System.getenv().containsKey("CI")) {
-            return Duration.ofSeconds(10);
-        }
-        return super.getSafeGuardDuration();
-    }
+
 }

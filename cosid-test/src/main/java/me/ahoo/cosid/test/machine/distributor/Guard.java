@@ -22,6 +22,7 @@ import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.TestSpec;
 
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
 /**
@@ -42,7 +43,8 @@ public class Guard implements TestSpec {
     public void verify() {
         MachineIdDistributor distributor = implFactory.get();
         String namespace = MockIdGenerator.usePrefix("Guard").generateAsString();
-        InstanceId instanceId = mockInstance(0, false);
+        int port = ThreadLocalRandom.current().nextInt(0, 65535);
+        InstanceId instanceId = mockInstance(port, false);
         int machineId = distributor.distribute(namespace, machineBit, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
         assertThat(machineId, equalTo(0));
         distributor.guard(namespace, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);

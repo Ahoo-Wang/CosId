@@ -20,7 +20,7 @@ import org.testcontainers.utility.DockerImageName;
 
 public class MongoLauncher {
     private static final String DEV_CONNECTION_STRING = "mongodb://root:root@localhost";
-    private static final MongoDBContainer MONGO_CONTAINER = new MongoDBContainer(DockerImageName.parse("mongo:4.0.10"))
+    private static final MongoDBContainer MONGO_CONTAINER = new MongoDBContainer(DockerImageName.parse("mongo:5.0.8"))
         .withNetworkAliases("mongo")
         .withReuse(true);
     

@@ -30,7 +30,7 @@ import java.util.List;
 public abstract class MachineIdDistributorSpec {
     public static final String TEST_HOST = "127.0.0.1";
     private static final int TEST_MACHINE_BIT = 5;
-    private static final Duration TEST_SAFE_GUARD_DURATION = Duration.ofSeconds(5);
+    private static final Duration TEST_SAFE_GUARD_DURATION = Duration.ofSeconds(2);
     
     protected static InstanceId mockInstance(int port, boolean stable) {
         return InstanceId.of(TEST_HOST, port, stable);

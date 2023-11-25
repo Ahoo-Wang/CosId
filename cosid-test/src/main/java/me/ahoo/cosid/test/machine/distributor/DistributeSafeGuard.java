@@ -72,7 +72,7 @@ public class DistributeSafeGuard implements TestSpec {
         /*
          * 等待所有实例到达安全守护点(SafeGuardAt)，即变成可回收状态.
          */
-        LockSupport.parkNanos(this, safeGuardDuration.plusMillis(200).toNanos());
+        LockSupport.parkNanos(this, safeGuardDuration.plusMillis(300).toNanos());
         availableInstances = allInstances.subList(endIdx, MachineIdDistributor.totalMachineIds(moreMachineBit));
         
         Integer[] machineIds = availableInstances

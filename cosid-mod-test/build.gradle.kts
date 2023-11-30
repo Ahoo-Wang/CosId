@@ -10,7 +10,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+plugins {
+    java
+}
 dependencies {
     implementation(project(":cosid-core"))
     testImplementation(project(":cosid-test"))

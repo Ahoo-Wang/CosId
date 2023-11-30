@@ -21,10 +21,12 @@ import me.ahoo.cosid.test.ModSpec;
 
 import com.netease.nim.camellia.id.gen.snowflake.CamelliaSnowflakeConfig;
 import com.netease.nim.camellia.id.gen.snowflake.CamelliaSnowflakeIdGen;
+import org.apache.shardingsphere.sharding.algorithm.keygen.SnowflakeKeyGenerateAlgorithm;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Properties;
 import java.util.concurrent.locks.LockSupport;
 
 public class ModTest {
@@ -33,6 +35,7 @@ public class ModTest {
     private static final double ALLOWABLE_POP_STD = 10;
     SnowflakeFriendlyId cosidSnowflakeId;
     CamelliaSnowflakeIdGen camelliaSnowflakeId;
+    SnowflakeKeyGenerateAlgorithm shardingsphereSnowflakeId = new SnowflakeKeyGenerateAlgorithm();
     
     @BeforeEach
     void setup() {
@@ -46,6 +49,22 @@ public class ModTest {
     @Test
     public void cosidMod4() {
         ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, cosidSnowflakeId::generate, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
+        spec.run();
+    }
+    
+    @Test
+    public void shardingsphereMod4Default() {
+        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, shardingsphereSnowflakeId::generateKey, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
+        spec.run();
+    }
+    
+    @Test
+    public void shardingsphereMod4Vibration3() {
+        SnowflakeKeyGenerateAlgorithm idGen = new SnowflakeKeyGenerateAlgorithm();
+        Properties properties = new Properties();
+        properties.setProperty("max-vibration-offset", String.valueOf(3));
+        idGen.init(properties);
+        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, idGen::generateKey, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
         spec.run();
     }
     
@@ -64,6 +83,16 @@ public class ModTest {
     @Test
     public void neteaseMod128() {
         ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_POP_STD, camelliaSnowflakeId::genId, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
+        spec.run();
+    }
+    
+    @Test
+    public void shardingsphereMod128Vibration127() {
+        SnowflakeKeyGenerateAlgorithm idGen = new SnowflakeKeyGenerateAlgorithm();
+        Properties properties = new Properties();
+        properties.setProperty("max-vibration-offset", String.valueOf(127));
+        idGen.init(properties);
+        ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_POP_STD, idGen::generateKey, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
         spec.run();
     }
 }

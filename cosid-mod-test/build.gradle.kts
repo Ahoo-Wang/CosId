@@ -14,4 +14,5 @@ dependencies {
     implementation(project(":cosid-core"))
     testImplementation(project(":cosid-test"))
     testImplementation("com.netease.nim:camellia-id-gen-core:1.2.19")
+    testImplementation("org.apache.shardingsphere:shardingsphere-sharding-core:5.4.1")
 }

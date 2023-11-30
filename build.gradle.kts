@@ -40,7 +40,7 @@ val serverProjects = setOf(
     project(":cosid-proxy-server")
 )
 
-val testProject = project(":cosid-test")
+val testProjects = setOf(project(":cosid-test"), project(":cosid-mod-test"))
 val codeCoverageReportProject = project(":code-coverage-report")
 val publishProjects = subprojects - serverProjects - codeCoverageReportProject
 val libraryProjects = publishProjects - bomProjects

@@ -40,9 +40,9 @@ val serverProjects = setOf(
     project(":cosid-proxy-server")
 )
 
-val testProject = project(":cosid-test")
+val testProjects = setOf(project(":cosid-test"), project(":cosid-mod-test"))
 val codeCoverageReportProject = project(":code-coverage-report")
-val publishProjects = subprojects - serverProjects - codeCoverageReportProject
+val publishProjects = subprojects - serverProjects - codeCoverageReportProject - project(":cosid-mod-test")
 val libraryProjects = publishProjects - bomProjects
 val isInCI = null != System.getenv("CI")
 ext.set("libraryProjects", libraryProjects)

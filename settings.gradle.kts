@@ -30,6 +30,7 @@ include(":cosid-flowable")
 include(":cosid-activiti")
 include(":cosid-mongo")
 include(":cosid-spring-data-jdbc")
+include(":cosid-mod-test")
 include(":code-coverage-report")
 
 include("cosid-example-proxy")

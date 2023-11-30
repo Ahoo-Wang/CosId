@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.*;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
+import me.ahoo.cosid.test.ModSpec;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -75,6 +76,12 @@ class SegmentChainIdTest {
         SegmentChainId segmentChainId = new SegmentChainId(new IdSegmentDistributor.Mock());
         
         new ConcurrentGenerateSpec(segmentChainId).verify();
+    }
+    
+    @Test
+    public void sequenceModUniformity() {
+        SegmentChainId segmentChainId = new SegmentChainId(new IdSegmentDistributor.Mock());
+        new ModSpec(99999, 4, 100, segmentChainId::generate, ModSpec.DEFAULT_WAIT).verify();
     }
     
     @Test

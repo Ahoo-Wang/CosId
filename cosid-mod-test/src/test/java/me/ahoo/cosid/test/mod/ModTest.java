@@ -30,7 +30,6 @@ import java.util.concurrent.locks.LockSupport;
 public class ModTest {
     public static final int TEST_MACHINE_ID = 1;
     private static final int ITERATIONS = 1000;
-    private static final int DIVISOR = 4;
     private static final double ALLOWABLE_POP_STD = 10;
     SnowflakeFriendlyId cosidSnowflakeId;
     CamelliaSnowflakeIdGen camelliaSnowflakeId;
@@ -45,14 +44,26 @@ public class ModTest {
     }
     
     @Test
-    public void cosid() {
-        ModSpec spec = new ModSpec(ITERATIONS, DIVISOR, ALLOWABLE_POP_STD, cosidSnowflakeId::generate, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
+    public void cosidMod4() {
+        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, cosidSnowflakeId::generate, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
         spec.run();
     }
     
     @Test
-    public void netease() {
-        ModSpec spec = new ModSpec(ITERATIONS, DIVISOR, ALLOWABLE_POP_STD, camelliaSnowflakeId::genId, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
+    public void neteaseMod4() {
+        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, camelliaSnowflakeId::genId, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
+        spec.run();
+    }
+    
+    @Test
+    public void cosidMod128() {
+        ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_POP_STD, cosidSnowflakeId::generate, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
+        spec.run();
+    }
+    
+    @Test
+    public void neteaseMod128() {
+        ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_POP_STD, camelliaSnowflakeId::genId, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
         spec.run();
     }
 }

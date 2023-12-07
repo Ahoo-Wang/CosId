@@ -23,6 +23,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.test.MockIdGenerator;
+import me.ahoo.cosid.test.container.MongoLauncher;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
 import com.mongodb.reactivestreams.client.MongoClients;

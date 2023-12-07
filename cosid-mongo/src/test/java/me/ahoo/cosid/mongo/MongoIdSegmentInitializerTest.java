@@ -16,6 +16,7 @@ package me.ahoo.cosid.mongo;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import me.ahoo.cosid.test.MockIdGenerator;
+import me.ahoo.cosid.test.container.MongoLauncher;
 
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;

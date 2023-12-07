@@ -18,13 +18,12 @@ import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineCollection;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineInitializer;
+import me.ahoo.cosid.test.container.MongoLauncher;
 import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.junit.jupiter.api.BeforeEach;
-
-import java.time.Duration;
 
 class MongoReactiveMachineIdDistributorTest extends MachineIdDistributorSpec {
     MongoDatabase mongoDatabase;

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.mongo;
+package me.ahoo.cosid.test.container;
 
 
 import org.testcontainers.containers.MongoDBContainer;

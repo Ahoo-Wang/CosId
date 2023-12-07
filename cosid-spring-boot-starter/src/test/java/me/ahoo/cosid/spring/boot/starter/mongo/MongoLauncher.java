@@ -19,7 +19,8 @@ import org.testcontainers.shaded.com.google.common.base.Strings;
 import org.testcontainers.utility.DockerImageName;
 
 public class MongoLauncher {
-    private static final String DEV_CONNECTION_STRING = "mongodb://root:root@localhost";
+    private static final String CONNECTION_OPTIONS = "/?connectTimeoutMS=300000&maxIdleTimeMS=300000";
+    private static final String DEV_CONNECTION_STRING = "mongodb://root:root@localhost" + CONNECTION_OPTIONS;
     private static final MongoDBContainer MONGO_CONTAINER = new MongoDBContainer(DockerImageName.parse("mongo:6.0.12"))
         .withNetworkAliases("mongo")
         .withReuse(true);
@@ -29,6 +30,7 @@ public class MongoLauncher {
             return DEV_CONNECTION_STRING;
         }
         MONGO_CONTAINER.start();
-        return MONGO_CONTAINER.getConnectionString();
+        return MONGO_CONTAINER.getConnectionString() + CONNECTION_OPTIONS;
+        
     }
 }

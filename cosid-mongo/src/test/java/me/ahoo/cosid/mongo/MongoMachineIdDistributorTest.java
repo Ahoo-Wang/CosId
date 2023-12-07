@@ -16,13 +16,12 @@ package me.ahoo.cosid.mongo;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.test.container.MongoLauncher;
 import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 import org.junit.jupiter.api.BeforeEach;
-
-import java.time.Duration;
 
 class MongoMachineIdDistributorTest extends MachineIdDistributorSpec {
     MongoDatabase mongoDatabase;

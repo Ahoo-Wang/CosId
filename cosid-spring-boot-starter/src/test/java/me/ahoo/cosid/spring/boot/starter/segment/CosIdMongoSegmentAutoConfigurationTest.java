@@ -17,7 +17,7 @@ import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.MongoIdSegmentInitializer;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
-import me.ahoo.cosid.spring.boot.starter.mongo.MongoLauncher;
+import me.ahoo.cosid.test.container.MongoLauncher;
 
 import org.assertj.core.api.AssertionsForInterfaceTypes;
 import org.junit.jupiter.api.Test;

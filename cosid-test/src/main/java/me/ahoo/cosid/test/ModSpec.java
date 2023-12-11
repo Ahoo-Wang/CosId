@@ -38,7 +38,7 @@ public class ModSpec implements Runnable, TestSpec {
      * 允许的标准差.
      */
     private final double allowablePopStd;
-    
+
     private final LongSupplier idGenerator;
     /**
      * 预期平均命中数.
@@ -49,7 +49,7 @@ public class ModSpec implements Runnable, TestSpec {
     private double popVariance;
     private double popStd;
     private double popStdError;
-    
+
     public ModSpec(int iterations, int divisor, double allowablePopStd, LongSupplier idGenerator, Runnable wait) {
         this.iterations = iterations;
         this.divisor = divisor;
@@ -58,9 +58,9 @@ public class ModSpec implements Runnable, TestSpec {
         this.wait = wait;
         expectedAvgHits = iterations / divisor;
         hits = new int[divisor];
-        
+
     }
-    
+
     @Override
     public void run() {
         if (hits[0] > 0) {
@@ -72,7 +72,7 @@ public class ModSpec implements Runnable, TestSpec {
             hits[mod]++;
             wait.run();
         }
-        
+
         popVariance = Arrays.stream(hits)
             .map(hit -> hit - expectedAvgHits)
             .mapToDouble(diff -> Math.pow(diff, 2))
@@ -90,7 +90,7 @@ public class ModSpec implements Runnable, TestSpec {
                 iterations, divisor, allowablePopStd, expectedAvgHits, popStd, popStdError, hits);
         }
     }
-    
+
     @Override
     public void verify() {
         run();
@@ -98,5 +98,5 @@ public class ModSpec implements Runnable, TestSpec {
             throw new AssertionError("popStd:" + popStd + ",allowablePopStd:" + allowablePopStd);
         }
     }
-    
+
 }

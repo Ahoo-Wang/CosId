@@ -38,23 +38,6 @@ _SnowflakeId_ 是*Twitter*开发的一种分布式唯一ID生成算法，被广�
 想象一下假设 **MachineId** 是物理上的，那么意味着一台机器拥有只能拥有一个 **MachineId**，那会产生什么问题呢？
 :::
 
-目前 *[CosId](https://github.com/Ahoo-Wang/CosId)* 提供了以下五种 `MachineId` 分配器。
-
-- `ManualMachineIdDistributor`: 手动配置`machineId`，一般只有在集群规模非常小的时候才有可能使用，不推荐。
-- `StatefulSetMachineIdDistributor`: 使用`Kubernetes`的`StatefulSet`提供的稳定的标识ID（HOSTNAME=service-01）作为机器号。
-- `RedisMachineIdDistributor`: 使用**Redis**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
-- `JdbcMachineIdDistributor`: 使用**关系型数据库**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
-- `ZookeeperMachineIdDistributor`: 使用**ZooKeeper**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
-- `MongoMachineIdDistributor`: 使用**MongoDB**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
-
-<p align="center" >
-  <img src="../public/assets/design/MachineIdDistributor.png" alt="MachineIdDistributor"/>
-</p>
-
-<p align="center">
-  <img src="../public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
-</p>
-
 ### 时钟回拨
 
 时钟回拨的致命问题是会导致ID重复、冲突（这一点不难理解），ID重复显然是不能被容忍的。
@@ -136,6 +119,28 @@ StringSnowflakeId  ..>  SnowflakeId
 
 `ClockSyncSnowflakeId` 是 `SnowflakeId` 的包装器，当发生时钟回拨时会使用`ClockBackwardsSynchronizer`主动等待时钟同步来重新生成ID，提供更加友好的使用体验。
 
+## MachineIdDistributor
+
+`MachineIdDistributor` 是 `SnowflakeId` 的机器号分配器，它负责分配机器号，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
+
+<p align="center" >
+  <img src="../public/assets/design/MachineIdDistributor.png" alt="MachineIdDistributor"/>
+</p>
+
+目前 *CosId* 提供了以下六种 `MachineId` 分配器。
+
+- `ManualMachineIdDistributor`: 手动配置`machineId`，一般只有在集群规模非常小的时候才有可能使用，不推荐。
+- `StatefulSetMachineIdDistributor`: 使用`Kubernetes`的`StatefulSet`提供的稳定的标识ID（HOSTNAME=service-01）作为机器号。
+- `RedisMachineIdDistributor`: 使用**Redis**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
+- `JdbcMachineIdDistributor`: 使用**关系型数据库**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
+- `ZookeeperMachineIdDistributor`: 使用**ZooKeeper**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
+- `MongoMachineIdDistributor`: 使用**MongoDB**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
+
+## MachineIdGuarder
+
+<p align="center">
+  <img src="../public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
+</p>
 
 ## 配置
 

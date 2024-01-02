@@ -40,3 +40,9 @@ StringSegmentId  ..>  IdGenerator
 StringSegmentId  ..>  SegmentId 
 ```
 
+## IdSegmentDistributor
+
+## GroupedIdSegmentDistributor
+
+
+## 配置

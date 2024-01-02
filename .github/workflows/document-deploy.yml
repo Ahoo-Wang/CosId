@@ -11,11 +11,18 @@
 # limitations under the License.
 #
 
-name: Document Build and Deploy
+name: Documentation Build and Deploy
 on:
   push:
     paths:
-      - 'document/**'
+      - 'documentation/**'
+  pull_request:
+    paths:
+      - 'documentation/**'
+  workflow_dispatch:
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -23,23 +30,42 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
-      - name: Build and Deploy
-        uses: jenkey2011/vuepress-deploy@master
-        env:
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          TARGET_REPO: Ahoo-Wang/CosId
-          TARGET_BRANCH: gh-pages
-          BUILD_SCRIPT: cd document && yarn && yarn docs:build
-          BUILD_DIR: docs/.vuepress/dist/
-          CNAME: cosid.ahoo.me
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
 
-      - name: Build and Deploy With Site Base
-        uses: jenkey2011/vuepress-deploy@master
+      - name: Build VitePress site
+        working-directory: documentation
+        run: npm add -D vitepress && npm run docs:build
+
+      - name: Deploy to gh-pages
+        uses: crazy-max/ghaction-github-pages@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          target_branch: gh-pages
+          build_dir: documentation/docs/.vitepress/dist/
+          fqdn: cosid.ahoo.me
+
+      - name: Build VitePress site with SITE_BASE
+        working-directory: documentation
         env:
           SITE_BASE: /cosid/
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
-          TARGET_REPO: Ahoo-Wang/CosId
-          TARGET_BRANCH: gh-pages-with-site-base
-          BUILD_SCRIPT: cd document && yarn && yarn docs:build
-          BUILD_DIR: docs/.vuepress/dist/
-          CNAME: cosid.ahoo.me
+        run: npm add -D vitepress && npm run docs:build
+
+      - name: Deploy to gh-pages-with-site-base
+        uses: crazy-max/ghaction-github-pages@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          target_branch: gh-pages-with-site-base
+          build_dir: documentation/docs/.vitepress/dist/
+
+      - name: Sync to Gitee
+        uses: wearerequired/git-mirror-action@master
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        with:
+          source-repo: "git@github.com:Ahoo-Wang/CosId.git"
+          destination-repo: "git@gitee.com:AhooWang/CosId.git"

@@ -1,27 +1,13 @@
 # 简介
 
-<p align="center" >
-  <img width="200" :src="$withBase('/logo.png')" alt="CosId Logo"/>
-</p>
-
-[![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
-[![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/CosId.svg)](https://github.com/Ahoo-Wang/CosId/releases)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/me.ahoo.cosid/cosid-core/badge.svg)](https://maven-badges.herokuapp.com/maven-central/me.ahoo.cosid/cosid-core)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/dfd1d6237a1644409548ebfbca300dc1)](https://app.codacy.com/gh/Ahoo-Wang/CosId?utm_source=github.com&utm_medium=referral&utm_content=Ahoo-Wang/CosId&utm_campaign=Badge_Grade_Settings)
-[![codecov](https://codecov.io/gh/Ahoo-Wang/CosId/branch/main/graph/badge.svg?token=L0N51NB7ET)](https://codecov.io/gh/Ahoo-Wang/CosId)
-![Integration Test Status](https://github.com/Ahoo-Wang/CosId/actions/workflows/integration-test.yml/badge.svg)
-
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 
 
-- `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](perf-test.md) , 主要解决 *时钟回拨问题* 、*机器号分配问题* 并且提供更加友好、灵活的使用体验。
-- `SegmentId`: 每次获取一段 (`Step`) ID，来降低号段分发器的网络IO请求频次提升性能。
-  - `IdSegmentDistributor`: 号段分发器（号段存储器）
-    - `RedisIdSegmentDistributor`: 基于 *Redis* 的号段分发器。
-    - `JdbcIdSegmentDistributor`: 基于 *Jdbc* 的号段分发器，支持各种关系型数据库。
-    - `ZookeeperIdSegmentDistributor`: 基于 *Zookeeper* 的号段分发器。
-    - `MongoIdSegmentDistributor`: 基于 *MongoDB* 的号段分发器。
-- `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](perf-test.md) 。
+- `CosIdGenerator` : *单机 TPS 性能：1557W/s*，三倍于 `UUID.randomUUID()`，基于时钟的全局趋势递增ID，可以同时支持一百万个实例。
+- `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](faq/perf-test.md) , 主要解决 *时钟回拨* 、*机器号分配*、*取模分片不均匀* 等问题并提供更加友好、灵活的使用体验。
+- `SegmentId`: 每次获取一段 (`Step`) ID，来降低号段分发器的网络IO请求频次提升性能。并提供多种号段分发器实现。
+- `SegmentChainId`:`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](faq/perf-test.md) 。
   - `PrefetchWorker` 维护安全距离(`safeDistance`), 并且支持基于饥饿状态的动态`safeDistance`扩容/收缩。
+  - 适应性：相比于 `SegmentId`，`SegmentChainId` 可以根据业务场景动态调整 `Step` 来提升性能。
 
 ## 背景（为什么需要*分布式ID*）
 
@@ -33,11 +19,14 @@
 
 ### 分库分表
 
-> 从微服务的角度来理解垂直拆分其实就是微服务拆分。以限界上下文来定义服务边界将大服务/单体应用拆分成多个自治的粒度更小的服务，因为自治性规范要求，数据库也需要进行业务拆分。
-> 但垂直拆分后的单个微服务依然会面临 TPS/存储容量 的挑战，所以这里我们重点讨论水平拆分的方式。
+:::info
+从微服务的角度来理解垂直拆分其实就是微服务拆分。以限界上下文来定义服务边界将大服务/单体应用拆分成多个自治的粒度更小的服务，因为自治性规范要求，数据库也需要进行业务拆分。
+
+但垂直拆分后的单个微服务依然会面临 TPS/存储容量 的挑战，所以这里我们重点讨论水平拆分的方式。
+::: 
 
 <p align="center" >
-  <img  :src="$withBase('/assets/shardingsphere/sharding-db.png')" alt="分库分表"/>
+  <img  src="../public/assets/shardingsphere/sharding-db.png" alt="分库分表"/>
 </p>
 
 数据库分库分表方案是逻辑统一，物理分区自治的方案。其核心设计在于中间层映射方案的设计 (上图 **Mapping**)，即分片算法的设计。
@@ -45,7 +34,9 @@
 
 那么 `shardingValue` 从哪里来呢？**CosId**！！！
 
-> 当然还有很多分布式场景需要*分布式ID*，这里不再一一列举。
+:::tip
+当然还有很多分布式场景需要*分布式ID*，这里不再一一列举。
+:::
 
 ## 分布式ID方案的核心指标
 
@@ -64,10 +55,10 @@
 - **自治性（依赖）**：主要是指对外部环境有无依赖，比如**号段模式**会强依赖第三方存储中间件来获取`NexMaxId`。自治性还会对可用性造成影响。
 - **可用性**：分布式ID的可用性主要会受到自治性影响，比如**SnowflakeId**会受到时钟回拨影响，导致处于短暂时间的不可用状态。而**号段模式**会受到第三方发号器（`NexMaxId`）的可用性影响。
   - [可用性 WIKI](https://zh.wikipedia.org/wiki/%E5%8F%AF%E7%94%A8%E6%80%A7) ：在一个给定的时间间隔内，对于一个功能个体来讲，总的可用时间所占的比例。
-  - MTBF：平均故障间隔
-  - MDT：平均修复/恢复时间
-  - Availability=MTBF/(MTBF+MDT)
-  - 假设MTBF为1年，MDT为1小时，即`Availability=(365*24)/(365*24+1)=0.999885857778792≈99.99%`，也就是我们通常所说对可用性4个9。
+  - _MTBF_：平均故障间隔
+  - _MDT_：平均修复/恢复时间
+  - `Availability=MTBF/(MTBF+MDT)`
+  - 假设*MTBF*为1年，*MDT*为1小时，即`Availability=(365*24)/(365*24+1)=0.999885857778792≈99.99%`，也就是我们通常所说对可用性4个9。
 - **适应性**：是指在面对外部环境变化的自适应能力，这里我们主要说的是面对流量突发时动态伸缩分布式ID的性能，
   - **SegmentChainId**可以基于**饥饿状态**进行**安全距离**的动态伸缩。
   - **SnowflakeId**常规位分配方案性能恒定409.6W，虽然可以通过调整位分配方案来获得不同的TPS性能，但是位分配方法的变更是破坏性的，一般根据业务场景确定位分配方案后不再变更。
@@ -89,18 +80,20 @@
 #### 有序性之单调递增
 
 <p align="center" >
-  <img :src="$withBase('/assets/design/monotonically-increasing.png')" alt="单调递增"/>
+  <img src="../public/assets/design/monotonically-increasing.png" alt="单调递增"/>
 </p>
 
 单调递增：T表示全局绝对时点，假设有T<sub>n+1</sub>>T<sub>n</sub>（绝对时间总是往前进的，这里不考虑相对论、时间机器等），那么必然有F(T<sub>n+1</sub>)>F(T<sub>n</sub>)，数据库自增主键就属于这一类。
 另外需要特别说明的是单调递增跟连续性递增是不同的概念。 连续性递增：`F(n+1)=(F(n)+step)`即下一次获取的ID一定等于当前`ID+Step`，当`Step=1`时类似于这样一个序列:`1->2->3->4->5`。
 
-> 扩展小知识：数据库的自增主键也不是连续性递增的，相信你一定遇到过这种情况，请思考一下数据库为什么这样设计？
+:::tip
+扩展小知识：数据库的自增主键也不是连续性递增的，相信你一定遇到过这种情况，请思考一下数据库为什么这样设计？
+:::
 
 #### 有序性之趋势递增
 
 <p align="center" >
-  <img :src="$withBase('/assets/design/trend-increasing.png')" alt="趋势递增"/>
+  <img src="../public/assets/design/trend-increasing.png" alt="趋势递增"/>
 </p>
 
 趋势递增：T<sub>n</sub>>T<sub>n-s</sub>，那么大概率有F(T<sub>n</sub>)>F(T<sub>n-s</sub>)。虽然在一段时间间隔内有乱序，但是整体趋势是递增。从上图上看，是有上升趋势的（趋势线）。
@@ -120,12 +113,12 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 
 ### SnowflakeId
 
-<p align="center" >
-  <img :src="$withBase('/assets/design/Snowflake-identifier.png')" alt="SnowflakeId"/>
-</p>
+*SnowflakeId* 使用`Long`（64-bit）位分区来生成ID的一种分布式ID算法。
+通用的位分配方案为：`timestamp`(41-bit)+`machineId`(10-bit)+`sequence`(12-bit)=63-bit。
 
-> *SnowflakeId*使用`Long`（64-bit）位分区来生成ID的一种分布式ID算法。
-> 通用的位分配方案为：`timestamp`(41-bit)+`machineId`(10-bit)+`sequence`(12-bit)=63-bit。
+<p align="center" >
+  <img src="../public/assets/design/Snowflake-identifier.png" alt="SnowflakeId"/>
+</p>
 
 - 41-bit`timestamp`=(1L<<41)/(1000/3600/24/365)，约可以存储69年的时间戳，即可以使用的绝对时间为`EPOCH`+69年，一般我们需要自定义`EPOCH`为产品开发时间，另外还可以通过压缩其他区域的分配位数，来增加时间戳位数来延长可用时间。
 - 10-bit`machineId`=(1L<<10)=1024，即相同业务可以部署1024个副本(在Kubernetes概念里没有主从副本之分，这里直接沿用Kubernetes的定义)。一般情况下没有必要使用这么多位，所以会根据部署规模需要重新定义。
@@ -133,19 +126,23 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 
 从 *SnowflakeId* 设计上可以看出:
 
-- :thumbsup:`timestamp`在高位，单实例*SnowflakeId*是会保证时钟总是向前的（校验本机时钟回拨），所以是本机单调递增的。受全局时钟同步/时钟回拨影响*SnowflakeId*是全局趋势递增的。
-- :thumbsup:*SnowflakeId*不对任何第三方中间件有强依赖关系，并且性能也非常高。
-- :thumbsup:位分配方案可以按照业务系统需要灵活配置，来达到最优使用效果。
-- :thumbsdown:强依赖本机时钟，潜在的时钟回拨问题会导致ID重复、处于短暂的不可用状态。
-- :thumbsdown:`machineId`需要手动设置，实际部署时如果采用手动分配`machineId`，会非常低效。
+- :thumbsup: `timestamp`在高位，单实例*SnowflakeId*是会保证时钟总是向前的（校验本机时钟回拨），所以是本机单调递增的。受全局时钟同步/时钟回拨影响*SnowflakeId*是全局趋势递增的。
+- :thumbsup: *SnowflakeId*不对任何第三方中间件有强依赖关系，并且性能也非常高。
+- :thumbsup: 位分配方案可以按照业务系统需要灵活配置，来达到最优使用效果。
+- :thumbsdown: 强依赖本机时钟，潜在的时钟回拨问题会导致ID重复、处于短暂的不可用状态。
+- :thumbsdown: `machineId`需要手动设置，实际部署时如果采用手动分配`machineId`，会非常低效。
 
 #### SnowflakeId之机器号分配问题
 
 在**SnowflakeId**中根据业务设计的位分配方案确定了基本上就不再有变更了，也很少需要维护。但是`machineId`总是需要配置的，而且集群中是不能重复的，否则分区原则就会被破坏而导致ID唯一性原则破坏，当集群规模较大时`machineId`的维护工作是非常繁琐，低效的。
-> 有一点需要特别说明的，**SnowflakeId**的**MachineId**是逻辑上的概念，而不是物理概念。
-> 想象一下假设**MachineId**是物理上的，那么意味着一台机器拥有只能拥有一个**MachineId**，那会产生什么问题呢？
 
-> 目前 *[CosId](https://github.com/Ahoo-Wang/CosId)* 提供了以下五种 `MachineId` 分配器。
+:::tip
+有一点需要特别说明的，**SnowflakeId** 的 **MachineId** 是逻辑上的概念，而不是物理概念，所以称之为 `WorkerId` 更为准确。
+
+想象一下假设 **MachineId** 是物理上的，那么意味着一台机器拥有只能拥有一个 **MachineId**，那会产生什么问题呢？
+:::
+
+目前 *[CosId](https://github.com/Ahoo-Wang/CosId)* 提供了以下五种 `MachineId` 分配器。
 
 - ManualMachineIdDistributor: 手动配置`machineId`，一般只有在集群规模非常小的时候才有可能使用，不推荐。
 - StatefulSetMachineIdDistributor: 使用`Kubernetes`的`StatefulSet`提供的稳定的标识ID（HOSTNAME=service-01）作为机器号。
@@ -154,11 +151,11 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 - ZookeeperMachineIdDistributor: 使用**ZooKeeper**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
 
 <p align="center" >
-  <img :src="$withBase('/assets/design/MachineIdDistributor.png')" alt="RedisMachineIdDistributor"/>
+  <img src="../public/assets/design/MachineIdDistributor.png" alt="MachineIdDistributor"/>
 </p>
 
 <p align="center">
-  <img :src="$withBase('/assets/design/Machine-Id-Safe-Guard.png')" alt="Machine Id Safe Guard"/>
+  <img src="../public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
 </p>
 
 #### SnowflakeId之时钟回拨问题
@@ -185,10 +182,10 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 - 自定义`SnowflakeId`位分配来缩短`SnowflakeId`的位数（53-bit）使 `ID` 提供给前端时不溢出
   - 使用`SafeJavaScriptSnowflakeId`(`JavaScript` 安全的 `SnowflakeId`)
 
-## 号段模式（SegmentId）
+### 号段模式（SegmentId）
 
 <p align="center" >
-  <img :src="$withBase('/assets/design/SegmentId.png')" alt="SegmentId"/>
+  <img src="../public/assets/design/SegmentId.png" alt="SegmentId"/>
 </p>
 
 从上面的设计图中，不难看出**号段模式**基本设计思路是通过每次获取一定长度（Step）的可用ID（Id段/号段），来降低网络IO请求次数，提升性能。
@@ -203,16 +200,16 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
   - `Step`越小，乱序程度越小。当`Step=1`时，将无限接近单调递增。需要注意的是这里是无限接近而非等于单调递增，具体原因你可以思考一下这样一个场景：
     - 号段分发器T<sub>1</sub>时刻给**Instance 1**分发了`ID=1`,T<sub>2</sub>时刻给**Instance 2**分发了`ID=2`。因为机器性能、网络等原因，`Instance 2`网络IO写请求先于`Instance 1`到达。那么这个时候对于数据库来说，ID依然是乱序的。
 
-## 号段链模式（SegmentChainId）
+### 号段链模式（SegmentChainId）
 
 <p align="center" >
-  <img :src="$withBase('/assets/design/SegmentChainId.png')" alt="SegmentChainId"/>
+  <img src="../public/assets/design/SegmentChainId.png" alt="SegmentChainId"/>
 </p>
 
 **SegmentChainId**是**SegmentId**增强版，相比于**SegmentId**有以下优势：
 
 - 稳定性：**SegmentId**的稳定性问题（P9999=46.624(us/op)）主要是因为号段用完之后同步进行`NextMaxId`的获取导致的（会产生网络IO）。
-  - **SegmentChainId** （P9999=0.208(us/op)）引入了新的角色**PrefetchWorker**用以维护和保证**安全距离**，理想情况下使得获取ID的线程几乎完全不需要进行同步的等待`NextMaxId`获取，性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](perf-test.md) 。
+  - **SegmentChainId** （P9999=0.208(us/op)）引入了新的角色**PrefetchWorker**用以维护和保证**安全距离**，理想情况下使得获取ID的线程几乎完全不需要进行同步的等待`NextMaxId`获取，性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](faq/perf-test.md) 。
 - 适应性：从**SegmentId**介绍中我们知道了影响**ID乱序**的因素有俩个：集群规模、`Step`大小。集群规模是我们不能控制的，但是`Step`是可以调节的。
   - `Step`应该近可能小才能使得**ID单调递增**的可能性增大。
   - `Step`太小会影响吞吐量，那么我们如何合理设置`Step`呢？答案是我们无法准确预估所有时点的吞吐量需求，那么最好的办法是吞吐量需求高时，Step自动增大，吞吐量低时Step自动收缩。

@@ -20,6 +20,7 @@ on:
       - 'cosid-benchmark/**'
       - 'docs/**'
       - 'document/**'
+      - 'documentation/**'
       - 'examples/**'
       - 'wiki/**'
     branches:
@@ -31,11 +32,12 @@ on:
       - 'cosid-benchmark/**'
       - 'docs/**'
       - 'document/**'
+      - 'documentation/**'
       - 'examples/**'
       - 'wiki/**'
     branches:
       - 'main'
-
+  workflow_dispatch:
 jobs:
   docker-deploy:
     name: Push Docker image

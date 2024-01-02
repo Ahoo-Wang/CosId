@@ -24,19 +24,16 @@
 name: Benchmark CosId Test
 on:
   push:
-    paths-ignore:
-      - 'cosid-benchmark/**'
-      - 'docs/**'
-      - 'document/**'
-      - 'examples/**'
-      - 'wiki/**'
+    paths:
+      - 'cosid-core/**'
+      - 'cosid-spring-redis/**'
+      - 'cosid-jdbc/**'
   pull_request:
-    paths-ignore:
-      - 'cosid-benchmark/**'
-      - 'docs/**'
-      - 'document/**'
-      - 'examples/**'
-      - 'wiki/**'
+    paths:
+      - 'cosid-core/**'
+      - 'cosid-spring-redis/**'
+      - 'cosid-jdbc/**'
+  workflow_dispatch:
 
 jobs:
   cosid-core-benchmark:

@@ -26,6 +26,7 @@ on:
   push:
     paths:
       - 'cosid-benchmark/**'
+  workflow_dispatch:
 
 jobs:
   # WARNING：中央仓库没有找到美团官方提供的Jar!!!

@@ -14,19 +14,12 @@
 name: Example Test
 on:
   push:
-    paths-ignore:
-      - 'cosid-benchmark/**'
-      - 'docs/**'
-      - 'document/**'
+    paths:
       - 'examples/**'
-      - 'wiki/**'
   pull_request:
-    paths-ignore:
-      - 'cosid-benchmark/**'
-      - 'docs/**'
-      - 'document/**'
+    paths:
       - 'examples/**'
-      - 'wiki/**'
+  workflow_dispatch:
 
 jobs:
   example-redis-test:

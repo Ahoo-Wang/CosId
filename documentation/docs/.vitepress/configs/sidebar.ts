@@ -26,7 +26,10 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: 'SegmentId', link: 'segment'},
                 {text: 'SegmentChainId', link: 'segment-chain'},
                 {text: 'CosIdGenerator', link: 'cosid-generator'},
+                {text: 'IdConverter', link: 'id-converter'},
+                {text: 'Id生成器容器', link: 'provider'},
                 {text: 'CosIdProxy', link: 'cosid-proxy'},
+
             ],
         }, {
             base: '/guide/extensions/',
@@ -57,14 +60,12 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: 'CosId VS 美团 Leaf', link: 'Performance-CosId-Leaf'},
             ],
         }, {
-            base: '/guide/advanced/',
-            text: '深入',
+            base: '/guide/sharding/',
+            text: '分片算法',
             collapsed: false,
             items: [
-                {text: 'IdGenerator', link: 'id-generator'},
-                {text: 'IdConverter', link: 'id-converter'},
-                {text: 'IdGeneratorProvider', link: 'provider'},
-                {text: 'Sharding', link: 'sharding'},
+                {text: '取模分片算法', link: 'mod-cycle'},
+                {text: '时间范围分片算法', link: 'interval-timeline'}
             ],
         }, {
             text: '配置',

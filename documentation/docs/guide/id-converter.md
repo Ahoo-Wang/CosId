@@ -27,7 +27,7 @@ public interface IdConverter {
 ## IdConverter implementation class diagram
 
 <p align="center">
-  <img src="../../public/assets/design/IdConverter-impl-class.png" alt="IdGenerator implementation class diagram"/>
+  <img src="../public/assets/design/IdConverter-impl-class.png" alt="IdGenerator implementation class diagram"/>
 </p>
 
 ## ToStringIdConverter

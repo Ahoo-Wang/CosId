@@ -1,7 +1,7 @@
 # CosId-ShardingSphere 模块
 
 ::: tip 维护说明
-`CosIdKeyGenerateAlgorithm`、`CosIdModShardingAlgorithm`、`CosIdIntervalShardingAlgorithm` 已合并至 [ShardingSphere](https://github.com/apache/shardingsphere/pull/14132) 官方，未来 *[cosid-shardingsphere](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-shardingsphere)* 模块的维护可能会以官方为主。
+`CosIdKeyGenerateAlgorithm`、`CosIdModShardingAlgorithm`、`CosIdIntervalShardingAlgorithm` 已合并至 [ShardingSphere](https://github.com/apache/shardingsphere/pull/14132) 官方，当前该模块的维护可能会以官方为主。
 :::
 
 ## 安装
@@ -22,7 +22,7 @@
 ```
 :::
 
-## CosIdKeyGenerateAlgorithm (分布式主键)
+## 分布式主键
 
 ```yaml
 spring:
@@ -80,8 +80,8 @@ spring:
 
 - 性能 : 相比于 `org.apache.shardingsphere.sharding.algorithm.sharding.mod.ModShardingAlgorithm` 性能高出 *1200~4000* 倍。并且稳定性更高，不会出现严重的性能退化。
 
-| **PreciseShardingValue**                                                                                     | **RangeShardingValue**                                                                                     |
-|--------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| **PreciseShardingValue**                                                                                   | **RangeShardingValue**                                                                                   |
+|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
 | <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
 
 ```yaml

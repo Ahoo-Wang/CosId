@@ -16,9 +16,27 @@
   - `Step`越小，乱序程度越小。当`Step=1`时，将无限接近单调递增。需要注意的是这里是无限接近而非等于单调递增，具体原因你可以思考一下这样一个场景：
     - 号段分发器T<sub>1</sub>时刻给**Instance 1**分发了`ID=1`,T<sub>2</sub>时刻给**Instance 2**分发了`ID=2`。因为机器性能、网络等原因，`Instance 2`网络IO写请求先于`Instance 1`到达。那么这个时候对于数据库来说，ID依然是乱序的。
 
+## 具体实现
 
-## IdSegmentDistributor
+```mermaid
+classDiagram
+direction BT
+class DefaultSegmentId
+class IdGenerator {
+<<Interface>>
 
-## SegmentChainId
+}
+class SegmentChainId
+class SegmentId {
+<<Interface>>
 
-## PrefetchWorker
+}
+class StringSegmentId
+
+DefaultSegmentId  ..>  SegmentId 
+SegmentChainId  ..>  SegmentId 
+SegmentId  -->  IdGenerator 
+StringSegmentId  ..>  IdGenerator 
+StringSegmentId  ..>  SegmentId 
+```
+

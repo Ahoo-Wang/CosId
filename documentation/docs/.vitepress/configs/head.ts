@@ -23,7 +23,6 @@ export const head: HeadConfig[] = [
     ['meta', {'http-equiv': 'cache-control', content: 'no-cache, no-store, must-revalidate'}],
     ['meta', {'http-equiv': 'pragma', content: 'no-cache'}],
     ['meta', {'http-equiv': 'expires', content: '0'}],
-    ['link', {rel: 'manifest', href: `${SITE_BASE}manifest.webmanifest`}],
     ['meta', {name: 'application-name', content: 'CosId'}],
     ['meta', {name: 'theme-color', content: '#5f67ee'}],
     [

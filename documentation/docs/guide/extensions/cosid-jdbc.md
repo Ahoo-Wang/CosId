@@ -4,11 +4,21 @@
 
 ## 安装
 
-> Kotlin DSL
-
-``` kotlin
+::: code-group
+```kotlin [Gradle(Kotlin)]
+    val cosidVersion = "latestVersion"
     implementation("me.ahoo.cosid:cosid-jdbc:${cosidVersion}")
 ```
+```xml [Maven]
+    <dependencies>
+        <dependency>
+            <groupId>me.ahoo.cosid</groupId>
+            <artifactId>cosid-jdbc</artifactId>
+            <version>${cosid.version}</version>
+        </dependency>
+    </dependencies>
+```
+:::
 
 ## JdbcIdSegmentDistributor
 

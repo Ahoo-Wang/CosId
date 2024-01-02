@@ -154,7 +154,7 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 - ZookeeperMachineIdDistributor: 使用**ZooKeeper**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
 
 <p align="center" >
-  <img :src="$withBase('/assets/design/RedisMachineIdDistributor.png')" alt="RedisMachineIdDistributor"/>
+  <img :src="$withBase('/assets/design/MachineIdDistributor.png')" alt="RedisMachineIdDistributor"/>
 </p>
 
 <p align="center">

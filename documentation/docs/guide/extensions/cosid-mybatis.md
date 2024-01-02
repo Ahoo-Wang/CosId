@@ -1,14 +1,26 @@
 # CosId-MyBatis 模块
 
-> [cosid-mybatis](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mybatis) 拦截**MyBatis**插入(`Insert`)请求,并解析 `@CosId` 注入**分布式ID**。
+[cosid-mybatis](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mybatis) 拦截**MyBatis**插入(`Insert`)请求,并解析 `@CosId` 注入**分布式ID**。
 
 ## 安装
 
-> Kotlin DSL
-
-``` kotlin
+::: code-group
+```kotlin [Gradle(Kotlin)]
+    val cosidVersion = "latestVersion"
     implementation("me.ahoo.cosid:cosid-mybatis:${cosidVersion}")
 ```
+```xml [Maven]
+    <dependencies>
+        <dependency>
+            <groupId>me.ahoo.cosid</groupId>
+            <artifactId>cosid-mybatis</artifactId>
+            <version>${cosid.version}</version>
+        </dependency>
+    </dependencies>
+```
+:::
+
+## 使用
 
 ```java
 public class Order {

@@ -11,14 +11,17 @@
 ### 吞吐量 (ops/s)
 
 <p align="center" >
-  <img src="../public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput-Of-SegmentChainId"/>
+  <img src="../../public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput-Of-SegmentChainId"/>
 </p>
 
-``` shell
+::: code-group
+```shell [Gradle]
 gradle cosid-redis:jmh
-# or
+```
+```shell [Java]
 java -jar cosid-redis/build/libs/cosid-redis-1.8.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 RedisChainIdBenchmark
 ```
+:::
 
 ```
 Benchmark                       (step)   Mode  Cnt          Score          Error  Units
@@ -26,11 +29,16 @@ RedisChainIdBenchmark.generate       1  thrpt    5  106188349.580 ± 26035022.28
 RedisChainIdBenchmark.generate     100  thrpt    5  112276460.950 ±  4091990.852  ops/s
 RedisChainIdBenchmark.generate    1000  thrpt    5  110181522.770 ± 15531341.449  ops/s
 ```
-``` shell
+
+::: code-group
+```shell [Gradle]
 gradle cosid-jdbc:jmh
-# or
+```
+```shell [Java]
 java -jar cosid-jdbc/build/libs/cosid-jdbc-1.8.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1 MySqlChainIdBenchmark
 ```
+:::
+
 
 ```
 Benchmark                       (step)   Mode  Cnt          Score         Error  Units
@@ -44,7 +52,7 @@ MySqlChainIdBenchmark.generate    1000  thrpt    5  115287146.614 ± 4471990.880
 > [百分位数](https://zh.wikipedia.org/wiki/%E7%99%BE%E5%88%86%E4%BD%8D%E6%95%B0) ，统计学术语，若将一组数据从小到大排序，并计算相应的累计百分点，则某百分点所对应数据的值，就称为这百分点的百分位数，以Pk表示第k百分位数。百分位数是用来比较个体在群体中的相对地位量数。
 
 <p align="center" >
-  <img src="../public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="Percentile-Sample-Of-SegmentChainId"/>
+  <img src="../../public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="Percentile-Sample-Of-SegmentChainId"/>
 </p>
 
 ```shell
@@ -83,11 +91,14 @@ MySqlChainIdBenchmark.step_1000:step_1000·p1.00    sample           342.528    
 
 ## SnowflakeId
 
-``` shell
+::: code-group
+```shell [Gradle]
 gradle cosid-core:jmh
-# or
+```
+```shell [Java]
 java -jar cosid-core/build/libs/cosid-core-1.8.6-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
+:::
 
 ```
 Benchmark                                                    Mode  Cnt        Score   Error  Units
@@ -100,9 +111,9 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 
 ## CosIdIntervalShardingAlgorithm
 
-| **PreciseShardingValue**                                                                                          | **RangeShardingValue**                                                                                          |
-|-------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
-| <img src="../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
+| **PreciseShardingValue**                                                                                        | **RangeShardingValue**                                                                                        |
+|-----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
 
 
 ``` shell
@@ -148,9 +159,9 @@ IntervalShardingAlgorithmBenchmark.office_range_timestamp          10000  thrpt 
 
 ## CosIdModShardingAlgorithm
 
-| **PreciseShardingValue**                                                                                     | **RangeShardingValue**                                                                                     |
-|--------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
-| <img src="../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
+| **PreciseShardingValue**                                                                                   | **RangeShardingValue**                                                                                   |
+|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
 
 ``` shell
 gradle cosid-shardingsphere:jmh

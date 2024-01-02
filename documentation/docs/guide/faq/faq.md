@@ -4,7 +4,9 @@
 
 虽然并没有规定 [CosId](https://github.com/Ahoo-Wang/CosId) 的使用方式，但是强烈推荐以本地 SDK 的方式使用，用户只需要安装一下 **CosId** 的依赖包做一些简单配置（ [DEMO](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example) ） 即可。
 
-> 分布式ID是不适合使用服务端部署模式的(C/S)。使用服务端部署模式，必然会产生网络IO（*Client*通过远程过程调用*Server*，获取ID），你想想我们费了那么大劲消除网络IO是为了什么？
+:::tip
+分布式ID是不适合使用服务端部署模式的(C/S)。使用服务端部署模式，必然会产生网络IO（*Client*通过远程过程调用*Server*，获取ID），你想想我们费了那么大劲消除网络IO是为了什么？
+:::
 
 ## PrefetchWorker 是如何维护安全距离的？
 
@@ -16,5 +18,5 @@
 从上文的论述中我们不难理解本机单调递增，全局趋势递增是权衡后的设计结果。
 但是全局趋势递增的背面是周期内ID乱序，所以尽可能向单调递增优化（降低ID乱序程度）是优化目标，这俩点并不冲突。
 
-> 如果各位同学还有其他问题请至 [Issues](https://github.com/Ahoo-Wang/CosId/issues) 提交你的疑问。
+如果各位同学还有其他问题请至 [Issues](https://github.com/Ahoo-Wang/CosId/issues) 提交你的疑问。
 

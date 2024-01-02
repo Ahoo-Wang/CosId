@@ -1,6 +1,7 @@
 ---
 layout: home
 title: 通用、灵活、高性能的分布式ID生成器
+
 hero:
   name: "CosId"
   text: "通用、灵活、高性能的分布式ID生成器"

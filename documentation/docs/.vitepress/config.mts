@@ -3,6 +3,7 @@ import {SITE_BASE} from "./configs/SITE_BASE";
 import {head} from "./configs/head";
 import {navbar} from "./configs/navbar";
 import {sidebar} from "./configs/sidebar";
+import {withMermaid} from "vitepress-plugin-mermaid";
 
 let hostname = 'https://cosid.ahoo.me/';
 if (SITE_BASE == '/wow/') {
@@ -10,7 +11,7 @@ if (SITE_BASE == '/wow/') {
 }
 
 // https://vitepress.dev/reference/site-config
-export default defineConfig({
+let userConfig = defineConfig({
     lang: 'zh-CN',
     title: "CosId",
     description: "通用、灵活、高性能的分布式ID生成器",
@@ -54,3 +55,5 @@ export default defineConfig({
         }
     }
 })
+
+export default withMermaid(userConfig)

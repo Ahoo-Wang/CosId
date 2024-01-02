@@ -1,41 +1,21 @@
 # 快速上手
 
-## Examples
-
-[CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples)
-
 ## 安装
 
-> 开发者可以任选一种的分发器（Redis/JDBC/Mongodb/Zookeeper）,并引入对应的依赖。
+:::tip
+开发者可以任选一种的分发器（`Redis`/`JDBC`/`Mongodb`/`Zookeeper`）,并引入对应的依赖。
+:::
 
-### Redis 分发器
+接下来以 `Redis` 扩展为例： [CosId-Example-Redis](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-redis)
 
-[CosId-Example-Redis](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-redis)
-
-#### Gradle Kotlin DSL
-
-``` kotlin
-    val cosidVersion = "latestVersion";
+::: code-group
+```kotlin [Gradle(Kotlin)]
+    val cosidVersion = "latestVersion"
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("me.ahoo.cosid:cosid-spring-redis:${cosidVersion}")
     implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
 ```
-
-#### Maven
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-
-    <modelVersion>4.0.0</modelVersion>
-    <artifactId>demo</artifactId>
-    <properties>
-        <cosid.version>latestVersion</cosid.version>
-    </properties>
-
+```xml [Maven]
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -53,11 +33,10 @@
             <version>${cosid.version}</version>
         </dependency>
     </dependencies>
-
-</project>
 ```
+:::
 
-#### 应用配置 (`application.yaml`)
+## 应用配置
 
 ```yaml
 spring:
@@ -78,9 +57,13 @@ cosid:
       type: redis
 ```
 
-> TIPS: 默认情况下，开启 `snowflake`/`segment` 会生成共享的(`__share__`) `IdGenerator` 注册到 `Spring` 容器 以及 `DefaultIdGeneratorProvider.INSTANCE`。
-> 
-> WARN: 当同时开启 `snowflake`/`segment` 时，只有其中一个共享的(`__share__`) `IdGenerator` 会注入到 `Spring` 容器(名称冲突)，另一个会被忽略。
+:::tip
+默认情况下，开启 `snowflake`/`segment` 会生成共享的(`__share__`) `IdGenerator` 注册到 `Spring` 容器 以及 `DefaultIdGeneratorProvider.INSTANCE`。
+:::
+
+:::warning
+当同时开启 `snowflake`/`segment` 时，只有其中一个共享的(`__share__`) `IdGenerator` 会注入到 `Spring` 容器(名称冲突)，另一个会被忽略。
+:::
 
 `IdGenerator` `Bean Name` 规则：
 - SegmentId: `[name]SegmentId` , 比如 : `__share__SegmentId`
@@ -90,7 +73,7 @@ cosid:
 
 > 通过 `@Autowired` 注入 `IdGenerator` 。
 
-```java
+```java {1,6}
     @Qualifier("__share__SegmentId")
     @Lazy
     @Autowired
@@ -108,5 +91,6 @@ cosid:
     DefaultIdGeneratorProvider.INSTANCE.getShare();
 ```
 
+## Examples
 
-
+开发者可以通过 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples) 的学习快速开启 `CosId` 之旅。

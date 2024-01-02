@@ -14,13 +14,18 @@
 ``` shell
 git clone git@github.com:Ahoo-Wang/CosId.git
 cd cosid-benchmark
+```
+
+::: code-group
+```shell [Gradle]
 ./gradlew jmh
 ```
-or
-```shell
+```shell [Java]
 gradle jmhJar
 java -jar build/libs/cosid-benchmark-2.2.6-jmh.jar -wi 1 -rf json -f 1
 ```
+:::
+
 
 ## 报告
 
@@ -43,7 +48,7 @@ LeafBenchmark.generate          1000  thrpt        23550106.538          ops/s
 ```
 
 <p align="center" >
-  <img  src="../public/assets/perf/CosId-VS-Leaf.png" alt="CosId VS 美团 Leaf"/>
+  <img  src="../../public/assets/perf/CosId-VS-Leaf.png" alt="CosId VS 美团 Leaf"/>
 </p>
 
 > GitHub Action 环境测试报告: [Performance: CosId vs Leaf](https://github.com/Ahoo-Wang/CosId/issues/22)

@@ -6,11 +6,21 @@
 
 ## 安装
 
-> Kotlin DSL
-
-``` kotlin
+::: code-group
+```kotlin [Gradle(Kotlin)]
+    val cosidVersion = "latestVersion"
     implementation("me.ahoo.cosid:cosid-shardingsphere:${cosidVersion}")
 ```
+```xml [Maven]
+    <dependencies>
+        <dependency>
+            <groupId>me.ahoo.cosid</groupId>
+            <artifactId>cosid-shardingsphere</artifactId>
+            <version>${cosid.version}</version>
+        </dependency>
+    </dependencies>
+```
+:::
 
 ## CosIdKeyGenerateAlgorithm (分布式主键)
 

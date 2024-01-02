@@ -48,7 +48,6 @@ public interface IdConverter {
 
 > 雪花Id转换器，将符合雪花规则的字符串，转换成 long ，或者long 转换成雪花规则字符串
 
-
 ## PrefixIdConverter
 
 > 将带有前缀的字符串转换成long，或者将long转换成带前缀字符串

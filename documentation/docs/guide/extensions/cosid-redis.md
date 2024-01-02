@@ -4,11 +4,21 @@
 
 ## 安装
 
-> Kotlin DSL
-
-``` kotlin
+::: code-group
+```kotlin [Gradle(Kotlin)]
+    val cosidVersion = "latestVersion"
     implementation("me.ahoo.cosid:cosid-spring-redis:${cosidVersion}")
 ```
+```xml [Maven]
+    <dependencies>
+        <dependency>
+            <groupId>me.ahoo.cosid</groupId>
+            <artifactId>cosid-spring-redis</artifactId>
+            <version>${cosid.version}</version>
+        </dependency>
+    </dependencies>
+```
+:::
 
 ## SpringRedisIdSegmentDistributor
 
@@ -21,7 +31,7 @@
 ## SpringRedisMachineIdDistributor
 
 <p align="center" >
-  <img src="../../public/assets/design/RedisMachineIdDistributor.png" alt="SegmentId"/>
+  <img src="../../public/assets/design/MachineIdDistributor.png" alt="SegmentId"/>
 </p>
 
 <p align="center">

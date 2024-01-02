@@ -12,7 +12,7 @@
 
 ## 设计
 <p align="center">
-  <img src="../../public/assets/design/CosIdGenerator.png" alt="IdGenerator design diagram"/>
+  <img src="../public/assets/design/CosIdGenerator.png" alt="IdGenerator design diagram"/>
 </p>
 
 ## Radix36CosIdGenerator

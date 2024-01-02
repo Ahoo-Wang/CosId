@@ -30,14 +30,13 @@ _CosIdGenerator_ *单机 TPS 性能：1557W/s*，三倍于 `UUID.randomUUID()`�
 
 ## Radix62CosIdGenerator
 
-使用62进制格式化的_CosId生成器_
+使用62进制格式化的*CosId生成器*
 
 `[timestamp(44)]-[machineId-(20)]-[sequence-(16)] = 80 BITS = 15 CHARS=[timestamp(9)]-[machineId(4)]-[sequence(4)]`
 
 - 时间戳由原来的44位缩减为9位
 - 机器号由原来20位缩减为4位
 - 序列号由原来的16位缩减为3位
-
 
 ## 配置
 

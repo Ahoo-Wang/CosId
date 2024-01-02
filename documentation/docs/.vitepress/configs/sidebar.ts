@@ -81,6 +81,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: '工作进程号', link: 'machine'},
                 {text: 'Snowflake', link: 'snowflake'},
                 {text: 'Segment', link: 'segment'},
+                {text: 'CosIdGenerator', link: 'cosid-generator'},
                 {text: 'Zookeeper', link: 'zookeeper'},
                 {text: 'ShardingSphere', link: 'shardingsphere'},
             ],

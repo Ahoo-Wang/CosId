@@ -6,7 +6,8 @@ management:
           - cosid
           - cosidGenerator
           - cosidStringGenerator
-
+springdoc:
+  show-actuator: true
 server:
   port: 8601
 spring:
@@ -21,25 +22,82 @@ cosid:
     enabled: true
     distributor:
       type: redis
+  generator:
+    enabled: true
   snowflake:
-    enabled: false
+    enabled: true
+    share:
+      enabled: false
+    provider:
+      snowflake_friendly:
+        converter:
+          type: snowflake_friendly
+      snowflake_short_id:
+        converter:
+          type: radix
+          radix:
+            char-size: 11
+            pad-start: true
+      snowflake_friendly_second:
+        timestamp-unit: second
+        epoch: 1577203200
+        timestamp-bit: 31
+        machine-bit: 10
+        sequence-bit: 22
+        converter:
+          type: snowflake_friendly
   segment:
     enabled: true
     mode: chain
     distributor:
       type: redis
     share:
-      group:
-        by: year
-      converter:
-        type: to_string
-        to-string:
-          pad-start: true
-          char-size: 8
-        prefix: COSID-
-        group-prefix:
-          enabled: true
+      enabled: false
+    provider:
+      biz_prefix_no:
+        offset: 2000000000
+        converter:
+          type: to_string
+          prefix: BIZ
+          to-string:
+            char-size: 10
+            pad-start: true
+      no_suffix_biz:
+        offset: 2000000000
+        converter:
+          type: to_string
+          suffix: BIZ
+          to-string:
+            char-size: 10
+            pad-start: true
+      biz_prefix_radix:
+        offset: 2000000000
+        converter:
+          type: radix
+          prefix: BIZ
+          radix:
+            char-size: 6
+            pad-start: true
+      biz_prefix_radix36:
+        converter:
+          type: radix36
+          prefix: BIZ
+          radix36:
+            char-size: 8
+            pad-start: true
+      group_year_biz:
+        group:
+          by: year
+        converter:
+          type: to_string
+          to-string:
+            pad-start: true
+            char-size: 8
+          prefix: BIZ-
+          group-prefix:
+            enabled: true
 
 logging:
   level:
     me.ahoo.cosid: debug
+

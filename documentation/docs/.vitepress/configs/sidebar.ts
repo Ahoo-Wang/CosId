@@ -28,8 +28,8 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: 'CosIdGenerator', link: 'cosid-generator'},
                 {text: 'IdConverter', link: 'id-converter'},
                 {text: 'Id生成器容器', link: 'provider'},
+                {text:'特定场景ID配置',link: 'specific-id'},
                 {text: 'CosIdProxy', link: 'cosid-proxy'},
-
             ],
         }, {
             base: '/guide/extensions/',

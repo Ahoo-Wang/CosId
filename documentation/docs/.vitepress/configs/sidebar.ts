@@ -62,7 +62,7 @@ export const sidebar: DefaultTheme.Sidebar = {
         }, {
             base: '/guide/sharding/',
             text: '分片算法',
-            collapsed: false,
+            collapsed: true,
             items: [
                 {text: '取模分片算法', link: 'mod-cycle'},
                 {text: '时间范围分片算法', link: 'interval-timeline'}

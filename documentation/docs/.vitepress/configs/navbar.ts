@@ -7,9 +7,16 @@ export const navbar: DefaultTheme.NavItem[] = [
         activeMatch: '^/guide/'
     },
     {
-        text: '配置',
-        link: '/reference/config/basic',
-        activeMatch: '^/reference/config/'
+        text: '参考',
+        activeMatch: '^/reference/',
+        items: [
+            {
+                text: '配置',
+                link: '/reference/config/basic',
+            },
+            {text: '谁在使用 CosId', link: '/reference/showcase/who-is-using'},
+            {text: '博客', link: '/reference/blog/ShardingSphere-Integration-CosId'},
+        ]
     },
     {
         text: "资源",

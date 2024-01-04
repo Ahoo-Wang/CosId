@@ -28,7 +28,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: 'CosIdGenerator', link: 'cosid-generator'},
                 {text: 'IdConverter', link: 'id-converter'},
                 {text: 'Id生成器容器', link: 'provider'},
-                {text:'特定场景ID配置',link: 'specific-id'},
+                {text: '特定场景ID配置', link: 'specific-id'},
                 {text: 'CosIdProxy', link: 'cosid-proxy'},
             ],
         }, {
@@ -67,47 +67,50 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: '取模分片算法', link: 'mod-cycle'},
                 {text: '时间范围分片算法', link: 'interval-timeline'}
             ],
-        }, {
-            text: '配置',
-            link: '/reference/config/basic'
+        },
+        {
+            text: '参考',
+            collapsed: false,
+            items: [
+                {text: '配置', link: '/reference/config/basic'},
+                {text: '谁在使用 CosId', link: '/reference/showcase/who-is-using'}
+            ]
         }
     ],
-    '/reference/': [
-        {
-            text: '配置',
-            base: '/reference/config/',
-            collapsed: false,
-            items: [
-                {text: '基础', link: 'basic'},
-                {text: '工作进程号', link: 'machine'},
-                {text: 'Snowflake', link: 'snowflake'},
-                {text: 'Segment', link: 'segment'},
-                {text: 'CosIdGenerator', link: 'cosid-generator'},
-                {text: 'Zookeeper', link: 'zookeeper'},
-                {text: 'ShardingSphere', link: 'shardingsphere'},
-            ],
-        },
-        // {
-        //     text: 'API',
-        //     base: '/reference/api/',
-        //     collapsed: false,
-        //     items: [
-        //         {text: 'IdGenerator', link: 'id-generator'},
-        //         {text: 'IdConverter', link: 'id-converter'},
-        //         {text: 'IdGeneratorProvider', link: 'provider'},
-        //         {text: 'CosIdGenerator', link: 'cosid-generator'},
-        //         {text: 'Segment', link: 'segment'},
-        //         {text: 'SnowflakeId', link: 'snowflake'},
-        //         {text: 'Sharding', link: 'sharding'},
-        //     ],
-        // },
-        {
-            text: '博客',
-            base: '/reference/blog/',
-            collapsed: false,
-            items: [
-                {text: 'ShardingSphere 集成 CosId 实战', link: 'ShardingSphere-Integration-CosId'}
-            ],
-        }
-    ]
+    '/reference/':
+        [
+            {
+                text: '参考',
+                items: [
+                    {
+                        text: '配置',
+                        base: '/reference/config/',
+                        collapsed: false,
+                        items: [
+                            {text: '基础配置', link: 'basic'},
+                            {text: '工作进程号', link: 'machine'},
+                            {text: 'Snowflake', link: 'snowflake'},
+                            {text: 'Segment', link: 'segment'},
+                            {text: 'CosIdGenerator', link: 'cosid-generator'},
+                            {text: 'Zookeeper', link: 'zookeeper'},
+                            {text: 'ShardingSphere', link: 'shardingsphere'},
+                        ],
+                    }, {
+                        text: '展示',
+                        base: '/reference/showcase/',
+                        collapsed: false,
+                        items: [
+                            {text: '谁在使用 CosId', link: 'who-is-using'}
+                        ]
+                    }, {
+                        text: '博客',
+                        base: '/reference/blog/',
+                        collapsed: false,
+                        items: [
+                            {text: 'ShardingSphere 集成 CosId 实战', link: 'ShardingSphere-Integration-CosId'}
+                        ],
+                    }
+                ]
+            }
+        ]
 }

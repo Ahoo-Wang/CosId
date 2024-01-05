@@ -139,10 +139,6 @@ public class MongoMachineCollection implements MachineCollection {
             guardUpdate(machineState.getLastTimeStamp())
         );
         if (updateResult.getModifiedCount() == 0) {
-            if (log.isErrorEnabled()) {
-                log.error("Guard - [{}] instanceId:[{}] @ namespace:[{}] - Matched:[{}] - Modified:[{}].",
-                    machineState, instanceId, namespace, updateResult.getMatchedCount(), updateResult.getModifiedCount());
-            }
             throw new MachineIdLostException(namespace, instanceId, machineState);
         }
     }

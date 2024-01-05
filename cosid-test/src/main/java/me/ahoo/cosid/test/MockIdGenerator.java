@@ -18,6 +18,7 @@ import me.ahoo.cosid.StringIdGeneratorDecorator;
 import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.uncertainty.UncertaintyIdGenerator;
 
 /**
  * Mock ID Generator for test.
@@ -26,12 +27,14 @@ import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
  */
 public class MockIdGenerator extends StringIdGeneratorDecorator {
     
-    public static final String TEST_PREFIX = "test_";
+    private static final MillisecondSnowflakeId SNOWFLAKE_ID = new MillisecondSnowflakeId(1, 0);
+    private static final UncertaintyIdGenerator UNCERTAINTY_ID_GENERATOR = new UncertaintyIdGenerator(SNOWFLAKE_ID, 9);
     
+    public static final String TEST_PREFIX = "test_";
     public static final IdGenerator INSTANCE = usePrefix(TEST_PREFIX);
     
     public MockIdGenerator(String prefix) {
-        super(new MillisecondSnowflakeId(1, 0), new PrefixIdConverter(prefix, Radix62IdConverter.INSTANCE));
+        super(UNCERTAINTY_ID_GENERATOR, new PrefixIdConverter(prefix, Radix62IdConverter.INSTANCE));
     }
     
     public static IdGenerator usePrefix(String prefix) {

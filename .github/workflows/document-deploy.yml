@@ -30,6 +30,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'adopt'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Generate JavaDoc
+        run: ./gradlew aggregateJavadoc
+
+      - name: Copy To Documentation
+        run: cp -R build/aggregatedJavadoc documentation/docs/public/javadoc
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

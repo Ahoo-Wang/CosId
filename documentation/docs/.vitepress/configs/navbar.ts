@@ -19,6 +19,11 @@ export const navbar: DefaultTheme.NavItem[] = [
         ]
     },
     {
+        text: 'JavaDoc',
+        link: `/javadoc/index.html`,
+        target: '_blank'
+    },
+    {
         text: "资源",
         items: [
             {

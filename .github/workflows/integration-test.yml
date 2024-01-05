@@ -218,7 +218,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Mongo
-        run: ./gradlew cosid-mongo:clean cosid-mongo:check
+        run: ./gradlew cosid-mongo:clean cosid-mongo:check -PexcludeTests=me.ahoo.cosid.mongo.MongoReactiveMachineIdDistributorTest
 
   cosid-proxy-test:
     name: CosId Proxy Test

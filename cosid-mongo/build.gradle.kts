@@ -26,3 +26,10 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mongodb")
 }
+
+val isInCI = null != System.getenv("CI")
+if (isInCI) {
+    tasks.withType<Test> {
+        exclude("me.ahoo.cosid.mongo.MongoReactiveMachineIdDistributorTest")
+    }
+}

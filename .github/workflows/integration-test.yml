@@ -197,8 +197,6 @@ jobs:
     name: CosId Mongo Test
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
-    env:
-      CI: ''
     services:
       mongo:
         image: mongo
@@ -293,6 +291,23 @@ jobs:
     name: CosId Spring Boot Starter Test
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      mongo:
+        image: mongo
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: root
+        ports:
+          - 27017:27017
     steps:
       - name: Start Mysql
         run: sudo /etc/init.d/mysql start

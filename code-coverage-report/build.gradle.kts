@@ -13,6 +13,7 @@
 
 plugins {
     base
+    java
     id("jacoco-report-aggregation")
 }
 
@@ -35,4 +36,14 @@ reporting {
 
 tasks.check {
     dependsOn(tasks.named<JacocoReport>("codeCoverageReport"))
+}
+
+tasks.register<Javadoc>("aggregateJavadoc") {
+    title = "CosId | 通用、灵活、高性能的分布式 ID 生成器"
+    options.header("<a href='${project.properties["website"]}' target='_blank'>GitHub</a>")
+    options.destinationDirectory = rootProject.layout.buildDirectory.dir("aggregatedJavadoc").get().asFile
+    libraryProjects.forEach {
+        source += it.sourceSets["main"].allJava
+        classpath += it.sourceSets["main"].compileClasspath
+    }
 }

@@ -28,13 +28,12 @@ import me.ahoo.cosid.uncertainty.UncertaintyIdGenerator;
 public class MockIdGenerator extends StringIdGeneratorDecorator {
     
     private static final MillisecondSnowflakeId SNOWFLAKE_ID = new MillisecondSnowflakeId(1, 0);
-    private static final UncertaintyIdGenerator UNCERTAINTY_ID_GENERATOR = new UncertaintyIdGenerator(SNOWFLAKE_ID, 9);
     
     public static final String TEST_PREFIX = "test_";
     public static final IdGenerator INSTANCE = usePrefix(TEST_PREFIX);
     
     public MockIdGenerator(String prefix) {
-        super(UNCERTAINTY_ID_GENERATOR, new PrefixIdConverter(prefix, Radix62IdConverter.INSTANCE));
+        super(SNOWFLAKE_ID, new PrefixIdConverter(prefix, Radix62IdConverter.INSTANCE));
     }
     
     public static IdGenerator usePrefix(String prefix) {

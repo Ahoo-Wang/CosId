@@ -26,9 +26,3 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mongodb")
 }
-
-tasks.test {
-    doFirst {
-        maxParallelForks = 1
-    }
-}

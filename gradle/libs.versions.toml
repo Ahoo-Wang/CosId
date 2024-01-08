@@ -18,7 +18,7 @@ jmh = "1.37"
 testRetry= "1.5.8"
 publishPlugin = "1.3.0"
 jmhPlugin = "0.7.2"
-spotbugs = "6.0.5"
+spotbugs = "6.0.6"
 
 [libraries]
 springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }

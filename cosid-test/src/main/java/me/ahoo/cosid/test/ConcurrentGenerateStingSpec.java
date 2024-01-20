@@ -30,7 +30,6 @@ public class ConcurrentGenerateStingSpec implements TestSpec {
     private final int concurrentThreads;
     private final long idSize;
     private final int singleGenerates;
-    
     public ConcurrentGenerateStingSpec(IdGenerator... idGenerators) {
         this(10, 800000, idGenerators);
     }

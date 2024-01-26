@@ -19,7 +19,15 @@ let userConfig = defineConfig({
     head: head,
     base: SITE_BASE,
     sitemap: {
-        hostname: hostname
+        hostname: hostname,
+        transformItems: (items) => {
+            items.push({
+                url: `${hostname}javadoc/index.html`,
+                changefreq: 'weekly',
+                priority: 0.8
+            })
+            return items
+        }
     },
     appearance: 'dark',
     themeConfig: {

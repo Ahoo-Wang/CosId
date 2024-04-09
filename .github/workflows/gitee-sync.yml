@@ -1,0 +1,21 @@
+name: Sync to Gitee
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+      - gh-pages
+      - gh-pages-with-site-base
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync to Gitee
+        uses: wearerequired/git-mirror-action@master
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        with:
+          source-repo: "git@github.com:Ahoo-Wang/CosId.git"
+          destination-repo: "git@gitee.com:AhooWang/CosId.git"

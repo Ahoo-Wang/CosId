@@ -30,7 +30,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
@@ -51,7 +51,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 

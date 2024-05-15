@@ -30,10 +30,11 @@ public class ConcurrentGenerateStingSpec implements TestSpec {
     private final int concurrentThreads;
     private final long idSize;
     private final int singleGenerates;
+
     public ConcurrentGenerateStingSpec(IdGenerator... idGenerators) {
         this(10, 800000, idGenerators);
     }
-    
+
     public ConcurrentGenerateStingSpec(int concurrentThreads, long idSize, IdGenerator... idGenerators) {
         Preconditions.checkState(idGenerators.length > 0, "idGenerators can not be empty.");
         this.idGenerators = idGenerators;
@@ -41,72 +42,72 @@ public class ConcurrentGenerateStingSpec implements TestSpec {
         this.idSize = idSize;
         this.singleGenerates = (int) (idSize / concurrentThreads);
     }
-    
+
     public int getConcurrentThreads() {
         return concurrentThreads;
     }
-    
+
     public long getIdSize() {
         return idSize;
     }
-    
+
     private IdGenerator getIdGenerator(int threadIdx) {
         return idGenerators[threadIdx % (idGenerators.length)];
     }
-    
+
     protected void assertSingleEach(String previousId, String id) {
         Preconditions.checkState(id.compareTo(previousId) > 0, "id:[%s] must greater then previousId:[%s]", id, previousId);
     }
-    
+
     protected void assertGlobalEach(String previousId, String id) {
         Preconditions.checkState(id.compareTo(previousId) > 0, "id:[%s] must equals previousId:[%s]+1.", id, previousId);
     }
-    
+
     @Override
     @SuppressWarnings("unchecked")
     public void verify() {
-        
+
         CompletableFuture<String[]>[] completableFutures = new CompletableFuture[concurrentThreads];
-        
+
         for (int i = 0; i < completableFutures.length; i++) {
             final IdGenerator idGenerator = getIdGenerator(i);
             completableFutures[i] = CompletableFuture
-                .supplyAsync(() -> {
-                    String[] ids = new String[singleGenerates];
-                    String previousId = "0";
-                    for (int j = 0; j < ids.length; j++) {
-                        String nextId = idGenerator.generateAsString();
-                        ids[j] = nextId;
-                        assertSingleEach(previousId, nextId);
-                        previousId = nextId;
-                    }
-                    return ids;
-                });
+                    .supplyAsync(() -> {
+                        String[] ids = new String[singleGenerates];
+                        String previousId = "0";
+                        for (int j = 0; j < ids.length; j++) {
+                            String nextId = idGenerator.generateAsString();
+                            ids[j] = nextId;
+                            assertSingleEach(previousId, nextId);
+                            previousId = nextId;
+                        }
+                        return ids;
+                    });
         }
-        
+
         CompletableFuture
-            .allOf(completableFutures)
-            .thenAccept(nil -> {
-                final String[] totalIds = new String[(int) idSize];
-                int totalIdx = 0;
-                for (CompletableFuture<String[]> completableFuture : completableFutures) {
-                    String[] ids = completableFuture.join();
-                    for (String id : ids) {
-                        totalIds[totalIdx++] = id;
+                .allOf(completableFutures)
+                .thenAccept(nil -> {
+                    final String[] totalIds = new String[(int) idSize];
+                    int totalIdx = 0;
+                    for (CompletableFuture<String[]> completableFuture : completableFutures) {
+                        String[] ids = completableFuture.join();
+                        for (String id : ids) {
+                            totalIds[totalIdx++] = id;
+                        }
                     }
-                }
-                
-                Arrays.sort(totalIds);
-                
-                String previousId = "-1";
-                for (String id : totalIds) {
-                    if ("-1".equals(previousId)) {
+
+                    Arrays.sort(totalIds);
+
+                    String previousId = "-1";
+                    for (String id : totalIds) {
+                        if ("-1".equals(previousId)) {
+                            previousId = id;
+                            continue;
+                        }
+                        assertGlobalEach(previousId, id);
                         previousId = id;
-                        continue;
                     }
-                    assertGlobalEach(previousId, id);
-                    previousId = id;
-                }
-            }).join();
+                }).join();
     }
 }

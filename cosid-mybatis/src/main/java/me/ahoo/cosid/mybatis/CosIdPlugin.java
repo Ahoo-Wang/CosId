@@ -15,7 +15,6 @@ package me.ahoo.cosid.mybatis;
 
 import me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry;
 
-import org.apache.ibatis.binding.MapperMethod;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.SqlCommandType;
@@ -35,35 +34,35 @@ import java.util.Objects;
  */
 @Intercepts({@Signature(type = Executor.class, method = "update", args = {MappedStatement.class, Object.class})})
 public class CosIdPlugin implements Interceptor {
-    
+
     public static final String DEFAULT_LIST_KEY = "list";
     private final CosIdAccessorRegistry accessorRegistry;
     private final String listKey;
-    
+
     public CosIdPlugin(CosIdAccessorRegistry accessorRegistry) {
         this(accessorRegistry, DEFAULT_LIST_KEY);
     }
-    
+
     public CosIdPlugin(CosIdAccessorRegistry accessorRegistry, String listKey) {
         this.accessorRegistry = accessorRegistry;
         this.listKey = listKey;
     }
-    
+
     @SuppressWarnings("rawtypes")
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
-        
+
         Object[] args = invocation.getArgs();
         MappedStatement statement = (MappedStatement) args[0];
         if (!SqlCommandType.INSERT.equals(statement.getSqlCommandType())) {
             return invocation.proceed();
         }
-        
+
         Object parameter = args[1];
         if (Objects.isNull(parameter)) {
             return invocation.proceed();
         }
-        
+
         if (!(parameter instanceof Map)) {
             accessorRegistry.ensureId(parameter);
             return invocation.proceed();

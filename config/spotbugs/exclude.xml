@@ -43,4 +43,8 @@
         <Class name="me.ahoo.cosid.cosid.RadixCosIdGenerator"/>
         <Bug pattern="CT_CONSTRUCTOR_THROW"/>
     </Match>
+    <Match>
+        <Class name="me.ahoo.cosid.sharding.ExactCollection"/>
+        <Bug pattern="SING_SINGLETON_HAS_NONPRIVATE_CONSTRUCTOR"/>
+    </Match>
 </FindBugsFilter>

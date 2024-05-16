@@ -11,18 +11,32 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.segment.grouped;
+package me.ahoo.cosid.segment.grouped.date;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import org.junit.jupiter.api.Test;
 
-class DateGroupBySupplierTest {
-    
+import java.time.Year;
+import java.time.format.DateTimeFormatter;
+
+class YearGroupBySupplierTest {
+
     @Test
     void year() {
-        assertThat(DateGroupBySupplier.YEAR.get(), notNullValue());
+        String pattern = "yyyy";
+        YearGroupBySupplier supplier = new YearGroupBySupplier(pattern);
+        GroupedKey groupedKey = supplier.get();
+        assertThat(groupedKey.getKey(), equalTo(Year.now().format(DateTimeFormatter.ofPattern(pattern))));
     }
 
+    @Test
+    void yearTwoPattern() {
+        String pattern = "yy";
+        YearGroupBySupplier supplier = new YearGroupBySupplier(pattern);
+        GroupedKey groupedKey = supplier.get();
+        assertThat(groupedKey.getKey(), equalTo(Year.now().format(DateTimeFormatter.ofPattern(pattern))));
+    }
 }

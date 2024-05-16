@@ -21,8 +21,11 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
-import me.ahoo.cosid.segment.grouped.DateGroupBySupplier;
+import me.ahoo.cosid.segment.grouped.GroupBySupplier;
 import me.ahoo.cosid.segment.grouped.GroupedIdSegmentDistributorFactory;
+import me.ahoo.cosid.segment.grouped.date.YearGroupBySupplier;
+import me.ahoo.cosid.segment.grouped.date.YearMonthDayGroupBySupplier;
+import me.ahoo.cosid.segment.grouped.date.YearMonthGroupBySupplier;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 import me.ahoo.cosid.spring.boot.starter.Namespaces;
@@ -43,7 +46,7 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
     private final ConfigurableApplicationContext applicationContext;
     @Nullable
     private final CustomizeSegmentIdProperties customizeSegmentIdProperties;
-    
+
     public SegmentIdBeanRegistrar(CosIdProperties cosIdProperties,
                                   SegmentIdProperties segmentIdProperties,
                                   IdSegmentDistributorFactory distributorFactory,
@@ -59,12 +62,12 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
         this.applicationContext = applicationContext;
         this.customizeSegmentIdProperties = customizeSegmentIdProperties;
     }
-    
+
     @Override
     public void afterPropertiesSet() {
         register();
     }
-    
+
     public void register() {
         if (customizeSegmentIdProperties != null) {
             customizeSegmentIdProperties.customize(segmentIdProperties);
@@ -75,39 +78,48 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
         }
         segmentIdProperties.getProvider().forEach(this::registerIdDefinition);
     }
-    
+
     private void registerIdDefinition(String name, SegmentIdProperties.IdDefinition idDefinition) {
         IdSegmentDistributorDefinition distributorDefinition = asDistributorDefinition(name, idDefinition);
         IdSegmentDistributor idSegmentDistributor;
-        if (idDefinition.getGroup().getBy() == SegmentIdProperties.IdDefinition.GroupBy.YEAR) {
-            idSegmentDistributor = new GroupedIdSegmentDistributorFactory(DateGroupBySupplier.YEAR, distributorFactory).create(distributorDefinition);
+        SegmentIdProperties.IdDefinition.Group group = idDefinition.getGroup();
+        GroupBySupplier groupBySupplier;
+        switch (group.getBy()) {
+            case YEAR -> groupBySupplier = new YearGroupBySupplier(group.getPattern());
+            case YEAR_MONTH -> groupBySupplier = new YearMonthGroupBySupplier(group.getPattern());
+            case YEAR_MONTH_DAY -> groupBySupplier = new YearMonthDayGroupBySupplier(group.getPattern());
+            default ->  groupBySupplier = null;
+        }
+
+        if (groupBySupplier != null) {
+            idSegmentDistributor = new GroupedIdSegmentDistributorFactory(groupBySupplier, distributorFactory).create(distributorDefinition);
         } else {
             idSegmentDistributor = distributorFactory.create(distributorDefinition);
         }
-        
+
         SegmentId idGenerator = createSegment(segmentIdProperties, idDefinition, idSegmentDistributor, prefetchWorkerExecutorService);
         registerSegmentId(name, idGenerator);
     }
-    
+
     private void registerSegmentId(String name, SegmentId segmentId) {
         if (!idGeneratorProvider.get(name).isPresent()) {
             idGeneratorProvider.set(name, segmentId);
         }
-        
+
         String beanName = name + "SegmentId";
         applicationContext.getBeanFactory().registerSingleton(beanName, segmentId);
     }
-    
+
     private IdSegmentDistributorDefinition asDistributorDefinition(String name, SegmentIdProperties.IdDefinition idDefinition) {
         String namespace = Namespaces.firstNotBlank(idDefinition.getNamespace(), cosIdProperties.getNamespace());
         return new IdSegmentDistributorDefinition(namespace, name, idDefinition.getOffset(), idDefinition.getStep());
     }
-    
+
     private static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor,
                                            PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         long ttl = MoreObjects.firstNonNull(idDefinition.getTtl(), segmentIdProperties.getTtl());
         SegmentIdProperties.Mode mode = MoreObjects.firstNonNull(idDefinition.getMode(), segmentIdProperties.getMode());
-        
+
         SegmentId segmentId;
         if (SegmentIdProperties.Mode.SEGMENT.equals(mode)) {
             segmentId = new DefaultSegmentId(ttl, idSegmentDistributor);
@@ -115,9 +127,9 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
             SegmentIdProperties.Chain chain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
             segmentId = new SegmentChainId(ttl, chain.getSafeDistance(), idSegmentDistributor, prefetchWorkerExecutorService);
         }
-        
+
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
         return new SegmentIdConverterDecorator(segmentId, converterDefinition).decorate();
     }
-    
+
 }

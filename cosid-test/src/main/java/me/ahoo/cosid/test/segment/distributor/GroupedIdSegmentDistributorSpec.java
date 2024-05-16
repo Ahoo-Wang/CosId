@@ -22,34 +22,34 @@ import me.ahoo.cosid.segment.IdSegmentChain;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
-import me.ahoo.cosid.segment.grouped.DateGroupBySupplier;
 import me.ahoo.cosid.segment.grouped.GroupBySupplier;
 import me.ahoo.cosid.segment.grouped.GroupedIdSegmentDistributorFactory;
+import me.ahoo.cosid.segment.grouped.date.YearGroupBySupplier;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Test;
 
 public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistributorSpec {
-    
+
     protected GroupBySupplier groupedSupplier() {
-        return DateGroupBySupplier.YEAR;
+        return new YearGroupBySupplier("yyyy");
     }
-    
+
     @Override
     public void nextMaxIdWhenBack() {
-    
+
     }
-    
+
     @Override
     protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
-    
+
     }
-    
+
     @Override
     protected IdSegmentDistributorFactory factory() {
         return new GroupedIdSegmentDistributorFactory(groupedSupplier(), getFactory());
     }
-    
+
     @Test
     @Override
     public void getGroup() {
@@ -59,7 +59,7 @@ public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistribut
         IdSegmentDistributor distributor = factory().create(definition);
         assertThat(distributor.group(), equalTo(groupedSupplier().get()));
     }
-    
+
     @Test
     @Override
     public void nextIdSegment() {
@@ -73,7 +73,7 @@ public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistribut
         assertThat(actual.getSequence(), equalTo(0L));
         assertThat(actual.getTtl(), equalTo(groupedSupplier().get().ttl()));
     }
-    
+
     @Test
     @Override
     public void nextIdSegmentChain() {

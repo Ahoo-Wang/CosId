@@ -11,27 +11,32 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.segment.grouped;
+package me.ahoo.cosid.segment.grouped.date;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.Year;
-import java.time.ZoneId;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 
-public enum DateGroupBySupplier implements GroupBySupplier {
-    YEAR {
-        @Override
-        public GroupedKey get() {
-            Year nowYear = Year.now();
-            String key = nowYear.toString();
-            
-            LocalDateTime lastTs = LocalDateTime.of(LocalDate.MAX.withYear(nowYear.getValue()), LocalTime.MAX);
-            ZoneId currentZone = ZoneId.systemDefault();
-            long ttlAt = lastTs.atZone(currentZone).toInstant().toEpochMilli() / 1000;
-            return new GroupedKey(key, ttlAt);
-        }
+
+public class YearMonthGroupBySupplier extends AbstractDateGroupBySupplier<YearMonth> {
+    public YearMonthGroupBySupplier(DateTimeFormatter formatter) {
+        super(formatter);
     }
-    
-    
+
+    public YearMonthGroupBySupplier(String pattern) {
+        this(DateTimeFormatter.ofPattern(pattern));
+    }
+
+    @Override
+    YearMonth now() {
+        return YearMonth.now();
+    }
+
+    @Override
+    LocalDateTime lastTimestamp(YearMonth date) {
+        LocalDate lastDate = LocalDate.MAX.withYear(date.getYear()).withMonth(date.getMonthValue());
+        return LocalDateTime.of(lastDate, LocalTime.MAX);
+    }
 }

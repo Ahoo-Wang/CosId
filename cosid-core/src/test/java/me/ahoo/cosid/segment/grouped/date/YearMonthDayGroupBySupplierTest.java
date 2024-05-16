@@ -17,7 +17,6 @@ import me.ahoo.cosid.segment.grouped.GroupedKey;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -34,7 +33,7 @@ class YearMonthDayGroupBySupplierTest {
 
     @Test
     void getYyMm() {
-        String pattern = "yyMMDD";
+        String pattern = "yyMMdd";
         YearMonthDayGroupBySupplier supplier = new YearMonthDayGroupBySupplier(pattern);
         GroupedKey groupedKey = supplier.get();
         assertEquals(groupedKey.getKey(), LocalDate.now().format(DateTimeFormatter.ofPattern(pattern)));

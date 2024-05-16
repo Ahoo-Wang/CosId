@@ -88,6 +88,7 @@ cosid:
       group_year_biz:
         group:
           by: year
+          pattern: yyyy
         converter:
           type: to_string
           to-string:
@@ -96,7 +97,30 @@ cosid:
           prefix: BIZ-
           group-prefix:
             enabled: true
-
+      group_year_month_biz:
+        group:
+          by: year_month
+          pattern: yyyyMM
+        converter:
+          type: to_string
+          to-string:
+            pad-start: true
+            char-size: 8
+          prefix: BIZ-
+          group-prefix:
+            enabled: true
+      group_year_month_day_biz:
+        group:
+          by: year_month_day
+          pattern: yyyyMMdd
+        converter:
+          type: to_string
+          to-string:
+            pad-start: true
+            char-size: 8
+          prefix: BIZ-
+          group-prefix:
+            enabled: true
 logging:
   level:
     me.ahoo.cosid: debug

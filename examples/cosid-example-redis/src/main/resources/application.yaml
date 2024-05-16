@@ -112,7 +112,7 @@ cosid:
       group_year_month_day_biz:
         group:
           by: year_month_day
-          pattern: yyyyMMdd
+          pattern: yyMMdd
         converter:
           type: to_string
           to-string:

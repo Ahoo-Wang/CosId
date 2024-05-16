@@ -462,6 +462,7 @@ cosid:
       group_year_biz:
         group:
           by: year
+          pattern: yyyy
         converter:
           type: to_string
           to-string:
@@ -491,6 +492,146 @@ cosid:
         "charSize": 11,
         "padStart": true,
         "maxId": 9223372036854775807
+      }
+    },
+    "converter": {
+      "kind": "PrefixIdConverter",
+      "prefix": "BIZ-",
+      "actual": {
+        "kind": "GroupedPrefixIdConverter",
+        "delimiter": "-",
+        "actual": {
+          "kind": "ToStringIdConverter",
+          "padStart": true,
+          "charSize": 8
+        }
+      }
+    }
+  }
+}
+```
+:::
+
+## group_year_month_biz
+
+使用 _SegmentId_ 算法，要求输出的ID字符串：
+- 起始序号：`0`
+- 格式：`<prefix><year_month><sequence>`
+- 分组：按年月分组，序号从0开始。即跨月序号需要重置为0.
+- 序号位：8位数值，不足8位前补0
+- 例如：`BIZ-240516-00000061`
+
+::: code-group
+```yaml {7-17} [配置]
+cosid:
+  segment:
+    enabled: true
+    distributor:
+      type: redis
+    provider:
+      group_year_month_biz:
+        group:
+          by: year_month
+          pattern: yyyyMM
+        converter:
+          type: to_string
+          to-string:
+            pad-start: true
+            char-size: 8
+          prefix: BIZ-
+          group-prefix:
+            enabled: true
+```
+```json [配置信息]
+{
+  "group_year_month_biz": {
+    "kind": "StringSegmentId",
+    "actual": {
+      "kind": "SegmentChainId",
+      "fetchTime": 1715851229,
+      "maxId": 110,
+      "offset": 90,
+      "sequence": 91,
+      "step": 20,
+      "isExpired": false,
+      "isOverflow": false,
+      "isAvailable": true,
+      "converter": {
+        "kind": "Radix62IdConverter",
+        "radix": 62,
+        "charSize": 11,
+        "padStart": true,
+        "maxId": 9223372036854776000
+      }
+    },
+    "converter": {
+      "kind": "PrefixIdConverter",
+      "prefix": "BIZ-",
+      "actual": {
+        "kind": "GroupedPrefixIdConverter",
+        "delimiter": "-",
+        "actual": {
+          "kind": "ToStringIdConverter",
+          "padStart": true,
+          "charSize": 8
+        }
+      }
+    }
+  }
+}
+```
+:::
+
+## group_year_month_day_biz
+
+使用 _SegmentId_ 算法，要求输出的ID字符串：
+- 起始序号：`0`
+- 格式：`<prefix><year_month_day><sequence>`
+- 分组：按日期分组，序号从0开始。即明天序号需要重置为0.
+- 序号位：8位数值，不足8位前补0
+- 例如：`BIZ-240516-00000001`
+
+::: code-group
+```yaml {7-17} [配置]
+cosid:
+  segment:
+    enabled: true
+    distributor:
+      type: redis
+    provider:
+      group_year_month_day_biz:
+        group:
+          by: year_month_day
+          pattern: yyMMdd
+        converter:
+          type: to_string
+          to-string:
+            pad-start: true
+            char-size: 8
+          prefix: BIZ-
+          group-prefix:
+            enabled: true
+```
+```json [配置信息]
+{
+  "group_year_month_day_biz": {
+    "kind": "StringSegmentId",
+    "actual": {
+      "kind": "SegmentChainId",
+      "fetchTime": 1715851229,
+      "maxId": 80,
+      "offset": 60,
+      "sequence": 60,
+      "step": 20,
+      "isExpired": false,
+      "isOverflow": false,
+      "isAvailable": true,
+      "converter": {
+        "kind": "Radix62IdConverter",
+        "radix": 62,
+        "charSize": 11,
+        "padStart": true,
+        "maxId": 9223372036854776000
       }
     },
     "converter": {

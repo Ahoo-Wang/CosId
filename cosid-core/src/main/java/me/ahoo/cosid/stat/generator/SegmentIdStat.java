@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.stat.generator;
 
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.Stat;
 
 public record SegmentIdStat(String kind,
@@ -24,5 +25,6 @@ public record SegmentIdStat(String kind,
                             boolean isExpired,
                             boolean isOverflow,
                             boolean isAvailable,
+                            GroupedKey groupedKey,
                             Stat converter) implements IdGeneratorStat {
 }

@@ -40,6 +40,7 @@ public interface SegmentId extends IdGenerator {
                 current().isExpired(),
                 current().isOverflow(),
                 current().isAvailable(),
+                current().group(),
                 idConverter().stat()
         );
     }

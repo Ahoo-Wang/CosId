@@ -452,7 +452,7 @@ cosid:
 - 例如：`BIZ-2024-00000231`
 
 ::: code-group
-```yaml {7-17} [配置]
+```yaml {7-18} [配置]
 cosid:
   segment:
     enabled: true
@@ -472,26 +472,30 @@ cosid:
           group-prefix:
             enabled: true
 ```
-```json [配置信息]
+```json {14-17} [配置信息]
 {
   "group_year_biz": {
     "kind": "StringSegmentId",
     "actual": {
       "kind": "SegmentChainId",
-      "fetchTime": 1704265845,
-      "maxId": 240,
-      "offset": 220,
-      "sequence": 230,
+      "fetchTime": 1715911764,
+      "maxId": 570,
+      "offset": 550,
+      "sequence": 550,
       "step": 20,
       "isExpired": false,
       "isOverflow": false,
       "isAvailable": true,
+      "groupedKey": {
+        "key": "2024",
+        "ttlAt": 1735660799
+      },
       "converter": {
         "kind": "Radix62IdConverter",
         "radix": 62,
         "charSize": 11,
         "padStart": true,
-        "maxId": 9223372036854775807
+        "maxId": 9223372036854776000
       }
     },
     "converter": {
@@ -522,7 +526,7 @@ cosid:
 - 例如：`BIZ-240516-00000061`
 
 ::: code-group
-```yaml {7-17} [配置]
+```yaml {7-18} [配置]
 cosid:
   segment:
     enabled: true
@@ -542,20 +546,24 @@ cosid:
           group-prefix:
             enabled: true
 ```
-```json [配置信息]
+```json {14-17} [配置信息]
 {
   "group_year_month_biz": {
     "kind": "StringSegmentId",
     "actual": {
       "kind": "SegmentChainId",
-      "fetchTime": 1715851229,
-      "maxId": 110,
-      "offset": 90,
-      "sequence": 91,
+      "fetchTime": 1715911765,
+      "maxId": 310,
+      "offset": 290,
+      "sequence": 290,
       "step": 20,
       "isExpired": false,
       "isOverflow": false,
       "isAvailable": true,
+      "groupedKey": {
+        "key": "202405",
+        "ttlAt": 1717171199
+      },
       "converter": {
         "kind": "Radix62IdConverter",
         "radix": 62,
@@ -592,7 +600,7 @@ cosid:
 - 例如：`BIZ-240516-00000001`
 
 ::: code-group
-```yaml {7-17} [配置]
+```yaml {7-18} [配置]
 cosid:
   segment:
     enabled: true
@@ -612,20 +620,24 @@ cosid:
           group-prefix:
             enabled: true
 ```
-```json [配置信息]
+```json {14-17} [配置信息]
 {
   "group_year_month_day_biz": {
     "kind": "StringSegmentId",
     "actual": {
       "kind": "SegmentChainId",
-      "fetchTime": 1715851229,
-      "maxId": 80,
-      "offset": 60,
-      "sequence": 60,
+      "fetchTime": 1715911765,
+      "maxId": 280,
+      "offset": 260,
+      "sequence": 260,
       "step": 20,
       "isExpired": false,
       "isOverflow": false,
       "isAvailable": true,
+      "groupedKey": {
+        "key": "240517",
+        "ttlAt": 1715961599
+      },
       "converter": {
         "kind": "Radix62IdConverter",
         "radix": 62,

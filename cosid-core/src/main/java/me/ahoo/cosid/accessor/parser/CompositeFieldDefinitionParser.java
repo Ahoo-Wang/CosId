@@ -18,6 +18,12 @@ import me.ahoo.cosid.accessor.IdDefinition;
 import java.lang.reflect.Field;
 import java.util.List;
 
+/**
+ * Composite {@link FieldDefinitionParser}.
+ *
+ * @see FieldDefinitionParser
+ * @see NamedDefinitionParser
+ */
 public class CompositeFieldDefinitionParser implements FieldDefinitionParser {
     private final List<FieldDefinitionParser> fieldDefinitionParsers;
     

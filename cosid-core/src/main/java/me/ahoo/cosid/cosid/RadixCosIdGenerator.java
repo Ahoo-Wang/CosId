@@ -16,12 +16,22 @@ package me.ahoo.cosid.cosid;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
-import com.google.common.annotations.Beta;
 import com.google.common.base.Strings;
 
 import javax.annotation.Nonnull;
 
-@Beta
+/**
+ * Radix CosIdGenerator.
+ * <p>
+ * It's a simple implementation of {@link CosIdGenerator}.
+ * </p>
+ *
+ * @see CosIdGenerator
+ * @see CosIdIdStateParser
+ * @see CosIdState
+ * @see ClockBackwardsException
+ * @see TimestampOverflowException
+ */
 public class RadixCosIdGenerator implements CosIdGenerator {
     public static final int DEFAULT_TIMESTAMP_BIT = 44;
     public static final int DEFAULT_MACHINE_BIT = 20;

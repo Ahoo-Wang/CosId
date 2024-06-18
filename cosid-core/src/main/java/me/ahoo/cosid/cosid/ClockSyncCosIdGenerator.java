@@ -23,6 +23,22 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Nonnull;
 
+/**
+ * ClockSync {@link CosIdGenerator}.
+ * <p>
+ * If the clock is backwards, synchronize the clock and retry generating the Id.
+ * </p>
+ *
+ * @see ClockBackwardsSynchronizer
+ * @see CosIdGenerator
+ * @see CosIdIdStateParser
+ * @see CosIdState
+ * @see Decorator
+ * @see IdGeneratorStat
+ * @see Stat
+ * @see ClockBackwardsException
+ * @see ClockBackwardsSynchronizer
+ */
 @Slf4j
 public class ClockSyncCosIdGenerator implements CosIdGenerator, Decorator<CosIdGenerator> {
     private final CosIdGenerator actual;

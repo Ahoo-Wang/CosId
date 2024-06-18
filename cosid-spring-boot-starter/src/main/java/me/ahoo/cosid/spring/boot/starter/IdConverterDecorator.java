@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.boot.starter;
 
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.converter.DatePrefixIdConverter;
 import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.Radix36IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
@@ -25,16 +26,17 @@ import me.ahoo.cosid.converter.GroupedPrefixIdConverter;
 import com.google.common.base.Strings;
 
 import java.lang.reflect.InvocationTargetException;
+import java.util.Date;
 
 public abstract class IdConverterDecorator<T extends IdGenerator> {
     protected final T idGenerator;
     protected final IdConverterDefinition converterDefinition;
-    
+
     protected IdConverterDecorator(T idGenerator, IdConverterDefinition converterDefinition) {
         this.idGenerator = idGenerator;
         this.converterDefinition = converterDefinition;
     }
-    
+
     public T decorate() {
         IdConverter idConverter = ToStringIdConverter.INSTANCE;
         switch (converterDefinition.getType()) {
@@ -45,35 +47,46 @@ public abstract class IdConverterDecorator<T extends IdGenerator> {
             case CUSTOM -> idConverter = newCustom();
             default -> throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
         }
-        
+
         IdConverterDefinition.GroupPrefix groupPrefix = converterDefinition.getGroupPrefix();
-        
+
         if (groupPrefix.isEnabled() && groupPrefix.isBeforePrefix()) {
             idConverter = new GroupedPrefixIdConverter(groupPrefix.getDelimiter(), idConverter);
         }
+
+        IdConverterDefinition.DatePrefix datePrefix = converterDefinition.getDatePrefix();
+        if (datePrefix.isEnabled() && datePrefix.isBeforePrefix()) {
+            idConverter = new DatePrefixIdConverter(datePrefix.getPattern(), datePrefix.getDelimiter(), idConverter);
+        }
+
         if (!Strings.isNullOrEmpty(converterDefinition.getPrefix())) {
             idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
         }
         if (groupPrefix.isEnabled() && !groupPrefix.isBeforePrefix()) {
             idConverter = new GroupedPrefixIdConverter(groupPrefix.getDelimiter(), idConverter);
         }
+
+        if (datePrefix.isEnabled() && !datePrefix.isBeforePrefix()) {
+            idConverter = new DatePrefixIdConverter(datePrefix.getPattern(), datePrefix.getDelimiter(), idConverter);
+        }
+
         if (!Strings.isNullOrEmpty(converterDefinition.getSuffix())) {
             idConverter = new SuffixIdConverter(converterDefinition.getSuffix(), idConverter);
         }
-        
+
         return newIdGenerator(idConverter);
     }
-    
+
     protected IdConverter newRadix() {
         IdConverterDefinition.Radix radix = converterDefinition.getRadix();
         return Radix62IdConverter.of(radix.isPadStart(), radix.getCharSize());
     }
-    
+
     protected IdConverter newRadix36() {
         IdConverterDefinition.Radix36 radix36 = converterDefinition.getRadix36();
         return Radix36IdConverter.of(radix36.isPadStart(), radix36.getCharSize());
     }
-    
+
     protected IdConverter newToString(IdConverter defaultIdConverter) {
         IdConverterDefinition.ToString toString = converterDefinition.getToString();
         if (toString != null) {
@@ -81,11 +94,11 @@ public abstract class IdConverterDecorator<T extends IdGenerator> {
         }
         return defaultIdConverter;
     }
-    
+
     protected IdConverter newSnowflakeFriendly() {
         throw new UnsupportedOperationException("newSnowflakeFriendly");
     }
-    
+
     protected IdConverter newCustom() {
         IdConverterDefinition.Custom custom = converterDefinition.getCustom();
         try {
@@ -94,6 +107,6 @@ public abstract class IdConverterDecorator<T extends IdGenerator> {
             throw new RuntimeException(e);
         }
     }
-    
+
     protected abstract T newIdGenerator(IdConverter idConverter);
 }

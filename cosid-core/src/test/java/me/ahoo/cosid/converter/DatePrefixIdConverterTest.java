@@ -25,19 +25,18 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 
 class DatePrefixIdConverterTest {
-    private static final String PREFIX = "prefix_";
-    private final DatePrefixIdConverter idConverter = new DatePrefixIdConverter(PREFIX, "yyMMdd", DEFAULT_DELIMITER, ToStringIdConverter.INSTANCE);
+    private final DatePrefixIdConverter idConverter = new DatePrefixIdConverter("yyMMdd", DEFAULT_DELIMITER, ToStringIdConverter.INSTANCE);
 
     @Test
     void asString() {
         String idString = idConverter.asString(1);
-        String expected = PREFIX + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyMMdd")) + DEFAULT_DELIMITER + "1";
+        String expected = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyMMdd")) + DEFAULT_DELIMITER + "1";
         assertThat(idString, equalTo(expected));
     }
 
     @Test
     void asLong() {
-        assertThat(idConverter.asLong("prefix_240618-1"), equalTo(1L));
+        assertThat(idConverter.asLong("240618-1"), equalTo(1L));
     }
 
     @Test

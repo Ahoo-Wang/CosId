@@ -23,14 +23,12 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter> {
-    private final String prefix;
     private final String pattern;
     private final DateTimeFormatter formatter;
     private final String delimiter;
     private final IdConverter actual;
 
-    public DatePrefixIdConverter(String prefix, String pattern, String delimiter, IdConverter actual) {
-        this.prefix = prefix;
+    public DatePrefixIdConverter(String pattern, String delimiter, IdConverter actual) {
         this.pattern = pattern;
         this.formatter = DateTimeFormatter.ofPattern(pattern);
         this.delimiter = delimiter;
@@ -41,12 +39,12 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
     @Nonnull
     @Override
     public String asString(long id) {
-        return prefix + LocalDateTime.now().format(formatter) + delimiter + actual.asString(id);
+        return LocalDateTime.now().format(formatter) + delimiter + actual.asString(id);
     }
 
     @Override
     public long asLong(@Nonnull String idString) {
-        int appendedLength = prefix.length() + pattern.length() + delimiter.length();
+        int appendedLength = pattern.length() + delimiter.length();
         String idStr = idString.substring(appendedLength);
         return actual.asLong(idStr);
     }
@@ -59,6 +57,6 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
 
     @Override
     public Stat stat() {
-        return new DatePrefixConverterStat(getClass().getSimpleName(), prefix, formatter.toString(), actual.stat());
+        return new DatePrefixConverterStat(getClass().getSimpleName(), pattern, actual.stat());
     }
 }

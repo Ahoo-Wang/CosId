@@ -62,6 +62,16 @@ cosid:
           to-string:
             char-size: 10
             pad-start: true
+      date_prefix_no:
+        offset: 2000000000
+        converter:
+          type: to_string
+          to-string:
+            char-size: 10
+            pad-start: true
+          prefix: BIZ-
+          date-prefix:
+            enabled: true
       no_suffix_biz:
         offset: 2000000000
         converter:

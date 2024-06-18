@@ -17,6 +17,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.converter.DatePrefixIdConverter;
 import me.ahoo.cosid.converter.SuffixIdConverter;
 import me.ahoo.cosid.converter.GroupedPrefixIdConverter;
 import me.ahoo.cosid.segment.DefaultSegmentId;
@@ -36,10 +37,10 @@ public class SegmentIdConverterDecoratorTest {
         idConverterDefinition.setType(IdConverterDefinition.Type.SNOWFLAKE_FRIENDLY);
         SegmentId segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         Assertions.assertThrows(UnsupportedOperationException.class,
-            () -> new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate()
+                () -> new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate()
         );
     }
-    
+
     @Test
     void newCustom() {
         IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
@@ -49,8 +50,8 @@ public class SegmentIdConverterDecoratorTest {
         SegmentId newIdGen = new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate();
         assertThat(newIdGen.idConverter(), instanceOf(SegmentIdConverterDecoratorTest.CustomIdConverter.class));
     }
-    
-    
+
+
     @Test
     void withPrefixAndSuffix() {
         IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
@@ -60,7 +61,7 @@ public class SegmentIdConverterDecoratorTest {
         SegmentId newIdGen = new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate();
         assertThat(newIdGen.idConverter(), instanceOf(SuffixIdConverter.class));
     }
-    
+
     @Test
     void withGroupPrefix() {
         IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
@@ -69,7 +70,7 @@ public class SegmentIdConverterDecoratorTest {
         SegmentId newIdGen = new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate();
         assertThat(newIdGen.idConverter(), instanceOf(GroupedPrefixIdConverter.class));
     }
-    
+
     @Test
     void withYearPrefixAfterPrefix() {
         IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
@@ -79,14 +80,32 @@ public class SegmentIdConverterDecoratorTest {
         SegmentId newIdGen = new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate();
         assertThat(newIdGen.idConverter(), instanceOf(GroupedPrefixIdConverter.class));
     }
-    
+
+    @Test
+    void withDatePrefix() {
+        IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
+        idConverterDefinition.setDatePrefix(new IdConverterDefinition.DatePrefix().setEnabled(true));
+        SegmentId segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
+        SegmentId newIdGen = new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate();
+        assertThat(newIdGen.idConverter(), instanceOf(DatePrefixIdConverter.class));
+    }
+
+    @Test
+    void withDateNotBeforePrefix() {
+        IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
+        idConverterDefinition.setDatePrefix(new IdConverterDefinition.DatePrefix().setEnabled(true).setBeforePrefix(false));
+        SegmentId segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
+        SegmentId newIdGen = new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate();
+        assertThat(newIdGen.idConverter(), instanceOf(DatePrefixIdConverter.class));
+    }
+
     public static class CustomIdConverter implements IdConverter {
         @Nonnull
         @Override
         public String asString(long id) {
             return String.valueOf(id);
         }
-        
+
         @Override
         public long asLong(@Nonnull String idString) {
             return Long.getLong(idString);

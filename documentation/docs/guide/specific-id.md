@@ -255,6 +255,73 @@ cosid:
 ```
 :::
 
+## date_prefix_no
+
+使用 _SegmentId_ 算法，要求输出的ID字符串：
+- 格式：`<prefix><date><sequence>`
+- 日期位：6位日期字符串，格式`yyMMdd`
+- 例如：`BIZ-240618-25`
+
+::: code-group
+```yaml {7-14} [配置]
+cosid:
+  segment:
+    enabled: true
+    distributor:
+      type: redis
+    provider:
+      date_prefix_no:
+        converter:
+          type: to_string
+          prefix: BIZ-
+          date-prefix:
+            enabled: true
+            pattern: yyMMdd
+```
+```json [配置信息]
+{
+  "date_prefix_no": {
+    "kind": "StringSegmentId",
+    "actual": {
+      "kind": "SegmentChainId",
+      "fetchTime": 1718704101,
+      "maxId": 20,
+      "offset": 0,
+      "sequence": 0,
+      "step": 20,
+      "isExpired": false,
+      "isOverflow": false,
+      "isAvailable": true,
+      "groupedKey": {
+        "key": "",
+        "ttlAt": 9223372036854776000
+      },
+      "converter": {
+        "kind": "Radix62IdConverter",
+        "radix": 62,
+        "charSize": 11,
+        "padStart": true,
+        "maxId": 9223372036854776000
+      }
+    },
+    "converter": {
+      "kind": "PrefixIdConverter",
+      "prefix": "BIZ-",
+      "actual": {
+        "kind": "DatePrefixIdConverter",
+        "pattern": "yyMMdd",
+        "actual": {
+          "kind": "ToStringIdConverter",
+          "padStart": false,
+          "charSize": 10
+        }
+      }
+    }
+  }
+}
+```
+:::
+
 ## no_suffix_biz
 
 使用 _SegmentId_ 算法，要求输出的ID字符串：

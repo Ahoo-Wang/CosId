@@ -19,7 +19,13 @@ import me.ahoo.cosid.converter.RadixIdConverter;
 
 import com.google.common.base.Preconditions;
 
+/**
+ * Parser for converting {@link CosIdState} to String and vice versa.
+ * <p>
+ *     The {@link CosIdState} is a composite of timestamp, machineId, and sequence.
+ * </p>
 
+ */
 public class RadixCosIdStateParser implements CosIdIdStateParser {
     public static final RadixCosIdStateParser DEFAULT = ofRadix62(Radix62CosIdGenerator.DEFAULT_TIMESTAMP_BIT, Radix62CosIdGenerator.DEFAULT_MACHINE_BIT, Radix62CosIdGenerator.DEFAULT_SEQUENCE_BIT);
     

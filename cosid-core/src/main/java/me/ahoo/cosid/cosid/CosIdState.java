@@ -17,6 +17,12 @@ import com.google.common.base.MoreObjects;
 
 import java.util.Objects;
 
+/**
+ * CosId State.
+ * <p>
+ *     The {@link CosIdState} is a composite of timestamp, machineId, and sequence.
+ * </p>
+ */
 public final class CosIdState implements Comparable<CosIdState> {
     private final long timestamp;
     private final int machineId;

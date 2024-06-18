@@ -11,22 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.cosid;
+package me.ahoo.cosid.stat.converter;
 
-/**
- * Parser for converting {@link CosIdState} to String and vice versa.
- * <p>
- *     The {@link CosIdState} is a composite of timestamp, machineId, and sequence.
- * </p>
- */
-public interface CosIdIdStateParser {
-    
-    CosIdState asState(String id);
-    
-    String asString(long lastTimestamp, int machineId, int sequence);
-    
-    default String asString(CosIdState cosIdState) {
-        return asString(cosIdState.getTimestamp(), cosIdState.getMachineId(), cosIdState.getSequence());
-    }
+import me.ahoo.cosid.stat.Stat;
 
+public record DatePrefixConverterStat(String kind, String prefix, String formatter, Stat actual) implements Stat {
 }

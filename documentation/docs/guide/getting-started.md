@@ -123,11 +123,11 @@ cosid:
 	@Resource
         StringRedisTemplate stringRedisTemplate;
 
-	public void createProvider(String providerName) {
+	public void createProvider(String idName) {
         SpringRedisIdSegmentDistributor springRedisIdSegmentDistributor = new SpringRedisIdSegmentDistributor("namespace", "idName", stringRedisTemplate);
         SegmentChainId segmentId = new SegmentChainId(springRedisIdSegmentDistributor);
 
-        provider.set(providerName, segmentId);
+        provider.set(idName, segmentId);
     }
 ```
 

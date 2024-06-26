@@ -91,6 +91,48 @@ cosid:
     DefaultIdGeneratorProvider.INSTANCE.getShare();
 ```
 
+> 通过`yml`文件配置`provider`创建多个`生成器`
+
+```
+spring:
+  data:
+    redis:
+      host: localhost # Redis 分发器直接依赖 spring-data-redis，这样可以省去额外的配置。
+cosid:
+  namespace: ${spring.application.name}
+  machine:
+    enabled: false # 可选，当需要使用雪花算法时，需要设置为 true
+    distributor:
+      type: redis
+  segment:
+    enabled: true # 可选，当需要使用号段算法时，需要设置为 true
+    distributor:
+      type: redis
+    provider:
+      order:
+        offset: 10000
+      item:
+        offset: 10000
+```
+
+>通过`代码`创建多个多个`生成器`
+
+```java
+	@Resource
+  	IdGeneratorProvider provider;
+	@Resource
+        StringRedisTemplate stringRedisTemplate;
+
+	public void createProvider(String providerName) {
+        SpringRedisIdSegmentDistributor springRedisIdSegmentDistributor = new SpringRedisIdSegmentDistributor("namespace", providerName, stringRedisTemplate);
+        SegmentChainId segmentId = new SegmentChainId(springRedisIdSegmentDistributor);
+
+        provider.set(providerName, segmentId);
+    }
+```
+
+
+
 ## Examples
 
 开发者可以通过 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples) 的学习快速开启 `CosId` 之旅。

@@ -15,6 +15,8 @@ package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
+import me.ahoo.cosid.segment.grouped.GroupedAccessor;
+
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
@@ -50,6 +52,7 @@ public class DefaultSegmentId implements SegmentId {
     public long generate() {
         
         if (maxIdDistributor.getStep() == ONE_STEP) {
+            GroupedAccessor.setIfNotNever(segment.group());
             return maxIdDistributor.nextMaxId();
         }
         long nextSeq;

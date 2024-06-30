@@ -14,23 +14,18 @@
 package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 
 import com.google.common.base.Preconditions;
 
 import javax.annotation.Nonnull;
-import java.time.Year;
 
-/**
- * Converter for setting string ID prefix.
- *
- * @author ahoo wang
- */
-public class YearPrefixIdConverter implements IdConverter {
-    
+public class GroupedPrefixIdConverter implements IdConverter {
+    public static final String DEFAULT_DELIMITER = "-";
     private final String delimiter;
     private final IdConverter idConverter;
     
-    public YearPrefixIdConverter(String delimiter, IdConverter idConverter) {
+    public GroupedPrefixIdConverter(String delimiter, IdConverter idConverter) {
         Preconditions.checkNotNull(delimiter, "prefix can not be null!");
         this.delimiter = delimiter;
         this.idConverter = idConverter;
@@ -44,17 +39,15 @@ public class YearPrefixIdConverter implements IdConverter {
     @Override
     public String asString(long id) {
         String idStr = idConverter.asString(id);
-        Year nowYear = Year.now();
+        String groupKey = GroupedAccessor.requiredGet().getKey();
         if (delimiter.isEmpty()) {
-            return nowYear + idStr;
+            return groupKey + idStr;
         }
-        return nowYear + delimiter + idStr;
+        return groupKey + delimiter + idStr;
     }
     
     @Override
     public long asLong(@Nonnull String idString) {
-        int beginIndex = delimiter.length() + 4;
-        String idStr = idString.substring(beginIndex);
-        return idConverter.asLong(idStr);
+        throw new UnsupportedOperationException("GroupedPrefixIdConverter does not support converting String to Long!");
     }
 }

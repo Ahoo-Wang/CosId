@@ -11,14 +11,22 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.segment.grouped;
+package me.ahoo.cosid.converter;
 
-import me.ahoo.cosid.segment.IdSegmentDistributor;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
 
-public interface GroupedIdSegmentDistributor extends IdSegmentDistributor {
+import org.junit.jupiter.api.Test;
+
+import java.time.Year;
+
+class GroupedPrefixIdConverterTest {
     
-    @Override
-    default boolean allowReset() {
-        return true;
+    @Test
+    void asString() {
+        GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter("-", ToStringIdConverter.INSTANCE);
+        assertThat(converter.getDelimiter(), equalTo("-"));
+        assertThat(converter.asString(1), equalTo(Year.now() + "-1"));
+        assertThat(converter.asLong("2023-1"), equalTo(1L));
     }
 }

@@ -19,7 +19,7 @@ import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.SuffixIdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
-import me.ahoo.cosid.converter.YearPrefixIdConverter;
+import me.ahoo.cosid.converter.GroupedPrefixIdConverter;
 
 import com.google.common.base.Strings;
 
@@ -44,16 +44,16 @@ public abstract class IdConverterDecorator<T extends IdGenerator> {
             default -> throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
         }
         
-        IdConverterDefinition.YearPrefix yearPrefix = converterDefinition.getYearPrefix();
+        IdConverterDefinition.GroupPrefix groupPrefix = converterDefinition.getGroupPrefix();
         
-        if (yearPrefix.isEnabled() && yearPrefix.isBeforePrefix()) {
-            idConverter = new YearPrefixIdConverter(yearPrefix.getDelimiter(), idConverter);
+        if (groupPrefix.isEnabled() && groupPrefix.isBeforePrefix()) {
+            idConverter = new GroupedPrefixIdConverter(groupPrefix.getDelimiter(), idConverter);
         }
         if (!Strings.isNullOrEmpty(converterDefinition.getPrefix())) {
             idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
         }
-        if (yearPrefix.isEnabled() && !yearPrefix.isBeforePrefix()) {
-            idConverter = new YearPrefixIdConverter(yearPrefix.getDelimiter(), idConverter);
+        if (groupPrefix.isEnabled() && !groupPrefix.isBeforePrefix()) {
+            idConverter = new GroupedPrefixIdConverter(groupPrefix.getDelimiter(), idConverter);
         }
         if (!Strings.isNullOrEmpty(converterDefinition.getSuffix())) {
             idConverter = new SuffixIdConverter(converterDefinition.getSuffix(), idConverter);

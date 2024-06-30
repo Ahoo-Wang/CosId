@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter;
 
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.converter.GroupedPrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 
 /**
@@ -25,7 +26,7 @@ public class IdConverterDefinition {
     
     private Type type = Type.RADIX;
     private String prefix;
-    private YearPrefix yearPrefix = new YearPrefix();
+    private GroupPrefix groupPrefix = new GroupPrefix();
     private String suffix;
     private Radix radix = new Radix();
     private ToString toString;
@@ -47,12 +48,12 @@ public class IdConverterDefinition {
         this.prefix = prefix;
     }
     
-    public YearPrefix getYearPrefix() {
-        return yearPrefix;
+    public GroupPrefix getGroupPrefix() {
+        return groupPrefix;
     }
     
-    public void setYearPrefix(YearPrefix yearPrefix) {
-        this.yearPrefix = yearPrefix;
+    public void setGroupPrefix(GroupPrefix groupPrefix) {
+        this.groupPrefix = groupPrefix;
     }
     
     public String getSuffix() {
@@ -138,16 +139,16 @@ public class IdConverterDefinition {
         }
     }
     
-    public static class YearPrefix {
+    public static class GroupPrefix {
         private boolean enabled = false;
-        private String delimiter = "";
+        private String delimiter = GroupedPrefixIdConverter.DEFAULT_DELIMITER;
         private boolean beforePrefix = true;
         
         public boolean isEnabled() {
             return enabled;
         }
         
-        public YearPrefix setEnabled(boolean enabled) {
+        public GroupPrefix setEnabled(boolean enabled) {
             this.enabled = enabled;
             return this;
         }
@@ -156,7 +157,7 @@ public class IdConverterDefinition {
             return delimiter;
         }
         
-        public YearPrefix setDelimiter(String delimiter) {
+        public GroupPrefix setDelimiter(String delimiter) {
             this.delimiter = delimiter;
             return this;
         }
@@ -165,7 +166,7 @@ public class IdConverterDefinition {
             return beforePrefix;
         }
         
-        public YearPrefix setBeforePrefix(boolean beforePrefix) {
+        public GroupPrefix setBeforePrefix(boolean beforePrefix) {
             this.beforePrefix = beforePrefix;
             return this;
         }

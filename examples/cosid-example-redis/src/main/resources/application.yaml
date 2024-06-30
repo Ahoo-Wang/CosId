@@ -22,18 +22,16 @@ cosid:
     distributor:
       type: redis
     share:
+      group:
+        by: year
       converter:
         type: to_string
         to-string:
           pad-start: true
           char-size: 8
         prefix: COSID-
-        year-prefix:
+        group-prefix:
           enabled: true
-          delimiter: "-"
-      group:
-        by: year
-      mode: chain
 
 logging:
   level:

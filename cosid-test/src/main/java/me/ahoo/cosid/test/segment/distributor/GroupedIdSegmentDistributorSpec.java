@@ -52,6 +52,16 @@ public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistribut
     
     @Test
     @Override
+    public void getGroup() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        String name = "getGroup";
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, name, TEST_OFFSET, TEST_STEP);
+        IdSegmentDistributor distributor = factory().create(definition);
+        assertThat(distributor.group(), equalTo(groupedSupplier().get()));
+    }
+    
+    @Test
+    @Override
     public void nextIdSegment() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextIdSegment", TEST_OFFSET, TEST_STEP);

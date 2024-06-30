@@ -18,7 +18,7 @@ import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.SuffixIdConverter;
-import me.ahoo.cosid.converter.YearPrefixIdConverter;
+import me.ahoo.cosid.converter.GroupedPrefixIdConverter;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentId;
@@ -62,22 +62,22 @@ public class SegmentIdConverterDecoratorTest {
     }
     
     @Test
-    void withYearPrefix() {
+    void withGroupPrefix() {
         IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
-        idConverterDefinition.setYearPrefix(new IdConverterDefinition.YearPrefix().setEnabled(true));
+        idConverterDefinition.setGroupPrefix(new IdConverterDefinition.GroupPrefix().setEnabled(true));
         SegmentId segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         SegmentId newIdGen = new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate();
-        assertThat(newIdGen.idConverter(), instanceOf(YearPrefixIdConverter.class));
+        assertThat(newIdGen.idConverter(), instanceOf(GroupedPrefixIdConverter.class));
     }
     
     @Test
     void withYearPrefixAfterPrefix() {
         IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
-        idConverterDefinition.setYearPrefix(new IdConverterDefinition.YearPrefix().setEnabled(true).setBeforePrefix(false));
+        idConverterDefinition.setGroupPrefix(new IdConverterDefinition.GroupPrefix().setEnabled(true).setBeforePrefix(false));
         idConverterDefinition.setPrefix("prefix-");
         SegmentId segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         SegmentId newIdGen = new SegmentIdConverterDecorator(segmentId, idConverterDefinition).decorate();
-        assertThat(newIdGen.idConverter(), instanceOf(YearPrefixIdConverter.class));
+        assertThat(newIdGen.idConverter(), instanceOf(GroupedPrefixIdConverter.class));
     }
     
     public static class CustomIdConverter implements IdConverter {

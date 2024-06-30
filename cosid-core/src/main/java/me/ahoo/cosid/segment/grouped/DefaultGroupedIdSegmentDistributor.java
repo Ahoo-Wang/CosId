@@ -31,10 +31,10 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
         this.groupBySupplier = groupBySupplier;
         this.idSegmentDistributorDefinition = idSegmentDistributorDefinition;
         this.idSegmentDistributorFactory = idSegmentDistributorFactory;
-        this.ensureGrouped();
+        this.ensureGroupedBinding();
     }
     
-    private GroupedBinding ensureGrouped() {
+    private GroupedBinding ensureGroupedBinding() {
         GroupedKey groupedKey = groupBySupplier.get();
         if (currentGroup != null && currentGroup.group().equals(groupedKey)) {
             return currentGroup;
@@ -54,7 +54,6 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
         return currentGroup;
     }
     
-    @Override
     public GroupBySupplier groupBySupplier() {
         return groupBySupplier;
     }
@@ -77,37 +76,51 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
     }
     
     @Override
-    public long nextMaxId(long step) {
-        return this.ensureGrouped().nextMaxId(step);
+    public GroupedKey group() {
+        return this.ensureGroupedBinding().group();
     }
     
-    private long getMinTtl(long ttl) {
-        long groupedTtl = ensureGrouped().group.ttl();
-        return Math.min(groupedTtl, ttl);
+    @Override
+    public long nextMaxId() {
+        return this.ensureGroupedBinding().nextMaxId();
+    }
+    
+    @Override
+    public long nextMaxId(long step) {
+        return this.ensureGroupedBinding().nextMaxId(step);
+    }
+    
+    @Nonnull
+    @Override
+    public IdSegment nextIdSegment() {
+        return this.ensureGroupedBinding().nextIdSegment();
     }
     
     @Nonnull
     @Override
     public IdSegment nextIdSegment(long ttl) {
-        long minTtl = getMinTtl(ttl);
-        return this.ensureGrouped().nextIdSegment(minTtl);
+        return this.ensureGroupedBinding().nextIdSegment(ttl);
     }
     
     @Nonnull
     @Override
     public IdSegment nextIdSegment(int segments, long ttl) {
-        long minTtl = getMinTtl(ttl);
-        return this.ensureGrouped().nextIdSegment(segments, minTtl);
+        return this.ensureGroupedBinding().nextIdSegment(segments, ttl);
     }
     
     @Nonnull
     @Override
     public IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
-        long minTtl = getMinTtl(ttl);
-        return this.ensureGrouped().nextIdSegmentChain(previousChain, segments, minTtl);
+        return this.ensureGroupedBinding().nextIdSegmentChain(previousChain, segments, ttl);
     }
     
-    public static class GroupedBinding implements IdSegmentDistributor {
+    @Nonnull
+    @Override
+    public IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain) {
+        return this.ensureGroupedBinding().nextIdSegmentChain(previousChain);
+    }
+    
+    public static class GroupedBinding implements GroupedIdSegmentDistributor {
         
         private final GroupedKey group;
         private final IdSegmentDistributor idSegmentDistributor;
@@ -117,6 +130,7 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
             this.idSegmentDistributor = idSegmentDistributor;
         }
         
+        @Override
         public GroupedKey group() {
             return group;
         }
@@ -143,9 +157,30 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
             return idSegmentDistributor.nextMaxId(step);
         }
         
+        private long getMinTtl(long ttl) {
+            long groupedTtl = group.ttl();
+            return Math.min(groupedTtl, ttl);
+        }
+        
+        @Nonnull
         @Override
-        public boolean allowReset() {
-            return true;
+        public IdSegment nextIdSegment(long ttl) {
+            long minTtl = getMinTtl(ttl);
+            return GroupedIdSegmentDistributor.super.nextIdSegment(minTtl);
+        }
+        
+        @Nonnull
+        @Override
+        public IdSegment nextIdSegment(int segments, long ttl) {
+            long minTtl = getMinTtl(ttl);
+            return GroupedIdSegmentDistributor.super.nextIdSegment(segments, minTtl);
+        }
+        
+        @Nonnull
+        @Override
+        public IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
+            long minTtl = getMinTtl(ttl);
+            return GroupedIdSegmentDistributor.super.nextIdSegmentChain(previousChain, segments, minTtl);
         }
     }
 }

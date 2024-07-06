@@ -125,9 +125,7 @@ configure(libraryProjects) {
         jvmArgs =
             listOf(
                 // fix logging missing code for JacocoPlugin
-                "-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml",
-                "--add-opens=java.base/java.util=ALL-UNNAMED",
-                "--add-opens=java.base/java.lang=ALL-UNNAMED"
+                "-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml"
             )
         retry {
             if (isInCI) {

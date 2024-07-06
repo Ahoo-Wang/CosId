@@ -16,15 +16,22 @@ package me.ahoo.cosid.stat.generator;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.Stat;
 
-public record SegmentIdStat(String kind,
-                            long fetchTime,
-                            long maxId,
-                            long offset,
-                            long sequence,
-                            long step,
-                            boolean isExpired,
-                            boolean isOverflow,
-                            boolean isAvailable,
-                            GroupedKey groupedKey,
-                            Stat converter) implements IdGeneratorStat {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+public final class SegmentIdStat implements IdGeneratorStat {
+    private final String kind;
+    private final long fetchTime;
+    private final long maxId;
+    private final long offset;
+    private final long sequence;
+    private final long step;
+    private final boolean isExpired;
+    private final boolean isOverflow;
+    private final boolean isAvailable;
+    private final GroupedKey groupedKey;
+    private final Stat converter;
+
 }

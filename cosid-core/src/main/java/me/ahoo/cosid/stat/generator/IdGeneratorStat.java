@@ -20,12 +20,12 @@ import javax.annotation.Nullable;
 public interface IdGeneratorStat extends Stat {
     @Nullable
     @Override
-    default IdGeneratorStat actual() {
+    default IdGeneratorStat getActual() {
         return null;
     }
     
     @Nullable
-    Stat converter();
+    Stat getConverter();
     
     static IdGeneratorStat simple(String kind, @Nullable IdGeneratorStat actual, Stat converter) {
         return new SimpleIdGeneratorStat(kind, actual, converter);

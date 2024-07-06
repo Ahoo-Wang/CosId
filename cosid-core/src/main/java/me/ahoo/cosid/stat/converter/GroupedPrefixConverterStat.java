@@ -15,5 +15,13 @@ package me.ahoo.cosid.stat.converter;
 
 import me.ahoo.cosid.stat.Stat;
 
-public record GroupedPrefixConverterStat(String kind, String delimiter, Stat actual) implements Stat {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+public final class GroupedPrefixConverterStat implements Stat {
+    private final String kind;
+    private final String delimiter;
+    private final Stat actual;
 }

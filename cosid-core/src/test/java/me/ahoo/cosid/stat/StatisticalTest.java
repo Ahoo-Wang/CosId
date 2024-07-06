@@ -48,7 +48,7 @@ class StatisticalTest {
         Assertions.assertNotNull(stat);
         assertThat(stat, Matchers.instanceOf(SnowflakeIdStat.class));
         var snowflakeIdStat = (SnowflakeIdStat) stat;
-        assertThat(snowflakeIdStat.machineId(), equalTo(0));
+        assertThat(snowflakeIdStat.getMachineId(), equalTo(0));
     }
 
     @Test
@@ -82,6 +82,6 @@ class StatisticalTest {
         Assertions.assertNotNull(stat);
         assertThat(stat, Matchers.instanceOf(CosIdGeneratorStat.class));
         var cosIdGeneratorStat = (CosIdGeneratorStat) stat;
-        assertThat(cosIdGeneratorStat.machineId(), equalTo(0));
+        assertThat(cosIdGeneratorStat.getMachineId(), equalTo(0));
     }
 }

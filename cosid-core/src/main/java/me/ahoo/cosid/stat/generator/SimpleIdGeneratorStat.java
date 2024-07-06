@@ -15,6 +15,14 @@ package me.ahoo.cosid.stat.generator;
 
 import me.ahoo.cosid.stat.Stat;
 
-public record SimpleIdGeneratorStat(String kind, IdGeneratorStat actual, Stat converter) implements IdGeneratorStat {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+public final class SimpleIdGeneratorStat implements IdGeneratorStat {
+    private final String kind;
+    private final IdGeneratorStat actual;
+    private final Stat converter;
 
 }

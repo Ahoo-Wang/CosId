@@ -15,5 +15,14 @@ package me.ahoo.cosid.stat.converter;
 
 import me.ahoo.cosid.stat.Stat;
 
-public record PrefixConverterStat(String kind, String prefix, Stat actual) implements Stat {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+public final class PrefixConverterStat implements Stat {
+    private final String kind;
+    private final String prefix;
+    private final Stat actual;
+
 }

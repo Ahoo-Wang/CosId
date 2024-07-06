@@ -17,10 +17,10 @@ import javax.annotation.Nullable;
 
 public interface Stat {
 
-    String kind();
+    String getKind();
 
     @Nullable
-    default Stat actual() {
+    default Stat getActual() {
         return null;
     }
 

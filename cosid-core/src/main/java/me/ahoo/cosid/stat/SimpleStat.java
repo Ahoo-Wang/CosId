@@ -13,5 +13,12 @@
 
 package me.ahoo.cosid.stat;
 
-public record SimpleStat(String kind, Stat actual) implements Stat {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+public class SimpleStat implements Stat {
+    private final String kind;
+    private final Stat actual;
 }

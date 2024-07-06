@@ -15,5 +15,13 @@ package me.ahoo.cosid.stat.converter;
 
 import me.ahoo.cosid.stat.Stat;
 
-public record DatePrefixConverterStat(String kind, String pattern, Stat actual) implements Stat {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+public final class DatePrefixConverterStat implements Stat {
+    private final String kind;
+    private final String pattern;
+    private final Stat actual;
 }

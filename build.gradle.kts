@@ -138,11 +138,6 @@ configure(libraryProjects) {
         }
     }
 
-    // SpringBoot 3.2.0: fix Failed to extract parameter names for CosIdEndpoint
-    tasks.withType<JavaCompile> {
-        options.compilerArgs.addAll(listOf("-parameters"))
-    }
-
     dependencies {
         api(platform(dependenciesProject))
         annotationProcessor(platform(dependenciesProject))

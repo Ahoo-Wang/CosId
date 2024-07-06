@@ -44,7 +44,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     private final ConfigurableApplicationContext applicationContext;
     @Nullable
     private final CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties;
-    
+
     public SnowflakeIdBeanRegistrar(CosIdProperties cosIdProperties,
                                     MachineProperties machineProperties,
                                     SnowflakeIdProperties snowflakeIdProperties,
@@ -64,12 +64,12 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         this.applicationContext = applicationContext;
         this.customizeSnowflakeIdProperties = customizeSnowflakeIdProperties;
     }
-    
+
     @Override
     public void afterPropertiesSet() {
         register();
     }
-    
+
     public void register() {
         if (customizeSnowflakeIdProperties != null) {
             customizeSnowflakeIdProperties.customize(snowflakeIdProperties);
@@ -80,34 +80,34 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         }
         snowflakeIdProperties.getProvider().forEach(this::registerIdDefinition);
     }
-    
+
     private void registerIdDefinition(String name, SnowflakeIdProperties.IdDefinition idDefinition) {
         SnowflakeId idGenerator = createIdGen(idDefinition, clockBackwardsSynchronizer);
         registerSnowflakeId(name, idGenerator);
     }
-    
+
     private void registerSnowflakeId(String name, SnowflakeId snowflakeId) {
-        if (idGeneratorProvider.get(name).isEmpty()) {
+        if (!idGeneratorProvider.get(name).isPresent()) {
             idGeneratorProvider.set(name, snowflakeId);
         }
-        
+
         String beanName = name + "SnowflakeId";
         applicationContext.getBeanFactory().registerSingleton(beanName, snowflakeId);
     }
-    
+
     private SnowflakeId createIdGen(SnowflakeIdProperties.IdDefinition idDefinition,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         long epoch = getEpoch(idDefinition);
         int machineBit = MoreObjects.firstNonNull(idDefinition.getMachineBit(), machineProperties.getMachineBit());
         String namespace = Namespaces.firstNotBlank(idDefinition.getNamespace(), cosIdProperties.getNamespace());
         int machineId = machineIdDistributor.distribute(namespace, machineBit, instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
-        
+
         SnowflakeId snowflakeId;
         if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {
             snowflakeId = new SecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId, idDefinition.getSequenceResetThreshold());
         } else {
             snowflakeId =
-                new MillisecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId, idDefinition.getSequenceResetThreshold());
+                    new MillisecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId, idDefinition.getSequenceResetThreshold());
         }
         if (idDefinition.isClockSync()) {
             snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
@@ -116,12 +116,12 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         final ZoneId zoneId = ZoneId.of(snowflakeIdProperties.getZoneId());
         return new SnowflakeIdConverterDecorator(snowflakeId, converterDefinition, zoneId, idDefinition.isFriendly()).decorate();
     }
-    
+
     private long getEpoch(SnowflakeIdProperties.IdDefinition idDefinition) {
         if (idDefinition.getEpoch() > 0) {
             return idDefinition.getEpoch();
         }
         return snowflakeIdProperties.getEpoch();
     }
-    
+
 }

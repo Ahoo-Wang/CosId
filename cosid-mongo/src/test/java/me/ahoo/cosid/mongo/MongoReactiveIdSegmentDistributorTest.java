@@ -66,7 +66,7 @@ class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     
     @Test
     public void nextMaxIdInParallel() {
-        var mono = Mono.fromRunnable(() -> {
+        Mono<Object> mono = Mono.fromRunnable(() -> {
             String namespace = MockIdGenerator.INSTANCE.generateAsString();
             IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxIdIParallel", TEST_OFFSET, TEST_STEP);
             IdSegmentDistributor distributor = factory().create(definition);
@@ -84,11 +84,11 @@ class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "batchNextMaxId", 1, 1);
         IdSegmentDistributor distributor = factory().create(definition);
-        var segmentChainId = new SegmentChainId(distributor);
+        SegmentChainId segmentChainId = new SegmentChainId(distributor);
         for (int i = 0; i < 1000; i++) {
             segmentChainId.generateAsString();
         }
-        var mono = Mono.fromRunnable(() -> {
+        Mono<Object> mono = Mono.fromRunnable(() -> {
             for (int i = 0; i < 1000; i++) {
                 segmentChainId.generateAsString();
             }

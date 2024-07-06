@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.accessor.parser;
 
+import com.google.common.collect.Lists;
 import me.ahoo.cosid.accessor.IdDefinition;
 import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
 import me.ahoo.cosid.annotation.entity.IdNotFoundEntity;
@@ -31,9 +32,10 @@ class CompositeFieldDefinitionParserTest {
     @SneakyThrows
     @Test
     void parse() {
-        var compositeFieldDefinitionParser = new CompositeFieldDefinitionParser(List.of(AnnotationDefinitionParser.INSTANCE));
+
+        CompositeFieldDefinitionParser compositeFieldDefinitionParser = new CompositeFieldDefinitionParser(Lists.newArrayList(AnnotationDefinitionParser.INSTANCE));
         Field idField = LongIdEntity.class.getDeclaredField("id");
-        IdDefinition idDefinition = compositeFieldDefinitionParser.parse(List.of(LongIdEntity.class), idField);
+        IdDefinition idDefinition = compositeFieldDefinitionParser.parse(Lists.newArrayList(LongIdEntity.class), idField);
         
         Assertions.assertNotEquals(IdDefinition.NOT_FOUND, idDefinition);
         Assertions.assertEquals(IdGeneratorProvider.SHARE, idDefinition.getGeneratorName());
@@ -42,9 +44,9 @@ class CompositeFieldDefinitionParserTest {
     @SneakyThrows
     @Test
     void parseIfNotFound() {
-        var compositeFieldDefinitionParser = new CompositeFieldDefinitionParser(List.of(AnnotationDefinitionParser.INSTANCE));
+        CompositeFieldDefinitionParser compositeFieldDefinitionParser = new CompositeFieldDefinitionParser(Lists.newArrayList(AnnotationDefinitionParser.INSTANCE));
         Field nameField = IdNotFoundEntity.class.getDeclaredField("name");
-        IdDefinition idDefinition = compositeFieldDefinitionParser.parse(List.of(IdNotFoundEntity.class), nameField);
+        IdDefinition idDefinition = compositeFieldDefinitionParser.parse(Lists.newArrayList(IdNotFoundEntity.class), nameField);
         Assertions.assertEquals(IdDefinition.NOT_FOUND, idDefinition);
     }
 }

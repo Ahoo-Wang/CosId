@@ -75,7 +75,7 @@ configure(libraryProjects) {
     apply<JavaLibraryPlugin>()
     configure<JavaPluginExtension> {
         toolchain {
-            languageVersion.set(JavaLanguageVersion.of(17))
+            languageVersion.set(JavaLanguageVersion.of(8))
         }
         withJavadocJar()
         withSourcesJar()

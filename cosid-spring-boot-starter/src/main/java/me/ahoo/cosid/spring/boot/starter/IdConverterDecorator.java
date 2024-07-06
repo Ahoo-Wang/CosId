@@ -40,12 +40,23 @@ public abstract class IdConverterDecorator<T extends IdGenerator> {
     public T decorate() {
         IdConverter idConverter = ToStringIdConverter.INSTANCE;
         switch (converterDefinition.getType()) {
-            case TO_STRING -> idConverter = newToString(idConverter);
-            case RADIX -> idConverter = newRadix();
-            case RADIX36 -> idConverter = newRadix36();
-            case SNOWFLAKE_FRIENDLY -> idConverter = newSnowflakeFriendly();
-            case CUSTOM -> idConverter = newCustom();
-            default -> throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
+            case TO_STRING:
+                idConverter = newToString(idConverter);
+                break;
+            case RADIX:
+                idConverter = newRadix();
+                break;
+            case RADIX36:
+                idConverter = newRadix36();
+                break;
+            case SNOWFLAKE_FRIENDLY:
+                idConverter = newSnowflakeFriendly();
+                break;
+            case CUSTOM:
+                idConverter = newCustom();
+                break;
+            default:
+                throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
         }
 
         IdConverterDefinition.GroupPrefix groupPrefix = converterDefinition.getGroupPrefix();
@@ -103,7 +114,8 @@ public abstract class IdConverterDecorator<T extends IdGenerator> {
         IdConverterDefinition.Custom custom = converterDefinition.getCustom();
         try {
             return custom.getType().getConstructor().newInstance();
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException
+                 | NoSuchMethodException e) {
             throw new RuntimeException(e);
         }
     }

@@ -1,5 +1,6 @@
 package me.ahoo.cosid.mybatis;
 
+import com.google.common.collect.Lists;
 import me.ahoo.cosid.accessor.parser.DefaultAccessorParser;
 import me.ahoo.cosid.accessor.registry.DefaultAccessorRegistry;
 import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
@@ -181,12 +182,12 @@ class CosIdPluginTest {
 
         @Override
         public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey cacheKey, BoundSql boundSql) throws SQLException {
-            return List.of();
+            return Lists.newArrayList();
         }
 
         @Override
         public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler) throws SQLException {
-            return List.of();
+            return Lists.newArrayList();
         }
 
         @Override
@@ -196,7 +197,7 @@ class CosIdPluginTest {
 
         @Override
         public List<BatchResult> flushStatements() throws SQLException {
-            return List.of();
+            return Lists.newArrayList();
         }
 
         @Override

@@ -32,13 +32,13 @@ class CosIdStringGeneratorEndpointTest {
     
     @Test
     void shareGenerate() {
-        var id = cosIdGeneratorEndpoint.shareGenerateAsString();
+        String id = cosIdGeneratorEndpoint.shareGenerateAsString();
         assertThat(id, notNullValue());
     }
     
     @Test
     void generate() {
-        var id = cosIdGeneratorEndpoint.generateAsString(IdGeneratorProvider.SHARE);
+        String id = cosIdGeneratorEndpoint.generateAsString(IdGeneratorProvider.SHARE);
         assertThat(id, notNullValue());
     }
 }

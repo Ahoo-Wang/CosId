@@ -85,10 +85,18 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
         SegmentIdProperties.IdDefinition.Group group = idDefinition.getGroup();
         GroupBySupplier groupBySupplier;
         switch (group.getBy()) {
-            case YEAR -> groupBySupplier = new YearGroupBySupplier(group.getPattern());
-            case YEAR_MONTH -> groupBySupplier = new YearMonthGroupBySupplier(group.getPattern());
-            case YEAR_MONTH_DAY -> groupBySupplier = new YearMonthDayGroupBySupplier(group.getPattern());
-            default ->  groupBySupplier = null;
+            case YEAR:
+                groupBySupplier = new YearGroupBySupplier(group.getPattern());
+                break;
+            case YEAR_MONTH:
+                groupBySupplier = new YearMonthGroupBySupplier(group.getPattern());
+                break;
+            case YEAR_MONTH_DAY:
+                groupBySupplier = new YearMonthDayGroupBySupplier(group.getPattern());
+                break;
+            default:
+                groupBySupplier = null;
+                break;
         }
 
         if (groupBySupplier != null) {

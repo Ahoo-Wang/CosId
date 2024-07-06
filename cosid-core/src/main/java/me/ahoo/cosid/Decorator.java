@@ -17,10 +17,11 @@ public interface Decorator<D> {
      */
     @Nonnull
     D getActual();
-    
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     static <D> D getActual(D any) {
-        if (any instanceof Decorator decorator) {
+        if (any instanceof Decorator) {
+            Decorator decorator = (Decorator) any;
             return getActual((D) decorator.getActual());
         }
         return any;

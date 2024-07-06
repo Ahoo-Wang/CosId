@@ -32,13 +32,13 @@ class CosIdGeneratorEndpointTest {
     
     @Test
     void shareGenerate() {
-        var id = cosIdGeneratorEndpoint.shareGenerate();
+        long id = cosIdGeneratorEndpoint.shareGenerate();
         assertThat(id, greaterThan(0L));
     }
     
     @Test
     void generate() {
-        var id = cosIdGeneratorEndpoint.generate(IdGeneratorProvider.SHARE);
+        long id = cosIdGeneratorEndpoint.generate(IdGeneratorProvider.SHARE);
         assertThat(id, greaterThan(0L));
     }
 }

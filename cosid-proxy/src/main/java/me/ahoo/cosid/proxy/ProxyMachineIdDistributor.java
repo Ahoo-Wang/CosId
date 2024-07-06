@@ -45,31 +45,31 @@ import java.time.Duration;
  */
 @Slf4j
 public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
-    
+
     private final OkHttpClient client;
-    
+
     private final String proxyHost;
-    
+
     public ProxyMachineIdDistributor(OkHttpClient client, String proxyHost, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
         this.client = client;
         this.proxyHost = proxyHost;
     }
-    
+
     @SneakyThrows
     @Override
     protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         String apiUrl =
-            Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&machineBit=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), machineBit,
-                safeGuardDuration);
+                Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&machineBit=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), machineBit,
+                        safeGuardDuration);
         if (log.isInfoEnabled()) {
             log.info("Distribute Remote instanceId:[{}] - machineBit:[{}] @ namespace:[{}] - apiUrl:[{}].", instanceId, machineBit, namespace, apiUrl);
         }
-        
+
         Request request = new Request.Builder()
-            .url(apiUrl)
-            .post(Util.EMPTY_REQUEST)
-            .build();
+                .url(apiUrl)
+                .post(Util.EMPTY_REQUEST)
+                .build();
         try (Response response = client.newCall(request).execute()) {
             ResponseBody responseBody = response.body();
             assert responseBody != null;
@@ -77,7 +77,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             if (log.isInfoEnabled()) {
                 log.info("Distribute Remote instanceId:[{}] - machineBit:[{}] @ namespace:[{}] - response:[{}].", instanceId, machineBit, namespace, bodyStr);
             }
-            
+
             if (response.isSuccessful()) {
                 return Jsons.OBJECT_MAPPER.readValue(bodyStr, MachineStateDto.class);
             }
@@ -88,7 +88,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             throw new IllegalStateException(Strings.lenientFormat("Unexpected code:[%s] - message:[%s].", errorResponse.getCode(), errorResponse.getMsg()));
         }
     }
-    
+
     @SneakyThrows
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
@@ -96,11 +96,11 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
         if (log.isInfoEnabled()) {
             log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}] - apiUrl:[{}].", machineState, instanceId, namespace, apiUrl);
         }
-        
+
         Request request = new Request.Builder()
-            .url(apiUrl)
-            .delete()
-            .build();
+                .url(apiUrl)
+                .delete()
+                .build();
         try (Response response = client.newCall(request).execute()) {
             if (log.isInfoEnabled()) {
                 ResponseBody responseBody = response.body();
@@ -110,21 +110,21 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             }
         }
     }
-    
+
     @SneakyThrows
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         String apiUrl =
-            Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration);
-        
+                Strings.lenientFormat("%s/machines/%s?instanceId=%s&stable=%s&safeGuardDuration=%s", proxyHost, namespace, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration);
+
         if (log.isInfoEnabled()) {
             log.info("Guard Remote [{}] instanceId:[{}] @ namespace:[{}] - apiUrl:[{}].", machineState, instanceId, namespace, apiUrl);
         }
-        
+
         Request request = new Request.Builder()
-            .url(apiUrl)
-            .patch(Util.EMPTY_REQUEST)
-            .build();
+                .url(apiUrl)
+                .patch(Util.EMPTY_REQUEST)
+                .build();
         try (Response response = client.newCall(request).execute()) {
             ResponseBody responseBody = response.body();
             assert responseBody != null;
@@ -135,14 +135,17 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             if (response.isSuccessful()) {
                 return;
             }
-            
+
             ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(bodyStr, ErrorResponse.class);
             switch (errorResponse.getCode()) {
-                case NOT_FOUND_MACHINE_STATE -> throw new NotFoundMachineStateException(namespace, instanceId);
-                case MACHINE_ID_LOST -> throw new MachineIdLostException(namespace, instanceId, machineState);
-                default -> throw new IllegalStateException("Unexpected value: " + errorResponse.getCode());
+                case NOT_FOUND_MACHINE_STATE:
+                    throw new NotFoundMachineStateException(namespace, instanceId);
+                case MACHINE_ID_LOST:
+                    throw new MachineIdLostException(namespace, instanceId, machineState);
+                default:
+                    throw new IllegalStateException("Unexpected value: " + errorResponse.getCode());
             }
         }
     }
-    
+
 }

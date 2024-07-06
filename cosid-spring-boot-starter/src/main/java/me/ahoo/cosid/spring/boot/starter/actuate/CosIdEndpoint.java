@@ -38,7 +38,7 @@ public class CosIdEndpoint {
     public Map<String, IdGeneratorStat> stat() {
         Map<String, IdGeneratorStat> statMap = new HashMap<>();
         for (Map.Entry<String, IdGenerator> entry : idGeneratorProvider.entries()) {
-            var stat = entry.getValue().stat();
+            IdGeneratorStat stat = entry.getValue().stat();
             statMap.put(entry.getKey(), stat);
         }
         return statMap;
@@ -46,13 +46,13 @@ public class CosIdEndpoint {
     
     @ReadOperation
     public IdGeneratorStat getStat(@Selector String name) {
-        var idGenerator = idGeneratorProvider.getRequired(name);
+        IdGenerator idGenerator = idGeneratorProvider.getRequired(name);
         return idGenerator.stat();
     }
     
     @DeleteOperation
     public IdGeneratorStat remove(@Selector String name) {
-        var idGenerator = idGeneratorProvider.remove(name);
+        IdGenerator idGenerator = idGeneratorProvider.remove(name);
         return idGenerator.stat();
     }
     

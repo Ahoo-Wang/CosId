@@ -18,9 +18,12 @@ import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.Map;
 
 class CosIdEndpointTest {
     private final IdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
@@ -32,21 +35,21 @@ class CosIdEndpointTest {
     
     @Test
     void stat() {
-        var stat = cosIdEndpoint.stat();
+        Map<String, IdGeneratorStat> stat = cosIdEndpoint.stat();
         assertThat(stat, notNullValue());
         assertThat(stat.size(), equalTo(1));
     }
     
     @Test
     void getStat() {
-        var stat = cosIdEndpoint.getStat(IdGeneratorProvider.SHARE);
+        IdGeneratorStat stat = cosIdEndpoint.getStat(IdGeneratorProvider.SHARE);
         assertThat(stat, notNullValue());
     }
     
     @Test
     void remove() {
-        var idGeneratorProvider = new DefaultIdGeneratorProvider();
-        var cosIdEndpoint = new CosIdEndpoint(idGeneratorProvider);
+        DefaultIdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
+        CosIdEndpoint cosIdEndpoint = new CosIdEndpoint(idGeneratorProvider);
         idGeneratorProvider.setShare(MockIdGenerator.INSTANCE);
         cosIdEndpoint.remove(IdGeneratorProvider.SHARE);
         assertThat(idGeneratorProvider.getShare(), nullValue());

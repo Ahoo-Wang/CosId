@@ -34,7 +34,7 @@ class CosIdBeforeConvertCallbackTest {
     private final CosIdBeforeConvertCallback cosIdBeforeConvertCallback;
     
     public CosIdBeforeConvertCallbackTest() {
-        var fieldDefinitionParser = new CompositeFieldDefinitionParser(Arrays.asList(AnnotationDefinitionParser.INSTANCE, IdAnnotationDefinitionParser.INSTANCE));
+        CompositeFieldDefinitionParser fieldDefinitionParser = new CompositeFieldDefinitionParser(Arrays.asList(AnnotationDefinitionParser.INSTANCE, IdAnnotationDefinitionParser.INSTANCE));
         DefaultAccessorParser accessorParser = new DefaultAccessorParser(fieldDefinitionParser);
         CosIdAccessorRegistry accessorRegistry = new DefaultAccessorRegistry(accessorParser);
         cosIdBeforeConvertCallback = new CosIdBeforeConvertCallback(accessorRegistry);
@@ -42,7 +42,7 @@ class CosIdBeforeConvertCallbackTest {
     
     @Test
     void onBeforeConvertIfId() {
-        var entity = new IdEntity();
+        IdEntity entity = new IdEntity();
         DefaultIdGeneratorProvider.INSTANCE.setShare(MockIdGenerator.INSTANCE);
         cosIdBeforeConvertCallback.onBeforeConvert(entity);
         assertThat(entity.getId(), not(0));
@@ -50,7 +50,7 @@ class CosIdBeforeConvertCallbackTest {
     
     @Test
     void onBeforeConvertIfCosId() {
-        var entity = new CosIdEntity();
+        CosIdEntity entity = new CosIdEntity();
         DefaultIdGeneratorProvider.INSTANCE.setShare(MockIdGenerator.INSTANCE);
         cosIdBeforeConvertCallback.onBeforeConvert(entity);
         assertThat(entity.getId(), not(0));
@@ -58,7 +58,7 @@ class CosIdBeforeConvertCallbackTest {
     
     @Test
     void onBeforeConvertIfNotFound() {
-        var entity = new NotFoundEntity();
+        NotFoundEntity entity = new NotFoundEntity();
         DefaultIdGeneratorProvider.INSTANCE.setShare(MockIdGenerator.INSTANCE);
         cosIdBeforeConvertCallback.onBeforeConvert(entity);
         assertThat(entity.getId(), equalTo(0L));

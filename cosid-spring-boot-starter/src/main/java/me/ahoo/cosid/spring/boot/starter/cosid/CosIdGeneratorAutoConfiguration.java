@@ -49,13 +49,13 @@ public class CosIdGeneratorAutoConfiguration {
     private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
     private final CosIdGeneratorProperties cosIdGeneratorProperties;
-    
+
     public CosIdGeneratorAutoConfiguration(CosIdProperties cosIdProperties, MachineProperties machineProperties, CosIdGeneratorProperties cosIdGeneratorProperties) {
         this.cosIdProperties = cosIdProperties;
         this.machineProperties = machineProperties;
         this.cosIdGeneratorProperties = cosIdGeneratorProperties;
     }
-    
+
     @Bean
     @Primary
     @ConditionalOnMissingBean
@@ -63,29 +63,28 @@ public class CosIdGeneratorAutoConfiguration {
                                          ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         String namespace = Namespaces.firstNotBlank(cosIdGeneratorProperties.getNamespace(), cosIdProperties.getNamespace());
         int machineId =
-            machineIdDistributor.distribute(namespace, cosIdGeneratorProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
+                machineIdDistributor.distribute(namespace, cosIdGeneratorProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
         machineIdGuarder.register(namespace, instanceId);
         CosIdGenerator cosIdGenerator = createCosIdGenerator(machineId);
-        
+
         CosIdGenerator clockSyncCosIdGenerator = new ClockSyncCosIdGenerator(cosIdGenerator, clockBackwardsSynchronizer);
         idGeneratorProvider.set(CosId.COSID, clockSyncCosIdGenerator);
         return clockSyncCosIdGenerator;
     }
-    
+
     @Nonnull
     private CosIdGenerator createCosIdGenerator(int machineId) {
         switch (cosIdGeneratorProperties.getType()) {
-            case RADIX62 -> {
+            case RADIX62:
                 return new Radix62CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                    cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
-                    cosIdGeneratorProperties.getSequenceResetThreshold());
-            }
-            case RADIX36 -> {
+                        cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
+                        cosIdGeneratorProperties.getSequenceResetThreshold());
+            case RADIX36:
                 return new Radix36CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                    cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
-                    cosIdGeneratorProperties.getSequenceResetThreshold());
-            }
-            default -> throw new IllegalStateException("Unexpected value: " + cosIdGeneratorProperties.getType());
+                        cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
+                        cosIdGeneratorProperties.getSequenceResetThreshold());
+            default:
+                throw new IllegalStateException("Unexpected value: " + cosIdGeneratorProperties.getType());
         }
     }
 }

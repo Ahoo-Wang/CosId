@@ -15,5 +15,15 @@ package me.ahoo.cosid.stat.converter;
 
 import me.ahoo.cosid.stat.Stat;
 
-public record RadixConverterStat(String kind, int radix, int charSize, boolean padStart, long maxId) implements Stat {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+public final class RadixConverterStat implements Stat {
+    private final String kind;
+    private final int radix;
+    private final int charSize;
+    private final boolean padStart;
+    private final long maxId;
 }

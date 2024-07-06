@@ -15,6 +15,14 @@ package me.ahoo.cosid.stat.converter;
 
 import me.ahoo.cosid.stat.Stat;
 
-public record ToStringConverterStat(String kind, boolean padStart, int charSize) implements Stat {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+public final class ToStringConverterStat implements Stat {
+    private final String kind;
+    private final boolean padStart;
+    private final int charSize;
 
 }

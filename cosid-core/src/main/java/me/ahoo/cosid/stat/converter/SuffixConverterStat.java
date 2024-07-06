@@ -15,6 +15,14 @@ package me.ahoo.cosid.stat.converter;
 
 import me.ahoo.cosid.stat.Stat;
 
-public record SuffixConverterStat(String kind, String suffix, Stat actual) implements Stat {
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+public final class SuffixConverterStat implements Stat {
+    private final String kind;
+    private final String suffix;
+    private final Stat actual;
 
 }

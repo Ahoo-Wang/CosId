@@ -15,14 +15,20 @@ package me.ahoo.cosid.stat.generator;
 
 import me.ahoo.cosid.stat.Stat;
 
-public record SnowflakeIdStat(String kind,
-                       long epoch,
-                       int timestampBit,
-                       int machineBit,
-                       int sequenceBit,
-                       boolean isSafeJavascript,
-                       int machineId,
-                       long lastTimestamp,
-                       Stat converter) implements IdGeneratorStat {
-    
+import lombok.AllArgsConstructor;
+import lombok.Data;
+
+@AllArgsConstructor
+@Data
+public final class SnowflakeIdStat implements IdGeneratorStat {
+    private final String kind;
+    private final long epoch;
+    private final int timestampBit;
+    private final int machineBit;
+    private final int sequenceBit;
+    private final boolean isSafeJavascript;
+    private final int machineId;
+    private final long lastTimestamp;
+    private final Stat converter;
+
 }

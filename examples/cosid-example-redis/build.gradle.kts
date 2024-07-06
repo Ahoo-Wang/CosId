@@ -17,7 +17,7 @@ plugins {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(8))
     }
 }
 
@@ -50,7 +50,6 @@ dependencies {
     implementation(project(":cosid-spring-boot-starter"))
     implementation(project(":cosid-jackson"))
     implementation(project(":cosid-spring-redis"))
-    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.google.guava:guava")

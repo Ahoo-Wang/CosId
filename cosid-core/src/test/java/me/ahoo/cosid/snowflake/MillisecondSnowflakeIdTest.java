@@ -7,14 +7,13 @@ import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
+import me.ahoo.cosid.test.ModSpec;
 
-import com.google.common.collect.Range;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.LockSupport;
 
 /**
@@ -63,50 +62,20 @@ class MillisecondSnowflakeIdTest {
         
         long id2 = snowflakeId.generate();
         SnowflakeIdState snowflakeIdState2 = snowflakeId.friendlyId(id2);
-        assertThat(snowflakeIdState2.getTimestamp(), greaterThan(snowflakeIdState.getTimestamp()));
-        assertThat(snowflakeIdState2.getSequence(), greaterThan(snowflakeIdState.getSequence()));
+        assertThat(
+            snowflakeIdState2.getTimestamp() + ">" + snowflakeIdState.getTimestamp(),
+            snowflakeIdState2.getTimestamp(), greaterThan(snowflakeIdState.getTimestamp())
+        );
+        assertThat(
+            snowflakeIdState2.getSequence() + ">" + snowflakeIdState.getSequence(),
+            snowflakeIdState2.getSequence(), greaterThan(snowflakeIdState.getSequence())
+        );
     }
     
     
     @Test
     public void sequenceModUniformity() {
-        int divisor = 4;
-        int total = 99999;
-        int avg = total / divisor;
-        double diff = (avg * .001);
-        
-        int mod0Counter = 0;
-        int mod1Counter = 0;
-        int mod2Counter = 0;
-        int mod3Counter = 0;
-        for (int i = 0; i < total; i++) {
-            long id = snowflakeId.generate();
-            int mod = (int) (id % divisor);
-            switch (mod) {
-                case 0: {
-                    mod0Counter++;
-                    break;
-                }
-                case 1: {
-                    mod1Counter++;
-                    break;
-                }
-                case 2: {
-                    mod2Counter++;
-                    break;
-                }
-                case 3: {
-                    mod3Counter++;
-                    break;
-                }
-            }
-            int wait = ThreadLocalRandom.current().nextInt(0, 1000);
-            LockSupport.parkNanos(wait);
-        }
-        assertThat((double) mod0Counter, closeTo(avg, diff));
-        assertThat((double) mod1Counter, closeTo(avg, diff));
-        assertThat((double) mod2Counter, closeTo(avg, diff));
-        assertThat((double) mod3Counter, closeTo(avg, diff));
+        new ModSpec(99999, 4, 100, snowflakeId::generate, ModSpec.DEFAULT_WAIT).verify();
     }
     
     @Test

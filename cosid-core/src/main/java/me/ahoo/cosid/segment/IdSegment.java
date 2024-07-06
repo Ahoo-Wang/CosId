@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.segment;
 
+import me.ahoo.cosid.segment.grouped.Grouped;
 import me.ahoo.cosid.util.Clock;
 
 import javax.annotation.concurrent.ThreadSafe;
@@ -25,7 +26,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * @author ahoo wang
  */
 @ThreadSafe
-public interface IdSegment extends Comparable<IdSegment> {
+public interface IdSegment extends Comparable<IdSegment>, Grouped {
     
     long SEQUENCE_OVERFLOW = -1;
     
@@ -70,7 +71,8 @@ public interface IdSegment extends Comparable<IdSegment> {
              */
             return false;
         }
-        return Clock.CACHE.secondTime() - getFetchTime() > getTtl();
+        
+        return Clock.SYSTEM.secondTime() - getFetchTime() > getTtl();
     }
     
     default boolean isOverflow() {

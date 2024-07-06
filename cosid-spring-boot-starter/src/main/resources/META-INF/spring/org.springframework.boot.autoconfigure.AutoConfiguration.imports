@@ -1,5 +1,6 @@
 me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.machine.CosIdHostNameAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.cosid.CosIdGeneratorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.machine.CosIdJdbcMachineIdDistributorAutoConfiguration
@@ -15,3 +16,7 @@ me.ahoo.cosid.spring.boot.starter.segment.CosIdZookeeperSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdSegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.segment.CosIdProxySegmentAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.mybatis.CosIdMybatisAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.actuate.CosIdEndpointAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.jdbc.CosIdJdbcAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.flowable.FlowableIdGeneratorAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.activiti.ActivitiIdGeneratorAutoConfiguration

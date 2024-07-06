@@ -14,19 +14,12 @@
 name: Example Test
 on:
   push:
-    paths-ignore:
-      - 'cosid-benchmark/**'
-      - 'docs/**'
-      - 'document/**'
+    paths:
       - 'examples/**'
-      - 'wiki/**'
   pull_request:
-    paths-ignore:
-      - 'cosid-benchmark/**'
-      - 'docs/**'
-      - 'document/**'
+    paths:
       - 'examples/**'
-      - 'wiki/**'
+  workflow_dispatch:
 
 jobs:
   example-redis-test:
@@ -47,15 +40,15 @@ jobs:
         uses: actions/checkout@master
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
       - name: Test Example-Redis
-        run: gradle cosid-example-redis:clean cosid-example-redis:check
+        run: ./gradlew cosid-example-redis:clean cosid-example-redis:check
 
   example-zookeeper-test:
     name: Example Zookeeper Test
@@ -70,15 +63,15 @@ jobs:
         uses: actions/checkout@master
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
       - name: Test Example-Zookeeper
-        run: gradle cosid-example-zookeeper:clean cosid-example-zookeeper:check
+        run: ./gradlew cosid-example-zookeeper:clean cosid-example-zookeeper:check
         
   example-proxy-test:
     name: Example Proxy Test
@@ -93,12 +86,13 @@ jobs:
         uses: actions/checkout@master
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
       - name: Test Example-Proxy
-        run: gradle cosid-example-proxy:clean cosid-example-proxy:check
+        run: ./gradlew cosid-example-proxy:clean cosid-example-proxy:check
+

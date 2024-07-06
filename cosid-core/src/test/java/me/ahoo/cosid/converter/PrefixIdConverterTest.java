@@ -14,12 +14,12 @@
 package me.ahoo.cosid.converter;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.*;
+
+import me.ahoo.cosid.stat.converter.PrefixConverterStat;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -33,6 +33,11 @@ class PrefixIdConverterTest {
     @Test
     void getSuffix() {
         assertThat(idConverter.getPrefix(), equalTo(PREFIX));
+    }
+    
+    @Test
+    void getActual() {
+        assertThat(idConverter.getActual(), equalTo(ToStringIdConverter.INSTANCE));
     }
     
     @Test
@@ -65,4 +70,8 @@ class PrefixIdConverterTest {
         });
     }
     
+    @Test
+    void stat() {
+        assertThat(idConverter.stat(), instanceOf(PrefixConverterStat.class));
+    }
 }

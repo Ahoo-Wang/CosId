@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
+import me.ahoo.cosid.accessor.parser.CompositeFieldDefinitionParser;
 import me.ahoo.cosid.accessor.parser.CosIdAccessorParser;
 import me.ahoo.cosid.accessor.parser.DefaultAccessorParser;
 import me.ahoo.cosid.accessor.parser.FieldDefinitionParser;
@@ -26,6 +27,11 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+
+import java.util.List;
 
 /**
  * CosId Auto Configuration.
@@ -36,31 +42,37 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnCosIdEnabled
 @EnableConfigurationProperties(CosIdProperties.class)
 public class CosIdAutoConfiguration {
-
+    
     private final CosIdProperties cosIdProperties;
-
+    
     public CosIdAutoConfiguration(CosIdProperties cosIdProperties) {
         this.cosIdProperties = cosIdProperties;
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public IdGeneratorProvider idGeneratorProvider() {
         return DefaultIdGeneratorProvider.INSTANCE;
     }
-
+    
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     @Bean
-    @ConditionalOnMissingBean
-    public FieldDefinitionParser fieldDefinitionParser() {
+    public FieldDefinitionParser annotationDefinitionParser() {
         return AnnotationDefinitionParser.INSTANCE;
     }
-
+    
+    @Primary
+    @Bean
+    public FieldDefinitionParser compositeFieldDefinitionParser(List<FieldDefinitionParser> fieldDefinitionParsers) {
+        return new CompositeFieldDefinitionParser(fieldDefinitionParsers);
+    }
+    
     @Bean
     @ConditionalOnMissingBean
     public CosIdAccessorParser cosIdAccessorParser(FieldDefinitionParser definitionParser) {
         return new DefaultAccessorParser(definitionParser);
     }
-
+    
     @Bean
     @ConditionalOnMissingBean
     public CosIdAccessorRegistry cosIdAccessorRegistry(CosIdAccessorParser cosIdAccessorParser) {

@@ -20,6 +20,7 @@ import javax.annotation.Nonnull;
  *
  * @author ahoo wang
  */
+@FunctionalInterface
 public interface IdSegmentDistributorFactory {
     @Nonnull
     IdSegmentDistributor create(IdSegmentDistributorDefinition definition);

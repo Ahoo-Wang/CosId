@@ -1,0 +1,5 @@
+node_modules
+.temp
+cache
+docs/.vitepress/dist
+docs/.vitepress/public/dokka

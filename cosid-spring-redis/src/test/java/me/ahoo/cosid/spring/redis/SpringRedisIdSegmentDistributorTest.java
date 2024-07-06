@@ -34,7 +34,7 @@ class SpringRedisIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     StringRedisTemplate stringRedisTemplate;
     SpringRedisIdSegmentDistributorFactory distributorFactory;
     protected IdSegmentDistributorDefinition idSegmentDistributorDefinition;
-
+    
     @BeforeEach
     void setup() {
         RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
@@ -42,37 +42,37 @@ class SpringRedisIdSegmentDistributorTest extends IdSegmentDistributorSpec {
         lettuceConnectionFactory.afterPropertiesSet();
         stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
         distributorFactory = new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate);
-        idSegmentDistributorDefinition = new IdSegmentDistributorDefinition("RedisIdSegmentDistributorFactoryTest", MockIdGenerator.INSTANCE.generateAsString(), 0, 100);
+        idSegmentDistributorDefinition = new IdSegmentDistributorDefinition("SpringRedisIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 0, 100);
     }
-
-
+    
+    
     @Override
     protected IdSegmentDistributorFactory getFactory() {
         return distributorFactory;
     }
-
+    
     @Override
     protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
         String adderKey = ((SpringRedisIdSegmentDistributor) distributor).getAdderKey();
         stringRedisTemplate.opsForValue().set(adderKey, String.valueOf(maxId - 1));
     }
-
-
+    
+    
     @Test
     protected void distributorFactoryTest() {
         IdSegmentDistributor idSegmentDistributor = distributorFactory.create(idSegmentDistributorDefinition);
         Assertions.assertNotNull(idSegmentDistributor);
     }
-
+    
     @Test
     void getAdderKey() {
         IdSegmentDistributor idSegmentDistributor = distributorFactory.create(idSegmentDistributorDefinition);
         Assertions.assertTrue(idSegmentDistributor instanceof SpringRedisIdSegmentDistributor);
-        SpringRedisIdSegmentDistributor springRedisIdSegmentDistributor=(SpringRedisIdSegmentDistributor)idSegmentDistributor;
+        SpringRedisIdSegmentDistributor springRedisIdSegmentDistributor = (SpringRedisIdSegmentDistributor) idSegmentDistributor;
         Assertions.assertNotNull(springRedisIdSegmentDistributor.getAdderKey());
         Assertions.assertNotNull(springRedisIdSegmentDistributor.getName());
-        Assertions.assertTrue(springRedisIdSegmentDistributor.getOffset()==0);
-        Assertions.assertTrue(springRedisIdSegmentDistributor.getStep()==100);
+        Assertions.assertTrue(springRedisIdSegmentDistributor.getOffset() == 0);
+        Assertions.assertTrue(springRedisIdSegmentDistributor.getStep() == 100);
         Assertions.assertNotNull(springRedisIdSegmentDistributor.getNamespace());
         Assertions.assertNotNull(springRedisIdSegmentDistributor.nextMaxId(100));
     }

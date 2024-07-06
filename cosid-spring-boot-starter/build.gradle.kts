@@ -36,6 +36,26 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "mybatis-support", version.toString())
     }
+    registerFeature("dataJdbcSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "data-jdbc-support", version.toString())
+    }
+    registerFeature("activitiSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "activiti-support", version.toString())
+    }
+    registerFeature("flowableSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "flowable-support", version.toString())
+    }
+    registerFeature("cloudSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "cloud-support", version.toString())
+    }
+    registerFeature("actuatorSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "actuator-support", version.toString())
+    }
 }
 
 dependencies {
@@ -51,10 +71,16 @@ dependencies {
 
     "proxySupportImplementation"(project(":cosid-proxy"))
     "mongoSupportImplementation"(project(":cosid-mongo"))
-
+    "activitiSupportImplementation"(project(":cosid-activiti"))
+    "activitiSupportImplementation"(libs.activitiSpringBootStarter)
+    "flowableSupportImplementation"(project(":cosid-flowable"))
+    "flowableSupportImplementation"(libs.flowableSpring)
+    "flowableSupportImplementation"(libs.flowableSpringBootAutoconfigure)
     "mybatisSupportImplementation"(project(":cosid-mybatis"))
+    "dataJdbcSupportImplementation"(project(":cosid-spring-data-jdbc"))
     api("org.springframework.boot:spring-boot-starter")
-    api("org.springframework.cloud:spring-cloud-commons")
+    "cloudSupportImplementation"("org.springframework.cloud:spring-cloud-commons")
+    "actuatorSupportImplementation"("org.springframework.boot:spring-boot-starter-actuator")
     compileOnly("org.mongodb:mongodb-driver-sync")
     compileOnly("org.mongodb:mongodb-driver-reactivestreams")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
@@ -70,6 +96,3 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:mongodb")
 }
-
-
-

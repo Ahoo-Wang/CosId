@@ -16,20 +16,17 @@ package me.ahoo.cosid.spring.boot.starter.snowflake;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineId;
 import me.ahoo.cosid.machine.MachineStateStorage;
-import me.ahoo.cosid.machine.ManualMachineIdDistributor;
-import me.ahoo.cosid.machine.k8s.StatefulSetMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdHostNameAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdLifecycleMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import org.junit.jupiter.api.Test;
-import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 
@@ -47,8 +44,10 @@ class CosIdSnowflakeAutoConfigurationTest {
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
+            .withBean(CustomizeSnowflakeIdProperties.class, () -> idProperties -> idProperties.getProvider().put("test", new SnowflakeIdProperties.IdDefinition()))
             .withUserConfiguration(UtilAutoConfiguration.class,
                 CosIdAutoConfiguration.class,
+                CosIdHostNameAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class,
                 CosIdSnowflakeAutoConfiguration.class)
             .run(context -> {
@@ -60,7 +59,8 @@ class CosIdSnowflakeAutoConfigurationTest {
                     .hasSingleBean(ClockBackwardsSynchronizer.class)
                     .hasSingleBean(MachineId.class)
                     .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
-                    .hasSingleBean(SnowflakeId.class)
+                    .hasBean("__share__SnowflakeId")
+                    .hasBean("testSnowflakeId")
                 ;
             });
     }
@@ -76,6 +76,7 @@ class CosIdSnowflakeAutoConfigurationTest {
             .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.test.converter.to_string.pad-start=true")
             .withUserConfiguration(UtilAutoConfiguration.class,
                 CosIdAutoConfiguration.class,
+                CosIdHostNameAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class,
                 CosIdSnowflakeAutoConfiguration.class)
             .run(context -> {

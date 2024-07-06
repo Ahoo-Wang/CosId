@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
+import me.ahoo.cosid.machine.HostAddressSupplier;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.LocalMachineStateStorage;
 import me.ahoo.cosid.machine.MachineId;
@@ -34,7 +35,6 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.context.annotation.Bean;
 
 import java.util.Objects;
@@ -54,7 +54,7 @@ public class CosIdMachineAutoConfiguration {
     
     @Bean
     @ConditionalOnMissingBean
-    public InstanceId instanceId(InetUtils inetUtils) {
+    public InstanceId instanceId(HostAddressSupplier hostAddressSupplier) {
         
         boolean stable = Boolean.TRUE.equals(machineProperties.getStable());
         
@@ -62,14 +62,12 @@ public class CosIdMachineAutoConfiguration {
             return InstanceId.of(machineProperties.getInstanceId(), stable);
         }
         
-        InetUtils.HostInfo hostInfo = inetUtils.findFirstNonLoopbackHostInfo();
-        
         int port = ProcessId.CURRENT.getProcessId();
         if (Objects.nonNull(machineProperties.getPort()) && machineProperties.getPort() > 0) {
             port = machineProperties.getPort();
         }
         
-        return InstanceId.of(hostInfo.getIpAddress(), port, stable);
+        return InstanceId.of(hostAddressSupplier.getHostAddress(), port, stable);
     }
     
     @Bean
@@ -136,4 +134,5 @@ public class CosIdMachineAutoConfiguration {
     public CosIdLifecycleMachineIdGuarder cosIdLifecycleMachineIdGuarder(InstanceId instanceId, MachineIdGuarder machineIdGuarder) {
         return new CosIdLifecycleMachineIdGuarder(cosIdProperties, instanceId, machineIdGuarder);
     }
+    
 }

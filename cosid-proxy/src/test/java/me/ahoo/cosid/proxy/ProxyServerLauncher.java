@@ -34,11 +34,11 @@ public class ProxyServerLauncher {
         REDIS_CONTAINER.start();
         
         int cosidProxyExposedPort = 8688;
-        COSID_PROXY_CONTAINER = new GenericContainer(DockerImageName.parse("ahoowang/cosid-proxy:1.18.3"))
+        COSID_PROXY_CONTAINER = new GenericContainer(DockerImageName.parse("ahoowang/cosid-proxy:2.5.0"))
             .withNetwork(NETWORK_CONTAINER)
             .withExposedPorts(cosidProxyExposedPort)
             .withReuse(true)
-            .withEnv("SPRING_REDIS_URL", "redis://redis:6379")
+            .withEnv("SPRING_DATA_REDIS_URL", "redis://redis:6379")
             .waitingFor(Wait.forHttp("/actuator/health").forStatusCode(200));
         
         COSID_PROXY_CONTAINER.start();

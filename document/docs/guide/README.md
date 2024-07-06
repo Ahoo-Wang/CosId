@@ -19,6 +19,7 @@
     - `RedisIdSegmentDistributor`: 基于 *Redis* 的号段分发器。
     - `JdbcIdSegmentDistributor`: 基于 *Jdbc* 的号段分发器，支持各种关系型数据库。
     - `ZookeeperIdSegmentDistributor`: 基于 *Zookeeper* 的号段分发器。
+    - `MongoIdSegmentDistributor`: 基于 *MongoDB* 的号段分发器。
 - `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](perf-test.md) 。
   - `PrefetchWorker` 维护安全距离(`safeDistance`), 并且支持基于饥饿状态的动态`safeDistance`扩容/收缩。
 
@@ -153,7 +154,7 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 - ZookeeperMachineIdDistributor: 使用**ZooKeeper**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
 
 <p align="center" >
-  <img :src="$withBase('/assets/design/RedisMachineIdDistributor.png')" alt="RedisMachineIdDistributor"/>
+  <img :src="$withBase('/assets/design/MachineIdDistributor.png')" alt="RedisMachineIdDistributor"/>
 </p>
 
 <p align="center">

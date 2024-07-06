@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.segment;
 
+import me.ahoo.cosid.segment.grouped.GroupedKey;
+
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -30,6 +32,11 @@ public class MergedIdSegment implements IdSegment {
         this.segments = segments;
         this.idSegment = idSegment;
         this.singleStep = idSegment.getStep() / segments;
+    }
+    
+    @Override
+    public GroupedKey group() {
+        return idSegment.group();
     }
     
     public int getSegments() {

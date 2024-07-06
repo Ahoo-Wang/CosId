@@ -19,8 +19,8 @@ import me.ahoo.cosid.mongo.MongoMachineInitializer;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineCollection;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineInitializer;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.mongo.MongoLauncher;
 import me.ahoo.cosid.test.MockIdGenerator;
+import me.ahoo.cosid.test.container.MongoLauncher;
 
 import org.assertj.core.api.AssertionsForInterfaceTypes;
 import org.junit.jupiter.api.Test;
@@ -43,6 +43,7 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
                 MongoAutoConfiguration.class,
                 MongoReactiveAutoConfiguration.class,
                 CosIdAutoConfiguration.class,
+                CosIdHostNameAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class,
                 CosIdMongoMachineIdDistributorAutoConfiguration.class)
             .run(context -> {

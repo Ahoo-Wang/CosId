@@ -30,7 +30,7 @@ application {
         "-XX:MaxDirectMemorySize=256M",
         "-Xss1m",
         "-server",
-        "-XX:+UseG1GC",
+        "-XX:+UseZGC",
         "-Xlog:gc*:file=logs/${applicationName}-gc.log:time,tags:filecount=10,filesize=32M",
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=data",
@@ -49,12 +49,11 @@ dependencies {
     annotationProcessor(platform(project(":cosid-dependencies")))
     implementation(project(":cosid-spring-boot-starter"))
     implementation(project(":cosid-jackson"))
-
     implementation(project(":cosid-spring-redis"))
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.google.guava:guava")
-    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")

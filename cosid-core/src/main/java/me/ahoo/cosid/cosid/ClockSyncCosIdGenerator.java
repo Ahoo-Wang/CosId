@@ -13,15 +13,34 @@
 
 package me.ahoo.cosid.cosid;
 
+import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
+import me.ahoo.cosid.stat.Stat;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.Nonnull;
 
+/**
+ * ClockSync {@link CosIdGenerator}.
+ * <p>
+ * If the clock is backwards, synchronize the clock and retry generating the Id.
+ * </p>
+ *
+ * @see ClockBackwardsSynchronizer
+ * @see CosIdGenerator
+ * @see CosIdIdStateParser
+ * @see CosIdState
+ * @see Decorator
+ * @see IdGeneratorStat
+ * @see Stat
+ * @see ClockBackwardsException
+ * @see ClockBackwardsSynchronizer
+ */
 @Slf4j
-public class ClockSyncCosIdGenerator implements CosIdGenerator {
+public class ClockSyncCosIdGenerator implements CosIdGenerator, Decorator<CosIdGenerator> {
     private final CosIdGenerator actual;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
     
@@ -32,6 +51,12 @@ public class ClockSyncCosIdGenerator implements CosIdGenerator {
     public ClockSyncCosIdGenerator(CosIdGenerator actual, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         this.actual = actual;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
+    }
+    
+    @Nonnull
+    @Override
+    public CosIdGenerator getActual() {
+        return actual;
     }
     
     @Override
@@ -64,4 +89,8 @@ public class ClockSyncCosIdGenerator implements CosIdGenerator {
         }
     }
     
+    @Override
+    public IdGeneratorStat stat() {
+        return IdGeneratorStat.simple(getClass().getSimpleName(), actual.stat(), Stat.simple(getStateParser().getClass().getSimpleName()));
+    }
 }

@@ -27,6 +27,7 @@ import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdHostNameAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdLifecycleMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
@@ -49,6 +50,7 @@ class CosIdGeneratorAutoConfigurationTest {
             .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
             .withUserConfiguration(UtilAutoConfiguration.class,
                 CosIdAutoConfiguration.class,
+                CosIdHostNameAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class,
                 CosIdGeneratorAutoConfiguration.class)
             .run(context -> {
@@ -74,6 +76,7 @@ class CosIdGeneratorAutoConfigurationTest {
             .withPropertyValues(CosIdGeneratorProperties.PREFIX + ".type=RADIX36")
             .withUserConfiguration(UtilAutoConfiguration.class,
                 CosIdAutoConfiguration.class,
+                CosIdHostNameAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class,
                 CosIdGeneratorAutoConfiguration.class)
             .run(context -> {

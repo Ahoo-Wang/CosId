@@ -30,7 +30,7 @@ application {
         "-XX:MaxDirectMemorySize=256M",
         "-Xss1m",
         "-server",
-        "-XX:+UseG1GC",
+        "-XX:+UseZGC",
         "-Xlog:gc*:file=logs/${applicationName}-gc.log:time,tags:filecount=10,filesize=32M",
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=data",

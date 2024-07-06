@@ -13,15 +13,26 @@
 
 package me.ahoo.cosid.mongo;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.segment.SegmentChainId;
+import me.ahoo.cosid.test.MockIdGenerator;
+import me.ahoo.cosid.test.container.MongoLauncher;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
+import reactor.test.StepVerifier;
 
 class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     MongoDatabase mongoDatabase;
@@ -32,6 +43,7 @@ class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     void setup() {
         mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
         idSegmentInitializer = new MongoReactiveIdSegmentInitializer(mongoDatabase);
+        
         idSegmentInitializer.ensureCosIdCollection();
         distributorFactory =
             new MongoReactiveIdSegmentDistributorFactory(mongoDatabase, true);
@@ -50,5 +62,37 @@ class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     @Override
     public void nextMaxIdWhenBack() {
     
+    }
+    
+    @Test
+    public void nextMaxIdInParallel() {
+        Mono<Object> mono = Mono.fromRunnable(() -> {
+            String namespace = MockIdGenerator.INSTANCE.generateAsString();
+            IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxIdIParallel", TEST_OFFSET, TEST_STEP);
+            IdSegmentDistributor distributor = factory().create(definition);
+            long expected = TEST_OFFSET + TEST_STEP;
+            long actual = distributor.nextMaxId();
+            assertThat(actual, equalTo(expected));
+            long actual2 = distributor.nextMaxId();
+            assertThat(actual2, greaterThan(actual));
+        }).subscribeOn(Schedulers.parallel());
+        StepVerifier.create(mono).verifyComplete();
+    }
+    
+    @Test
+    public void batchNextMaxId() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "batchNextMaxId", 1, 1);
+        IdSegmentDistributor distributor = factory().create(definition);
+        SegmentChainId segmentChainId = new SegmentChainId(distributor);
+        for (int i = 0; i < 1000; i++) {
+            segmentChainId.generateAsString();
+        }
+        Mono<Object> mono = Mono.fromRunnable(() -> {
+            for (int i = 0; i < 1000; i++) {
+                segmentChainId.generateAsString();
+            }
+        }).subscribeOn(Schedulers.single());
+        StepVerifier.create(mono).verifyComplete();
     }
 }

@@ -1,3 +1,6 @@
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.testretry.TestRetryPlugin
+
 /*
  * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +15,10 @@
  */
 
 plugins {
-    id("io.github.gradle-nexus.publish-plugin")
-    id("me.champeau.jmh")
+    alias(libs.plugins.testRetry)
+    alias(libs.plugins.publishPlugin)
+    alias(libs.plugins.jmhPlugin)
+    alias(libs.plugins.spotbugsPlugin)
     `java-library`
     jacoco
 }
@@ -35,18 +40,17 @@ val serverProjects = setOf(
     project(":cosid-proxy-server")
 )
 
-val testProject = project(":cosid-test")
+val testProjects = setOf(project(":cosid-test"), project(":cosid-mod-test"))
 val codeCoverageReportProject = project(":code-coverage-report")
 val publishProjects = subprojects - serverProjects - codeCoverageReportProject
 val libraryProjects = publishProjects - bomProjects
-
-ext {
-    set("libraryProjects", libraryProjects)
-}
+val isInCI = null != System.getenv("CI")
+ext.set("libraryProjects", libraryProjects)
 
 allprojects {
     repositories {
         mavenLocal()
+        maven { url = uri("https://repo.spring.io/milestone") }
         mavenCentral()
     }
 }
@@ -112,11 +116,24 @@ configure(libraryProjects) {
         fork.set(1)
         jvmArgs.set(listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback-jmh.xml"))
     }
-
+    apply<TestRetryPlugin>()
     tasks.withType<Test> {
         useJUnitPlatform()
-        // fix logging missing code for JacocoPlugin
-        jvmArgs = listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml")
+        testLogging {
+            exceptionFormat = TestExceptionFormat.FULL
+        }
+        jvmArgs =
+            listOf(
+                // fix logging missing code for JacocoPlugin
+                "-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml"
+            )
+        retry {
+            if (isInCI) {
+                maxRetries = 2
+                maxFailures = 20
+            }
+            failOnPassedAfterRetry = true
+        }
     }
 
     dependencies {
@@ -199,7 +216,6 @@ configure(publishProjects) {
     }
 
     configure<SigningExtension> {
-        val isInCI = null != System.getenv("CI");
         if (isInCI) {
             val signingKeyId = System.getenv("SIGNING_KEYID")
             val signingKey = System.getenv("SIGNING_SECRETKEY")
@@ -216,7 +232,7 @@ configure(publishProjects) {
 }
 
 nexusPublishing {
-    repositories {
+    this.repositories {
         sonatype {
             username.set(System.getenv("MAVEN_USERNAME"))
             password.set(System.getenv("MAVEN_PASSWORD"))

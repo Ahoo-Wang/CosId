@@ -13,24 +13,26 @@
 
 plugins {
     `java-library`
-    id("me.champeau.jmh") version "0.7.1"
+    id("me.champeau.jmh") version "0.7.2"
 }
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 
 repositories {
     mavenLocal()
+    maven { url = uri("https://repo.spring.io/milestone") }
     mavenCentral()
 }
 
 dependencies {
-    implementation("me.ahoo.cosid:cosid-jdbc:1.19.2")
-    implementation("me.ahoo.cosid:cosid-test:1.19.2")
-    testImplementation("com.zaxxer:HikariCP:5.0.1")
+    api(platform(libs.cosidBom))
+    implementation("me.ahoo.cosid:cosid-jdbc")
+    implementation("me.ahoo.cosid:cosid-test")
+    testImplementation("com.zaxxer:HikariCP:5.1.0")
     testImplementation("mysql:mysql-connector-java:8.0.33")
     /**
      * WARNING：中央仓库没有找到美团官方提供的Jar!!!
@@ -45,12 +47,12 @@ dependencies {
      */
 //    testImplementation("com.xiaoju.uemc.tinyid:tinyid-client:0.1.0-SNAPSHOT")
 
-    jmh("org.openjdk.jmh:jmh-core:1.36")
-    jmh("org.openjdk.jmh:jmh-generator-annprocess:1.36")
+    jmh("org.openjdk.jmh:jmh-core:1.37")
+    jmh("org.openjdk.jmh:jmh-generator-annprocess:1.37")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.9.3")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.9.3")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.9.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.3")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.10.3")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.3")
 }
 
 jmh {
@@ -69,7 +71,7 @@ jmh {
         excludes.set(jmhExcludes)
     }
 
-    jmhVersion.set("1.36")
+    jmhVersion.set("1.37")
     warmupIterations.set(1)
     iterations.set(1)
     resultFormat.set("json")

@@ -28,6 +28,7 @@ generator.
         - `RedisIdSegmentDistributor`: `IdSegment` distributor based on *Redis*.
         - `JdbcIdSegmentDistributor`: The *Jdbc-based* `IdSegment` distributor supports various relational databases.
         - `ZookeeperIdSegmentDistributor`: `IdSegment` distributor based on *Zookeeper*.
+        - `MongoIdSegmentDistributor`: `IdSegment` distributor based on *MongoDB*.
 - `SegmentChainId`(**recommend**):`SegmentChainId` (*lock-free*) is an enhancement of `SegmentId`, the design
   diagram is as follows. `PrefetchWorker` maintains a `safe distance`, so that `SegmentChainId` achieves
   approximately `AtomicLong` *TPS performance: 127,439,148+ ops/s* [JMH Benchmark](#jmh-benchmark) .
@@ -707,6 +708,14 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 
 <p align="center" >
   <img src="./document/docs/.vuepress/public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="Percentile-Sample-Of-SegmentChainId"/>
+</p>
+
+### CosId VS MeiTuan Leaf
+
+> CosId (`SegmentChainId`) is 5 times faster than Leaf(`segment`).
+
+<p align="center" >
+  <img  src="./document/docs/.vuepress/public/assets/perf/CosId-VS-Leaf.png" alt="CosId VS MeiTuan Leaf"/>
 </p>
 
 ## Community Partners and Sponsors

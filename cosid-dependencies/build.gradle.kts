@@ -1,4 +1,3 @@
-
 /*
  * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,17 +12,18 @@
  */
 
 dependencies {
-    api(platform("org.springframework.boot:spring-boot-dependencies:2.7.12"))
-    api(platform("org.springframework.cloud:spring-cloud-dependencies:2021.0.7"))
-    api(platform("com.squareup.okhttp3:okhttp-bom:4.11.0"))
-    api(platform("org.testcontainers:testcontainers-bom:1.18.3"))
+    api(platform(libs.springBootDependencies))
+    api(platform(libs.springCloudDependencies))
+    api(platform(libs.okhttpBom))
+    api(platform(libs.testcontainersBom))
     constraints {
-        api("org.projectlombok:lombok:1.18.28")
-        api("org.mybatis:mybatis:3.5.13")
-        api("com.google.guava:guava:30.0-jre")
-        api("org.junit-pioneer:junit-pioneer:1.9.1")
-        api("org.hamcrest:hamcrest:2.2")
-        api("org.openjdk.jmh:jmh-core:1.36")
-        api("org.openjdk.jmh:jmh-generator-annprocess:1.36")
+        api(libs.guava)
+        api(libs.mybatis)
+        api(libs.mybatisSpringBoot)
+        api(libs.springDocStarterWebfluxUi)
+        api(libs.junitPioneer)
+        api(libs.hamcrest)
+        api(libs.jmhCore)
+        api(libs.jmhGeneratorAnnprocess)
     }
 }

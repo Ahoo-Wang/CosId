@@ -13,32 +13,23 @@
 
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
-import me.ahoo.cosid.IdConverter;
-import me.ahoo.cosid.converter.PrefixIdConverter;
-import me.ahoo.cosid.converter.Radix62IdConverter;
-import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
-import me.ahoo.cosid.converter.SuffixIdConverter;
-import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
-import me.ahoo.cosid.snowflake.DefaultSnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
-import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
-import me.ahoo.cosid.snowflake.StringSnowflakeId;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 import me.ahoo.cosid.spring.boot.starter.Namespaces;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import com.google.common.base.MoreObjects;
-import com.google.common.base.Strings;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.lang.Nullable;
 
 import java.time.ZoneId;
 
@@ -51,7 +42,9 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     private final MachineIdDistributor machineIdDistributor;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
     private final ConfigurableApplicationContext applicationContext;
-    
+    @Nullable
+    private final CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties;
+
     public SnowflakeIdBeanRegistrar(CosIdProperties cosIdProperties,
                                     MachineProperties machineProperties,
                                     SnowflakeIdProperties snowflakeIdProperties,
@@ -59,7 +52,8 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
                                     IdGeneratorProvider idGeneratorProvider,
                                     MachineIdDistributor machineIdDistributor,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer,
-                                    ConfigurableApplicationContext applicationContext) {
+                                    ConfigurableApplicationContext applicationContext,
+                                    @Nullable CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties) {
         this.cosIdProperties = cosIdProperties;
         this.machineProperties = machineProperties;
         this.snowflakeIdProperties = snowflakeIdProperties;
@@ -68,93 +62,66 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         this.machineIdDistributor = machineIdDistributor;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
         this.applicationContext = applicationContext;
+        this.customizeSnowflakeIdProperties = customizeSnowflakeIdProperties;
     }
-    
+
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void afterPropertiesSet() {
         register();
     }
-    
+
     public void register() {
+        if (customizeSnowflakeIdProperties != null) {
+            customizeSnowflakeIdProperties.customize(snowflakeIdProperties);
+        }
         SnowflakeIdProperties.ShardIdDefinition shareIdDefinition = snowflakeIdProperties.getShare();
         if (shareIdDefinition.isEnabled()) {
             registerIdDefinition(IdGeneratorProvider.SHARE, shareIdDefinition);
         }
         snowflakeIdProperties.getProvider().forEach(this::registerIdDefinition);
     }
-    
+
     private void registerIdDefinition(String name, SnowflakeIdProperties.IdDefinition idDefinition) {
         SnowflakeId idGenerator = createIdGen(idDefinition, clockBackwardsSynchronizer);
         registerSnowflakeId(name, idGenerator);
     }
-    
+
     private void registerSnowflakeId(String name, SnowflakeId snowflakeId) {
         if (!idGeneratorProvider.get(name).isPresent()) {
             idGeneratorProvider.set(name, snowflakeId);
         }
-        
+
         String beanName = name + "SnowflakeId";
         applicationContext.getBeanFactory().registerSingleton(beanName, snowflakeId);
     }
-    
+
     private SnowflakeId createIdGen(SnowflakeIdProperties.IdDefinition idDefinition,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         long epoch = getEpoch(idDefinition);
         int machineBit = MoreObjects.firstNonNull(idDefinition.getMachineBit(), machineProperties.getMachineBit());
         String namespace = Namespaces.firstNotBlank(idDefinition.getNamespace(), cosIdProperties.getNamespace());
         int machineId = machineIdDistributor.distribute(namespace, machineBit, instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
-        
+
         SnowflakeId snowflakeId;
         if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {
             snowflakeId = new SecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId, idDefinition.getSequenceResetThreshold());
         } else {
             snowflakeId =
-                new MillisecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId, idDefinition.getSequenceResetThreshold());
+                    new MillisecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId, idDefinition.getSequenceResetThreshold());
         }
         if (idDefinition.isClockSync()) {
             snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
         }
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
         final ZoneId zoneId = ZoneId.of(snowflakeIdProperties.getZoneId());
-        IdConverter idConverter = ToStringIdConverter.INSTANCE;
-        switch (converterDefinition.getType()) {
-            case TO_STRING: {
-                IdConverterDefinition.ToString toString = converterDefinition.getToString();
-                if (toString != null) {
-                    idConverter = new ToStringIdConverter(toString.isPadStart(), toString.getCharSize());
-                }
-                break;
-            }
-            case SNOWFLAKE_FRIENDLY: {
-                idConverter = new SnowflakeFriendlyIdConverter(SnowflakeIdStateParser.of(snowflakeId, zoneId));
-                break;
-            }
-            case RADIX: {
-                IdConverterDefinition.Radix radix = converterDefinition.getRadix();
-                idConverter = Radix62IdConverter.of(radix.isPadStart(), radix.getCharSize());
-                break;
-            }
-            default:
-                throw new IllegalStateException("Unexpected value: " + converterDefinition.getType());
-        }
-        if (!Strings.isNullOrEmpty(converterDefinition.getPrefix())) {
-            idConverter = new PrefixIdConverter(converterDefinition.getPrefix(), idConverter);
-        }
-        if (!Strings.isNullOrEmpty(converterDefinition.getSuffix())) {
-            idConverter = new SuffixIdConverter(converterDefinition.getSuffix(), idConverter);
-        }
-        if (idDefinition.isFriendly()) {
-            SnowflakeIdStateParser snowflakeIdStateParser = SnowflakeIdStateParser.of(snowflakeId, zoneId);
-            return new DefaultSnowflakeFriendlyId(snowflakeId, idConverter, snowflakeIdStateParser);
-        }
-        return new StringSnowflakeId(snowflakeId, idConverter);
+        return new SnowflakeIdConverterDecorator(snowflakeId, converterDefinition, zoneId, idDefinition.isFriendly()).decorate();
     }
-    
+
     private long getEpoch(SnowflakeIdProperties.IdDefinition idDefinition) {
         if (idDefinition.getEpoch() > 0) {
             return idDefinition.getEpoch();
         }
         return snowflakeIdProperties.getEpoch();
     }
-    
+
 }

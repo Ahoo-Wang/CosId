@@ -15,6 +15,8 @@ package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
+import me.ahoo.cosid.segment.grouped.GroupedAccessor;
+
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,28 +30,34 @@ import javax.annotation.concurrent.GuardedBy;
  */
 @Slf4j
 public class DefaultSegmentId implements SegmentId {
-
+    
     private final long idSegmentTtl;
     private final IdSegmentDistributor maxIdDistributor;
-
+    
     @GuardedBy("this")
     private volatile IdSegment segment = DefaultIdSegment.OVERFLOW;
-
+    
     public DefaultSegmentId(IdSegmentDistributor maxIdDistributor) {
         this(TIME_TO_LIVE_FOREVER, maxIdDistributor);
     }
-
+    
     public DefaultSegmentId(long idSegmentTtl, IdSegmentDistributor maxIdDistributor) {
         Preconditions.checkArgument(idSegmentTtl > 0, "idSegmentTtl:[%s] must be greater than 0.", idSegmentTtl);
-
+        
         this.idSegmentTtl = idSegmentTtl;
         this.maxIdDistributor = maxIdDistributor;
     }
-
+    
+    @Override
+    public IdSegment current() {
+        return segment;
+    }
+    
     @Override
     public long generate() {
-
+        
         if (maxIdDistributor.getStep() == ONE_STEP) {
+            GroupedAccessor.setIfNotNever(maxIdDistributor.group());
             return maxIdDistributor.nextMaxId();
         }
         long nextSeq;
@@ -59,7 +67,7 @@ public class DefaultSegmentId implements SegmentId {
                 return nextSeq;
             }
         }
-
+        
         synchronized (this) {
             while (true) {
                 if (segment.isAvailable()) {
@@ -69,10 +77,12 @@ public class DefaultSegmentId implements SegmentId {
                     }
                 }
                 IdSegment nextIdSegment = maxIdDistributor.nextIdSegment(idSegmentTtl);
-                segment.ensureNextIdSegment(nextIdSegment);
+                if (!maxIdDistributor.allowReset()) {
+                    segment.ensureNextIdSegment(nextIdSegment);
+                }
                 segment = nextIdSegment;
             }
         }
     }
-
+    
 }

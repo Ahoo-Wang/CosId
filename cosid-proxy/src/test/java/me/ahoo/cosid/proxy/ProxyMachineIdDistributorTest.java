@@ -14,11 +14,16 @@
 package me.ahoo.cosid.proxy;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.NotFoundMachineStateException;
+import me.ahoo.cosid.test.Assert;
+import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
 import okhttp3.OkHttpClient;
+import org.junit.jupiter.api.Test;
 
 class ProxyMachineIdDistributorTest extends MachineIdDistributorSpec {
     
@@ -29,7 +34,19 @@ class ProxyMachineIdDistributorTest extends MachineIdDistributorSpec {
     
     @Override
     public void guardLost() {
-        //TODO
-        //super.guardLost();
+        //ignore
+    }
+    
+    @Test
+    public void guardIfNotFoundMachineState() {
+        MachineIdDistributor distributor = getDistributor();
+        String namespace = MockIdGenerator.usePrefix("guardIfNotFoundMachineState").generateAsString();
+        InstanceId instanceId = mockInstance(0, false);
+        MachineStateStorage.IN_MEMORY.set(namespace, 10, instanceId);
+        
+        Assert.assertThrows(NotFoundMachineStateException.class, () -> {
+            distributor.guard(namespace, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+        });
+        
     }
 }

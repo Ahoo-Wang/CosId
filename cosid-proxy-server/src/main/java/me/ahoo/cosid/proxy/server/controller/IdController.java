@@ -15,6 +15,7 @@ package me.ahoo.cosid.proxy.server.controller;
 
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,6 +39,7 @@ public class IdController {
         this.provider = provider;
     }
     
+    @Operation(summary = "Generate a ID by share.")
     @GetMapping
     public long generate() {
         return provider
@@ -45,6 +47,7 @@ public class IdController {
             .generate();
     }
     
+    @Operation(summary = "Generate a ID by id name.")
     @GetMapping("{name}")
     public long generate(@PathVariable String name) {
         return provider
@@ -52,6 +55,7 @@ public class IdController {
             .generate();
     }
     
+    @Operation(summary = "Generate a ID as String by share.")
     @GetMapping("/as-string")
     public String generateAsString() {
         return provider
@@ -59,6 +63,7 @@ public class IdController {
             .generateAsString();
     }
     
+    @Operation(summary = "Generate a ID as String by id name.")
     @GetMapping("/as-string/{name}")
     public String generateAsString(@PathVariable String name) {
         return provider

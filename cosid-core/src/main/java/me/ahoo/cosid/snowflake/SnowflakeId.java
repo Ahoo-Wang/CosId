@@ -14,6 +14,8 @@
 package me.ahoo.cosid.snowflake;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
+import me.ahoo.cosid.stat.generator.SnowflakeIdStat;
 
 /**
  * Snowflake algorithm ID generator.
@@ -24,15 +26,15 @@ import me.ahoo.cosid.IdGenerator;
  */
 public interface SnowflakeId extends IdGenerator {
     int TOTAL_BIT = 63;
-    
+
     long getEpoch();
-    
+
     int getTimestampBit();
-    
+
     int getMachineBit();
-    
+
     int getSequenceBit();
-    
+
     /**
      * 是否是 Javascript  安全的 SnowflakeId.
      * {@link SafeJavaScriptSnowflakeId#JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT}.
@@ -42,19 +44,33 @@ public interface SnowflakeId extends IdGenerator {
     default boolean isSafeJavascript() {
         return (getTimestampBit() + getMachineBit() + getSequenceBit()) <= SafeJavaScriptSnowflakeId.JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT;
     }
-    
+
     long getMaxTimestamp();
-    
+
     int getMaxMachine();
-    
+
     long getMaxSequence();
-    
+
     long getLastTimestamp();
-    
+
     int getMachineId();
-    
-    
+
     static long defaultSequenceResetThreshold(int sequenceBit) {
         return ~(-1L << (sequenceBit - 1));
+    }
+
+    @Override
+    default IdGeneratorStat stat() {
+        return new SnowflakeIdStat(
+                getClass().getSimpleName(),
+                getEpoch(),
+                getTimestampBit(),
+                getMachineBit(),
+                getSequenceBit(),
+                isSafeJavascript(),
+                getMachineId(),
+                getLastTimestamp(),
+                idConverter().stat()
+        );
     }
 }

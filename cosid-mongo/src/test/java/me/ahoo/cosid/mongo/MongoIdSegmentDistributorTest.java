@@ -15,6 +15,7 @@ package me.ahoo.cosid.mongo;
 
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.test.container.MongoLauncher;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
 import com.mongodb.client.MongoClients;

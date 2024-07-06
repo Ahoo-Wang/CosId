@@ -13,6 +13,12 @@
 
 package me.ahoo.cosid.cosid;
 
+/**
+ * Parser for converting {@link CosIdState} to String and vice versa.
+ * <p>
+ *     The {@link CosIdState} is a composite of timestamp, machineId, and sequence.
+ * </p>
+ */
 public interface CosIdIdStateParser {
     
     CosIdState asState(String id);

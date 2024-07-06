@@ -25,6 +25,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.lang.Nullable;
 
 /**
  * CosId Snowflake AutoConfiguration.
@@ -53,7 +54,10 @@ public class CosIdSnowflakeAutoConfiguration {
                                                              IdGeneratorProvider idGeneratorProvider,
                                                              MachineIdDistributor machineIdDistributor,
                                                              ClockBackwardsSynchronizer clockBackwardsSynchronizer,
-                                                             ConfigurableApplicationContext applicationContext) {
+                                                             ConfigurableApplicationContext applicationContext,
+                                                             @Nullable
+                                                             CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties
+    ) {
         return new SnowflakeIdBeanRegistrar(cosIdProperties,
             machineProperties,
             snowflakeIdProperties,
@@ -61,7 +65,8 @@ public class CosIdSnowflakeAutoConfiguration {
             idGeneratorProvider,
             machineIdDistributor,
             clockBackwardsSynchronizer,
-            applicationContext);
+            applicationContext,
+            customizeSnowflakeIdProperties);
     }
     
 }

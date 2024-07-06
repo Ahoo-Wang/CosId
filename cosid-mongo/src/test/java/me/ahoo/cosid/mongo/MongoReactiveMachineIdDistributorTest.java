@@ -18,13 +18,12 @@ import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineCollection;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineInitializer;
+import me.ahoo.cosid.test.container.MongoLauncher;
 import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.junit.jupiter.api.BeforeEach;
-
-import java.time.Duration;
 
 class MongoReactiveMachineIdDistributorTest extends MachineIdDistributorSpec {
     MongoDatabase mongoDatabase;
@@ -33,7 +32,7 @@ class MongoReactiveMachineIdDistributorTest extends MachineIdDistributorSpec {
     
     @BeforeEach
     void setup() {
-        mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
+        mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db_reactive");
         machineInitializer = new MongoReactiveMachineInitializer(mongoDatabase);
         machineInitializer.ensureMachineCollection();
         machineIdDistributor = new MongoMachineIdDistributor(
@@ -46,12 +45,5 @@ class MongoReactiveMachineIdDistributorTest extends MachineIdDistributorSpec {
     protected MachineIdDistributor getDistributor() {
         return machineIdDistributor;
     }
-    
-    @Override
-    protected Duration getSafeGuardDuration() {
-        if (System.getenv().containsKey("CI")) {
-            return Duration.ofSeconds(10);
-        }
-        return super.getSafeGuardDuration();
-    }
+
 }

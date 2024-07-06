@@ -1,5 +1,6 @@
 package me.ahoo.cosid.mybatis;
 
+import com.google.common.collect.Lists;
 import me.ahoo.cosid.accessor.parser.DefaultAccessorParser;
 import me.ahoo.cosid.accessor.registry.DefaultAccessorRegistry;
 import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
@@ -10,15 +11,27 @@ import me.ahoo.cosid.test.MockIdGenerator;
 import lombok.SneakyThrows;
 import org.apache.ibatis.binding.MapperMethod;
 import org.apache.ibatis.builder.StaticSqlSource;
+import org.apache.ibatis.cache.CacheKey;
+import org.apache.ibatis.cursor.Cursor;
+import org.apache.ibatis.executor.BatchResult;
+import org.apache.ibatis.executor.Executor;
+import org.apache.ibatis.executor.parameter.ParameterHandler;
+import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.mapping.SqlCommandType;
 import org.apache.ibatis.plugin.Invocation;
+import org.apache.ibatis.reflection.MetaObject;
 import org.apache.ibatis.session.Configuration;
+import org.apache.ibatis.session.ResultHandler;
+import org.apache.ibatis.session.RowBounds;
+import org.apache.ibatis.transaction.Transaction;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -149,20 +162,92 @@ class CosIdPluginTest {
         }
     }
     
-    public static class InvocationTarget {
+    public static class InvocationTarget implements Executor {
         
         public static final Method INVOKE_METHOD;
         
         static {
             try {
-                INVOKE_METHOD = InvocationTarget.class.getMethod("invoke", MappedStatement.class, Object.class);
+                INVOKE_METHOD = Executor.class.getMethod("update", MappedStatement.class, Object.class);
             } catch (NoSuchMethodException e) {
                 throw new RuntimeException(e);
             }
         }
-        
-        public void invoke(MappedStatement statement, Object entity) {
+
+
+        @Override
+        public int update(MappedStatement ms, Object parameter) throws SQLException {
+            return 0;
         }
-        
+
+        @Override
+        public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler, CacheKey cacheKey, BoundSql boundSql) throws SQLException {
+            return Lists.newArrayList();
+        }
+
+        @Override
+        public <E> List<E> query(MappedStatement ms, Object parameter, RowBounds rowBounds, ResultHandler resultHandler) throws SQLException {
+            return Lists.newArrayList();
+        }
+
+        @Override
+        public <E> Cursor<E> queryCursor(MappedStatement ms, Object parameter, RowBounds rowBounds) throws SQLException {
+            return null;
+        }
+
+        @Override
+        public List<BatchResult> flushStatements() throws SQLException {
+            return Lists.newArrayList();
+        }
+
+        @Override
+        public void commit(boolean required) throws SQLException {
+
+        }
+
+        @Override
+        public void rollback(boolean required) throws SQLException {
+
+        }
+
+        @Override
+        public CacheKey createCacheKey(MappedStatement ms, Object parameterObject, RowBounds rowBounds, BoundSql boundSql) {
+            return null;
+        }
+
+        @Override
+        public boolean isCached(MappedStatement ms, CacheKey key) {
+            return false;
+        }
+
+        @Override
+        public void clearLocalCache() {
+
+        }
+
+        @Override
+        public void deferLoad(MappedStatement ms, MetaObject resultObject, String property, CacheKey key, Class<?> targetType) {
+
+        }
+
+        @Override
+        public Transaction getTransaction() {
+            return null;
+        }
+
+        @Override
+        public void close(boolean forceRollback) {
+
+        }
+
+        @Override
+        public boolean isClosed() {
+            return false;
+        }
+
+        @Override
+        public void setExecutorWrapper(Executor executor) {
+
+        }
     }
 }

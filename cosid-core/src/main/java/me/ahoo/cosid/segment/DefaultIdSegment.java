@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.segment;
 
+import me.ahoo.cosid.segment.grouped.GroupedAccessor;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.util.Clock;
 
 import com.google.common.base.Preconditions;
@@ -25,9 +27,9 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  * @author ahoo wang
  */
 public class DefaultIdSegment implements IdSegment {
-
-    public static final DefaultIdSegment OVERFLOW = new DefaultIdSegment(IdSegment.SEQUENCE_OVERFLOW, 0, Clock.CACHE.secondTime(), TIME_TO_LIVE_FOREVER);
-
+    
+    public static final DefaultIdSegment OVERFLOW = new DefaultIdSegment(IdSegment.SEQUENCE_OVERFLOW, 0, Clock.SYSTEM.secondTime(), TIME_TO_LIVE_FOREVER, GroupedKey.NEVER);
+    
     /**
      * include.
      */
@@ -37,14 +39,14 @@ public class DefaultIdSegment implements IdSegment {
     private volatile long sequence;
     private final long fetchTime;
     private final long ttl;
-
+    private final GroupedKey group;
     private static final AtomicLongFieldUpdater<DefaultIdSegment> S = AtomicLongFieldUpdater.newUpdater(DefaultIdSegment.class, "sequence");
-
+    
     public DefaultIdSegment(long maxId, long step) {
-        this(maxId, step, Clock.CACHE.secondTime(), TIME_TO_LIVE_FOREVER);
+        this(maxId, step, Clock.SYSTEM.secondTime(), TIME_TO_LIVE_FOREVER, GroupedKey.NEVER);
     }
-
-    public DefaultIdSegment(long maxId, long step, long fetchTime, long ttl) {
+    
+    public DefaultIdSegment(long maxId, long step, long fetchTime, long ttl, GroupedKey group) {
         Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
         this.maxId = maxId;
         this.step = step;
@@ -52,52 +54,59 @@ public class DefaultIdSegment implements IdSegment {
         this.sequence = offset;
         this.fetchTime = fetchTime;
         this.ttl = ttl;
+        this.group = group;
     }
-
+    
+    @Override
+    public GroupedKey group() {
+        return group;
+    }
+    
     @Override
     public long getFetchTime() {
         return fetchTime;
     }
-
+    
     @Override
     public long getTtl() {
         return ttl;
     }
-
+    
     @Override
     public long getMaxId() {
         return maxId;
     }
-
+    
     @Override
     public long getOffset() {
         return offset;
     }
-
+    
     @Override
     public long getSequence() {
         return sequence;
     }
-
+    
     @Override
     public long getStep() {
         return step;
     }
-
+    
     @Override
     public long incrementAndGet() {
         if (isOverflow()) {
             return SEQUENCE_OVERFLOW;
         }
-
+        
         final long nextSeq = S.incrementAndGet(this);
-
+        
         if (isOverflow(nextSeq)) {
             return SEQUENCE_OVERFLOW;
         }
+        GroupedAccessor.setIfNotNever(group());
         return nextSeq;
     }
-
+    
     @Override
     public String toString() {
         return "DefaultIdSegment{"

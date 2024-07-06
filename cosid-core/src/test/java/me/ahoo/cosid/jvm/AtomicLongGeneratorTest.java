@@ -20,11 +20,12 @@ import org.junit.jupiter.api.Test;
  * @author ahoo wang
  */
 class AtomicLongGeneratorTest {
-
+    
     @Test
     void generate() {
         long idFirst = AtomicLongGenerator.INSTANCE.generate();
         long idSecond = AtomicLongGenerator.INSTANCE.generate();
         Assertions.assertTrue(idSecond > idFirst);
     }
+    
 }

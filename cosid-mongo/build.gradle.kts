@@ -18,6 +18,7 @@ dependencies {
     compileOnly("org.mongodb:mongodb-driver-reactivestreams")
     compileOnly("io.projectreactor:reactor-core")
     testImplementation(project(":cosid-test"))
+    testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.mongodb:mongodb-driver-sync")
     testImplementation("io.projectreactor:reactor-core")
     testImplementation("org.mongodb:mongodb-driver-reactivestreams")

@@ -29,6 +29,9 @@ import java.util.Objects;
 public class ErrorResponse {
     
     public static final String BAD_REQUEST = "400";
+    public static final String MACHINE_ID_OVERFLOW = "M-01";
+    public static final String NOT_FOUND_MACHINE_STATE = "M-02";
+    public static final String MACHINE_ID_LOST = "M-03";
     
     private final String code;
     private final String msg;
@@ -52,23 +55,6 @@ public class ErrorResponse {
     
     public List<?> getErrors() {
         return errors;
-    }
-    
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (!(o instanceof ErrorResponse)) {
-            return false;
-        }
-        ErrorResponse that = (ErrorResponse) o;
-        return Objects.equals(getCode(), that.getCode()) && Objects.equals(getMsg(), that.getMsg()) && Objects.equals(getErrors(), that.getErrors());
-    }
-    
-    @Override
-    public int hashCode() {
-        return Objects.hash(getCode(), getMsg(), getErrors());
     }
     
     public static ErrorResponse of(String code, String msg) {

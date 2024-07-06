@@ -1,0 +1,36 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.cosid.test.container;
+
+
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.shaded.com.google.common.base.Strings;
+import org.testcontainers.utility.DockerImageName;
+
+public class MongoLauncher {
+    private static final String CONNECTION_OPTIONS = "/?connectTimeoutMS=300000&maxIdleTimeMS=300000";
+    private static final String DEV_CONNECTION_STRING = "mongodb://root:root@localhost" + CONNECTION_OPTIONS;
+    private static final MongoDBContainer MONGO_CONTAINER = new MongoDBContainer(DockerImageName.parse("mongo:6.0.12"))
+        .withNetworkAliases("mongo")
+        .withReuse(true);
+    
+    public static String getConnectionString() {
+        if (Strings.isNullOrEmpty(System.getenv("CI"))) {
+            return DEV_CONNECTION_STRING;
+        }
+        MONGO_CONTAINER.start();
+        return MONGO_CONTAINER.getConnectionString() + CONNECTION_OPTIONS;
+        
+    }
+}

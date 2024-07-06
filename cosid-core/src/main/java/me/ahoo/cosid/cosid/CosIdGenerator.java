@@ -15,6 +15,9 @@ package me.ahoo.cosid.cosid;
 
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.stat.Stat;
+import me.ahoo.cosid.stat.generator.CosIdGeneratorStat;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import javax.annotation.Nonnull;
 
@@ -51,5 +54,10 @@ public interface CosIdGenerator extends IdGenerator {
     @Override
     default String generateAsString() {
         return getStateParser().asString(generateAsState());
+    }
+    
+    @Override
+    default IdGeneratorStat stat() {
+        return new CosIdGeneratorStat(getClass().getSimpleName(), getMachineId(), getLastTimestamp(), Stat.simple(getStateParser().getClass().getSimpleName()));
     }
 }

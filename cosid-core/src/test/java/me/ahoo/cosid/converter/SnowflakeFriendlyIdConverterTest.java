@@ -13,9 +13,13 @@
 
 package me.ahoo.cosid.converter;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
 import me.ahoo.cosid.snowflake.SecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeId;
+import me.ahoo.cosid.stat.SimpleStat;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -60,8 +64,10 @@ class SnowflakeFriendlyIdConverterTest {
         SecondSnowflakeIdStateParser snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
         SnowflakeFriendlyIdConverter snowflakeFriendlyIdConverter = new SnowflakeFriendlyIdConverter(snowflakeIdStateParser);
         Assertions.assertNotNull(snowflakeFriendlyIdConverter.getParser());
-        
     }
     
-    
+    @Test
+    void stat() {
+        assertThat(SnowflakeFriendlyIdConverter.INSTANCE.stat(), instanceOf(SimpleStat.class));
+    }
 }

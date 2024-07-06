@@ -1,5 +1,7 @@
 package me.ahoo.cosid;
 
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
+
 import javax.annotation.Nonnull;
 import javax.annotation.concurrent.ThreadSafe;
 
@@ -9,7 +11,7 @@ import javax.annotation.concurrent.ThreadSafe;
  * @author ahoo wang
  */
 @ThreadSafe
-public interface IdGeneratorDecorator extends IdGenerator {
+public interface IdGeneratorDecorator extends IdGenerator, Decorator<IdGenerator> {
     /**
      * Get decorator actual id generator.
      *
@@ -17,18 +19,18 @@ public interface IdGeneratorDecorator extends IdGenerator {
      */
     @Nonnull
     IdGenerator getActual();
-    
-    @SuppressWarnings("unchecked")
-    static <T extends IdGenerator> T getActual(IdGenerator idGenerator) {
-        if (idGenerator instanceof IdGeneratorDecorator) {
-            return getActual(((IdGeneratorDecorator) idGenerator).getActual());
-        }
-        return (T) idGenerator;
+
+    static <T extends IdGenerator> T getActual(T idGenerator) {
+        return Decorator.getActual(idGenerator);
     }
-    
+
     @Override
     default long generate() {
         return getActual().generate();
     }
-    
+
+    @Override
+    default IdGeneratorStat stat() {
+        return IdGeneratorStat.simple(getClass().getSimpleName(), getActual().stat(), idConverter().stat());
+    }
 }

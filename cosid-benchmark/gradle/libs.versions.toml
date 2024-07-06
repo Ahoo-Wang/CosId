@@ -1,0 +1,21 @@
+[versions]
+cosid = "2.9.0"
+jmh = "1.37"
+junit="5.10.3"
+hikariCP = "5.1.0"
+mysql="8.0.33"
+
+jmhPlugin = "0.7.2"
+
+[libraries]
+cosidBom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }
+hikariCP = { module = "com.zaxxer:HikariCP", version.ref = "hikariCP" }
+mysql = { module = "mysql:mysql-connector-java", version.ref = "mysql" }
+jmhCore = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
+jmhGeneratorAnnprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
+junitJupiterApi = { module = "org.junit.jupiter:junit-jupiter-api", version.ref = "junit" }
+junitJupiterParams = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit" }
+junitJupiterEngine = { module = "org.junit.jupiter:junit-jupiter-engine", version.ref = "junit" }
+
+[plugins]
+jmhPlugin = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }

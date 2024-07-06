@@ -18,6 +18,7 @@ on:
       - 'cosid-benchmark/**'
       - 'docs/**'
       - 'document/**'
+      - 'documentation/**'
       - 'examples/**'
       - 'wiki/**'
   pull_request:
@@ -25,9 +26,11 @@ on:
       - 'cosid-benchmark/**'
       - 'docs/**'
       - 'document/**'
+      - 'documentation/**'
       - 'examples/**'
       - 'wiki/**'
-
+env:
+  CI: true
 jobs:
   cosid-core-test:
     name: CosId Core Test
@@ -37,15 +40,15 @@ jobs:
         uses: actions/checkout@master
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Core
-        run: gradle cosid-core:clean cosid-core:check
+        run: ./gradlew cosid-core:clean cosid-core:check
 
   cosid-jackson-test:
     name: CosId Jackson Test
@@ -56,15 +59,15 @@ jobs:
         uses: actions/checkout@master
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Jackson
-        run: gradle cosid-jackson:clean cosid-jackson:check
+        run: ./gradlew cosid-jackson:clean cosid-jackson:check
 
   cosid-axon-test:
     name: CosId Axon Test
@@ -75,15 +78,91 @@ jobs:
         uses: actions/checkout@master
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Axon
-        run: gradle cosid-axon:clean cosid-axon:check
+        run: ./gradlew cosid-axon:clean cosid-axon:check
+
+  cosid-activiti-test:
+    name: CosId Activiti Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Activiti
+        run: ./gradlew cosid-activiti:clean cosid-activiti:check
+
+  cosid-flowable-test:
+    name: CosId Flowable Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Flowable
+        run: ./gradlew cosid-flowable:clean cosid-flowable:check
+
+  cosid-mybatis-test:
+    name: CosId Mybatis Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Mybatis
+        run: ./gradlew cosid-mybatis:clean cosid-mybatis:check
+
+  cosid-spring-jdbc-test:
+    name: CosId Spring Jdbc Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Spring-Jdbc
+        run: ./gradlew cosid-spring-data-jdbc:clean cosid-spring-data-jdbc:check
 
   cosid-spring-redis-test:
     name: CosId Spring Redis Test
@@ -104,15 +183,34 @@ jobs:
         uses: actions/checkout@master
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Spring-Redis
-        run: gradle cosid-spring-redis:clean cosid-spring-redis:check
+        run: ./gradlew cosid-spring-redis:clean cosid-spring-redis:check
+
+  cosid-mongo-test:
+    name: CosId Mongo Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+          server-id: github
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Mongo
+        run: ./gradlew cosid-mongo:clean cosid-mongo:check
 
   cosid-proxy-test:
     name: CosId Proxy Test
@@ -123,15 +221,15 @@ jobs:
         uses: actions/checkout@master
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Proxy
-        run: gradle cosid-proxy:clean cosid-proxy:check
+        run: ./gradlew cosid-proxy:clean cosid-proxy:check
 
   cosid-zookeeper-test:
     name: CosId Zookeeper Test
@@ -142,15 +240,15 @@ jobs:
         uses: actions/checkout@master
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Zookeeper
-        run: gradle cosid-zookeeper:clean cosid-zookeeper:check
+        run: ./gradlew cosid-zookeeper:clean cosid-zookeeper:check
 
   # https://github.com/actions/virtual-environments/issues/375
   # https://github.blog/changelog/2020-02-21-github-actions-breaking-change-ubuntu-virtual-environments-will-no-longer-start-the-mysql-service-automatically/
@@ -168,10 +266,10 @@ jobs:
         uses: actions/checkout@master
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
@@ -179,28 +277,7 @@ jobs:
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: Test CosId-Jdbc
-        run: gradle cosid-jdbc:clean cosid-jdbc:check
-
-  cosid-mongo-test:
-    name: CosId Mongo Test
-    needs: [ cosid-core-test ]
-    runs-on: ubuntu-latest
-    env:
-      CI: GITHUB_ACTIONS
-    steps:
-      - name: Checkout
-        uses: actions/checkout@master
-
-      - name: Set up JDK 8
-        uses: actions/setup-java@v3
-        with:
-          java-version: '8'
-          distribution: 'adopt'
-          server-id: github
-          settings-path: ${{ github.workspace }}
-
-      - name: Test CosId-Mongo
-        run: gradle cosid-mongo:clean cosid-mongo:check
+        run: ./gradlew cosid-jdbc:clean cosid-jdbc:check
 
   cosid-spring-boot-starter-test:
     name: CosId Spring Boot Starter Test
@@ -214,10 +291,10 @@ jobs:
         uses: actions/checkout@master
 
       - name: Set up JDK 8
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '8'
-          distribution: 'adopt'
+          distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
 
@@ -225,4 +302,4 @@ jobs:
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: Test CosId-Spring-Boot-Starter
-        run: gradle cosid-spring-boot-starter:clean cosid-spring-boot-starter:check
+        run: ./gradlew cosid-spring-boot-starter:clean cosid-spring-boot-starter:check

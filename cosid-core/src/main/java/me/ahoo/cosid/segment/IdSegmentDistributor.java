@@ -15,6 +15,8 @@ package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
+import me.ahoo.cosid.segment.grouped.Grouped;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.util.Clock;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -32,7 +34,7 @@ import java.util.concurrent.locks.LockSupport;
  *
  * @author ahoo wang
  */
-public interface IdSegmentDistributor {
+public interface IdSegmentDistributor extends Grouped {
     int DEFAULT_SEGMENTS = 1;
     long DEFAULT_OFFSET = 0;
     long DEFAULT_STEP = 10;
@@ -57,6 +59,10 @@ public interface IdSegmentDistributor {
         return Math.multiplyExact(getStep(), segments);
     }
     
+    default boolean allowReset() {
+        return GroupedKey.NEVER.equals(group());
+    }
+    
     long nextMaxId(long step);
     
     default long nextMaxId() {
@@ -73,7 +79,7 @@ public interface IdSegmentDistributor {
         Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
         
         final long maxId = nextMaxId();
-        return new DefaultIdSegment(maxId, getStep(), Clock.CACHE.secondTime(), ttl);
+        return new DefaultIdSegment(maxId, getStep(), Clock.SYSTEM.secondTime(), ttl, group());
     }
     
     @Nonnull
@@ -83,7 +89,7 @@ public interface IdSegmentDistributor {
         
         final long totalStep = getStep(segments);
         final long maxId = nextMaxId(totalStep);
-        final IdSegment nextIdSegment = new DefaultIdSegment(maxId, totalStep, Clock.CACHE.secondTime(), ttl);
+        final IdSegment nextIdSegment = new DefaultIdSegment(maxId, totalStep, Clock.SYSTEM.secondTime(), ttl, group());
         return new MergedIdSegment(segments, nextIdSegment);
     }
     
@@ -96,11 +102,11 @@ public interface IdSegmentDistributor {
     default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
         if (DEFAULT_SEGMENTS == segments) {
             IdSegment nextIdSegment = nextIdSegment(ttl);
-            return new IdSegmentChain(previousChain, nextIdSegment);
+            return new IdSegmentChain(previousChain, nextIdSegment, allowReset());
         }
         
         IdSegment nextIdSegment = nextIdSegment(segments, ttl);
-        return new IdSegmentChain(previousChain, nextIdSegment);
+        return new IdSegmentChain(previousChain, nextIdSegment, allowReset());
     }
     
     static void ensureStep(long step) {

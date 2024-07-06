@@ -13,8 +13,18 @@
 
 description = "CosId test specification module"
 
+java {
+    registerFeature("mongoSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "mongo-support", version.toString())
+    }
+}
+
 dependencies {
     implementation(project(":cosid-core"))
     implementation("org.junit.jupiter:junit-jupiter-api")
     implementation("org.hamcrest:hamcrest")
+    "mongoSupportImplementation"("org.testcontainers:testcontainers")
+    "mongoSupportImplementation"("org.testcontainers:junit-jupiter")
+    "mongoSupportImplementation"("org.testcontainers:mongodb")
 }

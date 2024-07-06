@@ -17,7 +17,7 @@ plugins {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(8))
+        languageVersion.set(JavaLanguageVersion.of(17))
     }
 }
 
@@ -35,13 +35,13 @@ application {
     mainClass.set("me.ahoo.cosid.proxy.server.ProxyServer")
 
     applicationDefaultJvmArgs = listOf(
-        "-Xms512M",
-        "-Xmx512M",
-        "-XX:MaxMetaspaceSize=128M",
-        "-XX:MaxDirectMemorySize=256M",
+        "-Xms1280M",
+        "-Xmx1280M",
+        "-XX:MaxMetaspaceSize=256M",
+        "-XX:MaxDirectMemorySize=512M",
         "-Xss1m",
         "-server",
-        "-XX:+UseG1GC",
+        "-XX:+UseZGC",
         "-Xlog:gc*:file=logs/${applicationName}-gc.log:time,tags:filecount=10,filesize=32M",
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=data",
@@ -79,6 +79,7 @@ dependencies {
     implementation("com.google.guava:guava")
     implementation("io.netty:netty-all")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
+    implementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")

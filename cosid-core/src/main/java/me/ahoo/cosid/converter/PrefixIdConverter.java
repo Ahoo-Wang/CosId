@@ -13,7 +13,10 @@
 
 package me.ahoo.cosid.converter;
 
+import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.stat.Stat;
+import me.ahoo.cosid.stat.converter.PrefixConverterStat;
 
 import com.google.common.base.Preconditions;
 
@@ -24,15 +27,21 @@ import javax.annotation.Nonnull;
  *
  * @author ahoo wang
  */
-public class PrefixIdConverter implements IdConverter {
+public class PrefixIdConverter implements IdConverter, Decorator<IdConverter> {
     
     private final String prefix;
-    private final IdConverter idConverter;
+    private final IdConverter actual;
     
-    public PrefixIdConverter(String prefix, IdConverter idConverter) {
+    public PrefixIdConverter(String prefix, IdConverter actual) {
         Preconditions.checkNotNull(prefix, "prefix can not be null!");
         this.prefix = prefix;
-        this.idConverter = idConverter;
+        this.actual = actual;
+    }
+    
+    @Nonnull
+    @Override
+    public IdConverter getActual() {
+        return actual;
     }
     
     public String getPrefix() {
@@ -42,7 +51,7 @@ public class PrefixIdConverter implements IdConverter {
     @Nonnull
     @Override
     public String asString(long id) {
-        String idStr = idConverter.asString(id);
+        String idStr = actual.asString(id);
         if (prefix.isEmpty()) {
             return idStr;
         }
@@ -52,6 +61,11 @@ public class PrefixIdConverter implements IdConverter {
     @Override
     public long asLong(@Nonnull String idString) {
         String idStr = idString.substring(prefix.length());
-        return idConverter.asLong(idStr);
+        return actual.asLong(idStr);
+    }
+    
+    @Override
+    public Stat stat() {
+        return new PrefixConverterStat(getClass().getSimpleName(), prefix, actual.stat());
     }
 }

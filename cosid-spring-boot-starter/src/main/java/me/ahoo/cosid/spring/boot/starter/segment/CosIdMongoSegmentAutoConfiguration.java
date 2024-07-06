@@ -33,6 +33,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.annotation.Order;
 
 /**
  * CosId Redis Segment AutoConfiguration.
@@ -54,6 +55,7 @@ public class CosIdMongoSegmentAutoConfiguration {
         this.segmentIdProperties = segmentIdProperties;
     }
     
+    @Order(0)
     @Configuration
     @ConditionalOnClass(MongoClient.class)
     class Sync {

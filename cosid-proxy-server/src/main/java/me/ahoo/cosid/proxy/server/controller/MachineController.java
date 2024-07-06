@@ -19,6 +19,7 @@ import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.MachineState;
 
+import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -46,6 +47,7 @@ public class MachineController {
     /**
      * Distribute a machine ID, the operation is idempotent.
      */
+    @Operation(summary = "Distribute a machine ID, the operation is idempotent.")
     @PostMapping("/{namespace}")
     public MachineState distribute(@PathVariable String namespace, int machineBit, InstanceId instanceId, String safeGuardDuration) throws MachineIdOverflowException {
         return distributor.distribute(namespace, machineBit, instanceId, Duration.parse(safeGuardDuration));
@@ -54,6 +56,7 @@ public class MachineController {
     /**
      * Revert a machine ID, the operation is idempotent.
      */
+    @Operation(summary = "Revert a machine ID, the operation is idempotent.")
     @DeleteMapping("/{namespace}")
     public void revert(@PathVariable String namespace, InstanceId instanceId) {
         distributor.revert(namespace, instanceId);
@@ -63,6 +66,7 @@ public class MachineController {
      * Guard a machine ID.
      */
     @PatchMapping("/{namespace}")
+    @Operation(summary = "Guard a machine ID.")
     public void guard(@PathVariable String namespace, InstanceId instanceId, String safeGuardDuration) throws MachineIdLostException {
         distributor.guard(namespace, instanceId, Duration.parse(safeGuardDuration));
     }

@@ -35,7 +35,7 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
     
     private final String generatorName;
     
-    private IdGenerator lazyIdGen;
+    private volatile IdGenerator lazyIdGen;
     
     private final IdGeneratorProvider idGeneratorProvider;
     

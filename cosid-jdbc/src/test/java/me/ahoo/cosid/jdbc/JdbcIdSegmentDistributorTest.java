@@ -55,7 +55,7 @@ class JdbcIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     
     @Override
     public void nextMaxIdWhenBack() {
-        //TODO
+    
     }
     
     @Test

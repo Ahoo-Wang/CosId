@@ -13,8 +13,12 @@
 
 package me.ahoo.cosid.mongo.reactive;
 
+import me.ahoo.cosid.CosId;
+
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
@@ -23,18 +27,22 @@ import java.util.concurrent.TimeoutException;
 
 public final class BlockingAdapter {
     public static final Duration DEFAULT_TIME_OUT = Duration.ofSeconds(10);
-    
+    private static final Scheduler SCHEDULER = Schedulers.newSingle(CosId.COSID_PREFIX + BlockingAdapter.class.getSimpleName());
+
     private BlockingAdapter() {
     }
-    
+
     public static <R> R block(Publisher<R> publisher) {
         Mono<R> mono = Mono.from(publisher);
         return block(mono);
     }
-    
+
     public static <R> R block(Mono<R> mono) {
         try {
-            return mono.toFuture().get(DEFAULT_TIME_OUT.toMillis(), TimeUnit.MILLISECONDS);
+
+            return mono.subscribeOn(SCHEDULER)
+                    .timeout(DEFAULT_TIME_OUT)
+                    .toFuture().get(DEFAULT_TIME_OUT.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException | TimeoutException e) {
             throw new RuntimeException(e);
         } catch (ExecutionException e) {

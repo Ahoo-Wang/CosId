@@ -12,7 +12,7 @@ axon = "4.10.0"
 flowable = "7.0.1"
 activiti = "7.0.0.SR1"
 springDoc = "2.6.0"
-hamcrest = "2.2"
+hamcrest = "3.0"
 jmh = "1.37"
 # plugins
 testRetry= "1.5.10"

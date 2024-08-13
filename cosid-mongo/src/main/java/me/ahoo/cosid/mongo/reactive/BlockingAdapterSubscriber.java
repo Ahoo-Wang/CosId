@@ -62,6 +62,9 @@ public class BlockingAdapterSubscriber<T> extends BaseSubscriber<T> {
             throw new TimeoutException("Timeout after " + timeout + " " + unit);
         }
         if (getError() != null) {
+            if (getError() instanceof RuntimeException) {
+                throw (RuntimeException) getError();
+            }
             throw new RuntimeException(getError());
         }
         return this;

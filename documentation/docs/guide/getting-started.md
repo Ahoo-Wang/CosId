@@ -93,7 +93,7 @@ cosid:
 
 > 通过`yml`文件配置`provider`创建多个`生成器`
 
-```
+```yaml
 spring:
   data:
     redis:

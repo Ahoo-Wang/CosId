@@ -54,10 +54,10 @@ class CacheClockTest {
         Clock cacheClock = new Clock.CacheClock(backwardsClock);
         long lastTime = cacheClock.secondTime();
         for (int i = 0; i < 6; i++) {
+            LockSupport.parkNanos(this, ONE_SECOND_PERIOD);
             long currentTime = cacheClock.secondTime();
             assertTrue(currentTime >= lastTime);
             lastTime = currentTime;
-            LockSupport.parkNanos(this, ONE_SECOND_PERIOD);
         }
     }
 

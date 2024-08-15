@@ -82,7 +82,7 @@ public interface Clock {
             while (!thread.isInterrupted()) {
                 long currentTime = clock.secondTime();
                 // Avoid time going backwards
-                if (currentTime >= lastTime) {
+                if (currentTime > lastTime) {
                     this.lastTime = currentTime;
                 }
                 LockSupport.parkNanos(this, ONE_SECOND_PERIOD);

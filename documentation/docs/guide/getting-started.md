@@ -121,17 +121,15 @@ cosid:
 	@Resource
   	IdGeneratorProvider provider;
 	@Resource
-        StringRedisTemplate stringRedisTemplate;
+    IdSegmentDistributorFactory idSegmentDistributorFactory;
 
-	public void createProvider(String idName) {
-        SpringRedisIdSegmentDistributor springRedisIdSegmentDistributor = new SpringRedisIdSegmentDistributor("namespace", "idName", stringRedisTemplate);
-        SegmentChainId segmentId = new SegmentChainId(springRedisIdSegmentDistributor);
-
+	public void createIdGenerator(String idName) {
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition("namespace", "idName",0,100);
+        IdSegmentDistributor idSegmentDistributor = idSegmentDistributorFactory.create(definition);
+        SegmentChainId segmentId = new SegmentChainId(idSegmentDistributor);
         provider.set(idName, segmentId);
     }
 ```
-
-
 
 ## Examples
 

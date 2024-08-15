@@ -91,7 +91,9 @@ cosid:
     DefaultIdGeneratorProvider.INSTANCE.getShare();
 ```
 
-> 通过`yml`文件配置`provider`创建多个`生成器`
+### 注册多个 ID 生成器
+
+> 通过配置文件的 `provider` 注册多个 ID 生成器
 
 ```yaml
 spring:
@@ -109,13 +111,13 @@ cosid:
     distributor:
       type: redis
     provider:
-      order:
+      order: # 命名为 order 的 ID 生成器
         offset: 10000
-      item:
+      item: # 命名为 item 的 ID 生成器
         offset: 10000
 ```
 
->通过`代码`创建多个多个`生成器`
+> 通过编码注册多个 ID 生成器
 
 ```java
 	@Resource
@@ -123,7 +125,7 @@ cosid:
 	@Resource
     IdSegmentDistributorFactory idSegmentDistributorFactory;
 
-	public void createIdGenerator(String idName) {
+	public void registerIdGenerator(String idName) {
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition("namespace", "idName",0,100);
         IdSegmentDistributor idSegmentDistributor = idSegmentDistributorFactory.create(definition);
         SegmentChainId segmentId = new SegmentChainId(idSegmentDistributor);

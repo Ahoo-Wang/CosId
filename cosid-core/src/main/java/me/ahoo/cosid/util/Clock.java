@@ -23,10 +23,11 @@ import javax.annotation.concurrent.ThreadSafe;
  * @author ahoo wang
  */
 @ThreadSafe
+@FunctionalInterface
 public interface Clock {
 
-    Clock CACHE = new CacheClock();
     Clock SYSTEM = new SystemClock();
+    Clock CACHE = new CacheClock(SYSTEM);
 
     long secondTime();
 
@@ -58,11 +59,13 @@ public interface Clock {
          * Tolerate a one-second time limit.
          */
         public static final long ONE_SECOND_PERIOD = Duration.ofSeconds(1).toNanos();
+        private final Clock clock;
         private final Thread thread;
         private volatile long lastTime;
 
-        public CacheClock() {
-            this.lastTime = getSystemSecondTime();
+        public CacheClock(Clock clock) {
+            this.clock = clock;
+            this.lastTime = clock.secondTime();
             this.thread = new Thread(this);
             this.thread.setName("CosId-CacheClock");
             this.thread.setDaemon(true);
@@ -77,7 +80,11 @@ public interface Clock {
         @Override
         public void run() {
             while (!thread.isInterrupted()) {
-                this.lastTime = getSystemSecondTime();
+                long currentTime = clock.secondTime();
+                // Avoid time going backwards
+                if (currentTime > lastTime) {
+                    this.lastTime = currentTime;
+                }
                 LockSupport.parkNanos(this, ONE_SECOND_PERIOD);
             }
         }

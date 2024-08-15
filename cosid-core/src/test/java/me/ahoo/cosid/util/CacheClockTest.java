@@ -13,12 +13,14 @@
 
 package me.ahoo.cosid.util;
 
+import static me.ahoo.cosid.util.Clock.CacheClock.ONE_SECOND_PERIOD;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 
 /**
@@ -44,5 +46,29 @@ class CacheClockTest {
         long diff = Math.abs(actual - expected);
         long tolerance = 1L;
         assertTrue(diff <= tolerance);
+    }
+
+    @Test
+    void secondTimeIfBackwards() {
+        Clock backwardsClock = new BackwardsClock();
+        Clock cacheClock = new Clock.CacheClock(backwardsClock);
+        long lastTime = cacheClock.secondTime();
+        for (int i = 0; i < 6; i++) {
+            LockSupport.parkNanos(this, ONE_SECOND_PERIOD);
+            long currentTime = cacheClock.secondTime();
+            assertTrue(currentTime >= lastTime);
+            lastTime = currentTime;
+        }
+    }
+
+    static class BackwardsClock implements Clock {
+        private final long[] timeline = new long[]{1, 2, 3, 4, 5};
+        private int index = 0;
+
+        @Override
+        public long secondTime() {
+            int idx = Math.floorMod(index++, timeline.length);
+            return timeline[idx];
+        }
     }
 }

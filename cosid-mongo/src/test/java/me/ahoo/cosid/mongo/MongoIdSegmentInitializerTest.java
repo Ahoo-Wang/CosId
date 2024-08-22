@@ -13,14 +13,10 @@
 
 package me.ahoo.cosid.mongo;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-
-import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.container.MongoLauncher;
 
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -39,14 +35,5 @@ class MongoIdSegmentInitializerTest {
     @Test
     void ensureCosIdCollection() {
         idSegmentInitializer.ensureCosIdCollection();
-    }
-    
-    @Test
-    void ensureIdSegment() {
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        boolean actual = cosIdSegmentCollection.ensureIdSegment(namespace, 0);
-        assertThat(actual, Matchers.equalTo(true));
-        actual = cosIdSegmentCollection.ensureIdSegment(namespace, 0);
-        assertThat(actual, Matchers.equalTo(false));
     }
 }

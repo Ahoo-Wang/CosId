@@ -33,7 +33,7 @@ class MongoIdSegmentDistributorTest extends IdSegmentDistributorSpec {
         idSegmentInitializer = new MongoIdSegmentInitializer(mongoDatabase);
         idSegmentInitializer.ensureCosIdCollection();
         distributorFactory =
-            new MongoIdSegmentDistributorFactory(mongoDatabase, true);
+            new MongoIdSegmentDistributorFactory(mongoDatabase);
     }
     
     @Override

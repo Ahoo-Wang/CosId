@@ -77,7 +77,7 @@ public class CosIdMongoSegmentAutoConfiguration {
                 segmentIdProperties.getDistributor().getMongo().getDatabase()
             );
             idSegmentInitializer.ensureCosIdCollection();
-            return new MongoIdSegmentDistributorFactory(mongoDatabase, true);
+            return new MongoIdSegmentDistributorFactory(mongoDatabase);
         }
     }
     
@@ -103,8 +103,7 @@ public class CosIdMongoSegmentAutoConfiguration {
                 segmentIdProperties.getDistributor().getMongo().getDatabase()
             );
             return new MongoReactiveIdSegmentDistributorFactory(
-                mongoDatabase,
-                true);
+                mongoDatabase);
         }
     }
 }

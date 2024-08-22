@@ -20,8 +20,15 @@ import com.mongodb.client.model.ReturnDocument;
 
 public interface Documents {
     String ID_FIELD = "_id";
-    
+
     FindOneAndUpdateOptions UPDATE_AFTER_OPTIONS = new FindOneAndUpdateOptions()
         .returnDocument(ReturnDocument.AFTER)
         .maxTime(BlockingAdapter.DEFAULT_TIME_OUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+
+    FindOneAndUpdateOptions UPDATE_UPSERT_AFTER_OPTIONS = new FindOneAndUpdateOptions()
+            .upsert(true)
+            .returnDocument(ReturnDocument.AFTER)
+            .maxTime(BlockingAdapter.DEFAULT_TIME_OUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+
+
 }

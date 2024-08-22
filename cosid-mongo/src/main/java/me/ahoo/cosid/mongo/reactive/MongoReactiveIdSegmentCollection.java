@@ -44,7 +44,7 @@ public class MongoReactiveIdSegmentCollection implements IdSegmentCollection {
         Publisher<Document> publisher = cosidCollection.findOneAndUpdate(
             Filters.eq(Documents.ID_FIELD, namespacedName),
             incrementAndGetUpdates(step),
-            Documents.UPDATE_AFTER_OPTIONS);
+            Documents.UPDATE_UPSERT_AFTER_OPTIONS);
         Document afterDoc = BlockingAdapter.block(publisher);
         
         assert afterDoc != null;

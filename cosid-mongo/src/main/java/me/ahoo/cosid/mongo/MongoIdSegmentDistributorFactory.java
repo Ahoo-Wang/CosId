@@ -28,20 +28,15 @@ import com.mongodb.client.MongoDatabase;
  */
 public class MongoIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     private final MongoDatabase mongoDatabase;
-    private final boolean enableAutoInitIdSegment;
-    
-    public MongoIdSegmentDistributorFactory(MongoDatabase mongoDatabase, boolean enableAutoInitIdSegment) {
+
+    public MongoIdSegmentDistributorFactory(MongoDatabase mongoDatabase) {
         this.mongoDatabase = mongoDatabase;
-        this.enableAutoInitIdSegment = enableAutoInitIdSegment;
     }
     
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         MongoIdSegmentCollection cosIdSegmentCollection = new MongoIdSegmentCollection(mongoDatabase.getCollection(COLLECTION_NAME));
-        if (enableAutoInitIdSegment) {
-            cosIdSegmentCollection.ensureIdSegment(definition.getNamespacedName(), definition.getOffset());
-        }
-        
+
         return new MongoIdSegmentDistributor(definition.getNamespace(),
             definition.getName(),
             definition.getStep(),

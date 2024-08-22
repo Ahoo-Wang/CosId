@@ -38,14 +38,15 @@ public class MongoIdSegmentCollection implements IdSegmentCollection {
         Document afterDoc = cosidCollection.findOneAndUpdate(
             Filters.eq(Documents.ID_FIELD, namespacedName),
             incrementAndGetUpdates(step),
-            Documents.UPDATE_AFTER_OPTIONS);
+            Documents.UPDATE_UPSERT_AFTER_OPTIONS);
         
         assert afterDoc != null;
         Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
         Long lastMaxId = afterDoc.getLong(IdSegmentOperates.LAST_MAX_ID_FIELD);
         return Objects.requireNonNull(lastMaxId);
     }
-    
+
+    @Deprecated
     @Override
     public boolean ensureIdSegment(String segmentName, long offset) {
         if (log.isInfoEnabled()) {

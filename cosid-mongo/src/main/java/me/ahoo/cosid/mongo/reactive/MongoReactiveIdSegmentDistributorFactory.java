@@ -25,19 +25,14 @@ import com.mongodb.reactivestreams.client.MongoDatabase;
 
 public class MongoReactiveIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     private final MongoDatabase mongoDatabase;
-    private final boolean enableAutoInitIdSegment;
-    
-    public MongoReactiveIdSegmentDistributorFactory(MongoDatabase mongoDatabase, boolean enableAutoInitIdSegment) {
+
+    public MongoReactiveIdSegmentDistributorFactory(MongoDatabase mongoDatabase) {
         this.mongoDatabase = mongoDatabase;
-        this.enableAutoInitIdSegment = enableAutoInitIdSegment;
     }
     
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         IdSegmentCollection idSegmentCollection = new MongoReactiveIdSegmentCollection(mongoDatabase.getCollection(COLLECTION_NAME));
-        if (enableAutoInitIdSegment) {
-            idSegmentCollection.ensureIdSegment(definition.getNamespacedName(), definition.getOffset());
-        }
         
         return new MongoIdSegmentDistributor(definition.getNamespace(),
             definition.getName(),

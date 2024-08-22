@@ -17,7 +17,4 @@ public interface IdSegmentCollection {
     String COLLECTION_NAME = "cosid";
     
     long incrementAndGet(String namespacedName, long step);
-    
-    boolean ensureIdSegment(String segmentName, long offset);
-    
 }

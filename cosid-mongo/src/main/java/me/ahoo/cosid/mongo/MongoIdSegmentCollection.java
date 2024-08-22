@@ -13,11 +13,9 @@
 
 package me.ahoo.cosid.mongo;
 
-import static me.ahoo.cosid.mongo.IdSegmentOperates.ensureIdSegmentDocument;
 import static me.ahoo.cosid.mongo.IdSegmentOperates.incrementAndGetUpdates;
 
 import com.google.common.base.Preconditions;
-import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import lombok.extern.slf4j.Slf4j;
@@ -44,23 +42,5 @@ public class MongoIdSegmentCollection implements IdSegmentCollection {
         Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
         Long lastMaxId = afterDoc.getLong(IdSegmentOperates.LAST_MAX_ID_FIELD);
         return Objects.requireNonNull(lastMaxId);
-    }
-
-    @Deprecated
-    @Override
-    public boolean ensureIdSegment(String segmentName, long offset) {
-        if (log.isInfoEnabled()) {
-            log.info("Ensure IdSegment:[{}]", segmentName);
-        }
-        try {
-            Document document = ensureIdSegmentDocument(segmentName, offset);
-            cosidCollection.insertOne(document);
-            return true;
-        } catch (MongoWriteException mongoWriteException) {
-            if (log.isInfoEnabled()) {
-                log.info("Ensure IdSegment:[{}] Failed", segmentName, mongoWriteException);
-            }
-            return false;
-        }
     }
 }

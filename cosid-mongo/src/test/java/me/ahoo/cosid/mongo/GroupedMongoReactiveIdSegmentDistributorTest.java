@@ -34,7 +34,7 @@ class GroupedMongoReactiveIdSegmentDistributorTest extends GroupedIdSegmentDistr
         idSegmentInitializer = new MongoReactiveIdSegmentInitializer(mongoDatabase);
         idSegmentInitializer.ensureCosIdCollection();
         distributorFactory =
-            new MongoReactiveIdSegmentDistributorFactory(mongoDatabase, true);
+            new MongoReactiveIdSegmentDistributorFactory(mongoDatabase);
     }
     
     @Override

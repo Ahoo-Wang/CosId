@@ -46,7 +46,7 @@ class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
         
         idSegmentInitializer.ensureCosIdCollection();
         distributorFactory =
-            new MongoReactiveIdSegmentDistributorFactory(mongoDatabase, true);
+            new MongoReactiveIdSegmentDistributorFactory(mongoDatabase);
     }
     
     @Override

@@ -56,8 +56,8 @@ public class StringSnowflakeId extends StringIdGeneratorDecorator implements Sno
     }
 
     @Override
-    public int getMaxMachine() {
-        return snowflakeId.getMaxMachine();
+    public int getMaxMachineId() {
+        return snowflakeId.getMaxMachineId();
     }
 
     @Override

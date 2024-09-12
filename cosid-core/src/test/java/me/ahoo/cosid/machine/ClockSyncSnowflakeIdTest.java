@@ -67,8 +67,8 @@ class ClockSyncSnowflakeIdTest {
     }
     
     @Test
-    void getMaxMachine() {
-        assertThat(clockSyncSnowflakeId.getMaxMachine(), equalTo(1023));
+    void getMaxMachineId() {
+        assertThat(clockSyncSnowflakeId.getMaxMachineId(), equalTo(1023));
     }
     
     @Test

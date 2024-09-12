@@ -24,16 +24,16 @@ import com.google.common.base.Strings;
  * @author ahoo wang
  */
 public abstract class AbstractSnowflakeId implements SnowflakeId {
-    
+
     protected final long epoch;
     protected final int timestampBit;
     protected final int machineBit;
     protected final int sequenceBit;
-    
+
     protected final long maxTimestamp;
     protected final long maxSequence;
-    protected final int maxMachine;
-    
+    protected final int maxMachineId;
+
     protected final long machineLeft;
     protected final long timestampLeft;
     /**
@@ -43,7 +43,7 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
     private final long sequenceResetThreshold;
     protected long sequence = 0L;
     protected long lastTimestamp = -1L;
-    
+
     public AbstractSnowflakeId(long epoch,
                                int timestampBit,
                                int machineBit,
@@ -59,16 +59,16 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         this.sequenceBit = sequenceBit;
         this.maxTimestamp = ~(-1L << timestampBit);
         this.maxSequence = ~(-1L << sequenceBit);
-        this.maxMachine = ~(-1 << machineBit);
+        this.maxMachineId = ~(-1 << machineBit);
         this.machineLeft = sequenceBit;
         this.timestampLeft = this.machineLeft + machineBit;
-        if (machineId > this.maxMachine || machineId < 0) {
-            throw new IllegalArgumentException(Strings.lenientFormat("machineId can't be greater than maxMachine[%s] or less than 0 .", maxMachine));
+        if (machineId > this.maxMachineId || machineId < 0) {
+            throw new IllegalArgumentException(Strings.lenientFormat("machineId[%s] can't be greater than maxMachineId[%s] or less than 0 .", machineId, maxMachineId));
         }
         this.machineId = machineId;
         this.sequenceResetThreshold = sequenceResetThreshold;
     }
-    
+
     protected long nextTime() {
         long time = getCurrentTime();
         while (time <= lastTimestamp) {
@@ -76,34 +76,34 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         }
         return time;
     }
-    
+
     /**
      * get current timestamp.
      *
      * @return current timestamp
      */
     protected abstract long getCurrentTime();
-    
+
     @Override
     public synchronized long generate() {
         long currentTimestamp = getCurrentTime();
         if (currentTimestamp < lastTimestamp) {
             throw new ClockBackwardsException(lastTimestamp, currentTimestamp);
         }
-        
+
         //region Reset sequence based on sequence reset threshold,Optimize the problem of uneven sharding.
-        
+
         if (currentTimestamp > lastTimestamp
-            && sequence >= sequenceResetThreshold) {
+                && sequence >= sequenceResetThreshold) {
             sequence = 0L;
         }
-        
+
         sequence = (sequence + 1) & maxSequence;
-        
+
         if (sequence == 0L) {
             currentTimestamp = nextTime();
         }
-        
+
         //endregion
         lastTimestamp = currentTimestamp;
         long diffTimestamp = (currentTimestamp - epoch);
@@ -111,53 +111,53 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
             throw new TimestampOverflowException(epoch, diffTimestamp, maxTimestamp);
         }
         return diffTimestamp << timestampLeft
-            | machineId << machineLeft
-            | sequence;
+                | machineId << machineLeft
+                | sequence;
     }
-    
+
     @Override
     public long getEpoch() {
         return epoch;
     }
-    
+
     @Override
     public int getTimestampBit() {
         return timestampBit;
     }
-    
+
     @Override
     public int getMachineBit() {
         return machineBit;
     }
-    
+
     @Override
     public int getSequenceBit() {
         return sequenceBit;
     }
-    
+
     @Override
     public long getMaxTimestamp() {
         return maxTimestamp;
     }
-    
+
     @Override
-    public int getMaxMachine() {
-        return maxMachine;
+    public int getMaxMachineId() {
+        return maxMachineId;
     }
-    
+
     @Override
     public long getMaxSequence() {
         return maxSequence;
     }
-    
+
     @Override
     public long getLastTimestamp() {
         return lastTimestamp;
     }
-    
+
     @Override
     public int getMachineId() {
         return (int) machineId;
     }
-    
+
 }

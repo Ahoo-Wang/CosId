@@ -47,8 +47,8 @@ class StringSnowflakeIdTest {
     }
     
     @Test
-    void getMaxMachine() {
-        Assertions.assertEquals(delegate.getMaxMachine(), snowflakeId.getMaxMachine());
+    void getMaxMachineId() {
+        Assertions.assertEquals(delegate.getMaxMachineId(), snowflakeId.getMaxMachineId());
     }
     
     @Test

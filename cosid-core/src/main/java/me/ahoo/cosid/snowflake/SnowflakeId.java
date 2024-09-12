@@ -47,7 +47,7 @@ public interface SnowflakeId extends IdGenerator {
 
     long getMaxTimestamp();
 
-    int getMaxMachine();
+    int getMaxMachineId();
 
     long getMaxSequence();
 

@@ -97,8 +97,8 @@ public class ClockSyncSnowflakeId implements IdGeneratorDecorator, SnowflakeId {
     }
 
     @Override
-    public int getMaxMachine() {
-        return actual.getMaxMachine();
+    public int getMaxMachineId() {
+        return actual.getMaxMachineId();
     }
 
     @Override

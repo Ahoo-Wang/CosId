@@ -32,7 +32,7 @@ dependencies {
     api(platform(libs.cosidBom))
     implementation("me.ahoo.cosid:cosid-jdbc")
     implementation("me.ahoo.cosid:cosid-test")
-    testImplementation("com.zaxxer:HikariCP:6.0.0")
+    testImplementation("com.zaxxer:HikariCP:6.1.0")
     testImplementation("mysql:mysql-connector-java:8.0.33")
     /**
      * WARNING：中央仓库没有找到美团官方提供的Jar!!!

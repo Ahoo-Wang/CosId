@@ -37,26 +37,26 @@ import java.nio.file.Paths;
 public class LocalMachineStateStorage implements MachineStateStorage {
     public static final String DEFAULT_STATE_LOCATION_PATH = Paths.get(System.getProperty("user.home"), ".cosid-machine-state").toString();
     public final String stateLocation;
-    
+
     public LocalMachineStateStorage(String stateLocation) {
         this.stateLocation = stateLocation;
     }
-    
+
     public LocalMachineStateStorage() {
         this(DEFAULT_STATE_LOCATION_PATH);
     }
-    
+
     @Nonnull
     @Override
     public MachineState get(String namespace, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
-        
+
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isDebugEnabled()) {
             log.debug("Get from stateLocation : [{}].", stateFile.getAbsolutePath());
         }
-        
+
         if (!stateFile.exists()) {
             if (log.isInfoEnabled()) {
                 log.info("Get from stateLocation : [{}] not found.", stateFile.getAbsolutePath());
@@ -80,29 +80,33 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         }
         return MachineState.of(stateString);
     }
-    
+
     private File getStateFile(String namespace, InstanceId instanceId) {
         File stateDirectory = new File(stateLocation);
         if (!stateDirectory.exists()) {
             boolean ignored = stateDirectory.mkdirs();
         }
         String fileName = namespace + "__" + instanceId.getInstanceId();
-        String encodedName = BaseEncoding.base64().encode(fileName.getBytes(Charsets.UTF_8));
+        String encodedName = encode(fileName);
         String statePath = Paths.get(stateLocation, encodedName).toString();
         return new File(statePath);
     }
-    
+
+    private String encode(String text) {
+        return BaseEncoding.base64().encode(text.getBytes(Charsets.UTF_8));
+    }
+
     @Override
     public void set(String namespace, int machineId, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkArgument(machineId >= 0, "machineId:[%s] must be greater than or equal to 0!", machineId);
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
-        
+
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isDebugEnabled()) {
             log.debug("Set machineId:[{}] to stateLocation : [{}].", machineId, stateFile.getAbsolutePath());
         }
-        
+
         String stateString = MachineState.of(machineId, System.currentTimeMillis()).toStateString();
         if (!stateFile.exists()) {
             try {
@@ -111,7 +115,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
                 throw new CosIdException(e);
             }
         }
-        
+
         try (FileOutputStream fileOutputStream = new FileOutputStream(stateFile, false)) {
             fileOutputStream.write(stateString.getBytes(Charsets.UTF_8));
             fileOutputStream.flush();
@@ -119,12 +123,12 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             throw new CosIdException(e.getMessage(), e);
         }
     }
-    
+
     @Override
     public void remove(String namespace, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
-        
+
         File stateFile = getStateFile(namespace, instanceId);
         if (log.isInfoEnabled()) {
             log.info("Remove stateLocation : [{}].", stateFile.getAbsolutePath());
@@ -136,11 +140,11 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             }
         }
     }
-    
+
     @Override
     public void clear(String namespace) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
-        
+
         if (log.isInfoEnabled()) {
             log.info("Clear namespace : [{}].", namespace);
         }
@@ -155,28 +159,29 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             boolean ignored = stateFile.delete();
         }
     }
-    
+
     private File[] getStateFilesOf(String namespace) {
         File stateDirectory = new File(stateLocation);
-        
+
         if (!stateDirectory.exists()) {
             return new File[0];
         }
-        return stateDirectory.listFiles(((dir, name) -> name.startsWith(namespace)));
+        String encodedNamespace = encode(namespace);
+        return stateDirectory.listFiles(((dir, name) -> name.startsWith(encodedNamespace)));
     }
-    
+
     @Override
     public int size(String namespace) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
-        
+
         return getStateFilesOf(namespace).length;
     }
-    
+
     @Override
     public boolean exists(String namespace, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
-        
+
         File stateFile = getStateFile(namespace, instanceId);
         return stateFile.exists();
     }

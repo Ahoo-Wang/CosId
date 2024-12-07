@@ -50,7 +50,6 @@ public class Guard implements TestSpec {
         InstanceId instanceId = mockInstance(port, false);
         int machineId = distributor.distribute(namespace, machineBit, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
         assertThat(machineId, equalTo(0));
-        Thread.sleep(50);
         distributor.guard(namespace, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
     }
 }

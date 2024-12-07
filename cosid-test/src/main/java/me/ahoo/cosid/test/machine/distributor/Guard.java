@@ -22,6 +22,8 @@ import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.TestSpec;
 
+import lombok.SneakyThrows;
+
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
 
@@ -33,12 +35,13 @@ import java.util.function.Supplier;
 public class Guard implements TestSpec {
     private final Supplier<MachineIdDistributor> implFactory;
     private final int machineBit;
-    
+
     public Guard(Supplier<MachineIdDistributor> implFactory, int machineBit) {
         this.implFactory = implFactory;
         this.machineBit = machineBit;
     }
-    
+
+    @SneakyThrows
     @Override
     public void verify() {
         MachineIdDistributor distributor = implFactory.get();
@@ -47,6 +50,7 @@ public class Guard implements TestSpec {
         InstanceId instanceId = mockInstance(port, false);
         int machineId = distributor.distribute(namespace, machineBit, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
         assertThat(machineId, equalTo(0));
+        Thread.sleep(50);
         distributor.guard(namespace, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
     }
 }

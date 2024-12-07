@@ -118,11 +118,5 @@ public class RadixCosIdGenerator implements CosIdGenerator {
         lastTimestamp = currentTimestamp;
         return new CosIdState(lastTimestamp, machineId, sequence);
     }
-    
-    @Nonnull
-    @Override
-    public String generateAsString() {
-        CosIdState state = generateAsState();
-        return stateParser.asString(state);
-    }
+
 }

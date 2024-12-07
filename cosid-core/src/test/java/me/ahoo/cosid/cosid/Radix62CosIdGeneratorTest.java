@@ -27,7 +27,7 @@ import java.util.concurrent.locks.LockSupport;
 
 class Radix62CosIdGeneratorTest {
     private final Radix62CosIdGenerator radix62CosIdGenerator = new Radix62CosIdGenerator(1);
-    
+
     @Test
     void generateAsString() {
         String id1 = radix62CosIdGenerator.generateAsString();
@@ -37,21 +37,21 @@ class Radix62CosIdGeneratorTest {
         assertThat(id2.length(), equalTo(id1.length()));
         assertThat(radix62CosIdGenerator.getLastTimestamp(), greaterThan(0L));
     }
-    
+
     @Test
     void generateAsState() {
         CosIdState state1 = radix62CosIdGenerator.generateAsState();
         CosIdState state2 = radix62CosIdGenerator.generateAsState();
         assertThat(state2, greaterThan(state1));
     }
-    
+
     @Test
     void customizeOverflowMachineId() {
         Assertions.assertThrows(IllegalArgumentException.class, () -> {
             new Radix62CosIdGenerator(~(-1 << DEFAULT_MACHINE_BIT) + 1);
         });
     }
-    
+
     @Test
     void generateSlow() {
         Radix62CosIdGenerator cosIdGenerator = new Radix62CosIdGenerator(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, 1, 2);
@@ -62,14 +62,24 @@ class Radix62CosIdGeneratorTest {
         CosIdState state3 = cosIdGenerator.generateAsState();
         assertThat(state3, greaterThan(state2));
         assertThat(state2, greaterThan(state1));
-        
+
         assertThat(state1.getSequence(), equalTo(1));
         assertThat(state2.getSequence(), equalTo(2));
         assertThat(state1.getSequence(), equalTo(1));
     }
-    
+
     @Test
     public void generateWhenConcurrentString() {
         new ConcurrentGenerateStingSpec(new Radix62CosIdGenerator(1)).verify();
+    }
+
+    @Test
+    public void idConvert() {
+        Assertions.assertThrows(UnsupportedOperationException.class, radix62CosIdGenerator::idConverter);
+    }
+
+    @Test
+    public void generate() {
+        Assertions.assertThrows(UnsupportedOperationException.class, radix62CosIdGenerator::generate);
     }
 }

@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
-import org.apache.logging.log4j.util.Strings;
+import org.springframework.util.StringUtils;
 
 public final class Namespaces {
     private Namespaces() {
@@ -21,7 +21,7 @@ public final class Namespaces {
     
     public static String firstNotBlank(String... namespaces) {
         for (String namespace : namespaces) {
-            if (Strings.isNotBlank(namespace)) {
+            if (StringUtils.hasText(namespace)) {
                 return namespace;
             }
         }

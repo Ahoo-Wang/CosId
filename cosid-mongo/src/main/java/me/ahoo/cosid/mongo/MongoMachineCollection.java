@@ -123,7 +123,7 @@ public class MongoMachineCollection implements MachineCollection {
             revertFilter(namespace, instanceId, machineState),
             revertUpdate(instanceId, machineState)
         );
-        if (updateResult.getModifiedCount() == 0) {
+        if (updateResult.getMatchedCount() == 0) {
             throw new MachineIdLostException(namespace, instanceId, machineState);
         }
     }
@@ -138,7 +138,7 @@ public class MongoMachineCollection implements MachineCollection {
             guardFilter(namespace, instanceId, machineState),
             guardUpdate(machineState.getLastTimeStamp())
         );
-        if (updateResult.getModifiedCount() == 0) {
+        if (updateResult.getMatchedCount() == 0) {
             throw new MachineIdLostException(namespace, instanceId, machineState);
         }
     }

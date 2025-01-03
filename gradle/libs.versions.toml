@@ -11,7 +11,7 @@ junitPioneer = "2.2.0"
 axon = "4.10.4"
 flowable = "7.1.0"
 activiti = "7.0.0.SR1"
-springDoc = "2.7.0"
+springDoc = "2.8.0"
 hamcrest = "3.0"
 jmh = "1.37"
 # plugins

@@ -12,18 +12,18 @@
  */
 
 dependencies {
-    api(platform(libs.springBootDependencies))
-    api(platform(libs.springCloudDependencies))
-    api(platform(libs.okhttpBom))
-    api(platform(libs.testcontainersBom))
+    api(platform(libs.spring.boot.dependencies))
+    api(platform(libs.spring.cloud.dependencies))
+    api(platform(libs.okhttp.bom))
+    api(platform(libs.testcontainers.bom))
     constraints {
         api(libs.guava)
         api(libs.mybatis)
-        api(libs.mybatisSpringBoot)
-        api(libs.springDocStarterWebfluxUi)
-        api(libs.junitPioneer)
+        api(libs.mybatis.spring.boot.starter)
+        api(libs.springdoc.openapi.starter.webflux.ui)
+        api(libs.junit.pioneer)
         api(libs.hamcrest)
         api(libs.jmhCore)
-        api(libs.jmhGeneratorAnnprocess)
+        api(libs.jmh.generator.annprocess)
     }
 }

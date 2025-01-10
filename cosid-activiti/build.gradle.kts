@@ -1,5 +1,5 @@
 dependencies {
-    implementation(libs.activitiEngine)
+    implementation(libs.activiti.engine)
     api(project(":cosid-core"))
     testImplementation(project(":cosid-test"))
 

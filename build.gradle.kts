@@ -15,10 +15,10 @@ import org.gradle.testretry.TestRetryPlugin
  */
 
 plugins {
-    alias(libs.plugins.testRetry)
-    alias(libs.plugins.publishPlugin)
-    alias(libs.plugins.jmhPlugin)
-    alias(libs.plugins.spotbugsPlugin)
+    alias(libs.plugins.test.retry)
+    alias(libs.plugins.publish.plugin)
+    alias(libs.plugins.jmh)
+    alias(libs.plugins.spotbugs)
     `java-library`
     jacoco
 }
@@ -181,6 +181,14 @@ configure(publishProjects) {
                 credentials {
                     username = System.getenv("GITHUB_ACTOR")
                     password = System.getenv("GITHUB_TOKEN")
+                }
+            }
+            maven {
+                name = "LinYiPackages"
+                url = uri(project.properties["linyiPackageReleaseUrl"].toString())
+                credentials {
+                    username = project.properties["linyiPackageUsername"]?.toString()
+                    password = project.properties["linyiPackagePwd"]?.toString()
                 }
             }
         }

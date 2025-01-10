@@ -1,47 +1,47 @@
 [versions]
 # libraries
-springBoot = "3.4.1"
-springCloud = "2024.0.0"
+spring-boot = "3.4.1"
+spring-cloud = "2024.0.0"
 okhttp = "4.12.0"
 testcontainers = "1.20.4"
 guava = "33.4.0-jre"
 mybatis = "3.5.19"
-mybatisSpringBoot = "3.0.4"
-junitPioneer = "2.2.0"
+mybatis-spring-boot = "3.0.4"
+junit-pioneer = "2.2.0"
 axon = "4.10.4"
 flowable = "7.1.0"
 activiti = "7.0.0.SR1"
-springDoc = "2.8.1"
+springdoc = "2.8.1"
 hamcrest = "3.0"
 jmh = "1.37"
 # plugins
-testRetry= "1.6.0"
-publishPlugin = "2.0.0"
-jmhPlugin = "0.7.2"
+test-retry = "1.6.0"
+publish-plugin = "2.0.0"
+jmh-plugin = "0.7.2"
 spotbugs = "6.0.27"
 
 [libraries]
-springBootDependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "springBoot" }
-springCloudDependencies = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "springCloud" }
-okhttpBom = { module = "com.squareup.okhttp3:okhttp-bom", version.ref = "okhttp" }
-axonBom = { module = "org.axonframework:axon-bom", version.ref = "axon" }
-testcontainersBom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+spring-cloud-dependencies = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "spring-cloud" }
+okhttp-bom = { module = "com.squareup.okhttp3:okhttp-bom", version.ref = "okhttp" }
+axon-bom = { module = "org.axonframework:axon-bom", version.ref = "axon" }
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 mybatis = { module = "org.mybatis:mybatis", version.ref = "mybatis" }
-mybatisSpringBoot = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatisSpringBoot" }
-springDocStarterWebfluxUi = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springDoc" }
-activitiEngine = { module = "org.activiti:activiti-engine", version.ref = "activiti" }
-activitiSpringBootStarter = { module = "org.activiti:activiti-spring-boot-starter", version.ref = "activiti" }
-flowableEngineCommon = { module = "org.flowable:flowable-engine-common", version.ref = "flowable" }
-flowableSpring = { module = "org.flowable:flowable-spring", version.ref = "flowable" }
-flowableSpringBootAutoconfigure = { module = "org.flowable:flowable-spring-boot-autoconfigure", version.ref = "flowable" }
-junitPioneer = { module = "org.junit-pioneer:junit-pioneer", version.ref = "junitPioneer" }
+mybatis-spring-boot-starter = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatis-spring-boot" }
+springdoc-openapi-starter-webflux-ui = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springdoc" }
+activiti-engine = { module = "org.activiti:activiti-engine", version.ref = "activiti" }
+activiti-spring-boot-starter = { module = "org.activiti:activiti-spring-boot-starter", version.ref = "activiti" }
+flowable-engine-common = { module = "org.flowable:flowable-engine-common", version.ref = "flowable" }
+flowable-spring = { module = "org.flowable:flowable-spring", version.ref = "flowable" }
+flowable-spring-boot-autoconfigure = { module = "org.flowable:flowable-spring-boot-autoconfigure", version.ref = "flowable" }
+junit-pioneer = { module = "org.junit-pioneer:junit-pioneer", version.ref = "junit-pioneer" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
 jmhCore = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
-jmhGeneratorAnnprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
+jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 [plugins]
-testRetry = { id = "org.gradle.test-retry", version.ref = "testRetry" }
-publishPlugin = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "publishPlugin" }
-jmhPlugin = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
-spotbugsPlugin = { id = "com.github.spotbugs", version.ref = "spotbugs" }
+test-retry = { id = "org.gradle.test-retry", version.ref = "test-retry" }
+publish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "publish-plugin" }
+jmh = { id = "me.champeau.jmh", version.ref = "jmh-plugin" }
+spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs" }
 

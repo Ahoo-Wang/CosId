@@ -16,7 +16,7 @@ import org.gradle.testretry.TestRetryPlugin
 
 plugins {
     alias(libs.plugins.test.retry)
-    alias(libs.plugins.publish.plugin)
+    alias(libs.plugins.publish)
     alias(libs.plugins.jmh)
     alias(libs.plugins.spotbugs)
     `java-library`

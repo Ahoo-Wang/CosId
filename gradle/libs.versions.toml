@@ -41,7 +41,7 @@ jmhCore = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 [plugins]
 test-retry = { id = "org.gradle.test-retry", version.ref = "test-retry" }
-publish-plugin = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "publish-plugin" }
+publish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "publish-plugin" }
 jmh = { id = "me.champeau.jmh", version.ref = "jmh-plugin" }
 spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs" }
 

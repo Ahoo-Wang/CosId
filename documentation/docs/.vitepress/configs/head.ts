@@ -22,7 +22,7 @@ export const head: HeadConfig[] = [
     }],
     ['meta', {
         name: 'description',
-        content: 'CosId | 通用、灵活、高性能的分布式ID生成器'
+        content: 'CosId | 通用、灵活、高性能的分布式ID生成器 | Universal, flexible, high-performance distributed ID generator.'
     }],
     ['meta', {'http-equiv': 'cache-control', content: 'no-cache, no-store, must-revalidate'}],
     ['meta', {'http-equiv': 'pragma', content: 'no-cache'}],

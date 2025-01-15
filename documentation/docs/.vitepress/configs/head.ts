@@ -18,7 +18,11 @@ export const head: HeadConfig[] = [
     ['link', {rel: 'icon', href: `${SITE_BASE}favicon.ico`}],
     ['meta', {
         name: 'keywords',
-        content: '通用, 灵活, 高性能的分布式ID生成器'
+        content: 'CosId,分布式ID生成器,ID生成器,分布式ID,唯一ID,自增ID,ID,雪花算法,Snowflake,SnowflakeId,UUID,Sequence,Leaf,UidGenerator'
+    }],
+    ['meta', {
+        name: 'description',
+        content: 'CosId | 通用、灵活、高性能的分布式ID生成器'
     }],
     ['meta', {'http-equiv': 'cache-control', content: 'no-cache, no-store, must-revalidate'}],
     ['meta', {'http-equiv': 'pragma', content: 'no-cache'}],

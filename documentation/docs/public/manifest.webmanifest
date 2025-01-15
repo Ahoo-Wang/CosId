@@ -1,7 +1,7 @@
 {
   "name": "CosId",
   "short_name": "CosId",
-  "description": "领域模型即服务 | 通用、灵活、高性能的分布式ID生成器",
+  "description": "CosId | 通用、灵活、高性能的分布式ID生成器",
   "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#fff",

@@ -48,10 +48,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: yarn
 
       - name: Build VitePress site
         working-directory: documentation
-        run: yarn add -D vitepress && yarn run docs:build
+        run: yarn run docs:build
 
       - name: Deploy to gh-pages
         uses: crazy-max/ghaction-github-pages@v4
@@ -62,24 +63,24 @@ jobs:
           build_dir: documentation/docs/.vitepress/dist/
           fqdn: cosid.ahoo.me
 
-      - name: Build VitePress site with SITE_BASE
-        working-directory: documentation
-        env:
-          SITE_BASE: /cosid/
-        run: yarn add -D vitepress && yarn run docs:build
-
-      - name: Deploy to gh-pages-with-site-base
-        uses: crazy-max/ghaction-github-pages@v4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          target_branch: gh-pages-with-site-base
-          build_dir: documentation/docs/.vitepress/dist/
-
-      - name: Sync to Gitee
-        uses: wearerequired/git-mirror-action@master
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        with:
-          source-repo: "git@github.com:Ahoo-Wang/CosId.git"
-          destination-repo: "git@gitee.com:AhooWang/CosId.git"
+#      - name: Build VitePress site with SITE_BASE
+#        working-directory: documentation
+#        env:
+#          SITE_BASE: /cosid/
+#        run: yarn run docs:build
+#
+#      - name: Deploy to gh-pages-with-site-base
+#        uses: crazy-max/ghaction-github-pages@v4
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          target_branch: gh-pages-with-site-base
+#          build_dir: documentation/docs/.vitepress/dist/
+#
+#      - name: Sync to Gitee
+#        uses: wearerequired/git-mirror-action@master
+#        env:
+#          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+#        with:
+#          source-repo: "git@github.com:Ahoo-Wang/CosId.git"
+#          destination-repo: "git@gitee.com:AhooWang/CosId.git"

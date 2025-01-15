@@ -46,9 +46,9 @@ jobs:
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
-        working-directory: documentation
         with:
           node-version: 18
+          cache-dependency-path: documentation/yarn.lock
           cache: yarn
 
       - name: Build VitePress site

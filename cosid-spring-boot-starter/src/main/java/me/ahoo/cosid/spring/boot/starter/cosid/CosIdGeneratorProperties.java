@@ -20,6 +20,8 @@ import me.ahoo.cosid.cosid.RadixCosIdGenerator;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.ZoneId;
+
 @ConfigurationProperties(prefix = CosIdGeneratorProperties.PREFIX)
 public class CosIdGeneratorProperties {
     public static final String PREFIX = CosId.COSID_PREFIX + "generator";
@@ -30,65 +32,84 @@ public class CosIdGeneratorProperties {
     private int timestampBit = RadixCosIdGenerator.DEFAULT_TIMESTAMP_BIT;
     private int sequenceBit = RadixCosIdGenerator.DEFAULT_SEQUENCE_BIT;
     private int sequenceResetThreshold = RadixCosIdGenerator.DEFAULT_SEQUENCE_RESET_THRESHOLD;
-    
+    private ZoneId zoneId = ZoneId.systemDefault();
+    private boolean padStart = true;
+
     public boolean isEnabled() {
         return enabled;
     }
-    
+
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
-    
+
     public String getNamespace() {
         return namespace;
     }
-    
+
     public void setNamespace(String namespace) {
         this.namespace = namespace;
     }
-    
+
     public int getMachineBit() {
         return machineBit;
     }
-    
+
     public void setMachineBit(int machineBit) {
         this.machineBit = machineBit;
     }
-    
+
     public int getTimestampBit() {
         return timestampBit;
     }
-    
+
     public void setTimestampBit(int timestampBit) {
         this.timestampBit = timestampBit;
     }
-    
+
     public int getSequenceBit() {
         return sequenceBit;
     }
-    
+
     public void setSequenceBit(int sequenceBit) {
         this.sequenceBit = sequenceBit;
     }
-    
+
     public int getSequenceResetThreshold() {
         return sequenceResetThreshold;
     }
-    
+
     public void setSequenceResetThreshold(int sequenceResetThreshold) {
         this.sequenceResetThreshold = sequenceResetThreshold;
     }
-    
+
+    public ZoneId getZoneId() {
+        return zoneId;
+    }
+
+    public void setZoneId(ZoneId zoneId) {
+        this.zoneId = zoneId;
+    }
+
+    public boolean isPadStart() {
+        return padStart;
+    }
+
+    public void setPadStart(boolean padStart) {
+        this.padStart = padStart;
+    }
+
     public Type getType() {
         return type;
     }
-    
+
     public void setType(Type type) {
         this.type = type;
     }
-    
+
     public enum Type {
         RADIX62,
-        RADIX36
+        RADIX36,
+        FRIENDLY
     }
 }

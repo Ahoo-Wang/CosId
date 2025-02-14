@@ -13,28 +13,40 @@
 
 package me.ahoo.cosid.cosid;
 
-import static me.ahoo.cosid.cosid.Radix36CosIdGenerator.DEFAULT_MACHINE_BIT;
-import static me.ahoo.cosid.cosid.Radix36CosIdGenerator.DEFAULT_SEQUENCE_BIT;
-import static me.ahoo.cosid.cosid.Radix36CosIdGenerator.DEFAULT_TIMESTAMP_BIT;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-
 import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
-
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.concurrent.locks.LockSupport;
 
-class Radix36CosIdGeneratorTest {
-    private final Radix36CosIdGenerator cosIdGenerator = new Radix36CosIdGenerator(1);
+import static me.ahoo.cosid.cosid.RadixCosIdGenerator.DEFAULT_MACHINE_BIT;
+import static me.ahoo.cosid.cosid.RadixCosIdGenerator.DEFAULT_SEQUENCE_BIT;
+import static me.ahoo.cosid.cosid.RadixCosIdGenerator.DEFAULT_TIMESTAMP_BIT;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+
+class FriendlyCosIdGeneratorTest {
+    private final FriendlyCosIdGenerator cosIdGenerator = new FriendlyCosIdGenerator(1, ZoneId.systemDefault(), true);
 
     @Test
     void generateAsString() {
         String id1 = cosIdGenerator.generateAsString();
         String id2 = cosIdGenerator.generateAsString();
-        assertThat(id1.length(), equalTo(17));
+        assertThat(id1.length(), equalTo(31));
+        assertThat(id2, greaterThan(id1));
+        assertThat(id2.length(), equalTo(id1.length()));
+        assertThat(cosIdGenerator.getLastTimestamp(), greaterThan(0L));
+    }
+
+    @Test
+    void generateAsStringWhenPadStartFalse() {
+        FriendlyCosIdGenerator cosIdGenerator = new FriendlyCosIdGenerator(1, ZoneId.systemDefault(), false);
+        String id1 = cosIdGenerator.generateAsString();
+        String id2 = cosIdGenerator.generateAsString();
+        assertThat(id1.length(), equalTo(21));
         assertThat(id2, greaterThan(id1));
         assertThat(id2.length(), equalTo(id1.length()));
         assertThat(cosIdGenerator.getLastTimestamp(), greaterThan(0L));
@@ -64,7 +76,7 @@ class Radix36CosIdGeneratorTest {
 
     @Test
     void generateSlow() {
-        Radix62CosIdGenerator cosIdGenerator = new Radix62CosIdGenerator(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, 1, 2);
+        FriendlyCosIdGenerator cosIdGenerator = new FriendlyCosIdGenerator(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, 1, 2, ZoneId.systemDefault(), true);
         CosIdState state1 = cosIdGenerator.generateAsState();
         LockSupport.parkNanos(Duration.ofMillis(1).toNanos());
         CosIdState state2 = cosIdGenerator.generateAsState();
@@ -80,6 +92,6 @@ class Radix36CosIdGeneratorTest {
 
     @Test
     public void generateWhenConcurrentString() {
-        new ConcurrentGenerateStingSpec(new Radix36CosIdGenerator(1)).verify();
+        new ConcurrentGenerateStingSpec(new FriendlyCosIdGenerator(1, ZoneId.systemDefault(), true)).verify();
     }
 }

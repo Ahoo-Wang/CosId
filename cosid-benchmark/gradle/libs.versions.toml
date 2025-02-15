@@ -1,5 +1,5 @@
 [versions]
-cosid = "2.10.3"
+cosid = "2.11.0"
 jmh = "1.37"
 junit="5.11.4"
 hikariCP = "6.2.1"

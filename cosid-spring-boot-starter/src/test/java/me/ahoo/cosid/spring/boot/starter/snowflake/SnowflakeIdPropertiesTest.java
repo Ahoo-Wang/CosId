@@ -119,19 +119,6 @@ class SnowflakeIdPropertiesTest {
         }
         
         @Test
-        public void isFriendly() {
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            Assertions.assertTrue(idDefinition.isFriendly());
-        }
-        
-        @Test
-        public void setFriendly() {
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            idDefinition.setFriendly(false);
-            Assertions.assertFalse(idDefinition.isFriendly());
-        }
-        
-        @Test
         public void getTimestampUnit() {
             SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
             Assertions.assertEquals(SnowflakeIdProperties.IdDefinition.TimestampUnit.MILLISECOND, idDefinition.getTimestampUnit());

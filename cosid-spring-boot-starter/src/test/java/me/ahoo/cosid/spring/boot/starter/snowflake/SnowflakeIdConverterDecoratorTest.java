@@ -32,7 +32,7 @@ class SnowflakeIdConverterDecoratorTest {
         IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
         idConverterDefinition.setType(IdConverterDefinition.Type.SNOWFLAKE_FRIENDLY);
         SnowflakeId snowflakeId = new MillisecondSnowflakeId(1);
-        SnowflakeId newIdGen = new SnowflakeIdConverterDecorator(snowflakeId, idConverterDefinition, ZoneId.systemDefault(), false).decorate();
+        SnowflakeId newIdGen = new SnowflakeIdConverterDecorator(snowflakeId, idConverterDefinition, ZoneId.systemDefault()).decorate();
         assertThat(newIdGen.idConverter(), instanceOf(SnowflakeFriendlyIdConverter.class));
     }
 }

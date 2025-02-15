@@ -33,7 +33,7 @@ public class DefaultSnowflakeFriendlyId extends StringSnowflakeId implements Sno
     }
 
     public DefaultSnowflakeFriendlyId(SnowflakeId actual, ZoneId zoneId) {
-        this(actual, SnowflakeIdStateParser.of(actual, zoneId));
+        this(actual, SnowflakeIdStateParser.of(actual, zoneId, false));
     }
 
     public DefaultSnowflakeFriendlyId(SnowflakeId actual, SnowflakeIdStateParser snowflakeIdStateParser) {

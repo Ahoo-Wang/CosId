@@ -37,7 +37,7 @@ import java.util.List;
 
 public class FriendlyIdStateParser implements CosIdIdStateParser {
 
-    public static final int RADIX = 10;
+    public static final int DECIMAL_RADIX = 10;
     private final ZoneId zoneId;
     private final boolean padStart;
 
@@ -57,8 +57,8 @@ public class FriendlyIdStateParser implements CosIdIdStateParser {
     public FriendlyIdStateParser(ZoneId zoneId, boolean padStart, int machineBit, int sequenceBit) {
         this.zoneId = zoneId;
         this.padStart = padStart;
-        this.machineCharSize = RadixIdConverter.maxCharSize(RADIX, machineBit);
-        this.sequenceCharSize = RadixIdConverter.maxCharSize(RADIX, sequenceBit);
+        this.machineCharSize = RadixIdConverter.maxCharSize(DECIMAL_RADIX, machineBit);
+        this.sequenceCharSize = RadixIdConverter.maxCharSize(DECIMAL_RADIX, sequenceBit);
     }
 
     @Override
@@ -74,22 +74,21 @@ public class FriendlyIdStateParser implements CosIdIdStateParser {
         return new CosIdState(timestamp, machineId, sequence);
     }
 
-    private String intAsString(int value, int charSize) {
+    public static String intAsString(boolean padStart, int value, int charSize) {
         if (padStart) {
             return Strings.padStart(String.valueOf(value), charSize, PAD_CHAR);
         }
         return String.valueOf(value);
     }
 
-
     @Override
     public String asString(long lastTimestamp, int machineId, int sequence) {
         LocalDateTime timestamp = getTimestamp(lastTimestamp);
         return new StringBuilder(timestamp.format(DATE_TIME_FORMATTER))
                 .append(DELIMITER)
-                .append(intAsString(machineId, machineCharSize))
+                .append(intAsString(padStart, machineId, machineCharSize))
                 .append(DELIMITER)
-                .append(intAsString(sequence, sequenceCharSize))
+                .append(intAsString(padStart, sequence, sequenceCharSize))
                 .toString();
     }
 

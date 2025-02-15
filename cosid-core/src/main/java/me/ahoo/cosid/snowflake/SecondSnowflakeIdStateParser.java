@@ -35,20 +35,20 @@ import java.time.format.DateTimeFormatterBuilder;
 public class SecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
 
     public static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
-        .appendValue(YEAR, 4)
-        .appendValue(MONTH_OF_YEAR, 2)
-        .appendValue(DAY_OF_MONTH, 2)
-        .appendValue(HOUR_OF_DAY, 2)
-        .appendValue(MINUTE_OF_HOUR, 2)
-        .appendValue(SECOND_OF_MINUTE, 2)
-        .toFormatter();
+            .appendValue(YEAR, 4)
+            .appendValue(MONTH_OF_YEAR, 2)
+            .appendValue(DAY_OF_MONTH, 2)
+            .appendValue(HOUR_OF_DAY, 2)
+            .appendValue(MINUTE_OF_HOUR, 2)
+            .appendValue(SECOND_OF_MINUTE, 2)
+            .toFormatter();
 
     public SecondSnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit) {
-        this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault());
+        this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault(), false);
     }
 
-    public SecondSnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId) {
-        super(epoch, timestampBit, machineBit, sequenceBit, zoneId);
+    public SecondSnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId, boolean padStart) {
+        super(epoch, timestampBit, machineBit, sequenceBit, zoneId, padStart);
     }
 
     @Override
@@ -71,6 +71,10 @@ public class SecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
     }
 
     public static SecondSnowflakeIdStateParser of(SnowflakeId snowflakeId, ZoneId zoneId) {
-        return new SecondSnowflakeIdStateParser(snowflakeId.getEpoch(), snowflakeId.getTimestampBit(), snowflakeId.getMachineBit(), snowflakeId.getSequenceBit(), zoneId);
+        return of(snowflakeId, zoneId, false);
+    }
+
+    public static SecondSnowflakeIdStateParser of(SnowflakeId snowflakeId, ZoneId zoneId, boolean padStart) {
+        return new SecondSnowflakeIdStateParser(snowflakeId.getEpoch(), snowflakeId.getTimestampBit(), snowflakeId.getMachineBit(), snowflakeId.getSequenceBit(), zoneId, padStart);
     }
 }

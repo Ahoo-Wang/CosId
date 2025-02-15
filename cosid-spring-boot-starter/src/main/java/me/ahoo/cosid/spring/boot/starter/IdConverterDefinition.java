@@ -34,6 +34,7 @@ public class IdConverterDefinition {
     private ToString toString;
     private Custom custom;
     private DatePrefix datePrefix = new DatePrefix();
+    private Friendly friendly = new Friendly();
 
     public Type getType() {
         return type;
@@ -103,9 +104,16 @@ public class IdConverterDefinition {
         return datePrefix;
     }
 
-    public IdConverterDefinition setDatePrefix(DatePrefix datePrefix) {
+    public void setDatePrefix(DatePrefix datePrefix) {
         this.datePrefix = datePrefix;
-        return this;
+    }
+
+    public Friendly getFriendly() {
+        return friendly;
+    }
+
+    public void setFriendly(Friendly friendly) {
+        this.friendly = friendly;
     }
 
     /**
@@ -181,6 +189,21 @@ public class IdConverterDefinition {
         public void setCharSize(int charSize) {
             this.charSize = charSize;
         }
+    }
+
+    public static class Friendly implements PadStartCapable {
+
+        private boolean padStart = false;
+
+        @Override
+        public boolean isPadStart() {
+            return padStart;
+        }
+
+        public void setPadStart(boolean padStart) {
+            this.padStart = padStart;
+        }
+
     }
 
     public static class GroupPrefix {
@@ -283,8 +306,11 @@ public class IdConverterDefinition {
         CUSTOM
     }
 
-    interface PadStartIdConverter {
+    interface PadStartCapable {
         boolean isPadStart();
+    }
+
+    interface PadStartIdConverter extends PadStartCapable {
 
         int getCharSize();
     }

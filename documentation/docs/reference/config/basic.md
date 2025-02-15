@@ -18,12 +18,12 @@ cosid:
 
 > `me.ahoo.cosid.spring.boot.starter.IdConverterDefinition`
 
-| 名称       | 数据类型                             | 说明                                             | 默认值          |
-|----------|----------------------------------|------------------------------------------------|--------------|
-| type     | `IdConverterDefinition.Type`     | 转换器类型：`TO_STRING`、`SNOWFLAKE_FRIENDLY`、`RADIX` | `Type.RADIX` |
-| prefix   | `String`                         | 前缀                                             | `""`         |
-| radix    | `IdConverterDefinition.Radix`    | `Radix62IdConverter` 转换器配置                     |              |
-| friendly | `IdConverterDefinition.Friendly` | 转换器配置                                          |              |
+| 名称       | 数据类型                             | 说明                                          | 默认值     |
+|----------|----------------------------------|---------------------------------------------|---------|
+| type     | `IdConverterDefinition.Type`     | 类型：`TO_STRING`/`SNOWFLAKE_FRIENDLY`/`RADIX` | `RADIX` |
+| prefix   | `String`                         | 前缀                                          | `""`    |
+| radix    | `IdConverterDefinition.Radix`    | `Radix62IdConverter` 转换器配置                  |         |
+| friendly | `IdConverterDefinition.Friendly` | 转换器配置                                       |         |
 
 ### Radix
 

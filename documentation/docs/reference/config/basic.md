@@ -18,17 +18,24 @@ cosid:
 
 > `me.ahoo.cosid.spring.boot.starter.IdConverterDefinition`
 
-| 名称     | 数据类型                          | 说明                                             | 默认值                         |
-|--------|-------------------------------|------------------------------------------------|-----------------------------|
-| type   | `IdConverterDefinition.Type`  | 转换器类型：`TO_STRING`、`SNOWFLAKE_FRIENDLY`、`RADIX` | `Type.RADIX`                |
-| prefix | `String`                      | 前缀                                             | `""`                        |
-| radix  | `IdConverterDefinition.Radix` | `Radix62IdConverter` 转换器配置                     | `TimestampUnit.MILLISECOND` |
+| 名称       | 数据类型                             | 说明                                             | 默认值          |
+|----------|----------------------------------|------------------------------------------------|--------------|
+| type     | `IdConverterDefinition.Type`     | 转换器类型：`TO_STRING`、`SNOWFLAKE_FRIENDLY`、`RADIX` | `Type.RADIX` |
+| prefix   | `String`                         | 前缀                                             | `""`         |
+| radix    | `IdConverterDefinition.Radix`    | `Radix62IdConverter` 转换器配置                     |              |
+| friendly | `IdConverterDefinition.Friendly` | 转换器配置                                          |              |
 
 ### Radix
 
 | 名称        | 数据类型      | 说明                                                    | 默认值     |
 |-----------|-----------|-------------------------------------------------------|---------|
 | char-size | `String`  | 字符串ID长度                                               | `11`    |
+| pad-start | `boolean` | 当字符串不满足 `charSize` 时，是否填充字符(`'0'`)。如果需要保证字符串有序，需开启该功能 | `false` |
+
+### Friendly
+
+| 名称        | 数据类型      | 说明                                                    | 默认值     |
+|-----------|-----------|-------------------------------------------------------|---------|
 | pad-start | `boolean` | 当字符串不满足 `charSize` 时，是否填充字符(`'0'`)。如果需要保证字符串有序，需开启该功能 | `false` |
 
 **YAML 配置样例**

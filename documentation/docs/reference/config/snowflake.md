@@ -18,7 +18,6 @@
 | 名称             | 数据类型                         | 说明                               | 默认值                                   |
 |----------------|------------------------------|----------------------------------|---------------------------------------|
 | clock-sync     | `boolean`                    | 是否开启时钟同步                         | `true`                                |
-| friendly       | `boolean`                    | 是否启用`SnowflakeFriendlyId`        | `true`                                |
 | timestamp-unit | `IdDefinition.TimestampUnit` | 时间戳位的单位：`SECOND` / `MILLISECOND` | `TimestampUnit.MILLISECOND`           |
 | epoch          | `int`                        | EPOCH                            | `cosid.snowflake.epoch`               |
 | timestamp-bit  | `int`                        | 时间戳位数                            | 41                                    |
@@ -37,7 +36,6 @@ cosid:
     epoch: 1577203200000
     share:
       clock-sync: true
-      friendly: true
     provider:
       short_id:
         converter:

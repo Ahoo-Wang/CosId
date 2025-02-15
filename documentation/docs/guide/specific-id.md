@@ -61,6 +61,76 @@ cosid:
 ```
 :::
 
+## snowflake_orderly_friendly
+
+使用 _SnowflakeId_ 算法，要求输出的有序的ID字符串：
+
+- 格式：`yyyyMMddHHmmssSSS-[0]<machineId>-[0]<sequence>`
+- 例如：`20250215122059820-0000-0001`
+
+
+::: code-group
+```yaml {9-14} [配置]
+cosid:
+  machine:
+    enabled: true
+    distributor:
+      type: redis
+  snowflake:
+    enabled: true
+    provider:
+      snowflake_orderly_friendly:
+        converter:
+          type: snowflake_friendly
+          friendly:
+            pad-start: true
+```
+```json [配置信息]
+{
+  "snowflake_orderly_friendly": {
+    "kind": "StringSnowflakeId",
+    "actual": {
+      "kind": "ClockSyncSnowflakeId",
+      "actual": {
+        "kind": "MillisecondSnowflakeId",
+        "epoch": 1577203200000,
+        "timestampBit": 41,
+        "machineBit": 10,
+        "sequenceBit": 12,
+        "machineId": 0,
+        "lastTimestamp": -1,
+        "converter": {
+          "kind": "Radix62IdConverter",
+          "radix": 62,
+          "charSize": 11,
+          "padStart": true,
+          "maxId": 9223372036854776000,
+          "actual": null
+        },
+        "safeJavascript": false,
+        "actual": null
+      },
+      "converter": {
+        "kind": "Radix62IdConverter",
+        "radix": 62,
+        "charSize": 11,
+        "padStart": true,
+        "maxId": 9223372036854776000,
+        "actual": null
+      }
+    },
+    "converter": {
+      "kind": "SnowflakeFriendlyIdConverter",
+      "padStart": true,
+      "machineCharSize": 4,
+      "sequenceCharSize": 4,
+      "actual": null
+    }
+  }
+}
+```
+:::
+
 ## snowflake_short_id
 
 使用 _SnowflakeId_ 算法，要求输出的ID字符串：

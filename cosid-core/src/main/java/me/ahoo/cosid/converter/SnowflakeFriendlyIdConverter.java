@@ -16,6 +16,8 @@ package me.ahoo.cosid.converter;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
+import me.ahoo.cosid.stat.Stat;
+import me.ahoo.cosid.stat.converter.SnowflakeFriendlyIdConverterStat;
 
 import javax.annotation.Nonnull;
 
@@ -49,4 +51,12 @@ public class SnowflakeFriendlyIdConverter implements IdConverter {
         return snowflakeIdStateParser.parse(idString).getId();
     }
 
+    @Override
+    public Stat stat() {
+        return new SnowflakeFriendlyIdConverterStat(
+                getClass().getSimpleName(),
+                snowflakeIdStateParser.isPadStart(),
+                snowflakeIdStateParser.getMachineCharSize(),
+                snowflakeIdStateParser.getSequenceCharSize());
+    }
 }

@@ -32,6 +32,11 @@ cosid:
       snowflake_friendly:
         converter:
           type: snowflake_friendly
+      snowflake_orderly_friendly:
+        converter:
+          type: snowflake_friendly
+          friendly:
+            pad-start: true
       snowflake_short_id:
         converter:
           type: radix

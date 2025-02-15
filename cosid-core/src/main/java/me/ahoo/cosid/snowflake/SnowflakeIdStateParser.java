@@ -80,6 +80,18 @@ public abstract class SnowflakeIdStateParser {
         return zoneId;
     }
 
+    public boolean isPadStart() {
+        return padStart;
+    }
+
+    public int getMachineCharSize() {
+        return machineCharSize;
+    }
+
+    public int getSequenceCharSize() {
+        return sequenceCharSize;
+    }
+
     protected abstract DateTimeFormatter getDateTimeFormatter();
 
     protected abstract LocalDateTime getTimestamp(long diffTime);

@@ -89,13 +89,13 @@ public class SnowflakeIdProperties {
     public static class IdDefinition {
         private String namespace;
         private boolean clockSync = true;
-        private boolean friendly = true;
         private TimestampUnit timestampUnit = TimestampUnit.MILLISECOND;
         private long epoch;
         private Integer machineBit;
         private int timestampBit = MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT;
         private int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT;
         private long sequenceResetThreshold = MillisecondSnowflakeId.DEFAULT_SEQUENCE_RESET_THRESHOLD;
+
         @NestedConfigurationProperty
         private IdConverterDefinition converter = new IdConverterDefinition();
         
@@ -113,14 +113,6 @@ public class SnowflakeIdProperties {
         
         public void setClockSync(boolean clockSync) {
             this.clockSync = clockSync;
-        }
-        
-        public boolean isFriendly() {
-            return friendly;
-        }
-        
-        public void setFriendly(boolean friendly) {
-            this.friendly = friendly;
         }
         
         public TimestampUnit getTimestampUnit() {

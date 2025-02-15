@@ -26,25 +26,19 @@ import java.time.ZoneId;
 
 public class SnowflakeIdConverterDecorator extends IdConverterDecorator<SnowflakeId> {
     private final ZoneId zoneId;
-    private final boolean isFriendly;
-    
-    protected SnowflakeIdConverterDecorator(SnowflakeId idGenerator, IdConverterDefinition converterDefinition, ZoneId zoneId, boolean isFriendly) {
+
+    protected SnowflakeIdConverterDecorator(SnowflakeId idGenerator, IdConverterDefinition converterDefinition, ZoneId zoneId) {
         super(idGenerator, converterDefinition);
         this.zoneId = zoneId;
-        this.isFriendly = isFriendly;
     }
-    
+
     @Override
     protected IdConverter newSnowflakeFriendly() {
-        return new SnowflakeFriendlyIdConverter(SnowflakeIdStateParser.of(idGenerator, zoneId));
+        return new SnowflakeFriendlyIdConverter(SnowflakeIdStateParser.of(idGenerator, zoneId, converterDefinition.getFriendly().isPadStart()));
     }
-    
+
     @Override
     protected SnowflakeId newIdGenerator(IdConverter idConverter) {
-        if (isFriendly) {
-            SnowflakeIdStateParser snowflakeIdStateParser = SnowflakeIdStateParser.of(idGenerator, zoneId);
-            return new DefaultSnowflakeFriendlyId(idGenerator, idConverter, snowflakeIdStateParser);
-        }
         return new StringSnowflakeId(idGenerator, idConverter);
     }
 }

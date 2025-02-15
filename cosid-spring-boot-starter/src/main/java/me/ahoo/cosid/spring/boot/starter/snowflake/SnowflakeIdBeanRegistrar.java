@@ -114,7 +114,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         }
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
         final ZoneId zoneId = ZoneId.of(snowflakeIdProperties.getZoneId());
-        return new SnowflakeIdConverterDecorator(snowflakeId, converterDefinition, zoneId, idDefinition.isFriendly()).decorate();
+        return new SnowflakeIdConverterDecorator(snowflakeId, converterDefinition, zoneId).decorate();
     }
     
     private long getEpoch(SnowflakeIdProperties.IdDefinition idDefinition) {

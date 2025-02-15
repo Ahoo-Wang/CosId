@@ -24,24 +24,24 @@ import java.time.ZoneId;
 class SecondSnowflakeIdTest {
     public static final int TEST_MACHINE_ID = 1;
     SnowflakeFriendlyId snowflakeId;
-    
+
     @BeforeEach
     void setup() {
         SecondSnowflakeId idGen = new SecondSnowflakeId(TEST_MACHINE_ID);
         snowflakeId = new DefaultSnowflakeFriendlyId(new ClockSyncSnowflakeId(idGen));
     }
-    
+
     @Test
     public void generate() {
         long idFirst = snowflakeId.generate();
         long idSecond = snowflakeId.generate();
         Assertions.assertTrue(idSecond > idFirst);
-        
+
         SnowflakeIdState idState = snowflakeId.getParser().parse(idFirst);
         Assertions.assertNotNull(idState);
         Assertions.assertEquals(TEST_MACHINE_ID, idState.getMachineId());
     }
-    
+
     @Test
     public void generateWhenMachineLeftGreaterThen30() {
         SecondSnowflakeId idGen = new SecondSnowflakeId(CosId.COSID_EPOCH_SECOND, SnowflakeId.TOTAL_BIT - 31, 1, 30, 1, TEST_MACHINE_ID);
@@ -50,7 +50,7 @@ class SecondSnowflakeIdTest {
         long idSecond = idGen.generate();
         assertThat(idSecond, greaterThan(idFirst));
     }
-    
+
     @Test
     public void friendlyId() {
         long id = snowflakeId.generate();
@@ -61,53 +61,58 @@ class SecondSnowflakeIdTest {
         SnowflakeIdState snowflakeIdState2 = snowflakeId.ofFriendlyId(snowflakeIdState.getFriendlyId());
         Assertions.assertEquals(snowflakeIdState2, snowflakeIdState);
     }
-    
+
     @Test
     public void safeJavaScript() {
         SnowflakeId snowflakeId = SafeJavaScriptSnowflakeId.ofSecond(1);
         Assertions.assertTrue(snowflakeId.isSafeJavascript());
     }
-    
+
     @Test
     public void customizeEpoch() {
-        
+
         SnowflakeId idGen = new SecondSnowflakeId(LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond(),
-            SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
-            SecondSnowflakeId.DEFAULT_MACHINE_BIT,
-            SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023, 512);
+                SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
+                SecondSnowflakeId.DEFAULT_MACHINE_BIT,
+                SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023, 512);
         SecondSnowflakeIdStateParser snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
         long idFirst = idGen.generate();
         long idSecond = idGen.generate();
-        
+
         Assertions.assertTrue(idSecond > idFirst);
-        
+
         SnowflakeIdState idState = snowflakeIdStateParser.parse(idFirst);
         Assertions.assertEquals(idState.getTimestamp().toLocalDate(), LocalDate.now());
         SnowflakeIdState idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }
-    
+
     @Test
     public void generateWhenConcurrent() {
         new ConcurrentGenerateSpec(snowflakeId) {
             @Override
             protected void assertGlobalFirst(long id) {
             }
-            
+
             @Override
             protected void assertGlobalEach(long previousId, long id) {
                 Assertions.assertTrue(id > previousId);
             }
-            
+
             @Override
             protected void assertGlobalLast(long lastId) {
             }
-            
+
         }.verify();
     }
-    
+
     @Test
     public void generateWhenConcurrentString() {
         new ConcurrentGenerateStingSpec(new StringSnowflakeId(snowflakeId, Radix62IdConverter.PAD_START)).verify();
+    }
+
+    @Test
+    public void generateFriendlyIdWhenConcurrentString() {
+        new ConcurrentGenerateStingSpec(new DefaultSnowflakeFriendlyId(snowflakeId, SecondSnowflakeIdStateParser.of(snowflakeId, ZoneId.systemDefault(), true))).verify();
     }
 }

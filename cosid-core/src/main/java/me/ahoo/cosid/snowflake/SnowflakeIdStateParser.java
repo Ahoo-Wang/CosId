@@ -13,7 +13,11 @@
 
 package me.ahoo.cosid.snowflake;
 
+import static me.ahoo.cosid.cosid.FriendlyIdStateParser.DECIMAL_RADIX;
+import static me.ahoo.cosid.cosid.FriendlyIdStateParser.intAsString;
+
 import me.ahoo.cosid.IdGeneratorDecorator;
+import me.ahoo.cosid.converter.RadixIdConverter;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -25,6 +29,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+
 /**
  * SnowflakeId State Parser.
  *
@@ -32,27 +37,30 @@ import java.util.List;
  */
 @ThreadSafe
 public abstract class SnowflakeIdStateParser {
-    
+
     public static final String DELIMITER = "-";
     protected final ZoneId zoneId;
     protected final long epoch;
-    
+
     protected final int sequenceBit;
     protected final long sequenceMask;
-    
+
     protected final int machineBit;
     protected final long machineMask;
     protected final int machineLeft;
-    
+
     protected final int timestampBit;
     protected final long timestampMask;
     protected final int timestampLeft;
-    
+    protected final boolean padStart;
+    private final int machineCharSize;
+    private final int sequenceCharSize;
+
     public SnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit) {
-        this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault());
+        this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault(), false);
     }
-    
-    public SnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId) {
+
+    public SnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId, boolean padStart) {
         this.epoch = epoch;
         this.sequenceMask = getMask(sequenceBit);
         this.sequenceBit = sequenceBit;
@@ -63,18 +71,21 @@ public abstract class SnowflakeIdStateParser {
         this.zoneId = zoneId;
         this.machineLeft = sequenceBit;
         this.timestampLeft = machineLeft + machineBit;
+        this.padStart = padStart;
+        this.machineCharSize = RadixIdConverter.maxCharSize(DECIMAL_RADIX, machineBit);
+        this.sequenceCharSize = RadixIdConverter.maxCharSize(DECIMAL_RADIX, sequenceBit);
     }
-    
+
     public ZoneId getZoneId() {
         return zoneId;
     }
-    
+
     protected abstract DateTimeFormatter getDateTimeFormatter();
-    
+
     protected abstract LocalDateTime getTimestamp(long diffTime);
-    
+
     protected abstract long getDiffTime(LocalDateTime timestamp);
-    
+
     public SnowflakeIdState parse(String friendlyId) {
         Preconditions.checkNotNull(friendlyId, "friendlyId can not be null!");
         List<String> segments = Splitter.on(DELIMITER).trimResults().omitEmptyStrings().splitToList(friendlyId);
@@ -90,65 +101,65 @@ public abstract class SnowflakeIdStateParser {
          * machineLeft greater than 30 will cause overflow, so machineId should be long when calculating.
          */
         long id = (diffTime) << timestampLeft
-            | machineId << machineLeft
-            | sequence;
+                | machineId << machineLeft
+                | sequence;
         return SnowflakeIdState.builder()
-            .id(id)
-            .machineId((int) machineId)
-            .sequence(sequence)
-            .timestamp(timestamp)
-            .friendlyId(friendlyId)
-            .build();
+                .id(id)
+                .machineId((int) machineId)
+                .sequence(sequence)
+                .timestamp(timestamp)
+                .friendlyId(friendlyId)
+                .build();
     }
-    
+
     public SnowflakeIdState parse(long id) {
         int machineId = parseMachineId(id);
         long sequence = parseSequence(id);
         LocalDateTime timestamp = parseTimestamp(id);
-        
+
         String friendlyId = new StringBuilder(timestamp.format(getDateTimeFormatter()))
-            .append(DELIMITER)
-            .append(machineId)
-            .append(DELIMITER)
-            .append(sequence)
-            .toString();
-        
+                .append(DELIMITER)
+                .append(intAsString(padStart, machineId, machineCharSize))
+                .append(DELIMITER)
+                .append(intAsString(padStart, (int) sequence, sequenceCharSize))
+                .toString();
+
         return SnowflakeIdState.builder()
-            .id(id)
-            .machineId(machineId)
-            .sequence(sequence)
-            .timestamp(timestamp)
-            .friendlyId(friendlyId)
-            .build();
+                .id(id)
+                .machineId(machineId)
+                .sequence(sequence)
+                .timestamp(timestamp)
+                .friendlyId(friendlyId)
+                .build();
     }
-    
+
     private long getMask(long bits) {
         return ~(-1L << bits);
     }
-    
+
     public LocalDateTime parseTimestamp(long id) {
         long diffTime = (id >> timestampLeft) & timestampMask;
         return getTimestamp(diffTime);
     }
-    
+
     public int parseMachineId(long id) {
         return (int) ((id >> machineLeft) & machineMask);
     }
-    
+
     public long parseSequence(long id) {
         return id & sequenceMask;
     }
-    
+
     public static SnowflakeIdStateParser of(SnowflakeId snowflakeId) {
-        return of(snowflakeId, ZoneId.systemDefault());
+        return of(snowflakeId, ZoneId.systemDefault(), false);
     }
-    
-    public static SnowflakeIdStateParser of(SnowflakeId snowflakeId, ZoneId zoneId) {
+
+    public static SnowflakeIdStateParser of(SnowflakeId snowflakeId, ZoneId zoneId, boolean padStart) {
         SnowflakeId actual = IdGeneratorDecorator.getActual(snowflakeId);
-        
+
         if (actual instanceof SecondSnowflakeId) {
-            return SecondSnowflakeIdStateParser.of(actual, zoneId);
+            return SecondSnowflakeIdStateParser.of(actual, zoneId, padStart);
         }
-        return MillisecondSnowflakeIdStateParser.of(actual, zoneId);
+        return MillisecondSnowflakeIdStateParser.of(actual, zoneId, padStart);
     }
 }

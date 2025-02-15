@@ -19,8 +19,8 @@ import static org.hamcrest.Matchers.*;
 import me.ahoo.cosid.snowflake.SecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeId;
-import me.ahoo.cosid.stat.SimpleStat;
 
+import me.ahoo.cosid.stat.converter.SnowflakeFriendlyIdConverterStat;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -68,6 +68,6 @@ class SnowflakeFriendlyIdConverterTest {
     
     @Test
     void stat() {
-        assertThat(SnowflakeFriendlyIdConverter.INSTANCE.stat(), instanceOf(SimpleStat.class));
+        assertThat(SnowflakeFriendlyIdConverter.INSTANCE.stat(), instanceOf(SnowflakeFriendlyIdConverterStat.class));
     }
 }

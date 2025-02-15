@@ -37,18 +37,22 @@ import java.time.format.DateTimeFormatterBuilder;
  */
 public class MillisecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
 
-    public static final SnowflakeIdStateParser INSTANCE =
-            new MillisecondSnowflakeIdStateParser(CosId.COSID_EPOCH, MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT, MillisecondSnowflakeId.DEFAULT_MACHINE_BIT, MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT);
+    public static final SnowflakeIdStateParser INSTANCE = new MillisecondSnowflakeIdStateParser(
+        CosId.COSID_EPOCH,
+        MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
+        MillisecondSnowflakeId.DEFAULT_MACHINE_BIT,
+        MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT
+    );
 
     public static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
-            .appendValue(YEAR, 4)
-            .appendValue(MONTH_OF_YEAR, 2)
-            .appendValue(DAY_OF_MONTH, 2)
-            .appendValue(HOUR_OF_DAY, 2)
-            .appendValue(MINUTE_OF_HOUR, 2)
-            .appendValue(SECOND_OF_MINUTE, 2)
-            .appendValue(MILLI_OF_SECOND, 3)
-            .toFormatter();
+        .appendValue(YEAR, 4)
+        .appendValue(MONTH_OF_YEAR, 2)
+        .appendValue(DAY_OF_MONTH, 2)
+        .appendValue(HOUR_OF_DAY, 2)
+        .appendValue(MINUTE_OF_HOUR, 2)
+        .appendValue(SECOND_OF_MINUTE, 2)
+        .appendValue(MILLI_OF_SECOND, 3)
+        .toFormatter();
 
     public MillisecondSnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit) {
         this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault(), false);
@@ -82,6 +86,11 @@ public class MillisecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
     }
 
     public static MillisecondSnowflakeIdStateParser of(SnowflakeId snowflakeId, ZoneId zoneId, boolean padStart) {
-        return new MillisecondSnowflakeIdStateParser(snowflakeId.getEpoch(), snowflakeId.getTimestampBit(), snowflakeId.getMachineBit(), snowflakeId.getSequenceBit(), zoneId, padStart);
+        return new MillisecondSnowflakeIdStateParser(snowflakeId.getEpoch(),
+            snowflakeId.getTimestampBit(),
+            snowflakeId.getMachineBit(),
+            snowflakeId.getSequenceBit(),
+            zoneId,
+            padStart);
     }
 }

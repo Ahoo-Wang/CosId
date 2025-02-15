@@ -35,25 +35,22 @@ public class AnnotationDefinitionParser implements FieldDefinitionParser {
 
     @Override
     public IdDefinition parse(List<Class<?>> lookupClassList, Field field) {
-
+        CosId fieldCosId = field.getAnnotation(CosId.class);
+        if (null != fieldCosId) {
+            return new IdDefinition(fieldCosId.value(), field);
+        }
         Optional<CosId> clazzCosIdOp = lookupClassList
             .stream()
             .filter(clazz -> clazz.isAnnotationPresent(CosId.class))
             .map(clazz -> clazz.getAnnotation(CosId.class))
             .findFirst();
-
-        if (clazzCosIdOp.isPresent()) {
-            CosId clazzCosId = clazzCosIdOp.get();
-            if (!field.getName().equals(clazzCosId.field())) {
-                return IdDefinition.NOT_FOUND;
-            }
-            return new IdDefinition(clazzCosId.value(), field);
-        }
-
-        CosId fieldCosId = field.getAnnotation(CosId.class);
-        if (null == fieldCosId) {
+        if (clazzCosIdOp.isEmpty()) {
             return IdDefinition.NOT_FOUND;
         }
-        return new IdDefinition(fieldCosId.value(), field);
+        CosId clazzCosId = clazzCosIdOp.get();
+        if (!field.getName().equals(clazzCosId.field())) {
+            return IdDefinition.NOT_FOUND;
+        }
+        return new IdDefinition(clazzCosId.value(), field);
     }
 }

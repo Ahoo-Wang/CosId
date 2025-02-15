@@ -68,7 +68,6 @@ cosid:
 - 格式：`yyyyMMddHHmmssSSS-[0]<machineId>-[0]<sequence>`
 - 例如：`20250215122059820-0000-0001`
 
-
 ::: code-group
 ```yaml {9-14} [配置]
 cosid:

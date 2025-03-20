@@ -61,6 +61,7 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
                 /*
                  * Spin until it catches the clock back
                  */
+                Thread.onSpinWait();
             }
             return;
         }

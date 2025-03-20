@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.segment.grouped;
 
-import javax.annotation.Nullable;
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
+import jakarta.annotation.Nullable;
+
 import java.util.Objects;
 
 @ThreadSafe

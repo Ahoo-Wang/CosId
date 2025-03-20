@@ -13,9 +13,10 @@
 
 package me.ahoo.cosid.util;
 
+import com.google.errorprone.annotations.ThreadSafe;
+
 import java.time.Duration;
 import java.util.concurrent.locks.LockSupport;
-import javax.annotation.concurrent.ThreadSafe;
 
 /**
  * {@link System#currentTimeMillis()} is too slow.

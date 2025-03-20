@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.snowflake;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
 
 /**
  * Snowflake FriendlyId.

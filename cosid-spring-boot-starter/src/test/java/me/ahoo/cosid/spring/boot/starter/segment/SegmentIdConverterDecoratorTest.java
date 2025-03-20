@@ -27,8 +27,8 @@ import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import jakarta.annotation.Nonnull;
 
-import javax.annotation.Nonnull;
 
 public class SegmentIdConverterDecoratorTest {
     @Test

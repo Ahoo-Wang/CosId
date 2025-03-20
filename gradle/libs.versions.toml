@@ -2,6 +2,7 @@
 # libraries
 spring-boot = "3.4.3"
 spring-cloud = "2024.0.1"
+jakarta-annotation-api = "3.0.0"
 okhttp = "4.12.0"
 testcontainers = "1.20.6"
 guava = "33.4.5-jre"
@@ -23,6 +24,7 @@ spotbugs = "6.1.7"
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 spring-cloud-dependencies = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "spring-cloud" }
+jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version.ref = "jakarta-annotation-api" }
 okhttp-bom = { module = "com.squareup.okhttp3:okhttp-bom", version.ref = "okhttp" }
 axon-bom = { module = "org.axonframework:axon-bom", version.ref = "axon" }
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }

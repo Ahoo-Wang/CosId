@@ -15,7 +15,7 @@ package me.ahoo.cosid.example.redis.controller;
 
 import me.ahoo.cosid.IdConverter;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
 
 public class CustomIdConverter implements IdConverter {
     @Nonnull

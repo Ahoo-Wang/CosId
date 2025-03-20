@@ -14,8 +14,8 @@
 package me.ahoo.cosid.sharding;
 
 import com.google.common.collect.Range;
+import jakarta.annotation.Nonnull;
 
-import javax.annotation.Nonnull;
 import java.util.Collection;
 
 public interface RangeSharding<T extends Comparable<?>> {

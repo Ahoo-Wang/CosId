@@ -16,9 +16,8 @@ package me.ahoo.cosid.cosid;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
+import jakarta.annotation.Nonnull;
 import com.google.common.base.Strings;
-
-import javax.annotation.Nonnull;
 
 /**
  * Radix CosIdGenerator.

@@ -19,9 +19,8 @@ import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.GroupedPrefixConverterStat;
 
+import jakarta.annotation.Nonnull;
 import com.google.common.base.Preconditions;
-
-import javax.annotation.Nonnull;
 
 public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConverter> {
     public static final String DEFAULT_DELIMITER = "-";

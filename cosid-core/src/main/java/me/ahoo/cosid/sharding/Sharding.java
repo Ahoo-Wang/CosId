@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.sharding;
 
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
+import jakarta.annotation.Nonnull;
+
 import java.util.Collection;
 
 /**

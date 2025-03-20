@@ -19,9 +19,9 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.ToStringConverterStat;
 
+import jakarta.annotation.Nonnull;
 import com.google.common.base.Strings;
 
-import javax.annotation.Nonnull;
 
 /**
  * ToString ID Converter.

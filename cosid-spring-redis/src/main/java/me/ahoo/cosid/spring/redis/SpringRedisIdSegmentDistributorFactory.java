@@ -18,8 +18,8 @@ import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
+import jakarta.annotation.Nonnull;
 
-import javax.annotation.Nonnull;
 
 /**
  * Spring Redis IdSegmentDistributor Factory.

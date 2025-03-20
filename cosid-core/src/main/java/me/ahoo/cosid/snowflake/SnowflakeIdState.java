@@ -13,10 +13,11 @@
 
 package me.ahoo.cosid.snowflake;
 
+import jakarta.annotation.Nonnull;
+import com.google.errorprone.annotations.Immutable;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.Immutable;
 
 /**
  * SnowflakeId State.

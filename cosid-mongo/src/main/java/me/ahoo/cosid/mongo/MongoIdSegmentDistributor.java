@@ -16,8 +16,7 @@ package me.ahoo.cosid.mongo;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
 import lombok.extern.slf4j.Slf4j;
-
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
 
 /**
  * Mongo IdSegment Distributor.

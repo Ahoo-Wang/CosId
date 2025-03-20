@@ -15,7 +15,7 @@ package me.ahoo.cosid.machine;
 
 import me.ahoo.cosid.snowflake.exception.ClockTooManyBackwardsException;
 
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
 
 /**
  * Clock Backwards Synchronizer.

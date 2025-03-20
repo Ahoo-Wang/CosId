@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.segment.concurrent;
 
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
 
 /**
  * Prefetch Worker.

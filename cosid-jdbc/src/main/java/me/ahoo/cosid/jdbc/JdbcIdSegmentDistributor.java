@@ -21,8 +21,8 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.Nonnull;
 
-import javax.annotation.Nonnull;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;

@@ -16,8 +16,8 @@ package me.ahoo.cosid;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.Statistical;
 
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
+import jakarta.annotation.Nonnull;
 
 /**
  * ID converter.

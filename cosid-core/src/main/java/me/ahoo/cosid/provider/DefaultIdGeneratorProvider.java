@@ -15,7 +15,8 @@ package me.ahoo.cosid.provider;
 
 import me.ahoo.cosid.IdGenerator;
 
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
+
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;

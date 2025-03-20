@@ -21,9 +21,9 @@ import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 
+import jakarta.annotation.Nonnull;
 import com.google.common.base.Strings;
 
-import javax.annotation.Nonnull;
 import java.util.Optional;
 
 /**

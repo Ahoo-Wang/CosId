@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid;
 
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
+import jakarta.annotation.Nonnull;
 
 /**
  * Integer Id Generator.

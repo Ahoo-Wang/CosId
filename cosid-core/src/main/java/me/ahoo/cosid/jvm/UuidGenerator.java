@@ -15,7 +15,8 @@ package me.ahoo.cosid.jvm;
 
 import me.ahoo.cosid.IdGenerator;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
+
 import java.util.UUID;
 
 /**

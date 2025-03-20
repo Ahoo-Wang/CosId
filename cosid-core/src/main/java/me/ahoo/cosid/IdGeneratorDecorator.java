@@ -2,8 +2,8 @@ package me.ahoo.cosid;
 
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
+import jakarta.annotation.Nonnull;
 
 /**
  * IdGenerator decorator.

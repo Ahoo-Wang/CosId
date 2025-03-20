@@ -19,7 +19,7 @@ import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.generator.CosIdGeneratorStat;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
 
 /**
  * CosIdGenerator algorithm ID generator.

@@ -15,7 +15,7 @@ package me.ahoo.cosid.util;
 
 import me.ahoo.cosid.CosIdException;
 
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
 
 /**
  * Exception tool class.

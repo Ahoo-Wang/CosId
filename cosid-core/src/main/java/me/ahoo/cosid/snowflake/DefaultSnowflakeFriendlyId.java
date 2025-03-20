@@ -16,7 +16,8 @@ package me.ahoo.cosid.snowflake;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
+
 import java.time.ZoneId;
 
 /**

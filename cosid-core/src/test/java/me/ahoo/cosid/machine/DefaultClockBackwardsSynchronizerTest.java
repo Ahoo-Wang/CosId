@@ -16,8 +16,8 @@ package me.ahoo.cosid.machine;
 import static me.ahoo.cosid.machine.DefaultClockBackwardsSynchronizer.DEFAULT_BROKEN_THRESHOLD;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
 
+import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.snowflake.exception.ClockTooManyBackwardsException;
 
 import lombok.SneakyThrows;
@@ -25,17 +25,54 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 class DefaultClockBackwardsSynchronizerTest {
-    
+    DefaultClockBackwardsSynchronizer synchronizer = new DefaultClockBackwardsSynchronizer();
+
     @SneakyThrows
     @Test
     void sync() {
-        DefaultClockBackwardsSynchronizer clockBackwardsSynchronizer = new DefaultClockBackwardsSynchronizer();
-        clockBackwardsSynchronizer.sync(System.currentTimeMillis());
-        clockBackwardsSynchronizer.sync(System.currentTimeMillis() + 1);
-        clockBackwardsSynchronizer.sync(System.currentTimeMillis() - 10);
-        clockBackwardsSynchronizer.sync(System.currentTimeMillis() + 10);
+        synchronizer.sync(System.currentTimeMillis());
+        synchronizer.sync(System.currentTimeMillis() + 1);
+        synchronizer.sync(System.currentTimeMillis() + 1);
+        synchronizer.sync(System.currentTimeMillis() + 1);
+        synchronizer.sync(System.currentTimeMillis() - 10);
+        synchronizer.sync(System.currentTimeMillis() + 10);
         Assertions.assertThrows(ClockTooManyBackwardsException.class, () -> {
-            clockBackwardsSynchronizer.sync(System.currentTimeMillis() + DEFAULT_BROKEN_THRESHOLD + 100);
+            synchronizer.sync(System.currentTimeMillis() + DEFAULT_BROKEN_THRESHOLD + 100);
         });
+    }
+
+    @SneakyThrows
+    @Test
+    void syncUninterruptibly() {
+        long normalTimestamp = System.currentTimeMillis();
+        assertDoesNotThrow(() -> synchronizer.syncUninterruptibly(normalTimestamp));
+    }
+
+    @SneakyThrows
+    @Test
+    void syncUninterruptiblyWhenInterrupted() {
+        final long triggerTimestamp = System.currentTimeMillis() + DEFAULT_BROKEN_THRESHOLD;
+
+        Thread testThread = new Thread(() -> {
+            Thread.currentThread().interrupt();
+            synchronizer.syncUninterruptibly(triggerTimestamp);
+        });
+
+        testThread.start();
+        testThread.join();
+        assertTrue(testThread.isInterrupted());
+
+        // Cleanup
+        Thread.interrupted();
+    }
+
+    /**
+     * TC3: 验证时钟回拨过大异常透传
+     */
+    @Test
+    void syncUninterruptiblyWhenExceedBrokenThreshold() {
+        long exceedTimestamp = System.currentTimeMillis() + DEFAULT_BROKEN_THRESHOLD + 100;
+        assertThrows(ClockTooManyBackwardsException.class,
+            () -> synchronizer.syncUninterruptibly(exceedTimestamp));
     }
 }

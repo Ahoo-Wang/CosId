@@ -50,13 +50,19 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
     public void sync(long lastTimestamp) throws InterruptedException, ClockTooManyBackwardsException {
         long backwardsStamp = ClockBackwardsSynchronizer.getBackwardsTimeStamp(lastTimestamp);
         if (backwardsStamp <= 0) {
+            if (log.isDebugEnabled()) {
+                log.debug("No need to sync - lastTimestamp:[{}] is normal.", lastTimestamp);
+            }
             return;
         }
         if (log.isWarnEnabled()) {
-            log.warn("Sync backwardsStamp:[{}] - lastStamp:[{}].", backwardsStamp, lastTimestamp);
+            log.warn("Detected clock backwards:[{}ms] - lastTimestamp:[{}].", backwardsStamp, lastTimestamp);
         }
 
         if (backwardsStamp <= spinThreshold) {
+            if (log.isWarnEnabled()) {
+                log.warn("Entering spin wait - backwards:[{}ms] (spinThreshold:[{}ms]).", backwardsStamp, spinThreshold);
+            }
             while ((ClockBackwardsSynchronizer.getBackwardsTimeStamp(lastTimestamp)) > 0) {
                 /*
                  * Spin until it catches the clock back
@@ -69,7 +75,10 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
         if (backwardsStamp > brokenThreshold) {
             throw new ClockTooManyBackwardsException(lastTimestamp, System.currentTimeMillis(), brokenThreshold);
         }
-
+        if (log.isWarnEnabled()) {
+            log.warn("Entering thread sleep - will sleep:[{}ms] (brokenThreshold:[{}ms]).",
+                backwardsStamp, brokenThreshold);
+        }
         TimeUnit.MILLISECONDS.sleep(backwardsStamp);
     }
 
@@ -78,6 +87,7 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
         try {
             sync(lastTimestamp);
         } catch (InterruptedException e) {
+            log.error("Thread interrupted during sync - lastTimestamp:[{}]. Restoring interrupt status.", lastTimestamp, e);
             Thread.currentThread().interrupt();
             throw new CosIdException(e);
         }

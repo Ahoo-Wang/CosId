@@ -30,12 +30,12 @@ class DefaultClockBackwardsSynchronizerTest {
     @Test
     void sync() {
         DefaultClockBackwardsSynchronizer clockBackwardsSynchronizer = new DefaultClockBackwardsSynchronizer();
-        long currentTimeMillis = System.currentTimeMillis();
-        clockBackwardsSynchronizer.sync(currentTimeMillis);
-        clockBackwardsSynchronizer.sync(currentTimeMillis - 10);
-        clockBackwardsSynchronizer.sync(currentTimeMillis + 10);
+        clockBackwardsSynchronizer.sync(System.currentTimeMillis());
+        clockBackwardsSynchronizer.sync(System.currentTimeMillis() + 1);
+        clockBackwardsSynchronizer.sync(System.currentTimeMillis() - 10);
+        clockBackwardsSynchronizer.sync(System.currentTimeMillis() + 10);
         Assertions.assertThrows(ClockTooManyBackwardsException.class, () -> {
-            clockBackwardsSynchronizer.sync(currentTimeMillis + DEFAULT_BROKEN_THRESHOLD + 100);
+            clockBackwardsSynchronizer.sync(System.currentTimeMillis() + DEFAULT_BROKEN_THRESHOLD + 100);
         });
     }
 }

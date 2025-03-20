@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.util;
 
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
+import jakarta.annotation.Nonnull;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;

@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.stat;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public interface Stat {
 

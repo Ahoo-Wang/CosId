@@ -16,7 +16,7 @@ package me.ahoo.cosid.segment;
 import me.ahoo.cosid.segment.grouped.Grouped;
 import me.ahoo.cosid.util.Clock;
 
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
 
 /**
  * Id Segment.

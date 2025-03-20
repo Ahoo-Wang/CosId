@@ -18,9 +18,8 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.SuffixConverterStat;
 
+import jakarta.annotation.Nonnull;
 import com.google.common.base.Preconditions;
-
-import javax.annotation.Nonnull;
 
 /**
  * Suffix IdConverter .

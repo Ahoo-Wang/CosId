@@ -15,8 +15,9 @@ package me.ahoo.cosid.segment;
 
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 
+import com.google.errorprone.annotations.concurrent.GuardedBy;
+
 import java.util.function.Function;
-import javax.annotation.concurrent.GuardedBy;
 
 /**
  * Chained ID segment.
@@ -32,7 +33,7 @@ public class IdSegmentChain implements IdSegment {
     @GuardedBy("this")
     private volatile IdSegmentChain next;
     private final boolean allowReset;
-    
+
     public IdSegmentChain(IdSegmentChain previousChain, IdSegment idSegment, boolean allowReset) {
         this(previousChain.getVersion() + 1, idSegment, allowReset);
     }

@@ -19,7 +19,7 @@ import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.SnowflakeFriendlyIdConverterStat;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
 
 /**
  * Snowflake FriendlyId Converter.

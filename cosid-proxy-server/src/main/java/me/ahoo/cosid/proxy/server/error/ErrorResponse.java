@@ -13,7 +13,8 @@
 
 package me.ahoo.cosid.proxy.server.error;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
+
 import java.util.Collections;
 import java.util.List;
 

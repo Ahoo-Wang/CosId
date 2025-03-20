@@ -19,8 +19,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
-
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
 
 /**
  * Zookeeper IdSegmentDistributor Factory.

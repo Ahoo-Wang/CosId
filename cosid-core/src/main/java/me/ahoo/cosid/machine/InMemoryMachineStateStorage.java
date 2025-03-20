@@ -14,8 +14,8 @@
 package me.ahoo.cosid.machine;
 
 import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.Nonnull;
 
-import javax.annotation.Nonnull;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j

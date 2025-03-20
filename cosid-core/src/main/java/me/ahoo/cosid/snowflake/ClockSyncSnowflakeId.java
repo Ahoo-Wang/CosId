@@ -18,9 +18,8 @@ import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
+import jakarta.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
-
-import javax.annotation.Nonnull;
 
 /**
  * Clock Sync SnowflakeId.

@@ -16,8 +16,7 @@ package me.ahoo.cosid.machine;
 import me.ahoo.cosid.CosIdException;
 
 import com.google.common.base.Strings;
-
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 /**
  * MachineId Lost Exception .

@@ -18,7 +18,8 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.DatePrefixConverterStat;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 

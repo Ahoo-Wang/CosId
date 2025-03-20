@@ -25,8 +25,8 @@ import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
+import jakarta.annotation.Nonnull;
 
-import javax.annotation.Nonnull;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;

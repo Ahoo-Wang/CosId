@@ -18,9 +18,9 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.PrefixConverterStat;
 
+import jakarta.annotation.Nonnull;
 import com.google.common.base.Preconditions;
 
-import javax.annotation.Nonnull;
 
 /**
  * Converter for setting string ID prefix.

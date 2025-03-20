@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
 
 /**
  * used to enhance the generated string ID.

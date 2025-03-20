@@ -14,9 +14,9 @@
 package me.ahoo.cosid.machine;
 
 import com.google.common.base.Strings;
+import com.google.errorprone.annotations.ThreadSafe;
+import jakarta.annotation.Nonnull;
 
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
 import java.time.Duration;
 
 /**

@@ -26,8 +26,8 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.atomic.AtomicValue;
 import org.apache.curator.framework.recipes.atomic.DistributedAtomicLong;
 import org.apache.curator.framework.recipes.atomic.PromotedToLock;
+import jakarta.annotation.Nonnull;
 
-import javax.annotation.Nonnull;
 import java.util.concurrent.TimeUnit;
 
 /**

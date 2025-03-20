@@ -16,8 +16,8 @@ package me.ahoo.cosid.spring.data.jdbc;
 import me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry;
 
 import org.springframework.data.relational.core.mapping.event.BeforeConvertCallback;
+import jakarta.annotation.Nonnull;
 
-import javax.annotation.Nonnull;
 
 public class CosIdBeforeConvertCallback implements BeforeConvertCallback<Object> {
     private final CosIdAccessorRegistry accessorRegistry;

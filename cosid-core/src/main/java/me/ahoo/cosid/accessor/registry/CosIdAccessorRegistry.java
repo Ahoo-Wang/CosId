@@ -15,7 +15,7 @@ package me.ahoo.cosid.accessor.registry;
 
 import me.ahoo.cosid.accessor.CosIdAccessor;
 
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
 
 /**
  * CosIdAccessor Registry.

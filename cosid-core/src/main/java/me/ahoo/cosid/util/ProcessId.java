@@ -13,7 +13,8 @@
 
 package me.ahoo.cosid.util;
 
-import javax.annotation.concurrent.Immutable;
+import com.google.errorprone.annotations.Immutable;
+
 import java.lang.management.ManagementFactory;
 
 /**

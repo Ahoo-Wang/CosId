@@ -18,8 +18,8 @@ import static me.ahoo.cosid.machine.ClockBackwardsSynchronizer.getBackwardsTimeS
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.Nonnull;
 
-import javax.annotation.Nonnull;
 import java.time.Duration;
 
 /**

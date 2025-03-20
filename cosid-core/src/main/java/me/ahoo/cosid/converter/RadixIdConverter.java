@@ -17,10 +17,10 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.RadixConverterStat;
 
+import jakarta.annotation.Nonnull;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
-import javax.annotation.Nonnull;
 
 public abstract class RadixIdConverter implements IdConverter {
     /**

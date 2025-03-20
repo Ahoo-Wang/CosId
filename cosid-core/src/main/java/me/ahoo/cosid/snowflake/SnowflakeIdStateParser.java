@@ -19,11 +19,11 @@ import static me.ahoo.cosid.cosid.FriendlyIdStateParser.intAsString;
 import me.ahoo.cosid.IdGeneratorDecorator;
 import me.ahoo.cosid.converter.RadixIdConverter;
 
+import com.google.errorprone.annotations.ThreadSafe;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 
-import javax.annotation.concurrent.ThreadSafe;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;

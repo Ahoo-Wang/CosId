@@ -12,5 +12,6 @@
  */
 
 dependencies {
+    api(libs.jakarta.annotation.api)
     testImplementation(project(":cosid-test"))
 }

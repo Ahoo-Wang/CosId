@@ -15,8 +15,7 @@ package me.ahoo.cosid.machine;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
-
-import javax.annotation.concurrent.Immutable;
+import com.google.errorprone.annotations.Immutable;
 
 /**
  * InstanceId.

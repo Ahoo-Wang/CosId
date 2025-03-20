@@ -13,7 +13,8 @@
 
 package me.ahoo.cosid.sharding;
 
-import javax.annotation.concurrent.Immutable;
+import com.google.errorprone.annotations.Immutable;
+
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 

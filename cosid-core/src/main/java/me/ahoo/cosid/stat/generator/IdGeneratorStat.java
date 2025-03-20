@@ -15,7 +15,7 @@ package me.ahoo.cosid.stat.generator;
 
 import me.ahoo.cosid.stat.Stat;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public interface IdGeneratorStat extends Stat {
     @Nullable

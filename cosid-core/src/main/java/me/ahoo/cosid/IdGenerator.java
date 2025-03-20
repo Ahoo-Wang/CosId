@@ -14,12 +14,11 @@
 package me.ahoo.cosid;
 
 import me.ahoo.cosid.converter.Radix62IdConverter;
-import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.Statistical;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
-import javax.annotation.Nonnull;
-import javax.annotation.concurrent.ThreadSafe;
+import com.google.errorprone.annotations.ThreadSafe;
+import jakarta.annotation.Nonnull;
 
 /**
  * Id Generator.

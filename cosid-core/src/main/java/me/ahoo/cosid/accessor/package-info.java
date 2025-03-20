@@ -11,7 +11,4 @@
  * limitations under the License.
  */
 
-@ParametersAreNonnullByDefault
 package me.ahoo.cosid.accessor;
-
-import javax.annotation.ParametersAreNonnullByDefault;

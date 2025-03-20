@@ -16,8 +16,8 @@ package me.ahoo.cosid.machine;
 import com.google.common.base.Objects;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.errorprone.annotations.Immutable;
 
-import javax.annotation.concurrent.Immutable;
 import java.util.List;
 
 /**

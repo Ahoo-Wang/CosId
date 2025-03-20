@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.sharding;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
 
 public interface PreciseSharding<T extends Comparable<?>> {
     @Nonnull

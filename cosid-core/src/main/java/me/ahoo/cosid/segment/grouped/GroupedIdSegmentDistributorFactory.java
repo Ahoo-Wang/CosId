@@ -17,7 +17,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
-import javax.annotation.Nonnull;
+import jakarta.annotation.Nonnull;
 
 public class GroupedIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     private final GroupBySupplier groupBySupplier;

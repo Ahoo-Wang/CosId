@@ -1,6 +1,6 @@
 [versions]
 # libraries
-spring-boot = "3.4.3"
+spring-boot = "3.4.4"
 spring-cloud = "2024.0.1"
 jakarta-annotation-api = "3.0.0"
 okhttp = "4.12.0"

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.actuate;
 
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -22,6 +23,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 
 @AutoConfiguration
+@ConditionalOnCosIdEnabled
 @ConditionalOnClass(Endpoint.class)
 public class CosIdEndpointAutoConfiguration {
     

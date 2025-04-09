@@ -22,7 +22,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class CosIdEndpointAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
-    
+
     @Test
     void contextLoads() {
         this.contextRunner
@@ -33,5 +33,15 @@ class CosIdEndpointAutoConfigurationTest {
                 .hasSingleBean(CosIdEndpoint.class)
                 .hasSingleBean(CosIdGeneratorEndpoint.class)
                 .hasSingleBean(CosIdStringGeneratorEndpoint.class));
+    }
+
+    @Test
+    void contextLoadsDisabled() {
+        this.contextRunner
+            .withPropertyValues("cosid.enabled=false")
+            .withUserConfiguration(CosIdEndpointAutoConfiguration.class)
+            .run(context -> AssertionsForInterfaceTypes.assertThat(context)
+                .doesNotHaveBean(CosIdEndpointAutoConfiguration.class)
+            );
     }
 }

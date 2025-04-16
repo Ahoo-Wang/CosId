@@ -1,6 +1,8 @@
 # 特定场景ID配置
 
-## snowflake_friendly
+## SnowflakeId
+
+### snowflake_friendly
 
 使用 _SnowflakeId_ 算法，要求输出的ID字符串：
 
@@ -61,7 +63,7 @@ cosid:
 ```
 :::
 
-## snowflake_orderly_friendly
+### snowflake_orderly_friendly
 
 使用 _SnowflakeId_ 算法，要求输出的有序的ID字符串：
 
@@ -130,7 +132,7 @@ cosid:
 ```
 :::
 
-## snowflake_short_id
+### snowflake_short_id
 
 使用 _SnowflakeId_ 算法，要求输出的ID字符串：
 
@@ -197,7 +199,7 @@ cosid:
 ```
 :::
 
-## snowflake_friendly_second
+### snowflake_friendly_second
 
 使用 _SnowflakeId_ 算法，要求输出的ID字符串：
 
@@ -263,7 +265,9 @@ cosid:
 ```
 :::
 
-## biz_prefix_no
+## SegmentId
+
+### biz_prefix_no
 
 使用 _SegmentId_ 算法，要求输出的ID字符串：
 - 起始序号：`2000000000`
@@ -324,7 +328,7 @@ cosid:
 ```
 :::
 
-## date_prefix_no
+### date_prefix_no
 
 使用 _SegmentId_ 算法，要求输出的ID字符串：
 - 格式：`<prefix><date><sequence>`
@@ -391,7 +395,7 @@ cosid:
 ```
 :::
 
-## no_suffix_biz
+### no_suffix_biz
 
 使用 _SegmentId_ 算法，要求输出的ID字符串：
 - 起始序号：`2000000000`
@@ -452,7 +456,7 @@ cosid:
 ```
 :::
 
-## biz_prefix_radix
+### biz_prefix_radix
 
 使用 _SegmentId_ 算法，要求输出的ID字符串：
 - 起始序号：`2000000000`
@@ -515,7 +519,7 @@ cosid:
 ```
 :::
 
-## biz_prefix_radix36
+### biz_prefix_radix36
 
 使用 _SegmentId_ 算法，要求输出的ID字符串：
 - 起始序号：`2000000000`
@@ -578,7 +582,7 @@ cosid:
 ```
 :::
 
-## group_year_biz
+### group_year_biz
 
 使用 _SegmentId_ 算法，要求输出的ID字符串：
 - 起始序号：`0`
@@ -652,7 +656,7 @@ cosid:
 ```
 :::
 
-## group_year_month_biz
+### group_year_month_biz
 
 使用 _SegmentId_ 算法，要求输出的ID字符串：
 - 起始序号：`0`
@@ -726,7 +730,7 @@ cosid:
 ```
 :::
 
-## group_year_month_day_biz
+### group_year_month_day_biz
 
 使用 _SegmentId_ 算法，要求输出的ID字符串：
 - 起始序号：`0`

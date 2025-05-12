@@ -21,6 +21,10 @@ java {
     }
 }
 
+tasks.withType<JavaCompile> {
+    options.compilerArgs.addAll(listOf("-parameters"))
+}
+
 tasks.jar.configure {
     exclude("application.yaml")
     manifest {

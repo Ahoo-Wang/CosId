@@ -15,6 +15,7 @@ package me.ahoo.cosid.proxy;
 
 import me.ahoo.cosid.proxy.api.MachineApi;
 import me.ahoo.cosid.proxy.api.SegmentApi;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientAdapter;
@@ -56,15 +57,17 @@ public class ProxyServerLauncher {
 
     }
 
-    static MachineApi createMachineApi() {
+    private static <T> T createApiClient(Class<T> apiClass) {
         RestClient restClient = RestClient.builder().baseUrl(COSID_PROXY_HOST).build();
-        RestClientAdapter exchangeAdaptor = RestClientAdapter.create(restClient);
-        return HttpServiceProxyFactory.builderFor(exchangeAdaptor).build().createClient(MachineApi.class);
+        RestClientAdapter exchangeAdapter = RestClientAdapter.create(restClient);
+        return HttpServiceProxyFactory.builderFor(exchangeAdapter).build().createClient(apiClass);
+    }
+
+    static MachineApi createMachineApi() {
+        return createApiClient(MachineApi.class);
     }
 
     static SegmentApi createSegmentApi() {
-        RestClient restClient = RestClient.builder().baseUrl(COSID_PROXY_HOST).build();
-        RestClientAdapter exchangeAdaptor = RestClientAdapter.create(restClient);
-        return HttpServiceProxyFactory.builderFor(exchangeAdaptor).build().createClient(SegmentApi.class);
+        return createApiClient(SegmentApi.class);
     }
 }

@@ -18,13 +18,10 @@ import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.MachineState;
+import me.ahoo.cosid.proxy.api.MachineApi;
 
 import io.swagger.v3.oas.annotations.Operation;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
@@ -36,36 +33,35 @@ import java.time.Duration;
  * @author ahoo wang
  */
 @RestController
-@RequestMapping("machines")
-public class MachineController {
+public class MachineController implements MachineApi {
     private final MachineIdDistributor distributor;
-    
+
     public MachineController(MachineIdDistributor distributor) {
         this.distributor = distributor;
     }
-    
+
     /**
      * Distribute a machine ID, the operation is idempotent.
      */
+    @Override
     @Operation(summary = "Distribute a machine ID, the operation is idempotent.")
-    @PostMapping("/{namespace}")
     public MachineState distribute(@PathVariable String namespace, int machineBit, InstanceId instanceId, String safeGuardDuration) throws MachineIdOverflowException {
         return distributor.distribute(namespace, machineBit, instanceId, Duration.parse(safeGuardDuration));
     }
-    
+
     /**
      * Revert a machine ID, the operation is idempotent.
      */
+    @Override
     @Operation(summary = "Revert a machine ID, the operation is idempotent.")
-    @DeleteMapping("/{namespace}")
     public void revert(@PathVariable String namespace, InstanceId instanceId) {
         distributor.revert(namespace, instanceId);
     }
-    
+
     /**
      * Guard a machine ID.
      */
-    @PatchMapping("/{namespace}")
+    @Override
     @Operation(summary = "Guard a machine ID.")
     public void guard(@PathVariable String namespace, InstanceId instanceId, String safeGuardDuration) throws MachineIdLostException {
         distributor.guard(namespace, instanceId, Duration.parse(safeGuardDuration));

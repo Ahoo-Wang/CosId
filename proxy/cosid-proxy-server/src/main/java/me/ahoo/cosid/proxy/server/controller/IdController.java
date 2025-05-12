@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * ID resource controller .
+ *
  * <p>
  * Important: Due to network IO performance problems caused by high request frequency,
  * it is not recommended to use this method to obtain IDs.

@@ -60,6 +60,7 @@ application {
 dependencies {
     implementation(platform(project(":cosid-dependencies")))
     annotationProcessor(platform(project(":cosid-dependencies")))
+    implementation(project(":cosid-proxy-api"))
     implementation(project(":cosid-spring-boot-starter"))
     implementation(project(":cosid-jackson"))
 

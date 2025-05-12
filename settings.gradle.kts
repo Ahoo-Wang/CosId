@@ -24,6 +24,8 @@ include(":cosid-jackson")
 include(":cosid-zookeeper")
 include(":cosid-test")
 
+include("cosid-proxy-api")
+project(":cosid-proxy-api").projectDir = file("proxy/cosid-proxy-api")
 include(":cosid-proxy")
 project(":cosid-proxy").projectDir = file("proxy/cosid-proxy")
 include(":cosid-proxy-server")

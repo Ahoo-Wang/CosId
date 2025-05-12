@@ -16,7 +16,6 @@ package me.ahoo.cosid.proxy.api;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.DeleteExchange;
@@ -34,7 +33,7 @@ public interface MachineApi {
                             @RequestParam String safeGuardDuration)
         throws MachineIdOverflowException;
 
-    @DeleteExchange("machines")
+    @DeleteExchange
     void revert(@PathVariable String namespace,
                 @RequestParam String instanceId,
                 @RequestParam boolean stable);

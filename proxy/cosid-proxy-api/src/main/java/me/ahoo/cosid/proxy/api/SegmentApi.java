@@ -14,6 +14,7 @@
 package me.ahoo.cosid.proxy.api;
 
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PatchExchange;
 import org.springframework.web.service.annotation.PostExchange;
@@ -22,8 +23,8 @@ import org.springframework.web.service.annotation.PostExchange;
 public interface SegmentApi {
 
     @PostExchange("/distributor/{namespace}/{name}")
-    void createDistributor(@PathVariable String namespace, @PathVariable String name, long offset, long step);
+    void createDistributor(@PathVariable String namespace, @PathVariable String name, @RequestParam long offset, @RequestParam long step);
 
     @PatchExchange("/{namespace}/{name}")
-    long nextMaxId(@PathVariable String namespace, @PathVariable String name, long step);
+    long nextMaxId(@PathVariable String namespace, @PathVariable String name, @RequestParam long step);
 }

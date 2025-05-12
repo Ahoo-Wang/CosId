@@ -13,6 +13,9 @@ cosid:
       enabled: true
   snowflake:
     enabled: true
+  proxy:
+    host: http://localhost:8688
+    load-balanced: true
 
 #  segment:
 #    enabled: true

@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter;
 import me.ahoo.cosid.CosId;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 /**
  * CosId Properties.
@@ -28,7 +29,8 @@ public class CosIdProperties {
     private boolean enabled = true;
     
     private String namespace = DEFAULT_NAMESPACE;
-    
+
+    @NestedConfigurationProperty
     private ProxyProperties proxy = new ProxyProperties();
     
     public boolean isEnabled() {

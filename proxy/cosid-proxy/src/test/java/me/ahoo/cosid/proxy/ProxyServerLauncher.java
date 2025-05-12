@@ -26,7 +26,7 @@ import org.testcontainers.utility.DockerImageName;
 
 public class ProxyServerLauncher {
 
-    static final Network NETWORK_CONTAINER = Network.builder().id("cosid-proxy-network").build();
+    static final Network NETWORK_CONTAINER = Network.newNetwork();
     static final GenericContainer REDIS_CONTAINER;
     static final GenericContainer COSID_PROXY_CONTAINER;
     static final String COSID_PROXY_HOST;
@@ -35,6 +35,7 @@ public class ProxyServerLauncher {
         REDIS_CONTAINER = new GenericContainer(DockerImageName.parse("redis:7.4.1"))
             .withNetwork(NETWORK_CONTAINER)
             .withNetworkAliases("redis")
+            .withExposedPorts(6379)
             .withReuse(true);
         REDIS_CONTAINER.start();
 

@@ -15,7 +15,6 @@ package me.ahoo.cosid.proxy;
 
 import me.ahoo.cosid.proxy.api.MachineApi;
 import me.ahoo.cosid.proxy.api.SegmentApi;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientAdapter;
@@ -27,13 +26,13 @@ import org.testcontainers.utility.DockerImageName;
 
 public class ProxyServerLauncher {
 
-    static final Network NETWORK_CONTAINER = Network.newNetwork();
+    static final Network NETWORK_CONTAINER = Network.builder().id("cosid-proxy-network").build();
     static final GenericContainer REDIS_CONTAINER;
     static final GenericContainer COSID_PROXY_CONTAINER;
     static final String COSID_PROXY_HOST;
 
     static {
-        REDIS_CONTAINER = new GenericContainer(DockerImageName.parse("redis:latest"))
+        REDIS_CONTAINER = new GenericContainer(DockerImageName.parse("redis:7.4.1"))
             .withNetwork(NETWORK_CONTAINER)
             .withNetworkAliases("redis")
             .withReuse(true);

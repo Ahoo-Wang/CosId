@@ -23,8 +23,12 @@ include(":cosid-mybatis")
 include(":cosid-jackson")
 include(":cosid-zookeeper")
 include(":cosid-test")
+
 include(":cosid-proxy")
+project(":cosid-proxy").projectDir = file("proxy/cosid-proxy")
 include(":cosid-proxy-server")
+project(":cosid-proxy-server").projectDir = file("proxy/cosid-proxy-server")
+
 include(":cosid-axon")
 include(":cosid-flowable")
 include(":cosid-activiti")

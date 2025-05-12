@@ -70,6 +70,7 @@ dependencies {
     "zookeeperSupportImplementation"(project(":cosid-zookeeper"))
 
     "proxySupportImplementation"(project(":cosid-proxy"))
+    "proxySupportImplementation"("me.ahoo.coapi:coapi-spring-boot-starter")
     "mongoSupportImplementation"(project(":cosid-mongo"))
     "activitiSupportImplementation"(project(":cosid-activiti"))
     "activitiSupportImplementation"(libs.activiti.spring.boot.starter)

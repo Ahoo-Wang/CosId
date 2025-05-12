@@ -13,17 +13,11 @@
 
 package me.ahoo.cosid.proxy;
 
+import me.ahoo.cosid.proxy.api.SegmentApi;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
-import okhttp3.internal.Util;
 import jakarta.annotation.Nonnull;
 
 /**
@@ -35,15 +29,13 @@ import jakarta.annotation.Nonnull;
  */
 @Slf4j
 public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
-    private final OkHttpClient client;
-    private final String proxyHost;
+    private final SegmentApi segmentApi;
     private final String namespace;
     private final String name;
     private final long step;
     
-    public ProxyIdSegmentDistributor(OkHttpClient client, String proxyHost, String namespace, String name, long step) {
-        this.client = client;
-        this.proxyHost = proxyHost;
+    public ProxyIdSegmentDistributor(SegmentApi segmentApi, String namespace, String name, long step) {
+        this.segmentApi = segmentApi;
         this.namespace = namespace;
         this.name = name;
         this.step = step;
@@ -69,25 +61,6 @@ public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
     @SneakyThrows
     @Override
     public long nextMaxId(long step) {
-        String apiUrl =
-            Strings.lenientFormat("%s/segments/%s/%s?step=%s", proxyHost, getNamespace(), getName(), step);
-        
-        Request request = new Request.Builder()
-            .url(apiUrl)
-            .patch(Util.EMPTY_REQUEST)
-            .build();
-        try (Response response = client.newCall(request).execute()) {
-            ResponseBody responseBody = response.body();
-            assert responseBody != null;
-            String bodyStr = responseBody.string();
-            if (log.isInfoEnabled()) {
-                log.info("Next Max Id -[{}]- step:[{}] - response:[{}].", getNamespacedName(), step, bodyStr);
-            }
-            if (!response.isSuccessful()) {
-                throw new IllegalStateException(Strings.lenientFormat("Distributor:[%s] - response:[%s]", getNamespacedName(), bodyStr));
-            }
-            Preconditions.checkNotNull(bodyStr);
-            return Long.parseLong(bodyStr);
-        }
+        return segmentApi.nextMaxId(getNamespace(), getName(), step);
     }
 }

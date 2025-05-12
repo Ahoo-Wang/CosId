@@ -22,14 +22,13 @@ import me.ahoo.cosid.test.Assert;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
-import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.Test;
 
 class ProxyMachineIdDistributorTest extends MachineIdDistributorSpec {
     
     @Override
     protected MachineIdDistributor getDistributor() {
-        return new ProxyMachineIdDistributor(new OkHttpClient(), ProxyServerLauncher.COSID_PROXY_HOST, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
+        return new ProxyMachineIdDistributor(ProxyServerLauncher.createMachineApi(), MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
     }
     
     @Override

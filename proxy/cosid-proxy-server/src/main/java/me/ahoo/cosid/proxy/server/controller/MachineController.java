@@ -21,6 +21,7 @@ import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.proxy.api.MachineApi;
 
 import io.swagger.v3.oas.annotations.Operation;
+import me.ahoo.cosid.proxy.api.MachineStateResponse;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,8 +46,9 @@ public class MachineController implements MachineApi {
      */
     @Override
     @Operation(summary = "Distribute a machine ID, the operation is idempotent.")
-    public MachineState distribute(@PathVariable String namespace, int machineBit, InstanceId instanceId, String safeGuardDuration) throws MachineIdOverflowException {
-        return distributor.distribute(namespace, machineBit, instanceId, Duration.parse(safeGuardDuration));
+    public MachineStateResponse distribute(@PathVariable String namespace, int machineBit, String instanceId, boolean stable, String safeGuardDuration) throws MachineIdOverflowException {
+        MachineState machineState = distributor.distribute(namespace, machineBit, new InstanceId(instanceId, stable), Duration.parse(safeGuardDuration));
+        return new MachineStateResponse(machineState.getMachineId(), machineState.getLastTimeStamp());
     }
 
     /**
@@ -54,8 +56,8 @@ public class MachineController implements MachineApi {
      */
     @Override
     @Operation(summary = "Revert a machine ID, the operation is idempotent.")
-    public void revert(@PathVariable String namespace, InstanceId instanceId) {
-        distributor.revert(namespace, instanceId);
+    public void revert(@PathVariable String namespace, String instanceId, boolean stable) {
+        distributor.revert(namespace, new InstanceId(instanceId, stable));
     }
 
     /**
@@ -63,7 +65,7 @@ public class MachineController implements MachineApi {
      */
     @Override
     @Operation(summary = "Guard a machine ID.")
-    public void guard(@PathVariable String namespace, InstanceId instanceId, String safeGuardDuration) throws MachineIdLostException {
-        distributor.guard(namespace, instanceId, Duration.parse(safeGuardDuration));
+    public void guard(@PathVariable String namespace, String instanceId, boolean stable, String safeGuardDuration) throws MachineIdLostException {
+        distributor.guard(namespace, new InstanceId(instanceId, stable), Duration.parse(safeGuardDuration));
     }
 }

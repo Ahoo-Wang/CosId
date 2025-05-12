@@ -13,11 +13,11 @@
 
 package me.ahoo.cosid.proxy;
 
-import static me.ahoo.cosid.proxy.ErrorResponse.BAD_REQUEST;
-import static org.junit.jupiter.api.Assertions.*;
+import static me.ahoo.cosid.proxy.api.ErrorResponse.BAD_REQUEST;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
+import me.ahoo.cosid.proxy.api.ErrorResponse;
 import org.junit.jupiter.api.Test;
 
 class ErrorResponseTest {

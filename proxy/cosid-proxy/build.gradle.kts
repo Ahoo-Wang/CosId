@@ -13,9 +13,12 @@
 
 dependencies {
     api("com.fasterxml.jackson.core:jackson-databind")
-    api("com.squareup.okhttp3:okhttp")
     api(project(":cosid-core"))
+    api(project(":cosid-proxy-api"))
+    implementation("org.springframework:spring-web")
     testImplementation(project(":cosid-test"))
+    testImplementation("org.springframework:spring-context")
+    testImplementation("org.springframework:spring-aop")
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:junit-jupiter")
 }

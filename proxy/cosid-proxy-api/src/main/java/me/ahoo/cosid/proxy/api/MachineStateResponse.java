@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.proxy;
+package me.ahoo.cosid.proxy.api;
 
 import me.ahoo.cosid.machine.MachineState;
 
@@ -19,13 +19,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * MachineStateDto .
+ * MachineStateResponse .
  *
  * @author ahoo wang
  */
-public class MachineStateDto extends MachineState {
+public class MachineStateResponse extends MachineState {
     @JsonCreator
-    public MachineStateDto(@JsonProperty("machineId") int machineId, @JsonProperty("lastTimeStamp") long lastTimeStamp) {
+    public MachineStateResponse(@JsonProperty("machineId") int machineId, @JsonProperty("lastTimeStamp") long lastTimeStamp) {
         super(machineId, lastTimeStamp);
     }
     

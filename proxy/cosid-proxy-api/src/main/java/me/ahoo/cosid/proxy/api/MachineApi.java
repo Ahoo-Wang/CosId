@@ -13,13 +13,13 @@
 
 package me.ahoo.cosid.proxy.api;
 
-import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
-import me.ahoo.cosid.machine.MachineState;
 
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.service.annotation.DeleteExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PatchExchange;
 import org.springframework.web.service.annotation.PostExchange;
@@ -27,11 +27,21 @@ import org.springframework.web.service.annotation.PostExchange;
 @HttpExchange("machines/{namespace}")
 public interface MachineApi {
     @PostExchange
-    MachineState distribute(@PathVariable String namespace, int machineBit, InstanceId instanceId, String safeGuardDuration) throws MachineIdOverflowException;
+    MachineStateResponse distribute(@PathVariable String namespace,
+                            @RequestParam int machineBit,
+                            @RequestParam String instanceId,
+                            @RequestParam boolean stable,
+                            @RequestParam String safeGuardDuration)
+        throws MachineIdOverflowException;
 
-    @DeleteMapping
-    void revert(@PathVariable String namespace, InstanceId instanceId);
+    @DeleteExchange("machines")
+    void revert(@PathVariable String namespace,
+                @RequestParam String instanceId,
+                @RequestParam boolean stable);
 
     @PatchExchange
-    void guard(@PathVariable String namespace, InstanceId instanceId, String safeGuardDuration) throws MachineIdLostException;
+    void guard(@PathVariable String namespace,
+               @RequestParam String instanceId,
+               @RequestParam boolean stable,
+               @RequestParam String safeGuardDuration) throws MachineIdLostException;
 }

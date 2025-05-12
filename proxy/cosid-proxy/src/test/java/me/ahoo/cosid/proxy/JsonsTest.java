@@ -16,6 +16,7 @@ package me.ahoo.cosid.proxy;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
+import me.ahoo.cosid.proxy.api.ErrorResponse;
 import org.junit.jupiter.api.Test;
 
 class JsonsTest {

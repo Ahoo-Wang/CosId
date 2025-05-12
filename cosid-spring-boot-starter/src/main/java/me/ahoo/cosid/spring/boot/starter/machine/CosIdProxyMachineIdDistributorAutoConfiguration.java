@@ -13,13 +13,14 @@
 
 package me.ahoo.cosid.spring.boot.starter.machine;
 
+import me.ahoo.coapi.spring.CoApiDefinition;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
+import me.ahoo.cosid.proxy.api.MachineApi;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 
-import okhttp3.OkHttpClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -36,21 +37,26 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "proxy")
 public class CosIdProxyMachineIdDistributorAutoConfiguration {
     private final CosIdProperties cosIdProperties;
-    
+
     public CosIdProxyMachineIdDistributorAutoConfiguration(CosIdProperties cosIdProperties) {
         this.cosIdProperties = cosIdProperties;
     }
-    
+
     @Bean
     @ConditionalOnMissingBean
-    public OkHttpClient okHttpClient() {
-        return new OkHttpClient.Builder().build();
+    public CoApiDefinition machineApiDefinition() {
+        return new CoApiDefinition(
+            MachineApi.class.getSimpleName(),
+            MachineApi.class,
+            cosIdProperties.getProxy().getHost(),
+            cosIdProperties.getProxy().getLoadBalanced()
+        );
     }
-    
+
     @Bean
     @ConditionalOnMissingBean
-    public ProxyMachineIdDistributor proxyMachineIdDistributor(OkHttpClient httpClient, MachineStateStorage localMachineState,
+    public ProxyMachineIdDistributor proxyMachineIdDistributor(MachineApi machineApi, MachineStateStorage localMachineState,
                                                                ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new ProxyMachineIdDistributor(httpClient, cosIdProperties.getProxy().getHost(), localMachineState, clockBackwardsSynchronizer);
+        return new ProxyMachineIdDistributor(machineApi, localMachineState, clockBackwardsSynchronizer);
     }
 }

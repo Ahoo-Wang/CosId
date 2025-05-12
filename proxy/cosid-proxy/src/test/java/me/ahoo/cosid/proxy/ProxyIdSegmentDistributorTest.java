@@ -17,20 +17,18 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
-import okhttp3.OkHttpClient;
-
 class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
-    
+
     @Override
     protected IdSegmentDistributorFactory getFactory() {
-        return new ProxyIdSegmentDistributorFactory(new OkHttpClient(), ProxyServerLauncher.COSID_PROXY_HOST);
+        return new ProxyIdSegmentDistributorFactory(ProxyServerLauncher.createSegmentApi());
     }
-    
+
     @Override
     protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
         //TODO
     }
-    
+
     @Override
     public void nextMaxIdWhenBack() {
         //TODO

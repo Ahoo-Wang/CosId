@@ -13,10 +13,11 @@
 
 package me.ahoo.cosid.proxy.server.error;
 
-import static me.ahoo.cosid.proxy.server.error.ErrorResponse.MACHINE_ID_LOST;
-import static me.ahoo.cosid.proxy.server.error.ErrorResponse.MACHINE_ID_OVERFLOW;
-import static me.ahoo.cosid.proxy.server.error.ErrorResponse.NOT_FOUND_MACHINE_STATE;
+import static me.ahoo.cosid.proxy.api.ErrorResponse.MACHINE_ID_LOST;
+import static me.ahoo.cosid.proxy.api.ErrorResponse.MACHINE_ID_OVERFLOW;
+import static me.ahoo.cosid.proxy.api.ErrorResponse.NOT_FOUND_MACHINE_STATE;
 
+import me.ahoo.cosid.proxy.api.ErrorResponse;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.NotFoundMachineStateException;

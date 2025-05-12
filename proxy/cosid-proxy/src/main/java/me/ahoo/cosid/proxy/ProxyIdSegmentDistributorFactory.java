@@ -13,18 +13,13 @@
 
 package me.ahoo.cosid.proxy;
 
+import me.ahoo.cosid.proxy.api.SegmentApi;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
-import com.google.common.base.Strings;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
-import okhttp3.internal.Util;
 import jakarta.annotation.Nonnull;
 
 /**
@@ -35,42 +30,22 @@ import jakarta.annotation.Nonnull;
 @Slf4j
 public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     
-    private final OkHttpClient client;
+    private final SegmentApi segmentApi;
     
-    private final String proxyHost;
-    
-    public ProxyIdSegmentDistributorFactory(OkHttpClient client, String proxyHost) {
-        this.client = client;
-        this.proxyHost = proxyHost;
+
+    public ProxyIdSegmentDistributorFactory(SegmentApi segmentApi) {
+        this.segmentApi = segmentApi;
     }
     
     @Nonnull
     @SneakyThrows
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
-        String apiUrl =
-            Strings.lenientFormat("%s/segments/distributor/%s/%s?offset=%s&step=%s", proxyHost, definition.getNamespace(), definition.getName(), definition.getOffset(), definition.getStep());
-        
         if (log.isInfoEnabled()) {
-            log.info("Create [{}] - apiUrl:[{}].", definition.getNamespacedName(), apiUrl);
+            log.info("Create [{}] .", definition.getNamespacedName());
         }
-        
-        Request request = new Request.Builder()
-            .url(apiUrl)
-            .post(Util.EMPTY_REQUEST)
-            .build();
-        try (Response response = client.newCall(request).execute()) {
-            ResponseBody responseBody = response.body();
-            assert responseBody != null;
-            String bodyStr = responseBody.string();
-            if (log.isInfoEnabled()) {
-                log.info("Create [{}] - response:[{}].", definition.getNamespacedName(), bodyStr);
-            }
-            if (!response.isSuccessful()) {
-                throw new IllegalStateException(Strings.lenientFormat("Create Distributor:[%s] - response:[%s].", definition.getNamespacedName(), responseBody.string()));
-            }
-        }
-        
-        return new ProxyIdSegmentDistributor(client, proxyHost, definition.getNamespace(), definition.getName(), definition.getStep());
+        segmentApi.createDistributor(definition.getNamespace(), definition.getName(), definition.getOffset(), definition.getStep());
+
+        return new ProxyIdSegmentDistributor(segmentApi, definition.getNamespace(), definition.getName(), definition.getStep());
     }
 }

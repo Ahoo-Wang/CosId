@@ -20,13 +20,23 @@ package me.ahoo.cosid.spring.boot.starter;
  */
 public class ProxyProperties {
     private String host = "http://localhost:8688";
-    
+    private Boolean loadBalanced = false;
+
     public String getHost() {
         return host;
     }
-    
+
     public ProxyProperties setHost(String host) {
         this.host = host;
+        return this;
+    }
+
+    public Boolean getLoadBalanced() {
+        return loadBalanced;
+    }
+
+    public ProxyProperties setLoadBalanced(Boolean loadBalanced) {
+        this.loadBalanced = loadBalanced;
         return this;
     }
 }

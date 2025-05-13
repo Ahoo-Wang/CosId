@@ -29,7 +29,7 @@ class ProxyMachineIdDistributorTest extends MachineIdDistributorSpec {
     @Override
     protected MachineIdDistributor getDistributor() {
         return new ProxyMachineIdDistributor(
-            ApiClientFactory.createMachineApi(ProxyServerLauncher.COSID_PROXY_HOST),
+            ApiClientFactory.createMachineClient(ProxyServerLauncher.COSID_PROXY_HOST),
             MachineStateStorage.IN_MEMORY,
             ClockBackwardsSynchronizer.DEFAULT
         );

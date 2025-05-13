@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.proxy;
 
-import me.ahoo.cosid.proxy.api.MachineApi;
-import me.ahoo.cosid.proxy.api.SegmentApi;
+import me.ahoo.cosid.proxy.api.MachineClient;
+import me.ahoo.cosid.proxy.api.SegmentClient;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientAdapter;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
@@ -27,11 +27,11 @@ abstract class  ApiClientFactory {
         return HttpServiceProxyFactory.builderFor(exchangeAdapter).build().createClient(apiClass);
     }
 
-    static MachineApi createMachineApi(String proxyHost) {
-        return createApiClient(proxyHost, MachineApi.class);
+    static MachineClient createMachineClient(String proxyHost) {
+        return createApiClient(proxyHost, MachineClient.class);
     }
 
-    static SegmentApi createSegmentApi(String proxyHost) {
-        return createApiClient(proxyHost, SegmentApi.class);
+    static SegmentClient createSegmentClient(String proxyHost) {
+        return createApiClient(proxyHost, SegmentClient.class);
     }
 }

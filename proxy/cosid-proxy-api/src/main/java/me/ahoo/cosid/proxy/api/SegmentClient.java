@@ -11,23 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.spring.boot.starter;
+package me.ahoo.cosid.proxy.api;
 
-/**
- * ProxyProperties .
- *
- * @author ahoo wang
- */
-public class ProxyProperties {
-    private String host = "http://localhost:8688";
+import me.ahoo.coapi.api.CoApi;
 
-    public String getHost() {
-        return host;
-    }
-
-    public ProxyProperties setHost(String host) {
-        this.host = host;
-        return this;
-    }
+@CoApi(baseUrl = MachineClient.BASE_URL)
+public interface SegmentClient extends SegmentApi {
 
 }

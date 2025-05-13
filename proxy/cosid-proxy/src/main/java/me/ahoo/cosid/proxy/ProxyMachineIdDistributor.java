@@ -26,7 +26,7 @@ import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.NotFoundMachineStateException;
 import me.ahoo.cosid.proxy.api.ErrorResponse;
-import me.ahoo.cosid.proxy.api.MachineApi;
+import me.ahoo.cosid.proxy.api.MachineClient;
 
 import com.google.common.base.Strings;
 import lombok.SneakyThrows;
@@ -45,11 +45,11 @@ import java.time.Duration;
 @Slf4j
 public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
 
-    private final MachineApi machineApi;
+    private final MachineClient machineClient;
 
-    public ProxyMachineIdDistributor(MachineApi machineApi, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+    public ProxyMachineIdDistributor(MachineClient machineClient, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
-        this.machineApi = machineApi;
+        this.machineClient = machineClient;
     }
 
     @SneakyThrows
@@ -59,7 +59,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             log.info("Distribute Remote instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
         try {
-            return machineApi.distribute(namespace, machineBit, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration.toString());
+            return machineClient.distribute(namespace, machineBit, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration.toString());
         } catch (HttpClientErrorException.BadRequest badRequest) {
             ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(badRequest.getResponseBodyAsByteArray(), ErrorResponse.class);
             if (errorResponse.getCode().equals(MACHINE_ID_OVERFLOW)) {
@@ -75,7 +75,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
         if (log.isInfoEnabled()) {
             log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
-        machineApi.revert(namespace, instanceId.getInstanceId(), instanceId.isStable());
+        machineClient.revert(namespace, instanceId.getInstanceId(), instanceId.isStable());
     }
 
     @SneakyThrows
@@ -85,7 +85,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             log.info("Guard Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         try {
-            machineApi.guard(namespace, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration.toString());
+            machineClient.guard(namespace, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration.toString());
         } catch (HttpClientErrorException.BadRequest badRequest) {
             ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(badRequest.getResponseBodyAsByteArray(), ErrorResponse.class);
             switch (errorResponse.getCode()) {

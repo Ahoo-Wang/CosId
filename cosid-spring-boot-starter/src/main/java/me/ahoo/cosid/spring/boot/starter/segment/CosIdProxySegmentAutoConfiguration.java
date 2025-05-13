@@ -13,9 +13,9 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
-import me.ahoo.coapi.spring.CoApiDefinition;
+import me.ahoo.coapi.spring.EnableCoApi;
 import me.ahoo.cosid.proxy.ProxyIdSegmentDistributorFactory;
-import me.ahoo.cosid.proxy.api.SegmentApi;
+import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
@@ -36,6 +36,7 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
 @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "proxy")
+@EnableCoApi(clients = SegmentClient.class)
 public class CosIdProxySegmentAutoConfiguration {
 
     private final CosIdProperties cosIdProperties;
@@ -46,19 +47,8 @@ public class CosIdProxySegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public CoApiDefinition segmentApiDefinition() {
-        return new CoApiDefinition(
-            SegmentApi.class.getSimpleName(),
-            SegmentApi.class,
-            cosIdProperties.getProxy().getHost(),
-            cosIdProperties.getProxy().getLoadBalanced()
-        );
-    }
-
-    @Bean
-    @ConditionalOnMissingBean
-    public IdSegmentDistributorFactory idSegmentDistributorFactory(SegmentApi segmentApi) {
-        return new ProxyIdSegmentDistributorFactory(segmentApi);
+    public IdSegmentDistributorFactory idSegmentDistributorFactory(SegmentClient segmentClient) {
+        return new ProxyIdSegmentDistributorFactory(segmentClient);
     }
 
 }

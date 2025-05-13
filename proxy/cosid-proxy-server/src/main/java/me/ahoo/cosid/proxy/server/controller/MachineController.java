@@ -19,7 +19,6 @@ import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.proxy.api.MachineApi;
-import me.ahoo.cosid.proxy.api.MachineStateResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -46,9 +45,8 @@ public class MachineController implements MachineApi {
      */
     @Override
     @Operation(summary = "Distribute a machine ID, the operation is idempotent.")
-    public MachineStateResponse distribute(@PathVariable String namespace, int machineBit, String instanceId, boolean stable, String safeGuardDuration) throws MachineIdOverflowException {
-        MachineState machineState = distributor.distribute(namespace, machineBit, new InstanceId(instanceId, stable), Duration.parse(safeGuardDuration));
-        return new MachineStateResponse(machineState.getMachineId(), machineState.getLastTimeStamp());
+    public MachineState distribute(@PathVariable String namespace, int machineBit, String instanceId, boolean stable, String safeGuardDuration) throws MachineIdOverflowException {
+        return distributor.distribute(namespace, machineBit, new InstanceId(instanceId, stable), Duration.parse(safeGuardDuration));
     }
 
     /**

@@ -51,6 +51,7 @@ dependencies {
     implementation(project(":cosid-jackson"))
     implementation(project(":cosid-proxy"))
     implementation("me.ahoo.coapi:coapi-spring-boot-starter")
+    implementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("com.google.guava:guava")
     implementation("org.springframework.boot:spring-boot-starter-web")

@@ -13,11 +13,11 @@
 
 package me.ahoo.cosid.spring.boot.starter.machine;
 
-import me.ahoo.coapi.spring.CoApiDefinition;
+import me.ahoo.coapi.spring.EnableCoApi;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
-import me.ahoo.cosid.proxy.api.MachineApi;
+import me.ahoo.cosid.proxy.api.MachineClient;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 
@@ -35,6 +35,7 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "proxy")
+@EnableCoApi(clients = MachineClient.class)
 public class CosIdProxyMachineIdDistributorAutoConfiguration {
     private final CosIdProperties cosIdProperties;
 
@@ -44,19 +45,10 @@ public class CosIdProxyMachineIdDistributorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public CoApiDefinition machineApiDefinition() {
-        return new CoApiDefinition(
-            MachineApi.class.getSimpleName(),
-            MachineApi.class,
-            cosIdProperties.getProxy().getHost(),
-            cosIdProperties.getProxy().getLoadBalanced()
-        );
+    public ProxyMachineIdDistributor proxyMachineIdDistributor(MachineClient machineClient, MachineStateStorage localMachineState,
+                                                               ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        return new ProxyMachineIdDistributor(machineClient, localMachineState, clockBackwardsSynchronizer);
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public ProxyMachineIdDistributor proxyMachineIdDistributor(MachineApi machineApi, MachineStateStorage localMachineState,
-                                                               ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new ProxyMachineIdDistributor(machineApi, localMachineState, clockBackwardsSynchronizer);
-    }
+
 }

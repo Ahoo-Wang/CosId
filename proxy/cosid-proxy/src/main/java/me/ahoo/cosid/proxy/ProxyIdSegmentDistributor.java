@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.proxy;
 
-import me.ahoo.cosid.proxy.api.SegmentApi;
+import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
 import lombok.SneakyThrows;
@@ -29,13 +29,13 @@ import jakarta.annotation.Nonnull;
  */
 @Slf4j
 public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
-    private final SegmentApi segmentApi;
+    private final SegmentClient segmentClient;
     private final String namespace;
     private final String name;
     private final long step;
     
-    public ProxyIdSegmentDistributor(SegmentApi segmentApi, String namespace, String name, long step) {
-        this.segmentApi = segmentApi;
+    public ProxyIdSegmentDistributor(SegmentClient segmentClient, String namespace, String name, long step) {
+        this.segmentClient = segmentClient;
         this.namespace = namespace;
         this.name = name;
         this.step = step;
@@ -61,6 +61,6 @@ public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
     @SneakyThrows
     @Override
     public long nextMaxId(long step) {
-        return segmentApi.nextMaxId(getNamespace(), getName(), step);
+        return segmentClient.nextMaxId(getNamespace(), getName(), step);
     }
 }

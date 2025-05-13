@@ -14,6 +14,7 @@
 package me.ahoo.cosid.proxy;
 
 import me.ahoo.cosid.proxy.api.SegmentApi;
+import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
@@ -30,11 +31,11 @@ import jakarta.annotation.Nonnull;
 @Slf4j
 public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     
-    private final SegmentApi segmentApi;
+    private final SegmentClient segmentClient;
     
 
-    public ProxyIdSegmentDistributorFactory(SegmentApi segmentApi) {
-        this.segmentApi = segmentApi;
+    public ProxyIdSegmentDistributorFactory(SegmentClient segmentClient) {
+        this.segmentClient = segmentClient;
     }
     
     @Nonnull
@@ -44,8 +45,8 @@ public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFac
         if (log.isInfoEnabled()) {
             log.info("Create [{}] .", definition.getNamespacedName());
         }
-        segmentApi.createDistributor(definition.getNamespace(), definition.getName(), definition.getOffset(), definition.getStep());
+        segmentClient.createDistributor(definition.getNamespace(), definition.getName(), definition.getOffset(), definition.getStep());
 
-        return new ProxyIdSegmentDistributor(segmentApi, definition.getNamespace(), definition.getName(), definition.getStep());
+        return new ProxyIdSegmentDistributor(segmentClient, definition.getNamespace(), definition.getName(), definition.getStep());
     }
 }

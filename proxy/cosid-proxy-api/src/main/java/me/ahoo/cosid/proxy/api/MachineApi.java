@@ -15,6 +15,7 @@ package me.ahoo.cosid.proxy.api;
 
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
+import me.ahoo.cosid.machine.MachineState;
 
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -26,7 +27,7 @@ import org.springframework.web.service.annotation.PostExchange;
 @HttpExchange("machines/{namespace}")
 public interface MachineApi {
     @PostExchange
-    MachineStateResponse distribute(@PathVariable String namespace,
+    MachineState distribute(@PathVariable String namespace,
                             @RequestParam int machineBit,
                             @RequestParam String instanceId,
                             @RequestParam boolean stable,

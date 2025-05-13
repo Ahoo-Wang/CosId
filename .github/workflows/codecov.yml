@@ -1,5 +1,13 @@
 name: Codecov
 on:
+  push:
+    paths-ignore:
+      - 'cosid-benchmark/**'
+      - 'docs/**'
+      - 'document/**'
+      - 'documentation/**'
+      - 'examples/**'
+      - 'wiki/**'
   pull_request:
     paths-ignore:
       - 'cosid-benchmark/**'

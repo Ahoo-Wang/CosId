@@ -16,9 +16,6 @@ on:
   push:
     paths:
       - 'documentation/**'
-  pull_request:
-    paths:
-      - 'documentation/**'
   workflow_dispatch:
 permissions:
   contents: write

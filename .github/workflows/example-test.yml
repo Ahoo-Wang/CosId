@@ -13,9 +13,6 @@
 
 name: Example Test
 on:
-  push:
-    paths:
-      - 'examples/**'
   pull_request:
     paths:
       - 'examples/**'

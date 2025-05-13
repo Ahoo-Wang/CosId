@@ -23,11 +23,6 @@
 
 name: Benchmark CosId Test
 on:
-  push:
-    paths:
-      - 'cosid-core/**'
-      - 'cosid-spring-redis/**'
-      - 'cosid-jdbc/**'
   pull_request:
     paths:
       - 'cosid-core/**'

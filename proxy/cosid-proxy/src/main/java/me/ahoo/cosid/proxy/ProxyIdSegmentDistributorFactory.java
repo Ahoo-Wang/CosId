@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.proxy;
 
-import me.ahoo.cosid.proxy.api.SegmentApi;
 import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
@@ -30,20 +29,20 @@ import jakarta.annotation.Nonnull;
  */
 @Slf4j
 public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
-    
+
     private final SegmentClient segmentClient;
-    
+
 
     public ProxyIdSegmentDistributorFactory(SegmentClient segmentClient) {
         this.segmentClient = segmentClient;
     }
-    
+
     @Nonnull
     @SneakyThrows
     @Override
     public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         if (log.isInfoEnabled()) {
-            log.info("Create [{}] .", definition.getNamespacedName());
+            log.info("Create name:[{}] @ namespace:[{}] .", definition.getName(), definition.getNamespacedName());
         }
         segmentClient.createDistributor(definition.getNamespace(), definition.getName(), definition.getOffset(), definition.getStep());
 

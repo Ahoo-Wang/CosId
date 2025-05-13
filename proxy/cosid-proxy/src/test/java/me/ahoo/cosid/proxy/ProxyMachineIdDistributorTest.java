@@ -25,27 +25,31 @@ import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 import org.junit.jupiter.api.Test;
 
 class ProxyMachineIdDistributorTest extends MachineIdDistributorSpec {
-    
+
     @Override
     protected MachineIdDistributor getDistributor() {
-        return new ProxyMachineIdDistributor(ProxyServerLauncher.createMachineApi(), MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
+        return new ProxyMachineIdDistributor(
+            ApiClientFactory.createMachineApi(ProxyServerLauncher.COSID_PROXY_HOST),
+            MachineStateStorage.IN_MEMORY,
+            ClockBackwardsSynchronizer.DEFAULT
+        );
     }
-    
+
     @Override
     public void guardLost() {
         //ignore
     }
-    
+
     @Test
     public void guardIfNotFoundMachineState() {
         MachineIdDistributor distributor = getDistributor();
         String namespace = MockIdGenerator.usePrefix("guardIfNotFoundMachineState").generateAsString();
         InstanceId instanceId = mockInstance(0, false);
         MachineStateStorage.IN_MEMORY.set(namespace, 10, instanceId);
-        
+
         Assert.assertThrows(NotFoundMachineStateException.class, () -> {
             distributor.guard(namespace, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         });
-        
+
     }
 }

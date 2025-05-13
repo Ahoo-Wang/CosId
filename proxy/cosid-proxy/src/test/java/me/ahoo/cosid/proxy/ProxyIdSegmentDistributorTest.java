@@ -21,7 +21,7 @@ class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
 
     @Override
     protected IdSegmentDistributorFactory getFactory() {
-        return new ProxyIdSegmentDistributorFactory(ProxyServerLauncher.createSegmentApi());
+        return new ProxyIdSegmentDistributorFactory(ApiClientFactory.createSegmentApi(ProxyServerLauncher.COSID_PROXY_HOST));
     }
 
     @Override

@@ -19,6 +19,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
 @Timeout(value = 10, unit = TimeUnit.MINUTES)
 class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
@@ -28,19 +29,28 @@ class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
         return new ProxyIdSegmentDistributorFactory(ApiClientFactory.createSegmentClient(ProxyServerLauncher.COSID_PROXY_HOST));
     }
 
+    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
     @Override
     public void generateConcurrent() {
-        //TODO
+        super.generateConcurrent();
     }
 
+    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
     @Override
     public void generateMultiInstanceConcurrent() {
-        //TODO
+        super.generateMultiInstanceConcurrent();
     }
 
+    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
     @Override
     public void nextMaxIdConcurrent() {
-        //TODO
+        super.nextMaxIdConcurrent();
+    }
+
+    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
+    @Override
+    public void generateConcurrentOfChain() {
+        super.generateConcurrentOfChain();
     }
 
     @Override

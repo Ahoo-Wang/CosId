@@ -3,6 +3,17 @@ server:
 spring:
   application:
     name: ${service.name:cosid-example-proxy}
+
+#  cloud:
+#    discovery:
+#      client:
+#        simple:
+#          instances:
+#            cosid-proxy:
+#              - host: localhost
+#                port: 8688
+#              - host: localhost
+#                port: 8788
 cosid:
   namespace: ${spring.application.name}
   machine:
@@ -15,6 +26,7 @@ cosid:
     enabled: true
   proxy:
     host: http://localhost:8688
+#    host: lb://cosid-proxy
 
 #  segment:
 #    enabled: true

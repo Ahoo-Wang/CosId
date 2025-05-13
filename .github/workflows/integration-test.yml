@@ -221,7 +221,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Proxy
-        run: ./gradlew cosid-proxy:clean cosid-proxy:check --stacktrace
+        run: ./gradlew cosid-proxy:clean cosid-proxy:check --debug
 
   cosid-zookeeper-test:
     name: CosId Zookeeper Test

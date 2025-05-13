@@ -28,11 +28,6 @@ on:
       - 'cosid-core/**'
       - 'cosid-spring-redis/**'
       - 'cosid-jdbc/**'
-  pull_request:
-    paths:
-      - 'cosid-core/**'
-      - 'cosid-spring-redis/**'
-      - 'cosid-jdbc/**'
   workflow_dispatch:
 
 jobs:

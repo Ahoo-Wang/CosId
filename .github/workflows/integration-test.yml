@@ -13,14 +13,6 @@
 
 name: Integration Test
 on:
-  push:
-    paths-ignore:
-      - 'cosid-benchmark/**'
-      - 'docs/**'
-      - 'document/**'
-      - 'documentation/**'
-      - 'examples/**'
-      - 'wiki/**'
   pull_request:
     paths-ignore:
       - 'cosid-benchmark/**'
@@ -229,7 +221,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Proxy
-        run: ./gradlew cosid-proxy:clean cosid-proxy:check
+        run: ./gradlew cosid-proxy:clean cosid-proxy:check --stacktrace
 
   cosid-zookeeper-test:
     name: CosId Zookeeper Test

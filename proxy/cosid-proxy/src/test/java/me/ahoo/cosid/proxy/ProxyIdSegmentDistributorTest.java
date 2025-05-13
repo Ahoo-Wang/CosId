@@ -13,12 +13,14 @@
 
 package me.ahoo.cosid.proxy;
 
+import java.util.concurrent.TimeUnit;
+
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Timeout;
 
-@Disabled
+@Timeout(value = 10, unit = TimeUnit.MINUTES)
 class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
 
     @Override

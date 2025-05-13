@@ -29,6 +29,16 @@ class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     }
 
     @Override
+    public void generateConcurrent() {
+        //TODO
+    }
+
+    @Override
+    public void nextMaxIdConcurrent() {
+        //TODO
+    }
+
+    @Override
     protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
         //TODO
     }

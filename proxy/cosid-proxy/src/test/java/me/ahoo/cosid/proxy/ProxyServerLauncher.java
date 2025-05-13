@@ -20,19 +20,19 @@ import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
 public class ProxyServerLauncher {
-
+    
     static final Network NETWORK_CONTAINER = Network.newNetwork();
     static final GenericContainer REDIS_CONTAINER;
     static final GenericContainer COSID_PROXY_CONTAINER;
     static final String COSID_PROXY_HOST;
-
+    
     static {
-        REDIS_CONTAINER = new GenericContainer(DockerImageName.parse("redis:7.4.1"))
+        REDIS_CONTAINER = new GenericContainer(DockerImageName.parse("redis:latest"))
             .withNetwork(NETWORK_CONTAINER)
             .withNetworkAliases("redis")
             .withReuse(true);
         REDIS_CONTAINER.start();
-
+        
         int cosidProxyExposedPort = 8688;
         COSID_PROXY_CONTAINER = new GenericContainer(DockerImageName.parse("ahoowang/cosid-proxy:2.5.0"))
             .withNetwork(NETWORK_CONTAINER)
@@ -40,15 +40,14 @@ public class ProxyServerLauncher {
             .withReuse(true)
             .withEnv("SPRING_DATA_REDIS_URL", "redis://redis:6379")
             .waitingFor(Wait.forHttp("/actuator/health").forStatusCode(200));
-
+        
         COSID_PROXY_CONTAINER.start();
         COSID_PROXY_HOST = "http://localhost:" + COSID_PROXY_CONTAINER.getMappedPort(cosidProxyExposedPort);
     }
-
-
+    
+    
     @Test
     void tryStart() {
-
+    
     }
-
 }

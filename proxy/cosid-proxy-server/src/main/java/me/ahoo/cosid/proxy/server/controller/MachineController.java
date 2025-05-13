@@ -19,9 +19,9 @@ import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.proxy.api.MachineApi;
+import me.ahoo.cosid.proxy.api.MachineStateResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
-import me.ahoo.cosid.proxy.api.MachineStateResponse;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 

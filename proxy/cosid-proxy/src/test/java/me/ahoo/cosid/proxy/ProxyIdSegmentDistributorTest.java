@@ -34,6 +34,11 @@ class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     }
 
     @Override
+    public void generateMultiInstanceConcurrent() {
+        //TODO
+    }
+
+    @Override
     public void nextMaxIdConcurrent() {
         //TODO
     }

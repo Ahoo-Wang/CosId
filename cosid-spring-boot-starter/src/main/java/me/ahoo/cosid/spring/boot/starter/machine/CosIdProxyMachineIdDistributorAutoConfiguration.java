@@ -19,7 +19,6 @@ import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
 import me.ahoo.cosid.proxy.api.MachineClient;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -37,11 +36,6 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "proxy")
 @EnableCoApi(clients = MachineClient.class)
 public class CosIdProxyMachineIdDistributorAutoConfiguration {
-    private final CosIdProperties cosIdProperties;
-
-    public CosIdProxyMachineIdDistributorAutoConfiguration(CosIdProperties cosIdProperties) {
-        this.cosIdProperties = cosIdProperties;
-    }
 
     @Bean
     @ConditionalOnMissingBean

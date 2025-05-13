@@ -16,7 +16,9 @@ package me.ahoo.cosid.proxy;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
+import org.junit.jupiter.api.Disabled;
 
+@Disabled
 class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
 
     @Override

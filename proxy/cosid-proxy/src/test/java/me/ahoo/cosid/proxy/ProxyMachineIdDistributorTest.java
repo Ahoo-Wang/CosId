@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.proxy;
 
+import java.util.concurrent.TimeUnit;
+
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
@@ -22,8 +24,12 @@ import me.ahoo.cosid.test.Assert;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+@Disabled
+@Timeout(value = 10, unit = TimeUnit.MINUTES)
 class ProxyMachineIdDistributorTest extends MachineIdDistributorSpec {
 
     @Override

@@ -13,22 +13,16 @@
 
 package me.ahoo.cosid.proxy;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import me.ahoo.cosid.proxy.api.SegmentClient;
+import org.junit.Test;
 
-import me.ahoo.cosid.proxy.api.ErrorResponse;
-import org.junit.jupiter.api.Test;
+public class SegmentClientTest {
+    private final SegmentClient segmentClient = ApiClientFactory.createSegmentClient(ProxyServerLauncher.COSID_PROXY_HOST);
 
-class JsonsTest {
-    
     @Test
-    void serialize() {
-        ErrorResponse errorResponse = ErrorResponse.badRequest("badRequest");
-        String jsonStr = Jsons.serialize(errorResponse);
-        ErrorResponse actual = Jsons.deserialize(jsonStr, ErrorResponse.class);
-        assertThat(actual.getCode(), equalTo(errorResponse.getCode()));
-        assertThat(actual.getMsg(), equalTo(errorResponse.getMsg()));
-        assertThat(actual.getErrors(), equalTo(errorResponse.getErrors()));
+    public void nextMaxId() {
+        String namespace = "SegmentClientTest";
+        String name = "test";
+        segmentClient.createDistributor(namespace, name, 0, 1);
     }
-    
 }

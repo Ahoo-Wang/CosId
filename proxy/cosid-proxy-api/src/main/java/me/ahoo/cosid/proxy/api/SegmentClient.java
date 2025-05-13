@@ -11,19 +11,11 @@
  * limitations under the License.
  */
 
-dependencies {
-    api(platform(libs.spring.boot.dependencies))
-    api(platform(libs.spring.cloud.dependencies))
-    api(platform(libs.coapi.bom))
-    api(platform(libs.testcontainers.bom))
-    constraints {
-        api(libs.guava)
-        api(libs.mybatis)
-        api(libs.mybatis.spring.boot.starter)
-        api(libs.springdoc.openapi.starter.webflux.ui)
-        api(libs.junit.pioneer)
-        api(libs.hamcrest)
-        api(libs.jmhCore)
-        api(libs.jmh.generator.annprocess)
-    }
+package me.ahoo.cosid.proxy.api;
+
+import me.ahoo.coapi.api.CoApi;
+
+@CoApi(baseUrl = MachineClient.BASE_URL)
+public interface SegmentClient extends SegmentApi {
+
 }

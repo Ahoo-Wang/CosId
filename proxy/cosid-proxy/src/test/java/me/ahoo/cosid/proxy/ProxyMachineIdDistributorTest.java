@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.proxy;
 
+import java.util.concurrent.TimeUnit;
+
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
@@ -22,31 +24,36 @@ import me.ahoo.cosid.test.Assert;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
-import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+@Timeout(value = 10, unit = TimeUnit.MINUTES)
 class ProxyMachineIdDistributorTest extends MachineIdDistributorSpec {
-    
+
     @Override
     protected MachineIdDistributor getDistributor() {
-        return new ProxyMachineIdDistributor(new OkHttpClient(), ProxyServerLauncher.COSID_PROXY_HOST, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
+        return new ProxyMachineIdDistributor(
+            ApiClientFactory.createMachineClient(ProxyServerLauncher.COSID_PROXY_HOST),
+            MachineStateStorage.IN_MEMORY,
+            ClockBackwardsSynchronizer.DEFAULT
+        );
     }
-    
+
     @Override
     public void guardLost() {
         //ignore
     }
-    
+
     @Test
     public void guardIfNotFoundMachineState() {
         MachineIdDistributor distributor = getDistributor();
         String namespace = MockIdGenerator.usePrefix("guardIfNotFoundMachineState").generateAsString();
         InstanceId instanceId = mockInstance(0, false);
         MachineStateStorage.IN_MEMORY.set(namespace, 10, instanceId);
-        
+
         Assert.assertThrows(NotFoundMachineStateException.class, () -> {
             distributor.guard(namespace, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         });
-        
+
     }
 }

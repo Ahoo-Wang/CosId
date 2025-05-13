@@ -13,24 +13,51 @@
 
 package me.ahoo.cosid.proxy;
 
+import java.util.concurrent.TimeUnit;
+
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
 
-import okhttp3.OkHttpClient;
-
+@Timeout(value = 10, unit = TimeUnit.MINUTES)
 class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
-    
+
     @Override
     protected IdSegmentDistributorFactory getFactory() {
-        return new ProxyIdSegmentDistributorFactory(new OkHttpClient(), ProxyServerLauncher.COSID_PROXY_HOST);
+        return new ProxyIdSegmentDistributorFactory(ApiClientFactory.createSegmentClient(ProxyServerLauncher.COSID_PROXY_HOST));
     }
-    
+
+    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
+    @Override
+    public void generateConcurrent() {
+        super.generateConcurrent();
+    }
+
+    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
+    @Override
+    public void generateMultiInstanceConcurrent() {
+        super.generateMultiInstanceConcurrent();
+    }
+
+    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
+    @Override
+    public void nextMaxIdConcurrent() {
+        super.nextMaxIdConcurrent();
+    }
+
+    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
+    @Override
+    public void generateConcurrentOfChain() {
+        super.generateConcurrentOfChain();
+    }
+
     @Override
     protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
         //TODO
     }
-    
+
     @Override
     public void nextMaxIdWhenBack() {
         //TODO

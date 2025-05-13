@@ -13,18 +13,20 @@
 
 package me.ahoo.cosid.proxy.api;
 
+import me.ahoo.coapi.api.CoApi;
+
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.service.annotation.HttpExchange;
-import org.springframework.web.service.annotation.PatchExchange;
-import org.springframework.web.service.annotation.PostExchange;
 
-@HttpExchange("segments")
-public interface SegmentApi {
+@CoApi(baseUrl = MachineClient.BASE_URL)
+public interface MachineClient extends MachineApi {
+    String BASE_URL = "${cosid.proxy.host}";
 
-    @PostExchange("/distributor/{namespace}/{name}")
-    void createDistributor(@PathVariable String namespace, @PathVariable String name, @RequestParam long offset, @RequestParam long step);
+    @Override
+    MachineStateResponse distribute(@PathVariable String namespace,
+                                    @RequestParam int machineBit,
+                                    @RequestParam String instanceId,
+                                    @RequestParam boolean stable,
+                                    @RequestParam String safeGuardDuration);
 
-    @PatchExchange("/{namespace}/{name}")
-    long nextMaxId(@PathVariable String namespace, @PathVariable String name, @RequestParam long step);
 }

@@ -13,12 +13,12 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
+import me.ahoo.coapi.spring.EnableCoApi;
 import me.ahoo.cosid.proxy.ProxyIdSegmentDistributorFactory;
+import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 
-import okhttp3.OkHttpClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -34,25 +34,14 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
-@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "proxy")
+@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "proxy")
+@EnableCoApi(clients = SegmentClient.class)
 public class CosIdProxySegmentAutoConfiguration {
-    
-    private final CosIdProperties cosIdProperties;
-    
-    public CosIdProxySegmentAutoConfiguration(CosIdProperties cosIdProperties) {
-        this.cosIdProperties = cosIdProperties;
-    }
-    
+
     @Bean
     @ConditionalOnMissingBean
-    public OkHttpClient okHttpClient() {
-        return new OkHttpClient.Builder().build();
+    public IdSegmentDistributorFactory idSegmentDistributorFactory(SegmentClient segmentClient) {
+        return new ProxyIdSegmentDistributorFactory(segmentClient);
     }
-    
-    @Bean
-    @ConditionalOnMissingBean
-    public IdSegmentDistributorFactory idSegmentDistributorFactory(OkHttpClient httpClient) {
-        return new ProxyIdSegmentDistributorFactory(httpClient, cosIdProperties.getProxy().getHost());
-    }
-    
+
 }

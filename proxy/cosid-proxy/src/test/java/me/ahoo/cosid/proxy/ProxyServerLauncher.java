@@ -29,23 +29,20 @@ public class ProxyServerLauncher {
     static {
         REDIS_CONTAINER = new GenericContainer(DockerImageName.parse("redis:latest"))
             .withNetwork(NETWORK_CONTAINER)
-            .withNetworkAliases("redis")
-            .withReuse(true);
+            .withNetworkAliases("redis");
         REDIS_CONTAINER.start();
         
         int cosidProxyExposedPort = 8688;
         COSID_PROXY_CONTAINER = new GenericContainer(DockerImageName.parse("ahoowang/cosid-proxy:2.5.0"))
             .withNetwork(NETWORK_CONTAINER)
             .withExposedPorts(cosidProxyExposedPort)
-            .withReuse(true)
             .withEnv("SPRING_DATA_REDIS_URL", "redis://redis:6379")
             .waitingFor(Wait.forHttp("/actuator/health").forStatusCode(200));
         
         COSID_PROXY_CONTAINER.start();
         COSID_PROXY_HOST = "http://localhost:" + COSID_PROXY_CONTAINER.getMappedPort(cosidProxyExposedPort);
     }
-    
-    
+
     @Test
     void tryStart() {
     

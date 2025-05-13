@@ -34,26 +34,27 @@ import java.util.function.Supplier;
 public class DistributeConcurrent implements TestSpec {
     private final Supplier<MachineIdDistributor> implFactory;
     private final int machineBit;
-    
+
     public DistributeConcurrent(Supplier<MachineIdDistributor> implFactory, int machineBit) {
         this.implFactory = implFactory;
         this.machineBit = machineBit;
     }
-    
+
+    @SuppressWarnings("unchecked")
     @Override
     public void verify() {
         MachineIdDistributor distributor = implFactory.get();
         int totalMachineIds = MachineIdDistributor.totalMachineIds(machineBit);
         CompletableFuture<Integer>[] results = new CompletableFuture[totalMachineIds];
         String namespace = MockIdGenerator.usePrefix("DistributeConcurrent").generateAsString();
-        
+
         for (int i = 0; i < totalMachineIds; i++) {
             InstanceId instanceId = mockInstance(i, false);
             results[i] = CompletableFuture.supplyAsync(() -> distributor.distribute(namespace, machineBit, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId());
         }
-        
+
         CompletableFuture.allOf(results).join();
-        
+
         Integer[] machineIds = Arrays.stream(results).map(CompletableFuture::join).sorted().toArray(Integer[]::new);
         for (int i = 0; i < machineIds.length; i++) {
             assertThat(machineIds[i], equalTo(i));

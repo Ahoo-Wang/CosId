@@ -8,6 +8,7 @@ testcontainers = "1.21.0"
 guava = "33.4.8-jre"
 mybatis = "3.5.19"
 mybatis-spring-boot = "3.0.4"
+mongodb = "5.5.0"
 junit-pioneer = "2.3.0"
 axon = "4.11.3"
 flowable = "7.1.0"
@@ -31,6 +32,7 @@ testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 mybatis = { module = "org.mybatis:mybatis", version.ref = "mybatis" }
 mybatis-spring-boot-starter = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatis-spring-boot" }
+mongodb-driver-bom = { module = "org.mongodb:mongodb-driver-bom", version.ref = "mongodb" }
 springdoc-openapi-starter-webflux-ui = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springdoc" }
 activiti-engine = { module = "org.activiti:activiti-engine", version.ref = "activiti" }
 activiti-spring-boot-starter = { module = "org.activiti:activiti-spring-boot-starter", version.ref = "activiti" }

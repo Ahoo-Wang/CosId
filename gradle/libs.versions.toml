@@ -1,6 +1,6 @@
 [versions]
 # libraries
-spring-boot = "3.5.2"
+spring-boot = "3.5.3"
 spring-cloud = "2025.0.0"
 jakarta-annotation-api = "3.0.0"
 coapi = "1.12.0"

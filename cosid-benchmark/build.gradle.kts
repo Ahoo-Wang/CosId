@@ -51,7 +51,7 @@ dependencies {
     jmh("org.openjdk.jmh:jmh-generator-annprocess:1.37")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.13.2")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:5.13.1")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:5.13.2")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.13.2")
 }
 

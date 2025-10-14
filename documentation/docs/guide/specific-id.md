@@ -535,10 +535,10 @@ cosid:
     distributor:
       type: redis
     provider:
-      biz_prefix_radix:
+      biz_prefix_radix36:
         offset: 2000000000
         converter:
-          type: radix
+          type: radix36
           prefix: BIZ
           radix:
             char-size: 6

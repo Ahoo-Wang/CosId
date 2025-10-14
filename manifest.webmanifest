@@ -1,0 +1,16 @@
+{
+  "name": "CosId",
+  "short_name": "CosId",
+  "description": "CosId | 通用、灵活、高性能的分布式ID生成器",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#fff",
+  "theme_color": "#3eaf7c",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

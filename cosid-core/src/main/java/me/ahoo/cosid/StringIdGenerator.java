@@ -19,15 +19,26 @@ import jakarta.annotation.Nonnull;
 
 /**
  * String type ID generator.
+ * 
+ * <p>This interface defines the contract for generating distributed IDs in string format.
+ * It is typically used when string IDs are preferred over numeric IDs, such as for
+ * database primary keys that need to be URL-safe or human-readable.
+ * 
+ * <p>Implementations of this interface are expected to be thread-safe and can be
+ * used concurrently across multiple threads.
  *
  * @author ahoo wang
  */
 @ThreadSafe
 public interface StringIdGenerator {
     /**
-     * Generate string type distributed ID.
+     * Generate a distributed ID as a string value.
+     * 
+     * <p>This method generates a unique string identifier that is guaranteed to be
+     * unique within the distributed system. The format and structure of the string
+     * ID depends on the specific implementation.
      *
-     * @return string type distributed ID
+     * @return A unique distributed ID as a string value
      */
     @Nonnull
     String generateAsString();

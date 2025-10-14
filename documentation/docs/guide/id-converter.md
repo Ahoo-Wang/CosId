@@ -44,6 +44,12 @@ public interface IdConverter {
 
 - 规则：`[0-9][A-Z][a-z]{11}`
 
+## Radix36IdConverter
+
+> 36进制转换器，用于将 `long` 类型转换成 `36进制字符串`，或者将 `36进制字符串` 转换成`long` 类型
+
+- 规则：`[0-9][A-Z]{13}`
+
 ## SnowflakeFriendlyIdConverter
 
 > 雪花Id转换器，将符合雪花规则的字符串，转换成 long ，或者long 转换成雪花规则字符串

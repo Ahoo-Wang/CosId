@@ -55,9 +55,10 @@ tasks.register<Javadoc>("aggregateJavadoc") {
     doFirst {
         val allFiles = mutableListOf<File>()
         for (libProject in libraryProjects) {
-            val config = libProject.sourceSets["main"].compileClasspath as Configuration
-            val resolvedConfig = config.resolvedConfiguration
-            allFiles.addAll(resolvedConfig.resolvedArtifacts.map { it.file })
+            val sourceSet = libProject.sourceSets["main"]
+            if (sourceSet.allJava.isEmpty) continue
+            val config = sourceSet.compileClasspath as Configuration
+            allFiles.addAll(config.files)
         }
         classpath += project.files(allFiles)
     }

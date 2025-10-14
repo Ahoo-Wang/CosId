@@ -42,7 +42,7 @@ jobs:
         run: cp -R build/aggregatedJavadoc documentation/docs/public/javadoc
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 18
           cache-dependency-path: documentation/yarn.lock

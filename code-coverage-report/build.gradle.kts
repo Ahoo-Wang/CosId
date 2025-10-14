@@ -1,3 +1,5 @@
+import org.gradle.api.artifacts.Configuration
+
 /*
  * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,11 +41,24 @@ tasks.check {
 }
 
 tasks.register<Javadoc>("aggregateJavadoc") {
+    dependsOn(libraryProjects.map { it.tasks.named("compileJava") })
     title = "CosId | 通用、灵活、高性能的分布式 ID 生成器"
     options.header("<a href='${project.properties["website"]}' target='_blank'>GitHub</a>")
-    options.destinationDirectory = rootProject.layout.buildDirectory.dir("aggregatedJavadoc").get().asFile
+    options.destinationDirectory =
+        rootProject.layout.buildDirectory
+            .dir("aggregatedJavadoc")
+            .get()
+            .asFile
     libraryProjects.forEach {
         source += it.sourceSets["main"].allJava
-        classpath += it.sourceSets["main"].compileClasspath
+    }
+    doFirst {
+        val allFiles = mutableListOf<File>()
+        for (libProject in libraryProjects) {
+            val config = libProject.sourceSets["main"].compileClasspath as Configuration
+            val resolvedConfig = config.resolvedConfiguration
+            allFiles.addAll(resolvedConfig.resolvedArtifacts.map { it.file })
+        }
+        classpath += project.files(allFiles)
     }
 }

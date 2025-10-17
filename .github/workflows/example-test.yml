@@ -42,6 +42,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
+          cache: gradle
           settings-path: ${{ github.workspace }}
 
       - name: Test Example-Redis
@@ -65,6 +66,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
+          cache: gradle
           settings-path: ${{ github.workspace }}
 
       - name: Test Example-Zookeeper
@@ -88,6 +90,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
+          cache: gradle
           settings-path: ${{ github.workspace }}
 
       - name: Test Example-Proxy

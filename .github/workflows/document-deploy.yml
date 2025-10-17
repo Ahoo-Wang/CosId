@@ -45,6 +45,9 @@ jobs:
           server-id: github
           settings-path: ${{ github.workspace }}
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
       - name: Generate JavaDoc
         run: ./gradlew aggregateJavadoc
 

@@ -17,11 +17,21 @@ on:
     paths:
       - 'documentation/**'
   workflow_dispatch:
+
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -34,6 +44,9 @@ jobs:
           distribution: 'temurin'
           server-id: github
           settings-path: ${{ github.workspace }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
       - name: Generate JavaDoc
         run: ./gradlew aggregateJavadoc
@@ -52,33 +65,11 @@ jobs:
         working-directory: documentation
         run: yarn add -D vitepress && yarn run docs:build
 
-      - name: Deploy to gh-pages
-        uses: crazy-max/ghaction-github-pages@v4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          target_branch: gh-pages
-          build_dir: documentation/docs/.vitepress/dist/
-          fqdn: cosid.ahoo.me
+          path: './documentation/docs/.vitepress/dist/'
 
-#      - name: Build VitePress site with SITE_BASE
-#        working-directory: documentation
-#        env:
-#          SITE_BASE: /cosid/
-#        run: yarn add -D vitepress && yarn run docs:build
-#
-#      - name: Deploy to gh-pages-with-site-base
-#        uses: crazy-max/ghaction-github-pages@v4
-#        env:
-#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#        with:
-#          target_branch: gh-pages-with-site-base
-#          build_dir: documentation/docs/.vitepress/dist/
-#
-#      - name: Sync to Gitee
-#        uses: wearerequired/git-mirror-action@master
-#        env:
-#          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-#        with:
-#          source-repo: "git@github.com:Ahoo-Wang/CosId.git"
-#          destination-repo: "git@gitee.com:AhooWang/CosId.git"
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

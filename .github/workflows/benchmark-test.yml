@@ -44,6 +44,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
+          cache: gradle
           settings-path: ${{ github.workspace }}
 
       - name: CosId-Core
@@ -72,6 +73,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
+          cache: gradle
           settings-path: ${{ github.workspace }}
 
       - name: CosId-Spring-Redis
@@ -93,6 +95,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
+          cache: gradle
           settings-path: ${{ github.workspace }}
 
       - name: Init CosId-Db

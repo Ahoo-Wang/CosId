@@ -32,6 +32,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
+          cache: gradle
           settings-path: ${{ github.workspace }}
 
       - name: Publish package
@@ -53,6 +54,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           server-id: github
+          cache: gradle
           settings-path: ${{ github.workspace }}
 
       - name: Publish package

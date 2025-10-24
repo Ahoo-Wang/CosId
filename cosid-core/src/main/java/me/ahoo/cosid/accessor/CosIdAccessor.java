@@ -20,7 +20,7 @@ import java.lang.reflect.Field;
 
 /**
  * CosId accessor for automatic ID injection into objects.
- * 
+ *
  * <p>This interface combines multiple capabilities for working with ID fields in objects:
  * <ul>
  *   <li>{@link CosIdGetter} - Getting ID values from objects</li>
@@ -28,12 +28,12 @@ import java.lang.reflect.Field;
  *   <li>{@link IdMetadata} - Providing metadata about ID fields</li>
  *   <li>{@link EnsureId} - Ensuring objects have IDs assigned</li>
  * </ul>
- * 
+ *
  * <p>The accessor is used by the CosId framework to automatically find and populate
  * ID fields in objects when they are persisted or processed. This enables a
  * "convention over configuration" approach where ID fields are automatically
  * detected and populated without explicit code.
- * 
+ *
  * <p>The interface includes utility methods for checking ID type compatibility
  * and ensuring reflective access to fields.
  *
@@ -43,7 +43,7 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
 
     /**
      * A sentinel value representing a "not found" accessor.
-     * 
+     *
      * <p>This is used when no valid ID field can be found in an object, allowing
      * the framework to handle missing ID fields gracefully without null checks.
      */
@@ -51,7 +51,7 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
 
     /**
      * Check if the specified ID type is supported by CosId.
-     * 
+     *
      * <p>This method verifies that the provided ID type is one of the supported
      * types for automatic ID injection:
      * <ul>
@@ -76,7 +76,7 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
 
     /**
      * Ensure that the specified accessible object (field/method) is accessible.
-     * 
+     *
      * <p>This utility method makes the provided accessible object accessible if
      * it is not already, allowing the framework to access private or protected
      * fields and methods for ID injection.
@@ -91,7 +91,7 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
 
     /**
      * Sentinel implementation representing a "not found" accessor.
-     * 
+     *
      * <p>This implementation provides null/default behavior for all accessor
      * methods, allowing the framework to handle cases where no valid ID field
      * is found without explicit null checks throughout the code.
@@ -100,7 +100,7 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
 
         /**
          * Get the ID definition (always returns null for NotFound).
-         * 
+         *
          * @return null
          */
         @Override
@@ -110,7 +110,7 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
 
         /**
          * Get the ID generator (always returns null for NotFound).
-         * 
+         *
          * @return null
          */
         @Override
@@ -120,7 +120,7 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
 
         /**
          * Get the ID field (always returns null for NotFound).
-         * 
+         *
          * @return null
          */
         @Override
@@ -130,7 +130,7 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
 
         /**
          * Get the ID value from the target object (always returns null for NotFound).
-         * 
+         *
          * @param target The target object
          * @return null
          */
@@ -141,9 +141,9 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
 
         /**
          * Set the ID value on the target object (no-op for NotFound).
-         * 
+         *
          * @param target The target object
-         * @param id The ID value to set
+         * @param id     The ID value to set
          */
         @Override
         public void setId(Object target, Object id) {
@@ -152,7 +152,7 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
 
         /**
          * Ensure the target object has an ID (always returns false for NotFound).
-         * 
+         *
          * @param target The target object
          * @return false
          */

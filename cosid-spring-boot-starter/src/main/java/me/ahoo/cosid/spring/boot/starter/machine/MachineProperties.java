@@ -166,10 +166,12 @@ public class MachineProperties {
         private MachineProperties.Manual manual;
         private MachineProperties.Redis redis;
         private MachineProperties.Mongo mongo;
-        
+        private MachineProperties.Jdbc jdbc;
+
         public Distributor() {
             this.redis = new MachineProperties.Redis();
             this.mongo = new MachineProperties.Mongo();
+            this.jdbc = new MachineProperties.Jdbc();
         }
         
         public MachineProperties.Distributor.Type getType() {
@@ -202,6 +204,14 @@ public class MachineProperties {
         
         public void setMongo(Mongo mongo) {
             this.mongo = mongo;
+        }
+
+        public Jdbc getJdbc() {
+            return jdbc;
+        }
+
+        public void setJdbc(Jdbc jdbc) {
+            this.jdbc = jdbc;
         }
         
         public enum Type {
@@ -316,6 +326,46 @@ public class MachineProperties {
         
         public void setBrokenThreshold(int brokenThreshold) {
             this.brokenThreshold = brokenThreshold;
+        }
+    }
+
+    public static class Jdbc {
+
+        private boolean endableJdbcMachineIdInitializer;
+        private String initCosIdMachineTableSql;
+        private String initNamespaceIdxSql;
+        private String initInstanceIdIdxSql;
+
+        public void setEndableJdbcMachineIdInitializer(boolean endableJdbcMachineIdInitializer) {
+            this.endableJdbcMachineIdInitializer = endableJdbcMachineIdInitializer;
+        }
+
+        public boolean isEndableJdbcMachineIdInitializer() {
+            return endableJdbcMachineIdInitializer;
+        }
+
+        public void setInitCosIdMachineTableSql(String initCosIdMachineTableSql) {
+            this.initCosIdMachineTableSql = initCosIdMachineTableSql;
+        }
+
+        public String getInitCosIdMachineTableSql() {
+            return initCosIdMachineTableSql;
+        }
+
+        public void setInitNamespaceIdxSql(String initNamespaceIdxSql) {
+            this.initNamespaceIdxSql = initNamespaceIdxSql;
+        }
+
+        public String getInitNamespaceIdxSql() {
+            return initNamespaceIdxSql;
+        }
+
+        public void setInitInstanceIdIdxSql(String initInstanceIdIdxSql) {
+            this.initInstanceIdIdxSql = initInstanceIdIdxSql;
+        }
+
+        public String getInitInstanceIdIdxSql() {
+            return initInstanceIdIdxSql;
         }
     }
 }

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.machine;
 
 import me.ahoo.cosid.jdbc.JdbcMachineIdDistributor;
+import me.ahoo.cosid.jdbc.JdbcMachineIdInitializer;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
@@ -40,11 +41,17 @@ import javax.sql.DataSource;
 @ConditionalOnClass(JdbcMachineIdDistributor.class)
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "jdbc")
 public class CosIdJdbcMachineIdDistributorAutoConfiguration {
-    
+
     @Bean
     @ConditionalOnMissingBean
-    public JdbcMachineIdDistributor jdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+    public JdbcMachineIdDistributor jdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage localMachineState, 
+        ClockBackwardsSynchronizer clockBackwardsSynchronizer, MachineProperties machineProperties) {
+        final MachineProperties.Jdbc jdbc = machineProperties.getDistributor().getJdbc();
+        if (jdbc.isEndableJdbcMachineIdInitializer()) {
+            new JdbcMachineIdInitializer(dataSource, jdbc.getInitCosIdMachineTableSql(), 
+                jdbc.getInitNamespaceIdxSql(), jdbc.getInitInstanceIdIdxSql())
+                .tryInitCosIdMachineTable();
+        }
         return new JdbcMachineIdDistributor(dataSource, localMachineState, clockBackwardsSynchronizer);
     }
-    
 }

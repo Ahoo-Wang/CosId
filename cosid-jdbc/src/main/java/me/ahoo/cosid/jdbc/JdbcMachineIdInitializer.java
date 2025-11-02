@@ -59,9 +59,9 @@ public class JdbcMachineIdInitializer {
     
     public JdbcMachineIdInitializer(DataSource dataSource, String initCosIdMachineTableSql, String initNamespaceIdxSql, String initInstanceIdIdxSql) {
         this.dataSource = dataSource;
-        this.initCosIdMachineTableSql = initCosIdMachineTableSql;
-        this.initNamespaceIdxSql = initNamespaceIdxSql;
-        this.initInstanceIdIdxSql = initInstanceIdIdxSql;
+        this.initCosIdMachineTableSql = emptyToDefault(initCosIdMachineTableSql, INIT_COSID_MACHINE_TABLE_SQL);
+        this.initNamespaceIdxSql = emptyToDefault(initNamespaceIdxSql, INIT_NAMESPACE_IDX_SQL);
+        this.initInstanceIdIdxSql = emptyToDefault(initInstanceIdIdxSql, INIT_INSTANCE_ID_IDX_SQL);
     }
     
     public void initCosIdMachineTable() throws SQLException {
@@ -92,5 +92,9 @@ public class JdbcMachineIdInitializer {
             }
             return false;
         }
+    }
+
+    private static String emptyToDefault(final String str, final String defaultValue) {
+        return str == null || str.isEmpty() ? defaultValue : str;
     }
 }

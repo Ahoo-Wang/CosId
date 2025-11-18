@@ -25,10 +25,13 @@ hero:
 
 features:
 - title: Universal
+  icon: 🌐
   details: "Supports multiple types of distributed ID algorithms: SnowflakeId, SegmentId, SegmentChainId. And supports multiple segment distributors and machine ID distributors."
 - title: Flexible
+  icon: 🔧
   details: Easily switch between multiple algorithm implementations through simple configuration to customize and meet scenario needs.
 - title: High Performance
+  icon: 🚀
   details: "Extremely optimized design, SegmentChainId performance can reach TPS performance close to AtomicLong: 12743W+/s."
 ---
 

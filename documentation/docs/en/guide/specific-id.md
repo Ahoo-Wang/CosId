@@ -1,16 +1,16 @@
-# 特定场景ID配置
+# Specific Scenario ID Configuration
 
 ## SnowflakeId
 
 ### snowflake_friendly
 
-使用 _SnowflakeId_ 算法，要求输出的ID字符串：
+Using the _SnowflakeId_ algorithm, the output ID string requires:
 
-- 格式：`yyyyMMddHHmmssSSS-<machineId>-<sequence>`
-- 例如：`20240103152415876-5-16`
+- Format: `yyyyMMddHHmmssSSS-<machineId>-<sequence>`
+- For example: `20240103152415876-5-16`
 
 ::: code-group
-```yaml {9-11} [配置]
+```yaml {9-11} [Configuration]
 cosid:
   machine:
     enabled: true
@@ -23,7 +23,7 @@ cosid:
         converter:
           type: snowflake_friendly
 ```
-```json [配置信息]
+```json [Configuration Information]
 {
   "snowflake_friendly": {
     "kind": "DefaultSnowflakeFriendlyId",
@@ -65,13 +65,13 @@ cosid:
 
 ### snowflake_orderly_friendly
 
-使用 _SnowflakeId_ 算法，要求输出的有序的ID字符串：
+Using the _SnowflakeId_ algorithm, the output ordered ID string requires:
 
-- 格式：`yyyyMMddHHmmssSSS-[0]<machineId>-[0]<sequence>`
-- 例如：`20250215122059820-0000-0001`
+- Format: `yyyyMMddHHmmssSSS-[0]<machineId>-[0]<sequence>`
+- For example: `20250215122059820-0000-0001`
 
 ::: code-group
-```yaml {9-14} [配置]
+```yaml {9-14} [Configuration]
 cosid:
   machine:
     enabled: true
@@ -86,7 +86,7 @@ cosid:
           friendly:
             pad-start: true
 ```
-```json [配置信息]
+```json [Configuration Information]
 {
   "snowflake_orderly_friendly": {
     "kind": "StringSnowflakeId",
@@ -134,13 +134,13 @@ cosid:
 
 ### snowflake_short_id
 
-使用 _SnowflakeId_ 算法，要求输出的ID字符串：
+Using the _SnowflakeId_ algorithm, the output ID string requires:
 
-- 格式：尽可能短
-- 例如：`0dMszf3Ht1l`
+- Format: As short as possible
+- For example: `0dMszf3Ht1l`
 
 ::: code-group
-```yaml {9-14} [配置]
+```yaml {9-14} [Configuration]
 cosid:
   machine:
     enabled: true
@@ -156,7 +156,7 @@ cosid:
             char-size: 11
             pad-start: true
 ```
-```json [配置信息]
+```json [Configuration Information]
 {
   "snowflake_short_id": {
     "kind": "DefaultSnowflakeFriendlyId",
@@ -201,13 +201,13 @@ cosid:
 
 ### snowflake_friendly_second
 
-使用 _SnowflakeId_ 算法，要求输出的ID字符串：
+Using the _SnowflakeId_ algorithm, the output ID string requires:
 
-- 格式：`yyyyMMddHHmmss-<machineId>-<sequence>`
-- 例如：`20240103153900-5-4`
+- Format: `yyyyMMddHHmmss-<machineId>-<sequence>`
+- For example: `20240103153900-5-4`
 
 ::: code-group
-```yaml {9-16} [配置]
+```yaml {9-16} [Configuration]
 cosid:
   machine:
     enabled: true
@@ -225,7 +225,7 @@ cosid:
         converter:
           type: snowflake_friendly
 ```
-```json [配置信息]
+```json [Configuration Information]
 {
   "snowflake_friendly_second": {
     "kind": "DefaultSnowflakeFriendlyId",
@@ -269,14 +269,14 @@ cosid:
 
 ### biz_prefix_no
 
-使用 _SegmentId_ 算法，要求输出的ID字符串：
-- 起始序号：`2000000000`
-- 格式：`<prefix><sequence>`
-- 序号位：10位数值，不足10位前补0
-- 例如：`BIZ2000000219`
+Using the _SegmentId_ algorithm, the output ID string requires:
+- Starting sequence: `2000000000`
+- Format: `<prefix><sequence>`
+- Sequence digits: 10-digit number, padded with 0 if less than 10 digits
+- For example: `BIZ2000000219`
 
 ::: code-group
-```yaml {7-14} [配置]
+```yaml {7-14} [Configuration]
 cosid:
   segment:
     enabled: true
@@ -292,7 +292,7 @@ cosid:
             char-size: 10
             pad-start: true
 ```
-```json [配置信息]
+```json [Configuration Information]
 {
   "biz_prefix_no": {
     "kind": "StringSegmentId",
@@ -330,13 +330,13 @@ cosid:
 
 ### date_prefix_no
 
-使用 _SegmentId_ 算法，要求输出的ID字符串：
-- 格式：`<prefix><date><sequence>`
-- 日期位：6位日期字符串，格式`yyMMdd`
-- 例如：`BIZ-240618-25`
+Using the _SegmentId_ algorithm, the output ID string requires:
+- Format: `<prefix><date><sequence>`
+- Date digits: 6-digit date string, format `yyMMdd`
+- For example: `BIZ-240618-25`
 
 ::: code-group
-```yaml {7-14} [配置]
+```yaml {7-14} [Configuration]
 cosid:
   segment:
     enabled: true
@@ -351,7 +351,7 @@ cosid:
             enabled: true
             pattern: yyMMdd
 ```
-```json [配置信息]
+```json [Configuration Information]
 {
   "date_prefix_no": {
     "kind": "StringSegmentId",
@@ -397,14 +397,14 @@ cosid:
 
 ### no_suffix_biz
 
-使用 _SegmentId_ 算法，要求输出的ID字符串：
-- 起始序号：`2000000000`
-- 格式：`<sequence><suffix>`
-- 序号位：10位数值，不足10位前补0
-- 例如：`2000000201BIZ`
+Using the _SegmentId_ algorithm, the output ID string requires:
+- Starting sequence: `2000000000`
+- Format: `<sequence><suffix>`
+- Sequence digits: 10-digit number, padded with 0 if less than 10 digits
+- For example: `2000000201BIZ`
 
 ::: code-group
-```yaml {7-14} [配置]
+```yaml {7-14} [Configuration]
 cosid:
   segment:
     enabled: true
@@ -420,7 +420,7 @@ cosid:
             char-size: 10
             pad-start: true
 ```
-```json [配置信息]
+```json [Configuration Information]
 {
   "no_suffix_biz": {
     "kind": "StringSegmentId",
@@ -458,14 +458,14 @@ cosid:
 
 ### biz_prefix_radix
 
-使用 _SegmentId_ 算法，要求输出的ID字符串：
-- 起始序号：`2000000000`
-- 格式：`<prefix><sequence>`
-- 序号位：6位62进制字符串，不足6位前补0
-- 例如：`BIZ2BLnPb`
+Using the _SegmentId_ algorithm, the output ID string requires:
+- Starting sequence: `2000000000`
+- Format: `<prefix><sequence>`
+- Sequence digits: 6-digit base62 string, padded with 0 if less than 6 digits
+- For example: `BIZ2BLnPb`
 
 ::: code-group
-```yaml {7-14} [配置]
+```yaml {7-14} [Configuration]
 cosid:
   segment:
     enabled: true
@@ -481,7 +481,7 @@ cosid:
             char-size: 6
             pad-start: true
 ```
-```json [配置信息]
+```json [Configuration Information]
 {
   "biz_prefix_radix": {
     "kind": "StringSegmentId",
@@ -521,14 +521,14 @@ cosid:
 
 ### biz_prefix_radix36
 
-使用 _SegmentId_ 算法，要求输出的ID字符串：
-- 起始序号：`2000000000`
-- 格式：`<prefix><sequence>`
-- 序号位：8位36进制字符串，不足8位前补0
-- 例如：`BIZ00000044`
+Using the _SegmentId_ algorithm, the output ID string requires:
+- Starting sequence: `2000000000`
+- Format: `<prefix><sequence>`
+- Sequence digits: 8-digit base36 string, padded with 0 if less than 8 digits
+- For example: `BIZ00000044`
 
 ::: code-group
-```yaml {7-14} [配置]
+```yaml {7-14} [Configuration]
 cosid:
   segment:
     enabled: true
@@ -544,7 +544,7 @@ cosid:
             char-size: 6
             pad-start: true
 ```
-```json [配置信息]
+```json [Configuration Information]
 {
   "biz_prefix_radix36": {
     "kind": "StringSegmentId",
@@ -584,15 +584,15 @@ cosid:
 
 ### group_year_biz
 
-使用 _SegmentId_ 算法，要求输出的ID字符串：
-- 起始序号：`0`
-- 格式：`<prefix><year><sequence>`
-- 分组：按年分组，每年序号从0开始。即每年序号需要重置为0.
-- 序号位：8位数值，不足8位前补0
-- 例如：`BIZ-2024-00000231`
+Using the _SegmentId_ algorithm, the output ID string requires:
+- Starting sequence: `0`
+- Format: `<prefix><year><sequence>`
+- Grouping: Grouped by year, sequence starts from 0 each year. That is, the sequence needs to reset to 0 every year.
+- Sequence digits: 8-digit number, padded with 0 if less than 8 digits
+- For example: `BIZ-2024-00000231`
 
 ::: code-group
-```yaml {7-18} [配置]
+```yaml {7-18} [Configuration]
 cosid:
   segment:
     enabled: true
@@ -612,7 +612,7 @@ cosid:
           group-prefix:
             enabled: true
 ```
-```json {14-17} [配置信息]
+```json {14-17} [Configuration Information]
 {
   "group_year_biz": {
     "kind": "StringSegmentId",
@@ -658,15 +658,15 @@ cosid:
 
 ### group_year_month_biz
 
-使用 _SegmentId_ 算法，要求输出的ID字符串：
-- 起始序号：`0`
-- 格式：`<prefix><year_month><sequence>`
-- 分组：按年月分组，序号从0开始。即跨月序号需要重置为0.
-- 序号位：8位数值，不足8位前补0
-- 例如：`BIZ-240516-00000061`
+Using the _SegmentId_ algorithm, the output ID string requires:
+- Starting sequence: `0`
+- Format: `<prefix><year_month><sequence>`
+- Grouping: Grouped by year and month, sequence starts from 0. That is, the sequence needs to reset to 0 across months.
+- Sequence digits: 8-digit number, padded with 0 if less than 8 digits
+- For example: `BIZ-240516-00000061`
 
 ::: code-group
-```yaml {7-18} [配置]
+```yaml {7-18} [Configuration]
 cosid:
   segment:
     enabled: true
@@ -686,7 +686,7 @@ cosid:
           group-prefix:
             enabled: true
 ```
-```json {14-17} [配置信息]
+```json {14-17} [Configuration Information]
 {
   "group_year_month_biz": {
     "kind": "StringSegmentId",
@@ -732,15 +732,15 @@ cosid:
 
 ### group_year_month_day_biz
 
-使用 _SegmentId_ 算法，要求输出的ID字符串：
-- 起始序号：`0`
-- 格式：`<prefix><year_month_day><sequence>`
-- 分组：按日期分组，序号从0开始。即明天序号需要重置为0.
-- 序号位：8位数值，不足8位前补0
-- 例如：`BIZ-240516-00000001`
+Using the _SegmentId_ algorithm, the output ID string requires:
+- Starting sequence: `0`
+- Format: `<prefix><year_month_day><sequence>`
+- Grouping: Grouped by date, sequence starts from 0. That is, the sequence needs to reset to 0 tomorrow.
+- Sequence digits: 8-digit number, padded with 0 if less than 8 digits
+- For example: `BIZ-240516-00000001`
 
 ::: code-group
-```yaml {7-18} [配置]
+```yaml {7-18} [Configuration]
 cosid:
   segment:
     enabled: true
@@ -760,7 +760,7 @@ cosid:
           group-prefix:
             enabled: true
 ```
-```json {14-17} [配置信息]
+```json {14-17} [Configuration Information]
 {
   "group_year_month_day_biz": {
     "kind": "StringSegmentId",
@@ -804,12 +804,12 @@ cosid:
 ```
 :::
 
-## 百万级规模集群实例的全局ID
+## Global ID for Million-Scale Cluster Instances
 
-使用 _CosIdGenerator_ 算法，要求支持百万级规模集群实例的全局ID生成器。
+Using the _CosIdGenerator_ algorithm, it requires supporting global ID generators for million-scale cluster instances.
 
 ::: code-group
-```yaml {6-7} [配置]
+```yaml {6-7} [Configuration]
 cosid:
   machine:
     enabled: true
@@ -818,7 +818,7 @@ cosid:
   generator:
     enabled: true
 ```
-```json [配置信息]
+```json [Configuration Information]
 {
   "cosid": {
     "kind": "ClockSyncCosIdGenerator",

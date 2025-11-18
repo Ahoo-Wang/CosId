@@ -1,12 +1,12 @@
-# CosId-Spring-Boot-Starter 模块
+# CosId-Spring-Boot-Starter Module
 
-_Spring-Boot-Starter_ 模块 集成了所有 _CosId_ 扩展，提供了自动装配的能力，使 _CosId_ 框架在 _Spring Boot_ 项目中更加便捷地使用。
+The _Spring-Boot-Starter_ module integrates all _CosId_ extensions and provides auto-configuration capabilities, making the _CosId_ framework more convenient to use in _Spring Boot_ projects.
 
 ::: tip
-该模块的配置文档请参考 [配置](../../reference/config/basic)。
+For the configuration documentation of this module, please refer to [Configuration](../../reference/config/basic).
 :::
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -24,21 +24,21 @@ _Spring-Boot-Starter_ 模块 集成了所有 _CosId_ 扩展，提供了自动装
 ```
 :::
 
-## Actuate
+## Actuator
 
-CosId-Spring-Boot-Starter 模块提供了 actuator 支持，可以通过 actuator 端点查看 CosId 的状态。
+The CosId-Spring-Boot-Starter module provides actuator support, allowing you to view the CosId status through actuator endpoints.
 
 ![CosId actuator](../../../public/assets/spring-boot-starter/swagger-ui.png)
 
 ### CosIdEndpoint
 
-用于查看所有定义的 Id 生成器状态信息。
+Used to view the status information of all defined ID generators.
 
 :::code-group
 ```shell [curl]
 curl -X GET "http://localhost:8080/actuator/cosid" -H  "accept: */*"
 ```
-```json [响应内容]
+```json [Response Content]
 {
   "cosid": {
     "kind": "ClockSyncCosIdGenerator",
@@ -90,13 +90,13 @@ curl -X GET "http://localhost:8080/actuator/cosid" -H  "accept: */*"
 
 ### CosIdGeneratorEndpoint
 
-提供了生成 `long` 类型 ID 的 API 接口。
+Provides an API interface for generating `long` type IDs.
 
 ### CosIdStringGeneratorEndpoint
 
-提供了生成 `string` 类型 ID 的 API 接口。
+Provides an API interface for generating `string` type IDs.
 
-### 配置
+### Configuration
 
 ```yaml {6-8}
 management:

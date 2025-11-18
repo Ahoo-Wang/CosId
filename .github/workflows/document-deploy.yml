@@ -58,13 +58,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 18
-          cache-dependency-path: documentation/yarn.lock
-          cache: yarn
+          node-version: 24
+          cache-dependency-path: documentation/pnpm-lock.yaml
+          cache: 'pnpm'
 
       - name: Build VitePress site
         working-directory: documentation
-        run: yarn add -D vitepress && yarn run docs:build
+        run: pnpm install && pnpm run docs:build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4

@@ -1,4 +1,6 @@
 import {defineConfig} from 'vitepress'
+import llmstxt from 'vitepress-plugin-llms'
+import { copyOrDownloadAsMarkdownButtons } from 'vitepress-plugin-llms'
 import {SITE_BASE} from "./configs/SITE_BASE";
 import {head} from "./configs/head";
 import {navbar as navbarEn} from "./configs/navbar.en";
@@ -32,6 +34,14 @@ let userConfig = defineConfig({
         }
     },
     appearance: 'dark',
+    vite: {
+        plugins: [llmstxt({workDir: 'en', ignoreFiles: ['index.md']})]
+    },
+    markdown: {
+        config(md) {
+            md.use(copyOrDownloadAsMarkdownButtons)
+        }
+    },
     locales: {
         root: {
             label: 'English',

@@ -12,17 +12,22 @@
  */
 
 import DefaultTheme from 'vitepress/theme'
-import { onMounted, watch, nextTick } from 'vue'
-import { useRoute } from 'vitepress'
+import {onMounted, watch, nextTick} from 'vue'
+import {type Theme, useRoute} from 'vitepress'
 import mediumZoom from 'medium-zoom'
 import './global.css'
+import CopyOrDownloadAsMarkdownButtons
+    from 'vitepress-plugin-llms/vitepress-components/CopyOrDownloadAsMarkdownButtons.vue'
 
 export default {
-    ...DefaultTheme,
+    extends: DefaultTheme,
+    enhanceApp({app}) {
+        app.component('CopyOrDownloadAsMarkdownButtons', CopyOrDownloadAsMarkdownButtons)
+    },
     setup() {
         const route = useRoute()
         const initZoom = () => {
-            mediumZoom('.main img', { background: 'var(--vp-c-bg)' })
+            mediumZoom('.main img', {background: 'var(--vp-c-bg)'})
         }
         onMounted(() => {
             initZoom()
@@ -32,4 +37,4 @@ export default {
             () => nextTick(() => initZoom())
         )
     },
-}
+}satisfies Theme

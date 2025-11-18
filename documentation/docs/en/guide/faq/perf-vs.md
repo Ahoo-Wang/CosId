@@ -1,51 +1,51 @@
-# 性能对比
+# Performance Comparison
 
 TODO
 
-## 分布式ID方案的核心指标
+## Core Metrics of Distributed ID Schemes
 
-- **全局（相同业务）唯一性**：唯一性保证是**ID**的必要条件，假设ID不唯一就会产生主键冲突，这点很容易可以理解。
-    - 通常所说的全局唯一性并不是指所有业务服务都要唯一，而是相同业务服务不同部署副本唯一。
-      比如 Order 服务的多个部署副本在生成`t_order`这张表的`Id`时是要求全局唯一的。至于`t_order_item`生成的`ID`与`t_order`是否唯一，并不影响唯一性约束，也不会产生什么副作用。
-      不同业务模块间也是同理。即唯一性主要解决的是ID冲突问题。
-- **有序性**：有序性保证是面向查询的数据结构算法（除了Hash算法）所必须的，是**二分查找法**(分而治之)的前提。
-    - MySq-InnoDB B+树是使用最为广泛的，假设 Id 是无序的，B+ 树 为了维护 ID 的有序性，就会频繁的在索引的中间位置插入而挪动后面节点的位置，甚至导致频繁的页分裂，这对于性能的影响是极大的。那么如果我们能够保证ID的有序性这种情况就完全不同了，只需要进行追加写操作。所以 ID 的有序性是非常重要的，也是ID设计不可避免的特性。
-- **吞吐量/性能(ops/time)**：即单位时间（每秒）能产生的ID数量。生成ID是非常高频的操作，也是最为基本的。假设ID生成的性能缓慢，那么不管怎么进行系统优化也无法获得更好的性能。
-    - 一般我们会首先生成ID，然后再执行写入操作，假设ID生成缓慢，那么整体性能上限就会受到限制，这一点应该不难理解。
-- **稳定性(time/op)**：稳定性指标一般可以采用**每个操作的时间进行百分位采样**来分析，比如 *[CosId](https://github.com/Ahoo-Wang/CosId)* 百分位采样 **P9999=0.208 us/op**，即 **0% ~ 99.99%** 的单位操作时间小于等于  **0.208 us/op**。
-    - [百分位数 WIKI](https://zh.wikipedia.org/wiki/%E7%99%BE%E5%88%86%E4%BD%8D%E6%95%B0) ：统计学术语，若将一组数据从小到大排序，并计算相应的累计百分点，则某百分点所对应数据的值，就称为这百分点的百分位数，以Pk表示第k百分位数。百分位数是用来比较个体在群体中的相对地位量数。
-    - 为什么不用平均*每个操作的时间*：马老师的身价跟你的身价能平均么？平均后的值有意义不？
-    - 可以使用最小*每个操作的时间*、最大*每个操作的时间*作为参考吗？因为最小、最大值只说明了零界点的情况，虽说可以作为稳定性的参考，但依然不够全面。而且*百分位数*已经覆盖了这俩个指标。
-- **自治性（依赖）**：主要是指对外部环境有无依赖，比如**号段模式**会强依赖第三方存储中间件来获取`NexMaxId`。自治性还会对可用性造成影响。
-- **可用性**：分布式ID的可用性主要会受到自治性影响，比如**SnowflakeId**会受到时钟回拨影响，导致处于短暂时间的不可用状态。而**号段模式**会受到第三方发号器（`NexMaxId`）的可用性影响。
-    - [可用性 WIKI](https://zh.wikipedia.org/wiki/%E5%8F%AF%E7%94%A8%E6%80%A7) ：在一个给定的时间间隔内，对于一个功能个体来讲，总的可用时间所占的比例。
-    - MTBF：平均故障间隔
-    - MDT：平均修复/恢复时间
+- **Global (Same Business) Uniqueness**: Uniqueness guarantee is a **necessary condition** for **ID**. Assuming ID is not unique will cause primary key conflicts, which is easy to understand.
+    - The so-called global uniqueness usually does not mean uniqueness across all business services, but uniqueness across different deployment replicas of the same business service.
+      For example, multiple deployment replicas of the Order service generating `Id` for the `t_order` table require global uniqueness. As for whether the `ID` generated for `t_order_item` is unique with `t_order`, it does not affect the uniqueness constraint and will not cause any side effects.
+      The same applies to different business modules. That is, uniqueness mainly solves the ID conflict problem.
+- **Orderliness**: The orderliness guarantee is necessary for query data structure algorithms (except Hash algorithms), and is the prerequisite for **binary search** (divide and conquer).
+    - MySQL-InnoDB B+ tree is the most widely used. Assuming Id is unordered, the B+ tree, in order to maintain the orderliness of ID, will frequently insert in the middle of the index and move the positions of subsequent nodes, even leading to frequent page splits, which has a huge impact on performance. If we can guarantee the orderliness of ID, this situation is completely different, only needing append write operations. Therefore, the orderliness of ID is very important and is an inevitable characteristic of ID design.
+- **Throughput/Performance (ops/time)**: The number of IDs that can be generated per unit time (per second). Generating ID is a very high-frequency operation and is also the most basic. Assuming ID generation is slow, no matter how the system is optimized, better performance cannot be obtained.
+    - Generally, we first generate the ID, then perform the write operation. Assuming ID generation is slow, the overall performance upper limit will be limited, which should be easy to understand.
+- **Stability (time/op)**: The stability metric can generally be analyzed using **percentile sampling** of each operation time, for example, *[CosId](https://github.com/Ahoo-Wang/CosId)* percentile sampling **P9999=0.208 us/op**, meaning **0% ~ 99.99%** of unit operation times are less than or equal to **0.208 us/op**.
+    - [Percentile WIKI](https://en.wikipedia.org/wiki/Percentile): A statistical term. If a set of data is sorted from small to large and the corresponding cumulative percentiles are calculated, then the value corresponding to a certain percentile is called the percentile number, denoted as Pk for the k-th percentile. Percentiles are used to compare the relative position of individuals in a group.
+    - Why not use the average *time per operation*: Can the average of Jack Ma's net worth and yours be meaningful?
+    - Can the minimum *time per operation* and maximum *time per operation* be used as reference? Because minimum and maximum values only describe the boundary conditions, although they can be used as a reference for stability, they are still not comprehensive. Moreover, *percentiles* already cover these two indicators.
+- **Autonomy (Dependency)**: Mainly refers to whether there is dependency on external environment, for example, **segment mode** strongly depends on third-party storage middleware to obtain `NextMaxId`. Autonomy will also affect availability.
+- **Availability**: The availability of distributed ID is mainly affected by autonomy, for example, **SnowflakeId** is affected by clock rollback, leading to a short period of unavailability. While **segment mode** is affected by the availability of third-party distributors (`NextMaxId`).
+    - [Availability WIKI](https://en.wikipedia.org/wiki/Availability_(system)): The proportion of total available time for a functional individual within a given time interval.
+    - MTBF: Mean Time Between Failures
+    - MDT: Mean Time To Repair/Recovery
     - Availability=MTBF/(MTBF+MDT)
-    - 假设MTBF为1年，MDT为1小时，即`Availability=(365*24)/(365*24+1)=0.999885857778792≈99.99%`，也就是我们通常所说对可用性4个9。
-- **适应性**：是指在面对外部环境变化的自适应能力，这里我们主要说的是面对流量突发时动态伸缩分布式ID的性能，
-    - **SegmentChainId**可以基于**饥饿状态**进行**安全距离**的动态伸缩。
-    - **SnowflakeId**常规位分配方案性能恒定409.6W，虽然可以通过调整位分配方案来获得不同的TPS性能，但是位分配方法的变更是破坏性的，一般根据业务场景确定位分配方案后不再变更。
-- **存储空间**：还是用MySq-InnoDB B+树来举例，普通索引（二级索引）会存储主键值，主键越大占用的内存缓存、磁盘空间也会越大。Page页存储的数据越少，磁盘IO访问的次数会增加。总之在满足业务需求的情况下，尽可能小的存储空间占用在绝大多数场景下都是好的设计原则。
+    - Assuming MTBF is 1 year, MDT is 1 hour, then `Availability=(365*24)/(365*24+1)=0.999885857778792≈99.99%`, which is what we usually call four 9s availability.
+- **Adaptability**: Refers to the adaptive ability when facing changes in the external environment. Here we mainly talk about the dynamic scaling of distributed ID performance when facing traffic bursts.
+    - **SegmentChainId** can dynamically scale based on **starvation state** for **safe distance**.
+    - **SnowflakeId** conventional bit allocation scheme has constant performance of 409.6W, although different TPS performance can be obtained by adjusting the bit allocation scheme, but changing the bit allocation method is destructive, generally determined according to the business scenario and no longer changed.
+- **Storage Space**: Still using MySQL-InnoDB B+ tree as an example, secondary indexes store primary key values, the larger the primary key, the more memory cache and disk space it occupies. The less data stored in Page pages, the more disk IO accesses will increase. In short, under the premise of meeting business needs, occupying as little storage space as possible is a good design principle in most scenarios.
 
-## 分布式ID的核心算法
+## Core Algorithms of Distributed ID
 
-## 按位分区算法 (`SnowflakeId`)
+## Bit Partition Algorithm (`SnowflakeId`)
 
-|                                                         |          性能（吞吐量） |          稳定性（百分位数） | 自治性（依赖）           | 机器号分配器                           | 机器号回收 | 使用方式                |
+|                                                         |          Performance (Throughput) |          Stability (Percentile) | Autonomy (Dependency)           | Machine Number Allocator                           | Machine Number Recycling | Usage Method                |
 |---------------------------------------------------------|-----------------:|-------------------:|-------------------|----------------------------------|-------|:--------------------|
-| [CosId](https://github.com/Ahoo-Wang/CosId)             | 4,096,000(ops/s) | P9999=0.244(us/op) | 首次启动，依赖**机器号分配器** | 手动分配器、K8S、关系型数据库、Redis、ZooKeeper | 支持    | SDK(推荐)/RPC/RESTful |
+| [CosId](https://github.com/Ahoo-Wang/CosId)             | 4,096,000(ops/s) | P9999=0.244(us/op) | First startup, depends on **machine number allocator** | Manual allocator, K8S, relational database, Redis, ZooKeeper | Supported    | SDK(recommended)/RPC/RESTful |
 | [Leaf](https://github.com/Meituan-Dianping/Leaf)        |                  |                    |                   | ZooKeeper                        |       |                     |
-| [uid-generator](https://github.com/baidu/uid-generator) |                  |                    |                   | 关系型数据库                           |       |                     |
-| [TinyID](https://github.com/didi/tinyid)                |    不支持**按位分区算法** |                    |                   |                                  |
+| [uid-generator](https://github.com/baidu/uid-generator) |                  |                    |                   | Relational database                           |       |                     |
+| [TinyID](https://github.com/didi/tinyid)                |    Does not support **bit partition algorithm** |                    |                   |                                  |
 
-## 号段算法 (`SegmentId`)
+## Segment Algorithm (`SegmentId`)
 
-|                                                         |            性能（吞吐量） |          稳定性（百分位数） | 自治性（依赖）     | 号段分发器                  | 适应性           | 存储空间   | 使用方式                |
+|                                                         |            Performance (Throughput) |          Stability (Percentile) | Autonomy (Dependency)     | Segment Distributor                  | Adaptability           | Storage Space   | Usage Method                |
 |---------------------------------------------------------|-------------------:|-------------------:|-------------|------------------------|---------------|--------|---------------------|
-| [CosId](https://github.com/Ahoo-Wang/CosId)             | 127,439,148(ops/s) | P9999=0.208(us/op) | 依赖**号段分发器** | 关系型数据库、Redis、ZooKeeper | 支持`Step`自动扩缩容 | 64-bit | SDK(推荐)/RPC/RESTful |
+| [CosId](https://github.com/Ahoo-Wang/CosId)             | 127,439,148(ops/s) | P9999=0.208(us/op) | Depends on **segment distributor** | Relational database, Redis, ZooKeeper | Supports `Step` auto-scaling | 64-bit | SDK(recommended)/RPC/RESTful |
 | [Leaf](https://github.com/Meituan-Dianping/Leaf)        |                    |                    |             | MySql                  |               |        |                     |
-| [uid-generator](https://github.com/baidu/uid-generator) |        不支持**号段算法** |                    |             |                        |               |        |                     |
-| [TinyID](https://github.com/didi/tinyid)                |                    |                    |             | 数据库                    |               |        |                     |
+| [uid-generator](https://github.com/baidu/uid-generator) |        Does not support **segment algorithm** |                    |             |                        |               |        |                     |
+| [TinyID](https://github.com/didi/tinyid)                |                    |                    |             | Database                    |               |        |                     |
 
 

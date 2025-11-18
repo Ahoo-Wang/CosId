@@ -45,9 +45,9 @@ spring:
 - 易用性: 支持多种数据类型 (`Long`/`LocalDateTime`/`DATE`/ `String` / `SnowflakeId`)，而官方实现是先转换成字符串再转换成`LocalDateTime`，转换成功率受时间格式化字符影响。
 - 性能 : 相比于 `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm` 性能高出 *1200~4000* 倍。
 
-| **PreciseShardingValue**                                                                                        | **RangeShardingValue**                                                                                        |
-|-----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
+| **PreciseShardingValue**                                                                                           | **RangeShardingValue**                                                                                           |
+|--------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
 
 - CosIdIntervalShardingAlgorithm
     - type: COSID_INTERVAL
@@ -80,9 +80,9 @@ spring:
 
 - 性能 : 相比于 `org.apache.shardingsphere.sharding.algorithm.sharding.mod.ModShardingAlgorithm` 性能高出 *1200~4000* 倍。并且稳定性更高，不会出现严重的性能退化。
 
-| **PreciseShardingValue**                                                                                   | **RangeShardingValue**                                                                                   |
-|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
+| **PreciseShardingValue**                                                                                      | **RangeShardingValue**                                                                                      |
+|---------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
 
 ```yaml
 spring:

@@ -1,10 +1,10 @@
-# CosId-ShardingSphere 模块
+# CosId-ShardingSphere Module
 
-::: tip 维护说明
-`CosIdKeyGenerateAlgorithm`、`CosIdModShardingAlgorithm`、`CosIdIntervalShardingAlgorithm` 已合并至 [ShardingSphere](https://github.com/apache/shardingsphere/pull/14132) 官方，当前该模块的维护可能会以官方为主。
+::: tip Maintenance Note
+`CosIdKeyGenerateAlgorithm`, `CosIdModShardingAlgorithm`, `CosIdIntervalShardingAlgorithm` have been merged into the official [ShardingSphere](https://github.com/apache/shardingsphere/pull/14132), and the maintenance of this module may be primarily handled by the official team.
 :::
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -22,7 +22,7 @@
 ```
 :::
 
-## 分布式主键
+## Distributed Primary Key
 
 ```yaml
 spring:
@@ -36,14 +36,14 @@ spring:
               id-name: __share__
 ```
 
-## 基于间隔的时间范围分片算法
+## Interval-based Time Range Sharding Algorithm
 
 <p align="center" >
   <img src="../../../public/assets/design/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"/>
 </p>
 
-- 易用性: 支持多种数据类型 (`Long`/`LocalDateTime`/`DATE`/ `String` / `SnowflakeId`)，而官方实现是先转换成字符串再转换成`LocalDateTime`，转换成功率受时间格式化字符影响。
-- 性能 : 相比于 `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm` 性能高出 *1200~4000* 倍。
+- Usability: Supports multiple data types (`Long`/`LocalDateTime`/`DATE`/ `String` / `SnowflakeId`), while the official implementation converts to string first then to `LocalDateTime`, and the conversion success rate is affected by time formatting characters.
+- Performance: Compared to `org.apache.shardingsphere.sharding.algorithm.sharding.datetime.IntervalShardingAlgorithm`, performance is *1200~4000* times higher.
 
 | **PreciseShardingValue**                                                                                        | **RangeShardingValue**                                                                                        |
 |-----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
@@ -72,13 +72,13 @@ spring:
               datetime-interval-amount: 1
 ```
 
-## 取模分片算法
+## Modulo Sharding Algorithm
 
 <p align="center" >
   <img src="../../../public/assets/design/CosIdModShardingAlgorithm.png" alt="CosIdModShardingAlgorithm"/>
 </p>
 
-- 性能 : 相比于 `org.apache.shardingsphere.sharding.algorithm.sharding.mod.ModShardingAlgorithm` 性能高出 *1200~4000* 倍。并且稳定性更高，不会出现严重的性能退化。
+- Performance: Compared to `org.apache.shardingsphere.sharding.algorithm.sharding.mod.ModShardingAlgorithm`, performance is *1200~4000* times higher. And it has higher stability, without severe performance degradation.
 
 | **PreciseShardingValue**                                                                                   | **RangeShardingValue**                                                                                   |
 |------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|

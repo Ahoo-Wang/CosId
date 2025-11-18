@@ -1,8 +1,8 @@
-# CosId-Spring-Data-Jdbc 模块
+# CosId-Spring-Data-Jdbc Module
 
-[cosid-spring-data-jdbc](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-spring-data-jdbc) 模块提供了对 `org.springframework.data.annotation.Id` 注解的支持，支持自动注入**分布式ID**。
+The [cosid-spring-data-jdbc](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-spring-data-jdbc) module provides support for the `org.springframework.data.annotation.Id` annotation and supports automatic injection of **distributed IDs**.
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -20,7 +20,7 @@
 ```
 :::
 
-## 使用
+## Usage
 
 ::: code-group
 ```java [@Id]

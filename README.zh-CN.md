@@ -29,7 +29,7 @@
 - `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](https://cosid.ahoo.me/zh/guide/faq/perf-test.html) 。
   - `PrefetchWorker` 维护安全距离(`safeDistance`), 并且支持基于饥饿状态的动态`safeDistance`扩容/收缩。
 
-## [快速开始](https://cosid.ahoo.me/guide/getting-started.html)
+## [快速开始](https://cosid.ahoo.me/zh/guide/getting-started.html)
 
 ## 背景（为什么需要*分布式ID*）
 

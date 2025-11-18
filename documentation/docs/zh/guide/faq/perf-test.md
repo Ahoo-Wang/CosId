@@ -111,9 +111,9 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 
 ## CosIdIntervalShardingAlgorithm
 
-| **PreciseShardingValue**                                                                                        | **RangeShardingValue**                                                                                        |
-|-----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
+| **PreciseShardingValue**                                                                                           | **RangeShardingValue**                                                                                           |
+|--------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
 
 
 ``` shell
@@ -159,9 +159,9 @@ IntervalShardingAlgorithmBenchmark.office_range_timestamp          10000  thrpt 
 
 ## CosIdModShardingAlgorithm
 
-| **PreciseShardingValue**                                                                                   | **RangeShardingValue**                                                                                   |
-|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
+| **PreciseShardingValue**                                                                                      | **RangeShardingValue**                                                                                      |
+|---------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
 
 ``` shell
 gradle cosid-shardingsphere:jmh

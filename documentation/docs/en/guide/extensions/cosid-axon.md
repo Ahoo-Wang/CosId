@@ -1,8 +1,8 @@
-# CosId-Axon 模块
+# CosId-Axon Module
 
-_Axon 模块_ 为 `Axon-Framework` 提供了 `CosId` 的支持，实现了 _Axon-Framework_ 的 `org.axonframework.common.IdentifierFactory` 接口。
+The _Axon module_ provides `CosId` support for `Axon-Framework`, implementing the `org.axonframework.common.IdentifierFactory` interface of _Axon-Framework_.
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -20,9 +20,9 @@ _Axon 模块_ 为 `Axon-Framework` 提供了 `CosId` 的支持，实现了 _Axon
 ```
 :::
 
-## 配置
+## Configuration
 
-默认情况下 `CosIdIdentifierFactory` 将从*ID生成器容器*(`IdGeneratorProvider`)中获取以 `__share__` 为名称的ID生成器。
+By default, `CosIdIdentifierFactory` will retrieve the ID generator named `__share__` from the *ID generator container* (`IdGeneratorProvider`).
 
-开发者也可以通过配置系统属性 `cosid.axon` 自定义ID生成器的名称。
+Developers can also customize the ID generator name by configuring the system property `cosid.axon`.
 

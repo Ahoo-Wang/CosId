@@ -1,11 +1,11 @@
-# CosId-Jdbc 模块
+# CosId-Jdbc Module
 
-[cosid-jdbc](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-jdbc) 提供 **关系型数据库** 的支持。实现了：
+[cosid-jdbc](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-jdbc) provides support for **relational databases**. Implements:
 
-- `MachineIdDistributor`：作为**雪花算法**(`SnowflakeId`)的机器号分配器 (`MachineIdDistributor`)。
-- `IdSegmentDistributor`：作为**号段算法**(`SegmentId`)的号段分发器 (`IdSegmentDistributor`)。
+- `MachineIdDistributor`: As the machine ID distributor for **Snowflake algorithm** (`SnowflakeId`).
+- `IdSegmentDistributor`: As the segment distributor for **segment algorithm** (`SegmentId`).
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -29,9 +29,9 @@
 ```
 :::
 
-### 创建 `cosid` 表
+### Create `cosid` Table
 
-`cosid` 表作为号段分发器的号段分发记录表。
+The `cosid` table serves as the segment distribution record table for the segment distributor.
 
 ```sql
 create table if not exists cosid
@@ -44,7 +44,7 @@ create table if not exists cosid
 ) engine = InnoDB;
 ```
 
-### 创建 `cosid_machine` 表
+### Create `cosid_machine` Table
 
 ```sql
 create table if not exists cosid_machine
@@ -64,20 +64,20 @@ create index if not exists idx_namespace on cosid_machine (namespace);
 create index if not exists idx_instance_id on cosid_machine (instance_id);
 ```
 
-## 配置案例
+## Configuration Example
 
 ```yaml {4,10,14}
 spring:
   datasource:
-    url:  # Jdbc 分发器直接依赖 DataSource
+    url:  # Jdbc distributor directly depends on DataSource
 cosid:
   namespace: ${spring.application.name}
   machine:
-    enabled: true # 可选，当需要使用雪花算法时，需要设置为 true
+    enabled: true # Optional, needs to be set to true when using Snowflake algorithm
     distributor:
       type: jdbc
   segment:
-    enabled: true # 可选，当需要使用号段算法时，需要设置为 true
+    enabled: true # Optional, needs to be set to true when using segment algorithm
     distributor:
       type: jdbc
 ```

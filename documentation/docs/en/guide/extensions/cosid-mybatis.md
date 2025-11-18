@@ -1,8 +1,8 @@
-# CosId-MyBatis 模块
+# CosId-MyBatis Module
 
-[cosid-mybatis](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mybatis) 拦截**MyBatis**插入(`Insert`)请求,并解析 `@CosId` 注入**分布式ID**。
+[cosid-mybatis](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mybatis) intercepts **MyBatis** insert requests and parses `@CosId` to inject **distributed IDs**.
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -20,7 +20,7 @@
 ```
 :::
 
-## 使用
+## Usage
 
 ```java
 public class Order {
@@ -69,9 +69,9 @@ public interface OrderRepository {
         LongIdEntity entity=new LongIdEntity();
         entityRepository.insert(entity);
         /**
-         * {
-         *   "id": 208796080181248
-         * }
-         */
+          * {
+          *   "id": 208796080181248
+          * }
+          */
         return entity;
 ```

@@ -1,15 +1,15 @@
-# 分布式ID性能评测：CosId VS 美团 Leaf
+# Distributed ID Performance Evaluation: CosId VS Meituan Leaf
 
-## 环境
+## Environment
 
 - MacBook Pro (M1)
 - JDK 17
 - JMH 1.36
-- 运行在本机 Docker 内的 mariadb:10.6.4 
+- Running in local Docker mariadb:10.6.4
 
-## 运行
+## Running
 
-> 基准测试代码： [cosid-benchmark](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-benchmark)
+> Benchmark code: [cosid-benchmark](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-benchmark)
 
 ``` shell
 git clone git@github.com:Ahoo-Wang/CosId.git
@@ -27,7 +27,7 @@ java -jar build/libs/cosid-benchmark-2.2.6-jmh.jar -wi 1 -rf json -f 1
 :::
 
 
-## 报告
+## Report
 
 ```
 # JMH version: 1.36
@@ -48,16 +48,16 @@ LeafBenchmark.generate          1000  thrpt        23550106.538          ops/s
 ```
 
 <p align="center" >
-  <img  src="../../../public/assets/perf/CosId-VS-Leaf.png" alt="CosId VS 美团 Leaf"/>
+  <img  src="../../../public/assets/perf/CosId-VS-Leaf.png" alt="CosId VS Meituan Leaf"/>
 </p>
 
-> GitHub Action 环境测试报告: [Performance: CosId vs Leaf](https://github.com/Ahoo-Wang/CosId/issues/22)
-> 
-> 因受到 GitHub Runner 资源限制，运行在 GitHub Runner 中的基准测试与真实环境基准测试对比有非常大的差距（近2倍），
-但是对于运行在同一环境配置资源情况下（都运行在 GitHub Runner），进行 commit 前后的基准对比、以及第三方库的对比依然是有价值的。
+> GitHub Action environment test report: [Performance: CosId vs Leaf](https://github.com/Ahoo-Wang/CosId/issues/22)
+>
+> Due to GitHub Runner resource limitations, the benchmark tests running in GitHub Runner have a significant gap compared to real environment benchmarks (nearly 2 times),
+> but for benchmarks running in the same environment configuration resources (all running in GitHub Runner), pre-commit benchmark comparisons and third-party library comparisons are still valuable.
 
-## 结论
+## Conclusion
 
-1. CosId (`SegmentChainId`) 性能是 Leaf (`segment`) 的 5 倍。
-2. CosId 、Leaf 的性能与号段步长(Step) 无关。
-3. CosId TPS 基本接近 `AtomicLong` 。
+1. CosId (`SegmentChainId`) performance is 5 times that of Leaf (`segment`).
+2. CosId and Leaf performance is independent of segment step size (Step).
+3. CosId TPS is basically close to `AtomicLong`.

@@ -138,9 +138,9 @@ CosId取模分片算法
 
 #### 性能基准测试
 
-| 精确值/单值(**PreciseShardingValue**)                                                                           | 范围值/多值(**RangeShardingValue**)                                                                           |
-|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
+| 精确值/单值(**PreciseShardingValue**)                                                                              | 范围值/多值(**RangeShardingValue**)                                                                              |
+|---------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
 
 #### 配置
 
@@ -180,9 +180,9 @@ spring:
 
 #### 性能基准测试
 
-| 精确值/单值(**PreciseShardingValue**)                                                                                | 范围值/多值(**RangeShardingValue**)                                                                                |
-|-----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
+| 精确值/单值(**PreciseShardingValue**)                                                                                   | 范围值/多值(**RangeShardingValue**)                                                                                   |
+|--------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
 
 #### 配置
 

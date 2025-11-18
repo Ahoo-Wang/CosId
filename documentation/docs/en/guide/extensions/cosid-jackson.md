@@ -1,21 +1,22 @@
-# CosId-Jackson 模块
+# CosId-Jackson Module
 
-**Jackson** 序列化/反序列化注解插件，相当于隔离了应用API边界内外的 *ID* 使用方式，应用内部使用 `long`、外部使用 `String`，做到了应用无侵入，无感知。
+**Jackson** serialization/deserialization annotation plugin, which isolates the *ID* usage methods inside and outside the application API boundary. The application internally uses `long`, externally uses `String`, achieving non-intrusive and imperceptible effects.
 
-::: danger JavaScript Number 溢出问题
+::: danger JavaScript Number Overflow Issue
 
-`JavaScript` 的 `Number.MAX_SAFE_INTEGER` 只有**53-bit**，如果直接将63位的 `SnowflakeId` 返回给前端，那么会产生值溢出的情况（所以这里我们应该知道后端传给前端的 `long` 值溢出问题，迟早会出现，只不过`SnowflakeId`出现得更快而已）。 
-很显然溢出是不能被接受的，一般可以使用以下处理方案：
+`JavaScript`'s `Number.MAX_SAFE_INTEGER` is only **53-bit**. If a 63-bit `SnowflakeId` is directly returned to the frontend, it will cause value overflow (so we should know that the overflow issue of `long` values passed from backend to frontend will appear sooner or later, but `SnowflakeId` appears faster).
 
-- 直接将 `long` 转换成 `String` (`@AsString(AsString.Type.TO_STRING)`)
-- 使用 `SnowflakeFriendlyId` 将 `SnowflakeId` 转换成比较友好的字符串表示：`{timestamp}-{machineId}-{sequence} -> 20210623131730192-1-0` (`@AsString(AsString.Type.FRIENDLY_ID)`)
-- 自定义 `SnowflakeId` 位分配来缩短 `SnowflakeId` 的位数（**53-bit**）使 **ID** 提供给前端时不溢出(`SafeJavaScriptSnowflakeId`)
-- 使用 `Radix62IdConverter` 转换 `long` 类型的 **ID**，并且压缩字符串。(`@AsString(AsString.Type.RADIX)`)
+Obviously, overflow is unacceptable. Generally, the following solutions can be used:
 
-[cosid-jackson](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-jackson) 模块为提供上述方案提供了最小的侵入性。
+- Directly convert `long` to `String` (`@AsString(AsString.Type.TO_STRING)`)
+- Use `SnowflakeFriendlyId` to convert `SnowflakeId` to a more friendly string representation: `{timestamp}-{machineId}-{sequence} -> 20210623131730192-1-0` (`@AsString(AsString.Type.FRIENDLY_ID)`)
+- Customize `SnowflakeId` bit allocation to shorten the bit length of `SnowflakeId` (**53-bit**) so that **ID** does not overflow when provided to the frontend (`SafeJavaScriptSnowflakeId`)
+- Use `Radix62IdConverter` to convert `long` type **ID** and compress the string. (`@AsString(AsString.Type.RADIX)`)
+
+The [cosid-jackson](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-jackson) module provides minimal invasiveness for the above solutions.
 :::
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -33,7 +34,7 @@
 ```
 :::
 
-## 使用
+## Usage
 
 ```java
 public class AsStringDto {
@@ -57,7 +58,7 @@ public class AsStringDto {
 }
 ```
 
-**序列化结果**
+**Serialization Result**
 
 ```json
 {

@@ -1,11 +1,11 @@
-# CosId-Mongo 模块
+# CosId-Mongo Module
 
-[cosid-mongo](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mongo) 提供 **MongoDB** 的支持。实现了：
+[cosid-mongo](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mongo) provides support for **MongoDB**. Implements:
 
-- `MachineIdDistributor`：作为**雪花算法**(`SnowflakeId`)的机器号分配器 (`MachineIdDistributor`)。
-- `IdSegmentDistributor`：作为**号段算法**(`SegmentId`)的号段分发器 (`IdSegmentDistributor`)。
+- `MachineIdDistributor`: As the machine ID distributor for **Snowflake algorithm** (`SnowflakeId`).
+- `IdSegmentDistributor`: As the segment distributor for **segment algorithm** (`SegmentId`).
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -29,21 +29,21 @@
 ```
 :::
 
-## 配置案例
+## Configuration Example
 
 ```yaml {4,10,14}
 spring:
   data:
     mongodb:
-      uri:  # Mongo 分发器直接依赖 spring-data-mongodb，这样可以省去额外的配置。
+      uri:  # Mongo distributor directly depends on spring-data-mongodb, which can omit additional configuration.
 cosid:
   namespace: ${spring.application.name}
   machine:
-    enabled: true # 可选，当需要使用雪花算法时，需要设置为 true
+    enabled: true # Optional, needs to be set to true when using Snowflake algorithm
     distributor:
       type: mongo
   segment:
-    enabled: true # 可选，当需要使用号段算法时，需要设置为 true
+    enabled: true # Optional, needs to be set to true when using segment algorithm
     distributor:
       type: mongo
 ```

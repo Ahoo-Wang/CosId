@@ -5,7 +5,7 @@
 ARG APP_NAME=cosid-proxy-server
 ARG WORK_HOME=/opt/${APP_NAME}
 
-FROM openjdk:21-jdk-slim AS base
+FROM dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:21-ubuntu AS base
 
 FROM base as build
 ARG WORK_HOME

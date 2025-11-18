@@ -12,7 +12,7 @@
 ![Integration Test Status](https://github.com/Ahoo-Wang/CosId/actions/workflows/integration-test.yml/badge.svg)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Ahoo-Wang/CosId)
 
-> [中文文档](https://cosid.ahoo.me/)
+> [中文文档](https://cosid.ahoo.me/zh/) | [English Document](https://cosid.ahoo.me/)
 
 ## Introduction
 

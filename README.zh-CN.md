@@ -19,14 +19,14 @@
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 
 
 - `CosIdGenerator` : *单机 TPS 性能：1557W/s*，三倍于 `UUID.randomUUID()`，基于时钟的全局趋势递增ID。
-- `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](https://cosid.ahoo.me/guide/perf-test.html) , 主要解决 *时钟回拨问题* 、*机器号分配问题*、*取模分片不均匀问题* 并且提供更加友好、灵活的使用体验。
+- `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](https://cosid.ahoo.me/zh/guide/faq/perf-test.html) , 主要解决 *时钟回拨问题* 、*机器号分配问题*、*取模分片不均匀问题* 并且提供更加友好、灵活的使用体验。
 - `SegmentId`: 每次获取一段 (`Step`) ID，来降低号段分发器的网络IO请求频次提升性能。
   - `IdSegmentDistributor`: 号段分发器（号段存储器）
     - `RedisIdSegmentDistributor`: 基于 *Redis* 的号段分发器。
     - `JdbcIdSegmentDistributor`: 基于 *Jdbc* 的号段分发器，支持各种关系型数据库。
     - `ZookeeperIdSegmentDistributor`: 基于 *Zookeeper* 的号段分发器。
     - `MongoIdSegmentDistributor`: 基于 *MongoDB* 的号段分发器。
-- `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](https://cosid.ahoo.me/guide/perf-test.html) 。
+- `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](https://cosid.ahoo.me/zh/guide/faq/perf-test.html) 。
   - `PrefetchWorker` 维护安全距离(`safeDistance`), 并且支持基于饥饿状态的动态`safeDistance`扩容/收缩。
 
 ## [快速开始](https://cosid.ahoo.me/guide/getting-started.html)

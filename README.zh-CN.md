@@ -2,7 +2,7 @@
   <img width="300" src="./document/docs/.vuepress/public/logo.png" alt="CosId Logo"/>
 </p>
 
-# [CosId](https://cosid.ahoo.me/) 通用、灵活、高性能分布式 ID 生成器
+# [CosId](https://cosid.ahoo.me/zh/) 通用、灵活、高性能分布式 ID 生成器
 
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 [![GitHub release](https://img.shields.io/github/release/Ahoo-Wang/CosId.svg)](https://github.com/Ahoo-Wang/CosId/releases)
@@ -213,7 +213,7 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 
 ## 号段链模式（SegmentChainId）
 
-[分布式ID(CosId)之号段链模式性能(1.2亿/s)解析](https://cosid.ahoo.me/guide/segment-chain.html)
+[分布式ID(CosId)之号段链模式性能(1.2亿/s)解析](https://cosid.ahoo.me/zh/guide/segment-chain.html)
 
 <p align="center">
      <img src="./document/docs/.vuepress/public/assets/design/SegmentChainId.png" alt="Segment Chain Id"/>

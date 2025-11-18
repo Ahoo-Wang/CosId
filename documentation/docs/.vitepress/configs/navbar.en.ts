@@ -56,9 +56,5 @@ export const navbar: DefaultTheme.NavItem[] = [
     {
         text: `Changelog`,
         link: `https://github.com/Ahoo-Wang/CosId/releases`
-    },
-    {
-        text: `Gitee`,
-        link: `https://gitee.com/AhooWang/CosId`
     }
 ]

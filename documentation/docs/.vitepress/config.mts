@@ -57,7 +57,8 @@ let userConfig = defineConfig({
                 nav: navbarEn,
                 sidebar: sidebarEn,
                 socialLinks: [
-                    {icon: 'github', link: 'https://github.com/Ahoo-Wang/CosId'}
+                    {icon: 'github', link: 'https://github.com/Ahoo-Wang/CosId'},
+                    {icon: 'gitee', link: 'https://gitee.com/AhooWang/CosId'}
                 ],
                 externalLinkIcon: true,
                 footer: {

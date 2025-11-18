@@ -1,25 +1,25 @@
-# ZooKeeper 配置
+# ZooKeeper Configuration
 
 > `me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperProperties`
 
-| 名称                         | 数据类型       | 说明              | 默认值                      |
+| Name                         | Data Type       | Description              | Default Value                      |
 |----------------------------|------------|-----------------|--------------------------|
-| enabled                    | `boolean`  | 是否开启*ZooKeeper* | true                     |
-| connect-string             | `String`   | 链接字符串           | `localhost:2181`         |
-| block-until-connected-wait | `Duration` | 阻塞直到客户端已连接等待时间  | `Duration.ofSeconds(10)` |
-| session-timeout            | `Duration` | 会话超时时间          | `Duration.ofSeconds(60`  |
-| connection-timeout         | `Duration` | 连接超时时间          | `Duration.ofSeconds(15)` |
-| retry                      | `Retry`    | 重试策略配置          |                          |
+| enabled                    | `boolean`  | Whether to enable *ZooKeeper* | true                     |
+| connect-string             | `String`   | Connection string           | `localhost:2181`         |
+| block-until-connected-wait | `Duration` | Block until client is connected wait time  | `Duration.ofSeconds(10)` |
+| session-timeout            | `Duration` | Session timeout          | `Duration.ofSeconds(60)`  |
+| connection-timeout         | `Duration` | Connection timeout          | `Duration.ofSeconds(15)` |
+| retry                      | `Retry`    | Retry policy configuration          |                          |
 
-## Retry (`ExponentialBackoffRetry`) 配置
+## Retry (`ExponentialBackoffRetry`) Configuration
 
-| 名称              | 数据类型  | 说明                | 默认值   |
+| Name              | Data Type  | Description                | Default Value   |
 |-----------------|-------|-------------------|-------|
-| baseSleepTimeMs | `int` | 重试之间等待的初始时间量 （毫秒） | `100` |
-| maxRetries      | `int` | 最大重试次数            | `5`   |
-| maxSleepMs      | `int` | 每次重试时的最大睡眠时间（毫秒）  | `500` |
+| baseSleepTimeMs | `int` | Initial amount of time to wait between retries (milliseconds) | `100` |
+| maxRetries      | `int` | Maximum number of retries            | `5`   |
+| maxSleepMs      | `int` | Maximum sleep time between retries (milliseconds)  | `500` |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 cosid:

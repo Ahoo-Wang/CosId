@@ -1,63 +1,63 @@
-# SegmentId 配置
+# SegmentId Configuration
 
 > `me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties`
 
-| 名称          | 数据类型                        | 说明                         | 默认值                    |
+| Name          | Data Type                        | Description                         | Default Value                    |
 |-------------|-----------------------------|----------------------------|------------------------|
-| enabled     | `boolean`                   | 是否启用                       | `false`                |
-| mode        | `Mode`                      | 号段生成器模式：`DEFAULT`/ `CHAIN` | `CHAIN`                |
-| ttl         | `long`                      | 号段的生存期（秒）                  | `TIME_TO_LIVE_FOREVER` |
-| distributor | `Distributor`               | 号段分发器                      |                        |
-| chain       | `Chain`                     | 号段链模式配置                    |                        |
-| share       | `IdDefinition`              | 共享ID生成器配置                  |                        |
-| provider    | `Map<String, IdDefinition>` | 多ID生成器配置                   |                        |
+| enabled     | `boolean`                   | Whether to enable                       | `false`                |
+| mode        | `Mode`                      | Segment ID generator mode: `DEFAULT`/ `CHAIN` | `CHAIN`                |
+| ttl         | `long`                      | Lifetime of the segment (seconds)                  | `TIME_TO_LIVE_FOREVER` |
+| distributor | `Distributor`               | Segment distributor                      |                        |
+| chain       | `Chain`                     | Segment chain mode configuration                    |                        |
+| share       | `IdDefinition`              | Shared ID generator configuration                  |                        |
+| provider    | `Map<String, IdDefinition>` | Multi-ID generator configuration                   |                        |
 
 ## Distributor
 
 > `me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties.Distributor`
 
-| 名称   | 数据类型               | 说明                                  | 默认值          |
+| Name   | Data Type               | Description                                  | Default Value          |
 |------|--------------------|-------------------------------------|--------------|
-| type | `Distributor.Type` | 号段分发器类型： `REDIS`/`JDBC`/`ZOOKEEPER` | `Type.REDIS` |
-| jdbc | `Distributor.Jdbc` | Jdbc号段生成器配置                         |              |
+| type | `Distributor.Type` | Segment distributor type: `REDIS`/`JDBC`/`ZOOKEEPER` | `Type.REDIS` |
+| jdbc | `Distributor.Jdbc` | JDBC segment generator configuration                         |              |
 
 ### Distributor.Jdbc
 
-| 名称                           | 数据类型      | 说明             | 默认值     |
+| Name                           | Data Type      | Description             | Default Value     |
 |------------------------------|-----------|----------------|---------|
-| enable-auto-init-cosid-table | `boolean` | 自动创建号段`cosid`表 | `false` |
-| enable-auto-init-id-segment  | `boolean` | 自动创建号段行        | `true`  |
+| enable-auto-init-cosid-table | `boolean` | Automatically create cosid segment table | `false` |
+| enable-auto-init-id-segment  | `boolean` | Automatically create segment rows        | `true`  |
 
 ## Chain
 
 > `me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties.Chain`
 
-| 名称              | 数据类型                   | 说明         | 默认值    |
+| Name              | Data Type                   | Description         | Default Value    |
 |-----------------|------------------------|------------|--------|
-| safe-distance   | `int`                  | 安全距离       | `10`   |
-| prefetch-worker | `Chain.PrefetchWorker` | 号段预取工作者线程池 | `true` |
+| safe-distance   | `int`                  | Safe distance       | `10`   |
+| prefetch-worker | `Chain.PrefetchWorker` | Segment prefetch worker thread pool | `true` |
 
 ### Chain.PrefetchWorker
 
-| 名称              | 数据类型       | 说明    | 默认值                                          |
+| Name              | Data Type       | Description    | Default Value                                          |
 |-----------------|------------|-------|----------------------------------------------|
-| prefetch-period | `Duration` | 预取周期  | `Duration.ofSeconds(1)`                      |
-| core-pool-size  | `int`      | 线程池大小 | `Runtime.getRuntime().availableProcessors()` |
+| prefetch-period | `Duration` | Prefetch period  | `Duration.ofSeconds(1)`                      |
+| core-pool-size  | `int`      | Thread pool size | `Runtime.getRuntime().availableProcessors()` |
 
 ## IdDefinition
 
 > `me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties.IdDefinition`
 
-| 名称        | 数据类型                    | 说明                         | 默认值                   |
+| Name        | Data Type                    | Description                         | Default Value                   |
 |-----------|-------------------------|----------------------------|-----------------------|
-| mode      | `Mode`                  | 号段生成器模式：`DEFAULT`/ `CHAIN` | `cosid.segment.mode`  |
-| offset    | `int`                   | 号段初始偏移量                    | `0`                   |
-| step      | `long`                  | 步长                         | 100                   |
-| ttl       | `long`                  | 号段的生存期（秒）                  | `cosid.segment.ttl`   |
-| chain     | `Chain`                 | 号段链模式配置                    | `cosid.segment.chain` |
-| converter | `IdConverterDefinition` | Id转换器配置                    |                       |
+| mode      | `Mode`                  | Segment ID generator mode: `DEFAULT`/ `CHAIN` | `cosid.segment.mode`  |
+| offset    | `int`                   | Segment initial offset                    | `0`                   |
+| step      | `long`                  | Step                         | 100                   |
+| ttl       | `long`                  | Lifetime of the segment (seconds)                  | `cosid.segment.ttl`   |
+| chain     | `Chain`                 | Segment chain mode configuration                    | `cosid.segment.chain` |
+| converter | `IdConverterDefinition` | ID converter configuration                    |                       |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 cosid:

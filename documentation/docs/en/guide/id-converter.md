@@ -1,6 +1,6 @@
 # IdConverter
 
-> **ID转换器**，用于将 `long` 类型ID转换为 `String`，反之亦然。
+> **ID Converter**, used to convert `long` type ID to `String`, and vice versa.
 
 ```java
 @ThreadSafe
@@ -32,31 +32,31 @@ public interface IdConverter {
 
 ## ToStringIdConverter
 
-> String 转换器，用于将 `long` 转换成String 或者将 String 转换成 long 类型
+> String converter, used to convert `long` to String or String to long type
 
-- 规则
-  - long 转 String：String.valueOf
-  - String 转 long： Long.parseLong
+- Rules
+  - long to String: String.valueOf
+  - String to long: Long.parseLong
 
 ## Radix62IdConverter
 
-> 62进制转换器，用于将 `long` 类型转换成 `62进制字符串`，或者将 `62进制字符串` 转换成`long` 类型
+> Base-62 converter, used to convert `long` type to `base-62 string`, or `base-62 string` to `long` type
 
-- 规则：`[0-9][A-Z][a-z]{11}`
+- Rules: `[0-9][A-Z][a-z]{11}`
 
 ## Radix36IdConverter
 
-> 36进制转换器，用于将 `long` 类型转换成 `36进制字符串`，或者将 `36进制字符串` 转换成`long` 类型
+> Base-36 converter, used to convert `long` type to `base-36 string`, or `base-36 string` to `long` type
 
-- 规则：`[0-9][A-Z]{13}`
+- Rules: `[0-9][A-Z]{13}`
 
 ## SnowflakeFriendlyIdConverter
 
-> 雪花Id转换器，将符合雪花规则的字符串，转换成 long ，或者long 转换成雪花规则字符串
+> Snowflake ID converter, converts strings conforming to snowflake rules to long, or long to snowflake rule strings
 
 ## PrefixIdConverter
 
-> 将带有前缀的字符串转换成long，或者将long转换成带前缀字符串
+> Converts strings with prefixes to long, or long to strings with prefixes
 
-- 规则
-  - 例如：前缀为：`no_`, 转换器选用`ToStringIdConverter`，数字`1` 经过转换得到`no_1`,反之亦然。
+- Rules
+  - For example: prefix is `no_`, converter uses `ToStringIdConverter`, number `1` after conversion gets `no_1`, and vice versa.

@@ -94,8 +94,6 @@ export const sidebar: DefaultTheme.Sidebar = {
             text: 'Blog',
             collapsed: false,
             items: [
-                {text: 'Distributed ID Generator Design and Implementation', link: 'Distributed-ID'},
-                {text: 'SegmentChainId Performance Analysis (120M/s)', link: 'SegmentChainId'},
                 {text: 'ShardingSphere Integration CosId', link: 'ShardingSphere-Integration-CosId'},
             ],
         }

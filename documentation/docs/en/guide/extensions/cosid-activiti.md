@@ -1,8 +1,8 @@
-# CosId-Activiti 模块
+# CosId-Activiti Module
 
-_Activiti 模块_ 为 `Activiti` 提供了 `CosId` 的支持，实现了 _Activiti_ 的 `org.activiti.engine.impl.cfg.IdGenerator` 接口。
+_Activiti module_ provides `CosId` support for `Activiti`, implementing _Activiti_'s `org.activiti.engine.impl.cfg.IdGenerator` interface.
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -20,9 +20,9 @@ _Activiti 模块_ 为 `Activiti` 提供了 `CosId` 的支持，实现了 _Activi
 ```
 :::
 
-## 配置
+## Configuration
 
-默认情况下 `ActivitiIdGenerator` 将从*ID生成器容器*(`IdGeneratorProvider`)中获取以 `__share__` 为名称的ID生成器。
+By default `ActivitiIdGenerator` will get the ID generator named `__share__` from the *ID generator container* (`IdGeneratorProvider`).
 
-开发者也可以通过配置系统属性 `cosid.activiti` 自定义ID生成器的名称。
+Developers can also customize the ID generator name through the system property `cosid.activiti`.
 

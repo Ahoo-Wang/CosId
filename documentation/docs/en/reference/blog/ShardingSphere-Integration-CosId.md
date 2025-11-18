@@ -1,58 +1,57 @@
 <p align="center" >
-  <img  src="../../../public/assets/shardingsphere/CosId-Integration-ShardingSphere-750x375.png" alt="ShardingSphere 集成 CosId"/>
+  <img  src="../../../public/assets/shardingsphere/CosId-Integration-ShardingSphere-750x375.png" alt="ShardingSphere Integration with CosId"/>
 </p>
 
-# ShardingSphere 集成 CosId 实战
+# ShardingSphere Integration with CosId
 
-## 背景
+## Background
 
-在软件系统演进过程中，随着业务规模的增长 (TPS/存储容量)，我们需要通过集群化部署来分摊计算、存储压力。
-应用服务的无状态设计使其具备了伸缩性。在使用 **Kubernetes** 部署时我们只需要一行命令即可完成服务伸缩
-(`kubectl scale --replicas=5 deployment/order-service`)。
+In the evolution of software systems, as business scale grows (TPS/storage capacity), we need to deploy applications in clusters to share computing and storage pressure.
+The stateless design of application services enables them to be scalable. When deploying with **Kubernetes**, we can complete service scaling with just one command (`kubectl scale --replicas=5 deployment/order-service`).
 
-但对于有状态的数据库就不那么容易了，此时数据库变成系统的性能瓶颈是显而易见的。
+However, databases are not that easy when they become stateful. Database sharding becomes the obvious bottleneck for system performance.
 
-### 分库分表
+### Database Sharding
 
-> 从微服务的角度来理解垂直拆分其实就是微服务拆分。以限界上下文来定义服务边界将大服务/单体应用拆分成多个自治的粒度更小的服务，因为自治性规范要求，数据库也需要进行业务拆分。
-> 但垂直拆分后的单个微服务依然会面临 TPS/存储容量 的挑战，所以这里我们重点讨论水平拆分的方式。
+> From a microservices perspective, vertical splitting is essentially microservice splitting. Defining service boundaries with bounded contexts splits large services/monolithic applications into multiple autonomous smaller-grained services. Because of the autonomy requirement, databases also need to be split by business.
+> But after vertical splitting, individual microservices still face TPS/storage capacity challenges, so here we focus on horizontal splitting approaches.
 
 <p align="center" >
-  <img  src="../../../public/assets/shardingsphere/sharding-db.png" alt="分库分表"/>
+  <img  src="../../../public/assets/shardingsphere/sharding-db.png" alt="Database Sharding"/>
 </p>
 
-数据库分库分表方案是逻辑统一，物理分区自治的方案。其核心设计在于中间层映射方案的设计 (上图 **Mapping**)，即分片算法的设计。
-几乎所有编程语言都内置实现了散列表(java:`HashMap`/csharp:`Dictionary`/python:`dict`/go:`map` ...)。分片算法跟散列表高度相似(`hashCode`)，都得通过 `key`/`shardingValue` 映射到对应的槽位(`slot`)。
+Database sharding solutions are logically unified and physically partitioned. The core design lies in the middle-layer mapping scheme (Mapping in the figure above), i.e., the design of sharding algorithms.
+Almost all programming languages have built-in hash tables (java:`HashMap`/csharp:`Dictionary`/python:`dict`/go:`map`...). Sharding algorithms are highly similar to hash tables (`hashCode`), mapping `key`/`shardingValue` to corresponding slots (`slot`).
 
-那么 `shardingValue` 从哪里来呢？**CosId**！！！
+So where does `shardingValue` come from? **CosId**!!!
 
-### CosId：分布式 ID 生成器
+### CosId: Distributed ID Generator
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。**CosId** 目前提供了以下三种算法：
+*[CosId](https://github.com/Ahoo-Wang/CosId)* aims to provide universal, flexible, high-performance distributed ID generators. **CosId** currently provides three algorithms:
 
-- `SnowflakeId` : *单机 TPS 性能：409W/s* , 主要解决 *时钟回拨问题* 、*机器号分配问题* 并且提供更加友好、灵活的使用体验。
-- `SegmentId`: 每次获取一段 (`Step`) ID，来降低号段分发器的网络IO请求频次提升性能，提供多种存储后端：关系型数据库、**Redis**、**Zookeeper** 供用户选择。
-- `SegmentChainId`(**推荐**):`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s*。
+- `SnowflakeId`: *Single-machine TPS performance: 409W/s*, mainly solves *clock backward issues*, *machine ID allocation issues*, and provides more user-friendly and flexible usage experience.
+- `SegmentId`: Obtains a segment (`Step`) of IDs each time to reduce network IO request frequency of segment distributors and improve performance. Provides multiple storage backends: relational databases, **Redis**, **Zookeeper** for users to choose.
+- `SegmentChainId`(**Recommended**): `SegmentChainId` (*lock-free*) is an enhancement to `SegmentId`. Performance can reach near `AtomicLong` *TPS performance: 12743W+/s*.
 
-`shardingValue` 问题解决了，但这就够了吗？**ShardingSphere**！！！
+The `shardingValue` problem is solved, but is that enough? **ShardingSphere**!!!
 
-> 摘自 **CosId** 官网：<https://github.com/Ahoo-Wang/CosId>
+> Excerpt from **CosId** official website: <https://github.com/Ahoo-Wang/CosId>
 
 ### ShardingSphere
 
-Apache ShardingSphere 是一款开源分布式数据库生态项目，由 JDBC、Proxy 和 Sidecar（规划中） 3 款产品组成。其核心采用可插拔架构，通过组件扩展功能。对上以数据库协议及 SQL 方式提供诸多增强功能，包括数据分片、访问路由、数据安全等；对下原生支持 MySQL、PostgreSQL、SQL Server、Oracle 等多种数据存储引擎。Apache ShardingSphere 项目理念，是提供数据库增强计算服务平台，进而围绕其上构建生态。充分利用现有数据库的计算与存储能力，通过插件化方式增强其核心能力，为企业解决在数字化转型中面临的诸多使用难点，为加速数字化应用赋能。
+Apache ShardingSphere is an open-source distributed database ecosystem project consisting of JDBC, Proxy, and Sidecar (planned) products. It adopts a pluggable architecture, extending functionality through components. It provides various enhanced functions for databases and SQL on the upper layer, including data sharding, access routing, data security, etc.; on the lower layer, it natively supports multiple data storage engines such as MySQL, PostgreSQL, SQL Server, Oracle. The Apache ShardingSphere project philosophy is to provide database enhancement computing services, and build an ecosystem around it. By fully utilizing the computing and storage capabilities of existing databases, core capabilities are enhanced through plugin methods to help enterprises solve various difficulties encountered in digital transformation and accelerate digital application development.
 
-> 摘自 **Apache ShardingSphere** 官网：<https://shardingsphere.apache.org/index_zh.html>
+> Excerpt from **Apache ShardingSphere** official website: <https://shardingsphere.apache.org/index_zh.html>
 
-接下来进入本文的主要内容：如何基于 **ShardingSphere** 可插拔架构（SPI）来集成 **CosId**，以及应用配置指南。
+Next, the main content of this article: How to integrate **CosId** based on **ShardingSphere**'s pluggable architecture (SPI), and application configuration guide.
 
-## 安装
+## Installation
 
-> 以 **Spring-Boot 应用** 为例
+> Taking **Spring-Boot application** as an example
 
 - ShardingSphere v5.1.0+
 
-> 因为 `ShardingSphere v5.1.0` [PR](https://github.com/apache/shardingsphere/pull/14132)，已经合并了 [cosid-shardingsphere](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-shardingsphere) 模块,所以只需要引用 `ShardingSphere` 依赖即可。
+> Because `ShardingSphere v5.1.0` [PR](https://github.com/apache/shardingsphere/pull/14132) has merged [cosid-shardingsphere](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-shardingsphere), you only need to reference the `ShardingSphere` dependency.
 
 ``` xml
 <dependency>
@@ -77,7 +76,7 @@ Apache ShardingSphere 是一款开源分布式数据库生态项目，由 JDBC�
 </dependency>
 ```
 
-## 分布式 ID
+## Distributed ID
 
 > `KeyGenerateAlgorithm`
 
@@ -87,18 +86,18 @@ Apache ShardingSphere 是一款开源分布式数据库生态项目，由 JDBC�
   <img  src="../../../public/assets/shardingsphere/KeyGenerateAlgorithm-class-diagram.png" alt="KeyGenerateAlgorithm"/>
 </p>
 
-> 上图展示了目前所有 `ShardingSphere` 内置的 `KeyGenerateAlgorithm` 实现，这里我们只讲 `CosIdKeyGenerateAlgorithm` ，其他实现请阅读<https://shardingsphere.apache.org/document/current/cn/features/sharding/concept/key-generator/>。
+> The figure shows all current `ShardingSphere` built-in `KeyGenerateAlgorithm` implementations. Here we only discuss `CosIdKeyGenerateAlgorithm`, please read <https://shardingsphere.apache.org/document/current/cn/features/sharding/concept/key-generator/> for other implementations.
 
 ### CosIdKeyGenerateAlgorithm
 
-#### 配置
+#### Configuration
 
 > type: COSID
 
-| 名称        | 数据类型     | 说明                                              | 默认值         |
+| Name        | Data Type     | Description                                              | Default Value         |
 |-----------|----------|-------------------------------------------------|-------------|
-| id-name   | `String` | `IdGenerator` 的名称（在 `IdGeneratorProvider` 中已注册） | `__share__` |
-| as-string | `String` | 是否生成字符串类型的ID                                    | `fasle`     |
+| id-name   | `String` | Name of the `IdGenerator` (registered in `IdGeneratorProvider`) | `__share__` |
+| as-string | `String` | Whether to generate string-type IDs                                    | `false`     |
 
 ```yaml
 spring:
@@ -112,7 +111,7 @@ spring:
               id-name: __share__
 ```
 
-## 分片算法
+## Sharding Algorithms
 
 > `ShardingAlgorithm`
 
@@ -124,32 +123,32 @@ spring:
 
 ### CosIdModShardingAlgorithm
 
-CosId取模分片算法
+CosId modulo sharding algorithm
 
-#### 算法说明
+#### Algorithm Description
 
 <p align="center" >
   <img  src="../../../public/assets/design/CosIdModShardingAlgorithm.png" alt="CosIdModShardingAlgorithm"/>
 </p>
 
-> 单值分片键(`PreciseShardingValue`)算法复杂度：`O(1)`。
+> Single-value sharding key (`PreciseShardingValue`) algorithm complexity: `O(1)`.
 > 
-> 范围值分片键(`RangeShardingValue`)算法复杂度：`O(N)`，其中`N`为范围值个数。
+> Range-value sharding key (`RangeShardingValue`) algorithm complexity: `O(N)`, where `N` is the number of range values.
 
-#### 性能基准测试
+#### Performance Benchmark
 
-| 精确值/单值(**PreciseShardingValue**)                                                                           | 范围值/多值(**RangeShardingValue**)                                                                           |
+| Precise Value/Single Value (**PreciseShardingValue**)                                                                           | Range Value/Multi Value (**RangeShardingValue**)                                                                           |
 |------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
 | <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
 
-#### 配置
+#### Configuration
 
 > type: COSID_MOD
 
-| 名称                | 数据类型     | 说明         | 默认值 |
+| Name                | Data Type     | Description         | Default Value |
 |-------------------|----------|------------|-----|
-| logic-name-prefix | `String` | 逻辑表/数据源名前缀 |     |
-| mod               | `int`    | 除数         |     |
+| logic-name-prefix | `String` | Logical table/datasource name prefix |     |
+| mod               | `int`    | Divisor         |     |
 
 ```yaml
 spring:
@@ -166,38 +165,38 @@ spring:
 
 ### CosIdIntervalShardingAlgorithm
 
-基于间隔的时间范围分片算法。
+Interval-based time range sharding algorithm.
 
-#### 算法说明
+#### Algorithm Description
 
 <p align="center" >
   <img  src="../../../public/assets/design/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"/>
 </p>
 
-> 精确值/单值分片键(`PreciseShardingValue`)算法复杂度：`O(1)`。
+> Precise value/single value sharding key (`PreciseShardingValue`) algorithm complexity: `O(1)`.
 > 
-> 范围值分片键(`RangeShardingValue`)算法复杂度：`O(N)`，其中`N`为范围值单位时间个数。
+> Range value/multi value sharding key (`RangeShardingValue`) algorithm complexity: `O(N)`, where `N` is the number of range value time units.
 
-#### 性能基准测试
+#### Performance Benchmark
 
-| 精确值/单值(**PreciseShardingValue**)                                                                                | 范围值/多值(**RangeShardingValue**)                                                                                |
+| Precise Value/Single Value (**PreciseShardingValue**)                                                                                | Range Value/Multi Value (**RangeShardingValue**)                                                                                |
 |-----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
 | <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
 
-#### 配置
+#### Configuration
 
 > type: COSID_INTERVAL
 
-| 名称                       | 数据类型         | 说明                                  | 默认值                              |
+| Name                       | Data Type         | Description                                  | Default Value                              |
 |--------------------------|--------------|-------------------------------------|----------------------------------|
-| logic-name-prefix        | `String`     | 逻辑表/数据源名前缀                          |                                  |
-| datetime-lower           | `String`     | 时间分片下界值，时间戳格式：`yyyy-MM-dd HH:mm:ss` |                                  |
-| datetime-upper           | `String`     | 时间分片上界值，时间戳格式：`yyyy-MM-dd HH:mm:ss` |                                  |
-| sharding-suffix-pattern  | `String`     | 分片真实表/数据源后缀格式                       |                                  |
-| datetime-interval-unit   | `ChronoUnit` | 分片键时间间隔单位                           |                                  |
-| datetime-interval-amount | `int`        | 分片键时间间隔                             |                                  |
-| ts-unit                  | `String`     | 时间戳单位：`SECOND`/`MILLISECOND`        | `MILLISECOND`                    |
-| zone-id                  | `String`     | 分片键时区                               | `ZoneId.systemDefault().getId()` |
+| logic-name-prefix        | `String`     | Logical table/datasource name prefix                          |                                  |
+| datetime-lower           | `String`     | Lower bound of time sharding, timestamp format: `yyyy-MM-dd HH:mm:ss` |                                  |
+| datetime-upper           | `String`     | Upper bound of time sharding, timestamp format: `yyyy-MM-dd HH:mm:ss` |                                  |
+| sharding-suffix-pattern  | `String`     | Sharding real table/datasource suffix pattern                       |                                  |
+| datetime-interval-unit   | `ChronoUnit` | Sharding key time interval unit                           |                                  |
+| datetime-interval-amount | `int`        | Sharding key time interval                             |                                  |
+| ts-unit                  | `String`     | Timestamp unit: `SECOND`/`MILLISECOND`        | `MILLISECOND`                    |
+| zone-id                  | `String`     | Sharding key time zone                               | `ZoneId.systemDefault().getId()` |
 
 ```yaml
 spring:
@@ -218,24 +217,24 @@ spring:
 
 ### CosIdSnowflakeIntervalShardingAlgorithm
 
-#### 算法说明
+#### Algorithm Description
 
-我们知道 *SnowflakeId* 的位分区方式，*SnowflakeId* 可以解析出时间戳，即 *SnowflakeId* 可以作为时间，所以 *SnowflakeId* 可以作为 *INTERVAL* 的分片算法的分片值。
-（当没有`CreateTime`可用作分片时[这是一个非常极端的情况]，或者对性能有非常极端的要求时， *分布式ID主键* 作为查询范围可能是持久层性能更好的选择。 )
+We know the bit partitioning method of *SnowflakeId*, *SnowflakeId* can parse out the timestamp, that is, *SnowflakeId* can be used as time, so *SnowflakeId* can be used as the sharding value for the *INTERVAL* sharding algorithm.
+(When there is no `CreateTime` available for sharding [this is an extremely rare case], or when there are extremely demanding performance requirements, using *distributed ID primary key* as the query range may be a better choice for persistence layer performance.)
 
-#### 配置
+#### Configuration
 
 > type: COSID_INTERVAL_SNOWFLAKE
 
-| 名称                       | 数据类型         | 说明                                              | 默认值         |
+| Name                       | Data Type         | Description                                              | Default Value         |
 |--------------------------|--------------|-------------------------------------------------|-------------|
-| logic-name-prefix        | `String`     | 逻辑表/数据源名前缀                                      |             |
-| datetime-lower           | `String`     | 时间分片下界值，时间戳格式：`yyyy-MM-dd HH:mm:ss`             |             |
-| datetime-upper           | `String`     | 时间分片上界值，时间戳格式：`yyyy-MM-dd HH:mm:ss`             |             |
-| sharding-suffix-pattern  | `String`     | 分片真实表/数据源后缀格式                                   |             |
-| datetime-interval-unit   | `ChronoUnit` | 分片键时间间隔单位                                       |             |
-| datetime-interval-amount | `int`        | 分片键时间间隔                                         |             |
-| id-name                  | `String`     | `IdGenerator` 的名称（在 `IdGeneratorProvider` 中已注册） | `__share__` |
+| logic-name-prefix        | `String`     | Logical table/datasource name prefix                                      |             |
+| datetime-lower           | `String`     | Lower bound of time sharding, timestamp format: `yyyy-MM-dd HH:mm:ss`             |             |
+| datetime-upper           | `String`     | Upper bound of time sharding, timestamp format: `yyyy-MM-dd HH:mm:ss`             |             |
+| sharding-suffix-pattern  | `String`     | Sharding real table/datasource suffix pattern                                   |             |
+| datetime-interval-unit   | `ChronoUnit` | Sharding key time interval unit                                       |             |
+| datetime-interval-amount | `int`        | Sharding key time interval                                         |             |
+| id-name                  | `String`     | Name of the `IdGenerator` (registered in `IdGeneratorProvider`) | `__share__` |
 
 ```yaml
 spring:
@@ -255,21 +254,21 @@ spring:
               id-name: cosid-name
 ```
 
-## 总结
+## Summary
 
-本文主要讨论了分库分表产生的背景以及如何基于 **ShardingSphere** 可插拔架构集成 **CosId** 的应用实战。
-**ShardingSphere** 采用可插拔架构，使得开发者非常方便的自定义满足自身应用场景的功能扩展，如果你也对参与 **ShardingSphere** 社区贡献感兴趣请参考 <https://shardingsphere.apache.org/community/cn/contribute/contributor/> 。
+This article mainly discusses the background of database sharding and how to integrate **CosId** based on **ShardingSphere**'s pluggable architecture for practical applications.
+**ShardingSphere** adopts a pluggable architecture, making it very convenient for developers to customize functions that meet their application scenarios. If you are also interested in contributing to the **ShardingSphere** community, please refer to <https://shardingsphere.apache.org/community/cn/contribute/contributor/>.
 
-## 阅读源码的小技巧之类图
+## Reading Source Code Tips: Class Diagrams
 
-相信很多小伙伴在阅读源码过程中总是难以自拔的遍历式以方法为单位一行行查看源码的实现细节，以至于迷失在细节中（如果你还能坚持下来，那真是佩服你的毅力之坚韧！）。这样的阅读方式是非常糟糕的、低效的。
-阅读源码跟阅读书籍一样有非常多的相似之处：先建立一个概览图（索引），然后再逐层往下精进。（自上而下的方式更有利于阅读过程中不迷失在具体细节中）
-推荐大家使用IDEA的插件 *Diagrams* 用于生成源码级别的概览图：UML类图。
+Many partners get lost in the details when reading source code, traversing line by line based on methods, getting lost in the details (if you can persist, I admire your tenacity!). This reading method is very bad and inefficient.
+Reading source code is very similar to reading books: first establish an overview map (index), then drill down layer by layer. (Top-down approach is more conducive to not getting lost in specific details during reading)
+We recommend using the IntelliJ IDEA plugin *Diagrams* to generate source code level overview diagrams: UML class diagrams.
 
 > - IntelliJ IDEA: <https://www.jetbrains.com/help/idea/class-diagram.html>
 
-## 引用说明
+## References
 
-- ShardingSphere 官方文档：<https://shardingsphere.apache.org/document/current/cn/overview/>
+- ShardingSphere Official Documentation: <https://shardingsphere.apache.org/document/current/cn/overview/>
 - IntelliJ IDEA: <https://www.jetbrains.com/help/idea/class-diagram.html>
 - CosId-ShardingSphere: <https://cosid.ahoo.me/guide/cosid-shardingsphere.html>

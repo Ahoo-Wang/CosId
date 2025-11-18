@@ -1,18 +1,18 @@
-# Machine 配置
+# CosId Generator Configuration
 
 > `me.ahoo.cosid.spring.boot.starter.cosid.CosIdGeneratorProperties`
 
-| 名称            | 数据类型      | 说明                                | 默认值       |
+| Name            | Data Type      | Description                                | Default Value       |
 |---------------|-----------|-----------------------------------|-----------|
-| enabled       | `boolean` | 是否启用                              | `false`   |
-| type          | `enum`    | 类型：`RADIX62`/`RADIX36`/`FRIENDLY` | `RADIX62` |
-| namespace     | `String`  | 命名空间                              | `cosid`   |
-| timestamp-bit | `int`     | 时间戳位数                             | `44`      |
-| machine-bit   | `int`     | 机器位数                              | `20`      |
-| sequence-bit  | `int`     | 序列位数                              | `16`      |
+| enabled       | `boolean` | Whether to enable                              | `false`   |
+| type          | `enum`    | Type: `RADIX62`/`RADIX36`/`FRIENDLY` | `RADIX62` |
+| namespace     | `String`  | Namespace                              | `cosid`   |
+| timestamp-bit | `int`     | Timestamp bits                             | `44`      |
+| machine-bit   | `int`     | Machine bits                              | `20`      |
+| sequence-bit  | `int`     | Sequence bits                              | `16`      |
 
 
-## 配置案例
+## Configuration Example
 
 ```yaml {7-8}
 cosid:

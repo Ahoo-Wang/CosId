@@ -1,20 +1,20 @@
 ---
 layout: home
-title: 通用、灵活、高性能的分布式ID生成器
+title: Universal, Flexible, High-Performance Distributed ID Generator
 
 hero:
   name: "CosId"
-  text: "通用、灵活、高性能的分布式ID生成器"
-#  tagline: "通用、灵活、高性能的分布式ID生成器"
+  text: "Universal, Flexible, High-Performance Distributed ID Generator"
+#  tagline: "Universal, Flexible, High-Performance Distributed ID Generator"
   image:
     src: /logo.png
     alt: CosId
   actions:
     - theme: brand
-      text: 快速上手
+      text: Quick Start
       link: /guide/getting-started
     - theme: alt
-      text: 简介
+      text: Introduction
       link: /guide/introduction
     - theme: alt
       text: GitHub
@@ -24,11 +24,11 @@ hero:
       link: https://gitee.com/AhooWang/CosId
 
 features:
-- title: 通用
-  details: 支持多种类型的分布式ID算法：SnowflakeId、SegmentId、SegmentChainId。 并且支持多种号段分发器、机器号分发器。
-- title: 灵活
-  details: 通过简单配置即可自定义切换多种算法实现，定制以满足场景需要。
-- title: 高性能
-  details: 设计极致优化，SegmentChainId 性能可达到近似 AtomicLong 的 TPS 性能:12743W+/s。
+- title: Universal
+  details: "Supports multiple types of distributed ID algorithms: SnowflakeId, SegmentId, SegmentChainId. And supports multiple segment distributors and machine ID distributors."
+- title: Flexible
+  details: Easily switch between multiple algorithm implementations through simple configuration to customize and meet scenario needs.
+- title: High Performance
+  details: "Extremely optimized design, SegmentChainId performance can reach TPS performance close to AtomicLong: 12743W+/s."
 ---
 

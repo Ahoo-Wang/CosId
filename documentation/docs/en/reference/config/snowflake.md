@@ -1,31 +1,31 @@
-# SnowflakeId 配置
+# SnowflakeId Configuration
 
 > `me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties`
 
-| 名称              | 数据类型                        | 说明        | 默认值                                             |
+| Name              | Data Type                        | Description        | Default Value                                             |
 |-----------------|-----------------------------|-----------|-------------------------------------------------|
-| enabled         | `boolean`                   | 是否启用      | `false`                                         |
-| zone-id         | `String`                    | 时区        | `ZoneId.systemDefault().getId()`                |
+| enabled         | `boolean`                   | Whether to enable      | `false`                                         |
+| zone-id         | `String`                    | Time zone        | `ZoneId.systemDefault().getId()`                |
 | epoch           | `long`                      | EPOCH     | `CosId.COSID_EPOCH` <br> (UTC 2019-12-24 16:00) |
-| machine         | `Machine`                   | 机器号分配器配置  |                                                 |
-| share           | `IdDefinition`              | 共享ID生成器配置 | 有                                               |
-| provider        | `Map<String, IdDefinition>` | 多ID生成器配置  | `null`                                          |
+| machine         | `Machine`                   | Machine ID distributor configuration  |                                                 |
+| share           | `IdDefinition`              | Shared ID generator configuration | Yes                                               |
+| provider        | `Map<String, IdDefinition>` | Multi-ID generator configuration  | `null`                                          |
 
 ## IdDefinition
 
 > `me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties.IdDefinition`
 
-| 名称             | 数据类型                         | 说明                               | 默认值                                   |
+| Name             | Data Type                         | Description                               | Default Value                                   |
 |----------------|------------------------------|----------------------------------|---------------------------------------|
-| clock-sync     | `boolean`                    | 是否开启时钟同步                         | `true`                                |
-| timestamp-unit | `IdDefinition.TimestampUnit` | 时间戳位的单位：`SECOND` / `MILLISECOND` | `TimestampUnit.MILLISECOND`           |
+| clock-sync     | `boolean`                    | Whether to enable clock synchronization                         | `true`                                |
+| timestamp-unit | `IdDefinition.TimestampUnit` | Unit of timestamp bits: `SECOND` / `MILLISECOND` | `TimestampUnit.MILLISECOND`           |
 | epoch          | `int`                        | EPOCH                            | `cosid.snowflake.epoch`               |
-| timestamp-bit  | `int`                        | 时间戳位数                            | 41                                    |
-| machine-bit    | `int`                        | 机器位数                             | `cosid.snowflake.machine.machine-bit` |
-| sequence-bit   | `int`                        | 序列位数                             | 12                                    |
-| converter      | `IdConverterDefinition`      | Id转换器配置                          |                                       |
+| timestamp-bit  | `int`                        | Timestamp bits                            | 41                                    |
+| machine-bit    | `int`                        | Machine bits                             | `cosid.snowflake.machine.machine-bit` |
+| sequence-bit   | `int`                        | Sequence bits                             | 12                                    |
+| converter      | `IdConverterDefinition`      | ID converter configuration                          |                                       |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 cosid:

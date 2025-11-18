@@ -1,6 +1,6 @@
 # IdGeneratorProvider
 
-> `IdGenerator` 容器
+> `IdGenerator` container
 
 <p align="center">
   <img src="../../public/assets/design/IdGeneratorProvider-impl-class.png" alt="IdGeneratorProvider implementation class diagram"/>
@@ -8,9 +8,9 @@
 
 ## DefaultIdGeneratorProvider
 
-> 默认的 `IdGenerator` 容器，所有`IdGenerator`都将注入到 `DefaultIdGeneratorProvider.INSTANCE`中。
+> Default `IdGenerator` container, all `IdGenerator` will be injected into `DefaultIdGeneratorProvider.INSTANCE`.
 
 ## LazyIdGenerator
 
-> 懒加载 `IdGenerator`
+> Lazy loading `IdGenerator`
 

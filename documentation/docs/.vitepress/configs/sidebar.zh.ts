@@ -107,8 +107,6 @@ export const sidebar: DefaultTheme.Sidebar = {
                         base: '/zh/reference/blog/',
                         collapsed: false,
                         items: [
-                            {text: '分布式ID生成器（CosId）设计与实现', link: 'Distributed-ID'},
-                            {text: '分布式ID(CosId)之号段链模式性能(1.2亿/s)解析', link: 'SegmentChainId'},
                             {text: 'ShardingSphere 集成 CosId 实战', link: 'ShardingSphere-Integration-CosId'}
                         ],
                     }

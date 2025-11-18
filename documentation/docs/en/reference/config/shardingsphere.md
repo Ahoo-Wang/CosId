@@ -1,19 +1,19 @@
-# ShardingSphere 配置
+# ShardingSphere Configuration
 
-::: tip 维护说明
-`CosIdKeyGenerateAlgorithm`、`CosIdModShardingAlgorithm`、`CosIdIntervalShardingAlgorithm` 已合并至 [ShardingSphere](https://github.com/apache/shardingsphere/pull/14132) 官方，未来 *[cosid-shardingsphere](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-shardingsphere)* 模块的维护可能会以官方为主。
+::: tip Maintenance Note
+`CosIdKeyGenerateAlgorithm`, `CosIdModShardingAlgorithm`, `CosIdIntervalShardingAlgorithm` have been merged into the official [ShardingSphere](https://github.com/apache/shardingsphere/pull/14132), so future maintenance of the *[cosid-shardingsphere](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-shardingsphere)* module may be primarily handled by the official team.
 :::
 
 ## CosIdKeyGenerateAlgorithm
 
 > type: COSID
 
-| 名称        | 数据类型     | 说明                                              | 默认值         |
+| Name        | Data Type     | Description                                              | Default Value         |
 |-----------|----------|-------------------------------------------------|-------------|
-| id-name   | `String` | `IdGenerator` 的名称（在 `IdGeneratorProvider` 中已注册） | `__share__` |
-| as-string | `String` | 是否生成字符串类型的ID                                    | `fasle`     |
+| id-name   | `String` | Name of the `IdGenerator` (registered in `IdGeneratorProvider`) | `__share__` |
+| as-string | `String` | Whether to generate string-type IDs                                    | `false`     |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 spring:
@@ -31,18 +31,18 @@ spring:
 
 > type: COSID_INTERVAL
 
-| 名称                       | 数据类型         | 说明                                  | 默认值                              |
+| Name                       | Data Type         | Description                                  | Default Value                              |
 |--------------------------|--------------|-------------------------------------|----------------------------------|
-| logic-name-prefix        | `String`     | 逻辑表/数据源名前缀                          |                                  |
-| datetime-lower           | `String`     | 时间分片下界值，时间戳格式：`yyyy-MM-dd HH:mm:ss` |                                  |
-| datetime-upper           | `String`     | 时间分片上界值，时间戳格式：`yyyy-MM-dd HH:mm:ss` |                                  |
-| sharding-suffix-pattern  | `String`     | 分片真实表/数据源后缀格式                       |                                  |
-| datetime-interval-unit   | `ChronoUnit` | 分片键时间间隔单位                           |                                  |
-| datetime-interval-amount | `int`        | 分片键时间间隔                             |                                  |
-| ts-unit                  | `String`     | 时间戳单位：`SECOND`/`MILLISECOND`        | `MILLISECOND`                    |
-| zone-id                  | `String`     | 分片键时区                               | `ZoneId.systemDefault().getId()` |
+| logic-name-prefix        | `String`     | Logical table/datasource name prefix                          |                                  |
+| datetime-lower           | `String`     | Lower bound of time sharding, timestamp format: `yyyy-MM-dd HH:mm:ss` |                                  |
+| datetime-upper           | `String`     | Upper bound of time sharding, timestamp format: `yyyy-MM-dd HH:mm:ss` |                                  |
+| sharding-suffix-pattern  | `String`     | Sharding real table/datasource suffix pattern                       |                                  |
+| datetime-interval-unit   | `ChronoUnit` | Sharding key time interval unit                           |                                  |
+| datetime-interval-amount | `int`        | Sharding key time interval                             |                                  |
+| ts-unit                  | `String`     | Timestamp unit: `SECOND`/`MILLISECOND`        | `MILLISECOND`                    |
+| zone-id                  | `String`     | Sharding key time zone                               | `ZoneId.systemDefault().getId()` |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 spring:
@@ -61,26 +61,26 @@ spring:
               datetime-interval-amount: 1
 ```
 
-## SnowflakeIntervalShardingAlgorithm
+## CosIdSnowflakeIntervalShardingAlgorithm
 
-::: tip 算法说明
-我们知道*SnowflakeId*的位分区方式，*SnowflakeId*可以解析出时间戳，即*SnowflakeId*可以作为时间，所以*SnowflakeId*可以作为*INTERVAL*的分配算法。 
-（当没有`CreateTime`可用作分片时[这是一个非常极端的情况]，或者对性能有非常极端的要求时，*分布式ID主键*作为查询范围可能是持久层性能更好的选择。 )
+::: tip Algorithm Description
+We know the bit partitioning method of *SnowflakeId*, *SnowflakeId* can parse out the timestamp, that is, *SnowflakeId* can be used as time, so *SnowflakeId* can be used as the sharding algorithm for *INTERVAL*.
+(When there is no `CreateTime` available for sharding [this is an extremely rare case], or when there are extremely demanding performance requirements, using *distributed ID primary key* as the query range may be a better choice for persistence layer performance.)
 :::
 
 > type: COSID_INTERVAL_SNOWFLAKE
 
-| 名称                       | 数据类型         | 说明                                              | 默认值         |
+| Name                       | Data Type         | Description                                              | Default Value         |
 |--------------------------|--------------|-------------------------------------------------|-------------|
-| logic-name-prefix        | `String`     | 逻辑表/数据源名前缀                                      |             |
-| datetime-lower           | `String`     | 时间分片下界值，时间戳格式：`yyyy-MM-dd HH:mm:ss`             |             |
-| datetime-upper           | `String`     | 时间分片上界值，时间戳格式：`yyyy-MM-dd HH:mm:ss`             |             |
-| sharding-suffix-pattern  | `String`     | 分片真实表/数据源后缀格式                                   |             |
-| datetime-interval-unit   | `ChronoUnit` | 分片键时间间隔单位                                       |             |
-| datetime-interval-amount | `int`        | 分片键时间间隔                                         |             |
-| id-name                  | `String`     | `IdGenerator` 的名称（在 `IdGeneratorProvider` 中已注册） | `__share__` |
+| logic-name-prefix        | `String`     | Logical table/datasource name prefix                                      |             |
+| datetime-lower           | `String`     | Lower bound of time sharding, timestamp format: `yyyy-MM-dd HH:mm:ss`             |             |
+| datetime-upper           | `String`     | Upper bound of time sharding, timestamp format: `yyyy-MM-dd HH:mm:ss`             |             |
+| sharding-suffix-pattern  | `String`     | Sharding real table/datasource suffix pattern                                   |             |
+| datetime-interval-unit   | `ChronoUnit` | Sharding key time interval unit                                       |             |
+| datetime-interval-amount | `int`        | Sharding key time interval                                         |             |
+| id-name                  | `String`     | Name of the `IdGenerator` (registered in `IdGeneratorProvider`) | `__share__` |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 spring:
@@ -89,7 +89,7 @@ spring:
       sharding:
         sharding-algorithms:
           alg-name:
-            type: COSID_INTERVAL
+            type: COSID_INTERVAL_SNOWFLAKE
             props:
               logic-name-prefix: logic-name-prefix
               datetime-lower: 2021-12-08 22:00:00
@@ -104,12 +104,12 @@ spring:
 
 > type: COSID_MOD
 
-| 名称                | 数据类型     | 说明         | 默认值 |
+| Name                | Data Type     | Description         | Default Value |
 |-------------------|----------|------------|-----|
-| logic-name-prefix | `String` | 逻辑表/数据源名前缀 |     |
-| mod               | `int`    | 除数         |     |
+| logic-name-prefix | `String` | Logical table/datasource name prefix |     |
+| mod               | `int`    | Divisor         |     |
 
-**YAML 配置样例**
+**YAML Configuration Example**
 
 ```yaml
 spring:

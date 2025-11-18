@@ -1,12 +1,12 @@
-# 快速上手
+# Quick Start
 
-## 安装
+## Installation
 
 :::tip
-开发者可以任选一种的分发器（`Redis`/`JDBC`/`Mongodb`/`Zookeeper`）,并引入对应的依赖。
+Developers can choose any distributor (`Redis`/`JDBC`/`Mongodb`/`Zookeeper`) and introduce the corresponding dependencies.
 :::
 
-接下来以 `Redis` 扩展为例： [CosId-Example-Redis](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-redis)
+Next, taking `Redis` extension as an example: [CosId-Example-Redis](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-redis)
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -36,42 +36,42 @@
 ```
 :::
 
-## 应用配置
+## Application Configuration
 
 ```yaml
 spring:
   data:
     redis:
-      host: localhost # Redis 分发器直接依赖 spring-data-redis，这样可以省去额外的配置。
+      host: localhost # Redis distributor directly depends on spring-data-redis, which can save additional configuration.
 cosid:
   namespace: ${spring.application.name}
   machine:
-    enabled: true # 可选，当需要使用雪花算法时，需要设置为 true
+    enabled: true # Optional, when using snowflake algorithm, set to true
     distributor:
       type: redis
   snowflake:
-    enabled: true # 可选，当需要使用雪花算法时，需要设置为 true
+    enabled: true # Optional, when using snowflake algorithm, set to true
   segment:
-    enabled: true # 可选，当需要使用号段算法时，需要设置为 true
+    enabled: true # Optional, when using segment algorithm, set to true
     distributor:
       type: redis
 ```
 
 :::tip
-默认情况下，开启 `snowflake`/`segment` 会生成共享的(`__share__`) `IdGenerator` 注册到 `Spring` 容器 以及 `DefaultIdGeneratorProvider.INSTANCE`。
+By default, enabling `snowflake`/`segment` will generate shared (`__share__`) `IdGenerator` registered to `Spring` container and `DefaultIdGeneratorProvider.INSTANCE`.
 :::
 
 :::warning
-当同时开启 `snowflake`/`segment` 时，只有其中一个共享的(`__share__`) `IdGenerator` 会注入到 `Spring` 容器(名称冲突)，另一个会被忽略。
+When enabling both `snowflake`/`segment` at the same time, only one shared (`__share__`) `IdGenerator` will be injected into the `Spring` container (name conflict), the other will be ignored.
 :::
 
-`IdGenerator` `Bean Name` 规则：
-- SegmentId: `[name]SegmentId` , 比如 : `__share__SegmentId`
-- SnowflakeId: `[name]SnowflakeId`， 比如 : `__share__SnowflakeId`
+`IdGenerator` `Bean Name` rules:
+- SegmentId: `[name]SegmentId` , e.g.: `__share__SegmentId`
+- SnowflakeId: `[name]SnowflakeId`, e.g.: `__share__SnowflakeId`
 
-## 使用
+## Usage
 
-> 通过 `@Autowired` 注入 `IdGenerator` 。
+> Inject `IdGenerator` via `@Autowired`.
 
 ```java {1,6}
     @Qualifier("__share__SegmentId")
@@ -83,41 +83,41 @@ cosid:
     @Lazy
     @Autowired
     private SnowflakeId snowflakeId;
-``` 
+```
 
-> 通过 `DefaultIdGeneratorProvider.INSTANCE` 获取共享 `IdGenerator` 。
+> Get shared `IdGenerator` via `DefaultIdGeneratorProvider.INSTANCE`.
 
 ```java
     DefaultIdGeneratorProvider.INSTANCE.getShare();
 ```
 
-### 注册多个 ID 生成器
+### Register Multiple ID Generators
 
-> 通过配置文件的 `provider` 注册多个 ID 生成器
+> Register multiple ID generators via configuration file `provider`
 
 ```yaml
 spring:
   data:
     redis:
-      host: localhost # Redis 分发器直接依赖 spring-data-redis，这样可以省去额外的配置。
+      host: localhost # Redis distributor directly depends on spring-data-redis, which can save additional configuration.
 cosid:
   namespace: ${spring.application.name}
   machine:
-    enabled: false # 可选，当需要使用雪花算法时，需要设置为 true
+    enabled: false # Optional, when using snowflake algorithm, set to true
     distributor:
       type: redis
   segment:
-    enabled: true # 可选，当需要使用号段算法时，需要设置为 true
+    enabled: true # Optional, when using segment algorithm, set to true
     distributor:
       type: redis
     provider:
-      order: # 命名为 order 的 ID 生成器
+      order: # ID generator named order
         offset: 10000
-      item: # 命名为 item 的 ID 生成器
+      item: # ID generator named item
         offset: 10000
 ```
 
-> 通过编码注册多个 ID 生成器
+> Register multiple ID generators via code
 
 ```java
 	@Resource
@@ -135,4 +135,4 @@ cosid:
 
 ## Examples
 
-开发者可以通过 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples) 的学习快速开启 `CosId` 之旅。
+Developers can quickly start the `CosId` journey by learning from [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples).

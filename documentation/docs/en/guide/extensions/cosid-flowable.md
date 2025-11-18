@@ -1,8 +1,8 @@
-# CosId-Flowable 模块
+# CosId-Flowable Module
 
-_Flowable 模块_ 为 `Flowable` 提供了 `CosId` 的支持，实现了 _Flowable_ 的 `org.flowable.common.engine.impl.cfg.IdGenerator` 接口。
+The _Flowable module_ provides `CosId` support for `Flowable`, implementing the `org.flowable.common.engine.impl.cfg.IdGenerator` interface of _Flowable_.
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -20,10 +20,10 @@ _Flowable 模块_ 为 `Flowable` 提供了 `CosId` 的支持，实现了 _Flowab
 ```
 :::
 
-## 配置
+## Configuration
 
-默认情况下 `FlowableIdGenerator` 将从*ID生成器容器*(`IdGeneratorProvider`)中获取以 `__share__` 为名称的ID生成器。
+By default, `FlowableIdGenerator` will retrieve the ID generator named `__share__` from the *ID generator container* (`IdGeneratorProvider`).
 
-开发者也可以通过配置系统属性 `cosid.flowable` 自定义ID生成器的名称。
+Developers can also customize the ID generator name by configuring the system property `cosid.flowable`.
 
 

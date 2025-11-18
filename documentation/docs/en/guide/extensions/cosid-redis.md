@@ -1,11 +1,11 @@
-# CosId-Redis 模块
+# CosId-Redis Module
 
-[cosid-spring-redis](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-spring-redis) 模块提供 *Redis* 的支持。实现了：
+[cosid-spring-redis](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-spring-redis) module provides support for *Redis*. Implements:
 
-- `MachineIdDistributor`：作为**雪花算法**(`SnowflakeId`)的机器号分配器 (`MachineIdDistributor`)。
-- `IdSegmentDistributor`：作为**号段算法**(`SegmentId`)的号段分发器 (`IdSegmentDistributor`)。
+- `MachineIdDistributor`: As the machine ID distributor for **Snowflake algorithm** (`SnowflakeId`).
+- `IdSegmentDistributor`: As the segment distributor for **segment algorithm** (`SegmentId`).
 
-## 安装
+## Installation
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
@@ -29,7 +29,7 @@
 ```
 :::
 
-## 配置案例
+## Configuration Example
 
 [CosId-Example-Redis](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-redis)
 
@@ -37,15 +37,15 @@
 spring:
   data:
     redis:
-      host: localhost # Redis 分发器直接依赖 spring-data-redis，这样可以省去额外的配置。
+      host: localhost # Redis distributor directly depends on spring-data-redis, which can omit additional configuration.
 cosid:
   namespace: ${spring.application.name}
   machine:
-    enabled: true # 可选，当需要使用雪花算法时，需要设置为 true
+    enabled: true # Optional, needs to be set to true when using Snowflake algorithm
     distributor:
       type: redis
   segment:
-    enabled: true # 可选，当需要使用号段算法时，需要设置为 true
+    enabled: true # Optional, needs to be set to true when using segment algorithm
     distributor:
       type: redis
 ```

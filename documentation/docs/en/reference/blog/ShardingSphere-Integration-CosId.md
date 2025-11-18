@@ -137,9 +137,9 @@ CosId modulo sharding algorithm
 
 #### Performance Benchmark
 
-| Precise Value/Single Value (**PreciseShardingValue**)                                                                           | Range Value/Multi Value (**RangeShardingValue**)                                                                           |
-|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
+| Precise Value/Single Value (**PreciseShardingValue**)                                                         | Range Value/Multi Value (**RangeShardingValue**)                                                            |
+|---------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
 
 #### Configuration
 
@@ -181,7 +181,7 @@ Interval-based time range sharding algorithm.
 
 | Precise Value/Single Value (**PreciseShardingValue**)                                                                                | Range Value/Multi Value (**RangeShardingValue**)                                                                                |
 |-----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
+| <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
 
 #### Configuration
 

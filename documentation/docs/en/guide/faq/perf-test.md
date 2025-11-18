@@ -1,14 +1,14 @@
 # JMH-Benchmark
 
-## 运行环境说明
+## Runtime Environment Description
 
-- 基准测试运行环境：笔记本开发机 ( MacBook Pro (M1) )
-- 所有基准测试都在开发笔记本上执行。
-- **Redis**、**MySql** 部署环境也在该笔记本开发机上。
+- Benchmark runtime environment: Laptop development machine (MacBook Pro (M1))
+- All benchmarks are executed on the development laptop.
+- **Redis**, **MySql** deployment environments are also on this development laptop.
 
 ## SegmentChainId
 
-### 吞吐量 (ops/s)
+### Throughput (ops/s)
 
 <p align="center" >
   <img src="../../../public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput-Of-SegmentChainId"/>
@@ -47,9 +47,9 @@ MySqlChainIdBenchmark.generate     100  thrpt    5  111589201.024 ± 1565714.192
 MySqlChainIdBenchmark.generate    1000  thrpt    5  115287146.614 ± 4471990.880  ops/s
 ```
 
-### 每次操作耗时的百分位数(us/op)
+### Percentile of each operation time (us/op)
 
-> [百分位数](https://zh.wikipedia.org/wiki/%E7%99%BE%E5%88%86%E4%BD%8D%E6%95%B0) ，统计学术语，若将一组数据从小到大排序，并计算相应的累计百分点，则某百分点所对应数据的值，就称为这百分点的百分位数，以Pk表示第k百分位数。百分位数是用来比较个体在群体中的相对地位量数。
+> [Percentile](https://en.wikipedia.org/wiki/Percentile), a statistical term. If a set of data is sorted from small to large, and the corresponding cumulative percentage is calculated, the value corresponding to a certain percentage is called the percentile of that percentage, denoted as Pk for the k-th percentile. Percentile is a measure used to compare the relative position of an individual in a group.
 
 <p align="center" >
   <img src="../../../public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="Percentile-Sample-Of-SegmentChainId"/>
@@ -111,9 +111,9 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
 
 ## CosIdIntervalShardingAlgorithm
 
-| **PreciseShardingValue**                                                                                        | **RangeShardingValue**                                                                                        |
-|-----------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
+| **PreciseShardingValue**                                                                                           | **RangeShardingValue**                                                                                           |
+|--------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
+| <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
 
 
 ``` shell
@@ -159,9 +159,9 @@ IntervalShardingAlgorithmBenchmark.office_range_timestamp          10000  thrpt 
 
 ## CosIdModShardingAlgorithm
 
-| **PreciseShardingValue**                                                                                   | **RangeShardingValue**                                                                                   |
-|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
+| **PreciseShardingValue**                                                                                      | **RangeShardingValue**                                                                                      |
+|---------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
 
 ``` shell
 gradle cosid-shardingsphere:jmh

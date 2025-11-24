@@ -16,24 +16,84 @@ package me.ahoo.cosid.machine;
 import com.google.common.annotations.Beta;
 
 /**
- * MachineId Guarder .
+ * MachineId Guarder.
+ *
+ * <p>The MachineIdGuarder interface provides mechanisms to guard and manage machine IDs in a distributed system.
+ * It allows registering and unregistering instances within namespaces, and controlling the lifecycle of the guarder.
+ *
+ * <p>This interface is designed to prevent machine ID conflicts and ensure unique identification across distributed instances.
+ *
+ * <p>Example usage:
+ * <pre>{@code
+ * MachineIdGuarder guarder = new SomeMachineIdGuarder();
+ * guarder.register("myNamespace", new InstanceId("instance1"));
+ * guarder.start();
+ * // ... use the guarder
+ * guarder.stop();
+ * }</pre>
  *
  * @author ahoo wang
  */
 @Beta
 public interface MachineIdGuarder {
     MachineIdGuarder NONE = new MachineIdGuarder.None();
-    
+
+    /**
+     * Registers an instance ID within a specific namespace.
+     *
+     * <p>This method associates the given instance ID with the provided namespace, allowing the guarder
+     * to track and manage machine IDs for conflict prevention.
+     *
+     * @param namespace the namespace to register the instance in, must not be null
+     * @param instanceId the instance ID to register, must not be null
+     * @throws IllegalArgumentException if namespace or instanceId is null
+     */
     void register(String namespace, InstanceId instanceId);
-    
+
+    /**
+     * Unregisters an instance ID from a specific namespace.
+     *
+     * <p>This method removes the association of the given instance ID with the provided namespace,
+     * releasing any resources or locks held for that instance.
+     *
+     * @param namespace the namespace to unregister the instance from, must not be null
+     * @param instanceId the instance ID to unregister, must not be null
+     * @throws IllegalArgumentException if namespace or instanceId is null
+     */
     void unregister(String namespace, InstanceId instanceId);
-    
+
+    /**
+     * Starts the machine ID guarder.
+     *
+     * <p>This method initializes the guarder and begins monitoring or guarding machine IDs.
+     * After calling start(), the guarder is considered running.
+     *
+     * @throws IllegalStateException if the guarder is already running
+     */
     void start();
-    
+
+    /**
+     * Stops the machine ID guarder.
+     *
+     * <p>This method shuts down the guarder and stops monitoring or guarding machine IDs.
+     * After calling stop(), the guarder is no longer running.
+     *
+     * @throws IllegalStateException if the guarder is not running
+     */
     void stop();
-    
+
+    /**
+     * Checks if the machine ID guarder is currently running.
+     *
+     * @return true if the guarder is running, false otherwise
+     */
     boolean isRunning();
     
+    /**
+     * A no-operation implementation of MachineIdGuarder.
+     *
+     * <p>This implementation provides empty methods that do nothing, useful for testing or when no guarding is needed.
+     */
     class None implements MachineIdGuarder {
         
         @Override

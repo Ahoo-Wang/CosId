@@ -40,8 +40,24 @@ import java.util.Map;
 public interface MachineIdGuarder {
     MachineIdGuarder NONE = new MachineIdGuarder.None();
 
+    /**
+     * Gets the guardian status for all registered instances.
+     *
+     * <p>This method returns a map of namespaced instance IDs to their current guardian status,
+     * indicating whether the guarding operation was successful or failed for each instance.
+     *
+     * @return a map of namespaced instance IDs to their guardian status
+     */
     Map<NamespacedInstanceId, GuardianStatus> getGuardianStatus();
 
+    /**
+     * Checks if any registered instance has failed guarding.
+     *
+     * <p>This method returns true if at least one registered instance has a guardian status of FAILURE,
+     * indicating that the guarding operation failed for that instance.
+     *
+     * @return true if any instance has failed guarding, false otherwise
+     */
     default boolean hasFailure() {
         return getGuardianStatus().values().stream().anyMatch(it -> it == GuardianStatus.FAILURE);
     }
@@ -104,6 +120,11 @@ public interface MachineIdGuarder {
      */
     class None implements MachineIdGuarder {
 
+        /**
+         * {@inheritDoc}
+         *
+         * <p>This implementation returns an empty map since no instances are registered.
+         */
         @Override
         public Map<NamespacedInstanceId, GuardianStatus> getGuardianStatus() {
             return Map.of();

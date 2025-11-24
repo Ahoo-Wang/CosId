@@ -115,6 +115,12 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         return new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder().setDaemon(true).setNameFormat("MachineIdGuarder").build());
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation returns an immutable copy of the current guardian status map,
+     * showing the status of all registered instances.
+     */
     @Override
     public Map<NamespacedInstanceId, GuardianStatus> getGuardianStatus() {
         return ImmutableMap.copyOf(registeredInstanceIds);

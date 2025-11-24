@@ -28,23 +28,24 @@ import org.junit.jupiter.api.Test;
  */
 class DefaultMachineIdGuarderTest {
     private final ManualMachineIdDistributor distributor = new ManualMachineIdDistributor(1, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
-    
+
     @Test
     void register() {
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
         DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         guarder.register(namespacedInstanceId.getNamespace(), namespacedInstanceId.getInstanceId());
         assertThat(guarder.getGuardianStatus().keySet(), hasItem(namespacedInstanceId));
+        assertThat(guarder.hasFailure(), equalTo(false));
         guarder.safeGuard();
     }
-    
+
     @Test
     void registerIfNullNamespace() {
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
         DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         Assertions.assertThrows(IllegalArgumentException.class, () -> guarder.register(null, namespacedInstanceId.getInstanceId()));
     }
-    
+
     @Test
     void unregister() {
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
@@ -54,7 +55,7 @@ class DefaultMachineIdGuarderTest {
         guarder.unregister(namespacedInstanceId.getNamespace(), namespacedInstanceId.getInstanceId());
         assertThat(guarder.getGuardianStatus().keySet(), empty());
     }
-    
+
     @Test
     void start() {
         DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
@@ -62,7 +63,7 @@ class DefaultMachineIdGuarderTest {
         guarder.start();
         assertThat(guarder.isRunning(), equalTo(true));
     }
-    
+
     @Test
     void stop() {
         DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);

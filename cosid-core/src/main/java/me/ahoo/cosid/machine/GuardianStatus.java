@@ -13,6 +13,38 @@
 
 package me.ahoo.cosid.machine;
 
+/**
+ * Represents the status of a machine ID guardian operation.
+ *
+ * <p>This enum is used to indicate the result of attempting to guard a machine ID
+ * for a specific instance. It provides a simple way to track whether the guarding
+ * operation succeeded or failed.
+ *
+ * <p>Example usage:
+ * <pre>{@code
+ * GuardianStatus status = GuardianStatus.SUCCESS;
+ * if (status == GuardianStatus.FAILURE) {
+ *     // Handle failure case
+ * }
+ * }</pre>
+ *
+ * @author ahoo wang
+ */
 public enum GuardianStatus {
-    SUCCESS, FAILURE
+    /**
+     * Indicates that the machine ID guarding operation was successful.
+     *
+     * <p>This status means the guardian was able to successfully protect or renew
+     * the machine ID for the associated instance.
+     */
+    SUCCESS,
+
+    /**
+     * Indicates that the machine ID guarding operation failed.
+     *
+     * <p>This status means the guardian encountered an error while trying to protect
+     * or renew the machine ID for the associated instance. The failure may be due to
+     * network issues, permission problems, or other runtime errors.
+     */
+    FAILURE
 }

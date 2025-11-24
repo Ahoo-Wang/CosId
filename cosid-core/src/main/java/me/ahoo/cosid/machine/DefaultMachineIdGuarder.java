@@ -15,10 +15,14 @@ package me.ahoo.cosid.machine;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableBiMap;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -52,10 +56,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 @Slf4j
 public class DefaultMachineIdGuarder implements MachineIdGuarder {
-    
+
     public static final Duration DEFAULT_INITIAL_DELAY = Duration.ofMinutes(1);
     public static final Duration DEFAULT_DELAY = Duration.ofMinutes(1);
-    private final CopyOnWriteArraySet<NamespacedInstanceId> registeredInstanceIds;
+    private final ConcurrentHashMap<NamespacedInstanceId, GuardianStatus> registeredInstanceIds;
     private final MachineIdDistributor machineIdDistributor;
     private final ScheduledExecutorService executorService;
     private final Duration initialDelay;
@@ -63,7 +67,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     private final Duration safeGuardDuration;
     private volatile ScheduledFuture<?> scheduledFuture;
     private final AtomicBoolean running = new AtomicBoolean(false);
-    
+
     /**
      * Constructs a DefaultMachineIdGuarder with default scheduling parameters.
      *
@@ -71,12 +75,12 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      * initial delay of 1 minute, and delay of 1 minute between guard operations.
      *
      * @param machineIdDistributor the distributor used to guard machine IDs
-     * @param safeGuardDuration the duration for which to guard each machine ID
+     * @param safeGuardDuration    the duration for which to guard each machine ID
      */
     public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, Duration safeGuardDuration) {
         this(machineIdDistributor, executorService(), DEFAULT_INITIAL_DELAY, DEFAULT_DELAY, safeGuardDuration);
     }
-    
+
     /**
      * Constructs a DefaultMachineIdGuarder with custom scheduling parameters.
      *
@@ -84,21 +88,21 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      * including the executor service and scheduling intervals.
      *
      * @param machineIdDistributor the distributor used to guard machine IDs
-     * @param executorService the scheduled executor service for periodic guarding
-     * @param initialDelay the initial delay before the first guard operation
-     * @param delay the delay between subsequent guard operations
-     * @param safeGuardDuration the duration for which to guard each machine ID
+     * @param executorService      the scheduled executor service for periodic guarding
+     * @param initialDelay         the initial delay before the first guard operation
+     * @param delay                the delay between subsequent guard operations
+     * @param safeGuardDuration    the duration for which to guard each machine ID
      */
     public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, ScheduledExecutorService executorService,
                                    Duration initialDelay, Duration delay, Duration safeGuardDuration) {
-        this.registeredInstanceIds = new CopyOnWriteArraySet<>();
+        this.registeredInstanceIds = new ConcurrentHashMap<>();
         this.machineIdDistributor = machineIdDistributor;
         this.executorService = executorService;
         this.initialDelay = initialDelay;
         this.delay = delay;
         this.safeGuardDuration = safeGuardDuration;
     }
-    
+
     /**
      * Creates a default scheduled executor service for the guarder.
      *
@@ -110,7 +114,12 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     public static ScheduledExecutorService executorService() {
         return new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder().setDaemon(true).setNameFormat("MachineIdGuarder").build());
     }
-    
+
+    @Override
+    public Map<NamespacedInstanceId, GuardianStatus> getGuardianStatus() {
+        return ImmutableMap.copyOf(registeredInstanceIds);
+    }
+
     /**
      * {@inheritDoc}
      *
@@ -121,12 +130,12 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     public void register(String namespace, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
-        boolean absent = registeredInstanceIds.add(namespacedInstanceId);
+        boolean absent = registeredInstanceIds.put(namespacedInstanceId, GuardianStatus.SUCCESS) == null;
         if (log.isDebugEnabled()) {
             log.debug("Register Instance:[{}] - [{}].", namespacedInstanceId, absent);
         }
     }
-    
+
     /**
      * {@inheritDoc}
      *
@@ -137,19 +146,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     public void unregister(String namespace, InstanceId instanceId) {
         registeredInstanceIds.remove(new NamespacedInstanceId(namespace, instanceId));
     }
-    
-    /**
-     * Gets the set of currently registered instance IDs.
-     *
-     * <p>This method returns a live view of the registered instances. Modifications to the returned set
-     * will affect the guarder's internal state, so it should be used with caution.
-     *
-     * @return the set of registered namespaced instance IDs
-     */
-    public CopyOnWriteArraySet<NamespacedInstanceId> getRegisteredInstanceIds() {
-        return registeredInstanceIds;
-    }
-    
+
     /**
      * {@inheritDoc}
      *
@@ -166,7 +163,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
             scheduledFuture = executorService.scheduleWithFixedDelay(this::safeGuard, initialDelay.toMillis(), delay.toMillis(), TimeUnit.MILLISECONDS);
         }
     }
-    
+
     /**
      * Performs the periodic guarding operation for all registered instances.
      *
@@ -178,17 +175,18 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         if (log.isDebugEnabled()) {
             log.debug("Safe guard registered Instances:[{}].", registeredInstanceIds.size());
         }
-        for (NamespacedInstanceId registeredInstance : registeredInstanceIds) {
+        for (NamespacedInstanceId registeredInstance : registeredInstanceIds.keySet()) {
             try {
                 machineIdDistributor.guard(registeredInstance.getNamespace(), registeredInstance.getInstanceId(), safeGuardDuration);
             } catch (Throwable throwable) {
+                registeredInstanceIds.put(registeredInstance, GuardianStatus.FAILURE);
                 if (log.isErrorEnabled()) {
                     log.error("Guard Failed:[{}]!", throwable.getMessage(), throwable);
                 }
             }
         }
     }
-    
+
     /**
      * {@inheritDoc}
      *
@@ -204,7 +202,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
             scheduledFuture.cancel(true);
         }
     }
-    
+
     /**
      * {@inheritDoc}
      *
@@ -214,5 +212,5 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     public boolean isRunning() {
         return running.get();
     }
-    
+
 }

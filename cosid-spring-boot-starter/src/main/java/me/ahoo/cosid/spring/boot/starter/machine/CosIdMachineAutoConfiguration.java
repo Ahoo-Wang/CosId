@@ -46,37 +46,37 @@ import java.util.Objects;
 public class CosIdMachineAutoConfiguration {
     private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
-    
+
     public CosIdMachineAutoConfiguration(CosIdProperties cosIdProperties, MachineProperties machineProperties) {
         this.cosIdProperties = cosIdProperties;
         this.machineProperties = machineProperties;
     }
-    
+
     @Bean
     @ConditionalOnMissingBean
     public InstanceId instanceId(HostAddressSupplier hostAddressSupplier) {
-        
+
         boolean stable = Boolean.TRUE.equals(machineProperties.getStable());
-        
+
         if (!Strings.isNullOrEmpty(machineProperties.getInstanceId())) {
             return InstanceId.of(machineProperties.getInstanceId(), stable);
         }
-        
+
         int port = ProcessId.CURRENT.getProcessId();
         if (Objects.nonNull(machineProperties.getPort()) && machineProperties.getPort() > 0) {
             port = machineProperties.getPort();
         }
-        
+
         return InstanceId.of(hostAddressSupplier.getHostAddress(), port, stable);
     }
-    
+
     @Bean
     @ConditionalOnMissingBean(value = MachineId.class)
     public MachineId machineId(MachineIdDistributor machineIdDistributor, InstanceId instanceId) {
         int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), machineProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
         return new MachineId(machineId);
     }
-    
+
     @Bean
     @ConditionalOnMissingBean
     public MachineStateStorage machineStateStorage() {
@@ -85,7 +85,7 @@ public class CosIdMachineAutoConfiguration {
         }
         return MachineStateStorage.IN_MEMORY;
     }
-    
+
     @Bean
     @ConditionalOnMissingBean
     public ClockBackwardsSynchronizer clockBackwardsSynchronizer() {
@@ -93,7 +93,7 @@ public class CosIdMachineAutoConfiguration {
         Preconditions.checkNotNull(clockBackwards, "cosid.machine.clockBackwards can not be null.");
         return new DefaultClockBackwardsSynchronizer(clockBackwards.getSpinThreshold(), clockBackwards.getBrokenThreshold());
     }
-    
+
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "manual")
@@ -105,20 +105,20 @@ public class CosIdMachineAutoConfiguration {
         Preconditions.checkArgument(machineId >= 0, "cosid.machine.distributor.manual.machineId can not be less than 0.");
         return new ManualMachineIdDistributor(machineId, localMachineState, clockBackwardsSynchronizer);
     }
-    
+
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "stateful_set")
     public StatefulSetMachineIdDistributor statefulSetMachineIdDistributor(MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         return new StatefulSetMachineIdDistributor(localMachineState, clockBackwardsSynchronizer);
     }
-    
+
     @Bean
     @ConditionalOnMissingBean
     public CosIdLifecycleMachineIdDistributor cosIdLifecycleMachineIdDistributor(InstanceId instanceId, MachineIdDistributor machineIdDistributor) {
         return new CosIdLifecycleMachineIdDistributor(cosIdProperties, instanceId, machineIdDistributor);
     }
-    
+
     @Bean
     @ConditionalOnMissingBean
     public MachineIdGuarder machineIdGuarder(MachineIdDistributor machineIdDistributor) {
@@ -128,11 +128,17 @@ public class CosIdMachineAutoConfiguration {
         }
         return new DefaultMachineIdGuarder(machineIdDistributor, DefaultMachineIdGuarder.executorService(), guarder.getInitialDelay(), guarder.getDelay(), machineProperties.getSafeGuardDuration());
     }
-    
+
+    @Bean
+    @ConditionalOnMissingBean
+    public MachineIdHealthIndicator machineIdHealthIndicator(MachineIdGuarder machineIdGuarder) {
+        return new MachineIdHealthIndicator(machineIdGuarder);
+    }
+
     @Bean
     @ConditionalOnMissingBean
     public CosIdLifecycleMachineIdGuarder cosIdLifecycleMachineIdGuarder(InstanceId instanceId, MachineIdGuarder machineIdGuarder) {
         return new CosIdLifecycleMachineIdGuarder(cosIdProperties, instanceId, machineIdGuarder);
     }
-    
+
 }

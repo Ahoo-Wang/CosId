@@ -15,6 +15,8 @@ package me.ahoo.cosid.machine;
 
 import com.google.common.annotations.Beta;
 
+import java.util.Map;
+
 /**
  * MachineId Guarder.
  *
@@ -38,13 +40,19 @@ import com.google.common.annotations.Beta;
 public interface MachineIdGuarder {
     MachineIdGuarder NONE = new MachineIdGuarder.None();
 
+    Map<NamespacedInstanceId, GuardianStatus> getGuardianStatus();
+
+    default boolean hasFailure() {
+        return getGuardianStatus().values().stream().anyMatch(it -> it == GuardianStatus.FAILURE);
+    }
+
     /**
      * Registers an instance ID within a specific namespace.
      *
      * <p>This method associates the given instance ID with the provided namespace, allowing the guarder
      * to track and manage machine IDs for conflict prevention.
      *
-     * @param namespace the namespace to register the instance in, must not be null
+     * @param namespace  the namespace to register the instance in, must not be null
      * @param instanceId the instance ID to register, must not be null
      * @throws IllegalArgumentException if namespace or instanceId is null
      */
@@ -56,7 +64,7 @@ public interface MachineIdGuarder {
      * <p>This method removes the association of the given instance ID with the provided namespace,
      * releasing any resources or locks held for that instance.
      *
-     * @param namespace the namespace to unregister the instance from, must not be null
+     * @param namespace  the namespace to unregister the instance from, must not be null
      * @param instanceId the instance ID to unregister, must not be null
      * @throws IllegalArgumentException if namespace or instanceId is null
      */
@@ -88,34 +96,39 @@ public interface MachineIdGuarder {
      * @return true if the guarder is running, false otherwise
      */
     boolean isRunning();
-    
+
     /**
      * A no-operation implementation of MachineIdGuarder.
      *
      * <p>This implementation provides empty methods that do nothing, useful for testing or when no guarding is needed.
      */
     class None implements MachineIdGuarder {
-        
+
+        @Override
+        public Map<NamespacedInstanceId, GuardianStatus> getGuardianStatus() {
+            return Map.of();
+        }
+
         @Override
         public void register(String namespace, InstanceId instanceId) {
-        
+
         }
-        
+
         @Override
         public void unregister(String namespace, InstanceId instanceId) {
-        
+
         }
-        
+
         @Override
         public void start() {
-        
+
         }
-        
+
         @Override
         public void stop() {
-        
+
         }
-        
+
         @Override
         public boolean isRunning() {
             return false;

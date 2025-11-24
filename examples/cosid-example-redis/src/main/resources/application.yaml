@@ -6,6 +6,10 @@ management:
           - cosid
           - cosidGenerator
           - cosidStringGenerator
+          - health
+  endpoint:
+    health:
+      show-details: always
 springdoc:
   show-actuator: true
 server:

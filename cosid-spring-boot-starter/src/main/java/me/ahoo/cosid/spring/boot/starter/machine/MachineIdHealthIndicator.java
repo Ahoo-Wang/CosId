@@ -69,8 +69,7 @@ public class MachineIdHealthIndicator implements HealthIndicator {
      * </ul>
      * </p>
      *
-     * @return a Health object indicating UP if all guardian states are healthy,
-     * or DOWN with error details if any guardian state has failed
+     * @return a Health object indicating UP if all guardian states are healthy,or DOWN with error details if any guardian state has failed.
      * @throws RuntimeException if an unexpected error occurs during health check processing
      */
     @Override

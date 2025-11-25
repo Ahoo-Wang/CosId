@@ -72,7 +72,7 @@ public class GuardianState {
      * @param guardAt the timestamp of the successful guarding operation
      * @return a new GuardianState representing success
      */
-    static GuardianState success(final long guardAt) {
+    public static GuardianState success(final long guardAt) {
         return new GuardianState(guardAt, null);
     }
 
@@ -83,7 +83,7 @@ public class GuardianState {
      * @param error   the error that caused the failure
      * @return a new GuardianState representing failure
      */
-    static GuardianState failed(final long guardAt, final Throwable error) {
+    public static GuardianState failed(final long guardAt, final Throwable error) {
         return new GuardianState(guardAt, error);
     }
 }

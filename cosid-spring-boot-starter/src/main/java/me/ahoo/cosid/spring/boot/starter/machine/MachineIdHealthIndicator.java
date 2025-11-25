@@ -54,22 +54,18 @@ public class MachineIdHealthIndicator implements HealthIndicator {
     /**
      * Performs a health check on the machine ID guarding system.
      *
-     * <p>
-     * This method inspects all guardian states from the MachineIdGuarder to determine
+     * <p>This method inspects all guardian states from the MachineIdGuarder to determine
      * if the machine ID distribution is functioning correctly. It returns a healthy status
      * if no guardian states are in a failed state, or an unhealthy status with details
-     * about the first encountered failure.
-     * </p>
+     * about the first encountered failure.</p>
      *
-     * <p>
-     * The health check includes:
+     * <p>The health check includes:</p>
      * <ul>
      *   <li>Checking if any GuardianState is marked as failed</li>
      *   <li>If failed, including the error cause and timestamp in the health details</li>
      * </ul>
-     * </p>
      *
-     * @return a Health object indicating UP if all guardian states are healthy,or DOWN with error details if any guardian state has failed.
+     * @return a Health object indicating UP if all guardian states are healthy, or DOWN with error details if any guardian state has failed
      * @throws RuntimeException if an unexpected error occurs during health check processing
      */
     @Override

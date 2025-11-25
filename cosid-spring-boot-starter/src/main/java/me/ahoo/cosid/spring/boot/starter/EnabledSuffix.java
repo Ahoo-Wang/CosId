@@ -14,10 +14,20 @@
 package me.ahoo.cosid.spring.boot.starter;
 
 /**
- * Enabled Suffix.
+ * Constants for configuration property enabled suffixes.
+ *
+ * <p>This interface provides standard suffixes used in Spring Boot configuration
+ * properties to enable or disable specific features. The suffix is appended to
+ * the base configuration prefix to create the full property key.</p>
+ *
+ * <p>For example, with a base prefix "cosid.machine", the enabled property
+ * would be "cosid.machine.enabled".</p>
  *
  * @author ahoo wang
  */
 public interface EnabledSuffix {
+    /**
+     * The standard suffix for enabled/disabled configuration properties.
+     */
     String KEY = ".enabled";
 }

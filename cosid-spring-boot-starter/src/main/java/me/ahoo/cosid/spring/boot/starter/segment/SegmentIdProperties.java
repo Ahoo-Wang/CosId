@@ -32,27 +32,93 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * SegmentId Properties.
+ * Configuration properties for segment-based ID generation in Spring Boot applications.
+ *
+ * <p>This class defines properties for configuring segment ID generators, which provide
+ * high-performance, database-friendly ID generation. Segment IDs are allocated in batches
+ * (segments) to reduce database contention and improve performance.</p>
+ *
+ * <p>The configuration supports different modes:
+ * <ul>
+ *   <li>SEGMENT - Basic segment allocation</li>
+ *   <li>CHAIN - Chain-based segment allocation with prefetching</li>
+ * </ul>
+ *
+ * <p>Multiple distributor types are supported for coordinating segment allocation:
+ * <ul>
+ *   <li>REDIS - Redis-based coordination</li>
+ *   <li>JDBC - Database-based coordination</li>
+ *   <li>MONGO - MongoDB-based coordination</li>
+ *   <li>ZOOKEEPER - ZooKeeper-based coordination</li>
+ *   <li>PROXY - Proxy service-based coordination</li>
+ * </ul>
+ *
+ * <p>Example configuration:
+ * <pre>{@code
+ * cosid:
+ *   segment:
+ *     enabled: true
+ *     mode: CHAIN
+ *     ttl: 3600
+ *     distributor:
+ *       type: REDIS
+ *       redis:
+ *         timeout: 2s
+ * }</pre>
  *
  * @author ahoo wang
  */
 @ConfigurationProperties(prefix = SegmentIdProperties.PREFIX)
 public class SegmentIdProperties {
 
+    /**
+     * The configuration property prefix for segment ID properties.
+     */
     public static final String PREFIX = CosId.COSID_PREFIX + "segment";
 
-    private boolean enabled = false;
-    private Mode mode = Mode.CHAIN;
     /**
-     * idSegment time to live.
-     * unit {@link java.util.concurrent.TimeUnit#SECONDS}
+     * Whether segment ID generation is enabled.
+     * Default is false.
+     */
+    private boolean enabled = false;
+
+    /**
+     * The mode of segment ID generation.
+     * Default is CHAIN.
+     */
+    private Mode mode = Mode.CHAIN;
+
+    /**
+     * Time to live for ID segments in seconds.
+     * Default is {@link IdSegment#TIME_TO_LIVE_FOREVER} (never expires).
      */
     private long ttl = TIME_TO_LIVE_FOREVER;
+
+    /**
+     * Configuration for the segment distributor.
+     */
     private Distributor distributor;
+
+    /**
+     * Configuration for chain-based segment generation.
+     */
     private Chain chain;
+
+    /**
+     * Configuration for shared ID definitions.
+     */
     private ShardIdDefinition share;
+
+    /**
+     * Map of named ID definitions for different generators.
+     */
     private Map<String, IdDefinition> provider;
 
+    /**
+     * Constructs a new SegmentIdProperties instance with default configurations.
+     *
+     * <p>Initializes all nested configuration objects with their default values.</p>
+     */
     public SegmentIdProperties() {
         share = new ShardIdDefinition();
         distributor = new Distributor();
@@ -60,118 +126,282 @@ public class SegmentIdProperties {
         provider = new HashMap<>();
     }
 
+    /**
+     * Checks if segment ID generation is enabled.
+     *
+     * @return true if enabled, false otherwise
+     */
     public boolean isEnabled() {
         return enabled;
     }
 
+    /**
+     * Sets whether segment ID generation should be enabled.
+     *
+     * @param enabled true to enable, false to disable
+     */
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
     }
 
+    /**
+     * Gets the mode of segment ID generation.
+     *
+     * @return the segment mode
+     */
     public Mode getMode() {
         return mode;
     }
 
+    /**
+     * Sets the mode of segment ID generation.
+     *
+     * @param mode the segment mode to set
+     */
     public void setMode(Mode mode) {
         this.mode = mode;
     }
 
+    /**
+     * Gets the time to live for ID segments.
+     *
+     * @return the TTL in seconds
+     */
     public long getTtl() {
         return ttl;
     }
 
+    /**
+     * Sets the time to live for ID segments.
+     *
+     * @param ttl the TTL in seconds to set
+     */
     public void setTtl(long ttl) {
         this.ttl = ttl;
     }
 
+    /**
+     * Gets the distributor configuration.
+     *
+     * @return the distributor configuration
+     */
     public Distributor getDistributor() {
         return distributor;
     }
 
+    /**
+     * Sets the distributor configuration.
+     *
+     * @param distributor the distributor configuration to set
+     */
     public void setDistributor(Distributor distributor) {
         this.distributor = distributor;
     }
 
+    /**
+     * Gets the chain configuration.
+     *
+     * @return the chain configuration
+     */
     public Chain getChain() {
         return chain;
     }
 
+    /**
+     * Sets the chain configuration.
+     *
+     * @param chain the chain configuration to set
+     */
     public void setChain(Chain chain) {
         this.chain = chain;
     }
 
+    /**
+     * Gets the shared ID definition configuration.
+     *
+     * @return the shared ID definition
+     */
     public ShardIdDefinition getShare() {
         return share;
     }
 
+    /**
+     * Sets the shared ID definition configuration.
+     *
+     * @param share the shared ID definition to set
+     */
     public void setShare(ShardIdDefinition share) {
         this.share = share;
     }
 
+    /**
+     * Gets the map of named ID definitions.
+     *
+     * @return the provider map of ID definitions
+     */
     @Nonnull
     public Map<String, IdDefinition> getProvider() {
         return provider;
     }
 
+    /**
+     * Sets the map of named ID definitions.
+     *
+     * @param provider the provider map to set
+     */
     public void setProvider(Map<String, IdDefinition> provider) {
         this.provider = provider;
     }
 
+    /**
+     * Enumeration of supported segment ID generation modes.
+     */
     public enum Mode {
+        /**
+         * Basic segment mode that allocates IDs in fixed-size segments.
+         */
         SEGMENT,
+
+        /**
+         * Chain mode that uses a chain of segments with prefetching for better performance.
+         */
         CHAIN
     }
 
+    /**
+     * Configuration for chain-based segment ID generation.
+     *
+     * <p>Chain mode provides better performance by maintaining a chain of segments
+     * and prefetching new segments before the current one is exhausted.</p>
+     */
     public static class Chain {
+        /**
+         * The safe distance for chain-based generation.
+         * Default is {@link SegmentChainId#DEFAULT_SAFE_DISTANCE}.
+         */
         private int safeDistance = SegmentChainId.DEFAULT_SAFE_DISTANCE;
+
+        /**
+         * Configuration for the prefetch worker.
+         */
         private PrefetchWorker prefetchWorker;
 
+        /**
+         * Constructs a new Chain configuration with default prefetch worker.
+         */
         public Chain() {
             prefetchWorker = new PrefetchWorker();
         }
 
+        /**
+         * Gets the safe distance for chain generation.
+         *
+         * @return the safe distance
+         */
         public int getSafeDistance() {
             return safeDistance;
         }
 
+        /**
+         * Sets the safe distance for chain generation.
+         *
+         * @param safeDistance the safe distance to set
+         */
         public void setSafeDistance(int safeDistance) {
             this.safeDistance = safeDistance;
         }
 
+        /**
+         * Gets the prefetch worker configuration.
+         *
+         * @return the prefetch worker configuration
+         */
         public PrefetchWorker getPrefetchWorker() {
             return prefetchWorker;
         }
 
+        /**
+         * Sets the prefetch worker configuration.
+         *
+         * @param prefetchWorker the prefetch worker configuration to set
+         */
         public void setPrefetchWorker(PrefetchWorker prefetchWorker) {
             this.prefetchWorker = prefetchWorker;
         }
 
+        /**
+         * Configuration for the prefetch worker that manages segment prefetching.
+         */
         public static class PrefetchWorker {
 
+            /**
+             * The period between prefetch operations.
+             * Default is {@link PrefetchWorkerExecutorService#DEFAULT_PREFETCH_PERIOD}.
+             */
             private Duration prefetchPeriod = PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD;
+
+            /**
+             * The core pool size for the prefetch worker executor.
+             * Default is the number of available processors.
+             */
             private int corePoolSize = Runtime.getRuntime().availableProcessors();
+
+            /**
+             * Whether to register a shutdown hook for graceful shutdown.
+             * Default is true.
+             */
             private boolean shutdownHook = true;
 
+            /**
+             * Gets the prefetch period.
+             *
+             * @return the prefetch period duration
+             */
             public Duration getPrefetchPeriod() {
                 return prefetchPeriod;
             }
 
+            /**
+             * Sets the prefetch period.
+             *
+             * @param prefetchPeriod the prefetch period to set
+             */
             public void setPrefetchPeriod(Duration prefetchPeriod) {
                 this.prefetchPeriod = prefetchPeriod;
             }
 
+            /**
+             * Gets the core pool size for the executor.
+             *
+             * @return the core pool size
+             */
             public int getCorePoolSize() {
                 return corePoolSize;
             }
 
+            /**
+             * Sets the core pool size for the executor.
+             *
+             * @param corePoolSize the core pool size to set
+             */
             public void setCorePoolSize(int corePoolSize) {
                 this.corePoolSize = corePoolSize;
             }
 
+            /**
+             * Checks if shutdown hook is enabled.
+             *
+             * @return true if shutdown hook is enabled, false otherwise
+             */
             public boolean isShutdownHook() {
                 return shutdownHook;
             }
 
+            /**
+             * Sets whether to enable shutdown hook.
+             *
+             * @param shutdownHook true to enable shutdown hook, false to disable
+             */
             public void setShutdownHook(boolean shutdownHook) {
                 this.shutdownHook = shutdownHook;
             }

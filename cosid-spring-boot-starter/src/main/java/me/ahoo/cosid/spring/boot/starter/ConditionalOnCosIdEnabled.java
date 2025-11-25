@@ -23,7 +23,22 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Conditional On CosId Enabled.
+ * Conditional annotation that enables beans when CosId is enabled.
+ *
+ * <p>This annotation can be applied to configuration classes or bean methods
+ * to conditionally create them only when CosId auto-configuration is enabled.
+ * By default, CosId is enabled unless explicitly disabled in configuration.</p>
+ *
+ * <p>The condition checks the property {@code cosid.enabled} which defaults to {@code true}.</p>
+ *
+ * <p>Example usage:
+ * <pre>{@code
+ * @Configuration
+ * @ConditionalOnCosIdEnabled
+ * public class MyCosIdConfiguration {
+ *     // Beans created only when CosId is enabled
+ * }
+ * }</pre>
  *
  * @author ahoo wang
  */
@@ -31,5 +46,8 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE, ElementType.METHOD})
 @ConditionalOnProperty(value = ConditionalOnCosIdEnabled.ENABLED_KEY, matchIfMissing = true, havingValue = "true")
 public @interface ConditionalOnCosIdEnabled {
+    /**
+     * The configuration property key used to enable/disable CosId.
+     */
     String ENABLED_KEY = CosId.COSID + EnabledSuffix.KEY;
 }

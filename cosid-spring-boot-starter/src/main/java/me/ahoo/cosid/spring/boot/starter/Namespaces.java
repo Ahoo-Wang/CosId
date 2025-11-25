@@ -15,10 +15,30 @@ package me.ahoo.cosid.spring.boot.starter;
 
 import org.springframework.util.StringUtils;
 
+/**
+ * Utility class for namespace operations in CosId configuration.
+ *
+ * <p>This class provides helper methods for working with namespaces,
+ * which are used to isolate ID generation contexts in distributed systems.</p>
+ *
+ * @author ahoo wang
+ */
 public final class Namespaces {
     private Namespaces() {
     }
-    
+
+    /**
+     * Returns the first non-blank namespace from the provided arguments.
+     *
+     * <p>This method iterates through the provided namespace strings and returns
+     * the first one that is not null, empty, or contains only whitespace characters.
+     * This is commonly used to determine the effective namespace by checking
+     * specific configuration first, then falling back to global defaults.</p>
+     *
+     * @param namespaces the namespace strings to check, in order of preference
+     * @return the first non-blank namespace
+     * @throws IllegalArgumentException if all provided namespaces are blank
+     */
     public static String firstNotBlank(String... namespaces) {
         for (String namespace : namespaces) {
             if (StringUtils.hasText(namespace)) {

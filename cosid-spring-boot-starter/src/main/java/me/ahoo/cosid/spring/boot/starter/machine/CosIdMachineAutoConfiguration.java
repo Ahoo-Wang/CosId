@@ -39,6 +39,40 @@ import org.springframework.context.annotation.Bean;
 
 import java.util.Objects;
 
+/**
+ * Auto-configuration for CosId machine ID management components.
+ *
+ * <p>This configuration class sets up the complete machine ID ecosystem including:
+ * <ul>
+ *   <li>Instance identification and machine ID distribution</li>
+ *   <li>Machine state storage and persistence</li>
+ *   <li>Clock synchronization and backwards handling</li>
+ *   <li>Machine ID guarding and health monitoring</li>
+ *   <li>Lifecycle management for startup/shutdown</li>
+ * </ul>
+ *
+ * <p>The configuration supports multiple distribution strategies:
+ * <ul>
+ *   <li>Manual: Fixed machine ID assignment</li>
+ *   <li>StatefulSet: Kubernetes StatefulSet-based distribution</li>
+ *   <li>JDBC: Database-backed distribution</li>
+ *   <li>Redis: Redis-backed distribution</li>
+ *   <li>Zookeeper: Zookeeper-backed distribution</li>
+ *   <li>Proxy: Remote proxy server distribution</li>
+ *   <li>MongoDB: MongoDB-backed distribution</li>
+ * </ul>
+ *
+ * <p>Example configuration:
+ * <pre>{@code
+ * cosid:
+ *   machine:
+ *     enabled: true
+ *     distributor:
+ *       type: manual
+ *       manual:
+ *         machine-id: 1
+ * }</pre>
+ */
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
@@ -47,11 +81,30 @@ public class CosIdMachineAutoConfiguration {
     private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
 
+    /**
+     * Constructs a new machine auto-configuration with the provided properties.
+     *
+     * @param cosIdProperties the main CosId configuration properties
+     * @param machineProperties the machine-specific configuration properties
+     */
     public CosIdMachineAutoConfiguration(CosIdProperties cosIdProperties, MachineProperties machineProperties) {
         this.cosIdProperties = cosIdProperties;
         this.machineProperties = machineProperties;
     }
 
+    /**
+     * Creates the instance identifier for this application instance.
+     *
+     * <p>The instance ID uniquely identifies this application instance within the
+     * distributed system. It can be explicitly configured or automatically generated
+     * from the host address and process ID.</p>
+     *
+     * <p>The stability flag indicates whether this instance has a stable network
+     * identity that persists across restarts.</p>
+     *
+     * @param hostAddressSupplier supplier for the host address
+     * @return the instance identifier
+     */
     @Bean
     @ConditionalOnMissingBean
     public InstanceId instanceId(HostAddressSupplier hostAddressSupplier) {
@@ -70,6 +123,17 @@ public class CosIdMachineAutoConfiguration {
         return InstanceId.of(hostAddressSupplier.getHostAddress(), port, stable);
     }
 
+    /**
+     * Creates the machine ID for this instance.
+     *
+     * <p>The machine ID is a unique identifier assigned to this instance within
+     * the distributed system. It's distributed by the configured distributor
+     * and used as part of snowflake ID generation.</p>
+     *
+     * @param machineIdDistributor the distributor responsible for assigning machine IDs
+     * @param instanceId the instance identifier
+     * @return the assigned machine ID
+     */
     @Bean
     @ConditionalOnMissingBean(value = MachineId.class)
     public MachineId machineId(MachineIdDistributor machineIdDistributor, InstanceId instanceId) {
@@ -119,6 +183,16 @@ public class CosIdMachineAutoConfiguration {
         return new CosIdLifecycleMachineIdDistributor(cosIdProperties, instanceId, machineIdDistributor);
     }
 
+    /**
+     * Creates the machine ID guarder for monitoring machine ID conflicts.
+     *
+     * <p>The guarder periodically checks for machine ID conflicts and maintains
+     * the health status of machine ID distribution. If guarding is disabled,
+     * returns a no-operation guarder.</p>
+     *
+     * @param machineIdDistributor the machine ID distributor to guard
+     * @return the machine ID guarder instance
+     */
     @Bean
     @ConditionalOnMissingBean
     public MachineIdGuarder machineIdGuarder(MachineIdDistributor machineIdDistributor) {
@@ -129,6 +203,16 @@ public class CosIdMachineAutoConfiguration {
         return new DefaultMachineIdGuarder(machineIdDistributor, DefaultMachineIdGuarder.executorService(), guarder.getInitialDelay(), guarder.getDelay(), machineProperties.getSafeGuardDuration());
     }
 
+    /**
+     * Creates the health indicator for machine ID monitoring.
+     *
+     * <p>This Spring Boot Actuator health indicator reports the status of machine
+     * ID distribution and guarding. It integrates with the health check endpoints
+     * to provide operational visibility.</p>
+     *
+     * @param machineIdGuarder the guarder to monitor for health status
+     * @return the machine ID health indicator
+     */
     @Bean
     @ConditionalOnMissingBean
     public MachineIdHealthIndicator machineIdHealthIndicator(MachineIdGuarder machineIdGuarder) {

@@ -15,7 +15,6 @@ package me.ahoo.cosid.machine;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -59,7 +57,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
 
     public static final Duration DEFAULT_INITIAL_DELAY = Duration.ofMinutes(1);
     public static final Duration DEFAULT_DELAY = Duration.ofMinutes(1);
-    private final ConcurrentHashMap<NamespacedInstanceId, GuardianStatus> registeredInstanceIds;
+    private final ConcurrentHashMap<NamespacedInstanceId, GuardianState> guardianStates;
     private final MachineIdDistributor machineIdDistributor;
     private final ScheduledExecutorService executorService;
     private final Duration initialDelay;
@@ -95,7 +93,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      */
     public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, ScheduledExecutorService executorService,
                                    Duration initialDelay, Duration delay, Duration safeGuardDuration) {
-        this.registeredInstanceIds = new ConcurrentHashMap<>();
+        this.guardianStates = new ConcurrentHashMap<>();
         this.machineIdDistributor = machineIdDistributor;
         this.executorService = executorService;
         this.initialDelay = initialDelay;
@@ -122,8 +120,8 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      * showing the status of all registered instances.
      */
     @Override
-    public Map<NamespacedInstanceId, GuardianStatus> getGuardianStatus() {
-        return ImmutableMap.copyOf(registeredInstanceIds);
+    public Map<NamespacedInstanceId, GuardianState> getGuardianStates() {
+        return ImmutableMap.copyOf(guardianStates);
     }
 
     /**
@@ -136,7 +134,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     public void register(String namespace, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
-        boolean absent = registeredInstanceIds.put(namespacedInstanceId, GuardianStatus.SUCCESS) == null;
+        boolean absent = guardianStates.put(namespacedInstanceId, GuardianState.INITIAL) == null;
         if (log.isDebugEnabled()) {
             log.debug("Register Instance:[{}] - [{}].", namespacedInstanceId, absent);
         }
@@ -150,7 +148,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      */
     @Override
     public void unregister(String namespace, InstanceId instanceId) {
-        registeredInstanceIds.remove(new NamespacedInstanceId(namespace, instanceId));
+        guardianStates.remove(new NamespacedInstanceId(namespace, instanceId));
     }
 
     /**
@@ -163,7 +161,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     @Override
     public void start() {
         if (log.isDebugEnabled()) {
-            log.debug("Start registered Instances:[{}].", registeredInstanceIds.size());
+            log.debug("Start registered Instances:[{}].", guardianStates.size());
         }
         if (running.compareAndSet(false, true)) {
             scheduledFuture = executorService.scheduleWithFixedDelay(this::safeGuard, initialDelay.toMillis(), delay.toMillis(), TimeUnit.MILLISECONDS);
@@ -179,13 +177,15 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      */
     void safeGuard() {
         if (log.isDebugEnabled()) {
-            log.debug("Safe guard registered Instances:[{}].", registeredInstanceIds.size());
+            log.debug("Safe guard registered Instances:[{}].", guardianStates.size());
         }
-        for (NamespacedInstanceId registeredInstance : registeredInstanceIds.keySet()) {
+        for (NamespacedInstanceId registeredInstance : guardianStates.keySet()) {
+            long guardAt = System.currentTimeMillis();
             try {
                 machineIdDistributor.guard(registeredInstance.getNamespace(), registeredInstance.getInstanceId(), safeGuardDuration);
+                guardianStates.put(registeredInstance, GuardianState.success(guardAt));
             } catch (Throwable throwable) {
-                registeredInstanceIds.put(registeredInstance, GuardianStatus.FAILURE);
+                guardianStates.put(registeredInstance, GuardianState.failed(guardAt, throwable));
                 if (log.isErrorEnabled()) {
                     log.error("Guard Failed:[{}]!", throwable.getMessage(), throwable);
                 }
@@ -202,7 +202,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     @Override
     public void stop() {
         if (log.isDebugEnabled()) {
-            log.debug("Stop registered Instances:[{}].", registeredInstanceIds.size());
+            log.debug("Stop registered Instances:[{}].", guardianStates.size());
         }
         if (running.compareAndSet(true, false)) {
             scheduledFuture.cancel(true);

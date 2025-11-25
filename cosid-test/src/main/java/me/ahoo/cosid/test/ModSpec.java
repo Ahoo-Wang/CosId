@@ -62,7 +62,7 @@ public class ModSpec implements Runnable, TestSpec {
     }
 
     @Override
-    public void run() {
+    public synchronized void run() {
         if (hits[0] > 0) {
             return;
         }
@@ -92,7 +92,7 @@ public class ModSpec implements Runnable, TestSpec {
     }
 
     @Override
-    public void verify() {
+    public synchronized void verify() {
         run();
         if (popStd > allowablePopStd) {
             throw new AssertionError("popStd:" + popStd + ",allowablePopStd:" + allowablePopStd);

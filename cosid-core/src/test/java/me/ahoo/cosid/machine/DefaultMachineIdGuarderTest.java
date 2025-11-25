@@ -34,7 +34,7 @@ class DefaultMachineIdGuarderTest {
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
         DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         guarder.register(namespacedInstanceId.getNamespace(), namespacedInstanceId.getInstanceId());
-        assertThat(guarder.getGuardianStatus().keySet(), hasItem(namespacedInstanceId));
+        assertThat(guarder.getGuardianStates().keySet(), hasItem(namespacedInstanceId));
         assertThat(guarder.hasFailure(), equalTo(false));
         guarder.safeGuard();
     }
@@ -51,9 +51,9 @@ class DefaultMachineIdGuarderTest {
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(MockIdGenerator.INSTANCE.generateAsString(), InstanceId.NONE);
         DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
         guarder.register(namespacedInstanceId.getNamespace(), namespacedInstanceId.getInstanceId());
-        assertThat(guarder.getGuardianStatus().keySet(), hasItem(namespacedInstanceId));
+        assertThat(guarder.getGuardianStates().keySet(), hasItem(namespacedInstanceId));
         guarder.unregister(namespacedInstanceId.getNamespace(), namespacedInstanceId.getInstanceId());
-        assertThat(guarder.getGuardianStatus().keySet(), empty());
+        assertThat(guarder.getGuardianStates().keySet(), empty());
     }
 
     @Test

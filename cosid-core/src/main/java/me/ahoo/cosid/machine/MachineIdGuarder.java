@@ -48,7 +48,7 @@ public interface MachineIdGuarder {
      *
      * @return a map of namespaced instance IDs to their guardian status
      */
-    Map<NamespacedInstanceId, GuardianStatus> getGuardianStatus();
+    Map<NamespacedInstanceId, GuardianState> getGuardianStates();
 
     /**
      * Checks if any registered instance has failed guarding.
@@ -59,7 +59,7 @@ public interface MachineIdGuarder {
      * @return true if any instance has failed guarding, false otherwise
      */
     default boolean hasFailure() {
-        return getGuardianStatus().values().stream().anyMatch(it -> it == GuardianStatus.FAILURE);
+        return getGuardianStates().values().stream().anyMatch(GuardianState::isFailed);
     }
 
     /**
@@ -126,7 +126,7 @@ public interface MachineIdGuarder {
          * <p>This implementation returns an empty map since no instances are registered.
          */
         @Override
-        public Map<NamespacedInstanceId, GuardianStatus> getGuardianStatus() {
+        public Map<NamespacedInstanceId, GuardianState> getGuardianStates() {
             return Map.of();
         }
 

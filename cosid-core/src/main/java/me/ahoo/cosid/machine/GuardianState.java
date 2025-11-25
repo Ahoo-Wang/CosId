@@ -62,7 +62,7 @@ public class GuardianState {
      *
      * @return true if an error occurred during guarding, false otherwise
      */
-    boolean isFailed() {
+    public boolean isFailed() {
         return error != null;
     }
 
@@ -80,7 +80,7 @@ public class GuardianState {
      * Creates a failed guardian state.
      *
      * @param guardAt the timestamp of the failed guarding operation
-     * @param error the error that caused the failure
+     * @param error   the error that caused the failure
      * @return a new GuardianState representing failure
      */
     static GuardianState failed(final long guardAt, final Throwable error) {

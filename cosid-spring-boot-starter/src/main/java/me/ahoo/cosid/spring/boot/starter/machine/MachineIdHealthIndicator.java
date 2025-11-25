@@ -13,10 +13,13 @@
 
 package me.ahoo.cosid.spring.boot.starter.machine;
 
+import me.ahoo.cosid.machine.GuardianState;
 import me.ahoo.cosid.machine.MachineIdGuarder;
 
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
+
+import java.util.Optional;
 
 public class MachineIdHealthIndicator implements HealthIndicator {
     private final MachineIdGuarder machineIdGuarder;
@@ -32,11 +35,14 @@ public class MachineIdHealthIndicator implements HealthIndicator {
 
     @Override
     public Health health() {
-        boolean hasFailure = machineIdGuarder.hasFailure();
-        if (hasFailure) {
-            return Health.down()
-                .build();
+        Optional<GuardianState> firstFailedGuardStateOp = machineIdGuarder.getGuardianStates().values().stream().filter(GuardianState::isFailed).findFirst();
+        if (firstFailedGuardStateOp.isEmpty()) {
+            return Health.up().build();
         }
-        return Health.up().build();
+        GuardianState firstErrorGuardState = firstFailedGuardStateOp.get();
+        Throwable error = firstErrorGuardState.getError();
+        return Health.down(error)
+            .withDetail("guardAt", firstErrorGuardState.getGuardAt())
+            .build();
     }
 }

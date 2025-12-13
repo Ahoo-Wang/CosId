@@ -21,7 +21,7 @@ import com.google.common.base.Strings;
 import com.google.common.io.BaseEncoding;
 import com.google.common.io.Files;
 import lombok.extern.slf4j.Slf4j;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -46,9 +46,8 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         this(DEFAULT_STATE_LOCATION_PATH);
     }
 
-    @Nonnull
     @Override
-    public MachineState get(String namespace, InstanceId instanceId) {
+    public @NonNull MachineState get(String namespace, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
 

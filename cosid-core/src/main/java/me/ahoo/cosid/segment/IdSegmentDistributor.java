@@ -21,7 +21,7 @@ import me.ahoo.cosid.util.Clock;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -80,7 +80,7 @@ public interface IdSegmentDistributor extends Grouped {
      *
      * @return The namespace
      */
-    @Nonnull
+    @NonNull
     String getNamespace();
 
     /**
@@ -90,7 +90,7 @@ public interface IdSegmentDistributor extends Grouped {
      *
      * @return The name
      */
-    @Nonnull
+    @NonNull
     String getName();
 
     /**
@@ -177,7 +177,7 @@ public interface IdSegmentDistributor extends Grouped {
      *
      * @return The allocated ID segment
      */
-    @Nonnull
+    @NonNull
     default IdSegment nextIdSegment() {
         return nextIdSegment(TIME_TO_LIVE_FOREVER);
     }
@@ -188,7 +188,7 @@ public interface IdSegmentDistributor extends Grouped {
      * @param ttl The time-to-live for the segment
      * @return The allocated ID segment
      */
-    @Nonnull
+    @NonNull
     default IdSegment nextIdSegment(long ttl) {
         Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
 
@@ -206,7 +206,7 @@ public interface IdSegmentDistributor extends Grouped {
      * @param ttl      The time-to-live for the segment
      * @return The allocated merged ID segment
      */
-    @Nonnull
+    @NonNull
     default IdSegment nextIdSegment(int segments, long ttl) {
         Preconditions.checkArgument(segments > 0, "segments:[%s] must be greater than 0.", segments);
         Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
@@ -223,7 +223,7 @@ public interface IdSegmentDistributor extends Grouped {
      * @param previousChain The previous segment chain
      * @return The allocated ID segment chain
      */
-    @Nonnull
+    @NonNull
     default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain) {
         return nextIdSegmentChain(previousChain, DEFAULT_SEGMENTS, TIME_TO_LIVE_FOREVER);
     }
@@ -239,7 +239,7 @@ public interface IdSegmentDistributor extends Grouped {
      * @param ttl           The time-to-live for the segment
      * @return The allocated ID segment chain
      */
-    @Nonnull
+    @NonNull
     default IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
         if (DEFAULT_SEGMENTS == segments) {
             IdSegment nextIdSegment = nextIdSegment(ttl);
@@ -294,9 +294,8 @@ public interface IdSegmentDistributor extends Grouped {
          *
          * @return The namespace
          */
-        @Nonnull
         @Override
-        public String getNamespace() {
+        public @NonNull String getNamespace() {
             return "__";
         }
 
@@ -305,9 +304,8 @@ public interface IdSegmentDistributor extends Grouped {
          *
          * @return The name
          */
-        @Nonnull
         @Override
-        public String getName() {
+        public @NonNull String getName() {
             return name;
         }
 
@@ -372,9 +370,8 @@ public interface IdSegmentDistributor extends Grouped {
          *
          * @return The namespace
          */
-        @Nonnull
         @Override
-        public String getNamespace() {
+        public @NonNull String getNamespace() {
             return "__";
         }
 
@@ -383,9 +380,8 @@ public interface IdSegmentDistributor extends Grouped {
          *
          * @return The name
          */
-        @Nonnull
         @Override
-        public String getName() {
+        public @NonNull String getName() {
             return name;
         }
 

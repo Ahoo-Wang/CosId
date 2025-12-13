@@ -14,11 +14,11 @@
 package me.ahoo.cosid.sharding;
 
 import com.google.common.collect.Range;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Collection;
 
 public interface RangeSharding<T extends Comparable<?>> {
-    @Nonnull
+    @NonNull
     Collection<String> sharding(Range<T> shardingValue);
 }

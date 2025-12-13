@@ -14,7 +14,7 @@
 package me.ahoo.cosid.sharding;
 
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Collection;
 
@@ -27,6 +27,6 @@ import java.util.Collection;
  */
 @ThreadSafe
 public interface Sharding<T extends Comparable<?>> extends PreciseSharding<T>, RangeSharding<T> {
-    @Nonnull
+    @NonNull
     Collection<String> getEffectiveNodes();
 }

@@ -20,6 +20,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import com.mongodb.client.MongoDatabase;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Mongo IdSegment Distributor Factory.
@@ -34,7 +35,7 @@ public class MongoIdSegmentDistributorFactory implements IdSegmentDistributorFac
     }
     
     @Override
-    public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
+    public @NonNull IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         MongoIdSegmentCollection cosIdSegmentCollection = new MongoIdSegmentCollection(mongoDatabase.getCollection(COLLECTION_NAME));
 
         return new MongoIdSegmentDistributor(definition.getNamespace(),

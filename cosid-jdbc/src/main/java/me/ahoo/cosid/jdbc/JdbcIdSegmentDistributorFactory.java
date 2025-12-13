@@ -17,7 +17,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import javax.sql.DataSource;
 
@@ -41,9 +41,8 @@ public class JdbcIdSegmentDistributorFactory implements IdSegmentDistributorFact
         this.fetchMaxIdSql = fetchMaxIdSql;
     }
 
-    @Nonnull
     @Override
-    public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
+    public @NonNull IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         if (enableAutoInitIdSegment) {
             jdbcIdSegmentInitializer.tryInitIdSegment(definition.getNamespacedName(), definition.getOffset());
         }

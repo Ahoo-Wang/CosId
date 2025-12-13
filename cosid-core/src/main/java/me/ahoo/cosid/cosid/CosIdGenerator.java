@@ -19,7 +19,7 @@ import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.generator.CosIdGeneratorStat;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * CosId algorithm ID generator.
@@ -79,7 +79,7 @@ public interface CosIdGenerator extends IdGenerator {
      *
      * @return The state parser for this generator
      */
-    @Nonnull
+    @NonNull
     CosIdIdStateParser getStateParser();
     
     /**
@@ -92,9 +92,8 @@ public interface CosIdGenerator extends IdGenerator {
      * @return Never returns (always throws exception)
      * @throws UnsupportedOperationException always thrown because CosIdGenerator uses state parsers instead
      */
-    @Nonnull
     @Override
-    default IdConverter idConverter() {
+    default @NonNull IdConverter idConverter() {
         throw new UnsupportedOperationException("CosIdGenerator does not support IdConverter,please use CosIdIdStateParser instead!");
     }
     
@@ -122,7 +121,7 @@ public interface CosIdGenerator extends IdGenerator {
      *
      * @return The generated ID as a state object
      */
-    @Nonnull
+    @NonNull
     CosIdState generateAsState();
     
     /**
@@ -134,9 +133,8 @@ public interface CosIdGenerator extends IdGenerator {
      *
      * @return The generated ID as a string value
      */
-    @Nonnull
     @Override
-    default String generateAsString() {
+    default @NonNull String generateAsString() {
         return getStateParser().asString(generateAsState());
     }
     

@@ -19,7 +19,7 @@ import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.SnowflakeFriendlyIdConverterStat;
 
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Snowflake FriendlyId Converter.
@@ -40,23 +40,22 @@ public class SnowflakeFriendlyIdConverter implements IdConverter {
         return snowflakeIdStateParser;
     }
 
-    @Nonnull
     @Override
-    public String asString(long id) {
+    public @NonNull String asString(long id) {
         return snowflakeIdStateParser.parse(id).getFriendlyId();
     }
 
     @Override
-    public long asLong(@Nonnull String idString) {
+    public long asLong(@NonNull String idString) {
         return snowflakeIdStateParser.parse(idString).getId();
     }
 
     @Override
     public Stat stat() {
         return new SnowflakeFriendlyIdConverterStat(
-                getClass().getSimpleName(),
-                snowflakeIdStateParser.isPadStart(),
-                snowflakeIdStateParser.getMachineCharSize(),
-                snowflakeIdStateParser.getSequenceCharSize());
+            getClass().getSimpleName(),
+            snowflakeIdStateParser.isPadStart(),
+            snowflakeIdStateParser.getMachineCharSize(),
+            snowflakeIdStateParser.getSequenceCharSize());
     }
 }

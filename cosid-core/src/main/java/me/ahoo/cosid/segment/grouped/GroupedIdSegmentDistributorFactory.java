@@ -17,7 +17,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 public class GroupedIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     private final GroupBySupplier groupBySupplier;
@@ -28,9 +28,8 @@ public class GroupedIdSegmentDistributorFactory implements IdSegmentDistributorF
         this.actual = actual;
     }
     
-    @Nonnull
     @Override
-    public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
+    public @NonNull IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         return new DefaultGroupedIdSegmentDistributor(groupBySupplier, definition, actual);
     }
 }

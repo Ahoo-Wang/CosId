@@ -18,8 +18,8 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.PrefixConverterStat;
 
-import jakarta.annotation.Nonnull;
 import com.google.common.base.Preconditions;
+import org.jspecify.annotations.NonNull;
 
 
 /**
@@ -38,9 +38,8 @@ public class PrefixIdConverter implements IdConverter, Decorator<IdConverter> {
         this.actual = actual;
     }
     
-    @Nonnull
     @Override
-    public IdConverter getActual() {
+    public @NonNull IdConverter getActual() {
         return actual;
     }
     
@@ -48,9 +47,8 @@ public class PrefixIdConverter implements IdConverter, Decorator<IdConverter> {
         return prefix;
     }
     
-    @Nonnull
     @Override
-    public String asString(long id) {
+    public @NonNull String asString(long id) {
         String idStr = actual.asString(id);
         if (prefix.isEmpty()) {
             return idStr;
@@ -59,7 +57,7 @@ public class PrefixIdConverter implements IdConverter, Decorator<IdConverter> {
     }
     
     @Override
-    public long asLong(@Nonnull String idString) {
+    public long asLong(@NonNull String idString) {
         String idStr = idString.substring(prefix.length());
         return actual.asLong(idStr);
     }

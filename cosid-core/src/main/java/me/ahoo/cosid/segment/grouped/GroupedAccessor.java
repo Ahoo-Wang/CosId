@@ -14,7 +14,7 @@
 package me.ahoo.cosid.segment.grouped;
 
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
@@ -33,7 +33,7 @@ public final class GroupedAccessor {
         set(groupedKey);
     }
     
-    @Nullable
+    @NonNull
     public static GroupedKey get() {
         return CURRENT.get();
     }

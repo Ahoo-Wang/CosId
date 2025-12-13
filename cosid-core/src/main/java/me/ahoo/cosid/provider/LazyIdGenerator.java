@@ -21,8 +21,8 @@ import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 
-import jakarta.annotation.Nonnull;
 import com.google.common.base.Strings;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Optional;
 
@@ -100,15 +100,13 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
         throw new CosIdException(Strings.lenientFormat("IdGenerator:[%s] is not instanceof SegmentId!", generatorName));
     }
     
-    @Nonnull
     @Override
-    public IdGenerator getActual() {
+    public @NonNull IdGenerator getActual() {
         return tryGet(true);
     }
     
-    @Nonnull
     @Override
-    public IdConverter idConverter() {
+    public @NonNull IdConverter idConverter() {
         return getActual().idConverter();
     }
 }

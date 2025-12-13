@@ -16,7 +16,7 @@ package me.ahoo.cosid.mongo;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
 import lombok.extern.slf4j.Slf4j;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Mongo IdSegment Distributor.
@@ -37,15 +37,13 @@ public class MongoIdSegmentDistributor implements IdSegmentDistributor {
         this.idSegmentCollection = idSegmentCollection;
     }
     
-    @Nonnull
     @Override
-    public String getNamespace() {
+    public @NonNull String getNamespace() {
         return namespace;
     }
     
-    @Nonnull
     @Override
-    public String getName() {
+    public @NonNull String getName() {
         return name;
     }
     

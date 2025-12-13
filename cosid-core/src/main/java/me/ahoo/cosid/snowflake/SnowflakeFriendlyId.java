@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.snowflake;
 
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Snowflake FriendlyId.
@@ -22,21 +22,21 @@ import jakarta.annotation.Nonnull;
  */
 public interface SnowflakeFriendlyId extends SnowflakeId {
     
-    @Nonnull
+    @NonNull
     SnowflakeIdStateParser getParser();
     
-    @Nonnull
+    @NonNull
     default SnowflakeIdState friendlyId(long id) {
         return getParser().parse(id);
     }
     
-    @Nonnull
+    @NonNull
     default SnowflakeIdState friendlyId() {
         long id = generate();
         return friendlyId(id);
     }
     
-    @Nonnull
+    @NonNull
     default SnowflakeIdState ofFriendlyId(String friendlyId) {
         return getParser().parse(friendlyId);
     }

@@ -14,24 +14,24 @@
 package me.ahoo.cosid.proxy;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.SneakyThrows;
+import tools.jackson.core.StreamReadFeature;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 public final class Jsons {
     private Jsons() {
     }
     
-    public static final ObjectMapper OBJECT_MAPPER = mapper();
+    public static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder()
+        .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+        .configure(StreamReadFeature.IGNORE_UNDEFINED, true)
+        .changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(JsonInclude.Include.NON_NULL))
+        .changeDefaultPropertyInclusion(incl -> incl.withContentInclusion(JsonInclude.Include.NON_NULL))
+        .build();
     
-    static ObjectMapper mapper() {
-        return new ObjectMapper()
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-            .configure(JsonParser.Feature.IGNORE_UNDEFINED, true)
-            .setSerializationInclusion(JsonInclude.Include.NON_NULL);
-    }
-    
+
     @SneakyThrows
     public static String serialize(Object serializeObject) {
         return OBJECT_MAPPER.writeValueAsString(serializeObject);

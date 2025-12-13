@@ -12,7 +12,6 @@
  */
 
 dependencies {
-    api("com.fasterxml.jackson.core:jackson-databind")
     api(project(":cosid-core"))
     api(project(":cosid-proxy-api"))
     implementation("org.springframework:spring-web")

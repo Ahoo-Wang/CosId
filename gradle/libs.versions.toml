@@ -3,7 +3,7 @@
 spring-boot = "4.0.0"
 spring-cloud = "2025.1.0"
 jakarta-annotation-api = "3.0.0"
-coapi = "1.12.8"
+coapi = "2.0.0"
 testcontainers = "1.21.3"
 guava = "33.5.0-jre"
 mybatis = "3.5.19"

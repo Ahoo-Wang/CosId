@@ -17,7 +17,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.hamcrest.Matchers.nullValue;
 
 import me.ahoo.cosid.machine.GuardianState;
 import me.ahoo.cosid.machine.InstanceId;
@@ -25,8 +24,9 @@ import me.ahoo.cosid.machine.MachineIdGuarder;
 import me.ahoo.cosid.machine.NamespacedInstanceId;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.Status;
+import org.springframework.boot.health.contributor.Health;
+import org.springframework.boot.health.contributor.HealthIndicator;
+import org.springframework.boot.health.contributor.Status;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -201,7 +201,7 @@ class MachineIdHealthIndicatorTest {
         MachineIdGuarder guarder = MachineIdGuarder.NONE;
         MachineIdHealthIndicator indicator = new MachineIdHealthIndicator(guarder);
 
-        assertThat(indicator, instanceOf(org.springframework.boot.actuate.health.HealthIndicator.class));
+        assertThat(indicator, instanceOf(HealthIndicator.class));
     }
 
     @Test

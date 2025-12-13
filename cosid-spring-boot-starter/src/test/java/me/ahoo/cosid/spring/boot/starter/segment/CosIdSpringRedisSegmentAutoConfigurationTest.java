@@ -6,7 +6,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributor;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
@@ -23,7 +23,7 @@ class CosIdSpringRedisSegmentAutoConfigurationTest {
     void contextLoads() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
-            .withUserConfiguration(RedisAutoConfiguration.class, CosIdSpringRedisSegmentAutoConfiguration.class)
+            .withUserConfiguration(DataRedisAutoConfiguration.class, CosIdSpringRedisSegmentAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(CosIdSpringRedisSegmentAutoConfiguration.class)
@@ -37,7 +37,7 @@ class CosIdSpringRedisSegmentAutoConfigurationTest {
     void contextLoadsWhenMissSpringRedisIdSegmentDistributor() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
-            .withUserConfiguration(RedisAutoConfiguration.class, CosIdSpringRedisSegmentAutoConfiguration.class)
+            .withUserConfiguration(DataRedisAutoConfiguration.class, CosIdSpringRedisSegmentAutoConfiguration.class)
             .withClassLoader(new FilteredClassLoader(SpringRedisIdSegmentDistributor.class))
             .run(context -> {
                 assertThat(context)

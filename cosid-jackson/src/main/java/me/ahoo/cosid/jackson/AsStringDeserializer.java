@@ -22,13 +22,10 @@ import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.BeanProperty;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.deser.ContextualDeserializer;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.BeanProperty;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.ValueDeserializer;
 import com.google.common.base.Strings;
 
 import java.io.IOException;
@@ -39,7 +36,7 @@ import java.io.IOException;
  *
  * @author ahoo wang
  */
-public class AsStringDeserializer extends JsonDeserializer<Long> implements ContextualDeserializer {
+public class AsStringDeserializer extends ValueDeserializer<Long> {
 
     private static final AsStringDeserializer TO_STRING = new AsStringDeserializer();
 
@@ -58,7 +55,7 @@ public class AsStringDeserializer extends JsonDeserializer<Long> implements Cont
     }
 
     @Override
-    public JsonDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) throws JsonMappingException {
+    public ValueDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) {
         AsString asString = property.getAnnotation(AsString.class);
         switch (asString.value()) {
             case TO_STRING: {
@@ -85,7 +82,7 @@ public class AsStringDeserializer extends JsonDeserializer<Long> implements Cont
     }
 
     @Override
-    public Long deserialize(JsonParser p, DeserializationContext ctxt) throws IOException, JsonProcessingException {
+    public Long deserialize(JsonParser p, DeserializationContext ctxt) {
         String valueStr = p.getValueAsString();
         if (Strings.isNullOrEmpty(valueStr)) {
             return null;

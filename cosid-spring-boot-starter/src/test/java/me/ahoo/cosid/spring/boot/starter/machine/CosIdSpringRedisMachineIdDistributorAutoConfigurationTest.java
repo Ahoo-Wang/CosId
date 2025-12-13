@@ -16,14 +16,10 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.machine.CosIdSpringRedisMachineIdDistributorAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.snowflake.ConditionalOnCosIdSnowflakeEnabled;
-import me.ahoo.cosid.spring.boot.starter.snowflake.CosIdSnowflakeAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties;
 import me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
+import org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 
@@ -44,7 +40,7 @@ class CosIdSpringRedisMachineIdDistributorAutoConfigurationTest {
                 CosIdAutoConfiguration.class,
                 CosIdHostNameAutoConfiguration.class,
                 CosIdMachineAutoConfiguration.class)
-            .withUserConfiguration(RedisAutoConfiguration.class, CosIdSpringRedisMachineIdDistributorAutoConfiguration.class)
+            .withUserConfiguration(DataRedisAutoConfiguration.class, CosIdSpringRedisMachineIdDistributorAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(CosIdSpringRedisMachineIdDistributorAutoConfiguration.class)

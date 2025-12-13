@@ -18,8 +18,8 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.SuffixConverterStat;
 
-import jakarta.annotation.Nonnull;
 import com.google.common.base.Preconditions;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Suffix IdConverter .
@@ -36,9 +36,8 @@ public class SuffixIdConverter implements IdConverter, Decorator<IdConverter> {
         this.actual = actual;
     }
 
-    @Nonnull
     @Override
-    public IdConverter getActual() {
+    public @NonNull IdConverter getActual() {
         return actual;
     }
 
@@ -46,9 +45,8 @@ public class SuffixIdConverter implements IdConverter, Decorator<IdConverter> {
         return suffix;
     }
 
-    @Nonnull
     @Override
-    public String asString(long id) {
+    public @NonNull String asString(long id) {
         String idStr = actual.asString(id);
         if (suffix.isEmpty()) {
             return idStr;
@@ -57,7 +55,7 @@ public class SuffixIdConverter implements IdConverter, Decorator<IdConverter> {
     }
 
     @Override
-    public long asLong(@Nonnull String idString) {
+    public long asLong(@NonNull String idString) {
         String idStr = idString.substring(0, idString.length() - suffix.length());
         return actual.asLong(idStr);
     }

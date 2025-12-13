@@ -2,7 +2,7 @@
 # libraries
 spring-boot = "4.0.0"
 spring-cloud = "2025.1.0"
-jakarta-annotation-api = "3.0.0"
+jspecify = "1.0.0"
 coapi = "2.0.0"
 testcontainers = "1.21.3"
 guava = "33.5.0-jre"
@@ -25,7 +25,7 @@ spotbugs = "6.4.8"
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 spring-cloud-dependencies = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "spring-cloud" }
-jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api", version.ref = "jakarta-annotation-api" }
+jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
 coapi-bom = { module = "me.ahoo.coapi:coapi-bom", version.ref = "coapi" }
 axon-bom = { module = "org.axonframework:axon-bom", version.ref = "axon" }
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }

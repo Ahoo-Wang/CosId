@@ -17,9 +17,9 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.RadixConverterStat;
 
-import jakarta.annotation.Nonnull;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import org.jspecify.annotations.NonNull;
 
 
 public abstract class RadixIdConverter implements IdConverter {
@@ -126,9 +126,8 @@ public abstract class RadixIdConverter implements IdConverter {
     
     abstract int getMaxCharSize();
     
-    @Nonnull
     @Override
-    public String asString(long id) {
+    public @NonNull String asString(long id) {
         
         Preconditions.checkArgument(id > -1, "id[%s] must be greater than -1!", id);
         
@@ -156,7 +155,7 @@ public abstract class RadixIdConverter implements IdConverter {
         return new String(buf, charIdx, (charSize - charIdx));
     }
     
-    public long asLong(@Nonnull String idString) {
+    public long asLong(@NonNull String idString) {
         char firstChar = idString.charAt(0);
         if (firstChar < ZERO) {
             throw new NumberFormatException(Strings.lenientFormat("For input string: [%s]!", idString));

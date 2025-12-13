@@ -18,7 +18,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * ProxyIdSegmentDistributor .
@@ -41,15 +41,13 @@ public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
         this.step = step;
     }
     
-    @Nonnull
     @Override
-    public String getNamespace() {
+    public @NonNull String getNamespace() {
         return namespace;
     }
     
-    @Nonnull
     @Override
-    public String getName() {
+    public @NonNull String getName() {
         return name;
     }
     

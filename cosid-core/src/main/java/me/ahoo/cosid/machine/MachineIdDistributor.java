@@ -15,7 +15,7 @@ package me.ahoo.cosid.machine;
 
 import com.google.common.base.Strings;
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
 
@@ -143,7 +143,7 @@ public interface MachineIdDistributor {
      * @return The machine state containing the allocated machine ID
      * @throws MachineIdOverflowException if no more machine IDs are available
      */
-    @Nonnull
+    @NonNull
     MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException;
     
     /**

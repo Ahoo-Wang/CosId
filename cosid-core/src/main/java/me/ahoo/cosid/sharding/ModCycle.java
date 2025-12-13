@@ -16,7 +16,7 @@ package me.ahoo.cosid.sharding;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Collection;
 
@@ -54,16 +54,14 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
         return divisor;
     }
 
-    @Nonnull
     @Override
-    public String sharding(T shardingValue) {
+    public @NonNull String sharding(T shardingValue) {
         int nodeIdx = (int) (shardingValue.longValue() % divisor);
         return effectiveNodes.get(nodeIdx);
     }
 
-    @Nonnull
     @Override
-    public Collection<String> sharding(Range<T> shardingValue) {
+    public @NonNull Collection<String> sharding(Range<T> shardingValue) {
 
         if (Range.all().equals(shardingValue)) {
             return effectiveNodes;
@@ -105,9 +103,8 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
         return nodes;
     }
 
-    @Nonnull
     @Override
-    public Collection<String> getEffectiveNodes() {
+    public @NonNull Collection<String> getEffectiveNodes() {
         return effectiveNodes;
     }
 }

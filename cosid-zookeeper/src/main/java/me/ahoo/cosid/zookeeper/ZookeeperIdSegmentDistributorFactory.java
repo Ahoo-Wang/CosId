@@ -19,7 +19,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Zookeeper IdSegmentDistributor Factory.
@@ -35,9 +35,8 @@ public class ZookeeperIdSegmentDistributorFactory implements IdSegmentDistributo
         this.retryPolicy = retryPolicy;
     }
     
-    @Nonnull
     @Override
-    public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
+    public @NonNull IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         ZookeeperIdSegmentDistributor zookeeperIdSegmentDistributor = new ZookeeperIdSegmentDistributor(
             definition.getNamespace(),
             definition.getName(),

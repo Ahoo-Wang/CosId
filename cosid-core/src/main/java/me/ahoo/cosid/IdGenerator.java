@@ -18,7 +18,7 @@ import me.ahoo.cosid.stat.Statistical;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Id Generator.
@@ -51,7 +51,7 @@ public interface IdGenerator extends StringIdGenerator, Statistical {
      *
      * @return ID converter for transforming numeric IDs to string format
      */
-    @Nonnull
+    @NonNull
     default IdConverter idConverter() {
         return Radix62IdConverter.PAD_START;
     }
@@ -76,9 +76,8 @@ public interface IdGenerator extends StringIdGenerator, Statistical {
      *
      * @return A unique distributed ID as a string value
      */
-    @Nonnull
     @Override
-    default String generateAsString() {
+    default @NonNull String generateAsString() {
         return idConverter().asString(generate());
     }
 

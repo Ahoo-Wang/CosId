@@ -17,8 +17,8 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import jakarta.annotation.Nonnull;
 
 
 /**
@@ -34,9 +34,8 @@ public class SpringRedisIdSegmentDistributorFactory implements IdSegmentDistribu
         this.redisTemplate = redisTemplate;
     }
     
-    @Nonnull
     @Override
-    public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
+    public @NonNull IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         SpringRedisIdSegmentDistributor springRedisIdSegmentDistributor = new SpringRedisIdSegmentDistributor(
             definition.getNamespace(),
             definition.getName(),

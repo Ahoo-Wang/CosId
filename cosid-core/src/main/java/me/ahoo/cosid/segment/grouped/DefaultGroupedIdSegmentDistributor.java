@@ -19,7 +19,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistributor {
     private final GroupBySupplier groupBySupplier;
@@ -58,15 +58,13 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
         return groupBySupplier;
     }
     
-    @Nonnull
     @Override
-    public String getNamespace() {
+    public @NonNull String getNamespace() {
         return this.idSegmentDistributorDefinition.getNamespace();
     }
     
-    @Nonnull
     @Override
-    public String getName() {
+    public @NonNull String getName() {
         return this.idSegmentDistributorDefinition.getName();
     }
     
@@ -90,33 +88,28 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
         return this.ensureGroupedBinding().nextMaxId(step);
     }
     
-    @Nonnull
     @Override
-    public IdSegment nextIdSegment() {
+    public @NonNull IdSegment nextIdSegment() {
         return this.ensureGroupedBinding().nextIdSegment();
     }
     
-    @Nonnull
     @Override
-    public IdSegment nextIdSegment(long ttl) {
+    public @NonNull IdSegment nextIdSegment(long ttl) {
         return this.ensureGroupedBinding().nextIdSegment(ttl);
     }
     
-    @Nonnull
     @Override
-    public IdSegment nextIdSegment(int segments, long ttl) {
+    public @NonNull IdSegment nextIdSegment(int segments, long ttl) {
         return this.ensureGroupedBinding().nextIdSegment(segments, ttl);
     }
     
-    @Nonnull
     @Override
-    public IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
+    public @NonNull IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
         return this.ensureGroupedBinding().nextIdSegmentChain(previousChain, segments, ttl);
     }
     
-    @Nonnull
     @Override
-    public IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain) {
+    public @NonNull IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain) {
         return this.ensureGroupedBinding().nextIdSegmentChain(previousChain);
     }
     
@@ -135,15 +128,13 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
             return group;
         }
         
-        @Nonnull
         @Override
-        public String getNamespace() {
+        public @NonNull String getNamespace() {
             return idSegmentDistributor.getNamespace();
         }
         
-        @Nonnull
         @Override
-        public String getName() {
+        public @NonNull String getName() {
             return idSegmentDistributor.getName();
         }
         
@@ -162,23 +153,20 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
             return Math.min(groupedTtl, ttl);
         }
         
-        @Nonnull
         @Override
-        public IdSegment nextIdSegment(long ttl) {
+        public @NonNull IdSegment nextIdSegment(long ttl) {
             long minTtl = getMinTtl(ttl);
             return GroupedIdSegmentDistributor.super.nextIdSegment(minTtl);
         }
         
-        @Nonnull
         @Override
-        public IdSegment nextIdSegment(int segments, long ttl) {
+        public @NonNull IdSegment nextIdSegment(int segments, long ttl) {
             long minTtl = getMinTtl(ttl);
             return GroupedIdSegmentDistributor.super.nextIdSegment(segments, minTtl);
         }
         
-        @Nonnull
         @Override
-        public IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
+        public @NonNull IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
             long minTtl = getMinTtl(ttl);
             return GroupedIdSegmentDistributor.super.nextIdSegmentChain(previousChain, segments, minTtl);
         }

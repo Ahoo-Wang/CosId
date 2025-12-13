@@ -26,7 +26,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.atomic.AtomicValue;
 import org.apache.curator.framework.recipes.atomic.DistributedAtomicLong;
 import org.apache.curator.framework.recipes.atomic.PromotedToLock;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.concurrent.TimeUnit;
 
@@ -71,15 +71,13 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
         this.distributedAtomicLong = new DistributedAtomicLong(curatorFramework, counterPath, retryPolicy, promotedToLock);
     }
     
-    @Nonnull
     @Override
-    public String getNamespace() {
+    public @NonNull String getNamespace() {
         return namespace;
     }
     
-    @Nonnull
     @Override
-    public String getName() {
+    public @NonNull String getName() {
         return name;
     }
     

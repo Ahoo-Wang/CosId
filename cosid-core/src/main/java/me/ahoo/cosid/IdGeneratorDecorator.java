@@ -3,7 +3,7 @@ package me.ahoo.cosid;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * IdGenerator decorator for enhancing ID generator functionality.
@@ -38,7 +38,7 @@ public interface IdGeneratorDecorator extends IdGenerator, Decorator<IdGenerator
      *
      * @return The actual ID generator being decorated
      */
-    @Nonnull
+    @NonNull
     IdGenerator getActual();
 
     /**

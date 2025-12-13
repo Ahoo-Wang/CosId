@@ -15,7 +15,7 @@ package me.ahoo.cosid;
 
 
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * String type ID generator.
@@ -40,6 +40,6 @@ public interface StringIdGenerator {
      *
      * @return A unique distributed ID as a string value
      */
-    @Nonnull
+    @NonNull
     String generateAsString();
 }

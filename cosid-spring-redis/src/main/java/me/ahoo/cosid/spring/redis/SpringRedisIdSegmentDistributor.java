@@ -21,8 +21,8 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import jakarta.annotation.Nonnull;
 
 /**
  * Spring Redis IdSegmentDistributor.
@@ -82,15 +82,13 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         return adderKey;
     }
     
-    @Nonnull
     @Override
-    public String getNamespace() {
+    public @NonNull String getNamespace() {
         return namespace;
     }
     
-    @Nonnull
     @Override
-    public String getName() {
+    public @NonNull String getName() {
         return name;
     }
     

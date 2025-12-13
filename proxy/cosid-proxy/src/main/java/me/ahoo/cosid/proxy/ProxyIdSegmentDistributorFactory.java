@@ -20,7 +20,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * ProxyIdSegmentDistributorFactory .
@@ -37,10 +37,9 @@ public class ProxyIdSegmentDistributorFactory implements IdSegmentDistributorFac
         this.segmentClient = segmentClient;
     }
 
-    @Nonnull
     @SneakyThrows
     @Override
-    public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
+    public @NonNull IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         if (log.isInfoEnabled()) {
             log.info("Create name:[{}] @ namespace:[{}] .", definition.getName(), definition.getNamespacedName());
         }

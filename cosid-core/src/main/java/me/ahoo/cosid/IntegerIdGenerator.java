@@ -14,7 +14,7 @@
 package me.ahoo.cosid;
 
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Integer ID generator that adapts a long-based ID generator to produce integer IDs.
@@ -91,9 +91,8 @@ public class IntegerIdGenerator implements StringIdGenerator {
      * @return A unique distributed ID as a string value
      * @throws IdOverflowException if the generated long ID exceeds the integer range
      */
-    @Nonnull
     @Override
-    public String generateAsString() throws IdOverflowException {
+    public @NonNull String generateAsString() throws IdOverflowException {
         long id = actual.generate();
         ensureInteger(id);
         return actual.idConverter().asString(id);

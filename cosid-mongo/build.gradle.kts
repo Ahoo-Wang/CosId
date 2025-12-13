@@ -13,7 +13,6 @@
 
 dependencies {
     api(project(":cosid-core"))
-    api("org.springframework.data:spring-data-mongodb")
     compileOnly("org.mongodb:mongodb-driver-sync")
     compileOnly("org.mongodb:mongodb-driver-reactivestreams")
     compileOnly("io.projectreactor:reactor-core")

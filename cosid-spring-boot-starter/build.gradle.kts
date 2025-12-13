@@ -60,18 +60,19 @@ java {
 
 dependencies {
     api(project(":cosid-core"))
-    testImplementation(project(mapOf("path" to ":cosid-mongo")))
-    testImplementation(project(mapOf("path" to ":cosid-mongo")))
 
     "springRedisSupportImplementation"(project(":cosid-spring-redis"))
     "springRedisSupportImplementation"("org.springframework.boot:spring-boot-starter-data-redis")
 
     "jdbcSupportImplementation"(project(":cosid-jdbc"))
+    "jdbcSupportImplementation"("org.springframework.boot:spring-boot-starter-data-jdbc")
+
     "zookeeperSupportImplementation"(project(":cosid-zookeeper"))
 
     "proxySupportImplementation"(project(":cosid-proxy"))
     "proxySupportImplementation"("me.ahoo.coapi:coapi-spring-boot-starter")
     "mongoSupportImplementation"(project(":cosid-mongo"))
+    "mongoSupportImplementation"("org.springframework.boot:spring-boot-starter-data-mongodb")
     "activitiSupportImplementation"(project(":cosid-activiti"))
     "activitiSupportImplementation"(libs.activiti.spring.boot.starter)
     "flowableSupportImplementation"(project(":cosid-flowable"))

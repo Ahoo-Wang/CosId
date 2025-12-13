@@ -22,14 +22,11 @@ import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.BeanProperty;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.ser.ContextualSerializer;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.BeanProperty;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueSerializer;
 
-import java.io.IOException;
 import java.util.Objects;
 
 /**
@@ -37,26 +34,26 @@ import java.util.Objects;
  *
  * @author ahoo wang
  */
-public class AsStringSerializer extends JsonSerializer<Long> implements ContextualSerializer {
-    
+public class AsStringSerializer extends ValueSerializer<Long> {
+
     private static final AsStringSerializer TO_STRING = new AsStringSerializer();
-    
+
     private static final AsStringSerializer DEFAULT_RADIX = new AsStringSerializer(Radix62IdConverter.INSTANCE);
     private static final AsStringSerializer DEFAULT_RADIX_PAD_START = new AsStringSerializer(Radix62IdConverter.PAD_START);
     private static final AsStringSerializer DEFAULT_FRIENDLY_ID = new AsStringSerializer(SnowflakeFriendlyIdConverter.INSTANCE);
-    
+
     private final IdConverter converter;
-    
+
     public AsStringSerializer() {
         this(ToStringIdConverter.INSTANCE);
     }
-    
+
     public AsStringSerializer(IdConverter converter) {
         this.converter = converter;
     }
-    
+
     @Override
-    public JsonSerializer<?> createContextual(SerializerProvider prov, BeanProperty property) throws JsonMappingException {
+    public ValueSerializer<?> createContextual(SerializationContext ctxt, BeanProperty property) {
         AsString asString = property.getAnnotation(AsString.class);
         switch (asString.value()) {
             case TO_STRING: {
@@ -81,16 +78,16 @@ public class AsStringSerializer extends JsonSerializer<Long> implements Contextu
                 throw new IllegalStateException("Unexpected value: " + asString.value());
         }
     }
-    
+
     static boolean isDefaultSnowflakeFriendlyIdConverter(AsString asString) {
         return CosId.COSID_EPOCH == asString.epoch()
             && MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT == asString.timestampBit()
             && MillisecondSnowflakeId.DEFAULT_MACHINE_BIT == asString.machineBit()
             && MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT == asString.sequenceBit();
     }
-    
+
     @Override
-    public void serialize(Long value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+    public void serialize(Long value, JsonGenerator gen, SerializationContext ctxt) {
         if (Objects.isNull(value)) {
             gen.writeNull();
         } else {

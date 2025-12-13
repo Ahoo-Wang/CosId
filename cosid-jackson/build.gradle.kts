@@ -12,5 +12,5 @@
  */
 dependencies {
     implementation(project(":cosid-core"))
-    implementation("com.fasterxml.jackson.core:jackson-databind")
+    implementation("tools.jackson.core:jackson-databind")
 }

@@ -14,7 +14,7 @@
 package me.ahoo.cosid.proxy;
 
 import me.ahoo.cosid.proxy.api.SegmentClient;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class SegmentClientTest {
     private final SegmentClient segmentClient = ApiClientFactory.createSegmentClient(ProxyServerLauncher.COSID_PROXY_HOST);

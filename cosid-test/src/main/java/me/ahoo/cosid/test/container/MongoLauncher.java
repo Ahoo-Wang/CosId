@@ -31,6 +31,5 @@ public class MongoLauncher {
         }
         MONGO_CONTAINER.start();
         return MONGO_CONTAINER.getConnectionString() + CONNECTION_OPTIONS;
-        
     }
 }

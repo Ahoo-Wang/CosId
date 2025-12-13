@@ -34,7 +34,7 @@ class CosIdMongoSegmentAutoConfigurationTest {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=mongo")
-            .withPropertyValues("spring.data.mongodb.uri=" + MongoLauncher.getConnectionString())
+            .withPropertyValues("spring.mongodb.uri=" + MongoLauncher.getConnectionString())
             .withUserConfiguration(MongoAutoConfiguration.class, MongoReactiveAutoConfiguration.class, CosIdMongoSegmentAutoConfiguration.class)
             .run(context -> {
                 AssertionsForInterfaceTypes.assertThat(context)

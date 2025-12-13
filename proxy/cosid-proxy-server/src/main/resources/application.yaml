@@ -16,8 +16,8 @@ spring:
     name: ${service.name:cosid-proxy}
   autoconfigure:
     exclude:
-#     - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-     - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      #     - org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
 #  datasource:
 #    url: jdbc:mysql://localhost:3306/cosid_db
 #    username: root

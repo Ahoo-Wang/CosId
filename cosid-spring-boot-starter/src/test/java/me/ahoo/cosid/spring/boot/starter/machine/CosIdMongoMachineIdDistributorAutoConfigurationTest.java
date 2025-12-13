@@ -38,7 +38,7 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues("cosid.namespace=" + MockIdGenerator.INSTANCE.generateAsString())
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=mongo")
-            .withPropertyValues("spring.data.mongodb.uri=" + MongoLauncher.getConnectionString())
+            .withPropertyValues("spring.mongodb.uri=" + MongoLauncher.getConnectionString())
             .withUserConfiguration(UtilAutoConfiguration.class,
                 MongoAutoConfiguration.class,
                 MongoReactiveAutoConfiguration.class,

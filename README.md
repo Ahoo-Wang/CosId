@@ -14,6 +14,14 @@
 
 > [中文文档](https://cosid.ahoo.me/zh/) | [English Document](https://cosid.ahoo.me/)
 
+## Spring Boot Version Compatibility
+
+> **CosId 1.x** supports Spring Boot 2.x , base Java 8
+>
+> **CosId 2.x** supports Spring Boot 3.x , base Java 17
+> 
+> **CosId 3.x** supports Spring Boot 4.x , base Java 17
+
 ## Introduction
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* aims to provide a universal, flexible and high-performance distributed ID

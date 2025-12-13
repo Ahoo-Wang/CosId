@@ -14,6 +14,14 @@
 
 > [中文文档](https://cosid.ahoo.me/zh/) | [English Document](https://cosid.ahoo.me/)
 
+## Spring Boot 版本兼容性
+
+> **CosId 1.x ([1.x](https://github.com/Ahoo-Wang/CosId/tree/1.x) branch)** 支持 Spring Boot 2.x , 基于 Java 8
+>
+> **CosId 2.x ([2.x](https://github.com/Ahoo-Wang/CosId/tree/2.x) branch)** 支持 Spring Boot 3.x , 基于 Java 17
+>
+> **CosId 3.x ([main](https://github.com/Ahoo-Wang/CosId/tree/main) branch)** 支持 Spring Boot 4.x , 基于 Java 17
+
 ## 简介
 
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 

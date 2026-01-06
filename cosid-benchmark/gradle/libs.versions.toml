@@ -1,7 +1,7 @@
 [versions]
 cosid = "3.0.1"
 jmh = "1.37"
-junit="6.0.1"
+junit="6.0.2"
 hikariCP = "7.0.2"
 mysql="8.0.33"
 

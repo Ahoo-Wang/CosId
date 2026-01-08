@@ -22,7 +22,7 @@ import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdHostNameAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.machine.CosIdLifecycleMachineIdDistributor;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineIdLifecycle;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
@@ -58,7 +58,7 @@ class CosIdSnowflakeAutoConfigurationTest {
                     .hasSingleBean(MachineStateStorage.class)
                     .hasSingleBean(ClockBackwardsSynchronizer.class)
                     .hasSingleBean(MachineId.class)
-                    .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
+                    .hasSingleBean(CosIdMachineIdLifecycle.class)
                     .hasBean("__share__SnowflakeId")
                     .hasBean("testSnowflakeId")
                 ;
@@ -87,7 +87,7 @@ class CosIdSnowflakeAutoConfigurationTest {
                     .hasSingleBean(MachineStateStorage.class)
                     .hasSingleBean(ClockBackwardsSynchronizer.class)
                     .hasSingleBean(MachineId.class)
-                    .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
+                    .hasSingleBean(CosIdMachineIdLifecycle.class)
                     .doesNotHaveBean("__share__SnowflakeId")
                     .hasBean("testSnowflakeId")
                 ;

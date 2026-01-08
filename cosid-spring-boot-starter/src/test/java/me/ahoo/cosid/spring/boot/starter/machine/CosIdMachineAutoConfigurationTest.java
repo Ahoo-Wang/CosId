@@ -14,10 +14,6 @@
 package me.ahoo.cosid.spring.boot.starter.machine;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
-import static org.mockito.Mockito.*;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
@@ -53,7 +49,7 @@ class CosIdMachineAutoConfigurationTest {
                     .hasSingleBean(MachineStateStorage.class)
                     .hasSingleBean(ClockBackwardsSynchronizer.class)
                     .hasSingleBean(StatefulSetMachineIdDistributor.class)
-                    .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
+                    .hasSingleBean(CosIdMachineIdLifecycle.class)
                     .hasSingleBean(MachineId.class)
                 ;
             });

@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
+import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.HostAddressSupplier;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.LocalMachineStateStorage;
@@ -84,7 +85,7 @@ public class CosIdMachineAutoConfiguration {
     /**
      * Constructs a new machine auto-configuration with the provided properties.
      *
-     * @param cosIdProperties the main CosId configuration properties
+     * @param cosIdProperties   the main CosId configuration properties
      * @param machineProperties the machine-specific configuration properties
      */
     public CosIdMachineAutoConfiguration(CosIdProperties cosIdProperties, MachineProperties machineProperties) {
@@ -130,14 +131,14 @@ public class CosIdMachineAutoConfiguration {
      * the distributed system. It's distributed by the configured distributor
      * and used as part of snowflake ID generation.</p>
      *
-     * @param machineIdDistributor the distributor responsible for assigning machine IDs
-     * @param instanceId the instance identifier
+     * @param guardDistribute the distributor responsible for assigning machine IDs
+     * @param instanceId      the instance identifier
      * @return the assigned machine ID
      */
     @Bean
     @ConditionalOnMissingBean(value = MachineId.class)
-    public MachineId machineId(MachineIdDistributor machineIdDistributor, InstanceId instanceId) {
-        int machineId = machineIdDistributor.distribute(cosIdProperties.getNamespace(), machineProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
+    public MachineId machineId(GuardDistribute guardDistribute, InstanceId instanceId) {
+        int machineId = guardDistribute.distribute(cosIdProperties.getNamespace(), machineProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
         return new MachineId(machineId);
     }
 
@@ -177,12 +178,6 @@ public class CosIdMachineAutoConfiguration {
         return new StatefulSetMachineIdDistributor(localMachineState, clockBackwardsSynchronizer);
     }
 
-    @Bean
-    @ConditionalOnMissingBean
-    public CosIdLifecycleMachineIdDistributor cosIdLifecycleMachineIdDistributor(InstanceId instanceId, MachineIdDistributor machineIdDistributor) {
-        return new CosIdLifecycleMachineIdDistributor(cosIdProperties, instanceId, machineIdDistributor);
-    }
-
     /**
      * Creates the machine ID guarder for monitoring machine ID conflicts.
      *
@@ -203,6 +198,12 @@ public class CosIdMachineAutoConfiguration {
         return new DefaultMachineIdGuarder(machineIdDistributor, DefaultMachineIdGuarder.executorService(), guarder.getInitialDelay(), guarder.getDelay(), machineProperties.getSafeGuardDuration());
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public GuardDistribute guardDistribute(MachineIdDistributor machineIdDistributor, MachineIdGuarder machineIdGuarder) {
+        return new GuardDistribute(machineIdDistributor, machineIdGuarder);
+    }
+
     /**
      * Creates the health indicator for machine ID monitoring.
      *
@@ -221,8 +222,7 @@ public class CosIdMachineAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public CosIdLifecycleMachineIdGuarder cosIdLifecycleMachineIdGuarder(InstanceId instanceId, MachineIdGuarder machineIdGuarder) {
-        return new CosIdLifecycleMachineIdGuarder(cosIdProperties, instanceId, machineIdGuarder);
+    public CosIdMachineIdLifecycle cosIdMachineIdLifecycle(MachineIdGuarder machineIdGuarder, MachineIdDistributor machineIdDistributor) {
+        return new CosIdMachineIdLifecycle(machineIdGuarder, machineIdDistributor);
     }
-
 }

@@ -53,7 +53,7 @@ class CosIdMachineAutoConfigurationTest {
                     .hasSingleBean(MachineStateStorage.class)
                     .hasSingleBean(ClockBackwardsSynchronizer.class)
                     .hasSingleBean(StatefulSetMachineIdDistributor.class)
-                    .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
+                    .hasSingleBean(CosIdMachineIdLifecycle.class)
                     .hasSingleBean(MachineId.class)
                 ;
             });

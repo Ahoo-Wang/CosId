@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.snowflake;
 
-import jakarta.annotation.Nonnull;
 import com.google.errorprone.annotations.Immutable;
+import org.jspecify.annotations.NonNull;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -63,12 +63,12 @@ public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
         return sequence;
     }
     
-    @Nonnull
+    @NonNull
     public LocalDateTime getTimestamp() {
         return timestamp;
     }
     
-    @Nonnull
+    @NonNull
     public String getFriendlyId() {
         return friendlyId;
     }

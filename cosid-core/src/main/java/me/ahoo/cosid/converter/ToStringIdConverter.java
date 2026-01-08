@@ -19,8 +19,8 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.ToStringConverterStat;
 
-import jakarta.annotation.Nonnull;
 import com.google.common.base.Strings;
+import org.jspecify.annotations.NonNull;
 
 
 /**
@@ -39,9 +39,8 @@ public class ToStringIdConverter implements IdConverter {
         this.charSize = charSize;
     }
 
-    @Nonnull
     @Override
-    public String asString(long id) {
+    public @NonNull String asString(long id) {
         String idStr = String.valueOf(id);
         if (!padStart) {
             return idStr;
@@ -50,7 +49,7 @@ public class ToStringIdConverter implements IdConverter {
     }
 
     @Override
-    public long asLong(@Nonnull String idString) {
+    public long asLong(@NonNull String idString) {
         return Long.parseLong(idString);
     }
 

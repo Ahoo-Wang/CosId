@@ -18,7 +18,7 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.DatePrefixConverterStat;
 
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -37,22 +37,20 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
     }
 
 
-    @Nonnull
     @Override
-    public String asString(long id) {
+    public @NonNull String asString(long id) {
         return LocalDateTime.now().format(formatter) + delimiter + actual.asString(id);
     }
 
     @Override
-    public long asLong(@Nonnull String idString) {
+    public long asLong(@NonNull String idString) {
         int appendedLength = pattern.length() + delimiter.length();
         String idStr = idString.substring(appendedLength);
         return actual.asLong(idStr);
     }
 
-    @Nonnull
     @Override
-    public IdConverter getActual() {
+    public @NonNull IdConverter getActual() {
         return actual;
     }
 

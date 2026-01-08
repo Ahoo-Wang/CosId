@@ -18,7 +18,7 @@ import static me.ahoo.cosid.machine.ClockBackwardsSynchronizer.getBackwardsTimeS
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
 
@@ -43,9 +43,8 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
      * 2. when not found: {@link #distributeRemote}
      * 3. set {@link MachineState} to {@link MachineStateStorage}
      */
-    @Nonnull
     @Override
-    public MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException {
+    public @NonNull MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException {
         
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkArgument(machineBit > 0, "machineBit:[%s] must be greater than 0!", machineBit);

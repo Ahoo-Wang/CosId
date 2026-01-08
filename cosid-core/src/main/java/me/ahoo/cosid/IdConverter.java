@@ -17,7 +17,7 @@ import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.Statistical;
 
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * ID converter for transforming between numeric and string representations of IDs.
@@ -52,7 +52,7 @@ public interface IdConverter extends Statistical {
      * @param id The {@code long} type ID to convert
      * @return The {@link String} representation of the ID
      */
-    @Nonnull
+    @NonNull
     String asString(long id);
     
     /**
@@ -66,7 +66,7 @@ public interface IdConverter extends Statistical {
      * @param idString The {@link String} type ID to convert
      * @return The {@code long} representation of the ID
      */
-    long asLong(@Nonnull String idString);
+    long asLong(@NonNull String idString);
     
     /**
      * Get statistical information about this converter.

@@ -21,7 +21,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -69,15 +69,13 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
         this.dataSource = dataSource;
     }
 
-    @Nonnull
     @Override
-    public String getNamespace() {
+    public @NonNull String getNamespace() {
         return namespace;
     }
 
-    @Nonnull
     @Override
-    public String getName() {
+    public @NonNull String getName() {
         return name;
     }
 

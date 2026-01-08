@@ -16,8 +16,8 @@ package me.ahoo.cosid.cosid;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
-import jakarta.annotation.Nonnull;
 import com.google.common.base.Strings;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Radix CosIdGenerator.
@@ -75,7 +75,7 @@ public class RadixCosIdGenerator implements CosIdGenerator {
         return lastTimestamp;
     }
     
-    @Nonnull
+    @NonNull
     @Override
     public CosIdIdStateParser getStateParser() {
         return stateParser;
@@ -89,7 +89,7 @@ public class RadixCosIdGenerator implements CosIdGenerator {
         return time;
     }
     
-    @Nonnull
+    @NonNull
     public synchronized CosIdState generateAsState() {
         long currentTimestamp = System.currentTimeMillis();
         if (currentTimestamp < lastTimestamp) {

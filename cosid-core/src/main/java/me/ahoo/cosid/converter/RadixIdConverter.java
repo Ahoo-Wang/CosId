@@ -17,9 +17,9 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.RadixConverterStat;
 
-import jakarta.annotation.Nonnull;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import org.jspecify.annotations.NonNull;
 
 
 public abstract class RadixIdConverter implements IdConverter {
@@ -49,7 +49,7 @@ public abstract class RadixIdConverter implements IdConverter {
      * 122.
      */
     static final char LOWERCASE_Z = 'z';
-    
+
     static final char[] digits = {
         /*
          * offset: 0.
@@ -69,13 +69,13 @@ public abstract class RadixIdConverter implements IdConverter {
         LOWERCASE_A, 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
         'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', LOWERCASE_Z,
     };
-    
+
     public static final char PAD_CHAR = ZERO;
-    
+
     private final boolean padStart;
     private final int charSize;
     private final long maxId;
-    
+
     protected RadixIdConverter(boolean padStart, int charSize) {
         Preconditions.checkArgument(charSize > 0 && charSize <= getMaxCharSize(), "charSize cannot be greater than MAX_CHAR_SIZE[%s]!", getMaxCharSize());
         this.padStart = padStart;
@@ -86,7 +86,7 @@ public abstract class RadixIdConverter implements IdConverter {
             this.maxId = Double.valueOf(Math.pow(getRadix(), charSize)).longValue();
         }
     }
-    
+
     public static int offset(char digitChar) {
         if (digitChar >= ZERO && digitChar <= NINE) {
             return digitChar - ZERO;
@@ -99,7 +99,7 @@ public abstract class RadixIdConverter implements IdConverter {
         }
         return -1;
     }
-    
+
     public static int maxCharSize(int radix, int bits) {
         long maxId = ~(-1L << bits);
         int divideTimes = 0;
@@ -109,35 +109,34 @@ public abstract class RadixIdConverter implements IdConverter {
         }
         return divideTimes;
     }
-    
+
     boolean isPadStart() {
         return padStart;
     }
-    
+
     public int getCharSize() {
         return charSize;
     }
-    
+
     public long getMaxId() {
         return maxId;
     }
-    
+
     abstract int getRadix();
-    
+
     abstract int getMaxCharSize();
-    
-    @Nonnull
+
     @Override
-    public String asString(long id) {
-        
+    public @NonNull String asString(long id) {
+
         Preconditions.checkArgument(id > -1, "id[%s] must be greater than -1!", id);
-        
+
         final int maxCharSize = getMaxCharSize();
-        
+
         if (charSize < maxCharSize) {
             Preconditions.checkArgument(id < maxId, "id[%s] cannot be greater than maxId:[%s]!", id, maxId);
         }
-        
+
         char[] buf = new char[charSize];
         int charIdx = charSize;
         final int radix = getRadix();
@@ -146,17 +145,18 @@ public abstract class RadixIdConverter implements IdConverter {
             buf[--charIdx] = digits[mod];
             id = id / radix;
         }
-        
+
         if (padStart && charIdx > 0) {
             while (charIdx > 0) {
                 buf[--charIdx] = PAD_CHAR;
             }
         }
-        
+
         return new String(buf, charIdx, (charSize - charIdx));
     }
-    
-    public long asLong(@Nonnull String idString) {
+
+    @Override
+    public long asLong(@NonNull String idString) {
         char firstChar = idString.charAt(0);
         if (firstChar < ZERO) {
             throw new NumberFormatException(Strings.lenientFormat("For input string: [%s]!", idString));
@@ -179,7 +179,7 @@ public abstract class RadixIdConverter implements IdConverter {
         }
         return result;
     }
-    
+
     @Override
     public Stat stat() {
         return new RadixConverterStat(getClass().getSimpleName(), getRadix(), getCharSize(), isPadStart(), getMaxId());

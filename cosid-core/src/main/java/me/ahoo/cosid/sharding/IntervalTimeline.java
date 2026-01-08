@@ -17,7 +17,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -85,23 +85,20 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
         return startInterval;
     }
 
-    @Nonnull
     @Override
-    public Collection<String> getEffectiveNodes() {
+    public @NonNull Collection<String> getEffectiveNodes() {
         return effectiveNodes;
     }
 
-    @Nonnull
     @Override
-    public String sharding(LocalDateTime shardingValue) {
+    public @NonNull String sharding(LocalDateTime shardingValue) {
         Preconditions.checkArgument(contains(shardingValue), "Sharding value:[%s]: out of bounds:[%s].", shardingValue, effectiveInterval);
         int offset = step.offsetUnit(startInterval.getLower(), shardingValue);
         return effectiveIntervals[offset].getNode();
     }
 
-    @Nonnull
     @Override
-    public Collection<String> sharding(Range<LocalDateTime> shardingValue) {
+    public @NonNull Collection<String> sharding(Range<LocalDateTime> shardingValue) {
 
         if (!effectiveInterval.isConnected(shardingValue)) {
             return ExactCollection.empty();

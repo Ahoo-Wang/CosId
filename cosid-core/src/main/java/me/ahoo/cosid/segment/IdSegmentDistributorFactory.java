@@ -13,7 +13,8 @@
 
 package me.ahoo.cosid.segment;
 
-import jakarta.annotation.Nonnull;
+
+import org.jspecify.annotations.NonNull;
 
 /**
  * {@link IdSegmentDistributor} Factory.
@@ -22,6 +23,6 @@ import jakarta.annotation.Nonnull;
  */
 @FunctionalInterface
 public interface IdSegmentDistributorFactory {
-    @Nonnull
+    @NonNull
     IdSegmentDistributor create(IdSegmentDistributorDefinition definition);
 }

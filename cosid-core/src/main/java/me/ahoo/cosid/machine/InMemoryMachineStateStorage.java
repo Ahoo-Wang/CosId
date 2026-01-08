@@ -14,7 +14,7 @@
 package me.ahoo.cosid.machine;
 
 import lombok.extern.slf4j.Slf4j;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,9 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class InMemoryMachineStateStorage implements MachineStateStorage {
     private final ConcurrentHashMap<NamespacedInstanceId, MachineState> states = new ConcurrentHashMap<>();
     
-    @Nonnull
     @Override
-    public MachineState get(String namespace, InstanceId instanceId) {
+    public @NonNull MachineState get(String namespace, InstanceId instanceId) {
         return states.getOrDefault(new NamespacedInstanceId(namespace, instanceId), MachineState.NOT_FOUND);
     }
     

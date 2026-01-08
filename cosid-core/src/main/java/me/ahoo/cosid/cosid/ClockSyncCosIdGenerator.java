@@ -19,8 +19,8 @@ import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
-import jakarta.annotation.Nonnull;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
 
 /**
  * ClockSync {@link CosIdGenerator}.
@@ -52,9 +52,8 @@ public class ClockSyncCosIdGenerator implements CosIdGenerator, Decorator<CosIdG
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
     }
     
-    @Nonnull
     @Override
-    public CosIdGenerator getActual() {
+    public @NonNull CosIdGenerator getActual() {
         return actual;
     }
     
@@ -68,15 +67,13 @@ public class ClockSyncCosIdGenerator implements CosIdGenerator, Decorator<CosIdG
         return actual.getLastTimestamp();
     }
     
-    @Nonnull
     @Override
-    public CosIdIdStateParser getStateParser() {
+    public @NonNull CosIdIdStateParser getStateParser() {
         return actual.getStateParser();
     }
     
-    @Nonnull
     @Override
-    public CosIdState generateAsState() {
+    public @NonNull CosIdState generateAsState() {
         try {
             return actual.generateAsState();
         } catch (ClockBackwardsException exception) {

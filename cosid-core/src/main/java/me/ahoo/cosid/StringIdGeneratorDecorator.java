@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid;
 
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * String ID generator decorator for customizing string ID generation.
@@ -72,9 +72,8 @@ public class StringIdGeneratorDecorator implements IdGeneratorDecorator {
      *
      * @return The custom ID converter
      */
-    @Nonnull
     @Override
-    public IdConverter idConverter() {
+    public @NonNull IdConverter idConverter() {
         return idConverter;
     }
     
@@ -86,7 +85,7 @@ public class StringIdGeneratorDecorator implements IdGeneratorDecorator {
      *
      * @return The actual ID generator being decorated
      */
-    @Nonnull
+    @NonNull
     @Override
     public IdGenerator getActual() {
         return actual;

@@ -16,7 +16,7 @@ package me.ahoo.cosid.machine;
 import me.ahoo.cosid.CosIdException;
 
 import com.google.common.base.Strings;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * MachineId Lost Exception .

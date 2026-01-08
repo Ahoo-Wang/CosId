@@ -19,8 +19,8 @@ import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.GroupedPrefixConverterStat;
 
-import jakarta.annotation.Nonnull;
 import com.google.common.base.Preconditions;
+import org.jspecify.annotations.NonNull;
 
 public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConverter> {
     public static final String DEFAULT_DELIMITER = "-";
@@ -33,9 +33,8 @@ public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConver
         this.actual = actual;
     }
 
-    @Nonnull
     @Override
-    public IdConverter getActual() {
+    public @NonNull IdConverter getActual() {
         return actual;
     }
 
@@ -43,9 +42,8 @@ public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConver
         return delimiter;
     }
 
-    @Nonnull
     @Override
-    public String asString(long id) {
+    public @NonNull String asString(long id) {
         String idStr = actual.asString(id);
         String groupKey = GroupedAccessor.requiredGet().getKey();
         if (delimiter.isEmpty()) {
@@ -55,7 +53,7 @@ public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConver
     }
 
     @Override
-    public long asLong(@Nonnull String idString) {
+    public long asLong(@NonNull String idString) {
         throw new UnsupportedOperationException("GroupedPrefixIdConverter does not support converting String to Long!");
     }
 

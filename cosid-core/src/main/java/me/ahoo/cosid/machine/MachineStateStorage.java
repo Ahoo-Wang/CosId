@@ -14,7 +14,7 @@
 package me.ahoo.cosid.machine;
 
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Machine State Storage.
@@ -26,7 +26,7 @@ public interface MachineStateStorage {
     MachineStateStorage LOCAL = new LocalMachineStateStorage();
     MachineStateStorage IN_MEMORY = new InMemoryMachineStateStorage();
 
-    @Nonnull
+    @NonNull
     MachineState get(String namespace, InstanceId instanceId);
 
     void set(String namespace, int machineId, InstanceId instanceId);

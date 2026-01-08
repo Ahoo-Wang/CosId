@@ -14,7 +14,7 @@
 package me.ahoo.cosid.util;
 
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -35,22 +35,22 @@ public final class LocalDateTimeConvert {
     private LocalDateTimeConvert() {
     }
     
-    @Nonnull
+    @NonNull
     public static LocalDateTime fromDate(Date date, ZoneId zoneId) {
         return fromTimestamp(date.getTime(), zoneId);
     }
     
-    @Nonnull
+    @NonNull
     public static LocalDateTime fromTimestamp(long timestamp, ZoneId zoneId) {
         return fromInstant(Instant.ofEpochMilli(timestamp), zoneId);
     }
     
-    @Nonnull
+    @NonNull
     public static LocalDateTime fromTimestampSecond(long timestamp, ZoneId zoneId) {
         return fromInstant(Instant.ofEpochSecond(timestamp), zoneId);
     }
     
-    @Nonnull
+    @NonNull
     public static LocalDateTime fromInstant(Instant instant, ZoneId zoneId) {
         return LocalDateTime.ofInstant(instant, zoneId);
     }
@@ -62,7 +62,7 @@ public final class LocalDateTimeConvert {
      * @param dateTimeFormatter date time formatter
      * @return LocalDateTime from string
      */
-    @Nonnull
+    @NonNull
     public static LocalDateTime fromString(String dateTime, DateTimeFormatter dateTimeFormatter) {
         TemporalAccessor temporalAccessor = dateTimeFormatter.parseBest(dateTime, LocalDateTime::from, LocalDate::from);
         if (temporalAccessor instanceof LocalDateTime) {

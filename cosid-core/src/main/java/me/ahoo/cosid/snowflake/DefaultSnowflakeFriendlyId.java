@@ -16,7 +16,7 @@ package me.ahoo.cosid.snowflake;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
 
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 import java.time.ZoneId;
 
@@ -46,9 +46,8 @@ public class DefaultSnowflakeFriendlyId extends StringSnowflakeId implements Sno
         this.snowflakeIdStateParser = snowflakeIdStateParser;
     }
 
-    @Nonnull
     @Override
-    public SnowflakeIdStateParser getParser() {
+    public @NonNull SnowflakeIdStateParser getParser() {
         return snowflakeIdStateParser;
     }
 

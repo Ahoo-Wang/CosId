@@ -22,6 +22,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import com.mongodb.reactivestreams.client.MongoDatabase;
+import org.jspecify.annotations.NonNull;
 
 public class MongoReactiveIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     private final MongoDatabase mongoDatabase;
@@ -31,7 +32,7 @@ public class MongoReactiveIdSegmentDistributorFactory implements IdSegmentDistri
     }
     
     @Override
-    public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
+    public @NonNull IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         IdSegmentCollection idSegmentCollection = new MongoReactiveIdSegmentCollection(mongoDatabase.getCollection(COLLECTION_NAME));
         
         return new MongoIdSegmentDistributor(definition.getNamespace(),

@@ -1,7 +1,7 @@
 package me.ahoo.cosid;
 
 import com.google.errorprone.annotations.ThreadSafe;
-import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Decorator pattern interface for wrapping and enhancing ID generators.
@@ -36,7 +36,7 @@ public interface Decorator<D> {
      *
      * @return The actual object being decorated
      */
-    @Nonnull
+    @NonNull
     D getActual();
     
     /**

@@ -14,8 +14,8 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
@@ -52,7 +52,7 @@ public class CosIdSnowflakeAutoConfiguration {
     @Bean
     public SnowflakeIdBeanRegistrar snowflakeIdBeanRegistrar(final InstanceId instanceId,
                                                              IdGeneratorProvider idGeneratorProvider,
-                                                             MachineIdDistributor machineIdDistributor,
+                                                             GuardDistribute guardDistribute,
                                                              ClockBackwardsSynchronizer clockBackwardsSynchronizer,
                                                              ConfigurableApplicationContext applicationContext,
                                                              @Nullable
@@ -63,7 +63,7 @@ public class CosIdSnowflakeAutoConfiguration {
             snowflakeIdProperties,
             instanceId,
             idGeneratorProvider,
-            machineIdDistributor,
+            guardDistribute,
             clockBackwardsSynchronizer,
             applicationContext,
             customizeSnowflakeIdProperties);

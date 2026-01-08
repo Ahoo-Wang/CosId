@@ -14,8 +14,8 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
@@ -27,9 +27,9 @@ import me.ahoo.cosid.spring.boot.starter.Namespaces;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import com.google.common.base.MoreObjects;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.lang.Nullable;
 
 import java.time.ZoneId;
 
@@ -39,7 +39,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     private final SnowflakeIdProperties snowflakeIdProperties;
     private final InstanceId instanceId;
     private final IdGeneratorProvider idGeneratorProvider;
-    private final MachineIdDistributor machineIdDistributor;
+    private final GuardDistribute guardDistribute;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
     private final ConfigurableApplicationContext applicationContext;
     @Nullable
@@ -50,7 +50,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
                                     SnowflakeIdProperties snowflakeIdProperties,
                                     InstanceId instanceId,
                                     IdGeneratorProvider idGeneratorProvider,
-                                    MachineIdDistributor machineIdDistributor,
+                                    GuardDistribute guardDistribute,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer,
                                     ConfigurableApplicationContext applicationContext,
                                     @Nullable CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties) {
@@ -59,7 +59,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         this.snowflakeIdProperties = snowflakeIdProperties;
         this.instanceId = instanceId;
         this.idGeneratorProvider = idGeneratorProvider;
-        this.machineIdDistributor = machineIdDistributor;
+        this.guardDistribute = guardDistribute;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
         this.applicationContext = applicationContext;
         this.customizeSnowflakeIdProperties = customizeSnowflakeIdProperties;
@@ -100,7 +100,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         long epoch = getEpoch(idDefinition);
         int machineBit = MoreObjects.firstNonNull(idDefinition.getMachineBit(), machineProperties.getMachineBit());
         String namespace = Namespaces.firstNotBlank(idDefinition.getNamespace(), cosIdProperties.getNamespace());
-        int machineId = machineIdDistributor.distribute(namespace, machineBit, instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
+        int machineId = guardDistribute.distribute(namespace, machineBit, instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
         
         SnowflakeId snowflakeId;
         if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {

@@ -14,26 +14,18 @@
 package me.ahoo.cosid.spring.boot.starter.cosid;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
-import static org.mockito.Mockito.*;
 
 import me.ahoo.cosid.cosid.CosIdGenerator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineId;
 import me.ahoo.cosid.machine.MachineStateStorage;
-import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdHostNameAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.machine.CosIdLifecycleMachineIdDistributor;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineIdLifecycle;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
-import me.ahoo.cosid.spring.boot.starter.snowflake.ConditionalOnCosIdSnowflakeEnabled;
-import me.ahoo.cosid.spring.boot.starter.snowflake.CosIdSnowflakeAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -61,7 +53,7 @@ class CosIdGeneratorAutoConfigurationTest {
                     .hasSingleBean(MachineStateStorage.class)
                     .hasSingleBean(ClockBackwardsSynchronizer.class)
                     .hasSingleBean(MachineId.class)
-                    .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
+                    .hasSingleBean(CosIdMachineIdLifecycle.class)
                     .hasSingleBean(CosIdGenerator.class)
                 ;
             });
@@ -87,7 +79,7 @@ class CosIdGeneratorAutoConfigurationTest {
                     .hasSingleBean(MachineStateStorage.class)
                     .hasSingleBean(ClockBackwardsSynchronizer.class)
                     .hasSingleBean(MachineId.class)
-                    .hasSingleBean(CosIdLifecycleMachineIdDistributor.class)
+                    .hasSingleBean(CosIdMachineIdLifecycle.class)
                     .hasSingleBean(CosIdGenerator.class)
                 ;
             });

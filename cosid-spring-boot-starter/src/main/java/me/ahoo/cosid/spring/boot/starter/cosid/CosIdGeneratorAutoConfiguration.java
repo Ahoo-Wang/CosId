@@ -20,9 +20,8 @@ import me.ahoo.cosid.cosid.FriendlyCosIdGenerator;
 import me.ahoo.cosid.cosid.Radix36CosIdGenerator;
 import me.ahoo.cosid.cosid.Radix62CosIdGenerator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.MachineIdDistributor;
-import me.ahoo.cosid.machine.MachineIdGuarder;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
@@ -73,8 +72,8 @@ public class CosIdGeneratorAutoConfiguration {
     /**
      * Constructs a new CosIdGeneratorAutoConfiguration with the required properties.
      *
-     * @param cosIdProperties the main CosId configuration properties
-     * @param machineProperties the machine-related configuration properties
+     * @param cosIdProperties          the main CosId configuration properties
+     * @param machineProperties        the machine-related configuration properties
      * @param cosIdGeneratorProperties the CosId generator specific properties
      */
     public CosIdGeneratorAutoConfiguration(CosIdProperties cosIdProperties, MachineProperties machineProperties, CosIdGeneratorProperties cosIdGeneratorProperties) {
@@ -90,22 +89,19 @@ public class CosIdGeneratorAutoConfiguration {
      * CosId generator based on the type specified in properties, wraps it with clock synchronization,
      * and registers it with the ID generator provider.</p>
      *
-     * @param machineIdDistributor the distributor responsible for allocating machine IDs
-     * @param machineIdGuarder the guarder that monitors machine ID health
-     * @param instanceId the unique identifier for this application instance
-     * @param idGeneratorProvider the provider where the generator will be registered
+     * @param guardDistribute            the distributor responsible for allocating machine IDs
+     * @param instanceId                 the unique identifier for this application instance
+     * @param idGeneratorProvider        the provider where the generator will be registered
      * @param clockBackwardsSynchronizer the synchronizer to handle clock drift issues
      * @return a configured CosIdGenerator instance wrapped with clock synchronization
      */
     @Bean
     @Primary
     @ConditionalOnMissingBean
-    public CosIdGenerator cosIdGenerator(MachineIdDistributor machineIdDistributor, MachineIdGuarder machineIdGuarder, final InstanceId instanceId, IdGeneratorProvider idGeneratorProvider,
+    public CosIdGenerator cosIdGenerator(GuardDistribute guardDistribute, final InstanceId instanceId, IdGeneratorProvider idGeneratorProvider,
                                          ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         String namespace = Namespaces.firstNotBlank(cosIdGeneratorProperties.getNamespace(), cosIdProperties.getNamespace());
-        int machineId =
-                machineIdDistributor.distribute(namespace, cosIdGeneratorProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
-        machineIdGuarder.register(namespace, instanceId);
+        int machineId = guardDistribute.distribute(namespace, cosIdGeneratorProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
         CosIdGenerator cosIdGenerator = createCosIdGenerator(machineId);
 
         CosIdGenerator clockSyncCosIdGenerator = new ClockSyncCosIdGenerator(cosIdGenerator, clockBackwardsSynchronizer);
@@ -128,18 +124,18 @@ public class CosIdGeneratorAutoConfiguration {
         switch (cosIdGeneratorProperties.getType()) {
             case RADIX62 -> {
                 return new Radix62CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                        cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
-                        cosIdGeneratorProperties.getSequenceResetThreshold());
+                    cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
+                    cosIdGeneratorProperties.getSequenceResetThreshold());
             }
             case RADIX36 -> {
                 return new Radix36CosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                        cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
-                        cosIdGeneratorProperties.getSequenceResetThreshold());
+                    cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
+                    cosIdGeneratorProperties.getSequenceResetThreshold());
             }
             case FRIENDLY -> {
                 return new FriendlyCosIdGenerator(cosIdGeneratorProperties.getTimestampBit(),
-                        cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
-                        cosIdGeneratorProperties.getSequenceResetThreshold(), cosIdGeneratorProperties.getZoneId(), cosIdGeneratorProperties.isPadStart());
+                    cosIdGeneratorProperties.getMachineBit(), cosIdGeneratorProperties.getSequenceBit(), machineId,
+                    cosIdGeneratorProperties.getSequenceResetThreshold(), cosIdGeneratorProperties.getZoneId(), cosIdGeneratorProperties.isPadStart());
             }
             default -> throw new IllegalStateException("Unexpected value: " + cosIdGeneratorProperties.getType());
         }

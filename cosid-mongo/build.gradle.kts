@@ -22,6 +22,6 @@ dependencies {
     testImplementation("io.projectreactor:reactor-core")
     testImplementation("org.mongodb:mongodb-driver-reactivestreams")
     testImplementation("org.testcontainers:testcontainers")
-    testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.testcontainers:mongodb")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers-mongodb")
 }

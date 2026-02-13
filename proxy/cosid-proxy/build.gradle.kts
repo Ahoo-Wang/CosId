@@ -19,5 +19,5 @@ dependencies {
     testImplementation("org.springframework:spring-context")
     testImplementation("org.springframework:spring-aop")
     testImplementation("org.testcontainers:testcontainers")
-    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 }

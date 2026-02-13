@@ -25,6 +25,6 @@ dependencies {
     implementation("org.junit.jupiter:junit-jupiter-api")
     implementation("org.hamcrest:hamcrest")
     "mongoSupportImplementation"("org.testcontainers:testcontainers")
-    "mongoSupportImplementation"("org.testcontainers:junit-jupiter")
-    "mongoSupportImplementation"("org.testcontainers:mongodb")
+    "mongoSupportImplementation"("org.testcontainers:testcontainers-junit-jupiter")
+    "mongoSupportImplementation"("org.testcontainers:testcontainers-mongodb")
 }

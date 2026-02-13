@@ -95,6 +95,6 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc")
     testImplementation("org.apache.curator:curator-test")
     testImplementation("org.testcontainers:testcontainers")
-    testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.testcontainers:mongodb")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers-mongodb")
 }

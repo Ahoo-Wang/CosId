@@ -18,9 +18,17 @@ FROM base as run
 ARG WORK_HOME
 
 LABEL maintainer="ahoowang@qq.com"
-COPY --from=build ${WORK_HOME} ${WORK_HOME}
+
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
+COPY --from=build --chown=appuser:appgroup ${WORK_HOME} ${WORK_HOME}
 
 WORKDIR ${WORK_HOME}
 EXPOSE 8688
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+USER appuser
+STOPSIGNAL SIGTERM
 
 ENTRYPOINT ["bin/cosid-proxy-server"]

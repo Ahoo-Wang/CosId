@@ -25,7 +25,7 @@ With safe distance guarantee not hard to conclude that all ID obtaining threads 
 
 **SegmentChainId** is **SegmentId** enhanced version, compared to **SegmentId** has following advantages:
 
-- TPS performance: Can reach close to `AtomicLong` *TPS performance:12743W+/s* [JMH benchmark test](faq/perf-test). By introducing new role **PrefetchWorker** to maintain and guarantee **safe distance**, ideally making ID obtaining threads almost completely not need synchronous waiting `NextMaxId` obtaining.
+- TPS performance: Can reach close to `AtomicLong` *TPS performance:12743W+/s* [JMH benchmark test](faq/perf-test.md). By introducing new role **PrefetchWorker** to maintain and guarantee **safe distance**, ideally making ID obtaining threads almost completely not need synchronous waiting `NextMaxId` obtaining.
 - Stability: P9999=0.208(us/op), through above TPS performance description we can see, **SegmentChainId** eliminates synchronous waiting problem, so stability problem also solved.
 - Adaptability: From **SegmentId** introduction we knew affecting **ID disorder** factors have two: cluster scale, `Step` size. Cluster scale is what we cannot control, but `Step` is adjustable.
     - `Step` should be as small as possible to increase possibility of **ID monotonically increasing**.

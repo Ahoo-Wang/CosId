@@ -1,7 +1,5 @@
 # Performance Comparison
 
-TODO
-
 ## Core Metrics of Distributed ID Schemes
 
 - **Global (Same Business) Uniqueness**: Uniqueness guarantee is a **necessary condition** for **ID**. Assuming ID is not unique will cause primary key conflicts, which is easy to understand.

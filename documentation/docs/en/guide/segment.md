@@ -42,7 +42,35 @@ StringSegmentId  ..>  SegmentId
 
 ## IdSegmentDistributor
 
+`IdSegmentDistributor` is the core interface for distributing ID segments in CosId. It provides methods for allocating contiguous blocks of IDs across distributed instances.
+
+Key responsibilities:
+- Allocates unique ID segments within a namespace
+- Manages segment size (step) configuration
+- Provides segment chain functionality for advanced use cases
+- Supports time-to-live for segments
+
+Common implementations include:
+- **RedisIdSegmentDistributor**: Uses Redis for segment distribution
+- **JdbcIdSegmentDistributor**: Uses relational databases for segment distribution
+- **ZookeeperIdSegmentDistributor**: Uses ZooKeeper for segment distribution
+
 ## GroupedIdSegmentDistributor
+
+`GroupedIdSegmentDistributor` extends `IdSegmentDistributor` to support ID grouping (partitioning by a grouping key).
+
+Grouped distributors allow ID segments to be partitioned by a grouping key, such as:
+- **Time-based buckets**: "2024-01" for monthly sharding, "2024-01-15" for daily sharding
+- **Custom keys**: Business-specific grouping criteria
+
+This enables scenarios like:
+- Resetting sequence numbers on time boundaries (daily, monthly, yearly)
+- Isolating ID ranges for different tenants or business units
+- Supporting time-based sharding algorithms
+
+The `GroupedIdSegmentDistributor` allows `allowReset()` to return `true`, enabling segment reset when the grouping key changes.
 
 
 ## Configuration
+
+[SegmentId Configuration](../reference/config/segment)

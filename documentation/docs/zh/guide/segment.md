@@ -42,7 +42,34 @@ StringSegmentId  ..>  SegmentId
 
 ## IdSegmentDistributor
 
+`IdSegmentDistributor` 是 CosId 中用于分发 ID 号段的核心接口。它提供了在分布式实例之间分配连续 ID 块的方法。
+
+主要职责：
+- 在命名空间内分配唯一的 ID 号段
+- 管理号段大小（step）配置
+- 提供号段链功能用于高级场景
+- 支持号段的有效期
+
+常用实现包括：
+- **RedisIdSegmentDistributor**: 使用 Redis 进行号段分发
+- **JdbcIdSegmentDistributor**: 使用关系数据库进行号段分发
+- **ZookeeperIdSegmentDistributor**: 使用 ZooKeeper 进行号段分发
+
 ## GroupedIdSegmentDistributor
 
+`GroupedIdSegmentDistributor` 扩展了 `IdSegmentDistributor`，支持 ID 分组（按分组键进行分区）。
+
+分组分发器允许按分组键对 ID 号段进行分区，例如：
+- **时间桶**: "2024-01" 用于按月分片，"2024-01-15" 用于按天分片
+- **自定义键**: 业务特定的分组条件
+
+这使得以下场景成为可能：
+- 在时间边界（每天、每月、每年）重置序号
+- 为不同租户或业务单元隔离 ID 范围
+- 支持基于时间的分片算法
+
+`GroupedIdSegmentDistributor` 允许 `allowReset()` 返回 `true`，从而在分组键变更时允许号段重置。
 
 ## 配置
+
+[SegmentId 配置](../reference/config/segment)

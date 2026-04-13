@@ -37,6 +37,8 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    env:
+      PNPM_ONLY_BUILT_DEPENDENCIES: esbuild
     steps:
       - name: Checkout
         uses: actions/checkout@master
@@ -68,14 +70,10 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache-dependency-path: documentation/pnpm-lock.yaml
-          cache: 'pnpm'
 
       - name: Build VitePress site
         working-directory: documentation
         run: pnpm install && pnpm run docs:build
-        env:
-          PNPM_ONLY_BUILT_DEPENDENCIES: esbuild
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4

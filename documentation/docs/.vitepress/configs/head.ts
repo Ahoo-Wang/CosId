@@ -16,6 +16,7 @@ import {HeadConfig} from "vitepress";
 
 export const head: HeadConfig[] = [
     ['link', {rel: 'icon', href: `${SITE_BASE}favicon.ico`}],
+    ['link', {rel: 'preconnect', href: 'https://www.googletagmanager.com'}],
     ['meta', {
         name: 'keywords',
         content: 'CosId,分布式ID生成器,ID生成器,分布式ID,唯一ID,自增ID,ID,雪花算法,Snowflake,SnowflakeId,UUID,Sequence,Leaf,UidGenerator'
@@ -24,11 +25,24 @@ export const head: HeadConfig[] = [
         name: 'description',
         content: 'CosId | 通用、灵活、高性能的分布式ID生成器 | Universal, flexible, high-performance distributed ID generator.'
     }],
+    // Open Graph / Social Sharing
+    ['meta', {property: 'og:type', content: 'website'}],
+    ['meta', {property: 'og:site_name', content: 'CosId'}],
+    ['meta', {property: 'og:title', content: 'CosId - Universal Distributed ID Generator'}],
+    ['meta', {property: 'og:description', content: '通用、灵活、高性能的分布式ID生成器 | Universal, flexible, high-performance distributed ID generator'}],
+    ['meta', {property: 'og:image', content: 'https://cosid.ahoo.me/logo.png'}],
+    // Twitter Card
+    ['meta', {name: 'twitter:card', content: 'summary_large_image'}],
+    ['meta', {name: 'twitter:title', content: 'CosId - Universal Distributed ID Generator'}],
+    ['meta', {name: 'twitter:description', content: '通用、灵活、高性能的分布式ID生成器 | Universal, flexible, high-performance distributed ID generator'}],
+    ['meta', {name: 'twitter:image', content: 'https://cosid.ahoo.me/logo.png'}],
+    // Cache control
     ['meta', {'http-equiv': 'cache-control', content: 'no-cache, no-store, must-revalidate'}],
     ['meta', {'http-equiv': 'pragma', content: 'no-cache'}],
     ['meta', {'http-equiv': 'expires', content: '0'}],
     ['meta', {name: 'application-name', content: 'CosId'}],
     ['meta', {name: 'theme-color', content: '#5f67ee'}],
+    // Google Analytics
     [
         'script',
         {async: '', src: 'https://www.googletagmanager.com/gtag/js?id=G-SP6EEGK56L'}

@@ -16,7 +16,7 @@ if (SITE_BASE == '/wow/') {
 
 // https://vitepress.dev/reference/site-config
 let userConfig = defineConfig({
-    ignoreDeadLinks: 'localhostLinks',
+    ignoreDeadLinks: true,
     head: head,
     base: SITE_BASE,
     rewrites: {

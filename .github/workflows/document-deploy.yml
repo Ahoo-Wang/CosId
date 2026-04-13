@@ -74,6 +74,8 @@ jobs:
       - name: Build VitePress site
         working-directory: documentation
         run: pnpm install && pnpm run docs:build
+        env:
+          PNPM_ONLY_BUILT_DEPENDENCIES: esbuild
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4

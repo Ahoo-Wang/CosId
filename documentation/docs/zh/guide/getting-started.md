@@ -133,6 +133,6 @@ cosid:
     }
 ```
 
-## Examples
+## 示例
 
 开发者可以通过 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples) 的学习快速开启 `CosId` 之旅。

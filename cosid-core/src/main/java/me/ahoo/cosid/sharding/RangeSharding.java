@@ -18,7 +18,20 @@ import org.jspecify.annotations.NonNull;
 
 import java.util.Collection;
 
+/**
+ * Range-based sharding algorithm interface.
+ *
+ * <p>Determines which node(s) should handle a range of ID values.
+ *
+ * @param <T> the type of comparable sharding value
+ */
 public interface RangeSharding<T extends Comparable<?>> {
+    /**
+     * Gets the nodes that should handle the given range of IDs.
+     *
+     * @param shardingValue the range of sharding values
+     * @return collection of node names that should handle the range
+     */
     @NonNull
     Collection<String> sharding(Range<T> shardingValue);
 }

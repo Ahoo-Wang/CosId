@@ -29,19 +29,36 @@ import java.io.IOException;
 import java.nio.file.Paths;
 
 /**
- * LocalMachine State Storage.
+ * File-based machine state storage.
+ *
+ * <p>Stores machine state in local files, using base64-encoded
+ * filenames for namespace/instance encoding.
  *
  * @author ahoo wang
  */
 @Slf4j
 public class LocalMachineStateStorage implements MachineStateStorage {
+    /**
+     * Default state location in user home directory.
+     */
     public static final String DEFAULT_STATE_LOCATION_PATH = Paths.get(System.getProperty("user.home"), ".cosid-machine-state").toString();
+    /**
+     * The state location path.
+     */
     public final String stateLocation;
 
+    /**
+     * Creates storage with specified location.
+     *
+     * @param stateLocation the directory path for state files
+     */
     public LocalMachineStateStorage(String stateLocation) {
         this.stateLocation = stateLocation;
     }
 
+    /**
+     * Creates storage with default location.
+     */
     public LocalMachineStateStorage() {
         this(DEFAULT_STATE_LOCATION_PATH);
     }

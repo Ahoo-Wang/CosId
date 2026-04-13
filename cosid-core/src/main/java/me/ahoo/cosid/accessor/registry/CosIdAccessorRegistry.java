@@ -18,19 +18,45 @@ import me.ahoo.cosid.accessor.CosIdAccessor;
 import com.google.errorprone.annotations.ThreadSafe;
 
 /**
- * CosIdAccessor Registry.
+ * Registry for managing {@link CosIdAccessor} instances.
+ *
+ * <p>Provides registration and lookup of ID accessors for classes,
+ * enabling automatic ID injection for entities.
  *
  * @author ahoo wang
  */
 @ThreadSafe
 public interface CosIdAccessorRegistry {
 
+    /**
+     * Registers a class, parsing its accessor from annotations.
+     *
+     * @param clazz the class to register
+     */
     void register(Class<?> clazz);
 
+    /**
+     * Registers a class with a specific accessor.
+     *
+     * @param clazz the class to register
+     * @param cosIdAccessor the accessor to use
+     */
     void register(Class<?> clazz, CosIdAccessor cosIdAccessor);
 
+    /**
+     * Gets the accessor for a class.
+     *
+     * @param clazz the class
+     * @return the accessor
+     */
     CosIdAccessor get(Class<?> clazz);
 
+    /**
+     * Ensures the target object has an ID, registering if needed.
+     *
+     * @param target the target object
+     * @return true if ID was ensured
+     */
     default boolean ensureId(Object target) {
         CosIdAccessor cosIdAccessor = get(target.getClass());
         if (CosIdAccessor.NOT_FOUND.equals(cosIdAccessor)) {

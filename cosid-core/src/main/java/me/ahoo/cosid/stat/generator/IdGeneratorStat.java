@@ -17,20 +17,43 @@ import me.ahoo.cosid.stat.Stat;
 
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Statistical information for ID generators.
+ */
 public interface IdGeneratorStat extends Stat {
     @Nullable
     @Override
     default IdGeneratorStat getActual() {
         return null;
     }
-    
+
+    /**
+     * Gets the converter stat.
+     *
+     * @return the converter stat or null
+     */
     @Nullable
     Stat getConverter();
-    
+
+    /**
+     * Creates a simple stat with the specified kind and converter.
+     *
+     * @param kind the kind
+     * @param actual the actual stat
+     * @param converter the converter stat
+     * @return the stat
+     */
     static IdGeneratorStat simple(String kind, @Nullable IdGeneratorStat actual, Stat converter) {
         return new SimpleIdGeneratorStat(kind, actual, converter);
     }
-    
+
+    /**
+     * Creates a simple stat with the specified kind and converter.
+     *
+     * @param kind the kind
+     * @param converter the converter stat
+     * @return the stat
+     */
     static IdGeneratorStat simple(String kind, Stat converter) {
         return simple(kind, null, converter);
     }

@@ -16,21 +16,47 @@ package me.ahoo.cosid.segment.concurrent;
 import com.google.errorprone.annotations.ThreadSafe;
 
 /**
- * Prefetch Worker.
+ * Worker for prefetching ID segments.
+ *
+ * <p>Manages background prefetching of ID segments to ensure
+ * segments are available before they are exhausted.
  *
  * @author ahoo wang
  */
 @ThreadSafe
 public interface PrefetchWorker {
 
+    /**
+     * Gets the worker name.
+     *
+     * @return the worker name
+     */
     String getName();
 
+    /**
+     * Submits a job for prefetching.
+     *
+     * @param affinityJob the job to submit
+     */
     void submit(AffinityJob affinityJob);
 
+    /**
+     * Cancels a prefetch job.
+     *
+     * @param affinityJob the job to cancel
+     */
     void cancel(AffinityJob affinityJob);
 
+    /**
+     * Wakes up a job for immediate processing.
+     *
+     * @param affinityJob the job to wake up
+     */
     void wakeup(AffinityJob affinityJob);
 
+    /**
+     * Shuts down the worker.
+     */
     void shutdown();
 
 }

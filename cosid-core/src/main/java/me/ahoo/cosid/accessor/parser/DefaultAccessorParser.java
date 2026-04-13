@@ -41,7 +41,10 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Default {@link CosIdAccessorParser} implementation.
+ * Default implementation of {@link CosIdAccessorParser}.
+ *
+ * <p>Parses classes to find @CosId annotated fields
+ * and creates accessors using getters/setters or direct field access.
  *
  * @author ahoo wang
  */
@@ -54,6 +57,11 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
     private final ConcurrentHashMap<Class<?>, CosIdAccessor> classMapAccessor = new ConcurrentHashMap<>();
     private final FieldDefinitionParser definitionParser;
 
+    /**
+     * Creates a parser with the specified definition parser.
+     *
+     * @param definitionParser the field definition parser
+     */
     public DefaultAccessorParser(FieldDefinitionParser definitionParser) {
         this.definitionParser = definitionParser;
     }
@@ -63,6 +71,12 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
         return classMapAccessor.computeIfAbsent(clazz, (key) -> parseClass(clazz));
     }
 
+    /**
+     * Capitalizes a string (first character upper case).
+     *
+     * @param name the name to capitalize
+     * @return the capitalized name
+     */
     public static String capitalize(String name) {
         if (name == null || name.length() == 0) {
             return name;
@@ -70,6 +84,12 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
         return name.substring(0, 1).toUpperCase(ENGLISH) + name.substring(1);
     }
 
+    /**
+     * Parses a getter method for a field.
+     *
+     * @param field the field
+     * @return the getter method or null
+     */
     public static Method parseGetter(Field field) {
         String getterName = GET_PREFIX + capitalize(field.getName());
         try {
@@ -86,6 +106,12 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
         }
     }
 
+    /**
+     * Parses a setter method for a field.
+     *
+     * @param field the field
+     * @return the setter method or null
+     */
     public static Method parseSetter(Field field) {
         String setterName = SET_PREFIX + capitalize(field.getName());
         try {

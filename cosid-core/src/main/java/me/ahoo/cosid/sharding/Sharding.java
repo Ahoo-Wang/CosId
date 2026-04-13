@@ -19,7 +19,10 @@ import org.jspecify.annotations.NonNull;
 import java.util.Collection;
 
 /**
- * Sharding algorithm interface.
+ * Sharding algorithm interface for distributing data across multiple nodes.
+ *
+ * <p>Combines both precise sharding (single key) and range sharding (key range)
+ * capabilities to determine which node(s) should handle a given ID or ID range.
  *
  * <p><img src="../doc-files/Sharding.png" alt="Sharding"></p>
  *
@@ -27,6 +30,11 @@ import java.util.Collection;
  */
 @ThreadSafe
 public interface Sharding<T extends Comparable<?>> extends PreciseSharding<T>, RangeSharding<T> {
+    /**
+     * Gets all effective node names.
+     *
+     * @return collection of effective node names
+     */
     @NonNull
     Collection<String> getEffectiveNodes();
 }

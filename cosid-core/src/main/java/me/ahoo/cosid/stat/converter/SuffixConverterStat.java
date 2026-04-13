@@ -18,6 +18,11 @@ import me.ahoo.cosid.stat.Stat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * Suffix converter stat with suffix configuration.
+ *
+ * @author ahoo wang
+ */
 @AllArgsConstructor
 @Data
 public final class SuffixConverterStat implements Stat {

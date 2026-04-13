@@ -22,34 +22,48 @@ import com.google.common.base.Strings;
 import org.jspecify.annotations.NonNull;
 
 
+/**
+ * Abstract base for radix-based ID converters.
+ *
+ * <p>Converts between long IDs and string representations using various radixes
+ * (base 36, 62, etc.). Supports optional zero-padding for consistent string length.
+ *
+ * @author ahoo wang
+ */
 public abstract class RadixIdConverter implements IdConverter {
     /**
-     * 48.
+     * Character '0' (ASCII 48).
      */
     static final char ZERO = '0';
     /**
-     * 57.
+     * Character '9' (ASCII 57).
      */
     static final char NINE = '9';
     /**
-     * 65.
+     * Character 'A' (ASCII 65).
      */
     static final char UPPERCASE_A = 'A';
     static final int UPPERCASE_OFFSET = 10;
     /**
-     * 90.
+     * Character 'Z' (ASCII 90).
      */
     static final char UPPERCASE_Z = 'Z';
     /**
-     * 97.
+     * Character 'a' (ASCII 97).
      */
     static final char LOWERCASE_A = 'a';
     static final int LOWERCASE_OFFSET = 36;
     /**
-     * 122.
+     * Character 'z' (ASCII 122).
      */
     static final char LOWERCASE_Z = 'z';
 
+    /**
+     * Character lookup table for radix conversion.
+     * Index 0-9: digits '0'-'9'
+     * Index 10-35: uppercase letters 'A'-'Z'
+     * Index 36-61: lowercase letters 'a'-'z'
+     */
     static final char[] digits = {
         /*
          * offset: 0.
@@ -70,12 +84,21 @@ public abstract class RadixIdConverter implements IdConverter {
         'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', LOWERCASE_Z,
     };
 
+    /**
+     * Padding character for fixed-width output.
+     */
     public static final char PAD_CHAR = ZERO;
 
     private final boolean padStart;
     private final int charSize;
     private final long maxId;
 
+    /**
+     * Creates a new RadixIdConverter.
+     *
+     * @param padStart whether to pad output with leading zeros
+     * @param charSize the fixed character size for output
+     */
     protected RadixIdConverter(boolean padStart, int charSize) {
         Preconditions.checkArgument(charSize > 0 && charSize <= getMaxCharSize(), "charSize cannot be greater than MAX_CHAR_SIZE[%s]!", getMaxCharSize());
         this.padStart = padStart;
@@ -87,6 +110,12 @@ public abstract class RadixIdConverter implements IdConverter {
         }
     }
 
+    /**
+     * Gets the offset value for a digit character.
+     *
+     * @param digitChar the character to convert
+     * @return the offset value (0-61) or -1 if invalid
+     */
     public static int offset(char digitChar) {
         if (digitChar >= ZERO && digitChar <= NINE) {
             return digitChar - ZERO;
@@ -100,6 +129,13 @@ public abstract class RadixIdConverter implements IdConverter {
         return -1;
     }
 
+    /**
+     * Calculates maximum character size for a given radix and bit count.
+     *
+     * @param radix the number base
+     * @param bits  number of bits
+     * @return maximum characters needed
+     */
     public static int maxCharSize(int radix, int bits) {
         long maxId = ~(-1L << bits);
         int divideTimes = 0;
@@ -114,16 +150,36 @@ public abstract class RadixIdConverter implements IdConverter {
         return padStart;
     }
 
+    /**
+     * Gets the fixed character size.
+     *
+     * @return character size
+     */
     public int getCharSize() {
         return charSize;
     }
 
+    /**
+     * Gets the maximum ID representable with this char size.
+     *
+     * @return maximum ID
+     */
     public long getMaxId() {
         return maxId;
     }
 
+    /**
+     * Gets the radix (base) for this converter.
+     *
+     * @return radix value
+     */
     abstract int getRadix();
 
+    /**
+     * Gets the maximum character size for this converter type.
+     *
+     * @return maximum character size
+     */
     abstract int getMaxCharSize();
 
     @Override

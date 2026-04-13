@@ -23,7 +23,10 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Annotation FieldDefinitionParser.
+ * Parses {@link CosId} annotations to create {@link IdDefinition}.
+ *
+ * <p>Checks for field-level @CosId annotation first,
+ * then looks for type-level annotation with matching field name.
  *
  * @author ahoo wang
  * @see CosId
@@ -31,6 +34,9 @@ import java.util.Optional;
 @Slf4j
 public class AnnotationDefinitionParser implements FieldDefinitionParser {
 
+    /**
+     * Shared singleton instance.
+     */
     public static final AnnotationDefinitionParser INSTANCE = new AnnotationDefinitionParser();
 
     @Override

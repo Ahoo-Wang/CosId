@@ -14,12 +14,20 @@
 package me.ahoo.cosid.accessor;
 
 /**
- * CosId Getter.
+ * Interface for getting the ID value from an object.
+ *
+ * <p>Used by frameworks (MyBatis, etc.) to extract the ID from entities.
  *
  * @author ahoo wang
  */
 public interface CosIdGetter {
 
+    /**
+     * Gets the ID value from the target object.
+     *
+     * @param target the object to get ID from
+     * @return the ID value
+     */
     Object getId(Object target);
 
 }

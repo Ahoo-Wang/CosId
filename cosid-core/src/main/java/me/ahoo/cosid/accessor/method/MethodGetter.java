@@ -21,18 +21,28 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
- * Method Getter.
+ * ID getter that accesses via getter method.
  *
  * @author ahoo wang
  */
 public class MethodGetter implements CosIdGetter {
     private final Method getter;
 
+    /**
+     * Creates a getter for the specified method.
+     *
+     * @param getter the getter method
+     */
     public MethodGetter(Method getter) {
         CosIdAccessor.ensureAccessible(getter);
         this.getter = getter;
     }
 
+    /**
+     * Gets the getter method.
+     *
+     * @return the getter method
+     */
     public Method getGetter() {
         return getter;
     }

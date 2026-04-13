@@ -22,20 +22,36 @@ import me.ahoo.cosid.stat.converter.SnowflakeFriendlyIdConverterStat;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Snowflake FriendlyId Converter.
+ * Converts Snowflake IDs to human-readable string format.
+ *
+ * <p>Provides friendly string representations of Snowflake IDs
+ * with embedded timestamp and machine information.
  *
  * @author ahoo wang
  */
 public class SnowflakeFriendlyIdConverter implements IdConverter {
 
+    /**
+     * Shared instance using millisecond parser.
+     */
     public static final IdConverter INSTANCE = new SnowflakeFriendlyIdConverter(MillisecondSnowflakeIdStateParser.INSTANCE);
 
     private final SnowflakeIdStateParser snowflakeIdStateParser;
 
+    /**
+     * Creates a converter with the specified parser.
+     *
+     * @param snowflakeIdStateParser the Snowflake ID state parser
+     */
     public SnowflakeFriendlyIdConverter(SnowflakeIdStateParser snowflakeIdStateParser) {
         this.snowflakeIdStateParser = snowflakeIdStateParser;
     }
 
+    /**
+     * Gets the parser.
+     *
+     * @return the parser
+     */
     public SnowflakeIdStateParser getParser() {
         return snowflakeIdStateParser;
     }

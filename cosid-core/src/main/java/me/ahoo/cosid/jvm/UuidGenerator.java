@@ -22,10 +22,16 @@ import java.util.UUID;
 /**
  * UUID ID Generator.
  *
+ * <p>Generates UUIDs as string representations.
+ * Note: Does not support {@link #generate()} for long IDs.
+ *
  * @author ahoo wang
  */
 public class UuidGenerator implements IdGenerator {
 
+    /**
+     * Shared singleton instance.
+     */
     public static final IdGenerator INSTANCE = new UuidGenerator();
 
     @Override

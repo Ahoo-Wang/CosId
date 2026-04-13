@@ -18,6 +18,11 @@ import me.ahoo.cosid.stat.Stat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * Grouped prefix converter stat with delimiter configuration.
+ *
+ * @author ahoo wang
+ */
 @AllArgsConstructor
 @Data
 public final class GroupedPrefixConverterStat implements Stat {

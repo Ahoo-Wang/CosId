@@ -20,11 +20,26 @@ import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 
 
+/**
+ * Year-month based group key supplier.
+ *
+ * @author ahoo wang
+ */
 public class YearMonthGroupBySupplier extends AbstractDateGroupBySupplier<YearMonth> {
+    /**
+     * Creates a supplier with the specified formatter.
+     *
+     * @param formatter the date formatter
+     */
     public YearMonthGroupBySupplier(DateTimeFormatter formatter) {
         super(formatter);
     }
 
+    /**
+     * Creates a supplier with the specified pattern.
+     *
+     * @param pattern the date format pattern
+     */
     public YearMonthGroupBySupplier(String pattern) {
         this(DateTimeFormatter.ofPattern(pattern));
     }

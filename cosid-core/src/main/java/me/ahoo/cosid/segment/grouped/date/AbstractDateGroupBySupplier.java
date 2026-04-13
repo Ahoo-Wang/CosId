@@ -21,15 +21,37 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 
+/**
+ * Abstract base class for date-based group key suppliers.
+ *
+ * @param <D> the temporal type
+ * @author ahoo wang
+ */
 public abstract class AbstractDateGroupBySupplier<D extends TemporalAccessor> implements GroupBySupplier {
     protected final DateTimeFormatter formatter;
 
+    /**
+     * Creates a supplier with the specified formatter.
+     *
+     * @param formatter the date formatter
+     */
     public AbstractDateGroupBySupplier(DateTimeFormatter formatter) {
         this.formatter = formatter;
     }
 
+    /**
+     * Gets the current date/time.
+     *
+     * @return the current value
+     */
     abstract D now();
 
+    /**
+     * Gets the last timestamp for the given date.
+     *
+     * @param date the date
+     * @return the last timestamp
+     */
     abstract LocalDateTime lastTimestamp(D date);
 
     @Override

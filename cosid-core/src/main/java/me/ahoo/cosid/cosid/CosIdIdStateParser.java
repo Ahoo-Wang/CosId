@@ -15,16 +15,38 @@ package me.ahoo.cosid.cosid;
 
 /**
  * Parser for converting {@link CosIdState} to String and vice versa.
- * <p>
- *     The {@link CosIdState} is a composite of timestamp, machineId, and sequence.
- * </p>
+ *
+ * <p>The {@link CosIdState} is a composite of timestamp, machineId, and sequence.
+ * This parser handles bidirectional conversion between the state object and string representations.
+ *
+ * @author ahoo wang
  */
 public interface CosIdIdStateParser {
-    
+
+    /**
+     * Parses a string representation into a CosIdState.
+     *
+     * @param id the string ID to parse
+     * @return the parsed CosIdState
+     */
     CosIdState asState(String id);
-    
+
+    /**
+     * Converts timestamp, machineId, and sequence to a string.
+     *
+     * @param lastTimestamp the timestamp in milliseconds
+     * @param machineId    the machine ID
+     * @param sequence     the sequence number
+     * @return string representation
+     */
     String asString(long lastTimestamp, int machineId, int sequence);
-    
+
+    /**
+     * Converts a CosIdState to its string representation.
+     *
+     * @param cosIdState the state to convert
+     * @return string representation
+     */
     default String asString(CosIdState cosIdState) {
         return asString(cosIdState.getTimestamp(), cosIdState.getMachineId(), cosIdState.getSequence());
     }

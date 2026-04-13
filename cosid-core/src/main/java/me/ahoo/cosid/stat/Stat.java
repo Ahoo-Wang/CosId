@@ -15,19 +15,45 @@ package me.ahoo.cosid.stat;
 
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Statistical information interface.
+ */
 public interface Stat {
 
+    /**
+     * Gets the kind/type of this stat.
+     *
+     * @return the kind
+     */
     String getKind();
 
+    /**
+     * Gets the wrapped actual stat.
+     *
+     * @return the actual stat or null
+     */
     @Nullable
     default Stat getActual() {
         return null;
     }
 
+    /**
+     * Creates a simple stat with the specified kind and actual.
+     *
+     * @param kind the kind
+     * @param actual the actual stat
+     * @return the stat
+     */
     static Stat simple(String kind, @Nullable Stat actual) {
         return new SimpleStat(kind, actual);
     }
 
+    /**
+     * Creates a simple stat with the specified kind.
+     *
+     * @param kind the kind
+     * @return the stat
+     */
     static Stat simple(String kind) {
         return simple(kind, null);
     }

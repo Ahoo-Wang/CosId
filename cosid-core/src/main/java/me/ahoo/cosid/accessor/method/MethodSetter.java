@@ -21,18 +21,28 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
- * Method Setter.
+ * ID setter that accesses via setter method.
  *
  * @author ahoo wang
  */
 public class MethodSetter implements CosIdSetter {
     private final Method setter;
 
+    /**
+     * Creates a setter for the specified method.
+     *
+     * @param setter the setter method
+     */
     public MethodSetter(Method setter) {
         CosIdAccessor.ensureAccessible(setter);
         this.setter = setter;
     }
 
+    /**
+     * Gets the setter method.
+     *
+     * @return the setter method
+     */
     public Method getSetter() {
         return setter;
     }

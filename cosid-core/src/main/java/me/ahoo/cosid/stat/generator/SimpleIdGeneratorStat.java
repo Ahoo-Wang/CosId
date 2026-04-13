@@ -18,6 +18,11 @@ import me.ahoo.cosid.stat.Stat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * Simple ID generator stat implementation.
+ *
+ * @author ahoo wang
+ */
 @AllArgsConstructor
 @Data
 public final class SimpleIdGeneratorStat implements IdGeneratorStat {

@@ -26,7 +26,11 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Interval Timeline.
+ * Timeline-based interval sharding algorithm.
+ *
+ * <p>Distributes IDs across time-based intervals, where each interval
+ * maps to a specific node. The intervals are calculated based on a
+ * configured step size (e.g., daily, monthly).
  *
  * <p><img src="../doc-files/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"></p>
  *
@@ -43,6 +47,14 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
     private final DateTimeFormatter suffixFormatter;
     private final ExactCollection<String> effectiveNodes;
 
+    /**
+     * Creates an IntervalTimeline sharding algorithm.
+     *
+     * @param logicNamePrefix the prefix for node names
+     * @param effectiveInterval the effective time range
+     * @param step the interval step configuration
+     * @param suffixFormatter formatter for interval suffixes
+     */
     public IntervalTimeline(String logicNamePrefix, Range<LocalDateTime> effectiveInterval, IntervalStep step, DateTimeFormatter suffixFormatter) {
         this.effectiveInterval = effectiveInterval;
         this.step = step;
@@ -73,14 +85,30 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
         return effectiveNodes;
     }
 
+    /**
+     * Gets the number of intervals.
+     *
+     * @return the number of intervals
+     */
     public int size() {
         return effectiveIntervals.length;
     }
 
+    /**
+     * Checks if the given time is within the effective interval.
+     *
+     * @param time the time to check
+     * @return true if within effective interval
+     */
     public boolean contains(LocalDateTime time) {
         return effectiveInterval.contains(time);
     }
 
+    /**
+     * Gets the start interval.
+     *
+     * @return the start interval
+     */
     public Interval getStartInterval() {
         return startInterval;
     }
@@ -156,20 +184,39 @@ public class IntervalTimeline implements Sharding<LocalDateTime> {
         return nodes;
     }
 
+    /**
+     * Represents a time interval with an associated node name.
+     */
     public static class Interval {
 
         private final LocalDateTime lower;
         private final String node;
 
+        /**
+         * Creates an interval.
+         *
+         * @param lower the lower bound of the interval
+         * @param node the associated node name
+         */
         public Interval(LocalDateTime lower, String node) {
             this.lower = lower;
             this.node = node;
         }
 
+        /**
+         * Gets the lower bound.
+         *
+         * @return the lower bound
+         */
         public LocalDateTime getLower() {
             return lower;
         }
 
+        /**
+         * Gets the node name.
+         *
+         * @return the node name
+         */
         public String getNode() {
             return node;
         }

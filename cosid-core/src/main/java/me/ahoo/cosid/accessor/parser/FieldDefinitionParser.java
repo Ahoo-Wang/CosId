@@ -19,11 +19,18 @@ import java.lang.reflect.Field;
 import java.util.List;
 
 /**
- * Field IdDefinition Parser.
+ * Parser for creating {@link IdDefinition} from fields.
  *
  * @author ahoo wang
  */
 @FunctionalInterface
 public interface FieldDefinitionParser {
+    /**
+     * Parses a field to create its ID definition.
+     *
+     * @param lookupClassList list of classes in the hierarchy
+     * @param field the field to parse
+     * @return the ID definition or null
+     */
     IdDefinition parse(List<Class<?>> lookupClassList, Field field);
 }

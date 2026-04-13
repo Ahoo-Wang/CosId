@@ -13,7 +13,15 @@
 
 package me.ahoo.cosid.stat;
 
+/**
+ * Interface for objects that can provide statistical information.
+ */
 @FunctionalInterface
 public interface Statistical {
+    /**
+     * Gets statistical information.
+     *
+     * @return the stat
+     */
     Stat stat();
 }

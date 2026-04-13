@@ -22,7 +22,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
 /**
- * Default Prefetch Worker.
+ * Default prefetch worker implementation.
+ *
+ * <p>Runs a background thread that periodically executes affinity jobs
+ * to prefetch ID segments before they are exhausted.
  *
  * @author ahoo wang
  */
@@ -34,6 +37,11 @@ public class DefaultPrefetchWorker extends Thread implements PrefetchWorker {
     private final Duration prefetchPeriod;
     private final CopyOnWriteArraySet<AffinityJob> affinityJobs = new CopyOnWriteArraySet<>();
 
+    /**
+     * Creates a worker with specified prefetch period.
+     *
+     * @param prefetchPeriod the period between prefetch runs
+     */
     public DefaultPrefetchWorker(Duration prefetchPeriod) {
         super(Strings.lenientFormat("DefaultPrefetchWorker-" + THREAD_COUNTER.incrementAndGet()));
         this.prefetchPeriod = prefetchPeriod;

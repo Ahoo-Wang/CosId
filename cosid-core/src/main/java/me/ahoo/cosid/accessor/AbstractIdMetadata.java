@@ -18,7 +18,10 @@ import me.ahoo.cosid.provider.LazyIdGenerator;
 
 
 /**
- * Abstract {@link IdMetadata}.
+ * Abstract base implementation of {@link IdMetadata}.
+ *
+ * <p>Provides common functionality for ID metadata implementations,
+ * including lazy generator initialization.
  *
  * @author ahoo wang
  */
@@ -27,6 +30,11 @@ public abstract class AbstractIdMetadata implements IdMetadata {
     private final IdDefinition idDefinition;
     private final LazyIdGenerator idGenerator;
 
+    /**
+     * Creates an instance with the given ID definition.
+     *
+     * @param idDefinition the ID definition
+     */
     public AbstractIdMetadata(IdDefinition idDefinition) {
         this.idDefinition = idDefinition;
         this.idGenerator = new LazyIdGenerator(idDefinition.getGeneratorName());

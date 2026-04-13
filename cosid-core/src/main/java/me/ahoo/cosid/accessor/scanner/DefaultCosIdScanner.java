@@ -28,7 +28,10 @@ import java.io.IOException;
 import java.util.Arrays;
 
 /**
- * Default {@link CosIdScanner} implementation.
+ * Default implementation of {@link CosIdScanner}.
+ *
+ * <p>Scans classpath for classes with @CosId annotations
+ * and registers them with the accessor registry.
  *
  * @author ahoo wang
  */
@@ -39,10 +42,24 @@ public class DefaultCosIdScanner implements CosIdScanner {
     private final CosIdAccessorParser cosIdAccessorParser;
     private final CosIdAccessorRegistry cosIdAccessorRegistry;
 
+    /**
+     * Creates a scanner with field definition parser.
+     *
+     * @param basePackages packages to scan
+     * @param fieldDefinitionParser the field parser
+     * @param cosIdAccessorRegistry the registry
+     */
     public DefaultCosIdScanner(String[] basePackages, FieldDefinitionParser fieldDefinitionParser, CosIdAccessorRegistry cosIdAccessorRegistry) {
         this(basePackages, new DefaultAccessorParser(fieldDefinitionParser), cosIdAccessorRegistry);
     }
 
+    /**
+     * Creates a scanner with accessor parser.
+     *
+     * @param basePackages packages to scan
+     * @param cosIdAccessorParser the accessor parser
+     * @param cosIdAccessorRegistry the registry
+     */
     public DefaultCosIdScanner(String[] basePackages, CosIdAccessorParser cosIdAccessorParser, CosIdAccessorRegistry cosIdAccessorRegistry) {
         this.basePackages = basePackages;
         this.cosIdAccessorRegistry = cosIdAccessorRegistry;

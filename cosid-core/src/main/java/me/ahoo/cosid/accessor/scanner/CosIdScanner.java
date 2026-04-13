@@ -14,10 +14,13 @@
 package me.ahoo.cosid.accessor.scanner;
 
 /**
- * Scan the packages and register the qualified classes to {@link me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry}.
+ * Scans packages and registers qualified classes to {@link me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry}.
  *
  * @author ahoo wang
  */
 public interface CosIdScanner {
+    /**
+     * Scans and registers qualified classes.
+     */
     void scan();
 }

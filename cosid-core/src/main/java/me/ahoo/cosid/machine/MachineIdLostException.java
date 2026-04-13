@@ -19,7 +19,10 @@ import com.google.common.base.Strings;
 import org.jspecify.annotations.Nullable;
 
 /**
- * MachineId Lost Exception .
+ * Exception thrown when a machine ID is lost.
+ *
+ * <p>Indicates that a machine ID that was previously allocated
+ * can no longer be found in the distributed store.
  *
  * @author ahoo wang
  */
@@ -27,22 +30,44 @@ public class MachineIdLostException extends CosIdException {
     private final String namespace;
     private final InstanceId instanceId;
     private final MachineState machineState;
-    
+
+    /**
+     * Creates a new exception.
+     *
+     * @param namespace the namespace
+     * @param instanceId the instance ID
+     * @param machineState the machine state (may be null)
+     */
     public MachineIdLostException(String namespace, InstanceId instanceId, @Nullable MachineState machineState) {
         super(Strings.lenientFormat("The machine id[%s] bound to the instance[%s]@[%s] has been lost!.", machineState, instanceId, namespace));
         this.namespace = namespace;
         this.instanceId = instanceId;
         this.machineState = machineState;
     }
-    
+
+    /**
+     * Gets the namespace.
+     *
+     * @return the namespace
+     */
     public String getNamespace() {
         return namespace;
     }
-    
+
+    /**
+     * Gets the instance ID.
+     *
+     * @return the instance ID
+     */
     public InstanceId getInstanceId() {
         return instanceId;
     }
-    
+
+    /**
+     * Gets the machine state.
+     *
+     * @return the machine state
+     */
     public MachineState getMachineState() {
         return machineState;
     }

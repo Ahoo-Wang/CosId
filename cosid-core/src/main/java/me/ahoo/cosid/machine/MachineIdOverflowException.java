@@ -18,7 +18,10 @@ import me.ahoo.cosid.CosIdException;
 import com.google.common.base.Strings;
 
 /**
- * MachineId Overflow Exception.
+ * Exception thrown when machine ID cannot be allocated.
+ *
+ * <p>Indicates that all available machine IDs have been allocated
+ * and no more can be distributed.
  *
  * @author ahoo wang
  */
@@ -26,16 +29,32 @@ public class MachineIdOverflowException extends CosIdException {
     private final int totalMachineIds;
     private final InstanceId instanceId;
 
+    /**
+     * Creates a new exception.
+     *
+     * @param totalMachineIds the total number of available machine IDs
+     * @param instanceId     the instance that failed to get an ID
+     */
     public MachineIdOverflowException(int totalMachineIds, InstanceId instanceId) {
         super(Strings.lenientFormat("InstanceId:[%s] - distribution failed - totalMachineIds:[%s]", instanceId, totalMachineIds));
         this.totalMachineIds = totalMachineIds;
         this.instanceId = instanceId;
     }
 
+    /**
+     * Gets the total number of machine IDs.
+     *
+     * @return the total machine IDs
+     */
     public int getTotalMachineIds() {
         return totalMachineIds;
     }
 
+    /**
+     * Gets the instance ID.
+     *
+     * @return the instance ID
+     */
     public InstanceId getInstanceId() {
         return instanceId;
     }

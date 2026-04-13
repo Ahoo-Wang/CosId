@@ -20,13 +20,18 @@ import me.ahoo.cosid.accessor.CosIdGetter;
 import java.lang.reflect.Field;
 
 /**
- * Field Getter.
+ * ID getter that accesses field directly.
  *
  * @author ahoo wang
  */
 public class FieldGetter implements CosIdGetter {
     private final Field idField;
 
+    /**
+     * Creates a getter for the specified field.
+     *
+     * @param idField the field to access
+     */
     public FieldGetter(Field idField) {
         CosIdAccessor.ensureAccessible(idField);
         this.idField = idField;

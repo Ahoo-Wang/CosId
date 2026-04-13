@@ -23,8 +23,12 @@ import org.jspecify.annotations.NonNull;
 import java.util.Collection;
 
 /**
- * Cached Sharding.
+ * Caching wrapper for sharding algorithms.
  *
+ * <p>Caches range sharding results to reduce computation overhead
+ * for frequently accessed ranges.
+ *
+ * @param <T> the type of comparable sharding value
  * @author ahoo wang
  */
 @Beta
@@ -33,6 +37,11 @@ public class CachedSharding<T extends Comparable<?>> implements Sharding<T> {
     private final Sharding<T> actual;
     private final LoadingCache<Range<T>, Collection<String>> shardingCache;
 
+    /**
+     * Creates a cached wrapper around the specified sharding algorithm.
+     *
+     * @param actual the underlying sharding algorithm
+     */
     public CachedSharding(Sharding<T> actual) {
         this.actual = actual;
         shardingCache = CacheBuilder

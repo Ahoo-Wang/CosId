@@ -13,7 +13,22 @@
 
 package me.ahoo.cosid.segment.grouped;
 
+/**
+ * Interface for objects that can be grouped for sharding purposes.
+ *
+ * <p>Implementations return a {@link GroupedKey} that represents the sharding
+ * key for this object. This is used by segmented ID generators to organize
+ * IDs into logical groups.
+ */
 public interface Grouped {
+    /**
+     * Gets the grouping key for this object.
+     *
+     * <p>Default implementation returns {@link GroupedKey#NEVER}, indicating
+     * this object should not be grouped.
+     *
+     * @return the grouping key
+     */
     default GroupedKey group() {
         return GroupedKey.NEVER;
     }

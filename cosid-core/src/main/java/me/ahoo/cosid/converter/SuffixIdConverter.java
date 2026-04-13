@@ -22,7 +22,7 @@ import com.google.common.base.Preconditions;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Suffix IdConverter .
+ * Converter that appends a fixed suffix to string IDs.
  *
  * @author ahoo wang
  */
@@ -30,6 +30,12 @@ public class SuffixIdConverter implements IdConverter, Decorator<IdConverter> {
     private final String suffix;
     private final IdConverter actual;
 
+    /**
+     * Creates a suffix converter.
+     *
+     * @param suffix the suffix to append
+     * @param actual the underlying converter
+     */
     public SuffixIdConverter(String suffix, IdConverter actual) {
         Preconditions.checkNotNull(suffix, "suffix can not be null!");
         this.suffix = suffix;
@@ -41,6 +47,11 @@ public class SuffixIdConverter implements IdConverter, Decorator<IdConverter> {
         return actual;
     }
 
+    /**
+     * Gets the suffix.
+     *
+     * @return the suffix
+     */
     public String getSuffix() {
         return suffix;
     }

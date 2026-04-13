@@ -19,39 +19,67 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 /**
- * Interval Step.
+ * Represents a time interval step for sharding operations.
+ *
+ * <p>Defines the granularity and size of time-based sharding intervals.
+ * Used for interval sharding algorithms in ShardingSphere integration.
  *
  * @author ahoo wang
  */
 @Immutable
 public class IntervalStep {
+    /**
+     * Default amount of 1.
+     */
     public static final int DEFAULT_AMOUNT = 1;
-    
+
     private final ChronoUnit unit;
     private final int amount;
-    
+
+    /**
+     * Creates an interval step.
+     *
+     * @param unit   the time unit (years, months, days, etc.)
+     * @param amount the number of units per step
+     */
     public IntervalStep(ChronoUnit unit, int amount) {
         this.unit = unit;
         this.amount = amount;
     }
-    
+
+    /**
+     * Gets the time unit.
+     *
+     * @return the unit
+     */
     public ChronoUnit getUnit() {
         return unit;
     }
-    
+
+    /**
+     * Gets the amount.
+     *
+     * @return the amount
+     */
     public int getAmount() {
         return amount;
     }
-    
+
+    /**
+     * Calculates the next time by adding the interval.
+     *
+     * @param previous the previous time
+     * @return the next time
+     */
     public LocalDateTime next(LocalDateTime previous) {
         return previous.plus(amount, unit);
     }
-    
+
     /**
-     * 按照 {@link #unit} 保留单位时间精度.
+     * Truncates time to the precision of the unit.
      *
-     * @param time time
-     * @return Unit precision LocalDateTime
+     * @param time the time to truncate
+     * @return time truncated to unit precision
      */
     public LocalDateTime floorUnit(LocalDateTime time) {
         switch (unit) {
@@ -77,23 +105,35 @@ public class IntervalStep {
                 throw new IllegalStateException("Unexpected value: " + unit);
         }
     }
-    
+
     /**
-     * 计算单位偏移量.
-     * Start with 0
+     * Calculates the offset from start to time in unit increments.
      *
-     * @param start 最小值
-     * @param time time
-     * @return offset
+     * @param start the start time
+     * @param time  the target time
+     * @return the offset in units
      */
     public int offsetUnit(LocalDateTime start, LocalDateTime time) {
         return (int) (start.until(time, unit) / amount);
     }
-    
+
+    /**
+     * Creates an interval step with default amount of 1.
+     *
+     * @param unit the time unit
+     * @return the interval step
+     */
     public static IntervalStep of(ChronoUnit unit) {
         return new IntervalStep(unit, DEFAULT_AMOUNT);
     }
-    
+
+    /**
+     * Creates an interval step with custom amount.
+     *
+     * @param unit   the time unit
+     * @param amount the number of units
+     * @return the interval step
+     */
     public static IntervalStep of(ChronoUnit unit, int amount) {
         return new IntervalStep(unit, amount);
     }

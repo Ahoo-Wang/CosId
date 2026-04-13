@@ -17,28 +17,47 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 
 /**
- * NamespacedInstanceId .
+ * Combines namespace with instance ID for unique identification.
+ *
+ * <p>Used to ensure machine IDs are unique across different
+ * namespaces/business domains.
  *
  * @author ahoo wang
  */
 public class NamespacedInstanceId {
     private final String namespace;
-    
+
     private final InstanceId instanceId;
-    
+
+    /**
+     * Creates a new namespaced instance ID.
+     *
+     * @param namespace  the namespace
+     * @param instanceId the instance ID
+     */
     public NamespacedInstanceId(String namespace, InstanceId instanceId) {
         this.namespace = namespace;
         this.instanceId = instanceId;
     }
-    
+
+    /**
+     * Gets the namespace.
+     *
+     * @return the namespace
+     */
     public String getNamespace() {
         return namespace;
     }
-    
+
+    /**
+     * Gets the instance ID.
+     *
+     * @return the instance ID
+     */
     public InstanceId getInstanceId() {
         return instanceId;
     }
-    
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -50,12 +69,12 @@ public class NamespacedInstanceId {
         NamespacedInstanceId that = (NamespacedInstanceId) o;
         return Objects.equal(getNamespace(), that.getNamespace()) && Objects.equal(getInstanceId(), that.getInstanceId());
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hashCode(getNamespace(), getInstanceId());
     }
-    
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)

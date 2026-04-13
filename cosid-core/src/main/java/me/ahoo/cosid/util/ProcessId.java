@@ -18,37 +18,48 @@ import com.google.errorprone.annotations.Immutable;
 import java.lang.management.ManagementFactory;
 
 /**
- * get current process id .
+ * Utility for getting current process information.
+ *
+ * <p>Provides access to the current process ID and process name,
+ * useful for machine identification in distributed ID generation.
  *
  * @author ahoo wang
  */
 @Immutable
 public enum ProcessId {
+    /**
+     * Singleton instance for current process.
+     */
     CURRENT;
-    
+
     private final int processId;
-    
+
     ProcessId() {
         this.processId = getCurrentProcessId();
     }
-    
+
+    /**
+     * Gets the process ID.
+     *
+     * @return the process ID
+     */
     public int getProcessId() {
         return processId;
     }
-    
+
     /**
-     * get current process name .
+     * Gets the current process name.
      *
-     * @return process name
+     * @return process name (typically in format pid@hostname)
      */
     public static String getCurrentProcessName() {
         return ManagementFactory.getRuntimeMXBean().getName();
     }
-    
+
     /**
-     * get current process id .
+     * Gets the current process ID.
      *
-     * @return process id
+     * @return the process ID extracted from process name
      */
     public static int getCurrentProcessId() {
         String processName = getCurrentProcessName();

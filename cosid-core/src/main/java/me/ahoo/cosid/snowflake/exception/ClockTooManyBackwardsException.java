@@ -16,7 +16,10 @@ package me.ahoo.cosid.snowflake.exception;
 import me.ahoo.cosid.CosIdException;
 
 /**
- * Clock Too Many Backwards Exception.
+ * Exception thrown when clock backwards exceeds threshold.
+ *
+ * <p>Indicates that the system clock has moved backwards by more than
+ * the configured broken threshold, and the generator cannot recover.
  *
  * @author ahoo wang
  */
@@ -26,6 +29,13 @@ public class ClockTooManyBackwardsException extends CosIdException {
     private final long currentTimestamp;
     private final long brokenThreshold;
 
+    /**
+     * Creates a new exception.
+     *
+     * @param lastTimestamp    the last generated timestamp
+     * @param currentTimestamp the current system timestamp
+     * @param brokenThreshold the configured broken threshold
+     */
     public ClockTooManyBackwardsException(long lastTimestamp, long currentTimestamp, long brokenThreshold) {
         super(String.format("Clock moved backwards too many.  brokenThreshold:[%s] | lastTimestamp:[%s] | currentTimestamp:[%s]", brokenThreshold, lastTimestamp, currentTimestamp));
         this.lastTimestamp = lastTimestamp;
@@ -33,14 +43,29 @@ public class ClockTooManyBackwardsException extends CosIdException {
         this.brokenThreshold = brokenThreshold;
     }
 
+    /**
+     * Gets the last timestamp.
+     *
+     * @return the last timestamp
+     */
     public long getLastTimestamp() {
         return lastTimestamp;
     }
 
+    /**
+     * Gets the current timestamp.
+     *
+     * @return the current timestamp
+     */
     public long getCurrentTimestamp() {
         return currentTimestamp;
     }
 
+    /**
+     * Gets the broken threshold.
+     *
+     * @return the broken threshold
+     */
     public long getBrokenThreshold() {
         return brokenThreshold;
     }

@@ -28,12 +28,18 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 
 /**
- * Second SnowflakeId State Parser.
+ * Parser for second-based SnowflakeId state.
+ *
+ * <p>Handles conversion between second SnowflakeIds and their string
+ * representations using format: {@code yyyyMMddHHmmss-machineId-sequence}.
  *
  * @author ahoo wang
  */
 public class SecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
 
+    /**
+     * DateTimeFormatter for timestamps: {@code yyyyMMddHHmmss}.
+     */
     public static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
             .appendValue(YEAR, 4)
             .appendValue(MONTH_OF_YEAR, 2)
@@ -43,10 +49,28 @@ public class SecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
             .appendValue(SECOND_OF_MINUTE, 2)
             .toFormatter();
 
+    /**
+     * Creates a parser with default zone and no padding.
+     *
+     * @param epoch        epoch timestamp
+     * @param timestampBit bits for timestamp
+     * @param machineBit  bits for machine ID
+     * @param sequenceBit bits for sequence
+     */
     public SecondSnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit) {
         this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault(), false);
     }
 
+    /**
+     * Creates a parser with custom zone and padding.
+     *
+     * @param epoch        epoch timestamp
+     * @param timestampBit bits for timestamp
+     * @param machineBit  bits for machine ID
+     * @param sequenceBit bits for sequence
+     * @param zoneId      time zone
+     * @param padStart    whether to pad
+     */
     public SecondSnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId, boolean padStart) {
         super(epoch, timestampBit, machineBit, sequenceBit, zoneId, padStart);
     }

@@ -16,6 +16,11 @@ package me.ahoo.cosid.stat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * Simple stat implementation wrapping another stat.
+ *
+ * @author ahoo wang
+ */
 @AllArgsConstructor
 @Data
 public class SimpleStat implements Stat {

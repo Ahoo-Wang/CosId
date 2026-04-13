@@ -18,6 +18,11 @@ import me.ahoo.cosid.stat.Stat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * Radix converter stat with radix configuration.
+ *
+ * @author ahoo wang
+ */
 @AllArgsConstructor
 @Data
 public final class RadixConverterStat implements Stat {

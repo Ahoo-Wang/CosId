@@ -19,18 +19,25 @@ import java.lang.reflect.Field;
 import java.util.List;
 
 /**
- * Composite {@link FieldDefinitionParser}.
+ * Composite parser that tries multiple parsers in sequence.
+ *
+ * <p>Tries each parser in order until one returns a non-NOT_FOUND result.
  *
  * @see FieldDefinitionParser
  * @see NamedDefinitionParser
  */
 public class CompositeFieldDefinitionParser implements FieldDefinitionParser {
     private final List<FieldDefinitionParser> fieldDefinitionParsers;
-    
+
+    /**
+     * Creates a composite parser with the specified parsers.
+     *
+     * @param fieldDefinitionParsers the list of parsers to try
+     */
     public CompositeFieldDefinitionParser(List<FieldDefinitionParser> fieldDefinitionParsers) {
         this.fieldDefinitionParsers = fieldDefinitionParsers;
     }
-    
+
     @Override
     public IdDefinition parse(List<Class<?>> lookupClassList, Field field) {
         for (FieldDefinitionParser fieldDefinitionParser : fieldDefinitionParsers) {

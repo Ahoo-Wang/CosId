@@ -19,15 +19,28 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import org.jspecify.annotations.NonNull;
 
+/**
+ * Factory for creating grouped ID segment distributors.
+ *
+ * <p>Wraps an existing factory with grouping support.
+ *
+ * @author ahoo wang
+ */
 public class GroupedIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     private final GroupBySupplier groupBySupplier;
     private final IdSegmentDistributorFactory actual;
-    
+
+    /**
+     * Creates a factory with grouping support.
+     *
+     * @param groupBySupplier the group supplier
+     * @param actual the underlying factory
+     */
     public GroupedIdSegmentDistributorFactory(GroupBySupplier groupBySupplier, IdSegmentDistributorFactory actual) {
         this.groupBySupplier = groupBySupplier;
         this.actual = actual;
     }
-    
+
     @Override
     public @NonNull IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
         return new DefaultGroupedIdSegmentDistributor(groupBySupplier, definition, actual);

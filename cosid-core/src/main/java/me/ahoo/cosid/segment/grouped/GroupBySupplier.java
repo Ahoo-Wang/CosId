@@ -15,6 +15,9 @@ package me.ahoo.cosid.segment.grouped;
 
 import java.util.function.Supplier;
 
+/**
+ * Supplier of {@link GroupedKey} for grouping related ID segments.
+ */
 public interface GroupBySupplier extends Supplier<GroupedKey> {
 }
 

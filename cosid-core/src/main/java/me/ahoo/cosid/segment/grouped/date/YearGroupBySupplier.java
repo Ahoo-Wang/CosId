@@ -20,12 +20,27 @@ import java.time.LocalTime;
 import java.time.Year;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Year-based group key supplier.
+ *
+ * @author ahoo wang
+ */
 public class YearGroupBySupplier extends AbstractDateGroupBySupplier<Year> {
 
+    /**
+     * Creates a supplier with the specified formatter.
+     *
+     * @param formatter the date formatter
+     */
     public YearGroupBySupplier(DateTimeFormatter formatter) {
         super(formatter);
     }
 
+    /**
+     * Creates a supplier with the specified pattern.
+     *
+     * @param pattern the date format pattern
+     */
     public YearGroupBySupplier(String pattern) {
         this(DateTimeFormatter.ofPattern(pattern));
     }

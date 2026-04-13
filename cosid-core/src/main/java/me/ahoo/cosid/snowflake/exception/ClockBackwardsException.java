@@ -16,7 +16,10 @@ package me.ahoo.cosid.snowflake.exception;
 import me.ahoo.cosid.CosIdException;
 
 /**
- * Clock Backwards Exception.
+ * Exception thrown when system clock moves backwards.
+ *
+ * <p>Indicates that the current system time is less than the last timestamp
+ * used for ID generation, which could cause ID duplication.
  *
  * @author ahoo wang
  */
@@ -24,16 +27,32 @@ public class ClockBackwardsException extends CosIdException {
     private final long lastTimestamp;
     private final long currentTimestamp;
 
+    /**
+     * Creates a new exception.
+     *
+     * @param lastTimestamp     the last generated timestamp
+     * @param currentTimestamp the current system timestamp
+     */
     public ClockBackwardsException(long lastTimestamp, long currentTimestamp) {
         super(String.format("Clock moved backwards.  Refusing to generate id. lastTimestamp:[%s] | currentTimestamp:[%s]", lastTimestamp, currentTimestamp));
         this.lastTimestamp = lastTimestamp;
         this.currentTimestamp = currentTimestamp;
     }
 
+    /**
+     * Gets the last timestamp.
+     *
+     * @return the last timestamp
+     */
     public long getLastTimestamp() {
         return lastTimestamp;
     }
 
+    /**
+     * Gets the current timestamp.
+     *
+     * @return the current timestamp
+     */
     public long getCurrentTimestamp() {
         return currentTimestamp;
     }

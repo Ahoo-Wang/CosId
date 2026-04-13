@@ -23,12 +23,27 @@ import org.jspecify.annotations.NonNull;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * ID converter that prepends a date prefix to the ID string.
+ *
+ * <p>This converter wraps another IdConverter and adds a date-based prefix,
+ * useful for time-based partitioning or bucketing of IDs.
+ *
+ * @author ahoo wang
+ */
 public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter> {
     private final String pattern;
     private final DateTimeFormatter formatter;
     private final String delimiter;
     private final IdConverter actual;
 
+    /**
+     * Creates a new DatePrefixIdConverter.
+     *
+     * @param pattern  date format pattern (see {@link DateTimeFormatter})
+     * @param delimiter delimiter between prefix and ID
+     * @param actual   the underlying converter to wrap
+     */
     public DatePrefixIdConverter(String pattern, String delimiter, IdConverter actual) {
         this.pattern = pattern;
         this.formatter = DateTimeFormatter.ofPattern(pattern);

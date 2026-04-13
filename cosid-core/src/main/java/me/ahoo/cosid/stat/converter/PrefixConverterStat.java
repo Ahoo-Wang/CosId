@@ -18,6 +18,11 @@ import me.ahoo.cosid.stat.Stat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * Prefix converter stat with prefix configuration.
+ *
+ * @author ahoo wang
+ */
 @AllArgsConstructor
 @Data
 public final class PrefixConverterStat implements Stat {

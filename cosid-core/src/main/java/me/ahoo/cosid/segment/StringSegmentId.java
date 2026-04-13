@@ -18,18 +18,27 @@ import me.ahoo.cosid.StringIdGeneratorDecorator;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 /**
- * String SegmentId.
+ * String-based SegmentId wrapper.
+ *
+ * <p>Wraps a SegmentId with a string converter for generating
+ * string-based IDs while maintaining segment functionality.
  *
  * @author ahoo wang
  */
 public class StringSegmentId extends StringIdGeneratorDecorator implements SegmentId {
     private final SegmentId actualSegmentId;
-    
+
+    /**
+     * Creates a new StringSegmentId.
+     *
+     * @param actual        the underlying segment ID
+     * @param idConverter the converter for string generation
+     */
     public StringSegmentId(SegmentId actual, IdConverter idConverter) {
         super(actual, idConverter);
         this.actualSegmentId = actual;
     }
-    
+
     @Override
     public IdSegment current() {
         return actualSegmentId.current();

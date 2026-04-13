@@ -16,18 +16,28 @@ package me.ahoo.cosid.provider;
 import me.ahoo.cosid.CosIdException;
 
 /**
- * Not Found IdGenerator Exception.
+ * Exception thrown when an ID generator is not found.
  *
  * @author ahoo wang
  */
 public class NotFoundIdGeneratorException extends CosIdException {
     private final String generatorName;
 
+    /**
+     * Creates a new exception.
+     *
+     * @param generatorName the name of the generator that was not found
+     */
     public NotFoundIdGeneratorException(String generatorName) {
         super(String.format("IdGenerator name:[%s] not found.", generatorName));
         this.generatorName = generatorName;
     }
 
+    /**
+     * Gets the generator name that was not found.
+     *
+     * @return the generator name
+     */
     public String getGeneratorName() {
         return generatorName;
     }

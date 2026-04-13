@@ -19,7 +19,9 @@ import java.lang.reflect.Field;
 import java.util.List;
 
 /**
- * Named {@link FieldDefinitionParser} implementation.
+ * Parses fields by name to create {@link IdDefinition}.
+ *
+ * <p>Creates an ID definition for fields matching the specified name.
  *
  * @author ahoo wang
  */
@@ -27,6 +29,11 @@ public class NamedDefinitionParser implements FieldDefinitionParser {
 
     private final String idFieldName;
 
+    /**
+     * Creates a parser for the specified field name.
+     *
+     * @param idFieldName the field name to match
+     */
     public NamedDefinitionParser(String idFieldName) {
         this.idFieldName = idFieldName;
     }

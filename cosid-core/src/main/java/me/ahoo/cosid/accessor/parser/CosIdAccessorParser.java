@@ -16,12 +16,18 @@ package me.ahoo.cosid.accessor.parser;
 import me.ahoo.cosid.accessor.CosIdAccessor;
 
 /**
- * CosIdAccessor Parser.
+ * Parser for creating {@link CosIdAccessor} from classes.
  *
  * @author ahoo wang
  */
 public interface CosIdAccessorParser {
 
+    /**
+     * Parses a class to create its accessor.
+     *
+     * @param clazz the class to parse
+     * @return the accessor
+     */
     CosIdAccessor parse(Class<?> clazz);
 
 }

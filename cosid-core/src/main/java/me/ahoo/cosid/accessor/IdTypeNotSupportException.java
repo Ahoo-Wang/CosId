@@ -20,7 +20,9 @@ import com.google.common.base.Strings;
 import java.lang.reflect.Field;
 
 /**
- * ID Type Not Support Exception.
+ * Exception thrown when an ID field type is not supported.
+ *
+ * <p>CosId only supports Long, Integer, and String ID types.
  *
  * @author ahoo wang
  */
@@ -28,11 +30,21 @@ public class IdTypeNotSupportException extends CosIdException {
 
     private final Field idField;
 
+    /**
+     * Creates a new exception.
+     *
+     * @param idField the unsupported ID field
+     */
     public IdTypeNotSupportException(Field idField) {
         super(Strings.lenientFormat("ID type only supports Long/long/Integer/int/String, idField:[%s]!", idField));
         this.idField = idField;
     }
 
+    /**
+     * Gets the unsupported ID field.
+     *
+     * @return the field
+     */
     public Field getIdField() {
         return idField;
     }

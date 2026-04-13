@@ -18,36 +18,57 @@ import com.google.common.base.Objects;
 import com.google.errorprone.annotations.Immutable;
 
 /**
- * InstanceId.
+ * Represents a specific deployment instance of a service.
+ *
+ * <p>An InstanceId identifies a particular running instance of a service, which may
+ * be part of a deployment that provides stable machine IDs (stable=true) or a
+ * dynamic instance where machine IDs may change (stable=false).
  *
  * @author ahoo wang
  * @see MachineId
  */
 @Immutable
 public class InstanceId {
+    /**
+     * Sentinel value representing no instance.
+     */
     public static final InstanceId NONE = new InstanceId("none", false);
-    
+
     private final String instanceId;
     private final boolean stable;
-    
+
+    /**
+     * Creates a new InstanceId.
+     *
+     * @param instanceId the instance identifier string
+     * @param stable    whether this instance has a stable identity
+     */
     public InstanceId(String instanceId, boolean stable) {
         this.instanceId = instanceId;
         this.stable = stable;
     }
-    
+
     /**
-     * 稳定的的实例拥有稳定的机器号.
+     * Checks if this instance has a stable identity.
      *
-     * @return Is the instance deployment status stable?
+     * <p>Stable instances (stable=true) are deployed with stable identities (e.g., Kubernetes StatefulSet)
+     * and can rely on having consistent machine IDs across restarts.
+     *
+     * @return true if the instance has a stable identity
      */
     public boolean isStable() {
         return stable;
     }
-    
+
+    /**
+     * Gets the instance identifier string.
+     *
+     * @return the instance ID
+     */
     public String getInstanceId() {
         return instanceId;
     }
-    
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
@@ -55,16 +76,31 @@ public class InstanceId {
             .add("stable", stable)
             .toString();
     }
-    
+
+    /**
+     * Creates an InstanceId from host and port.
+     *
+     * @param host   the host address
+     * @param port   the port number
+     * @param stable whether this instance has a stable identity
+     * @return a new InstanceId
+     */
     public static InstanceId of(String host, int port, boolean stable) {
         String instanceIdStr = String.format("%s:%s", host, port);
         return of(instanceIdStr, stable);
     }
-    
+
+    /**
+     * Creates an InstanceId from an instance ID string.
+     *
+     * @param instanceId the instance identifier
+     * @param stable    whether this instance has a stable identity
+     * @return a new InstanceId
+     */
     public static InstanceId of(String instanceId, boolean stable) {
         return new InstanceId(instanceId, stable);
     }
-    
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -76,7 +112,7 @@ public class InstanceId {
         InstanceId that = (InstanceId) o;
         return stable == that.stable && Objects.equal(instanceId, that.instanceId);
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hashCode(instanceId, stable);

@@ -16,32 +16,63 @@ package me.ahoo.cosid.snowflake;
 import me.ahoo.cosid.CosId;
 
 /**
- * Safe JavaScript Number ID.
- * Number.MAX_SAFE_INTEGER = 9007199254740991
- * Math.log2(Number.MAX_SAFE_INTEGER) = 53
+ * Safe JavaScript Snowflake ID generators.
+ *
+ * <p>JavaScript Numbers can only safely represent integers up to 2^53 - 1
+ * (Number.MAX_SAFE_INTEGER = 9007199254740991). This class provides factory
+ * methods for creating SnowflakeId instances that stay within this limit
+ * by reducing total bits to 53 or fewer.
  *
  * @author ahoo wang
  **/
 public final class SafeJavaScriptSnowflakeId {
-    
+
+    /**
+     * Maximum safe JavaScript number bit count.
+     */
     public static final int JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT = 53;
+    /**
+     * Maximum safe JavaScript number value.
+     */
     public static final long JAVA_SCRIPT_MAX_SAFE_NUMBER = 9007199254740991L;
-    
+
+    /**
+     * Checks if an ID is safe for JavaScript.
+     *
+     * @param id the ID to check
+     * @return true if less than MAX_SAFE_NUMBER
+     */
     public static boolean isSafeJavaScript(long id) {
         return id < JAVA_SCRIPT_MAX_SAFE_NUMBER;
     }
-    
+
+    /**
+     * Creates a safe millisecond SnowflakeId.
+     *
+     * @param epoch                   epoch timestamp
+     * @param timestampBit           bits for timestamp
+     * @param machineBit            bits for machine ID
+     * @param sequenceBit           bits for sequence
+     * @param machineId              the machine ID
+     * @param sequenceResetThreshold threshold for sequence reset
+     * @return a new MillisecondSnowflakeId
+     */
     public static MillisecondSnowflakeId ofMillisecond(long epoch, int timestampBit, int machineBit, int sequenceBit, int machineId, long sequenceResetThreshold) {
         checkTotalBit(timestampBit, machineBit, sequenceBit);
         return new MillisecondSnowflakeId(epoch, timestampBit, machineBit, sequenceBit, machineId, sequenceResetThreshold);
     }
-    
+
     /**
-     * Max Sequence (9 bits) = ((1&lt;&lt;)*1000) = 512000 (TPS)
-     * Max Machine (3 bits) = 1&lt;&lt;3 = 8
-     * Max Timestamp = 2199023255551 ms ~~ 69.7 years
+     * Creates a safe millisecond SnowflakeId with default safe configuration.
      *
-     * @param machineId 服务实例编号
+     * <p>Default safe configuration:
+     * <ul>
+     *   <li>Timestamp: 41 bits</li>
+     *   <li>Machine: 3 bits</li>
+     *   <li>Sequence: 9 bits</li>
+     * </ul>
+     *
+     * @param machineId the machine ID (max 7)
      * @return MillisecondSnowflakeId
      */
     public static MillisecondSnowflakeId ofMillisecond(int machineId) {
@@ -51,18 +82,34 @@ public final class SafeJavaScriptSnowflakeId {
         checkTotalBit(timestampBit, machineBit, sequenceBit);
         return ofMillisecond(CosId.COSID_EPOCH_SECOND, timestampBit, machineBit, sequenceBit, machineId, SnowflakeId.defaultSequenceResetThreshold(sequenceBit));
     }
-    
+
+    /**
+     * Creates a safe second SnowflakeId.
+     *
+     * @param epoch                   epoch timestamp
+     * @param timestampBit           bits for timestamp
+     * @param machineBit            bits for machine ID
+     * @param sequenceBit           bits for sequence
+     * @param machineId              the machine ID
+     * @param sequenceResetThreshold threshold for sequence reset
+     * @return a new SecondSnowflakeId
+     */
     public static SecondSnowflakeId ofSecond(long epoch, int timestampBit, int machineBit, int sequenceBit, int machineId, long sequenceResetThreshold) {
         checkTotalBit(timestampBit, machineBit, sequenceBit);
         return new SecondSnowflakeId(epoch, timestampBit, machineBit, sequenceBit, machineId, sequenceResetThreshold);
     }
-    
+
     /**
-     * Max Sequence (19 bits) = (1&lt;&lt;19) = 524288 (TPS).
-     * Max Machine (3 bits) = 1&lt;&lt;3 = 8
-     * Max Timestamp = 2147483647 s ~~ 68 years
+     * Creates a safe second SnowflakeId with default safe configuration.
      *
-     * @param machineId 服务实例编号
+     * <p>Default safe configuration:
+     * <ul>
+     *   <li>Timestamp: 31 bits</li>
+     *   <li>Machine: 3 bits</li>
+     *   <li>Sequence: 19 bits</li>
+     * </ul>
+     *
+     * @param machineId the machine ID (max 7)
      * @return SecondSnowflakeId
      */
     public static SecondSnowflakeId ofSecond(int machineId) {
@@ -72,7 +119,7 @@ public final class SafeJavaScriptSnowflakeId {
         checkTotalBit(timestampBit, machineBit, sequenceBit);
         return ofSecond(CosId.COSID_EPOCH_SECOND, timestampBit, machineBit, sequenceBit, machineId, SnowflakeId.defaultSequenceResetThreshold(sequenceBit));
     }
-    
+
     private static void checkTotalBit(int timestampBit, int machineBit, int sequenceBit) {
         if (timestampBit + machineBit + sequenceBit > JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT) {
             throw new IllegalArgumentException(String.format("total bit can't be greater than JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT:[%s].", JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT));

@@ -13,8 +13,18 @@
 
 package me.ahoo.cosid.machine;
 
+/**
+ * Functional interface for providing host address.
+ *
+ * @author ahoo wang
+ */
 @FunctionalInterface
 public interface HostAddressSupplier {
+    /**
+     * Gets the host address.
+     *
+     * @return the host address
+     */
     String getHostAddress();
 }
 

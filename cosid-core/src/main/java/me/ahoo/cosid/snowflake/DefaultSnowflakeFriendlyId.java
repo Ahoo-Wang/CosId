@@ -21,7 +21,10 @@ import org.jspecify.annotations.NonNull;
 import java.time.ZoneId;
 
 /**
- * Default Snowflake FriendlyId.
+ * Default implementation of {@link SnowflakeFriendlyId}.
+ *
+ * <p>Wraps a {@link SnowflakeId} and provides human-readable
+ * string conversion using a {@link SnowflakeIdStateParser}.
  *
  * @author ahoo wang
  */
@@ -29,18 +32,42 @@ public class DefaultSnowflakeFriendlyId extends StringSnowflakeId implements Sno
 
     private final SnowflakeIdStateParser snowflakeIdStateParser;
 
+    /**
+     * Creates an instance with system default zone.
+     *
+     * @param actual the underlying Snowflake ID
+     */
     public DefaultSnowflakeFriendlyId(SnowflakeId actual) {
         this(actual, ZoneId.systemDefault());
     }
 
+    /**
+     * Creates an instance with specified zone.
+     *
+     * @param actual the underlying Snowflake ID
+     * @param zoneId the time zone
+     */
     public DefaultSnowflakeFriendlyId(SnowflakeId actual, ZoneId zoneId) {
         this(actual, SnowflakeIdStateParser.of(actual, zoneId, false));
     }
 
+    /**
+     * Creates an instance with specified parser.
+     *
+     * @param actual the underlying Snowflake ID
+     * @param snowflakeIdStateParser the state parser
+     */
     public DefaultSnowflakeFriendlyId(SnowflakeId actual, SnowflakeIdStateParser snowflakeIdStateParser) {
         this(actual, new SnowflakeFriendlyIdConverter(snowflakeIdStateParser), snowflakeIdStateParser);
     }
 
+    /**
+     * Creates an instance with specified converter and parser.
+     *
+     * @param actual the underlying Snowflake ID
+     * @param converter the ID converter
+     * @param snowflakeIdStateParser the state parser
+     */
     public DefaultSnowflakeFriendlyId(SnowflakeId actual, IdConverter converter, SnowflakeIdStateParser snowflakeIdStateParser) {
         super(actual, converter);
         this.snowflakeIdStateParser = snowflakeIdStateParser;

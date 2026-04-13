@@ -20,29 +20,62 @@ import com.google.errorprone.annotations.Immutable;
 import java.lang.reflect.Field;
 
 /**
- * Id Metadata.
+ * Metadata container for ID field information.
+ *
+ * <p>Provides access to ID definition, generator, and field metadata
+ * for objects annotated with {@code @CosId}.
  *
  * @author ahoo wang
  */
 @Immutable
 public interface IdMetadata {
 
+    /**
+     * Gets the ID definition.
+     *
+     * @return the ID definition
+     */
     IdDefinition getIdDefinition();
 
+    /**
+     * Gets the generator name from the ID definition.
+     *
+     * @return the generator name
+     */
     default String getGeneratorName() {
         return getIdDefinition().getGeneratorName();
     }
 
+    /**
+     * Gets the ID generator.
+     *
+     * @return the ID generator
+     */
     IdGenerator getIdGenerator();
 
+    /**
+     * Gets the ID field from the definition.
+     *
+     * @return the ID field
+     */
     default Field getIdField() {
         return getIdDefinition().getIdField();
     }
 
+    /**
+     * Gets the declaring class of the ID field.
+     *
+     * @return the declaring class
+     */
     default Class<?> getIdDeclaringClass() {
         return getIdField().getDeclaringClass();
     }
 
+    /**
+     * Gets the type of the ID field.
+     *
+     * @return the ID type
+     */
     default Class<?> getIdType() {
         return getIdDefinition().getIdType();
     }

@@ -14,12 +14,20 @@
 package me.ahoo.cosid.accessor;
 
 /**
- * CosId Setter.
+ * Interface for setting the ID value on an object.
+ *
+ * <p>Used by frameworks (MyBatis, etc.) to set the ID on entities.
  *
  * @author ahoo wang
  */
 public interface CosIdSetter {
 
+    /**
+     * Sets the ID value on the target object.
+     *
+     * @param target the object to set ID on
+     * @param id     the ID value to set
+     */
     void setId(Object target, Object id);
 
 }

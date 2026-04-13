@@ -17,7 +17,11 @@ import com.google.common.base.Objects;
 import com.google.errorprone.annotations.Immutable;
 
 /**
- * 逻辑概念的机器号，并不一定跟物理机/虚拟机一一对应，运行进程的唯一性编号(不同业务领域/服务使用 namespace 隔离).
+ * Logical machine identifier for distributed ID generation.
+ *
+ * <p>This represents a logical machine ID that is not necessarily tied to a physical
+ * or virtual machine. It provides uniqueness across different processes/services
+ * which are isolated using namespaces.
  *
  * @author ahoo wang
  * @see InstanceId
@@ -26,10 +30,20 @@ import com.google.errorprone.annotations.Immutable;
 public class MachineId {
     private final int machineId;
 
+    /**
+     * Creates a new MachineId.
+     *
+     * @param machineId the machine ID value
+     */
     public MachineId(int machineId) {
         this.machineId = machineId;
     }
 
+    /**
+     * Gets the machine ID value.
+     *
+     * @return the machine ID
+     */
     public int getMachineId() {
         return machineId;
     }

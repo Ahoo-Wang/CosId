@@ -26,43 +26,52 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Default {@link IdGeneratorProvider} implementation.
  *
+ * <p>Thread-safe registry for managing named ID generator instances
+ * using a {@link ConcurrentHashMap} for concurrent access.
+ *
  * @author ahoo wang
  */
 @ThreadSafe
 public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
-    
+
+    /**
+     * Shared singleton instance.
+     */
     public static final IdGeneratorProvider INSTANCE = new DefaultIdGeneratorProvider();
     private volatile IdGenerator shareIdGenerator;
-    
+
     private final ConcurrentHashMap<String, IdGenerator> nameMapIdGen;
-    
+
+    /**
+     * Creates a new instance with an empty registry.
+     */
     public DefaultIdGeneratorProvider() {
         nameMapIdGen = new ConcurrentHashMap<>();
     }
-    
+
     @Override
     public IdGenerator getShare() {
         return shareIdGenerator;
     }
-    
+
     @Override
     public void setShare(IdGenerator idGenerator) {
         shareIdGenerator = idGenerator;
         nameMapIdGen.put(SHARE, idGenerator);
     }
-    
+
     @Override
     public IdGenerator removeShare() {
         shareIdGenerator = null;
         return nameMapIdGen.remove(SHARE);
     }
-    
+
     @Override
     public Optional<IdGenerator> get(String name) {
         IdGenerator idGen = nameMapIdGen.get(name);
         return Optional.ofNullable(idGen);
     }
-    
+
     @Override
     public IdGenerator remove(String name) {
         if (SHARE.equals(name)) {
@@ -70,7 +79,7 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
         }
         return nameMapIdGen.remove(name);
     }
-    
+
     @Override
     public void set(String name, IdGenerator idGenerator) {
         if (SHARE.equals(name)) {
@@ -79,21 +88,21 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
         }
         nameMapIdGen.put(name, idGenerator);
     }
-    
+
     @Override
     public void clear() {
         shareIdGenerator = null;
         nameMapIdGen.clear();
     }
-    
+
     @Override
     public Set<Map.Entry<String, IdGenerator>> entries() {
         return nameMapIdGen.entrySet();
     }
-    
+
     @Override
     public Collection<IdGenerator> getAll() {
         return nameMapIdGen.values();
     }
-    
+
 }

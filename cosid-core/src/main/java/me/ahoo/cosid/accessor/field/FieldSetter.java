@@ -20,13 +20,18 @@ import me.ahoo.cosid.accessor.CosIdSetter;
 import java.lang.reflect.Field;
 
 /**
- * Field Setter.
+ * ID setter that accesses field directly.
  *
  * @author ahoo wang
  */
 public class FieldSetter implements CosIdSetter {
     private final Field idField;
 
+    /**
+     * Creates a setter for the specified field.
+     *
+     * @param idField the field to access
+     */
     public FieldSetter(Field idField) {
         CosIdAccessor.ensureAccessible(idField);
         this.idField = idField;

@@ -15,7 +15,18 @@ package me.ahoo.cosid.sharding;
 
 import org.jspecify.annotations.NonNull;
 
+/**
+ * Single-value sharding algorithm interface.
+ *
+ * @param <T> the type of comparable sharding value
+ */
 public interface PreciseSharding<T extends Comparable<?>> {
+    /**
+     * Gets the node for a single sharding value.
+     *
+     * @param shardingValue the sharding value
+     * @return the node name
+     */
     @NonNull
     String sharding(T shardingValue);
 }

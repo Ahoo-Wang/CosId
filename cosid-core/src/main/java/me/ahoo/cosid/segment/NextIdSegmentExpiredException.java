@@ -20,7 +20,11 @@ import com.google.common.base.Strings;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Next IdSegment Expired Exception.
+ * Exception thrown when a next ID segment is invalid.
+ *
+ * <p>This exception indicates that the provided next segment has an offset
+ * that is not greater than the current segment's offset, which would cause
+ * ID conflicts or duplication.
  *
  * @author ahoo wang
  */
@@ -29,6 +33,12 @@ public class NextIdSegmentExpiredException extends CosIdException {
     private final IdSegment current;
     private final IdSegment next;
 
+    /**
+     * Creates a new exception.
+     *
+     * @param current the current segment
+     * @param next    the invalid next segment
+     */
     public NextIdSegmentExpiredException(IdSegment current, IdSegment next) {
         super(Strings.lenientFormat("The next IdSegment:[%s] cannot be before the current IdSegment:[%s]-- times:[%s].",
             next,
@@ -39,10 +49,20 @@ public class NextIdSegmentExpiredException extends CosIdException {
         this.next = next;
     }
 
+    /**
+     * Gets the current segment.
+     *
+     * @return the current segment
+     */
     public IdSegment getCurrent() {
         return current;
     }
 
+    /**
+     * Gets the invalid next segment.
+     *
+     * @return the next segment
+     */
     public IdSegment getNext() {
         return next;
     }

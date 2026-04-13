@@ -35,12 +35,27 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.List;
 
+/**
+ * Parser for CosIdState using a human-readable format.
+ *
+ * <p>Converts CosIdState to/from format: {@code yyyyMMddHHmmssSSS-machineId-sequence}
+ * Example: {@code 20210623131730192-1-0}
+ *
+ * @author ahoo wang
+ */
 public class FriendlyIdStateParser implements CosIdIdStateParser {
 
+    /**
+     * Decimal radix for character size calculation.
+     */
     public static final int DECIMAL_RADIX = 10;
     private final ZoneId zoneId;
     private final boolean padStart;
 
+    /**
+     * DateTimeFormatter for parsing/generating timestamp strings.
+     * Format: {@code yyyyMMddHHmmssSSS}
+     */
     public static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
             .appendValue(YEAR, 4)
             .appendValue(MONTH_OF_YEAR, 2)
@@ -54,6 +69,14 @@ public class FriendlyIdStateParser implements CosIdIdStateParser {
     private final int machineCharSize;
     private final int sequenceCharSize;
 
+    /**
+     * Creates a new FriendlyIdStateParser.
+     *
+     * @param zoneId      time zone for timestamp conversion
+     * @param padStart    whether to pad numbers with leading zeros
+     * @param machineBit  number of bits for machine ID
+     * @param sequenceBit number of bits for sequence
+     */
     public FriendlyIdStateParser(ZoneId zoneId, boolean padStart, int machineBit, int sequenceBit) {
         this.zoneId = zoneId;
         this.padStart = padStart;
@@ -74,6 +97,14 @@ public class FriendlyIdStateParser implements CosIdIdStateParser {
         return new CosIdState(timestamp, machineId, sequence);
     }
 
+    /**
+     * Converts an integer to string with optional padding.
+     *
+     * @param padStart whether to pad with leading zeros
+     * @param value    the value to convert
+     * @param charSize the minimum character size
+     * @return the formatted string
+     */
     public static String intAsString(boolean padStart, int value, int charSize) {
         if (padStart) {
             return Strings.padStart(String.valueOf(value), charSize, PAD_CHAR);

@@ -18,6 +18,11 @@ import me.ahoo.cosid.stat.Stat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * ToString converter stat with padding configuration.
+ *
+ * @author ahoo wang
+ */
 @AllArgsConstructor
 @Data
 public final class ToStringConverterStat implements Stat {

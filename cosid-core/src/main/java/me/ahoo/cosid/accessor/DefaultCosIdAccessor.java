@@ -21,6 +21,9 @@ import com.google.common.base.Strings;
 /**
  * Default {@link CosIdAccessor} implementation.
  *
+ * <p>Provides ID get/set operations on entities and ensures IDs are generated
+ * when missing. Supports Long, Integer, and String ID types.
+ *
  * @author ahoo wang
  */
 public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAccessor {
@@ -29,6 +32,13 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
     private final CosIdSetter setter;
     private final EnsureId ensureId;
 
+    /**
+     * Creates a new accessor.
+     *
+     * @param idDefinition the ID definition
+     * @param getter      the getter for extracting ID from entities
+     * @param setter      the setter for setting ID on entities
+     */
     public DefaultCosIdAccessor(IdDefinition idDefinition, CosIdGetter getter, CosIdSetter setter) {
         super(idDefinition);
         this.getter = getter;
@@ -57,10 +67,20 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
         setter.setId(target, id);
     }
 
+    /**
+     * Gets the getter.
+     *
+     * @return the getter
+     */
     public CosIdGetter getGetter() {
         return getter;
     }
 
+    /**
+     * Gets the setter.
+     *
+     * @return the setter
+     */
     public CosIdSetter getSetter() {
         return setter;
     }
@@ -71,6 +91,9 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
         return ensureId.ensureId(target);
     }
 
+    /**
+     * Ensures ID is generated for String ID types.
+     */
     public class EnsureStringId implements EnsureId {
 
         @Override
@@ -85,6 +108,9 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
         }
     }
 
+    /**
+     * Ensures ID is generated for Long ID types.
+     */
     public class EnsureLongId implements EnsureId {
         private static final long MIN_ID = 0;
 
@@ -99,6 +125,9 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
         }
     }
 
+    /**
+     * Ensures ID is generated for Integer ID types.
+     */
     public class EnsureIntegerId implements EnsureId {
         private static final int MIN_ID = 0;
         private final IntegerIdGenerator integerIdGenerator;

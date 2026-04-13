@@ -15,8 +15,16 @@ package me.ahoo.cosid.segment.grouped;
 
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
+/**
+ * Extension of IdSegmentDistributor that supports ID grouping.
+ *
+ * <p>Grouped distributors allow ID segments to be partitioned by a grouping key
+ * (e.g., time-based buckets like "2024-01" for monthly sharding).
+ *
+ * @author ahoo wang
+ */
 public interface GroupedIdSegmentDistributor extends IdSegmentDistributor {
-    
+
     @Override
     default boolean allowReset() {
         return true;

@@ -18,13 +18,22 @@ import me.ahoo.cosid.StringIdGeneratorDecorator;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 /**
- * String SnowflakeId.
+ * String-based SnowflakeId wrapper.
+ *
+ * <p>Wraps a SnowflakeId with a string converter for generating
+ * string-based IDs while maintaining SnowflakeId properties.
  *
  * @author ahoo wang
  */
 public class StringSnowflakeId extends StringIdGeneratorDecorator implements SnowflakeId {
     private final SnowflakeId snowflakeId;
 
+    /**
+     * Creates a new StringSnowflakeId.
+     *
+     * @param actual       the underlying SnowflakeId
+     * @param idConverter the converter for string generation
+     */
     public StringSnowflakeId(SnowflakeId actual, IdConverter idConverter) {
         super(actual, idConverter);
         this.snowflakeId = actual;

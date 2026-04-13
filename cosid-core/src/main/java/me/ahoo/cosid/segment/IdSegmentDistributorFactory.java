@@ -17,12 +17,18 @@ package me.ahoo.cosid.segment;
 import org.jspecify.annotations.NonNull;
 
 /**
- * {@link IdSegmentDistributor} Factory.
+ * Factory interface for creating {@link IdSegmentDistributor} instances.
  *
  * @author ahoo wang
  */
 @FunctionalInterface
 public interface IdSegmentDistributorFactory {
+    /**
+     * Creates an ID segment distributor from a definition.
+     *
+     * @param definition the distributor definition
+     * @return the created distributor
+     */
     @NonNull
     IdSegmentDistributor create(IdSegmentDistributorDefinition definition);
 }

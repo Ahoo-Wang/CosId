@@ -19,7 +19,10 @@ import me.ahoo.cosid.accessor.parser.CosIdAccessorParser;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Default CosIdAccessorRegistry implementation.
+ * Default implementation of {@link CosIdAccessorRegistry}.
+ *
+ * <p>Uses a concurrent hash map for thread-safe registration
+ * and lazy parsing of accessors.
  *
  * @author ahoo wang
  */
@@ -28,6 +31,11 @@ public class DefaultAccessorRegistry implements CosIdAccessorRegistry {
     private final ConcurrentHashMap<Class<?>, CosIdAccessor> classMapAccessor = new ConcurrentHashMap<>();
     private final CosIdAccessorParser accessorParser;
 
+    /**
+     * Creates a registry with the specified parser.
+     *
+     * @param accessorParser the parser for creating accessors
+     */
     public DefaultAccessorRegistry(CosIdAccessorParser accessorParser) {
         this.accessorParser = accessorParser;
     }

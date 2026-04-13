@@ -14,7 +14,10 @@
 package me.ahoo.cosid.segment;
 
 /**
- * IdSegment Distributor Definition.
+ * Definition for an ID segment distributor configuration.
+ *
+ * <p>Holds the configuration parameters needed to allocate ID segments
+ * from a distributor (namespace, name, offset, step).
  *
  * @author ahoo wang
  */
@@ -24,6 +27,14 @@ public class IdSegmentDistributorDefinition {
     private final long offset;
     private final long step;
 
+    /**
+     * Creates a new definition.
+     *
+     * @param namespace the namespace
+     * @param name      the segment name
+     * @param offset    the starting offset
+     * @param step      the step size for segment allocation
+     */
     public IdSegmentDistributorDefinition(String namespace, String name, long offset, long step) {
         this.namespace = namespace;
         this.name = name;
@@ -31,22 +42,47 @@ public class IdSegmentDistributorDefinition {
         this.step = step;
     }
 
+    /**
+     * Gets the namespace.
+     *
+     * @return the namespace
+     */
     public String getNamespace() {
         return namespace;
     }
 
+    /**
+     * Gets the segment name.
+     *
+     * @return the name
+     */
     public String getName() {
         return name;
     }
 
+    /**
+     * Gets the full namespaced name.
+     *
+     * @return namespace.name
+     */
     public String getNamespacedName() {
         return IdSegmentDistributor.getNamespacedName(getNamespace(), getName());
     }
 
+    /**
+     * Gets the starting offset.
+     *
+     * @return the offset
+     */
     public long getOffset() {
         return offset;
     }
 
+    /**
+     * Gets the step size.
+     *
+     * @return the step
+     */
     public long getStep() {
         return step;
     }

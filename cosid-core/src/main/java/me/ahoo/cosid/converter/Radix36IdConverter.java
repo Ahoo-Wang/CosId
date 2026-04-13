@@ -14,25 +14,39 @@
 package me.ahoo.cosid.converter;
 
 /**
- * 36 bit string ID converter like this [0-9][A-Z]{13} .
+ * Radix-36 string ID converter using characters 0-9 and A-Z.
+ *
+ * <p>Encodes long IDs as strings using 36 characters (10 digits + 26 uppercase letters).
+ * Maximum 13 characters needed for full long range.
  *
  * @author ahoo wang
  */
 public final class Radix36IdConverter extends RadixIdConverter {
 
+    /**
+     * Maximum character size (13 for full long range).
+     */
     public static final int MAX_CHAR_SIZE = 13;
+    /**
+     * Radix value (36).
+     */
     public static final int RADIX = 36;
 
+    /**
+     * Shared instance without padding.
+     */
     public static final Radix36IdConverter INSTANCE = new Radix36IdConverter(false, MAX_CHAR_SIZE);
+    /**
+     * Shared instance with padding.
+     */
     public static final Radix36IdConverter PAD_START = new Radix36IdConverter(true, MAX_CHAR_SIZE);
 
     /**
-     * Return an instance representing the specified parameter.
-     * If new instances are not required, static cached instances are used to provide space and time efficiency.
+     * Gets an instance with specified parameters.
      *
-     * @param padStart padStart
-     * @param charSize Size
-     * @return Radix62IdConverter
+     * @param padStart whether to pad
+     * @param charSize character size
+     * @return converter instance
      */
     public static Radix36IdConverter of(boolean padStart, int charSize) {
 
@@ -47,6 +61,12 @@ public final class Radix36IdConverter extends RadixIdConverter {
         return new Radix36IdConverter(padStart, charSize);
     }
 
+    /**
+     * Creates a new converter.
+     *
+     * @param padStart whether to pad with leading zeros
+     * @param charSize the character size
+     */
     public Radix36IdConverter(boolean padStart, int charSize) {
         super(padStart, charSize);
     }

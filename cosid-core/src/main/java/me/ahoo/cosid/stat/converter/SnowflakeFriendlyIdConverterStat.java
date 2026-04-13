@@ -18,6 +18,11 @@ import me.ahoo.cosid.stat.Stat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * Snowflake friendly ID converter stat with configuration.
+ *
+ * @author ahoo wang
+ */
 @AllArgsConstructor
 @Data
 public class SnowflakeFriendlyIdConverterStat implements Stat {

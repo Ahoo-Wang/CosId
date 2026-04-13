@@ -22,7 +22,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Define CosId.
+ * Annotation to mark fields or classes for CosId.
+ *
+ * <p>Can be applied to:
+ * <ul>
+ *   <li>Fields - directly marks the field as an ID field</li>
+ *   <li>Types - marks the class with a named ID field</li>
+ * </ul>
  *
  * @author ahoo wang
  */
@@ -30,20 +36,22 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 public @interface CosId {
+    /**
+     * Default field name.
+     */
     String DEFAULT_FIELD = "id";
 
     /**
-     * id generator name.
-     * {@link IdGeneratorProvider#get(String)}
+     * Gets the ID generator name.
      *
-     * @return id generator name
+     * @return the generator name
      */
     String value() default IdGeneratorProvider.SHARE;
 
     /**
-     * cosid field.
+     * Gets the ID field name (for type-level annotation).
      *
-     * @return field name of id.
+     * @return the field name
      */
     String field() default DEFAULT_FIELD;
 }

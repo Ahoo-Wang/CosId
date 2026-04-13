@@ -18,7 +18,9 @@ import me.ahoo.cosid.CosIdException;
 import com.google.common.base.Strings;
 
 /**
- * Multiple Id Not Support Exception.
+ * Exception thrown when an entity has multiple @CosId fields.
+ *
+ * <p>CosId only supports a single ID field per entity.
  *
  * @author ahoo wang
  */
@@ -26,11 +28,21 @@ public class MultipleIdNotSupportException extends CosIdException {
 
     private final Class<?> declaringClass;
 
+    /**
+     * Creates a new exception.
+     *
+     * @param declaringClass the class with multiple ID fields
+     */
     public MultipleIdNotSupportException(Class<?> declaringClass) {
         super(Strings.lenientFormat("Not support defining multiple CosIds, declaringClass:[%s]!", declaringClass));
         this.declaringClass = declaringClass;
     }
 
+    /**
+     * Gets the declaring class.
+     *
+     * @return the class
+     */
     public Class<?> getDeclaringClass() {
         return declaringClass;
     }

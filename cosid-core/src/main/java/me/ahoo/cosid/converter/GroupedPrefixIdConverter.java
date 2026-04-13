@@ -22,11 +22,27 @@ import me.ahoo.cosid.stat.converter.GroupedPrefixConverterStat;
 import com.google.common.base.Preconditions;
 import org.jspecify.annotations.NonNull;
 
+/**
+ * Converter that prepends a dynamic group key as prefix to string IDs.
+ *
+ * <p>The group key is obtained from the current GroupedAccessor context.
+ *
+ * @author ahoo wang
+ */
 public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConverter> {
+    /**
+     * Default delimiter between group key and ID.
+     */
     public static final String DEFAULT_DELIMITER = "-";
     private final String delimiter;
     private final IdConverter actual;
 
+    /**
+     * Creates a grouped prefix converter.
+     *
+     * @param delimiter the delimiter between group key and ID
+     * @param actual   the underlying converter
+     */
     public GroupedPrefixIdConverter(String delimiter, IdConverter actual) {
         Preconditions.checkNotNull(delimiter, "prefix can not be null!");
         this.delimiter = delimiter;
@@ -38,6 +54,11 @@ public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConver
         return actual;
     }
 
+    /**
+     * Gets the delimiter.
+     *
+     * @return the delimiter
+     */
     public String getDelimiter() {
         return delimiter;
     }

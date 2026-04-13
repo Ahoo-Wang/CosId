@@ -18,11 +18,17 @@ import me.ahoo.cosid.IdGenerator;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * AtomicLong Generator.
+ * AtomicLong-based ID generator.
+ *
+ * <p>Generates unique IDs using an atomic counter.
+ * Thread-safe and suitable for single-JVM ID generation.
  *
  * @author ahoo wang
  */
 public class AtomicLongGenerator implements IdGenerator {
+    /**
+     * Shared singleton instance.
+     */
     public static final IdGenerator INSTANCE = new AtomicLongGenerator();
     private final AtomicLong idGen = new AtomicLong();
 

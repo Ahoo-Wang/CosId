@@ -23,30 +23,41 @@ import org.jspecify.annotations.NonNull;
 
 
 /**
- * Converter for setting string ID prefix.
+ * Converter that prepends a fixed prefix to string IDs.
  *
  * @author ahoo wang
  */
 public class PrefixIdConverter implements IdConverter, Decorator<IdConverter> {
-    
+
     private final String prefix;
     private final IdConverter actual;
-    
+
+    /**
+     * Creates a prefix converter.
+     *
+     * @param prefix the prefix to prepend
+     * @param actual the underlying converter
+     */
     public PrefixIdConverter(String prefix, IdConverter actual) {
         Preconditions.checkNotNull(prefix, "prefix can not be null!");
         this.prefix = prefix;
         this.actual = actual;
     }
-    
+
     @Override
     public @NonNull IdConverter getActual() {
         return actual;
     }
-    
+
+    /**
+     * Gets the prefix.
+     *
+     * @return the prefix
+     */
     public String getPrefix() {
         return prefix;
     }
-    
+
     @Override
     public @NonNull String asString(long id) {
         String idStr = actual.asString(id);
@@ -55,13 +66,13 @@ public class PrefixIdConverter implements IdConverter, Decorator<IdConverter> {
         }
         return prefix + idStr;
     }
-    
+
     @Override
     public long asLong(@NonNull String idString) {
         String idStr = idString.substring(prefix.length());
         return actual.asLong(idStr);
     }
-    
+
     @Override
     public Stat stat() {
         return new PrefixConverterStat(getClass().getSimpleName(), prefix, actual.stat());

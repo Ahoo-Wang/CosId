@@ -18,34 +18,62 @@ import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
 /**
- * CosId State.
- * <p>
- *     The {@link CosIdState} is a composite of timestamp, machineId, and sequence.
- * </p>
+ * Immutable state representing a CosId's decomposed components.
+ *
+ * <p>A CosId is composed of three components:
+ * <ul>
+ *   <li><strong>timestamp</strong>: Time when the ID was generated</li>
+ *   <li><strong>machineId</strong>: Identifier of the machine that generated the ID</li>
+ *   <li><strong>sequence</strong>: Sequence number within the same timestamp</li>
+ * </ul>
+ *
+ * @author ahoo wang
  */
 public final class CosIdState implements Comparable<CosIdState> {
     private final long timestamp;
     private final int machineId;
     private final int sequence;
-    
+
+    /**
+     * Creates a new CosIdState.
+     *
+     * @param timestamp the timestamp in milliseconds
+     * @param machineId the machine ID
+     * @param sequence  the sequence number
+     */
     public CosIdState(long timestamp, int machineId, int sequence) {
         this.timestamp = timestamp;
         this.machineId = machineId;
         this.sequence = sequence;
     }
-    
+
+    /**
+     * Gets the timestamp component.
+     *
+     * @return the timestamp in milliseconds
+     */
     public long getTimestamp() {
         return timestamp;
     }
-    
+
+    /**
+     * Gets the machine ID component.
+     *
+     * @return the machine ID
+     */
     public int getMachineId() {
         return machineId;
     }
-    
+
+    /**
+     * Gets the sequence number component.
+     *
+     * @return the sequence number
+     */
     public int getSequence() {
         return sequence;
     }
-    
+
     @Override
     public int compareTo(CosIdState o) {
         int timestampCompared = Long.compare(timestamp, o.timestamp);
@@ -54,7 +82,7 @@ public final class CosIdState implements Comparable<CosIdState> {
         }
         return Integer.compare(sequence, o.sequence);
     }
-    
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -66,12 +94,12 @@ public final class CosIdState implements Comparable<CosIdState> {
         CosIdState that = (CosIdState) o;
         return getTimestamp() == that.getTimestamp() && getMachineId() == that.getMachineId() && getSequence() == that.getSequence();
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(getTimestamp(), getMachineId(), getSequence());
     }
-    
+
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)

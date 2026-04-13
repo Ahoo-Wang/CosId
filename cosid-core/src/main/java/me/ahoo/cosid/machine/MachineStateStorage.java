@@ -17,25 +17,73 @@ import com.google.errorprone.annotations.ThreadSafe;
 import org.jspecify.annotations.NonNull;
 
 /**
- * Machine State Storage.
+ * Machine state storage for persisting machine state across restarts.
+ *
+ * <p>Provides an interface for storing and retrieving machine state information,
+ * which is essential for maintaining machine ID allocations in distributed
+ * ID generation systems.
  *
  * @author ahoo wang
  */
 @ThreadSafe
 public interface MachineStateStorage {
+    /**
+     * Local machine state storage instance.
+     */
     MachineStateStorage LOCAL = new LocalMachineStateStorage();
+    /**
+     * In-memory machine state storage instance.
+     */
     MachineStateStorage IN_MEMORY = new InMemoryMachineStateStorage();
 
+    /**
+     * Gets the machine state for a given namespace and instance.
+     *
+     * @param namespace the namespace
+     * @param instanceId the instance ID
+     * @return the machine state, or NOT_FOUND if not found
+     */
     @NonNull
     MachineState get(String namespace, InstanceId instanceId);
 
+    /**
+     * Sets the machine state for a given namespace and instance.
+     *
+     * @param namespace the namespace
+     * @param machineId the machine ID
+     * @param instanceId the instance ID
+     */
     void set(String namespace, int machineId, InstanceId instanceId);
 
+    /**
+     * Removes the machine state for a given namespace and instance.
+     *
+     * @param namespace the namespace
+     * @param instanceId the instance ID
+     */
     void remove(String namespace, InstanceId instanceId);
 
+    /**
+     * Clears all machine states for a given namespace.
+     *
+     * @param namespace the namespace
+     */
     void clear(String namespace);
 
+    /**
+     * Gets the number of machine states in a namespace.
+     *
+     * @param namespace the namespace
+     * @return the number of machine states
+     */
     int size(String namespace);
 
+    /**
+     * Checks if a machine state exists for a given namespace and instance.
+     *
+     * @param namespace the namespace
+     * @param instanceId the instance ID
+     * @return true if the state exists
+     */
     boolean exists(String namespace, InstanceId instanceId);
 }

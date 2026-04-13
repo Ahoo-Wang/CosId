@@ -21,19 +21,34 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import org.jspecify.annotations.NonNull;
 
+/**
+ * Default grouped ID segment distributor implementation.
+ *
+ * <p>Manages segment distribution with group-based isolation,
+ * creating separate distributors for each group.
+ *
+ * @author ahoo wang
+ */
 public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistributor {
     private final GroupBySupplier groupBySupplier;
     private final IdSegmentDistributorDefinition idSegmentDistributorDefinition;
     private final IdSegmentDistributorFactory idSegmentDistributorFactory;
     private volatile GroupedBinding currentGroup;
-    
+
+    /**
+     * Creates a grouped distributor.
+     *
+     * @param groupBySupplier the group supplier
+     * @param idSegmentDistributorDefinition the definition
+     * @param idSegmentDistributorFactory the factory
+     */
     public DefaultGroupedIdSegmentDistributor(GroupBySupplier groupBySupplier, IdSegmentDistributorDefinition idSegmentDistributorDefinition, IdSegmentDistributorFactory idSegmentDistributorFactory) {
         this.groupBySupplier = groupBySupplier;
         this.idSegmentDistributorDefinition = idSegmentDistributorDefinition;
         this.idSegmentDistributorFactory = idSegmentDistributorFactory;
         this.ensureGroupedBinding();
     }
-    
+
     private GroupedBinding ensureGroupedBinding() {
         GroupedKey groupedKey = groupBySupplier.get();
         if (currentGroup != null && currentGroup.group().equals(groupedKey)) {
@@ -50,121 +65,135 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
                 idSegmentDistributorDefinition.getStep());
             this.currentGroup = new GroupedBinding(groupedKey, idSegmentDistributorFactory.create(groupedDef));
         }
-        
+
         return currentGroup;
     }
-    
+
+    /**
+     * Gets the group supplier.
+     *
+     * @return the supplier
+     */
     public GroupBySupplier groupBySupplier() {
         return groupBySupplier;
     }
-    
+
     @Override
     public @NonNull String getNamespace() {
         return this.idSegmentDistributorDefinition.getNamespace();
     }
-    
+
     @Override
     public @NonNull String getName() {
         return this.idSegmentDistributorDefinition.getName();
     }
-    
+
     @Override
     public long getStep() {
         return this.idSegmentDistributorDefinition.getStep();
     }
-    
+
     @Override
     public GroupedKey group() {
         return this.ensureGroupedBinding().group();
     }
-    
+
     @Override
     public long nextMaxId() {
         return this.ensureGroupedBinding().nextMaxId();
     }
-    
+
     @Override
     public long nextMaxId(long step) {
         return this.ensureGroupedBinding().nextMaxId(step);
     }
-    
+
     @Override
     public @NonNull IdSegment nextIdSegment() {
         return this.ensureGroupedBinding().nextIdSegment();
     }
-    
+
     @Override
     public @NonNull IdSegment nextIdSegment(long ttl) {
         return this.ensureGroupedBinding().nextIdSegment(ttl);
     }
-    
+
     @Override
     public @NonNull IdSegment nextIdSegment(int segments, long ttl) {
         return this.ensureGroupedBinding().nextIdSegment(segments, ttl);
     }
-    
+
     @Override
     public @NonNull IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
         return this.ensureGroupedBinding().nextIdSegmentChain(previousChain, segments, ttl);
     }
-    
+
     @Override
     public @NonNull IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain) {
         return this.ensureGroupedBinding().nextIdSegmentChain(previousChain);
     }
-    
+
+    /**
+     * Holds a group binding with its distributor.
+     */
     public static class GroupedBinding implements GroupedIdSegmentDistributor {
-        
+
         private final GroupedKey group;
         private final IdSegmentDistributor idSegmentDistributor;
-        
+
+        /**
+         * Creates a binding.
+         *
+         * @param group the group key
+         * @param idSegmentDistributor the distributor
+         */
         public GroupedBinding(GroupedKey group, IdSegmentDistributor idSegmentDistributor) {
             this.group = group;
             this.idSegmentDistributor = idSegmentDistributor;
         }
-        
+
         @Override
         public GroupedKey group() {
             return group;
         }
-        
+
         @Override
         public @NonNull String getNamespace() {
             return idSegmentDistributor.getNamespace();
         }
-        
+
         @Override
         public @NonNull String getName() {
             return idSegmentDistributor.getName();
         }
-        
+
         @Override
         public long getStep() {
             return idSegmentDistributor.getStep();
         }
-        
+
         @Override
         public long nextMaxId(long step) {
             return idSegmentDistributor.nextMaxId(step);
         }
-        
+
         private long getMinTtl(long ttl) {
             long groupedTtl = group.ttl();
             return Math.min(groupedTtl, ttl);
         }
-        
+
         @Override
         public @NonNull IdSegment nextIdSegment(long ttl) {
             long minTtl = getMinTtl(ttl);
             return GroupedIdSegmentDistributor.super.nextIdSegment(minTtl);
         }
-        
+
         @Override
         public @NonNull IdSegment nextIdSegment(int segments, long ttl) {
             long minTtl = getMinTtl(ttl);
             return GroupedIdSegmentDistributor.super.nextIdSegment(segments, minTtl);
         }
-        
+
         @Override
         public @NonNull IdSegmentChain nextIdSegmentChain(IdSegmentChain previousChain, int segments, long ttl) {
             long minTtl = getMinTtl(ttl);

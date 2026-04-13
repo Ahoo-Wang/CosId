@@ -21,10 +21,14 @@ import org.jspecify.annotations.NonNull;
 import java.util.Collection;
 
 /**
- * ModCycle.
+ * Modulo-based cyclical sharding algorithm.
+ *
+ * <p>Distributes IDs across nodes using modulo arithmetic.
+ * Maps a sharding value to a node by computing: {@code value % divisor}.
  *
  * <p><img src="../doc-files/CosIdModShardingAlgorithm.png" alt="CosIdModShardingAlgorithm"></p>
  *
+ * @param <T> the type of number that is comparable
  * @author ahoo wang
  */
 public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
@@ -32,6 +36,12 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
     private final String logicNamePrefix;
     private final ExactCollection<String> effectiveNodes;
 
+    /**
+     * Creates a ModCycle sharding algorithm.
+     *
+     * @param divisor the number of nodes to distribute across
+     * @param logicNamePrefix the prefix for node names
+     */
     public ModCycle(int divisor, String logicNamePrefix) {
         Preconditions.checkArgument(divisor > 0, "divisor must be greater than 0!");
         this.divisor = divisor;
@@ -50,6 +60,11 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
         return modNodes;
     }
 
+    /**
+     * Gets the divisor.
+     *
+     * @return the divisor
+     */
     public int getDivisor() {
         return divisor;
     }

@@ -18,6 +18,11 @@ import me.ahoo.cosid.stat.Stat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * CosId generator stat with machine and timestamp info.
+ *
+ * @author ahoo wang
+ */
 @AllArgsConstructor
 @Data
 public final class CosIdGeneratorStat implements IdGeneratorStat {

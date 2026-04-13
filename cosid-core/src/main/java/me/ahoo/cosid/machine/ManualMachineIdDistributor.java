@@ -18,26 +18,41 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Duration;
 
 /**
- * Manual Machine Id Distributor.
+ * Manual machine ID distributor.
+ *
+ * <p>Uses a manually configured machine ID instead of dynamically
+ * distributing from a centralized store.
  *
  * @author ahoo wang
  */
 @Slf4j
 public class ManualMachineIdDistributor extends AbstractMachineIdDistributor {
-    
+
     private final int machineId;
     private final MachineState machineState;
-    
+
+    /**
+     * Creates a manual distributor.
+     *
+     * @param machineId                the fixed machine ID to use
+     * @param machineStateStorage    the state storage
+     * @param clockBackwardsSynchronizer the clock synchronizer
+     */
     public ManualMachineIdDistributor(int machineId, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
         this.machineId = machineId;
         this.machineState = MachineState.of(machineId, NOT_FOUND_LAST_STAMP);
     }
-    
+
+    /**
+     * Gets the machine ID.
+     *
+     * @return the machine ID
+     */
     public int getMachineId() {
         return machineId;
     }
-    
+
     @Override
     protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
         if (log.isInfoEnabled()) {
@@ -45,16 +60,16 @@ public class ManualMachineIdDistributor extends AbstractMachineIdDistributor {
         }
         return machineState;
     }
-    
+
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
-    
+
     }
-    
+
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
-    
+
     }
-    
-    
+
+
 }

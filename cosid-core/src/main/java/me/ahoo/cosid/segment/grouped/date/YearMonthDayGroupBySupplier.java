@@ -18,12 +18,27 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
+/**
+ * Year-month-day based group key supplier.
+ *
+ * @author ahoo wang
+ */
 public class YearMonthDayGroupBySupplier extends AbstractDateGroupBySupplier<LocalDate> {
 
+    /**
+     * Creates a supplier with the specified formatter.
+     *
+     * @param formatter the date formatter
+     */
     public YearMonthDayGroupBySupplier(DateTimeFormatter formatter) {
         super(formatter);
     }
 
+    /**
+     * Creates a supplier with the specified pattern.
+     *
+     * @param pattern the date format pattern
+     */
     public YearMonthDayGroupBySupplier(String pattern) {
         this(DateTimeFormatter.ofPattern(pattern));
     }

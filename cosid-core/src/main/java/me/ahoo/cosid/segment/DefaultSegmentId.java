@@ -25,6 +25,10 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Default segment algorithm ID generator.
  *
+ * <p>Provides thread-safe ID generation using a segment-based approach.
+ * Allocates ID segments from a central distributor and generates IDs
+ * locally within each segment for high throughput.
+ *
  * @author ahoo wang
  */
 @Slf4j
@@ -36,10 +40,21 @@ public class DefaultSegmentId implements SegmentId {
     @GuardedBy("this")
     private volatile IdSegment segment = DefaultIdSegment.OVERFLOW;
 
+    /**
+     * Creates a generator with infinite segment TTL.
+     *
+     * @param maxIdDistributor the segment distributor
+     */
     public DefaultSegmentId(IdSegmentDistributor maxIdDistributor) {
         this(TIME_TO_LIVE_FOREVER, maxIdDistributor);
     }
 
+    /**
+     * Creates a generator with specified segment TTL.
+     *
+     * @param idSegmentTtl segment time-to-live in seconds
+     * @param maxIdDistributor the segment distributor
+     */
     public DefaultSegmentId(long idSegmentTtl, IdSegmentDistributor maxIdDistributor) {
         Preconditions.checkArgument(idSegmentTtl > 0, "idSegmentTtl:[%s] must be greater than 0.", idSegmentTtl);
 

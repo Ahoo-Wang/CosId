@@ -19,6 +19,11 @@ import me.ahoo.cosid.stat.Stat;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+/**
+ * Segment ID generator stat with segment metadata.
+ *
+ * @author ahoo wang
+ */
 @AllArgsConstructor
 @Data
 public final class SegmentIdStat implements IdGeneratorStat {

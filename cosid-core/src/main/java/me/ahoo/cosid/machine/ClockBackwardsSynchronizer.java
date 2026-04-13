@@ -18,18 +18,43 @@ import me.ahoo.cosid.snowflake.exception.ClockTooManyBackwardsException;
 import com.google.errorprone.annotations.ThreadSafe;
 
 /**
- * Clock Backwards Synchronizer.
+ * Synchronizer for handling clock backwards issues in Snowflake ID generation.
+ *
+ * <p>When system clock moves backwards, this synchronizer waits until
+ * the clock catches up to ensure unique IDs.
  *
  * @author ahoo wang
  */
 @ThreadSafe
 public interface ClockBackwardsSynchronizer {
+    /**
+     * Default synchronizer instance.
+     */
     ClockBackwardsSynchronizer DEFAULT = new DefaultClockBackwardsSynchronizer();
 
+    /**
+     * Synchronizes clock by waiting until current time exceeds lastTimestamp.
+     *
+     * @param lastTimestamp the last timestamp that was generated
+     * @throws InterruptedException          if thread is interrupted while waiting
+     * @throws ClockTooManyBackwardsException if clock backwards exceeds threshold
+     */
     void sync(long lastTimestamp) throws InterruptedException, ClockTooManyBackwardsException;
 
+    /**
+     * Synchronizes clock without throwing InterruptedException.
+     *
+     * @param lastTimestamp the last timestamp that was generated
+     * @throws ClockTooManyBackwardsException if clock backwards exceeds threshold
+     */
     void syncUninterruptibly(long lastTimestamp) throws ClockTooManyBackwardsException;
 
+    /**
+     * Calculates how far backwards the clock has moved.
+     *
+     * @param lastTimestamp the last timestamp
+     * @return the backwards duration in milliseconds
+     */
     static long getBackwardsTimeStamp(long lastTimestamp) {
         return lastTimestamp - System.currentTimeMillis();
     }

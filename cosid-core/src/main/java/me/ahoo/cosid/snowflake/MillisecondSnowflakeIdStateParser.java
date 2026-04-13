@@ -31,12 +31,18 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 
 /**
- * Millisecond SnowflakeId State Parser.
+ * Parser for millisecond-based SnowflakeId state.
+ *
+ * <p>Handles conversion between millisecond SnowflakeIds and their string
+ * representations using format: {@code yyyyMMddHHmmssSSS-machineId-sequence}.
  *
  * @author ahoo wang
  */
 public class MillisecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
 
+    /**
+     * Default parser instance with CosId epoch.
+     */
     public static final SnowflakeIdStateParser INSTANCE = new MillisecondSnowflakeIdStateParser(
         CosId.COSID_EPOCH,
         MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
@@ -44,6 +50,9 @@ public class MillisecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
         MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT
     );
 
+    /**
+     * DateTimeFormatter for timestamps: {@code yyyyMMddHHmmssSSS}.
+     */
     public static final DateTimeFormatter DATE_TIME_FORMATTER = new DateTimeFormatterBuilder()
         .appendValue(YEAR, 4)
         .appendValue(MONTH_OF_YEAR, 2)
@@ -54,10 +63,28 @@ public class MillisecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
         .appendValue(MILLI_OF_SECOND, 3)
         .toFormatter();
 
+    /**
+     * Creates a parser with default zone and no padding.
+     *
+     * @param epoch        epoch timestamp
+     * @param timestampBit bits for timestamp
+     * @param machineBit  bits for machine ID
+     * @param sequenceBit bits for sequence
+     */
     public MillisecondSnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit) {
         this(epoch, timestampBit, machineBit, sequenceBit, ZoneId.systemDefault(), false);
     }
 
+    /**
+     * Creates a parser with custom zone and padding.
+     *
+     * @param epoch        epoch timestamp
+     * @param timestampBit bits for timestamp
+     * @param machineBit  bits for machine ID
+     * @param sequenceBit bits for sequence
+     * @param zoneId      time zone
+     * @param padStart    whether to pad
+     */
     public MillisecondSnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId, boolean padStart) {
         super(epoch, timestampBit, machineBit, sequenceBit, zoneId, padStart);
     }

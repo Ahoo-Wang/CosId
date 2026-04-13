@@ -18,15 +18,24 @@ import org.jspecify.annotations.NonNull;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * In-memory implementation of {@link MachineStateStorage}.
+ *
+ * <p>Stores machine states in a {@link ConcurrentHashMap} for fast access.
+ * This implementation is not persistent and should only be used for testing
+ * or single-instance deployments.
+ *
+ * @author ahoo wang
+ */
 @Slf4j
 public class InMemoryMachineStateStorage implements MachineStateStorage {
     private final ConcurrentHashMap<NamespacedInstanceId, MachineState> states = new ConcurrentHashMap<>();
-    
+
     @Override
     public @NonNull MachineState get(String namespace, InstanceId instanceId) {
         return states.getOrDefault(new NamespacedInstanceId(namespace, instanceId), MachineState.NOT_FOUND);
     }
-    
+
     @Override
     public void set(String namespace, int machineId, InstanceId instanceId) {
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
@@ -36,7 +45,7 @@ public class InMemoryMachineStateStorage implements MachineStateStorage {
         }
         states.put(namespacedInstanceId, machineState);
     }
-    
+
     @Override
     public void remove(String namespace, InstanceId instanceId) {
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
@@ -45,7 +54,7 @@ public class InMemoryMachineStateStorage implements MachineStateStorage {
         }
         states.remove(namespacedInstanceId);
     }
-    
+
     @Override
     public void clear(String namespace) {
         if (log.isInfoEnabled()) {
@@ -53,12 +62,12 @@ public class InMemoryMachineStateStorage implements MachineStateStorage {
         }
         states.clear();
     }
-    
+
     @Override
     public int size(String namespace) {
         return states.size();
     }
-    
+
     @Override
     public boolean exists(String namespace, InstanceId instanceId) {
         return states.containsKey(new NamespacedInstanceId(namespace, instanceId));

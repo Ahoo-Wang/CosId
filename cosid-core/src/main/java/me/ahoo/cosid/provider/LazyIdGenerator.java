@@ -29,29 +29,55 @@ import java.util.Optional;
 /**
  * Lazy loading IdGenerator.
  *
+ * <p>Delays the lookup of an ID generator from the provider until first access.
+ * This is useful when the generator might not be immediately available at startup.
+ *
  * @author ahoo wang
  */
 public final class LazyIdGenerator implements IdGeneratorDecorator {
-    
+
     private final String generatorName;
-    
+
     private volatile IdGenerator lazyIdGen;
-    
+
     private final IdGeneratorProvider idGeneratorProvider;
-    
+
+    /**
+     * Creates a lazy generator with default provider.
+     *
+     * @param generatorName the name of the generator to lookup
+     */
     public LazyIdGenerator(String generatorName) {
         this(generatorName, DefaultIdGeneratorProvider.INSTANCE);
     }
-    
+
+    /**
+     * Creates a lazy generator with custom provider.
+     *
+     * @param generatorName the name of the generator to lookup
+     * @param idGeneratorProvider the provider to use for lookup
+     */
     public LazyIdGenerator(String generatorName, IdGeneratorProvider idGeneratorProvider) {
         this.generatorName = generatorName;
         this.idGeneratorProvider = idGeneratorProvider;
     }
-    
+
+    /**
+     * Gets the generator name.
+     *
+     * @return the generator name
+     */
     public String getGeneratorName() {
         return generatorName;
     }
-    
+
+    /**
+     * Attempts to get the generator, optionally throwing if not found.
+     *
+     * @param required if true, throws NotFoundIdGeneratorException if not found
+     * @return the generator or null if not required and not found
+     * @throws NotFoundIdGeneratorException if required and not found
+     */
     public IdGenerator tryGet(boolean required) {
         if (null != lazyIdGen) {
             return lazyIdGen;
@@ -66,7 +92,14 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
         }
         return null;
     }
-    
+
+    /**
+     * Gets this generator as a SnowflakeId.
+     *
+     * @param required if true, throws if not a SnowflakeId
+     * @return the SnowflakeId or null
+     * @throws CosIdException if not a SnowflakeId when required
+     */
     public SnowflakeId asSnowflakeId(boolean required) {
         IdGenerator idGenerator = tryGet(required);
         if (null == idGenerator) {
@@ -77,7 +110,14 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
         }
         throw new CosIdException(Strings.lenientFormat("IdGenerator:[%s] is not instanceof SnowflakeId!", generatorName));
     }
-    
+
+    /**
+     * Gets this generator as a SnowflakeFriendlyId.
+     *
+     * @param required if true, throws if not a SnowflakeFriendlyId
+     * @return the SnowflakeFriendlyId or null
+     * @throws CosIdException if not a SnowflakeFriendlyId when required
+     */
     public SnowflakeFriendlyId asFriendlyId(boolean required) {
         IdGenerator idGenerator = tryGet(required);
         if (null == idGenerator) {
@@ -88,7 +128,14 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
         }
         throw new CosIdException(Strings.lenientFormat("IdGenerator:[%s] is not instanceof SnowflakeFriendlyId!", generatorName));
     }
-    
+
+    /**
+     * Gets this generator as a SegmentId.
+     *
+     * @param required if true, throws if not a SegmentId
+     * @return the SegmentId or null
+     * @throws CosIdException if not a SegmentId when required
+     */
     public SegmentId asSegmentId(boolean required) {
         IdGenerator idGenerator = tryGet(required);
         if (null == idGenerator) {
@@ -99,12 +146,12 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
         }
         throw new CosIdException(Strings.lenientFormat("IdGenerator:[%s] is not instanceof SegmentId!", generatorName));
     }
-    
+
     @Override
     public @NonNull IdGenerator getActual() {
         return tryGet(true);
     }
-    
+
     @Override
     public @NonNull IdConverter idConverter() {
         return getActual().idConverter();

@@ -24,16 +24,27 @@ import org.jspecify.annotations.NonNull;
 
 
 /**
- * ToString ID Converter.
+ * Converts long IDs to/from strings using standard String.valueOf().
+ *
+ * <p>Optionally pads the string with leading zeros to a specified length.
  *
  * @author ahoo wang
  */
 public class ToStringIdConverter implements IdConverter {
 
+    /**
+     * Shared instance without padding.
+     */
     public static final ToStringIdConverter INSTANCE = new ToStringIdConverter(false, 0);
     private final boolean padStart;
     private final int charSize;
 
+    /**
+     * Creates a converter with optional padding.
+     *
+     * @param padStart whether to pad with leading zeros
+     * @param charSize the target character size for padding
+     */
     public ToStringIdConverter(boolean padStart, int charSize) {
         this.padStart = padStart;
         this.charSize = charSize;

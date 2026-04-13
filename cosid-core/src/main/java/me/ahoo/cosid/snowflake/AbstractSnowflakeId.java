@@ -73,8 +73,8 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
     /**
      * The machine ID value for this instance.
      *
-     * @implNote When machineLeft is greater than 30, overflow can occur during calculation,
-     *           so machineId should be kept as long during arithmetic operations.
+     * <p>Note: When machineLeft is greater than 30, overflow can occur during calculation,
+     * so machineId should be kept as long during arithmetic operations.
      */
     protected final long machineId;
     /**

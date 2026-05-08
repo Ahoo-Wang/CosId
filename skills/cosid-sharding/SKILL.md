@@ -1,17 +1,22 @@
 ---
 name: cosid-sharding
-description: Guide for using CosId sharding algorithms with ShardingSphere for database sharding. Use when users mention sharding, database splitting, ShardingSphere, PreciseSharding, IntervalSharding, IntervalTimeline, or database partitioning.
+description: Guide for using CosId sharding algorithms with ShardingSphere for database sharding. Use this skill whenever the user mentions table sharding, database splitting, ShardingSphere integration, sharding by ID, sharding by time, monthly table partitioning, or ModCycle/IntervalTimeline configuration — even if they just say "I need to split my table into shards" without mentioning CosId. Also trigger when the user asks about PreciseSharding, RangeSharding, CachedSharding, or ceiling radix sharding.
 ---
 
 # CosId Database Sharding Integration Guide
 
-TRIGGER: User is using CosId sharding algorithms with ShardingSphere for database sharding (keywords: sharding, database splitting, ShardingSphere, ShardingAlgorithm, PreciseSharding, IntervalSharding)
+## When to Use This Skill
+
+Use this skill when a developer needs sharding algorithms for database table splitting — either standalone or integrated with ShardingSphere. Key scenarios:
+
+- Splitting tables by ID value (modulo sharding)
+- Splitting tables by time range (monthly, daily, hourly)
+- Registering CosId sharding algorithms as ShardingSphere SPI
+- Registering sharding algorithms as Spring beans for ShardingSphere auto-discovery
+
+CosId sharding algorithms live in `cosid-core` (no extra modules). They implement both `PreciseSharding` (for `=` / `IN` queries) and `RangeSharding` (for `BETWEEN` queries), so ShardingSphere can use them for all query types.
 
 ## 1. Add Dependencies
-
-Sharding algorithms are included in `cosid-core`, no extra modules needed:
-
-### Gradle (Kotlin DSL)
 
 ```kotlin
 dependencies {
@@ -20,7 +25,7 @@ dependencies {
 }
 ```
 
-For Spring Boot + ShardingSphere integration, also add:
+For Spring Boot + ShardingSphere integration:
 
 ```kotlin
 implementation("me.ahoo.cosid:cosid-spring-boot-starter")
@@ -29,7 +34,7 @@ implementation("org.apache.shardingsphere:shardingsphere-jdbc")
 
 ## 2. PreciseSharding (Modulo-Based)
 
-Modulo-based sharding algorithm for routing by ID value.
+Why modulo sharding: It's the simplest sharding strategy. Given an ID, `id % numShards` determines the table. Works well when IDs are evenly distributed (e.g. SnowflakeId). The trade-off: range queries always hit all shards because modulo doesn't preserve locality.
 
 ### Using ModCycle
 
@@ -37,18 +42,19 @@ Modulo-based sharding algorithm for routing by ID value.
 import me.ahoo.cosid.sharding.ModCycle;
 import me.ahoo.cosid.sharding.PreciseSharding;
 
-// Create modulo sharding: 4 shards, table prefix "t_order_"
+// Constructor: (int divisor, String logicNamePrefix)
+// divisor comes first because it's the primary parameter — the number of
+// shards determines the routing logic. The prefix is just a naming convention.
 PreciseSharding<Long> sharding = new ModCycle<>(
     4,           // number of shards
     "t_order_"   // logical table name prefix (end with separator)
 );
 
-// Route an order ID to the correct shard
 String node = sharding.sharding(123456789L);
-// "t_order_1"
+// "t_order_1" (123456789 % 4 = 1)
 
 String node2 = sharding.sharding(123456790L);
-// "t_order_2"
+// "t_order_2" (123456790 % 4 = 2)
 ```
 
 ### ShardingSphere YAML Configuration
@@ -73,16 +79,17 @@ rules:
 
 ### Using CachedSharding for Better Performance
 
+Why: If the same ID is queried repeatedly (e.g. foreign key lookups), caching the modulo result avoids recomputation. The cache is a simple map — negligible memory cost for significant CPU savings on hot paths.
+
 ```java
 import me.ahoo.cosid.sharding.CachedSharding;
 
-// Cache sharding computation results, good for high-frequency queries
 PreciseSharding<Long> cached = new CachedSharding<>(new ModCycle<>(4, "t_order_"));
 ```
 
 ## 3. IntervalSharding (Time-Based)
 
-Time-interval sharding algorithm for splitting tables by time range (e.g. monthly, daily).
+Why time-based sharding: For time-series data (logs, events, orders), splitting by time range gives natural data lifecycle management. Old tables can be archived or dropped independently. Each time interval maps to a physical table.
 
 ### Using IntervalTimeline
 
@@ -133,7 +140,7 @@ IntervalTimeline dailyTimeline = new IntervalTimeline(
 );
 ```
 
-### ShardingSphere YAML Configuration (Interval Sharding)
+### ShardingSphere YAML Configuration (Interval)
 
 ```yaml
 rules:
@@ -159,18 +166,18 @@ rules:
 
 ## 4. ShardingSphere SPI Algorithm Types
 
-CosId provides the following ShardingSphere SPI algorithm types, usable directly in YAML configuration:
+CosId provides these ShardingSphere SPI algorithm types, usable directly in YAML:
 
-| SPI Type | Purpose | Sharding Key Type | Description |
-|----------|---------|-------------------|-------------|
-| `COSID` | Distributed ID generator | - | KeyGenerator for distributed primary keys |
-| `COSID_MOD` | Modulo-based precise sharding | `Long` | `order_id % mod` routing |
-| `COSID_INTERVAL` | Time-interval sharding | `LocalDateTime` / `String` | Routes by time range (create_time column) |
-| `COSID_INTERVAL_SNOWFLAKE` | Snowflake ID time sharding | `Long` | Extracts timestamp from SnowflakeId for interval routing, useful when no create_time column exists |
+| SPI Type | Purpose | Sharding Key | Description |
+|----------|---------|-------------|-------------|
+| `COSID` | ID generator | - | KeyGenerator for distributed primary keys |
+| `COSID_MOD` | Modulo sharding | `Long` | `id % mod` routing |
+| `COSID_INTERVAL` | Time-interval sharding | `LocalDateTime` / `String` | Routes by time range (datetime column) |
+| `COSID_INTERVAL_SNOWFLAKE` | Snowflake time sharding | `Long` | Extracts timestamp from SnowflakeId for interval routing |
 
 ### COSID_INTERVAL_SNOWFLAKE Configuration
 
-When the sharding key is a SnowflakeId (Long) rather than a datetime column, use this algorithm to extract the timestamp from the ID:
+Why: When your sharding key is a SnowflakeId (Long) rather than a datetime column, this algorithm extracts the embedded timestamp and applies interval routing. Useful when you don't have a `create_time` column but still want time-based sharding.
 
 ```yaml
 rules:
@@ -190,16 +197,15 @@ rules:
 
 ## 5. CeilingRadixSharding (Quick Reference)
 
-Sharding algorithm based on Radix62 encoding. Converts a long ID to a Radix62 string, then applies modulo sharding. Useful when the shard position needs to be embedded in the ID itself.
+Why: This algorithm converts a long ID to Radix62, then applies modulo on the first character. The shard position is embedded in the ID itself, so you can determine which shard an ID belongs to just by looking at it. Use it when you need self-describing IDs.
 
 Characteristics:
-- Sharding result correlates with the ID's radix representation
-- Good for scenarios where you need to reverse-engineer the shard from the ID
-- Recommend shard counts that are factors of 62 (2, 31, 62) for even distribution
+- Shard count should be a factor of 62 (2, 31, 62) for even distribution
+- The first character of the Radix62 string determines the shard
 
 ## 6. Spring Boot + ShardingSphere Integration
 
-In Spring Boot projects, register CosId sharding algorithms as Spring beans for ShardingSphere auto-discovery:
+Why register as beans: When sharding algorithms are Spring beans, ShardingSphere auto-discovers them — no need for SPI registration or class-name configuration. This also lets you inject other beans (e.g. a shared `IdGeneratorProvider`) into your sharding logic.
 
 ```java
 @Configuration
@@ -227,7 +233,7 @@ public class ShardingConfiguration {
 
 ## 7. Common Issues
 
-- **Shard count design:** Use powers of 2 (4, 8, 16, 32) for modulo sharding to facilitate future expansion (double the shards).
-- **Boundary handling:** IntervalTimeline times must be within the configured effective range. Values outside throw `IllegalArgumentException`. Design with sufficient time range headroom.
-- **ShardingSphere version compatibility:** CosId's ShardingSphere integration supports ShardingSphere 5.x. `COSID_MOD`, `COSID_INTERVAL`, and `COSID_INTERVAL_SNOWFLAKE` have been merged into official ShardingSphere ([#14132](https://github.com/apache/shardingsphere/pull/14132)).
-- **Snowflake ID sharding:** When using SnowflakeId as the sharding key, the embedded timestamp ensures even distribution with interval sharding. Modulo sharding also works well.
+- **Shard count design:** Use powers of 2 (4, 8, 16, 32) for modulo sharding. This makes doubling shards straightforward during expansion.
+- **Boundary handling:** IntervalTimeline throws `IllegalArgumentException` for times outside the configured range. Always design with sufficient headroom — extend the upper bound well into the future.
+- **ShardingSphere compatibility:** Supports ShardingSphere 5.x. The `COSID_MOD`, `COSID_INTERVAL`, and `COSID_INTERVAL_SNOWFLAKE` types have been merged into official ShardingSphere ([#14132](https://github.com/apache/shardingsphere/pull/14132)).
+- **Snowflake ID sharding:** SnowflakeId embeds a timestamp, so interval sharding produces even distribution. Modulo sharding also works since SnowflakeId values are sequential.

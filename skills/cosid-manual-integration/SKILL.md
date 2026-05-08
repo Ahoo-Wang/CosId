@@ -1,11 +1,20 @@
 ---
 name: cosid-manual-integration
-description: Guide for integrating CosId via Java API in non-Spring Boot projects. Use when users mention manual configuration, Java API, non-Spring, pure Java, or need to create SnowflakeId/SegmentId/SegmentChainId programmatically.
+description: Guide for integrating CosId distributed ID generator via Java API in non-Spring Boot projects. Use this skill whenever the user mentions creating SnowflakeId, SegmentId, or SegmentChainId programmatically, manual ID generator setup, pure Java distributed IDs, or non-Spring ID generation — even if they just say "I need unique IDs in my Java app" without mentioning CosId. Also trigger when the user asks about Radix62 encoding, ID converters, or MachineIdDistributor setup without Spring.
 ---
 
 # CosId Manual Integration Guide (Non-Spring Boot)
 
-TRIGGER: User is using CosId Java API in a non-Spring Boot project (keywords: manual configuration, Java API, non-Spring, pure Java, programmatic creation)
+## When to Use This Skill
+
+Use this skill when a developer needs to integrate CosId in a non-Spring Boot project — pure Java, Gradle/Maven, or any framework other than Spring Boot. The key scenarios:
+
+- Creating SnowflakeId with a fixed machineId for single-node use
+- Setting up SegmentChainId with a programmatic distributor
+- Converting IDs with Radix62, date prefixes, or custom formats
+- Allocating machineIds manually or via a non-Spring distributor
+
+If the user IS using Spring Boot, use `cosid-spring-boot` instead.
 
 ## 1. Add Dependencies
 
@@ -20,7 +29,7 @@ dependencies {
 
 ### Optional Distributor Dependencies
 
-Add the distributor module for your Segment backend as needed:
+Add the distributor module for your Segment backend as needed. These are only required for SegmentId/SegmentChainId — SnowflakeId with a fixed machineId needs only `cosid-core`.
 
 ```kotlin
 // Redis distributor
@@ -61,11 +70,11 @@ implementation("me.ahoo.cosid:cosid-zookeeper")
 
 ### Basic Usage (Single-Node)
 
+Why: For single-node or development scenarios, a fixed machineId is the simplest approach. Each server gets a unique machineId (0-1023 with default 10-bit layout). If you have multiple servers, assign different machineIds to each.
+
 ```java
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
-import me.ahoo.cosid.IdGenerator;
 
-// Use a fixed machineId (single-node scenario)
 int machineId = 1;
 MillisecondSnowflakeId snowflakeId = new MillisecondSnowflakeId(machineId);
 
@@ -75,23 +84,27 @@ long id = snowflakeId.generate();
 
 ### Custom Bit Layout
 
+Why: The default 41+10+12 layout supports 1024 machines and 4096 IDs/ms. If you need fewer machines but more IDs per millisecond (e.g. a single powerful server), shift bits from machineId to sequence.
+
 ```java
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 
-// 41-bit timestamp + 5-bit machineId + 17-bit sequence (higher single-node throughput)
+// 41-bit timestamp + 5-bit machineId (32 machines) + 17-bit sequence (131072 IDs/ms)
 MillisecondSnowflakeId snowflakeId = new MillisecondSnowflakeId(
     CosId.COSID_EPOCH,    // epoch start (2019-12-24)
     41,                    // timestampBit
-    5,                     // machineBit (up to 32 machines)
-    17,                    // sequenceBit (131072 IDs per millisecond)
+    5,                     // machineBit
+    17,                    // sequenceBit
     machineId,
     SnowflakeId.defaultSequenceResetThreshold(17)
 );
 ```
 
 ### SecondSnowflakeId (Second Precision)
+
+Why: Millisecond precision uses 41 bits for ~69 years. If you can tolerate second precision, you get more bits for machineId and sequence — useful for very high throughput or many machines.
 
 ```java
 import me.ahoo.cosid.snowflake.SecondSnowflakeId;
@@ -123,10 +136,11 @@ String id = stringId.generateAsString();
 
 ### SegmentChainId (Recommended, High-Performance)
 
+Why: SegmentChainId uses a lock-free linked list with asynchronous prefetching. It allocates IDs in batches from a backend (Redis, JDBC, etc.), reducing network round-trips. The chain mode dynamically adjusts prefetch distance based on consumption rate — this is why it achieves ~127M+ ops/s.
+
 ```java
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
-import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 
 // 1. Create a Distributor (Redis example)
 IdSegmentDistributor distributor = new SpringRedisIdSegmentDistributor(redisTemplate);
@@ -147,6 +161,8 @@ long id = segmentChainId.generate();
 
 ### SegmentId (Basic Mode)
 
+Why: Basic mode is simpler but has lower throughput. Each ID generation checks if the current segment is exhausted and fetches a new one synchronously. Use it when throughput is not critical.
+
 ```java
 import me.ahoo.cosid.segment.DefaultSegmentId;
 
@@ -157,7 +173,7 @@ long id = segmentId.generate();
 
 ## 4. IdConverter Usage
 
-CosId provides multiple ID converters to transform long IDs into strings:
+Why: CosId generates numeric IDs internally, but you often need string representations for URLs, order numbers, or display. IdConverters handle this transformation and can be composed (prefix + date + encoding) for rich ID formats.
 
 ```java
 import me.ahoo.cosid.converter.Radix62IdConverter;
@@ -168,10 +184,13 @@ import me.ahoo.cosid.converter.SuffixIdConverter;
 import me.ahoo.cosid.converter.DatePrefixIdConverter;
 
 // Radix62 (default, recommended): compact alphanumeric encoding
+// Why Radix62: Uses 62 characters (0-9, A-Z, a-z), producing the shortest strings.
+// A full 63-bit Snowflake ID becomes just 11 characters.
 IdConverter converter = Radix62IdConverter.PAD_START;
 converter.asString(123456789L); // "1ly7VK"
 
 // Radix36: uppercase alphanumeric encoding
+// Why Radix36: Case-insensitive, safer for systems that normalize case.
 IdConverter converter36 = Radix36IdConverter.PAD_START;
 
 // ToString: direct string conversion
@@ -186,7 +205,7 @@ IdConverter suffixed = new SuffixIdConverter("-BIZ", ToStringIdConverter.INSTANC
 
 ### DatePrefixIdConverter: Date-Prefixed IDs
 
-`DatePrefixIdConverter` is a decorator that prepends a date-based prefix to any ID. Useful for archiving or sorting by date:
+Why: Adding a date prefix enables natural time-based sorting and archiving. For example, `240601-` prefix means all IDs from June 1, 2024 sort together, making it easy to partition or query by date.
 
 ```java
 import me.ahoo.cosid.converter.DatePrefixIdConverter;
@@ -211,6 +230,8 @@ IdConverter datePrefixNum = new DatePrefixIdConverter(
 
 // Example 3: Triple decoration (business prefix + date + encoding)
 // Output: "ORD-240601-1ly7VK"
+// Why compose decorators: Each decorator adds one concern (business context,
+// time context, encoding format). Composing them keeps each piece simple.
 IdConverter fullPrefix = new PrefixIdConverter(
     "ORD-",
     new DatePrefixIdConverter("yyMMdd", "-", Radix62IdConverter.PAD_START)
@@ -231,7 +252,7 @@ Common date patterns:
 
 ## 5. MachineIdDistributor Manual Setup (Quick Reference)
 
-In distributed environments, use `MachineIdDistributor` to allocate unique MachineIds:
+Why: In distributed environments, each application instance needs a unique machineId. MachineIdDistributor coordinates this — it allocates, guards (via heartbeat), and reclaims machineIds. Without it, you must manually assign unique machineIds to each server.
 
 ```java
 import me.ahoo.cosid.machine.MachineIdDistributor;
@@ -253,11 +274,11 @@ Other backend implementations:
 - `ZooKeeperMachineIdDistributor` (cosid-zookeeper)
 - `MongoMachineIdDistributor` (cosid-mongo)
 - `ManualMachineIdDistributor` (cosid-core, fixed ID assignment)
-- `StatefulSetMachineIdDistributor` (cosid-core, K8s StatefulSet)
+- `StatefulSetMachineIdDistributor` (cosid-core, K8s StatefulSet — uses pod ordinal as machineId)
 
 ## 6. CosIdGenerator (Quick Reference)
 
-Standalone high-performance ID generator, no backend required:
+Why: CosIdGenerator is a standalone ID generator that doesn't need any backend coordination. It encodes a timestamp + machineId + sequence into a single long. Use it when you want simplicity and don't need cross-instance coordination.
 
 ```java
 import me.ahoo.cosid.cosid.CosIdGenerator;
@@ -269,7 +290,7 @@ long id = generator.generate();
 
 ## 7. Common Issues
 
-- **Thread safety:** All IdGenerator implementations are thread-safe (`@ThreadSafe`). No external synchronization needed.
-- **Lifecycle management:** When using SegmentChainId, call `shutdown()` on `PrefetchWorkerExecutorService` on application close. MachineIdDistributor guard heartbeats also need shutdown.
-- **MachineId range:** Default 10-bit machineBit (0-1023). Ensure each machine uses a unique machineId.
-- **Epoch design:** Choose an appropriate epoch start time. The 41-bit timestamp supports ~69 years from the epoch.
+- **Thread safety:** All IdGenerator implementations are thread-safe (`@ThreadSafe`). A single instance can be shared across all threads — no pooling or synchronization needed.
+- **Lifecycle management:** SegmentChainId has a background prefetch worker. Call `shutdown()` on `PrefetchWorkerExecutorService` on application close to release threads. MachineIdDistributor guard heartbeats also need shutdown.
+- **MachineId range:** Default 10-bit machineBit (0-1023). With more than 1024 instances, you need to increase machineBit (at the cost of fewer sequence bits).
+- **Epoch design:** The default epoch is Dec 24, 2019. The 41-bit timestamp supports ~69 years from the epoch, so it's safe until ~2088. Don't change the epoch unless you have a specific reason.

@@ -3,11 +3,11 @@ name: cosid-manual-integration
 description: Guide for integrating CosId via Java API in non-Spring Boot projects. Use when users mention manual configuration, Java API, non-Spring, pure Java, or need to create SnowflakeId/SegmentId/SegmentChainId programmatically.
 ---
 
-# CosId 手动集成指南（非 Spring Boot）
+# CosId Manual Integration Guide (Non-Spring Boot)
 
-TRIGGER: 用户在非 Spring Boot 项目中使用 CosId Java API（关键词：手动配置、Java API、非 Spring、纯 Java、程序化创建）
+TRIGGER: User is using CosId Java API in a non-Spring Boot project (keywords: manual configuration, Java API, non-Spring, pure Java, programmatic creation)
 
-## 1. 添加依赖
+## 1. Add Dependencies
 
 ### Gradle (Kotlin DSL)
 
@@ -18,21 +18,21 @@ dependencies {
 }
 ```
 
-### 可选的 Distributor 依赖
+### Optional Distributor Dependencies
 
-根据需要的 Segment 分配后端，按需添加：
+Add the distributor module for your Segment backend as needed:
 
 ```kotlin
-// Redis 分配器
+// Redis distributor
 implementation("me.ahoo.cosid:cosid-spring-redis")
 
-// JDBC 分配器
+// JDBC distributor
 implementation("me.ahoo.cosid:cosid-jdbc")
 
-// MongoDB 分配器
+// MongoDB distributor
 implementation("me.ahoo.cosid:cosid-mongo")
 
-// ZooKeeper 分配器
+// ZooKeeper distributor
 implementation("me.ahoo.cosid:cosid-zookeeper")
 ```
 
@@ -57,15 +57,15 @@ implementation("me.ahoo.cosid:cosid-zookeeper")
 </dependency>
 ```
 
-## 2. SnowflakeId 创建
+## 2. Creating a SnowflakeId
 
-### 基础用法（单机场景）
+### Basic Usage (Single-Node)
 
 ```java
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.IdGenerator;
 
-// 使用固定 machineId（单机场景）
+// Use a fixed machineId (single-node scenario)
 int machineId = 1;
 MillisecondSnowflakeId snowflakeId = new MillisecondSnowflakeId(machineId);
 
@@ -73,40 +73,40 @@ long id = snowflakeId.generate();
 // 1702345678901234567
 ```
 
-### 自定义位分配
+### Custom Bit Layout
 
 ```java
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 
-// 41 位时间戳 + 5 位机器 ID + 17 位序列号（更高单机吞吐）
+// 41-bit timestamp + 5-bit machineId + 17-bit sequence (higher single-node throughput)
 MillisecondSnowflakeId snowflakeId = new MillisecondSnowflakeId(
-    CosId.COSID_EPOCH,    // epoch 起点（2019-12-24）
+    CosId.COSID_EPOCH,    // epoch start (2019-12-24)
     41,                    // timestampBit
-    5,                     // machineBit（最多 32 台机器）
-    17,                    // sequenceBit（每毫秒 131072 个 ID）
+    5,                     // machineBit (up to 32 machines)
+    17,                    // sequenceBit (131072 IDs per millisecond)
     machineId,
     SnowflakeId.defaultSequenceResetThreshold(17)
 );
 ```
 
-### SecondSnowflakeId（秒级精度）
+### SecondSnowflakeId (Second Precision)
 
 ```java
 import me.ahoo.cosid.snowflake.SecondSnowflakeId;
 
 SecondSnowflakeId snowflakeId = new SecondSnowflakeId(
-    1577203200,  // epoch（秒级时间戳）
-    31,           // timestampBit（秒级可用约 68 年）
+    1577203200,  // epoch (seconds timestamp)
+    31,           // timestampBit (~68 years at second precision)
     10,           // machineBit
-    22,           // sequenceBit（每秒 4194304 个 ID）
+    22,           // sequenceBit (4194304 IDs per second)
     machineId,
     SecondSnowflakeId.defaultSequenceResetThreshold(22)
 );
 ```
 
-### 带 IdConverter 的字符串 ID
+### String IDs with IdConverter
 
 ```java
 import me.ahoo.cosid.converter.Radix62IdConverter;
@@ -119,33 +119,33 @@ String id = stringId.generateAsString();
 // "00Fj8V0eXQ6"
 ```
 
-## 3. SegmentId / SegmentChainId 创建
+## 3. Creating SegmentId / SegmentChainId
 
-### SegmentChainId（推荐，高性能）
+### SegmentChainId (Recommended, High-Performance)
 
 ```java
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 
-// 1. 创建 Distributor（以 Redis 为例）
+// 1. Create a Distributor (Redis example)
 IdSegmentDistributor distributor = new SpringRedisIdSegmentDistributor(redisTemplate);
 
-// 2. 创建 SegmentChainId（推荐使用单参数构造函数，自动使用默认配置）
+// 2. Create SegmentChainId (single-arg constructor uses default config)
 SegmentChainId segmentChainId = new SegmentChainId(distributor);
 
 long id = segmentChainId.generate();
 
-// 如需自定义 ttl 和 safeDistance，使用 4 参数构造函数：
+// For custom ttl and safeDistance, use the 4-arg constructor:
 // SegmentChainId segmentChainId = new SegmentChainId(
-//     TIME_TO_LIVE_FOREVER,  // idSegmentTtl（段过期时间，-1 表示永不过期）
-//     10,                     // safeDistance（预取安全距离）
+//     TIME_TO_LIVE_FOREVER,  // idSegmentTtl (-1 = never expires)
+//     10,                     // safeDistance (prefetch safety distance)
 //     distributor,
 //     new PrefetchWorkerExecutorService()
 // );
 ```
 
-### SegmentId（基础模式）
+### SegmentId (Basic Mode)
 
 ```java
 import me.ahoo.cosid.segment.DefaultSegmentId;
@@ -155,9 +155,9 @@ DefaultSegmentId segmentId = new DefaultSegmentId(distributor);
 long id = segmentId.generate();
 ```
 
-## 4. IdConverter 使用
+## 4. IdConverter Usage
 
-CosId 提供多种 ID 转换器，将 long 型 ID 转为字符串：
+CosId provides multiple ID converters to transform long IDs into strings:
 
 ```java
 import me.ahoo.cosid.converter.Radix62IdConverter;
@@ -167,109 +167,109 @@ import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.SuffixIdConverter;
 import me.ahoo.cosid.converter.DatePrefixIdConverter;
 
-// Radix62（默认，推荐）：紧凑的字母数字编码
+// Radix62 (default, recommended): compact alphanumeric encoding
 IdConverter converter = Radix62IdConverter.PAD_START;
 converter.asString(123456789L); // "1ly7VK"
 
-// Radix36：大写字母数字编码
+// Radix36: uppercase alphanumeric encoding
 IdConverter converter36 = Radix36IdConverter.PAD_START;
 
-// ToString：直接转字符串
+// ToString: direct string conversion
 IdConverter toStringConv = ToStringIdConverter.INSTANCE;
 
-// 前缀/后缀装饰器
+// Prefix/Suffix decorators
 IdConverter prefixed = new PrefixIdConverter("ORD-", Radix62IdConverter.PAD_START);
 prefixed.asString(123456789L); // "ORD-1ly7VK"
 
 IdConverter suffixed = new SuffixIdConverter("-BIZ", ToStringIdConverter.INSTANCE);
 ```
 
-### DatePrefixIdConverter：带日期前缀的 ID
+### DatePrefixIdConverter: Date-Prefixed IDs
 
-`DatePrefixIdConverter` 是一个装饰器，在 ID 前添加基于当前日期的前缀。适合需要按日期归档或排序的场景：
+`DatePrefixIdConverter` is a decorator that prepends a date-based prefix to any ID. Useful for archiving or sorting by date:
 
 ```java
 import me.ahoo.cosid.converter.DatePrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
 
-// 示例 1：日期前缀 + Radix62 编码
-// 输出格式："240601-1ly7VK"（日期 + 连字符 + 编码）
+// Example 1: Date prefix + Radix62 encoding
+// Output: "240601-1ly7VK" (date + delimiter + encoded ID)
 IdConverter datePrefix = new DatePrefixIdConverter(
-    "yyMMdd",              // 日期模式
-    "-",                   // 分隔符
-    Radix62IdConverter.PAD_START  // 内部转换器
+    "yyMMdd",              // date pattern
+    "-",                   // delimiter
+    Radix62IdConverter.PAD_START  // inner converter
 );
 
-// 示例 2：日期前缀 + 数字字符串（适合订单号）
-// 输出格式："20240601-0000001234"
+// Example 2: Date prefix + numeric string (good for order numbers)
+// Output: "20240601-0000001234"
 IdConverter datePrefixNum = new DatePrefixIdConverter(
-    "yyyyMMdd",            // 日期模式
-    "-",                   // 分隔符
+    "yyyyMMdd",            // date pattern
+    "-",                   // delimiter
     ToStringIdConverter.INSTANCE
 );
 
-// 示例 3：日期前缀 + 业务前缀（三重装饰器组合）
-// 输出格式："ORD-240601-1ly7VK"
+// Example 3: Triple decoration (business prefix + date + encoding)
+// Output: "ORD-240601-1ly7VK"
 IdConverter fullPrefix = new PrefixIdConverter(
     "ORD-",
     new DatePrefixIdConverter("yyMMdd", "-", Radix62IdConverter.PAD_START)
 );
 
-// 与 SnowflakeId 配合使用
+// Integrate with SnowflakeId
 MillisecondSnowflakeId snowflakeId = new MillisecondSnowflakeId(machineId);
 StringSnowflakeId stringId = new StringSnowflakeId(snowflakeId, datePrefix);
 String id = stringId.generateAsString();
 // "240601-00Fj8V0eXQ6"
 ```
 
-常用日期模式：
-- `yyMMdd` → `240601`（简短，适合短 ID）
-- `yyyyMMdd` → `20240601`（完整日期）
-- `yyMM` → `2406`（按月归档）
-- `yy` → `24`（按年归档）
+Common date patterns:
+- `yyMMdd` -> `240601` (short, good for compact IDs)
+- `yyyyMMdd` -> `20240601` (full date, clearer readability)
+- `yyMM` -> `2406` (monthly archiving)
+- `yy` -> `24` (yearly archiving)
 
-## 5. MachineIdDistributor 手动配置（要点提示）
+## 5. MachineIdDistributor Manual Setup (Quick Reference)
 
-分布式环境下需要通过 `MachineIdDistributor` 分配唯一的 MachineId：
+In distributed environments, use `MachineIdDistributor` to allocate unique MachineIds:
 
 ```java
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.InstanceId;
 
-// Redis 实现
+// Redis implementation
 MachineIdDistributor distributor = new SpringRedisMachineIdDistributor(redisTemplate, Duration.ofSeconds(10));
 
-// 分配 MachineId
+// Distribute MachineId
 InstanceId instanceId = InstanceId.of("my-host", 8080);
 int machineId = distributor.distribute("my-namespace", 0, instanceId);
 
-// 使用分配到的 machineId 创建 SnowflakeId
+// Create SnowflakeId with the allocated machineId
 MillisecondSnowflakeId snowflakeId = new MillisecondSnowflakeId(machineId);
 ```
 
-其他后端实现：
-- `JdbcMachineIdDistributor`（cosid-jdbc）
-- `ZooKeeperMachineIdDistributor`（cosid-zookeeper）
-- `MongoMachineIdDistributor`（cosid-mongo）
-- `ManualMachineIdDistributor`（cosid-core，手动指定固定 ID）
-- `StatefulSetMachineIdDistributor`（cosid-core，K8s StatefulSet 场景）
+Other backend implementations:
+- `JdbcMachineIdDistributor` (cosid-jdbc)
+- `ZooKeeperMachineIdDistributor` (cosid-zookeeper)
+- `MongoMachineIdDistributor` (cosid-mongo)
+- `ManualMachineIdDistributor` (cosid-core, fixed ID assignment)
+- `StatefulSetMachineIdDistributor` (cosid-core, K8s StatefulSet)
 
-## 6. CosIdGenerator（要点提示）
+## 6. CosIdGenerator (Quick Reference)
 
-独立高性能 ID 生成器，不依赖任何后端服务：
+Standalone high-performance ID generator, no backend required:
 
 ```java
 import me.ahoo.cosid.cosid.CosIdGenerator;
 
 CosIdGenerator generator = CosIdGenerator.INSTANCE;
 long id = generator.generate();
-// 性能：约 15M+ ops/s（单线程）
+// Performance: ~15M+ ops/s (single-thread)
 ```
 
-## 7. 常见问题
+## 7. Common Issues
 
-- **线程安全：** 所有 IdGenerator 实现都是线程安全的（`@ThreadSafe`），无需额外同步。
-- **生命周期管理：** 使用 SegmentChainId 时，`PrefetchWorkerExecutorService` 需要在应用关闭时调用 `shutdown()` 释放线程资源。MachineIdDistributor 的 guard 心跳也需要关闭。
-- **MachineId 范围：** 默认 10 位 machineBit（0-1023），确保每台机器使用不同的 machineId。
-- **epoch 设计：** 选择合适的 epoch 起始时间，确保 41 位时间戳在预期使用年限内不会溢出（约 69 年）。
+- **Thread safety:** All IdGenerator implementations are thread-safe (`@ThreadSafe`). No external synchronization needed.
+- **Lifecycle management:** When using SegmentChainId, call `shutdown()` on `PrefetchWorkerExecutorService` on application close. MachineIdDistributor guard heartbeats also need shutdown.
+- **MachineId range:** Default 10-bit machineBit (0-1023). Ensure each machine uses a unique machineId.
+- **Epoch design:** Choose an appropriate epoch start time. The 41-bit timestamp supports ~69 years from the epoch.

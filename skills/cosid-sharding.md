@@ -1,15 +1,15 @@
 ---
 name: cosid-sharding
-description: Guide for using CosId sharding algorithms with ShardingSphere for database sharding. Use when users mention sharding, 分库分表, ShardingSphere, PreciseSharding, IntervalSharding, IntervalTimeline, or database partitioning.
+description: Guide for using CosId sharding algorithms with ShardingSphere for database sharding. Use when users mention sharding, database splitting, ShardingSphere, PreciseSharding, IntervalSharding, IntervalTimeline, or database partitioning.
 ---
 
-# CosId 分库分表集成指南
+# CosId Database Sharding Integration Guide
 
-TRIGGER: 用户使用 CosId 分片算法配合 ShardingSphere 进行分库分表（关键词：分片、分库分表、ShardingSphere、ShardingAlgorithm、PreciseSharding、IntervalSharding）
+TRIGGER: User is using CosId sharding algorithms with ShardingSphere for database sharding (keywords: sharding, database splitting, ShardingSphere, ShardingAlgorithm, PreciseSharding, IntervalSharding)
 
-## 1. 添加依赖
+## 1. Add Dependencies
 
-分片算法在 `cosid-core` 中，无需额外模块：
+Sharding algorithms are included in `cosid-core`, no extra modules needed:
 
 ### Gradle (Kotlin DSL)
 
@@ -20,30 +20,30 @@ dependencies {
 }
 ```
 
-如果与 Spring Boot + ShardingSphere 配合使用，还需添加：
+For Spring Boot + ShardingSphere integration, also add:
 
 ```kotlin
 implementation("me.ahoo.cosid:cosid-spring-boot-starter")
 implementation("org.apache.shardingsphere:shardingsphere-jdbc")
 ```
 
-## 2. PreciseSharding 精确分片
+## 2. PreciseSharding (Modulo-Based)
 
-基于取模的精确分片算法，适用于按 ID 值精确路由到分表。
+Modulo-based sharding algorithm for routing by ID value.
 
-### 使用 ModCycle
+### Using ModCycle
 
 ```java
 import me.ahoo.cosid.sharding.ModCycle;
 import me.ahoo.cosid.sharding.PreciseSharding;
 
-// 创建取模分片算法：逻辑表名 "t_order"，分为 4 个节点
+// Create modulo sharding: 4 shards, table prefix "t_order_"
 PreciseSharding<Long> sharding = new ModCycle<>(
-    4,           // 分片数量
-    "t_order_"   // 逻辑表名前缀（以分隔符结尾）
+    4,           // number of shards
+    "t_order_"   // logical table name prefix (end with separator)
 );
 
-// 根据订单 ID 路由到具体的分表
+// Route an order ID to the correct shard
 String node = sharding.sharding(123456789L);
 // "t_order_1"
 
@@ -51,7 +51,7 @@ String node2 = sharding.sharding(123456790L);
 // "t_order_2"
 ```
 
-### ShardingSphere YAML 配置
+### ShardingSphere YAML Configuration
 
 ```yaml
 rules:
@@ -71,20 +71,20 @@ rules:
           mod: 4
 ```
 
-### 使用 CachedSharding 提升性能
+### Using CachedSharding for Better Performance
 
 ```java
 import me.ahoo.cosid.sharding.CachedSharding;
 
-// 缓存分片计算结果，适合高频查询场景
+// Cache sharding computation results, good for high-frequency queries
 PreciseSharding<Long> cached = new CachedSharding<>(new ModCycle<>(4, "t_order_"));
 ```
 
-## 3. IntervalSharding 区间分片
+## 3. IntervalSharding (Time-Based)
 
-基于时间区间的分片算法，适用于按时间范围分表（如按月、按天）。
+Time-interval sharding algorithm for splitting tables by time range (e.g. monthly, daily).
 
-### 使用 IntervalTimeline
+### Using IntervalTimeline
 
 ```java
 import me.ahoo.cosid.sharding.IntervalTimeline;
@@ -94,22 +94,22 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 
-// 按月分表：2024-01 ~ 2025-12
+// Monthly sharding: 2024-01 ~ 2025-12
 IntervalTimeline timeline = new IntervalTimeline(
-    "t_order_",                                              // 逻辑表名前缀
+    "t_order_",                                              // logical table prefix
     Range.closed(
-        LocalDateTime.of(2024, 1, 1, 0, 0),                 // 起始时间
-        LocalDateTime.of(2025, 12, 31, 23, 59)              // 结束时间
+        LocalDateTime.of(2024, 1, 1, 0, 0),                 // start time
+        LocalDateTime.of(2025, 12, 31, 23, 59)              // end time
     ),
-    IntervalStep.of(ChronoUnit.MONTHS),                     // 按月步进
-    DateTimeFormatter.ofPattern("yyyyMM")                    // 后缀格式
+    IntervalStep.of(ChronoUnit.MONTHS),                     // step by month
+    DateTimeFormatter.ofPattern("yyyyMM")                    // suffix format
 );
 
-// 精确分片：根据时间路由到具体分表
+// Precise sharding: route by time to a specific table
 String node = timeline.sharding(LocalDateTime.of(2024, 6, 15, 10, 30));
 // "t_order_202406"
 
-// 范围分片：查询一个时间范围涉及哪些分表
+// Range sharding: find all tables for a time range
 Collection<String> nodes = timeline.sharding(
     Range.closed(
         LocalDateTime.of(2024, 3, 1, 0, 0),
@@ -119,7 +119,7 @@ Collection<String> nodes = timeline.sharding(
 // ["t_order_202403", "t_order_202404", "t_order_202405", "t_order_202406"]
 ```
 
-### 按天分表
+### Daily Sharding
 
 ```java
 IntervalTimeline dailyTimeline = new IntervalTimeline(
@@ -133,7 +133,7 @@ IntervalTimeline dailyTimeline = new IntervalTimeline(
 );
 ```
 
-### ShardingSphere YAML 配置（区间分片）
+### ShardingSphere YAML Configuration (Interval Sharding)
 
 ```yaml
 rules:
@@ -157,20 +157,20 @@ rules:
           datetime-interval-amount: 1
 ```
 
-## 4. ShardingSphere SPI 算法类型参考
+## 4. ShardingSphere SPI Algorithm Types
 
-CosId 提供以下 ShardingSphere SPI 算法类型，可直接在 YAML 配置中使用：
+CosId provides the following ShardingSphere SPI algorithm types, usable directly in YAML configuration:
 
-| SPI 类型 | 用途 | 分片键类型 | 说明 |
-|----------|------|-----------|------|
-| `COSID` | 分布式 ID 生成器 | - | KeyGenerator，用于生成分布式主键 |
-| `COSID_MOD` | 取模精确分片 | `Long` | `order_id % mod` 路由 |
-| `COSID_INTERVAL` | 时间区间分片 | `LocalDateTime` / `String` | 按时间范围路由（create_time 列） |
-| `COSID_INTERVAL_SNOWFLAKE` | 雪花 ID 时间分片 | `Long` | 从 SnowflakeId 中解析时间戳后按区间路由，适合没有 create_time 列的场景 |
+| SPI Type | Purpose | Sharding Key Type | Description |
+|----------|---------|-------------------|-------------|
+| `COSID` | Distributed ID generator | - | KeyGenerator for distributed primary keys |
+| `COSID_MOD` | Modulo-based precise sharding | `Long` | `order_id % mod` routing |
+| `COSID_INTERVAL` | Time-interval sharding | `LocalDateTime` / `String` | Routes by time range (create_time column) |
+| `COSID_INTERVAL_SNOWFLAKE` | Snowflake ID time sharding | `Long` | Extracts timestamp from SnowflakeId for interval routing, useful when no create_time column exists |
 
-### COSID_INTERVAL_SNOWFLAKE 配置示例
+### COSID_INTERVAL_SNOWFLAKE Configuration
 
-当分片键是 SnowflakeId（Long 类型）而非 datetime 列时，使用此算法从 ID 中解析时间戳：
+When the sharding key is a SnowflakeId (Long) rather than a datetime column, use this algorithm to extract the timestamp from the ID:
 
 ```yaml
 rules:
@@ -188,18 +188,18 @@ rules:
           id-name: __share__
 ```
 
-## 5. CeilingRadixSharding（要点提示）
+## 5. CeilingRadixSharding (Quick Reference)
 
-基于 62 进制的分片算法，将 long 型 ID 转为 Radix62 字符后取模分片。适用于 ID 本身需要体现分片信息的场景。
+Sharding algorithm based on Radix62 encoding. Converts a long ID to a Radix62 string, then applies modulo sharding. Useful when the shard position needs to be embedded in the ID itself.
 
-特点：
-- 分片结果与 ID 的进制表示关联
-- 适合需要从 ID 反推分片位置的场景
-- 分片数量建议为 62 的因子（2、31、62）以获得均匀分布
+Characteristics:
+- Sharding result correlates with the ID's radix representation
+- Good for scenarios where you need to reverse-engineer the shard from the ID
+- Recommend shard counts that are factors of 62 (2, 31, 62) for even distribution
 
-## 6. 与 Spring Boot + ShardingSphere 集成
+## 6. Spring Boot + ShardingSphere Integration
 
-在 Spring Boot 项目中，CosId 的分片算法可以注册为 Spring Bean，供 ShardingSphere 自动发现：
+In Spring Boot projects, register CosId sharding algorithms as Spring beans for ShardingSphere auto-discovery:
 
 ```java
 @Configuration
@@ -225,9 +225,9 @@ public class ShardingConfiguration {
 }
 ```
 
-## 7. 常见问题
+## 7. Common Issues
 
-- **分片数量设计：** 取模分片的数量建议为 2 的幂次（4、8、16、32），便于后续扩容（成倍扩展）。
-- **边界值处理：** IntervalTimeline 的时间必须在配置的有效区间内，超出范围会抛出 `IllegalArgumentException`。设计时预留足够的时间范围。
-- **ShardingSphere 版本兼容：** CosId 的 ShardingSphere 集成支持 ShardingSphere 5.x 系列。`COSID_MOD`、`COSID_INTERVAL`、`COSID_INTERVAL_SNOWFLAKE` 已合并到 ShardingSphere 官方代码中（[#14132](https://github.com/apache/shardingsphere/pull/14132)）。
-- **雪花 ID 分片：** 使用 SnowflakeId 作为分片键时，由于 ID 本身带有时间戳信息，按时间区间分片可获得均匀分布。使用取模分片也是常见做法。
+- **Shard count design:** Use powers of 2 (4, 8, 16, 32) for modulo sharding to facilitate future expansion (double the shards).
+- **Boundary handling:** IntervalTimeline times must be within the configured effective range. Values outside throw `IllegalArgumentException`. Design with sufficient time range headroom.
+- **ShardingSphere version compatibility:** CosId's ShardingSphere integration supports ShardingSphere 5.x. `COSID_MOD`, `COSID_INTERVAL`, and `COSID_INTERVAL_SNOWFLAKE` have been merged into official ShardingSphere ([#14132](https://github.com/apache/shardingsphere/pull/14132)).
+- **Snowflake ID sharding:** When using SnowflakeId as the sharding key, the embedded timestamp ensures even distribution with interval sharding. Modulo sharding also works well.

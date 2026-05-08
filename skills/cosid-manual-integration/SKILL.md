@@ -1,8 +1,9 @@
+---
+name: cosid-manual-integration
+description: Guide for manually integrating CosId into Java/Kotlin projects without Spring Boot auto-configuration. Use this skill when the user wants to configure CosId programmatically, set up custom ID generators, integrate CosId in non-Spring environments, asks about CosId core API usage (SnowflakeId, SegmentId, CosIdGenerator), needs to configure machine ID allocation manually, or mentions "manual integration", "programmatic configuration", "without Spring Boot", "non-Spring environment", or "library integration".
+---
+
 # CosId Manual Integration Skill
-
-## Description
-
-Provides guidance for manually integrating CosId distributed ID generation into Java/Kotlin projects without Spring Boot auto-configuration. Use this skill when users need to configure CosId programmatically, set up custom ID generators, or integrate CosId in non-Spring environments.
 
 ## Instructions
 
@@ -27,9 +28,10 @@ CosId provides three main ID generation strategies:
    - `SegmentChainId` - lock-free chain with prefetch worker (~127M+ ops/s)
    - Requires a `SegmentIdDistributor` (Redis, JDBC, ZooKeeper, MongoDB)
 
-3. **CosIdGenerator** - Standalone high-performance generator (~15M+ ops/s)
-   - Uses Radix62 encoding for string IDs
-   - No external dependencies for ID generation
+3. **CosIdGenerator** - Large-scale cluster string ID generator (~15M+ ops/s)
+   - Uses Radix62 encoding for compact string IDs
+   - Requires `MachineIdDistributor` for machine ID allocation (same as SnowflakeId)
+   - Supports much larger instance counts than SnowflakeId (not constrained by 63-bit long format)
 
 ### Machine ID Allocation
 
@@ -85,12 +87,6 @@ For tests, use `ManualMachineIdDistributor` with fixed machine IDs:
 ```java
 MachineIdDistributor distributor = new ManualMachineIdDistributor(1);
 ```
-
-## Trigger Patterns
-
-- "manual integration", "programmatic configuration", "without Spring Boot"
-- "CosId core API", "configure SnowflakeId", "machine ID allocation"
-- "non-Spring environment", "library integration"
 
 ## References
 

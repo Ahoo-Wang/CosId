@@ -157,7 +157,38 @@ rules:
           datetime-interval-amount: 1
 ```
 
-## 4. CeilingRadixSharding（要点提示）
+## 4. ShardingSphere SPI 算法类型参考
+
+CosId 提供以下 ShardingSphere SPI 算法类型，可直接在 YAML 配置中使用：
+
+| SPI 类型 | 用途 | 分片键类型 | 说明 |
+|----------|------|-----------|------|
+| `COSID` | 分布式 ID 生成器 | - | KeyGenerator，用于生成分布式主键 |
+| `COSID_MOD` | 取模精确分片 | `Long` | `order_id % mod` 路由 |
+| `COSID_INTERVAL` | 时间区间分片 | `LocalDateTime` / `String` | 按时间范围路由（create_time 列） |
+| `COSID_INTERVAL_SNOWFLAKE` | 雪花 ID 时间分片 | `Long` | 从 SnowflakeId 中解析时间戳后按区间路由，适合没有 create_time 列的场景 |
+
+### COSID_INTERVAL_SNOWFLAKE 配置示例
+
+当分片键是 SnowflakeId（Long 类型）而非 datetime 列时，使用此算法从 ID 中解析时间戳：
+
+```yaml
+rules:
+  - !SHARDING
+    shardingAlgorithms:
+      cosid-interval-snowflake:
+        type: COSID_INTERVAL_SNOWFLAKE
+        props:
+          logic-name-prefix: t_order_
+          datetime-lower: "2024-01-01 00:00:00"
+          datetime-upper: "2025-12-31 23:59:59"
+          sharding-suffix-pattern: yyyyMM
+          datetime-interval-unit: MONTHS
+          datetime-interval-amount: 1
+          id-name: __share__
+```
+
+## 5. CeilingRadixSharding（要点提示）
 
 基于 62 进制的分片算法，将 long 型 ID 转为 Radix62 字符后取模分片。适用于 ID 本身需要体现分片信息的场景。
 
@@ -166,7 +197,7 @@ rules:
 - 适合需要从 ID 反推分片位置的场景
 - 分片数量建议为 62 的因子（2、31、62）以获得均匀分布
 
-## 5. 与 Spring Boot + ShardingSphere 集成
+## 6. 与 Spring Boot + ShardingSphere 集成
 
 在 Spring Boot 项目中，CosId 的分片算法可以注册为 Spring Bean，供 ShardingSphere 自动发现：
 
@@ -194,9 +225,9 @@ public class ShardingConfiguration {
 }
 ```
 
-## 6. 常见问题
+## 7. 常见问题
 
 - **分片数量设计：** 取模分片的数量建议为 2 的幂次（4、8、16、32），便于后续扩容（成倍扩展）。
 - **边界值处理：** IntervalTimeline 的时间必须在配置的有效区间内，超出范围会抛出 `IllegalArgumentException`。设计时预留足够的时间范围。
-- **ShardingSphere 版本兼容：** CosId 的 ShardingSphere 集成支持 ShardingSphere 5.x 系列。不同小版本之间的 SPI 注册方式可能略有差异。
+- **ShardingSphere 版本兼容：** CosId 的 ShardingSphere 集成支持 ShardingSphere 5.x 系列。`COSID_MOD`、`COSID_INTERVAL`、`COSID_INTERVAL_SNOWFLAKE` 已合并到 ShardingSphere 官方代码中（[#14132](https://github.com/apache/shardingsphere/pull/14132)）。
 - **雪花 ID 分片：** 使用 SnowflakeId 作为分片键时，由于 ID 本身带有时间戳信息，按时间区间分片可获得均匀分布。使用取模分片也是常见做法。

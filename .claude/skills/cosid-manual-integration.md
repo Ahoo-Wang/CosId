@@ -165,6 +165,7 @@ import me.ahoo.cosid.converter.Radix36IdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.SuffixIdConverter;
+import me.ahoo.cosid.converter.DatePrefixIdConverter;
 
 // Radix62（默认，推荐）：紧凑的字母数字编码
 IdConverter converter = Radix62IdConverter.PAD_START;
@@ -182,6 +183,51 @@ prefixed.asString(123456789L); // "ORD-1ly7VK"
 
 IdConverter suffixed = new SuffixIdConverter("-BIZ", ToStringIdConverter.INSTANCE);
 ```
+
+### DatePrefixIdConverter：带日期前缀的 ID
+
+`DatePrefixIdConverter` 是一个装饰器，在 ID 前添加基于当前日期的前缀。适合需要按日期归档或排序的场景：
+
+```java
+import me.ahoo.cosid.converter.DatePrefixIdConverter;
+import me.ahoo.cosid.converter.Radix62IdConverter;
+import me.ahoo.cosid.converter.ToStringIdConverter;
+
+// 示例 1：日期前缀 + Radix62 编码
+// 输出格式："240601-1ly7VK"（日期 + 连字符 + 编码）
+IdConverter datePrefix = new DatePrefixIdConverter(
+    "yyMMdd",              // 日期模式
+    "-",                   // 分隔符
+    Radix62IdConverter.PAD_START  // 内部转换器
+);
+
+// 示例 2：日期前缀 + 数字字符串（适合订单号）
+// 输出格式："20240601-0000001234"
+IdConverter datePrefixNum = new DatePrefixIdConverter(
+    "yyyyMMdd",            // 日期模式
+    "-",                   // 分隔符
+    ToStringIdConverter.INSTANCE
+);
+
+// 示例 3：日期前缀 + 业务前缀（三重装饰器组合）
+// 输出格式："ORD-240601-1ly7VK"
+IdConverter fullPrefix = new PrefixIdConverter(
+    "ORD-",
+    new DatePrefixIdConverter("yyMMdd", "-", Radix62IdConverter.PAD_START)
+);
+
+// 与 SnowflakeId 配合使用
+MillisecondSnowflakeId snowflakeId = new MillisecondSnowflakeId(machineId);
+StringSnowflakeId stringId = new StringSnowflakeId(snowflakeId, datePrefix);
+String id = stringId.generateAsString();
+// "240601-00Fj8V0eXQ6"
+```
+
+常用日期模式：
+- `yyMMdd` → `240601`（简短，适合短 ID）
+- `yyyyMMdd` → `20240601`（完整日期）
+- `yyMM` → `2406`（按月归档）
+- `yy` → `24`（按年归档）
 
 ## 5. MachineIdDistributor 手动配置（要点提示）
 

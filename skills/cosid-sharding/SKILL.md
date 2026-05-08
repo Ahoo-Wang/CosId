@@ -1,65 +1,59 @@
 ---
 name: cosid-sharding
-description: Guide for using CosId sharding algorithms with ShardingSphere for database sharding. Use this skill whenever the user mentions table sharding, database splitting, ShardingSphere integration, sharding by ID, sharding by time, monthly table partitioning, or ModCycle/IntervalTimeline configuration — even if they just say "I need to split my table into shards" without mentioning CosId. Also trigger when the user asks about PreciseSharding, RangeSharding, CachedSharding, or ceiling radix sharding.
+description: Guide for using CosId sharding algorithms for database sharding with ShardingSphere. Use this skill whenever the user mentions database sharding, table sharding, ShardingSphere, interval sharding, modulo sharding, date-based sharding, range sharding, or needs to distribute data across multiple database tables or nodes. Also use when the user asks about ModCycle, IntervalTimeline, CachedSharding, PreciseSharding, RangeSharding, or SnowflakeLocalDateTimeConvertor.
 ---
 
-# CosId Database Sharding Integration Guide
+# CosId Sharding Algorithms
 
-## When to Use This Skill
+CosId provides sharding algorithms designed for database sharding, compatible with Apache ShardingSphere. All algorithms implement both precise sharding (single key lookup) and range sharding (key range lookup).
 
-Use this skill when a developer needs sharding algorithms for database table splitting — either standalone or integrated with ShardingSphere. Key scenarios:
+## Sharding Algorithm Types
 
-- Splitting tables by ID value (modulo sharding)
-- Splitting tables by time range (monthly, daily, hourly)
-- Registering CosId sharding algorithms as ShardingSphere SPI
-- Registering sharding algorithms as Spring beans for ShardingSphere auto-discovery
+| Algorithm | Class | Best For |
+|---|---|---|
+| **Modulo (ModCycle)** | `ModCycle<T>` | Uniform distribution, numeric IDs |
+| **Interval Timeline** | `IntervalTimeline` | Date-based partitioning, time-series data |
+| **Cached Sharding** | `CachedSharding<T>` | Wraps any algorithm to cache range lookups |
 
-CosId sharding algorithms live in `cosid-core` (no extra modules). They implement both `PreciseSharding` (for `=` / `IN` queries) and `RangeSharding` (for `BETWEEN` queries), so ShardingSphere can use them for all query types.
+## Architecture
 
-## 1. Add Dependencies
+The sharding hierarchy:
 
-```kotlin
-dependencies {
-    implementation(platform("me.ahoo.cosid:cosid-bom"))
-    implementation("me.ahoo.cosid:cosid-core")
-}
+```
+Sharding<T>              (combines precise + range)
+├── PreciseSharding<T>   (single value → node)
+└── RangeSharding<T>     (value range → collection of nodes)
+
+Implementations:
+├── ModCycle<T>          (modulo-based, numeric IDs)
+├── IntervalTimeline     (time-based intervals)
+└── CachedSharding<T>    (caching decorator)
 ```
 
-For Spring Boot + ShardingSphere integration:
+## ModCycle - Modulo Sharding
 
-```kotlin
-implementation("me.ahoo.cosid:cosid-spring-boot-starter")
-implementation("org.apache.shardingsphere:shardingsphere-jdbc")
-```
+Distributes numeric IDs across nodes using `value % divisor`. Best for uniform distribution when using SnowflakeId or SegmentId.
 
-## 2. PreciseSharding (Modulo-Based)
-
-Why modulo sharding: It's the simplest sharding strategy. Given an ID, `id % numShards` determines the table. Works well when IDs are evenly distributed (e.g. SnowflakeId). The trade-off: range queries always hit all shards because modulo doesn't preserve locality.
-
-### Using ModCycle
+### Usage
 
 ```java
 import me.ahoo.cosid.sharding.ModCycle;
-import me.ahoo.cosid.sharding.PreciseSharding;
 
-// Constructor: (int divisor, String logicNamePrefix)
-// divisor comes first because it's the primary parameter — the number of
-// shards determines the routing logic. The prefix is just a naming convention.
-PreciseSharding<Long> sharding = new ModCycle<>(
-    4,           // number of shards
-    "t_order_"   // logical table name prefix (end with separator)
-);
+// Shard across 4 nodes: table_0, table_1, table_2, table_3
+ModCycle<Long> sharding = new ModCycle<>(4, "table_");
 
-String node = sharding.sharding(123456789L);
-// "t_order_1" (123456789 % 4 = 1)
+// Precise sharding
+String node = sharding.sharding(42L);  // → "table_2"
 
-String node2 = sharding.sharding(123456790L);
-// "t_order_2" (123456790 % 4 = 2)
+// Range sharding
+Range<Long> range = Range.closed(1L, 10L);
+Collection<String> nodes = sharding.sharding(range);  // all 4 nodes
 ```
 
-### ShardingSphere YAML Configuration
+### ShardingSphere Integration
 
 ```yaml
+# ShardingSphere YAML configuration
 rules:
   - !SHARDING
     tables:
@@ -68,172 +62,163 @@ rules:
         tableStrategy:
           standard:
             shardingColumn: order_id
-            shardingAlgorithmName: cosid-mod
+            shardingAlgorithmName: t_order_mod
     shardingAlgorithms:
-      cosid-mod:
+      t_order_mod:
         type: COSID_MOD
         props:
+          divisor: 4
           logic-name-prefix: t_order_
-          mod: 4
 ```
 
-### Using CachedSharding for Better Performance
+## IntervalTimeline - Time-Based Sharding
 
-Why: If the same ID is queried repeatedly (e.g. foreign key lookups), caching the modulo result avoids recomputation. The cache is a simple map — negligible memory cost for significant CPU savings on hot paths.
+Distributes data across time-based intervals. Each interval maps to a specific node named with a formatted date suffix.
 
-```java
-import me.ahoo.cosid.sharding.CachedSharding;
-
-PreciseSharding<Long> cached = new CachedSharding<>(new ModCycle<>(4, "t_order_"));
-```
-
-## 3. IntervalSharding (Time-Based)
-
-Why time-based sharding: For time-series data (logs, events, orders), splitting by time range gives natural data lifecycle management. Old tables can be archived or dropped independently. Each time interval maps to a physical table.
-
-### Using IntervalTimeline
+### Usage
 
 ```java
 import me.ahoo.cosid.sharding.IntervalTimeline;
 import me.ahoo.cosid.sharding.IntervalStep;
-import com.google.common.collect.Range;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
+import com.google.common.collect.Range;
 
-// Monthly sharding: 2024-01 ~ 2025-12
+// Daily sharding for 2024
 IntervalTimeline timeline = new IntervalTimeline(
-    "t_order_",                                              // logical table prefix
-    Range.closed(
-        LocalDateTime.of(2024, 1, 1, 0, 0),                 // start time
-        LocalDateTime.of(2025, 12, 31, 23, 59)              // end time
-    ),
-    IntervalStep.of(ChronoUnit.MONTHS),                     // step by month
-    DateTimeFormatter.ofPattern("yyyyMM")                    // suffix format
-);
-
-// Precise sharding: route by time to a specific table
-String node = timeline.sharding(LocalDateTime.of(2024, 6, 15, 10, 30));
-// "t_order_202406"
-
-// Range sharding: find all tables for a time range
-Collection<String> nodes = timeline.sharding(
-    Range.closed(
-        LocalDateTime.of(2024, 3, 1, 0, 0),
-        LocalDateTime.of(2024, 6, 30, 23, 59)
-    )
-);
-// ["t_order_202403", "t_order_202404", "t_order_202405", "t_order_202406"]
-```
-
-### Daily Sharding
-
-```java
-IntervalTimeline dailyTimeline = new IntervalTimeline(
-    "t_log_",
+    "t_order_",                                                    // logic name prefix
     Range.closed(
         LocalDateTime.of(2024, 1, 1, 0, 0),
-        LocalDateTime.of(2024, 12, 31, 23, 59)
+        LocalDateTime.of(2024, 12, 31, 23, 59, 59)
     ),
-    IntervalStep.of(ChronoUnit.DAYS),
-    DateTimeFormatter.ofPattern("yyyyMMdd")
+    IntervalStep.of(ChronoUnit.DAYS),                              // daily intervals
+    DateTimeFormatter.ofPattern("yyyyMMdd")                         // suffix format
 );
+
+// Precise: which table holds data for 2024-03-15?
+String node = timeline.sharding(LocalDateTime.of(2024, 3, 15, 10, 30));
+// → "t_order_20240315"
+
+// Range: which tables cover March 2024?
+Range<LocalDateTime> marchRange = Range.closed(
+    LocalDateTime.of(2024, 3, 1, 0, 0),
+    LocalDateTime.of(2024, 3, 31, 23, 59, 59)
+);
+Collection<String> nodes = timeline.sharding(marchRange);
+// → ["t_order_20240301", "t_order_20240302", ..., "t_order_20240331"]
 ```
 
-### ShardingSphere YAML Configuration (Interval)
+### Interval Step Options
+
+```java
+// Yearly intervals
+IntervalStep.of(ChronoUnit.YEARS)
+
+// Monthly intervals
+IntervalStep.of(ChronoUnit.MONTHS)
+
+// Daily intervals
+IntervalStep.of(ChronoUnit.DAYS)
+
+// Hourly intervals
+IntervalStep.of(ChronoUnit.HOURS)
+
+// Custom: every 3 months
+IntervalStep.of(ChronoUnit.MONTHS, 3)
+```
+
+### Common Suffix Formatters
+
+```java
+// Yearly: t_order_2024, t_order_2025
+DateTimeFormatter.ofPattern("yyyy")
+
+// Monthly: t_order_202401, t_order_202402
+DateTimeFormatter.ofPattern("yyyyMM")
+
+// Daily: t_order_20240315
+DateTimeFormatter.ofPattern("yyyyMMdd")
+
+// Hourly: t_order_2024031514
+DateTimeFormatter.ofPattern("yyyyMMddHH")
+```
+
+### ShardingSphere Integration for Interval Sharding
 
 ```yaml
 rules:
   - !SHARDING
     tables:
       t_order:
-        actualDataNodes: ds.t_order_${202401..202412}
+        actualDataNodes: ds_0.t_order_${20240101..20241231}
         tableStrategy:
           standard:
             shardingColumn: create_time
-            shardingAlgorithmName: cosid-interval
+            shardingAlgorithmName: t_order_interval
     shardingAlgorithms:
-      cosid-interval:
+      t_order_interval:
         type: COSID_INTERVAL
         props:
           logic-name-prefix: t_order_
           datetime-lower: "2024-01-01 00:00:00"
           datetime-upper: "2024-12-31 23:59:59"
-          sharding-suffix-pattern: yyyyMM
-          datetime-interval-unit: MONTHS
+          sharding-suffix-pattern: yyyyMMdd
+          datetime-interval-unit: DAYS
           datetime-interval-amount: 1
 ```
 
-## 4. ShardingSphere SPI Algorithm Types
+## SnowflakeLocalDateTimeConvertor
 
-CosId provides these ShardingSphere SPI algorithm types, usable directly in YAML:
-
-| SPI Type | Purpose | Sharding Key | Description |
-|----------|---------|-------------|-------------|
-| `COSID` | ID generator | - | KeyGenerator for distributed primary keys |
-| `COSID_MOD` | Modulo sharding | `Long` | `id % mod` routing |
-| `COSID_INTERVAL` | Time-interval sharding | `LocalDateTime` / `String` | Routes by time range (datetime column) |
-| `COSID_INTERVAL_SNOWFLAKE` | Snowflake time sharding | `Long` | Extracts timestamp from SnowflakeId for interval routing |
-
-### COSID_INTERVAL_SNOWFLAKE Configuration
-
-Why: When your sharding key is a SnowflakeId (Long) rather than a datetime column, this algorithm extracts the embedded timestamp and applies interval routing. Useful when you don't have a `create_time` column but still want time-based sharding.
-
-```yaml
-rules:
-  - !SHARDING
-    shardingAlgorithms:
-      cosid-interval-snowflake:
-        type: COSID_INTERVAL_SNOWFLAKE
-        props:
-          logic-name-prefix: t_order_
-          datetime-lower: "2024-01-01 00:00:00"
-          datetime-upper: "2025-12-31 23:59:59"
-          sharding-suffix-pattern: yyyyMM
-          datetime-interval-unit: MONTHS
-          datetime-interval-amount: 1
-          id-name: __share__
-```
-
-## 5. CeilingRadixSharding (Quick Reference)
-
-Why: This algorithm converts a long ID to Radix62, then applies modulo on the first character. The shard position is embedded in the ID itself, so you can determine which shard an ID belongs to just by looking at it. Use it when you need self-describing IDs.
-
-Characteristics:
-- Shard count should be a factor of 62 (2, 31, 62) for even distribution
-- The first character of the Radix62 string determines the shard
-
-## 6. Spring Boot + ShardingSphere Integration
-
-Why register as beans: When sharding algorithms are Spring beans, ShardingSphere auto-discovers them — no need for SPI registration or class-name configuration. This also lets you inject other beans (e.g. a shared `IdGeneratorProvider`) into your sharding logic.
+Converts SnowflakeId values to LocalDateTime for time-based sharding using SnowflakeId as the sharding key:
 
 ```java
-@Configuration
-public class ShardingConfiguration {
+import me.ahoo.cosid.sharding.SnowflakeLocalDateTimeConvertor;
 
-    @Bean
-    public PreciseSharding<Long> orderModSharding() {
-        return new CachedSharding<>(new ModCycle<>(4, "t_order_"));
-    }
+SnowflakeLocalDateTimeConvertor convertor = new SnowflakeLocalDateTimeConvertor(
+    epoch, timestampBit  // from your SnowflakeId configuration
+);
 
-    @Bean
-    public IntervalTimeline orderIntervalSharding() {
-        return new IntervalTimeline(
-            "t_order_",
-            Range.closed(
-                LocalDateTime.of(2024, 1, 1, 0, 0),
-                LocalDateTime.of(2025, 12, 31, 23, 59)
-            ),
-            IntervalStep.of(ChronoUnit.MONTHS),
-            DateTimeFormatter.ofPattern("yyyyMM")
-        );
-    }
-}
+// Convert a SnowflakeId to LocalDateTime
+LocalDateTime time = convertor.convert(snowflakeId);
 ```
 
-## 7. Common Issues
+This enables using SnowflakeId-based IDs with IntervalTimeline sharding without a separate timestamp column.
 
-- **Shard count design:** Use powers of 2 (4, 8, 16, 32) for modulo sharding. This makes doubling shards straightforward during expansion.
-- **Boundary handling:** IntervalTimeline throws `IllegalArgumentException` for times outside the configured range. Always design with sufficient headroom — extend the upper bound well into the future.
-- **ShardingSphere compatibility:** Supports ShardingSphere 5.x. The `COSID_MOD`, `COSID_INTERVAL`, and `COSID_INTERVAL_SNOWFLAKE` types have been merged into official ShardingSphere ([#14132](https://github.com/apache/shardingsphere/pull/14132)).
-- **Snowflake ID sharding:** SnowflakeId embeds a timestamp, so interval sharding produces even distribution. Modulo sharding also works since SnowflakeId values are sequential.
+## CachedSharding
+
+Wraps any sharding algorithm to cache range sharding results:
+
+```java
+import me.ahoo.cosid.sharding.CachedSharding;
+
+ModCycle<Long> modSharding = new ModCycle<>(32, "table_");
+CachedSharding<Long> cachedSharding = new CachedSharding<>(modSharding);
+
+// First range query computes and caches
+Collection<String> nodes1 = cachedSharding.sharding(Range.closed(1L, 100L));
+
+// Subsequent identical range queries use cache
+Collection<String> nodes2 = cachedSharding.sharding(Range.closed(1L, 100L));
+```
+
+Range queries are often repeated (e.g., querying "last 7 days" across many requests), so caching avoids redundant computation.
+
+## Choosing a Sharding Strategy
+
+| Scenario | Algorithm | Why |
+|---|---|---|
+| Uniform numeric ID distribution | ModCycle | Simple, even distribution |
+| Date-based table partitioning | IntervalTimeline | Maps time ranges to tables |
+| SnowflakeId as sharding key | IntervalTimeline + SnowflakeLocalDateTimeConvertor | Extract timestamp from ID |
+| High QPS range queries | CachedSharding + any | Cache avoids recomputation |
+| Auto-increment / SegmentId as key | ModCycle | Even distribution of monotonic IDs |
+
+## Key Design Principles
+
+1. **Precise + Range**: Every algorithm supports both single-value and range sharding. ShardingSphere uses precise for `=` and `IN`, and range for `BETWEEN`, `>`, `<`.
+
+2. **Effective nodes**: `getEffectiveNodes()` returns all possible target nodes. This is used by ShardingSphere for routing optimization.
+
+3. **Thread safety**: All sharding implementations are thread-safe (`@ThreadSafe`).
+
+4. **Interval bounds**: IntervalTimeline requires an explicit effective time range. Values outside this range throw `IllegalArgumentException`.

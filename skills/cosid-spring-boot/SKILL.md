@@ -1,37 +1,30 @@
 ---
 name: cosid-spring-boot
-description: Guide for integrating CosId distributed ID generator in Spring Boot projects. Use this skill whenever the user mentions distributed IDs, unique IDs, order numbers, Snowflake IDs, segment IDs, ID generation, or needs to set up ID generation in a Spring Boot application — even if they don't explicitly mention "CosId". Also trigger when the user asks about machine ID allocation, clock synchronization for distributed systems, or ID converter configuration in Spring Boot.
+description: Guide for integrating CosId distributed ID generator with Spring Boot. Use this skill whenever the user mentions CosId, distributed ID generation, SnowflakeId, SegmentId, SegmentChainId, CosIdGenerator, machine ID allocation, or needs help configuring ID generation in a Spring Boot application. Also use when the user asks about ID conversion (Radix62, Radix36, SnowflakeFriendly), sharding with CosId, or configuring machine ID distributors (Redis, JDBC, MongoDB, ZooKeeper) for Spring Boot. Triggers on cosid YAML configuration, application.yml ID setup, or any CosId Spring Boot starter questions.
 ---
 
-# CosId Spring Boot Integration Guide
+# CosId Spring Boot Integration
 
-## When to Use This Skill
+CosId is a universal, flexible, high-performance distributed ID generator for Java 17+. The Spring Boot starter (`cosid-spring-boot-starter`) provides auto-configuration for all ID generation strategies.
 
-Use this skill when a developer is integrating CosId into a Spring Boot project. The key scenarios:
+## Dependency Setup
 
-- Setting up CosId with Spring Boot for the first time
-- Configuring SnowflakeId, SegmentId, or SegmentChainId via `application.yml`
-- Choosing a backend for MachineId distribution (Redis, JDBC, MongoDB, ZooKeeper)
-- Using `@CosId` or `@IdGenerator` annotations to inject ID generators
-- Enabling Actuator monitoring for ID generation metrics
+Add the BOM and starter to your `build.gradle`:
 
-If the user is NOT using Spring Boot, use `cosid-manual-integration` instead.
-
-## 1. Add Dependencies
-
-### Gradle (Kotlin DSL)
-
-```kotlin
+```groovy
 dependencies {
-    // cosid-bom manages versions for all CosId modules - do NOT hardcode versions
-    // Why: The BOM ensures all CosId modules use compatible versions. Hardcoding
-    // defeats this and can cause version conflicts when upgrading.
-    implementation(platform("me.ahoo.cosid:cosid-bom"))
-    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation platform("me.ahoo.cosid:cosid-bom:${cosidVersion}")
+    implementation "me.ahoo.cosid:cosid-spring-boot-starter"
+    
+    // Add exactly ONE distributor backend based on your infrastructure:
+    implementation "me.ahoo.cosid:cosid-spring-boot-starter:springRedisSupport"  // Redis
+    // implementation "me.ahoo.cosid:cosid-spring-boot-starter:jdbcSupport"     // JDBC/MySQL
+    // implementation "me.ahoo.cosid:cosid-spring-boot-starter:mongoSupport"    // MongoDB
+    // implementation "me.ahoo.cosid:cosid-spring-boot-starter:zookeeperSupport" // ZooKeeper
 }
 ```
 
-### Maven
+Or with Maven:
 
 ```xml
 <dependencyManagement>
@@ -51,63 +44,38 @@ dependencies {
         <groupId>me.ahoo.cosid</groupId>
         <artifactId>cosid-spring-boot-starter</artifactId>
     </dependency>
+    <!-- Redis variant -->
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-spring-boot-starter</artifactId>
+        <classifier>springRedisSupport</classifier>
+    </dependency>
 </dependencies>
 ```
 
-### Add Backend Support (Gradle Capability)
+## Choosing an ID Strategy
 
-CosId uses Gradle feature variants to conditionally include backend modules. This avoids pulling unnecessary dependencies — for example, if you use Redis, you don't need the JDBC driver on your classpath.
+There are 4 ID generation strategies in CosId. The right choice depends on your requirements:
 
-**Redis:**
-```kotlin
-implementation("me.ahoo.cosid:cosid-spring-boot-starter") {
-    capabilities {
-        requireCapability("me.ahoo.cosid:spring-redis-support")
-    }
-}
-```
+| Strategy | Throughput | Trend | Best For |
+|---|---|---|---|
+| **CosIdGenerator** | ~15M+/s | Time-ordered | Standalone apps, no distributed coordination needed |
+| **SnowflakeId** | ~4M+/s | Time-ordered | Distributed systems needing sortable IDs, typical microservices |
+| **SegmentId** | ~20M+/s | Monotonic | High-throughput with simple coordination, trend-increasing |
+| **SegmentChainId** | ~127M+/s | Monotonic | Maximum throughput, lock-free prefetching, production workloads |
 
-**JDBC:**
-```kotlin
-implementation("me.ahoo.cosid:cosid-spring-boot-starter") {
-    capabilities {
-        requireCapability("me.ahoo.cosid:jdbc-support")
-    }
-}
-```
+### Decision Guide
 
-**MongoDB:**
-```kotlin
-implementation("me.ahoo.cosid:cosid-spring-boot-starter") {
-    capabilities {
-        requireCapability("me.ahoo.cosid:mongo-support")
-    }
-}
-```
+- **Need maximum performance and have Redis/JDBC available?** → SegmentChainId (default segment mode)
+- **Need time-sortable IDs across machines?** → SnowflakeId
+- **Simple standalone app?** → CosIdGenerator (no external dependencies)
+- **Database-friendly monotonic IDs?** → SegmentId or SegmentChainId
 
-**ZooKeeper:**
-```kotlin
-implementation("me.ahoo.cosid:cosid-spring-boot-starter") {
-    capabilities {
-        requireCapability("me.ahoo.cosid:zookeeper-support")
-    }
-}
-```
+## Configuration Templates
 
-Maven example (Redis):
-```xml
-<dependency>
-    <groupId>me.ahoo.cosid</groupId>
-    <artifactId>cosid-spring-boot-starter</artifactId>
-    <classifier>spring-redis-support</classifier>
-</dependency>
-```
+### Full-featured Redis Setup (Most Common)
 
-## 2. Core Configuration (application.yml)
-
-### SnowflakeId Configuration
-
-SnowflakeId generates 64-bit IDs with a timestamp + machineId + sequence layout. Each application instance needs a unique machineId, which CosId allocates automatically via the chosen backend.
+This is the most typical production configuration with both SnowflakeId and SegmentChainId:
 
 ```yaml
 cosid:
@@ -115,158 +83,379 @@ cosid:
   machine:
     enabled: true
     distributor:
-      type: redis  # redis | jdbc | mongo | zookeeper
+      type: redis
+  generator:
+    enabled: true
   snowflake:
     enabled: true
     share:
-      enabled: true  # creates a shared default IdGenerator bean
+      enabled: true  # shared SnowflakeId as default IdGenerator
     provider:
-      order_id:  # custom name, inject with @IdGenerator("order_id")
+      order_id:
         converter:
           type: radix
-          prefix: ORD-
-      user_friendly_id:
-        converter:
-          type: snowflake_friendly
-      short_id:
-        converter:
-          type: radix
+          prefix: ORDER
           radix:
             char-size: 11
-```
-
-### SegmentChainId Configuration (Recommended for High Throughput)
-
-SegmentChainId allocates IDs in batches from the backend, reducing network round-trips. The "chain" mode adds lock-free prefetching for ~127M+ ops/s throughput. Unlike SnowflakeId, it does not require machineId allocation.
-
-```yaml
-cosid:
-  namespace: ${spring.application.name}
+            pad-start: true
   segment:
     enabled: true
-    mode: chain  # chain (recommended, high-performance) | segment (basic)
+    mode: chain  # CHAIN = SegmentChainId (recommended), SEGMENT = basic SegmentId
     distributor:
-      type: redis  # redis | jdbc | mongo | zookeeper | proxy
-    chain:
-      safe-distance: 10  # how aggressively to prefetch before current segment runs out
-      prefetch-worker:
-        prefetch-period: 1s
-        core-pool-size: 2
+      type: redis
     share:
-      enabled: true
+      enabled: true  # shared SegmentChainId as default StringIdGenerator
     provider:
-      order_no:
-        offset: 10000
-        step: 100  # number of IDs allocated per batch from backend
+      user_id:
+        step: 100
         converter:
           type: to_string
-          prefix: ORD
           to-string:
             char-size: 10
             pad-start: true
 ```
 
-### CosIdGenerator Configuration (Standalone, No Backend)
+### JDBC Backend Setup
 
-CosIdGenerator is a standalone high-performance ID generator (~15M+ ops/s). It does not coordinate with other instances — use it when you need fast IDs within a single application instance.
+For environments where only a relational database is available:
 
 ```yaml
 cosid:
   namespace: ${spring.application.name}
-  generator:
+  machine:
+    enabled: true
+    distributor:
+      type: jdbc
+  segment:
+    enabled: true
+    mode: chain
+    distributor:
+      type: jdbc
+      jdbc:
+        enable-auto-init-cosid-table: true
+        enable-auto-init-id-segment: true
+```
+
+This auto-creates the `cosid` table and segment rows. The table schema:
+
+```sql
+CREATE TABLE IF NOT EXISTS cosid (
+    name VARCHAR(100) NOT NULL,
+    last_max_id BIGINT NOT NULL DEFAULT 0,
+    last_fetch_time BIGINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (name)
+);
+```
+
+### MongoDB Backend Setup
+
+```yaml
+cosid:
+  namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    distributor:
+      type: mongo
+      mongo:
+        database: cosid_db
+  segment:
+    enabled: true
+    mode: chain
+    distributor:
+      type: mongo
+      mongo:
+        database: cosid_db
+```
+
+### ZooKeeper Backend Setup
+
+```yaml
+cosid:
+  namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    distributor:
+      type: zookeeper
+  snowflake:
+    enabled: true
+  segment:
+    enabled: true
+    mode: chain
+    distributor:
+      type: zookeeper
+```
+
+### Manual Machine ID (for fixed-instance deployments)
+
+When you have a known, fixed set of instances:
+
+```yaml
+cosid:
+  namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    distributor:
+      type: manual
+      manual:
+        machine-id: 1  # must be unique per instance
+  snowflake:
     enabled: true
 ```
 
-## 3. MachineId Distribution Strategy
+### Kubernetes StatefulSet
 
-Configure `cosid.machine.distributor.type` to choose a backend. The backend stores which machineId each application instance owns, with heartbeat-based guard to reclaim stale IDs.
+For StatefulSet deployments, the pod ordinal is used as the machine ID:
 
-| Type | Config Value | Why Choose This |
-|------|-------------|-----------------|
-| Redis | `redis` | Most common choice. Fast, already in most Spring Boot stacks. |
-| JDBC | `jdbc` | When Redis is not available. Uses your existing database. |
-| MongoDB | `mongo` | When your stack is MongoDB-based. |
-| ZooKeeper | `zookeeper` | When you already run ZooKeeper (e.g. Kafka/Hadoop clusters). |
-| Proxy | `proxy` | When you want a centralized CosId Proxy service. |
-
-Each backend requires the corresponding Spring Boot starter (e.g. `spring-boot-starter-data-redis`).
-
-## 4. Usage
-
-### Inject IdGenerator
-
-```java
-@Autowired
-private IdGenerator idGenerator;  // default shared generator (from share.enabled: true)
-
-public void createOrder() {
-    long orderId = idGenerator.generate();
-    String orderIdStr = idGenerator.generateAsString();
-}
+```yaml
+cosid:
+  namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    distributor:
+      type: stateful_set
+  snowflake:
+    enabled: true
 ```
 
-### Use @CosId Annotation (Recommended for Named Providers)
+## ID Converter Types
 
-Why: `@CosId` is the idiomatic way to inject a named ID generator. It's type-safe and self-documenting — the annotation value matches the provider name in your YAML config.
+Converters transform `long` IDs into `String` representations. Configure via `converter` in each provider definition.
 
-```java
-@CosId("order_id")  // references the provider name defined in YAML
-private IdGenerator orderIdGenerator;
+| Type | Description | Example Output |
+|---|---|---|
+| `radix` (default) | Base62 encoding (0-9, A-Z, a-z) | `ORDER-0Gjk3R0p` |
+| `radix36` | Base36 encoding (0-9, A-Z) | `BIZ-00001234` |
+| `to_string` | Plain decimal string with padding | `0000000001` |
+| `snowflake_friendly` | Human-readable snowflake timestamp | `20240101-120000-1-0-0` |
+| `custom` | Your own `IdConverter` implementation | — |
+
+### Converter Configuration Examples
+
+```yaml
+# Short alphanumeric ID (radix62)
+converter:
+  type: radix
+  prefix: ORDER
+  radix:
+    char-size: 11
+    pad-start: true
+
+# Numeric string with date prefix
+converter:
+  type: to_string
+  prefix: BIZ-
+  date-prefix:
+    enabled: true
+    pattern: yyMMdd
+  to-string:
+    char-size: 10
+    pad-start: true
+
+# Human-readable snowflake
+converter:
+  type: snowflake_friendly
+  friendly:
+    pad-start: true
+
+# With group-based prefix (for date-partitioned segments)
+converter:
+  type: to_string
+  prefix: BIZ-
+  group-prefix:
+    enabled: true
+  to-string:
+    char-size: 8
+    pad-start: true
 ```
 
-### Inject StringIdGenerator
+## Using the ID Generator in Code
+
+### Injecting the Shared IdGenerator
+
+When `share.enabled: true`, a default `IdGenerator` bean is registered:
 
 ```java
-@Autowired
-private StringIdGenerator stringIdGenerator;
-
-public void createUser() {
-    String userId = stringIdGenerator.generateAsString();
-}
-```
-
-### Inject a Named Provider via @IdGenerator
-
-```java
-@Bean
-public SomeService someService(@IdGenerator("order_no") IdGenerator orderNoGenerator) {
-    return new SomeService(orderNoGenerator);
-}
-```
-
-## 5. Actuator Monitoring (Quick Reference)
-
-Why: In production, you want visibility into ID generation — how many generators are active, whether machineId is healthy, and whether you can generate test IDs via HTTP.
-
-Add the actuator capability:
-
-```kotlin
-implementation("me.ahoo.cosid:cosid-spring-boot-starter") {
-    capabilities {
-        requireCapability("me.ahoo.cosid:actuator-support")
+@Service
+public class OrderService {
+    private final IdGenerator idGenerator;
+    
+    public OrderService(IdGenerator idGenerator) {
+        this.idGenerator = idGenerator;
+    }
+    
+    public Order createOrder() {
+        long orderId = idGenerator.generate();
+        String orderIdStr = idGenerator.generateAsString();
+        // ...
     }
 }
 ```
 
-Expose endpoints in `application.yml`:
+### Injecting Named Generators
+
+Named generators from `provider` are available via `IdGeneratorProvider`:
+
+```java
+@Service
+public class UserService {
+    private final IdGenerator userIdGenerator;
+    
+    public UserService(IdGeneratorProvider provider) {
+        this.userIdGenerator = provider.get("user_id");
+    }
+    
+    public User createUser() {
+        long userId = userIdGenerator.generate();
+        // ...
+    }
+}
+```
+
+### Using @CosId Annotation
+
+The `@CosId` annotation auto-assigns IDs to entity fields:
+
+```java
+import me.ahoo.cosid.annotation.CosId;
+
+public class Order {
+    @CosId("order_id")
+    private Long id;
+    
+    // getters/setters
+}
+```
+
+### SnowflakeId State Parsing
+
+Parse snowflake IDs back into their components:
+
+```java
+SnowflakeIdState state = snowflakeId.getStateParser().parse(id);
+// state.getTimestamp(), state.getMachineId(), state.getSequence()
+```
+
+## SnowflakeId Bit Layout Customization
+
+The default MillisecondSnowflakeId uses 41-bit timestamp, 10-bit machineId, 12-bit sequence. Customize per-provider:
+
+```yaml
+cosid:
+  snowflake:
+    provider:
+      short_lived_id:
+        timestamp-unit: second  # use seconds instead of milliseconds
+        epoch: 1577203200       # custom epoch (2020-01-01)
+        timestamp-bit: 31
+        machine-bit: 10
+        sequence-bit: 22
+```
+
+Bit allocation must satisfy: `timestampBit + machineBit + sequenceBit = 63`.
+
+## Segment Grouping (Date-partitioned IDs)
+
+Group segments by time period for date-based ID sequences:
+
+```yaml
+cosid:
+  segment:
+    provider:
+      daily_order:
+        group:
+          by: year_month_day  # or year, year_month
+          pattern: yyMMdd
+        converter:
+          type: to_string
+          prefix: BIZ-
+          group-prefix:
+            enabled: true
+          to-string:
+            char-size: 8
+            pad-start: true
+```
+
+## Machine ID Management
+
+### Guarder Configuration
+
+The guarder keeps machine ID registrations alive via heartbeat:
+
+```yaml
+cosid:
+  machine:
+    enabled: true
+    distributor:
+      type: redis
+    guarder:
+      enabled: true
+      safe-guard-duration: 5m  # how long the guard is valid
+      initial-delay: 1s
+      delay: 10s
+```
+
+### Clock Backwards Synchronization
+
+Handle clock drift in distributed environments:
+
+```yaml
+cosid:
+  machine:
+    enabled: true
+    clock-backwards:
+      spin-threshold: 100
+      broken-threshold: 2000
+```
+
+- `spin-threshold`: Small clock drift is handled by spinning/waiting
+- `broken-threshold`: Large clock drift throws `ClockTooManyBackwardsException`
+
+### State Storage
+
+Machine state persists locally to survive restarts:
+
+```yaml
+cosid:
+  machine:
+    enabled: true
+    state-storage:
+      local:
+        state-location: .cosid-machine-state  # default path
+```
+
+## Proxy Mode
+
+For architectures that prefer a dedicated ID service:
+
+```yaml
+# Client side
+cosid:
+  proxy:
+    enabled: true
+  segment:
+    enabled: true
+    mode: chain
+    distributor:
+      type: proxy
+```
+
+## Actuator / Monitoring
+
+Enable Spring Boot Actuator endpoints for monitoring:
 
 ```yaml
 management:
   endpoints:
     web:
       exposure:
-        include: cosid,cosidGenerator,cosidStringGenerator,health
+        include:
+          - cosid
+          - cosidGenerator
+          - cosidStringGenerator
+          - health
+  endpoint:
+    health:
+      show-details: always
 ```
 
-Available endpoints:
-- `/actuator/cosid` — statistics for all ID generators
-- `/actuator/cosidGenerator` — generate a long ID via HTTP (useful for testing)
-- `/actuator/cosidStringGenerator` — generate a String ID via HTTP
-- `/actuator/health` — includes `MachineIdHealthIndicator`, reports DOWN when machineId guardian detects lease loss
-
-## 6. Common Issues
-
-- **Clock backwards:** SnowflakeId detects clock drift and synchronizes via `ClockBackwardsSynchronizer`. Severe backwards drift throws `ClockTooManyBackwardsException`. Fix: sync NTP with slew mode, or increase `cosid.machine.clock-backwards.broken-threshold`.
-- **MachineId conflict:** Same instanceId registered twice under the same namespace. Ensure each instance has a unique instanceId (defaults to host + port, so this is usually automatic).
-- **Sequence overflow:** More than 4096 IDs per millisecond spins until the next millisecond — no data loss, just a brief pause.
-- **SegmentChainId tuning:** Increase `safe-distance` and `step` for higher throughput. Trade-off: more IDs are pre-fetched, so some may be wasted if the application restarts.
+The `cosid` endpoint shows all registered ID generators and their stats.

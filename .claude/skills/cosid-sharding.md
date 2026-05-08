@@ -39,8 +39,8 @@ import me.ahoo.cosid.sharding.PreciseSharding;
 
 // 创建取模分片算法：逻辑表名 "t_order"，分为 4 个节点
 PreciseSharding<Long> sharding = new ModCycle<>(
-    "t_order",   // 逻辑表名前缀
-    4            // 分片数量
+    4,           // 分片数量
+    "t_order_"   // 逻辑表名前缀（以分隔符结尾）
 );
 
 // 根据订单 ID 路由到具体的分表
@@ -77,7 +77,7 @@ rules:
 import me.ahoo.cosid.sharding.CachedSharding;
 
 // 缓存分片计算结果，适合高频查询场景
-PreciseSharding<Long> cached = new CachedSharding<>(new ModCycle<>("t_order_", 4));
+PreciseSharding<Long> cached = new CachedSharding<>(new ModCycle<>(4, "t_order_"));
 ```
 
 ## 3. IntervalSharding 区间分片
@@ -176,7 +176,7 @@ public class ShardingConfiguration {
 
     @Bean
     public PreciseSharding<Long> orderModSharding() {
-        return new CachedSharding<>(new ModCycle<>("t_order_", 4));
+        return new CachedSharding<>(new ModCycle<>(4, "t_order_"));
     }
 
     @Bean

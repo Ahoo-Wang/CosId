@@ -131,18 +131,18 @@ import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 // 1. 创建 Distributor（以 Redis 为例）
 IdSegmentDistributor distributor = new SpringRedisIdSegmentDistributor(redisTemplate);
 
-// 2. 创建预取工作线程池
-PrefetchWorkerExecutorService prefetchWorker = new PrefetchWorkerExecutorService();
-
-// 3. 创建 SegmentChainId
-SegmentChainId segmentChainId = new SegmentChainId(
-    IdSegmentDistributor.DEFAULT_OFFSET,
-    IdSegmentDistributor.DEFAULT_STEP,
-    distributor,
-    prefetchWorker
-);
+// 2. 创建 SegmentChainId（推荐使用单参数构造函数，自动使用默认配置）
+SegmentChainId segmentChainId = new SegmentChainId(distributor);
 
 long id = segmentChainId.generate();
+
+// 如需自定义 ttl 和 safeDistance，使用 4 参数构造函数：
+// SegmentChainId segmentChainId = new SegmentChainId(
+//     TIME_TO_LIVE_FOREVER,  // idSegmentTtl（段过期时间，-1 表示永不过期）
+//     10,                     // safeDistance（预取安全距离）
+//     distributor,
+//     new PrefetchWorkerExecutorService()
+// );
 ```
 
 ### SegmentId（基础模式）

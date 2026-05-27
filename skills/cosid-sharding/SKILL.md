@@ -1,11 +1,19 @@
 ---
 name: cosid-sharding
-description: Guide for using CosId sharding algorithms for database sharding with ShardingSphere. Use this skill whenever the user mentions database sharding, table sharding, ShardingSphere, interval sharding, modulo sharding, date-based sharding, range sharding, or needs to distribute data across multiple database tables or nodes. Also use when the user asks about ModCycle, IntervalTimeline, CachedSharding, PreciseSharding, RangeSharding, or SnowflakeLocalDateTimeConvertor.
+description: Design and configure CosId sharding algorithms for database sharding and ShardingSphere. Use when the user mentions table or database sharding, ShardingSphere COSID_MOD or COSID_INTERVAL rules, modulo sharding, date/time interval sharding, range routing, SnowflakeId timestamp extraction, ModCycle, IntervalTimeline, CachedSharding, PreciseSharding, RangeSharding, or SnowflakeLocalDateTimeConvertor.
 ---
 
 # CosId Sharding Algorithms
 
-CosId provides sharding algorithms designed for database sharding, compatible with Apache ShardingSphere. All algorithms implement both precise sharding (single key lookup) and range sharding (key range lookup).
+Use this skill to choose, configure, and validate CosId sharding behavior.
+
+## Workflow
+
+1. Identify the sharding key type: numeric ID, SnowflakeId, `LocalDateTime`, or an existing timestamp column.
+2. Choose the algorithm: `ModCycle` for uniform numeric distribution, `IntervalTimeline` for time ranges, or `CachedSharding` to cache repeated range routing.
+3. Confirm both precise and range queries. ShardingSphere routes `=`, `IN`, and range predicates differently.
+4. Define effective nodes and bounds explicitly. For interval sharding, include lower/upper datetime bounds and suffix format.
+5. Provide a minimal Java or ShardingSphere YAML example and a routing test.
 
 ## Sharding Algorithm Types
 
@@ -33,6 +41,8 @@ Implementations:
 ## ModCycle - Modulo Sharding
 
 Distributes numeric IDs across nodes using `value % divisor`. Best for uniform distribution when using SnowflakeId or SegmentId.
+
+Use `ModCycle` when the sharding key is already numeric and the desired distribution is even across a fixed number of tables or databases.
 
 ### Usage
 
@@ -74,6 +84,8 @@ rules:
 ## IntervalTimeline - Time-Based Sharding
 
 Distributes data across time-based intervals. Each interval maps to a specific node named with a formatted date suffix.
+
+Use `IntervalTimeline` when table names encode time periods such as day, month, or hour. It is also appropriate when a SnowflakeId can be converted back into event time.
 
 ### Usage
 
@@ -213,12 +225,30 @@ Range queries are often repeated (e.g., querying "last 7 days" across many reque
 | High QPS range queries | CachedSharding + any | Cache avoids recomputation |
 | Auto-increment / SegmentId as key | ModCycle | Even distribution of monotonic IDs |
 
+## Validation Checklist
+
+Use a small routing matrix before finalizing a rule:
+
+- One exact key routes to exactly one expected node.
+- An `IN` query routes to the union of expected nodes.
+- A range query covers all boundary nodes and no unrelated nodes when possible.
+- Values outside an `IntervalTimeline` effective range fail intentionally.
+- Snowflake timestamp extraction uses the same epoch and timestamp bits as the generator.
+- The ShardingSphere `actualDataNodes` expression matches every possible CosId effective node.
+
 ## Key Design Principles
 
 1. **Precise + Range**: Every algorithm supports both single-value and range sharding. ShardingSphere uses precise for `=` and `IN`, and range for `BETWEEN`, `>`, `<`.
-
 2. **Effective nodes**: `getEffectiveNodes()` returns all possible target nodes. This is used by ShardingSphere for routing optimization.
-
 3. **Thread safety**: All sharding implementations are thread-safe (`@ThreadSafe`).
+4. **Interval bounds**: `IntervalTimeline` requires an explicit effective time range. Values outside this range throw `IllegalArgumentException`.
+5. **Generator alignment**: When the sharding key is a CosId-generated ID, keep the generator epoch, timestamp unit, and converter settings aligned with the sharding rule.
 
-4. **Interval bounds**: IntervalTimeline requires an explicit effective time range. Values outside this range throw `IllegalArgumentException`.
+## Response Template
+
+When answering a sharding request, include:
+
+1. The selected algorithm and why it fits the sharding key.
+2. The expected table/database naming pattern.
+3. A concise Java or ShardingSphere YAML example.
+4. A routing test matrix for exact, `IN`, and range queries.

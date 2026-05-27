@@ -1,0 +1,4 @@
+interface:
+  display_name: "CosId Spring Boot"
+  short_description: "Configure CosId Spring Boot starter"
+  default_prompt: "Use $cosid-spring-boot to configure CosId in my Spring Boot application."

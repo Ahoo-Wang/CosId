@@ -1,0 +1,4 @@
+interface:
+  display_name: "CosId Sharding"
+  short_description: "Design CosId ShardingSphere rules"
+  default_prompt: "Use $cosid-sharding to design CosId sharding rules for my database tables."

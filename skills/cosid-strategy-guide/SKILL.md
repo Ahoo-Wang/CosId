@@ -1,11 +1,19 @@
 ---
 name: cosid-strategy-guide
-description: Guide for choosing the right CosId ID generation strategy. Use this skill whenever the user is unsure which CosId ID generator to use, asks about SnowflakeId vs SegmentId vs SegmentChainId vs CosIdGenerator, or needs help selecting a distributed ID strategy. Also use when the user mentions ID throughput, monotonic IDs, time-ordered IDs, machine ID allocation, or asks "which ID generator should I use" in the context of distributed systems or CosId.
+description: Choose the right CosId ID generation strategy for Java distributed systems. Use when the user compares CosIdGenerator, SnowflakeId, SegmentId, or SegmentChainId; asks which generator to use; or evaluates ID type, ordering, throughput, clock sensitivity, machine ID allocation, JavaScript-safe IDs, coordination backends, or production tradeoffs.
 ---
 
 # CosId ID Strategy Selection Guide
 
-CosId provides 4 ID generation strategies, each designed for different use cases. This guide helps you choose the right one.
+Use this skill to turn requirements into a concrete CosId generator recommendation.
+
+## Workflow
+
+1. Identify the constraints: required ID type (`long`, `String`, or both), ordering semantics, peak QPS, cluster size, JavaScript exposure, acceptable gaps, available infrastructure, and whether IDs must encode time.
+2. Recommend one primary strategy and, when useful, one fallback.
+3. Explain the operational cost: clock behavior, external coordination, machine ID lifecycle, segment gaps, restart behavior, and tuning knobs.
+4. Hand off to `$cosid-spring-boot` for Spring Boot YAML or `$cosid-manual-integration` for programmatic setup.
+5. Include a small configuration sketch only when the user needs implementation detail.
 
 ## Strategy Comparison
 
@@ -19,26 +27,21 @@ CosId provides 4 ID generation strategies, each designed for different use cases
 | **Clock Sensitive** | Yes | Yes | No | No |
 | **Max Instances** | 2^machineBit | 2^machineBit | Unlimited | Unlimited |
 
-## Decision Tree
+## Recommendation Rules
 
-```
-Need distributed IDs?
-└── Yes
-    ├── Need time-sortable long IDs?
-    │   └── Yes → SnowflakeId (max instances limited by machineBit, typically 1024)
-    └── No time-sortable requirement
-        ├── Large-scale cluster (超过 SnowflakeId 实例限制)?
-        │   └── Yes → CosIdGenerator (String IDs, 全局唯一, 支持超大规模集群)
-        └── Need maximum throughput?
-            └── Yes → SegmentChainId
-            └── No → SegmentId (simpler)
-```
+- Use `SegmentChainId` as the default production recommendation when the system can use Redis, JDBC, MongoDB, ZooKeeper, or the proxy distributor and needs high-throughput monotonic IDs.
+- Use `SnowflakeId` when callers need `long` IDs that are roughly time ordered or must be parsed back into timestamp, machine ID, and sequence.
+- Use `SegmentId` when the team wants monotonic IDs with simpler behavior than `SegmentChainId` and can tolerate fetching a new segment synchronously when the current segment is exhausted.
+- Use `CosIdGenerator` when compact `String` IDs are acceptable and the deployment needs a larger design space than the 63-bit Snowflake layout.
+- Use manual or StatefulSet machine ID allocation only when instance identities are fixed and operationally controlled.
+- Prefer Redis for low-latency coordination when it already exists; prefer JDBC when the platform already depends on a relational database and wants fewer moving parts.
+- For JavaScript clients, return strings or wrap Snowflake with `SafeJavaScriptSnowflakeId` when numeric precision matters.
 
 ## Strategy Details
 
-### 1. CosIdGenerator — Large-Scale Cluster String IDs
+### CosIdGenerator: Large-Scale String IDs
 
-A state-based ID generator designed for large-scale clusters that exceed SnowflakeId's machine bit limit. Produces compact string IDs with globally unique guarantees. Like SnowflakeId, it requires a `MachineIdDistributor` to assign unique machine IDs to each instance, but it is not constrained by the 63-bit long format, allowing it to support a much larger number of instances.
+Produces compact string IDs and is useful when a `long` ID format is not required.
 
 **When to use:**
 - Large-scale clusters that exceed SnowflakeId's machine bit limit (typically 1024 instances)
@@ -57,28 +60,9 @@ A state-based ID generator designed for large-scale clusters that exceed Snowfla
 - `FriendlyCosIdGenerator` — Human-readable format
 - `ClockSyncCosIdGenerator` — Wraps any CosIdGenerator with clock sync
 
-**Spring Boot config:**
+### SnowflakeId: Time-Ordered Distributed Long IDs
 
-```yaml
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: redis  # or jdbc, mongo, zookeeper, manual, stateful_set
-  generator:
-    enabled: true
-```
-
-**Programmatic usage:**
-
-```java
-CosIdGenerator generator = new Radix62CosIdGenerator(machineId);
-String id = generator.generateAsString();
-```
-
-### 2. SnowflakeId — Time-Ordered Distributed IDs
-
-The Twitter Snowflake algorithm. Generates 63-bit `long` IDs composed of timestamp + machineId + sequence.
+Generates 63-bit `long` IDs composed of timestamp, machine ID, and sequence.
 
 **When to use:**
 - Need time-sortable IDs (IDs roughly reflect creation time)
@@ -112,25 +96,11 @@ cosid:
 
 **Important constraint:** `timestampBit + machineBit + sequenceBit = 63` (63 because the sign bit is reserved).
 
-**JavaScript-safe IDs:** JavaScript's `Number.MAX_SAFE_INTEGER` is 2^53 - 1. If your SnowflakeId exceeds this, use `SafeJavaScriptSnowflakeId` to constrain the bit layout automatically.
-
-**Clock backwards handling:** SnowflakeId is sensitive to system clock changes. CosId provides `ClockSyncSnowflakeId` that wraps any SnowflakeId with clock drift tolerance:
+**Clock backwards handling:** SnowflakeId is sensitive to system clock changes. Use `ClockSyncSnowflakeId` or Spring Boot clock-backwards settings for production:
 - Small drift (< `spinThreshold`): Spin-wait until time catches up
 - Large drift (> `brokenThreshold`): Throw `ClockTooManyBackwardsException`
 
-**Spring Boot config:**
-
-```yaml
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: redis  # or jdbc, mongo, zookeeper, manual, stateful_set
-  snowflake:
-    enabled: true
-```
-
-### 3. SegmentId — Monotonic IDs with Batch Allocation
+### SegmentId: Monotonic IDs with Batch Allocation
 
 Allocates IDs in contiguous segments (batches) to reduce network I/O. Each instance gets a range of IDs and serves them locally.
 
@@ -165,11 +135,11 @@ cosid:
 ```
 
 **Tuning the `step` parameter:**
-- Larger step → fewer network calls, but more ID gaps on restart
-- Smaller step → fewer wasted IDs, but more coordination overhead
+- Larger step: fewer network calls, but more ID gaps on restart
+- Smaller step: fewer wasted IDs, but more coordination overhead
 - Start with `step: 100` for moderate workloads, increase to `1000+` for high QPS
 
-### 4. SegmentChainId — Maximum Throughput (Recommended)
+### SegmentChainId: Maximum Throughput
 
 An enhancement of SegmentId that chains multiple segments with lock-free prefetching. This is the highest-throughput ID generator in CosId.
 
@@ -191,25 +161,6 @@ SegmentChainId: [current] → [prefetched] → [prefetched] → (background pref
 The prefetch distance adapts dynamically:
 - **High demand** (hungry): Distance doubles (up to 100M)
 - **Low demand** (full): Distance halves (down to `safeDistance`)
-
-**Spring Boot config:**
-
-```yaml
-cosid:
-  segment:
-    enabled: true
-    mode: chain       # ← chain mode enables SegmentChainId
-    distributor:
-      type: redis
-    chain:
-      safe-distance: 2            # minimum prefetched segments
-      prefetch-worker:
-        prefetch-period: 1000ms   # how often to check prefetch
-        core-pool-size: 8         # prefetch thread pool size
-    provider:
-      order_id:
-        step: 100
-```
 
 ## Distributor Backends
 
@@ -321,3 +272,12 @@ cosid:
     distributor:
       type: redis
 ```
+
+## Response Template
+
+When answering a strategy question, use this structure:
+
+1. Recommendation: name the generator and why it matches the constraints.
+2. Tradeoffs: call out ordering, throughput, clock sensitivity, coordination, and restart gaps.
+3. Configuration direction: name the distributor backend and whether Spring Boot or manual setup is appropriate.
+4. Validation: suggest a focused test or benchmark for the user's actual throughput and ordering requirement.

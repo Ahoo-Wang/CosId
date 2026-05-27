@@ -1,0 +1,4 @@
+interface:
+  display_name: "CosId Manual Integration"
+  short_description: "Integrate CosId without Spring Boot"
+  default_prompt: "Use $cosid-manual-integration to wire CosId programmatically without Spring Boot."

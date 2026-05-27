@@ -240,7 +240,7 @@ Use a small routing matrix before finalizing a rule:
 
 1. **Precise + Range**: Every algorithm supports both single-value and range sharding. ShardingSphere uses precise for `=` and `IN`, and range for `BETWEEN`, `>`, `<`.
 2. **Effective nodes**: `getEffectiveNodes()` returns all possible target nodes. This is used by ShardingSphere for routing optimization.
-3. **Thread safety**: All sharding implementations are thread-safe (`@ThreadSafe`).
+3. **Thread safety**: The `Sharding` interface is annotated `@ThreadSafe`; implementations follow that contract, but not every concrete class repeats the annotation.
 4. **Interval bounds**: `IntervalTimeline` requires an explicit effective time range. Values outside this range throw `IllegalArgumentException`.
 5. **Generator alignment**: When the sharding key is a CosId-generated ID, keep the generator epoch, timestamp unit, and converter settings aligned with the sharding rule.
 

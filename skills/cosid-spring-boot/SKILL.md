@@ -1,11 +1,20 @@
 ---
 name: cosid-spring-boot
-description: Guide for integrating CosId distributed ID generator with Spring Boot. Use this skill whenever the user mentions CosId, distributed ID generation, SnowflakeId, SegmentId, SegmentChainId, CosIdGenerator, machine ID allocation, or needs help configuring ID generation in a Spring Boot application. Also use when the user asks about ID conversion (Radix62, Radix36, SnowflakeFriendly), sharding with CosId, or configuring machine ID distributors (Redis, JDBC, MongoDB, ZooKeeper) for Spring Boot. Triggers on cosid YAML configuration, application.yml ID setup, or any CosId Spring Boot starter questions.
+description: Configure CosId in Spring Boot applications with cosid-spring-boot-starter. Use when the user works with application.yml, Gradle or Maven dependencies, starter feature variants, Redis/JDBC/MongoDB/ZooKeeper/proxy distributors, SnowflakeId, SegmentId, SegmentChainId, CosIdGenerator, @CosId, IdGeneratorProvider, ID converters, machine guarder settings, clock-backwards synchronization, or Actuator endpoints in a Spring Boot service.
 ---
 
 # CosId Spring Boot Integration
 
 CosId is a universal, flexible, high-performance distributed ID generator for Java 17+. The Spring Boot starter (`cosid-spring-boot-starter`) provides auto-configuration for all ID generation strategies.
+
+## Workflow
+
+1. Confirm the user's Spring Boot and CosId major versions. CosId 2.x targets Spring Boot 3.x and Java 17; CosId 3.x targets Spring Boot 4.x and Java 17.
+2. Choose the ID strategy. Use `$cosid-strategy-guide` first when the user has not chosen between SnowflakeId, SegmentId, SegmentChainId, and CosIdGenerator.
+3. Select the distributor and starter capability needed by the deployment: Redis, JDBC, MongoDB, ZooKeeper, proxy, manual, or StatefulSet.
+4. Provide the smallest working YAML for the selected strategy and backend.
+5. Show how the application consumes the generator: shared bean, named provider, or `@CosId`.
+6. Add validation guidance for uniqueness, ordering, machine ID ownership, segment allocation, and Actuator visibility.
 
 ## Dependency Setup
 
@@ -16,7 +25,7 @@ dependencies {
     implementation platform("me.ahoo.cosid:cosid-bom:${cosidVersion}")
     implementation "me.ahoo.cosid:cosid-spring-boot-starter"
     
-    // Add exactly ONE distributor backend based on your infrastructure:
+    // Add the distributor backend needed by your infrastructure:
     implementation "me.ahoo.cosid:cosid-spring-boot-starter:springRedisSupport"  // Redis
     // implementation "me.ahoo.cosid:cosid-spring-boot-starter:jdbcSupport"     // JDBC/MySQL
     // implementation "me.ahoo.cosid:cosid-spring-boot-starter:mongoSupport"    // MongoDB
@@ -68,8 +77,9 @@ There are 4 ID generation strategies in CosId. The right choice depends on your 
 
 - **Need maximum performance and have Redis/JDBC available?** → SegmentChainId (default segment mode)
 - **Need time-sortable IDs across machines?** → SnowflakeId
-- **Simple standalone app?** → CosIdGenerator (no external dependencies)
+- **Need compact string IDs or a large machine-ID design space?** → CosIdGenerator
 - **Database-friendly monotonic IDs?** → SegmentId or SegmentChainId
+- **Need only strategy selection?** → Use `$cosid-strategy-guide` before writing YAML
 
 ## Configuration Templates
 
@@ -459,3 +469,23 @@ management:
 ```
 
 The `cosid` endpoint shows all registered ID generators and their stats.
+
+## Validation Checklist
+
+- Run a focused Spring Boot test that loads the application context with the chosen backend capability.
+- Generate IDs concurrently and assert uniqueness.
+- For SnowflakeId, verify machine ID allocation and clock-backwards settings.
+- For SegmentId/SegmentChainId, verify the segment distributor initializes the `cosid` table or backend state.
+- For converters, assert the expected prefix, padding, radix, and string length.
+- For shared beans, assert `IdGenerator` or `StringIdGenerator` resolves to the intended provider.
+- For production services, expose and inspect the CosId Actuator endpoint when actuator support is enabled.
+
+## Response Template
+
+When answering a Spring Boot integration request, include:
+
+1. Dependency coordinates and the required backend capability.
+2. Minimal `application.yml` for the selected generator.
+3. Code snippet for injection or `@CosId`.
+4. Operational notes for machine ID, clock, state storage, and monitoring.
+5. A small test or verification command the user can run.

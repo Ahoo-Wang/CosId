@@ -1,0 +1,4 @@
+interface:
+  display_name: "CosId Strategy Guide"
+  short_description: "Choose CosId ID generation strategies"
+  default_prompt: "Use $cosid-strategy-guide to recommend the right CosId ID generation strategy for my system."

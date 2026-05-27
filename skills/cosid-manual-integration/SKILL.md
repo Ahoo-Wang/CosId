@@ -53,7 +53,15 @@ Always define the namespace and instance identity deliberately. For production, 
 MachineIdDistributor distributor = createMachineIdDistributor();
 
 // 2. Allocate machine ID
-int machineId = distributor.distribute("my-namespace", instanceId, Duration.ofSeconds(10));
+int machineBit = 10;
+InstanceId instanceId = InstanceId.of("order-service-0", true);
+MachineState machineState = distributor.distribute(
+    "my-namespace",
+    machineBit,
+    instanceId,
+    Duration.ofSeconds(10)
+);
+int machineId = machineState.getMachineId();
 
 // 3. Create SnowflakeId
 SnowflakeId snowflakeId = new MillisecondSnowflakeId(machineId);

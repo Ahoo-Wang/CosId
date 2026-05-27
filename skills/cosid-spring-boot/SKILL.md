@@ -18,22 +18,23 @@ CosId is a universal, flexible, high-performance distributed ID generator for Ja
 
 ## Dependency Setup
 
-Add the BOM and starter to your `build.gradle`:
+Add the BOM and starter to your Gradle build. When you need a distributor backend, select the corresponding Gradle feature capability:
 
 ```groovy
 dependencies {
     implementation platform("me.ahoo.cosid:cosid-bom:${cosidVersion}")
-    implementation "me.ahoo.cosid:cosid-spring-boot-starter"
-    
-    // Add the distributor backend needed by your infrastructure:
-    implementation "me.ahoo.cosid:cosid-spring-boot-starter:springRedisSupport"  // Redis
-    // implementation "me.ahoo.cosid:cosid-spring-boot-starter:jdbcSupport"     // JDBC/MySQL
-    // implementation "me.ahoo.cosid:cosid-spring-boot-starter:mongoSupport"    // MongoDB
-    // implementation "me.ahoo.cosid:cosid-spring-boot-starter:zookeeperSupport" // ZooKeeper
+
+    // Redis backend. Replace the capability with jdbc-support, mongo-support,
+    // zookeeper-support, proxy-support, actuator-support, etc. as needed.
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter") {
+        capabilities {
+            requireCapability("me.ahoo.cosid:spring-redis-support")
+        }
+    }
 }
 ```
 
-Or with Maven:
+For Maven, import the BOM and add the starter plus the backend module explicitly:
 
 ```xml
 <dependencyManagement>
@@ -53,11 +54,10 @@ Or with Maven:
         <groupId>me.ahoo.cosid</groupId>
         <artifactId>cosid-spring-boot-starter</artifactId>
     </dependency>
-    <!-- Redis variant -->
+    <!-- Redis backend. Use cosid-jdbc, cosid-mongo, or cosid-zookeeper for other backends. -->
     <dependency>
         <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-spring-boot-starter</artifactId>
-        <classifier>springRedisSupport</classifier>
+        <artifactId>cosid-spring-redis</artifactId>
     </dependency>
 </dependencies>
 ```

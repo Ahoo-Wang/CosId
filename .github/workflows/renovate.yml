@@ -1,0 +1,29 @@
+name: Renovate
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@v46.1.15
+        with:
+          configurationFile: renovate.json
+          token: ${{ secrets.RENOVATE_TOKEN }}
+        env:
+          LOG_LEVEL: debug
+          RENOVATE_REPOSITORIES: Ahoo-Wang/CosId
+          RENOVATE_ONBOARDING: 'false'
+          RENOVATE_PLATFORM: github
+          RENOVATE_REPOSITORY_CACHE: enabled

@@ -83,6 +83,23 @@ class ModCycleTest {
         Assertions.assertEquals(expected, actual);
     }
 
+    /**
+     * Negative sharding values (common with snowflake IDs whose sign bit is set,
+     * or any bit-overflowed long) must map to a valid node, not crash.
+     *
+     * <p>Java's {@code %} preserves the sign of the dividend, so a naive
+     * {@code value % divisor} yields a negative index and
+     * {@link ExactCollection#get(int)} throws {@code ArrayIndexOutOfBoundsException}.
+     */
+    @ParameterizedTest
+    @ValueSource(longs = {-1L, -2L, -3L, -4L, -5L, -8L, -9L, Long.MIN_VALUE})
+    public void shardingPreciseWhenNegative(long shardingValue) {
+        ModCycle<Long> modCycle = createModCycle();
+        String actual = Assertions.assertDoesNotThrow(() -> modCycle.sharding(shardingValue));
+        int expectedIdx = Math.floorMod(shardingValue, DIVISOR);
+        Assertions.assertEquals(LOGIC_NAME_PREFIX + expectedIdx, actual);
+    }
+
     static Stream<Arguments> shardingRangeArgsProvider() {
         return Stream.of(
             arguments(Range.all(), ALL_NODES),
@@ -163,6 +180,20 @@ class ModCycleTest {
         ModCycle<Long> modCycle = createModCycle();
         Collection<String> actual = modCycle.sharding(shardingValue);
         Assertions.assertEquals(expected, actual);
+    }
+
+    /**
+     * A range whose lower endpoint is negative must not crash the range-sharding
+     * path. {@code lower % divisor} is negative for negative {@code lower}, which
+     * previously produced a negative node index.
+     */
+    @Test
+    public void shardingRangeWhenNegativeLower() {
+        ModCycle<Long> modCycle = createModCycle();
+        Collection<String> actual = Assertions.assertDoesNotThrow(
+            () -> modCycle.sharding(Range.closed(-3L, 0L)));
+        // -3 -> floorMod(-3,4)=1, -2 -> 2, -1 -> 3, 0 -> 0  => all 4 nodes
+        Assertions.assertEquals(ALL_NODES, actual);
     }
 
 }

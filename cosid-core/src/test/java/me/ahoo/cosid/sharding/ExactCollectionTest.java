@@ -90,6 +90,23 @@ class ExactCollectionTest {
         Assertions.assertTrue(exactCollection.stream().filter(x -> Objects.nonNull(x)).collect(Collectors.toList()).size() == 1);
     }
 
+    /**
+     * {@link Collection#remove(Object)} is specified to return {@code true} if the
+     * collection changed as a result of the call. The previous implementation nulls
+     * out the element but always returns {@code false}, violating the contract for
+     * any caller that branches on the return value.
+     */
+    @Test
+    void removeReturnsTrueWhenChanged() {
+        ExactCollection<String> exactCollection = new ExactCollection<>(10);
+        exactCollection.add(0, "0");
+        exactCollection.add(1, "1");
+
+        Assertions.assertTrue(exactCollection.remove("1"), "remove of a present element must return true");
+        Assertions.assertFalse(exactCollection.remove("1"), "remove of an absent element must return false");
+        Assertions.assertFalse(exactCollection.remove("missing"), "remove of a never-present element must return false");
+    }
+
     @Test
     void addAll() {
         ExactCollection<String> exactCollection = new ExactCollection<>(10);

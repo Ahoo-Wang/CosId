@@ -40,7 +40,7 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
 
     public DefaultClockBackwardsSynchronizer(int spinThreshold, int brokenThreshold) {
         Preconditions.checkArgument(spinThreshold > 0, "spinThreshold:[%s] must be greater than 0!", spinThreshold);
-        Preconditions.checkArgument(brokenThreshold > spinThreshold, "spinThreshold:[%s] must be greater than brokenThreshold:[%s]!", spinThreshold, brokenThreshold);
+        Preconditions.checkArgument(brokenThreshold > spinThreshold, "brokenThreshold:[%s] must be greater than spinThreshold:[%s]!", brokenThreshold, spinThreshold);
 
         this.spinThreshold = spinThreshold;
         this.brokenThreshold = brokenThreshold;

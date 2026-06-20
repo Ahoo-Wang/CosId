@@ -75,4 +75,27 @@ class DefaultClockBackwardsSynchronizerTest {
         assertThrows(ClockTooManyBackwardsException.class,
             () -> synchronizer.syncUninterruptibly(exceedTimestamp));
     }
+
+    /**
+     * When a caller passes an invalid {@code (spinThreshold, brokenThreshold)}
+     * pair where {@code brokenThreshold <= spinThreshold}, the thrown exception
+     * message must accurately describe the violated invariant so the caller can
+     * fix their configuration. The previous message stated the inverted relation
+     * ("spinThreshold must be greater than brokenThreshold"), which described a
+     * condition the caller may actually have satisfied, making diagnosis impossible.
+     */
+    @Test
+    void ctorWhenBrokenThresholdNotGreaterThanSpinThresholdHasAccurateMessage() {
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+            () -> new DefaultClockBackwardsSynchronizer(500, 1));
+
+        String message = ex.getMessage();
+        // The invariant is brokenThreshold > spinThreshold; the message must not
+        // claim the opposite.
+        assertFalse(message.contains("spinThreshold:[500] must be greater than brokenThreshold"),
+            "Error message must not state the inverted invariant. Actual: " + message);
+        // It should clearly communicate that brokenThreshold must exceed spinThreshold.
+        assertTrue(message.contains("brokenThreshold"),
+            "Error message should reference brokenThreshold. Actual: " + message);
+    }
 }

@@ -71,7 +71,7 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
 
     @Override
     public @NonNull String sharding(T shardingValue) {
-        int nodeIdx = (int) (shardingValue.longValue() % divisor);
+        int nodeIdx = Math.floorMod(shardingValue.longValue(), divisor);
         return effectiveNodes.get(nodeIdx);
     }
 
@@ -109,7 +109,7 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
         ExactCollection<String> nodes = new ExactCollection<>(nodeSize);
         int idx = 0;
         while (lower <= upper) {
-            int modValue = (int) (lower % divisor);
+            int modValue = Math.floorMod(lower, divisor);
             String matchedNode = effectiveNodes.get(modValue);
             nodes.add(idx, matchedNode);
             lower++;

@@ -103,6 +103,7 @@ public class ExactCollection<E> extends AbstractCollection<E> implements RandomA
         int idx = indexOf(o);
         if (idx >= 0) {
             elements[idx] = null;
+            return true;
         }
         return false;
     }

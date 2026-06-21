@@ -21,6 +21,10 @@
         <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE"/>
     </Match>
     <Match>
+        <!-- SpotBugs 6.5.x reports constructor argument validation as finalizer-attack risk across validation-heavy value types. -->
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+    </Match>
+    <Match>
         <!--https://github.com/spotbugs/spotbugs/issues/2627-->
         <!--https://github.com/Ahoo-Wang/CosId/pull/450-->
         <Bug pattern="PI_DO_NOT_REUSE_PUBLIC_IDENTIFIERS_CLASS_NAMES"/>
@@ -34,14 +38,6 @@
         <Class name="me.ahoo.cosid.accessor.IdDefinition$NotFoundIdDefinition"/>
         <Field name="id"/>
         <Bug pattern="SS_SHOULD_BE_STATIC"/>
-    </Match>
-    <Match>
-        <Class name="me.ahoo.cosid.snowflake.AbstractSnowflakeId"/>
-        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
-    </Match>
-    <Match>
-        <Class name="me.ahoo.cosid.cosid.RadixCosIdGenerator"/>
-        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
     </Match>
     <Match>
         <Class name="me.ahoo.cosid.sharding.ExactCollection"/>

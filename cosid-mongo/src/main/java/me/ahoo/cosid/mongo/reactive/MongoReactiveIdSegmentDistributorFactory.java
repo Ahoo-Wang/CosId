@@ -37,6 +37,7 @@ public class MongoReactiveIdSegmentDistributorFactory implements IdSegmentDistri
         
         return new MongoIdSegmentDistributor(definition.getNamespace(),
             definition.getName(),
+            definition.getOffset(),
             definition.getStep(),
             idSegmentCollection);
     }

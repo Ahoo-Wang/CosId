@@ -287,6 +287,16 @@ jobs:
     name: CosId Spring Boot Starter Test
     needs: [ cosid-core-test ]
     runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
     steps:
       - name: Start Mysql
         run: sudo /etc/init.d/mysql start

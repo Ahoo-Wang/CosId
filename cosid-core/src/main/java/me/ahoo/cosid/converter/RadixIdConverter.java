@@ -227,11 +227,14 @@ public abstract class RadixIdConverter implements IdConverter {
         while (charIdx < charLen) {
             char digitChar = idString.charAt(charIdx++);
             int digit = offset(digitChar);
-            if (digit < 0) {
+            if (digit < 0 || digit >= radix) {
                 throw new NumberFormatException(Strings.lenientFormat("For input string:[%s]. digitChar:[%s]@[%s] !", idString, digitChar, charIdx));
             }
-            result *= radix;
-            result += digit;
+            try {
+                result = Math.addExact(Math.multiplyExact(result, radix), digit);
+            } catch (ArithmeticException arithmeticException) {
+                throw new NumberFormatException(Strings.lenientFormat("For input string:[%s]. long overflow!", idString));
+            }
         }
         return result;
     }

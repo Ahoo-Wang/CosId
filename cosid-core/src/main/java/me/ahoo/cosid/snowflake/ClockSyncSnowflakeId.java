@@ -54,7 +54,7 @@ public class ClockSyncSnowflakeId implements IdGeneratorDecorator, SnowflakeId {
             if (log.isWarnEnabled()) {
                 log.warn(exception.getMessage(), exception);
             }
-            clockBackwardsSynchronizer.syncUninterruptibly(actual.getLastTimestamp());
+            clockBackwardsSynchronizer.syncUninterruptibly(actual.getLastTimestampAsMilliseconds());
             return actual.generate();
         }
     }
@@ -107,6 +107,11 @@ public class ClockSyncSnowflakeId implements IdGeneratorDecorator, SnowflakeId {
     @Override
     public long getLastTimestamp() {
         return actual.getLastTimestamp();
+    }
+
+    @Override
+    public long getLastTimestampAsMilliseconds() {
+        return actual.getLastTimestampAsMilliseconds();
     }
 
     @Override

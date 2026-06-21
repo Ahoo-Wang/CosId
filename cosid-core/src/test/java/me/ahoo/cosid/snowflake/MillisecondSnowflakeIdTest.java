@@ -13,9 +13,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.time.ZoneId;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * SnowflakeIdTest .
@@ -56,17 +54,19 @@ class MillisecondSnowflakeIdTest {
 
     @Test
     public void sequenceIncrement() {
-        long id = snowflakeId.generate();
-        SnowflakeIdState snowflakeIdState = snowflakeId.friendlyId(id);
+        SnowflakeFriendlyId sameMillisecondSnowflakeId = new DefaultSnowflakeFriendlyId(new MillisecondSnowflakeId(TEST_MACHINE_ID) {
+            @Override
+            protected long getCurrentTime() {
+                return CosId.COSID_EPOCH + 1;
+            }
+        });
+        long id = sameMillisecondSnowflakeId.generate();
+        SnowflakeIdState snowflakeIdState = sameMillisecondSnowflakeId.friendlyId(id);
 
-        LockSupport.parkNanos(Duration.ofMillis(10).toNanos());
-
-        long id2 = snowflakeId.generate();
-        SnowflakeIdState snowflakeIdState2 = snowflakeId.friendlyId(id2);
-        assertThat(
-                snowflakeIdState2.getTimestamp() + ">" + snowflakeIdState.getTimestamp(),
-                snowflakeIdState2.getTimestamp(), greaterThan(snowflakeIdState.getTimestamp())
-        );
+        long id2 = sameMillisecondSnowflakeId.generate();
+        SnowflakeIdState snowflakeIdState2 = sameMillisecondSnowflakeId.friendlyId(id2);
+        Assertions.assertTrue(id2 > id);
+        Assertions.assertEquals(snowflakeIdState.getTimestamp(), snowflakeIdState2.getTimestamp());
         assertThat(
                 snowflakeIdState2.getSequence() + ">" + snowflakeIdState.getSequence(),
                 snowflakeIdState2.getSequence(), greaterThan(snowflakeIdState.getSequence())

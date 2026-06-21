@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.mongo.reactive;
 
+import static me.ahoo.cosid.mongo.IdSegmentOperates.ensureOffsetUpdates;
 import static me.ahoo.cosid.mongo.IdSegmentOperates.incrementAndGetUpdates;
 
 import me.ahoo.cosid.mongo.Documents;
@@ -20,7 +21,11 @@ import me.ahoo.cosid.mongo.IdSegmentCollection;
 import me.ahoo.cosid.mongo.IdSegmentOperates;
 
 import com.google.common.base.Preconditions;
+import com.mongodb.ErrorCategory;
+import com.mongodb.MongoWriteException;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.UpdateOptions;
+import com.mongodb.client.result.UpdateResult;
 import com.mongodb.reactivestreams.client.MongoCollection;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
@@ -31,22 +36,39 @@ import java.util.Objects;
 @Slf4j
 public class MongoReactiveIdSegmentCollection implements IdSegmentCollection {
     private final MongoCollection<Document> cosidCollection;
-    
+
     public MongoReactiveIdSegmentCollection(MongoCollection<Document> cosidCollection) {
         this.cosidCollection = cosidCollection;
     }
-    
+
     @Override
-    public long incrementAndGet(String namespacedName, long step) {
+    public long incrementAndGet(String namespacedName, long offset, long step) {
+        ensureOffset(namespacedName, offset);
         Publisher<Document> publisher = cosidCollection.findOneAndUpdate(
             Filters.eq(Documents.ID_FIELD, namespacedName),
             incrementAndGetUpdates(step),
             Documents.UPDATE_UPSERT_AFTER_OPTIONS);
         Document afterDoc = BlockingAdapter.block(publisher);
-        
+
         assert afterDoc != null;
         Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
         Long lastMaxId = afterDoc.getLong(IdSegmentOperates.LAST_MAX_ID_FIELD);
         return Objects.requireNonNull(lastMaxId);
+    }
+
+    private void ensureOffset(String namespacedName, long offset) {
+        try {
+            Publisher<UpdateResult> publisher = cosidCollection.updateOne(
+                Filters.eq(Documents.ID_FIELD, namespacedName),
+                ensureOffsetUpdates(offset),
+                new UpdateOptions().upsert(true)
+            );
+            BlockingAdapter.block(publisher);
+        } catch (MongoWriteException mongoWriteException) {
+            if (mongoWriteException.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+                return;
+            }
+            throw mongoWriteException;
+        }
     }
 }

@@ -102,4 +102,9 @@ public class SecondSnowflakeId extends AbstractSnowflakeId {
     protected long getCurrentTime() {
         return TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
     }
+
+    @Override
+    public long getLastTimestampAsMilliseconds() {
+        return TimeUnit.SECONDS.toMillis(getLastTimestamp());
+    }
 }

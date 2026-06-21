@@ -22,24 +22,32 @@ import org.junit.jupiter.api.Test;
  * @author ahoo wang
  */
 class MachineIdTest {
-    
+
     @Test
     void getMachineId() {
         MachineId machineId = new MachineId(1);
         Assertions.assertEquals(1, machineId.getMachineId());
     }
-    
+
     @Test
     void testEquals() {
         MachineId machineId1 = new MachineId(1);
         MachineId machineId2 = new MachineId(1);
         Assertions.assertEquals(machineId1, machineId2);
     }
-    
+
     @Test
     void testHashCode() {
         MachineId machineId1 = new MachineId(1);
         MachineId machineId2 = new MachineId(1);
         Assertions.assertEquals(machineId1.hashCode(), machineId2.hashCode());
+    }
+
+    @Test
+    void maxMachineIdShouldValidateMachineBitBoundaries() {
+        Assertions.assertEquals(3, MachineIdDistributor.maxMachineId(2));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> MachineIdDistributor.maxMachineId(-1));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> MachineIdDistributor.maxMachineId(0));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> MachineIdDistributor.maxMachineId(32));
     }
 }

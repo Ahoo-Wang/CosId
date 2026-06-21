@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.machine;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.errorprone.annotations.ThreadSafe;
 
@@ -67,6 +68,7 @@ public interface MachineIdDistributor extends MachineIdDistribute {
      * @return The maximum machine ID value
      */
     static int maxMachineId(int machineBit) {
+        Preconditions.checkArgument(machineBit > 0 && machineBit < Integer.SIZE, "machineBit:[%s] must be between 1 and 31!", machineBit);
         return ~(-1 << machineBit);
     }
 

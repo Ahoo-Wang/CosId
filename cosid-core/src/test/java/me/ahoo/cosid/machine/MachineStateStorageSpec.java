@@ -19,20 +19,20 @@ import org.junit.jupiter.api.Test;
 public abstract class MachineStateStorageSpec {
     private static final String namespace = "{test}";
     private final MachineStateStorage machineStateStorage = createMachineStateStorage();
-    
+
     abstract MachineStateStorage createMachineStateStorage();
-    
+
     @Test
     void get() {
         machineStateStorage.remove(namespace, InstanceId.NONE);
         MachineState machineState = machineStateStorage.get(namespace, InstanceId.NONE);
         Assertions.assertEquals(-1, machineState.getMachineId());
-        
+
         machineStateStorage.set(namespace, 1, InstanceId.NONE);
         machineState = machineStateStorage.get(namespace, InstanceId.NONE);
         Assertions.assertEquals(1, machineState.getMachineId());
     }
-    
+
     @Test
     void set() {
         machineStateStorage.set(namespace, 1, InstanceId.NONE);
@@ -42,13 +42,13 @@ public abstract class MachineStateStorageSpec {
         machineState = machineStateStorage.get(namespace, InstanceId.NONE);
         Assertions.assertEquals(2, machineState.getMachineId());
     }
-    
+
     @Test
     void remove() {
         machineStateStorage.remove(namespace, InstanceId.NONE);
         Assertions.assertFalse(machineStateStorage.exists(namespace, InstanceId.NONE));
     }
-    
+
     @Test
     void clear() {
         machineStateStorage.clear(namespace);
@@ -56,5 +56,43 @@ public abstract class MachineStateStorageSpec {
         machineStateStorage.set(namespace, 2, InstanceId.of("test1", false));
         machineStateStorage.clear(namespace);
         Assertions.assertEquals(0, machineStateStorage.size(namespace));
+    }
+
+    @Test
+    void clearShouldOnlyRemoveTargetNamespace() {
+        String targetNamespace = "a";
+        String otherNamespace = "b";
+        InstanceId instanceId = InstanceId.of("test", false);
+        machineStateStorage.clear(targetNamespace);
+        machineStateStorage.clear(otherNamespace);
+
+        machineStateStorage.set(targetNamespace, 1, instanceId);
+        machineStateStorage.set(otherNamespace, 2, instanceId);
+
+        machineStateStorage.clear(targetNamespace);
+
+        Assertions.assertFalse(machineStateStorage.exists(targetNamespace, instanceId));
+        Assertions.assertTrue(machineStateStorage.exists(otherNamespace, instanceId));
+        Assertions.assertEquals(0, machineStateStorage.size(targetNamespace));
+        Assertions.assertEquals(1, machineStateStorage.size(otherNamespace));
+    }
+
+    @Test
+    void clearShouldMatchNamespaceExactlyWhenNamespaceContainsDelimiter() {
+        String targetNamespace = "a";
+        String otherNamespace = "a__blue";
+        InstanceId instanceId = InstanceId.of("test", false);
+        machineStateStorage.clear(targetNamespace);
+        machineStateStorage.clear(otherNamespace);
+
+        machineStateStorage.set(targetNamespace, 1, instanceId);
+        machineStateStorage.set(otherNamespace, 2, instanceId);
+
+        machineStateStorage.clear(targetNamespace);
+
+        Assertions.assertFalse(machineStateStorage.exists(targetNamespace, instanceId));
+        Assertions.assertTrue(machineStateStorage.exists(otherNamespace, instanceId));
+        Assertions.assertEquals(0, machineStateStorage.size(targetNamespace));
+        Assertions.assertEquals(1, machineStateStorage.size(otherNamespace));
     }
 }

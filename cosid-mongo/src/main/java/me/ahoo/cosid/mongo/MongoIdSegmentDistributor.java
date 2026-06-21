@@ -15,6 +15,7 @@ package me.ahoo.cosid.mongo;
 
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
+import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 
@@ -27,12 +28,16 @@ import org.jspecify.annotations.NonNull;
 public class MongoIdSegmentDistributor implements IdSegmentDistributor {
     private final String namespace;
     private final String name;
+    private final long offset;
     private final long step;
     private final IdSegmentCollection idSegmentCollection;
     
-    public MongoIdSegmentDistributor(String namespace, String name, long step, IdSegmentCollection idSegmentCollection) {
+    public MongoIdSegmentDistributor(String namespace, String name, long offset, long step, IdSegmentCollection idSegmentCollection) {
+        Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        IdSegmentDistributor.ensureStep(step);
         this.namespace = namespace;
         this.name = name;
+        this.offset = offset;
         this.step = step;
         this.idSegmentCollection = idSegmentCollection;
     }
@@ -54,7 +59,8 @@ public class MongoIdSegmentDistributor implements IdSegmentDistributor {
     
     @Override
     public long nextMaxId(long step) {
+        IdSegmentDistributor.ensureStep(step);
         String namespacedName = getNamespacedName();
-        return idSegmentCollection.incrementAndGet(namespacedName, step);
+        return idSegmentCollection.incrementAndGet(namespacedName, offset, step);
     }
 }

@@ -40,6 +40,7 @@ public class MongoIdSegmentDistributorFactory implements IdSegmentDistributorFac
 
         return new MongoIdSegmentDistributor(definition.getNamespace(),
             definition.getName(),
+            definition.getOffset(),
             definition.getStep(),
             cosIdSegmentCollection);
     }

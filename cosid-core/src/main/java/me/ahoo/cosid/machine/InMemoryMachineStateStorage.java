@@ -60,12 +60,15 @@ public class InMemoryMachineStateStorage implements MachineStateStorage {
         if (log.isInfoEnabled()) {
             log.info("Clear namespace : [{}].", namespace);
         }
-        states.clear();
+        states.keySet().removeIf(namespacedInstanceId -> namespace.equals(namespacedInstanceId.getNamespace()));
     }
 
     @Override
     public int size(String namespace) {
-        return states.size();
+        return (int) states.keySet()
+            .stream()
+            .filter(namespacedInstanceId -> namespace.equals(namespacedInstanceId.getNamespace()))
+            .count();
     }
 
     @Override

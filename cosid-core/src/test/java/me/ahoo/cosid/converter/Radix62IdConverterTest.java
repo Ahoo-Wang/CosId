@@ -69,6 +69,13 @@ class Radix62IdConverterTest {
             idConvert.asLong("1_");
         });
     }
+
+    @Test
+    void asLongShouldRejectOverflow() {
+        Assertions.assertThrows(NumberFormatException.class, () -> {
+            Radix62IdConverter.INSTANCE.asLong("zzzzzzzzzzz");
+        });
+    }
     
     @ParameterizedTest
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})

@@ -18,11 +18,16 @@ import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.MachineStateStorage;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.retry.RetryNTimes;
 import org.apache.zookeeper.KeeperException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -41,6 +46,7 @@ class ZookeeperMachineIdDistributorUnitTest {
     private static final String REUSABLE_INSTANCE_PATH = INSTANCE_IDX_PATH + "/reusable";
     private static final String CURRENT_INSTANCE_PATH = INSTANCE_IDX_PATH + "/current";
     private static final InstanceId CURRENT_INSTANCE_ID = InstanceId.of("current", false);
+    private static final Object LOG_LEVEL_LOCK = new Object();
 
     @Test
     void distributeByRecyclableShouldContinueWhenCandidateDeletedBeforeRead() throws Exception {
@@ -62,6 +68,29 @@ class ZookeeperMachineIdDistributorUnitTest {
 
         Assertions.assertEquals(2, actual.getMachineId());
         Assertions.assertEquals(actual, MachineState.of(new String(curatorStub.data.get(CURRENT_INSTANCE_PATH), StandardCharsets.UTF_8)));
+    }
+
+    @ParameterizedTest
+    @EnumSource(Failure.class)
+    void distributeByRecyclableShouldContinueWhenCandidateDeletedAndDebugDisabled(Failure failure) throws Exception {
+        Logger logger = (Logger) LoggerFactory.getLogger(ZookeeperMachineIdDistributor.class);
+        synchronized (LOG_LEVEL_LOCK) {
+            Level originalLevel = logger.getLevel();
+            logger.setLevel(Level.INFO);
+            try {
+                Assertions.assertFalse(logger.isDebugEnabled());
+                CuratorStub curatorStub = new CuratorStub(failure);
+                ZookeeperMachineIdDistributor distributor = distributor(curatorStub);
+
+                MachineState actual = distributor.distributeByRecyclable(
+                    NAMESPACE, CURRENT_INSTANCE_PATH, CURRENT_INSTANCE_ID, Duration.ZERO);
+
+                Assertions.assertEquals(2, actual.getMachineId());
+                Assertions.assertEquals(actual, MachineState.of(new String(curatorStub.data.get(CURRENT_INSTANCE_PATH), StandardCharsets.UTF_8)));
+            } finally {
+                logger.setLevel(originalLevel);
+            }
+        }
     }
 
     private ZookeeperMachineIdDistributor distributor(CuratorStub curatorStub) {

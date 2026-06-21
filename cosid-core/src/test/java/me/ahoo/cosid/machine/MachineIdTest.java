@@ -44,7 +44,10 @@ class MachineIdTest {
     }
 
     @Test
-    void maxMachineIdShouldRejectUnsupportedMachineBit() {
+    void maxMachineIdShouldValidateMachineBitBoundaries() {
+        Assertions.assertEquals(3, MachineIdDistributor.maxMachineId(2));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> MachineIdDistributor.maxMachineId(-1));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> MachineIdDistributor.maxMachineId(0));
         Assertions.assertThrows(IllegalArgumentException.class, () -> MachineIdDistributor.maxMachineId(32));
     }
 }

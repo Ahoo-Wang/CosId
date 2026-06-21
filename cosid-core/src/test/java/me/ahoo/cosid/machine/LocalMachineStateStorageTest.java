@@ -14,7 +14,10 @@
 package me.ahoo.cosid.machine;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Base64;
 
 /**
  * @author ahoo wang
@@ -28,5 +31,20 @@ class LocalMachineStateStorageTest extends MachineStateStorageSpec {
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    @org.junit.jupiter.api.Test
+    void sizeShouldIgnoreMalformedStateFileNames() throws IOException {
+        Path stateDirectory = Files.createTempDirectory("cosid-machine-state-test");
+        LocalMachineStateStorage storage = new LocalMachineStateStorage(stateDirectory.toString());
+        String namespace = "namespace";
+        InstanceId instanceId = InstanceId.of("instance", false);
+
+        Files.writeString(stateDirectory.resolve("not-base64"), "ignored");
+        String noDelimiterName = Base64.getEncoder().encodeToString(namespace.getBytes(StandardCharsets.UTF_8));
+        Files.writeString(stateDirectory.resolve(noDelimiterName), "ignored");
+        storage.set(namespace, 1, instanceId);
+
+        org.junit.jupiter.api.Assertions.assertEquals(1, storage.size(namespace));
     }
 }

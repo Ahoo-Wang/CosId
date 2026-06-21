@@ -110,6 +110,11 @@ public class ClockSyncSnowflakeId implements IdGeneratorDecorator, SnowflakeId {
     }
 
     @Override
+    public long getLastTimestampAsMilliseconds() {
+        return actual.getLastTimestampAsMilliseconds();
+    }
+
+    @Override
     public int getMachineId() {
         return actual.getMachineId();
     }

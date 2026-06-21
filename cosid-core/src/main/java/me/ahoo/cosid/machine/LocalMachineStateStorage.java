@@ -38,6 +38,7 @@ import java.nio.file.Paths;
  */
 @Slf4j
 public class LocalMachineStateStorage implements MachineStateStorage {
+    private static final String STATE_FILE_DELIMITER = "__";
     /**
      * Default state location in user home directory.
      */
@@ -102,7 +103,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         if (!stateDirectory.exists()) {
             boolean ignored = stateDirectory.mkdirs();
         }
-        String fileName = namespace + "__" + instanceId.getInstanceId();
+        String fileName = namespace + STATE_FILE_DELIMITER + instanceId.getInstanceId();
         String encodedName = encode(fileName);
         String statePath = Paths.get(stateLocation, encodedName).toString();
         return new File(statePath);
@@ -186,10 +187,15 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         if (!stateDirectory.exists()) {
             return new File[0];
         }
-        String namespacePrefix = namespace + "__";
         return stateDirectory.listFiles(((dir, name) -> {
             try {
-                return decode(name).startsWith(namespacePrefix);
+                String decodedName = decode(name);
+                int delimiterIndex = decodedName.lastIndexOf(STATE_FILE_DELIMITER);
+                if (delimiterIndex < 0) {
+                    return false;
+                }
+                String actualNamespace = decodedName.substring(0, delimiterIndex);
+                return namespace.equals(actualNamespace);
             } catch (IllegalArgumentException ignored) {
                 return false;
             }

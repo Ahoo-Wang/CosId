@@ -76,4 +76,23 @@ public abstract class MachineStateStorageSpec {
         Assertions.assertEquals(0, machineStateStorage.size(targetNamespace));
         Assertions.assertEquals(1, machineStateStorage.size(otherNamespace));
     }
+
+    @Test
+    void clearShouldMatchNamespaceExactlyWhenNamespaceContainsDelimiter() {
+        String targetNamespace = "a";
+        String otherNamespace = "a__blue";
+        InstanceId instanceId = InstanceId.of("test", false);
+        machineStateStorage.clear(targetNamespace);
+        machineStateStorage.clear(otherNamespace);
+
+        machineStateStorage.set(targetNamespace, 1, instanceId);
+        machineStateStorage.set(otherNamespace, 2, instanceId);
+
+        machineStateStorage.clear(targetNamespace);
+
+        Assertions.assertFalse(machineStateStorage.exists(targetNamespace, instanceId));
+        Assertions.assertTrue(machineStateStorage.exists(otherNamespace, instanceId));
+        Assertions.assertEquals(0, machineStateStorage.size(targetNamespace));
+        Assertions.assertEquals(1, machineStateStorage.size(otherNamespace));
+    }
 }

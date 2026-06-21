@@ -88,6 +88,15 @@ class ClockSyncSnowflakeIdTest {
     }
 
     @Test
+    void getLastTimestampAsMillisecondsShouldDelegateToActual() {
+        SecondSnowflakeId secondSnowflakeId = new SecondSnowflakeId(TEST_MACHINE_ID);
+        ClockSyncSnowflakeId secondClockSync = new ClockSyncSnowflakeId(secondSnowflakeId);
+        secondClockSync.generate();
+        assertThat(secondClockSync.getLastTimestampAsMilliseconds(),
+            equalTo(secondSnowflakeId.getLastTimestampAsMilliseconds()));
+    }
+
+    @Test
     void getMachineId() {
         assertThat(clockSyncSnowflakeId.getMachineId(), equalTo(TEST_MACHINE_ID));
     }

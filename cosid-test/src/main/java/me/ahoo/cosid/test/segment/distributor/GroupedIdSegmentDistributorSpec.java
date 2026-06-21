@@ -67,11 +67,13 @@ public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistribut
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextIdSegment", TEST_OFFSET, TEST_STEP);
         IdSegmentDistributor distributor = factory().create(definition);
         long expectedMaxId = TEST_OFFSET + TEST_STEP;
+        final long ttlBefore = groupedSupplier().get().ttl();
         IdSegment actual = distributor.nextIdSegment();
+        final long ttlAfter = groupedSupplier().get().ttl();
         assertThat(actual.getMaxId(), equalTo(expectedMaxId));
         assertThat(actual.getStep(), equalTo(TEST_STEP));
         assertThat(actual.getSequence(), equalTo(0L));
-        assertThat(actual.getTtl(), equalTo(groupedSupplier().get().ttl()));
+        assertThat(actual.getTtl(), allOf(greaterThanOrEqualTo(ttlAfter), lessThanOrEqualTo(ttlBefore)));
     }
 
     @Test
@@ -82,10 +84,12 @@ public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistribut
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextIdSegmentChain", TEST_OFFSET, TEST_STEP);
         IdSegmentDistributor distributor = factory().create(definition);
         long expectedMaxId = TEST_OFFSET + Math.multiplyExact(TEST_STEP, DEFAULT_SEGMENTS);
+        final long ttlBefore = groupedSupplier().get().ttl();
         IdSegment actual = distributor.nextIdSegmentChain(root);
+        final long ttlAfter = groupedSupplier().get().ttl();
         assertThat(actual.getMaxId(), equalTo(expectedMaxId));
         assertThat(actual.getStep(), equalTo(TEST_STEP));
         assertThat(actual.getSequence(), equalTo(0L));
-        assertThat(actual.getTtl(), equalTo(groupedSupplier().get().ttl()));
+        assertThat(actual.getTtl(), allOf(greaterThanOrEqualTo(ttlAfter), lessThanOrEqualTo(ttlBefore)));
     }
 }

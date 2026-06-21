@@ -1,5 +1,7 @@
 .gradle
 build/
+**/bin/
+**/out/
 
 # Ignore Gradle GUI config
 gradle-app.setting
@@ -10,10 +12,28 @@ gradle-app.setting
 # Cache of project
 .gradletasknamecache
 
+# IDE local config
+.idea/
+*.iml
+*.ipr
+*.iws
+
 # # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
 # gradle/wrapper/gradle-wrapper.properties
-/cosid-benchmark/.idea/**
 
 # vscode
 .vscode
 
+# Node/VuePress dependencies and generated output
+node_modules/
+document/docs/.vuepress/dist/
+documentation/docs/public/javadoc/
+
+# Local runtime state
+**/cosid-machine-state/
+
+# Benchmark output
+cosid-benchmark/jmh-result.json
+
+# Local agent evaluation workspace
+cosid-skills-workspace/

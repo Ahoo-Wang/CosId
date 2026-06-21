@@ -13,6 +13,9 @@
 
 package me.ahoo.cosid.machine;
 
+import java.io.IOException;
+import java.nio.file.Files;
+
 /**
  * @author ahoo wang
  */
@@ -20,6 +23,10 @@ class LocalMachineStateStorageTest extends MachineStateStorageSpec {
     
     @Override
     MachineStateStorage createMachineStateStorage() {
-        return new LocalMachineStateStorage();
+        try {
+            return new LocalMachineStateStorage(Files.createTempDirectory("cosid-machine-state-test").toString());
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

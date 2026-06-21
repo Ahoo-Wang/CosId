@@ -50,8 +50,12 @@ local machineState = redis.call('hget', instanceIdxKey, instanceId)
 if machineState then
     local states = convertStingToState(machineState);
     local machineId = states[1];
-    setState(machineId, currentStamp);
-    return { machineId, currentStamp }
+    local lastStamp = states[2];
+    if lastStamp < currentStamp then
+        lastStamp = currentStamp;
+    end
+    setState(machineId, lastStamp);
+    return { machineId, lastStamp }
 end
 
 --DistributeByRevert
@@ -95,6 +99,5 @@ for idx, val in ipairs(instanceData) do
 end
 
 return { -1, -1 };
-
 
 

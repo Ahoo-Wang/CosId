@@ -159,7 +159,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             getRevertMachineStatement.setString(1, namespace);
             getRevertMachineStatement.setLong(2, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()));
             try (ResultSet resultSet = getRevertMachineStatement.executeQuery()) {
-                if (resultSet.next()) {
+                while (resultSet.next()) {
                     int machineId = resultSet.getInt(1);
                     long lastTimeStamp = resultSet.getLong(2);
                     if (distributeRevertMachineState(connection, namespace, machineId, instanceId, safeGuardDuration) > 0) {
@@ -179,7 +179,8 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             try (ResultSet resultSet = getMachineStatement.executeQuery()) {
                 if (resultSet.next()) {
                     int machineId = resultSet.getInt(1);
-                    MachineState machineState = MachineState.of(machineId, System.currentTimeMillis());
+                    long lastTimeStamp = resultSet.getLong(2);
+                    MachineState machineState = MachineState.of(machineId, Math.max(lastTimeStamp, System.currentTimeMillis()));
                     guardRemote(namespace, instanceId, machineState, safeGuardDuration);
                     return machineState;
                 }

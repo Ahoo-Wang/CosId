@@ -20,14 +20,21 @@ import org.bson.conversions.Bson;
 public interface IdSegmentOperates {
     String LAST_MAX_ID_FIELD = "lastMaxId";
     String LAST_FETCH_TIME_FIELD = "lastFetchTime";
-    
+
+    static Bson ensureOffsetUpdates(long offset) {
+        return Updates.combine(
+            Updates.setOnInsert(LAST_MAX_ID_FIELD, offset),
+            Updates.setOnInsert(LAST_FETCH_TIME_FIELD, 0L)
+        );
+    }
+
     static Bson incrementAndGetUpdates(long step) {
         return Updates.combine(
             Updates.inc(LAST_MAX_ID_FIELD, step),
             Updates.set(LAST_FETCH_TIME_FIELD, System.currentTimeMillis())
         );
     }
-    
+
     static Document ensureIdSegmentDocument(String segmentName, long offset) {
         return new Document()
             .append(Documents.ID_FIELD, segmentName)

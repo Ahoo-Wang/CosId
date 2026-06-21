@@ -210,14 +210,29 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         List<String> instanceMachines = curatorFramework.getChildren().forPath(instanceIdxPath);
         for (String eachInstance : instanceMachines) {
             String eachInstancePath = ZKPaths.makePath(instanceIdxPath, eachInstance);
-            byte[] stateBuf = curatorFramework.getData().forPath(eachInstancePath);
-            MachineState instanceMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+            MachineState instanceMachineState;
+            try {
+                byte[] stateBuf = curatorFramework.getData().forPath(eachInstancePath);
+                instanceMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+            } catch (KeeperException.NoNodeException noNodeException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Try Distribute - read recyclable instancePath:[{}] failed!", eachInstancePath);
+                }
+                continue;
+            }
             long safeGuardAt = MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable());
             
             if (instanceMachineState.getLastTimeStamp() > safeGuardAt) {
                 continue;
             }
-            curatorFramework.delete().forPath(eachInstancePath);
+            try {
+                curatorFramework.delete().forPath(eachInstancePath);
+            } catch (KeeperException.NoNodeException noNodeException) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Try Distribute - delete recyclable instancePath:[{}] failed!", eachInstancePath);
+                }
+                continue;
+            }
             MachineState machineState = MachineState.of(instanceMachineState.getMachineId(), System.currentTimeMillis());
             setMachineState(instancePath, machineState);
             return machineState;

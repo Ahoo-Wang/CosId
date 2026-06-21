@@ -96,7 +96,8 @@ public class MongoMachineCollection implements MachineCollection {
             return null;
         }
         int machineId = afterDoc.getInteger(MACHINE_ID_FIELD);
-        return MachineState.of(machineId, lastTimestamp);
+        long actualLastTimestamp = afterDoc.getLong(MachineOperates.LAST_TIMESTAMP_FIELD);
+        return MachineState.of(machineId, actualLastTimestamp);
     }
     
     @Override
@@ -111,7 +112,8 @@ public class MongoMachineCollection implements MachineCollection {
             return null;
         }
         int machineId = afterDoc.getInteger(MACHINE_ID_FIELD);
-        return MachineState.of(machineId, lastTimestamp);
+        long actualLastTimestamp = afterDoc.getLong(MachineOperates.LAST_TIMESTAMP_FIELD);
+        return MachineState.of(machineId, actualLastTimestamp);
     }
     
     @Override

@@ -41,13 +41,19 @@ class StatefulSetMachineIdDistributorTest {
         key = StatefulSetMachineIdDistributor.HOSTNAME_KEY,
         value = "cosid-host-6")
     void distribute() {
-        int machineId = StatefulSetMachineIdDistributor.INSTANCE
-            .distribute("k8s", 1, InstanceId.NONE, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION).getMachineId();
-        Assertions.assertEquals(6, machineId);
+        StatefulSetMachineIdDistributor distributor = new StatefulSetMachineIdDistributor(new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT);
+        Assertions.assertThrows(MachineIdOverflowException.class, () -> {
+            distributor.distribute("k8s", 1, InstanceId.NONE, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+        });
     }
     
     @Test
+    @SetEnvironmentVariable(
+        key = StatefulSetMachineIdDistributor.HOSTNAME_KEY,
+        value = "cosid-host-0")
     void revert() {
-        StatefulSetMachineIdDistributor.INSTANCE.revert("k8s", InstanceId.NONE);
+        StatefulSetMachineIdDistributor distributor = new StatefulSetMachineIdDistributor(new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT);
+        distributor.distribute("k8s", 1, InstanceId.NONE, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+        distributor.revert("k8s", InstanceId.NONE);
     }
 }

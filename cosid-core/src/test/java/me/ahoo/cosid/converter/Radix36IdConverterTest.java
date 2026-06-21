@@ -67,6 +67,9 @@ class Radix36IdConverterTest {
         Assertions.assertThrows(NumberFormatException.class, () -> {
             idConvert.asLong("1_");
         });
+        Assertions.assertThrows(NumberFormatException.class, () -> {
+            Radix36IdConverter.INSTANCE.asLong("a");
+        });
     }
     
     @ParameterizedTest

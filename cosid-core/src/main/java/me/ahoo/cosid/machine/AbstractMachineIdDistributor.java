@@ -32,12 +32,12 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     public static final int NOT_FOUND_LAST_STAMP = -1;
     private final MachineStateStorage machineStateStorage;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
-    
+
     public AbstractMachineIdDistributor(MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         this.machineStateStorage = machineStateStorage;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
     }
-    
+
     /**
      * 1. get from {@link MachineStateStorage}
      * 2. when not found: {@link #distributeRemote}
@@ -45,29 +45,37 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
      */
     @Override
     public @NonNull MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException {
-        
+
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkArgument(machineBit > 0, "machineBit:[%s] must be greater than 0!", machineBit);
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
-        
+
         MachineState localState = machineStateStorage.get(namespace, instanceId);
         if (!MachineState.NOT_FOUND.equals(localState)) {
+            ensureMachineId(machineBit, instanceId, localState);
             clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastTimeStamp());
             return localState;
         }
-        
+
         localState = distributeRemote(namespace, machineBit, instanceId, safeGuardDuration);
+        ensureMachineId(machineBit, instanceId, localState);
         if (ClockBackwardsSynchronizer.getBackwardsTimeStamp(localState.getLastTimeStamp()) > 0) {
             clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastTimeStamp());
             localState = MachineState.of(localState.getMachineId(), System.currentTimeMillis());
         }
-        
+
         machineStateStorage.set(namespace, localState.getMachineId(), instanceId);
         return localState;
     }
-    
+
     protected abstract MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration);
-    
+
+    private void ensureMachineId(int machineBit, InstanceId instanceId, MachineState machineState) {
+        if (machineState.getMachineId() > MachineIdDistributor.maxMachineId(machineBit)) {
+            throw new MachineIdOverflowException(MachineIdDistributor.totalMachineIds(machineBit), instanceId);
+        }
+    }
+
     /**
      * 1. get from {@link MachineStateStorage}
      * 2. when not found: {@link #distributeRemote} , no need to revert
@@ -79,23 +87,24 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     @Override
     public void revert(String namespace, InstanceId instanceId) {
         MachineState lastLocalState = resetStorage(namespace, instanceId);
-        
+
         revertRemote(namespace, instanceId, lastLocalState);
+        machineStateStorage.remove(namespace, instanceId);
     }
-    
+
     protected abstract void revertRemote(String namespace, InstanceId instanceId, MachineState machineState);
-    
+
     @Override
     public void guard(String namespace, InstanceId instanceId, Duration safeGuardDuration) throws NotFoundMachineStateException, MachineIdLostException {
         MachineState lastLocalState = resetStorage(namespace, instanceId);
         guardRemote(namespace, instanceId, lastLocalState, safeGuardDuration);
     }
-    
-    
+
+
     private MachineState resetStorage(String namespace, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
-        
+
         MachineState lastLocalState = machineStateStorage.get(namespace, instanceId);
         if (MachineState.NOT_FOUND.equals(lastLocalState)) {
             throw new NotFoundMachineStateException(namespace, instanceId);
@@ -106,7 +115,7 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
         }
         return lastLocalState;
     }
-    
+
     protected abstract void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration);
-    
+
 }

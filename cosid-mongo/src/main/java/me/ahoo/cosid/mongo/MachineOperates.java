@@ -73,7 +73,7 @@ public interface MachineOperates {
     static Bson distributeByRevertUpdate(InstanceId instanceId, long lastTimestamp) {
         return Updates.combine(
             Updates.set(INSTANCE_ID_FIELD, instanceId.getInstanceId()),
-            Updates.set(LAST_TIMESTAMP_FIELD, lastTimestamp)
+            Updates.max(LAST_TIMESTAMP_FIELD, lastTimestamp)
         );
     }
     
@@ -86,7 +86,7 @@ public interface MachineOperates {
     }
     
     static Bson distributeBySelfUpdate(long lastTimestamp) {
-        return Updates.set(LAST_TIMESTAMP_FIELD, lastTimestamp);
+        return Updates.max(LAST_TIMESTAMP_FIELD, lastTimestamp);
     }
     
     static Bson revertFilter(String namespace, InstanceId instanceId, MachineState machineState) {
@@ -100,7 +100,7 @@ public interface MachineOperates {
         return Updates.combine(
             Updates.set(INSTANCE_ID_FIELD, instanceId.isStable() ? instanceId.getInstanceId() : ""),
             Updates.set(REVERT_TIME_FIELD, System.currentTimeMillis()),
-            Updates.set(LAST_TIMESTAMP_FIELD, machineState.getLastTimeStamp())
+            Updates.max(LAST_TIMESTAMP_FIELD, machineState.getLastTimeStamp())
         );
     }
     
@@ -113,6 +113,6 @@ public interface MachineOperates {
     }
     
     static Bson guardUpdate(long lastTimestamp) {
-        return Updates.set(LAST_TIMESTAMP_FIELD, lastTimestamp);
+        return Updates.max(LAST_TIMESTAMP_FIELD, lastTimestamp);
     }
 }

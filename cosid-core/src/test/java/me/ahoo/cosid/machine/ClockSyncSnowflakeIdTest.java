@@ -18,10 +18,15 @@ import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
+import me.ahoo.cosid.snowflake.AbstractSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.snowflake.SecondSnowflakeId;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Field;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author : Rocher Kong
@@ -29,61 +34,74 @@ import org.junit.jupiter.api.Test;
 class ClockSyncSnowflakeIdTest {
     public static final int TEST_MACHINE_ID = 1;
     ClockSyncSnowflakeId clockSyncSnowflakeId;
-    
+
     @BeforeEach
     void setup() {
         MillisecondSnowflakeId idGen = new MillisecondSnowflakeId(TEST_MACHINE_ID);
         clockSyncSnowflakeId = new ClockSyncSnowflakeId(idGen);
     }
-    
+
     @Test
     void getEpoch() {
         assertThat(clockSyncSnowflakeId.getEpoch(), equalTo(CosId.COSID_EPOCH));
     }
-    
+
     @Test
     void getTimestampBit() {
         assertThat(clockSyncSnowflakeId.getTimestampBit(), equalTo(41));
     }
-    
+
     @Test
     void getMachineBit() {
         assertThat(clockSyncSnowflakeId.getMachineBit(), equalTo(10));
     }
-    
+
     @Test
     void getSequenceBit() {
         assertThat(clockSyncSnowflakeId.getSequenceBit(), equalTo(12));
     }
-    
+
     @Test
     void isSafeJavascript() {
         assertThat(clockSyncSnowflakeId.isSafeJavascript(), equalTo(false));
     }
-    
+
     @Test
     void getMaxTimestamp() {
         assertThat(clockSyncSnowflakeId.getMaxTimestamp(), greaterThan(0L));
     }
-    
+
     @Test
     void getMaxMachineId() {
         assertThat(clockSyncSnowflakeId.getMaxMachineId(), equalTo(1023));
     }
-    
+
     @Test
     void getMaxSequence() {
         assertThat(clockSyncSnowflakeId.getMaxSequence(), equalTo(4095L));
     }
-    
+
     @Test
     void getLastTimestamp() {
         clockSyncSnowflakeId.generate();
         assertThat(clockSyncSnowflakeId.getLastTimestamp(), greaterThan(0L));
     }
-    
+
     @Test
     void getMachineId() {
         assertThat(clockSyncSnowflakeId.getMachineId(), equalTo(TEST_MACHINE_ID));
+    }
+
+    @Test
+    void generateShouldSynchronizeSecondSnowflakeTimestampInMilliseconds() throws Exception {
+        SecondSnowflakeId secondSnowflakeId = new SecondSnowflakeId(TEST_MACHINE_ID);
+        Field lastTimestamp = AbstractSnowflakeId.class.getDeclaredField("lastTimestamp");
+        lastTimestamp.setAccessible(true);
+        long currentSecond = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
+        lastTimestamp.setLong(secondSnowflakeId, currentSecond + 1);
+
+        ClockSyncSnowflakeId secondClockSync = new ClockSyncSnowflakeId(secondSnowflakeId, new DefaultClockBackwardsSynchronizer(1, 2000));
+
+        assertThat(secondClockSync.generate(), greaterThan(0L));
     }
 }

@@ -104,7 +104,8 @@ public class MongoReactiveMachineCollection implements MachineCollection {
             return null;
         }
         int machineId = afterDoc.getInteger(MACHINE_ID_FIELD);
-        return MachineState.of(machineId, lastTimestamp);
+        long actualLastTimestamp = afterDoc.getLong(MachineOperates.LAST_TIMESTAMP_FIELD);
+        return MachineState.of(machineId, actualLastTimestamp);
     }
     
     @Override
@@ -120,7 +121,8 @@ public class MongoReactiveMachineCollection implements MachineCollection {
             return null;
         }
         int machineId = afterDoc.getInteger(MACHINE_ID_FIELD);
-        return MachineState.of(machineId, lastTimestamp);
+        long actualLastTimestamp = afterDoc.getLong(MachineOperates.LAST_TIMESTAMP_FIELD);
+        return MachineState.of(machineId, actualLastTimestamp);
     }
     
     @Override
@@ -133,7 +135,7 @@ public class MongoReactiveMachineCollection implements MachineCollection {
             revertUpdate(instanceId, machineState)
         );
         UpdateResult updateResult = BlockingAdapter.block(updateResultPublisher);
-        if (updateResult.getModifiedCount() == 0) {
+        if (updateResult.getMatchedCount() == 0) {
             throw new MachineIdLostException(namespace, instanceId, machineState);
         }
     }
@@ -149,7 +151,7 @@ public class MongoReactiveMachineCollection implements MachineCollection {
             guardUpdate(machineState.getLastTimeStamp())
         );
         UpdateResult updateResult = BlockingAdapter.block(updateResultPublisher);
-        if (updateResult.getModifiedCount() == 0) {
+        if (updateResult.getMatchedCount() == 0) {
             throw new MachineIdLostException(namespace, instanceId, machineState);
         }
     }

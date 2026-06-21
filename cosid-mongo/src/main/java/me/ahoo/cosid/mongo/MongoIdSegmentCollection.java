@@ -13,11 +13,15 @@
 
 package me.ahoo.cosid.mongo;
 
+import static me.ahoo.cosid.mongo.IdSegmentOperates.ensureOffsetUpdates;
 import static me.ahoo.cosid.mongo.IdSegmentOperates.incrementAndGetUpdates;
 
 import com.google.common.base.Preconditions;
+import com.mongodb.ErrorCategory;
+import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.UpdateOptions;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 
@@ -26,21 +30,37 @@ import java.util.Objects;
 @Slf4j
 public class MongoIdSegmentCollection implements IdSegmentCollection {
     private final MongoCollection<Document> cosidCollection;
-    
+
     public MongoIdSegmentCollection(MongoCollection<Document> cosidCollection) {
         this.cosidCollection = cosidCollection;
     }
-    
+
     @Override
-    public long incrementAndGet(String namespacedName, long step) {
+    public long incrementAndGet(String namespacedName, long offset, long step) {
+        ensureOffset(namespacedName, offset);
         Document afterDoc = cosidCollection.findOneAndUpdate(
             Filters.eq(Documents.ID_FIELD, namespacedName),
             incrementAndGetUpdates(step),
             Documents.UPDATE_UPSERT_AFTER_OPTIONS);
-        
+
         assert afterDoc != null;
         Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
         Long lastMaxId = afterDoc.getLong(IdSegmentOperates.LAST_MAX_ID_FIELD);
         return Objects.requireNonNull(lastMaxId);
+    }
+
+    private void ensureOffset(String namespacedName, long offset) {
+        try {
+            cosidCollection.updateOne(
+                Filters.eq(Documents.ID_FIELD, namespacedName),
+                ensureOffsetUpdates(offset),
+                new UpdateOptions().upsert(true)
+            );
+        } catch (MongoWriteException mongoWriteException) {
+            if (mongoWriteException.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
+                return;
+            }
+            throw mongoWriteException;
+        }
     }
 }

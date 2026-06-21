@@ -112,6 +112,10 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         return BaseEncoding.base64().encode(text.getBytes(Charsets.UTF_8));
     }
 
+    private String decode(String text) {
+        return new String(BaseEncoding.base64().decode(text), Charsets.UTF_8);
+    }
+
     @Override
     public void set(String namespace, int machineId, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
@@ -182,8 +186,14 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         if (!stateDirectory.exists()) {
             return new File[0];
         }
-        String encodedNamespace = encode(namespace);
-        return stateDirectory.listFiles(((dir, name) -> name.startsWith(encodedNamespace)));
+        String namespacePrefix = namespace + "__";
+        return stateDirectory.listFiles(((dir, name) -> {
+            try {
+                return decode(name).startsWith(namespacePrefix);
+            } catch (IllegalArgumentException ignored) {
+                return false;
+            }
+        }));
     }
 
     @Override

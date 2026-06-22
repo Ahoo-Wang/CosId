@@ -13,39 +13,132 @@
 
 package me.ahoo.cosid.cosid;
 
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
+import me.ahoo.cosid.snowflake.exception.ClockTooManyBackwardsException;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import org.junit.jupiter.api.Test;
 
 class ClockSyncCosIdGeneratorTest {
-    private final Radix62CosIdGenerator radix62CosIdGenerator = new Radix62CosIdGenerator(1);
-    private final ClockSyncCosIdGenerator clockSyncCosIdGenerator = new ClockSyncCosIdGenerator(radix62CosIdGenerator);
-    
+
     @Test
-    void getActual() {
-        assertThat(clockSyncCosIdGenerator.getActual(), sameInstance(radix62CosIdGenerator));
+    void shouldDelegateGeneratorMetadata() {
+        FakeCosIdGenerator actual = new FakeCosIdGenerator(7, 123, RadixCosIdStateParser.DEFAULT);
+        ClockSyncCosIdGenerator generator = new ClockSyncCosIdGenerator(actual, new RecordingSynchronizer());
+
+        assertSame(actual, generator.getActual());
+        assertEquals(7, generator.getMachineId());
+        assertEquals(123, generator.getLastTimestamp());
+        assertSame(RadixCosIdStateParser.DEFAULT, generator.getStateParser());
     }
-    
+
     @Test
-    void getMachineId() {
-        assertThat(clockSyncCosIdGenerator.getMachineId(), equalTo(1));
+    void generateAsStateShouldReturnActualStateWhenClockDoesNotMoveBackwards() {
+        CosIdState expected = new CosIdState(200, 7, 1);
+        FakeCosIdGenerator actual = new FakeCosIdGenerator(7, 199, RadixCosIdStateParser.DEFAULT).thenReturn(expected);
+        RecordingSynchronizer synchronizer = new RecordingSynchronizer();
+        ClockSyncCosIdGenerator generator = new ClockSyncCosIdGenerator(actual, synchronizer);
+
+        assertSame(expected, generator.generateAsState());
+        assertEquals(1, actual.generateCalls);
+        assertEquals(0, synchronizer.syncCalls);
     }
-    
+
     @Test
-    void getLastTimestamp() {
-        assertThat(clockSyncCosIdGenerator.getLastTimestamp(), equalTo(radix62CosIdGenerator.getLastTimestamp()));
+    void generateAsStateShouldSynchronizeLastTimestampAndRetryOnceWhenClockMovesBackwards() {
+        CosIdState expected = new CosIdState(124, 7, 1);
+        FakeCosIdGenerator actual = new FakeCosIdGenerator(7, 123, RadixCosIdStateParser.DEFAULT)
+            .thenThrowClockBackwards()
+            .thenReturn(expected);
+        RecordingSynchronizer synchronizer = new RecordingSynchronizer();
+        ClockSyncCosIdGenerator generator = new ClockSyncCosIdGenerator(actual, synchronizer);
+
+        assertSame(expected, generator.generateAsState());
+        assertEquals(2, actual.generateCalls);
+        assertEquals(1, synchronizer.syncCalls);
+        assertEquals(123, synchronizer.lastTimestamp);
     }
-    
+
     @Test
-    void getStateParser() {
-        assertThat(clockSyncCosIdGenerator.getStateParser(), equalTo(radix62CosIdGenerator.getStateParser()));
+    void statShouldWrapActualGeneratorAndParserStats() {
+        FakeCosIdGenerator actual = new FakeCosIdGenerator(7, 123, RadixCosIdStateParser.DEFAULT);
+        ClockSyncCosIdGenerator generator = new ClockSyncCosIdGenerator(actual, new RecordingSynchronizer());
+
+        IdGeneratorStat stat = generator.stat();
+
+        assertEquals("ClockSyncCosIdGenerator", stat.getKind());
+        assertEquals(actual.stat(), stat.getActual());
+        assertEquals("RadixCosIdStateParser", stat.getConverter().getKind());
     }
-    
-    @Test
-    void generateAsState() {
-        CosIdState state1 = clockSyncCosIdGenerator.generateAsState();
-        CosIdState state2 = clockSyncCosIdGenerator.generateAsState();
-        assertThat(state2, greaterThan(state1));
+
+    private static final class RecordingSynchronizer implements ClockBackwardsSynchronizer {
+        private int syncCalls;
+        private long lastTimestamp = -1;
+
+        @Override
+        public void sync(long lastTimestamp) {
+            syncUninterruptibly(lastTimestamp);
+        }
+
+        @Override
+        public void syncUninterruptibly(long lastTimestamp) throws ClockTooManyBackwardsException {
+            syncCalls++;
+            this.lastTimestamp = lastTimestamp;
+        }
+    }
+
+    private static final class FakeCosIdGenerator implements CosIdGenerator {
+        private final int machineId;
+        private long lastTimestamp;
+        private final CosIdIdStateParser parser;
+        private boolean throwClockBackwards;
+        private CosIdState nextState = new CosIdState(1, 1, 1);
+        private int generateCalls;
+
+        private FakeCosIdGenerator(int machineId, long lastTimestamp, CosIdIdStateParser parser) {
+            this.machineId = machineId;
+            this.lastTimestamp = lastTimestamp;
+            this.parser = parser;
+        }
+
+        private FakeCosIdGenerator thenThrowClockBackwards() {
+            this.throwClockBackwards = true;
+            return this;
+        }
+
+        private FakeCosIdGenerator thenReturn(CosIdState nextState) {
+            this.nextState = nextState;
+            return this;
+        }
+
+        @Override
+        public int getMachineId() {
+            return machineId;
+        }
+
+        @Override
+        public long getLastTimestamp() {
+            return lastTimestamp;
+        }
+
+        @Override
+        public CosIdIdStateParser getStateParser() {
+            return parser;
+        }
+
+        @Override
+        public CosIdState generateAsState() {
+            generateCalls++;
+            if (throwClockBackwards) {
+                throwClockBackwards = false;
+                throw new ClockBackwardsException(lastTimestamp, lastTimestamp - 1);
+            }
+            lastTimestamp = nextState.getTimestamp();
+            return nextState;
+        }
     }
 }

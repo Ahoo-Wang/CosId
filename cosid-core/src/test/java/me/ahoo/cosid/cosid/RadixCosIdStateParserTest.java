@@ -13,59 +13,45 @@
 
 package me.ahoo.cosid.cosid;
 
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import java.util.stream.Stream;
 
 class RadixCosIdStateParserTest {
-    private final Radix62CosIdGenerator radix62CosIdGenerator = new Radix62CosIdGenerator(1);
-    
-    @Test
-    void generateAsString() {
-        String id1 = radix62CosIdGenerator.generateAsString();
-        String id2 = radix62CosIdGenerator.generateAsString();
-        assertThat(id2, greaterThan(id1));
-        assertThat(id2.length(), equalTo(id1.length()));
+
+    static Stream<Arguments> parserProvider() {
+        return Stream.of(
+            arguments(RadixCosIdStateParser.ofRadix62(8, 4, 4), new CosIdState(61, 7, 15), "0z7F"),
+            arguments(RadixCosIdStateParser.ofRadix36(8, 4, 4), new CosIdState(35, 7, 15), "0Z7F")
+        );
     }
-    
-    @Test
-    void generateAsState() {
-        CosIdState state1 = radix62CosIdGenerator.generateAsState();
-        CosIdState state2 = radix62CosIdGenerator.generateAsState();
-        assertThat(state2, greaterThan(state1));
+
+    @ParameterizedTest
+    @MethodSource("parserProvider")
+    void asStringShouldEncodeFixedWidthTimestampMachineAndSequence(RadixCosIdStateParser parser, CosIdState state, String expected) {
+        assertEquals(expected, parser.asString(state));
+        assertEquals(expected, parser.asString(state.getTimestamp(), state.getMachineId(), state.getSequence()));
     }
-    
-    @Test
-    void asState() {
-        CosIdState cosIdState = radix62CosIdGenerator.generateAsState();
-        String idStr = radix62CosIdGenerator.getStateParser().asString(cosIdState);
-        CosIdState cosIdState2 = radix62CosIdGenerator.getStateParser().asState(idStr);
-        assertThat(cosIdState, equalTo(cosIdState2));
+
+    @ParameterizedTest
+    @MethodSource("parserProvider")
+    void asStateShouldRoundTripFixedWidthIds(RadixCosIdStateParser parser, CosIdState expected, String id) {
+        assertEquals(expected, parser.asState(id));
     }
-    
-    @Test
-    void asStateFailed() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            radix62CosIdGenerator.getStateParser().asState("cosIdState");
-        });
-    }
-    
-    @Test
-    void asString() {
-        String id = radix62CosIdGenerator.generateAsString();
-        CosIdState cosIdState = radix62CosIdGenerator.getStateParser().asState(id);
-        String id2 = radix62CosIdGenerator.getStateParser().asString(cosIdState);
-        assertThat(id, equalTo(id2));
-    }
-    
-    @Test
-    void asString36() {
-        Radix36CosIdGenerator radix36CosIdGenerator = new Radix36CosIdGenerator(1);
-        String id = radix36CosIdGenerator.generateAsString();
-        CosIdState cosIdState = radix36CosIdGenerator.getStateParser().asState(id);
-        String id2 = radix36CosIdGenerator.getStateParser().asString(cosIdState);
-        assertThat(id, equalTo(id2));
+
+    @ParameterizedTest
+    @MethodSource("parserProvider")
+    void asStateShouldRejectIdsWhoseLengthDoesNotMatchConfiguredComponents(RadixCosIdStateParser parser, CosIdState ignored, String id) {
+        IllegalArgumentException tooShort = assertThrows(IllegalArgumentException.class, () -> parser.asState(id.substring(1)));
+        IllegalArgumentException tooLong = assertThrows(IllegalArgumentException.class, () -> parser.asState(id + "0"));
+
+        assertEquals("id[" + id.substring(1) + "] length must equal to totalCharSize:[4].", tooShort.getMessage());
+        assertEquals("id[" + id + "0] length must equal to totalCharSize:[4].", tooLong.getMessage());
     }
 }

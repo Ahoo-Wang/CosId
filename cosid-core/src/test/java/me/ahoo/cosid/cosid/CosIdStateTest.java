@@ -13,44 +13,52 @@
 
 package me.ahoo.cosid.cosid;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import static org.junit.jupiter.api.Assertions.*;
+import org.junit.jupiter.api.Test;
 
 class CosIdStateTest {
 
     @Test
-    void testEquals() {
-        CosIdState cosIdState = new CosIdState(0, 0, 0);
-        assertEquals(cosIdState, cosIdState);
-        assertNotEquals(this, cosIdState);
-        CosIdState cosIdState1 = new CosIdState(0, 0, 0);
-        assertEquals(cosIdState, cosIdState1);
-        CosIdState cosIdState2 = new CosIdState(1, 0, 0);
-        assertNotEquals(cosIdState, cosIdState2);
-        CosIdState cosIdState3 = new CosIdState(0, 1, 0);
-        assertNotEquals(cosIdState, cosIdState3);
-        CosIdState cosIdState4 = new CosIdState(0, 0, 1);
-        assertNotEquals(cosIdState, cosIdState4);
+    void accessorsShouldReturnConstructorComponents() {
+        CosIdState state = new CosIdState(1000, 7, 42);
+
+        assertEquals(1000, state.getTimestamp());
+        assertEquals(7, state.getMachineId());
+        assertEquals(42, state.getSequence());
     }
 
     @Test
-    void testHashCode() {
-        CosIdState cosIdState = new CosIdState(0, 0, 0);
-        assertEquals(cosIdState.hashCode(), cosIdState.hashCode());
-        CosIdState cosIdState1 = new CosIdState(0, 0, 0);
-        assertEquals(cosIdState.hashCode(), cosIdState1.hashCode());
-        CosIdState cosIdState2 = new CosIdState(1, 0, 0);
-        assertNotEquals(cosIdState.hashCode(), cosIdState2.hashCode());
-        CosIdState cosIdState3 = new CosIdState(0, 1, 0);
-        assertNotEquals(cosIdState.hashCode(), cosIdState3.hashCode());
-        CosIdState cosIdState4 = new CosIdState(0, 0, 1);
-        assertNotEquals(cosIdState.hashCode(), cosIdState4.hashCode());
+    void equalityAndHashCodeShouldUseAllStateComponents() {
+        CosIdState state = new CosIdState(1000, 7, 42);
+
+        assertEquals(state, new CosIdState(1000, 7, 42));
+        assertEquals(state.hashCode(), new CosIdState(1000, 7, 42).hashCode());
+        assertNotEquals(state, new CosIdState(1001, 7, 42));
+        assertNotEquals(state, new CosIdState(1000, 8, 42));
+        assertNotEquals(state, new CosIdState(1000, 7, 43));
+        assertNotEquals(state, "1000-7-42");
     }
 
     @Test
-    void testToString() {
-        CosIdState cosIdState = new CosIdState(0, 0, 0);
-        assertEquals("CosIdState{timestamp=0, machineId=0, sequence=0}", cosIdState.toString());
+    void compareToShouldOrderByEncodedStateComponents() {
+        CosIdState state = new CosIdState(1000, 7, 42);
+
+        assertTrue(state.compareTo(new CosIdState(999, 1024, 65535)) > 0);
+        assertTrue(state.compareTo(new CosIdState(1001, 0, 0)) < 0);
+        assertTrue(state.compareTo(new CosIdState(1000, 6, 65535)) > 0);
+        assertTrue(state.compareTo(new CosIdState(1000, 8, 0)) < 0);
+        assertTrue(state.compareTo(new CosIdState(1000, 7, 41)) > 0);
+        assertTrue(state.compareTo(new CosIdState(1000, 7, 43)) < 0);
+        assertEquals(0, state.compareTo(new CosIdState(1000, 7, 42)));
+    }
+
+    @Test
+    void toStringShouldExposeAllComponentsForDiagnostics() {
+        CosIdState state = new CosIdState(1000, 7, 42);
+
+        assertEquals("CosIdState{timestamp=1000, machineId=7, sequence=42}", state.toString());
     }
 }

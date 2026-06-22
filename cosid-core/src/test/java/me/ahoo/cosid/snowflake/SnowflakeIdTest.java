@@ -13,52 +13,88 @@
 
 package me.ahoo.cosid.snowflake;
 
-import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import me.ahoo.cosid.converter.ToStringIdConverter;
+import me.ahoo.cosid.stat.generator.SnowflakeIdStat;
+
 import org.junit.jupiter.api.Test;
 
 class SnowflakeIdTest {
 
     @Test
     void getLastTimestampAsMillisecondsShouldDefaultToLastTimestamp() {
-        SnowflakeId snowflakeId = new StubSnowflakeId(123);
+        StubSnowflakeId snowflakeId = new StubSnowflakeId(41, 10, 12, 123);
 
-        Assertions.assertEquals(123, snowflakeId.getLastTimestampAsMilliseconds());
+        assertEquals(123, snowflakeId.getLastTimestampAsMilliseconds());
     }
 
-    private record StubSnowflakeId(long lastTimestamp) implements SnowflakeId {
+    @Test
+    void defaultSequenceResetThresholdShouldUseHalfOfSequenceCapacity() {
+        assertEquals(0, SnowflakeId.defaultSequenceResetThreshold(1));
+        assertEquals(7, SnowflakeId.defaultSequenceResetThreshold(4));
+        assertEquals(2047, SnowflakeId.defaultSequenceResetThreshold(12));
+    }
+
+    @Test
+    void isSafeJavascriptShouldDependOnConfiguredTotalBits() {
+        assertTrue(new StubSnowflakeId(41, 10, 2, 123).isSafeJavascript());
+        assertFalse(new StubSnowflakeId(41, 10, 12, 123).isSafeJavascript());
+    }
+
+    @Test
+    void statShouldExposeConfigurationAndCurrentState() {
+        StubSnowflakeId snowflakeId = new StubSnowflakeId(41, 10, 12, 123);
+
+        SnowflakeIdStat stat = (SnowflakeIdStat) snowflakeId.stat();
+
+        assertEquals("StubSnowflakeId", stat.getKind());
+        assertEquals(100, stat.getEpoch());
+        assertEquals(41, stat.getTimestampBit());
+        assertEquals(10, stat.getMachineBit());
+        assertEquals(12, stat.getSequenceBit());
+        assertFalse(stat.isSafeJavascript());
+        assertEquals(5, stat.getMachineId());
+        assertEquals(123, stat.getLastTimestamp());
+        assertEquals(ToStringIdConverter.INSTANCE.stat(), stat.getConverter());
+    }
+
+    private record StubSnowflakeId(int timestampBit, int machineBit, int sequenceBit, long lastTimestamp) implements SnowflakeId {
         @Override
         public long getEpoch() {
-            return 0;
+            return 100;
         }
 
         @Override
         public int getTimestampBit() {
-            return 1;
+            return timestampBit;
         }
 
         @Override
         public int getMachineBit() {
-            return 1;
+            return machineBit;
         }
 
         @Override
         public int getSequenceBit() {
-            return 1;
+            return sequenceBit;
         }
 
         @Override
         public long getMaxTimestamp() {
-            return 1;
+            return ~(-1L << timestampBit);
         }
 
         @Override
         public int getMaxMachineId() {
-            return 1;
+            return ~(-1 << machineBit);
         }
 
         @Override
         public long getMaxSequence() {
-            return 1;
+            return ~(-1L << sequenceBit);
         }
 
         @Override
@@ -68,7 +104,12 @@ class SnowflakeIdTest {
 
         @Override
         public int getMachineId() {
-            return 1;
+            return 5;
+        }
+
+        @Override
+        public ToStringIdConverter idConverter() {
+            return ToStringIdConverter.INSTANCE;
         }
 
         @Override

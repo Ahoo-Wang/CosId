@@ -13,41 +13,46 @@
 
 package me.ahoo.cosid.machine;
 
-import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import org.junit.jupiter.api.Test;
 
-/**
- * MachineIdTest .
- *
- * @author ahoo wang
- */
 class MachineIdTest {
 
     @Test
-    void getMachineId() {
-        MachineId machineId = new MachineId(1);
-        Assertions.assertEquals(1, machineId.getMachineId());
+    void valueObjectShouldCompareByMachineIdOnly() {
+        MachineId machineId = new MachineId(7);
+
+        assertEquals(7, machineId.getMachineId());
+        assertEquals(machineId, new MachineId(7));
+        assertEquals(machineId.hashCode(), new MachineId(7).hashCode());
+        assertNotEquals(machineId, new MachineId(8));
     }
 
     @Test
-    void testEquals() {
-        MachineId machineId1 = new MachineId(1);
-        MachineId machineId2 = new MachineId(1);
-        Assertions.assertEquals(machineId1, machineId2);
+    void maxMachineIdShouldReturnInclusiveUpperBoundForValidBits() {
+        assertEquals(1, MachineIdDistributor.maxMachineId(1));
+        assertEquals(3, MachineIdDistributor.maxMachineId(2));
+        assertEquals(Integer.MAX_VALUE, MachineIdDistributor.maxMachineId(31));
+        assertEquals(4, MachineIdDistributor.totalMachineIds(2));
     }
 
     @Test
-    void testHashCode() {
-        MachineId machineId1 = new MachineId(1);
-        MachineId machineId2 = new MachineId(1);
-        Assertions.assertEquals(machineId1.hashCode(), machineId2.hashCode());
+    void maxMachineIdShouldRejectUnsupportedBitWidthsWithMessage() {
+        IllegalArgumentException zero = assertThrows(IllegalArgumentException.class,
+            () -> MachineIdDistributor.maxMachineId(0));
+        IllegalArgumentException thirtyTwo = assertThrows(IllegalArgumentException.class,
+            () -> MachineIdDistributor.maxMachineId(32));
+
+        assertEquals("machineBit:[0] must be between 1 and 31!", zero.getMessage());
+        assertEquals("machineBit:[32] must be between 1 and 31!", thirtyTwo.getMessage());
     }
 
     @Test
-    void maxMachineIdShouldValidateMachineBitBoundaries() {
-        Assertions.assertEquals(3, MachineIdDistributor.maxMachineId(2));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> MachineIdDistributor.maxMachineId(-1));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> MachineIdDistributor.maxMachineId(0));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> MachineIdDistributor.maxMachineId(32));
+    void namespacedMachineIdShouldPadMachineIdToEightDigits() {
+        assertEquals("order.00000007", MachineIdDistributor.namespacedMachineId("order", 7));
+        assertEquals("order.123456789", MachineIdDistributor.namespacedMachineId("order", 123456789));
     }
 }

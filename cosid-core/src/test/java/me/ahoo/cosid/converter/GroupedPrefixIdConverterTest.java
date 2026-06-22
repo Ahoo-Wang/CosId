@@ -13,44 +13,74 @@
 
 package me.ahoo.cosid.converter;
 
-import static me.ahoo.cosid.converter.GroupedPrefixIdConverter.DEFAULT_DELIMITER;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.converter.GroupedPrefixConverterStat;
 
-import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class GroupedPrefixIdConverterTest {
-    GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter(DEFAULT_DELIMITER, ToStringIdConverter.INSTANCE);
-    
-    @Test
-    void asString() {
-        GroupedAccessor.set(GroupedKey.forever("2023"));
-        assertThat(converter.getDelimiter(), equalTo("-"));
-        assertThat(converter.asString(1), equalTo("2023-1"));
-        assertThat(converter.getActual(), equalTo(ToStringIdConverter.INSTANCE));
+
+    @AfterEach
+    void clearGroupedContext() {
         GroupedAccessor.clear();
     }
-    
+
     @Test
-    void asStringIfEmptyDelimiter() {
+    void asStringShouldPrefixCurrentGroupKeyAndDelegateIdConversion() {
+        GroupedAccessor.set(GroupedKey.forever("2024"));
+        GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter(
+            GroupedPrefixIdConverter.DEFAULT_DELIMITER,
+            Radix62IdConverter.PAD_START
+        );
+
+        String actual = converter.asString(62);
+
+        assertEquals("2024-00000000010", actual);
+        assertEquals("-", converter.getDelimiter());
+        assertSame(Radix62IdConverter.PAD_START, converter.getActual());
+    }
+
+    @Test
+    void asStringShouldConcatenateGroupAndIdWhenDelimiterIsEmpty() {
+        GroupedAccessor.set(GroupedKey.forever("tenantA"));
         GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter("", ToStringIdConverter.INSTANCE);
-        GroupedAccessor.set(GroupedKey.forever("2023"));
-        assertThat(converter.asString(1), equalTo("20231"));
-        GroupedAccessor.clear();
+
+        assertEquals("tenantA42", converter.asString(42));
     }
-    
+
     @Test
-    void asLong() {
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> converter.asLong("2023-1"));
+    void asStringShouldRequireGroupedContext() {
+        GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter("-", ToStringIdConverter.INSTANCE);
+
+        NullPointerException error = assertThrows(NullPointerException.class, () -> converter.asString(1));
+
+        assertEquals("The current thread has not set the GroupedKey.", error.getMessage());
     }
-    
+
     @Test
-    void stat() {
-        assertThat(converter.stat(), instanceOf(GroupedPrefixConverterStat.class));
+    void asLongShouldBeUnsupportedBecauseGroupPrefixIsNotReversible() {
+        GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter("-", ToStringIdConverter.INSTANCE);
+
+        UnsupportedOperationException error = assertThrows(UnsupportedOperationException.class, () -> converter.asLong("2024-1"));
+
+        assertEquals("GroupedPrefixIdConverter does not support converting String to Long!", error.getMessage());
+    }
+
+    @Test
+    void statShouldExposeDelimiterAndActualConverterStat() {
+        GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter("/", ToStringIdConverter.INSTANCE);
+
+        GroupedPrefixConverterStat stat = assertInstanceOf(GroupedPrefixConverterStat.class, converter.stat());
+
+        assertEquals("GroupedPrefixIdConverter", stat.getKind());
+        assertEquals("/", stat.getDelimiter());
+        assertEquals(ToStringIdConverter.INSTANCE.stat(), stat.getActual());
     }
 }

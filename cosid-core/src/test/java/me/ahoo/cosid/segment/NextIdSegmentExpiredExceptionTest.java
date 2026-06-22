@@ -1,38 +1,35 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package me.ahoo.cosid.segment;
 
-import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
-
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 
-/**
- * @author : Rocher Kong
- */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class NextIdSegmentExpiredExceptionTest {
-    SegmentChainId segmentChainIdCurrent;
-    SegmentChainId segmentChainIdNext ;
-    NextIdSegmentExpiredException nextIdSegmentExpiredException;
-
-
-    @BeforeEach
-    void setUp(){
-         segmentChainIdCurrent = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Atomic(2), PrefetchWorkerExecutorService.DEFAULT);
-         segmentChainIdNext = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Atomic(2), PrefetchWorkerExecutorService.DEFAULT);
-         nextIdSegmentExpiredException = new NextIdSegmentExpiredException(segmentChainIdCurrent.getHead(), segmentChainIdNext.getHead());
-    }
 
     @Test
-    void getCurrent() {
-        Assertions.assertEquals(segmentChainIdCurrent.getHead(), nextIdSegmentExpiredException.getCurrent());
-    }
+    void exceptionShouldExposeCurrentAndRejectedNextSegment() {
+        IdSegment current = new DefaultIdSegment(20, 10);
+        IdSegment next = new DefaultIdSegment(10, 10);
 
-    @Test
-    void getNext() {
-        Assertions.assertEquals(segmentChainIdNext.getHead(), nextIdSegmentExpiredException.getNext());
+        NextIdSegmentExpiredException error = new NextIdSegmentExpiredException(current, next);
+
+        assertSame(current, error.getCurrent());
+        assertSame(next, error.getNext());
+        assertTrue(error.getMessage().contains("The next IdSegment:[" + next + "] cannot be before the current IdSegment:[" + current + "]"));
+        assertTrue(error.getMessage().contains("times:["));
     }
 }

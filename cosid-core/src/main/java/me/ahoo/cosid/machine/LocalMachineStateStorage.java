@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.Base64;
 
 /**
  * File-based machine state storage.
@@ -39,6 +40,8 @@ import java.nio.file.Paths;
 @Slf4j
 public class LocalMachineStateStorage implements MachineStateStorage {
     private static final String STATE_FILE_DELIMITER = "__";
+    private static final String STATE_FILE_VERSION = "v2";
+    private static final String STATE_FILE_COMPONENT_DELIMITER = ".";
     /**
      * Default state location in user home directory.
      */
@@ -69,7 +72,7 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
 
-        File stateFile = getStateFile(namespace, instanceId);
+        File stateFile = getExistingStateFile(namespace, instanceId);
         if (log.isDebugEnabled()) {
             log.debug("Get from stateLocation : [{}].", stateFile.getAbsolutePath());
         }
@@ -99,14 +102,34 @@ public class LocalMachineStateStorage implements MachineStateStorage {
     }
 
     private File getStateFile(String namespace, InstanceId instanceId) {
+        File stateDirectory = getStateDirectory();
+        String fileName = STATE_FILE_VERSION
+            + STATE_FILE_COMPONENT_DELIMITER + encodeComponent(namespace)
+            + STATE_FILE_COMPONENT_DELIMITER + encodeComponent(instanceId.getInstanceId())
+            + STATE_FILE_COMPONENT_DELIMITER + instanceId.isStable();
+        return new File(Paths.get(stateDirectory.getAbsolutePath(), fileName).toString());
+    }
+
+    private File getExistingStateFile(String namespace, InstanceId instanceId) {
+        File stateFile = getStateFile(namespace, instanceId);
+        if (stateFile.exists()) {
+            return stateFile;
+        }
+        return getLegacyStateFile(namespace, instanceId);
+    }
+
+    private File getLegacyStateFile(String namespace, InstanceId instanceId) {
+        File stateDirectory = getStateDirectory();
+        String fileName = namespace + STATE_FILE_DELIMITER + instanceId.getInstanceId();
+        return new File(Paths.get(stateDirectory.getAbsolutePath(), encode(fileName)).toString());
+    }
+
+    private File getStateDirectory() {
         File stateDirectory = new File(stateLocation);
         if (!stateDirectory.exists()) {
-            boolean ignored = stateDirectory.mkdirs();
+            stateDirectory.mkdirs();
         }
-        String fileName = namespace + STATE_FILE_DELIMITER + instanceId.getInstanceId();
-        String encodedName = encode(fileName);
-        String statePath = Paths.get(stateLocation, encodedName).toString();
-        return new File(statePath);
+        return stateDirectory;
     }
 
     private String encode(String text) {
@@ -115,6 +138,14 @@ public class LocalMachineStateStorage implements MachineStateStorage {
 
     private String decode(String text) {
         return new String(BaseEncoding.base64().decode(text), Charsets.UTF_8);
+    }
+
+    private String encodeComponent(String text) {
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(text.getBytes(Charsets.UTF_8));
+    }
+
+    private String decodeComponent(String text) {
+        return new String(Base64.getUrlDecoder().decode(text), Charsets.UTF_8);
     }
 
     @Override
@@ -143,6 +174,10 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         } catch (IOException e) {
             throw new CosIdException(e.getMessage(), e);
         }
+        File legacyStateFile = getLegacyStateFile(namespace, instanceId);
+        if (legacyStateFile.exists()) {
+            legacyStateFile.delete();
+        }
     }
 
     @Override
@@ -159,6 +194,10 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             if (!isDeleted) {
                 log.warn("Remove and delete instance :[{}] stateFile in namespace[{}] not successful! FilePath:[{}]", instanceId, namespace, stateFile.getAbsolutePath());
             }
+        }
+        File legacyStateFile = getLegacyStateFile(namespace, instanceId);
+        if (legacyStateFile.exists()) {
+            legacyStateFile.delete();
         }
     }
 
@@ -188,18 +227,42 @@ public class LocalMachineStateStorage implements MachineStateStorage {
             return new File[0];
         }
         return stateDirectory.listFiles(((dir, name) -> {
-            try {
-                String decodedName = decode(name);
-                int delimiterIndex = decodedName.lastIndexOf(STATE_FILE_DELIMITER);
-                if (delimiterIndex < 0) {
-                    return false;
-                }
-                String actualNamespace = decodedName.substring(0, delimiterIndex);
-                return namespace.equals(actualNamespace);
-            } catch (IllegalArgumentException ignored) {
-                return false;
-            }
+            String actualNamespace = decodeNamespace(name);
+            return namespace.equals(actualNamespace);
         }));
+    }
+
+    private String decodeNamespace(String fileName) {
+        String v2Namespace = decodeV2Namespace(fileName);
+        if (v2Namespace != null) {
+            return v2Namespace;
+        }
+        try {
+            String decodedName = decode(fileName);
+            int delimiterIndex = decodedName.lastIndexOf(STATE_FILE_DELIMITER);
+            if (delimiterIndex < 0) {
+                return null;
+            }
+            return decodedName.substring(0, delimiterIndex);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private String decodeV2Namespace(String fileName) {
+        String prefix = STATE_FILE_VERSION + STATE_FILE_COMPONENT_DELIMITER;
+        if (!fileName.startsWith(prefix)) {
+            return null;
+        }
+        String[] components = fileName.split("\\" + STATE_FILE_COMPONENT_DELIMITER, 4);
+        if (components.length != 4) {
+            return null;
+        }
+        try {
+            return decodeComponent(components[1]);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     @Override
@@ -214,7 +277,6 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
 
-        File stateFile = getStateFile(namespace, instanceId);
-        return stateFile.exists();
+        return getStateFile(namespace, instanceId).exists() || getLegacyStateFile(namespace, instanceId).exists();
     }
 }

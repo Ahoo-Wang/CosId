@@ -14,102 +14,148 @@
 package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import me.ahoo.cosid.segment.concurrent.AffinityJob;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorker;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
-import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
-import me.ahoo.cosid.test.ModSpec;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
-import java.util.List;
 
-
-/**
- * @author ahoo wang
- */
 class SegmentChainIdTest {
-    
+
     @Test
-    void sort() {
-        IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
-        IdSegmentChain idSegmentChain1 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(false));
-        IdSegmentChain idSegmentChain2 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(false));
-        IdSegmentChain idSegmentChain3 = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(false));
-        List<IdSegmentChain> chainList = Arrays.asList(idSegmentChain2, idSegmentChain1, idSegmentChain3);
-        chainList.sort(null);
-        Assertions.assertEquals(idSegmentChain1, chainList.get(0));
-        Assertions.assertEquals(idSegmentChain2, chainList.get(1));
-        Assertions.assertEquals(idSegmentChain3, chainList.get(2));
+    void currentShouldStartAtUnavailableRootChain() {
+        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, new IdSegmentDistributor.Atomic(2), new NoopPrefetchWorkerExecutorService());
+
+        assertEquals(IdSegmentChain.ROOT_VERSION, generator.getHead().getVersion());
+        assertSame(generator.getHead(), generator.current());
+        assertFalse(generator.current().isAvailable());
     }
-    
+
     @Test
-    void current() {
-        SegmentChainId segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Atomic(2), PrefetchWorkerExecutorService.DEFAULT);
-        assertThat(segmentChainId.current().isAvailable(), equalTo(false));
+    void generateShouldAppendChainAndForwardHeadThroughAvailableSegments() {
+        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, new IdSegmentDistributor.Atomic(2), new NoopPrefetchWorkerExecutorService());
+
+        assertEquals(1, generator.generate());
+        assertEquals(2, generator.generate());
+        assertEquals(3, generator.generate());
+        assertEquals(4, generator.generate());
+
+        assertEquals(0, generator.getHead().getVersion());
+        assertEquals(4, generator.getHead().getMaxId());
+        assertTrue(generator.getHead().isOverflow());
+        assertEquals(5, generator.generate());
+        assertEquals(1, generator.getHead().getVersion());
     }
-    
+
     @Test
-    void nextIdSegmentsChain() {
-        IdSegmentDistributor idSegmentDistributor = new IdSegmentDistributor.Atomic();
-        IdSegmentChain rootChain = idSegmentDistributor.nextIdSegmentChain(IdSegmentChain.newRoot(true), 3, TIME_TO_LIVE_FOREVER);
-        Assertions.assertEquals(0, rootChain.getVersion());
-        Assertions.assertEquals(0, rootChain.getIdSegment().getOffset());
-        Assertions.assertEquals(30, rootChain.getStep());
-        Assertions.assertEquals(30, rootChain.getMaxId());
+    void nextIdSegmentChainShouldCreateMergedChainWithExpectedVersionAndRange() {
+        IdSegmentDistributor distributor = new IdSegmentDistributor.Atomic(10);
+        IdSegmentChain root = IdSegmentChain.newRoot(false);
+
+        IdSegmentChain chain = distributor.nextIdSegmentChain(root, 3, TIME_TO_LIVE_FOREVER);
+
+        assertEquals(0, chain.getVersion());
+        assertEquals(0, chain.getOffset());
+        assertEquals(30, chain.getStep());
+        assertEquals(30, chain.getMaxId());
+        assertEquals(3, chain.gap(chain, distributor.getStep()));
     }
-    
+
     @Test
-    void generate() {
-        SegmentChainId segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Atomic(2), PrefetchWorkerExecutorService.DEFAULT);
-        segmentChainId.generate();
-        segmentChainId.generate();
-        segmentChainId.generate();
+    void idSegmentChainShouldSetNextOnlyOnceAndRejectExpiredNextWhenResetIsForbidden() {
+        IdSegmentChain root = IdSegmentChain.newRoot(false);
+        IdSegmentChain first = new IdSegmentChain(root, new DefaultIdSegment(10, 10), false);
+        IdSegmentChain expired = new IdSegmentChain(root, new DefaultIdSegment(5, 5), false);
+
+        assertTrue(root.trySetNext(ignored -> first));
+        assertFalse(root.trySetNext(ignored -> expired));
+        assertSame(first, root.getNext());
+        assertThrows(NextIdSegmentExpiredException.class, () -> first.setNext(expired));
     }
-    
+
     @Test
-    public void concurrent_generate() {
-        SegmentChainId segmentChainId = new SegmentChainId(new IdSegmentDistributor.Mock());
-        
-        new ConcurrentGenerateSpec(segmentChainId).verify();
+    void multipleInstancesSharingDistributorShouldGenerateGloballyUniqueIdsWithPossibleGaps() {
+        IdSegmentDistributor distributor = new IdSegmentDistributor.Atomic(2);
+        SegmentChainId first = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, distributor, new NoopPrefetchWorkerExecutorService());
+        SegmentChainId second = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, distributor, new NoopPrefetchWorkerExecutorService());
+        long[] ids = new long[]{
+            first.generate(),
+            second.generate(),
+            first.generate(),
+            second.generate()
+        };
+
+        Arrays.sort(ids);
+
+        assertArrayEquals(new long[]{1, 2, 5, 6}, ids);
     }
-    
+
     @Test
-    public void sequenceModUniformity() {
-        SegmentChainId segmentChainId = new SegmentChainId(new IdSegmentDistributor.Mock());
-        new ModSpec(99999, 4, 100, segmentChainId::generate, ModSpec.DEFAULT_WAIT).verify();
+    void constructorShouldRejectInvalidTtlAndSafeDistance() {
+        IdSegmentDistributor distributor = new IdSegmentDistributor.Atomic(2);
+        NoopPrefetchWorkerExecutorService executor = new NoopPrefetchWorkerExecutorService();
+
+        assertEquals(
+            "Illegal idSegmentTtl parameter:[0].",
+            assertThrows(IllegalArgumentException.class, () -> new SegmentChainId(0, 2, distributor, executor)).getMessage()
+        );
+        assertEquals(
+            "The safety distance must be greater than 0.",
+            assertThrows(IllegalArgumentException.class, () -> new SegmentChainId(TIME_TO_LIVE_FOREVER, 0, distributor, executor)).getMessage()
+        );
     }
-    
+
     @Test
-    public void generateWhenConcurrentString() {
-        IdSegmentDistributor testMaxIdDistributor = new IdSegmentDistributor.Mock();
-        new ConcurrentGenerateStingSpec(new SegmentChainId(testMaxIdDistributor)).verify();
+    void generateShouldRemainUniqueUnderSmallConcurrentLoad() {
+        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 4, new IdSegmentDistributor.Atomic(64), new NoopPrefetchWorkerExecutorService());
+
+        new ConcurrentGenerateSpec(4, 256, Duration.ofSeconds(5), generator).verify();
     }
-    
-    @Test
-    public void concurrent_generate_multi_instance() {
-        
-        IdSegmentDistributor testMaxIdDistributor = new IdSegmentDistributor.Mock();
-        new ConcurrentGenerateSpec(new SegmentChainId(testMaxIdDistributor), new SegmentChainId(testMaxIdDistributor)) {
-            
-            @Override
-            protected void assertGlobalEach(long previousId, long id) {
-                /**
-                 * SegmentChainId 预取（安全间隙规则）导致实例1/实例2 预取到的IdSegment没有完全使用，导致ID空洞，只能保证趋势递增
-                 */
-                Assertions.assertTrue(previousId + 1 <= id);
-            }
-            
-            @Override
-            protected void assertGlobalLast(long lastId) {
-                Assertions.assertTrue(getIdSize() <= lastId);
-            }
-        }.verify();
+
+    private static final class NoopPrefetchWorkerExecutorService extends PrefetchWorkerExecutorService {
+        private final PrefetchWorker worker = new NoopPrefetchWorker();
+
+        private NoopPrefetchWorkerExecutorService() {
+            super(Duration.ofDays(1), 1, false);
+        }
+
+        @Override
+        public void submit(AffinityJob affinityJob) {
+            affinityJob.setPrefetchWorker(worker);
+        }
     }
-    
-    
+
+    private static final class NoopPrefetchWorker implements PrefetchWorker {
+        @Override
+        public String getName() {
+            return "noop-prefetch-worker";
+        }
+
+        @Override
+        public void submit(AffinityJob affinityJob) {
+        }
+
+        @Override
+        public void cancel(AffinityJob affinityJob) {
+        }
+
+        @Override
+        public void wakeup(AffinityJob affinityJob) {
+        }
+
+        @Override
+        public void shutdown() {
+        }
+    }
 }

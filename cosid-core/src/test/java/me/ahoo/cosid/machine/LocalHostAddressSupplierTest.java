@@ -13,15 +13,51 @@
 
 package me.ahoo.cosid.machine;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 class LocalHostAddressSupplierTest {
-    
+
     @Test
-    void getHostName() {
-        assertThat(LocalHostAddressSupplier.INSTANCE.getHostAddress(), notNullValue());
+    void getHostAddressShouldPreferLastEligibleNonLoopbackIpv4Candidate() {
+        LocalHostAddressSupplier supplier = new LocalHostAddressSupplier(
+            () -> "127.0.0.1",
+            () -> List.of(
+                candidate("::1", false, true, false),
+                candidate("0.0.0.0", true, false, true),
+                candidate("10.0.0.10", true, false, false),
+                candidate("10.0.0.11", true, false, false)
+            )
+        );
+
+        assertEquals("10.0.0.11", supplier.getHostAddress());
+    }
+
+    @Test
+    void getHostAddressShouldUseFallbackWhenNetworkScanFails() {
+        LocalHostAddressSupplier supplier = new LocalHostAddressSupplier(
+            () -> "127.0.0.1",
+            () -> {
+                throw new IllegalStateException("network unavailable");
+            }
+        );
+
+        assertEquals("127.0.0.1", supplier.getHostAddress());
+    }
+
+    @Test
+    void instanceShouldReturnNonBlankAddressOnCurrentHost() {
+        String hostAddress = LocalHostAddressSupplier.INSTANCE.getHostAddress();
+
+        assertFalse(hostAddress == null || hostAddress.isBlank(), "host address should be non-blank");
+    }
+
+    private static LocalHostAddressSupplier.HostAddressCandidate candidate(
+        String hostAddress, boolean ipv4, boolean loopback, boolean anyLocal) {
+        return new LocalHostAddressSupplier.HostAddressCandidate(hostAddress, ipv4, loopback, anyLocal);
     }
 }

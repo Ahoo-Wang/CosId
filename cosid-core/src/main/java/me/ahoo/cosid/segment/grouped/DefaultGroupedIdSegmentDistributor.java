@@ -21,6 +21,9 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import org.jspecify.annotations.NonNull;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
 /**
  * Default grouped ID segment distributor implementation.
  *
@@ -33,7 +36,7 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
     private final GroupBySupplier groupBySupplier;
     private final IdSegmentDistributorDefinition idSegmentDistributorDefinition;
     private final IdSegmentDistributorFactory idSegmentDistributorFactory;
-    private volatile GroupedBinding currentGroup;
+    private final ConcurrentMap<GroupedKey, GroupedBinding> groupedBindings = new ConcurrentHashMap<>();
 
     /**
      * Creates a grouped distributor.
@@ -51,22 +54,16 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
 
     private GroupedBinding ensureGroupedBinding() {
         GroupedKey groupedKey = groupBySupplier.get();
-        if (currentGroup != null && currentGroup.group().equals(groupedKey)) {
-            return currentGroup;
-        }
-        synchronized (this) {
-            if (currentGroup != null && currentGroup.group().equals(groupedKey)) {
-                return currentGroup;
-            }
-            String groupedName = idSegmentDistributorDefinition.getName() + "@" + groupedKey.getKey();
-            IdSegmentDistributorDefinition groupedDef = new IdSegmentDistributorDefinition(idSegmentDistributorDefinition.getNamespace(),
-                groupedName,
-                idSegmentDistributorDefinition.getOffset(),
-                idSegmentDistributorDefinition.getStep());
-            this.currentGroup = new GroupedBinding(groupedKey, idSegmentDistributorFactory.create(groupedDef));
-        }
+        return groupedBindings.computeIfAbsent(groupedKey, this::createGroupedBinding);
+    }
 
-        return currentGroup;
+    private GroupedBinding createGroupedBinding(GroupedKey groupedKey) {
+        String groupedName = idSegmentDistributorDefinition.getName() + "@" + groupedKey.getKey();
+        IdSegmentDistributorDefinition groupedDef = new IdSegmentDistributorDefinition(idSegmentDistributorDefinition.getNamespace(),
+            groupedName,
+            idSegmentDistributorDefinition.getOffset(),
+            idSegmentDistributorDefinition.getStep());
+        return new GroupedBinding(groupedKey, idSegmentDistributorFactory.create(groupedDef));
     }
 
     /**

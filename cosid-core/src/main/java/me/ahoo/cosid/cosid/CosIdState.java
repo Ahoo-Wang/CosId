@@ -80,6 +80,10 @@ public final class CosIdState implements Comparable<CosIdState> {
         if (timestampCompared != 0) {
             return timestampCompared;
         }
+        int machineIdCompared = Integer.compare(machineId, o.machineId);
+        if (machineIdCompared != 0) {
+            return machineIdCompared;
+        }
         return Integer.compare(sequence, o.sequence);
     }
 

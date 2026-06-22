@@ -13,40 +13,56 @@
 
 package me.ahoo.cosid.sharding;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.converter.Radix62IdConverter;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
+import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.stream.Stream;
 
 class SnowflakeLocalDateTimeConvertorTest {
-    private final SnowflakeLocalDateTimeConvertor convertor = new SnowflakeLocalDateTimeConvertor(MillisecondSnowflakeIdStateParser.INSTANCE);
-    
-    @ParameterizedTest
-    @MethodSource("argsProvider")
-    void toLocalDateTime(Comparable<?> shardingValue, LocalDate expected) {
-        assertThat(convertor.toLocalDateTime(shardingValue).toLocalDate(), equalTo(expected));
-    }
-    
-    @Test
-    void toLocalDateTimeGivenUnknownType() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> convertor.toLocalDateTime(1));
-    }
-    
-    static Stream<Arguments> argsProvider() {
-        LocalDate localDate = LocalDate.of(2023, 3, 17);
+    private static final LocalDateTime EXPECTED = LocalDateTime.of(2023, 3, 17, 12, 34, 56, 789_000_000);
+    private static final SnowflakeIdStateParser PARSER = new MillisecondSnowflakeIdStateParser(
+        CosId.COSID_EPOCH,
+        MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
+        MillisecondSnowflakeId.DEFAULT_MACHINE_BIT,
+        MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT,
+        ZoneOffset.UTC,
+        false
+    );
+    private static final long SNOWFLAKE_ID = PARSER.parse("20230317123456789-1-2").getId();
+
+    private final SnowflakeLocalDateTimeConvertor convertor = new SnowflakeLocalDateTimeConvertor(PARSER);
+
+    static Stream<Arguments> supportedSnowflakeValues() {
         return Stream.of(
-            arguments(427238791191728130L, localDate),
-            arguments("0VYl5qVAX6h", localDate)
+            arguments(SNOWFLAKE_ID),
+            arguments(Radix62IdConverter.PAD_START.asString(SNOWFLAKE_ID))
         );
+    }
+
+    @ParameterizedTest
+    @MethodSource("supportedSnowflakeValues")
+    void toLocalDateTimeShouldParseTimestampFromLongOrRadix62String(Comparable<?> snowflakeValue) {
+        assertEquals(EXPECTED, convertor.toLocalDateTime(snowflakeValue));
+    }
+
+    @Test
+    void toLocalDateTimeShouldRejectUnsupportedValueType() {
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> convertor.toLocalDateTime(1));
+
+        assertEquals("Unsupported sharding value type `1`.", error.getMessage());
     }
 }

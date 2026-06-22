@@ -14,7 +14,9 @@
 package me.ahoo.cosid.mongo.reactive;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.sameInstance;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -25,24 +27,42 @@ import java.time.Duration;
 
 class BlockingAdapterTest {
     @Test
-    void blockPublisher() {
+    void blockPublisherShouldReturnValue() {
         String result = BlockingAdapter.block((Publisher<String>) Mono.just("test"));
-        assertThat(result, is("test"));
+        assertThat(result, equalTo("test"));
     }
-    
+
     @Test
-    void block() {
+    void blockMonoShouldReturnValue() {
         String result = BlockingAdapter.block(Mono.just("test"));
-        assertThat(result, is("test"));
+        assertThat(result, equalTo("test"));
     }
-    
+
     @Test
-    void blockError() {
-        Assertions.assertThrows(RuntimeException.class, () -> BlockingAdapter.block(Mono.error(new RuntimeException())));
+    void blockShouldPropagateRuntimeExceptionInstance() {
+        IllegalStateException failure = new IllegalStateException("boom");
+
+        RuntimeException actual = Assertions.assertThrows(RuntimeException.class, () -> BlockingAdapter.block(Mono.error(failure)));
+
+        assertThat(actual, sameInstance(failure));
     }
-    
+
     @Test
-    void blockTimeout() {
-        Assertions.assertThrows(RuntimeException.class, () -> BlockingAdapter.block(Mono.just("test").delayElement(Duration.ofSeconds(10).plus(Duration.ofMillis(10)))));
+    void blockShouldWrapCheckedFailureAsRuntimeException() {
+        Exception failure = new Exception("checked");
+
+        RuntimeException actual = Assertions.assertThrows(RuntimeException.class, () -> BlockingAdapter.block(Mono.error(failure)));
+
+        assertThat(actual.getCause(), sameInstance(failure));
+    }
+
+    @Test
+    void blockShouldWrapTimeoutException() {
+        RuntimeException actual = Assertions.assertThrows(
+            RuntimeException.class,
+            () -> BlockingAdapter.block(Mono.never(), Duration.ofMillis(10))
+        );
+
+        assertThat(actual.getCause(), instanceOf(java.util.concurrent.TimeoutException.class));
     }
 }

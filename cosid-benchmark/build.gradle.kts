@@ -32,14 +32,12 @@ dependencies {
     api(platform(libs.cosidBom))
     implementation("me.ahoo.cosid:cosid-jdbc")
     implementation("me.ahoo.cosid:cosid-test")
-    testImplementation("com.zaxxer:HikariCP:7.0.2")
-    testImplementation("mysql:mysql-connector-java:8.0.33")
     /**
      * WARNING：中央仓库没有找到美团官方提供的Jar!!!
      * git clone https://github.com/Meituan-Dianping/Leaf
      * mvn install -Dmaven.test.skip=true
      */
-    testImplementation("com.sankuai.inf.leaf:leaf-core:1.0.1")
+    jmh("com.sankuai.inf.leaf:leaf-core:1.0.1")
     /**
      * WARNING：中央仓库没有找到滴滴官方提供的Jar!!!
      * git clone https://github.com/didi/tinyid
@@ -47,12 +45,10 @@ dependencies {
      */
 //    testImplementation("com.xiaoju.uemc.tinyid:tinyid-client:0.1.0-SNAPSHOT")
 
+    jmh("com.zaxxer:HikariCP:7.0.2")
+    jmh("mysql:mysql-connector-java:8.0.33")
     jmh("org.openjdk.jmh:jmh-core:1.37")
     jmh("org.openjdk.jmh:jmh-generator-annprocess:1.37")
-
-    testImplementation("org.junit.jupiter:junit-jupiter-api:6.0.3")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:6.0.3")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:6.0.3")
 }
 
 jmh {

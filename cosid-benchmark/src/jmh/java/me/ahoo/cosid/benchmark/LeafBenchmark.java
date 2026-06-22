@@ -26,6 +26,7 @@ import org.openjdk.jmh.annotations.*;
 import javax.sql.DataSource;
 import java.io.Closeable;
 import java.io.IOException;
+import java.sql.SQLException;
 
 /**
  * @author ahoo wang
@@ -37,7 +38,7 @@ public class LeafBenchmark extends AbstractBenchmark {
     String bizTag;
 
     @Setup
-    public void setup() {
+    public void setup() throws SQLException {
         bizTag = MockIdGenerator.INSTANCE.generateAsString();
         dataSource = DataSourceFactory.createDataSource();
         LeafInitializer.initSegment(dataSource, bizTag, step);

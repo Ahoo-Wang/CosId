@@ -16,7 +16,10 @@ class StringSegmentIdTest {
     void ctor() {
         DefaultSegmentId delegate = new DefaultSegmentId(new IdSegmentDistributor.Mock());
         StringSegmentId stringSegmentId = new StringSegmentId(delegate, Radix62IdConverter.PAD_START);
-        Assertions.assertNotNull(stringSegmentId);
-        Assertions.assertNotNull(stringSegmentId.current());
+
+        Assertions.assertSame(delegate.current(), stringSegmentId.current());
+        String generated = stringSegmentId.generateAsString();
+        Assertions.assertEquals(1L, Radix62IdConverter.PAD_START.asLong(generated));
+        Assertions.assertSame(delegate.current(), stringSegmentId.current());
     }
 }

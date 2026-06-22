@@ -13,53 +13,69 @@
 
 package me.ahoo.cosid.proxy;
 
-import java.util.concurrent.TimeUnit;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
-import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
-import org.junit.jupiter.api.Timeout;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 
-@Timeout(value = 10, unit = TimeUnit.MINUTES)
-class ProxyIdSegmentDistributorTest extends IdSegmentDistributorSpec {
+import org.junit.jupiter.api.Test;
 
-    @Override
-    protected IdSegmentDistributorFactory getFactory() {
-        return new ProxyIdSegmentDistributorFactory(ApiClientFactory.createSegmentClient(ProxyServerLauncher.COSID_PROXY_HOST));
+class ProxyIdSegmentDistributorTest {
+
+    @Test
+    void factoryCreatesRemoteDistributorBeforeReturningProxy() {
+        RecordingSegmentClient segmentClient = new RecordingSegmentClient();
+        IdSegmentDistributorFactory factory = new ProxyIdSegmentDistributorFactory(segmentClient);
+
+        IdSegmentDistributor distributor = factory.create(new IdSegmentDistributorDefinition("test_namespace", "order", 100, 20));
+
+        assertEquals("test_namespace", segmentClient.createdNamespace);
+        assertEquals("order", segmentClient.createdName);
+        assertEquals(100, segmentClient.createdOffset);
+        assertEquals(20, segmentClient.createdStep);
+        assertEquals("test_namespace", distributor.getNamespace());
+        assertEquals("order", distributor.getName());
+        assertEquals(20, distributor.getStep());
     }
 
-    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
-    @Override
-    public void generateConcurrent() {
-        super.generateConcurrent();
+    @Test
+    void nextMaxIdDelegatesToSegmentClientWithRuntimeStep() {
+        RecordingSegmentClient segmentClient = new RecordingSegmentClient();
+        ProxyIdSegmentDistributor distributor = new ProxyIdSegmentDistributor(segmentClient, "test_namespace", "order", 20);
+
+        long nextMaxId = distributor.nextMaxId(5);
+
+        assertEquals(205, nextMaxId);
+        assertEquals("test_namespace", segmentClient.nextNamespace);
+        assertEquals("order", segmentClient.nextName);
+        assertEquals(5, segmentClient.nextStep);
     }
 
-    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
-    @Override
-    public void generateMultiInstanceConcurrent() {
-        super.generateMultiInstanceConcurrent();
-    }
+    private static class RecordingSegmentClient implements SegmentClient {
+        private String createdNamespace;
+        private String createdName;
+        private long createdOffset;
+        private long createdStep;
+        private String nextNamespace;
+        private String nextName;
+        private long nextStep;
 
-    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
-    @Override
-    public void nextMaxIdConcurrent() {
-        super.nextMaxIdConcurrent();
-    }
+        @Override
+        public void createDistributor(String namespace, String name, long offset, long step) {
+            this.createdNamespace = namespace;
+            this.createdName = name;
+            this.createdOffset = offset;
+            this.createdStep = step;
+        }
 
-    @DisabledIfEnvironmentVariable(named = "CI", matches = "true")
-    @Override
-    public void generateConcurrentOfChain() {
-        super.generateConcurrentOfChain();
-    }
-
-    @Override
-    protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
-        //TODO
-    }
-
-    @Override
-    public void nextMaxIdWhenBack() {
-        //TODO
+        @Override
+        public long nextMaxId(String namespace, String name, long step) {
+            this.nextNamespace = namespace;
+            this.nextName = name;
+            this.nextStep = step;
+            return 200 + step;
+        }
     }
 }

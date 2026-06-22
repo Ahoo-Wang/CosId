@@ -37,7 +37,7 @@ class SnowflakeFriendlyIdConverterTest {
     @ValueSource(longs = {295913926632165376L})
     void asString(long argId) {
         String idStr = SnowflakeFriendlyIdConverter.INSTANCE.asString(argId);
-        Assertions.assertNotNull(idStr);
+        Assertions.assertEquals("20220320133617924-5-0", idStr);
     }
     
     @ParameterizedTest
@@ -52,7 +52,7 @@ class SnowflakeFriendlyIdConverterTest {
     @ValueSource(strings = {"20220320133617924-5-0"})
     void asLong2(String argId) {
         long actual = SnowflakeFriendlyIdConverter.INSTANCE.asLong(argId);
-        Assertions.assertNotNull(actual);
+        Assertions.assertEquals(argId, SnowflakeFriendlyIdConverter.INSTANCE.asString(actual));
     }
     
     @Test
@@ -63,7 +63,7 @@ class SnowflakeFriendlyIdConverterTest {
             SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023, 512);
         SecondSnowflakeIdStateParser snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
         SnowflakeFriendlyIdConverter snowflakeFriendlyIdConverter = new SnowflakeFriendlyIdConverter(snowflakeIdStateParser);
-        Assertions.assertNotNull(snowflakeFriendlyIdConverter.getParser());
+        Assertions.assertSame(snowflakeIdStateParser, snowflakeFriendlyIdConverter.getParser());
     }
     
     @Test

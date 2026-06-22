@@ -32,7 +32,7 @@ class ToStringIdConverterTest {
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})
     void asString(long argId) {
         String idStr = ToStringIdConverter.INSTANCE.asString(argId);
-        Assertions.assertNotNull(idStr);
+        Assertions.assertEquals(Long.toString(argId), idStr);
     }
     
     @ParameterizedTest
@@ -47,12 +47,8 @@ class ToStringIdConverterTest {
     void asLongWhenNumberFormat() {
         ToStringIdConverter idConvert = ToStringIdConverter.INSTANCE;
         
-        Assertions.assertDoesNotThrow(() -> {
-            idConvert.asLong("-1");
-        });
-        Assertions.assertDoesNotThrow(() -> {
-            idConvert.asLong("111");
-        });
+        Assertions.assertEquals(-1L, idConvert.asLong("-1"));
+        Assertions.assertEquals(111L, idConvert.asLong("111"));
         Assertions.assertThrows(NumberFormatException.class, () -> {
             idConvert.asLong("1_");
         });

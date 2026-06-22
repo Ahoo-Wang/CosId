@@ -16,35 +16,37 @@ import org.junit.jupiter.api.TestInstance;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class IdSegmentDistributorDefinitionTest {
+    private static final String NAMESPACE = "IdSegmentDistributorDefinitionTest";
+    private static final String NAME = "segment";
     IdSegmentDistributorDefinition idSegmentDistributorDefinition;
 
     @BeforeAll
-    void setUp(){
-        idSegmentDistributorDefinition=   new IdSegmentDistributorDefinition("IdSegmentDistributorDefinitionTest", MockIdGenerator.INSTANCE.generateAsString(), DEFAULT_OFFSET, DEFAULT_STEP);
+    void setUp() {
+        idSegmentDistributorDefinition = new IdSegmentDistributorDefinition(NAMESPACE, NAME, DEFAULT_OFFSET, DEFAULT_STEP);
     }
 
     @Test
     void getNamespace() {
-        Assertions.assertEquals(idSegmentDistributorDefinition.getNamespace(),"IdSegmentDistributorDefinitionTest");
+        Assertions.assertEquals(NAMESPACE, idSegmentDistributorDefinition.getNamespace());
     }
 
     @Test
     void getName() {
-        Assertions.assertNotNull(idSegmentDistributorDefinition.getName());
+        Assertions.assertEquals(NAME, idSegmentDistributorDefinition.getName());
     }
 
     @Test
     void getNamespacedName() {
-        Assertions.assertNotNull(idSegmentDistributorDefinition.getNamespacedName());
+        Assertions.assertEquals(NAMESPACE + "." + NAME, idSegmentDistributorDefinition.getNamespacedName());
     }
 
     @Test
     void getOffset() {
-        Assertions.assertEquals(idSegmentDistributorDefinition.getOffset(),DEFAULT_OFFSET);
+        Assertions.assertEquals(DEFAULT_OFFSET, idSegmentDistributorDefinition.getOffset());
     }
 
     @Test
     void getStep() {
-        Assertions.assertEquals(idSegmentDistributorDefinition.getStep(),DEFAULT_STEP);
+        Assertions.assertEquals(DEFAULT_STEP, idSegmentDistributorDefinition.getStep());
     }
 }

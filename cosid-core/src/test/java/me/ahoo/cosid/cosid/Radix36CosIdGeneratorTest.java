@@ -24,9 +24,6 @@ import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
-import java.util.concurrent.locks.LockSupport;
-
 class Radix36CosIdGeneratorTest {
     private final Radix36CosIdGenerator cosIdGenerator = new Radix36CosIdGenerator(1);
 
@@ -52,7 +49,10 @@ class Radix36CosIdGeneratorTest {
         CosIdState state = cosIdGenerator.generateAsState();
         String id = cosIdGenerator.getStateParser().asString(state);
         CosIdState state2 = cosIdGenerator.getStateParser().asState(id);
-        assertThat(state2, equalTo(state2));
+        assertThat(state2, equalTo(state));
+        assertThat(state2.getTimestamp(), equalTo(state.getTimestamp()));
+        assertThat(state2.getMachineId(), equalTo(state.getMachineId()));
+        assertThat(state2.getSequence(), equalTo(state.getSequence()));
     }
 
     @Test
@@ -64,22 +64,33 @@ class Radix36CosIdGeneratorTest {
 
     @Test
     void generateSlow() {
-        Radix62CosIdGenerator cosIdGenerator = new Radix62CosIdGenerator(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, 1, 2);
+        Radix36CosIdGenerator cosIdGenerator = new TestRadix36CosIdGenerator();
         CosIdState state1 = cosIdGenerator.generateAsState();
-        LockSupport.parkNanos(Duration.ofMillis(1).toNanos());
         CosIdState state2 = cosIdGenerator.generateAsState();
-        LockSupport.parkNanos(Duration.ofMillis(1).toNanos());
         CosIdState state3 = cosIdGenerator.generateAsState();
         assertThat(state3, greaterThan(state2));
         assertThat(state2, greaterThan(state1));
 
         assertThat(state1.getSequence(), equalTo(1));
         assertThat(state2.getSequence(), equalTo(2));
-        assertThat(state1.getSequence(), equalTo(1));
+        assertThat(state3.getSequence(), equalTo(1));
     }
 
     @Test
     public void generateWhenConcurrentString() {
         new ConcurrentGenerateStingSpec(new Radix36CosIdGenerator(1)).verify();
+    }
+
+    static class TestRadix36CosIdGenerator extends Radix36CosIdGenerator {
+        private long currentTimeMillis = 1000;
+
+        TestRadix36CosIdGenerator() {
+            super(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, 1, 2);
+        }
+
+        @Override
+        protected long currentTimeMillis() {
+            return currentTimeMillis++;
+        }
     }
 }

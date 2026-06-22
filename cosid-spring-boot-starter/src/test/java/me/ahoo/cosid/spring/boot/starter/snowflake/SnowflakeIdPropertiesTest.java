@@ -65,7 +65,9 @@ class SnowflakeIdPropertiesTest {
     @Test
     void getShare() {
         SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        Assertions.assertNotNull(properties.getShare());
+        Assertions.assertNull(properties.getShare().getNamespace());
+        Assertions.assertTrue(properties.getShare().isClockSync());
+        Assertions.assertEquals(SnowflakeIdProperties.IdDefinition.TimestampUnit.MILLISECOND, properties.getShare().getTimestampUnit());
     }
     
     @Test
@@ -79,7 +81,7 @@ class SnowflakeIdPropertiesTest {
     @Test
     void getProvider() {
         SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        Assertions.assertNotNull(properties.getProvider());
+        Assertions.assertTrue(properties.getProvider().isEmpty());
     }
     
     @Test
@@ -192,7 +194,8 @@ class SnowflakeIdPropertiesTest {
         @Test
         public void getConverter() {
             SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            Assertions.assertNotNull(idDefinition.getConverter());
+            Assertions.assertEquals(IdConverterDefinition.Type.RADIX, idDefinition.getConverter().getType());
+            Assertions.assertTrue(idDefinition.getConverter().getRadix().isPadStart());
         }
         
         @Test

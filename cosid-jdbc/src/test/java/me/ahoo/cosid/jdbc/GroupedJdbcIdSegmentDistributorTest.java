@@ -13,31 +13,57 @@
 
 package me.ahoo.cosid.jdbc;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
+import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
+import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.segment.distributor.GroupedIdSegmentDistributorSpec;
 
 import org.junit.jupiter.api.BeforeEach;
-
-import javax.sql.DataSource;
+import org.junit.jupiter.api.Test;
 
 /**
  * @author ahoo wang
  */
 class GroupedJdbcIdSegmentDistributorTest extends GroupedIdSegmentDistributorSpec {
-    DataSource dataSource;
+    InMemoryJdbcDataSource dataSource;
     JdbcIdSegmentDistributorFactory distributorFactory;
-    JdbcIdSegmentInitializer mySqlIdSegmentInitializer;
+    JdbcIdSegmentInitializer jdbcIdSegmentInitializer;
     
     @BeforeEach
     void setup() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
-        mySqlIdSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
+        jdbcIdSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
         distributorFactory =
-            new JdbcIdSegmentDistributorFactory(dataSource, true, mySqlIdSegmentInitializer, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
+            new JdbcIdSegmentDistributorFactory(dataSource, true, jdbcIdSegmentInitializer, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
     }
     
     @Override
     protected IdSegmentDistributorFactory getFactory() {
         return distributorFactory;
+    }
+
+    @Test
+    @Override
+    public void nextMaxIdWhenBack() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        String name = "nextMaxIdWhenBack";
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, name, TEST_OFFSET, TEST_STEP);
+        IdSegmentDistributor distributor = factory().create(definition);
+        GroupedKey groupedKey = groupedSupplier().get();
+        String groupedNamespacedName = IdSegmentDistributor.getNamespacedName(namespace, name + "@" + groupedKey.getKey());
+
+        long firstMaxId = distributor.nextMaxId();
+        assertThat(firstMaxId, equalTo(TEST_OFFSET + TEST_STEP));
+
+        dataSource.setSegmentMaxId(groupedNamespacedName, TEST_OFFSET);
+        long nextMaxId = distributor.nextMaxId();
+
+        assertThat(nextMaxId, equalTo(TEST_OFFSET + TEST_STEP));
+        assertThat(dataSource.getSegmentMaxId(groupedNamespacedName), equalTo(TEST_OFFSET + TEST_STEP));
     }
 }

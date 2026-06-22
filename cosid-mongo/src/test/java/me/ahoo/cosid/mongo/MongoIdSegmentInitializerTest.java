@@ -15,25 +15,46 @@ package me.ahoo.cosid.mongo;
 
 import me.ahoo.cosid.test.container.MongoLauncher;
 
+import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 class MongoIdSegmentInitializerTest {
+    MongoClient mongoClient;
     MongoDatabase mongoDatabase;
     MongoIdSegmentInitializer idSegmentInitializer;
     MongoIdSegmentCollection cosIdSegmentCollection;
     
     @BeforeEach
     void setup() {
-        mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
+        mongoClient = MongoClients.create(MongoLauncher.getConnectionString());
+        mongoDatabase = mongoClient.getDatabase("cosid_db_initializer_" + UUID.randomUUID().toString().replace("-", ""));
         idSegmentInitializer = new MongoIdSegmentInitializer(mongoDatabase);
         cosIdSegmentCollection = new MongoIdSegmentCollection(mongoDatabase.getCollection(IdSegmentCollection.COLLECTION_NAME));
+    }
+
+    @AfterEach
+    void destroy() {
+        if (mongoDatabase != null) {
+            mongoDatabase.drop();
+        }
+        if (mongoClient != null) {
+            mongoClient.close();
+        }
     }
     
     @Test
     void ensureCosIdCollection() {
+        Assertions.assertTrue(idSegmentInitializer.ensureCosIdCollection());
         idSegmentInitializer.ensureCosIdCollection();
+        Assertions.assertTrue(mongoDatabase.listCollectionNames()
+            .into(new java.util.ArrayList<>())
+            .contains(IdSegmentCollection.COLLECTION_NAME));
     }
 }

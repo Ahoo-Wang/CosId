@@ -13,14 +13,10 @@
 
 package me.ahoo.cosid.util;
 
-import static me.ahoo.cosid.util.Clock.CacheClock.ONE_SECOND_PERIOD;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import lombok.SneakyThrows;
 import org.junit.jupiter.api.Test;
-
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
 
 
 /**
@@ -37,38 +33,48 @@ class CacheClockTest {
         assertTrue(diff <= tolerance);
     }
 
-    @SneakyThrows
     @Test
-    void secondTimeWhenSleep() {
-        TimeUnit.SECONDS.sleep(1);
-        long actual = Clock.CACHE.secondTime();
-        long expected = Clock.getSystemSecondTime();
-        long diff = Math.abs(actual - expected);
-        long tolerance = 1L;
-        assertTrue(diff <= tolerance);
+    void secondTimeWhenSourceClockAdvances() {
+        StepClock sourceClock = new StepClock(10, 11);
+        Clock.CacheClock cacheClock = new Clock.CacheClock(sourceClock, false);
+
+        cacheClock.tick();
+
+        assertEquals(11, cacheClock.secondTime());
     }
 
     @Test
     void secondTimeIfBackwards() {
-        Clock backwardsClock = new BackwardsClock();
-        Clock cacheClock = new Clock.CacheClock(backwardsClock);
-        long lastTime = cacheClock.secondTime();
-        for (int i = 0; i < 6; i++) {
-            LockSupport.parkNanos(this, ONE_SECOND_PERIOD);
-            long currentTime = cacheClock.secondTime();
-            assertTrue(currentTime >= lastTime);
-            lastTime = currentTime;
-        }
+        StepClock backwardsClock = new StepClock(1, 2, 3, 2, 1, 4);
+        Clock.CacheClock cacheClock = new Clock.CacheClock(backwardsClock, false);
+        assertEquals(1, cacheClock.secondTime());
+
+        cacheClock.tick();
+        assertEquals(2, cacheClock.secondTime());
+        cacheClock.tick();
+        assertEquals(3, cacheClock.secondTime());
+        cacheClock.tick();
+        assertEquals(3, cacheClock.secondTime());
+        cacheClock.tick();
+        assertEquals(3, cacheClock.secondTime());
+        cacheClock.tick();
+        assertEquals(4, cacheClock.secondTime());
     }
 
-    static class BackwardsClock implements Clock {
-        private final long[] timeline = new long[]{1, 2, 3, 4, 5};
+    static class StepClock implements Clock {
+        private final long[] timeline;
         private int index = 0;
+
+        StepClock(long... timeline) {
+            this.timeline = timeline;
+        }
 
         @Override
         public long secondTime() {
-            int idx = Math.floorMod(index++, timeline.length);
-            return timeline[idx];
+            if (index >= timeline.length) {
+                return timeline[timeline.length - 1];
+            }
+            return timeline[index++];
         }
     }
 }

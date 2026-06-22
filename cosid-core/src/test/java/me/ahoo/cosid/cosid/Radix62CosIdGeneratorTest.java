@@ -22,9 +22,6 @@ import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
-import java.util.concurrent.locks.LockSupport;
-
 class Radix62CosIdGeneratorTest {
     private final Radix62CosIdGenerator radix62CosIdGenerator = new Radix62CosIdGenerator(1);
 
@@ -54,18 +51,16 @@ class Radix62CosIdGeneratorTest {
 
     @Test
     void generateSlow() {
-        Radix62CosIdGenerator cosIdGenerator = new Radix62CosIdGenerator(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, 1, 2);
+        Radix62CosIdGenerator cosIdGenerator = new TestRadix62CosIdGenerator();
         CosIdState state1 = cosIdGenerator.generateAsState();
-        LockSupport.parkNanos(Duration.ofMillis(1).toNanos());
         CosIdState state2 = cosIdGenerator.generateAsState();
-        LockSupport.parkNanos(Duration.ofMillis(1).toNanos());
         CosIdState state3 = cosIdGenerator.generateAsState();
         assertThat(state3, greaterThan(state2));
         assertThat(state2, greaterThan(state1));
 
         assertThat(state1.getSequence(), equalTo(1));
         assertThat(state2.getSequence(), equalTo(2));
-        assertThat(state1.getSequence(), equalTo(1));
+        assertThat(state3.getSequence(), equalTo(1));
     }
 
     @Test
@@ -81,5 +76,18 @@ class Radix62CosIdGeneratorTest {
     @Test
     public void generate() {
         Assertions.assertThrows(UnsupportedOperationException.class, radix62CosIdGenerator::generate);
+    }
+
+    static class TestRadix62CosIdGenerator extends Radix62CosIdGenerator {
+        private long currentTimeMillis = 1000;
+
+        TestRadix62CosIdGenerator() {
+            super(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, 1, 2);
+        }
+
+        @Override
+        protected long currentTimeMillis() {
+            return currentTimeMillis++;
+        }
     }
 }

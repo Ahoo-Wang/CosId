@@ -14,10 +14,11 @@
 package me.ahoo.cosid.jvm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
 
 /**
  * @author ahoo wang
@@ -32,7 +33,7 @@ class UuidGeneratorTest {
     @Test
     void generateAsString() {
         String uuid = UuidGenerator.INSTANCE.generateAsString();
-        assertNotNull(uuid);
         assertEquals(36, uuid.length());
+        assertEquals(uuid, UUID.fromString(uuid).toString());
     }
 }

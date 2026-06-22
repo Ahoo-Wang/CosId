@@ -38,7 +38,7 @@ class SecondSnowflakeIdTest {
         Assertions.assertTrue(idSecond > idFirst);
 
         SnowflakeIdState idState = snowflakeId.getParser().parse(idFirst);
-        Assertions.assertNotNull(idState);
+        Assertions.assertEquals(idFirst, idState.getId());
         Assertions.assertEquals(TEST_MACHINE_ID, idState.getMachineId());
     }
 
@@ -55,7 +55,7 @@ class SecondSnowflakeIdTest {
     public void friendlyId() {
         long id = snowflakeId.generate();
         SnowflakeIdState snowflakeIdState = snowflakeId.friendlyId(id);
-        Assertions.assertNotNull(snowflakeIdState);
+        Assertions.assertEquals(id, snowflakeIdState.getId());
         Assertions.assertEquals(TEST_MACHINE_ID, snowflakeIdState.getMachineId());
         Assertions.assertEquals(id, snowflakeIdState.getId());
         SnowflakeIdState snowflakeIdState2 = snowflakeId.ofFriendlyId(snowflakeIdState.getFriendlyId());

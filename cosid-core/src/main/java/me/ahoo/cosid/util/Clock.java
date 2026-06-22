@@ -65,12 +65,18 @@ public interface Clock {
         private volatile long lastTime;
 
         public CacheClock(Clock clock) {
+            this(clock, true);
+        }
+
+        CacheClock(Clock clock, boolean autoStart) {
             this.clock = clock;
             this.lastTime = clock.secondTime();
             this.thread = new Thread(this);
             this.thread.setName("CosId-CacheClock");
             this.thread.setDaemon(true);
-            this.thread.start();
+            if (autoStart) {
+                this.thread.start();
+            }
         }
 
         @Override
@@ -81,12 +87,16 @@ public interface Clock {
         @Override
         public void run() {
             while (!thread.isInterrupted()) {
-                long currentTime = clock.secondTime();
-                // Avoid time going backwards
-                if (currentTime > lastTime) {
-                    this.lastTime = currentTime;
-                }
+                tick();
                 LockSupport.parkNanos(this, ONE_SECOND_PERIOD);
+            }
+        }
+
+        void tick() {
+            long currentTime = clock.secondTime();
+            // Avoid time going backwards
+            if (currentTime > lastTime) {
+                this.lastTime = currentTime;
             }
         }
     }

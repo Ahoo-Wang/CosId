@@ -1,43 +1,33 @@
 package me.ahoo.cosid.snowflake.exception;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author : Rocher Kong
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ClockTooManyBackwardsExceptionTest {
-    ClockTooManyBackwardsException clockTooManyBackwardsException;
-
-    @BeforeEach
-    void setUp() {
-        clockTooManyBackwardsException = new ClockTooManyBackwardsException(
-                LocalDateTime.now().minusSeconds(10).toEpochSecond(ZoneOffset.UTC)
-                , LocalDateTime.now().minusSeconds(10).toEpochSecond(ZoneOffset.UTC)
-                , 1
-        );
-    }
+    private final ClockTooManyBackwardsException clockTooManyBackwardsException = new ClockTooManyBackwardsException(200, 100, 50);
 
     @Test
     void getLastTimestamp() {
-        Assertions.assertNotNull(clockTooManyBackwardsException.getLastTimestamp());
+        assertEquals(200, clockTooManyBackwardsException.getLastTimestamp());
     }
 
     @Test
     void getCurrentTimestamp() {
-        Assertions.assertNotNull(clockTooManyBackwardsException.getCurrentTimestamp());
+        assertEquals(100, clockTooManyBackwardsException.getCurrentTimestamp());
     }
 
     @Test
     void getBrokenThreshold() {
-        Assertions.assertEquals(clockTooManyBackwardsException.getBrokenThreshold(),1);
+        assertEquals(50, clockTooManyBackwardsException.getBrokenThreshold());
+    }
+
+    @Test
+    void messageIncludesBackwardsContext() {
+        assertEquals("Clock moved backwards too many.  brokenThreshold:[50] | lastTimestamp:[200] | currentTimestamp:[100]",
+            clockTooManyBackwardsException.getMessage());
     }
 }

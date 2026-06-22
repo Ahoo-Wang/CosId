@@ -15,6 +15,7 @@ package me.ahoo.cosid.accessor.parser;
 
 import me.ahoo.cosid.accessor.CosIdAccessor;
 import me.ahoo.cosid.accessor.DefaultCosIdAccessor;
+import me.ahoo.cosid.accessor.IdDefinition;
 import me.ahoo.cosid.accessor.IdTypeNotSupportException;
 import me.ahoo.cosid.accessor.MultipleIdNotSupportException;
 import me.ahoo.cosid.accessor.field.FieldGetter;
@@ -30,6 +31,9 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 
 /**
  * @author ahoo wang
@@ -193,22 +197,53 @@ class DefaultAccessorParserTest {
 
     @Test
     void capitalize() {
+        Assertions.assertNull(DefaultAccessorParser.capitalize(null));
+        Assertions.assertEquals("", DefaultAccessorParser.capitalize(""));
+        Assertions.assertEquals("Id", DefaultAccessorParser.capitalize("id"));
+        Assertions.assertEquals("ID", DefaultAccessorParser.capitalize("ID"));
     }
 
+    @SneakyThrows
     @Test
     void parseGetter() {
+        Field longId = LongIdEntity.class.getDeclaredField("id");
+        Method getter = DefaultAccessorParser.parseGetter(longId);
+
+        Assertions.assertEquals(LongIdEntity.class.getMethod("getId"), getter);
+        Assertions.assertNull(DefaultAccessorParser.parseGetter(NoGetterSetter.class.getDeclaredField("id")));
+        Assertions.assertNull(DefaultAccessorParser.parseGetter(MismatchedGetter.class.getDeclaredField("id")));
     }
 
+    @SneakyThrows
     @Test
     void parseSetter() {
+        Field longId = LongIdEntity.class.getDeclaredField("id");
+        Method setter = DefaultAccessorParser.parseSetter(longId);
+
+        Assertions.assertEquals(LongIdEntity.class.getMethod("setId", Long.class), setter);
+        Assertions.assertNull(DefaultAccessorParser.parseSetter(NoGetterSetter.class.getDeclaredField("id")));
+        Assertions.assertNull(DefaultAccessorParser.parseSetter(NamedIdType.class.getDeclaredField("id")));
     }
 
     @Test
     void parseClass() {
+        Assertions.assertSame(CosIdAccessor.NOT_FOUND, ACCESSOR_PARSER.parseClass(NoId.class));
     }
 
+    @SneakyThrows
     @Test
     void definitionAsAccessor() {
+        Field idField = NoGetterSetter.class.getDeclaredField("id");
+        DefaultCosIdAccessor accessor = (DefaultCosIdAccessor) ACCESSOR_PARSER.definitionAsAccessor(new IdDefinition("custom", idField));
+        NoGetterSetter target = new NoGetterSetter();
+
+        Assertions.assertEquals("custom", accessor.getGeneratorName());
+        Assertions.assertEquals(idField, accessor.getIdField());
+        Assertions.assertTrue(accessor.getGetter() instanceof FieldGetter);
+        Assertions.assertTrue(accessor.getSetter() instanceof FieldSetter);
+
+        accessor.setId(target, 42L);
+        Assertions.assertEquals(42L, accessor.getId(target));
     }
 
     public static class WrongIdType {
@@ -253,6 +288,19 @@ class DefaultAccessorParserTest {
     public static class NoGetterSetter {
         @CosId
         private long id;
+    }
+
+    public static class NoId {
+        private long id;
+    }
+
+    public static class MismatchedGetter {
+        @CosId
+        private long id;
+
+        public String getId() {
+            return String.valueOf(id);
+        }
     }
 
     public static class FinalId {

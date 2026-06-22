@@ -57,7 +57,6 @@ class IdConverterDefinitionTest {
     @Test
     void getRadix() {
         IdConverterDefinition definition = new IdConverterDefinition();
-        Assertions.assertNotNull(definition.getRadix());
         Assertions.assertTrue(definition.getRadix().isPadStart());
         Assertions.assertEquals(Radix62IdConverter.MAX_CHAR_SIZE, definition.getRadix().getCharSize());
     }
@@ -70,7 +69,7 @@ class IdConverterDefinitionTest {
         radix.setPadStart(false);
         radix.setCharSize(10);
         definition.setRadix(radix);
-        Assertions.assertNotNull(definition.getRadix());
+        Assertions.assertSame(radix, definition.getRadix());
         Assertions.assertFalse(definition.getRadix().isPadStart());
         Assertions.assertEquals(10, definition.getRadix().getCharSize());
     }
@@ -78,7 +77,6 @@ class IdConverterDefinitionTest {
     @Test
     void getRadix36() {
         IdConverterDefinition definition = new IdConverterDefinition();
-        Assertions.assertNotNull(definition.getRadix36());
         Assertions.assertTrue(definition.getRadix36().isPadStart());
         Assertions.assertEquals(Radix36IdConverter.MAX_CHAR_SIZE, definition.getRadix36().getCharSize());
     }
@@ -90,7 +88,7 @@ class IdConverterDefinitionTest {
         radix.setPadStart(false);
         radix.setCharSize(10);
         definition.setRadix36(radix);
-        Assertions.assertNotNull(definition.getRadix36());
+        Assertions.assertSame(radix, definition.getRadix36());
         Assertions.assertFalse(definition.getRadix36().isPadStart());
         Assertions.assertEquals(10, definition.getRadix36().getCharSize());
     }
@@ -108,7 +106,7 @@ class IdConverterDefinitionTest {
         toString.setPadStart(false);
         toString.setCharSize(10);
         definition.setToString(toString);
-        Assertions.assertNotNull(definition.getToString());
+        Assertions.assertSame(toString, definition.getToString());
         Assertions.assertFalse(definition.getToString().isPadStart());
         Assertions.assertEquals(10, definition.getToString().getCharSize());
     }

@@ -108,7 +108,7 @@ class MachinePropertiesTest {
     @Test
     public void getStateStorage() {
         MachineProperties properties = new MachineProperties();
-        Assertions.assertNotNull(properties.getStateStorage());
+        Assertions.assertEquals(LocalMachineStateStorage.DEFAULT_STATE_LOCATION_PATH, properties.getStateStorage().getLocal().getStateLocation());
     }
     
     @Test
@@ -122,7 +122,9 @@ class MachinePropertiesTest {
     @Test
     public void getDistributor() {
         MachineProperties properties = new MachineProperties();
-        Assertions.assertNotNull(properties.getDistributor());
+        Assertions.assertEquals(MachineProperties.Distributor.Type.MANUAL, properties.getDistributor().getType());
+        Assertions.assertNull(properties.getDistributor().getManual());
+        Assertions.assertEquals(Duration.ofSeconds(1), properties.getDistributor().getRedis().getTimeout());
     }
     
     @Test
@@ -168,7 +170,7 @@ class MachinePropertiesTest {
         @Test
         public void getLocal() {
             MachineProperties.StateStorage stateStorage = new MachineProperties.StateStorage();
-            Assertions.assertNotNull(stateStorage.getLocal());
+            Assertions.assertEquals(LocalMachineStateStorage.DEFAULT_STATE_LOCATION_PATH, stateStorage.getLocal().getStateLocation());
         }
         
         @Test
@@ -228,7 +230,7 @@ class MachinePropertiesTest {
         @Test
         public void getRedis() {
             MachineProperties.Distributor distributor = new MachineProperties.Distributor();
-            Assertions.assertNotNull(distributor.getRedis());
+            Assertions.assertEquals(Duration.ofSeconds(1), distributor.getRedis().getTimeout());
         }
         
         @Test

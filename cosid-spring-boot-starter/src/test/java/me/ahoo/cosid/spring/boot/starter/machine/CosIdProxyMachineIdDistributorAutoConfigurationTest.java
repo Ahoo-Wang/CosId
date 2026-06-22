@@ -14,38 +14,91 @@
 package me.ahoo.cosid.spring.boot.starter.machine;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
-import static org.testcontainers.shaded.org.bouncycastle.oer.OERDefinition.BaseType.Supplier;
+import static org.mockito.Mockito.mock;
 
-import me.ahoo.coapi.spring.boot.starter.CoApiAutoConfiguration;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
-import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
+import me.ahoo.cosid.proxy.api.MachineClient;
+
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.cloud.commons.util.UtilAutoConfiguration;
-import org.springframework.web.client.RestClient;
 
 class CosIdProxyMachineIdDistributorAutoConfigurationTest {
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(CosIdProxyMachineIdDistributorAutoConfiguration.class))
+        .withBean(MachineClient.class, () -> mock(MachineClient.class))
+        .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
+        .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT);
 
     @Test
-    void contextLoads() {
+    void createsProxyMachineIdDistributorWhenTypeIsProxy() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=proxy")
-            .withPropertyValues("cosid.proxy.host" + "=http://localhost:8688")
-            .withBean(RestClient.Builder.class, RestClient::builder)
-            .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
-            .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
-            .withUserConfiguration(UtilAutoConfiguration.class, CosIdAutoConfiguration.class, CosIdHostNameAutoConfiguration.class,
-                CoApiAutoConfiguration.class)
-            .withUserConfiguration(CosIdProxyMachineIdDistributorAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(CosIdProxyMachineIdDistributorAutoConfiguration.class)
                     .hasSingleBean(ProxyMachineIdDistributor.class)
                 ;
             });
+    }
+
+    @Test
+    void backsOffWhenUserProvidesProxyMachineIdDistributor() {
+        ProxyMachineIdDistributor userDistributor = mock(ProxyMachineIdDistributor.class);
+
+        this.contextRunner
+            .withBean(ProxyMachineIdDistributor.class, () -> userDistributor)
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=proxy")
+            .run(context -> assertThat(context)
+                .hasSingleBean(ProxyMachineIdDistributor.class)
+                .getBean(ProxyMachineIdDistributor.class)
+                .isSameAs(userDistributor));
+    }
+
+    @Test
+    void doesNotCreateDistributorWhenMachineIsDisabled() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=false")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=proxy")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdProxyMachineIdDistributorAutoConfiguration.class)
+                .doesNotHaveBean(ProxyMachineIdDistributor.class));
+    }
+
+    @Test
+    void doesNotCreateDistributorWhenTypeDoesNotMatch() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=manual")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdProxyMachineIdDistributorAutoConfiguration.class)
+                .doesNotHaveBean(ProxyMachineIdDistributor.class));
+    }
+
+    @Test
+    void failsFastWhenCoApiRestClientBuilderIsMissing() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdProxyMachineIdDistributorAutoConfiguration.class))
+            .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
+            .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=proxy")
+            .run(context -> assertThat(hasCauseMessage(context.getStartupFailure(), "RestClient$Builder"))
+                .isTrue());
+    }
+
+    private static boolean hasCauseMessage(Throwable throwable, String message) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current.getMessage() != null && current.getMessage().contains(message)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

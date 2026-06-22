@@ -24,15 +24,13 @@ public class FlowableIdGenerator implements org.flowable.common.engine.impl.cfg.
      * The key of the system property that can be used to set the id generator name.
      */
     public static final String ID_KEY = "cosid.flowable";
-    private static final String ID_NAME;
-    private static final LazyIdGenerator ID_GENERATOR;
-    
-    static {
-        ID_NAME = System.getProperty(ID_KEY, IdGeneratorProvider.SHARE);
-        ID_GENERATOR = new LazyIdGenerator(ID_NAME);
+    private final LazyIdGenerator idGenerator;
+
+    public FlowableIdGenerator() {
+        this.idGenerator = new LazyIdGenerator(System.getProperty(ID_KEY, IdGeneratorProvider.SHARE));
     }
     
     public String getNextId() {
-        return ID_GENERATOR.generateAsString();
+        return idGenerator.generateAsString();
     }
 }

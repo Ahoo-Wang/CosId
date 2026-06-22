@@ -13,29 +13,57 @@
 
 package me.ahoo.cosid.spring.redis;
 
-import org.junit.jupiter.api.Assertions;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.util.StreamUtils;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 class SpringRedisMachineIdDistributorScriptTest {
 
     @Test
-    void distributeBySelfShouldNotLowerLastStamp() throws IOException {
-        String script = StreamUtils.copyToString(
+    void distributeBySelfShouldNeverLowerLastStamp() throws IOException {
+        List<String> lines = lines(loadDistributeScript());
+        int selfStart = lines.indexOf("--DistributeBySelf");
+        int revertStart = lines.indexOf("--DistributeByRevert");
+
+        assertThat(selfStart, greaterThanOrEqualTo(0));
+        assertThat(revertStart, greaterThanOrEqualTo(selfStart));
+        List<String> selfBlock = lines.subList(selfStart, revertStart);
+        assertThat(selfBlock, equalTo(List.of(
+            "--DistributeBySelf",
+            "local machineState = redis.call('hget', instanceIdxKey, instanceId)",
+            "if machineState then",
+            "local states = convertStingToState(machineState);",
+            "local machineId = states[1];",
+            "local lastStamp = states[2];",
+            "if lastStamp < currentStamp then",
+            "lastStamp = currentStamp;",
+            "end",
+            "setState(machineId, lastStamp);",
+            "return { machineId, lastStamp }",
+            "end",
+            ""
+        )));
+    }
+
+    private static String loadDistributeScript() throws IOException {
+        return StreamUtils.copyToString(
             SpringRedisMachineIdDistributor.MACHINE_ID_DISTRIBUTE_SOURCE.getInputStream(),
             StandardCharsets.UTF_8
         );
-        int selfStart = script.indexOf("--DistributeBySelf");
-        int revertStart = script.indexOf("--DistributeByRevert");
-        String selfBlock = script.substring(selfStart, revertStart);
+    }
 
-        Assertions.assertTrue(selfBlock.contains("local lastStamp = states[2];"));
-        Assertions.assertTrue(selfBlock.contains("if lastStamp < currentStamp then"));
-        Assertions.assertTrue(selfBlock.contains("lastStamp = currentStamp;"));
-        Assertions.assertTrue(selfBlock.contains("setState(machineId, lastStamp);"));
-        Assertions.assertTrue(selfBlock.contains("return { machineId, lastStamp }"));
+    private static List<String> lines(String script) {
+        return Arrays.stream(script.split("\n", -1))
+            .map(String::trim)
+            .collect(Collectors.toList());
     }
 }

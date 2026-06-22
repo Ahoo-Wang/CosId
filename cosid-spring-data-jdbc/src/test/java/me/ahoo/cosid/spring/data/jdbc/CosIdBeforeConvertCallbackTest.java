@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.data.jdbc;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import me.ahoo.cosid.accessor.parser.CompositeFieldDefinitionParser;
 import me.ahoo.cosid.accessor.parser.DefaultAccessorParser;
@@ -25,6 +26,7 @@ import me.ahoo.cosid.annotation.CosId;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.test.MockIdGenerator;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.annotation.Id;
 
@@ -32,74 +34,85 @@ import java.util.Arrays;
 
 class CosIdBeforeConvertCallbackTest {
     private final CosIdBeforeConvertCallback cosIdBeforeConvertCallback;
-    
+
     public CosIdBeforeConvertCallbackTest() {
         var fieldDefinitionParser = new CompositeFieldDefinitionParser(Arrays.asList(AnnotationDefinitionParser.INSTANCE, IdAnnotationDefinitionParser.INSTANCE));
         DefaultAccessorParser accessorParser = new DefaultAccessorParser(fieldDefinitionParser);
         CosIdAccessorRegistry accessorRegistry = new DefaultAccessorRegistry(accessorParser);
         cosIdBeforeConvertCallback = new CosIdBeforeConvertCallback(accessorRegistry);
     }
-    
+
+    @AfterEach
+    void destroy() {
+        DefaultIdGeneratorProvider.INSTANCE.clear();
+    }
+
     @Test
     void onBeforeConvertIfId() {
         var entity = new IdEntity();
         DefaultIdGeneratorProvider.INSTANCE.setShare(MockIdGenerator.INSTANCE);
-        cosIdBeforeConvertCallback.onBeforeConvert(entity);
+        Object result = cosIdBeforeConvertCallback.onBeforeConvert(entity);
+
+        assertSame(entity, result);
         assertThat(entity.getId(), not(0));
     }
-    
+
     @Test
     void onBeforeConvertIfCosId() {
         var entity = new CosIdEntity();
         DefaultIdGeneratorProvider.INSTANCE.setShare(MockIdGenerator.INSTANCE);
-        cosIdBeforeConvertCallback.onBeforeConvert(entity);
+        Object result = cosIdBeforeConvertCallback.onBeforeConvert(entity);
+
+        assertSame(entity, result);
         assertThat(entity.getId(), not(0));
     }
-    
+
     @Test
     void onBeforeConvertIfNotFound() {
         var entity = new NotFoundEntity();
         DefaultIdGeneratorProvider.INSTANCE.setShare(MockIdGenerator.INSTANCE);
-        cosIdBeforeConvertCallback.onBeforeConvert(entity);
+        Object result = cosIdBeforeConvertCallback.onBeforeConvert(entity);
+
+        assertSame(entity, result);
         assertThat(entity.getId(), equalTo(0L));
     }
-    
+
     static class IdEntity {
         @Id
         private long id;
-        
+
         public long getId() {
             return id;
         }
-        
+
         public IdEntity setId(int id) {
             this.id = id;
             return this;
         }
     }
-    
+
     static class CosIdEntity {
         @CosId
         private long id;
-        
+
         public long getId() {
             return id;
         }
-        
+
         public CosIdEntity setId(int id) {
             this.id = id;
             return this;
         }
     }
-    
+
     static class NotFoundEntity {
-        
+
         private long id;
-        
+
         public long getId() {
             return id;
         }
-        
+
         public NotFoundEntity setId(int id) {
             this.id = id;
             return this;

@@ -13,20 +13,38 @@
 
 package me.ahoo.cosid.example.cosid;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import me.ahoo.cosid.cosid.CosIdGenerator;
+import me.ahoo.cosid.cosid.CosIdIdStateParser;
+import me.ahoo.cosid.cosid.CosIdState;
+import me.ahoo.cosid.example.cosid.controller.IdController;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
+
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
-import org.springframework.boot.test.context.SpringBootTest;
 
 /**
  * AppServerTest .
  *
  * @author ahoo wang
  */
-@DisabledIfEnvironmentVariable(named = "CODECOV", matches = "true")
-@SpringBootTest
 class AppServerTest {
     
     @Test
-    void contextLoads() {
+    void idControllerGeneratesAndParsesCosIdWithoutRedisServer() {
+        IdGeneratorProvider provider = mock(IdGeneratorProvider.class);
+        CosIdGenerator cosIdGenerator = mock(CosIdGenerator.class);
+        CosIdIdStateParser stateParser = mock(CosIdIdStateParser.class);
+        CosIdState state = new CosIdState(123456789L, 7, 9);
+        when(cosIdGenerator.generateAsString()).thenReturn("COSID-123");
+        when(cosIdGenerator.getStateParser()).thenReturn(stateParser);
+        when(stateParser.asState("COSID-123")).thenReturn(state);
+
+        IdController controller = new IdController(provider, cosIdGenerator);
+
+        assertEquals("COSID-123", controller.generateAsString());
+        assertEquals(state, controller.asState("COSID-123"));
     }
 }

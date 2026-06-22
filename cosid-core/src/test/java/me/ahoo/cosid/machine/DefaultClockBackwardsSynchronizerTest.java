@@ -45,7 +45,8 @@ class DefaultClockBackwardsSynchronizerTest {
     @Test
     void syncUninterruptibly() {
         long normalTimestamp = System.currentTimeMillis();
-        assertDoesNotThrow(() -> synchronizer.syncUninterruptibly(normalTimestamp));
+        synchronizer.syncUninterruptibly(normalTimestamp);
+        assertFalse(Thread.currentThread().isInterrupted());
     }
 
     @SneakyThrows

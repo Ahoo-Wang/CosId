@@ -13,9 +13,15 @@
 
 package me.ahoo.cosid.jdbc;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.jdbc.exception.SegmentNameMissingException;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
@@ -24,22 +30,22 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.sql.DataSource;
+import java.sql.SQLException;
 
 /**
  * @author ahoo wang
  */
 class JdbcIdSegmentDistributorTest extends IdSegmentDistributorSpec {
-    DataSource dataSource;
+    InMemoryJdbcDataSource dataSource;
     JdbcIdSegmentDistributorFactory distributorFactory;
-    JdbcIdSegmentInitializer mySqlIdSegmentInitializer;
+    JdbcIdSegmentInitializer jdbcIdSegmentInitializer;
     
     @BeforeEach
     void setup() {
         dataSource = DataSourceFactory.INSTANCE.createDataSource();
-        mySqlIdSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
+        jdbcIdSegmentInitializer = new JdbcIdSegmentInitializer(dataSource);
         distributorFactory =
-            new JdbcIdSegmentDistributorFactory(dataSource, true, mySqlIdSegmentInitializer, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
+            new JdbcIdSegmentDistributorFactory(dataSource, true, jdbcIdSegmentInitializer, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
     }
     
     @Override
@@ -50,29 +56,53 @@ class JdbcIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     
     @Override
     protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
-    
+        dataSource.setSegmentMaxId(distributor.getNamespacedName(), maxId);
     }
     
+    @Test
     @Override
     public void nextMaxIdWhenBack() {
-    
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxIdWhenBack", TEST_OFFSET, TEST_STEP);
+        IdSegmentDistributor distributor = factory().create(definition);
+        long firstMaxId = distributor.nextMaxId();
+        assertThat(firstMaxId, equalTo(TEST_OFFSET + TEST_STEP));
+
+        setMaxIdBack(distributor, TEST_OFFSET);
+        long nextMaxId = distributor.nextMaxId();
+
+        assertThat(nextMaxId, equalTo(TEST_OFFSET + TEST_STEP));
+        assertThat(dataSource.getSegmentMaxId(distributor.getNamespacedName()), equalTo(TEST_OFFSET + TEST_STEP));
     }
     
     @Test
     void nextMaxIdWhenSegmentNameMissing() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         JdbcIdSegmentDistributor jdbcIdSegmentDistributor = new JdbcIdSegmentDistributor(namespace, "SegmentNameMissing", 100, dataSource);
-        Assertions.assertThrows(SegmentNameMissingException.class, () -> {
-            jdbcIdSegmentDistributor.nextMaxId(1);
-        });
+        SegmentNameMissingException actual = Assertions.assertThrows(SegmentNameMissingException.class, () -> jdbcIdSegmentDistributor.nextMaxId(1));
+        assertThat(actual.getMessage(), containsString(jdbcIdSegmentDistributor.getNamespacedName()));
     }
     
     @Test
     void nextMaxIdWhenWrongSql() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        JdbcIdSegmentDistributor jdbcIdSegmentDistributor = new JdbcIdSegmentDistributor(namespace, "WrongSql", 100,"WrongSql","WrongSql", dataSource);
-        Assertions.assertThrows(CosIdException.class, () -> {
-            jdbcIdSegmentDistributor.nextMaxId(1);
-        });
+        JdbcIdSegmentDistributor jdbcIdSegmentDistributor = new JdbcIdSegmentDistributor(namespace, "WrongSql", 100, "WrongSql", "WrongSql", dataSource);
+        jdbcIdSegmentInitializer.tryInitIdSegment(jdbcIdSegmentDistributor.getNamespacedName(), 0);
+
+        CosIdException actual = Assertions.assertThrows(CosIdException.class, () -> jdbcIdSegmentDistributor.nextMaxId(1));
+
+        assertThat(actual.getCause(), instanceOf(SQLException.class));
+        assertThat(actual.getMessage(), containsString("Unsupported SQL"));
+    }
+
+    @Test
+    void factoryCreateShouldInitializeSegmentWithDefinitionOffset() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "factoryCreateShouldInitialize", 9, 3);
+        IdSegmentDistributor distributor = distributorFactory.create(definition);
+
+        assertThat(dataSource.containsSegment(definition.getNamespacedName()), equalTo(true));
+        assertThat(dataSource.getSegmentMaxId(definition.getNamespacedName()), equalTo(9L));
+        assertThat(distributor.nextMaxId(), equalTo(12L));
     }
 }

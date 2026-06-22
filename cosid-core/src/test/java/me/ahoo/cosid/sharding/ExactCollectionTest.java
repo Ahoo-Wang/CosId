@@ -13,100 +13,120 @@
 
 package me.ahoo.cosid.sharding;
 
-import org.junit.jupiter.api.Assertions;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import org.junit.jupiter.api.Test;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Objects;
-import java.util.stream.Collectors;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * @author ahoo wang
  */
 class ExactCollectionTest {
 
-    public ExactCollection<String> createExactCollection(int size) {
-        return new ExactCollection<>(size);
+    @Test
+    void ctorCreatesFixedSizeCollectionWithEmptySlots() {
+        ExactCollection<String> exactCollection = new ExactCollection<>(3);
+
+        assertEquals(3, exactCollection.size());
+        assertArrayEquals(new Object[]{null, null, null}, exactCollection.toArray());
     }
 
     @Test
-    public void ctor() {
-        ExactCollection<String> exactCollection = createExactCollection(10);
-        Assertions.assertNotNull(exactCollection);
-        Assertions.assertEquals(10, exactCollection.size());
+    void addStoresElementAtExactIndexWithoutChangingSize() {
+        ExactCollection<String> exactCollection = new ExactCollection<>(3);
+
+        exactCollection.add(1, "one");
+
+        assertEquals(3, exactCollection.size());
+        assertArrayEquals(new Object[]{null, "one", null}, exactCollection.toArray());
+        assertEquals("one", exactCollection.get(1));
     }
 
     @Test
-    public void add() {
-        ExactCollection<String> exactCollection = new ExactCollection<>(10);
-        for (int i = 0; i < exactCollection.size(); i++) {
-            exactCollection.add(i, String.valueOf(i));
-        }
-        Assertions.assertNotNull(exactCollection);
-        Assertions.assertEquals(10, exactCollection.size());
-    }
+    void iteratorReturnsEverySlotInIndexOrder() {
+        ExactCollection<String> exactCollection = new ExactCollection<>("zero", "one", "two");
 
-    @Test
-    public void iterator() {
-        ExactCollection<String> exactCollection = new ExactCollection<>(10);
-        for (int i = 0; i < exactCollection.size(); i++) {
-            exactCollection.add(i, String.valueOf(i));
-        }
-        Assertions.assertEquals(10, exactCollection.size());
-        int idx = 0;
-        for (String element : exactCollection) {
-            Assertions.assertEquals(String.valueOf(idx), element);
-            idx++;
-        }
-    }
-
-    @Test
-    public void eq() {
-        ExactCollection<String> exactCollection = new ExactCollection<>(2);
-        exactCollection.add(0, "0");
-        exactCollection.add(1, "1");
-        Assertions.assertEquals(new ExactCollection<String>("0", "1"), exactCollection);
-        Assertions.assertEquals(new ExactCollection<String>("1", "0"), exactCollection);
-        Assertions.assertNotEquals(new ExactCollection<String>("0"), exactCollection);
-        Assertions.assertNotEquals(new ExactCollection<String>("0", "2"), exactCollection);
-    }
-
-    @Test
-    void toArray() {
-        ExactCollection<String> exactCollection = new ExactCollection<>(10);
-        exactCollection.add(0, "0");
-        exactCollection.add(1, "1");
-        Assertions.assertEquals(exactCollection.toArray()[0], exactCollection.get(0));
-    }
-
-
-    @Test
-    void remove() {
-        ExactCollection<String> exactCollection = new ExactCollection<>(10);
-        exactCollection.add(0, "0");
-        exactCollection.add(1, "1");
-        exactCollection.remove("1");
-        Assertions.assertTrue(exactCollection.stream().filter(x -> Objects.nonNull(x)).collect(Collectors.toList()).size() == 1);
-    }
-
-    @Test
-    void addAll() {
-        ExactCollection<String> exactCollection = new ExactCollection<>(10);
-        exactCollection.add(0, "0");
-        exactCollection.add(1, "1");
-        Collection<String> addCollection = new ArrayList<>();
-        addCollection.add("3");
-        Assertions.assertThrows(UnsupportedOperationException.class, () -> {
-            exactCollection.addAll(addCollection);
+        assertEquals(List.of("zero", "one", "two"), exactCollection.stream().toList());
+        assertThrows(NoSuchElementException.class, () -> {
+            var iterator = exactCollection.iterator();
+            iterator.next();
+            iterator.next();
+            iterator.next();
+            iterator.next();
         });
     }
 
     @Test
-    void removeAll() {
+    void equalsUsesCollectionMembershipNotIndexOrder() {
+        ExactCollection<String> exactCollection = new ExactCollection<>(2);
+        exactCollection.add(0, "0");
+        exactCollection.add(1, "1");
+
+        assertEquals(new ExactCollection<>("0", "1"), exactCollection);
+        assertEquals(new ExactCollection<>("1", "0"), exactCollection);
+        assertEquals(new ExactCollection<>("0", "1").hashCode(), exactCollection.hashCode());
+        assertEquals(new ExactCollection<>("1", "0").hashCode(), exactCollection.hashCode());
     }
 
     @Test
-    void retainAll() {
+    void notEqualsCollectionsWithDifferentSizeOrMembers() {
+        ExactCollection<String> exactCollection = new ExactCollection<>("0", "1");
+
+        assertFalse(exactCollection.equals(new ExactCollection<>("0")));
+        assertFalse(exactCollection.equals(new ExactCollection<>("0", "2")));
+        assertFalse(exactCollection.equals("not-a-collection"));
+    }
+
+    @Test
+    void toArrayCopiesElementsAndUsesRequestedArrayType() {
+        ExactCollection<String> exactCollection = new ExactCollection<>("0", "1");
+
+        Object[] rawArray = exactCollection.toArray();
+        String[] typedArray = exactCollection.toArray(new String[0]);
+        exactCollection.add(0, "changed");
+
+        assertArrayEquals(new Object[]{"0", "1"}, rawArray);
+        assertArrayEquals(new String[]{"0", "1"}, typedArray);
+    }
+
+    @Test
+    void removeReturnsTrueAndClearsMatchingSlot() {
+        ExactCollection<String> exactCollection = new ExactCollection<>("0", "1", "2");
+
+        assertTrue(exactCollection.remove("1"));
+        assertArrayEquals(new Object[]{"0", null, "2"}, exactCollection.toArray());
+    }
+
+    @Test
+    void removeReturnsFalseWhenElementDoesNotExist() {
+        ExactCollection<String> exactCollection = new ExactCollection<>("0", "1");
+
+        assertFalse(exactCollection.remove("missing"));
+        assertArrayEquals(new Object[]{"0", "1"}, exactCollection.toArray());
+    }
+
+    @Test
+    void clearKeepsSizeAndClearsAllSlots() {
+        ExactCollection<String> exactCollection = new ExactCollection<>("0", "1");
+
+        exactCollection.clear();
+
+        assertEquals(2, exactCollection.size());
+        assertArrayEquals(new Object[]{null, null}, exactCollection.toArray());
+    }
+
+    @Test
+    void bulkMutationsAreUnsupportedBecauseSlotsAreIndexAddressed() {
+        ExactCollection<String> exactCollection = new ExactCollection<>("0", "1");
+
+        assertThrows(UnsupportedOperationException.class, () -> exactCollection.addAll(List.of("2")));
+        assertThrows(UnsupportedOperationException.class, () -> exactCollection.removeAll(List.of("1")));
+        assertThrows(UnsupportedOperationException.class, () -> exactCollection.retainAll(List.of("0")));
     }
 }

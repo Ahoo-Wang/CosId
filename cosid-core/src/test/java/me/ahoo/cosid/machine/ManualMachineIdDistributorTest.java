@@ -29,10 +29,12 @@ import java.time.Duration;
 class ManualMachineIdDistributorTest {
     public static final int TEST_MANUAL_MACHINE_ID = 1;
     ManualMachineIdDistributor machineIdDistributor;
+    InMemoryMachineStateStorage machineStateStorage;
 
     @BeforeEach
     void setup() {
-        machineIdDistributor = new ManualMachineIdDistributor(TEST_MANUAL_MACHINE_ID, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
+        machineStateStorage = new InMemoryMachineStateStorage();
+        machineIdDistributor = new ManualMachineIdDistributor(TEST_MANUAL_MACHINE_ID, machineStateStorage, ClockBackwardsSynchronizer.DEFAULT);
     }
 
     @Test
@@ -58,7 +60,9 @@ class ManualMachineIdDistributorTest {
     void revert() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         machineIdDistributor.distribute(namespace, TEST_MANUAL_MACHINE_ID, InstanceId.NONE, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+        Assertions.assertTrue(machineStateStorage.exists(namespace, InstanceId.NONE));
         machineIdDistributor.revert(namespace, InstanceId.NONE);
+        Assertions.assertFalse(machineStateStorage.exists(namespace, InstanceId.NONE));
     }
 
     @Test

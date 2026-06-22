@@ -21,30 +21,44 @@ import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.axonframework.common.IdentifierFactory;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junitpioneer.jupiter.SetSystemProperty;
+import org.junit.jupiter.api.TestMethodOrder;
 
 /**
  * CosIdIdentifierFactoryTest .
  *
  * @author ahoo wang
  */
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class CosIdIdentifierFactoryTest {
     
-    @Disabled
     @Test
-    void generateIdentifier() {
+    @Order(1)
+    void generateIdentifierUsesShareGeneratorByDefault() {
         DefaultIdGeneratorProvider.INSTANCE.setShare(MockIdGenerator.INSTANCE);
+
         String id = IdentifierFactory.getInstance().generateIdentifier();
+
         assertThat(id, startsWith(MockIdGenerator.TEST_PREFIX));
     }
     
-    @SetSystemProperty(key = ID_KEY, value = "axon")
     @Test
-    void generateIdentifierWhenSetIdKey() {
+    @Order(2)
+    void generateIdentifierUsesConfiguredGeneratorName() {
+        System.setProperty(ID_KEY, "axon");
         DefaultIdGeneratorProvider.INSTANCE.set("axon", MockIdGenerator.usePrefix("axon_"));
-        String id = IdentifierFactory.getInstance().generateIdentifier();
+
+        String id = new CosIdIdentifierFactory().generateIdentifier();
+
         assertThat(id, startsWith("axon_"));
+    }
+
+    @AfterEach
+    void destroy() {
+        System.clearProperty(ID_KEY);
+        DefaultIdGeneratorProvider.INSTANCE.clear();
     }
 }

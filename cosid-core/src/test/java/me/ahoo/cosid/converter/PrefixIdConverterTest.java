@@ -56,15 +56,11 @@ class PrefixIdConverterTest {
     
     @Test
     void asLongWhenNumberFormat() {
-        Assertions.assertDoesNotThrow(() -> {
-            idConverter.asLong("prefix_-1");
-        });
+        Assertions.assertEquals(-1L, idConverter.asLong("prefix_-1"));
         Assertions.assertThrows(StringIndexOutOfBoundsException.class, () -> {
             idConverter.asLong("-1");
         });
-        Assertions.assertDoesNotThrow(() -> {
-            idConverter.asLong("prefix_111");
-        });
+        Assertions.assertEquals(111L, idConverter.asLong("prefix_111"));
         Assertions.assertThrows(NumberFormatException.class, () -> {
             idConverter.asLong("prefix_1_");
         });

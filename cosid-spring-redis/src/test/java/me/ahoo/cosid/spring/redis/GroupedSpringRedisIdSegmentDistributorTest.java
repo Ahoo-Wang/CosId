@@ -13,59 +13,35 @@
 
 package me.ahoo.cosid.spring.redis;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
+import me.ahoo.cosid.segment.IdSegment;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
-import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
-import me.ahoo.cosid.test.MockIdGenerator;
-import me.ahoo.cosid.test.segment.distributor.GroupedIdSegmentDistributorSpec;
-import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
+import me.ahoo.cosid.segment.grouped.GroupBySupplier;
+import me.ahoo.cosid.segment.grouped.GroupedIdSegmentDistributorFactory;
+import me.ahoo.cosid.segment.grouped.date.YearGroupBySupplier;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
-/**
- * @author ahoo wang
- */
-class GroupedSpringRedisIdSegmentDistributorTest extends GroupedIdSegmentDistributorSpec {
-    StringRedisTemplate stringRedisTemplate;
-    SpringRedisIdSegmentDistributorFactory distributorFactory;
-    protected IdSegmentDistributorDefinition idSegmentDistributorDefinition;
-    
-    @BeforeEach
-    void setup() {
-        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
-        LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
-        lettuceConnectionFactory.afterPropertiesSet();
-        stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
-        distributorFactory = new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate);
-        idSegmentDistributorDefinition = new IdSegmentDistributorDefinition("GroupedSpringRedisIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 0, 100);
-    }
-    
-    @Override
-    protected IdSegmentDistributorFactory getFactory() {
-        return distributorFactory;
-    }
-    
+class GroupedSpringRedisIdSegmentDistributorTest {
+
     @Test
-    protected void distributorFactoryTest() {
-        IdSegmentDistributor idSegmentDistributor = distributorFactory.create(idSegmentDistributorDefinition);
-        Assertions.assertNotNull(idSegmentDistributor);
-    }
-    
-    @Test
-    void getAdderKey() {
-        IdSegmentDistributor idSegmentDistributor = distributorFactory.create(idSegmentDistributorDefinition);
-        Assertions.assertTrue(idSegmentDistributor instanceof SpringRedisIdSegmentDistributor);
-        SpringRedisIdSegmentDistributor springRedisIdSegmentDistributor = (SpringRedisIdSegmentDistributor) idSegmentDistributor;
-        Assertions.assertNotNull(springRedisIdSegmentDistributor.getAdderKey());
-        Assertions.assertNotNull(springRedisIdSegmentDistributor.getName());
-        Assertions.assertTrue(springRedisIdSegmentDistributor.getOffset() == 0);
-        Assertions.assertTrue(springRedisIdSegmentDistributor.getStep() == 100);
-        Assertions.assertNotNull(springRedisIdSegmentDistributor.getNamespace());
-        Assertions.assertNotNull(springRedisIdSegmentDistributor.nextMaxId(100));
+    void groupedFactoryShouldDelegateToSpringRedisFactoryWithoutRedisConnection() {
+        FakeStringRedisTemplate redisTemplate = new FakeStringRedisTemplate();
+        GroupBySupplier groupBySupplier = new YearGroupBySupplier("yyyy");
+        GroupedIdSegmentDistributorFactory factory = new GroupedIdSegmentDistributorFactory(
+            groupBySupplier,
+            new SpringRedisIdSegmentDistributorFactory(redisTemplate)
+        );
+
+        IdSegmentDistributor distributor = factory.create(new IdSegmentDistributorDefinition("group-ns", "orders", 0, 100));
+        IdSegment segment = distributor.nextIdSegment();
+
+        String groupedName = "orders@" + groupBySupplier.get().getKey();
+        assertThat(segment.getMaxId(), equalTo(100L));
+        assertThat(redisTemplate.getSetIfAbsentCalls().get(0).getKey(), equalTo("cosid:{group-ns." + groupedName + "}.adder"));
+        assertThat(redisTemplate.getIncrementCalls().get(0).getKey(), equalTo("cosid:{group-ns." + groupedName + "}.adder"));
     }
 }

@@ -24,6 +24,7 @@ import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.transaction.Transaction;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,61 +45,76 @@ import java.util.Map;
 class CosIdPluginTest {
     private DefaultAccessorRegistry accessorRegistry;
     private CosIdPlugin cosIdPlugin;
+    private Configuration configuration;
     
     @BeforeEach
     void setup() {
+        configuration = new Configuration();
         accessorRegistry = new DefaultAccessorRegistry(new DefaultAccessorParser(AnnotationDefinitionParser.INSTANCE));
         DefaultIdGeneratorProvider.INSTANCE.setShare(MockIdGenerator.INSTANCE);
         accessorRegistry.register(Entity.class);
         cosIdPlugin = new CosIdPlugin(accessorRegistry);
     }
+
+    @AfterEach
+    void destroy() {
+        DefaultIdGeneratorProvider.INSTANCE.clear();
+    }
     
     @SneakyThrows
     @Test
     void intercept() {
-        Configuration configuration = new Configuration();
-        MappedStatement statement = new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), SqlCommandType.INSERT)
-            .build();
+        MappedStatement statement = statement(SqlCommandType.INSERT);
         Entity entity = new Entity();
-        Invocation invocation = new Invocation(new InvocationTarget(), InvocationTarget.INVOKE_METHOD, new Object[] {statement, entity});
-        cosIdPlugin.intercept(invocation);
+        InvocationTarget target = new InvocationTarget();
+        Invocation invocation = invocation(target, statement, entity);
+
+        Object result = cosIdPlugin.intercept(invocation);
+
+        assertProceeded(target, result, statement, entity);
         Assertions.assertNotEquals(0, entity.getId());
     }
     
     @SneakyThrows
     @Test
     void interceptWhenParmIsNull() {
-        Configuration configuration = new Configuration();
-        MappedStatement statement = new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), SqlCommandType.INSERT)
-            .build();
+        MappedStatement statement = statement(SqlCommandType.INSERT);
         Entity entity = null;
-        Invocation invocation = new Invocation(new InvocationTarget(), InvocationTarget.INVOKE_METHOD, new Object[] {statement, entity});
-        cosIdPlugin.intercept(invocation);
+        InvocationTarget target = new InvocationTarget();
+        Invocation invocation = invocation(target, statement, entity);
+
+        Object result = cosIdPlugin.intercept(invocation);
+
+        assertProceeded(target, result, statement, entity);
     }
     
     @SneakyThrows
     @Test
     void interceptWhenSqlCommandTypeIsUnknown() {
-        Configuration configuration = new Configuration();
-        MappedStatement statement = new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), SqlCommandType.UNKNOWN)
-            .build();
+        MappedStatement statement = statement(SqlCommandType.UNKNOWN);
         Entity entity = new Entity();
-        Invocation invocation = new Invocation(new InvocationTarget(), InvocationTarget.INVOKE_METHOD, new Object[] {statement, entity});
-        cosIdPlugin.intercept(invocation);
+        InvocationTarget target = new InvocationTarget();
+        Invocation invocation = invocation(target, statement, entity);
+
+        Object result = cosIdPlugin.intercept(invocation);
+
+        assertProceeded(target, result, statement, entity);
         Assertions.assertEquals(0, entity.getId());
     }
     
     @SneakyThrows
     @Test
     void interceptWhenParamIsMap() {
-        Configuration configuration = new Configuration();
-        MappedStatement statement = new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), SqlCommandType.INSERT)
-            .build();
+        MappedStatement statement = statement(SqlCommandType.INSERT);
         Map<String, List<Entity>> param = new HashMap<>();
         List<Entity> list = Arrays.asList(new Entity(), new Entity());
         param.put(CosIdPlugin.DEFAULT_LIST_KEY, list);
-        Invocation invocation = new Invocation(new InvocationTarget(), InvocationTarget.INVOKE_METHOD, new Object[] {statement, param});
-        cosIdPlugin.intercept(invocation);
+        InvocationTarget target = new InvocationTarget();
+        Invocation invocation = invocation(target, statement, param);
+
+        Object result = cosIdPlugin.intercept(invocation);
+
+        assertProceeded(target, result, statement, param);
         for (Entity entity : list) {
             Assertions.assertNotEquals(0, entity.getId());
         }
@@ -107,14 +123,16 @@ class CosIdPluginTest {
     @SneakyThrows
     @Test
     void interceptWhenParamIsMapAndListIsNull() {
-        Configuration configuration = new Configuration();
-        MappedStatement statement = new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), SqlCommandType.INSERT)
-            .build();
+        MappedStatement statement = statement(SqlCommandType.INSERT);
         Map<String, List<Entity>> param = new HashMap<>();
         List<Entity> list = null;
         param.put(CosIdPlugin.DEFAULT_LIST_KEY, list);
-        Invocation invocation = new Invocation(new InvocationTarget(), InvocationTarget.INVOKE_METHOD, new Object[] {statement, param});
-        cosIdPlugin.intercept(invocation);
+        InvocationTarget target = new InvocationTarget();
+        Invocation invocation = invocation(target, statement, param);
+
+        Object result = cosIdPlugin.intercept(invocation);
+
+        assertProceeded(target, result, statement, param);
     }
     
     @SneakyThrows
@@ -122,14 +140,16 @@ class CosIdPluginTest {
     void interceptWhenParamIsMapAndCustomizeListKey() {
         final String listKey = "items";
         CosIdPlugin customizeListKey = new CosIdPlugin(accessorRegistry, listKey);
-        Configuration configuration = new Configuration();
-        MappedStatement statement = new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), SqlCommandType.INSERT)
-            .build();
+        MappedStatement statement = statement(SqlCommandType.INSERT);
         Map<String, List<Entity>> param = new HashMap<>();
         List<Entity> list = Arrays.asList(new Entity(), new Entity());
         param.put(listKey, list);
-        Invocation invocation = new Invocation(new InvocationTarget(), InvocationTarget.INVOKE_METHOD, new Object[] {statement, param});
-        customizeListKey.intercept(invocation);
+        InvocationTarget target = new InvocationTarget();
+        Invocation invocation = invocation(target, statement, param);
+
+        Object result = customizeListKey.intercept(invocation);
+
+        assertProceeded(target, result, statement, param);
         for (Entity entity : list) {
             Assertions.assertNotEquals(0, entity.getId());
         }
@@ -139,12 +159,30 @@ class CosIdPluginTest {
     @Test
     void interceptWhenParamMapNotFoundListKey() {
         CosIdPlugin plugin = new CosIdPlugin(accessorRegistry);
-        Configuration configuration = new Configuration();
-        MappedStatement statement = new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), SqlCommandType.INSERT)
-            .build();
+        MappedStatement statement = statement(SqlCommandType.INSERT);
         Map<String, List<Entity>> param = new MapperMethod.ParamMap<>();
-        Invocation invocation = new Invocation(new InvocationTarget(), InvocationTarget.INVOKE_METHOD, new Object[] {statement, param});
-        plugin.intercept(invocation);
+        InvocationTarget target = new InvocationTarget();
+        Invocation invocation = invocation(target, statement, param);
+
+        Object result = plugin.intercept(invocation);
+
+        assertProceeded(target, result, statement, param);
+    }
+
+    private MappedStatement statement(SqlCommandType sqlCommandType) {
+        return new MappedStatement.Builder(configuration, "intercept", new StaticSqlSource(configuration, ""), sqlCommandType)
+            .build();
+    }
+
+    private Invocation invocation(InvocationTarget target, MappedStatement statement, Object parameter) {
+        return new Invocation(target, InvocationTarget.INVOKE_METHOD, new Object[] {statement, parameter});
+    }
+
+    private void assertProceeded(InvocationTarget target, Object result, MappedStatement statement, Object parameter) {
+        Assertions.assertEquals(target.result, result);
+        Assertions.assertEquals(1, target.updateCount);
+        Assertions.assertSame(statement, target.mappedStatement);
+        Assertions.assertSame(parameter, target.parameter);
     }
     
     public static class Entity {
@@ -164,6 +202,10 @@ class CosIdPluginTest {
     public static class InvocationTarget implements Executor {
         
         public static final Method INVOKE_METHOD;
+        private final int result = 1;
+        private int updateCount;
+        private MappedStatement mappedStatement;
+        private Object parameter;
         
         static {
             try {
@@ -176,7 +218,10 @@ class CosIdPluginTest {
 
         @Override
         public int update(MappedStatement ms, Object parameter) throws SQLException {
-            return 0;
+            updateCount++;
+            mappedStatement = ms;
+            this.parameter = parameter;
+            return result;
         }
 
         @Override

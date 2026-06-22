@@ -13,20 +13,34 @@
 
 package me.ahoo.cosid.example.zookeeper;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.example.zookeeper.controller.IdController;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
+
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
-import org.springframework.boot.test.context.SpringBootTest;
 
 /**
  * AppServerTest .
  *
  * @author ahoo wang
  */
-@DisabledIfEnvironmentVariable(named = "CODECOV", matches = "true")
-@SpringBootTest
 class AppServerTest {
     
     @Test
-    void contextLoads() {
+    void idControllerGeneratesFromShareProviderWithoutZookeeperServer() {
+        IdGeneratorProvider provider = mock(IdGeneratorProvider.class);
+        IdGenerator share = mock(IdGenerator.class);
+        when(provider.getShare()).thenReturn(share);
+        when(share.generate()).thenReturn(321L);
+        when(share.generateAsString()).thenReturn("ID-321");
+
+        IdController controller = new IdController(provider);
+
+        assertEquals(321L, controller.generate());
+        assertEquals("ID-321", controller.generateAsString());
     }
 }

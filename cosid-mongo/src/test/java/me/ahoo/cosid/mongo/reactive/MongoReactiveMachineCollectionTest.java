@@ -27,6 +27,7 @@ import reactor.core.publisher.Mono;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class MongoReactiveMachineCollectionTest {
     private static final InstanceId INSTANCE_ID = InstanceId.of("host", false);
@@ -44,16 +45,24 @@ class MongoReactiveMachineCollectionTest {
 
     @Test
     void revertShouldUseMatchedCountWhenUpdateIsNoop() {
+        AtomicInteger updateCalls = new AtomicInteger();
         MongoReactiveMachineCollection collection = new MongoReactiveMachineCollection(
-            machineCollection(UpdateResult.acknowledged(1, 0L, null))
+            machineCollection(UpdateResult.acknowledged(1, 0L, null), updateCalls)
         );
 
-        Assertions.assertDoesNotThrow(() -> collection.revert("ns", INSTANCE_ID, MACHINE_STATE));
+        collection.revert("ns", INSTANCE_ID, MACHINE_STATE);
+
+        Assertions.assertEquals(1, updateCalls.get());
     }
 
     private static MongoCollection<Document> machineCollection(UpdateResult updateResult) {
+        return machineCollection(updateResult, new AtomicInteger());
+    }
+
+    private static MongoCollection<Document> machineCollection(UpdateResult updateResult, AtomicInteger updateCalls) {
         return proxy(MongoCollection.class, (proxy, method, args) -> {
             if ("updateOne".equals(method.getName())) {
+                updateCalls.incrementAndGet();
                 return Mono.just(updateResult);
             }
             return defaultValue(method.getReturnType());

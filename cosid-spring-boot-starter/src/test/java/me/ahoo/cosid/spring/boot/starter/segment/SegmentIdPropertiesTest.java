@@ -66,7 +66,9 @@ class SegmentIdPropertiesTest {
     @Test
     void getDistributor() {
         SegmentIdProperties properties = new SegmentIdProperties();
-        Assertions.assertNotNull(properties.getDistributor());
+        Assertions.assertEquals(SegmentIdProperties.Distributor.Type.REDIS, properties.getDistributor().getType());
+        Assertions.assertEquals(Duration.ofSeconds(1), properties.getDistributor().getRedis().getTimeout());
+        Assertions.assertEquals(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, properties.getDistributor().getJdbc().getIncrementMaxIdSql());
     }
     
     @Test
@@ -80,7 +82,8 @@ class SegmentIdPropertiesTest {
     @Test
     void getChain() {
         SegmentIdProperties properties = new SegmentIdProperties();
-        Assertions.assertNotNull(properties.getChain());
+        Assertions.assertEquals(SegmentChainId.DEFAULT_SAFE_DISTANCE, properties.getChain().getSafeDistance());
+        Assertions.assertEquals(PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD, properties.getChain().getPrefetchWorker().getPrefetchPeriod());
     }
     
     @Test
@@ -94,7 +97,9 @@ class SegmentIdPropertiesTest {
     @Test
     void getShare() {
         SegmentIdProperties properties = new SegmentIdProperties();
-        Assertions.assertNotNull(properties.getShare());
+        Assertions.assertEquals(IdSegmentDistributor.DEFAULT_OFFSET, properties.getShare().getOffset());
+        Assertions.assertEquals(IdSegmentDistributor.DEFAULT_STEP, properties.getShare().getStep());
+        Assertions.assertEquals(IdConverterDefinition.Type.RADIX, properties.getShare().getConverter().getType());
     }
     
     @Test
@@ -108,7 +113,6 @@ class SegmentIdPropertiesTest {
     @Test
     void getProvider() {
         SegmentIdProperties properties = new SegmentIdProperties();
-        Assertions.assertNotNull(properties.getProvider());
         Assertions.assertTrue(properties.getProvider().isEmpty());
     }
     
@@ -138,7 +142,9 @@ class SegmentIdPropertiesTest {
         @Test
         public void getPrefetchWorker() {
             SegmentIdProperties.Chain chain = new SegmentIdProperties.Chain();
-            Assertions.assertNotNull(chain.getPrefetchWorker());
+            Assertions.assertEquals(PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD, chain.getPrefetchWorker().getPrefetchPeriod());
+            Assertions.assertEquals(Runtime.getRuntime().availableProcessors(), chain.getPrefetchWorker().getCorePoolSize());
+            Assertions.assertTrue(chain.getPrefetchWorker().isShutdownHook());
         }
         
         @Test
@@ -211,7 +217,7 @@ class SegmentIdPropertiesTest {
         @Test
         public void getRedis() {
             SegmentIdProperties.Distributor distributor = new SegmentIdProperties.Distributor();
-            Assertions.assertNotNull(distributor.getRedis());
+            Assertions.assertEquals(Duration.ofSeconds(1), distributor.getRedis().getTimeout());
         }
         
         @Test
@@ -225,7 +231,8 @@ class SegmentIdPropertiesTest {
         @Test
         public void getJdbc() {
             SegmentIdProperties.Distributor distributor = new SegmentIdProperties.Distributor();
-            Assertions.assertNotNull(distributor.getJdbc());
+            Assertions.assertEquals(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, distributor.getJdbc().getIncrementMaxIdSql());
+            Assertions.assertEquals(JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL, distributor.getJdbc().getInitCosidTableSql());
         }
         
         @Test
@@ -425,7 +432,8 @@ class SegmentIdPropertiesTest {
         @Test
         public void getConverter() {
             SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            Assertions.assertNotNull(idDefinition.getConverter());
+            Assertions.assertEquals(IdConverterDefinition.Type.RADIX, idDefinition.getConverter().getType());
+            Assertions.assertTrue(idDefinition.getConverter().getRadix().isPadStart());
         }
         
         @Test

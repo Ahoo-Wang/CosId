@@ -18,10 +18,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Collection;
 
 /**
  * @author ahoo wang
@@ -49,6 +51,9 @@ class DefaultIdGeneratorProviderTest {
         assertNull(provider.removeShare());
         provider.setShare(AtomicLongGenerator.INSTANCE);
         assertEquals(AtomicLongGenerator.INSTANCE, provider.getShare());
+        assertEquals(AtomicLongGenerator.INSTANCE, provider.removeShare());
+        assertNull(provider.getShare());
+        assertFalse(provider.get(IdGeneratorProvider.SHARE).isPresent());
     }
 
     @Test
@@ -92,5 +97,21 @@ class DefaultIdGeneratorProviderTest {
 
     @Test
     void getAll() {
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        IdGenerator namedGenerator = new AtomicLongGenerator();
+
+        Collection<IdGenerator> generators = provider.getAll();
+        assertTrue(generators.isEmpty());
+
+        provider.setShare(AtomicLongGenerator.INSTANCE);
+        provider.set("named", namedGenerator);
+
+        assertEquals(2, generators.size());
+        assertTrue(generators.contains(AtomicLongGenerator.INSTANCE));
+        assertTrue(generators.contains(namedGenerator));
+
+        provider.remove("named");
+        assertEquals(1, generators.size());
+        assertFalse(generators.contains(namedGenerator));
     }
 }

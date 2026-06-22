@@ -45,7 +45,6 @@ class CosIdZookeeperPropertiesTest {
         int maxRetries = 5;
         int maxSleepMs = 500;
         CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        Assertions.assertNotNull(properties.getRetry());
         Assertions.assertEquals(baseSleepTimeMs, properties.getRetry().getBaseSleepTimeMs());
         Assertions.assertEquals(maxRetries, properties.getRetry().getMaxRetries());
         Assertions.assertEquals(maxSleepMs, properties.getRetry().getMaxSleepMs());
@@ -63,7 +62,7 @@ class CosIdZookeeperPropertiesTest {
         
         CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
         properties.setRetry(retry);
-        Assertions.assertNotNull(properties.getRetry());
+        Assertions.assertSame(retry, properties.getRetry());
         Assertions.assertEquals(baseSleepTimeMs, properties.getRetry().getBaseSleepTimeMs());
         Assertions.assertEquals(maxRetries, properties.getRetry().getMaxRetries());
         Assertions.assertEquals(maxSleepMs, properties.getRetry().getMaxSleepMs());

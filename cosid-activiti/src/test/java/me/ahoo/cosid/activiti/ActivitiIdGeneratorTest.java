@@ -20,16 +20,39 @@ import static org.hamcrest.Matchers.*;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.test.MockIdGenerator;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junitpioneer.jupiter.SetSystemProperty;
+import org.junit.jupiter.api.TestMethodOrder;
 
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ActivitiIdGeneratorTest {
     
-    @SetSystemProperty(key = ID_KEY, value = "activiti")
     @Test
-    void getNextId() {
-        DefaultIdGeneratorProvider.INSTANCE.set("activiti", MockIdGenerator.usePrefix("activiti_"));
+    @Order(1)
+    void getNextIdUsesShareGeneratorByDefault() {
+        DefaultIdGeneratorProvider.INSTANCE.setShare(MockIdGenerator.INSTANCE);
+
         String id = new ActivitiIdGenerator().getNextId();
+
+        assertThat(id, startsWith(MockIdGenerator.TEST_PREFIX));
+    }
+
+    @Test
+    @Order(2)
+    void getNextIdUsesConfiguredGeneratorName() {
+        System.setProperty(ID_KEY, "activiti");
+        DefaultIdGeneratorProvider.INSTANCE.set("activiti", MockIdGenerator.usePrefix("activiti_"));
+
+        String id = new ActivitiIdGenerator().getNextId();
+
         assertThat(id, startsWith("activiti_"));
+    }
+
+    @AfterEach
+    void destroy() {
+        System.clearProperty(ID_KEY);
+        DefaultIdGeneratorProvider.INSTANCE.clear();
     }
 }

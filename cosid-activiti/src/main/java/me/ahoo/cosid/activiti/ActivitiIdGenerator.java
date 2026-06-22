@@ -24,15 +24,13 @@ public class ActivitiIdGenerator implements org.activiti.engine.impl.cfg.IdGener
      * The key of the system property that can be used to set the id generator name.
      */
     public static final String ID_KEY = "cosid.activiti";
-    private static final String ID_NAME;
-    private static final LazyIdGenerator ID_GENERATOR;
-    
-    static {
-        ID_NAME = System.getProperty(ID_KEY, IdGeneratorProvider.SHARE);
-        ID_GENERATOR = new LazyIdGenerator(ID_NAME);
+    private final LazyIdGenerator idGenerator;
+
+    public ActivitiIdGenerator() {
+        this.idGenerator = new LazyIdGenerator(System.getProperty(ID_KEY, IdGeneratorProvider.SHARE));
     }
     
     public String getNextId() {
-        return ID_GENERATOR.generateAsString();
+        return idGenerator.generateAsString();
     }
 }

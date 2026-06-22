@@ -26,15 +26,18 @@ import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
 import org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
+import java.util.UUID;
+
 class CosIdMongoSegmentAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
-    
+
     @Test
     void contextLoads() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=mongo")
             .withPropertyValues("spring.mongodb.uri=" + MongoLauncher.getConnectionString())
+            .withPropertyValues(SegmentIdProperties.PREFIX + ".distributor.mongo.database=" + randomDatabaseName())
             .withUserConfiguration(MongoAutoConfiguration.class, MongoReactiveAutoConfiguration.class, CosIdMongoSegmentAutoConfiguration.class)
             .run(context -> {
                 AssertionsForInterfaceTypes.assertThat(context)
@@ -46,5 +49,9 @@ class CosIdMongoSegmentAutoConfigurationTest {
                     .hasSingleBean(MongoReactiveIdSegmentDistributorFactory.class)
                 ;
             });
+    }
+
+    private static String randomDatabaseName() {
+        return "cosid_segment_" + UUID.randomUUID().toString().replace("-", "");
     }
 }

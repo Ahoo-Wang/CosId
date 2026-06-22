@@ -29,9 +29,11 @@ import org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfigura
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 
+import java.util.UUID;
+
 class CosIdMongoMachineIdDistributorAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
-    
+
     @Test
     void contextLoads() {
         this.contextRunner
@@ -39,6 +41,7 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues("cosid.namespace=" + MockIdGenerator.INSTANCE.generateAsString())
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=mongo")
             .withPropertyValues("spring.mongodb.uri=" + MongoLauncher.getConnectionString())
+            .withPropertyValues(MachineProperties.PREFIX + ".distributor.mongo.database=" + randomDatabaseName())
             .withUserConfiguration(UtilAutoConfiguration.class,
                 MongoAutoConfiguration.class,
                 MongoReactiveAutoConfiguration.class,
@@ -58,5 +61,9 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
                     .hasSingleBean(MongoMachineIdDistributor.class)
                 ;
             });
+    }
+
+    private static String randomDatabaseName() {
+        return "cosid_machine_" + UUID.randomUUID().toString().replace("-", "");
     }
 }

@@ -14,29 +14,49 @@
 package me.ahoo.cosid.accessor.parser;
 
 import me.ahoo.cosid.accessor.IdDefinition;
-import me.ahoo.cosid.annotation.entity.LongIdEntity;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import lombok.SneakyThrows;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
-import java.util.Arrays;
+import java.util.List;
 
-/**
- * @author ahoo wang
- */
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
 class NamedAccessorParserTest {
 
     private static final NamedDefinitionParser NAMED_PARSER = new NamedDefinitionParser("id");
 
     @SneakyThrows
     @Test
-    void parse() {
-        Field idField = LongIdEntity.class.getDeclaredField("id");
-        IdDefinition idDefinition = NAMED_PARSER.parse(Arrays.asList(LongIdEntity.class), idField);
-        Assertions.assertNotEquals(IdDefinition.NOT_FOUND, idDefinition);
-        Assertions.assertEquals(IdGeneratorProvider.SHARE, idDefinition.getGeneratorName());
+    void parseShouldCreateSharedDefinitionWhenFieldNameMatches() {
+        Field idField = Entity.class.getDeclaredField("id");
+
+        IdDefinition idDefinition = NAMED_PARSER.parse(List.of(Entity.class), idField);
+
+        assertThat(idDefinition, not(sameInstance(IdDefinition.NOT_FOUND)));
+        assertThat(idDefinition.getGeneratorName(), equalTo(IdGeneratorProvider.SHARE));
+        assertThat(idDefinition.getIdField(), equalTo(idField));
+        assertThat(idDefinition.getIdType(), equalTo(Long.class));
+    }
+
+    @SneakyThrows
+    @Test
+    void parseShouldReturnNotFoundWhenFieldNameDoesNotMatch() {
+        Field nameField = Entity.class.getDeclaredField("name");
+
+        IdDefinition idDefinition = NAMED_PARSER.parse(List.of(Entity.class), nameField);
+
+        assertThat(idDefinition, sameInstance(IdDefinition.NOT_FOUND));
+    }
+
+    private static class Entity {
+        @SuppressWarnings("unused")
+        private Long id;
+
+        @SuppressWarnings("unused")
+        private String name;
     }
 }

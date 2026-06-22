@@ -14,28 +14,109 @@
 package me.ahoo.cosid.annotation;
 
 import me.ahoo.cosid.accessor.IdDefinition;
-import me.ahoo.cosid.annotation.entity.LongIdEntity;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import lombok.SneakyThrows;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
-import java.util.Arrays;
+import java.util.List;
 
-/**
- * @author ahoo wang
- */
-public class CosIdAnnotationAccessorParserTest {
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
+class CosIdAnnotationAccessorParserTest {
 
     @SneakyThrows
     @Test
-    void parse() {
-        Field idField = LongIdEntity.class.getDeclaredField("id");
-        IdDefinition idDefinition = AnnotationDefinitionParser.INSTANCE.parse(Arrays.asList(LongIdEntity.class), idField);
+    void parseShouldUseFieldLevelAnnotation() {
+        Field idField = FieldAnnotatedEntity.class.getDeclaredField("id");
 
-        Assertions.assertNotEquals(IdDefinition.NOT_FOUND, idDefinition);
-        Assertions.assertEquals(IdGeneratorProvider.SHARE, idDefinition.getGeneratorName());
+        IdDefinition idDefinition = AnnotationDefinitionParser.INSTANCE.parse(List.of(FieldAnnotatedEntity.class), idField);
+
+        assertThat(idDefinition, not(sameInstance(IdDefinition.NOT_FOUND)));
+        assertThat(idDefinition.getGeneratorName(), equalTo("fieldGenerator"));
+        assertThat(idDefinition.getIdField(), equalTo(idField));
+        assertThat(idDefinition.getIdType(), equalTo(Long.class));
+    }
+
+    @SneakyThrows
+    @Test
+    void parseShouldUseTypeLevelAnnotationWhenFieldNameMatches() {
+        Field orderIdField = TypeAnnotatedEntity.class.getDeclaredField("orderId");
+
+        IdDefinition idDefinition = AnnotationDefinitionParser.INSTANCE.parse(List.of(TypeAnnotatedEntity.class), orderIdField);
+
+        assertThat(idDefinition, not(sameInstance(IdDefinition.NOT_FOUND)));
+        assertThat(idDefinition.getGeneratorName(), equalTo("typeGenerator"));
+        assertThat(idDefinition.getIdField(), equalTo(orderIdField));
+        assertThat(idDefinition.getIdType(), equalTo(String.class));
+    }
+
+    @SneakyThrows
+    @Test
+    void parseShouldReturnNotFoundWhenTypeLevelFieldNameDoesNotMatch() {
+        Field otherField = TypeAnnotatedEntity.class.getDeclaredField("other");
+
+        IdDefinition idDefinition = AnnotationDefinitionParser.INSTANCE.parse(List.of(TypeAnnotatedEntity.class), otherField);
+
+        assertThat(idDefinition, sameInstance(IdDefinition.NOT_FOUND));
+    }
+
+    @SneakyThrows
+    @Test
+    void parseShouldPreferFieldLevelAnnotationOverTypeLevelAnnotation() {
+        Field idField = TypeAndFieldAnnotatedEntity.class.getDeclaredField("id");
+
+        IdDefinition idDefinition = AnnotationDefinitionParser.INSTANCE.parse(List.of(TypeAndFieldAnnotatedEntity.class), idField);
+
+        assertThat(idDefinition.getGeneratorName(), equalTo("fieldGenerator"));
+    }
+
+    @SneakyThrows
+    @Test
+    void parseShouldUseSharedGeneratorForDefaultAnnotationValue() {
+        Field idField = DefaultAnnotatedEntity.class.getDeclaredField("id");
+
+        IdDefinition idDefinition = AnnotationDefinitionParser.INSTANCE.parse(List.of(DefaultAnnotatedEntity.class), idField);
+
+        assertThat(idDefinition.getGeneratorName(), equalTo(IdGeneratorProvider.SHARE));
+    }
+
+    @SneakyThrows
+    @Test
+    void parseShouldReturnNotFoundWhenNoAnnotationExists() {
+        Field idField = NotAnnotatedEntity.class.getDeclaredField("id");
+
+        IdDefinition idDefinition = AnnotationDefinitionParser.INSTANCE.parse(List.of(NotAnnotatedEntity.class), idField);
+
+        assertThat(idDefinition, sameInstance(IdDefinition.NOT_FOUND));
+    }
+
+    private static class FieldAnnotatedEntity {
+        @CosId("fieldGenerator")
+        private Long id;
+    }
+
+    @CosId(value = "typeGenerator", field = "orderId")
+    private static class TypeAnnotatedEntity {
+        private String orderId;
+
+        private String other;
+    }
+
+    @CosId(value = "typeGenerator", field = "id")
+    private static class TypeAndFieldAnnotatedEntity {
+        @CosId("fieldGenerator")
+        private Long id;
+    }
+
+    private static class DefaultAnnotatedEntity {
+        @CosId
+        private Long id;
+    }
+
+    private static class NotAnnotatedEntity {
+        private Long id;
     }
 }

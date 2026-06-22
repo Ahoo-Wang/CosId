@@ -14,37 +14,77 @@
 package me.ahoo.cosid.accessor.parser;
 
 import me.ahoo.cosid.accessor.IdDefinition;
-import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
-import me.ahoo.cosid.annotation.entity.IdNotFoundEntity;
-import me.ahoo.cosid.annotation.entity.LongIdEntity;
-import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import lombok.SneakyThrows;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.List;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.*;
+
 class CompositeFieldDefinitionParserTest {
-    
+
     @SneakyThrows
     @Test
-    void parse() {
-        var compositeFieldDefinitionParser = new CompositeFieldDefinitionParser(List.of(AnnotationDefinitionParser.INSTANCE));
-        Field idField = LongIdEntity.class.getDeclaredField("id");
-        IdDefinition idDefinition = compositeFieldDefinitionParser.parse(List.of(LongIdEntity.class), idField);
-        
-        Assertions.assertNotEquals(IdDefinition.NOT_FOUND, idDefinition);
-        Assertions.assertEquals(IdGeneratorProvider.SHARE, idDefinition.getGeneratorName());
+    void parseShouldReturnFirstConcreteDefinitionAndStop() {
+        Field idField = Entity.class.getDeclaredField("id");
+        IdDefinition expected = new IdDefinition("first", idField);
+        List<String> calls = new ArrayList<>();
+        FieldDefinitionParser miss = (lookupClassList, field) -> {
+            calls.add("miss");
+            return IdDefinition.NOT_FOUND;
+        };
+        FieldDefinitionParser hit = (lookupClassList, field) -> {
+            calls.add("hit");
+            return expected;
+        };
+        FieldDefinitionParser unreachable = (lookupClassList, field) -> {
+            calls.add("unreachable");
+            return new IdDefinition("unreachable", field);
+        };
+        CompositeFieldDefinitionParser parser = new CompositeFieldDefinitionParser(List.of(miss, hit, unreachable));
+
+        IdDefinition actual = parser.parse(List.of(Entity.class), idField);
+
+        assertThat(actual, sameInstance(expected));
+        assertThat(calls, contains("miss", "hit"));
     }
-    
+
     @SneakyThrows
     @Test
-    void parseIfNotFound() {
-        var compositeFieldDefinitionParser = new CompositeFieldDefinitionParser(List.of(AnnotationDefinitionParser.INSTANCE));
-        Field nameField = IdNotFoundEntity.class.getDeclaredField("name");
-        IdDefinition idDefinition = compositeFieldDefinitionParser.parse(List.of(IdNotFoundEntity.class), nameField);
-        Assertions.assertEquals(IdDefinition.NOT_FOUND, idDefinition);
+    void parseShouldSkipNullAndNotFoundDefinitions() {
+        Field idField = Entity.class.getDeclaredField("id");
+        IdDefinition expected = new IdDefinition("fallback", idField);
+        CompositeFieldDefinitionParser parser = new CompositeFieldDefinitionParser(List.of(
+            (lookupClassList, field) -> null,
+            (lookupClassList, field) -> IdDefinition.NOT_FOUND,
+            (lookupClassList, field) -> expected
+        ));
+
+        IdDefinition actual = parser.parse(List.of(Entity.class), idField);
+
+        assertThat(actual, sameInstance(expected));
+    }
+
+    @SneakyThrows
+    @Test
+    void parseShouldReturnNotFoundWhenEveryParserMisses() {
+        Field idField = Entity.class.getDeclaredField("id");
+        CompositeFieldDefinitionParser parser = new CompositeFieldDefinitionParser(List.of(
+            (lookupClassList, field) -> null,
+            (lookupClassList, field) -> IdDefinition.NOT_FOUND
+        ));
+
+        IdDefinition actual = parser.parse(List.of(Entity.class), idField);
+
+        assertThat(actual, sameInstance(IdDefinition.NOT_FOUND));
+    }
+
+    private static class Entity {
+        @SuppressWarnings("unused")
+        private Long id;
     }
 }

@@ -23,29 +23,52 @@ import static me.ahoo.cosid.converter.GroupedPrefixIdConverter.DEFAULT_DELIMITER
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.sameInstance;
 
 class DatePrefixIdConverterTest {
-    private final DatePrefixIdConverter idConverter = new DatePrefixIdConverter("yyMMdd", DEFAULT_DELIMITER, ToStringIdConverter.INSTANCE);
+    private static final LocalDateTime FIXED_NOW = LocalDateTime.of(2024, 6, 18, 9, 30);
+    private final DatePrefixIdConverter idConverter = new FixedDatePrefixIdConverter("yyMMdd", DEFAULT_DELIMITER, ToStringIdConverter.INSTANCE);
 
     @Test
-    void asString() {
+    void asStringShouldPrefixFormattedDate() {
         String idString = idConverter.asString(1);
-        String expected = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyMMdd")) + DEFAULT_DELIMITER + "1";
+        String expected = FIXED_NOW.format(DateTimeFormatter.ofPattern("yyMMdd")) + DEFAULT_DELIMITER + "1";
+
         assertThat(idString, equalTo(expected));
     }
 
     @Test
-    void asLong() {
+    void asLongShouldRemoveDatePrefixAndDelegateSuffix() {
         assertThat(idConverter.asLong("240618-1"), equalTo(1L));
     }
 
     @Test
-    void getActual() {
-        assertThat(idConverter.getActual(), equalTo(ToStringIdConverter.INSTANCE));
+    void asLongShouldRejectStringShorterThanPrefix() {
+        org.junit.jupiter.api.Assertions.assertThrows(StringIndexOutOfBoundsException.class, () -> idConverter.asLong("240"));
     }
 
     @Test
-    void stat() {
-        assertThat(idConverter.stat(), instanceOf(DatePrefixConverterStat.class));
+    void getActualShouldExposeWrappedConverter() {
+        assertThat(idConverter.getActual(), sameInstance(ToStringIdConverter.INSTANCE));
+    }
+
+    @Test
+    void statShouldExposePatternAndActualConverter() {
+        DatePrefixConverterStat stat = (DatePrefixConverterStat) idConverter.stat();
+
+        assertThat(stat, instanceOf(DatePrefixConverterStat.class));
+        assertThat(stat.getPattern(), equalTo("yyMMdd"));
+        assertThat(stat.getActual(), equalTo(ToStringIdConverter.INSTANCE.stat()));
+    }
+
+    private static final class FixedDatePrefixIdConverter extends DatePrefixIdConverter {
+        private FixedDatePrefixIdConverter(String pattern, String delimiter, me.ahoo.cosid.IdConverter actual) {
+            super(pattern, delimiter, actual);
+        }
+
+        @Override
+        LocalDateTime now() {
+            return FIXED_NOW;
+        }
     }
 }

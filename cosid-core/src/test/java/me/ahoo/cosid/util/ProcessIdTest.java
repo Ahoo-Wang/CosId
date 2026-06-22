@@ -24,7 +24,7 @@ class ProcessIdTest {
     @Test
     void getCurrentProcessName() {
         String currentProcessName = ProcessId.getCurrentProcessName();
-        Assertions.assertNotNull(currentProcessName);
+        Assertions.assertEquals(ProcessId.getCurrentProcessId(), Integer.parseInt(currentProcessName.split("@")[0]));
     }
 
     @Test

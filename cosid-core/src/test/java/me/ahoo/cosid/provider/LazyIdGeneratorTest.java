@@ -17,8 +17,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.isA;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.jupiter.api.Assertions.*;
 
+import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentId;
@@ -28,6 +29,7 @@ import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.test.MockIdGenerator;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -47,49 +49,85 @@ class LazyIdGeneratorTest {
     @Test
     void tryGet() {
         String generatorName = "tryGet";
-        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName);
+        DefaultIdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
+        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName, idGeneratorProvider);
         assertThat(lazyIdGenerator.tryGet(false), nullValue());
-        DefaultIdGeneratorProvider.INSTANCE.set(generatorName, MockIdGenerator.INSTANCE);
+        idGeneratorProvider.set(generatorName, MockIdGenerator.INSTANCE);
         assertThat(lazyIdGenerator.tryGet(false), equalTo(MockIdGenerator.INSTANCE));
     }
     
     @Test
     void asSnowflakeId() {
         String generatorName = "asSnowflakeId";
-        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName);
-        DefaultIdGeneratorProvider.INSTANCE.set(generatorName, new MillisecondSnowflakeId(1));
-        assertThat(lazyIdGenerator.asSnowflakeId(false), isA(SnowflakeId.class));
+        DefaultIdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
+        SnowflakeId snowflakeId = new MillisecondSnowflakeId(1);
+        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName, idGeneratorProvider);
+        idGeneratorProvider.set(generatorName, snowflakeId);
+        assertThat(lazyIdGenerator.asSnowflakeId(false), equalTo(snowflakeId));
     }
     
     @Test
     void asFriendlyId() {
         String generatorName = "asFriendlyId";
-        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName);
-        DefaultIdGeneratorProvider.INSTANCE.set(generatorName, new DefaultSnowflakeFriendlyId(new MillisecondSnowflakeId(1)));
-        assertThat(lazyIdGenerator.asSnowflakeId(false), isA(SnowflakeFriendlyId.class));
+        DefaultIdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
+        SnowflakeFriendlyId friendlyId = new DefaultSnowflakeFriendlyId(new MillisecondSnowflakeId(1));
+        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName, idGeneratorProvider);
+        idGeneratorProvider.set(generatorName, friendlyId);
+        assertThat(lazyIdGenerator.asFriendlyId(false), equalTo(friendlyId));
     }
     
     @Test
     void asSegmentId() {
         String generatorName = "asSegmentId";
-        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName);
-        DefaultIdGeneratorProvider.INSTANCE.set(generatorName, new DefaultSegmentId(new IdSegmentDistributor.Atomic()));
-        assertThat(lazyIdGenerator.asSegmentId(false), isA(SegmentId.class));
+        DefaultIdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
+        SegmentId segmentId = new DefaultSegmentId(new IdSegmentDistributor.Atomic());
+        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName, idGeneratorProvider);
+        idGeneratorProvider.set(generatorName, segmentId);
+        assertThat(lazyIdGenerator.asSegmentId(false), equalTo(segmentId));
     }
     
     @Test
     void getActual() {
         String generatorName = "getActual";
-        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName);
-        DefaultIdGeneratorProvider.INSTANCE.set(generatorName, MockIdGenerator.INSTANCE);
+        DefaultIdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
+        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName, idGeneratorProvider);
+        idGeneratorProvider.set(generatorName, MockIdGenerator.INSTANCE);
         assertThat(lazyIdGenerator.getActual(), equalTo(MockIdGenerator.INSTANCE));
     }
     
     @Test
     void idConverter() {
         String generatorName = "idConverter";
-        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName);
-        DefaultIdGeneratorProvider.INSTANCE.set(generatorName, MockIdGenerator.INSTANCE);
+        DefaultIdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
+        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName, idGeneratorProvider);
+        idGeneratorProvider.set(generatorName, MockIdGenerator.INSTANCE);
         assertThat(lazyIdGenerator.idConverter(), equalTo(MockIdGenerator.INSTANCE.idConverter()));
+    }
+
+    @Test
+    void tryGetShouldThrowWhenRequiredGeneratorMissing() {
+        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator("missing", new DefaultIdGeneratorProvider());
+
+        NotFoundIdGeneratorException exception = Assertions.assertThrows(NotFoundIdGeneratorException.class, () -> {
+            lazyIdGenerator.tryGet(true);
+        });
+
+        assertThat(exception.getGeneratorName(), equalTo("missing"));
+        assertThat(exception.getMessage(), equalTo("IdGenerator name:[missing] not found."));
+    }
+
+    @Test
+    void typedAccessorShouldRejectMismatchedGenerator() {
+        String generatorName = "typedAccessorShouldRejectMismatchedGenerator";
+        DefaultIdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
+        IdGenerator generator = MockIdGenerator.INSTANCE;
+        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName, idGeneratorProvider);
+        idGeneratorProvider.set(generatorName, generator);
+
+        CosIdException exception = Assertions.assertThrows(CosIdException.class, () -> {
+            lazyIdGenerator.asSegmentId(true);
+        });
+
+        assertThat(exception.getMessage(), equalTo("IdGenerator:[typedAccessorShouldRejectMismatchedGenerator] is not instanceof SegmentId!"));
     }
 }

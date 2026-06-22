@@ -49,8 +49,8 @@ class IntegerIdGeneratorTest {
     
     @Test
     void generateAsString() {
-        IntegerIdGenerator idGen = new IntegerIdGenerator(AtomicLongGenerator.INSTANCE);
+        IntegerIdGenerator idGen = new IntegerIdGenerator(new AtomicLongGenerator());
         String idStr = idGen.generateAsString();
-        Assertions.assertNotNull(idStr);
+        Assertions.assertEquals("00000000001", idStr);
     }
 }

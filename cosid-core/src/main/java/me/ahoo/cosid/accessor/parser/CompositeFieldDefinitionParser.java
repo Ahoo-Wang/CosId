@@ -42,7 +42,7 @@ public class CompositeFieldDefinitionParser implements FieldDefinitionParser {
     public IdDefinition parse(List<Class<?>> lookupClassList, Field field) {
         for (FieldDefinitionParser fieldDefinitionParser : fieldDefinitionParsers) {
             IdDefinition idDefinition = fieldDefinitionParser.parse(lookupClassList, field);
-            if (idDefinition != IdDefinition.NOT_FOUND) {
+            if (idDefinition != null && idDefinition != IdDefinition.NOT_FOUND) {
                 return idDefinition;
             }
         }

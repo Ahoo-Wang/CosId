@@ -13,14 +13,14 @@
 
 package me.ahoo.cosid.util;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -28,50 +28,41 @@ import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.stream.Stream;
 
-
-/**
- * @author ahoo wang
- */
 class LocalDateTimeConvertTest {
-    private static final ZoneId ZONE_ID_SHANGHAI = ZoneId.of("Asia/Shanghai");
-    private static final ZoneOffset ZONE_OFFSET_SHANGHAI = ZoneOffset.of("+8");
-    private static final LocalDateTime EXPECTED_DATE_TIME = LocalDateTime.of(2021, 12, 14, 22, 0);
-    private static final long TEST_TIMESTAMP = EXPECTED_DATE_TIME.toInstant(ZONE_OFFSET_SHANGHAI).toEpochMilli();
-    private static final long TEST_TIMESTAMP_SECOND = EXPECTED_DATE_TIME.toInstant(ZONE_OFFSET_SHANGHAI).getEpochSecond();
+    private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
+    private static final ZoneOffset ZONE_OFFSET = ZoneOffset.ofHours(8);
+    private static final LocalDateTime EXPECTED = LocalDateTime.of(2021, 12, 14, 22, 0);
+    private static final Instant INSTANT = EXPECTED.toInstant(ZONE_OFFSET);
+    private static final long EPOCH_MILLIS = INSTANT.toEpochMilli();
+    private static final long EPOCH_SECONDS = INSTANT.getEpochSecond();
 
-    @Test
-    void fromDate() {
-        Date date = new Date(TEST_TIMESTAMP);
-        LocalDateTime actual = LocalDateTimeConvert.fromDate(date, ZONE_ID_SHANGHAI);
-        Assertions.assertEquals(EXPECTED_DATE_TIME, actual);
-    }
-
-    @Test
-    void fromTimestamp() {
-        LocalDateTime actual = LocalDateTimeConvert.fromTimestamp(TEST_TIMESTAMP, ZONE_ID_SHANGHAI);
-        Assertions.assertEquals(EXPECTED_DATE_TIME, actual);
-    }
-
-    @Test
-    void fromTimestampSecond() {
-        LocalDateTime actual = LocalDateTimeConvert.fromTimestampSecond(TEST_TIMESTAMP_SECOND, ZONE_ID_SHANGHAI);
-        Assertions.assertEquals(EXPECTED_DATE_TIME, actual);
-    }
-
-    static Stream<Arguments> fromStringArgsProvider() {
+    static Stream<Arguments> instantLikeValues() {
         return Stream.of(
-            arguments("yyyy-MM-dd HH:mm:ss", "2021-12-14 22:00:00", LocalDateTime.of(2021, 12, 14, 22, 0)),
-            arguments("yyyy-MM-dd HH:mm", "2021-12-14 22:00", LocalDateTime.of(2021, 12, 14, 22, 0)),
-            arguments("yyyy-MM-dd HH", "2021-12-14 22", LocalDateTime.of(2021, 12, 14, 22, 0)),
+            arguments(Date.from(INSTANT), LocalDateTimeConvert.fromDate(Date.from(INSTANT), ZONE_ID)),
+            arguments(EPOCH_MILLIS, LocalDateTimeConvert.fromTimestamp(EPOCH_MILLIS, ZONE_ID)),
+            arguments(EPOCH_SECONDS, LocalDateTimeConvert.fromTimestampSecond(EPOCH_SECONDS, ZONE_ID)),
+            arguments(INSTANT, LocalDateTimeConvert.fromInstant(INSTANT, ZONE_ID))
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("instantLikeValues")
+    void instantBasedConversionsShouldUseGivenZone(Object ignored, LocalDateTime actual) {
+        assertEquals(EXPECTED, actual);
+    }
+
+    static Stream<Arguments> stringValues() {
+        return Stream.of(
+            arguments("yyyy-MM-dd HH:mm:ss", "2021-12-14 22:00:00", EXPECTED),
+            arguments("yyyy-MM-dd HH:mm", "2021-12-14 22:00", EXPECTED),
+            arguments("yyyy-MM-dd HH", "2021-12-14 22", EXPECTED),
             arguments("yyyy-MM-dd", "2021-12-14", LocalDateTime.of(2021, 12, 14, 0, 0))
         );
     }
 
     @ParameterizedTest
-    @MethodSource("fromStringArgsProvider")
-    public void fromString(String dateTimePattern, String dateTime, LocalDateTime expected) {
-        DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern(dateTimePattern);
-        LocalDateTime actual = LocalDateTimeConvert.fromString(dateTime, dateTimeFormatter);
-        Assertions.assertEquals(expected, actual);
+    @MethodSource("stringValues")
+    void fromStringShouldParseLocalDateTimeOrPromoteLocalDateToStartOfDay(String pattern, String value, LocalDateTime expected) {
+        assertEquals(expected, LocalDateTimeConvert.fromString(value, DateTimeFormatter.ofPattern(pattern)));
     }
 }

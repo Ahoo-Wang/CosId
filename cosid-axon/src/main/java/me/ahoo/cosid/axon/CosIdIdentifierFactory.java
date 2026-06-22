@@ -25,16 +25,14 @@ import org.axonframework.common.IdentifierFactory;
  */
 public class CosIdIdentifierFactory extends IdentifierFactory {
     public static final String ID_KEY = "cosid.axon";
-    private static final String ID_NAME;
-    private static final LazyIdGenerator ID_GENERATOR;
-    
-    static {
-        ID_NAME = System.getProperty(ID_KEY, IdGeneratorProvider.SHARE);
-        ID_GENERATOR = new LazyIdGenerator(ID_NAME);
+    private final LazyIdGenerator idGenerator;
+
+    public CosIdIdentifierFactory() {
+        idGenerator = new LazyIdGenerator(System.getProperty(ID_KEY, IdGeneratorProvider.SHARE));
     }
     
     @Override
     public String generateIdentifier() {
-        return ID_GENERATOR.generateAsString();
+        return idGenerator.generateAsString();
     }
 }

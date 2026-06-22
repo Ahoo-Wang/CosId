@@ -15,21 +15,53 @@ package me.ahoo.cosid.test.container;
 
 
 import org.testcontainers.containers.MongoDBContainer;
-import org.testcontainers.shaded.com.google.common.base.Strings;
 import org.testcontainers.utility.DockerImageName;
 
+import java.util.Optional;
+
 public class MongoLauncher {
-    private static final String CONNECTION_OPTIONS = "/?connectTimeoutMS=300000&maxIdleTimeMS=300000";
-    private static final String DEV_CONNECTION_STRING = "mongodb://root:root@localhost" + CONNECTION_OPTIONS;
-    private static final MongoDBContainer MONGO_CONTAINER = new MongoDBContainer(DockerImageName.parse("mongo:6.0.12"))
-        .withNetworkAliases("mongo")
-        .withReuse(true);
-    
+    public static final String CONNECTION_STRING_PROPERTY = "cosid.test.mongodb.uri";
+    public static final String CONNECTION_STRING_ENV = "COSID_TEST_MONGODB_URI";
+    private static final String CONNECTION_OPTIONS = "connectTimeoutMS=300000&maxIdleTimeMS=300000";
+    private static final MongoDBContainer MONGO_CONTAINER = new MongoDBContainer(DockerImageName.parse("mongo:6.0.12"));
+
+    private MongoLauncher() {
+    }
+
     public static String getConnectionString() {
-        if (Strings.isNullOrEmpty(System.getenv("CI"))) {
-            return DEV_CONNECTION_STRING;
+        Optional<String> explicitConnectionString = resolveExplicitConnectionString(
+            System.getProperty(CONNECTION_STRING_PROPERTY),
+            System.getenv(CONNECTION_STRING_ENV)
+        );
+        if (explicitConnectionString.isPresent()) {
+            return explicitConnectionString.get();
         }
+
         MONGO_CONTAINER.start();
-        return MONGO_CONTAINER.getConnectionString() + CONNECTION_OPTIONS;
+        return appendConnectionOptions(MONGO_CONTAINER.getConnectionString());
+    }
+
+    static Optional<String> resolveExplicitConnectionString(String propertyValue, String environmentValue) {
+        Optional<String> propertyConnectionString = trimToOptional(propertyValue);
+        if (propertyConnectionString.isPresent()) {
+            return propertyConnectionString;
+        }
+        return trimToOptional(environmentValue);
+    }
+
+    private static Optional<String> trimToOptional(String value) {
+        if (value == null) {
+            return Optional.empty();
+        }
+        String trimmedValue = value.trim();
+        if (trimmedValue.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(trimmedValue);
+    }
+
+    private static String appendConnectionOptions(String connectionString) {
+        String delimiter = connectionString.contains("?") ? "&" : "?";
+        return connectionString + delimiter + CONNECTION_OPTIONS;
     }
 }

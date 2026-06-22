@@ -27,6 +27,7 @@ import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.NotFoundIdGeneratorException;
 
 import com.google.common.base.Strings;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -36,10 +37,15 @@ import org.junit.jupiter.api.Test;
 class DefaultAccessorRegistryTest {
     
     CosIdAccessorRegistry accessorRegistry = new DefaultAccessorRegistry(new DefaultAccessorParser(AnnotationDefinitionParser.INSTANCE));
+
+    @AfterEach
+    void clearProvider() {
+        DefaultIdGeneratorProvider.INSTANCE.clear();
+    }
     
     @Test
     void ensureIdExistsByAnnotation() {
-        DefaultIdGeneratorProvider.INSTANCE.setShare(AtomicLongGenerator.INSTANCE);
+        DefaultIdGeneratorProvider.INSTANCE.setShare(new AtomicLongGenerator());
         LongIdEntity entity = new LongIdEntity();
         entity.setId(888L);
         accessorRegistry.ensureId(entity);
@@ -56,17 +62,18 @@ class DefaultAccessorRegistryTest {
     
     @Test
     void ensureStringId() {
-        DefaultIdGeneratorProvider.INSTANCE.setShare(AtomicLongGenerator.INSTANCE);
+        DefaultIdGeneratorProvider.INSTANCE.setShare(new AtomicLongGenerator());
         StringIdEntity entity = new StringIdEntity();
         accessorRegistry.ensureId(entity);
         Assertions.assertFalse(Strings.isNullOrEmpty(entity.getId()));
+        assertThat(entity.getId(), equalTo("00000000001"));
     }
     
     @Test
     void ensureIntId() {
-        DefaultIdGeneratorProvider.INSTANCE.setShare(AtomicLongGenerator.INSTANCE);
+        DefaultIdGeneratorProvider.INSTANCE.setShare(new AtomicLongGenerator());
         IntIdEntity entity = new IntIdEntity();
         accessorRegistry.ensureId(entity);
-        assertThat(entity.getId(), not(0));
+        assertThat(entity.getId(), equalTo(1));
     }
 }

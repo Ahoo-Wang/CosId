@@ -43,35 +43,12 @@ class DefaultCosIdScannerTest {
             new DefaultCosIdScanner(new String[] {"me.ahoo.cosid.accessor.annotation.entity"}, AnnotationDefinitionParser.INSTANCE, registry);
         scanner.scan();
         
-        CosIdAccessor cosIdAccessor = registry.get(LongIdEntity.class);
-        Assertions.assertNotNull(cosIdAccessor);
-        Assertions.assertNotEquals(CosIdAccessor.NOT_FOUND, cosIdAccessor);
-        Assertions.assertEquals(LongIdEntity.class, cosIdAccessor.getIdDeclaringClass());
-        
-        cosIdAccessor = registry.get(MissingIdGenEntity.class);
-        Assertions.assertNotNull(cosIdAccessor);
-        Assertions.assertNotEquals(CosIdAccessor.NOT_FOUND, cosIdAccessor);
-        Assertions.assertEquals(MissingIdGenEntity.class, cosIdAccessor.getIdDeclaringClass());
-        
-        cosIdAccessor = registry.get(PrimitiveLongIdEntity.class);
-        Assertions.assertNotNull(cosIdAccessor);
-        Assertions.assertNotEquals(CosIdAccessor.NOT_FOUND, cosIdAccessor);
-        Assertions.assertEquals(PrimitiveLongIdEntity.class, cosIdAccessor.getIdDeclaringClass());
-        
-        cosIdAccessor = registry.get(IntIdEntity.class);
-        Assertions.assertNotNull(cosIdAccessor);
-        Assertions.assertNotEquals(CosIdAccessor.NOT_FOUND, cosIdAccessor);
-        Assertions.assertEquals(IntIdEntity.class, cosIdAccessor.getIdDeclaringClass());
-        
-        cosIdAccessor = registry.get(StringIdEntity.class);
-        Assertions.assertNotNull(cosIdAccessor);
-        Assertions.assertNotEquals(CosIdAccessor.NOT_FOUND, cosIdAccessor);
-        Assertions.assertEquals(StringIdEntity.class, cosIdAccessor.getIdDeclaringClass());
-        
-        cosIdAccessor = registry.get(ChildEntity.class);
-        Assertions.assertNotNull(cosIdAccessor);
-        Assertions.assertNotEquals(CosIdAccessor.NOT_FOUND, cosIdAccessor);
-        Assertions.assertEquals(LongIdEntity.class, cosIdAccessor.getIdDeclaringClass());
+        assertAccessor(registry, LongIdEntity.class, LongIdEntity.class);
+        assertAccessor(registry, MissingIdGenEntity.class, MissingIdGenEntity.class);
+        assertAccessor(registry, PrimitiveLongIdEntity.class, PrimitiveLongIdEntity.class);
+        assertAccessor(registry, IntIdEntity.class, IntIdEntity.class);
+        assertAccessor(registry, StringIdEntity.class, StringIdEntity.class);
+        assertAccessor(registry, ChildEntity.class, LongIdEntity.class);
     }
     
     @Test
@@ -81,16 +58,13 @@ class DefaultCosIdScannerTest {
             new DefaultCosIdScanner(new String[] {"me.ahoo.cosid.accessor.scanner.entity"}, new NamedDefinitionParser("id"), registry);
         scanner.scan();
         
-        CosIdAccessor cosIdAccessor = registry.get(OrderEntity.class);
-        Assertions.assertNotNull(cosIdAccessor);
-        Assertions.assertNotEquals(CosIdAccessor.NOT_FOUND, cosIdAccessor);
-        Assertions.assertEquals(OrderEntity.class, cosIdAccessor.getIdDeclaringClass());
-        
-        cosIdAccessor = registry.get(OrderItemEntity.class);
-        Assertions.assertNotNull(cosIdAccessor);
-        Assertions.assertNotEquals(CosIdAccessor.NOT_FOUND, cosIdAccessor);
-        Assertions.assertEquals(OrderItemEntity.class, cosIdAccessor.getIdDeclaringClass());
-        
+        assertAccessor(registry, OrderEntity.class, OrderEntity.class);
+        assertAccessor(registry, OrderItemEntity.class, OrderItemEntity.class);
     }
-    
+
+    private static void assertAccessor(CosIdAccessorRegistry registry, Class<?> lookupClass, Class<?> idDeclaringClass) {
+        CosIdAccessor cosIdAccessor = registry.get(lookupClass);
+        Assertions.assertNotEquals(CosIdAccessor.NOT_FOUND, cosIdAccessor);
+        Assertions.assertEquals(idDeclaringClass, cosIdAccessor.getIdDeclaringClass());
+    }
 }

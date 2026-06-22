@@ -14,7 +14,6 @@
 package me.ahoo.cosid.spring.boot.starter.activiti;
 
 import me.ahoo.cosid.activiti.ActivitiIdGenerator;
-import me.ahoo.cosid.flowable.FlowableIdGenerator;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
 import org.activiti.spring.SpringProcessEngineConfiguration;
@@ -30,7 +29,11 @@ import org.springframework.context.annotation.Bean;
  */
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
-@ConditionalOnClass(FlowableIdGenerator.class)
+@ConditionalOnClass({
+    ActivitiIdGenerator.class,
+    SpringProcessEngineConfiguration.class,
+    ProcessEngineConfigurationConfigurer.class
+})
 public class ActivitiIdGeneratorAutoConfiguration {
     
     @Bean

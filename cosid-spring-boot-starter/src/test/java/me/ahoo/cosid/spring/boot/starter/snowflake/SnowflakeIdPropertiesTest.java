@@ -1,206 +1,79 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
 import java.time.ZoneId;
-import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * SnowflakeIdPropertiesTest .
- *
- * @author ahoo wang
- */
 class SnowflakeIdPropertiesTest {
-    
+
     @Test
-    void isEnabled() {
+    void defaultsKeepSnowflakeOptInWithEnabledShareDefinition() {
         SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        Assertions.assertFalse(properties.isEnabled());
+
+        assertThat(properties.isEnabled()).isFalse();
+        assertThat(properties.getZoneId()).isEqualTo(ZoneId.systemDefault().getId());
+        assertThat(properties.getEpoch()).isEqualTo(CosId.COSID_EPOCH);
+        assertThat(properties.getProvider()).isEmpty();
+        assertThat(properties.getShare().isEnabled()).isTrue();
+        assertThat(properties.getShare().isClockSync()).isTrue();
+        assertThat(properties.getShare().getTimestampUnit())
+            .isEqualTo(SnowflakeIdProperties.IdDefinition.TimestampUnit.MILLISECOND);
+        assertThat(properties.getShare().getTimestampBit()).isEqualTo(MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT);
+        assertThat(properties.getShare().getSequenceBit()).isEqualTo(MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT);
+        assertThat(properties.getShare().getSequenceResetThreshold())
+            .isEqualTo(MillisecondSnowflakeId.DEFAULT_SEQUENCE_RESET_THRESHOLD);
+        assertThat(properties.getShare().getConverter().getType()).isEqualTo(IdConverterDefinition.Type.RADIX);
     }
-    
+
     @Test
-    void setEnabled() {
-        SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        properties.setEnabled(true);
-        Assertions.assertTrue(properties.isEnabled());
+    void binderMapsShareAndNamedProviderDefinitions() {
+        SnowflakeIdProperties properties = bind(Map.ofEntries(
+            Map.entry("cosid.snowflake.enabled", "true"),
+            Map.entry("cosid.snowflake.zone-id", "UTC"),
+            Map.entry("cosid.snowflake.epoch", "123456789"),
+            Map.entry("cosid.snowflake.share.enabled", "false"),
+            Map.entry("cosid.snowflake.provider.order.namespace", "orders"),
+            Map.entry("cosid.snowflake.provider.order.clock-sync", "false"),
+            Map.entry("cosid.snowflake.provider.order.timestamp-unit", "second"),
+            Map.entry("cosid.snowflake.provider.order.epoch", "1000"),
+            Map.entry("cosid.snowflake.provider.order.machine-bit", "9"),
+            Map.entry("cosid.snowflake.provider.order.timestamp-bit", "31"),
+            Map.entry("cosid.snowflake.provider.order.sequence-bit", "11"),
+            Map.entry("cosid.snowflake.provider.order.sequence-reset-threshold", "512"),
+            Map.entry("cosid.snowflake.provider.order.converter.type", "to_string"),
+            Map.entry("cosid.snowflake.provider.order.converter.to-string.pad-start", "true")
+        ));
+
+        assertThat(properties.isEnabled()).isTrue();
+        assertThat(properties.getZoneId()).isEqualTo("UTC");
+        assertThat(properties.getEpoch()).isEqualTo(123456789);
+        assertThat(properties.getShare().isEnabled()).isFalse();
+
+        SnowflakeIdProperties.IdDefinition order = properties.getProvider().get("order");
+        assertThat(order.getNamespace()).isEqualTo("orders");
+        assertThat(order.isClockSync()).isFalse();
+        assertThat(order.getTimestampUnit()).isEqualTo(SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND);
+        assertThat(order.getEpoch()).isEqualTo(1000);
+        assertThat(order.getMachineBit()).isEqualTo(9);
+        assertThat(order.getTimestampBit()).isEqualTo(31);
+        assertThat(order.getSequenceBit()).isEqualTo(11);
+        assertThat(order.getSequenceResetThreshold()).isEqualTo(512);
+        assertThat(order.getConverter().getType()).isEqualTo(IdConverterDefinition.Type.TO_STRING);
+        assertThat(order.getConverter().getToString().isPadStart()).isTrue();
     }
-    
-    @Test
-    void getZoneId() {
-        SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        Assertions.assertEquals(ZoneId.systemDefault().getId(), properties.getZoneId());
-    }
-    
-    @Test
-    void setZoneId() {
-        String[] zoneIds = ZoneId.getAvailableZoneIds().toArray(new String[0]);
-        int randomIdx = ThreadLocalRandom.current().nextInt(0, zoneIds.length);
-        String zoneId = zoneIds[randomIdx];
-        SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        properties.setZoneId(zoneId);
-        Assertions.assertEquals(zoneId, properties.getZoneId());
-    }
-    
-    @Test
-    void getEpoch() {
-        SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        Assertions.assertEquals(CosId.COSID_EPOCH, properties.getEpoch());
-    }
-    
-    @Test
-    void setEpoch() {
-        long epoch = System.currentTimeMillis();
-        SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        properties.setEpoch(epoch);
-        Assertions.assertEquals(epoch, properties.getEpoch());
-    }
-    
-    @Test
-    void getShare() {
-        SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        Assertions.assertNotNull(properties.getShare());
-    }
-    
-    @Test
-    void setShare() {
-        SnowflakeIdProperties.ShardIdDefinition idDefinition = new SnowflakeIdProperties.ShardIdDefinition();
-        SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        properties.setShare(idDefinition);
-        Assertions.assertEquals(idDefinition, properties.getShare());
-    }
-    
-    @Test
-    void getProvider() {
-        SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        Assertions.assertNotNull(properties.getProvider());
-    }
-    
-    @Test
-    void setProvider() {
-        Map<String, SnowflakeIdProperties.IdDefinition> provider = new HashMap<>();
-        SnowflakeIdProperties properties = new SnowflakeIdProperties();
-        properties.setProvider(provider);
-        Assertions.assertEquals(provider, properties.getProvider());
-    }
-    
-    static class IdDefinitionTest {
-        @Test
-        public void getNamespace() {
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            Assertions.assertNull(idDefinition.getNamespace());
-        }
-        
-        @Test
-        public void setNamespace() {
-            String namespace = "snowflake-namespace";
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            idDefinition.setNamespace(namespace);
-            Assertions.assertEquals(namespace, idDefinition.getNamespace());
-        }
-        
-        @Test
-        public void isClockSync() {
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            Assertions.assertTrue(idDefinition.isClockSync());
-        }
-        
-        @Test
-        public void setClockSync() {
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            idDefinition.setClockSync(false);
-            Assertions.assertFalse(idDefinition.isClockSync());
-        }
-        
-        @Test
-        public void getTimestampUnit() {
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            Assertions.assertEquals(SnowflakeIdProperties.IdDefinition.TimestampUnit.MILLISECOND, idDefinition.getTimestampUnit());
-        }
-        
-        @Test
-        public void setTimestampUnit() {
-            SnowflakeIdProperties.IdDefinition.TimestampUnit timestampUnit = SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND;
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            idDefinition.setTimestampUnit(timestampUnit);
-            Assertions.assertEquals(timestampUnit, idDefinition.getTimestampUnit());
-        }
-        
-        @Test
-        public void getEpoch() {
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            Assertions.assertEquals(0, idDefinition.getEpoch());
-        }
-        
-        @Test
-        public void setEpoch() {
-            long epoch = System.currentTimeMillis();
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            idDefinition.setEpoch(epoch);
-            Assertions.assertEquals(epoch, idDefinition.getEpoch());
-        }
-        
-        
-        @Test
-        public void getMachineBit() {
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            Assertions.assertNull(idDefinition.getMachineBit());
-        }
-        
-        @Test
-        public void setMachineBit() {
-            int machineBit = 6;
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            idDefinition.setMachineBit(machineBit);
-            Assertions.assertEquals(machineBit, idDefinition.getMachineBit());
-        }
-        
-        @Test
-        public void getTimestampBit() {
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            Assertions.assertEquals(MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT, idDefinition.getTimestampBit());
-        }
-        
-        @Test
-        public void setTimestampBit() {
-            int timestampBit = 45;
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            idDefinition.setTimestampBit(timestampBit);
-            Assertions.assertEquals(timestampBit, idDefinition.getTimestampBit());
-        }
-        
-        @Test
-        public void getSequenceBit() {
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            Assertions.assertEquals(MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT, idDefinition.getSequenceBit());
-        }
-        
-        @Test
-        public void setSequenceBit() {
-            int sequenceBit = 10;
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            idDefinition.setSequenceBit(sequenceBit);
-            Assertions.assertEquals(sequenceBit, idDefinition.getSequenceBit());
-        }
-        
-        @Test
-        public void getConverter() {
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            Assertions.assertNotNull(idDefinition.getConverter());
-        }
-        
-        @Test
-        public void setConverter() {
-            IdConverterDefinition converter = new IdConverterDefinition();
-            SnowflakeIdProperties.IdDefinition idDefinition = new SnowflakeIdProperties.IdDefinition();
-            idDefinition.setConverter(converter);
-            Assertions.assertEquals(converter, idDefinition.getConverter());
-        }
+
+    private static SnowflakeIdProperties bind(Map<String, String> properties) {
+        return new Binder(new MapConfigurationPropertySource(properties))
+            .bind(SnowflakeIdProperties.PREFIX, SnowflakeIdProperties.class)
+            .get();
     }
 }

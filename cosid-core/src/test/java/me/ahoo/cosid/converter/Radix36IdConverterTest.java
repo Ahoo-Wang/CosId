@@ -34,7 +34,7 @@ class Radix36IdConverterTest {
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})
     void asString(long argId) {
         String idStr = Radix36IdConverter.INSTANCE.asString(argId);
-        Assertions.assertNotNull(idStr);
+        Assertions.assertEquals(Long.toString(argId, Radix36IdConverter.RADIX).toUpperCase(), idStr);
         Assertions.assertTrue(idStr.length() <= Radix36IdConverter.MAX_CHAR_SIZE);
     }
     
@@ -76,8 +76,8 @@ class Radix36IdConverterTest {
     @ValueSource(longs = {1, 5, 62, 63, 124, Integer.MAX_VALUE, Long.MAX_VALUE})
     void asStringPad(long argId) {
         String idStr = Radix36IdConverter.PAD_START.asString(argId);
-        Assertions.assertNotNull(idStr);
         Assertions.assertEquals(Radix36IdConverter.MAX_CHAR_SIZE, idStr.length());
+        Assertions.assertEquals(argId, Radix36IdConverter.PAD_START.asLong(idStr));
     }
     
     @ParameterizedTest
@@ -93,8 +93,8 @@ class Radix36IdConverterTest {
         IdGenerator idGenerator = new MillisecondSnowflakeId(1);
         long argId = idGenerator.generate();
         String idStr = Radix36IdConverter.PAD_START.asString(argId);
-        Assertions.assertNotNull(idStr);
         Assertions.assertEquals(Radix36IdConverter.MAX_CHAR_SIZE, idStr.length());
+        Assertions.assertEquals(argId, Radix36IdConverter.PAD_START.asLong(idStr));
     }
     
     @Test

@@ -13,24 +13,34 @@
 
 package me.ahoo.cosid.zookeeper;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
 import lombok.SneakyThrows;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.recipes.atomic.DistributedAtomicLong;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.test.TestingServer;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.TestInstance;
 
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author ahoo wang
  */
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ZookeeperIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     CuratorFramework curatorFramework;
     RetryPolicy retryPolicy;
@@ -38,25 +48,27 @@ class ZookeeperIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     TestingServer testingServer;
     
     @SneakyThrows
-    @BeforeEach
+    @BeforeAll
     void setup() {
         testingServer = new TestingServer();
-        testingServer.start();
         retryPolicy = new ExponentialBackoffRetry(1000, 3, 3000);
         curatorFramework = CuratorFrameworkFactory.newClient(testingServer.getConnectString(), retryPolicy);
         curatorFramework.start();
+        if (!curatorFramework.blockUntilConnected(10, TimeUnit.SECONDS)) {
+            throw new IllegalStateException("CuratorFramework did not connect to TestingServer: " + testingServer.getConnectString());
+        }
         
         distributorFactory = new ZookeeperIdSegmentDistributorFactory(curatorFramework, retryPolicy);
     }
     
     @SneakyThrows
-    @AfterEach
+    @AfterAll
     void destroy() {
         if (Objects.nonNull(curatorFramework)) {
             curatorFramework.close();
         }
         if (Objects.nonNull(testingServer)) {
-            testingServer.stop();
+            testingServer.close();
         }
     }
     
@@ -66,12 +78,23 @@ class ZookeeperIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     }
     
     @Override
+    @SneakyThrows
     protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
-    
+        String counterPath = "/" + CosId.COSID + "/" + distributor.getNamespacedName();
+        new DistributedAtomicLong(curatorFramework, counterPath, retryPolicy).forceSet(maxId);
     }
     
     @Override
     public void nextMaxIdWhenBack() {
-        //TODO
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxIdWhenBack", TEST_OFFSET, TEST_STEP);
+        IdSegmentDistributor distributor = factory().create(definition);
+        long firstMaxId = distributor.nextMaxId();
+        assertThat(firstMaxId, equalTo(TEST_OFFSET + TEST_STEP));
+
+        setMaxIdBack(distributor, TEST_OFFSET);
+        long nextMaxId = distributor.nextMaxId();
+
+        assertThat(nextMaxId, equalTo(TEST_OFFSET + TEST_STEP));
     }
 }

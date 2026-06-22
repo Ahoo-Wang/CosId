@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.spring.boot.starter.actuate;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
@@ -23,32 +23,47 @@ import me.ahoo.cosid.test.MockIdGenerator;
 import org.junit.jupiter.api.Test;
 
 class CosIdEndpointTest {
-    private final IdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
-    private final CosIdEndpoint cosIdEndpoint = new CosIdEndpoint(idGeneratorProvider);
-    
-    public CosIdEndpointTest() {
-        idGeneratorProvider.setShare(MockIdGenerator.INSTANCE);
-    }
-    
+
     @Test
-    void stat() {
-        var stat = cosIdEndpoint.stat();
-        assertThat(stat, notNullValue());
-        assertThat(stat.size(), equalTo(1));
+    void statReportsEveryRegisteredGeneratorByName() {
+        DefaultIdGeneratorProvider provider = newProviderWithShareAndOrders();
+        CosIdEndpoint endpoint = new CosIdEndpoint(provider);
+
+        assertThat(endpoint.stat())
+            .containsOnlyKeys(IdGeneratorProvider.SHARE, "orders")
+            .allSatisfy((name, stat) -> assertThat(stat).isNotNull());
     }
-    
+
     @Test
-    void getStat() {
-        var stat = cosIdEndpoint.getStat(IdGeneratorProvider.SHARE);
-        assertThat(stat, notNullValue());
+    void getStatReadsRequiredGenerator() {
+        CosIdEndpoint endpoint = new CosIdEndpoint(newProviderWithShareAndOrders());
+
+        assertThat(endpoint.getStat("orders")).isNotNull();
     }
-    
+
     @Test
-    void remove() {
-        var idGeneratorProvider = new DefaultIdGeneratorProvider();
-        var cosIdEndpoint = new CosIdEndpoint(idGeneratorProvider);
-        idGeneratorProvider.setShare(MockIdGenerator.INSTANCE);
-        cosIdEndpoint.remove(IdGeneratorProvider.SHARE);
-        assertThat(idGeneratorProvider.getShare(), nullValue());
+    void getStatPropagatesMissingGeneratorFailure() {
+        CosIdEndpoint endpoint = new CosIdEndpoint(new DefaultIdGeneratorProvider());
+
+        assertThatThrownBy(() -> endpoint.getStat("missing"))
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("missing");
+    }
+
+    @Test
+    void removeReturnsRemovedGeneratorStatAndUnregistersIt() {
+        DefaultIdGeneratorProvider provider = newProviderWithShareAndOrders();
+        CosIdEndpoint endpoint = new CosIdEndpoint(provider);
+
+        assertThat(endpoint.remove("orders")).isNotNull();
+        assertThat(provider.get("orders")).isEmpty();
+        assertThat(provider.getShare()).isSameAs(MockIdGenerator.INSTANCE);
+    }
+
+    private static DefaultIdGeneratorProvider newProviderWithShareAndOrders() {
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.setShare(MockIdGenerator.INSTANCE);
+        provider.set("orders", MockIdGenerator.INSTANCE);
+        return provider;
     }
 }

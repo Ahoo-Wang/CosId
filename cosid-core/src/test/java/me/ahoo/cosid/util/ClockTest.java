@@ -13,39 +13,19 @@
 
 package me.ahoo.cosid.util;
 
-import com.google.common.base.Strings;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
-import java.time.Duration;
-import java.util.concurrent.locks.LockSupport;
 
 /**
  * @author ahoo wang
  */
 public class ClockTest {
 
-    @Disabled
     @Test
-    public void cacheClock() {
-        final long maxTryTimes = 1000;
-        final long parkNanos = Duration.ofMillis(100).toNanos();
-        int currentTimes = 0;
-        int diffTimes = 0;
-
-        while (currentTimes < maxTryTimes) {
-            currentTimes++;
-            long cacheSecond = Clock.CACHE.secondTime();
-            long systemSecond = Clock.getSystemSecondTime();
-            long diff = systemSecond - cacheSecond;
-            if (diff != 0) {
-                diffTimes++;
-            }
-            System.out.println(Strings.lenientFormat("cacheTime:[%s] - systemTime:[%s] - diff:[%s] - diffTimes:[%s]", cacheSecond, systemSecond, diff, diffTimes));
-            Assertions.assertTrue(diff <= 1);
-            LockSupport.parkNanos(this, parkNanos);
-        }
-
+    public void cacheClockShouldStayCloseToSystemClock() {
+        long cacheSecond = Clock.CACHE.secondTime();
+        long systemSecond = Clock.getSystemSecondTime();
+        long diff = Math.abs(systemSecond - cacheSecond);
+        Assertions.assertTrue(diff <= 1, () -> "cacheSecond=" + cacheSecond + ", systemSecond=" + systemSecond);
     }
 }

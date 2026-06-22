@@ -22,17 +22,17 @@ import java.sql.SQLException;
  * @author ahoo wang
  */
 public final class LeafInitializer {
-    public static void initSegment(DataSource dataSource, String bizTag, long step) {
+    private LeafInitializer() {
+    }
+
+    public static void initSegment(DataSource dataSource, String bizTag, long step) throws SQLException {
         String initIdSegmentSql = "insert into leaf_alloc(biz_tag, max_id, step, description)\n" +
-                "values (?, 1, ?, 'LeafBenchmark')";
-        try (Connection connection = dataSource.getConnection()) {
-            try (PreparedStatement initStatement = connection.prepareStatement(initIdSegmentSql)) {
-                initStatement.setString(1, bizTag);
-                initStatement.setLong(2, step);
-                int affected = initStatement.executeUpdate();
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+            "values (?, 1, ?, 'LeafBenchmark')";
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement initStatement = connection.prepareStatement(initIdSegmentSql)) {
+            initStatement.setString(1, bizTag);
+            initStatement.setLong(2, step);
+            initStatement.executeUpdate();
         }
     }
 }

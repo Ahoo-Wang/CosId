@@ -13,27 +13,47 @@
 
 package me.ahoo.cosid.machine;
 
-import me.ahoo.cosid.machine.InstanceId;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-/**
- * InstanceIdTest .
- *
- * @author ahoo wang
- */
 class InstanceIdTest {
-    InstanceId instanceId1 = InstanceId.of("localhost", 8080, true);
-    InstanceId instanceId2 = InstanceId.of("localhost", 8080, true);
-    
+
     @Test
-    void testEquals() {
-        Assertions.assertEquals(instanceId1, instanceId2);
+    void noneShouldUseStableFalseSentinelIdentity() {
+        assertEquals("none", InstanceId.NONE.getInstanceId());
+        assertFalse(InstanceId.NONE.isStable());
     }
-    
+
     @Test
-    void testHashCode() {
-        Assertions.assertEquals(instanceId1.hashCode(), instanceId2.hashCode());
+    void ofHostAndPortShouldFormatInstanceIdWithStability() {
+        InstanceId instanceId = InstanceId.of("127.0.0.1", 8080, true);
+
+        assertEquals("127.0.0.1:8080", instanceId.getInstanceId());
+        assertTrue(instanceId.isStable());
+    }
+
+    @Test
+    void equalityShouldIncludeInstanceTextAndStability() {
+        InstanceId stable = InstanceId.of("instance-a", true);
+        InstanceId same = InstanceId.of("instance-a", true);
+        InstanceId dynamic = InstanceId.of("instance-a", false);
+        InstanceId differentText = InstanceId.of("instance-b", true);
+
+        assertEquals(stable, same);
+        assertEquals(stable.hashCode(), same.hashCode());
+        assertNotEquals(stable, dynamic);
+        assertNotEquals(stable, differentText);
+    }
+
+    @Test
+    void toStringShouldExposeInstanceIdAndStableFlag() {
+        String text = InstanceId.of("instance-a", true).toString();
+
+        assertTrue(text.contains("instanceId=instance-a"));
+        assertTrue(text.contains("stable=true"));
     }
 }

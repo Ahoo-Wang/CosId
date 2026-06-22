@@ -104,10 +104,14 @@ public class RadixCosIdGenerator implements CosIdGenerator {
         return stateParser;
     }
 
+    protected long currentTimeMillis() {
+        return System.currentTimeMillis();
+    }
+
     private long nextTime() {
-        long time = System.currentTimeMillis();
+        long time = currentTimeMillis();
         while (time <= lastTimestamp) {
-            time = System.currentTimeMillis();
+            time = currentTimeMillis();
         }
         return time;
     }
@@ -119,7 +123,7 @@ public class RadixCosIdGenerator implements CosIdGenerator {
      */
     @NonNull
     public synchronized CosIdState generateAsState() {
-        long currentTimestamp = System.currentTimeMillis();
+        long currentTimestamp = currentTimeMillis();
         if (currentTimestamp < lastTimestamp) {
             throw new ClockBackwardsException(lastTimestamp, currentTimestamp);
         }

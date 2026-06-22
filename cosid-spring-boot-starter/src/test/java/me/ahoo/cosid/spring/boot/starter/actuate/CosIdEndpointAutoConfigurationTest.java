@@ -13,35 +13,68 @@
 
 package me.ahoo.cosid.spring.boot.starter.actuate;
 
-import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
-import org.assertj.core.api.AssertionsForInterfaceTypes;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class CosIdEndpointAutoConfigurationTest {
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(CosIdEndpointAutoConfiguration.class))
+        .withBean(IdGeneratorProvider.class, () -> mock(IdGeneratorProvider.class));
 
     @Test
-    void contextLoads() {
-        this.contextRunner
-            .withBean(IdGeneratorProvider.class, () -> DefaultIdGeneratorProvider.INSTANCE)
-            .withUserConfiguration(CosIdEndpointAutoConfiguration.class)
-            .run(context -> AssertionsForInterfaceTypes.assertThat(context)
-                .hasSingleBean(CosIdEndpointAutoConfiguration.class)
-                .hasSingleBean(CosIdEndpoint.class)
-                .hasSingleBean(CosIdGeneratorEndpoint.class)
-                .hasSingleBean(CosIdStringGeneratorEndpoint.class));
+    void createsAllEndpointsWhenActuatorEndpointApiIsPresent() {
+        this.contextRunner.run(context -> assertThat(context)
+            .hasSingleBean(CosIdEndpoint.class)
+            .hasSingleBean(CosIdGeneratorEndpoint.class)
+            .hasSingleBean(CosIdStringGeneratorEndpoint.class));
     }
 
     @Test
-    void contextLoadsDisabled() {
+    void backsOffForUserProvidedEndpointsIndependently() {
+        CosIdEndpoint cosIdEndpoint = mock(CosIdEndpoint.class);
+        CosIdGeneratorEndpoint generatorEndpoint = mock(CosIdGeneratorEndpoint.class);
+        CosIdStringGeneratorEndpoint stringGeneratorEndpoint = mock(CosIdStringGeneratorEndpoint.class);
+
+        this.contextRunner
+            .withBean(CosIdEndpoint.class, () -> cosIdEndpoint)
+            .withBean(CosIdGeneratorEndpoint.class, () -> generatorEndpoint)
+            .withBean(CosIdStringGeneratorEndpoint.class, () -> stringGeneratorEndpoint)
+            .run(context -> {
+                assertThat(context)
+                    .hasSingleBean(CosIdEndpoint.class)
+                    .hasSingleBean(CosIdGeneratorEndpoint.class)
+                    .hasSingleBean(CosIdStringGeneratorEndpoint.class);
+                assertThat(context.getBean(CosIdEndpoint.class)).isSameAs(cosIdEndpoint);
+                assertThat(context.getBean(CosIdGeneratorEndpoint.class)).isSameAs(generatorEndpoint);
+                assertThat(context.getBean(CosIdStringGeneratorEndpoint.class)).isSameAs(stringGeneratorEndpoint);
+            });
+    }
+
+    @Test
+    void doesNotCreateEndpointsWhenCosIdIsDisabled() {
         this.contextRunner
             .withPropertyValues("cosid.enabled=false")
-            .withUserConfiguration(CosIdEndpointAutoConfiguration.class)
-            .run(context -> AssertionsForInterfaceTypes.assertThat(context)
-                .doesNotHaveBean(CosIdEndpointAutoConfiguration.class)
-            );
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdEndpoint.class)
+                .doesNotHaveBean(CosIdGeneratorEndpoint.class)
+                .doesNotHaveBean(CosIdStringGeneratorEndpoint.class));
+    }
+
+    @Test
+    void doesNotCreateEndpointsWhenActuatorEndpointApiIsMissing() {
+        this.contextRunner
+            .withClassLoader(new FilteredClassLoader(Endpoint.class))
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdEndpoint.class)
+                .doesNotHaveBean(CosIdGeneratorEndpoint.class)
+                .doesNotHaveBean(CosIdStringGeneratorEndpoint.class));
     }
 }

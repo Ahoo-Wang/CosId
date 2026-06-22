@@ -13,104 +13,189 @@
 
 package me.ahoo.cosid.machine;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
-import me.ahoo.cosid.snowflake.AbstractSnowflakeId;
-import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
-import me.ahoo.cosid.snowflake.SecondSnowflakeId;
+import me.ahoo.cosid.snowflake.SnowflakeId;
+import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
+import me.ahoo.cosid.snowflake.exception.ClockTooManyBackwardsException;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * @author : Rocher Kong
- */
 class ClockSyncSnowflakeIdTest {
-    public static final int TEST_MACHINE_ID = 1;
-    ClockSyncSnowflakeId clockSyncSnowflakeId;
 
-    @BeforeEach
-    void setup() {
-        MillisecondSnowflakeId idGen = new MillisecondSnowflakeId(TEST_MACHINE_ID);
-        clockSyncSnowflakeId = new ClockSyncSnowflakeId(idGen);
+    @Test
+    void generateShouldDelegateDirectlyWhenClockDoesNotMoveBackwards() {
+        RecordingSnowflakeId actual = new RecordingSnowflakeId();
+        actual.enqueue(101L);
+        RecordingClockBackwardsSynchronizer synchronizer = new RecordingClockBackwardsSynchronizer();
+        ClockSyncSnowflakeId clockSync = new ClockSyncSnowflakeId(actual, synchronizer);
+
+        assertEquals(101L, clockSync.generate());
+
+        assertEquals(1, actual.generateCalls);
+        assertTrue(synchronizer.syncUninterruptiblyCalls.isEmpty());
     }
 
     @Test
-    void getEpoch() {
-        assertThat(clockSyncSnowflakeId.getEpoch(), equalTo(CosId.COSID_EPOCH));
+    void generateShouldSynchronizeWithActualLastTimestampInMillisecondsAndRetryOnce() {
+        RecordingSnowflakeId actual = new RecordingSnowflakeId();
+        actual.lastTimestampAsMilliseconds = 123_456L;
+        actual.enqueue(new ClockBackwardsException(123, 122));
+        actual.enqueue(202L);
+        RecordingClockBackwardsSynchronizer synchronizer = new RecordingClockBackwardsSynchronizer();
+        ClockSyncSnowflakeId clockSync = new ClockSyncSnowflakeId(actual, synchronizer);
+
+        assertEquals(202L, clockSync.generate());
+
+        assertEquals(2, actual.generateCalls);
+        assertEquals(List.of(123_456L), synchronizer.syncUninterruptiblyCalls);
     }
 
     @Test
-    void getTimestampBit() {
-        assertThat(clockSyncSnowflakeId.getTimestampBit(), equalTo(41));
+    void generateShouldPropagateRetryFailureAfterSynchronizing() {
+        RecordingSnowflakeId actual = new RecordingSnowflakeId();
+        actual.lastTimestampAsMilliseconds = 900L;
+        actual.enqueue(new ClockBackwardsException(9, 8));
+        actual.enqueue(new IllegalStateException("retry failed"));
+        RecordingClockBackwardsSynchronizer synchronizer = new RecordingClockBackwardsSynchronizer();
+        ClockSyncSnowflakeId clockSync = new ClockSyncSnowflakeId(actual, synchronizer);
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, clockSync::generate);
+
+        assertEquals("retry failed", exception.getMessage());
+        assertEquals(2, actual.generateCalls);
+        assertEquals(List.of(900L), synchronizer.syncUninterruptiblyCalls);
     }
 
     @Test
-    void getMachineBit() {
-        assertThat(clockSyncSnowflakeId.getMachineBit(), equalTo(10));
+    void generateShouldPropagateSynchronizerFailureWithoutRetrying() {
+        RecordingSnowflakeId actual = new RecordingSnowflakeId();
+        actual.lastTimestampAsMilliseconds = 700L;
+        actual.enqueue(new ClockBackwardsException(7, 6));
+        RecordingClockBackwardsSynchronizer synchronizer = new RecordingClockBackwardsSynchronizer();
+        synchronizer.failure = new ClockTooManyBackwardsException(7, 1, 5);
+        ClockSyncSnowflakeId clockSync = new ClockSyncSnowflakeId(actual, synchronizer);
+
+        ClockTooManyBackwardsException exception = assertThrows(ClockTooManyBackwardsException.class, clockSync::generate);
+
+        assertSame(synchronizer.failure, exception);
+        assertEquals(1, actual.generateCalls);
+        assertEquals(List.of(700L), synchronizer.syncUninterruptiblyCalls);
     }
 
     @Test
-    void getSequenceBit() {
-        assertThat(clockSyncSnowflakeId.getSequenceBit(), equalTo(12));
+    void shouldDelegateSnowflakeMetadataToActualGenerator() {
+        RecordingSnowflakeId actual = new RecordingSnowflakeId();
+        ClockSyncSnowflakeId clockSync = new ClockSyncSnowflakeId(actual, new RecordingClockBackwardsSynchronizer());
+
+        assertSame(actual, clockSync.getActual());
+        assertEquals(actual.getEpoch(), clockSync.getEpoch());
+        assertEquals(actual.getTimestampBit(), clockSync.getTimestampBit());
+        assertEquals(actual.getMachineBit(), clockSync.getMachineBit());
+        assertEquals(actual.getSequenceBit(), clockSync.getSequenceBit());
+        assertEquals(actual.isSafeJavascript(), clockSync.isSafeJavascript());
+        assertEquals(actual.getMaxTimestamp(), clockSync.getMaxTimestamp());
+        assertEquals(actual.getMaxMachineId(), clockSync.getMaxMachineId());
+        assertEquals(actual.getMaxSequence(), clockSync.getMaxSequence());
+        assertEquals(actual.getLastTimestamp(), clockSync.getLastTimestamp());
+        assertEquals(actual.getLastTimestampAsMilliseconds(), clockSync.getLastTimestampAsMilliseconds());
+        assertEquals(actual.getMachineId(), clockSync.getMachineId());
     }
 
-    @Test
-    void isSafeJavascript() {
-        assertThat(clockSyncSnowflakeId.isSafeJavascript(), equalTo(false));
+    private static final class RecordingSnowflakeId implements SnowflakeId {
+        private final ArrayDeque<Object> outcomes = new ArrayDeque<>();
+        private int generateCalls;
+        private long lastTimestamp = 456L;
+        private long lastTimestampAsMilliseconds = 456_000L;
+
+        void enqueue(Object outcome) {
+            outcomes.add(outcome);
+        }
+
+        @Override
+        public long generate() {
+            generateCalls++;
+            Object outcome = outcomes.removeFirst();
+            if (outcome instanceof RuntimeException) {
+                throw (RuntimeException) outcome;
+            }
+            return (long) outcome;
+        }
+
+        @Override
+        public long getEpoch() {
+            return 100L;
+        }
+
+        @Override
+        public int getTimestampBit() {
+            return 41;
+        }
+
+        @Override
+        public int getMachineBit() {
+            return 8;
+        }
+
+        @Override
+        public int getSequenceBit() {
+            return 4;
+        }
+
+        @Override
+        public long getMaxTimestamp() {
+            return 4095L;
+        }
+
+        @Override
+        public int getMaxMachineId() {
+            return 255;
+        }
+
+        @Override
+        public long getMaxSequence() {
+            return 15L;
+        }
+
+        @Override
+        public long getLastTimestamp() {
+            return lastTimestamp;
+        }
+
+        @Override
+        public long getLastTimestampAsMilliseconds() {
+            return lastTimestampAsMilliseconds;
+        }
+
+        @Override
+        public int getMachineId() {
+            return 7;
+        }
     }
 
-    @Test
-    void getMaxTimestamp() {
-        assertThat(clockSyncSnowflakeId.getMaxTimestamp(), greaterThan(0L));
-    }
+    private static final class RecordingClockBackwardsSynchronizer implements ClockBackwardsSynchronizer {
+        private final List<Long> syncUninterruptiblyCalls = new ArrayList<>();
+        private ClockTooManyBackwardsException failure;
 
-    @Test
-    void getMaxMachineId() {
-        assertThat(clockSyncSnowflakeId.getMaxMachineId(), equalTo(1023));
-    }
+        @Override
+        public void sync(long lastTimestamp) {
+            syncUninterruptiblyCalls.add(lastTimestamp);
+        }
 
-    @Test
-    void getMaxSequence() {
-        assertThat(clockSyncSnowflakeId.getMaxSequence(), equalTo(4095L));
-    }
-
-    @Test
-    void getLastTimestamp() {
-        clockSyncSnowflakeId.generate();
-        assertThat(clockSyncSnowflakeId.getLastTimestamp(), greaterThan(0L));
-    }
-
-    @Test
-    void getLastTimestampAsMillisecondsShouldDelegateToActual() {
-        SecondSnowflakeId secondSnowflakeId = new SecondSnowflakeId(TEST_MACHINE_ID);
-        ClockSyncSnowflakeId secondClockSync = new ClockSyncSnowflakeId(secondSnowflakeId);
-        secondClockSync.generate();
-        assertThat(secondClockSync.getLastTimestampAsMilliseconds(),
-            equalTo(secondSnowflakeId.getLastTimestampAsMilliseconds()));
-    }
-
-    @Test
-    void getMachineId() {
-        assertThat(clockSyncSnowflakeId.getMachineId(), equalTo(TEST_MACHINE_ID));
-    }
-
-    @Test
-    void generateShouldSynchronizeSecondSnowflakeTimestampInMilliseconds() throws Exception {
-        SecondSnowflakeId secondSnowflakeId = new SecondSnowflakeId(TEST_MACHINE_ID);
-        Field lastTimestamp = AbstractSnowflakeId.class.getDeclaredField("lastTimestamp");
-        lastTimestamp.setAccessible(true);
-        long currentSecond = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
-        lastTimestamp.setLong(secondSnowflakeId, currentSecond + 1);
-
-        ClockSyncSnowflakeId secondClockSync = new ClockSyncSnowflakeId(secondSnowflakeId, new DefaultClockBackwardsSynchronizer(1, 2000));
-
-        assertThat(secondClockSync.generate(), greaterThan(0L));
+        @Override
+        public void syncUninterruptibly(long lastTimestamp) throws ClockTooManyBackwardsException {
+            syncUninterruptiblyCalls.add(lastTimestamp);
+            if (failure != null) {
+                throw failure;
+            }
+        }
     }
 }

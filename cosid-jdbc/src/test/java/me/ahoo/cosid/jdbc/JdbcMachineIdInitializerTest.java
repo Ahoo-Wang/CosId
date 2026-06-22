@@ -13,12 +13,13 @@
 
 package me.ahoo.cosid.jdbc;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
-
-import javax.sql.DataSource;
 
 /**
  * JdbcMachineIdInitializerTest .
@@ -28,7 +29,7 @@ import javax.sql.DataSource;
 class JdbcMachineIdInitializerTest {
     
     
-    DataSource dataSource;
+    InMemoryJdbcDataSource dataSource;
     private JdbcMachineIdInitializer machineIdInitializer;
     
     @BeforeEach
@@ -38,15 +39,19 @@ class JdbcMachineIdInitializerTest {
     }
     
     @SneakyThrows
-    @DisabledIfEnvironmentVariable(named = "MYSQL", matches = "5.1")
     @Test
     void initCosIdMachineTable() {
         machineIdInitializer.initCosIdMachineTable();
+
+        assertThat(dataSource.isCosIdMachineTableInitialized(), equalTo(true));
+        assertThat(dataSource.getExecutedSql(), hasSize(3));
     }
     
-    @DisabledIfEnvironmentVariable(named = "MYSQL", matches = "5.1")
     @Test
     void tryInitCosIdMachineTable() {
-        machineIdInitializer.tryInitCosIdMachineTable();
+        assertThat(machineIdInitializer.tryInitCosIdMachineTable(), equalTo(true));
+
+        JdbcMachineIdInitializer wrongSqlInitializer = new JdbcMachineIdInitializer(dataSource, "WrongSql", "WrongSql", "WrongSql");
+        assertThat(wrongSqlInitializer.tryInitCosIdMachineTable(), equalTo(false));
     }
 }

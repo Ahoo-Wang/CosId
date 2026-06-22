@@ -13,35 +13,41 @@
 
 package me.ahoo.cosid.machine;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
-
-import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.NamespacedInstanceId;
-import me.ahoo.cosid.test.MockIdGenerator;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
-/**
- * NamespacedInstanceIdTest .
- *
- * @author ahoo wang
- */
 class NamespacedInstanceIdTest {
-    
+
     @Test
-    void getNamespace() {
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, InstanceId.NONE);
-        assertThat(namespacedInstanceId.getNamespace(), equalTo(namespace));
+    void shouldExposeNamespaceAndInstanceId() {
+        InstanceId instanceId = InstanceId.of("instance-a", false);
+        NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId("namespace", instanceId);
+
+        assertEquals("namespace", namespacedInstanceId.getNamespace());
+        assertEquals(instanceId, namespacedInstanceId.getInstanceId());
     }
-    
+
     @Test
-    void getInstanceId() {
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, InstanceId.NONE);
-        assertThat(namespacedInstanceId.getInstanceId(), equalTo(InstanceId.NONE));
+    void equalityShouldIncludeNamespaceAndFullInstanceIdentity() {
+        NamespacedInstanceId left = new NamespacedInstanceId("namespace", InstanceId.of("instance-a", false));
+        NamespacedInstanceId same = new NamespacedInstanceId("namespace", InstanceId.of("instance-a", false));
+        NamespacedInstanceId differentNamespace = new NamespacedInstanceId("other", InstanceId.of("instance-a", false));
+        NamespacedInstanceId differentStability = new NamespacedInstanceId("namespace", InstanceId.of("instance-a", true));
+
+        assertEquals(left, same);
+        assertEquals(left.hashCode(), same.hashCode());
+        assertNotEquals(left, differentNamespace);
+        assertNotEquals(left, differentStability);
     }
-    
-    
+
+    @Test
+    void toStringShouldExposeNamespaceAndInstanceId() {
+        String text = new NamespacedInstanceId("namespace", InstanceId.of("instance-a", true)).toString();
+
+        assertTrue(text.contains("namespace=namespace"));
+        assertTrue(text.contains("instanceId=InstanceId{instanceId=instance-a, stable=true}"));
+    }
 }

@@ -28,6 +28,7 @@ import me.ahoo.cosid.snowflake.SnowflakeId;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -43,9 +44,9 @@ public class AsStringTest {
         dto.setPrimitiveLong(100);
         dto.setObjectLong(200L);
         String deStr = objectMapper.writeValueAsString(dto);
-        Assertions.assertEquals("{\"objectLong\":\"200\",\"primitiveLong\":\"100\"}", deStr);
+        assertJsonStringField(deStr, "objectLong", "200");
+        assertJsonStringField(deStr, "primitiveLong", "100");
         ToStringDto deDto = objectMapper.readValue(deStr, ToStringDto.class);
-        Assertions.assertNotNull(deDto);
         Assertions.assertEquals(dto.getPrimitiveLong(), deDto.getPrimitiveLong());
         Assertions.assertEquals(dto.getObjectLong(), deDto.getObjectLong());
     }
@@ -56,9 +57,9 @@ public class AsStringTest {
         ToStringDto dto = new ToStringDto();
         dto.setPrimitiveLong(100);
         String deStr = objectMapper.writeValueAsString(dto);
-        Assertions.assertEquals("{\"objectLong\":null,\"primitiveLong\":\"100\"}", deStr);
+        assertJsonNullField(deStr, "objectLong");
+        assertJsonStringField(deStr, "primitiveLong", "100");
         ToStringDto deDto = objectMapper.readValue(deStr, ToStringDto.class);
-        Assertions.assertNotNull(deDto);
         Assertions.assertEquals(dto.getPrimitiveLong(), deDto.getPrimitiveLong());
         Assertions.assertEquals(dto.getObjectLong(), deDto.getObjectLong());
     }
@@ -71,7 +72,6 @@ public class AsStringTest {
         dto.setObjectLong(200L);
         String deStr = objectMapper.writeValueAsString(dto);
         ToStringDto deDto = objectMapper.readValue(deStr, ToStringDto.class);
-        Assertions.assertNotNull(deDto);
         Assertions.assertEquals(dto.getPrimitiveLong(), deDto.getPrimitiveLong());
         Assertions.assertEquals(dto.getObjectLong(), deDto.getObjectLong());
     }
@@ -83,9 +83,9 @@ public class AsStringTest {
         dto.setPrimitiveLong(100);
         dto.setObjectLong(200L);
         String deStr = objectMapper.writeValueAsString(dto);
-        Assertions.assertEquals("{\"objectLong\":\"0000000003E\",\"primitiveLong\":\"0000000001c\"}", deStr);
+        assertJsonStringField(deStr, "objectLong", "0000000003E");
+        assertJsonStringField(deStr, "primitiveLong", "0000000001c");
         RadixDto deDto = objectMapper.readValue(deStr, RadixDto.class);
-        Assertions.assertNotNull(deDto);
         Assertions.assertEquals(dto.getPrimitiveLong(), deDto.getPrimitiveLong());
         Assertions.assertEquals(dto.getObjectLong(), deDto.getObjectLong());
     }
@@ -98,7 +98,6 @@ public class AsStringTest {
         dto.setObjectLong(200L);
         String deStr = objectMapper.writeValueAsString(dto);
         RadixDto deDto = objectMapper.readValue(deStr, RadixDto.class);
-        Assertions.assertNotNull(deDto);
         Assertions.assertEquals(dto.getPrimitiveLong(), deDto.getPrimitiveLong());
         Assertions.assertEquals(dto.getObjectLong(), deDto.getObjectLong());
     }
@@ -110,9 +109,9 @@ public class AsStringTest {
         dto.setPrimitiveLong(100);
         dto.setObjectLong(200L);
         String deStr = objectMapper.writeValueAsString(dto);
-        Assertions.assertEquals("{\"objectLong\":\"3E\",\"primitiveLong\":\"1c\"}", deStr);
+        assertJsonStringField(deStr, "objectLong", "3E");
+        assertJsonStringField(deStr, "primitiveLong", "1c");
         RadixNonePadDto deDto = objectMapper.readValue(deStr, RadixNonePadDto.class);
-        Assertions.assertNotNull(deDto);
         Assertions.assertEquals(dto.getPrimitiveLong(), deDto.getPrimitiveLong());
         Assertions.assertEquals(dto.getObjectLong(), deDto.getObjectLong());
     }
@@ -124,9 +123,9 @@ public class AsStringTest {
         dto.setPrimitiveLong(100);
         dto.setObjectLong(200L);
         String deStr = objectMapper.writeValueAsString(dto);
-        Assertions.assertEquals("{\"objectLong\":\"0003E\",\"primitiveLong\":\"0001c\"}", deStr);
+        assertJsonStringField(deStr, "objectLong", "0003E");
+        assertJsonStringField(deStr, "primitiveLong", "0001c");
         RadixPadSize5Dto deDto = objectMapper.readValue(deStr, RadixPadSize5Dto.class);
-        Assertions.assertNotNull(deDto);
         Assertions.assertEquals(dto.getPrimitiveLong(), deDto.getPrimitiveLong());
         Assertions.assertEquals(dto.getObjectLong(), deDto.getObjectLong());
     }
@@ -139,12 +138,9 @@ public class AsStringTest {
         dto.setPrimitiveLong(266231902451535872L);
         dto.setObjectLong(266231902451535873L);
         String deStr = objectMapper.writeValueAsString(dto);
-        Assertions.assertEquals("{\"objectLong\":\""
-            + MillisecondSnowflakeIdStateParser.INSTANCE.parse(dto.getObjectLong()).getFriendlyId()
-            + "\",\"primitiveLong\":\"" + MillisecondSnowflakeIdStateParser.INSTANCE.parse(dto.getPrimitiveLong()).getFriendlyId()
-            + "\"}", deStr);
+        assertJsonStringField(deStr, "objectLong", MillisecondSnowflakeIdStateParser.INSTANCE.parse(dto.getObjectLong()).getFriendlyId());
+        assertJsonStringField(deStr, "primitiveLong", MillisecondSnowflakeIdStateParser.INSTANCE.parse(dto.getPrimitiveLong()).getFriendlyId());
         FriendlyIdDto deDto = objectMapper.readValue(deStr, FriendlyIdDto.class);
-        Assertions.assertNotNull(deDto);
         Assertions.assertEquals(dto.getPrimitiveLong(), deDto.getPrimitiveLong());
         Assertions.assertEquals(dto.getObjectLong(), deDto.getObjectLong());
     }
@@ -158,23 +154,30 @@ public class AsStringTest {
         dto.setPrimitiveLong(snowflakeFriendlyId.generate());
         dto.setObjectLong(snowflakeFriendlyId.generate());
         String deStr = objectMapper.writeValueAsString(dto);
-        Assertions.assertEquals("{\"objectLong\":\""
-            + snowflakeFriendlyId.getParser().parse(dto.getObjectLong()).getFriendlyId()
-            + "\",\"primitiveLong\":\"" + snowflakeFriendlyId.getParser().parse(dto.getPrimitiveLong()).getFriendlyId()
-            + "\"}", deStr);
+        assertJsonStringField(deStr, "objectLong", snowflakeFriendlyId.getParser().parse(dto.getObjectLong()).getFriendlyId());
+        assertJsonStringField(deStr, "primitiveLong", snowflakeFriendlyId.getParser().parse(dto.getPrimitiveLong()).getFriendlyId());
         CustomizeFriendlyIdDto deDto = objectMapper.readValue(deStr, CustomizeFriendlyIdDto.class);
-        Assertions.assertNotNull(deDto);
         Assertions.assertEquals(dto.getPrimitiveLong(), deDto.getPrimitiveLong());
         Assertions.assertEquals(dto.getObjectLong(), deDto.getObjectLong());
     }
     
     @SneakyThrows
     @Test
-    public void testNull() {
+    public void deserializeStringNumbers() {
         ToStringDto deDto = objectMapper.readValue("{\"primitiveLong\":\"1\",\"objectLong\":\"2\"}", ToStringDto.class);
-        Assertions.assertNotNull(deDto);
-        
+        Assertions.assertEquals(1L, deDto.getPrimitiveLong());
+        Assertions.assertEquals(2L, deDto.getObjectLong());
     }
-    
-    
+
+    @SneakyThrows
+    private void assertJsonStringField(String json, String fieldName, String expectedValue) {
+        JsonNode jsonNode = objectMapper.readTree(json);
+        Assertions.assertEquals(expectedValue, jsonNode.get(fieldName).stringValue());
+    }
+
+    @SneakyThrows
+    private void assertJsonNullField(String json, String fieldName) {
+        JsonNode jsonNode = objectMapper.readTree(json);
+        Assertions.assertTrue(jsonNode.get(fieldName).isNull());
+    }
 }

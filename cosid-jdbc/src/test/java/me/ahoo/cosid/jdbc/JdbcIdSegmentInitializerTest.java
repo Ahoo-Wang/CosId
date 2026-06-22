@@ -14,16 +14,17 @@
 package me.ahoo.cosid.jdbc;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 
 import me.ahoo.cosid.test.Assert;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import lombok.SneakyThrows;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import javax.sql.DataSource;
 import java.sql.SQLIntegrityConstraintViolationException;
 
 /**
@@ -32,7 +33,7 @@ import java.sql.SQLIntegrityConstraintViolationException;
  * @author ahoo wang
  */
 class JdbcIdSegmentInitializerTest {
-    DataSource dataSource;
+    InMemoryJdbcDataSource dataSource;
     private JdbcIdSegmentInitializer idSegmentInitializer;
     
     @BeforeEach
@@ -44,12 +45,19 @@ class JdbcIdSegmentInitializerTest {
     @SneakyThrows
     @Test
     void initCosIdTable() {
-        idSegmentInitializer.initCosIdTable();
+        int affected = idSegmentInitializer.initCosIdTable();
+
+        assertThat(affected, equalTo(0));
+        assertThat(dataSource.isCosIdTableInitialized(), equalTo(true));
+        assertThat(dataSource.getExecutedSql(), contains(JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL));
     }
     
     @Test
     void tryInitCosIdTable() {
-        idSegmentInitializer.tryInitCosIdTable();
+        assertThat(idSegmentInitializer.tryInitCosIdTable(), equalTo(true));
+
+        JdbcIdSegmentInitializer wrongSqlInitializer = new JdbcIdSegmentInitializer("WrongSql", JdbcIdSegmentInitializer.INIT_ID_SEGMENT_SQL, dataSource);
+        assertThat(wrongSqlInitializer.tryInitCosIdTable(), equalTo(false));
     }
     
     @SneakyThrows
@@ -57,7 +65,8 @@ class JdbcIdSegmentInitializerTest {
     void initIdSegment() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         int actual = idSegmentInitializer.initIdSegment(namespace, 0);
-        assertThat(actual, Matchers.equalTo(1));
+        assertThat(actual, equalTo(1));
+        assertThat(dataSource.getSegmentMaxId(namespace), equalTo(0L));
         Assert.assertThrows(SQLIntegrityConstraintViolationException.class, () -> idSegmentInitializer.initIdSegment(namespace, 0));
     }
     
@@ -65,9 +74,18 @@ class JdbcIdSegmentInitializerTest {
     void tryInitIdSegment() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         boolean actual = idSegmentInitializer.tryInitIdSegment(namespace, 0);
-        assertThat(actual, Matchers.equalTo(true));
+        assertThat(actual, equalTo(true));
+        assertThat(dataSource.containsSegment(namespace), equalTo(true));
         
         actual = idSegmentInitializer.tryInitIdSegment(namespace, 0);
-        assertThat(actual, Matchers.equalTo(false));
+        assertThat(actual, equalTo(false));
+    }
+
+    @Test
+    void tryInitIdSegmentWhenWrongSql() {
+        JdbcIdSegmentInitializer wrongSqlInitializer = new JdbcIdSegmentInitializer(JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL, "WrongSql", dataSource);
+
+        assertThat(wrongSqlInitializer.tryInitIdSegment("wrong-sql", 0), equalTo(false));
+        assertThat(dataSource.getExecutedSql().get(0), containsString("WrongSql"));
     }
 }

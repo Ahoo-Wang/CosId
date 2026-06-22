@@ -13,10 +13,13 @@
 
 package me.ahoo.cosid.sharding;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import com.google.common.collect.Range;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -29,27 +32,30 @@ import java.time.temporal.ChronoUnit;
 import java.util.Collection;
 import java.util.stream.Stream;
 
-
-/**
- * @author ahoo wang
- */
 class IntervalTimelineTest {
+    static final LocalDateTime LOWER_DATE_TIME = LocalDateTime.of(2021, 1, 15, 12, 30);
+    static final LocalDateTime UPPER_DATE_TIME = LocalDateTime.of(2022, 1, 15, 12, 30);
+    static final String LOGIC_NAME = "table";
+    static final DateTimeFormatter SUFFIX_FORMATTER = DateTimeFormatter.ofPattern("_yyyyMM");
+    static final ExactCollection<String> ALL_NODES = new ExactCollection<>(
+        "table_202101", "table_202102", "table_202103", "table_202104", "table_202105",
+        "table_202106", "table_202107", "table_202108", "table_202109", "table_202110",
+        "table_202111", "table_202112", "table_202201"
+    );
 
-    public static final LocalDateTime LOWER_DATE_TIME = IntervalStepTest.START_DATE_TIME;
-    public static final LocalDateTime UPPER_DATE_TIME = IntervalStepTest.START_DATE_TIME.plusYears(1);
-    public static final String LOGIC_NAME = "table";
-    public static final DateTimeFormatter SUFFIX_FORMATTER = DateTimeFormatter.ofPattern("_yyyyMM");
-    public static final ExactCollection<String> ALL_NODES = new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105",
-        "table_202106", "table_202107", "table_202108", "table_202109", "table_202110", "table_202111", "table_202112", "table_202201");
     private IntervalTimeline intervalTimeline;
 
     @BeforeEach
-    void init() {
-        IntervalStep step = IntervalStep.of(ChronoUnit.MONTHS);
-        intervalTimeline = new IntervalTimeline(LOGIC_NAME, Range.closed(LOWER_DATE_TIME, UPPER_DATE_TIME), step, SUFFIX_FORMATTER);
+    void setUp() {
+        intervalTimeline = new IntervalTimeline(
+            LOGIC_NAME,
+            Range.closed(LOWER_DATE_TIME, UPPER_DATE_TIME),
+            IntervalStep.of(ChronoUnit.MONTHS),
+            SUFFIX_FORMATTER
+        );
     }
 
-    public static Stream<Arguments> shardingArgsProvider() {
+    static Stream<Arguments> shardingArgsProvider() {
         return Stream.of(
             arguments(LOWER_DATE_TIME, "table_202101"),
             arguments(LocalDateTime.of(2021, 2, 14, 22, 0), "table_202102"),
@@ -60,52 +66,59 @@ class IntervalTimelineTest {
 
     @ParameterizedTest
     @MethodSource("shardingArgsProvider")
-    void sharding(LocalDateTime dateTime, String expected) {
-        String actual = intervalTimeline.sharding(dateTime);
-        Assertions.assertEquals(expected, actual);
+    void shardingShouldRoutePointToFlooredMonthlyNode(LocalDateTime dateTime, String expected) {
+        assertEquals(expected, intervalTimeline.sharding(dateTime));
     }
 
     @Test
-    void shardingOutOfBound() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            intervalTimeline.sharding(LocalDateTime.MIN);
-        });
+    void shardingShouldRejectPointOutsideEffectiveInterval() {
+        IllegalArgumentException error = assertThrows(
+            IllegalArgumentException.class,
+            () -> intervalTimeline.sharding(LOWER_DATE_TIME.minusNanos(1))
+        );
+
+        assertTrue(error.getMessage().contains("out of bounds"));
     }
 
-    public static Stream<Arguments> shardingRangeArgsProvider() {
+    static Stream<Arguments> shardingRangeArgsProvider() {
         return Stream.of(
             arguments(Range.all(), ALL_NODES),
             arguments(Range.closed(LOWER_DATE_TIME, UPPER_DATE_TIME), ALL_NODES),
             arguments(Range.closed(LocalDateTime.of(2021, 1, 1, 0, 0), LocalDateTime.of(2021, 2, 1, 0, 0)), new ExactCollection<>("table_202101", "table_202102")),
             arguments(Range.closed(LOWER_DATE_TIME.minusMonths(1), UPPER_DATE_TIME.plusMonths(1)), ALL_NODES),
             arguments(Range.closed(LocalDateTime.of(2021, 12, 1, 0, 0), LocalDateTime.of(2022, 2, 1, 0, 0)), new ExactCollection<>("table_202112", "table_202201")),
-            arguments(Range.closedOpen(LOWER_DATE_TIME, UPPER_DATE_TIME),
-                new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105", "table_202106", "table_202107", "table_202108", "table_202109", "table_202110",
-                    "table_202111", "table_202112")),
+            arguments(Range.closedOpen(LOWER_DATE_TIME, UPPER_DATE_TIME), ALL_NODES),
             arguments(Range.openClosed(LOWER_DATE_TIME, UPPER_DATE_TIME), ALL_NODES),
-
             arguments(Range.greaterThan(LOWER_DATE_TIME), ALL_NODES),
             arguments(Range.atLeast(LOWER_DATE_TIME), ALL_NODES),
             arguments(Range.greaterThan(UPPER_DATE_TIME), new ExactCollection<>("table_202201")),
             arguments(Range.atLeast(UPPER_DATE_TIME), new ExactCollection<>("table_202201")),
             arguments(Range.greaterThan(LocalDateTime.of(2021, 12, 5, 0, 0)), new ExactCollection<>("table_202112", "table_202201")),
             arguments(Range.atLeast(LocalDateTime.of(2021, 12, 5, 0, 0)), new ExactCollection<>("table_202112", "table_202201")),
-
-            arguments(Range.lessThan(LOWER_DATE_TIME), ExactCollection.empty()),
+            arguments(Range.lessThan(LOWER_DATE_TIME), new ExactCollection<>("table_202101")),
             arguments(Range.atMost(LOWER_DATE_TIME), new ExactCollection<>("table_202101")),
-            arguments(Range.lessThan(UPPER_DATE_TIME),
-                new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105", "table_202106", "table_202107", "table_202108", "table_202109", "table_202110",
-                    "table_202111", "table_202112")),
+            arguments(Range.lessThan(UPPER_DATE_TIME), ALL_NODES),
             arguments(Range.atMost(UPPER_DATE_TIME), ALL_NODES),
             arguments(Range.lessThan(LocalDateTime.of(2021, 5, 5, 0, 0)), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105")),
-            arguments(Range.atMost(LocalDateTime.of(2021, 5, 5, 0, 0)), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105"))
+            arguments(Range.atMost(LocalDateTime.of(2021, 5, 5, 0, 0)), new ExactCollection<>("table_202101", "table_202102", "table_202103", "table_202104", "table_202105")),
+            arguments(Range.open(LOWER_DATE_TIME.minusMonths(2), LOWER_DATE_TIME.minusMonths(1)), ExactCollection.empty()),
+            arguments(Range.open(UPPER_DATE_TIME.plusMonths(1), UPPER_DATE_TIME.plusMonths(2)), ExactCollection.empty())
         );
     }
 
     @ParameterizedTest
     @MethodSource("shardingRangeArgsProvider")
-    void shardingRange(Range<LocalDateTime> shardingValue, Collection<String> expected) {
-        Collection<String> actual = intervalTimeline.sharding(shardingValue);
-        Assertions.assertEquals(expected, actual);
+    void shardingRangeShouldReturnOnlyConnectedMonthlyNodes(Range<LocalDateTime> shardingValue, Collection<String> expected) {
+        assertEquals(expected, intervalTimeline.sharding(shardingValue));
+    }
+
+    @Test
+    void metadataShouldExposeFlooredStartIntervalAndAllEffectiveNodes() {
+        assertEquals(13, intervalTimeline.size());
+        assertEquals(LocalDateTime.of(2021, 1, 1, 0, 0), intervalTimeline.getStartInterval().getLower());
+        assertEquals("table_202101", intervalTimeline.getStartInterval().getNode());
+        assertEquals(ALL_NODES, intervalTimeline.getEffectiveNodes());
+        assertTrue(intervalTimeline.contains(LOWER_DATE_TIME));
+        assertFalse(intervalTimeline.contains(LOWER_DATE_TIME.minusNanos(1)));
     }
 }

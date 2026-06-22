@@ -13,62 +13,70 @@
 
 package me.ahoo.cosid.sharding;
 
-import static me.ahoo.cosid.sharding.IntervalTimelineTest.ALL_NODES;
-import static me.ahoo.cosid.sharding.IntervalTimelineTest.LOGIC_NAME;
-import static me.ahoo.cosid.sharding.IntervalTimelineTest.LOWER_DATE_TIME;
-import static me.ahoo.cosid.sharding.IntervalTimelineTest.SUFFIX_FORMATTER;
-import static me.ahoo.cosid.sharding.IntervalTimelineTest.UPPER_DATE_TIME;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import com.google.common.collect.Range;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.List;
 
-
-/**
- * @author ahoo wang
- */
 class CachedShardingTest {
-    private Sharding<LocalDateTime> actual;
-    private CachedSharding<LocalDateTime> cache;
 
-    @BeforeEach
-    void init() {
-        IntervalStep step = IntervalStep.of(ChronoUnit.MONTHS);
-        actual = new IntervalTimeline(LOGIC_NAME, Range.closed(LOWER_DATE_TIME, UPPER_DATE_TIME), step, SUFFIX_FORMATTER);
-        cache = new CachedSharding<>(actual);
-    }
+    @Test
+    void preciseShardingShouldDelegateWithoutUsingRangeCache() {
+        RecordingSharding actual = new RecordingSharding();
+        CachedSharding<Integer> cache = new CachedSharding<>(actual);
 
+        assertEquals("node-7", cache.sharding(7));
+        assertEquals("node-7", cache.sharding(7));
 
-    @ParameterizedTest
-    @MethodSource("me.ahoo.cosid.sharding.IntervalTimelineTest#shardingArgsProvider")
-    void sharding(LocalDateTime dateTime, String expected) {
-        String actual = cache.sharding(dateTime);
-        Assertions.assertEquals(expected, actual);
-    }
-
-    @ParameterizedTest
-    @MethodSource("me.ahoo.cosid.sharding.IntervalTimelineTest#shardingRangeArgsProvider")
-    void shardingRange(Range<LocalDateTime> shardingValue, Collection<String> expected) {
-        Collection<String> actual = cache.sharding(shardingValue);
-        Assertions.assertEquals(expected, actual);
+        assertEquals(2, actual.preciseCalls);
+        assertEquals(0, actual.rangeCalls);
     }
 
     @Test
-    void shardingRangeCache() {
-        Collection<String> actual = cache.sharding(Range.singleton(LOWER_DATE_TIME));
-        Collection<String> actual2 = cache.sharding(Range.singleton(LOWER_DATE_TIME));
-        Assertions.assertEquals(actual, actual2);
+    void rangeShardingShouldCacheByEquivalentRangeKey() {
+        RecordingSharding actual = new RecordingSharding();
+        CachedSharding<Integer> cache = new CachedSharding<>(actual);
+
+        Collection<String> first = cache.sharding(Range.closed(1, 3));
+        Collection<String> second = cache.sharding(Range.closed(1, 3));
+
+        assertSame(first, second);
+        assertEquals(List.of("range-[1..3]"), first);
+        assertEquals(1, actual.rangeCalls);
     }
 
     @Test
-    void getEffectiveNodes() {
-        Assertions.assertEquals(ALL_NODES, cache.getEffectiveNodes());
+    void getEffectiveNodesShouldDelegateToActualSharding() {
+        RecordingSharding actual = new RecordingSharding();
+        CachedSharding<Integer> cache = new CachedSharding<>(actual);
+
+        assertSame(actual.effectiveNodes, cache.getEffectiveNodes());
+    }
+
+    private static final class RecordingSharding implements Sharding<Integer> {
+        private final Collection<String> effectiveNodes = new ExactCollection<>("node-1", "node-2");
+        private int preciseCalls;
+        private int rangeCalls;
+
+        @Override
+        public String sharding(Integer shardingValue) {
+            preciseCalls++;
+            return "node-" + shardingValue;
+        }
+
+        @Override
+        public Collection<String> sharding(Range<Integer> shardingValue) {
+            rangeCalls++;
+            return List.of("range-" + shardingValue);
+        }
+
+        @Override
+        public Collection<String> getEffectiveNodes() {
+            return effectiveNodes;
+        }
     }
 }

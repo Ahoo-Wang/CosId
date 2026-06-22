@@ -13,11 +13,22 @@
 
 package me.ahoo.cosid.benchmark;
 
+import com.zaxxer.hikari.HikariDataSource;
+
+import javax.sql.DataSource;
+
 /**
- * TODO
- * wow,TinyID 竟然是使用RPC方式消费ID，难以置信
- *
  * @author ahoo wang
  */
-public class TinyIDTest {
+public final class DataSourceFactory {
+    private DataSourceFactory() {
+    }
+
+    public static DataSource createDataSource() {
+        HikariDataSource dataSource = new HikariDataSource();
+        dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/benchmark_db");
+        dataSource.setUsername("root");
+        dataSource.setPassword("root");
+        return dataSource;
+    }
 }

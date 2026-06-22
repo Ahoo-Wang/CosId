@@ -32,10 +32,14 @@ public final class BlockingAdapter {
     }
 
     public static <R> R block(Mono<R> mono) {
+        return block(mono, DEFAULT_TIME_OUT);
+    }
+
+    static <R> R block(Mono<R> mono, Duration timeout) {
         try {
             BlockingAdapterSubscriber<R> blockingAdapterSubscriber = new BlockingAdapterSubscriber<>();
             mono.subscribe(blockingAdapterSubscriber);
-            return blockingAdapterSubscriber.block(DEFAULT_TIME_OUT.toMillis(), TimeUnit.MILLISECONDS);
+            return blockingAdapterSubscriber.block(timeout.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException | TimeoutException e) {
             throw new RuntimeException(e);
         }

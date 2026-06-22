@@ -14,36 +14,77 @@
 package me.ahoo.cosid.mongo;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.InMemoryMachineStateStorage;
+import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
+import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.mongo.reactive.BlockingAdapter;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineCollection;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineInitializer;
+import me.ahoo.cosid.test.Assert;
+import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.container.MongoLauncher;
 import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
+import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoDatabase;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
 
 class MongoReactiveMachineIdDistributorTest extends MachineIdDistributorSpec {
+    MongoClient mongoClient;
     MongoDatabase mongoDatabase;
     MachineIdDistributor machineIdDistributor;
     MongoReactiveMachineInitializer machineInitializer;
+    MachineStateStorage machineStateStorage;
     
     @BeforeEach
     void setup() {
-        mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db_reactive");
+        mongoClient = MongoClients.create(MongoLauncher.getConnectionString());
+        mongoDatabase = mongoClient.getDatabase("cosid_db_reactive_machine_" + UUID.randomUUID().toString().replace("-", ""));
+        machineStateStorage = new InMemoryMachineStateStorage();
         machineInitializer = new MongoReactiveMachineInitializer(mongoDatabase);
         machineInitializer.ensureMachineCollection();
         machineIdDistributor = new MongoMachineIdDistributor(
             new MongoReactiveMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME)),
-            MachineStateStorage.IN_MEMORY,
+            machineStateStorage,
             ClockBackwardsSynchronizer.DEFAULT);
+    }
+
+    @AfterEach
+    void destroy() {
+        try {
+            if (mongoDatabase != null) {
+                BlockingAdapter.block(mongoDatabase.drop());
+            }
+        } finally {
+            if (mongoClient != null) {
+                mongoClient.close();
+            }
+        }
     }
     
     @Override
     protected MachineIdDistributor getDistributor() {
         return machineIdDistributor;
+    }
+
+    @Test
+    @Override
+    public void guardLost() {
+        MachineIdDistributor distributor = getDistributor();
+        String namespace = MockIdGenerator.usePrefix("GuardLost").generateAsString();
+        InstanceId instanceId = mockInstance(0, false);
+        machineStateStorage.set(namespace, getMachineBit(), instanceId);
+
+        Assert.assertThrows(MachineIdLostException.class, () -> {
+            distributor.guard(namespace, instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+        });
     }
 
 }

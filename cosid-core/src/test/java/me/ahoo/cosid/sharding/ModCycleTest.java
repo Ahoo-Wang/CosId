@@ -64,7 +64,6 @@ class ModCycleTest {
     public void getEffectiveNodes(int divisor) {
         ModCycle<Long> modCycle = createModCycle(divisor);
         Collection<String> actual = modCycle.getEffectiveNodes();
-        Assertions.assertNotNull(actual);
         Assertions.assertEquals(divisor, actual.size());
         ExactCollection<String> expected = new ExactCollection<>(divisor);
         for (int i = 0; i < divisor; i++) {

@@ -103,6 +103,7 @@ public class ExactCollection<E> extends AbstractCollection<E> implements RandomA
         int idx = indexOf(o);
         if (idx >= 0) {
             elements[idx] = null;
+            return true;
         }
         return false;
     }
@@ -124,7 +125,7 @@ public class ExactCollection<E> extends AbstractCollection<E> implements RandomA
 
     @Override
     public int hashCode() {
-        return Arrays.hashCode(elements);
+        return Sets.newHashSet(elements).hashCode();
     }
 
     @SuppressWarnings("unchecked")
@@ -138,7 +139,7 @@ public class ExactCollection<E> extends AbstractCollection<E> implements RandomA
             return false;
         }
 
-        return containsAll((Collection<?>) obj);
+        return Sets.newHashSet(elements).equals(Sets.newHashSet(other));
     }
 
     @Override

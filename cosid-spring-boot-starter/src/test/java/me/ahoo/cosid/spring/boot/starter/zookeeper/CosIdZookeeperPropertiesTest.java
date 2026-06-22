@@ -1,115 +1,56 @@
 package me.ahoo.cosid.spring.boot.starter.zookeeper;
 
-import org.junit.jupiter.api.Assertions;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
 import java.time.Duration;
+import java.util.Map;
 
-/**
- * CosIdZookeeperPropertiesTest .
- *
- * @author ahoo wang
- */
 class CosIdZookeeperPropertiesTest {
-    
+
     @Test
-    void isEnabled() {
+    void defaultsKeepZookeeperSupportEnabledButPointAtLocalhost() {
         CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        Assertions.assertTrue(properties.isEnabled());
+
+        assertThat(properties.isEnabled()).isTrue();
+        assertThat(properties.getConnectString()).isEqualTo("localhost:2181");
+        assertThat(properties.getBlockUntilConnectedWait()).isEqualTo(Duration.ofSeconds(10));
+        assertThat(properties.getSessionTimeout()).isEqualTo(Duration.ofSeconds(60));
+        assertThat(properties.getConnectionTimeout()).isEqualTo(Duration.ofSeconds(15));
+        assertThat(properties.getRetry().getBaseSleepTimeMs()).isEqualTo(100);
+        assertThat(properties.getRetry().getMaxRetries()).isEqualTo(5);
+        assertThat(properties.getRetry().getMaxSleepMs()).isEqualTo(500);
     }
-    
+
     @Test
-    void setEnabled() {
-        CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        properties.setEnabled(false);
-        Assertions.assertFalse(properties.isEnabled());
+    void binderMapsDurationsAndRetrySettings() {
+        CosIdZookeeperProperties properties = bind(Map.of(
+            "cosid.zookeeper.enabled", "false",
+            "cosid.zookeeper.connect-string", "zk-1:2181,zk-2:2181",
+            "cosid.zookeeper.block-until-connected-wait", "2s",
+            "cosid.zookeeper.session-timeout", "30s",
+            "cosid.zookeeper.connection-timeout", "3s",
+            "cosid.zookeeper.retry.base-sleep-time-ms", "50",
+            "cosid.zookeeper.retry.max-retries", "7",
+            "cosid.zookeeper.retry.max-sleep-ms", "1000"
+        ));
+
+        assertThat(properties.isEnabled()).isFalse();
+        assertThat(properties.getConnectString()).isEqualTo("zk-1:2181,zk-2:2181");
+        assertThat(properties.getBlockUntilConnectedWait()).isEqualTo(Duration.ofSeconds(2));
+        assertThat(properties.getSessionTimeout()).isEqualTo(Duration.ofSeconds(30));
+        assertThat(properties.getConnectionTimeout()).isEqualTo(Duration.ofSeconds(3));
+        assertThat(properties.getRetry().getBaseSleepTimeMs()).isEqualTo(50);
+        assertThat(properties.getRetry().getMaxRetries()).isEqualTo(7);
+        assertThat(properties.getRetry().getMaxSleepMs()).isEqualTo(1000);
     }
-    
-    @Test
-    void getConnectString() {
-        CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        Assertions.assertEquals("localhost:2181", properties.getConnectString());
-    }
-    
-    @Test
-    void setConnectString() {
-        String connectString = "localhost:2182";
-        CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        properties.setConnectString(connectString);
-        Assertions.assertEquals(connectString, properties.getConnectString());
-    }
-    
-    @Test
-    void getRetry() {
-        int baseSleepTimeMs = 100;
-        int maxRetries = 5;
-        int maxSleepMs = 500;
-        CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        Assertions.assertNotNull(properties.getRetry());
-        Assertions.assertEquals(baseSleepTimeMs, properties.getRetry().getBaseSleepTimeMs());
-        Assertions.assertEquals(maxRetries, properties.getRetry().getMaxRetries());
-        Assertions.assertEquals(maxSleepMs, properties.getRetry().getMaxSleepMs());
-    }
-    
-    @Test
-    void setRetry() {
-        int baseSleepTimeMs = 200;
-        int maxRetries = 10;
-        int maxSleepMs = 1000;
-        CosIdZookeeperProperties.Retry retry = new CosIdZookeeperProperties.Retry();
-        retry.setBaseSleepTimeMs(baseSleepTimeMs);
-        retry.setMaxRetries(maxRetries);
-        retry.setMaxSleepMs(maxSleepMs);
-        
-        CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        properties.setRetry(retry);
-        Assertions.assertNotNull(properties.getRetry());
-        Assertions.assertEquals(baseSleepTimeMs, properties.getRetry().getBaseSleepTimeMs());
-        Assertions.assertEquals(maxRetries, properties.getRetry().getMaxRetries());
-        Assertions.assertEquals(maxSleepMs, properties.getRetry().getMaxSleepMs());
-    }
-    
-    @Test
-    void getBlockUntilConnectedWait() {
-        CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        Assertions.assertEquals(Duration.ofSeconds(10), properties.getBlockUntilConnectedWait());
-    }
-    
-    @Test
-    void setBlockUntilConnectedWait() {
-        Duration blockUntilConnectedWait = Duration.ofSeconds(5);
-        CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        properties.setBlockUntilConnectedWait(blockUntilConnectedWait);
-        Assertions.assertEquals(blockUntilConnectedWait, properties.getBlockUntilConnectedWait());
-    }
-    
-    @Test
-    void getSessionTimeout() {
-        Duration sessionTimeout = Duration.ofSeconds(60);
-        CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        Assertions.assertEquals(sessionTimeout, properties.getSessionTimeout());
-    }
-    
-    @Test
-    void setSessionTimeout() {
-        Duration sessionTimeout = Duration.ofSeconds(10);
-        CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        properties.setSessionTimeout(sessionTimeout);
-        Assertions.assertEquals(sessionTimeout, properties.getSessionTimeout());
-    }
-    
-    @Test
-    void getConnectionTimeout() {
-        Duration connectionTimeout = Duration.ofSeconds(15);
-        CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        Assertions.assertEquals(connectionTimeout, properties.getConnectionTimeout());
-    }
-    
-    @Test
-    void setConnectionTimeout() {
-        Duration connectionTimeout = Duration.ofSeconds(10);
-        CosIdZookeeperProperties properties = new CosIdZookeeperProperties();
-        properties.setConnectionTimeout(connectionTimeout);
-        Assertions.assertEquals(connectionTimeout, properties.getConnectionTimeout());
+
+    private static CosIdZookeeperProperties bind(Map<String, String> properties) {
+        return new Binder(new MapConfigurationPropertySource(properties))
+            .bind("cosid.zookeeper", CosIdZookeeperProperties.class)
+            .get();
     }
 }

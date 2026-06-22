@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
  * @author ahoo wang
  */
 class DefaultMachineIdGuarderTest {
-    private final ManualMachineIdDistributor distributor = new ManualMachineIdDistributor(1, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
+    private final ManualMachineIdDistributor distributor = new ManualMachineIdDistributor(1, new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT);
 
     @Test
     void register() {

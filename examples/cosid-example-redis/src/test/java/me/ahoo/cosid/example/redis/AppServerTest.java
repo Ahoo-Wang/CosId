@@ -13,20 +13,34 @@
 
 package me.ahoo.cosid.example.redis;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.example.redis.controller.IdController;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
+
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
-import org.springframework.boot.test.context.SpringBootTest;
 
 /**
  * AppServerTest .
  *
  * @author ahoo wang
  */
-@DisabledIfEnvironmentVariable(named = "CODECOV", matches = "true")
-@SpringBootTest
 class AppServerTest {
     
     @Test
-    void contextLoads() {
+    void idControllerGeneratesNamedIdsWithoutRedisServer() {
+        IdGeneratorProvider provider = mock(IdGeneratorProvider.class);
+        IdGenerator generator = mock(IdGenerator.class);
+        when(provider.getRequired("biz_prefix_no")).thenReturn(generator);
+        when(generator.generate()).thenReturn(2000000001L);
+        when(generator.generateAsString()).thenReturn("BIZ2000000001");
+
+        IdController controller = new IdController(provider);
+
+        assertEquals(2000000001L, controller.generate("biz_prefix_no"));
+        assertEquals("BIZ2000000001", controller.generateAsString("biz_prefix_no"));
     }
 }

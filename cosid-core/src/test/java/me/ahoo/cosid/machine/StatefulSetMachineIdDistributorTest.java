@@ -13,47 +13,93 @@
 
 package me.ahoo.cosid.machine;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.machine.k8s.StatefulSetMachineIdDistributor;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junitpioneer.jupiter.ClearEnvironmentVariable;
 import org.junitpioneer.jupiter.SetEnvironmentVariable;
 
-/**
- * @author ahoo wang
- */
+import java.time.Duration;
+
 class StatefulSetMachineIdDistributorTest {
-    
+
     @Test
-    @SetEnvironmentVariable(
-        key = StatefulSetMachineIdDistributor.HOSTNAME_KEY,
-        value = "cosid-host-6")
-    void resolveMachineId() {
-        int machineId = StatefulSetMachineIdDistributor.resolveMachineId();
-        assertThat(machineId, equalTo(6));
+    @SetEnvironmentVariable(key = StatefulSetMachineIdDistributor.HOSTNAME_KEY, value = "cosid-v1-host-12")
+    void resolveMachineIdShouldUseNumericSuffixAfterLastDash() {
+        assertEquals(12, StatefulSetMachineIdDistributor.resolveMachineId());
     }
-    
+
     @Test
-    @SetEnvironmentVariable(
-        key = StatefulSetMachineIdDistributor.HOSTNAME_KEY,
-        value = "cosid-host-6")
-    void distribute() {
-        StatefulSetMachineIdDistributor distributor = new StatefulSetMachineIdDistributor(new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT);
-        Assertions.assertThrows(MachineIdOverflowException.class, () -> {
-            distributor.distribute("k8s", 1, InstanceId.NONE, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
-        });
+    @ClearEnvironmentVariable(key = StatefulSetMachineIdDistributor.HOSTNAME_KEY)
+    void resolveMachineIdShouldRejectMissingHostnameWithMessage() {
+        NullPointerException exception = assertThrows(NullPointerException.class,
+            StatefulSetMachineIdDistributor::resolveMachineId);
+
+        assertEquals("HOSTNAME can not be null.", exception.getMessage());
     }
-    
+
     @Test
-    @SetEnvironmentVariable(
-        key = StatefulSetMachineIdDistributor.HOSTNAME_KEY,
-        value = "cosid-host-0")
-    void revert() {
-        StatefulSetMachineIdDistributor distributor = new StatefulSetMachineIdDistributor(new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT);
-        distributor.distribute("k8s", 1, InstanceId.NONE, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
-        distributor.revert("k8s", InstanceId.NONE);
+    @SetEnvironmentVariable(key = StatefulSetMachineIdDistributor.HOSTNAME_KEY, value = "cosid")
+    void resolveMachineIdShouldRejectHostnameWithoutOrdinalDelimiter() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+            StatefulSetMachineIdDistributor::resolveMachineId);
+
+        assertEquals("The format of hostName:[cosid] is incorrect.", exception.getMessage());
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = StatefulSetMachineIdDistributor.HOSTNAME_KEY, value = "cosid-host-blue")
+    void resolveMachineIdShouldPropagateInvalidNumericSuffix() {
+        NumberFormatException exception = assertThrows(NumberFormatException.class,
+            StatefulSetMachineIdDistributor::resolveMachineId);
+
+        assertTrue(exception.getMessage().contains("blue"));
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = StatefulSetMachineIdDistributor.HOSTNAME_KEY, value = "cosid-host-3")
+    void distributeShouldUseResolvedOrdinalAndPersistLocalState() {
+        InMemoryMachineStateStorage storage = new InMemoryMachineStateStorage();
+        StatefulSetMachineIdDistributor distributor = new StatefulSetMachineIdDistributor(storage, ClockBackwardsSynchronizer.DEFAULT);
+        InstanceId instanceId = InstanceId.of("pod", true);
+
+        MachineState state = distributor.distribute("k8s", 2, instanceId, Duration.ofMinutes(1));
+
+        assertEquals(3, state.getMachineId());
+        assertEquals(3, storage.get("k8s", instanceId).getMachineId());
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = StatefulSetMachineIdDistributor.HOSTNAME_KEY, value = "cosid-host-4")
+    void distributeShouldRejectResolvedOrdinalOutsideMachineBitRange() {
+        StatefulSetMachineIdDistributor distributor = new StatefulSetMachineIdDistributor(
+            new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT);
+        InstanceId instanceId = InstanceId.of("pod", true);
+
+        MachineIdOverflowException exception = assertThrows(MachineIdOverflowException.class,
+            () -> distributor.distribute("k8s", 2, instanceId, Duration.ofMinutes(1)));
+
+        assertEquals(4, exception.getTotalMachineIds());
+        assertSame(instanceId, exception.getInstanceId());
+        assertTrue(exception.getMessage().contains("totalMachineIds:[4]"));
+    }
+
+    @Test
+    @SetEnvironmentVariable(key = StatefulSetMachineIdDistributor.HOSTNAME_KEY, value = "cosid-host-0")
+    void revertAndGuardShouldUseLocalStateWithoutRemoteSideEffects() {
+        InMemoryMachineStateStorage storage = new InMemoryMachineStateStorage();
+        StatefulSetMachineIdDistributor distributor = new StatefulSetMachineIdDistributor(storage, ClockBackwardsSynchronizer.DEFAULT);
+        InstanceId instanceId = InstanceId.of("pod", true);
+        distributor.distribute("k8s", 1, instanceId, Duration.ofMinutes(1));
+
+        distributor.guard("k8s", instanceId, Duration.ofMinutes(1));
+        distributor.revert("k8s", instanceId);
+
+        assertSame(MachineState.NOT_FOUND, storage.get("k8s", instanceId));
     }
 }

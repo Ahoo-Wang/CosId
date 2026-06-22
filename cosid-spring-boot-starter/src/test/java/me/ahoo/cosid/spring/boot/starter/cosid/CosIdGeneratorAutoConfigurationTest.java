@@ -13,75 +13,96 @@
 
 package me.ahoo.cosid.spring.boot.starter.cosid;
 
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.cosid.CosIdGenerator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.MachineId;
-import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.MachineState;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
-import me.ahoo.cosid.spring.boot.starter.machine.CosIdHostNameAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineIdLifecycle;
-import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 
 class CosIdGeneratorAutoConfigurationTest {
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
-    
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, CosIdGeneratorAutoConfiguration.class))
+        .withBean(MachineProperties.class, MachineProperties::new)
+        .withBean(InstanceId.class, () -> InstanceId.of("test-instance", true))
+        .withBean(GuardDistribute.class, CosIdGeneratorAutoConfigurationTest::guardDistribute)
+        .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT);
+
     @Test
-    void contextLoads() {
+    void createsCosIdGeneratorAndRegistersItWithProviderWhenEnabled() {
         this.contextRunner
-            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(ConditionalOnCosIdGeneratorEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
-            .withUserConfiguration(UtilAutoConfiguration.class,
-                CosIdAutoConfiguration.class,
-                CosIdHostNameAutoConfiguration.class,
-                CosIdMachineAutoConfiguration.class,
-                CosIdGeneratorAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)
-                    .hasSingleBean(CosIdGeneratorAutoConfiguration.class)
                     .hasSingleBean(CosIdGeneratorProperties.class)
-                    .hasSingleBean(InstanceId.class)
-                    .hasSingleBean(MachineStateStorage.class)
-                    .hasSingleBean(ClockBackwardsSynchronizer.class)
-                    .hasSingleBean(MachineId.class)
-                    .hasSingleBean(CosIdMachineIdLifecycle.class)
-                    .hasSingleBean(CosIdGenerator.class)
-                ;
+                    .hasSingleBean(CosIdGenerator.class);
+                assertThat(context.getBean(IdGeneratorProvider.class).get(CosId.COSID)).isPresent();
             });
     }
-    
+
     @Test
-    void contextLoadsWithType() {
+    void bindsGeneratorTypeBeforeCreatingGenerator() {
         this.contextRunner
-            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues(ConditionalOnCosIdGeneratorEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
-            .withPropertyValues(CosIdGeneratorProperties.PREFIX + ".type=RADIX36")
-            .withUserConfiguration(UtilAutoConfiguration.class,
-                CosIdAutoConfiguration.class,
-                CosIdHostNameAutoConfiguration.class,
-                CosIdMachineAutoConfiguration.class,
-                CosIdGeneratorAutoConfiguration.class)
+            .withPropertyValues(
+                ConditionalOnCosIdGeneratorEnabled.ENABLED_KEY + "=true",
+                CosIdGeneratorProperties.PREFIX + ".type=RADIX36",
+                CosIdGeneratorProperties.PREFIX + ".namespace=generator-namespace"
+            )
             .run(context -> {
-                assertThat(context)
-                    .hasSingleBean(CosIdGeneratorAutoConfiguration.class)
-                    .hasSingleBean(CosIdGeneratorProperties.class)
-                    .hasSingleBean(InstanceId.class)
-                    .hasSingleBean(MachineStateStorage.class)
-                    .hasSingleBean(ClockBackwardsSynchronizer.class)
-                    .hasSingleBean(MachineId.class)
-                    .hasSingleBean(CosIdMachineIdLifecycle.class)
-                    .hasSingleBean(CosIdGenerator.class)
-                ;
+                assertThat(context.getBean(CosIdGeneratorProperties.class).getType())
+                    .isEqualTo(CosIdGeneratorProperties.Type.RADIX36);
+                assertThat(context).hasSingleBean(CosIdGenerator.class);
             });
+    }
+
+    @Test
+    void backsOffWhenUserProvidesCosIdGenerator() {
+        CosIdGenerator generator = mock(CosIdGenerator.class);
+
+        this.contextRunner
+            .withBean(CosIdGenerator.class, () -> generator)
+            .withPropertyValues(ConditionalOnCosIdGeneratorEnabled.ENABLED_KEY + "=true")
+            .run(context -> assertThat(context.getBean(CosIdGenerator.class)).isSameAs(generator));
+    }
+
+    @Test
+    void doesNotCreateGeneratorWhenCosIdIsDisabled() {
+        this.contextRunner
+            .withPropertyValues(
+                "cosid.enabled=false",
+                ConditionalOnCosIdGeneratorEnabled.ENABLED_KEY + "=true"
+            )
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdGeneratorProperties.class)
+                .doesNotHaveBean(CosIdGenerator.class));
+    }
+
+    @Test
+    void doesNotCreateGeneratorWhenGeneratorIsDisabledOrMissing() {
+        this.contextRunner
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdGeneratorProperties.class)
+                .doesNotHaveBean(CosIdGenerator.class));
+    }
+
+    private static GuardDistribute guardDistribute() {
+        GuardDistribute guardDistribute = mock(GuardDistribute.class);
+        when(guardDistribute.distribute(anyString(), anyInt(), any(InstanceId.class), any()))
+            .thenReturn(new MachineState(1, 0));
+        return guardDistribute;
     }
 }

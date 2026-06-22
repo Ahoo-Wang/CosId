@@ -46,6 +46,7 @@ public class ModSpec implements Runnable, TestSpec {
     private final int expectedAvgHits;
     private final Runnable wait;
     private final int[] hits;
+    private boolean generated;
     private double popVariance;
     private double popStd;
     private double popStdError;
@@ -63,7 +64,7 @@ public class ModSpec implements Runnable, TestSpec {
 
     @Override
     public synchronized void run() {
-        if (hits[0] > 0) {
+        if (generated) {
             return;
         }
         for (int i = 0; i < iterations; i++) {
@@ -89,13 +90,15 @@ public class ModSpec implements Runnable, TestSpec {
             log.info("Report - iterations:{},divisor:{},allowablePopStd:{},expectedAvgHits:{},popStd:{},popStdError:{} - hits:{}",
                 iterations, divisor, allowablePopStd, expectedAvgHits, popStd, popStdError, hits);
         }
+        generated = true;
     }
 
     @Override
     public synchronized void verify() {
         run();
         if (popStd > allowablePopStd) {
-            throw new AssertionError("popStd:" + popStd + ",allowablePopStd:" + allowablePopStd);
+            throw new AssertionError("iterations:" + iterations + ",divisor:" + divisor + ",expectedAvgHits:" + expectedAvgHits
+                + ",popStd:" + popStd + ",allowablePopStd:" + allowablePopStd + ",hits:" + Arrays.toString(hits));
         }
     }
 

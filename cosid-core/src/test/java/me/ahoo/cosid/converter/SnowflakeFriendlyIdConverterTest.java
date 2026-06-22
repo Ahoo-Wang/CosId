@@ -16,6 +16,9 @@ package me.ahoo.cosid.converter;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
+import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
+import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeId;
@@ -26,18 +29,27 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 /**
  * @author rocher kong
  */
 class SnowflakeFriendlyIdConverterTest {
+    private static final ZoneId SHANGHAI_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final SnowflakeFriendlyIdConverter SHANGHAI_CONVERTER = new SnowflakeFriendlyIdConverter(
+        new MillisecondSnowflakeIdStateParser(CosId.COSID_EPOCH,
+            MillisecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
+            MillisecondSnowflakeId.DEFAULT_MACHINE_BIT,
+            MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT,
+            SHANGHAI_ZONE,
+            false)
+    );
+
     @ParameterizedTest
     @ValueSource(longs = {295913926632165376L})
     void asString(long argId) {
-        String idStr = SnowflakeFriendlyIdConverter.INSTANCE.asString(argId);
-        Assertions.assertNotNull(idStr);
+        String idStr = SHANGHAI_CONVERTER.asString(argId);
+        Assertions.assertEquals("20220320133617924-5-0", idStr);
     }
     
     @ParameterizedTest
@@ -51,19 +63,27 @@ class SnowflakeFriendlyIdConverterTest {
     @ParameterizedTest
     @ValueSource(strings = {"20220320133617924-5-0"})
     void asLong2(String argId) {
-        long actual = SnowflakeFriendlyIdConverter.INSTANCE.asLong(argId);
-        Assertions.assertNotNull(actual);
+        long actual = SHANGHAI_CONVERTER.asLong(argId);
+        Assertions.assertEquals(argId, SHANGHAI_CONVERTER.asString(actual));
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = {295913926632165376L})
+    void instanceShouldRoundTripInSystemDefaultZone(long argId) {
+        String idStr = SnowflakeFriendlyIdConverter.INSTANCE.asString(argId);
+
+        Assertions.assertEquals(argId, SnowflakeFriendlyIdConverter.INSTANCE.asLong(idStr));
     }
     
     @Test
     void getParser() {
-        SnowflakeId idGen = new SecondSnowflakeId(LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond(),
+        SnowflakeId idGen = new SecondSnowflakeId(1_640_995_200,
             SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
             SecondSnowflakeId.DEFAULT_MACHINE_BIT,
             SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023, 512);
         SecondSnowflakeIdStateParser snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
         SnowflakeFriendlyIdConverter snowflakeFriendlyIdConverter = new SnowflakeFriendlyIdConverter(snowflakeIdStateParser);
-        Assertions.assertNotNull(snowflakeFriendlyIdConverter.getParser());
+        Assertions.assertSame(snowflakeIdStateParser, snowflakeFriendlyIdConverter.getParser());
     }
     
     @Test

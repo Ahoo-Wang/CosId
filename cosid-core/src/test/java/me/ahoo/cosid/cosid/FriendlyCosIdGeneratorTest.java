@@ -17,9 +17,7 @@ import me.ahoo.cosid.test.ConcurrentGenerateStingSpec;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.time.ZoneId;
-import java.util.concurrent.locks.LockSupport;
 
 import static me.ahoo.cosid.cosid.RadixCosIdGenerator.DEFAULT_MACHINE_BIT;
 import static me.ahoo.cosid.cosid.RadixCosIdGenerator.DEFAULT_SEQUENCE_BIT;
@@ -64,7 +62,10 @@ class FriendlyCosIdGeneratorTest {
         CosIdState state = cosIdGenerator.generateAsState();
         String id = cosIdGenerator.getStateParser().asString(state);
         CosIdState state2 = cosIdGenerator.getStateParser().asState(id);
-        assertThat(state2, equalTo(state2));
+        assertThat(state2, equalTo(state));
+        assertThat(state2.getTimestamp(), equalTo(state.getTimestamp()));
+        assertThat(state2.getMachineId(), equalTo(state.getMachineId()));
+        assertThat(state2.getSequence(), equalTo(state.getSequence()));
     }
 
     @Test
@@ -76,22 +77,33 @@ class FriendlyCosIdGeneratorTest {
 
     @Test
     void generateSlow() {
-        FriendlyCosIdGenerator cosIdGenerator = new FriendlyCosIdGenerator(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, 1, 2, ZoneId.systemDefault(), true);
+        FriendlyCosIdGenerator cosIdGenerator = new TestFriendlyCosIdGenerator();
         CosIdState state1 = cosIdGenerator.generateAsState();
-        LockSupport.parkNanos(Duration.ofMillis(1).toNanos());
         CosIdState state2 = cosIdGenerator.generateAsState();
-        LockSupport.parkNanos(Duration.ofMillis(1).toNanos());
         CosIdState state3 = cosIdGenerator.generateAsState();
         assertThat(state3, greaterThan(state2));
         assertThat(state2, greaterThan(state1));
 
         assertThat(state1.getSequence(), equalTo(1));
         assertThat(state2.getSequence(), equalTo(2));
-        assertThat(state1.getSequence(), equalTo(1));
+        assertThat(state3.getSequence(), equalTo(1));
     }
 
     @Test
     public void generateWhenConcurrentString() {
         new ConcurrentGenerateStingSpec(new FriendlyCosIdGenerator(1, ZoneId.systemDefault(), true)).verify();
+    }
+
+    static class TestFriendlyCosIdGenerator extends FriendlyCosIdGenerator {
+        private long currentTimeMillis = 1000;
+
+        TestFriendlyCosIdGenerator() {
+            super(DEFAULT_TIMESTAMP_BIT, DEFAULT_MACHINE_BIT, DEFAULT_SEQUENCE_BIT, 1, 2, ZoneId.systemDefault(), true);
+        }
+
+        @Override
+        protected long currentTimeMillis() {
+            return currentTimeMillis++;
+        }
     }
 }

@@ -1,41 +1,33 @@
 package me.ahoo.cosid.snowflake.exception;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
-
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * @author : Rocher Kong
  */
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class TimestampOverflowExceptionTest {
-    TimestampOverflowException timestampOverflowException;
-
-    @BeforeEach
-    void setUp(){
-        timestampOverflowException=new TimestampOverflowException(   LocalDateTime.now().minusSeconds(10).toEpochSecond(ZoneOffset.UTC)
-                , LocalDateTime.now().minusSeconds(10).toEpochSecond(ZoneOffset.UTC)
-                , 1);
-    }
+    private final TimestampOverflowException timestampOverflowException = new TimestampOverflowException(100, 200, 150);
 
     @Test
     void getEpoch() {
-        Assertions.assertNotNull(timestampOverflowException.getEpoch());
+        assertEquals(100, timestampOverflowException.getEpoch());
     }
 
     @Test
     void getDiffTimestamp() {
-        Assertions.assertNotNull(timestampOverflowException.getDiffTimestamp());
+        assertEquals(200, timestampOverflowException.getDiffTimestamp());
     }
 
     @Test
     void getMaxTimestamp() {
-        Assertions.assertNotNull(timestampOverflowException.getMaxTimestamp());
+        assertEquals(150, timestampOverflowException.getMaxTimestamp());
+    }
+
+    @Test
+    void messageIncludesOverflowContext() {
+        assertEquals("epoch:[100] - diffTimestamp:[200] can't be greater than maxTimestamp:[150]",
+            timestampOverflowException.getMessage());
     }
 }

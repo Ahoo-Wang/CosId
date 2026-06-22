@@ -13,52 +13,77 @@
 
 package me.ahoo.cosid.spring.boot.starter.machine;
 
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
-import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.machine.CosIdZookeeperMachineIdDistributorAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.snowflake.ConditionalOnCosIdSnowflakeEnabled;
-import me.ahoo.cosid.spring.boot.starter.snowflake.CosIdSnowflakeAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties;
-import me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperProperties;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
 
-import lombok.SneakyThrows;
-import org.apache.curator.test.TestingServer;
+import org.apache.curator.RetryPolicy;
+import org.apache.curator.framework.CuratorFramework;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 
-/**
- * CosIdZookeeperMachineIdDistributorAutoConfigurationTest .
- *
- * @author ahoo wang
- */
 class CosIdZookeeperMachineIdDistributorAutoConfigurationTest {
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
-    
-    @SneakyThrows
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(CosIdZookeeperMachineIdDistributorAutoConfiguration.class))
+        .withBean(CuratorFramework.class, () -> mock(CuratorFramework.class))
+        .withBean(RetryPolicy.class, () -> mock(RetryPolicy.class))
+        .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
+        .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT);
+
     @Test
-    void contextLoads() {
-        try (TestingServer testingServer = new TestingServer()) {
-            testingServer.start();
-            this.contextRunner
-                .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
-                .withPropertyValues(MachineProperties.Distributor.TYPE + "=zookeeper")
-                .withPropertyValues(CosIdZookeeperProperties.PREFIX + ".connect-string=" + testingServer.getConnectString())
-                .withUserConfiguration(UtilAutoConfiguration.class,
-                    CosIdAutoConfiguration.class,
-                    CosIdZookeeperAutoConfiguration.class,
-                    CosIdHostNameAutoConfiguration.class,
-                    CosIdMachineAutoConfiguration.class)
-                .withUserConfiguration(CosIdZookeeperMachineIdDistributorAutoConfiguration.class)
-                .run(context -> {
-                    assertThat(context)
-                        .hasSingleBean(CosIdZookeeperMachineIdDistributorAutoConfiguration.class)
-                        .hasSingleBean(ZookeeperMachineIdDistributor.class)
-                    ;
-                });
-        }
+    void createsZookeeperMachineDistributorWithoutConnectingToZookeeper() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=zookeeper")
+            .run(context -> assertThat(context)
+                .hasSingleBean(CosIdZookeeperMachineIdDistributorAutoConfiguration.class)
+                .hasSingleBean(ZookeeperMachineIdDistributor.class));
+    }
+
+    @Test
+    void backsOffWhenUserProvidesZookeeperMachineDistributor() {
+        ZookeeperMachineIdDistributor distributor = mock(ZookeeperMachineIdDistributor.class);
+
+        this.contextRunner
+            .withBean(ZookeeperMachineIdDistributor.class, () -> distributor)
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=zookeeper")
+            .run(context -> assertThat(context.getBean(ZookeeperMachineIdDistributor.class)).isSameAs(distributor));
+    }
+
+    @Test
+    void doesNotCreateDistributorWhenMachineIsDisabled() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=false")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=zookeeper")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdZookeeperMachineIdDistributorAutoConfiguration.class)
+                .doesNotHaveBean(ZookeeperMachineIdDistributor.class));
+    }
+
+    @Test
+    void doesNotCreateDistributorWhenTypeDoesNotMatch() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdZookeeperMachineIdDistributorAutoConfiguration.class)
+                .doesNotHaveBean(ZookeeperMachineIdDistributor.class));
+    }
+
+    @Test
+    void doesNotCreateDistributorWhenZookeeperMachineClassIsMissing() {
+        this.contextRunner
+            .withClassLoader(new FilteredClassLoader(ZookeeperMachineIdDistributor.class))
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=zookeeper")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdZookeeperMachineIdDistributorAutoConfiguration.class)
+                .doesNotHaveBean(ZookeeperMachineIdDistributor.class));
     }
 }

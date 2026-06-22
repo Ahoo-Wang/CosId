@@ -13,19 +13,59 @@
 
 package me.ahoo.cosid.jvm;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author ahoo wang
  */
 class AtomicLongGeneratorTest {
-    
+
     @Test
-    void generate() {
+    void generateShouldIncrementByOne() {
         long idFirst = AtomicLongGenerator.INSTANCE.generate();
         long idSecond = AtomicLongGenerator.INSTANCE.generate();
-        Assertions.assertTrue(idSecond > idFirst);
+
+        assertThat(idSecond, equalTo(idFirst + 1));
     }
-    
+
+    @Test
+    void generateShouldBeUniqueWhenCalledConcurrently() throws InterruptedException {
+        int taskCount = 256;
+        ExecutorService executorService = Executors.newFixedThreadPool(8);
+        CountDownLatch start = new CountDownLatch(1);
+        CountDownLatch done = new CountDownLatch(taskCount);
+        Set<Long> ids = ConcurrentHashMap.newKeySet();
+
+        try {
+            for (int i = 0; i < taskCount; i++) {
+                executorService.execute(() -> {
+                    try {
+                        start.await();
+                        ids.add(AtomicLongGenerator.INSTANCE.generate());
+                    } catch (InterruptedException interruptedException) {
+                        Thread.currentThread().interrupt();
+                    } finally {
+                        done.countDown();
+                    }
+                });
+            }
+            start.countDown();
+
+            Assertions.assertTrue(done.await(5, TimeUnit.SECONDS));
+            assertThat(ids.size(), equalTo(taskCount));
+        } finally {
+            executorService.shutdownNow();
+        }
+    }
 }

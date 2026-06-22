@@ -13,11 +13,15 @@
 
 package me.ahoo.cosid.mongo;
 
+import static com.mongodb.client.model.Filters.eq;
+import static com.mongodb.client.model.Updates.set;
+import static me.ahoo.cosid.mongo.IdSegmentCollection.COLLECTION_NAME;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
+import me.ahoo.cosid.mongo.reactive.BlockingAdapter;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
@@ -26,27 +30,46 @@ import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.container.MongoLauncher;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
+import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoClients;
 import com.mongodb.reactivestreams.client.MongoDatabase;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
 
+import java.util.UUID;
+
 class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
+    MongoClient mongoClient;
     MongoDatabase mongoDatabase;
     IdSegmentDistributorFactory distributorFactory;
     MongoReactiveIdSegmentInitializer idSegmentInitializer;
     
     @BeforeEach
     void setup() {
-        mongoDatabase = MongoClients.create(MongoLauncher.getConnectionString()).getDatabase("cosid_db");
+        mongoClient = MongoClients.create(MongoLauncher.getConnectionString());
+        mongoDatabase = mongoClient.getDatabase("cosid_db_reactive_" + UUID.randomUUID().toString().replace("-", ""));
         idSegmentInitializer = new MongoReactiveIdSegmentInitializer(mongoDatabase);
         
         idSegmentInitializer.ensureCosIdCollection();
         distributorFactory =
             new MongoReactiveIdSegmentDistributorFactory(mongoDatabase);
+    }
+
+    @AfterEach
+    void destroy() {
+        try {
+            if (mongoDatabase != null) {
+                BlockingAdapter.block(mongoDatabase.drop());
+            }
+        } finally {
+            if (mongoClient != null) {
+                mongoClient.close();
+            }
+        }
     }
     
     @Override
@@ -56,12 +79,23 @@ class MongoReactiveIdSegmentDistributorTest extends IdSegmentDistributorSpec {
     
     @Override
     protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
-    
+        BlockingAdapter.block(mongoDatabase.getCollection(COLLECTION_NAME)
+            .updateOne(eq(Documents.ID_FIELD, distributor.getNamespacedName()), set(IdSegmentOperates.LAST_MAX_ID_FIELD, maxId)));
     }
     
+    @Test
     @Override
     public void nextMaxIdWhenBack() {
-    
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxIdWhenBack", TEST_OFFSET, TEST_STEP);
+        IdSegmentDistributor distributor = factory().create(definition);
+        long firstMaxId = distributor.nextMaxId();
+        assertThat(firstMaxId, equalTo(TEST_OFFSET + TEST_STEP));
+
+        setMaxIdBack(distributor, TEST_OFFSET);
+        long nextMaxId = distributor.nextMaxId();
+
+        assertThat(nextMaxId, equalTo(TEST_OFFSET + TEST_STEP));
     }
     
     @Test

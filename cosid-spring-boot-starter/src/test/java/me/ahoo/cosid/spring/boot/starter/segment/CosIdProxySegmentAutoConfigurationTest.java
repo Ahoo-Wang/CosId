@@ -14,31 +14,85 @@
 package me.ahoo.cosid.spring.boot.starter.segment;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.Mockito.mock;
 
-import me.ahoo.coapi.spring.boot.starter.CoApiAutoConfiguration;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
-import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
+import me.ahoo.cosid.proxy.api.SegmentClient;
+
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.web.client.RestClient;
 
 class CosIdProxySegmentAutoConfigurationTest {
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(CosIdProxySegmentAutoConfiguration.class))
+        .withBean(SegmentClient.class, () -> mock(SegmentClient.class));
 
     @Test
-    void contextLoads() {
+    void createsProxySegmentDistributorFactoryWhenTypeIsProxy() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=proxy")
-            .withPropertyValues("cosid.proxy.host" + "=http://localhost:8688")
-            .withBean(RestClient.Builder.class, RestClient::builder)
-            .withUserConfiguration(CoApiAutoConfiguration.class)
-            .withUserConfiguration(CosIdProxySegmentAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(CosIdProxySegmentAutoConfiguration.class)
                     .hasSingleBean(IdSegmentDistributorFactory.class)
                 ;
             });
+    }
+
+    @Test
+    void backsOffWhenUserProvidesSegmentDistributorFactory() {
+        IdSegmentDistributorFactory userFactory = definition -> mock(me.ahoo.cosid.segment.IdSegmentDistributor.class);
+
+        this.contextRunner
+            .withBean(IdSegmentDistributorFactory.class, () -> userFactory)
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=proxy")
+            .run(context -> assertThat(context)
+                .hasSingleBean(IdSegmentDistributorFactory.class)
+                .getBean(IdSegmentDistributorFactory.class)
+                .isSameAs(userFactory));
+    }
+
+    @Test
+    void doesNotCreateFactoryWhenSegmentIsDisabled() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=false")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=proxy")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdProxySegmentAutoConfiguration.class)
+                .doesNotHaveBean(IdSegmentDistributorFactory.class));
+    }
+
+    @Test
+    void doesNotCreateFactoryWhenTypeDoesNotMatch() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=jdbc")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdProxySegmentAutoConfiguration.class)
+                .doesNotHaveBean(IdSegmentDistributorFactory.class));
+    }
+
+    @Test
+    void failsFastWhenCoApiRestClientBuilderIsMissing() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdProxySegmentAutoConfiguration.class))
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=proxy")
+            .run(context -> assertThat(hasCauseMessage(context.getStartupFailure(), "RestClient$Builder"))
+                .isTrue());
+    }
+
+    private static boolean hasCauseMessage(Throwable throwable, String message) {
+        Throwable current = throwable;
+        while (current != null) {
+            if (current.getMessage() != null && current.getMessage().contains(message)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

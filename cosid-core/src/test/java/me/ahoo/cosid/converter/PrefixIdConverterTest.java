@@ -21,57 +21,67 @@ import me.ahoo.cosid.stat.converter.PrefixConverterStat;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.ThreadLocalRandom;
-
 /**
  * @author rocher kong
  */
 class PrefixIdConverterTest {
     private static final String PREFIX = "prefix_";
     private final PrefixIdConverter idConverter = new PrefixIdConverter(PREFIX, ToStringIdConverter.INSTANCE);
-    
+
     @Test
-    void getSuffix() {
+    void getPrefixShouldExposeConfiguredPrefix() {
         assertThat(idConverter.getPrefix(), equalTo(PREFIX));
     }
-    
+
     @Test
-    void getActual() {
-        assertThat(idConverter.getActual(), equalTo(ToStringIdConverter.INSTANCE));
+    void getActualShouldExposeWrappedConverter() {
+        assertThat(idConverter.getActual(), sameInstance(ToStringIdConverter.INSTANCE));
     }
-    
+
     @Test
-    void asString() {
-        long randomId = ThreadLocalRandom.current().nextLong();
-        String actual = idConverter.asString(randomId);
-        assertThat(actual, equalTo(PREFIX + randomId));
+    void asStringShouldPrependPrefix() {
+        String actual = idConverter.asString(42);
+
+        assertThat(actual, equalTo(PREFIX + "42"));
     }
-    
+
     @Test
-    void asLong() {
-        long randomId = ThreadLocalRandom.current().nextLong();
-        long actual = idConverter.asLong(PREFIX + randomId);
-        assertThat(actual, equalTo(randomId));
+    void asLongShouldRequireConfiguredPrefixAndDelegateSuffix() {
+        long actual = idConverter.asLong(PREFIX + "42");
+
+        assertThat(actual, equalTo(42L));
     }
-    
+
     @Test
-    void asLongWhenNumberFormat() {
-        Assertions.assertDoesNotThrow(() -> {
-            idConverter.asLong("prefix_-1");
-        });
-        Assertions.assertThrows(StringIndexOutOfBoundsException.class, () -> {
-            idConverter.asLong("-1");
-        });
-        Assertions.assertDoesNotThrow(() -> {
-            idConverter.asLong("prefix_111");
-        });
+    void asLongShouldRejectMismatchedPrefix() {
+        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> idConverter.asLong("other_42"));
+
+        assertThat(exception.getMessage(), containsString("prefix"));
+    }
+
+    @Test
+    void asLongShouldDelegateNumericParsingFailures() {
+        Assertions.assertEquals(-1L, idConverter.asLong("prefix_-1"));
+        Assertions.assertEquals(111L, idConverter.asLong("prefix_111"));
         Assertions.assertThrows(NumberFormatException.class, () -> {
             idConverter.asLong("prefix_1_");
         });
     }
-    
+
     @Test
-    void stat() {
-        assertThat(idConverter.stat(), instanceOf(PrefixConverterStat.class));
+    void emptyPrefixShouldLeaveStringRepresentationUnchanged() {
+        PrefixIdConverter emptyPrefixConverter = new PrefixIdConverter("", ToStringIdConverter.INSTANCE);
+
+        assertThat(emptyPrefixConverter.asString(42), equalTo("42"));
+        assertThat(emptyPrefixConverter.asLong("42"), equalTo(42L));
+    }
+
+    @Test
+    void statShouldExposePrefixAndActualConverter() {
+        PrefixConverterStat stat = (PrefixConverterStat) idConverter.stat();
+
+        assertThat(stat, instanceOf(PrefixConverterStat.class));
+        assertThat(stat.getPrefix(), equalTo(PREFIX));
+        assertThat(stat.getActual(), equalTo(ToStringIdConverter.INSTANCE.stat()));
     }
 }

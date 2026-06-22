@@ -15,8 +15,8 @@ package me.ahoo.cosid.zookeeper;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.InMemoryMachineStateStorage;
 import me.ahoo.cosid.machine.MachineState;
-import me.ahoo.cosid.machine.MachineStateStorage;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -97,7 +97,7 @@ class ZookeeperMachineIdDistributorUnitTest {
         return new ZookeeperMachineIdDistributor(
             curatorStub.curatorFramework(),
             new RetryNTimes(1, 1),
-            MachineStateStorage.IN_MEMORY,
+            new InMemoryMachineStateStorage(),
             ClockBackwardsSynchronizer.DEFAULT
         );
     }

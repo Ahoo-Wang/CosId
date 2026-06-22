@@ -19,33 +19,46 @@ import static org.hamcrest.Matchers.*;
 import org.junit.jupiter.api.Test;
 
 class NotFoundCosIdAccessorTest {
+
     @Test
-    public void getIdDefinition() {
+    void sentinelShouldExposeNoMetadata() {
         assertThat(CosIdAccessor.NOT_FOUND.getIdDefinition(), nullValue());
-    }
-    
-    @Test
-    public void getIdGenerator() {
         assertThat(CosIdAccessor.NOT_FOUND.getIdGenerator(), nullValue());
-    }
-    
-    @Test
-    public void getIdField() {
         assertThat(CosIdAccessor.NOT_FOUND.getIdField(), nullValue());
     }
-    
+
     @Test
-    public void getId() {
-        assertThat(CosIdAccessor.NOT_FOUND.getId(new Object()), nullValue());
+    void getIdShouldAlwaysReturnNullForAnyTarget() {
+        Object target = new Object();
+
+        assertThat(CosIdAccessor.NOT_FOUND.getId(target), nullValue());
+        assertThat(CosIdAccessor.NOT_FOUND.getId(null), nullValue());
     }
-    
+
     @Test
-    public void setId() {
-        CosIdAccessor.NOT_FOUND.setId(new Object(), new Object());
+    void setIdShouldBeNoOpForAnyTargetAndValue() {
+        Object target = new Object();
+
+        CosIdAccessor.NOT_FOUND.setId(target, 1L);
+        CosIdAccessor.NOT_FOUND.setId(null, null);
+
+        assertThat(CosIdAccessor.NOT_FOUND.getId(target), nullValue());
     }
-    
+
     @Test
-    public void ensureId() {
+    void ensureIdShouldNeverGenerateId() {
         assertThat(CosIdAccessor.NOT_FOUND.ensureId(new Object()), equalTo(false));
+        assertThat(CosIdAccessor.NOT_FOUND.ensureId(null), equalTo(false));
+    }
+
+    @Test
+    void availableTypeShouldOnlyAcceptSupportedIdTypes() {
+        assertThat(CosIdAccessor.availableType(String.class), equalTo(true));
+        assertThat(CosIdAccessor.availableType(Long.class), equalTo(true));
+        assertThat(CosIdAccessor.availableType(long.class), equalTo(true));
+        assertThat(CosIdAccessor.availableType(Integer.class), equalTo(true));
+        assertThat(CosIdAccessor.availableType(int.class), equalTo(true));
+        assertThat(CosIdAccessor.availableType(Double.class), equalTo(false));
+        assertThat(CosIdAccessor.availableType(Object.class), equalTo(false));
     }
 }

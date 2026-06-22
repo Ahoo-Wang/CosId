@@ -13,32 +13,43 @@
 
 package me.ahoo.cosid.spring.boot.starter.actuate;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
-import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Test;
 
 class CosIdGeneratorEndpointTest {
-    private final IdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
-    private final CosIdGeneratorEndpoint cosIdGeneratorEndpoint = new CosIdGeneratorEndpoint(idGeneratorProvider);
-    
-    public CosIdGeneratorEndpointTest() {
-        idGeneratorProvider.setShare(MockIdGenerator.INSTANCE);
-    }
-    
+
     @Test
-    void shareGenerate() {
-        var id = cosIdGeneratorEndpoint.shareGenerate();
-        assertThat(id, greaterThan(0L));
+    void shareGenerateUsesShareGenerator() {
+        CosIdGeneratorEndpoint endpoint = new CosIdGeneratorEndpoint(newProvider());
+
+        assertThat(endpoint.shareGenerate()).isPositive();
     }
-    
+
     @Test
-    void generate() {
-        var id = cosIdGeneratorEndpoint.generate(IdGeneratorProvider.SHARE);
-        assertThat(id, greaterThan(0L));
+    void generateUsesNamedGenerator() {
+        CosIdGeneratorEndpoint endpoint = new CosIdGeneratorEndpoint(newProvider());
+
+        assertThat(endpoint.generate("orders")).isPositive();
+    }
+
+    @Test
+    void generatePropagatesMissingGeneratorFailure() {
+        CosIdGeneratorEndpoint endpoint = new CosIdGeneratorEndpoint(new DefaultIdGeneratorProvider());
+
+        assertThatThrownBy(() -> endpoint.generate("missing"))
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("missing");
+    }
+
+    private static DefaultIdGeneratorProvider newProvider() {
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.setShare(MockIdGenerator.INSTANCE);
+        provider.set("orders", MockIdGenerator.INSTANCE);
+        return provider;
     }
 }

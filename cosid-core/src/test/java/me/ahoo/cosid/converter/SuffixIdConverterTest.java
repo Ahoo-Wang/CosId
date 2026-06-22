@@ -18,9 +18,8 @@ import static org.hamcrest.Matchers.*;
 
 import me.ahoo.cosid.stat.converter.SuffixConverterStat;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * SuffixIdConverterTest .
@@ -30,33 +29,52 @@ import java.util.concurrent.ThreadLocalRandom;
 class SuffixIdConverterTest {
     private static final String SUFFIX = "-suffix";
     private final SuffixIdConverter idConverter = new SuffixIdConverter(SUFFIX, ToStringIdConverter.INSTANCE);
-    
+
     @Test
-    void getSuffix() {
+    void getSuffixShouldExposeConfiguredSuffix() {
         assertThat(idConverter.getSuffix(), equalTo(SUFFIX));
     }
-    
+
     @Test
-    void getActual() {
-        assertThat(idConverter.getActual(), equalTo(ToStringIdConverter.INSTANCE));
+    void getActualShouldExposeWrappedConverter() {
+        assertThat(idConverter.getActual(), sameInstance(ToStringIdConverter.INSTANCE));
     }
-    
+
     @Test
-    void asString() {
-        long randomId = ThreadLocalRandom.current().nextLong();
-        String actual = idConverter.asString(randomId);
-        assertThat(actual, equalTo(randomId + SUFFIX));
+    void asStringShouldAppendSuffix() {
+        String actual = idConverter.asString(42);
+
+        assertThat(actual, equalTo("42" + SUFFIX));
     }
-    
+
     @Test
-    void asLong() {
-        long randomId = ThreadLocalRandom.current().nextLong();
-        long actual = idConverter.asLong(randomId + SUFFIX);
-        assertThat(actual, equalTo(randomId));
+    void asLongShouldRequireConfiguredSuffixAndDelegatePrefix() {
+        long actual = idConverter.asLong("42" + SUFFIX);
+
+        assertThat(actual, equalTo(42L));
     }
-    
+
     @Test
-    void stat() {
-        assertThat(idConverter.stat(), instanceOf(SuffixConverterStat.class));
+    void asLongShouldRejectMismatchedSuffix() {
+        IllegalArgumentException exception = Assertions.assertThrows(IllegalArgumentException.class, () -> idConverter.asLong("42-other"));
+
+        assertThat(exception.getMessage(), containsString("suffix"));
+    }
+
+    @Test
+    void emptySuffixShouldLeaveStringRepresentationUnchanged() {
+        SuffixIdConverter emptySuffixConverter = new SuffixIdConverter("", ToStringIdConverter.INSTANCE);
+
+        assertThat(emptySuffixConverter.asString(42), equalTo("42"));
+        assertThat(emptySuffixConverter.asLong("42"), equalTo(42L));
+    }
+
+    @Test
+    void statShouldExposeSuffixAndActualConverter() {
+        SuffixConverterStat stat = (SuffixConverterStat) idConverter.stat();
+
+        assertThat(stat, instanceOf(SuffixConverterStat.class));
+        assertThat(stat.getSuffix(), equalTo(SUFFIX));
+        assertThat(stat.getActual(), equalTo(ToStringIdConverter.INSTANCE.stat()));
     }
 }

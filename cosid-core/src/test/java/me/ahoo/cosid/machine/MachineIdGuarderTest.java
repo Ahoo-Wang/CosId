@@ -13,35 +13,82 @@
 
 package me.ahoo.cosid.machine;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 class MachineIdGuarderTest {
-    
+
     @Test
-    void register() {
-        MachineIdGuarder.NONE.register("namespace", InstanceId.of("1", false));
-    }
-    
-    @Test
-    void unregister() {
-        MachineIdGuarder.NONE.unregister("namespace", InstanceId.of("1", false));
-    }
-    
-    @Test
-    void start() {
+    void noneShouldKeepEmptyStateAndNeverRun() {
+        MachineIdGuarder.NONE.register("namespace", InstanceId.NONE);
         MachineIdGuarder.NONE.start();
-    }
-    
-    @Test
-    void stop() {
+        MachineIdGuarder.NONE.unregister("namespace", InstanceId.NONE);
         MachineIdGuarder.NONE.stop();
+
+        assertTrue(MachineIdGuarder.NONE.getGuardianStates().isEmpty());
+        assertFalse(MachineIdGuarder.NONE.hasFailure());
+        assertFalse(MachineIdGuarder.NONE.isRunning());
     }
-    
+
     @Test
-    void isRunning() {
-        assertThat(MachineIdGuarder.NONE.isRunning(), is(false));
+    void hasFailureShouldReflectAnyFailedGuardianState() {
+        NamespacedInstanceId ok = new NamespacedInstanceId("namespace", InstanceId.of("ok", false));
+        NamespacedInstanceId failed = new NamespacedInstanceId("namespace", InstanceId.of("failed", false));
+        MachineIdGuarder guarder = new StaticMachineIdGuarder(Map.of(
+            ok, GuardianState.success(1L),
+            failed, GuardianState.failed(2L, new IllegalStateException("lost"))
+        ));
+
+        assertTrue(guarder.hasFailure());
+    }
+
+    @Test
+    void hasFailureShouldBeFalseWhenAllStatesAreInitialOrSuccessful() {
+        NamespacedInstanceId initial = new NamespacedInstanceId("namespace", InstanceId.of("initial", false));
+        NamespacedInstanceId success = new NamespacedInstanceId("namespace", InstanceId.of("success", false));
+        MachineIdGuarder guarder = new StaticMachineIdGuarder(Map.of(
+            initial, GuardianState.INITIAL,
+            success, GuardianState.success(2L)
+        ));
+
+        assertFalse(guarder.hasFailure());
+    }
+
+    private static final class StaticMachineIdGuarder implements MachineIdGuarder {
+        private final Map<NamespacedInstanceId, GuardianState> guardianStates;
+
+        private StaticMachineIdGuarder(Map<NamespacedInstanceId, GuardianState> guardianStates) {
+            this.guardianStates = guardianStates;
+        }
+
+        @Override
+        public Map<NamespacedInstanceId, GuardianState> getGuardianStates() {
+            return guardianStates;
+        }
+
+        @Override
+        public void register(String namespace, InstanceId instanceId) {
+        }
+
+        @Override
+        public void unregister(String namespace, InstanceId instanceId) {
+        }
+
+        @Override
+        public void start() {
+        }
+
+        @Override
+        public void stop() {
+        }
+
+        @Override
+        public boolean isRunning() {
+            return false;
+        }
     }
 }

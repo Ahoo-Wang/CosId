@@ -13,21 +13,34 @@
 
 package me.ahoo.cosid.example.proxy;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.example.proxy.controller.IdController;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
+
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
-import org.springframework.boot.test.context.SpringBootTest;
 
 /**
  * AppServerTest .
  *
  * @author ahoo wang
  */
-@DisabledIfEnvironmentVariable(named = "CODECOV", matches = "true")
-@DisabledIfEnvironmentVariable(named = "CI", matches = "true")
-@SpringBootTest
 class AppServerTest {
     
     @Test
-    void contextLoads() {
+    void idControllerGeneratesFromShareProviderWithoutProxyServer() {
+        IdGeneratorProvider provider = mock(IdGeneratorProvider.class);
+        IdGenerator share = mock(IdGenerator.class);
+        when(provider.getShare()).thenReturn(share);
+        when(share.generate()).thenReturn(123L);
+        when(share.generateAsString()).thenReturn("ID-123");
+
+        IdController controller = new IdController(provider);
+
+        assertEquals(123L, controller.generate());
+        assertEquals("ID-123", controller.generateAsString());
     }
 }

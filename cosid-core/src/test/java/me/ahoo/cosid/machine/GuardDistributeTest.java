@@ -24,9 +24,13 @@ class GuardDistributeTest {
 
     @Test
     void distribute() {
-        ManualMachineIdDistributor distributor = new ManualMachineIdDistributor(1, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
+        InMemoryMachineStateStorage machineStateStorage = new InMemoryMachineStateStorage();
+        ManualMachineIdDistributor distributor = new ManualMachineIdDistributor(1, machineStateStorage, ClockBackwardsSynchronizer.DEFAULT);
         GuardDistribute guardDistribute = new GuardDistribute(distributor, MachineIdGuarder.NONE);
-        MachineState machineState = guardDistribute.distribute("test", 10, InstanceId.of("test", true), Duration.ofMinutes(1));
+        String namespace = "test";
+        InstanceId instanceId = InstanceId.of("test", true);
+        MachineState machineState = guardDistribute.distribute(namespace, 10, instanceId, Duration.ofMinutes(1));
         assertThat(machineState.getMachineId(), equalTo(1));
+        assertThat(machineStateStorage.get(namespace, instanceId), equalTo(machineState));
     }
 }

@@ -14,14 +14,18 @@
 package me.ahoo.cosid.spring.boot.starter.machine;
 
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.mockito.Mockito.mock;
 
 import me.ahoo.cosid.jdbc.JdbcMachineIdDistributor;
-import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineStateStorage;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.cloud.commons.util.UtilAutoConfiguration;
+
+import javax.sql.DataSource;
 
 /**
  * CosIdJdbcMachineIdDistributorAutoConfigurationTest .
@@ -30,28 +34,67 @@ import org.springframework.cloud.commons.util.UtilAutoConfiguration;
  */
 class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
     
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(CosIdJdbcMachineIdDistributorAutoConfiguration.class))
+        .withBean(DataSource.class, () -> mock(DataSource.class))
+        .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
+        .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT);
     
     @Test
-    void contextLoads() {
+    void createsJdbcMachineIdDistributorWithoutConnectingToDatabase() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=jdbc")
-            .withPropertyValues("spring.datasource.url=jdbc:mysql://localhost:3306/cosid_db")
-            .withPropertyValues("spring.datasource.username=root")
-            .withPropertyValues("spring.datasource.password=root")
-            .withUserConfiguration(UtilAutoConfiguration.class,
-                DataSourceAutoConfiguration.class,
-                CosIdAutoConfiguration.class,
-                CosIdHostNameAutoConfiguration.class,
-                CosIdMachineAutoConfiguration.class)
-            .withUserConfiguration(CosIdJdbcMachineIdDistributorAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(CosIdJdbcMachineIdDistributorAutoConfiguration.class)
-                    .hasSingleBean(MachineProperties.class)
                     .hasSingleBean(JdbcMachineIdDistributor.class)
                 ;
             });
+    }
+
+    @Test
+    void backsOffWhenUserProvidesMachineIdDistributor() {
+        JdbcMachineIdDistributor userDistributor = mock(JdbcMachineIdDistributor.class);
+
+        this.contextRunner
+            .withBean(JdbcMachineIdDistributor.class, () -> userDistributor)
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=jdbc")
+            .run(context -> assertThat(context)
+                .hasSingleBean(JdbcMachineIdDistributor.class)
+                .getBean(JdbcMachineIdDistributor.class)
+                .isSameAs(userDistributor));
+    }
+
+    @Test
+    void doesNotCreateDistributorWhenMachineIsDisabled() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=false")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=jdbc")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdJdbcMachineIdDistributorAutoConfiguration.class)
+                .doesNotHaveBean(JdbcMachineIdDistributor.class));
+    }
+
+    @Test
+    void doesNotCreateDistributorWhenTypeDoesNotMatch() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdJdbcMachineIdDistributorAutoConfiguration.class)
+                .doesNotHaveBean(JdbcMachineIdDistributor.class));
+    }
+
+    @Test
+    void doesNotCreateDistributorWhenJdbcDistributorClassIsMissing() {
+        this.contextRunner
+            .withClassLoader(new FilteredClassLoader(JdbcMachineIdDistributor.class))
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=jdbc")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdJdbcMachineIdDistributorAutoConfiguration.class)
+                .doesNotHaveBean(JdbcMachineIdDistributor.class));
     }
 }

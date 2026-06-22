@@ -50,8 +50,8 @@ class MachineOperatesTest {
 
     private void assertMaxLastTimestamp(Bson update, long lastTimestamp) {
         BsonDocument updateDocument = update.toBsonDocument(BsonDocument.class, MongoClientSettings.getDefaultCodecRegistry());
+        Assertions.assertTrue(updateDocument.containsKey("$max"));
         BsonDocument maxDocument = updateDocument.getDocument("$max", null);
-        Assertions.assertNotNull(maxDocument);
         Assertions.assertEquals(lastTimestamp, maxDocument.getInt64(MachineOperates.LAST_TIMESTAMP_FIELD).longValue());
         BsonDocument setDocument = updateDocument.getDocument("$set", new BsonDocument());
         Assertions.assertFalse(setDocument.containsKey(MachineOperates.LAST_TIMESTAMP_FIELD));

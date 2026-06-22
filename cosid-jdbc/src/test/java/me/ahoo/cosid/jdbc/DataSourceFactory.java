@@ -16,8 +16,6 @@ package me.ahoo.cosid.jdbc;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.SegmentChainId;
 
-import com.zaxxer.hikari.HikariDataSource;
-
 import javax.sql.DataSource;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -29,26 +27,17 @@ public class DataSourceFactory {
     public static final DataSourceFactory INSTANCE = new DataSourceFactory();
 
     AtomicInteger counter = new AtomicInteger();
-    private DataSource dataSource;
 
     private DataSourceFactory() {
 
     }
 
-    public synchronized DataSource createDataSource() {
-        if (dataSource != null) {
-            return dataSource;
-        }
-        HikariDataSource hikariDataSource = new HikariDataSource();
-        hikariDataSource.setJdbcUrl("jdbc:mysql://localhost:3306/cosid_db");
-        hikariDataSource.setUsername("root");
-        hikariDataSource.setPassword("root");
-        dataSource = hikariDataSource;
-        return dataSource;
+    public InMemoryJdbcDataSource createDataSource() {
+        return new InMemoryJdbcDataSource();
     }
 
     public JdbcIdSegmentDistributor createJdbcDistributor(int step) {
-        DataSource dataSource = createDataSource();
+        InMemoryJdbcDataSource dataSource = createDataSource();
         return createJdbcDistributor(dataSource, step);
     }
 

@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test;
 class MongoIdSegmentDistributorUnitTest {
 
     @Test
-    void nextMaxIdShouldPassOffsetToCollection() {
+    void nextMaxIdShouldPassDefaultStepToCollection() {
         RecordingIdSegmentCollection collection = new RecordingIdSegmentCollection();
         MongoIdSegmentDistributor distributor = new MongoIdSegmentDistributor("ns", "name", 7, 100, collection);
 
@@ -34,19 +34,51 @@ class MongoIdSegmentDistributorUnitTest {
     }
 
     @Test
-    void nextMaxIdShouldRejectNonPositiveStep() {
-        MongoIdSegmentDistributor distributor = new MongoIdSegmentDistributor("ns", "name", 0, 100, new RecordingIdSegmentCollection());
+    void nextMaxIdWithStepShouldPassRequestedStepToCollection() {
+        RecordingIdSegmentCollection collection = new RecordingIdSegmentCollection();
+        MongoIdSegmentDistributor distributor = new MongoIdSegmentDistributor("ns", "name", 7, 100, collection);
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> distributor.nextMaxId(0));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> distributor.nextMaxId(-1));
+        long actual = distributor.nextMaxId(13);
+
+        Assertions.assertEquals(20, actual);
+        Assertions.assertEquals(IdSegmentDistributor.getNamespacedName("ns", "name"), collection.namespacedName);
+        Assertions.assertEquals(7, collection.offset);
+        Assertions.assertEquals(13, collection.step);
     }
 
     @Test
-    void constructorShouldRejectInvalidOffsetAndStep() {
+    void nextMaxIdShouldRejectNonPositiveStep() {
+        MongoIdSegmentDistributor distributor = new MongoIdSegmentDistributor("ns", "name", 0, 100, new RecordingIdSegmentCollection());
+
+        IllegalArgumentException zeroStep = Assertions.assertThrows(IllegalArgumentException.class, () -> distributor.nextMaxId(0));
+        IllegalArgumentException negativeStep = Assertions.assertThrows(IllegalArgumentException.class, () -> distributor.nextMaxId(-1));
+
+        Assertions.assertTrue(zeroStep.getMessage().contains("step"));
+        Assertions.assertTrue(negativeStep.getMessage().contains("step"));
+    }
+
+    @Test
+    void constructorShouldRejectNegativeOffset() {
         RecordingIdSegmentCollection collection = new RecordingIdSegmentCollection();
 
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new MongoIdSegmentDistributor("ns", "name", -1, 100, collection));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> new MongoIdSegmentDistributor("ns", "name", 0, 0, collection));
+        IllegalArgumentException exception = Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () -> new MongoIdSegmentDistributor("ns", "name", -1, 100, collection)
+        );
+
+        Assertions.assertTrue(exception.getMessage().contains("offset"));
+    }
+
+    @Test
+    void constructorShouldRejectNonPositiveDefaultStep() {
+        RecordingIdSegmentCollection collection = new RecordingIdSegmentCollection();
+
+        IllegalArgumentException exception = Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () -> new MongoIdSegmentDistributor("ns", "name", 0, 0, collection)
+        );
+
+        Assertions.assertTrue(exception.getMessage().contains("step"));
     }
 
     private static final class RecordingIdSegmentCollection implements IdSegmentCollection {

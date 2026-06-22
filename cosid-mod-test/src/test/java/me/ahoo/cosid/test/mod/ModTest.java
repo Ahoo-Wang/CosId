@@ -25,14 +25,14 @@ import org.apache.shardingsphere.sharding.algorithm.keygen.SnowflakeKeyGenerateA
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.Properties;
-import java.util.concurrent.locks.LockSupport;
 
 public class ModTest {
     public static final int TEST_MACHINE_ID = 1;
     private static final int ITERATIONS = 1000;
     private static final double ALLOWABLE_POP_STD = 10;
+    private static final double ALLOWABLE_RANDOM_POP_STD = 40;
+    private static final double ALLOWABLE_SHARDINGSPHERE_DEFAULT_POP_STD = 434;
     SnowflakeFriendlyId cosidSnowflakeId;
     CamelliaSnowflakeIdGen camelliaSnowflakeId;
     SnowflakeKeyGenerateAlgorithm shardingsphereSnowflakeId = new SnowflakeKeyGenerateAlgorithm();
@@ -48,14 +48,15 @@ public class ModTest {
     
     @Test
     public void cosidMod4() {
-        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, cosidSnowflakeId::generate, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
-        spec.run();
+        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, cosidSnowflakeId::generate, ModSpec.DEFAULT_WAIT);
+        spec.verify();
     }
     
     @Test
     public void shardingsphereMod4Default() {
-        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, shardingsphereSnowflakeId::generateKey, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
-        spec.run();
+        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_SHARDINGSPHERE_DEFAULT_POP_STD, shardingsphereSnowflakeId::generateKey,
+            ModSpec.DEFAULT_WAIT);
+        spec.verify();
     }
     
     @Test
@@ -64,26 +65,28 @@ public class ModTest {
         Properties properties = new Properties();
         properties.setProperty("max-vibration-offset", String.valueOf(3));
         idGen.init(properties);
-        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, idGen::generateKey, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
-        spec.run();
+        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, idGen::generateKey, ModSpec.DEFAULT_WAIT);
+        spec.verify();
     }
     
     @Test
     public void neteaseMod4() {
-        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, camelliaSnowflakeId::genId, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
-        spec.run();
+        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_RANDOM_POP_STD, camelliaSnowflakeId::genId,
+            ModSpec.DEFAULT_WAIT);
+        spec.verify();
     }
     
     @Test
     public void cosidMod128() {
-        ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_POP_STD, cosidSnowflakeId::generate, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
-        spec.run();
+        ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_POP_STD, cosidSnowflakeId::generate, ModSpec.DEFAULT_WAIT);
+        spec.verify();
     }
     
     @Test
     public void neteaseMod128() {
-        ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_POP_STD, camelliaSnowflakeId::genId, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
-        spec.run();
+        ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_RANDOM_POP_STD, camelliaSnowflakeId::genId,
+            ModSpec.DEFAULT_WAIT);
+        spec.verify();
     }
     
     @Test
@@ -92,7 +95,7 @@ public class ModTest {
         Properties properties = new Properties();
         properties.setProperty("max-vibration-offset", String.valueOf(127));
         idGen.init(properties);
-        ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_POP_STD, idGen::generateKey, () -> LockSupport.parkNanos(Duration.ofMillis(1).toNanos()));
-        spec.run();
+        ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_POP_STD, idGen::generateKey, ModSpec.DEFAULT_WAIT);
+        spec.verify();
     }
 }

@@ -13,16 +13,17 @@
 
 package me.ahoo.cosid.sharding;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
@@ -36,35 +37,48 @@ import java.util.Date;
 import java.util.stream.Stream;
 
 class StandardLocalDateTimeConvertorTest {
-    private static final ZoneId zoneId = ZoneId.of("Asia/Shanghai");
-    private final StandardLocalDateTimeConvertor convertor =
-        new StandardLocalDateTimeConvertor(zoneId, false, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-    
-    @ParameterizedTest
-    @MethodSource("argsProvider")
-    void toLocalDateTime(Comparable<?> shardingValue, LocalDateTime expected) {
-        assertThat(convertor.toLocalDateTime(shardingValue), equalTo(expected));
-    }
-    
-    @Test
-    void toLocalDateTimeGivenUnknownType() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> convertor.toLocalDateTime(1));
-    }
-    
-    static Stream<Arguments> argsProvider() {
-        LocalDateTime localDateTime = LocalDateTime.of(2021, 12, 14, 22, 0);
-        ZoneOffset zoneOffset = ZoneOffset.ofHours(8);
+    private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
+    private static final ZoneOffset ZONE_OFFSET = ZoneOffset.ofHours(8);
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final LocalDateTime EXPECTED = LocalDateTime.of(2021, 12, 14, 22, 0);
+    private static final long EPOCH_MILLIS = EXPECTED.toInstant(ZONE_OFFSET).toEpochMilli();
+    private static final long EPOCH_SECONDS = EXPECTED.toInstant(ZONE_OFFSET).getEpochSecond();
+
+    private final StandardLocalDateTimeConvertor millisecondConvertor = new StandardLocalDateTimeConvertor(ZONE_ID, false, FORMATTER);
+
+    static Stream<Arguments> supportedValues() {
+        Instant instant = EXPECTED.toInstant(ZONE_OFFSET);
         return Stream.of(
-            arguments(localDateTime, localDateTime),
-            arguments(ZonedDateTime.of(localDateTime, zoneId), localDateTime),
-            arguments(OffsetDateTime.of(localDateTime, zoneOffset), localDateTime),
-            arguments(localDateTime.toInstant(zoneOffset), localDateTime),
-            arguments(localDateTime.toLocalDate(), LocalDateTime.of(localDateTime.toLocalDate(), LocalTime.MIN)),
-            arguments(new Date(localDateTime.toEpochSecond(zoneOffset) * 1000), localDateTime),
-            arguments(localDateTime.toEpochSecond(zoneOffset) * 1000, localDateTime),
-            arguments("2021-12-14 22:00:00", localDateTime),
-            arguments(Year.of(2021), LocalDateTime.of(2021, 1, 1, 0, 0)),
-            arguments(YearMonth.of(2021, 12), LocalDateTime.of(2021, 12, 1, 0, 0))
+            arguments(EXPECTED, EXPECTED),
+            arguments(ZonedDateTime.of(EXPECTED, ZONE_ID), EXPECTED),
+            arguments(OffsetDateTime.of(EXPECTED, ZONE_OFFSET), EXPECTED),
+            arguments(instant, EXPECTED),
+            arguments(LocalDate.of(2021, 12, 14), LocalDateTime.of(LocalDate.of(2021, 12, 14), LocalTime.MIN)),
+            arguments(Date.from(instant), EXPECTED),
+            arguments(EPOCH_MILLIS, EXPECTED),
+            arguments("2021-12-14 22:00:00", EXPECTED),
+            arguments(YearMonth.of(2021, 12), LocalDateTime.of(2021, 12, 1, 0, 0)),
+            arguments(Year.of(2021), LocalDateTime.of(2021, 1, 1, 0, 0))
         );
+    }
+
+    @ParameterizedTest
+    @MethodSource("supportedValues")
+    void toLocalDateTimeShouldConvertSupportedValueTypes(Comparable<?> value, LocalDateTime expected) {
+        assertEquals(expected, millisecondConvertor.toLocalDateTime(value));
+    }
+
+    @Test
+    void toLocalDateTimeShouldInterpretLongAsSecondsWhenConfigured() {
+        StandardLocalDateTimeConvertor secondConvertor = new StandardLocalDateTimeConvertor(ZONE_ID, true, FORMATTER);
+
+        assertEquals(EXPECTED, secondConvertor.toLocalDateTime(EPOCH_SECONDS));
+    }
+
+    @Test
+    void toLocalDateTimeShouldRejectUnsupportedValueType() {
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> millisecondConvertor.toLocalDateTime(1));
+
+        assertEquals("Unsupported sharding value type `1`.", error.getMessage());
     }
 }

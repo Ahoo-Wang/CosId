@@ -13,29 +13,56 @@
 
 package me.ahoo.cosid.segment.grouped.date;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.YearMonth;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class YearMonthGroupBySupplierTest {
 
     @Test
-    void get() {
-        String pattern = "yyyy-MM";
-        YearMonthGroupBySupplier supplier = new YearMonthGroupBySupplier(pattern);
+    void getShouldUseFormattedYearMonthAndExpireAtEndOfMonth() {
+        FixedYearMonthGroupBySupplier supplier = new FixedYearMonthGroupBySupplier("yyyy-MM", YearMonth.of(2024, 3));
+
         GroupedKey groupedKey = supplier.get();
-        assertEquals(groupedKey.getKey(), YearMonth.now().format(DateTimeFormatter.ofPattern(pattern)));
+
+        assertThat(groupedKey.getKey(), equalTo("2024-03"));
+        assertThat(groupedKey.getTtlAt(), equalTo(epochSecond(LocalDateTime.of(LocalDate.of(2024, 3, 31), LocalTime.MAX))));
     }
 
     @Test
-    void getYyMm() {
-        String pattern = "yyMM";
-        YearMonthGroupBySupplier supplier = new YearMonthGroupBySupplier(pattern);
+    void getShouldExpireAtLeapYearFebruaryEnd() {
+        FixedYearMonthGroupBySupplier supplier = new FixedYearMonthGroupBySupplier("yyMM", YearMonth.of(2024, 2));
+
         GroupedKey groupedKey = supplier.get();
-        assertEquals(groupedKey.getKey(), YearMonth.now().format(DateTimeFormatter.ofPattern(pattern)));
+
+        assertThat(groupedKey.getKey(), equalTo("2402"));
+        assertThat(groupedKey.getTtlAt(), equalTo(epochSecond(LocalDateTime.of(LocalDate.of(2024, 2, 29), LocalTime.MAX))));
+    }
+
+    private static long epochSecond(LocalDateTime localDateTime) {
+        return localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() / 1000;
+    }
+
+    private static final class FixedYearMonthGroupBySupplier extends YearMonthGroupBySupplier {
+        private final YearMonth yearMonth;
+
+        private FixedYearMonthGroupBySupplier(String pattern, YearMonth yearMonth) {
+            super(DateTimeFormatter.ofPattern(pattern));
+            this.yearMonth = yearMonth;
+        }
+
+        @Override
+        YearMonth now() {
+            return yearMonth;
+        }
     }
 }

@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.sharding;
 
+import com.google.common.base.Preconditions;
 import com.google.errorprone.annotations.Immutable;
 
 import java.time.LocalDateTime;
@@ -43,6 +44,7 @@ public class IntervalStep {
      * @param amount the number of units per step
      */
     public IntervalStep(ChronoUnit unit, int amount) {
+        Preconditions.checkArgument(amount > 0, "amount:[%s] must be greater than 0!", amount);
         this.unit = unit;
         this.amount = amount;
     }

@@ -54,7 +54,7 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
 
     @Override
     public @NonNull String asString(long id) {
-        return LocalDateTime.now().format(formatter) + delimiter + actual.asString(id);
+        return now().format(formatter) + delimiter + actual.asString(id);
     }
 
     @Override
@@ -72,5 +72,9 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
     @Override
     public Stat stat() {
         return new DatePrefixConverterStat(getClass().getSimpleName(), pattern, actual.stat());
+    }
+
+    LocalDateTime now() {
+        return LocalDateTime.now();
     }
 }

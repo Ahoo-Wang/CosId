@@ -13,29 +13,54 @@
 
 package me.ahoo.cosid.segment.grouped.date;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class YearMonthDayGroupBySupplierTest {
 
     @Test
-    void get() {
-        String pattern = "yyyyMMdd";
-        YearMonthDayGroupBySupplier supplier = new YearMonthDayGroupBySupplier(pattern);
+    void getShouldUseFormattedDateAndExpireAtEndOfDay() {
+        FixedYearMonthDayGroupBySupplier supplier = new FixedYearMonthDayGroupBySupplier("yyyyMMdd", LocalDate.of(2024, 2, 29));
+
         GroupedKey groupedKey = supplier.get();
-        assertEquals(groupedKey.getKey(), LocalDate.now().format(DateTimeFormatter.ofPattern(pattern)));
+
+        assertThat(groupedKey.getKey(), equalTo("20240229"));
+        assertThat(groupedKey.getTtlAt(), equalTo(epochSecond(LocalDateTime.of(LocalDate.of(2024, 2, 29), LocalTime.MAX))));
     }
 
     @Test
-    void getYyMm() {
-        String pattern = "yyMMdd";
-        YearMonthDayGroupBySupplier supplier = new YearMonthDayGroupBySupplier(pattern);
+    void getShouldHonorCustomTwoDigitPattern() {
+        FixedYearMonthDayGroupBySupplier supplier = new FixedYearMonthDayGroupBySupplier("yyMMdd", LocalDate.of(2024, 2, 29));
+
         GroupedKey groupedKey = supplier.get();
-        assertEquals(groupedKey.getKey(), LocalDate.now().format(DateTimeFormatter.ofPattern(pattern)));
+
+        assertThat(groupedKey.getKey(), equalTo("240229"));
+    }
+
+    private static long epochSecond(LocalDateTime localDateTime) {
+        return localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() / 1000;
+    }
+
+    private static final class FixedYearMonthDayGroupBySupplier extends YearMonthDayGroupBySupplier {
+        private final LocalDate date;
+
+        private FixedYearMonthDayGroupBySupplier(String pattern, LocalDate date) {
+            super(DateTimeFormatter.ofPattern(pattern));
+            this.date = date;
+        }
+
+        @Override
+        LocalDate now() {
+            return date;
+        }
     }
 }

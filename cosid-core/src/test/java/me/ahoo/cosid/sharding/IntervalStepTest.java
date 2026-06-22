@@ -146,7 +146,7 @@ class IntervalStepTest {
     @ParameterizedTest
     @MethodSource("floorUnitSecondArgsProvider")
     void floorUnitSeconds(LocalDateTime dateTime, LocalDateTime expected) {
-        IntervalStep step = IntervalStep.of(ChronoUnit.MINUTES);
+        IntervalStep step = IntervalStep.of(ChronoUnit.SECONDS);
         LocalDateTime actual = step.floorUnit(dateTime);
         Assertions.assertEquals(expected, actual);
     }
@@ -165,6 +165,17 @@ class IntervalStepTest {
         Assertions.assertThrows(IllegalStateException.class, () -> {
             step.floorUnit(dateTime);
         });
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, -1})
+    void ofShouldRejectNonPositiveAmount(int amount) {
+        IllegalArgumentException exception = Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () -> IntervalStep.of(ChronoUnit.MONTHS, amount)
+        );
+
+        Assertions.assertTrue(exception.getMessage().contains("amount"));
     }
 
     static Stream<Arguments> offsetUnitArgsProvider() {

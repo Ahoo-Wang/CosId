@@ -196,6 +196,9 @@ public abstract class RadixIdConverter implements IdConverter {
         char[] buf = new char[charSize];
         int charIdx = charSize;
         final int radix = getRadix();
+        if (id == 0) {
+            buf[--charIdx] = ZERO;
+        }
         while (id > 0) {
             int mod = (int) (id % radix);
             buf[--charIdx] = digits[mod];

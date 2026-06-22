@@ -67,6 +67,7 @@ public class SuffixIdConverter implements IdConverter, Decorator<IdConverter> {
 
     @Override
     public long asLong(@NonNull String idString) {
+        Preconditions.checkArgument(idString.endsWith(suffix), "idString:[%s] must end with suffix:[%s]!", idString, suffix);
         String idStr = idString.substring(0, idString.length() - suffix.length());
         return actual.asLong(idStr);
     }

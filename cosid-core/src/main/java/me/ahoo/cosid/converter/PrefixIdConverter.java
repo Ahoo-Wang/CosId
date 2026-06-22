@@ -69,6 +69,7 @@ public class PrefixIdConverter implements IdConverter, Decorator<IdConverter> {
 
     @Override
     public long asLong(@NonNull String idString) {
+        Preconditions.checkArgument(idString.startsWith(prefix), "idString:[%s] must start with prefix:[%s]!", idString, prefix);
         String idStr = idString.substring(prefix.length());
         return actual.asLong(idStr);
     }

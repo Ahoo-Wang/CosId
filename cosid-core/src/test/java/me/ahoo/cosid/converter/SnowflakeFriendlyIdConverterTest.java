@@ -26,9 +26,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-
 /**
  * @author rocher kong
  */
@@ -57,7 +54,7 @@ class SnowflakeFriendlyIdConverterTest {
     
     @Test
     void getParser() {
-        SnowflakeId idGen = new SecondSnowflakeId(LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond(),
+        SnowflakeId idGen = new SecondSnowflakeId(1_640_995_200,
             SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
             SecondSnowflakeId.DEFAULT_MACHINE_BIT,
             SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023, 512);

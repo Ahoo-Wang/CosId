@@ -12,9 +12,9 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 
 /**
  * SecondSnowflakeIdTest .
@@ -70,19 +70,27 @@ class SecondSnowflakeIdTest {
 
     @Test
     public void customizeEpoch() {
+        LocalDateTime fixedTimestamp = LocalDateTime.of(2024, 1, 2, 3, 4, 5);
+        long epochSecond = fixedTimestamp.minusSeconds(5).toEpochSecond(ZoneOffset.UTC);
+        long currentSecond = fixedTimestamp.toEpochSecond(ZoneOffset.UTC);
 
-        SnowflakeId idGen = new SecondSnowflakeId(LocalDateTime.now().atZone(ZoneId.systemDefault()).toEpochSecond(),
+        SnowflakeId idGen = new SecondSnowflakeId(epochSecond,
                 SecondSnowflakeId.DEFAULT_TIMESTAMP_BIT,
                 SecondSnowflakeId.DEFAULT_MACHINE_BIT,
-                SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023, 512);
-        SecondSnowflakeIdStateParser snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen);
+                SecondSnowflakeId.DEFAULT_SEQUENCE_BIT, 1023, 512) {
+            @Override
+            protected long getCurrentTime() {
+                return currentSecond;
+            }
+        };
+        SecondSnowflakeIdStateParser snowflakeIdStateParser = SecondSnowflakeIdStateParser.of(idGen, ZoneId.of("UTC"));
         long idFirst = idGen.generate();
         long idSecond = idGen.generate();
 
         Assertions.assertTrue(idSecond > idFirst);
 
         SnowflakeIdState idState = snowflakeIdStateParser.parse(idFirst);
-        Assertions.assertEquals(idState.getTimestamp().toLocalDate(), LocalDate.now());
+        Assertions.assertEquals(fixedTimestamp, idState.getTimestamp());
         SnowflakeIdState idStateOfFriendlyId = snowflakeIdStateParser.parse(idState.getFriendlyId());
         Assertions.assertEquals(idState, idStateOfFriendlyId);
     }

@@ -36,12 +36,12 @@ final class FakeStringRedisTemplate extends StringRedisTemplate {
     private final List<SetCall> setCalls = new ArrayList<>();
     private final List<IncrementCall> incrementCalls = new ArrayList<>();
     private final List<ScriptCall<?>> scriptCalls = new ArrayList<>();
-    
+
     @Override
     public ValueOperations<String, String> opsForValue() {
         return valueOperations;
     }
-    
+
     @Override
     public <T> T execute(RedisScript<T> script, List<String> keys, Object... args) {
         scriptCalls.add(new ScriptCall<>(script, keys, args));
@@ -49,35 +49,35 @@ final class FakeStringRedisTemplate extends StringRedisTemplate {
         T result = (T) scriptResults.poll();
         return result;
     }
-    
+
     void setValue(String key, long value) {
         values.put(key, value);
     }
-    
+
     Long getValue(String key) {
         return values.get(key);
     }
-    
+
     void enqueueScriptResult(Object result) {
         scriptResults.add(result);
     }
-    
+
     List<SetIfAbsentCall> getSetIfAbsentCalls() {
         return Collections.unmodifiableList(setIfAbsentCalls);
     }
-    
+
     List<SetCall> getSetCalls() {
         return Collections.unmodifiableList(setCalls);
     }
-    
+
     List<IncrementCall> getIncrementCalls() {
         return Collections.unmodifiableList(incrementCalls);
     }
-    
+
     List<ScriptCall<?>> getScriptCalls() {
         return Collections.unmodifiableList(scriptCalls);
     }
-    
+
     private ValueOperations<String, String> valueOperations() {
         InvocationHandler handler = this::invokeValueOperation;
         Object proxy = Proxy.newProxyInstance(
@@ -89,7 +89,7 @@ final class FakeStringRedisTemplate extends StringRedisTemplate {
         ValueOperations<String, String> typedProxy = (ValueOperations<String, String>) proxy;
         return typedProxy;
     }
-    
+
     private Object invokeValueOperation(Object proxy, Method method, Object[] args) {
         String methodName = method.getName();
         if (method.getDeclaringClass().equals(Object.class)) {
@@ -112,7 +112,7 @@ final class FakeStringRedisTemplate extends StringRedisTemplate {
                 throw new UnsupportedOperationException("Unsupported ValueOperations method: " + methodName);
         }
     }
-    
+
     private Object invokeObjectMethod(String methodName) {
         switch (methodName) {
             case "toString":
@@ -125,7 +125,7 @@ final class FakeStringRedisTemplate extends StringRedisTemplate {
                 throw new UnsupportedOperationException("Unsupported Object method: " + methodName);
         }
     }
-    
+
     private Boolean setIfAbsent(String key, String value) {
         setIfAbsentCalls.add(new SetIfAbsentCall(key, value));
         if (values.containsKey(key)) {
@@ -134,92 +134,92 @@ final class FakeStringRedisTemplate extends StringRedisTemplate {
         values.put(key, Long.parseLong(value));
         return true;
     }
-    
+
     private void set(String key, String value) {
         setCalls.add(new SetCall(key, value));
         values.put(key, Long.parseLong(value));
     }
-    
+
     private Long increment(String key, long delta) {
         incrementCalls.add(new IncrementCall(key, delta));
         long next = values.getOrDefault(key, 0L) + delta;
         values.put(key, next);
         return next;
     }
-    
+
     static final class SetIfAbsentCall {
         private final String key;
         private final String value;
-        
+
         private SetIfAbsentCall(String key, String value) {
             this.key = key;
             this.value = value;
         }
-        
+
         String getKey() {
             return key;
         }
-        
+
         String getValue() {
             return value;
         }
     }
-    
+
     static final class SetCall {
         private final String key;
         private final String value;
-        
+
         private SetCall(String key, String value) {
             this.key = key;
             this.value = value;
         }
-        
+
         String getKey() {
             return key;
         }
-        
+
         String getValue() {
             return value;
         }
     }
-    
+
     static final class IncrementCall {
         private final String key;
         private final long delta;
-        
+
         private IncrementCall(String key, long delta) {
             this.key = key;
             this.delta = delta;
         }
-        
+
         String getKey() {
             return key;
         }
-        
+
         long getDelta() {
             return delta;
         }
     }
-    
+
     static final class ScriptCall<T> {
         private final RedisScript<T> script;
         private final List<String> keys;
         private final Object[] args;
-        
+
         private ScriptCall(RedisScript<T> script, List<String> keys, Object[] args) {
             this.script = script;
             this.keys = List.copyOf(keys);
             this.args = args.clone();
         }
-        
+
         RedisScript<T> getScript() {
             return script;
         }
-        
+
         List<String> getKeys() {
             return keys;
         }
-        
+
         Object[] getArgs() {
             return args.clone();
         }

@@ -29,7 +29,11 @@ import org.springframework.context.annotation.Bean;
  */
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
-@ConditionalOnClass(ActivitiIdGenerator.class)
+@ConditionalOnClass({
+    ActivitiIdGenerator.class,
+    SpringProcessEngineConfiguration.class,
+    ProcessEngineConfigurationConfigurer.class
+})
 public class ActivitiIdGeneratorAutoConfiguration {
     
     @Bean

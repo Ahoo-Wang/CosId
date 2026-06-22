@@ -17,6 +17,7 @@ import me.ahoo.cosid.activiti.ActivitiIdGenerator;
 import me.ahoo.cosid.flowable.FlowableIdGenerator;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
+import org.activiti.spring.SpringProcessEngineConfiguration;
 import org.activiti.spring.boot.ProcessEngineConfigurationConfigurer;
 import org.assertj.core.api.AssertionsForInterfaceTypes;
 import org.junit.jupiter.api.Test;
@@ -58,6 +59,22 @@ class ActivitiIdGeneratorAutoConfigurationTest {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdEnabled.ENABLED_KEY + "=true")
             .withClassLoader(new FilteredClassLoader(ActivitiIdGenerator.class))
+            .run(context -> {
+                AssertionsForInterfaceTypes.assertThat(context)
+                    .doesNotHaveBean(ActivitiIdGeneratorAutoConfiguration.class)
+                    .doesNotHaveBean(ProcessEngineConfigurationConfigurer.class)
+                ;
+            });
+    }
+
+    @Test
+    void doesNotCreateConfigurerWhenActivitiSpringIntegrationIsMissing() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdEnabled.ENABLED_KEY + "=true")
+            .withClassLoader(new FilteredClassLoader(
+                SpringProcessEngineConfiguration.class,
+                ProcessEngineConfigurationConfigurer.class
+            ))
             .run(context -> {
                 AssertionsForInterfaceTypes.assertThat(context)
                     .doesNotHaveBean(ActivitiIdGeneratorAutoConfiguration.class)

@@ -13,26 +13,47 @@
 
 package me.ahoo.cosid.spring.boot.starter.flowable;
 
-import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
-import org.assertj.core.api.AssertionsForInterfaceTypes;
+import me.ahoo.cosid.flowable.FlowableIdGenerator;
+
+import org.flowable.spring.SpringProcessEngineConfiguration;
 import org.flowable.spring.boot.EngineConfigurationConfigurer;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class FlowableIdGeneratorAutoConfigurationTest {
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
-    
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(FlowableIdGeneratorAutoConfiguration.class));
+
     @Test
-    void contextLoads() {
+    void createsConfigurerWhenCosIdAndFlowableAreAvailable() {
+        this.contextRunner.run(context -> {
+            assertThat(context).hasSingleBean(EngineConfigurationConfigurer.class);
+
+            SpringProcessEngineConfiguration engineConfiguration = mock(SpringProcessEngineConfiguration.class);
+            context.getBean(EngineConfigurationConfigurer.class).configure(engineConfiguration);
+
+            verify(engineConfiguration).setIdGenerator(isA(FlowableIdGenerator.class));
+        });
+    }
+
+    @Test
+    void doesNotCreateConfigurerWhenCosIdIsDisabled() {
         this.contextRunner
-            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
-            .withUserConfiguration(FlowableIdGeneratorAutoConfiguration.class)
-            .run(context -> {
-                AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(FlowableIdGeneratorAutoConfiguration.class)
-                    .hasSingleBean(EngineConfigurationConfigurer.class)
-                ;
-            });
+            .withPropertyValues("cosid.enabled=false")
+            .run(context -> assertThat(context).doesNotHaveBean(EngineConfigurationConfigurer.class));
+    }
+
+    @Test
+    void doesNotCreateConfigurerWhenFlowableAdapterIsMissing() {
+        this.contextRunner
+            .withClassLoader(new FilteredClassLoader(FlowableIdGenerator.class))
+            .run(context -> assertThat(context).doesNotHaveBean(EngineConfigurationConfigurer.class));
     }
 }

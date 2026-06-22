@@ -13,43 +13,58 @@
 
 package me.ahoo.cosid.spring.boot.starter.machine;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import me.ahoo.cosid.machine.HostAddressSupplier;
 import me.ahoo.cosid.machine.LocalHostAddressSupplier;
 
-import org.assertj.core.api.AssertionsForInterfaceTypes;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.cloud.commons.util.UtilAutoConfiguration;
+import org.springframework.cloud.commons.util.InetUtils;
 
 class CosIdHostNameAutoConfigurationTest {
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
-    
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(CosIdHostNameAutoConfiguration.class));
+
     @Test
-    void contextLoads() {
+    void createsLocalHostAddressSupplierByDefaultWithoutResolvingAddressInTest() {
+        this.contextRunner.run(context -> {
+            assertThat(context).hasSingleBean(HostAddressSupplier.class);
+            assertThat(context.getBean(HostAddressSupplier.class)).isSameAs(LocalHostAddressSupplier.INSTANCE);
+        });
+    }
+
+    @Test
+    void backsOffWhenUserProvidesHostAddressSupplier() {
+        HostAddressSupplier supplier = () -> "10.0.0.9";
+
         this.contextRunner
-            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
-            .withUserConfiguration(CosIdHostNameAutoConfiguration.class)
+            .withBean(HostAddressSupplier.class, () -> supplier)
+            .run(context -> assertThat(context.getBean(HostAddressSupplier.class)).isSameAs(supplier));
+    }
+
+    @Test
+    void createsCloudHostAddressSupplierWhenInetUtilsBeanExists() {
+        InetUtils.HostInfo hostInfo = new InetUtils.HostInfo();
+        hostInfo.setIpAddress("10.0.0.8");
+        InetUtils inetUtils = mock(InetUtils.class);
+        when(inetUtils.findFirstNonLoopbackHostInfo()).thenReturn(hostInfo);
+
+        this.contextRunner
+            .withBean(InetUtils.class, () -> inetUtils)
             .run(context -> {
-                AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(LocalHostAddressSupplier.class)
-                ;
-                assertThat(context.getBean(LocalHostAddressSupplier.class).getHostAddress(), notNullValue());
+                assertThat(context).hasSingleBean(CosIdHostNameAutoConfiguration.CloudUtilHostAddressSupplier.class);
+                assertThat(context.getBean(HostAddressSupplier.class).getHostAddress()).isEqualTo("10.0.0.8");
             });
     }
-    
+
     @Test
-    void contextLoadsIfCloud() {
+    void doesNotCreateHostSupplierWhenCosIdIsDisabled() {
         this.contextRunner
-            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
-            .withUserConfiguration(UtilAutoConfiguration.class, CosIdHostNameAutoConfiguration.class)
-            .run(context -> {
-                AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(CosIdHostNameAutoConfiguration.CloudUtilHostAddressSupplier.class)
-                ;
-                assertThat(context.getBean(HostAddressSupplier.class).getHostAddress(), notNullValue());
-            });
+            .withPropertyValues("cosid.enabled=false")
+            .run(context -> assertThat(context).doesNotHaveBean(HostAddressSupplier.class));
     }
 }

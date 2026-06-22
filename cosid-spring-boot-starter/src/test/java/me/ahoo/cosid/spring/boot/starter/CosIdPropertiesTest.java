@@ -1,39 +1,49 @@
 package me.ahoo.cosid.spring.boot.starter;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * CosIdPropertiesTest .
- *
- * @author ahoo wang
- */
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
+
+import java.util.Map;
+
 class CosIdPropertiesTest {
-    
+
     @Test
-    void isEnabled() {
+    void defaultsDescribeEnabledLocalCosId() {
         CosIdProperties properties = new CosIdProperties();
-        Assertions.assertTrue(properties.isEnabled());
+
+        assertThat(properties.isEnabled()).isTrue();
+        assertThat(properties.getNamespace()).isEqualTo(CosIdProperties.DEFAULT_NAMESPACE);
+        assertThat(properties.getProxy().getHost()).isEqualTo("http://localhost:8688");
     }
-    
+
     @Test
-    void setEnabled() {
-        CosIdProperties properties = new CosIdProperties();
-        properties.setEnabled(false);
-        Assertions.assertFalse(properties.isEnabled());
+    void binderMapsCosIdPrefixAndNestedProxyProperties() {
+        CosIdProperties properties = bind(Map.of(
+            "cosid.enabled", "false",
+            "cosid.namespace", "billing",
+            "cosid.proxy.host", "https://proxy.example"
+        ));
+
+        assertThat(properties.isEnabled()).isFalse();
+        assertThat(properties.getNamespace()).isEqualTo("billing");
+        assertThat(properties.getProxy().getHost()).isEqualTo("https://proxy.example");
     }
-    
+
     @Test
-    void getNamespace() {
+    void proxySetterIsChainableForProgrammaticCustomization() {
+        ProxyProperties proxy = new ProxyProperties().setHost("http://custom-host");
         CosIdProperties properties = new CosIdProperties();
-        Assertions.assertEquals(CosIdProperties.DEFAULT_NAMESPACE, properties.getNamespace());
+
+        assertThat(properties.setProxy(proxy)).isSameAs(properties);
+        assertThat(properties.getProxy()).isSameAs(proxy);
     }
-    
-    @Test
-    void setNamespace() {
-        String namespace = "test";
-        CosIdProperties properties = new CosIdProperties();
-        properties.setNamespace(namespace);
-        Assertions.assertEquals(namespace, properties.getNamespace());
+
+    private static CosIdProperties bind(Map<String, String> properties) {
+        return new Binder(new MapConfigurationPropertySource(properties))
+            .bind("cosid", CosIdProperties.class)
+            .get();
     }
 }

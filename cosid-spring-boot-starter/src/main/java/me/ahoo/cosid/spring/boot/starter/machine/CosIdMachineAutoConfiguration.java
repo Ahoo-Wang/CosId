@@ -107,7 +107,7 @@ public class CosIdMachineAutoConfiguration {
      * @return the instance identifier
      */
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(MachineIdDistributor.class)
     public InstanceId instanceId(HostAddressSupplier hostAddressSupplier) {
 
         boolean stable = Boolean.TRUE.equals(machineProperties.getStable());
@@ -143,7 +143,7 @@ public class CosIdMachineAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(MachineIdDistributor.class)
     public MachineStateStorage machineStateStorage() {
         if (Boolean.TRUE.equals(machineProperties.getStable())) {
             return new LocalMachineStateStorage(machineProperties.getStateStorage().getLocal().getStateLocation());
@@ -160,7 +160,7 @@ public class CosIdMachineAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(MachineIdDistributor.class)
     @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "manual")
     public ManualMachineIdDistributor machineIdDistributor(MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         MachineProperties.Manual manual = machineProperties.getDistributor().getManual();
@@ -172,7 +172,7 @@ public class CosIdMachineAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(MachineIdDistributor.class)
     @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "stateful_set")
     public StatefulSetMachineIdDistributor statefulSetMachineIdDistributor(MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         return new StatefulSetMachineIdDistributor(localMachineState, clockBackwardsSynchronizer);

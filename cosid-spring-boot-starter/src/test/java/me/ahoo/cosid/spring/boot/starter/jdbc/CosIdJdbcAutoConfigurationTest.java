@@ -13,23 +13,62 @@
 
 package me.ahoo.cosid.spring.boot.starter.jdbc;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+
+import me.ahoo.cosid.accessor.parser.FieldDefinitionParser;
+import me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.data.jdbc.CosIdBeforeConvertCallback;
 import me.ahoo.cosid.spring.data.jdbc.IdAnnotationDefinitionParser;
 
-import org.assertj.core.api.AssertionsForInterfaceTypes;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class CosIdJdbcAutoConfigurationTest {
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
-    
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, CosIdJdbcAutoConfiguration.class))
+        .withBean(CosIdAccessorRegistry.class, () -> mock(CosIdAccessorRegistry.class));
+
     @Test
-    void contextLoads() {
-        this.contextRunner
-            .withUserConfiguration(CosIdAutoConfiguration.class, CosIdJdbcAutoConfiguration.class)
-            .run(context -> AssertionsForInterfaceTypes.assertThat(context)
+    void createsJdbcFieldParserAndBeforeConvertCallbackWhenDataJdbcAdapterIsPresent() {
+        this.contextRunner.run(context -> {
+            assertThat(context)
                 .hasSingleBean(IdAnnotationDefinitionParser.class)
-                .hasSingleBean(CosIdBeforeConvertCallback.class));
+                .hasSingleBean(CosIdBeforeConvertCallback.class);
+            assertThat(context.getBean(IdAnnotationDefinitionParser.class))
+                .isSameAs(IdAnnotationDefinitionParser.INSTANCE);
+            assertThat(context.getBeansOfType(FieldDefinitionParser.class))
+                .containsKey("idAnnotationDefinitionParser");
+        });
+    }
+
+    @Test
+    void backsOffWhenUserProvidesBeforeConvertCallback() {
+        CosIdBeforeConvertCallback callback = mock(CosIdBeforeConvertCallback.class);
+
+        this.contextRunner
+            .withBean(CosIdBeforeConvertCallback.class, () -> callback)
+            .run(context -> assertThat(context.getBean(CosIdBeforeConvertCallback.class)).isSameAs(callback));
+    }
+
+    @Test
+    void doesNotCreateJdbcBeansWhenCosIdIsDisabled() {
+        this.contextRunner
+            .withPropertyValues("cosid.enabled=false")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(IdAnnotationDefinitionParser.class)
+                .doesNotHaveBean(CosIdBeforeConvertCallback.class));
+    }
+
+    @Test
+    void doesNotCreateJdbcBeansWhenDataJdbcCallbackClassIsMissing() {
+        this.contextRunner
+            .withClassLoader(new FilteredClassLoader(CosIdBeforeConvertCallback.class))
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(IdAnnotationDefinitionParser.class)
+                .doesNotHaveBean(CosIdBeforeConvertCallback.class));
     }
 }

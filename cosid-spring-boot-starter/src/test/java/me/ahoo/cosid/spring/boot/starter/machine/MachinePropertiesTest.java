@@ -13,265 +13,106 @@
 
 package me.ahoo.cosid.spring.boot.starter.machine;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import me.ahoo.cosid.machine.DefaultClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
 import me.ahoo.cosid.machine.LocalMachineStateStorage;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
-import me.ahoo.cosid.test.MockIdGenerator;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
 import java.time.Duration;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Map;
 
 class MachinePropertiesTest {
-    
+
     @Test
-    void isEnabled() {
+    void defaultsKeepMachineSupportOptInAndManualDistributorUnconfigured() {
         MachineProperties properties = new MachineProperties();
-        assertThat(properties.isEnabled(), equalTo(false));
+
+        assertThat(properties.isEnabled()).isFalse();
+        assertThat(properties.getStable()).isNull();
+        assertThat(properties.getPort()).isNull();
+        assertThat(properties.getInstanceId()).isNull();
+        assertThat(properties.getMachineBit()).isEqualTo(MillisecondSnowflakeId.DEFAULT_MACHINE_BIT);
+        assertThat(properties.getStateStorage().getLocal().getStateLocation())
+            .isEqualTo(LocalMachineStateStorage.DEFAULT_STATE_LOCATION_PATH);
+        assertThat(properties.getDistributor().getType()).isEqualTo(MachineProperties.Distributor.Type.MANUAL);
+        assertThat(properties.getDistributor().getManual()).isNull();
+        assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(1));
+        assertThat(properties.getDistributor().getMongo().getDatabase()).isEqualTo("cosid_db");
+        assertThat(properties.getGuarder().isEnabled()).isTrue();
+        assertThat(properties.getGuarder().getInitialDelay()).isEqualTo(DefaultMachineIdGuarder.DEFAULT_INITIAL_DELAY);
+        assertThat(properties.getGuarder().getDelay()).isEqualTo(DefaultMachineIdGuarder.DEFAULT_DELAY);
+        assertThat(properties.getGuarder().getSafeGuardDuration()).isEqualTo(Duration.ofMinutes(5));
+        assertThat(properties.getClockBackwards().getSpinThreshold())
+            .isEqualTo(DefaultClockBackwardsSynchronizer.DEFAULT_SPIN_THRESHOLD);
+        assertThat(properties.getClockBackwards().getBrokenThreshold())
+            .isEqualTo(DefaultClockBackwardsSynchronizer.DEFAULT_BROKEN_THRESHOLD);
     }
-    
+
     @Test
-    void getClockBackwards() {
-        MachineProperties properties = new MachineProperties();
-        assertThat(properties.getClockBackwards(), notNullValue());
+    void binderMapsNestedMachineDistributorGuarderAndClockBackwardsProperties() {
+        MachineProperties properties = bind(Map.ofEntries(
+            Map.entry("cosid.machine.enabled", "true"),
+            Map.entry("cosid.machine.stable", "true"),
+            Map.entry("cosid.machine.port", "8080"),
+            Map.entry("cosid.machine.instance-id", "instance-a"),
+            Map.entry("cosid.machine.machine-bit", "9"),
+            Map.entry("cosid.machine.state-storage.local.state-location", "/tmp/cosid-machine"),
+            Map.entry("cosid.machine.distributor.type", "redis"),
+            Map.entry("cosid.machine.distributor.manual.machine-id", "7"),
+            Map.entry("cosid.machine.distributor.redis.timeout", "2s"),
+            Map.entry("cosid.machine.distributor.mongo.database", "machine_db"),
+            Map.entry("cosid.machine.guarder.enabled", "false"),
+            Map.entry("cosid.machine.guarder.initial-delay", "3s"),
+            Map.entry("cosid.machine.guarder.delay", "4s"),
+            Map.entry("cosid.machine.guarder.safe-guard-duration", "5s"),
+            Map.entry("cosid.machine.clock-backwards.spin-threshold", "11"),
+            Map.entry("cosid.machine.clock-backwards.broken-threshold", "12")
+        ));
+
+        assertThat(properties.isEnabled()).isTrue();
+        assertThat(properties.getStable()).isTrue();
+        assertThat(properties.getPort()).isEqualTo(8080);
+        assertThat(properties.getInstanceId()).isEqualTo("instance-a");
+        assertThat(properties.getMachineBit()).isEqualTo(9);
+        assertThat(properties.getStateStorage().getLocal().getStateLocation()).isEqualTo("/tmp/cosid-machine");
+        assertThat(properties.getDistributor().getType()).isEqualTo(MachineProperties.Distributor.Type.REDIS);
+        assertThat(properties.getDistributor().getManual().getMachineId()).isEqualTo(7);
+        assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(2));
+        assertThat(properties.getDistributor().getMongo().getDatabase()).isEqualTo("machine_db");
+        assertThat(properties.getGuarder().isEnabled()).isFalse();
+        assertThat(properties.getGuarder().getInitialDelay()).isEqualTo(Duration.ofSeconds(3));
+        assertThat(properties.getGuarder().getDelay()).isEqualTo(Duration.ofSeconds(4));
+        assertThat(properties.getGuarder().getSafeGuardDuration()).isEqualTo(Duration.ofSeconds(5));
+        assertThat(properties.getClockBackwards().getSpinThreshold()).isEqualTo(11);
+        assertThat(properties.getClockBackwards().getBrokenThreshold()).isEqualTo(12);
     }
-    
+
     @Test
-    void setClockBackwards() {
-        MachineProperties.ClockBackwards clockBackwards = new MachineProperties.ClockBackwards();
-        MachineProperties properties = new MachineProperties();
-        properties.setClockBackwards(clockBackwards);
-        Assertions.assertEquals(clockBackwards, properties.getClockBackwards());
+    void safeGuardDurationFallsBackToForeverWhenGuarderIsDisabled() {
+        MachineProperties properties = new MachineProperties()
+            .setGuarder(new MachineProperties.Guarder().setEnabled(false).setSafeGuardDuration(Duration.ofSeconds(5)));
+
+        assertThat(properties.getSafeGuardDuration()).isEqualTo(MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
     }
-    
+
     @Test
-    public void getStable() {
-        MachineProperties properties = new MachineProperties();
-        assertThat(properties.getStable(), nullValue());
+    void safeGuardDurationUsesConfiguredValueWhenGuarderIsEnabled() {
+        MachineProperties properties = new MachineProperties()
+            .setGuarder(new MachineProperties.Guarder().setEnabled(true).setSafeGuardDuration(Duration.ofSeconds(5)));
+
+        assertThat(properties.getSafeGuardDuration()).isEqualTo(Duration.ofSeconds(5));
     }
-    
-    @Test
-    public void setStable() {
-        boolean stable = true;
-        MachineProperties properties = new MachineProperties();
-        properties.setStable(stable);
-        assertThat(properties.getStable(), equalTo(Boolean.TRUE));
-    }
-    
-    @Test
-    public void getPort() {
-        MachineProperties properties = new MachineProperties();
-        assertThat(properties.getPort(), nullValue());
-    }
-    
-    @Test
-    public void setPort() {
-        int port = ThreadLocalRandom.current().nextInt();
-        MachineProperties properties = new MachineProperties();
-        properties.setPort(port);
-        assertThat(properties.getPort(), equalToObject(port));
-    }
-    
-    @Test
-    public void getInstanceId() {
-        MachineProperties properties = new MachineProperties();
-        Assertions.assertNull(properties.getInstanceId());
-    }
-    
-    @Test
-    public void setInstanceId() {
-        String instanceId = MockIdGenerator.INSTANCE.generateAsString();
-        MachineProperties properties = new MachineProperties();
-        properties.setInstanceId(instanceId);
-        Assertions.assertEquals(instanceId, properties.getInstanceId());
-    }
-    
-    @Test
-    public void getMachineBit() {
-        MachineProperties properties = new MachineProperties();
-        Assertions.assertEquals(MillisecondSnowflakeId.DEFAULT_MACHINE_BIT, properties.getMachineBit());
-    }
-    
-    @Test
-    public void setMachineBit() {
-        int machineBit = 9;
-        MachineProperties properties = new MachineProperties();
-        properties.setMachineBit(machineBit);
-        Assertions.assertEquals(machineBit, properties.getMachineBit());
-    }
-    
-    @Test
-    public void getStateStorage() {
-        MachineProperties properties = new MachineProperties();
-        Assertions.assertEquals(LocalMachineStateStorage.DEFAULT_STATE_LOCATION_PATH, properties.getStateStorage().getLocal().getStateLocation());
-    }
-    
-    @Test
-    public void setStateStorage() {
-        MachineProperties.StateStorage stateStorage = new MachineProperties.StateStorage();
-        MachineProperties properties = new MachineProperties();
-        properties.setStateStorage(stateStorage);
-        Assertions.assertEquals(stateStorage, properties.getStateStorage());
-    }
-    
-    @Test
-    public void getDistributor() {
-        MachineProperties properties = new MachineProperties();
-        Assertions.assertEquals(MachineProperties.Distributor.Type.MANUAL, properties.getDistributor().getType());
-        Assertions.assertNull(properties.getDistributor().getManual());
-        Assertions.assertEquals(Duration.ofSeconds(1), properties.getDistributor().getRedis().getTimeout());
-    }
-    
-    @Test
-    public void setDistributor() {
-        MachineProperties.Distributor distributor = new MachineProperties.Distributor();
-        MachineProperties properties = new MachineProperties();
-        properties.setDistributor(distributor);
-        Assertions.assertEquals(distributor, properties.getDistributor());
-    }
-    
-    public static class ClockBackwardsTest {
-        @Test
-        public void getSpinThreshold() {
-            MachineProperties.ClockBackwards clockBackwards = new MachineProperties.ClockBackwards();
-            Assertions.assertEquals(DefaultClockBackwardsSynchronizer.DEFAULT_SPIN_THRESHOLD, clockBackwards.getSpinThreshold());
-        }
-        
-        @Test
-        public void setSpinThreshold() {
-            int spinThreshold = 100;
-            MachineProperties.ClockBackwards clockBackwards = new MachineProperties.ClockBackwards();
-            clockBackwards.setSpinThreshold(spinThreshold);
-            Assertions.assertEquals(spinThreshold, clockBackwards.getSpinThreshold());
-        }
-        
-        @Test
-        public void getBrokenThreshold() {
-            MachineProperties.ClockBackwards clockBackwards = new MachineProperties.ClockBackwards();
-            Assertions.assertEquals(DefaultClockBackwardsSynchronizer.DEFAULT_BROKEN_THRESHOLD, clockBackwards.getBrokenThreshold());
-        }
-        
-        @Test
-        public void setBrokenThreshold() {
-            int brokenThreshold = 10;
-            MachineProperties.ClockBackwards clockBackwards = new MachineProperties.ClockBackwards();
-            clockBackwards.setBrokenThreshold(brokenThreshold);
-            Assertions.assertEquals(brokenThreshold, clockBackwards.getBrokenThreshold());
-        }
-    }
-    
-    public static class StateStorageTest {
-        
-        @Test
-        public void getLocal() {
-            MachineProperties.StateStorage stateStorage = new MachineProperties.StateStorage();
-            Assertions.assertEquals(LocalMachineStateStorage.DEFAULT_STATE_LOCATION_PATH, stateStorage.getLocal().getStateLocation());
-        }
-        
-        @Test
-        public void setLocal() {
-            MachineProperties.StateStorage.Local local = new MachineProperties.StateStorage.Local();
-            MachineProperties.StateStorage stateStorage = new MachineProperties.StateStorage();
-            stateStorage.setLocal(local);
-            Assertions.assertEquals(local, stateStorage.getLocal());
-        }
-    }
-    
-    public static class LocalTest {
-        @Test
-        public void getStateLocation() {
-            MachineProperties.StateStorage.Local local = new MachineProperties.StateStorage.Local();
-            Assertions.assertEquals(LocalMachineStateStorage.DEFAULT_STATE_LOCATION_PATH, local.getStateLocation());
-        }
-        
-        @Test
-        public void setStateLocation() {
-            String stateLocation = MockIdGenerator.INSTANCE.generateAsString();
-            MachineProperties.StateStorage.Local local = new MachineProperties.StateStorage.Local();
-            local.setStateLocation(stateLocation);
-            Assertions.assertEquals(stateLocation, local.getStateLocation());
-        }
-    }
-    
-    public static class DistributorTest {
-        @Test
-        public void getType() {
-            MachineProperties.Distributor distributor = new MachineProperties.Distributor();
-            Assertions.assertEquals(MachineProperties.Distributor.Type.MANUAL, distributor.getType());
-        }
-        
-        @Test
-        public void setType() {
-            MachineProperties.Distributor.Type type = MachineProperties.Distributor.Type.JDBC;
-            MachineProperties.Distributor distributor = new MachineProperties.Distributor();
-            distributor.setType(type);
-            Assertions.assertEquals(type, distributor.getType());
-        }
-        
-        @Test
-        public void getManual() {
-            MachineProperties.Distributor distributor = new MachineProperties.Distributor();
-            Assertions.assertNull(distributor.getManual());
-        }
-        
-        @Test
-        public void setManual() {
-            MachineProperties.Manual manual = new MachineProperties.Manual();
-            MachineProperties.Distributor distributor = new MachineProperties.Distributor();
-            distributor.setManual(manual);
-            Assertions.assertEquals(manual, distributor.getManual());
-        }
-        
-        @Test
-        public void getRedis() {
-            MachineProperties.Distributor distributor = new MachineProperties.Distributor();
-            Assertions.assertEquals(Duration.ofSeconds(1), distributor.getRedis().getTimeout());
-        }
-        
-        @Test
-        public void setRedis() {
-            MachineProperties.Redis redis = new MachineProperties.Redis();
-            MachineProperties.Distributor distributor = new MachineProperties.Distributor();
-            distributor.setRedis(redis);
-            Assertions.assertEquals(redis, distributor.getRedis());
-        }
-    }
-    
-    public static class ManualTest {
-        
-        @Test
-        public void getMachineId() {
-            MachineProperties.Manual manual = new MachineProperties.Manual();
-            Assertions.assertNull(manual.getMachineId());
-        }
-        
-        @Test
-        public void setMachineId() {
-            Integer machineId = 1;
-            MachineProperties.Manual manual = new MachineProperties.Manual();
-            manual.setMachineId(machineId);
-            Assertions.assertEquals(machineId, manual.getMachineId());
-        }
-    }
-    
-    public static class RedisTest {
-        @Test
-        public void getTimeout() {
-            MachineProperties.Redis redis = new MachineProperties.Redis();
-            Assertions.assertEquals(Duration.ofSeconds(1), redis.getTimeout());
-        }
-        
-        @Test
-        public void setTimeout() {
-            Duration timeout = Duration.ofSeconds(2);
-            MachineProperties.Redis redis = new MachineProperties.Redis();
-            redis.setTimeout(timeout);
-            Assertions.assertEquals(timeout, redis.getTimeout());
-        }
+
+    private static MachineProperties bind(Map<String, String> properties) {
+        return new Binder(new MapConfigurationPropertySource(properties))
+            .bind(MachineProperties.PREFIX, MachineProperties.class)
+            .get();
     }
 }

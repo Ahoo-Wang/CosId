@@ -13,10 +13,14 @@
 
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import me.ahoo.cosid.Decorator;
+import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
+import me.ahoo.cosid.converter.SuffixIdConverter;
+import me.ahoo.cosid.converter.ToStringIdConverter;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
@@ -26,13 +30,40 @@ import org.junit.jupiter.api.Test;
 import java.time.ZoneId;
 
 class SnowflakeIdConverterDecoratorTest {
-    
+
     @Test
-    void newSnowflakeFriendly() {
-        IdConverterDefinition idConverterDefinition = new IdConverterDefinition();
-        idConverterDefinition.setType(IdConverterDefinition.Type.SNOWFLAKE_FRIENDLY);
-        SnowflakeId snowflakeId = new MillisecondSnowflakeId(1);
-        SnowflakeId newIdGen = new SnowflakeIdConverterDecorator(snowflakeId, idConverterDefinition, ZoneId.systemDefault()).decorate();
-        assertThat(newIdGen.idConverter(), instanceOf(SnowflakeFriendlyIdConverter.class));
+    void decoratesWithSnowflakeFriendlyConverterAndPreservesSnowflakeMetadata() {
+        SnowflakeId actual = new MillisecondSnowflakeId(3);
+        IdConverterDefinition definition = new IdConverterDefinition();
+        definition.setType(IdConverterDefinition.Type.SNOWFLAKE_FRIENDLY);
+
+        SnowflakeId decorated = decorate(actual, definition);
+
+        assertThat(decorated.idConverter()).isInstanceOf(SnowflakeFriendlyIdConverter.class);
+        assertThat(decorated.getMachineId()).isEqualTo(actual.getMachineId());
+        assertThat(decorated.getEpoch()).isEqualTo(actual.getEpoch());
+        assertThat(decorated.getTimestampBit()).isEqualTo(actual.getTimestampBit());
+    }
+
+    @Test
+    void composesStringConverterWithPrefixAndSuffix() {
+        IdConverterDefinition definition = new IdConverterDefinition();
+        definition.setType(IdConverterDefinition.Type.TO_STRING);
+        definition.setToString(new IdConverterDefinition.ToString());
+        definition.setPrefix("snow-");
+        definition.setSuffix("-done");
+
+        IdConverter converter = decorate(new MillisecondSnowflakeId(1), definition).idConverter();
+
+        assertThat(converter).isInstanceOf(SuffixIdConverter.class);
+        IdConverter prefix = ((SuffixIdConverter) converter).getActual();
+        assertThat(prefix).isInstanceOf(PrefixIdConverter.class);
+        assertThat(((Decorator<?>) prefix).getActual()).isInstanceOf(ToStringIdConverter.class);
+        assertThat(converter.asString(42)).isEqualTo("snow-42-done");
+        assertThat(converter.asLong("snow-42-done")).isEqualTo(42);
+    }
+
+    private static SnowflakeId decorate(SnowflakeId actual, IdConverterDefinition definition) {
+        return new SnowflakeIdConverterDecorator(actual, definition, ZoneId.of("UTC")).decorate();
     }
 }

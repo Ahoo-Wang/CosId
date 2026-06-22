@@ -1,6 +1,7 @@
 package me.ahoo.cosid.spring.boot.starter.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
@@ -9,439 +10,115 @@ import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.Map;
 
-/**
- * SegmentIdPropertiesTest .
- *
- * @author ahoo wang
- */
 class SegmentIdPropertiesTest {
-    
+
     @Test
-    void isEnabled() {
+    void defaultsKeepSegmentOptInWithEnabledShareAndRedisDistributor() {
         SegmentIdProperties properties = new SegmentIdProperties();
-        Assertions.assertFalse(properties.isEnabled());
+
+        assertThat(properties.isEnabled()).isFalse();
+        assertThat(properties.getMode()).isEqualTo(SegmentIdProperties.Mode.CHAIN);
+        assertThat(properties.getTtl()).isEqualTo(TIME_TO_LIVE_FOREVER);
+        assertThat(properties.getProvider()).isEmpty();
+        assertThat(properties.getShare().isEnabled()).isTrue();
+        assertThat(properties.getShare().getOffset()).isEqualTo(IdSegmentDistributor.DEFAULT_OFFSET);
+        assertThat(properties.getShare().getStep()).isEqualTo(IdSegmentDistributor.DEFAULT_STEP);
+        assertThat(properties.getShare().getConverter().getType()).isEqualTo(IdConverterDefinition.Type.RADIX);
+        assertThat(properties.getShare().getGroup().getBy()).isEqualTo(SegmentIdProperties.IdDefinition.GroupBy.NEVER);
+        assertThat(properties.getChain().getSafeDistance()).isEqualTo(SegmentChainId.DEFAULT_SAFE_DISTANCE);
+        assertThat(properties.getChain().getPrefetchWorker().getPrefetchPeriod())
+            .isEqualTo(PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD);
+        assertThat(properties.getChain().getPrefetchWorker().getCorePoolSize())
+            .isEqualTo(Runtime.getRuntime().availableProcessors());
+        assertThat(properties.getChain().getPrefetchWorker().isShutdownHook()).isTrue();
+        assertThat(properties.getDistributor().getType()).isEqualTo(SegmentIdProperties.Distributor.Type.REDIS);
+        assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(1));
+        assertThat(properties.getDistributor().getJdbc().getIncrementMaxIdSql())
+            .isEqualTo(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL);
+        assertThat(properties.getDistributor().getJdbc().getFetchMaxIdSql())
+            .isEqualTo(JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
+        assertThat(properties.getDistributor().getJdbc().isEnableAutoInitCosidTable()).isFalse();
+        assertThat(properties.getDistributor().getJdbc().getInitCosidTableSql())
+            .isEqualTo(JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL);
+        assertThat(properties.getDistributor().getJdbc().isEnableAutoInitIdSegment()).isTrue();
+        assertThat(properties.getDistributor().getJdbc().getInitIdSegmentSql())
+            .isEqualTo(JdbcIdSegmentInitializer.INIT_ID_SEGMENT_SQL);
+        assertThat(properties.getDistributor().getMongo().getDatabase()).isEqualTo("cosid_db");
     }
-    
+
     @Test
-    void setEnabled() {
-        SegmentIdProperties properties = new SegmentIdProperties();
-        properties.setEnabled(true);
-        Assertions.assertTrue(properties.isEnabled());
+    void binderMapsDistributorChainShareAndNamedProviderDefinitions() {
+        SegmentIdProperties properties = bind(Map.ofEntries(
+            Map.entry("cosid.segment.enabled", "true"),
+            Map.entry("cosid.segment.mode", "segment"),
+            Map.entry("cosid.segment.ttl", "600"),
+            Map.entry("cosid.segment.distributor.type", "jdbc"),
+            Map.entry("cosid.segment.distributor.redis.timeout", "2s"),
+            Map.entry("cosid.segment.distributor.jdbc.increment-max-id-sql", "update cosid set max_id=max_id+?"),
+            Map.entry("cosid.segment.distributor.jdbc.fetch-max-id-sql", "select max_id from cosid"),
+            Map.entry("cosid.segment.distributor.jdbc.enable-auto-init-cosid-table", "true"),
+            Map.entry("cosid.segment.distributor.jdbc.init-cosid-table-sql", "create table cosid"),
+            Map.entry("cosid.segment.distributor.jdbc.enable-auto-init-id-segment", "false"),
+            Map.entry("cosid.segment.distributor.jdbc.init-id-segment-sql", "insert into cosid"),
+            Map.entry("cosid.segment.distributor.mongo.database", "segment_db"),
+            Map.entry("cosid.segment.chain.safe-distance", "12"),
+            Map.entry("cosid.segment.chain.prefetch-worker.prefetch-period", "3s"),
+            Map.entry("cosid.segment.chain.prefetch-worker.core-pool-size", "2"),
+            Map.entry("cosid.segment.chain.prefetch-worker.shutdown-hook", "false"),
+            Map.entry("cosid.segment.share.enabled", "false"),
+            Map.entry("cosid.segment.provider.order.namespace", "orders"),
+            Map.entry("cosid.segment.provider.order.mode", "chain"),
+            Map.entry("cosid.segment.provider.order.offset", "10"),
+            Map.entry("cosid.segment.provider.order.step", "100"),
+            Map.entry("cosid.segment.provider.order.ttl", "30"),
+            Map.entry("cosid.segment.provider.order.chain.safe-distance", "5"),
+            Map.entry("cosid.segment.provider.order.group.by", "year_month"),
+            Map.entry("cosid.segment.provider.order.group.pattern", "yyyyMM"),
+            Map.entry("cosid.segment.provider.order.converter.type", "to_string"),
+            Map.entry("cosid.segment.provider.order.converter.to-string.pad-start", "true")
+        ));
+
+        assertThat(properties.isEnabled()).isTrue();
+        assertThat(properties.getMode()).isEqualTo(SegmentIdProperties.Mode.SEGMENT);
+        assertThat(properties.getTtl()).isEqualTo(600);
+        assertThat(properties.getDistributor().getType()).isEqualTo(SegmentIdProperties.Distributor.Type.JDBC);
+        assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(2));
+        assertThat(properties.getDistributor().getJdbc().getIncrementMaxIdSql()).isEqualTo("update cosid set max_id=max_id+?");
+        assertThat(properties.getDistributor().getJdbc().getFetchMaxIdSql()).isEqualTo("select max_id from cosid");
+        assertThat(properties.getDistributor().getJdbc().isEnableAutoInitCosidTable()).isTrue();
+        assertThat(properties.getDistributor().getJdbc().getInitCosidTableSql()).isEqualTo("create table cosid");
+        assertThat(properties.getDistributor().getJdbc().isEnableAutoInitIdSegment()).isFalse();
+        assertThat(properties.getDistributor().getJdbc().getInitIdSegmentSql()).isEqualTo("insert into cosid");
+        assertThat(properties.getDistributor().getMongo().getDatabase()).isEqualTo("segment_db");
+        assertThat(properties.getChain().getSafeDistance()).isEqualTo(12);
+        assertThat(properties.getChain().getPrefetchWorker().getPrefetchPeriod()).isEqualTo(Duration.ofSeconds(3));
+        assertThat(properties.getChain().getPrefetchWorker().getCorePoolSize()).isEqualTo(2);
+        assertThat(properties.getChain().getPrefetchWorker().isShutdownHook()).isFalse();
+        assertThat(properties.getShare().isEnabled()).isFalse();
+
+        SegmentIdProperties.IdDefinition order = properties.getProvider().get("order");
+        assertThat(order.getNamespace()).isEqualTo("orders");
+        assertThat(order.getMode()).isEqualTo(SegmentIdProperties.Mode.CHAIN);
+        assertThat(order.getOffset()).isEqualTo(10);
+        assertThat(order.getStep()).isEqualTo(100);
+        assertThat(order.getTtl()).isEqualTo(30);
+        assertThat(order.getChain().getSafeDistance()).isEqualTo(5);
+        assertThat(order.getGroup().getBy()).isEqualTo(SegmentIdProperties.IdDefinition.GroupBy.YEAR_MONTH);
+        assertThat(order.getGroup().getPattern()).isEqualTo("yyyyMM");
+        assertThat(order.getConverter().getType()).isEqualTo(IdConverterDefinition.Type.TO_STRING);
+        assertThat(order.getConverter().getToString().isPadStart()).isTrue();
     }
-    
-    @Test
-    void getMode() {
-        SegmentIdProperties properties = new SegmentIdProperties();
-        Assertions.assertEquals(SegmentIdProperties.Mode.CHAIN, properties.getMode());
-    }
-    
-    @Test
-    void setMode() {
-        SegmentIdProperties properties = new SegmentIdProperties();
-        properties.setMode(SegmentIdProperties.Mode.SEGMENT);
-        Assertions.assertEquals(SegmentIdProperties.Mode.SEGMENT, properties.getMode());
-    }
-    
-    @Test
-    void getTtl() {
-        SegmentIdProperties properties = new SegmentIdProperties();
-        Assertions.assertEquals(TIME_TO_LIVE_FOREVER, properties.getTtl());
-    }
-    
-    @Test
-    void setTtl() {
-        long ttl = 10;
-        SegmentIdProperties properties = new SegmentIdProperties();
-        properties.setTtl(ttl);
-        Assertions.assertEquals(ttl, properties.getTtl());
-    }
-    
-    @Test
-    void getDistributor() {
-        SegmentIdProperties properties = new SegmentIdProperties();
-        Assertions.assertEquals(SegmentIdProperties.Distributor.Type.REDIS, properties.getDistributor().getType());
-        Assertions.assertEquals(Duration.ofSeconds(1), properties.getDistributor().getRedis().getTimeout());
-        Assertions.assertEquals(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, properties.getDistributor().getJdbc().getIncrementMaxIdSql());
-    }
-    
-    @Test
-    void setDistributor() {
-        SegmentIdProperties.Distributor distributor = new SegmentIdProperties.Distributor();
-        SegmentIdProperties properties = new SegmentIdProperties();
-        properties.setDistributor(distributor);
-        Assertions.assertEquals(distributor, properties.getDistributor());
-    }
-    
-    @Test
-    void getChain() {
-        SegmentIdProperties properties = new SegmentIdProperties();
-        Assertions.assertEquals(SegmentChainId.DEFAULT_SAFE_DISTANCE, properties.getChain().getSafeDistance());
-        Assertions.assertEquals(PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD, properties.getChain().getPrefetchWorker().getPrefetchPeriod());
-    }
-    
-    @Test
-    void setChain() {
-        SegmentIdProperties.Chain chain = new SegmentIdProperties.Chain();
-        SegmentIdProperties properties = new SegmentIdProperties();
-        properties.setChain(chain);
-        Assertions.assertEquals(chain, properties.getChain());
-    }
-    
-    @Test
-    void getShare() {
-        SegmentIdProperties properties = new SegmentIdProperties();
-        Assertions.assertEquals(IdSegmentDistributor.DEFAULT_OFFSET, properties.getShare().getOffset());
-        Assertions.assertEquals(IdSegmentDistributor.DEFAULT_STEP, properties.getShare().getStep());
-        Assertions.assertEquals(IdConverterDefinition.Type.RADIX, properties.getShare().getConverter().getType());
-    }
-    
-    @Test
-    void setShare() {
-        SegmentIdProperties.ShardIdDefinition idDefinition = new SegmentIdProperties.ShardIdDefinition();
-        SegmentIdProperties properties = new SegmentIdProperties();
-        properties.setShare(idDefinition);
-        Assertions.assertEquals(idDefinition, properties.getShare());
-    }
-    
-    @Test
-    void getProvider() {
-        SegmentIdProperties properties = new SegmentIdProperties();
-        Assertions.assertTrue(properties.getProvider().isEmpty());
-    }
-    
-    @Test
-    void setProvider() {
-        Map<String, SegmentIdProperties.IdDefinition> provider = new HashMap<>();
-        SegmentIdProperties properties = new SegmentIdProperties();
-        properties.setProvider(provider);
-        Assertions.assertEquals(provider, properties.getProvider());
-    }
-    
-    public static class ChainTest {
-        @Test
-        public void getSafeDistance() {
-            SegmentIdProperties.Chain chain = new SegmentIdProperties.Chain();
-            Assertions.assertEquals(SegmentChainId.DEFAULT_SAFE_DISTANCE, chain.getSafeDistance());
-        }
-        
-        @Test
-        public void setSafeDistance() {
-            int safeDistance = 1;
-            SegmentIdProperties.Chain chain = new SegmentIdProperties.Chain();
-            chain.setSafeDistance(safeDistance);
-            Assertions.assertEquals(safeDistance, chain.getSafeDistance());
-        }
-        
-        @Test
-        public void getPrefetchWorker() {
-            SegmentIdProperties.Chain chain = new SegmentIdProperties.Chain();
-            Assertions.assertEquals(PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD, chain.getPrefetchWorker().getPrefetchPeriod());
-            Assertions.assertEquals(Runtime.getRuntime().availableProcessors(), chain.getPrefetchWorker().getCorePoolSize());
-            Assertions.assertTrue(chain.getPrefetchWorker().isShutdownHook());
-        }
-        
-        @Test
-        public void setPrefetchWorker() {
-            SegmentIdProperties.Chain.PrefetchWorker prefetchWorker = new SegmentIdProperties.Chain.PrefetchWorker();
-            SegmentIdProperties.Chain chain = new SegmentIdProperties.Chain();
-            chain.setPrefetchWorker(prefetchWorker);
-            Assertions.assertEquals(prefetchWorker, chain.getPrefetchWorker());
-        }
-    }
-    
-    public static class PrefetchWorkerTest {
-        @Test
-        public void getPrefetchPeriod() {
-            SegmentIdProperties.Chain.PrefetchWorker prefetchWorker = new SegmentIdProperties.Chain.PrefetchWorker();
-            Assertions.assertEquals(PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD, prefetchWorker.getPrefetchPeriod());
-        }
-        
-        @Test
-        public void setPrefetchPeriod() {
-            Duration prefetchPeriod = Duration.ZERO;
-            SegmentIdProperties.Chain.PrefetchWorker prefetchWorker = new SegmentIdProperties.Chain.PrefetchWorker();
-            prefetchWorker.setPrefetchPeriod(prefetchPeriod);
-            Assertions.assertEquals(prefetchPeriod, prefetchWorker.getPrefetchPeriod());
-        }
-        
-        @Test
-        public void getCorePoolSize() {
-            SegmentIdProperties.Chain.PrefetchWorker prefetchWorker = new SegmentIdProperties.Chain.PrefetchWorker();
-            Assertions.assertEquals(Runtime.getRuntime().availableProcessors(), prefetchWorker.getCorePoolSize());
-        }
-        
-        @Test
-        public void setCorePoolSize() {
-            int corePoolSize = 1;
-            SegmentIdProperties.Chain.PrefetchWorker prefetchWorker = new SegmentIdProperties.Chain.PrefetchWorker();
-            prefetchWorker.setCorePoolSize(corePoolSize);
-            Assertions.assertEquals(corePoolSize, prefetchWorker.getCorePoolSize());
-        }
-        
-        @Test
-        public void isShutdownHook() {
-            SegmentIdProperties.Chain.PrefetchWorker prefetchWorker = new SegmentIdProperties.Chain.PrefetchWorker();
-            Assertions.assertTrue(prefetchWorker.isShutdownHook());
-        }
-        
-        @Test
-        public void setShutdownHook() {
-            SegmentIdProperties.Chain.PrefetchWorker prefetchWorker = new SegmentIdProperties.Chain.PrefetchWorker();
-            prefetchWorker.setShutdownHook(false);
-            Assertions.assertFalse(prefetchWorker.isShutdownHook());
-        }
-    }
-    
-    public static class DistributorTest {
-        @Test
-        public void getType() {
-            SegmentIdProperties.Distributor distributor = new SegmentIdProperties.Distributor();
-            Assertions.assertEquals(SegmentIdProperties.Distributor.Type.REDIS, distributor.getType());
-        }
-        
-        @Test
-        public void setType() {
-            SegmentIdProperties.Distributor.Type type = SegmentIdProperties.Distributor.Type.JDBC;
-            SegmentIdProperties.Distributor distributor = new SegmentIdProperties.Distributor();
-            distributor.setType(type);
-            Assertions.assertEquals(type, distributor.getType());
-        }
-        
-        @Test
-        public void getRedis() {
-            SegmentIdProperties.Distributor distributor = new SegmentIdProperties.Distributor();
-            Assertions.assertEquals(Duration.ofSeconds(1), distributor.getRedis().getTimeout());
-        }
-        
-        @Test
-        public void setRedis() {
-            SegmentIdProperties.Distributor.Redis redis = new SegmentIdProperties.Distributor.Redis();
-            SegmentIdProperties.Distributor distributor = new SegmentIdProperties.Distributor();
-            distributor.setRedis(redis);
-            Assertions.assertEquals(redis, distributor.getRedis());
-        }
-        
-        @Test
-        public void getJdbc() {
-            SegmentIdProperties.Distributor distributor = new SegmentIdProperties.Distributor();
-            Assertions.assertEquals(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, distributor.getJdbc().getIncrementMaxIdSql());
-            Assertions.assertEquals(JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL, distributor.getJdbc().getInitCosidTableSql());
-        }
-        
-        @Test
-        public void setJdbc() {
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            SegmentIdProperties.Distributor distributor = new SegmentIdProperties.Distributor();
-            distributor.setJdbc(jdbc);
-            Assertions.assertEquals(jdbc, distributor.getJdbc());
-        }
-    }
-    
-    public static class RedisTest {
-        @Test
-        public void getTimeout() {
-            SegmentIdProperties.Distributor.Redis redis = new SegmentIdProperties.Distributor.Redis();
-            Assertions.assertEquals(Duration.ofSeconds(1), redis.getTimeout());
-        }
-        
-        @Test
-        public void setTimeout() {
-            Duration timeout = Duration.ZERO;
-            SegmentIdProperties.Distributor.Redis redis = new SegmentIdProperties.Distributor.Redis();
-            redis.setTimeout(timeout);
-            Assertions.assertEquals(timeout, redis.getTimeout());
-        }
-    }
-    
-    public static class JdbcTest {
-        @Test
-        public void getIncrementMaxIdSql() {
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            Assertions.assertEquals(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, jdbc.getIncrementMaxIdSql());
-        }
-        
-        @Test
-        public void setIncrementMaxIdSql() {
-            String incrementMaxIdSql = "Great CosId!";
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            jdbc.setIncrementMaxIdSql(incrementMaxIdSql);
-            Assertions.assertEquals(incrementMaxIdSql, jdbc.getIncrementMaxIdSql());
-        }
-        
-        @Test
-        public void getFetchMaxIdSql() {
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            Assertions.assertEquals(JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL, jdbc.getFetchMaxIdSql());
-        }
-        
-        @Test
-        public void setFetchMaxIdSql() {
-            String fetchMaxIdSql = "Great CosId!";
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            jdbc.setFetchMaxIdSql(fetchMaxIdSql);
-            Assertions.assertEquals(fetchMaxIdSql, jdbc.getFetchMaxIdSql());
-        }
-        
-        @Test
-        public void isEnableAutoInitCosidTable() {
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            Assertions.assertFalse(jdbc.isEnableAutoInitCosidTable());
-        }
-        
-        @Test
-        public void setEnableAutoInitCosidTable() {
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            jdbc.setEnableAutoInitCosidTable(true);
-            Assertions.assertTrue(jdbc.isEnableAutoInitCosidTable());
-        }
-        
-        @Test
-        public void getInitCosidTableSql() {
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            Assertions.assertEquals(JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL, jdbc.getInitCosidTableSql());
-        }
-        
-        @Test
-        public void setInitCosidTableSql() {
-            String initCosidTableSql = "Great CosId!";
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            jdbc.setInitCosidTableSql(initCosidTableSql);
-            Assertions.assertEquals(initCosidTableSql, jdbc.getInitCosidTableSql());
-        }
-        
-        @Test
-        public void isEnableAutoInitIdSegment() {
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            Assertions.assertTrue(jdbc.isEnableAutoInitIdSegment());
-        }
-        
-        @Test
-        public void setEnableAutoInitIdSegment() {
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            jdbc.setEnableAutoInitCosidTable(false);
-            Assertions.assertFalse(jdbc.isEnableAutoInitCosidTable());
-        }
-        
-        @Test
-        public void getInitIdSegmentSql() {
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            Assertions.assertEquals(JdbcIdSegmentInitializer.INIT_ID_SEGMENT_SQL, jdbc.getInitIdSegmentSql());
-        }
-        
-        @Test
-        public void setInitIdSegmentSql() {
-            String initIdSegmentSql = "Great CosId!";
-            SegmentIdProperties.Distributor.Jdbc jdbc = new SegmentIdProperties.Distributor.Jdbc();
-            jdbc.setInitIdSegmentSql(initIdSegmentSql);
-            Assertions.assertEquals(initIdSegmentSql, jdbc.getInitIdSegmentSql());
-        }
-    }
-    
-    public static class IdDefinitionTest {
-        @Test
-        public void getNamespace() {
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            Assertions.assertNull(idDefinition.getNamespace());
-        }
-        
-        @Test
-        public void setNamespace() {
-            String namespace = "segment-namespace";
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            idDefinition.setNamespace(namespace);
-            Assertions.assertEquals(namespace, idDefinition.getNamespace());
-        }
-        
-        @Test
-        public void getMode() {
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            Assertions.assertNull(idDefinition.getMode());
-        }
-        
-        @Test
-        public void setMode() {
-            SegmentIdProperties.Mode mode = SegmentIdProperties.Mode.SEGMENT;
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            idDefinition.setMode(mode);
-            Assertions.assertEquals(mode, idDefinition.getMode());
-        }
-        
-        @Test
-        public void getOffset() {
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            Assertions.assertEquals(IdSegmentDistributor.DEFAULT_OFFSET, idDefinition.getOffset());
-        }
-        
-        @Test
-        public void setOffset() {
-            long offset = 100;
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            idDefinition.setOffset(offset);
-            Assertions.assertEquals(offset, idDefinition.getOffset());
-        }
-        
-        @Test
-        public void getStep() {
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            Assertions.assertEquals(IdSegmentDistributor.DEFAULT_STEP, idDefinition.getStep());
-        }
-        
-        @Test
-        public void setStep() {
-            long step = 1;
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            idDefinition.setStep(step);
-            Assertions.assertEquals(step, idDefinition.getStep());
-        }
-        
-        @Test
-        public void getTtl() {
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            Assertions.assertNull(idDefinition.getTtl());
-        }
-        
-        @Test
-        public void setTtl() {
-            Long ttl = Long.MAX_VALUE;
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            idDefinition.setTtl(ttl);
-            Assertions.assertEquals(ttl, idDefinition.getTtl());
-        }
-        
-        @Test
-        public void getChain() {
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            Assertions.assertNull(idDefinition.getChain());
-        }
-        
-        @Test
-        public void setChain() {
-            SegmentIdProperties.Chain chain = new SegmentIdProperties.Chain();
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            idDefinition.setChain(chain);
-            Assertions.assertEquals(chain, idDefinition.getChain());
-        }
-        
-        @Test
-        public void getConverter() {
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            Assertions.assertEquals(IdConverterDefinition.Type.RADIX, idDefinition.getConverter().getType());
-            Assertions.assertTrue(idDefinition.getConverter().getRadix().isPadStart());
-        }
-        
-        @Test
-        public void setConverter() {
-            IdConverterDefinition converter = new IdConverterDefinition();
-            SegmentIdProperties.IdDefinition idDefinition = new SegmentIdProperties.IdDefinition();
-            idDefinition.setConverter(converter);
-            Assertions.assertEquals(converter, idDefinition.getConverter());
-        }
+
+    private static SegmentIdProperties bind(Map<String, String> properties) {
+        return new Binder(new MapConfigurationPropertySource(properties))
+            .bind(SegmentIdProperties.PREFIX, SegmentIdProperties.class)
+            .get();
     }
 }

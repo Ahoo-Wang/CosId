@@ -13,45 +13,89 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.MongoIdSegmentInitializer;
-import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentDistributorFactory;
-import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
-import me.ahoo.cosid.test.container.MongoLauncher;
 
-import org.assertj.core.api.AssertionsForInterfaceTypes;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import org.bson.Document;
 import org.junit.jupiter.api.Test;
-
-import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
-import org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
-import java.util.UUID;
-
 class CosIdMongoSegmentAutoConfigurationTest {
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(CosIdMongoSegmentAutoConfiguration.class))
+        .withClassLoader(new FilteredClassLoader(com.mongodb.reactivestreams.client.MongoClient.class))
+        .withBean(MongoClient.class, CosIdMongoSegmentAutoConfigurationTest::mongoClient);
 
     @Test
-    void contextLoads() {
+    void createsSyncMongoSegmentBeansWithoutConnectingToMongo() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=mongo")
-            .withPropertyValues("spring.mongodb.uri=" + MongoLauncher.getConnectionString())
-            .withPropertyValues(SegmentIdProperties.PREFIX + ".distributor.mongo.database=" + randomDatabaseName())
-            .withUserConfiguration(MongoAutoConfiguration.class, MongoReactiveAutoConfiguration.class, CosIdMongoSegmentAutoConfiguration.class)
-            .run(context -> {
-                AssertionsForInterfaceTypes.assertThat(context)
-                    .hasSingleBean(CosIdMongoSegmentAutoConfiguration.class)
-                    .hasSingleBean(SegmentIdProperties.class)
-                    .hasSingleBean(MongoIdSegmentInitializer.class)
-                    .hasSingleBean(MongoIdSegmentDistributorFactory.class)
-                    .hasSingleBean(MongoReactiveIdSegmentInitializer.class)
-                    .hasSingleBean(MongoReactiveIdSegmentDistributorFactory.class)
-                ;
-            });
+            .run(context -> assertThat(context)
+                .hasSingleBean(CosIdMongoSegmentAutoConfiguration.class)
+                .hasSingleBean(SegmentIdProperties.class)
+                .hasSingleBean(MongoIdSegmentInitializer.class)
+                .hasSingleBean(MongoIdSegmentDistributorFactory.class));
     }
 
-    private static String randomDatabaseName() {
-        return "cosid_segment_" + UUID.randomUUID().toString().replace("-", "");
+    @Test
+    void backsOffWhenUserProvidesMongoSegmentFactory() {
+        MongoIdSegmentDistributorFactory factory = mock(MongoIdSegmentDistributorFactory.class);
+
+        this.contextRunner
+            .withBean(MongoIdSegmentDistributorFactory.class, () -> factory)
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=mongo")
+            .run(context -> assertThat(context.getBean(MongoIdSegmentDistributorFactory.class)).isSameAs(factory));
+    }
+
+    @Test
+    void doesNotCreateMongoSegmentBeansWhenSegmentIsDisabled() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=false")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=mongo")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdMongoSegmentAutoConfiguration.class)
+                .doesNotHaveBean(MongoIdSegmentDistributorFactory.class));
+    }
+
+    @Test
+    void doesNotCreateMongoSegmentBeansWhenTypeDoesNotMatch() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=redis")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdMongoSegmentAutoConfiguration.class)
+                .doesNotHaveBean(MongoIdSegmentDistributorFactory.class));
+    }
+
+    @Test
+    void doesNotCreateMongoSegmentBeansWhenMongoFactoryClassIsMissing() {
+        this.contextRunner
+            .withClassLoader(new FilteredClassLoader(MongoIdSegmentDistributorFactory.class))
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=mongo")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdMongoSegmentAutoConfiguration.class)
+                .doesNotHaveBean(MongoIdSegmentDistributorFactory.class));
+    }
+
+    private static MongoClient mongoClient() {
+        MongoClient client = mock(MongoClient.class);
+        MongoDatabase database = mock(MongoDatabase.class);
+        MongoCollection<Document> collection = mock(MongoCollection.class);
+        when(client.getDatabase(anyString())).thenReturn(database);
+        when(database.getCollection(anyString())).thenReturn(collection);
+        return client;
     }
 }

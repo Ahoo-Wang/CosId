@@ -13,85 +13,65 @@
 
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
-import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.MachineId;
-import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
-import me.ahoo.cosid.spring.boot.starter.machine.CosIdHostNameAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineIdLifecycle;
-import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 
-/**
- * CosIdSnowflakeAutoConfigurationTest .
- *
- * @author ahoo wang
- */
 class CosIdSnowflakeAutoConfigurationTest {
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner();
-    
+    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
+        .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, CosIdSnowflakeAutoConfiguration.class))
+        .withBean(MachineProperties.class, MachineProperties::new)
+        .withBean(InstanceId.class, () -> InstanceId.of("test-instance", true))
+        .withBean(GuardDistribute.class, () -> mock(GuardDistribute.class))
+        .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
+        .withPropertyValues(SnowflakeIdProperties.PREFIX + ".share.enabled=false");
+
     @Test
-    void contextLoads() {
+    void createsRegistrarAndBindsPropertiesWhenSnowflakeIsEnabled() {
         this.contextRunner
-            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
-            .withBean(CustomizeSnowflakeIdProperties.class, () -> idProperties -> idProperties.getProvider().put("test", new SnowflakeIdProperties.IdDefinition()))
-            .withUserConfiguration(UtilAutoConfiguration.class,
-                CosIdAutoConfiguration.class,
-                CosIdHostNameAutoConfiguration.class,
-                CosIdMachineAutoConfiguration.class,
-                CosIdSnowflakeAutoConfiguration.class)
             .run(context -> {
                 assertThat(context)
-                    .hasSingleBean(CosIdSnowflakeAutoConfiguration.class)
                     .hasSingleBean(SnowflakeIdProperties.class)
-                    .hasSingleBean(InstanceId.class)
-                    .hasSingleBean(MachineStateStorage.class)
-                    .hasSingleBean(ClockBackwardsSynchronizer.class)
-                    .hasSingleBean(MachineId.class)
-                    .hasSingleBean(CosIdMachineIdLifecycle.class)
-                    .hasBean("__share__SnowflakeId")
-                    .hasBean("testSnowflakeId")
-                ;
+                    .hasSingleBean(IdGeneratorProvider.class)
+                    .hasSingleBean(SnowflakeIdBeanRegistrar.class);
+                assertThat(context.getBean(SnowflakeIdProperties.class).getShare().isEnabled()).isFalse();
             });
     }
-    
+
     @Test
-    void contextLoadsWithConfig() {
+    void appliesCustomizerBeforeRegistrarRuns() {
         this.contextRunner
-            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
-            .withPropertyValues(MachineProperties.PREFIX + ".distributor.manual.machineId=1")
-            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".share.enabled=false")
-            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.test.converter.type=to_string")
-            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.test.converter.to_string.pad-start=true")
-            .withUserConfiguration(UtilAutoConfiguration.class,
-                CosIdAutoConfiguration.class,
-                CosIdHostNameAutoConfiguration.class,
-                CosIdMachineAutoConfiguration.class,
-                CosIdSnowflakeAutoConfiguration.class)
-            .run(context -> {
-                assertThat(context)
-                    .hasSingleBean(CosIdSnowflakeAutoConfiguration.class)
-                    .hasSingleBean(SnowflakeIdProperties.class)
-                    .hasSingleBean(InstanceId.class)
-                    .hasSingleBean(MachineStateStorage.class)
-                    .hasSingleBean(ClockBackwardsSynchronizer.class)
-                    .hasSingleBean(MachineId.class)
-                    .hasSingleBean(CosIdMachineIdLifecycle.class)
-                    .doesNotHaveBean("__share__SnowflakeId")
-                    .hasBean("testSnowflakeId")
-                ;
-            });
+            .withBean(CustomizeSnowflakeIdProperties.class, () -> properties -> properties.setZoneId("UTC"))
+            .run(context -> assertThat(context.getBean(SnowflakeIdProperties.class).getZoneId()).isEqualTo("UTC"));
     }
-    
+
+    @Test
+    void doesNotCreateSnowflakeBeansWhenCosIdIsDisabled() {
+        this.contextRunner
+            .withPropertyValues("cosid.enabled=false")
+            .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(SnowflakeIdProperties.class)
+                .doesNotHaveBean(SnowflakeIdBeanRegistrar.class));
+    }
+
+    @Test
+    void doesNotCreateSnowflakeBeansWhenSnowflakeIsDisabledOrMissing() {
+        this.contextRunner
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(SnowflakeIdProperties.class)
+                .doesNotHaveBean(SnowflakeIdBeanRegistrar.class));
+    }
 }

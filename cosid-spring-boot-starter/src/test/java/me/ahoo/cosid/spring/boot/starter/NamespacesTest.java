@@ -13,18 +13,29 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
-import org.junit.jupiter.api.Assertions;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class NamespacesTest {
-    
-    @Test
-    void firstNotBlank() {
-        Assertions.assertEquals("a", Namespaces.firstNotBlank("", "a", "b"));
+
+    @ParameterizedTest
+    @CsvSource({
+        "'',a,b,a",
+        "' ',tenant,global,tenant",
+        "tenant,global,fallback,tenant"
+    })
+    void firstNotBlankReturnsFirstTextValue(String first, String second, String third, String expected) {
+        assertThat(Namespaces.firstNotBlank(first, second, third)).isEqualTo(expected);
     }
-    
+
     @Test
-    void firstNotBlankIfAllBlack() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> Namespaces.firstNotBlank(null, "", ""));
+    void firstNotBlankRejectsAllNullEmptyOrWhitespaceValues() {
+        assertThatThrownBy(() -> Namespaces.firstNotBlank(null, "", " "))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("namespaces can not be all blank!");
     }
 }

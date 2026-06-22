@@ -55,11 +55,14 @@ class MongoMachineIdDistributorTest extends MachineIdDistributorSpec {
 
     @AfterEach
     void destroy() {
-        if (mongoDatabase != null) {
-            mongoDatabase.drop();
-        }
-        if (mongoClient != null) {
-            mongoClient.close();
+        try {
+            if (mongoDatabase != null) {
+                mongoDatabase.drop();
+            }
+        } finally {
+            if (mongoClient != null) {
+                mongoClient.close();
+            }
         }
     }
     

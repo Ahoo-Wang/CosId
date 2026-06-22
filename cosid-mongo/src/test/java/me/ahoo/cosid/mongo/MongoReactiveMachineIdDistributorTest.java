@@ -58,11 +58,14 @@ class MongoReactiveMachineIdDistributorTest extends MachineIdDistributorSpec {
 
     @AfterEach
     void destroy() {
-        if (mongoDatabase != null) {
-            BlockingAdapter.block(mongoDatabase.drop());
-        }
-        if (mongoClient != null) {
-            mongoClient.close();
+        try {
+            if (mongoDatabase != null) {
+                BlockingAdapter.block(mongoDatabase.drop());
+            }
+        } finally {
+            if (mongoClient != null) {
+                mongoClient.close();
+            }
         }
     }
     

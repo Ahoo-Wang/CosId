@@ -107,7 +107,7 @@ public class CosIdMachineAutoConfiguration {
      * @return the instance identifier
      */
     @Bean
-    @ConditionalOnMissingBean(MachineIdDistributor.class)
+    @ConditionalOnMissingBean
     public InstanceId instanceId(HostAddressSupplier hostAddressSupplier) {
 
         boolean stable = Boolean.TRUE.equals(machineProperties.getStable());
@@ -143,7 +143,7 @@ public class CosIdMachineAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(MachineIdDistributor.class)
+    @ConditionalOnMissingBean
     public MachineStateStorage machineStateStorage() {
         if (Boolean.TRUE.equals(machineProperties.getStable())) {
             return new LocalMachineStateStorage(machineProperties.getStateStorage().getLocal().getStateLocation());

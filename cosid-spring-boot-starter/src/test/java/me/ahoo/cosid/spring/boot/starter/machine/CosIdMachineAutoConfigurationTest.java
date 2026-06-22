@@ -23,13 +23,17 @@ import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdGuarder;
+import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.ManualMachineIdDistributor;
+import me.ahoo.cosid.machine.NotFoundMachineStateException;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+
+import java.time.Duration;
 
 class CosIdMachineAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
@@ -82,6 +86,26 @@ class CosIdMachineAutoConfigurationTest {
     }
 
     @Test
+    void userProvidedMachineIdDistributorStillUsesDefaultInstanceAndStorageInfrastructure() {
+        MachineIdDistributor distributor = new FixedMachineIdDistributor(13);
+
+        this.contextRunner
+            .withBean(MachineIdDistributor.class, () -> distributor)
+            .withPropertyValues(
+                ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true",
+                MachineProperties.PREFIX + ".instance-id=worker-b",
+                MachineProperties.PREFIX + ".guarder.enabled=false"
+            )
+            .run(context -> {
+                assertThat(context.getBean(MachineIdDistributor.class)).isSameAs(distributor);
+                assertThat(context).hasSingleBean(InstanceId.class);
+                assertThat(context).hasSingleBean(MachineStateStorage.class);
+                assertThat(context.getBean(InstanceId.class).getInstanceId()).isEqualTo("worker-b");
+                assertThat(context.getBean(MachineId.class).getMachineId()).isEqualTo(13);
+            });
+    }
+
+    @Test
     void doesNotCreateMachineBeansWhenCosIdIsDisabled() {
         this.contextRunner
             .withPropertyValues(
@@ -109,5 +133,21 @@ class CosIdMachineAutoConfigurationTest {
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .run(context -> assertThat(context.getStartupFailure())
                 .hasRootCauseMessage("cosid.machine.distributor.manual can not be null."));
+    }
+
+    private record FixedMachineIdDistributor(int machineId) implements MachineIdDistributor {
+
+        @Override
+        public MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
+            return MachineState.of(machineId, 100);
+        }
+
+        @Override
+        public void revert(String namespace, InstanceId instanceId) throws NotFoundMachineStateException {
+        }
+
+        @Override
+        public void guard(String namespace, InstanceId instanceId, Duration safeGuardDuration) {
+        }
     }
 }

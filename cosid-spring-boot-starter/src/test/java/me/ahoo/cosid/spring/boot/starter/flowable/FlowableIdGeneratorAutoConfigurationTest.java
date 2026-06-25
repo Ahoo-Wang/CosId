@@ -56,4 +56,14 @@ class FlowableIdGeneratorAutoConfigurationTest {
             .withClassLoader(new FilteredClassLoader(FlowableIdGenerator.class))
             .run(context -> assertThat(context).doesNotHaveBean(EngineConfigurationConfigurer.class));
     }
+
+    @Test
+    void doesNotCreateConfigurerWhenFlowableSpringIntegrationIsMissing() {
+        this.contextRunner
+            .withClassLoader(new FilteredClassLoader(
+                SpringProcessEngineConfiguration.class,
+                EngineConfigurationConfigurer.class
+            ))
+            .run(context -> assertThat(context).doesNotHaveBean(EngineConfigurationConfigurer.class));
+    }
 }

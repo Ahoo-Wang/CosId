@@ -37,7 +37,7 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
 @ConditionalOnClass(ZookeeperIdSegmentDistributor.class)
-@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "zookeeper")
+@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "zookeeper")
 public class CosIdZookeeperSegmentAutoConfiguration {
 
     @Bean

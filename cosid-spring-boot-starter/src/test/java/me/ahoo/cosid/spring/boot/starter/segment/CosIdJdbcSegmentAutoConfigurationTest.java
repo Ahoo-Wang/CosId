@@ -4,10 +4,12 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.mock;
 
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
+import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import javax.sql.DataSource;
@@ -71,6 +73,31 @@ class CosIdJdbcSegmentAutoConfigurationTest {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=redis")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdJdbcSegmentAutoConfiguration.class)
+                .doesNotHaveBean(JdbcIdSegmentInitializer.class)
+                .doesNotHaveBean(IdSegmentDistributorFactory.class));
+    }
+
+    @Test
+    void doesNotCreateJdbcSegmentBeansWhenTypeIsMissing() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdJdbcSegmentAutoConfiguration.class)
+                .doesNotHaveBean(JdbcIdSegmentInitializer.class)
+                .doesNotHaveBean(IdSegmentDistributorFactory.class));
+    }
+
+    @Test
+    void doesNotCreateJdbcSegmentBeansWhenJdbcSegmentClassesAreMissing() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=jdbc")
+            .withClassLoader(new FilteredClassLoader(
+                JdbcIdSegmentInitializer.class,
+                JdbcIdSegmentDistributorFactory.class
+            ))
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdJdbcSegmentAutoConfiguration.class)
                 .doesNotHaveBean(JdbcIdSegmentInitializer.class)

@@ -68,6 +68,15 @@ class SnowflakeFriendlyIdConverterTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {
+        "20220320133617924-1024-0",
+        "20220320133617924-5-4096"
+    })
+    void asLongShouldRejectComponentsOutsideSnowflakeBitRanges(String argId) {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> SHANGHAI_CONVERTER.asLong(argId));
+    }
+
+    @ParameterizedTest
     @ValueSource(longs = {295913926632165376L})
     void instanceShouldRoundTripInSystemDefaultZone(long argId) {
         String idStr = SnowflakeFriendlyIdConverter.INSTANCE.asString(argId);

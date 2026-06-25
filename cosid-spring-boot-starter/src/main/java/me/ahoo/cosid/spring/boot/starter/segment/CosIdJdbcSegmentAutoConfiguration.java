@@ -19,6 +19,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -35,7 +36,8 @@ import javax.sql.DataSource;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
-@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "jdbc")
+@ConditionalOnClass({JdbcIdSegmentInitializer.class, JdbcIdSegmentDistributorFactory.class})
+@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "jdbc")
 public class CosIdJdbcSegmentAutoConfiguration {
 
     private final SegmentIdProperties segmentIdProperties;

@@ -61,6 +61,15 @@ class CosIdZookeeperSegmentAutoConfigurationTest {
     }
 
     @Test
+    void doesNotCreateFactoryWhenTypeIsMissing() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdZookeeperSegmentAutoConfiguration.class)
+                .doesNotHaveBean(IdSegmentDistributorFactory.class));
+    }
+
+    @Test
     void doesNotCreateFactoryWhenZookeeperDistributorClassIsMissing() {
         this.contextRunner
             .withClassLoader(new FilteredClassLoader(ZookeeperIdSegmentDistributor.class))

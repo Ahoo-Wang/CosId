@@ -216,12 +216,9 @@ public abstract class SnowflakeIdStateParser {
         long machineId = Long.parseLong(segments.get(1));
         long sequence = Long.parseLong(segments.get(2));
         long diffTime = getDiffTime(timestamp);
-        Preconditions.checkArgument(diffTime >= 0 && diffTime <= timestampMask,
-            "timestamp:[%s] must be between 0 and maxTimestamp:[%s]!", diffTime, timestampMask);
-        Preconditions.checkArgument(machineId >= 0 && machineId <= machineMask,
-            "machineId:[%s] must be between 0 and maxMachineId:[%s]!", machineId, machineMask);
-        Preconditions.checkArgument(sequence >= 0 && sequence <= sequenceMask,
-            "sequence:[%s] must be between 0 and maxSequence:[%s]!", sequence, sequenceMask);
+        checkComponentRange("timestamp", diffTime, "maxTimestamp", timestampMask);
+        checkComponentRange("machineId", machineId, "maxMachineId", machineMask);
+        checkComponentRange("sequence", sequence, "maxSequence", sequenceMask);
         /**
          * machineLeft greater than 30 will cause overflow, so machineId should be long when calculating.
          */
@@ -235,6 +232,11 @@ public abstract class SnowflakeIdStateParser {
                 .timestamp(timestamp)
                 .friendlyId(friendlyId)
                 .build();
+    }
+
+    private void checkComponentRange(String component, long value, String maxComponent, long maxValue) {
+        Preconditions.checkArgument(value >= 0 && value <= maxValue,
+            "%s:[%s] must be between 0 and %s:[%s]!", component, value, maxComponent, maxValue);
     }
 
     /**

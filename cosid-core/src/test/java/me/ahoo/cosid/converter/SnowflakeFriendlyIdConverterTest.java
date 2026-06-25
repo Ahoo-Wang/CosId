@@ -69,6 +69,8 @@ class SnowflakeFriendlyIdConverterTest {
 
     @ParameterizedTest
     @ValueSource(strings = {
+        "20191224235959999-5-0",
+        "99991231235959999-5-0",
         "20220320133617924-1024-0",
         "20220320133617924-5-4096"
     })

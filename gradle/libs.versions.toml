@@ -1,7 +1,7 @@
 [versions]
 # libraries
-spring-boot = "4.0.5"
-spring-cloud = "2025.1.1"
+spring-boot = "4.1.0"
+spring-cloud = "2025.1.2"
 jspecify = "1.0.0"
 coapi = "2.0.1"
 testcontainers = "2.0.4"

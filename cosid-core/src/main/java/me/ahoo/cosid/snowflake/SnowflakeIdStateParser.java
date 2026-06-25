@@ -234,11 +234,6 @@ public abstract class SnowflakeIdStateParser {
                 .build();
     }
 
-    private void checkComponentRange(String component, long value, String maxComponent, long maxValue) {
-        Preconditions.checkArgument(value >= 0 && value <= maxValue,
-            "%s:[%s] must be between 0 and %s:[%s]!", component, value, maxComponent, maxValue);
-    }
-
     /**
      * Parses a raw snowflake ID into SnowflakeIdState.
      *
@@ -264,6 +259,11 @@ public abstract class SnowflakeIdStateParser {
                 .timestamp(timestamp)
                 .friendlyId(friendlyId)
                 .build();
+    }
+
+    private void checkComponentRange(String component, long value, String maxComponent, long maxValue) {
+        Preconditions.checkArgument(value >= 0 && value <= maxValue,
+            "%s:[%s] must be between 0 and %s:[%s]!", component, value, maxComponent, maxValue);
     }
 
     private long getMask(long bits) {

@@ -27,7 +27,15 @@ import java.sql.SQLException;
  */
 @Slf4j
 public class JdbcMachineIdInitializer {
-    private static final String INIT_COSID_MACHINE_TABLE_SQL =
+    /**
+     * Default SQL for creating the {@code cosid_machine} table.
+     *
+     * <p>The {@code idx_namespace} and {@code idx_instance_id} indexes are declared inline so the
+     * table and its indexes are created by a single MySQL-compatible statement. MySQL does not
+     * support {@code CREATE INDEX IF NOT EXISTS}, so the index DDLs default to empty strings and
+     * are skipped by {@link #initCosIdMachineTable()}.</p>
+     */
+    public static final String INIT_COSID_MACHINE_TABLE_SQL =
         "create table if not exists cosid_machine\n"
             + "(\n"
             + "    name            varchar(100)     not null comment '{namespace}.{machine_id}',\n"
@@ -38,14 +46,28 @@ public class JdbcMachineIdInitializer {
             + "    distribute_time bigint unsigned  not null default 0,\n"
             + "    revert_time     bigint unsigned  not null default 0,\n"
             + "    constraint cosid_machine_pk\n"
-            + "        primary key (name)\n"
+            + "        primary key (name),\n"
+            + "    key idx_namespace (namespace),\n"
+            + "    key idx_instance_id (instance_id)\n"
             + ") engine = InnoDB;";
-    
-    private static final String INIT_NAMESPACE_IDX_SQL =
-        "create index if not exists idx_namespace on cosid_machine (namespace);";
-    
-    private static final String INIT_INSTANCE_ID_IDX_SQL =
-        "create index if not exists idx_instance_id on cosid_machine (instance_id);";
+
+    /**
+     * Default SQL for creating the {@code idx_namespace} index on {@code cosid_machine}.
+     *
+     * <p>Empty by default: the index is created inline by {@link #INIT_COSID_MACHINE_TABLE_SQL}.
+     * Set this to a non-empty value (e.g. {@code CREATE INDEX ...}) to create the index separately;
+     * empty values are skipped by {@link #initCosIdMachineTable()}.</p>
+     */
+    public static final String INIT_NAMESPACE_IDX_SQL = "";
+
+    /**
+     * Default SQL for creating the {@code idx_instance_id} index on {@code cosid_machine}.
+     *
+     * <p>Empty by default: the index is created inline by {@link #INIT_COSID_MACHINE_TABLE_SQL}.
+     * Set this to a non-empty value (e.g. {@code CREATE INDEX ...}) to create the index separately;
+     * empty values are skipped by {@link #initCosIdMachineTable()}.</p>
+     */
+    public static final String INIT_INSTANCE_ID_IDX_SQL = "";
     
     private final DataSource dataSource;
     
@@ -68,17 +90,30 @@ public class JdbcMachineIdInitializer {
         if (log.isInfoEnabled()) {
             log.info("Init CosIdMachineTable");
         }
-        
+
         try (Connection connection = dataSource.getConnection()) {
             try (PreparedStatement initStatement = connection.prepareStatement(initCosIdMachineTableSql)) {
                 initStatement.executeUpdate();
             }
-            try (PreparedStatement createNamespaceIdxStatement = connection.prepareStatement(initNamespaceIdxSql)) {
-                createNamespaceIdxStatement.executeUpdate();
-            }
-            try (PreparedStatement createInstanceIdIdxStatement = connection.prepareStatement(initInstanceIdIdxSql)) {
-                createInstanceIdIdxStatement.executeUpdate();
-            }
+            executeIfPresent(connection, initNamespaceIdxSql);
+            executeIfPresent(connection, initInstanceIdIdxSql);
+        }
+    }
+
+    /**
+     * Executes the given SQL only when it is non-empty, so that index DDLs which are empty by
+     * default (created inline by the table DDL) can be skipped without failing on empty statements.
+     *
+     * @param connection the JDBC connection to use
+     * @param sql the SQL to execute; no-op when null or blank
+     * @throws SQLException if executing the statement fails
+     */
+    private void executeIfPresent(Connection connection, String sql) throws SQLException {
+        if (sql == null || sql.isEmpty()) {
+            return;
+        }
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.executeUpdate();
         }
     }
     

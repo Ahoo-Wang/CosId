@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import me.ahoo.cosid.jdbc.JdbcMachineIdInitializer;
 import me.ahoo.cosid.machine.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
 import me.ahoo.cosid.machine.LocalMachineStateStorage;
@@ -45,6 +46,13 @@ class MachinePropertiesTest {
         assertThat(properties.getDistributor().getManual()).isNull();
         assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(1));
         assertThat(properties.getDistributor().getMongo().getDatabase()).isEqualTo("cosid_db");
+        assertThat(properties.getDistributor().getJdbc().isEnableAutoInitCosidMachineTable()).isFalse();
+        assertThat(properties.getDistributor().getJdbc().getInitCosIdMachineTableSql())
+            .isEqualTo(JdbcMachineIdInitializer.INIT_COSID_MACHINE_TABLE_SQL);
+        assertThat(properties.getDistributor().getJdbc().getInitNamespaceIdxSql())
+            .isEqualTo(JdbcMachineIdInitializer.INIT_NAMESPACE_IDX_SQL);
+        assertThat(properties.getDistributor().getJdbc().getInitInstanceIdIdxSql())
+            .isEqualTo(JdbcMachineIdInitializer.INIT_INSTANCE_ID_IDX_SQL);
         assertThat(properties.getGuarder().isEnabled()).isTrue();
         assertThat(properties.getGuarder().getInitialDelay()).isEqualTo(DefaultMachineIdGuarder.DEFAULT_INITIAL_DELAY);
         assertThat(properties.getGuarder().getDelay()).isEqualTo(DefaultMachineIdGuarder.DEFAULT_DELAY);
@@ -68,6 +76,10 @@ class MachinePropertiesTest {
             Map.entry("cosid.machine.distributor.manual.machine-id", "7"),
             Map.entry("cosid.machine.distributor.redis.timeout", "2s"),
             Map.entry("cosid.machine.distributor.mongo.database", "machine_db"),
+            Map.entry("cosid.machine.distributor.jdbc.enable-auto-init-cosid-machine-table", "true"),
+            Map.entry("cosid.machine.distributor.jdbc.init-cos-id-machine-table-sql", "create table cosid_machine_test"),
+            Map.entry("cosid.machine.distributor.jdbc.init-namespace-idx-sql", "create index idx_namespace_test"),
+            Map.entry("cosid.machine.distributor.jdbc.init-instance-id-idx-sql", "create index idx_instance_id_test"),
             Map.entry("cosid.machine.guarder.enabled", "false"),
             Map.entry("cosid.machine.guarder.initial-delay", "3s"),
             Map.entry("cosid.machine.guarder.delay", "4s"),
@@ -86,6 +98,10 @@ class MachinePropertiesTest {
         assertThat(properties.getDistributor().getManual().getMachineId()).isEqualTo(7);
         assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(2));
         assertThat(properties.getDistributor().getMongo().getDatabase()).isEqualTo("machine_db");
+        assertThat(properties.getDistributor().getJdbc().isEnableAutoInitCosidMachineTable()).isTrue();
+        assertThat(properties.getDistributor().getJdbc().getInitCosIdMachineTableSql()).isEqualTo("create table cosid_machine_test");
+        assertThat(properties.getDistributor().getJdbc().getInitNamespaceIdxSql()).isEqualTo("create index idx_namespace_test");
+        assertThat(properties.getDistributor().getJdbc().getInitInstanceIdIdxSql()).isEqualTo("create index idx_instance_id_test");
         assertThat(properties.getGuarder().isEnabled()).isFalse();
         assertThat(properties.getGuarder().getInitialDelay()).isEqualTo(Duration.ofSeconds(3));
         assertThat(properties.getGuarder().getDelay()).isEqualTo(Duration.ofSeconds(4));

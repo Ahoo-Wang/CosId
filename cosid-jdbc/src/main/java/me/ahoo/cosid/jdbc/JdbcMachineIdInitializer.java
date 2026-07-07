@@ -27,7 +27,10 @@ import java.sql.SQLException;
  */
 @Slf4j
 public class JdbcMachineIdInitializer {
-    private static final String INIT_COSID_MACHINE_TABLE_SQL =
+    /**
+     * Default SQL for creating the {@code cosid_machine} table.
+     */
+    public static final String INIT_COSID_MACHINE_TABLE_SQL =
         "create table if not exists cosid_machine\n"
             + "(\n"
             + "    name            varchar(100)     not null comment '{namespace}.{machine_id}',\n"
@@ -41,10 +44,16 @@ public class JdbcMachineIdInitializer {
             + "        primary key (name)\n"
             + ") engine = InnoDB;";
     
-    private static final String INIT_NAMESPACE_IDX_SQL =
+    /**
+     * Default SQL for creating the {@code idx_namespace} index on {@code cosid_machine}.
+     */
+    public static final String INIT_NAMESPACE_IDX_SQL =
         "create index if not exists idx_namespace on cosid_machine (namespace);";
     
-    private static final String INIT_INSTANCE_ID_IDX_SQL =
+    /**
+     * Default SQL for creating the {@code idx_instance_id} index on {@code cosid_machine}.
+     */
+    public static final String INIT_INSTANCE_ID_IDX_SQL =
         "create index if not exists idx_instance_id on cosid_machine (instance_id);";
     
     private final DataSource dataSource;

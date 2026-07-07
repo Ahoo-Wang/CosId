@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.machine;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.jdbc.JdbcMachineIdInitializer;
 import me.ahoo.cosid.machine.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
 import me.ahoo.cosid.machine.LocalMachineStateStorage;
@@ -411,13 +412,19 @@ public class MachineProperties {
          * Configuration for MongoDB-based distribution.
          */
         private MachineProperties.Mongo mongo;
-        
+
         /**
-         * Constructs a new Distributor configuration with default Redis and Mongo settings.
+         * Configuration for JDBC-based distribution.
+         */
+        private MachineProperties.Jdbc jdbc;
+
+        /**
+         * Constructs a new Distributor configuration with default Redis, Mongo, and Jdbc settings.
          */
         public Distributor() {
             this.redis = new MachineProperties.Redis();
             this.mongo = new MachineProperties.Mongo();
+            this.jdbc = new MachineProperties.Jdbc();
         }
 
         /**
@@ -490,6 +497,24 @@ public class MachineProperties {
          */
         public void setMongo(Mongo mongo) {
             this.mongo = mongo;
+        }
+
+        /**
+         * Gets the JDBC configuration.
+         *
+         * @return the JDBC configuration
+         */
+        public Jdbc getJdbc() {
+            return jdbc;
+        }
+
+        /**
+         * Sets the JDBC configuration.
+         *
+         * @param jdbc the JDBC configuration to set
+         */
+        public void setJdbc(Jdbc jdbc) {
+            this.jdbc = jdbc;
         }
         
         /**
@@ -637,7 +662,114 @@ public class MachineProperties {
             this.database = database;
         }
     }
-    
+
+    /**
+     * Configuration for JDBC-based machine ID distribution.
+     *
+     * <p>This configuration controls the automatic initialization of the
+     * {@code cosid_machine} table (and its indexes) at startup, and allows
+     * overriding the default DDL statements used by
+     * {@link JdbcMachineIdInitializer}.</p>
+     */
+    public static class Jdbc {
+        /**
+         * Whether to automatically create the {@code cosid_machine} table on startup.
+         * Default is false. When enabled, {@link JdbcMachineIdInitializer#tryInitCosIdMachineTable()}
+         * is invoked during auto-configuration.
+         */
+        private boolean enableAutoInitCosidMachineTable = false;
+
+        /**
+         * DDL used to create the {@code cosid_machine} table.
+         * Default is {@link JdbcMachineIdInitializer#INIT_COSID_MACHINE_TABLE_SQL}.
+         */
+        private String initCosIdMachineTableSql = JdbcMachineIdInitializer.INIT_COSID_MACHINE_TABLE_SQL;
+
+        /**
+         * DDL used to create the {@code idx_namespace} index.
+         * Default is {@link JdbcMachineIdInitializer#INIT_NAMESPACE_IDX_SQL}.
+         */
+        private String initNamespaceIdxSql = JdbcMachineIdInitializer.INIT_NAMESPACE_IDX_SQL;
+
+        /**
+         * DDL used to create the {@code idx_instance_id} index.
+         * Default is {@link JdbcMachineIdInitializer#INIT_INSTANCE_ID_IDX_SQL}.
+         */
+        private String initInstanceIdIdxSql = JdbcMachineIdInitializer.INIT_INSTANCE_ID_IDX_SQL;
+
+        /**
+         * Checks whether automatic {@code cosid_machine} table initialization is enabled.
+         *
+         * @return true if auto-init is enabled, false otherwise
+         */
+        public boolean isEnableAutoInitCosidMachineTable() {
+            return enableAutoInitCosidMachineTable;
+        }
+
+        /**
+         * Sets whether automatic {@code cosid_machine} table initialization is enabled.
+         *
+         * @param enableAutoInitCosidMachineTable true to enable auto-init, false otherwise
+         */
+        public void setEnableAutoInitCosidMachineTable(boolean enableAutoInitCosidMachineTable) {
+            this.enableAutoInitCosidMachineTable = enableAutoInitCosidMachineTable;
+        }
+
+        /**
+         * Gets the DDL for creating the {@code cosid_machine} table.
+         *
+         * @return the table creation DDL
+         */
+        public String getInitCosIdMachineTableSql() {
+            return initCosIdMachineTableSql;
+        }
+
+        /**
+         * Sets the DDL for creating the {@code cosid_machine} table.
+         *
+         * @param initCosIdMachineTableSql the table creation DDL to set
+         */
+        public void setInitCosIdMachineTableSql(String initCosIdMachineTableSql) {
+            this.initCosIdMachineTableSql = initCosIdMachineTableSql;
+        }
+
+        /**
+         * Gets the DDL for creating the {@code idx_namespace} index.
+         *
+         * @return the namespace index creation DDL
+         */
+        public String getInitNamespaceIdxSql() {
+            return initNamespaceIdxSql;
+        }
+
+        /**
+         * Sets the DDL for creating the {@code idx_namespace} index.
+         *
+         * @param initNamespaceIdxSql the namespace index creation DDL to set
+         */
+        public void setInitNamespaceIdxSql(String initNamespaceIdxSql) {
+            this.initNamespaceIdxSql = initNamespaceIdxSql;
+        }
+
+        /**
+         * Gets the DDL for creating the {@code idx_instance_id} index.
+         *
+         * @return the instance id index creation DDL
+         */
+        public String getInitInstanceIdIdxSql() {
+            return initInstanceIdIdxSql;
+        }
+
+        /**
+         * Sets the DDL for creating the {@code idx_instance_id} index.
+         *
+         * @param initInstanceIdIdxSql the instance id index creation DDL to set
+         */
+        public void setInitInstanceIdIdxSql(String initInstanceIdIdxSql) {
+            this.initInstanceIdIdxSql = initInstanceIdIdxSql;
+        }
+    }
+
     /**
      * Configuration for machine ID guarding mechanisms.
      *

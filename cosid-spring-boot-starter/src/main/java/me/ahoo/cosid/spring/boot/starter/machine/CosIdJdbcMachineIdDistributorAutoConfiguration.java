@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.machine;
 
 import me.ahoo.cosid.jdbc.JdbcMachineIdDistributor;
+import me.ahoo.cosid.jdbc.JdbcMachineIdInitializer;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
@@ -24,6 +25,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -39,12 +41,34 @@ import javax.sql.DataSource;
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnClass(JdbcMachineIdDistributor.class)
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "jdbc")
+@EnableConfigurationProperties(MachineProperties.class)
 public class CosIdJdbcMachineIdDistributorAutoConfiguration {
-    
+
+    private final MachineProperties machineProperties;
+
+    public CosIdJdbcMachineIdDistributorAutoConfiguration(MachineProperties machineProperties) {
+        this.machineProperties = machineProperties;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public JdbcMachineIdInitializer jdbcMachineIdInitializer(DataSource dataSource) {
+        MachineProperties.Jdbc jdbc = machineProperties.getDistributor().getJdbc();
+        JdbcMachineIdInitializer machineIdInitializer = new JdbcMachineIdInitializer(
+            dataSource,
+            jdbc.getInitCosIdMachineTableSql(),
+            jdbc.getInitNamespaceIdxSql(),
+            jdbc.getInitInstanceIdIdxSql());
+        if (jdbc.isEnableAutoInitCosidMachineTable()) {
+            machineIdInitializer.tryInitCosIdMachineTable();
+        }
+        return machineIdInitializer;
+    }
+
     @Bean
     @ConditionalOnMissingBean
     public JdbcMachineIdDistributor jdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         return new JdbcMachineIdDistributor(dataSource, localMachineState, clockBackwardsSynchronizer);
     }
-    
+
 }

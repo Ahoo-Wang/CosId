@@ -45,7 +45,9 @@ class JdbcMachineIdInitializerTest {
         machineIdInitializer.initCosIdMachineTable();
 
         assertThat(dataSource.isCosIdMachineTableInitialized(), equalTo(true));
-        assertThat(dataSource.getExecutedSql(), hasSize(3));
+        // The default index DDLs are empty (indexes are created inline by the table DDL),
+        // so only the table-creation statement is executed.
+        assertThat(dataSource.getExecutedSql(), hasSize(1));
     }
     
     @Test
@@ -72,10 +74,15 @@ class JdbcMachineIdInitializerTest {
     }
 
     @Test
-    void emptyInitSqlIsPassedThroughVerbatimWithoutFallback() {
-        JdbcMachineIdInitializer emptySqlInitializer =
-            new JdbcMachineIdInitializer(dataSource, "", "", "");
+    void emptyIndexSqlIsSkippedWithoutError() {
+        // Indexes are created inline by the table DDL; the standalone index DDLs default to empty
+        // and are skipped by initCosIdMachineTable() without executing empty statements.
+        JdbcMachineIdInitializer initializer = new JdbcMachineIdInitializer(
+            dataSource, JdbcMachineIdInitializer.INIT_COSID_MACHINE_TABLE_SQL, "", "");
 
-        assertThat(emptySqlInitializer.tryInitCosIdMachineTable(), equalTo(false));
+        assertThat(initializer.tryInitCosIdMachineTable(), equalTo(true));
+        assertThat(dataSource.isCosIdMachineTableInitialized(), equalTo(true));
+        // Only the table-creation statement runs; the two empty index DDLs are skipped.
+        assertThat(dataSource.getExecutedSql(), hasSize(1));
     }
 }

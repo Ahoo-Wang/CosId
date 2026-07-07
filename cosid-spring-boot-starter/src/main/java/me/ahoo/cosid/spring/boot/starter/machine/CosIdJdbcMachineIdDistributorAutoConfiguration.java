@@ -66,7 +66,11 @@ public class CosIdJdbcMachineIdDistributorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public JdbcMachineIdDistributor jdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+    public JdbcMachineIdDistributor jdbcMachineIdDistributor(
+        JdbcMachineIdInitializer jdbcMachineIdInitializer,
+        DataSource dataSource,
+        MachineStateStorage localMachineState,
+        ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         return new JdbcMachineIdDistributor(dataSource, localMachineState, clockBackwardsSynchronizer);
     }
 

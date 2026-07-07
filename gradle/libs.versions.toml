@@ -17,7 +17,7 @@ springdoc = "3.0.3"
 hamcrest = "3.0"
 jmh = "1.37"
 # plugins
-test-retry = "1.6.4"
+test-retry = "1.6.5"
 publish-plugin = "2.0.0"
 jmh-plugin = "0.7.3"
 spotbugs = "6.5.6"

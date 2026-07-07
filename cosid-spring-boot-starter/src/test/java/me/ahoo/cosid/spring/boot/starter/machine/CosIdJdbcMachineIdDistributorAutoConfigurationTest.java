@@ -69,6 +69,9 @@ class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=jdbc")
             .run(context -> assertThat(context)
+                // The initializer bean is still registered even when the distributor backs off,
+                // so auto-init can run independently of the (possibly user-supplied) distributor.
+                .hasSingleBean(JdbcMachineIdInitializer.class)
                 .hasSingleBean(JdbcMachineIdDistributor.class)
                 .getBean(JdbcMachineIdDistributor.class)
                 .isSameAs(userDistributor));

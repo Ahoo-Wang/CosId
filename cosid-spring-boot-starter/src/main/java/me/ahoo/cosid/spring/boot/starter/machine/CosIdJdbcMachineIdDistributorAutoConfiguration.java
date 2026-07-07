@@ -22,6 +22,7 @@ import me.ahoo.cosid.spring.boot.starter.snowflake.ConditionalOnCosIdSnowflakeEn
 import me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -36,6 +37,7 @@ import javax.sql.DataSource;
  * @author ahoo wang
  */
 @AutoConfiguration
+@AutoConfigureBefore(CosIdMachineAutoConfiguration.class)
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnClass(JdbcMachineIdDistributor.class)

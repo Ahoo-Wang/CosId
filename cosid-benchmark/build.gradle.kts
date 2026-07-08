@@ -45,7 +45,7 @@ dependencies {
      */
 //    testImplementation("com.xiaoju.uemc.tinyid:tinyid-client:0.1.0-SNAPSHOT")
 
-    jmh("com.zaxxer:HikariCP:7.0.2")
+    jmh("com.zaxxer:HikariCP:7.1.0")
     jmh("mysql:mysql-connector-java:8.0.33")
     jmh("org.openjdk.jmh:jmh-core:1.37")
     jmh("org.openjdk.jmh:jmh-generator-annprocess:1.37")

@@ -20,7 +20,8 @@ import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 
 import com.netease.nim.camellia.id.gen.snowflake.CamelliaSnowflakeConfig;
 import com.netease.nim.camellia.id.gen.snowflake.CamelliaSnowflakeIdGen;
-import org.apache.shardingsphere.sharding.algorithm.keygen.SnowflakeKeyGenerateAlgorithm;
+import org.apache.shardingsphere.infra.algorithm.core.context.AlgorithmSQLContext;
+import org.apache.shardingsphere.infra.algorithm.keygen.snowflake.SnowflakeKeyGenerateAlgorithm;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
@@ -36,6 +37,8 @@ import java.util.Properties;
 @State(Scope.Benchmark)
 public class SnowflakeIdBenchmark {
     public static final int TEST_MACHINE_ID = 1;
+    private static final AlgorithmSQLContext SQL_CONTEXT =
+        new AlgorithmSQLContext("cosid_mod_test", "cosid_mod_test", "cosid_mod_test", "id");
     SnowflakeFriendlyId cosidSnowflakeId;
     CamelliaSnowflakeIdGen camelliaSnowflakeId;
     SnowflakeKeyGenerateAlgorithm shardingsphereSnowflakeId;
@@ -75,11 +78,11 @@ public class SnowflakeIdBenchmark {
     
     @Benchmark
     public long shardingsphere() {
-        return shardingsphereSnowflakeId.generateKey();
+        return shardingsphereSnowflakeId.generateKeys(SQL_CONTEXT, 1).iterator().next();
     }
     
     @Benchmark
     public long shardingsphereVibration127() {
-        return shardingsphereSnowflakeIdVibration127.generateKey();
+        return shardingsphereSnowflakeIdVibration127.generateKeys(SQL_CONTEXT, 1).iterator().next();
     }
 }

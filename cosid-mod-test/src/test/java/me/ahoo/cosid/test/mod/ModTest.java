@@ -21,11 +21,13 @@ import me.ahoo.cosid.test.ModSpec;
 
 import com.netease.nim.camellia.id.gen.snowflake.CamelliaSnowflakeConfig;
 import com.netease.nim.camellia.id.gen.snowflake.CamelliaSnowflakeIdGen;
-import org.apache.shardingsphere.sharding.algorithm.keygen.SnowflakeKeyGenerateAlgorithm;
+import org.apache.shardingsphere.infra.algorithm.core.context.AlgorithmSQLContext;
+import org.apache.shardingsphere.infra.algorithm.keygen.snowflake.SnowflakeKeyGenerateAlgorithm;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Properties;
+import java.util.function.LongSupplier;
 
 public class ModTest {
     public static final int TEST_MACHINE_ID = 1;
@@ -33,6 +35,8 @@ public class ModTest {
     private static final double ALLOWABLE_POP_STD = 10;
     private static final double ALLOWABLE_RANDOM_POP_STD = 40;
     private static final double ALLOWABLE_SHARDINGSPHERE_DEFAULT_POP_STD = 434;
+    private static final AlgorithmSQLContext SHARDINGSPHERE_SQL_CONTEXT =
+        new AlgorithmSQLContext("cosid_mod_test", "cosid_mod_test", "cosid_mod_test", "id");
     SnowflakeFriendlyId cosidSnowflakeId;
     CamelliaSnowflakeIdGen camelliaSnowflakeId;
     SnowflakeKeyGenerateAlgorithm shardingsphereSnowflakeId = new SnowflakeKeyGenerateAlgorithm();
@@ -46,6 +50,14 @@ public class ModTest {
         camelliaSnowflakeId = new CamelliaSnowflakeIdGen(camelliaSnowflakeCfg);
     }
     
+    /**
+     * Adapt ShardingSphere 5.5.x {@link SnowflakeKeyGenerateAlgorithm}, which exposes only
+     * {@code generateKeys(context, count)}, to the single-key {@link LongSupplier} required by {@link ModSpec}.
+     */
+    private static LongSupplier singleKeySupplier(SnowflakeKeyGenerateAlgorithm idGen) {
+        return () -> idGen.generateKeys(SHARDINGSPHERE_SQL_CONTEXT, 1).iterator().next();
+    }
+    
     @Test
     public void cosidMod4() {
         ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, cosidSnowflakeId::generate, ModSpec.DEFAULT_WAIT);
@@ -54,7 +66,7 @@ public class ModTest {
     
     @Test
     public void shardingsphereMod4Default() {
-        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_SHARDINGSPHERE_DEFAULT_POP_STD, shardingsphereSnowflakeId::generateKey,
+        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_SHARDINGSPHERE_DEFAULT_POP_STD, singleKeySupplier(shardingsphereSnowflakeId),
             ModSpec.DEFAULT_WAIT);
         spec.verify();
     }
@@ -65,7 +77,7 @@ public class ModTest {
         Properties properties = new Properties();
         properties.setProperty("max-vibration-offset", String.valueOf(3));
         idGen.init(properties);
-        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, idGen::generateKey, ModSpec.DEFAULT_WAIT);
+        ModSpec spec = new ModSpec(ITERATIONS, 4, ALLOWABLE_POP_STD, singleKeySupplier(idGen), ModSpec.DEFAULT_WAIT);
         spec.verify();
     }
     
@@ -95,7 +107,7 @@ public class ModTest {
         Properties properties = new Properties();
         properties.setProperty("max-vibration-offset", String.valueOf(127));
         idGen.init(properties);
-        ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_POP_STD, idGen::generateKey, ModSpec.DEFAULT_WAIT);
+        ModSpec spec = new ModSpec(ITERATIONS, 128, ALLOWABLE_POP_STD, singleKeySupplier(idGen), ModSpec.DEFAULT_WAIT);
         spec.verify();
     }
 }

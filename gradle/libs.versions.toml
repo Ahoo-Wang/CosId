@@ -2,7 +2,7 @@
 # libraries
 spring-boot = "4.1.0"
 spring-cloud = "2025.1.2"
-jspecify = "1.0.0"
+jspecify = "1.0.1"
 coapi = "2.1.0"
 testcontainers = "2.0.5"
 guava = "33.6.0-jre"

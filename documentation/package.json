@@ -12,7 +12,7 @@
   "author": "ahoo wang",
   "license": "Apache 2.0",
   "devDependencies": {
-    "mermaid": "^11.16.0",
+    "mermaid": "^11.16.1",
     "vitepress": "^1.6.4",
     "vitepress-plugin-llms": "^1.13.4",
     "vitepress-plugin-mermaid": "^2.0.17"

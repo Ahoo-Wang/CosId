@@ -18,7 +18,6 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
-import com.google.common.base.Preconditions;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
@@ -50,13 +49,22 @@ public class SegmentController implements SegmentApi {
         distributors.computeIfAbsent(namespacedName,
             key -> distributorFactory.create(new IdSegmentDistributorDefinition(namespace, name, offset, step)));
     }
-    
+
+    /**
+     * Get next max id.
+     *
+     * <p>Distributors are cached in memory only. On a cache miss (e.g. after a server restart,
+     * when running clients no longer re-send {@code createDistributor}) the distributor is
+     * rebuilt lazily with {@link IdSegmentDistributor#DEFAULT_OFFSET}: the backing store
+     * applies an offset only on first-ever initialization, so already-allocated segment
+     * state survives the rebuild.
+     */
     @Override
     @Operation(summary = "Get next max id.")
     public long nextMaxId(@PathVariable String namespace, @PathVariable String name, long step) {
         String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);
-        IdSegmentDistributor distributor = distributors.get(namespacedName);
-        Preconditions.checkNotNull(distributor);
+        IdSegmentDistributor distributor = distributors.computeIfAbsent(namespacedName,
+            key -> distributorFactory.create(new IdSegmentDistributorDefinition(namespace, name, IdSegmentDistributor.DEFAULT_OFFSET, step)));
         return distributor.nextMaxId(step);
     }
 }

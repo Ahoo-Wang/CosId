@@ -60,6 +60,15 @@ class CosIdEndpointTest {
         assertThat(provider.getShare()).isSameAs(MockIdGenerator.INSTANCE);
     }
 
+    @Test
+    void removePropagatesMissingGeneratorFailure() {
+        CosIdEndpoint endpoint = new CosIdEndpoint(new DefaultIdGeneratorProvider());
+
+        assertThatThrownBy(() -> endpoint.remove("missing"))
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("missing");
+    }
+
     private static DefaultIdGeneratorProvider newProviderWithShareAndOrders() {
         DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
         provider.setShare(MockIdGenerator.INSTANCE);

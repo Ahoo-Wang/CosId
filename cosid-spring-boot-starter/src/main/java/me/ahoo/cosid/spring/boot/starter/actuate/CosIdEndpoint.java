@@ -52,7 +52,8 @@ public class CosIdEndpoint {
     
     @DeleteOperation
     public IdGeneratorStat remove(@Selector String name) {
-        var idGenerator = idGeneratorProvider.remove(name);
+        var idGenerator = idGeneratorProvider.getRequired(name);
+        idGeneratorProvider.remove(name);
         return idGenerator.stat();
     }
     

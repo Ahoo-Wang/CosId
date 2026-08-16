@@ -109,3 +109,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Aliyun ACR rejects OCI attestation manifests (unknown manifest class for
+          # application/vnd.oci.empty.v1+json), and attestations are on by default.
+          provenance: false
+          sbom: false

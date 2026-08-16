@@ -152,7 +152,27 @@ class ModCycleTest {
             arguments(Range.atMost(2L), new ExactCollection<>("t_mod_0", "t_mod_1", "t_mod_2")),
             arguments(Range.atMost(3L), ALL_NODES),
             arguments(Range.atMost(4L), ALL_NODES),
-            arguments(Range.atMost(5L), ALL_NODES)
+            arguments(Range.atMost(5L), ALL_NODES),
+            /**
+             * Ranges whose span overflows int node-size arithmetic
+             */
+            arguments(Range.closed(0L, Long.MAX_VALUE), ALL_NODES),
+            arguments(Range.atMost(Long.MAX_VALUE), ALL_NODES),
+            arguments(Range.closedOpen(0L, Long.MAX_VALUE), ALL_NODES),
+            arguments(Range.lessThan(Long.MAX_VALUE), ALL_NODES),
+            arguments(Range.closedOpen(0L, 1L << 32), ALL_NODES),
+            arguments(Range.closed(Long.MIN_VALUE, Long.MAX_VALUE), ALL_NODES),
+            arguments(Range.closedOpen(Long.MIN_VALUE, Long.MAX_VALUE), ALL_NODES),
+            /**
+             * Sign-overflow guard branch combinations: cross-zero without wraparound, and negative-only spans
+             */
+            arguments(Range.closedOpen(-3L, 1L), ALL_NODES),
+            arguments(Range.closed(-8L, -1L), ALL_NODES),
+            /**
+             * Empty ranges at equal endpoints
+             */
+            arguments(Range.closedOpen(3L, 3L), ExactCollection.empty()),
+            arguments(Range.openClosed(3L, 3L), ExactCollection.empty())
         );
     }
 

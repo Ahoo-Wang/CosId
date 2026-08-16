@@ -33,6 +33,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.time.Duration;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -69,6 +71,65 @@ class ProxyServerTest {
             .expectStatus().isOk()
             .expectBody(Long.class)
             .isEqualTo(105L);
+    }
+
+    @Test
+    void nextMaxIdShouldSelfHealAfterServerRestart() {
+        StatefulIdSegmentDistributorFactory backendFactory = new StatefulIdSegmentDistributorFactory();
+        WebTestClient serverBeforeRestart = WebTestClient
+            .bindToController(new SegmentController(backendFactory))
+            .controllerAdvice(new GlobalRestExceptionHandler())
+            .build();
+
+        serverBeforeRestart
+            .post()
+            .uri("/segments/distributor/test_namespace/order?offset=100&step=20")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody().isEmpty();
+
+        serverBeforeRestart
+            .patch()
+            .uri("/segments/test_namespace/order?step=20")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody(Long.class)
+            .isEqualTo(120L);
+
+        WebTestClient serverAfterRestart = WebTestClient
+            .bindToController(new SegmentController(backendFactory))
+            .controllerAdvice(new GlobalRestExceptionHandler())
+            .build();
+
+        serverAfterRestart
+            .patch()
+            .uri("/segments/test_namespace/order?step=5")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody(Long.class)
+            .isEqualTo(125L);
+    }
+
+    /**
+     * Contract lock for the deliberate lazy-initialization semantics of nextMaxId:
+     * a never-created name starts from DEFAULT_OFFSET instead of failing. Not a bug
+     * reproduction — this behavior is GREEN by design since the self-heal fix.
+     */
+    @Test
+    void nextMaxIdShouldLazilyInitializeNeverCreatedSegment() {
+        StatefulIdSegmentDistributorFactory backendFactory = new StatefulIdSegmentDistributorFactory();
+        WebTestClient server = WebTestClient
+            .bindToController(new SegmentController(backendFactory))
+            .controllerAdvice(new GlobalRestExceptionHandler())
+            .build();
+
+        server
+            .patch()
+            .uri("/segments/test_namespace/fresh?step=10")
+            .exchange()
+            .expectStatus().isOk()
+            .expectBody(Long.class)
+            .isEqualTo(10L);
     }
 
     @Test
@@ -153,6 +214,52 @@ class ProxyServerTest {
         public long nextMaxId(long step) {
             maxId += step;
             return maxId;
+        }
+    }
+
+    private static class StatefulIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
+        private final ConcurrentHashMap<String, AtomicLong> maxIds = new ConcurrentHashMap<>();
+
+        @Override
+        public IdSegmentDistributor create(IdSegmentDistributorDefinition definition) {
+            AtomicLong maxId = maxIds.computeIfAbsent(definition.getNamespacedName(),
+                key -> new AtomicLong(definition.getOffset()));
+            return new StatefulIdSegmentDistributor(definition, maxId);
+        }
+    }
+
+    private static class StatefulIdSegmentDistributor implements IdSegmentDistributor {
+        private final IdSegmentDistributorDefinition definition;
+        private final AtomicLong maxId;
+
+        StatefulIdSegmentDistributor(IdSegmentDistributorDefinition definition, AtomicLong maxId) {
+            this.definition = definition;
+            this.maxId = maxId;
+        }
+
+        @Override
+        public String getNamespace() {
+            return definition.getNamespace();
+        }
+
+        @Override
+        public String getName() {
+            return definition.getName();
+        }
+
+        @Override
+        public long getStep() {
+            return definition.getStep();
+        }
+
+        @Override
+        public GroupedKey group() {
+            return GroupedKey.NEVER;
+        }
+
+        @Override
+        public long nextMaxId(long step) {
+            return maxId.addAndGet(step);
         }
     }
 

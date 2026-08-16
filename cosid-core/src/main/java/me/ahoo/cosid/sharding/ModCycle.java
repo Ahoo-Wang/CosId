@@ -86,6 +86,10 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
             return effectiveNodes;
         }
 
+        if (shardingValue.isEmpty()) {
+            return ExactCollection.empty();
+        }
+
         long lower = 0;
         if (shardingValue.hasLowerBound()) {
             long lowerEndpoint = shardingValue.lowerEndpoint().longValue();
@@ -96,15 +100,20 @@ public class ModCycle<T extends Number & Comparable<T>> implements Sharding<T> {
 
         long upper = BoundType.OPEN.equals(shardingValue.upperBoundType()) ? (upperEndpoint - 1) : upperEndpoint;
 
-        final int nodeSize = (int) (upper - lower + 1);
-
-        if (nodeSize == 0) {
+        if (upper < lower) {
             return ExactCollection.empty();
         }
 
-        if (nodeSize >= divisor) {
+        if (lower < 0 && upper >= 0 && (upper - lower) < 0) {
+            // the mathematical span (>= 2^63) overflowed the subtraction and covers every node
             return effectiveNodes;
         }
+
+        if (upper - lower >= divisor - 1) {
+            return effectiveNodes;
+        }
+
+        final int nodeSize = (int) (upper - lower + 1);
 
         ExactCollection<String> nodes = new ExactCollection<>(nodeSize);
         int idx = 0;

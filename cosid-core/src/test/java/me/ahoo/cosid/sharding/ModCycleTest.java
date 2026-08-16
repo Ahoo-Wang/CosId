@@ -164,6 +164,11 @@ class ModCycleTest {
             arguments(Range.closed(Long.MIN_VALUE, Long.MAX_VALUE), ALL_NODES),
             arguments(Range.closedOpen(Long.MIN_VALUE, Long.MAX_VALUE), ALL_NODES),
             /**
+             * Sign-overflow guard branch combinations: cross-zero without wraparound, and negative-only spans
+             */
+            arguments(Range.closedOpen(-3L, 1L), ALL_NODES),
+            arguments(Range.closed(-8L, -1L), ALL_NODES),
+            /**
              * Empty ranges at equal endpoints
              */
             arguments(Range.closedOpen(3L, 3L), ExactCollection.empty()),

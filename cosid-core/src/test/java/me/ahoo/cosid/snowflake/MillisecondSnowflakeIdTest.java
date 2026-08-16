@@ -95,6 +95,15 @@ class MillisecondSnowflakeIdTest {
     }
 
     @Test
+    public void safeJavaScriptFactoriesShouldUseEpochInMatchingTimeUnit() {
+        MillisecondSnowflakeId millisecond = SafeJavaScriptSnowflakeId.ofMillisecond(1);
+        Assertions.assertEquals(CosId.COSID_EPOCH, millisecond.getEpoch());
+
+        SecondSnowflakeId second = SafeJavaScriptSnowflakeId.ofSecond(1);
+        Assertions.assertEquals(CosId.COSID_EPOCH_SECOND, second.getEpoch());
+    }
+
+    @Test
     public void customizeBits() {
         SnowflakeId snowflakeId = new MillisecondSnowflakeId(CosId.COSID_EPOCH, 41, 5, 10, 1);
         long id = snowflakeId.generate();

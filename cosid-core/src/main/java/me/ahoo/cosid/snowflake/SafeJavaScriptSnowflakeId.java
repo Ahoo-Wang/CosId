@@ -80,7 +80,7 @@ public final class SafeJavaScriptSnowflakeId {
         final int machineBit = MillisecondSnowflakeId.DEFAULT_MACHINE_BIT - 7;
         final int sequenceBit = MillisecondSnowflakeId.DEFAULT_SEQUENCE_BIT - 3;
         checkTotalBit(timestampBit, machineBit, sequenceBit);
-        return ofMillisecond(CosId.COSID_EPOCH_SECOND, timestampBit, machineBit, sequenceBit, machineId, SnowflakeId.defaultSequenceResetThreshold(sequenceBit));
+        return ofMillisecond(CosId.COSID_EPOCH, timestampBit, machineBit, sequenceBit, machineId, SnowflakeId.defaultSequenceResetThreshold(sequenceBit));
     }
 
     /**

@@ -136,6 +136,8 @@ cosid:
     enabled: true
     distributor:
       type: jdbc
+      jdbc:
+        enable-auto-init-cosid-machine-table: true  # auto-create cosid_machine (default false)
   segment:
     enabled: true
     mode: chain
@@ -146,7 +148,7 @@ cosid:
         enable-auto-init-id-segment: true
 ```
 
-This auto-creates the `cosid` table and segment rows. The table schema:
+This auto-creates the `cosid`/`cosid_machine` tables and segment rows. Note: if you register your own `JdbcMachineIdInitializer` bean, the machine-table auto-init flag is silently bypassed (`@ConditionalOnMissingBean` back-off) — perform the DDL yourself in that case. The segment table schema:
 
 ```sql
 CREATE TABLE IF NOT EXISTS cosid (
@@ -338,10 +340,13 @@ public class Order {
 
 ### SnowflakeId State Parsing
 
-Parse snowflake IDs back into their components:
+Parse snowflake IDs back into their components via the state parser (the `SnowflakeId` interface has no `getStateParser()` — build one from the generator):
 
 ```java
-SnowflakeIdState state = snowflakeId.getStateParser().parse(id);
+import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
+
+SnowflakeIdStateParser parser = SnowflakeIdStateParser.of(snowflakeId);
+SnowflakeIdState state = parser.parse(id);
 // state.getTimestamp(), state.getMachineId(), state.getSequence()
 ```
 
@@ -355,7 +360,7 @@ cosid:
     provider:
       short_lived_id:
         timestamp-unit: second  # use seconds instead of milliseconds
-        epoch: 1577203200       # custom epoch (2020-01-01)
+        epoch: 1577203200       # default COSID_EPOCH in seconds (2019-12-24 16:00 UTC)
         timestamp-bit: 31
         machine-bit: 10
         sequence-bit: 22
@@ -435,19 +440,21 @@ cosid:
 
 ## Proxy Mode
 
-For architectures that prefer a dedicated ID service:
+For architectures that prefer a dedicated ID service (cosid-proxy-server). There is no `cosid.proxy.enabled` switch — the proxy backend activates through the `proxy-support` starter capability plus `distributor.type: proxy`:
 
 ```yaml
 # Client side
 cosid:
   proxy:
-    enabled: true
+    host: http://cosid-proxy:8688   # ProxyProperties only has `host`
   segment:
     enabled: true
     mode: chain
     distributor:
       type: proxy
 ```
+
+Since 3.2.1 a proxy-server restart self-heals: `nextMaxId` rebuilds the in-memory distributor cache lazily from the backing store, so already-running clients recover without a restart.
 
 ## Actuator / Monitoring
 

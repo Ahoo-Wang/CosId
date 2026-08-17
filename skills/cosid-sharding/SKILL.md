@@ -44,6 +44,10 @@ Distributes numeric IDs across nodes using `value % divisor`. Best for uniform d
 
 Use `ModCycle` when the sharding key is already numeric and the desired distribution is even across a fixed number of tables or databases.
 
+**Constraints:**
+- Sharding values must be non-negative (SnowflakeId and SegmentId IDs are non-negative); a negative value yields a negative modulo remainder and throws `ArrayIndexOutOfBoundsException` today.
+- Range queries resolve by span: any span covering at least `divisor` values returns all nodes. "Unbounded" ranges such as `Range.closed(0L, Long.MAX_VALUE)` route to all nodes (overflow-safe since 3.2.1).
+
 ### Usage
 
 ```java
@@ -94,10 +98,11 @@ import me.ahoo.cosid.sharding.IntervalTimeline;
 import me.ahoo.cosid.sharding.IntervalStep;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import com.google.common.collect.Range;
 
 // Daily sharding for 2024
-IntervalTimeline timeline = new IntervalTimeline(
+IntervalTimeline<LocalDateTime> timeline = new IntervalTimeline<>(
     "t_order_",                                                    // logic name prefix
     Range.closed(
         LocalDateTime.of(2024, 1, 1, 0, 0),
@@ -181,17 +186,18 @@ rules:
 
 ## SnowflakeLocalDateTimeConvertor
 
-Converts SnowflakeId values to LocalDateTime for time-based sharding using SnowflakeId as the sharding key:
+Converts SnowflakeId values to LocalDateTime for time-based sharding using SnowflakeId as the sharding key. It wraps a `SnowflakeIdStateParser` (built from the generator, so epoch and bit layout stay aligned) and accepts either a numeric ID or a Radix62 string:
 
 ```java
 import me.ahoo.cosid.sharding.SnowflakeLocalDateTimeConvertor;
+import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
 SnowflakeLocalDateTimeConvertor convertor = new SnowflakeLocalDateTimeConvertor(
-    epoch, timestampBit  // from your SnowflakeId configuration
+    SnowflakeIdStateParser.of(snowflakeId)  // your configured SnowflakeId
 );
 
-// Convert a SnowflakeId to LocalDateTime
-LocalDateTime time = convertor.convert(snowflakeId);
+// Convert a SnowflakeId (Long or Radix62 String) to LocalDateTime
+LocalDateTime time = convertor.toLocalDateTime(snowflakeId.generate());
 ```
 
 This enables using SnowflakeId-based IDs with IntervalTimeline sharding without a separate timestamp column.
@@ -230,6 +236,7 @@ Range queries are often repeated (e.g., querying "last 7 days" across many reque
 Use a small routing matrix before finalizing a rule:
 
 - One exact key routes to exactly one expected node.
+- Sharding keys are non-negative for `ModCycle`; test with real generated IDs, not hand-picked negative values.
 - An `IN` query routes to the union of expected nodes.
 - A range query covers all boundary nodes and no unrelated nodes when possible.
 - Values outside an `IntervalTimeline` effective range fail intentionally.

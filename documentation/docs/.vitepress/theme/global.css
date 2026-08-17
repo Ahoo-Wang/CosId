@@ -137,3 +137,51 @@ html.dark .main img {
     box-shadow: 0 4px 8px rgba(255, 255, 255, 0.1),
     0 6px 20px rgba(255, 255, 255, 0.1);
 }
+
+/*
+* Mermaid dark-mode overrides: Mermaid renders with light-ish defaults
+* and inline styles that beat CSS, so layer CSS on top of the config
+* themeVariables and let the theme script patch inline styles at runtime.
+*/
+.mermaid .node rect,
+.mermaid .node circle,
+.mermaid .node polygon {
+    fill: #1e3a5f !important;
+    stroke: #4a9eed !important;
+}
+
+.mermaid .edgeLabel {
+    background-color: #1a1a2e !important;
+    color: #e0e0e0 !important;
+}
+
+.mermaid text {
+    fill: #e0e0e0 !important;
+}
+
+.mermaid .label {
+    color: #e0e0e0 !important;
+}
+
+.mermaid {
+    cursor: zoom-in;
+}
+
+/*
+* Mermaid click-to-zoom modal
+*/
+.mermaid-zoom-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    cursor: zoom-out;
+}
+
+.mermaid-zoom-modal .mermaid {
+    transform: scale(1.5);
+    cursor: zoom-out;
+}

@@ -34,6 +34,23 @@ let userConfig = defineConfig({
         }
     },
     appearance: 'dark',
+    mermaid: {
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#1e3a5f',
+            primaryTextColor: '#e0e0e0',
+            primaryBorderColor: '#4a9eed',
+            lineColor: '#4a9eed',
+            secondaryColor: '#2d4a3e',
+            tertiaryColor: '#2d2d3d',
+            background: '#1a1a2e',
+            mainBkg: '#1e3a5f',
+            nodeBorder: '#4a9eed',
+            clusterBkg: '#16213e',
+            titleColor: '#e0e0e0',
+            edgeLabelBackground: '#1a1a2e'
+        }
+    },
     themeConfig: {
         logo: '/logo.png',
         siteTitle: 'CosId',

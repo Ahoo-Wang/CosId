@@ -24,9 +24,12 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class CosIdProxySegmentAutoConfigurationTest {
+    private static final String COAP_PROXY_HOST = "cosid.proxy.host=http://localhost:8688";
+
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CosIdProxySegmentAutoConfiguration.class))
-        .withBean(SegmentClient.class, () -> mock(SegmentClient.class));
+        .withBean(SegmentClient.class, () -> mock(SegmentClient.class))
+        .withPropertyValues(COAP_PROXY_HOST);
 
     @Test
     void createsProxySegmentDistributorFactoryWhenTypeIsProxy() {
@@ -79,6 +82,7 @@ class CosIdProxySegmentAutoConfigurationTest {
     void failsFastWhenCoApiRestClientBuilderIsMissing() {
         new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(CosIdProxySegmentAutoConfiguration.class))
+            .withPropertyValues(COAP_PROXY_HOST)
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=proxy")
             .run(context -> assertThat(hasCauseMessage(context.getStartupFailure(), "RestClient$Builder"))

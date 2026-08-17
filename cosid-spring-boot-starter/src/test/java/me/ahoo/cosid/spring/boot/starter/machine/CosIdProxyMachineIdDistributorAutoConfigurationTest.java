@@ -26,11 +26,14 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class CosIdProxyMachineIdDistributorAutoConfigurationTest {
+    private static final String COAP_PROXY_HOST = "cosid.proxy.host=http://localhost:8688";
+
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CosIdProxyMachineIdDistributorAutoConfiguration.class))
         .withBean(MachineClient.class, () -> mock(MachineClient.class))
         .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
-        .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT);
+        .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
+        .withPropertyValues(COAP_PROXY_HOST);
 
     @Test
     void createsProxyMachineIdDistributorWhenTypeIsProxy() {
@@ -85,6 +88,7 @@ class CosIdProxyMachineIdDistributorAutoConfigurationTest {
             .withConfiguration(AutoConfigurations.of(CosIdProxyMachineIdDistributorAutoConfiguration.class))
             .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
             .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
+            .withPropertyValues(COAP_PROXY_HOST)
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=proxy")
             .run(context -> assertThat(hasCauseMessage(context.getStartupFailure(), "RestClient$Builder"))

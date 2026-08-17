@@ -3,7 +3,7 @@
 spring-boot = "4.1.0"
 spring-cloud = "2025.1.2"
 jspecify = "1.0.1"
-coapi = "2.1.0"
+coapi = "2.2.0"
 testcontainers = "2.0.5"
 guava = "33.6.0-jre"
 mybatis = "3.5.19"
@@ -48,4 +48,3 @@ test-retry = { id = "org.gradle.test-retry", version.ref = "test-retry" }
 publish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "publish-plugin" }
 jmh = { id = "me.champeau.jmh", version.ref = "jmh-plugin" }
 spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs" }
-

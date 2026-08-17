@@ -76,7 +76,7 @@ Generates 63-bit `long` IDs composed of timestamp, machine ID, and sequence.
 | 1 bit unused | 41 bits timestamp | 10 bits machineId | 12 bits sequence |
 ```
 
-- **41-bit timestamp** — ~69 years from epoch (default epoch: 2020-01-01)
+- **41-bit timestamp** — ~69 years from epoch (default epoch `COSID_EPOCH`: 2019-12-24 16:00 UTC, i.e. `1577203200000` ms / `1577203200` s)
 - **10-bit machineId** — up to 1024 instances
 - **12-bit sequence** — 4096 IDs per millisecond
 
@@ -88,7 +88,7 @@ cosid:
     provider:
       second_based:
         timestamp-unit: second
-        epoch: 1577203200      # 2020-01-01 as Unix seconds
+        epoch: 1577203200      # COSID_EPOCH as Unix seconds (2019-12-24 16:00 UTC)
         timestamp-bit: 31
         machine-bit: 10
         sequence-bit: 22

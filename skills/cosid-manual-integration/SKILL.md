@@ -19,7 +19,7 @@ Use this skill when CosId must be configured with code instead of `cosid-spring-
 
 CosId provides three main ID generation strategies:
 
-1. **SnowflakeId** - 64-bit time-sortable IDs (timestamp + machineId + sequence)
+1. **SnowflakeId** - 63-bit time-sortable IDs (timestamp + machineId + sequence; the sign bit is reserved)
    - `MillisecondSnowflakeId` - millisecond precision, 41-bit timestamp, 10-bit machine, 12-bit sequence
    - `SecondSnowflakeId` - second precision, 31-bit timestamp, 10-bit machine, 22-bit sequence
    - `SafeJavaScriptSnowflakeId` - wrapper constraining to 53 bits for JS compatibility
@@ -108,13 +108,13 @@ Wrap with the clock-sync variant when system clock drift is a production concern
 | timestampBit | 41 (ms) / 31 (s) | Bits for timestamp component |
 | machineBit | 10 | Bits for machine ID (max 1024 machines) |
 | sequenceBit | 12 (ms) / 22 (s) | IDs per time unit per machine |
-| clockSync | true | Enable clock backwards synchronization |
+| clock sync | wrapper | Wrap with `ClockSyncSnowflakeId` in production (not a config switch) |
 
 ## Common Pitfalls
 
 - **Clock backwards**: Always use `ClockSyncSnowflakeId` wrapper in production
 - **Machine ID overflow**: With 10 bits, max 1024 instances per namespace
-- **Sequence exhaustion**: High throughput may need `SecondSnowflakeId` (4M/s/machine) over millisecond variant (4K/s/machine)
+- **Sequence exhaustion**: The default millisecond layout caps at 4096 IDs per millisecond per machine (~4.096M/s); generation spins into the next millisecond rather than failing. For higher sustained ceilings reallocate bits (larger `sequenceBit`); the second-based layout (`SecondSnowflakeId`, 22-bit sequence) instead allows a full ~4.19M-ID burst within a single second without inter-millisecond spinning
 - **JavaScript safety**: Use `SafeJavaScriptSnowflakeId` if IDs go to frontend
 - **Lifecycle leaks**: Close distributor clients and background workers when the application shuts down
 - **State loss**: Persist machine state when restart stability matters

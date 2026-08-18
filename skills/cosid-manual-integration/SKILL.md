@@ -1,142 +1,125 @@
 ---
 name: cosid-manual-integration
-description: Manually integrate CosId into Java or Kotlin applications without Spring Boot auto-configuration. Use when the user needs programmatic setup for SnowflakeId, SegmentId, SegmentChainId, CosIdGenerator, machine ID distribution, custom IdConverter wiring, non-Spring environments, library/framework integration, or production-safe generator lifecycle management.
+description: Integrate CosId programmatically into Java or Kotlin applications without Spring Boot auto-configuration. Use for direct construction of SnowflakeId, CosIdGenerator, DefaultSegmentId, or SegmentChainId; machine-ID allocation and guarding; backend distributor factories; lifecycle ownership; custom IdConverter wiring; tests; or integration into another framework. Do not use for cosid-spring-boot-starter YAML or feature capabilities.
 ---
 
-# CosId Manual Integration Skill
+# Integrate CosId Programmatically
 
-Use this skill when CosId must be configured with code instead of `cosid-spring-boot-starter`.
+Provide code that compiles against the user's CosId version. Prefer direct constructors for fixed local inputs and backend factories for distributed state.
 
 ## Workflow
 
-1. Identify the generator strategy. Use `$cosid-strategy-guide` first if the user has not chosen one.
-2. Identify the coordination mechanism: manual machine ID, StatefulSet ordinal, Redis, JDBC, MongoDB, ZooKeeper, or proxy.
-3. Show the minimal constructor/wiring path for the chosen generator.
-4. Include lifecycle handling for distributors, guard/heartbeat, prefetch workers, and state storage when relevant.
-5. Add a small verification example: uniqueness, monotonicity, parser behavior, or restart behavior.
+1. Confirm the target version and chosen strategy. Use `$cosid-strategy-guide` only when the strategy is undecided.
+2. Identify the uniqueness authority: fixed machine ID, StatefulSet ordinal, distributed machine-ID backend, or segment backend.
+3. Construct the smallest generator that satisfies the requirement.
+4. Own every created client, guarder, executor, and distributor for its full lifecycle.
+5. Add one focused check for uniqueness, local monotonicity, parsing, restart, or clock rollback.
 
-## Core APIs
+When a CosId checkout is available, verify signatures in `cosid-core/src/main/java/me/ahoo/cosid/` and use existing backend factories and tests as examples. Do not copy older README snippets without checking the current source.
 
-CosId provides three main ID generation strategies:
+## SnowflakeId with a Fixed Machine ID
 
-1. **SnowflakeId** - 63-bit time-sortable IDs (timestamp + machineId + sequence; the sign bit is reserved)
-   - `MillisecondSnowflakeId` - millisecond precision, 41-bit timestamp, 10-bit machine, 12-bit sequence
-   - `SecondSnowflakeId` - second precision, 31-bit timestamp, 10-bit machine, 22-bit sequence
-   - `SafeJavaScriptSnowflakeId` - wrapper constraining to 53 bits for JS compatibility
-
-2. **SegmentId** - Batch ID allocation for high throughput
-   - `SegmentChainId` - lock-free chain with prefetch worker (~127M+ ops/s)
-   - Requires a `SegmentIdDistributor` (Redis, JDBC, ZooKeeper, MongoDB)
-
-3. **CosIdGenerator** - Large-scale cluster string ID generator (~15M+ ops/s)
-   - Uses Radix62 encoding for compact string IDs
-   - Requires `MachineIdDistributor` for machine ID allocation (same as SnowflakeId)
-   - Supports much larger instance counts than SnowflakeId (not constrained by 63-bit long format)
-
-## Machine ID Allocation
-
-For SnowflakeId, each instance needs a unique machineId. Options:
-
-- **Manual**: Set machineId directly (0-1023 for default 10-bit)
-- **Redis**: `SpringRedisMachineIdDistributor` - uses Redis for coordination
-- **JDBC**: `JdbcMachineIdDistributor` - uses database table
-- **ZooKeeper**: `ZookeeperMachineIdDistributor` - uses ZK nodes
-- **MongoDB**: `MongoMachineIdDistributor` - uses MongoDB collection
-- **StatefulSet**: Kubernetes StatefulSet ordinal as machineId
-
-Always define the namespace and instance identity deliberately. For production, prefer a distributor that can guard ownership and reclaim expired machine IDs.
-
-## SnowflakeId Configuration Pattern
+Use this only when deployment automation guarantees a unique value per live instance.
 
 ```java
-// 1. Create a backend-specific MachineIdDistributor
-MachineIdDistributor distributor = createMachineIdDistributor();
-
-// 2. Allocate machine ID
-int machineBit = 10;
-InstanceId instanceId = InstanceId.of("order-service-0", true);
-MachineState machineState = distributor.distribute(
-    "my-namespace",
-    machineBit,
-    instanceId,
-    Duration.ofSeconds(10)
+int machineId = 1;
+SnowflakeId idGenerator = new ClockSyncSnowflakeId(
+    new MillisecondSnowflakeId(machineId)
 );
-int machineId = machineState.getMachineId();
-
-// 3. Create SnowflakeId
-SnowflakeId snowflakeId = new MillisecondSnowflakeId(machineId);
-
-// 4. Wrap with clock sync for safety
-SnowflakeId safeId = new ClockSyncSnowflakeId(snowflakeId);
-
-// 5. Generate IDs
-long id = safeId.generate();
-```
-
-If the user has fixed deployment slots, use `ManualMachineIdDistributor` or directly provide the machine ID, but warn that duplicate machine IDs can create duplicate IDs.
-
-## Segment Configuration Pattern
-
-Use `SegmentId` or `SegmentChainId` when monotonic IDs and batch allocation are more important than time-encoded IDs.
-
-```java
-IdSegmentDistributor distributor = createIdSegmentDistributor("order_id", 100);
-SegmentChainId idGenerator = new SegmentChainId(distributor);
 
 long id = idGenerator.generate();
-String text = idGenerator.generateAsString();
 ```
 
-For `SegmentChainId`, ensure the prefetch worker lifecycle is owned by the application and is closed during shutdown if the concrete setup exposes close/shutdown behavior.
+Use `SecondSnowflakeId` only for a deliberate second-based bit layout. Use `SafeJavaScriptSnowflakeId.ofMillisecond(machineId)` when a numeric ID must stay within JavaScript's safe integer range; otherwise serialize ordinary IDs as strings.
 
-## CosIdGenerator Pattern
+## Distributed Machine-ID Allocation
 
-Use `CosIdGenerator` when callers need compact string IDs rather than `long` IDs.
+Create the backend-specific `MachineIdDistributor`, then allocate with the exact namespace, machine bits, instance identity, and lease:
 
 ```java
-CosIdGenerator generator = new Radix62CosIdGenerator(machineId);
+static SnowflakeId createSnowflake(MachineIdDistributor distributor) {
+    String namespace = "order-service";
+    InstanceId instanceId = InstanceId.of("10.0.0.12:8080", false);
+    Duration lease = Duration.ofMinutes(5);
+
+    MachineState state = distributor.distribute(
+        namespace,
+        10,
+        instanceId,
+        lease
+    );
+    return new ClockSyncSnowflakeId(
+        new MillisecondSnowflakeId(state.getMachineId())
+    );
+}
+```
+
+The snippet shows allocation, not heartbeat ownership. For expiring distributed leases, wrap allocation with `GuardDistribute`, run a `DefaultMachineIdGuarder`, stop it during shutdown, and call `distributor.revert(namespace, instanceId)` after stopping the guarder. Gate readiness and generation on `guarder.hasFailure()` because the guarder records heartbeat failure but does not stop ID generation. Shut down any `ScheduledExecutorService` created by the application after stopping the guarder. Pass `stable: true` only for a stable deployment identity such as a StatefulSet slot; stable instances retain their machine-ID claim instead of being recycled by the lease cutoff. Use local state storage only when the filesystem follows that stable identity; it helps reclaim the previous machine ID and prevents clock regression after restart.
+
+For a fixed manual ID through the distributor API, use the real constructor:
+
+```java
+MachineIdDistributor distributor = new ManualMachineIdDistributor(
+    1,
+    MachineStateStorage.LOCAL,
+    ClockBackwardsSynchronizer.DEFAULT
+);
+```
+
+## Segment Generators
+
+Obtain the distributor from the selected backend's `IdSegmentDistributorFactory` and keep the namespace/name/offset/step definition explicit:
+
+```java
+static SegmentId createSegment(IdSegmentDistributorFactory distributorFactory) {
+    IdSegmentDistributorDefinition definition =
+        new IdSegmentDistributorDefinition("order-service", "order", 0, 100);
+    IdSegmentDistributor distributor = distributorFactory.create(definition);
+    return new SegmentChainId(distributor);
+}
+```
+
+Use `new DefaultSegmentId(distributor)` instead when synchronous rollover is preferred. `SegmentChainId` uses `PrefetchWorkerExecutorService.DEFAULT`, which installs a JVM shutdown hook; if the application supplies its own executor, shut that executor down explicitly.
+
+Segment IDs are monotonic only within one generator. Distributed ranges provide global uniqueness and trend ordering, not strict global generation-time order.
+
+## String Conversion
+
+Wrap `long` generators with the matching string decorator instead of reimplementing generation:
+
+```java
+IdConverter converter = new PrefixIdConverter(
+    "ORD-",
+    Radix62IdConverter.PAD_START
+);
+SnowflakeId stringSnowflake = new StringSnowflakeId(snowflakeId, converter);
+SegmentId stringSegment = new StringSegmentId(segmentId, converter);
+```
+
+Call `generateAsString()` on the wrapper and test `converter.asLong()` when round-trip parsing is required. `CosIdGenerator` does not support `IdConverter`; select or implement its `CosIdIdStateParser` instead.
+
+## CosIdGenerator
+
+`CosIdGenerator` produces strings; calling `generate()` throws `UnsupportedOperationException`.
+
+```java
+CosIdGenerator generator = new ClockSyncCosIdGenerator(
+    new Radix62CosIdGenerator(machineId)
+);
 String id = generator.generateAsString();
 ```
 
-Wrap with the clock-sync variant when system clock drift is a production concern.
+Allocate `machineId` with the same uniqueness and lifecycle rules as SnowflakeId.
 
-## Key Parameters
+## Boundaries and Checks
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| epoch | 2019-12-24 | Custom epoch for timestamp calculation |
-| timestampBit | 41 (ms) / 31 (s) | Bits for timestamp component |
-| machineBit | 10 | Bits for machine ID (max 1024 machines) |
-| sequenceBit | 12 (ms) / 22 (s) | IDs per time unit per machine |
-| clock sync | wrapper | Wrap with `ClockSyncSnowflakeId` in production (not a config switch) |
+- Keep one namespace per independent allocation domain and one stable instance identity per deployment slot.
+- Reject machine IDs outside the configured bit range before starting traffic.
+- Do not claim global monotonicity for segment generators or global total order for clock-based generators.
+- Keep custom epoch, timestamp unit, bit layout, parser, and sharding converter aligned.
+- Close backend clients created by the application. Do not close shared framework clients that the application does not own.
+- Test with at least two simulated instances when correctness depends on distributed uniqueness.
 
-## Common Pitfalls
+## Response Contract
 
-- **Clock backwards**: Always use `ClockSyncSnowflakeId` wrapper in production
-- **Machine ID overflow**: With 10 bits, max 1024 instances per namespace
-- **Sequence exhaustion**: The default millisecond layout caps at 4096 IDs per millisecond per machine (~4.096M/s); generation spins into the next millisecond rather than failing. For higher sustained ceilings reallocate bits (larger `sequenceBit`); the second-based layout (`SecondSnowflakeId`, 22-bit sequence) instead allows a full ~4.19M-ID burst within a single second without inter-millisecond spinning
-- **JavaScript safety**: Use `SafeJavaScriptSnowflakeId` if IDs go to frontend
-- **Lifecycle leaks**: Close distributor clients and background workers when the application shuts down
-- **State loss**: Persist machine state when restart stability matters
-
-## Testing Configuration
-
-For tests, use `ManualMachineIdDistributor` with fixed machine IDs:
-
-```java
-MachineIdDistributor distributor = new ManualMachineIdDistributor(1);
-```
-
-Add tests for the property that matters in the user's case:
-
-- Uniqueness across concurrent generation
-- Local monotonicity for SegmentId/SegmentChainId
-- Time parser correctness for SnowflakeId
-- JavaScript-safe range or string conversion
-- Machine ID conflict behavior when manual IDs are used
-
-## Source Pointers
-
-- Source: `cosid-core/src/main/java/me/ahoo/cosid/`
-- Examples: `examples/` directory
-- Spring Boot starter: `cosid-spring-boot-starter/` for auto-config reference
+Return the required module dependencies, exact imports and constructors, lifecycle ownership, one runnable check, and no unrelated Spring Boot configuration.

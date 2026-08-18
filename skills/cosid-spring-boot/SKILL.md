@@ -1,91 +1,56 @@
 ---
 name: cosid-spring-boot
-description: Configure CosId in Spring Boot applications with cosid-spring-boot-starter. Use when the user works with application.yml, Gradle or Maven dependencies, starter feature variants, Redis/JDBC/MongoDB/ZooKeeper/proxy distributors, SnowflakeId, SegmentId, SegmentChainId, CosIdGenerator, @CosId, IdGeneratorProvider, ID converters, machine guarder settings, clock-backwards synchronization, or Actuator endpoints in a Spring Boot service.
+description: Configure and troubleshoot CosId in Spring Boot with cosid-spring-boot-starter. Use for Gradle feature capabilities or Maven modules, application.yml, Redis/JDBC/MongoDB/ZooKeeper/proxy distributors, SnowflakeId, CosIdGenerator, DefaultSegmentId, SegmentChainId, shared or named generators, converters, @CosId persistence integration, machine guarding, clock rollback, JDBC initialization, or Actuator. Do not use for programmatic non-Spring wiring.
 ---
 
-# CosId Spring Boot Integration
+# Configure CosId for Spring Boot
 
-CosId is a universal, flexible, high-performance distributed ID generator for Java 17+. The Spring Boot starter (`cosid-spring-boot-starter`) provides auto-configuration for all ID generation strategies.
+Produce the smallest configuration for one chosen strategy and backend. Do not enable every generator in a single template.
 
 ## Workflow
 
-1. Confirm the user's Spring Boot and CosId major versions. CosId 2.x targets Spring Boot 3.x and Java 17; CosId 3.x targets Spring Boot 4.x and Java 17.
-2. Choose the ID strategy. Use `$cosid-strategy-guide` first when the user has not chosen between SnowflakeId, SegmentId, SegmentChainId, and CosIdGenerator.
-3. Select the distributor and starter capability needed by the deployment: Redis, JDBC, MongoDB, ZooKeeper, proxy, manual, or StatefulSet.
-4. Provide the smallest working YAML for the selected strategy and backend.
-5. Show how the application consumes the generator: shared bean, named provider, or `@CosId`.
-6. Add validation guidance for uniqueness, ordering, machine ID ownership, segment allocation, and Actuator visibility.
+1. Confirm compatibility: CosId 3.x aligns with Spring Boot 4.x; CosId 2.x aligns with Spring Boot 3.x; both require Java 17.
+2. Confirm the generator strategy. Use `$cosid-strategy-guide` only when it is undecided.
+3. Add the starter capability or Maven backend modules required by that strategy.
+4. Emit minimal YAML and one consumption pattern.
+5. Verify context startup, generator registration, uniqueness, and the selected backend's state.
 
-## Dependency Setup
+In a CosId checkout, treat these as the source of truth:
 
-Add the BOM and starter to your Gradle build. When you need a distributor backend, select the corresponding Gradle feature capability:
+- capabilities: `cosid-spring-boot-starter/build.gradle.kts`;
+- property names/defaults: `cosid-spring-boot-starter/src/main/java/.../*Properties.java`;
+- binding examples: corresponding `*PropertiesTest.java` files;
+- bean names and provider behavior: `SegmentIdBeanRegistrar` and `SnowflakeIdBeanRegistrar`.
 
-```groovy
+## Dependencies
+
+Use the BOM and repeat the starter dependency for every required Gradle capability:
+
+```kotlin
 dependencies {
-    implementation platform("me.ahoo.cosid:cosid-bom:${cosidVersion}")
-
-    // Redis backend. Replace the capability with jdbc-support, mongo-support,
-    // zookeeper-support, proxy-support, actuator-support, etc. as needed.
+    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
     implementation("me.ahoo.cosid:cosid-spring-boot-starter") {
         capabilities {
             requireCapability("me.ahoo.cosid:spring-redis-support")
         }
     }
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter") {
+        capabilities {
+            requireCapability("me.ahoo.cosid:mybatis-support")
+        }
+    }
 }
 ```
 
-For Maven, import the BOM and add the starter plus the backend module explicitly:
+Available capabilities include `spring-redis-support`, `jdbc-support`, `mongo-support`, `zookeeper-support`, `proxy-support`, `mybatis-support`, `data-jdbc-support`, and `actuator-support`. Add only those used by the application, with one dependency block per capability.
 
-```xml
-<dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-bom</artifactId>
-            <version>${cosid.version}</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
-</dependencyManagement>
+For Maven, import `cosid-bom`, add `cosid-spring-boot-starter`, and add the concrete backend/integration module such as `cosid-spring-redis`, `cosid-jdbc`, `cosid-mongo`, `cosid-zookeeper`, `cosid-mybatis`, or `cosid-spring-data-jdbc`. Also include the application framework/runtime dependency required to create its client, such as the Redis, JDBC, or MongoDB Spring Boot starter.
 
-<dependencies>
-    <dependency>
-        <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-spring-boot-starter</artifactId>
-    </dependency>
-    <!-- Redis backend. Use cosid-jdbc, cosid-mongo, or cosid-zookeeper for other backends. -->
-    <dependency>
-        <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-spring-redis</artifactId>
-    </dependency>
-</dependencies>
-```
+## Minimal Configurations
 
-## Choosing an ID Strategy
+### Snowflake with a Fixed Machine ID
 
-There are 4 ID generation strategies in CosId. The right choice depends on your requirements:
-
-| Strategy | Throughput | Trend | Best For |
-|---|---|---|---|
-| **CosIdGenerator** | ~15M+/s | Time-ordered | Standalone apps, no distributed coordination needed |
-| **SnowflakeId** | ~4M+/s | Time-ordered | Distributed systems needing sortable IDs, typical microservices |
-| **SegmentId** | ~20M+/s | Monotonic | High-throughput with simple coordination, trend-increasing |
-| **SegmentChainId** | ~127M+/s | Monotonic | Maximum throughput, lock-free prefetching, production workloads |
-
-### Decision Guide
-
-- **Need maximum performance and have Redis/JDBC available?** → SegmentChainId (default segment mode)
-- **Need time-sortable IDs across machines?** → SnowflakeId
-- **Need compact string IDs or a large machine-ID design space?** → CosIdGenerator
-- **Database-friendly monotonic IDs?** → SegmentId or SegmentChainId
-- **Need only strategy selection?** → Use `$cosid-strategy-guide` before writing YAML
-
-## Configuration Templates
-
-### Full-featured Redis Setup (Most Common)
-
-This is the most typical production configuration with both SnowflakeId and SegmentChainId:
+Use only when deployment assigns a unique machine ID to every live instance.
 
 ```yaml
 cosid:
@@ -93,51 +58,41 @@ cosid:
   machine:
     enabled: true
     distributor:
-      type: redis
-  generator:
-    enabled: true
+      type: manual
+      manual:
+        machine-id: ${COSID_MACHINE_ID}
   snowflake:
     enabled: true
-    share:
-      enabled: true  # shared SnowflakeId as default IdGenerator
-    provider:
-      order_id:
-        converter:
-          type: radix
-          prefix: ORDER
-          radix:
-            char-size: 11
-            pad-start: true
-  segment:
-    enabled: true
-    mode: chain  # CHAIN = SegmentChainId (recommended), SEGMENT = basic SegmentId
-    distributor:
-      type: redis
-    share:
-      enabled: true  # shared SegmentChainId as default StringIdGenerator
-    provider:
-      user_id:
-        step: 100
-        converter:
-          type: to_string
-          to-string:
-            char-size: 10
-            pad-start: true
 ```
 
-### JDBC Backend Setup
+For Redis/JDBC/MongoDB/ZooKeeper/proxy allocation, replace the distributor type and add its capability. Keep `machine.enabled: true` for SnowflakeId and CosIdGenerator.
 
-For environments where only a relational database is available:
+### SegmentChainId with Redis
+
+Segment generators do not require machine-ID configuration.
 
 ```yaml
 cosid:
   namespace: ${spring.application.name}
-  machine:
+  segment:
     enabled: true
+    mode: chain
     distributor:
-      type: jdbc
-      jdbc:
-        enable-auto-init-cosid-machine-table: true  # auto-create cosid_machine (default false)
+      type: redis
+    share:
+      enabled: false
+    provider:
+      order:
+        step: 100
+```
+
+Use `mode: segment` for `DefaultSegmentId`. The default mode is `chain`; spelling it out makes intent visible.
+
+### SegmentChainId with JDBC
+
+```yaml
+cosid:
+  namespace: ${spring.application.name}
   segment:
     enabled: true
     mode: chain
@@ -148,351 +103,79 @@ cosid:
         enable-auto-init-id-segment: true
 ```
 
-This auto-creates the `cosid`/`cosid_machine` tables and segment rows. Note: if you register your own `JdbcMachineIdInitializer` bean, the machine-table auto-init flag is silently bypassed (`@ConditionalOnMissingBean` back-off) — perform the DDL yourself in that case. The segment table schema:
+Automatic DDL is convenient for controlled environments. Prefer migrations when schema ownership matters. Machine allocation through JDBC has a separate property: `cosid.machine.distributor.jdbc.enable-auto-init-cosid-machine-table`. A custom `JdbcMachineIdInitializer` bean disables that auto-initializer through conditional back-off.
 
-```sql
-CREATE TABLE IF NOT EXISTS cosid (
-    name VARCHAR(100) NOT NULL,
-    last_max_id BIGINT NOT NULL DEFAULT 0,
-    last_fetch_time BIGINT NOT NULL DEFAULT 0,
-    PRIMARY KEY (name)
-);
-```
-
-### MongoDB Backend Setup
+### CosIdGenerator
 
 ```yaml
 cosid:
   namespace: ${spring.application.name}
-  machine:
-    enabled: true
-    distributor:
-      type: mongo
-      mongo:
-        database: cosid_db
-  segment:
-    enabled: true
-    mode: chain
-    distributor:
-      type: mongo
-      mongo:
-        database: cosid_db
-```
-
-### ZooKeeper Backend Setup
-
-```yaml
-cosid:
-  namespace: ${spring.application.name}
-  machine:
-    enabled: true
-    distributor:
-      type: zookeeper
-  snowflake:
-    enabled: true
-  segment:
-    enabled: true
-    mode: chain
-    distributor:
-      type: zookeeper
-```
-
-### Manual Machine ID (for fixed-instance deployments)
-
-When you have a known, fixed set of instances:
-
-```yaml
-cosid:
-  namespace: ${spring.application.name}
-  machine:
-    enabled: true
-    distributor:
-      type: manual
-      manual:
-        machine-id: 1  # must be unique per instance
-  snowflake:
-    enabled: true
-```
-
-### Kubernetes StatefulSet
-
-For StatefulSet deployments, the pod ordinal is used as the machine ID:
-
-```yaml
-cosid:
-  namespace: ${spring.application.name}
-  machine:
-    enabled: true
-    distributor:
-      type: stateful_set
-  snowflake:
-    enabled: true
-```
-
-## ID Converter Types
-
-Converters transform `long` IDs into `String` representations. Configure via `converter` in each provider definition.
-
-| Type | Description | Example Output |
-|---|---|---|
-| `radix` (default) | Base62 encoding (0-9, A-Z, a-z) | `ORDER-0Gjk3R0p` |
-| `radix36` | Base36 encoding (0-9, A-Z) | `BIZ-00001234` |
-| `to_string` | Plain decimal string with padding | `0000000001` |
-| `snowflake_friendly` | Human-readable snowflake timestamp | `20240101-120000-1-0-0` |
-| `custom` | Your own `IdConverter` implementation | — |
-
-### Converter Configuration Examples
-
-```yaml
-# Short alphanumeric ID (radix62)
-converter:
-  type: radix
-  prefix: ORDER
-  radix:
-    char-size: 11
-    pad-start: true
-
-# Numeric string with date prefix
-converter:
-  type: to_string
-  prefix: BIZ-
-  date-prefix:
-    enabled: true
-    pattern: yyMMdd
-  to-string:
-    char-size: 10
-    pad-start: true
-
-# Human-readable snowflake
-converter:
-  type: snowflake_friendly
-  friendly:
-    pad-start: true
-
-# With group-based prefix (for date-partitioned segments)
-converter:
-  type: to_string
-  prefix: BIZ-
-  group-prefix:
-    enabled: true
-  to-string:
-    char-size: 8
-    pad-start: true
-```
-
-## Using the ID Generator in Code
-
-### Injecting the Shared IdGenerator
-
-When `share.enabled: true`, a default `IdGenerator` bean is registered:
-
-```java
-@Service
-public class OrderService {
-    private final IdGenerator idGenerator;
-    
-    public OrderService(IdGenerator idGenerator) {
-        this.idGenerator = idGenerator;
-    }
-    
-    public Order createOrder() {
-        long orderId = idGenerator.generate();
-        String orderIdStr = idGenerator.generateAsString();
-        // ...
-    }
-}
-```
-
-### Injecting Named Generators
-
-Named generators from `provider` are available via `IdGeneratorProvider`:
-
-```java
-@Service
-public class UserService {
-    private final IdGenerator userIdGenerator;
-    
-    public UserService(IdGeneratorProvider provider) {
-        this.userIdGenerator = provider.get("user_id");
-    }
-    
-    public User createUser() {
-        long userId = userIdGenerator.generate();
-        // ...
-    }
-}
-```
-
-### Using @CosId Annotation
-
-The `@CosId` annotation auto-assigns IDs to entity fields:
-
-```java
-import me.ahoo.cosid.annotation.CosId;
-
-public class Order {
-    @CosId("order_id")
-    private Long id;
-    
-    // getters/setters
-}
-```
-
-### SnowflakeId State Parsing
-
-Parse snowflake IDs back into their components via the state parser (the `SnowflakeId` interface has no `getStateParser()` — build one from the generator):
-
-```java
-import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
-
-SnowflakeIdStateParser parser = SnowflakeIdStateParser.of(snowflakeId);
-SnowflakeIdState state = parser.parse(id);
-// state.getTimestamp(), state.getMachineId(), state.getSequence()
-```
-
-## SnowflakeId Bit Layout Customization
-
-The default MillisecondSnowflakeId uses 41-bit timestamp, 10-bit machineId, 12-bit sequence. Customize per-provider:
-
-```yaml
-cosid:
-  snowflake:
-    provider:
-      short_lived_id:
-        timestamp-unit: second  # use seconds instead of milliseconds
-        epoch: 1577203200       # default COSID_EPOCH in seconds (2019-12-24 16:00 UTC)
-        timestamp-bit: 31
-        machine-bit: 10
-        sequence-bit: 22
-```
-
-Bit allocation must satisfy: `timestampBit + machineBit + sequenceBit = 63`.
-
-## Segment Grouping (Date-partitioned IDs)
-
-Group segments by time period for date-based ID sequences:
-
-```yaml
-cosid:
-  segment:
-    provider:
-      daily_order:
-        group:
-          by: year_month_day  # or year, year_month
-          pattern: yyMMdd
-        converter:
-          type: to_string
-          prefix: BIZ-
-          group-prefix:
-            enabled: true
-          to-string:
-            char-size: 8
-            pad-start: true
-```
-
-## Machine ID Management
-
-### Guarder Configuration
-
-The guarder keeps machine ID registrations alive via heartbeat:
-
-```yaml
-cosid:
   machine:
     enabled: true
     distributor:
       type: redis
-    guarder:
-      enabled: true
-      safe-guard-duration: 5m  # how long the guard is valid
-      initial-delay: 1s
-      delay: 10s
-```
-
-### Clock Backwards Synchronization
-
-Handle clock drift in distributed environments:
-
-```yaml
-cosid:
-  machine:
+  generator:
     enabled: true
-    clock-backwards:
-      spin-threshold: 100
-      broken-threshold: 2000
+    type: radix62
 ```
 
-- `spin-threshold`: Small clock drift is handled by spinning/waiting
-- `broken-threshold`: Large clock drift throws `ClockTooManyBackwardsException`
+Inject it as `CosIdGenerator` and call `generateAsString()`. Its `generate()` method is unsupported.
 
-### State Storage
+## Consume Generators Safely
 
-Machine state persists locally to survive restarts:
+Named segment and Snowflake generators are registered in `IdGeneratorProvider` and as singleton beans named `<name>SegmentId` or `<name>SnowflakeId`:
 
-```yaml
-cosid:
-  machine:
-    enabled: true
-    state-storage:
-      local:
-        state-location: .cosid-machine-state  # default path
+```java
+IdGenerator orderId = idGeneratorProvider.getRequired("order");
+long id = orderId.generate();
 ```
 
-## Proxy Mode
+`IdGeneratorProvider.get(name)` returns `Optional<IdGenerator>`; use `getRequired(name)` when absence is an error.
 
-For architectures that prefer a dedicated ID service (cosid-proxy-server). There is no `cosid.proxy.enabled` switch — the proxy backend activates through the `proxy-support` starter capability plus `distributor.type: proxy`:
+The shared definition is enabled by default under `__share__`. If Snowflake and Segment are both enabled, they compete for the same shared provider entry. Disable one share or use named definitions and qualified concrete beans; do not rely on registration order.
 
-```yaml
-# Client side
-cosid:
-  proxy:
-    host: http://cosid-proxy:8688   # ProxyProperties only has `host`
-  segment:
-    enabled: true
-    mode: chain
-    distributor:
-      type: proxy
+## `@CosId` Boundary
+
+The annotation alone does not assign IDs. Enable a persistence integration that invokes the accessor registry, such as `mybatis-support` for inserts or `data-jdbc-support` for Spring Data JDBC before-convert callbacks, then register the referenced generator:
+
+```java
+public class Order {
+    @CosId("order")
+    private Long id;
+}
 ```
 
-Since 3.2.1 a proxy-server restart self-heals: `nextMaxId` rebuilds the in-memory distributor cache lazily from the backing store, so already-running clients recover without a restart.
+Do not promise annotation support for an ORM or persistence path without verifying that its CosId integration is present.
 
-## Actuator / Monitoring
+## Operational Rules
 
-Enable Spring Boot Actuator endpoints for monitoring:
+- Machine IDs must be unique within a namespace and within the configured machine-bit range.
+- The machine guarder is enabled by default. Keep lease duration longer than heartbeat delay and expose failures through health monitoring when Actuator is used.
+- Snowflake definitions default to clock sync. Custom second-based definitions require an epoch in seconds; millisecond definitions require milliseconds.
+- Snowflake timestamp, machine, and sequence bits must total 63.
+- Proxy activation uses `proxy-support`, `cosid.proxy.host`, and `distributor.type: proxy`; there is no `cosid.proxy.enabled` property.
+- Actuator endpoints require `actuator-support` and explicit endpoint exposure. The `cosid` endpoint includes a delete operation that removes a registered generator; for status-only access on Spring Boot 4, set `management.endpoint.cosid.access: read-only` and protect the management endpoint with HTTP authorization or network isolation. On Spring Boot versions without endpoint access levels, deny non-read methods or do not expose it.
+- Converter output must be tested for prefix, padding, radix, maximum length, and target-column capacity.
+
+For a Spring Boot 4 status-only endpoint, start with:
 
 ```yaml
 management:
   endpoints:
+    access:
+      default: none
     web:
       exposure:
-        include:
-          - cosid
-          - cosidGenerator
-          - cosidStringGenerator
-          - health
+        include: cosid
   endpoint:
-    health:
-      show-details: always
+    cosid:
+      access: read-only
 ```
 
-The `cosid` endpoint shows all registered ID generators and their stats.
+## Validation
 
-## Validation Checklist
+Run one focused Spring Boot context test with the selected capability and properties. Assert the expected bean/provider name, generate concurrent IDs, and inspect the backend row/key/lease or Actuator state. Integration tests require the actual Redis, JDBC, MongoDB, ZooKeeper, or proxy service.
 
-- Run a focused Spring Boot test that loads the application context with the chosen backend capability.
-- Generate IDs concurrently and assert uniqueness.
-- For SnowflakeId, verify machine ID allocation and clock-backwards settings.
-- For SegmentId/SegmentChainId, verify the segment distributor initializes the `cosid` table or backend state.
-- For converters, assert the expected prefix, padding, radix, and string length.
-- For shared beans, assert `IdGenerator` or `StringIdGenerator` resolves to the intended provider.
-- For production services, expose and inspect the CosId Actuator endpoint when actuator support is enabled.
+## Response Contract
 
-## Response Template
-
-When answering a Spring Boot integration request, include:
-
-1. Dependency coordinates and the required backend capability.
-2. Minimal `application.yml` for the selected generator.
-3. Code snippet for injection or `@CosId`.
-4. Operational notes for machine ID, clock, state storage, and monitoring.
-5. A small test or verification command the user can run.
+Return version alignment, exact dependency capability/modules, minimal YAML for one strategy, one correct consumption example, one operational warning, and one runnable verification.

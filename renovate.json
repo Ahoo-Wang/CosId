@@ -6,6 +6,7 @@
   "commitMessagePrefix": "fix(deps)",
   "commitMessageTopic": "{{depName}}",
   "rangeStrategy": "bump",
+  "minimumReleaseAge": "1 day",
   "lockFileMaintenance": { "enabled": false },
   "prConcurrentLimit": 5,
   "packageRules": [

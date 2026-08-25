@@ -98,7 +98,7 @@ Apache ShardingSphere 是一款开源分布式数据库生态项目，由 JDBC�
 | 名称        | 数据类型     | 说明                                              | 默认值         |
 |-----------|----------|-------------------------------------------------|-------------|
 | id-name   | `String` | `IdGenerator` 的名称（在 `IdGeneratorProvider` 中已注册） | `__share__` |
-| as-string | `String` | 是否生成字符串类型的ID                                    | `fasle`     |
+| as-string | `String` | 是否生成字符串类型的ID                                    | `false`     |
 
 ```yaml
 spring:

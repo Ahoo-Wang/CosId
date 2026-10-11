@@ -350,12 +350,30 @@ jobs:
       - name: Init CosId-Db
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
+      # Named time zones for the DST test of the MySQL server time.
+      - name: Load MySQL time zone tables
+        run: mysql_tzinfo_to_sql /usr/share/zoneinfo 2>/dev/null | mysql -h localhost -uroot -proot mysql
+
       - name: Test CosId-Jdbc
         env:
           COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
           COSID_TEST_MYSQL_USERNAME: root
           COSID_TEST_MYSQL_PASSWORD: root
         run: ./gradlew cosid-jdbc:clean cosid-jdbc:check
+
+      # The real-database tests skip themselves without MySQL or PostgreSQL: make sure they really ran.
+      - name: Check real database tests ran
+        run: |
+          status=0
+          reports=$(ls cosid-jdbc/build/test-results/test/TEST-*ContractTest.xml cosid-jdbc/build/test-results/test/TEST-*JdbcMachineLeaseStoreTest.xml) || status=1
+          for report in $reports; do
+            skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
+            if [ "$skipped" -gt 0 ]; then
+              echo "::error::$report skipped $skipped tests"
+              status=1
+            fi
+          done
+          exit $status
 
   cosid-spring-boot-starter-test:
     name: CosId Spring Boot Starter Test

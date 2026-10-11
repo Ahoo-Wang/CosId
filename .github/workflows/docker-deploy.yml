@@ -38,6 +38,9 @@ on:
     branches:
       - 'main'
   workflow_dispatch:
+permissions:
+  contents: read
+
 jobs:
   docker-deploy:
     name: Push Docker image
@@ -47,7 +50,7 @@ jobs:
       packages: write
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6

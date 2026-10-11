@@ -1,0 +1,99 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Labels pull requests by the files they change. Used by .github/workflows/labeler.yml.
+# Syntax: https://github.com/actions/labeler#match-object
+
+'module: core':
+  - changed-files:
+      - any-glob-to-any-file: 'cosid-core/**'
+
+'module: jdbc':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'cosid-jdbc/**'
+          - 'cosid-spring-data-jdbc/**'
+
+'module: redis':
+  - changed-files:
+      - any-glob-to-any-file: 'cosid-spring-redis/**'
+
+'module: zookeeper':
+  - changed-files:
+      - any-glob-to-any-file: 'cosid-zookeeper/**'
+
+'module: mongo':
+  - changed-files:
+      - any-glob-to-any-file: 'cosid-mongo/**'
+
+'module: proxy':
+  - changed-files:
+      - any-glob-to-any-file: 'proxy/**'
+
+'module: spring-boot':
+  - changed-files:
+      - any-glob-to-any-file: 'cosid-spring-boot-starter/**'
+
+'module: integrations':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'cosid-jackson/**'
+          - 'cosid-mybatis/**'
+          - 'cosid-axon/**'
+          - 'cosid-activiti/**'
+          - 'cosid-flowable/**'
+
+'module: bom':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'cosid-bom/**'
+          - 'cosid-dependencies/**'
+          - 'gradle/libs.versions.toml'
+
+'area: test':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'cosid-test/**'
+          - 'cosid-mod-test/**'
+          - '**/src/test/**'
+
+'area: benchmark':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'cosid-benchmark/**'
+          - '**/src/jmh/**'
+
+'area: example':
+  - changed-files:
+      - any-glob-to-any-file: 'examples/**'
+
+'area: docs':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'documentation/**'
+          - 'document/**'
+          - 'docs/**'
+          - 'wiki/**'
+          - '**/*.md'
+
+'area: build':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.gradle.kts'
+          - 'gradle/**'
+          - 'gradle.properties'
+          - 'config/**'
+
+'area: ci':
+  - changed-files:
+      - any-glob-to-any-file: '.github/**'

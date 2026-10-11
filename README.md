@@ -727,6 +727,12 @@ SnowflakeIdBenchmark.secondSnowflakeId_generate             thrpt       4206843.
   <img  src="./document/docs/.vuepress/public/assets/perf/CosId-VS-Leaf.png" alt="CosId VS MeiTuan Leaf"/>
 </p>
 
+## Contributing
+
+Bug reports, ideas and pull requests are welcome. Read [CONTRIBUTING.md](./CONTRIBUTING.md) for the development
+setup, commit conventions, review and release process, and [SECURITY.md](./SECURITY.md) to report a vulnerability
+privately. The planned work is in the [roadmap](./docs/ROADMAP.md).
+
 ## Community Partners and Sponsors
 
 <a href="https://www.jetbrains.com/?from=CosId" target="_blank">

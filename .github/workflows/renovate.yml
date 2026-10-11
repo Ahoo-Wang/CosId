@@ -8,6 +8,9 @@ concurrency:
   group: renovate
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   renovate:
     name: Renovate

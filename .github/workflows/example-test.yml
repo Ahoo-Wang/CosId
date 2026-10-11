@@ -18,6 +18,9 @@ on:
       - 'examples/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   example-redis-test:
     name: Example Redis Test
@@ -34,7 +37,7 @@ jobs:
           - 6379:6379
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6
@@ -58,7 +61,7 @@ jobs:
           - 2181:2181
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6
@@ -82,7 +85,7 @@ jobs:
           - 2181:2181
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6

@@ -16,8 +16,13 @@ package me.ahoo.cosid.spring.boot.starter.jdbc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
+import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.accessor.parser.FieldDefinitionParser;
 import me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry;
+import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.jvm.UuidGenerator;
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.data.jdbc.CosIdBeforeConvertCallback;
 import me.ahoo.cosid.spring.data.jdbc.IdAnnotationDefinitionParser;
@@ -26,6 +31,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.data.jdbc.core.mapping.JdbcMappingContext;
+
+import java.util.Set;
 
 class CosIdJdbcAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
@@ -98,5 +106,56 @@ class CosIdJdbcAutoConfigurationTest {
             .run(context -> assertThat(context)
                 .doesNotHaveBean(IdAnnotationDefinitionParser.class)
                 .doesNotHaveBean(CosIdBeforeConvertCallback.class));
+    }
+
+    @Test
+    void startupFailsWhenJdbcEntityLongIdUsesStringOnlyGenerator() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, CosIdJdbcAutoConfiguration.class))
+            .withPropertyValues(CosIdJdbcAutoConfiguration.ENABLED_KEY + "=true")
+            .withBean(IdGeneratorProvider.class, CosIdJdbcAutoConfigurationTest::uuidProvider)
+            .withBean(JdbcMappingContext.class, () -> mappingContext(LongUuidEntity.class))
+            .run(context -> assertThat(context).hasFailed()
+                .getFailure()
+                .isInstanceOf(CosIdException.class)
+                .hasMessageContaining(LongUuidEntity.class.getName() + ".id"));
+    }
+
+    @Test
+    void startupRegistersJdbcEntityAccessors() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, CosIdJdbcAutoConfiguration.class))
+            .withPropertyValues(CosIdJdbcAutoConfiguration.ENABLED_KEY + "=true")
+            .withBean(IdGeneratorProvider.class, CosIdJdbcAutoConfigurationTest::uuidProvider)
+            .withBean(JdbcMappingContext.class, () -> mappingContext(StringUuidEntity.class))
+            .run(context -> {
+                assertThat(context).hasNotFailed();
+                StringUuidEntity entity = new StringUuidEntity();
+                assertThat(context.getBean(CosIdAccessorRegistry.class).ensureId(entity)).isTrue();
+                assertThat(entity.id).isNotBlank();
+            });
+    }
+
+    private static IdGeneratorProvider uuidProvider() {
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.set("uuid", UuidGenerator.INSTANCE);
+        return provider;
+    }
+
+    private static JdbcMappingContext mappingContext(Class<?> entityType) {
+        JdbcMappingContext mappingContext = new JdbcMappingContext();
+        mappingContext.setInitialEntitySet(Set.of(entityType));
+        mappingContext.afterPropertiesSet();
+        return mappingContext;
+    }
+
+    static class LongUuidEntity {
+        @CosId("uuid")
+        long id;
+    }
+
+    static class StringUuidEntity {
+        @CosId("uuid")
+        String id;
     }
 }

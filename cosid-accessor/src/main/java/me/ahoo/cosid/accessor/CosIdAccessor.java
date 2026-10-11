@@ -90,13 +90,6 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
     }
 
     /**
-     * Sentinel implementation representing a "not found" accessor.
-     *
-     * <p>This implementation provides null/default behavior for all accessor
-     * methods, allowing the framework to handle cases where no valid ID field
-     * is found without explicit null checks throughout the code.
-     */
-    /**
      * Checks that the ID generator, when it is already registered, can generate the type of the id field.
      *
      * @throws me.ahoo.cosid.CosIdException naming the field and the generator if they do not fit
@@ -104,6 +97,13 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
     default void validate() {
     }
 
+    /**
+     * Sentinel implementation representing a "not found" accessor.
+     *
+     * <p>This implementation provides null/default behavior for all accessor
+     * methods, allowing the framework to handle cases where no valid ID field
+     * is found without explicit null checks throughout the code.
+     */
     class NotFound implements CosIdAccessor {
 
         /**

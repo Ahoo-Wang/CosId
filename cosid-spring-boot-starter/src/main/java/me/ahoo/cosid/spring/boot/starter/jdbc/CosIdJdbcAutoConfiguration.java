@@ -21,11 +21,14 @@ import me.ahoo.cosid.spring.boot.starter.EnabledSuffix;
 import me.ahoo.cosid.spring.data.jdbc.CosIdBeforeConvertCallback;
 import me.ahoo.cosid.spring.data.jdbc.IdAnnotationDefinitionParser;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 
 /**
  * CosId Mybatis AutoConfiguration.
@@ -54,6 +57,23 @@ public class CosIdJdbcAutoConfiguration {
     @ConditionalOnMissingBean
     public CosIdBeforeConvertCallback cosIdBeforeConvertCallback(CosIdAccessorRegistry accessorRegistry) {
         return new CosIdBeforeConvertCallback(accessorRegistry);
+    }
+
+    /**
+     * Registers the accessors of every Spring Data JDBC entity once every singleton, and so every ID generator, is
+     * created, so a {@code long} or {@code int} id field bound to a generator of string ids only fails startup
+     * instead of the first insert.
+     *
+     * @param mappingContexts the Spring Data relational mapping contexts
+     * @param accessorRegistry the accessor registry
+     * @return the registrar
+     */
+    @Bean
+    public SmartInitializingSingleton cosIdJdbcEntityAccessorRegistrar(ObjectProvider<RelationalMappingContext> mappingContexts,
+                                                                       CosIdAccessorRegistry accessorRegistry) {
+        return () -> mappingContexts.orderedStream()
+            .flatMap(mappingContext -> mappingContext.getPersistentEntities().stream())
+            .forEach(persistentEntity -> accessorRegistry.get(persistentEntity.getType()));
     }
     
 }

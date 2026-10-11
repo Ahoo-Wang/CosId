@@ -19,6 +19,7 @@ import me.ahoo.cosid.mongo.MongoIdSegmentInitializer;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.MongoReactiveDeprecation;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
@@ -96,6 +97,7 @@ public class CosIdMongoSegmentAutoConfiguration {
     
     @Configuration
     @ConditionalOnClass(com.mongodb.reactivestreams.client.MongoClient.class)
+    @SuppressWarnings("removal")
     class Reactive {
         /**
          * Bounds every CosId operation with the driver's client-side operation timeout.
@@ -111,6 +113,7 @@ public class CosIdMongoSegmentAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         public MongoReactiveIdSegmentInitializer mongoReactiveIdSegmentInitializer(com.mongodb.reactivestreams.client.MongoClient mongoClient) {
+            MongoReactiveDeprecation.warnIfSelected();
             com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
                 segmentIdProperties.getDistributor().getMongo().getDatabase()
             );

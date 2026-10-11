@@ -499,6 +499,19 @@ public class SegmentIdProperties {
             private String initCosidTableSql = JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL;
             private boolean enableAutoInitIdSegment = true;
             private String initIdSegmentSql = JdbcIdSegmentInitializer.INIT_ID_SEGMENT_SQL;
+            /**
+             * Timeout of each distributor statement, rounded up to seconds. Zero disables it.
+             */
+            // Not JdbcSupport.DEFAULT_QUERY_TIMEOUT: a Duration is not inlined, so it would load cosid-jdbc for every starter user.
+            private Duration queryTimeout = Duration.ofSeconds(5);
+
+            public Duration getQueryTimeout() {
+                return queryTimeout;
+            }
+
+            public void setQueryTimeout(Duration queryTimeout) {
+                this.queryTimeout = queryTimeout;
+            }
 
             public String getIncrementMaxIdSql() {
                 return incrementMaxIdSql;

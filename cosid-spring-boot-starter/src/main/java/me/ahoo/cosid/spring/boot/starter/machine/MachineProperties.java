@@ -698,6 +698,21 @@ public class MachineProperties {
         private String initInstanceIdIdxSql = JdbcMachineIdInitializer.INIT_INSTANCE_ID_IDX_SQL;
 
         /**
+         * Timeout of each distributor statement ({@link java.sql.Statement#setQueryTimeout(int)}, rounded up to seconds).
+         * Default is 5 seconds; zero disables it.
+         */
+        // Not JdbcSupport.DEFAULT_QUERY_TIMEOUT: a Duration is not inlined, so it would load cosid-jdbc for every starter user.
+        private Duration queryTimeout = Duration.ofSeconds(5);
+
+        public Duration getQueryTimeout() {
+            return queryTimeout;
+        }
+
+        public void setQueryTimeout(Duration queryTimeout) {
+            this.queryTimeout = queryTimeout;
+        }
+
+        /**
          * Checks whether automatic {@code cosid_machine} table initialization is enabled.
          *
          * @return true if auto-init is enabled, false otherwise

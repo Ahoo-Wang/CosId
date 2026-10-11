@@ -56,6 +56,11 @@ jobs:
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: Build Code Coverage Report
+        env:
+          COSID_TEST_REDIS_URI: redis://localhost:6379
+          COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
+          COSID_TEST_MYSQL_USERNAME: root
+          COSID_TEST_MYSQL_PASSWORD: root
         run: ./gradlew codeCoverageReport --stacktrace
 
       - name: Upload Code Coverage Report to Codecov

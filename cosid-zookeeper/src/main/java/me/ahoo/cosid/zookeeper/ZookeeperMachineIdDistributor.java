@@ -120,7 +120,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         int machineId = atomicValue.postValue() - 1;
         
         if (machineId > MachineIdDistributor.maxMachineId(machineBit)) {
-            throw new MachineIdOverflowException(machineBit, instanceId);
+            throw new MachineIdOverflowException(MachineIdDistributor.totalMachineIds(machineBit), instanceId);
         }
         return machineId;
     }
@@ -167,14 +167,31 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         /**
          * when {@link instanceId.stable} is true .
          */
-        Stat instanceStat = curatorFramework.checkExists().forPath(instancePath);
-        if (Objects.nonNull(instanceStat)) {
-            byte[] stateBuf = curatorFramework.getData().forPath(instancePath);
-            if (stateBuf != null) {
-                return MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+        Stat stat = new Stat();
+        MachineState selfState;
+        try {
+            byte[] stateBuf = curatorFramework.getData().storingStatIn(stat).forPath(instancePath);
+            if (stateBuf == null) {
+                return null;
             }
+            selfState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+        } catch (KeeperException.NoNodeException noNodeException) {
+            return null;
         }
-        return null;
+        MachineState renewedState = renew(selfState);
+        /*
+         * Renew with the version that was read: if another instance recycled (or changed) the node in between, the machine id
+         * is no longer ours, so fall back to the other distribution paths instead of reusing it.
+         */
+        try {
+            curatorFramework.setData().withVersion(stat.getVersion()).forPath(instancePath, toBytes(renewedState));
+        } catch (KeeperException.NoNodeException | KeeperException.BadVersionException conflictException) {
+            if (log.isDebugEnabled()) {
+                log.debug("Try Distribute - reclaim instancePath:[{}] failed!", instancePath);
+            }
+            return null;
+        }
+        return renewedState;
     }
     
     private MachineState distributeByRevert(String namespace, String instancePath) throws Exception {
@@ -184,22 +201,30 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
             List<String> revertMachines = curatorFramework.getChildren().forPath(revertPath);
             for (String revertMachine : revertMachines) {
                 String revertMachinePath = ZKPaths.makePath(revertPath, revertMachine);
-                byte[] stateBuf = curatorFramework.getData().forPath(revertMachinePath);
-                MachineState revertMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+                Stat stat = new Stat();
+                MachineState revertMachineState;
                 try {
-                    /**
-                     * When a {@link KeeperException.NoNodeException} is thrown, it indicates that it has been obtained by other instances.
-                     * Try to get the next {@link revertMachine}.
-                     */
-                    curatorFramework.delete().forPath(revertMachinePath);
+                    byte[] stateBuf = curatorFramework.getData().storingStatIn(stat).forPath(revertMachinePath);
+                    revertMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
                 } catch (KeeperException.NoNodeException noNodeException) {
+                    continue;
+                }
+                /*
+                 * Claim the reverted machine id atomically: the revert node is removed only if nobody changed it since it was read,
+                 * and the instance node is created in the same transaction, so a crash can never leak the machine id.
+                 */
+                /*
+                 * The claimed state is renewed: keeping the reverted timestamp would make it look expired to other instances,
+                 * which could then recycle it while this instance is still using it.
+                 */
+                MachineState claimedState = renew(revertMachineState);
+                if (!tryMove(revertMachinePath, stat.getVersion(), instancePath, claimedState)) {
                     if (log.isDebugEnabled()) {
-                        log.debug("Try Distribute - delete revertMachinePath:[{}] failed!", revertMachinePath);
+                        log.debug("Try Distribute - claim revertMachinePath:[{}] failed!", revertMachinePath);
                     }
                     continue;
                 }
-                setMachineState(instancePath, revertMachineState);
-                return revertMachineState;
+                return claimedState;
             }
         }
         return null;
@@ -210,9 +235,13 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         List<String> instanceMachines = curatorFramework.getChildren().forPath(instanceIdxPath);
         for (String eachInstance : instanceMachines) {
             String eachInstancePath = ZKPaths.makePath(instanceIdxPath, eachInstance);
+            if (eachInstancePath.equals(instancePath)) {
+                continue;
+            }
+            Stat stat = new Stat();
             MachineState instanceMachineState;
             try {
-                byte[] stateBuf = curatorFramework.getData().forPath(eachInstancePath);
+                byte[] stateBuf = curatorFramework.getData().storingStatIn(stat).forPath(eachInstancePath);
                 instanceMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
             } catch (KeeperException.NoNodeException noNodeException) {
                 if (log.isDebugEnabled()) {
@@ -225,16 +254,16 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
             if (instanceMachineState.getLastTimeStamp() > safeGuardAt) {
                 continue;
             }
-            try {
-                curatorFramework.delete().forPath(eachInstancePath);
-            } catch (KeeperException.NoNodeException noNodeException) {
+            MachineState machineState = renew(instanceMachineState);
+            /*
+             * The versioned delete fails if the owner guarded (setData) after the read above, so a live machine id is never taken over.
+             */
+            if (!tryMove(eachInstancePath, stat.getVersion(), instancePath, machineState)) {
                 if (log.isDebugEnabled()) {
-                    log.debug("Try Distribute - delete recyclable instancePath:[{}] failed!", eachInstancePath);
+                    log.debug("Try Distribute - claim recyclable instancePath:[{}] failed!", eachInstancePath);
                 }
                 continue;
             }
-            MachineState machineState = MachineState.of(instanceMachineState.getMachineId(), System.currentTimeMillis());
-            setMachineState(instancePath, machineState);
             return machineState;
         }
         return null;
@@ -245,24 +274,34 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         if (log.isInfoEnabled()) {
             log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
-        MachineState revertMachineState = machineState;
-        if (MachineState.NOT_FOUND.equals(revertMachineState)) {
-            String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
-            Stat instanceStat = Exceptions.invokeUnchecked(() -> curatorFramework.checkExists().forPath(instancePath));
-            if (Objects.isNull(instanceStat)) {
-                return;
+        String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
+        Stat stat = new Stat();
+        MachineState remoteMachineState;
+        try {
+            byte[] stateBuf = curatorFramework.getData().storingStatIn(stat).forPath(instancePath);
+            remoteMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+        } catch (KeeperException.NoNodeException noNodeException) {
+            if (log.isWarnEnabled()) {
+                log.warn("Revert Remote [{}] instanceId:[{}] @ namespace:[{}] - instance node not found, machine id may have been recycled.", machineState, instanceId, namespace);
             }
-            
-            byte[] stateBuf = Exceptions.invokeUnchecked(() -> curatorFramework.getData().forPath(instancePath));
-            MachineState remoteMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
-            revertMachineState = MachineState.of(remoteMachineState.getMachineId(), machineState.getLastTimeStamp());
+            return;
+        } catch (Exception exception) {
+            throw new CosIdException(exception.getMessage(), exception);
         }
-        
-        if (instanceId.isStable()) {
-            revertStable(namespace, instanceId.getInstanceId(), revertMachineState);
+        if (!MachineState.NOT_FOUND.equals(machineState) && remoteMachineState.getMachineId() != machineState.getMachineId()) {
+            if (log.isWarnEnabled()) {
+                log.warn("Revert Remote [{}] instanceId:[{}] @ namespace:[{}] - remote machine id [{}] does not match, skip revert.",
+                    machineState, instanceId, namespace, remoteMachineState.getMachineId());
+            }
             return;
         }
-        revertTemporary(namespace, instanceId.getInstanceId(), revertMachineState);
+        MachineState revertMachineState = MachineState.of(remoteMachineState.getMachineId(), machineState.getLastTimeStamp());
+        
+        if (instanceId.isStable()) {
+            revertStable(instancePath, stat.getVersion(), revertMachineState);
+            return;
+        }
+        revertTemporary(namespace, instancePath, stat.getVersion(), revertMachineState);
     }
     
     @Override
@@ -272,8 +311,18 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         }
         String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
         try {
-            curatorFramework.setData().forPath(instancePath, machineState.toStateString().getBytes(StandardCharsets.UTF_8));
-        } catch (KeeperException.NoNodeException noNodeException) {
+            Stat stat = new Stat();
+            byte[] stateBuf = curatorFramework.getData().storingStatIn(stat).forPath(instancePath);
+            MachineState remoteMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+            /*
+             * Only renew a machine id this instance still owns: the node must hold the same machine id, and must not change
+             * between the read and the versioned write.
+             */
+            if (remoteMachineState.getMachineId() != machineState.getMachineId()) {
+                throw new MachineIdLostException(namespace, instanceId, machineState);
+            }
+            curatorFramework.setData().withVersion(stat.getVersion()).forPath(instancePath, toBytes(machineState));
+        } catch (KeeperException.NoNodeException | KeeperException.BadVersionException lostException) {
             throw new MachineIdLostException(namespace, instanceId, machineState);
         } catch (RuntimeException | Error runtimeException) {
             throw runtimeException;
@@ -282,20 +331,71 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         }
     }
     
-    private void revertTemporary(String namespace, String instanceId, MachineState machineState) {
+    private void revertTemporary(String namespace, String instancePath, int instanceVersion, MachineState machineState) {
         String revertMachinePath = getRevertMachinePath(namespace, machineState.getMachineId());
-        String instancePath = getInstancePath(namespace, instanceId);
-        Exceptions.invokeUnchecked(() -> curatorFramework.delete().forPath(instancePath));
-        setMachineState(revertMachinePath, machineState);
+        if (!tryMove(instancePath, instanceVersion, revertMachinePath, machineState)) {
+            if (log.isWarnEnabled()) {
+                log.warn("Revert Remote [{}] - instancePath:[{}] changed concurrently, skip revert.", machineState, instancePath);
+            }
+        }
     }
     
-    private void revertStable(String namespace, String instanceId, MachineState machineState) {
-        String instancePath = getInstancePath(namespace, instanceId);
-        setMachineState(instancePath, machineState);
+    private void revertStable(String instancePath, int instanceVersion, MachineState machineState) {
+        try {
+            curatorFramework.setData().withVersion(instanceVersion).forPath(instancePath, toBytes(machineState));
+        } catch (KeeperException.NoNodeException | KeeperException.BadVersionException conflictException) {
+            if (log.isWarnEnabled()) {
+                log.warn("Revert Remote [{}] - instancePath:[{}] changed concurrently, skip revert.", machineState, instancePath);
+            }
+        } catch (Exception exception) {
+            throw new CosIdException(exception.getMessage(), exception);
+        }
+    }
+    
+    /**
+     * Atomically delete {@code fromPath} (only if its version is still {@code fromVersion}) and create {@code toPath}.
+     *
+     * @return {@code false} if another client changed or removed {@code fromPath}, or created {@code toPath}, concurrently.
+     */
+    private boolean tryMove(String fromPath, int fromVersion, String toPath, MachineState machineState) {
+        ensureParent(toPath);
+        try {
+            curatorFramework.transaction().forOperations(
+                curatorFramework.transactionOp().delete().withVersion(fromVersion).forPath(fromPath),
+                curatorFramework.transactionOp().create().forPath(toPath, toBytes(machineState))
+            );
+            return true;
+        } catch (KeeperException.NoNodeException | KeeperException.BadVersionException | KeeperException.NodeExistsException conflictException) {
+            return false;
+        } catch (Exception exception) {
+            throw new CosIdException(exception.getMessage(), exception);
+        }
+    }
+    
+    private void ensureParent(String path) {
+        String parentPath = ZKPaths.getPathAndNode(path).getPath();
+        try {
+            curatorFramework.create().creatingParentsIfNeeded().forPath(parentPath, new byte[0]);
+        } catch (KeeperException.NodeExistsException ignored) {
+            // already created.
+        } catch (Exception exception) {
+            throw new CosIdException(exception.getMessage(), exception);
+        }
+    }
+    
+    /**
+     * The state to write when taking a machine id: same machine id, last timestamp moved up to now (never backwards).
+     */
+    private static MachineState renew(MachineState machineState) {
+        return MachineState.of(machineState.getMachineId(), Math.max(machineState.getLastTimeStamp(), System.currentTimeMillis()));
+    }
+    
+    private static byte[] toBytes(MachineState machineState) {
+        return machineState.toStateString().getBytes(StandardCharsets.UTF_8);
     }
     
     private void setMachineState(String path, MachineState machineState) {
-        Exceptions.invokeUnchecked(() -> curatorFramework.create().orSetData().creatingParentsIfNeeded().forPath(path, machineState.toStateString().getBytes(StandardCharsets.UTF_8)));
+        Exceptions.invokeUnchecked(() -> curatorFramework.create().orSetData().creatingParentsIfNeeded().forPath(path, toBytes(machineState)));
     }
     
 }

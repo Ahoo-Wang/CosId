@@ -143,7 +143,7 @@ public abstract class IdSegmentDistributorSpec {
         long expected = TEST_OFFSET + TEST_STEP;
         long actual = distributor.nextMaxId();
         assertThat(actual, equalTo(expected));
-        setMaxIdBack(distributor, actual);
+        setMaxIdBack(distributor, TEST_OFFSET);
         Assert.assertThrows(IllegalStateException.class, distributor::nextMaxId);
     }
     

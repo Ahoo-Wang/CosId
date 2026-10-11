@@ -95,6 +95,9 @@ dependencies {
     testImplementation(project(":cosid-proxy"))
     testImplementation(project(":cosid-test"))
     testImplementation("org.testcontainers:testcontainers")
+    // Starter smoke test: the client side wired by the starter's proxy autoconfiguration (CoApi + RestClient).
+    testImplementation("me.ahoo.coapi:coapi-spring-boot-starter")
+    testImplementation("org.springframework.boot:spring-boot-starter-restclient")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

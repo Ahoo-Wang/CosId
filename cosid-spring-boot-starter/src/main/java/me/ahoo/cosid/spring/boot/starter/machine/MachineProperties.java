@@ -622,12 +622,6 @@ public class MachineProperties {
     }
     
     /**
-     * Configuration for Redis-based machine ID distribution.
-     *
-     * <p>This configuration controls the timeout for Redis operations
-     * used in machine ID allocation and coordination.</p>
-     */
-    /**
      * Configuration for ZooKeeper-based machine ID distribution.
      */
     public static class Zookeeper {
@@ -646,6 +640,12 @@ public class MachineProperties {
         }
     }
 
+    /**
+     * Configuration for Redis-based machine ID distribution.
+     *
+     * <p>This configuration controls the timeout for Redis operations
+     * used in machine ID allocation and coordination.</p>
+     */
     public static class Redis {
 
         /**

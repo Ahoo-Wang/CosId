@@ -17,6 +17,7 @@ import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InMemoryMachineStateStorage;
 import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.util.CallTimeout;
 
@@ -60,6 +61,34 @@ class ZookeeperMachineIdDistributorTimeoutTest {
             long startedAt = System.nanoTime();
             Assertions.assertThrows(CosIdException.class, () -> distributor.guard(namespace, instanceId, SAFE_GUARD_DURATION));
             Assertions.assertThrows(CosIdException.class, () -> distributor.revert(namespace, instanceId));
+            Assertions.assertTrue(Duration.ofNanos(System.nanoTime() - startedAt).compareTo(Duration.ofSeconds(10)) < 0);
+        } finally {
+            curatorFramework.close();
+            testingServer.close();
+        }
+    }
+    
+    @Test
+    void segmentNextMaxIdGivesUpWhenZookeeperIsDown() throws Exception {
+        TestingServer testingServer = new TestingServer();
+        CuratorFramework curatorFramework = CuratorFrameworkFactory.builder()
+            .connectString(testingServer.getConnectString())
+            .connectionTimeoutMs((int) Duration.ofSeconds(30).toMillis())
+            .sessionTimeoutMs((int) Duration.ofMinutes(1).toMillis())
+            .retryPolicy(new RetryNTimes(10, 1000))
+            .build();
+        curatorFramework.start();
+        try {
+            Assertions.assertTrue(curatorFramework.blockUntilConnected(10, TimeUnit.SECONDS));
+            ZookeeperIdSegmentDistributor distributor = (ZookeeperIdSegmentDistributor) new ZookeeperIdSegmentDistributorFactory(curatorFramework,
+                new RetryNTimes(10, 1000), CallTimeout.of(Duration.ofMillis(500)))
+                .create(new IdSegmentDistributorDefinition("timeout", MockIdGenerator.INSTANCE.generateAsString(), 0, 10));
+            distributor.nextMaxId();
+            
+            testingServer.stop();
+            
+            long startedAt = System.nanoTime();
+            Assertions.assertThrows(CosIdException.class, distributor::nextMaxId);
             Assertions.assertTrue(Duration.ofNanos(System.nanoTime() - startedAt).compareTo(Duration.ofSeconds(10)) < 0);
         } finally {
             curatorFramework.close();

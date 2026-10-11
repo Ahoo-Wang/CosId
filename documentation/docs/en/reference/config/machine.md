@@ -73,10 +73,11 @@ When upgrading from an earlier version:
 | `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper machine ID guard and revert (Curator has no per-operation timeout) |
 | `cosid.machine.distributor.mongo.timeout` | `5s` | Each MongoDB operation (driver `timeoutMS`); `0` keeps the `MongoClient` settings |
 | `cosid.segment.distributor.mongo.timeout` | `5s` | Each MongoDB segment operation |
+| `cosid.segment.distributor.zookeeper.timeout` | `5s` | Each ZooKeeper segment `nextMaxId` |
 | `cosid.proxy.connect-timeout` | `2s` | Connecting to the CosId proxy server |
-| `cosid.proxy.read-timeout` | `5s` | Waiting for the CosId proxy server's response |
+| `cosid.proxy.read-timeout` | `5s` | Waiting for the CosId proxy server's response, including machine ID distribution at startup |
 
-`0` disables a timeout.
+`0` disables a timeout. With both proxy timeouts `0`, the application's own HTTP request factory is kept.
 
 ## ClockBackwards
 

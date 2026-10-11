@@ -122,4 +122,21 @@ class CosIdProxyClientTimeoutConfigurationTest {
                 .hasRootCauseInstanceOf(TimeoutException.class);
         });
     }
+    
+    @Test
+    void keepsApplicationRequestFactoryWhenTimeoutsAreDisabled() {
+        new ApplicationContextRunner()
+            .withUserConfiguration(CosIdProxyClientTimeoutConfiguration.class)
+            .withBean(CosIdProperties.class, () -> {
+                CosIdProperties properties = new CosIdProperties();
+                properties.getProxy().setConnectTimeout(Duration.ZERO).setReadTimeout(Duration.ZERO);
+                return properties;
+            })
+            .run(context -> {
+                RestClient.Builder builder = mock(RestClient.Builder.class);
+                context.getBean(RestClientBuilderCustomizer.class).customize(definition(MachineClient.class), builder);
+                
+                verifyNoInteractions(builder);
+            });
+    }
 }

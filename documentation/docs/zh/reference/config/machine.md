@@ -72,10 +72,11 @@
 | `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper 机器号守护与归还（Curator 没有单次操作超时） |
 | `cosid.machine.distributor.mongo.timeout` | `5s` | 每次 MongoDB 操作（驱动的 `timeoutMS`）；`0` 表示沿用 `MongoClient` 的设置 |
 | `cosid.segment.distributor.mongo.timeout` | `5s` | 每次 MongoDB 号段操作 |
+| `cosid.segment.distributor.zookeeper.timeout` | `5s` | 每次 ZooKeeper 号段 `nextMaxId` |
 | `cosid.proxy.connect-timeout` | `2s` | 连接 CosId Proxy 服务端 |
-| `cosid.proxy.read-timeout` | `5s` | 等待 CosId Proxy 服务端响应 |
+| `cosid.proxy.read-timeout` | `5s` | 等待 CosId Proxy 服务端响应，也包括启动时的机器号分配 |
 
-`0` 表示不设超时。
+`0` 表示不设超时。两个 Proxy 超时都为 `0` 时，沿用应用自己的 HTTP 请求工厂。
 
 ## ClockBackwards
 

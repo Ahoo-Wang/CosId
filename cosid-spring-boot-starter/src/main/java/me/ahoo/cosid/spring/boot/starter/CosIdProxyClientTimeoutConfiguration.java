@@ -32,6 +32,10 @@ import java.time.Duration;
  * Applies {@link ProxyProperties#getConnectTimeout()} and {@link ProxyProperties#getReadTimeout()} to the CosId proxy
  * clients, which otherwise wait for the proxy server without any timeout.
  *
+ * <p>For blocking clients this replaces the request factory of the CosId proxy clients with a JDK {@code HttpClient}
+ * one; set both timeouts to zero to keep the application's own. The read timeout also bounds the machine id
+ * distribution at startup, so raise it if the proxy server's backend is slow to answer then.</p>
+ *
  * @author ahoo wang
  */
 @Configuration(proxyBeanMethods = false)
@@ -58,10 +62,12 @@ public class CosIdProxyClientTimeoutConfiguration {
     public RestClientBuilderCustomizer cosIdProxyRestClientTimeoutCustomizer(ObjectProvider<CosIdProperties> cosIdProperties) {
         ProxyProperties proxy = proxyProperties(cosIdProperties);
         return (coApiDefinition, builder) -> {
-            if (!isProxyClient(coApiDefinition)) {
+            // With both timeouts disabled, the application's own request factory is kept.
+            if (!isProxyClient(coApiDefinition) || (!isSet(proxy.getConnectTimeout()) && !isSet(proxy.getReadTimeout()))) {
                 return;
             }
-            HttpClient.Builder httpClientBuilder = HttpClient.newBuilder();
+            // HTTP/1.1 like the other Spring request factories: the JDK client would otherwise try an h2c upgrade.
+            HttpClient.Builder httpClientBuilder = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);
             if (isSet(proxy.getConnectTimeout())) {
                 httpClientBuilder.connectTimeout(proxy.getConnectTimeout());
             }

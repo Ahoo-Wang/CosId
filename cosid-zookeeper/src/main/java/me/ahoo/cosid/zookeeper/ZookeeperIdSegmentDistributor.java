@@ -16,7 +16,7 @@ package me.ahoo.cosid.zookeeper;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
-import me.ahoo.cosid.util.Exceptions;
+import me.ahoo.cosid.util.CallTimeout;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -51,8 +51,18 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
      */
     private final String counterLockerPath;
     private final DistributedAtomicLong distributedAtomicLong;
+    private final CallTimeout callTimeout;
     
     public ZookeeperIdSegmentDistributor(String namespace, String name, long offset, long step, CuratorFramework curatorFramework, RetryPolicy retryPolicy) {
+        this(namespace, name, offset, step, curatorFramework, retryPolicy, CallTimeout.NONE);
+    }
+    
+    /**
+     * Create a ZooKeeper segment distributor whose {@link #nextMaxId(long)} gives up after {@code callTimeout}.
+     * {@link #ensureOffset()} at startup is not bounded.
+     */
+    public ZookeeperIdSegmentDistributor(String namespace, String name, long offset, long step, CuratorFramework curatorFramework, RetryPolicy retryPolicy,
+                                         CallTimeout callTimeout) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
         Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
@@ -69,6 +79,7 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
             .retryPolicy(retryPolicy)
             .build();
         this.distributedAtomicLong = new DistributedAtomicLong(curatorFramework, counterPath, retryPolicy, promotedToLock);
+        this.callTimeout = callTimeout;
     }
     
     @Override
@@ -109,7 +120,7 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
             log.debug("Next MaxId [{}] step:[{}].", counterPath, step);
         }
         
-        AtomicValue<Long> nextMaxId = Exceptions.invokeUnchecked(() -> distributedAtomicLong.add(step));
+        AtomicValue<Long> nextMaxId = callTimeout.call("nextMaxId", () -> distributedAtomicLong.add(step));
         
         if (log.isDebugEnabled()) {
             log.debug("Next MaxId [{}] step:[{}] - nextMaxId:[{} -> {}].", counterPath, step, nextMaxId.preValue(), nextMaxId.postValue());

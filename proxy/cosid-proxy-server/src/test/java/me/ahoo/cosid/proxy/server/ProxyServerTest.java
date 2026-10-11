@@ -15,6 +15,7 @@ package me.ahoo.cosid.proxy.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import me.ahoo.cosid.machine.InMemoryMachineStateStorage;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdLostException;
@@ -46,7 +47,7 @@ class ProxyServerTest {
     private final RecordingIdSegmentDistributorFactory segmentDistributorFactory = new RecordingIdSegmentDistributorFactory();
     private final RecordingMachineIdDistributor machineIdDistributor = new RecordingMachineIdDistributor();
     private final WebTestClient webTestClient = WebTestClient
-        .bindToController(new SegmentController(segmentDistributorFactory), new MachineController(machineIdDistributor))
+        .bindToController(new SegmentController(segmentDistributorFactory), new MachineController(machineIdDistributor, new InMemoryMachineStateStorage()))
         .controllerAdvice(new GlobalRestExceptionHandler())
             .build();
 

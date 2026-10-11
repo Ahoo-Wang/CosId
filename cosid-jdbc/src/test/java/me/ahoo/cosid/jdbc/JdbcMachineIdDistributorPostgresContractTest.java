@@ -65,5 +65,10 @@ class JdbcMachineIdDistributorPostgresContractTest extends MachineIdDistributorS
         int machineId = distributor.distribute("legacy", 4, InstanceId.of("host", 1, true), Duration.ofMinutes(1)).getMachineId();
         
         Assertions.assertEquals(0, machineId);
+        
+        // Without the stable column the instance still gets its own machine id back.
+        JdbcMachineIdDistributor restarted = new JdbcMachineIdDistributor(legacyNoAutoCommit, new InMemoryMachineStateStorage(),
+            ClockBackwardsSynchronizer.DEFAULT);
+        Assertions.assertEquals(machineId, restarted.distribute("legacy", 4, InstanceId.of("host", 1, true), Duration.ofMinutes(1)).getMachineId());
     }
 }

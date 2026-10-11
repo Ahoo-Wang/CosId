@@ -55,46 +55,19 @@ public class LeasedSnowflakeId implements IdGeneratorDecorator, SnowflakeId {
         return IdGeneratorDecorator.super.stat();
     }
     
-    @Override
-    public long getEpoch() {
-        return actual.getEpoch();
-    }
+    
+    
+    
+    
+    
+    
+    
     
     @Override
-    public int getTimestampBit() {
-        return actual.getTimestampBit();
+    public SnowflakeLayout layout() {
+        return actual.layout();
     }
-    
-    @Override
-    public int getMachineBit() {
-        return actual.getMachineBit();
-    }
-    
-    @Override
-    public int getSequenceBit() {
-        return actual.getSequenceBit();
-    }
-    
-    @Override
-    public boolean isSafeJavascript() {
-        return actual.isSafeJavascript();
-    }
-    
-    @Override
-    public long getMaxTimestamp() {
-        return actual.getMaxTimestamp();
-    }
-    
-    @Override
-    public int getMaxMachineId() {
-        return actual.getMaxMachineId();
-    }
-    
-    @Override
-    public long getMaxSequence() {
-        return actual.getMaxSequence();
-    }
-    
+
     @Override
     public long getLastTimestamp() {
         return actual.getLastTimestamp();

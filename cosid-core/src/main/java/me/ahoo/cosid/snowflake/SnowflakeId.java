@@ -58,6 +58,14 @@ public interface SnowflakeId extends IdGenerator {
     int TOTAL_BIT = 63;
 
     /**
+     * The bit layout of the ids.
+     *
+     * @return the layout
+     * @since 4.0.0
+     */
+    SnowflakeLayout layout();
+    
+    /**
      * Get the epoch timestamp used as the base for time calculations.
      *
      * <p>This is the timestamp (in milliseconds) that serves as the starting
@@ -66,7 +74,9 @@ public interface SnowflakeId extends IdGenerator {
      *
      * @return The epoch timestamp in milliseconds
      */
-    long getEpoch();
+    default long getEpoch() {
+        return layout().epoch();
+    }
 
     /**
      * Get the number of bits used for the timestamp portion.
@@ -77,7 +87,9 @@ public interface SnowflakeId extends IdGenerator {
      *
      * @return The number of timestamp bits
      */
-    int getTimestampBit();
+    default int getTimestampBit() {
+        return layout().timestampBit();
+    }
 
     /**
      * Get the number of bits used for the machine ID portion.
@@ -88,7 +100,9 @@ public interface SnowflakeId extends IdGenerator {
      *
      * @return The number of machine ID bits
      */
-    int getMachineBit();
+    default int getMachineBit() {
+        return layout().machineBit();
+    }
 
     /**
      * Get the number of bits used for the sequence portion.
@@ -99,7 +113,9 @@ public interface SnowflakeId extends IdGenerator {
      *
      * @return The number of sequence bits
      */
-    int getSequenceBit();
+    default int getSequenceBit() {
+        return layout().sequenceBit();
+    }
 
     /**
      * Check if this Snowflake ID generator is safe for use in JavaScript.
@@ -112,7 +128,7 @@ public interface SnowflakeId extends IdGenerator {
      * @return {@code true} if the ID is JavaScript-safe, {@code false} otherwise
      */
     default boolean isSafeJavascript() {
-        return (getTimestampBit() + getMachineBit() + getSequenceBit()) <= SafeJavaScriptSnowflakeId.JAVA_SCRIPT_MAX_SAFE_NUMBER_BIT;
+        return layout().isSafeJavascript();
     }
 
     /**
@@ -124,7 +140,9 @@ public interface SnowflakeId extends IdGenerator {
      *
      * @return The maximum timestamp value
      */
-    long getMaxTimestamp();
+    default long getMaxTimestamp() {
+        return layout().maxTimestamp();
+    }
 
     /**
      * Get the maximum machine ID value that can be represented.
@@ -135,7 +153,9 @@ public interface SnowflakeId extends IdGenerator {
      *
      * @return The maximum machine ID value
      */
-    int getMaxMachineId();
+    default int getMaxMachineId() {
+        return layout().maxMachineId();
+    }
 
     /**
      * Get the maximum sequence value that can be represented.
@@ -145,7 +165,9 @@ public interface SnowflakeId extends IdGenerator {
      *
      * @return The maximum sequence value
      */
-    long getMaxSequence();
+    default long getMaxSequence() {
+        return layout().maxSequence();
+    }
 
     /**
      * Get the timestamp of the last ID that was generated.

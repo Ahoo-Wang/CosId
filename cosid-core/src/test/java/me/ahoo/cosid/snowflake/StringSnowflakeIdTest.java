@@ -64,6 +64,11 @@ class StringSnowflakeIdTest {
     }
 
     private static final class FakeSnowflakeId implements SnowflakeId {
+        @Override
+        public SnowflakeLayout layout() {
+            return new SnowflakeLayout(getEpoch(), getTimestampBit(), getMachineBit(), getSequenceBit());
+        }
+
         private final long generatedId;
         private final IdGeneratorStat stat = SnowflakeId.super.stat();
         private int generateCalls;
@@ -96,21 +101,6 @@ class StringSnowflakeIdTest {
         @Override
         public int getSequenceBit() {
             return 12;
-        }
-
-        @Override
-        public long getMaxTimestamp() {
-            return 4095;
-        }
-
-        @Override
-        public int getMaxMachineId() {
-            return 1023;
-        }
-
-        @Override
-        public long getMaxSequence() {
-            return 4095;
         }
 
         @Override

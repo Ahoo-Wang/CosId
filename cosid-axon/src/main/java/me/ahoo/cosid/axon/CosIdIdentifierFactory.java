@@ -17,6 +17,7 @@ import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.provider.NotFoundIdGeneratorException;
 
+import lombok.extern.slf4j.Slf4j;
 import org.axonframework.common.IdentifierFactory;
 
 import java.util.Deque;
@@ -33,6 +34,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
  *
  * @author ahoo wang
  */
+@Slf4j
 public class CosIdIdentifierFactory extends IdentifierFactory {
     public static final String ID_KEY = "cosid.axon";
 
@@ -75,6 +77,12 @@ public class CosIdIdentifierFactory extends IdentifierFactory {
      */
     public static void bind(IdGeneratorProvider idGeneratorProvider) {
         BOUND_PROVIDERS.addFirst(idGeneratorProvider);
+        long distinct = BOUND_PROVIDERS.stream().distinct().count();
+        if (distinct > 1 && log.isWarnEnabled()) {
+            log.warn("{} different IdGeneratorProviders are bound to CosIdIdentifierFactory (for example, several Spring contexts): "
+                + "factories created without a provider use the most recent one. Create the factory with "
+                + "new CosIdIdentifierFactory(provider) to choose.", distinct);
+        }
     }
 
     /**

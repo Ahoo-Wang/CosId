@@ -105,4 +105,8 @@ jobs:
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: CosId-Jdbc
+        env:
+          COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
+          COSID_TEST_MYSQL_USERNAME: root
+          COSID_TEST_MYSQL_PASSWORD: root
         run: ./gradlew cosid-jdbc:clean cosid-jdbc:jmh

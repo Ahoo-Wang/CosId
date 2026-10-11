@@ -13,20 +13,11 @@
 
 package me.ahoo.cosid.spring.redis;
 
-import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.util.CallTimeout;
 
 import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.time.Duration;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 /**
@@ -54,22 +45,17 @@ public final class RedisCommandTimeout {
     public static final RedisCommandTimeout NONE = new RedisCommandTimeout(Duration.ZERO);
 
     /**
-     * Upper bound of concurrently running commands. Beyond it, callers fail fast instead of piling up threads behind
-     * a hung Redis.
+     * Upper bound of concurrently running commands, shared with the other {@link CallTimeout} users. Beyond it, callers
+     * fail fast instead of piling up threads behind a hung Redis.
      */
-    public static final int MAX_CONCURRENT_COMMANDS = 64;
-
-    private static final ExecutorService EXECUTOR = new ThreadPoolExecutor(0, MAX_CONCURRENT_COMMANDS,
-        60L, TimeUnit.SECONDS, new SynchronousQueue<>(),
-        new ThreadFactoryBuilder()
-            .setNameFormat("CosId-Redis-Command-%d")
-            .setDaemon(true)
-            .build());
+    public static final int MAX_CONCURRENT_COMMANDS = CallTimeout.MAX_CONCURRENT_CALLS;
 
     private final Duration timeout;
+    private final CallTimeout callTimeout;
 
     private RedisCommandTimeout(Duration timeout) {
         this.timeout = timeout;
+        this.callTimeout = CallTimeout.of(timeout);
     }
 
     /**
@@ -106,32 +92,8 @@ public final class RedisCommandTimeout {
         if (!isEnabled()) {
             return command.get();
         }
-        Future<T> future;
-        try {
-            future = EXECUTOR.submit(command::get);
-        } catch (RejectedExecutionException rejectedExecutionException) {
-            throw new CosIdException("Too many Redis operations in flight (max " + MAX_CONCURRENT_COMMANDS + "), rejected [" + operation + "].",
-                rejectedExecutionException);
-        }
-        try {
-            return future.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
-        } catch (TimeoutException timeoutException) {
-            future.cancel(true);
-            throw new RedisCommandTimeoutException(operation, timeout, timeoutException);
-        } catch (InterruptedException interruptedException) {
-            future.cancel(true);
-            Thread.currentThread().interrupt();
-            throw new CosIdException("Interrupted while waiting for Redis operation [" + operation + "].", interruptedException);
-        } catch (ExecutionException executionException) {
-            Throwable cause = executionException.getCause();
-            if (cause instanceof RuntimeException) {
-                throw (RuntimeException) cause;
-            }
-            if (cause instanceof Error) {
-                throw (Error) cause;
-            }
-            throw new CosIdException(cause);
-        }
+        return callTimeout.call(operation, command::get,
+            (timedOutOperation, timeoutException) -> new RedisCommandTimeoutException(timedOutOperation, timeout, timeoutException));
     }
 
     public void run(String operation, Runnable command) {

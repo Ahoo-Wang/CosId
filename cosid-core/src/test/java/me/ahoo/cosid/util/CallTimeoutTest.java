@@ -80,4 +80,15 @@ class CallTimeoutTest {
     void rejectsNegativeTimeout() {
         Assertions.assertThrows(IllegalArgumentException.class, () -> CallTimeout.of(Duration.ofSeconds(-1)));
     }
+    
+    @Test
+    void throwsTheExceptionOfTheTimeoutFactory() {
+        IllegalStateException actual = Assertions.assertThrows(IllegalStateException.class, () -> CallTimeout.of(Duration.ofMillis(50))
+            .call("custom", () -> {
+                Thread.sleep(Duration.ofMinutes(1).toMillis());
+                return null;
+            }, (operation, cause) -> new IllegalStateException(operation, cause)));
+        
+        assertThat(actual.getMessage(), equalTo("custom"));
+    }
 }

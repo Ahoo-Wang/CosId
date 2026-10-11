@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.util.CallTimeout;
 import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributor;
 import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributorFactory;
 
@@ -42,8 +43,10 @@ public class CosIdZookeeperSegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public IdSegmentDistributorFactory idSegmentDistributorFactory(CuratorFramework curatorFramework, RetryPolicy retryPolicy) {
-        return new ZookeeperIdSegmentDistributorFactory(curatorFramework, retryPolicy);
+    public IdSegmentDistributorFactory idSegmentDistributorFactory(CuratorFramework curatorFramework, RetryPolicy retryPolicy,
+                                                                   SegmentIdProperties segmentIdProperties) {
+        return new ZookeeperIdSegmentDistributorFactory(curatorFramework, retryPolicy,
+            CallTimeout.of(segmentIdProperties.getDistributor().getZookeeper().getTimeout()));
     }
 
 }

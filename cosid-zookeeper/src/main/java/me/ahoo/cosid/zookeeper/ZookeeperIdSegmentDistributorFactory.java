@@ -16,6 +16,7 @@ package me.ahoo.cosid.zookeeper;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.util.CallTimeout;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
@@ -29,10 +30,16 @@ import org.jspecify.annotations.NonNull;
 public class ZookeeperIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     private final CuratorFramework curatorFramework;
     private final RetryPolicy retryPolicy;
+    private final CallTimeout callTimeout;
     
     public ZookeeperIdSegmentDistributorFactory(CuratorFramework curatorFramework, RetryPolicy retryPolicy) {
+        this(curatorFramework, retryPolicy, CallTimeout.NONE);
+    }
+    
+    public ZookeeperIdSegmentDistributorFactory(CuratorFramework curatorFramework, RetryPolicy retryPolicy, CallTimeout callTimeout) {
         this.curatorFramework = curatorFramework;
         this.retryPolicy = retryPolicy;
+        this.callTimeout = callTimeout;
     }
     
     @Override
@@ -43,7 +50,8 @@ public class ZookeeperIdSegmentDistributorFactory implements IdSegmentDistributo
             definition.getOffset(),
             definition.getStep(),
             curatorFramework,
-            retryPolicy
+            retryPolicy,
+            callTimeout
         );
         zookeeperIdSegmentDistributor.ensureOffset();
         return zookeeperIdSegmentDistributor;

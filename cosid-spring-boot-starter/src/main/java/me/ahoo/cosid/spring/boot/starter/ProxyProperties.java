@@ -42,7 +42,9 @@ public class ProxyProperties {
      */
     private Duration connectTimeout = Duration.ofSeconds(2);
     /**
-     * Timeout for the proxy server's response. Zero keeps the HTTP client's default (no timeout).
+     * Timeout for the proxy server's response, including the machine id distribution at startup.
+     * Zero keeps the HTTP client's default (no timeout); with both timeouts zero, the application's own request factory
+     * is kept.
      */
     private Duration readTimeout = Duration.ofSeconds(5);
 

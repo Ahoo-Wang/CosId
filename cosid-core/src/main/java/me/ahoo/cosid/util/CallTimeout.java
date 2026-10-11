@@ -28,6 +28,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiFunction;
 
 /**
  * Bounds how long a caller waits for a blocking backend call that has no timeout of its own.
@@ -91,6 +92,20 @@ public final class CallTimeout {
      * @return the call result
      */
     public <T> T call(String operation, Callable<T> call) {
+        return call(operation, call, (timedOutOperation, timeoutException) ->
+            new CosIdException("[" + timedOutOperation + "] timed out after " + timeout + ".", timeoutException));
+    }
+    
+    /**
+     * Run a call within the timeout, throwing the exception created by {@code timeoutExceptionFactory} on timeout.
+     *
+     * @param operation               name of the operation, used in error messages
+     * @param call                    the call
+     * @param timeoutExceptionFactory creates the exception thrown on timeout from the operation and the cause
+     * @param <T>                     result type
+     * @return the call result
+     */
+    public <T> T call(String operation, Callable<T> call, BiFunction<String, TimeoutException, ? extends RuntimeException> timeoutExceptionFactory) {
         if (!isEnabled()) {
             try {
                 return call.call();
@@ -111,7 +126,7 @@ public final class CallTimeout {
             return future.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException timeoutException) {
             future.cancel(true);
-            throw new CosIdException("[" + operation + "] timed out after " + timeout + ".", timeoutException);
+            throw timeoutExceptionFactory.apply(operation, timeoutException);
         } catch (InterruptedException interruptedException) {
             future.cancel(true);
             Thread.currentThread().interrupt();

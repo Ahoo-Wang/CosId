@@ -30,21 +30,25 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class InMemoryMachineLeaseStore implements MachineLeaseStore {
     
+    /**
+     * The last timestamp doubles as the version: it strictly increases on every write.
+     */
     private static final class Record {
         @Nullable
         private InstanceId instanceId;
         private long lastTimestamp;
-        private long version;
         
-        private Record(@Nullable InstanceId instanceId, long lastTimestamp, long version) {
+        private Record(@Nullable InstanceId instanceId, long lastTimestamp) {
             this.instanceId = instanceId;
             this.lastTimestamp = lastTimestamp;
-            this.version = version;
+        }
+        
+        private void write(long now) {
+            lastTimestamp = Math.max(lastTimestamp + 1, now);
         }
     }
     
     private final Map<String, TreeMap<Integer, Record>> namespaces = new ConcurrentHashMap<>();
-    private long nextVersion = 1;
     
     private TreeMap<Integer, Record> records(String namespace) {
         return namespaces.computeIfAbsent(namespace, key -> new TreeMap<>());
@@ -52,9 +56,8 @@ public class InMemoryMachineLeaseStore implements MachineLeaseStore {
     
     private Lease take(String namespace, int machineId, Record record, InstanceId instanceId, long now) {
         record.instanceId = instanceId;
-        record.lastTimestamp = Math.max(record.lastTimestamp, now);
-        record.version = nextVersion++;
-        return new Lease(namespace, instanceId, machineId, record.lastTimestamp, record.version);
+        record.write(now);
+        return new Lease(namespace, instanceId, machineId, record.lastTimestamp, record.lastTimestamp);
     }
     
     @Override
@@ -68,8 +71,8 @@ public class InMemoryMachineLeaseStore implements MachineLeaseStore {
     }
     
     @Override
-    public synchronized Optional<Lease> claimReleased(String namespace, InstanceId instanceId, long now) {
-        for (Map.Entry<Integer, Record> entry : records(namespace).entrySet()) {
+    public synchronized Optional<Lease> claimReleased(String namespace, InstanceId instanceId, int maxMachineId, long now) {
+        for (Map.Entry<Integer, Record> entry : records(namespace).headMap(maxMachineId, true).entrySet()) {
             if (entry.getValue().instanceId == null) {
                 return Optional.of(take(namespace, entry.getKey(), entry.getValue(), instanceId, now));
             }
@@ -84,14 +87,14 @@ public class InMemoryMachineLeaseStore implements MachineLeaseStore {
         if (machineId > maxMachineId) {
             return Optional.empty();
         }
-        Record record = new Record(null, now, 0);
+        Record record = new Record(instanceId, now);
         records.put(machineId, record);
-        return Optional.of(take(namespace, machineId, record, instanceId, now));
+        return Optional.of(new Lease(namespace, instanceId, machineId, now, now));
     }
     
     @Override
-    public synchronized Optional<Lease> claimExpired(String namespace, InstanceId instanceId, long expiredBefore, long now) {
-        for (Map.Entry<Integer, Record> entry : records(namespace).entrySet()) {
+    public synchronized Optional<Lease> claimExpired(String namespace, InstanceId instanceId, int maxMachineId, long expiredBefore, long now) {
+        for (Map.Entry<Integer, Record> entry : records(namespace).headMap(maxMachineId, true).entrySet()) {
             Record record = entry.getValue();
             if (record.instanceId != null && !record.instanceId.isStable() && record.lastTimestamp <= expiredBefore) {
                 return Optional.of(take(namespace, entry.getKey(), record, instanceId, now));
@@ -115,8 +118,7 @@ public class InMemoryMachineLeaseStore implements MachineLeaseStore {
         if (record == null) {
             return false;
         }
-        record.lastTimestamp = Math.max(record.lastTimestamp, lastTimestamp);
-        record.version = nextVersion++;
+        record.write(lastTimestamp);
         if (!lease.isStable()) {
             record.instanceId = null;
         }
@@ -126,7 +128,7 @@ public class InMemoryMachineLeaseStore implements MachineLeaseStore {
     @Nullable
     private Record current(Lease lease) {
         Record record = records(lease.getNamespace()).get(lease.getMachineId());
-        if (record == null || record.version != lease.getVersion() || !lease.getInstanceId().getInstanceId().equals(instanceIdOf(record))) {
+        if (record == null || record.lastTimestamp != lease.getVersion() || !lease.getInstanceId().getInstanceId().equals(instanceIdOf(record))) {
             return null;
         }
         return record;

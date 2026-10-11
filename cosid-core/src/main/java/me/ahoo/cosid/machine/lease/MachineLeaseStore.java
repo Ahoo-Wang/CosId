@@ -25,8 +25,18 @@ import java.util.Optional;
  * machine id goes to at most one of them. {@code MachineLeaseStoreSpec} in {@code cosid-test} is the compatibility kit
  * every implementation must pass.</p>
  *
- * <p>All timestamps are milliseconds. Claims write {@code max(stored lastTimestamp, now)} as the new
- * {@link Lease#getLastTimestamp() last timestamp}, so it never moves backwards.</p>
+ * <h2>Time contract</h2>
+ *
+ * <p>All timestamps are milliseconds, and every {@code now} and {@code expiredBefore} passed to a store must come from
+ * that same store's {@link #serverTime()}. The {@link Lease#getLastTimestamp() last timestamp} is both the liveness
+ * check and the clock-backwards watermark of the next owner: if instance A wrote it with its own clock and instance B
+ * computed {@code expiredBefore} from a faster clock, B would recycle A's lease early and both would generate the same
+ * ids. Stores with a server clock (Redis, databases, MongoDB) override {@link #serverTime()}; stores without one
+ * (ZooKeeper) fall back to the host clock, so their hosts' clocks must be kept in sync.</p>
+ *
+ * <p>Every write sets the last timestamp to {@code max(stored + 1, now)} (or {@code now} for a new lease): it never moves
+ * backwards and strictly increases, which also makes it the {@link Lease#getVersion() version} that renew and release
+ * compare against.</p>
  *
  * @author ahoo wang
  * @since 3.4.0
@@ -43,9 +53,11 @@ public interface MachineLeaseStore {
     /**
      * Take a machine id that a non-stable instance released on shutdown.
      *
-     * @return the new lease, or empty if no released machine id is left
+     * @param maxMachineId the largest machine id allowed: released ids above it (left over from a larger machine bit)
+     *                     are never returned
+     * @return the new lease, or empty if no released machine id up to {@code maxMachineId} is left
      */
-    Optional<Lease> claimReleased(String namespace, InstanceId instanceId, long now);
+    Optional<Lease> claimReleased(String namespace, InstanceId instanceId, int maxMachineId, long now);
     
     /**
      * Take the next machine id that was never used in the namespace.
@@ -59,13 +71,14 @@ public interface MachineLeaseStore {
      * Take over a machine id whose owner has not renewed it since {@code expiredBefore}. Leases of stable instances are
      * never taken over.
      *
+     * @param maxMachineId  the largest machine id allowed: expired ids above it are never returned
      * @param expiredBefore leases with a last timestamp at or before this time are expired
-     * @return the new lease, or empty if no lease has expired
+     * @return the new lease, or empty if no lease up to {@code maxMachineId} has expired
      */
-    Optional<Lease> claimExpired(String namespace, InstanceId instanceId, long expiredBefore, long now);
+    Optional<Lease> claimExpired(String namespace, InstanceId instanceId, int maxMachineId, long expiredBefore, long now);
     
     /**
-     * Renew a lease to {@code now} if it is still the current version.
+     * Renew a lease to {@code now} if it is still the current {@link Lease#getVersion() version}.
      *
      * @return the renewed lease, or empty if the lease was taken over, released or changed since
      */
@@ -81,7 +94,8 @@ public interface MachineLeaseStore {
     boolean release(Lease lease, long lastTimestamp);
     
     /**
-     * The store's clock, in milliseconds, when it has one; otherwise this host's clock.
+     * The store's clock, in milliseconds, when it has one; otherwise this host's clock. The source of every
+     * {@code now} and {@code expiredBefore} passed to this store.
      */
     default long serverTime() {
         return System.currentTimeMillis();

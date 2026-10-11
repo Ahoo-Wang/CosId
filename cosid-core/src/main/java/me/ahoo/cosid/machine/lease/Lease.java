@@ -24,9 +24,10 @@ import java.util.Objects;
 /**
  * A machine id held by an instance, as stored by a {@link MachineLeaseStore}.
  *
- * <p>{@code version} changes on every write to the lease. {@link MachineLeaseStore#renew} and
- * {@link MachineLeaseStore#release} only succeed with the current version, so an owner whose lease was taken over in
- * between finds out instead of overwriting the new owner.</p>
+ * <p>{@code version} is an opaque token, only ever compared for equality, that changes on every write to the lease.
+ * {@link MachineLeaseStore#renew} and {@link MachineLeaseStore#release} only succeed with the current version, so an
+ * owner whose lease was taken over in between finds out instead of overwriting the new owner. Stores typically use the
+ * strictly increasing last timestamp as the version, see {@link MachineLeaseStore}.</p>
  *
  * @author ahoo wang
  * @since 3.4.0

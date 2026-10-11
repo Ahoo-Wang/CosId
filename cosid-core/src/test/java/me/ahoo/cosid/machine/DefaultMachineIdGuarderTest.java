@@ -21,6 +21,8 @@ import me.ahoo.cosid.test.MockIdGenerator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+
 /**
  * DefaultMachineIdGuarderTest .
  *
@@ -70,5 +72,45 @@ class DefaultMachineIdGuarderTest {
         guarder.start();
         guarder.stop();
         assertThat(guarder.isRunning(), equalTo(false));
+    }
+
+    @Test
+    void registerShouldStartLeaseAndGuardShouldRenewIt() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, Duration.ofMinutes(5));
+        distributor.distribute(namespace, 10, InstanceId.NONE, Duration.ofMinutes(5));
+        guarder.register(namespace, InstanceId.NONE);
+        MachineIdLease lease = guarder.getLease(namespace, InstanceId.NONE);
+        long registeredUntil = lease.getValidUntil();
+
+        Assertions.assertTrue(lease.isValid(System.currentTimeMillis()));
+        guarder.safeGuard();
+        assertThat(lease.getValidUntil(), greaterThanOrEqualTo(registeredUntil));
+        assertThat(guarder.hasFailure(), equalTo(false));
+    }
+
+    @Test
+    void guardShouldMarkLeaseLostWhenMachineIdIsLost() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        MachineIdDistributor lostDistributor = new ManualMachineIdDistributor(1, new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT) {
+            @Override
+            public void guard(String namespace, InstanceId instanceId, Duration safeGuardDuration) {
+                throw new MachineIdLostException(namespace, instanceId, null);
+            }
+        };
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(lostDistributor, Duration.ofMinutes(5));
+        guarder.register(namespace, InstanceId.NONE);
+
+        guarder.safeGuard();
+
+        Assertions.assertTrue(guarder.getLease(namespace, InstanceId.NONE).isLost());
+        assertThat(guarder.hasFailure(), equalTo(true));
+    }
+
+    @Test
+    void unregisteredInstanceHasForeverLease() {
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, Duration.ofMinutes(5));
+
+        assertThat(guarder.getLease("unknown", InstanceId.NONE), sameInstance(MachineIdLease.FOREVER));
     }
 }

@@ -17,6 +17,7 @@ import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator;
 import me.ahoo.cosid.cosid.CosIdGenerator;
 import me.ahoo.cosid.cosid.FriendlyCosIdGenerator;
+import me.ahoo.cosid.cosid.LeasedCosIdGenerator;
 import me.ahoo.cosid.cosid.Radix36CosIdGenerator;
 import me.ahoo.cosid.cosid.Radix62CosIdGenerator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
@@ -104,9 +105,12 @@ public class CosIdGeneratorAutoConfiguration {
         int machineId = guardDistribute.distribute(namespace, cosIdGeneratorProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
         CosIdGenerator cosIdGenerator = createCosIdGenerator(machineId);
 
-        CosIdGenerator clockSyncCosIdGenerator = new ClockSyncCosIdGenerator(cosIdGenerator, clockBackwardsSynchronizer);
-        idGeneratorProvider.set(CosId.COSID, clockSyncCosIdGenerator);
-        return clockSyncCosIdGenerator;
+        CosIdGenerator decoratedCosIdGenerator = new ClockSyncCosIdGenerator(cosIdGenerator, clockBackwardsSynchronizer);
+        if (machineProperties.getGuarder().isFailFast()) {
+            decoratedCosIdGenerator = new LeasedCosIdGenerator(decoratedCosIdGenerator, guardDistribute.getLease(namespace, instanceId));
+        }
+        idGeneratorProvider.set(CosId.COSID, decoratedCosIdGenerator);
+        return decoratedCosIdGenerator;
     }
 
     /**

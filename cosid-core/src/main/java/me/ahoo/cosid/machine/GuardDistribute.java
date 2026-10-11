@@ -33,4 +33,16 @@ public class GuardDistribute implements MachineIdDistribute {
         machineIdGuarder.register(namespace, instanceId);
         return machineState;
     }
+
+    /**
+     * The lease that keeps the distributed machine id usable, see {@link MachineIdLease}.
+     *
+     * @param namespace namespace
+     * @param instanceId instance id
+     * @return the lease of the instance
+     */
+    @NonNull
+    public MachineIdLease getLease(String namespace, InstanceId instanceId) {
+        return machineIdGuarder.getLease(namespace, instanceId);
+    }
 }

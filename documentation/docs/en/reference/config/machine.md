@@ -42,7 +42,8 @@ When upgrading from an earlier version:
 
 | Name     | Data Type                 | Description                                                          | Default Value      |
 |--------|----------------------|-------------------------------------------------------------|----------|
-| type   | `Distributor.Type`   | Machine ID distributor type: `MANUAL`/`STATEFUL_SET`/`JDBC`/`REDIS`/`ZOOKEEPER` | `MANUAL` |
+| type   | `Distributor.Type`   | Machine ID distributor type: `MANUAL`/`STATEFUL_SET`/`JDBC`/`REDIS`/`ZOOKEEPER`/`MONGO`/`PROXY` | `MANUAL` |
+| provider | `String` | Name of a `CosIdStoreProvider` bean to use instead of the one of `type`, for a backend CosId does not ship (since 3.4.0) | |
 | manual | `Distributor.Manual` | Manual distributor configuration                                                     |          |
 
 #### Distributor.Manual

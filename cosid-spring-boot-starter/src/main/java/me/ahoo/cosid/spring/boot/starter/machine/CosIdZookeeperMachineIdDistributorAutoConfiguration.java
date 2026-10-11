@@ -16,11 +16,14 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
 import me.ahoo.cosid.util.CallTimeout;
 import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -41,9 +44,19 @@ public class CosIdZookeeperMachineIdDistributorAutoConfiguration {
     
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBuiltInMachineStore
     public ZookeeperMachineIdDistributor zookeeperMachineIdDistributor(CuratorFramework curatorFramework, RetryPolicy retryPolicy, MachineStateStorage localMachineState,
                                                                        ClockBackwardsSynchronizer clockBackwardsSynchronizer, MachineProperties machineProperties) {
         return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, localMachineState, clockBackwardsSynchronizer,
             CallTimeout.of(machineProperties.getDistributor().getZookeeper().getTimeout()));
+    }
+
+    /**
+     * The ZooKeeper backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdZookeeperMachineStoreProvider(ObjectProvider<CuratorFramework> curatorFramework, ObjectProvider<RetryPolicy> retryPolicy) {
+        return BuiltInStoreProvider.machine("zookeeper", context -> zookeeperMachineIdDistributor(curatorFramework.getObject(), retryPolicy.getObject(),
+            context.getMachineStateStorage(), context.getClockBackwardsSynchronizer(), context.getMachineProperties()));
     }
 }

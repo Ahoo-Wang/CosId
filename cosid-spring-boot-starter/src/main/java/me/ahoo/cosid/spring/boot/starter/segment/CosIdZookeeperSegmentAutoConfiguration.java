@@ -15,12 +15,15 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
 import me.ahoo.cosid.util.CallTimeout;
 import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributor;
 import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributorFactory;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -43,10 +46,20 @@ public class CosIdZookeeperSegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBuiltInSegmentStore
     public IdSegmentDistributorFactory idSegmentDistributorFactory(CuratorFramework curatorFramework, RetryPolicy retryPolicy,
                                                                    SegmentIdProperties segmentIdProperties) {
         return new ZookeeperIdSegmentDistributorFactory(curatorFramework, retryPolicy,
             CallTimeout.of(segmentIdProperties.getDistributor().getZookeeper().getTimeout()));
+    }
+
+    /**
+     * The ZooKeeper backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdZookeeperSegmentStoreProvider(ObjectProvider<CuratorFramework> curatorFramework, ObjectProvider<RetryPolicy> retryPolicy) {
+        return BuiltInStoreProvider.segment("zookeeper", context -> idSegmentDistributorFactory(curatorFramework.getObject(), retryPolicy.getObject(),
+            context.getSegmentIdProperties()));
     }
 
 }

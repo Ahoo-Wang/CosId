@@ -15,11 +15,16 @@ package me.ahoo.cosid.jdbc;
 
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.SegmentChainId;
+import me.ahoo.cosid.test.container.MySqlLauncher;
+
+import com.mysql.cj.jdbc.MysqlDataSource;
 
 import javax.sql.DataSource;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * Segment generators on a real MySQL for the benchmarks.
+ *
  * @author ahoo wang
  */
 public class DataSourceFactory {
@@ -32,15 +37,23 @@ public class DataSourceFactory {
 
     }
 
-    public InMemoryJdbcDataSource createDataSource() {
-        return new InMemoryJdbcDataSource();
+    /**
+     * A real MySQL: {@code COSID_TEST_MYSQL_URL} when set, otherwise a container (needs Docker).
+     */
+    public DataSource createDataSource() {
+        MySqlLauncher.Connection connection = MySqlLauncher.getConnection();
+        MysqlDataSource dataSource = new MysqlDataSource();
+        dataSource.setUrl(connection.jdbcUrl());
+        dataSource.setUser(connection.username());
+        dataSource.setPassword(connection.password());
+        new JdbcIdSegmentInitializer(dataSource).tryInitCosIdTable();
+        return dataSource;
     }
-
+    
     public JdbcIdSegmentDistributor createJdbcDistributor(int step) {
-        InMemoryJdbcDataSource dataSource = createDataSource();
-        return createJdbcDistributor(dataSource, step);
+        return createJdbcDistributor(createDataSource(), step);
     }
-
+    
     public JdbcIdSegmentDistributor createJdbcDistributor(DataSource dataSource, int step) {
         String namespace = "jbh-" + counter.incrementAndGet();
 

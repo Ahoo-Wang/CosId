@@ -20,9 +20,12 @@ import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.MongoReactiveDeprecation;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -57,7 +60,7 @@ public class CosIdMongoSegmentAutoConfiguration {
     }
     
     @Order(0)
-    @Configuration
+    @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(MongoClient.class)
     class Sync {
         /**
@@ -85,6 +88,7 @@ public class CosIdMongoSegmentAutoConfiguration {
         @Bean
         @Primary
         @ConditionalOnMissingBean
+        @ConditionalOnBuiltInSegmentStore
         public MongoIdSegmentDistributorFactory mongoIdSegmentDistributorFactory(MongoClient mongoClient, IdSegmentInitializer idSegmentInitializer) {
             MongoDatabase mongoDatabase = mongoClient.getDatabase(
                 segmentIdProperties.getDistributor().getMongo().getDatabase()
@@ -93,9 +97,18 @@ public class CosIdMongoSegmentAutoConfiguration {
             idSegmentInitializer.ensureCosIdCollection();
             return new MongoIdSegmentDistributorFactory(mongoDatabase);
         }
+
+        /**
+         * The MongoDB backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection, ranked before
+         * the reactive one, as the sync factory is primary.
+         */
+        @Bean
+        public BuiltInStoreProvider cosIdMongoSegmentStoreProvider(ObjectProvider<MongoClient> mongoClient, ObjectProvider<IdSegmentInitializer> idSegmentInitializer) {
+            return BuiltInStoreProvider.segment("mongo", 0, context -> mongoIdSegmentDistributorFactory(mongoClient.getObject(), idSegmentInitializer.getObject()));
+        }
     }
     
-    @Configuration
+    @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(com.mongodb.reactivestreams.client.MongoClient.class)
     @SuppressWarnings("removal")
     class Reactive {
@@ -123,6 +136,7 @@ public class CosIdMongoSegmentAutoConfiguration {
         
         @Bean
         @ConditionalOnMissingBean
+        @ConditionalOnBuiltInSegmentStore
         public MongoReactiveIdSegmentDistributorFactory mongoReactiveIdSegmentDistributorFactory(com.mongodb.reactivestreams.client.MongoClient mongoClient,
                                                                                                  IdSegmentInitializer idSegmentInitializer) {
             idSegmentInitializer.ensureCosIdCollection();
@@ -133,6 +147,16 @@ public class CosIdMongoSegmentAutoConfiguration {
             mongoDatabase = withTimeout(mongoDatabase);
             return new MongoReactiveIdSegmentDistributorFactory(
                 mongoDatabase);
+        }
+
+        /**
+         * The reactive MongoDB backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+         */
+        @Bean
+        public BuiltInStoreProvider cosIdMongoReactiveSegmentStoreProvider(ObjectProvider<com.mongodb.reactivestreams.client.MongoClient> mongoClient,
+                                                                           ObjectProvider<IdSegmentInitializer> idSegmentInitializer) {
+            return BuiltInStoreProvider.segment("mongo", 1,
+                context -> mongoReactiveIdSegmentDistributorFactory(mongoClient.getObject(), idSegmentInitializer.getObject()));
         }
     }
 }

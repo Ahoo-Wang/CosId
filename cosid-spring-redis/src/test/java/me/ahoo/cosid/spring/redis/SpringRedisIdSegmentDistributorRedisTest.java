@@ -17,10 +17,11 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
+import me.ahoo.cosid.segment.IdSegmentRollbackException;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -28,8 +29,7 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
- * Runs {@code redis_id_generate.lua} against a real Redis on {@code localhost:6379} (started by CI).
- * Skipped when no Redis is reachable.
+ * Runs {@link SpringRedisIdSegmentDistributor} ({@code redis_id_generate.lua}) against a real Redis.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SpringRedisIdSegmentDistributorRedisTest {
@@ -38,18 +38,8 @@ class SpringRedisIdSegmentDistributorRedisTest {
 
     @BeforeAll
     void setup() {
-        connectionFactory = new LettuceConnectionFactory("localhost", 6379);
-        connectionFactory.afterPropertiesSet();
-        connectionFactory.start();
-        redisTemplate = new StringRedisTemplate(connectionFactory);
-        boolean available;
-        try {
-            redisTemplate.hasKey("cosid:ping");
-            available = true;
-        } catch (RuntimeException exception) {
-            available = false;
-        }
-        Assumptions.assumeTrue(available, "Redis is not available on localhost:6379.");
+        connectionFactory = RealRedis.createConnectionFactory();
+        redisTemplate = RealRedis.createRedisTemplate(connectionFactory);
     }
 
     @AfterAll
@@ -108,5 +98,50 @@ class SpringRedisIdSegmentDistributorRedisTest {
         redisTemplate.delete(distributor.getAdderKey());
 
         assertThat(distributor.nextMaxId(), equalTo(offset + 3));
+    }
+
+    @Test
+    void constructorShouldBuildNamespacedAdderKey() {
+        SpringRedisIdSegmentDistributor distributor = new SpringRedisIdSegmentDistributor("segment-ns", "orders", 7, 50, redisTemplate);
+
+        assertThat(distributor.getNamespacedName(), equalTo("segment-ns.orders"));
+        assertThat(distributor.getAdderKey(), equalTo("cosid:{segment-ns.orders}.adder"));
+        assertThat(distributor.getOffset(), equalTo(7L));
+        assertThat(distributor.getStep(), equalTo(50L));
+    }
+
+    @Test
+    void ensureOffsetShouldInitializeAdderOnlyWhenAbsent() {
+        SpringRedisIdSegmentDistributor distributor = create(11, 100);
+        redisTemplate.opsForValue().set(distributor.getAdderKey(), "500");
+
+        distributor.ensureOffset();
+
+        assertThat(redisTemplate.opsForValue().get(distributor.getAdderKey()), equalTo("500"));
+    }
+
+    @Test
+    void factoryCreateShouldEnsureOffset() {
+        SpringRedisIdSegmentDistributor distributor = create(13, 64);
+
+        assertThat(redisTemplate.opsForValue().get(distributor.getAdderKey()), equalTo("13"));
+    }
+
+    @Test
+    void nextMaxIdShouldIncrementAdderByRequestedStep() {
+        SpringRedisIdSegmentDistributor distributor = create(5, 100);
+
+        assertThat(distributor.nextMaxId(25), equalTo(30L));
+        assertThat(redisTemplate.opsForValue().get(distributor.getAdderKey()), equalTo("30"));
+    }
+
+    @Test
+    void nextMaxIdShouldRejectRedisRollback() {
+        SpringRedisIdSegmentDistributor distributor = create(0, 100);
+        assertThat(distributor.nextMaxId(), equalTo(100L));
+        redisTemplate.opsForValue().set(distributor.getAdderKey(), "50");
+
+        IdSegmentRollbackException exception = Assertions.assertThrows(IdSegmentRollbackException.class, distributor::nextMaxId);
+        assertThat(exception.getMessage(), equalTo("nextMaxId:[150] must be greater than nextMinMaxId:[200]!"));
     }
 }

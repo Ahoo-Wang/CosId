@@ -16,9 +16,12 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
 import me.ahoo.cosid.spring.redis.RedisCommandTimeout;
 import me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -48,10 +51,20 @@ public class CosIdSpringRedisMachineIdDistributorAutoConfiguration {
     
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBuiltInMachineStore
     public SpringRedisMachineIdDistributor springRedisMachineIdDistributor(StringRedisTemplate redisTemplate, MachineStateStorage localMachineState,
                                                                            ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         MachineProperties.Redis redis = machineProperties.getDistributor().getRedis();
         return new SpringRedisMachineIdDistributor(redisTemplate, localMachineState, clockBackwardsSynchronizer,
             RedisCommandTimeout.of(redis.getTimeout()), RedisCommandTimeout.of(redis.getDistributeTimeout()));
+    }
+
+    /**
+     * The Redis backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdRedisMachineStoreProvider(ObjectProvider<StringRedisTemplate> redisTemplate) {
+        return BuiltInStoreProvider.machine("redis", context -> springRedisMachineIdDistributor(redisTemplate.getObject(), context.getMachineStateStorage(),
+            context.getClockBackwardsSynchronizer()));
     }
 }

@@ -393,7 +393,7 @@ jobs:
       - name: Check real database tests ran
         run: |
           status=0
-          reports=$(ls cosid-jdbc/build/test-results/test/TEST-*ContractTest.xml cosid-jdbc/build/test-results/test/TEST-*JdbcMachineLeaseStoreTest.xml) || status=1
+          reports=$(ls cosid-jdbc/build/test-results/test/TEST-*ContractTest.xml cosid-jdbc/build/test-results/test/TEST-*JdbcMachineLeaseStoreTest.xml cosid-jdbc/build/test-results/test/TEST-*MySqlTest.xml) || status=1
           for report in $reports; do
             skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
             if [ "$skipped" -gt 0 ]; then

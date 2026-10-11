@@ -232,6 +232,20 @@ jobs:
       - name: Test CosId-Mongo
         run: ./gradlew cosid-mongo:clean cosid-mongo:check
 
+      # Distributor specs abort tests that outlast their safe guard window: make sure they really ran.
+      - name: Check contract tests ran
+        run: |
+          status=0
+          reports=$(ls cosid-mongo/build/test-results/test/TEST-*ContractTest.xml) || status=1
+          for report in $reports; do
+            skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
+            if [ "$skipped" -gt 0 ]; then
+              echo "::error::$report skipped $skipped tests"
+              status=1
+            fi
+          done
+          exit $status
+
   cosid-proxy-test:
     name: CosId Proxy Test
     needs: [ cosid-core-test ]

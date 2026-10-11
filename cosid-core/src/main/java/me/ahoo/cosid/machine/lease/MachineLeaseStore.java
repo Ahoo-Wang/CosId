@@ -28,15 +28,17 @@ import java.util.Optional;
  * <h2>Time contract</h2>
  *
  * <p>All timestamps are milliseconds, and every {@code now} and {@code expiredBefore} passed to a store must come from
- * that same store's {@link #serverTime()}. The {@link Lease#getLastTimestamp() last timestamp} is both the liveness
- * check and the clock-backwards watermark of the next owner: if instance A wrote it with its own clock and instance B
+ * that same store's {@link #serverTime()}. A claim or renewal sets {@link Lease#getRenewedAt() renewed at} to
+ * {@code now}, and expiry compares it with {@code expiredBefore}: if instance A wrote it with its own clock and instance B
  * computed {@code expiredBefore} from a faster clock, B would recycle A's lease early and both would generate the same
  * ids. Stores with a server clock (Redis, databases, MongoDB) override {@link #serverTime()}; stores without one
  * (ZooKeeper) fall back to the host clock, so their hosts' clocks must be kept in sync.</p>
  *
- * <p>Every write sets the last timestamp to {@code max(stored + 1, now)} (or {@code now} for a new lease): it never moves
- * backwards and strictly increases, which also makes it the {@link Lease#getVersion() version} that renew and release
- * compare against.</p>
+ * <p>The {@link Lease#getWatermark() watermark} never decreases. A claim of an existing machine id (self, released or
+ * expired) raises it to at least the stored renewed at, so a new owner never goes back before the previous owner's last
+ * renewal; release raises it to the generator's last timestamp; renewing does not move it. A new machine id starts at
+ * {@code 0}. The {@link Lease#getVersion() version} changes on every write, and renew and release compare against
+ * it.</p>
  *
  * @author ahoo wang
  * @since 3.4.0
@@ -44,7 +46,8 @@ import java.util.Optional;
 public interface MachineLeaseStore {
     
     /**
-     * Take back the lease this instance already holds, renewing it to {@code now}, whether or not it has expired.
+     * Take back the lease this instance already holds, renewing it to {@code now}, whether or not it has expired. The
+     * watermark is raised to at least the stored renewed at.
      *
      * @return the renewed lease, or empty if the instance holds none (it was released or recycled)
      */
@@ -72,13 +75,14 @@ public interface MachineLeaseStore {
      * never taken over.
      *
      * @param maxMachineId  the largest machine id allowed: expired ids above it are never returned
-     * @param expiredBefore leases with a last timestamp at or before this time are expired
+     * @param expiredBefore leases renewed at or before this time are expired
      * @return the new lease, or empty if no lease up to {@code maxMachineId} has expired
      */
     Optional<Lease> claimExpired(String namespace, InstanceId instanceId, int maxMachineId, long expiredBefore, long now);
     
     /**
-     * Renew a lease to {@code now} if it is still the current {@link Lease#getVersion() version}.
+     * Renew a lease to {@code now} if it is still the current {@link Lease#getVersion() version}, even when {@code now}
+     * is before the stored renewed at (the store clock moved back). The watermark is unchanged.
      *
      * @return the renewed lease, or empty if the lease was taken over, released or changed since
      */
@@ -86,12 +90,13 @@ public interface MachineLeaseStore {
     
     /**
      * Release a lease on shutdown, if it is still the current version. A stable instance keeps its machine id (only the
-     * last timestamp is updated); otherwise the machine id becomes available to {@link #claimReleased}.
+     * watermark is updated); otherwise the machine id becomes available to {@link #claimReleased}.
      *
-     * @param lastTimestamp the last timestamp to keep for the next owner, so that it waits if the clock moved back
+     * @param watermark the generator's last timestamp: the watermark becomes at least this, so that the next owner
+     *                  waits if its clock is behind
      * @return {@code false} if the lease was taken over or changed since
      */
-    boolean release(Lease lease, long lastTimestamp);
+    boolean release(Lease lease, long watermark);
     
     /**
      * The store's clock, in milliseconds, when it has one; otherwise this host's clock. The source of every

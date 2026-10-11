@@ -230,7 +230,7 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
                 return Optional.empty();
             }
         }
-        return Optional.of(new Lease(namespace, instanceId, row.machineId, timestamp, timestamp));
+        return Optional.of(new Lease(namespace, instanceId, row.machineId, timestamp, timestamp, timestamp));
     }
     
     /**
@@ -294,7 +294,7 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
                     statement.setLong(6, now);
                     statement.setInt(7, stableValue(instanceId));
                     statement.executeUpdate();
-                    return Optional.of(new Lease(namespace, instanceId, machineId, now, now));
+                    return Optional.of(new Lease(namespace, instanceId, machineId, now, now, now));
                 } catch (SQLException sqlException) {
                     // Another instance inserted the same machine id first.
                     if (!JdbcSupport.isDuplicateKey(sqlException) || attempt >= MAX_ATTEMPTS) {
@@ -336,7 +336,7 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         if (!renewed) {
             return Optional.empty();
         }
-        return Optional.of(new Lease(lease.getNamespace(), lease.getInstanceId(), lease.getMachineId(), timestamp, timestamp));
+        return Optional.of(new Lease(lease.getNamespace(), lease.getInstanceId(), lease.getMachineId(), timestamp, timestamp, timestamp));
     }
     
     @Override

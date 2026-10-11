@@ -71,7 +71,7 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
             return Optional.empty();
         }
         long lastTimestamp = result.get(1);
-        return Optional.of(new Lease(namespace, instanceId, result.get(0).intValue(), lastTimestamp, lastTimestamp));
+        return Optional.of(new Lease(namespace, instanceId, result.get(0).intValue(), lastTimestamp, lastTimestamp, lastTimestamp));
     }
     
     @Override

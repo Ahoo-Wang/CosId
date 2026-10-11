@@ -24,10 +24,15 @@ import java.util.Objects;
 /**
  * A machine id held by an instance, as stored by a {@link MachineLeaseStore}.
  *
- * <p>{@code version} is an opaque token, only ever compared for equality, that changes on every write to the lease.
- * {@link MachineLeaseStore#renew} and {@link MachineLeaseStore#release} only succeed with the current version, so an
- * owner whose lease was taken over in between finds out instead of overwriting the new owner. Stores typically use the
- * strictly increasing last timestamp as the version, see {@link MachineLeaseStore}.</p>
+ * <p>A lease keeps three separate values:</p>
+ * <ul>
+ *   <li>{@link #getWatermark() watermark}: the last timestamp the machine id may have been used for, which the next
+ *   owner must not go back to (its clock-backwards watermark). It never decreases, and renewing does not move it.</li>
+ *   <li>{@link #getRenewedAt() renewed at}: the store time of the last claim or renewal, which decides expiry.</li>
+ *   <li>{@link #getVersion() version}: an opaque token that changes on every write.
+ *   {@link MachineLeaseStore#renew} and {@link MachineLeaseStore#release} only succeed with the current version, so an
+ *   owner whose lease was taken over in between finds out instead of overwriting the new owner.</li>
+ * </ul>
  *
  * @author ahoo wang
  * @since 3.4.0
@@ -37,17 +42,26 @@ public final class Lease {
     private final String namespace;
     private final InstanceId instanceId;
     private final int machineId;
-    private final long lastTimestamp;
+    private final long watermark;
+    private final long renewedAt;
     private final long version;
     
-    public Lease(String namespace, InstanceId instanceId, int machineId, long lastTimestamp, long version) {
+    /**
+     * Create a lease.
+     *
+     * @param watermark the last timestamp the machine id may have been used for
+     * @param renewedAt the store time of the last claim or renewal
+     * @param version   the token that changes on every write
+     */
+    public Lease(String namespace, InstanceId instanceId, int machineId, long watermark, long renewedAt, long version) {
         Checks.checkNotNull(namespace, "namespace can not be null!");
         Checks.checkNotNull(instanceId, "instanceId can not be null!");
         Checks.checkArgument(machineId >= 0, "machineId:[%s] must be greater than or equal to 0!", machineId);
         this.namespace = namespace;
         this.instanceId = instanceId;
         this.machineId = machineId;
-        this.lastTimestamp = lastTimestamp;
+        this.watermark = watermark;
+        this.renewedAt = renewedAt;
         this.version = version;
     }
     
@@ -59,9 +73,6 @@ public final class Lease {
         return instanceId;
     }
     
-    /**
-     * Whether the machine id is never recycled by other instances, see {@link InstanceId#isStable()}.
-     */
     public boolean isStable() {
         return instanceId.isStable();
     }
@@ -71,11 +82,17 @@ public final class Lease {
     }
     
     /**
-     * The last time, in milliseconds, the owner renewed the lease: other instances may take the machine id over once it is
-     * older than the safe guard duration (unless the lease is stable).
+     * The last timestamp the machine id may have been used for: the owner waits until its clock passes it.
      */
-    public long getLastTimestamp() {
-        return lastTimestamp;
+    public long getWatermark() {
+        return watermark;
+    }
+    
+    /**
+     * The store time of the last claim or renewal: the lease expires a safe-guard duration after it.
+     */
+    public long getRenewedAt() {
+        return renewedAt;
     }
     
     public long getVersion() {
@@ -83,7 +100,7 @@ public final class Lease {
     }
     
     public MachineState toMachineState() {
-        return MachineState.of(machineId, lastTimestamp);
+        return MachineState.of(machineId, watermark);
     }
     
     @Override
@@ -91,17 +108,16 @@ public final class Lease {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof Lease)) {
+        if (!(o instanceof Lease that)) {
             return false;
         }
-        Lease that = (Lease) o;
-        return machineId == that.machineId && lastTimestamp == that.lastTimestamp && version == that.version
+        return machineId == that.machineId && watermark == that.watermark && renewedAt == that.renewedAt && version == that.version
             && namespace.equals(that.namespace) && instanceId.equals(that.instanceId);
     }
     
     @Override
     public int hashCode() {
-        return Objects.hash(namespace, instanceId, machineId, lastTimestamp, version);
+        return Objects.hash(namespace, instanceId, machineId, watermark, renewedAt, version);
     }
     
     @Override
@@ -110,7 +126,8 @@ public final class Lease {
             + "namespace='" + namespace + '\''
             + ", instanceId=" + instanceId
             + ", machineId=" + machineId
-            + ", lastTimestamp=" + lastTimestamp
+            + ", watermark=" + watermark
+            + ", renewedAt=" + renewedAt
             + ", version=" + version
             + '}';
     }

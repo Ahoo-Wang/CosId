@@ -30,7 +30,7 @@ class JdbcMachineLeaseStorePostgresManualCommitContractTest extends MachineLease
     
     @BeforeAll
     void setup() {
-        DataSource dataSource = new ManualCommitDataSource(RealPostgres.createDataSource());
+        DataSource dataSource = PooledDataSource.of(RealPostgres.createDataSource(), false);
         store = new JdbcMachineLeaseStore(dataSource, JdbcSupport.DEFAULT_QUERY_TIMEOUT, PostgreSqlDialect.SERVER_TIME_SQL);
     }
     

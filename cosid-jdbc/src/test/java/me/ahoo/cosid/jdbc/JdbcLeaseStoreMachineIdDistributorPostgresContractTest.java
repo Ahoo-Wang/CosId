@@ -33,7 +33,7 @@ class JdbcLeaseStoreMachineIdDistributorPostgresContractTest extends MachineIdDi
     
     @BeforeAll
     void setup() {
-        DataSource dataSource = RealPostgres.createDataSource();
+        DataSource dataSource = PooledDataSource.of(RealPostgres.createDataSource(), true);
         store = new JdbcMachineLeaseStore(dataSource, JdbcSupport.DEFAULT_QUERY_TIMEOUT, PostgreSqlDialect.SERVER_TIME_SQL);
     }
     

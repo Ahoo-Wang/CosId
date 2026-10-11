@@ -30,7 +30,7 @@ class JdbcMachineLeaseStoreContractTest extends MachineLeaseStoreSpec {
     
     @BeforeAll
     void setup() {
-        DataSource dataSource = RealMySql.createDataSource();
+        DataSource dataSource = PooledDataSource.of(RealMySql.createDataSource(), true);
         store = new JdbcMachineLeaseStore(dataSource);
     }
     

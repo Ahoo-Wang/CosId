@@ -343,6 +343,20 @@ jobs:
           COSID_TEST_MYSQL_PASSWORD: root
         run: ./gradlew cosid-jdbc:clean cosid-jdbc:check
 
+      # The real-database tests skip themselves without MySQL or PostgreSQL: make sure they really ran.
+      - name: Check real database tests ran
+        run: |
+          status=0
+          reports=$(ls cosid-jdbc/build/test-results/test/TEST-*ContractTest.xml) || status=1
+          for report in $reports; do
+            skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
+            if [ "$skipped" -gt 0 ]; then
+              echo "::error::$report skipped $skipped tests"
+              status=1
+            fi
+          done
+          exit $status
+
   cosid-spring-boot-starter-test:
     name: CosId Spring Boot Starter Test
     needs: [ cosid-core-test ]

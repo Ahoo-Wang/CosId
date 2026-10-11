@@ -48,8 +48,17 @@ import java.util.Optional;
 public class JdbcMachineLeaseStore implements MachineLeaseStore {
     /**
      * Current time of a MySQL server in milliseconds.
+     *
+     * <p>{@code unix_timestamp()} without an argument does not go through the session time zone: {@code
+     * unix_timestamp(now(3))} does, and returns a time one hour too low during the repeated hour at the end of daylight
+     * saving time.</p>
      */
-    public static final String MYSQL_SERVER_TIME_SQL = "select cast(unix_timestamp(now(3)) * 1000 as signed)";
+    public static final String MYSQL_SERVER_TIME_SQL = "select unix_timestamp() * 1000 + floor(microsecond(now(3)) / 1000)";
+    
+    /**
+     * Fails on tables created before the {@code stable} column existed.
+     */
+    private static final String PROBE_STABLE_COLUMN = "select stable from cosid_machine where 1=0";
     
     /**
      * Upper bound of attempts when concurrent instances race for the same rows.
@@ -102,6 +111,30 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
         Preconditions.checkArgument(serverTimeSql != null && !serverTimeSql.isBlank(), "serverTimeSql can not be blank!");
         this.serverTimeSql = serverTimeSql;
+        checkStableColumn();
+    }
+    
+    /**
+     * Fail fast on a {@code cosid_machine} table without the {@code stable} column, instead of at the first claim.
+     */
+    private void checkStableColumn() {
+        try {
+            execute(connection -> {
+                try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, PROBE_STABLE_COLUMN, queryTimeoutSeconds)) {
+                    statement.executeQuery().close();
+                }
+                return null;
+            });
+        } catch (CosIdException exception) {
+            SQLException sqlException = (SQLException) exception.getCause();
+            // SQLState class 42: syntax error or access rule violation, here an unknown column.
+            if (sqlException.getSQLState() == null || !sqlException.getSQLState().startsWith("42")) {
+                throw exception;
+            }
+            throw new IllegalStateException("Table cosid_machine has no stable column, which JdbcMachineLeaseStore needs. Add it with: ["
+                + JdbcMachineIdDistributor.ADD_STABLE_COLUMN_SQL + "] (MySQL) or [" + PostgreSqlDialect.ADD_STABLE_COLUMN_SQL + "] (PostgreSQL).",
+                sqlException);
+        }
     }
     
     @FunctionalInterface

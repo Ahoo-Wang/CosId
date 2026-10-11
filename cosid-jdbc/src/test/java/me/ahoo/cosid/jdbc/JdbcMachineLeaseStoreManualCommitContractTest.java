@@ -30,7 +30,7 @@ class JdbcMachineLeaseStoreManualCommitContractTest extends MachineLeaseStoreSpe
     
     @BeforeAll
     void setup() {
-        DataSource dataSource = new ManualCommitDataSource(RealMySql.createDataSource());
+        DataSource dataSource = PooledDataSource.of(RealMySql.createDataSource(), false);
         store = new JdbcMachineLeaseStore(dataSource);
     }
     

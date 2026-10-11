@@ -67,7 +67,7 @@ create index if not exists idx_instance_id on cosid_machine (instance_id);
 
 `stable` marks the machine id of a stable instance (`cosid.machine.stable=true`): other instances never recycle it, even after
 its owner has been offline for longer than the safe guard duration. Tables created by an earlier version lack the column and
-keep the old behavior (a warning is logged at startup); add it with:
+keep the old behavior (a warning is logged at startup); add it with the statement below and restart, since the column is detected once at startup:
 
 ```sql
 alter table cosid_machine add column stable tinyint not null default 0;

@@ -293,7 +293,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     /**
      * Probe once whether {@code cosid_machine} has the {@code stable} column. Without it (a table created by an older
      * version), the machine id of a stable instance can still be recycled after it has been offline for longer than the
-     * safe guard duration, as before; add the column with {@link #ADD_STABLE_COLUMN_SQL} to prevent that.
+     * safe guard duration, as before; add the column with {@link #ADD_STABLE_COLUMN_SQL} and restart to prevent that.
      */
     private boolean hasStableColumn(Connection connection) throws SQLException {
         Boolean present = stableColumn;
@@ -309,6 +309,10 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
                 throw sqlException;
             }
             present = false;
+            // A failed statement aborts the current transaction on some databases (PostgreSQL) when auto-commit is off.
+            if (!connection.getAutoCommit()) {
+                JdbcSupport.rollbackQuietly(connection, sqlException);
+            }
             if (log.isWarnEnabled()) {
                 log.warn("Table cosid_machine has no stable column, so the machine id of a stable instance may be recycled by other instances "
                     + "once it has been offline for longer than the safe guard duration. Add it with: [{}].", ADD_STABLE_COLUMN_SQL);

@@ -66,7 +66,7 @@ create index if not exists idx_instance_id on cosid_machine (instance_id);
 ```
 
 `stable` 标记稳定实例（`cosid.machine.stable=true`）的机器号：即使持有者离线超过安全守护时长，其他实例也不会回收它。
-旧版本创建的表没有这一列，会保持原来的行为（启动时打印告警），可以这样加上：
+旧版本创建的表没有这一列，会保持原来的行为（启动时打印告警）。执行下面的语句加上后需要重启，因为该列只在启动时检测一次：
 
 ```sql
 alter table cosid_machine add column stable tinyint not null default 0;

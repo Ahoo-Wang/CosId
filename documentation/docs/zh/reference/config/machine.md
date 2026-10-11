@@ -13,6 +13,14 @@
 | guarder         | `Guarder`        | 机器号(心跳)守护            |           |
 | clock-backwards | `ClockBackwards` | 时钟回拨配置               |           |
 
+::: tip 稳定实例
+即使稳定实例离线超过安全守护时长，其他实例也不会回收它的机器号。从旧版本升级时请注意：
+
+- 只有所有实例都升级到新版本后才完全生效：滚动升级期间，旧版本实例不读取 stable 标记，仍可能回收稳定实例的机器号。
+- 已经离线的稳定实例，在新版本上启动一次（写入标记）之前不受保护。
+- JDBC：需要先加上 `stable` 列（见 [CosId-Jdbc](../../guide/extensions/cosid-jdbc.md)）并重启，因为该列只在启动时检测一次。
+:::
+
 ### StateStorage
 
 > 状态存储配置

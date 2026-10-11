@@ -72,6 +72,11 @@ create index if not exists idx_instance_id on cosid_machine (instance_id);
 alter table cosid_machine add column stable tinyint not null default 0;
 ```
 
+::: warning 使用独立的 DataSource
+CosId 会自己提交写入（连接池关闭自动提交时也是）。请给它一个不参与业务事务的 `DataSource`：如果传入 `TransactionAwareDataSourceProxy` 或 JTA `DataSource`，
+会提前提交调用方的事务。
+:::
+
 ### PostgreSQL
 
 默认的建表语句和号段语句使用 MySQL 语法。`me.ahoo.cosid.jdbc.PostgreSqlDialect` 提供了 PostgreSQL 版本（在 PostgreSQL 16 上测试过）：

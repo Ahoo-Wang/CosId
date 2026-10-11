@@ -14,13 +14,21 @@
 package me.ahoo.cosid.proxy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
+import me.ahoo.cosid.segment.IdSegmentRollbackException;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.HttpClientErrorException;
+
+import java.nio.charset.StandardCharsets;
 
 class ProxyIdSegmentDistributorTest {
 
@@ -51,6 +59,37 @@ class ProxyIdSegmentDistributorTest {
         assertEquals("test_namespace", segmentClient.nextNamespace);
         assertEquals("order", segmentClient.nextName);
         assertEquals(5, segmentClient.nextStep);
+    }
+
+    private static SegmentClient conflicting(String body) {
+        return new RecordingSegmentClient() {
+            @Override
+            public long nextMaxId(String namespace, String name, long step) {
+                throw HttpClientErrorException.create(HttpStatus.CONFLICT, "Conflict", new HttpHeaders(),
+                    body.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
+            }
+        };
+    }
+
+    @Test
+    void segmentRollbackConflictBecomesIdSegmentRollbackException() {
+        ProxyIdSegmentDistributor distributor = new ProxyIdSegmentDistributor(
+            conflicting("{\"code\":\"S-01\",\"msg\":\"rolled back\"}"), "test_namespace", "order", 20);
+
+        IdSegmentRollbackException actual = assertThrows(IdSegmentRollbackException.class, () -> distributor.nextMaxId(5));
+
+        assertEquals("rolled back", actual.getMessage());
+        assertInstanceOf(HttpClientErrorException.Conflict.class, actual.getCause());
+    }
+
+    @Test
+    void otherConflictsKeepTheOriginalException() {
+        ProxyIdSegmentDistributor otherCode = new ProxyIdSegmentDistributor(
+            conflicting("{\"code\":\"X-99\",\"msg\":\"other\"}"), "test_namespace", "order", 20);
+        ProxyIdSegmentDistributor unparsable = new ProxyIdSegmentDistributor(conflicting("not json"), "test_namespace", "order", 20);
+
+        assertThrows(HttpClientErrorException.Conflict.class, () -> otherCode.nextMaxId(5));
+        assertThrows(HttpClientErrorException.Conflict.class, () -> unparsable.nextMaxId(5));
     }
 
     private static class RecordingSegmentClient implements SegmentClient {

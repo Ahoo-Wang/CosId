@@ -84,17 +84,4 @@ class ZookeeperIdSegmentDistributorTest extends IdSegmentDistributorSpec {
         new DistributedAtomicLong(curatorFramework, counterPath, retryPolicy).forceSet(maxId);
     }
     
-    @Override
-    public void nextMaxIdWhenBack() {
-        String namespace = MockIdGenerator.INSTANCE.generateAsString();
-        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "nextMaxIdWhenBack", TEST_OFFSET, TEST_STEP);
-        IdSegmentDistributor distributor = factory().create(definition);
-        long firstMaxId = distributor.nextMaxId();
-        assertThat(firstMaxId, equalTo(TEST_OFFSET + TEST_STEP));
-
-        setMaxIdBack(distributor, TEST_OFFSET);
-        long nextMaxId = distributor.nextMaxId();
-
-        assertThat(nextMaxId, equalTo(TEST_OFFSET + TEST_STEP));
-    }
 }

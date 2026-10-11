@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.redis;
 import static me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor.hashTag;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
 import com.google.common.base.Preconditions;
@@ -27,7 +28,6 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 
 import java.util.Collections;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
  * Spring Redis IdSegmentDistributor.
@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  * @author ahoo wang
  */
 @Slf4j
-public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
+public class SpringRedisIdSegmentDistributor extends AbstractIdSegmentDistributor {
     
     /**
      * Initialize the adder to the offset when the key is missing and increment it, atomically.
@@ -50,21 +50,15 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
      * (AOF) and replication if that matters.</p>
      */
     public static final RedisScript<String> REDIS_ID_GENERATE = RedisScript.of(new ClassPathResource("redis_id_generate.lua"), String.class);
-    private static final AtomicLongFieldUpdater<SpringRedisIdSegmentDistributor> LAST_MAX_ID =
-        AtomicLongFieldUpdater.newUpdater(SpringRedisIdSegmentDistributor.class, "lastMaxId");
     
-    private final String namespace;
-    private final String name;
     /**
      * hash tag : namespace.name
      * cosid:{namespace.name}:adder
      */
     private final String adderKey;
     private final long offset;
-    private final long step;
     private final StringRedisTemplate redisTemplate;
     private final RedisCommandTimeout commandTimeout;
-    private volatile long lastMaxId;
     
     public SpringRedisIdSegmentDistributor(String namespace,
                                            String name,
@@ -86,15 +80,10 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
                                            long step,
                                            StringRedisTemplate redisTemplate,
                                            RedisCommandTimeout commandTimeout) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
+        super(namespace, name, step);
         Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
-        Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
         
-        this.namespace = namespace;
-        this.name = name;
         this.offset = offset;
-        this.step = step;
         this.redisTemplate = redisTemplate;
         this.commandTimeout = Preconditions.checkNotNull(commandTimeout, "commandTimeout can not be null!");
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
@@ -115,33 +104,19 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         return adderKey;
     }
     
-    @Override
-    public @NonNull String getNamespace() {
-        return namespace;
-    }
     
-    @Override
-    public @NonNull String getName() {
-        return name;
-    }
     
     public long getOffset() {
         return offset;
     }
     
-    @Override
-    public long getStep() {
-        return step;
-    }
     
     @Override
-    public long nextMaxId(long step) {
-        IdSegmentDistributor.ensureStep(step);
+    protected long doNextMaxId(long step) {
         if (log.isDebugEnabled()) {
             log.debug("Next MaxId [{}] step:[{}].", adderKey, step);
         }
         
-        final long nextMinMaxId = lastMaxId + step;
         String nextMaxIdValue = commandTimeout.call("nextMaxId",
             () -> redisTemplate.execute(REDIS_ID_GENERATE, Collections.singletonList(adderKey), String.valueOf(offset), String.valueOf(step)));
         Preconditions.checkNotNull(nextMaxIdValue, "nextMaxId can not be null!");
@@ -149,8 +124,6 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         if (log.isDebugEnabled()) {
             log.debug("Next MaxId [{}] step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);
         }
-        Preconditions.checkState(nextMaxId >= nextMinMaxId, "nextMaxId:[%s] must be greater than nextMinMaxId:[%s]!", nextMaxId, nextMinMaxId);
-        LAST_MAX_ID.accumulateAndGet(this, nextMaxId, Math::max);
         return nextMaxId;
     }
     

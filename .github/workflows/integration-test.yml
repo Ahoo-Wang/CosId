@@ -275,14 +275,12 @@ jobs:
         run: grep -h -o 'testsuite name="[^"]*" tests="[0-9]*" skipped="[0-9]*" failures="[0-9]*" errors="[0-9]*"' proxy/cosid-proxy-server/build/test-results/test/*.xml
 
       # The end-to-end tests skip themselves without Redis: make sure they really ran.
-      # ProxyIdSegmentDistributorEndToEndTest has one intentionally @Disabled test (nextMaxIdWhenBack).
       - name: Check end-to-end tests ran
         run: |
           status=0
           for report in proxy/cosid-proxy-server/build/test-results/test/TEST-me.ahoo.cosid.proxy.server.contract.*.xml; do
             skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
             allowed=0
-            case "$report" in *ProxyIdSegmentDistributorEndToEndTest.xml) allowed=1 ;; esac
             if [ "$skipped" -gt "$allowed" ]; then
               echo "::error::$report skipped $skipped tests (allowed $allowed)"
               status=1

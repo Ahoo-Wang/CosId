@@ -31,6 +31,11 @@ public class ErrorResponse {
     public static final String MACHINE_ID_OVERFLOW = "M-01";
     public static final String NOT_FOUND_MACHINE_STATE = "M-02";
     public static final String MACHINE_ID_LOST = "M-03";
+    /**
+     * The stored segment max id moved backwards: the next segment would overlap ids already issued. Clients raise
+     * {@code IdSegmentRollbackException}.
+     */
+    public static final String SEGMENT_ROLLBACK = "S-01";
     
     private final String code;
     private final String msg;

@@ -13,14 +13,22 @@
 
 package me.ahoo.cosid.spring.boot.starter.actuate;
 
+import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.segment.SegmentChainId;
+import me.ahoo.cosid.segment.StringSegmentId;
+import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.test.MockIdGenerator;
+import me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor;
 
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
 
 class CosIdEndpointTest {
 
@@ -58,6 +66,23 @@ class CosIdEndpointTest {
         assertThat(endpoint.remove("orders")).isNotNull();
         assertThat(provider.get("orders")).isEmpty();
         assertThat(provider.getShare()).isSameAs(MockIdGenerator.INSTANCE);
+    }
+
+    @Test
+    void removeClosesDecoratedSegmentChainId() {
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        PrefetchWorkerExecutorService executor = new PrefetchWorkerExecutorService(Duration.ofDays(1), 1, false);
+        SegmentChainId segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, new AtomicIdSegmentDistributor(), executor);
+        provider.set("orders", new StringSegmentId(segmentChainId, Radix62IdConverter.INSTANCE));
+        CosIdEndpoint endpoint = new CosIdEndpoint(provider);
+
+        try {
+            endpoint.remove("orders");
+
+            assertThat(segmentChainId.isClosed()).isTrue();
+        } finally {
+            executor.shutdown();
+        }
     }
 
     @Test

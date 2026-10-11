@@ -50,7 +50,7 @@ public class SegmentIdBenchmark {
     public void setup() {
         atomicLongGenerator = new AtomicLongGenerator();
         segmentId = new DefaultSegmentId(new MockIdSegmentDistributor());
-        segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new MockIdSegmentDistributor(), PrefetchWorkerExecutorService.DEFAULT);
+        segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new MockIdSegmentDistributor(), PrefetchWorkerExecutorService.shared());
     }
     
     @Benchmark

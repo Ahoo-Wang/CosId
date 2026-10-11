@@ -19,6 +19,7 @@ import me.ahoo.cosid.segment.concurrent.AffinityJob;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorker;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.segment.grouped.GroupedId;
+import me.ahoo.cosid.util.CallTimeout;
 import me.ahoo.cosid.util.Clock;
 
 import com.google.common.base.Preconditions;
@@ -55,7 +56,7 @@ import org.jspecify.annotations.Nullable;
  * @author ahoo wang
  */
 @Slf4j
-public class SegmentChainId implements SegmentId {
+public class SegmentChainId implements SegmentId, AutoCloseable {
     /**
      * The default safe distance for prefetching segments.
      *
@@ -117,16 +118,20 @@ public class SegmentChainId implements SegmentId {
      */
     private volatile IdSegmentChain headChain;
 
+    private final CallTimeout prefetchTimeout;
+
+    private volatile boolean closed;
+
     /**
      * Create a new SegmentChainId with default configuration.
      *
      * <p>This constructor creates a generator with infinite segment TTL,
-     * default safe distance, and the default prefetch worker executor.
+     * default safe distance, and the {@link PrefetchWorkerExecutorService#shared() shared} prefetch worker executor.
      *
      * @param maxIdDistributor The distributor for allocating new segments
      */
     public SegmentChainId(IdSegmentDistributor maxIdDistributor) {
-        this(TIME_TO_LIVE_FOREVER, DEFAULT_SAFE_DISTANCE, maxIdDistributor, PrefetchWorkerExecutorService.DEFAULT);
+        this(TIME_TO_LIVE_FOREVER, DEFAULT_SAFE_DISTANCE, maxIdDistributor, PrefetchWorkerExecutorService.shared());
     }
 
     /**
@@ -155,6 +160,25 @@ public class SegmentChainId implements SegmentId {
      */
     public SegmentChainId(long idSegmentTtl, int safeDistance, int maxPrefetchDistance, IdSegmentDistributor maxIdDistributor,
                           PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
+        this(idSegmentTtl, safeDistance, maxPrefetchDistance, maxIdDistributor, prefetchWorkerExecutorService, CallTimeout.NONE);
+    }
+
+    /**
+     * Create a new SegmentChainId with custom configuration and a timeout for each background prefetch.
+     *
+     * <p>A prefetch that takes longer than {@code prefetchTimeout} is given up, so a slow distributor does not hold
+     * the prefetch worker, which other segment chains share. Generation then fetches the next segment itself when it
+     * runs out. A given-up call that still completes leaves a gap in the ids, as a restart does.
+     *
+     * @param idSegmentTtl                  The time-to-live for segments
+     * @param safeDistance                  The safe distance for prefetching
+     * @param maxPrefetchDistance           The maximum number of segments a single prefetch may request, at least {@code safeDistance}
+     * @param maxIdDistributor              The distributor for allocating new segments
+     * @param prefetchWorkerExecutorService The executor for prefetch jobs
+     * @param prefetchTimeout               The timeout of each background prefetch, {@link CallTimeout#NONE} for none
+     */
+    public SegmentChainId(long idSegmentTtl, int safeDistance, int maxPrefetchDistance, IdSegmentDistributor maxIdDistributor,
+                          PrefetchWorkerExecutorService prefetchWorkerExecutorService, CallTimeout prefetchTimeout) {
         Preconditions.checkArgument(idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
         Preconditions.checkArgument(safeDistance > 0, "The safety distance must be greater than 0.");
         Preconditions.checkArgument(maxPrefetchDistance >= safeDistance, "maxPrefetchDistance:[%s] must be greater than or equal to safeDistance:[%s].",
@@ -164,6 +188,7 @@ public class SegmentChainId implements SegmentId {
         this.safeDistance = safeDistance;
         this.maxPrefetchDistance = maxPrefetchDistance;
         this.maxIdDistributor = maxIdDistributor;
+        this.prefetchTimeout = prefetchTimeout;
         prefetchJob = new PrefetchJob(headChain);
         prefetchWorkerExecutorService.submit(prefetchJob);
     }
@@ -302,6 +327,33 @@ public class SegmentChainId implements SegmentId {
             }
             this.prefetchJob.hungry();
         }
+    }
+
+    /**
+     * Stop prefetching segments in the background.
+     *
+     * <p>The generator keeps working after it is closed: it fetches the next segment itself when the current ones run
+     * out. Closing again has no effect.
+     */
+    @Override
+    public void close() {
+        if (closed) {
+            return;
+        }
+        closed = true;
+        PrefetchWorker prefetchWorker = prefetchJob.getPrefetchWorker();
+        if (prefetchWorker != null) {
+            prefetchWorker.cancel(prefetchJob);
+        }
+    }
+
+    /**
+     * Whether {@link #close()} was called.
+     *
+     * @return true once closed
+     */
+    public boolean isClosed() {
+        return closed;
     }
 
     /**
@@ -502,7 +554,8 @@ public class SegmentChainId implements SegmentId {
 
             try {
                 final IdSegmentChain preTail = tailChain;
-                tailChain = tailChain.ensureSetNext((preChain) -> generateNext(preChain, prefetchSegments)).getNext();
+                tailChain = tailChain.ensureSetNext((preChain) -> prefetchTimeout.call("Prefetch " + maxIdDistributor.getNamespacedName(),
+                    () -> generateNext(preChain, prefetchSegments))).getNext();
                 while (tailChain.getNext() != null) {
                     tailChain = tailChain.getNext();
                 }

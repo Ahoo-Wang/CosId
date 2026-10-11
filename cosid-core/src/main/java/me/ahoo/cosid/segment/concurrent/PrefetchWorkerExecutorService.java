@@ -27,11 +27,22 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 public class PrefetchWorkerExecutorService {
     public static final Duration DEFAULT_PREFETCH_PERIOD = Duration.ofSeconds(1);
-    public static final PrefetchWorkerExecutorService DEFAULT;
 
-    static {
-        DEFAULT =
-                new PrefetchWorkerExecutorService(DEFAULT_PREFETCH_PERIOD, Runtime.getRuntime().availableProcessors());
+    /**
+     * The executor shared by segment chains that are not given one, created on first use.
+     *
+     * <p>It has one worker per available processor and shuts down with the JVM. Applications that manage their own
+     * lifecycle, like the Spring Boot starter, should pass their own executor instead.
+     *
+     * @return the shared executor
+     */
+    public static PrefetchWorkerExecutorService shared() {
+        return SharedHolder.SHARED;
+    }
+
+    private static final class SharedHolder {
+        private static final PrefetchWorkerExecutorService SHARED =
+            new PrefetchWorkerExecutorService(DEFAULT_PREFETCH_PERIOD, Runtime.getRuntime().availableProcessors());
     }
 
     private volatile boolean shutdown = false;

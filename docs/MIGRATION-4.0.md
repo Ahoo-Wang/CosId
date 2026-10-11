@@ -53,6 +53,10 @@ _Still to be filled in as the changes land: the old machine id distributors._
 
 `me.ahoo.cosid.accessor` (id field accessors, `CosIdAccessorRegistry`, the field parsers) and `me.ahoo.cosid.annotation` (`@CosId`, `@AccessorFactory`) moved from `cosid-core` to the new `me.ahoo.cosid:cosid-accessor` artifact, with the same package and class names. The starter, `cosid-mybatis` and `cosid-spring-data-jdbc` depend on it, so applications using them need no change; add it only where you use `@CosId` or the accessors without them.
 
+### `PrefetchWorkerExecutorService.DEFAULT`
+
+Replaced by `PrefetchWorkerExecutorService.shared()`, which creates the shared executor (and its shutdown hook) on first use instead of when the class loads. `SegmentChainId` is now `AutoCloseable`: `close()` stops its background prefetch, generation keeps working, and the actuator delete operation closes a removed segment chain. A new constructor argument and the `cosid.segment.chain.prefetch-timeout` property (default `0`, none) bound each background prefetch.
+
 ## Changed defaults
 
 | Property | 3.x | 4.0 |

@@ -14,7 +14,9 @@
 package me.ahoo.cosid.spring.boot.starter.actuate;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import org.springframework.boot.actuate.endpoint.annotation.DeleteOperation;
@@ -23,6 +25,7 @@ import org.springframework.boot.actuate.endpoint.annotation.Selector;
 
 /**
  * The {@code cosid} endpoint with its read operations and a delete operation that removes an id generator at runtime.
+ * Removing a segment chain id also stops its background prefetch.
  * Turned into {@link CosIdReadOnlyEndpoint} with {@code cosid.actuator.delete.enabled=false}.
  */
 @Endpoint(id = CosId.COSID)
@@ -36,6 +39,10 @@ public class CosIdEndpoint extends CosIdReadOnlyEndpoint {
     public IdGeneratorStat remove(@Selector String name) {
         var idGenerator = idGeneratorProvider.getRequired(name);
         idGeneratorProvider.remove(name);
-        return idGenerator.stat();
+        var stat = idGenerator.stat();
+        if (Decorator.getActual(idGenerator) instanceof SegmentChainId segmentChainId) {
+            segmentChainId.close();
+        }
+        return stat;
     }
 }

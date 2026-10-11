@@ -29,6 +29,7 @@ import me.ahoo.cosid.segment.grouped.date.YearMonthGroupBySupplier;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 import me.ahoo.cosid.spring.boot.starter.Namespaces;
+import me.ahoo.cosid.util.CallTimeout;
 
 import com.google.common.base.MoreObjects;
 import lombok.extern.slf4j.Slf4j;
@@ -131,7 +132,7 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
         } else {
             SegmentIdProperties.Chain chain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
             segmentId = new SegmentChainId(ttl, chain.getSafeDistance(), Math.max(chain.getSafeDistance(), chain.getMaxPrefetchDistance()),
-                idSegmentDistributor, prefetchWorkerExecutorService);
+                idSegmentDistributor, prefetchWorkerExecutorService, CallTimeout.of(chain.getPrefetchTimeout()));
         }
 
         IdConverterDefinition converterDefinition = idDefinition.getConverter();

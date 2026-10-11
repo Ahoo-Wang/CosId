@@ -79,7 +79,7 @@ static SegmentId createSegment(IdSegmentDistributorFactory distributorFactory) {
 }
 ```
 
-Use `new DefaultSegmentId(distributor)` instead when synchronous rollover is preferred. `SegmentChainId` uses `PrefetchWorkerExecutorService.DEFAULT`, which installs a JVM shutdown hook; if the application supplies its own executor, shut that executor down explicitly.
+Use `new DefaultSegmentId(distributor)` instead when synchronous rollover is preferred. `SegmentChainId(distributor)` uses `PrefetchWorkerExecutorService.shared()`, created on first use with a JVM shutdown hook; if the application supplies its own executor, shut that executor down explicitly. Call `close()` on a `SegmentChainId` you discard to stop its background prefetch.
 
 Segment IDs are monotonic only within one generator. Distributed ranges provide global uniqueness and trend ordering, not strict global generation-time order.
 

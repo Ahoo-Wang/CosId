@@ -21,16 +21,19 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.segment.concurrent.AffinityJob;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorker;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 import me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor;
+import me.ahoo.cosid.util.CallTimeout;
 
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class SegmentChainIdTest {
 
@@ -124,8 +127,59 @@ class SegmentChainIdTest {
         new ConcurrentGenerateSpec(4, 256, Duration.ofSeconds(5), generator).verify();
     }
 
+    @Test
+    void closeShouldCancelPrefetchOnceAndKeepGenerating() {
+        NoopPrefetchWorkerExecutorService executor = new NoopPrefetchWorkerExecutorService();
+        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, new AtomicIdSegmentDistributor(2), executor);
+
+        generator.close();
+        generator.close();
+
+        assertTrue(generator.isClosed());
+        assertEquals(1, executor.worker.cancelled.get());
+        assertEquals(1, generator.generate());
+        assertEquals(2, generator.generate());
+        assertEquals(3, generator.generate());
+    }
+
+    @Test
+    void prefetchSlowerThanTimeoutShouldBeGivenUp() {
+        SlowIdSegmentDistributor distributor = new SlowIdSegmentDistributor();
+        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, 2, distributor, new NoopPrefetchWorkerExecutorService(),
+            CallTimeout.of(Duration.ofMillis(50)));
+
+        distributor.slow = true;
+        long start = System.nanoTime();
+        assertThrows(CosIdException.class, () -> generator.getPrefetchJob().prefetch());
+        assertTrue(Duration.ofNanos(System.nanoTime() - start).compareTo(Duration.ofSeconds(5)) < 0);
+
+        distributor.slow = false;
+        // The given-up call may still take its segments from the distributor: those ids are skipped, never reused.
+        assertTrue(generator.generate() > 0);
+    }
+
+    private static final class SlowIdSegmentDistributor extends AtomicIdSegmentDistributor {
+        private volatile boolean slow;
+
+        private SlowIdSegmentDistributor() {
+            super(2);
+        }
+
+        @Override
+        public long nextMaxId(long step) {
+            if (slow) {
+                try {
+                    Thread.sleep(Duration.ofSeconds(30).toMillis());
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            return super.nextMaxId(step);
+        }
+    }
+
     private static final class NoopPrefetchWorkerExecutorService extends PrefetchWorkerExecutorService {
-        private final PrefetchWorker worker = new NoopPrefetchWorker();
+        private final NoopPrefetchWorker worker = new NoopPrefetchWorker();
 
         private NoopPrefetchWorkerExecutorService() {
             super(Duration.ofDays(1), 1, false);
@@ -138,6 +192,8 @@ class SegmentChainIdTest {
     }
 
     private static final class NoopPrefetchWorker implements PrefetchWorker {
+        private final AtomicInteger cancelled = new AtomicInteger();
+
         @Override
         public String getName() {
             return "noop-prefetch-worker";
@@ -149,6 +205,7 @@ class SegmentChainIdTest {
 
         @Override
         public void cancel(AffinityJob affinityJob) {
+            cancelled.incrementAndGet();
         }
 
         @Override

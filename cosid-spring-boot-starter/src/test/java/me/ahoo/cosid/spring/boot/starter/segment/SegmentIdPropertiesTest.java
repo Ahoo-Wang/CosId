@@ -46,6 +46,7 @@ class SegmentIdPropertiesTest {
         assertThat(properties.getShare().getConverter().getType()).isEqualTo(IdConverterDefinition.Type.RADIX);
         assertThat(properties.getShare().getGroup().getBy()).isEqualTo(SegmentIdProperties.IdDefinition.GroupBy.NEVER);
         assertThat(properties.getChain().getSafeDistance()).isEqualTo(SegmentChainId.DEFAULT_SAFE_DISTANCE);
+        assertThat(properties.getChain().getPrefetchTimeout()).isEqualTo(Duration.ZERO);
         assertThat(properties.getChain().getPrefetchWorker().getPrefetchPeriod())
             .isEqualTo(PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD);
         assertThat(properties.getChain().getPrefetchWorker().getCorePoolSize())

@@ -65,7 +65,7 @@ Each optional integration applies when its module is on the classpath, and can b
 | Name | Description | Default |
 |------|-------------|---------|
 | `cosid.mybatis.enabled` | MyBatis plugin that fills id fields | `true` |
-| `cosid.jdbc.enabled` | Spring Data JDBC integration: the `@Id` field parser and the before-convert callback. The `@Id` parser joins the global field parser, so it also applies on other paths such as MyBatis. While it is off, an INFO at startup names the Spring Data JDBC entities that have `@CosId` fields. | `false` (`true` in 3.x) |
+| `cosid.jdbc.enabled` | Spring Data JDBC integration: the `@Id` field parser and the before-convert callback. The `@Id` parser joins the global field parser, so it also applies on other paths such as MyBatis. While it is off, an INFO at startup names the Spring Data JDBC entities with an `@Id` property or `@CosId` fields, which CosId no longer fills. | `false` (`true` in 3.x) |
 | `cosid.flowable.enabled` | Flowable id generator | `true` |
 | `cosid.activiti.enabled` | Activiti id generator | `true` |
 | `cosid.actuator.delete.enabled` | The `DELETE` operation of the `cosid` actuator endpoint, which removes an id generator at runtime. | `false` (`true` in 3.x) |

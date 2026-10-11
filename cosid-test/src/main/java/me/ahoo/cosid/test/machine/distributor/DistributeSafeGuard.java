@@ -28,6 +28,7 @@ import me.ahoo.cosid.test.TestSpec;
 
 import com.google.common.base.Stopwatch;
 import lombok.SneakyThrows;
+import org.junit.jupiter.api.Assumptions;
 import org.slf4j.Logger;
 
 import java.time.Duration;
@@ -88,10 +89,18 @@ public class DistributeSafeGuard implements TestSpec {
         );
         availableInstances = allInstances.subList(endIdx, MachineIdDistributor.totalMachineIds(moreMachineBit));
 
+        Stopwatch recycleStopwatch = Stopwatch.createStarted();
         Integer[] machineIds = availableInstances
                 .stream()
                 .map(instanceId -> distributor.distribute(namespace, machineBit, instanceId, safeGuardDuration).getMachineId())
                 .sorted().toArray(Integer[]::new);
+        /*
+         * The instances distributed above are never guarded: once this phase outlasts the safe guard window, later instances
+         * may legitimately recycle the machine ids of earlier ones, so the result says nothing about the distributor.
+         */
+        if (recycleStopwatch.elapsed().compareTo(safeGuardDuration) > 0) {
+            Assumptions.abort("phase 2 exceeded safe guard window: " + recycleStopwatch.elapsed() + " > " + safeGuardDuration);
+        }
 
         for (int i = 0; i < machineIds.length; i++) {
             assertThat(machineIds[i], equalTo(i));

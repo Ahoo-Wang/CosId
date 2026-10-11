@@ -54,18 +54,19 @@ import java.util.List;
 public class CosIdAutoConfiguration {
 
     /**
-     * Provides the default ID generator provider instance.
+     * Provides the ID generator provider of this application context.
      *
-     * <p>This bean supplies a singleton instance of {@link DefaultIdGeneratorProvider}
-     * that manages all registered ID generators in the application. It serves as the
-     * central registry for accessing ID generators by name.</p>
+     * <p>Each application context gets its own {@link DefaultIdGeneratorProvider}, which manages all
+     * ID generators registered in it and is cleared when the context closes. Adapters (accessors,
+     * MyBatis, Spring Data JDBC, workflow engines, Axon) resolve generators from this bean, so a
+     * user-defined {@link IdGeneratorProvider} bean replaces it everywhere.</p>
      *
-     * @return the default ID generator provider instance
+     * @return the ID generator provider of this application context
      */
-    @Bean
+    @Bean(destroyMethod = "clear")
     @ConditionalOnMissingBean
     public IdGeneratorProvider idGeneratorProvider() {
-        return DefaultIdGeneratorProvider.INSTANCE;
+        return new DefaultIdGeneratorProvider();
     }
 
     /**
@@ -104,13 +105,14 @@ public class CosIdAutoConfiguration {
      * <p>This parser analyzes classes and creates accessors for ID fields identified
      * by the field definition parser. It enables runtime reading and writing of ID values.</p>
      *
-     * @param definitionParser the field definition parser to use for field identification
+     * @param definitionParser    the field definition parser to use for field identification
+     * @param idGeneratorProvider the provider accessors resolve their generators from
      * @return a new default accessor parser instance
      */
     @Bean
     @ConditionalOnMissingBean
-    public CosIdAccessorParser cosIdAccessorParser(FieldDefinitionParser definitionParser) {
-        return new DefaultAccessorParser(definitionParser);
+    public CosIdAccessorParser cosIdAccessorParser(FieldDefinitionParser definitionParser, IdGeneratorProvider idGeneratorProvider) {
+        return new DefaultAccessorParser(definitionParser, idGeneratorProvider);
     }
 
     /**

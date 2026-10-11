@@ -14,11 +14,15 @@
 package me.ahoo.cosid.spring.boot.starter.flowable;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import me.ahoo.cosid.flowable.FlowableIdGenerator;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.flowable.spring.SpringProcessEngineConfiguration;
 import org.flowable.spring.boot.EngineConfigurationConfigurer;
@@ -29,7 +33,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class FlowableIdGeneratorAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(FlowableIdGeneratorAutoConfiguration.class));
+        .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, FlowableIdGeneratorAutoConfiguration.class));
 
     @Test
     void createsConfigurerWhenCosIdAndFlowableAreAvailable() {
@@ -65,5 +69,16 @@ class FlowableIdGeneratorAutoConfigurationTest {
                 EngineConfigurationConfigurer.class
             ))
             .run(context -> assertThat(context).doesNotHaveBean(EngineConfigurationConfigurer.class));
+    }
+
+    @Test
+    void configuresIdGeneratorFromContextProvider() {
+        this.contextRunner.run(context -> {
+            context.getBean(IdGeneratorProvider.class).setShare(MockIdGenerator.usePrefix("ctx_"));
+            SpringProcessEngineConfiguration engineConfiguration = mock(SpringProcessEngineConfiguration.class);
+            context.getBean(EngineConfigurationConfigurer.class).configure(engineConfiguration);
+
+            verify(engineConfiguration).setIdGenerator(argThat(idGenerator -> idGenerator.getNextId().startsWith("ctx_")));
+        });
     }
 }

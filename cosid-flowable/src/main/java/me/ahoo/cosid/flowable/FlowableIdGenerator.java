@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.flowable;
 
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.provider.LazyIdGenerator;
 
@@ -26,8 +27,31 @@ public class FlowableIdGenerator implements org.flowable.common.engine.impl.cfg.
     public static final String ID_KEY = "cosid.flowable";
     private final LazyIdGenerator idGenerator;
 
+    /**
+     * Creates a generator that resolves from {@link DefaultIdGeneratorProvider#INSTANCE}.
+     */
     public FlowableIdGenerator() {
-        this.idGenerator = new LazyIdGenerator(System.getProperty(ID_KEY, IdGeneratorProvider.SHARE));
+        this(DefaultIdGeneratorProvider.INSTANCE);
+    }
+
+    /**
+     * Creates a generator that resolves the generator named by the {@link #ID_KEY} system property
+     * (default {@link IdGeneratorProvider#SHARE}) from the given provider.
+     *
+     * @param idGeneratorProvider the provider to resolve the generator from
+     */
+    public FlowableIdGenerator(IdGeneratorProvider idGeneratorProvider) {
+        this(System.getProperty(ID_KEY, IdGeneratorProvider.SHARE), idGeneratorProvider);
+    }
+
+    /**
+     * Creates a generator that resolves the named generator from the given provider.
+     *
+     * @param generatorName       the generator name
+     * @param idGeneratorProvider the provider to resolve the generator from
+     */
+    public FlowableIdGenerator(String generatorName, IdGeneratorProvider idGeneratorProvider) {
+        this.idGenerator = new LazyIdGenerator(generatorName, idGeneratorProvider);
     }
     
     public String getNextId() {

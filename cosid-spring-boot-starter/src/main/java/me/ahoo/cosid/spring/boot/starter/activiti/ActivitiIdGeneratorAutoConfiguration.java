@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.activiti;
 
 import me.ahoo.cosid.activiti.ActivitiIdGenerator;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
 import org.activiti.spring.SpringProcessEngineConfiguration;
@@ -37,15 +38,20 @@ import org.springframework.context.annotation.Bean;
 public class ActivitiIdGeneratorAutoConfiguration {
     
     @Bean
-    public ProcessEngineConfigurationConfigurer engineConfigurationConfigurer() {
-        return new ActivitiIdGeneratorAutoConfiguration.CosIdProcessEngineConfigurationConfigurer();
+    public ProcessEngineConfigurationConfigurer engineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
+        return new ActivitiIdGeneratorAutoConfiguration.CosIdProcessEngineConfigurationConfigurer(idGeneratorProvider);
     }
     
     static class CosIdProcessEngineConfigurationConfigurer implements ProcessEngineConfigurationConfigurer {
-        
+        private final IdGeneratorProvider idGeneratorProvider;
+
+        CosIdProcessEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
+            this.idGeneratorProvider = idGeneratorProvider;
+        }
+
         @Override
         public void configure(SpringProcessEngineConfiguration engineConfiguration) {
-            engineConfiguration.setIdGenerator(new ActivitiIdGenerator());
+            engineConfiguration.setIdGenerator(new ActivitiIdGenerator(idGeneratorProvider));
         }
     }
 }

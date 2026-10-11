@@ -8,12 +8,17 @@ import me.ahoo.cosid.accessor.parser.CosIdAccessorParser;
 import me.ahoo.cosid.accessor.parser.FieldDefinitionParser;
 import me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry;
 import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
+import me.ahoo.cosid.annotation.CosId;
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Test;
 import org.assertj.core.api.AssertionsForInterfaceTypes;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 class CosIdAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
@@ -77,5 +82,62 @@ class CosIdAutoConfigurationTest {
                 .doesNotHaveBean(IdGeneratorProvider.class)
                 .doesNotHaveBean(CosIdAccessorParser.class)
                 .doesNotHaveBean(CosIdAccessorRegistry.class));
+    }
+
+    @Test
+    void createsProviderPerContextInsteadOfGlobalInstance() {
+        AtomicReference<IdGeneratorProvider> first = new AtomicReference<>();
+        this.contextRunner.run(context -> {
+            IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
+            assertThat(provider).isNotSameAs(DefaultIdGeneratorProvider.INSTANCE);
+            provider.setShare(MockIdGenerator.INSTANCE);
+            first.set(provider);
+        });
+        this.contextRunner.run(context -> {
+            IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
+            assertThat(provider).isNotSameAs(first.get());
+            assertThat(provider.getShare()).isNull();
+        });
+        assertThat(DefaultIdGeneratorProvider.INSTANCE.getShare()).isNull();
+    }
+
+    @Test
+    void clearsProviderWhenContextCloses() {
+        AtomicReference<IdGeneratorProvider> holder = new AtomicReference<>();
+        this.contextRunner.run(context -> {
+            IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
+            provider.setShare(MockIdGenerator.INSTANCE);
+            provider.set("order", MockIdGenerator.INSTANCE);
+            holder.set(provider);
+        });
+        assertThat(holder.get().getShare()).isNull();
+        assertThat(holder.get().getAll()).isEmpty();
+    }
+
+    @Test
+    void accessorsResolveGeneratorsFromUserProvidedProvider() {
+        IdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.setShare(MockIdGenerator.usePrefix("user_"));
+
+        this.contextRunner
+            .withBean(IdGeneratorProvider.class, () -> provider)
+            .run(context -> {
+                StringIdEntity entity = new StringIdEntity();
+                assertThat(context.getBean(CosIdAccessorRegistry.class).ensureId(entity)).isTrue();
+                assertThat(entity.getId()).startsWith("user_");
+            });
+    }
+
+    public static class StringIdEntity {
+        @CosId
+        private String id;
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
     }
 }

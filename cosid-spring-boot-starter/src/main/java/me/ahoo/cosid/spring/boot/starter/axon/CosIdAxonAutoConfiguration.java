@@ -11,47 +11,49 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.spring.boot.starter.flowable;
+package me.ahoo.cosid.spring.boot.starter.axon;
 
-import me.ahoo.cosid.flowable.FlowableIdGenerator;
+import me.ahoo.cosid.axon.CosIdIdentifierFactory;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
-import org.flowable.spring.SpringProcessEngineConfiguration;
-import org.flowable.spring.boot.EngineConfigurationConfigurer;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
 
 /**
- * Flowable IdGenerator Auto Configuration.
+ * Binds the application context's {@link IdGeneratorProvider} to Axon's {@link CosIdIdentifierFactory}.
+ *
+ * <p>Axon loads its {@code IdentifierFactory} through {@link java.util.ServiceLoader}, so the provider is bound
+ * statically while this context is alive and unbound when it closes.</p>
  *
  * @author ahoo wang
  */
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
-@ConditionalOnClass({
-    FlowableIdGenerator.class,
-    SpringProcessEngineConfiguration.class,
-    EngineConfigurationConfigurer.class
-})
-public class FlowableIdGeneratorAutoConfiguration {
-    
+@ConditionalOnClass(CosIdIdentifierFactory.class)
+public class CosIdAxonAutoConfiguration {
+
     @Bean
-    public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> engineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
-        return new CosIdEngineConfigurationConfigurer(idGeneratorProvider);
+    public CosIdAxonProviderBinding cosIdAxonProviderBinding(IdGeneratorProvider idGeneratorProvider) {
+        return new CosIdAxonProviderBinding(idGeneratorProvider);
     }
-    
-    static class CosIdEngineConfigurationConfigurer implements EngineConfigurationConfigurer<SpringProcessEngineConfiguration> {
+
+    /**
+     * Keeps {@link CosIdIdentifierFactory} bound to a provider for the lifetime of the bean.
+     */
+    public static class CosIdAxonProviderBinding implements DisposableBean {
         private final IdGeneratorProvider idGeneratorProvider;
 
-        CosIdEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
+        public CosIdAxonProviderBinding(IdGeneratorProvider idGeneratorProvider) {
             this.idGeneratorProvider = idGeneratorProvider;
+            CosIdIdentifierFactory.bind(idGeneratorProvider);
         }
 
         @Override
-        public void configure(SpringProcessEngineConfiguration engineConfiguration) {
-            engineConfiguration.setIdGenerator(new FlowableIdGenerator(idGeneratorProvider));
+        public void destroy() {
+            CosIdIdentifierFactory.unbind(idGeneratorProvider);
         }
     }
 }

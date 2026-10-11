@@ -14,6 +14,8 @@
 package me.ahoo.cosid.accessor;
 
 import me.ahoo.cosid.IntegerIdGenerator;
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -40,7 +42,19 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
      * @param setter      the setter for setting ID on entities
      */
     public DefaultCosIdAccessor(IdDefinition idDefinition, CosIdGetter getter, CosIdSetter setter) {
-        super(idDefinition);
+        this(idDefinition, getter, setter, DefaultIdGeneratorProvider.INSTANCE);
+    }
+
+    /**
+     * Creates a new accessor that resolves its generator from the given provider.
+     *
+     * @param idDefinition        the ID definition
+     * @param getter              the getter for extracting ID from entities
+     * @param setter              the setter for setting ID on entities
+     * @param idGeneratorProvider the provider used to resolve the generator
+     */
+    public DefaultCosIdAccessor(IdDefinition idDefinition, CosIdGetter getter, CosIdSetter setter, IdGeneratorProvider idGeneratorProvider) {
+        super(idDefinition, idGeneratorProvider);
         this.getter = getter;
         this.setter = setter;
         this.ensureId = getEnsureId();

@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
+import me.ahoo.cosid.snowflake.SnowflakeLayout;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.ClockTooManyBackwardsException;
 
@@ -111,6 +112,11 @@ class ClockSyncSnowflakeIdTest {
     }
 
     private static final class RecordingSnowflakeId implements SnowflakeId {
+        @Override
+        public SnowflakeLayout layout() {
+            return new SnowflakeLayout(getEpoch(), getTimestampBit(), getMachineBit(), getSequenceBit());
+        }
+
         private final ArrayDeque<Object> outcomes = new ArrayDeque<>();
         private int generateCalls;
         private long lastTimestamp = 456L;
@@ -148,21 +154,6 @@ class ClockSyncSnowflakeIdTest {
         @Override
         public int getSequenceBit() {
             return 4;
-        }
-
-        @Override
-        public long getMaxTimestamp() {
-            return 4095L;
-        }
-
-        @Override
-        public int getMaxMachineId() {
-            return 255;
-        }
-
-        @Override
-        public long getMaxSequence() {
-            return 15L;
         }
 
         @Override

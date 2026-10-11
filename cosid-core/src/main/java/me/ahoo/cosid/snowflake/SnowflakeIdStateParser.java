@@ -121,6 +121,22 @@ public abstract class SnowflakeIdStateParser {
      * @param padStart     whether to pad numeric fields with leading zeros
      */
     public SnowflakeIdStateParser(long epoch, int timestampBit, int machineBit, int sequenceBit, ZoneId zoneId, boolean padStart) {
+        this(new SnowflakeLayout(epoch, timestampBit, machineBit, sequenceBit), zoneId, padStart);
+    }
+
+    /**
+     * Creates a parser for ids of the given layout.
+     *
+     * @param layout   the bit layout of the ids
+     * @param zoneId   time zone for timestamp conversion
+     * @param padStart whether to pad numeric fields
+     * @since 4.0.0
+     */
+    public SnowflakeIdStateParser(SnowflakeLayout layout, ZoneId zoneId, boolean padStart) {
+        final long epoch = layout.epoch();
+        final int timestampBit = layout.timestampBit();
+        final int machineBit = layout.machineBit();
+        final int sequenceBit = layout.sequenceBit();
         this.epoch = epoch;
         this.sequenceMask = getMask(sequenceBit);
         this.sequenceBit = sequenceBit;

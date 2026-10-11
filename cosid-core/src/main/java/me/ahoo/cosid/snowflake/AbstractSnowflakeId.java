@@ -94,6 +94,10 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
      * <p>A read-only mirror of the {@link TimestampSequencer} state since 3.4.0: changing it has no effect.</p>
      */
     protected long lastTimestamp = -1L;
+    /**
+     * The bit layout.
+     */
+    private final SnowflakeLayout layout;
 
     /**
      * Creates a new AbstractSnowflakeId.
@@ -112,9 +116,7 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
                                int sequenceBit,
                                int machineId,
                                long sequenceResetThreshold) {
-        if ((timestampBit + machineBit + sequenceBit) > TOTAL_BIT) {
-            throw new IllegalArgumentException("total bit can't be greater than TOTAL_BIT[63] .");
-        }
+        this.layout = new SnowflakeLayout(epoch, timestampBit, machineBit, sequenceBit);
         this.epoch = epoch;
         this.timestampBit = timestampBit;
         this.machineBit = machineBit;
@@ -170,6 +172,11 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         return diffTimestamp << timestampLeft
                 | machineId << machineLeft
                 | sequence;
+    }
+
+    @Override
+    public SnowflakeLayout layout() {
+        return layout;
     }
 
     @Override

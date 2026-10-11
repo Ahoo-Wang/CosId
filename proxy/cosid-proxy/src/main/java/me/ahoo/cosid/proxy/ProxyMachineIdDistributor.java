@@ -75,7 +75,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
         if (log.isInfoEnabled()) {
             log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
-        machineClient.revert(namespace, instanceId.getInstanceId(), instanceId.isStable());
+        machineClient.revert(namespace, instanceId.getInstanceId(), instanceId.isStable(), machineState.getMachineId(), machineState.getLastTimeStamp());
     }
 
     @SneakyThrows
@@ -85,7 +85,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             log.info("Guard Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         try {
-            machineClient.guard(namespace, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration.toString());
+            machineClient.guard(namespace, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration.toString(), machineState.getMachineId(), machineState.getLastTimeStamp());
         } catch (HttpClientErrorException.BadRequest badRequest) {
             ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(badRequest.getResponseBodyAsByteArray(), ErrorResponse.class);
             switch (errorResponse.getCode()) {

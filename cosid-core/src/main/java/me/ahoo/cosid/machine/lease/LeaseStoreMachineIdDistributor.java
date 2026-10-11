@@ -42,6 +42,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor {
     private final MachineLeaseManager leaseManager;
     private final ConcurrentHashMap<NamespacedInstanceId, Lease> leases = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<NamespacedInstanceId, Object> locks = new ConcurrentHashMap<>();
     
     public LeaseStoreMachineIdDistributor(MachineLeaseStore store, MachineStateStorage machineStateStorage,
                                           ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
@@ -68,29 +69,47 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         NamespacedInstanceId key = new NamespacedInstanceId(namespace, instanceId);
-        Lease lease = currentLease(key, machineState).orElseThrow(() -> new MachineIdLostException(namespace, instanceId, machineState));
-        Optional<Lease> renewed = leaseManager.renew(lease);
-        if (renewed.isEmpty()) {
-            leases.remove(key, lease);
-            throw new MachineIdLostException(namespace, instanceId, machineState);
+        synchronized (lockOf(key)) {
+            Lease lease = currentLease(key, machineState).orElseThrow(() -> new MachineIdLostException(namespace, instanceId, machineState));
+            Optional<Lease> renewed;
+            try {
+                renewed = leaseManager.renew(lease);
+            } catch (RuntimeException renewException) {
+                // The write may still have landed (e.g. a timeout): the cached version could be stale. Forget it, so the
+                // next guard takes the lease back from the store instead of failing on a version that is no longer current.
+                leases.remove(key, lease);
+                throw renewException;
+            }
+            if (renewed.isEmpty()) {
+                leases.remove(key, lease);
+                throw new MachineIdLostException(namespace, instanceId, machineState);
+            }
+            leases.put(key, renewed.get());
         }
-        leases.put(key, renewed.get());
     }
     
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
         NamespacedInstanceId key = new NamespacedInstanceId(namespace, instanceId);
-        Optional<Lease> lease = currentLease(key, machineState);
-        leases.remove(key);
-        if (lease.isEmpty()) {
-            if (log.isWarnEnabled()) {
-                log.warn("Revert [{}] @ namespace:[{}] - no lease held, the machine id may have been taken over.", instanceId, namespace);
+        // Same lock as guard: a release between a renew and its cache update would fail on the version and keep the
+        // machine id blocked until it expires.
+        synchronized (lockOf(key)) {
+            Optional<Lease> lease = currentLease(key, machineState);
+            leases.remove(key);
+            if (lease.isEmpty()) {
+                if (log.isWarnEnabled()) {
+                    log.warn("Revert [{}] @ namespace:[{}] - no lease held, the machine id may have been taken over.", instanceId, namespace);
+                }
+                return;
             }
-            return;
+            if (!leaseManager.release(lease.get(), machineState.getLastTimeStamp()) && log.isWarnEnabled()) {
+                log.warn("Revert [{}] - taken over in the meantime, skip release.", lease.get());
+            }
         }
-        if (!leaseManager.release(lease.get(), machineState.getLastTimeStamp()) && log.isWarnEnabled()) {
-            log.warn("Revert [{}] - taken over in the meantime, skip release.", lease.get());
-        }
+    }
+    
+    private Object lockOf(NamespacedInstanceId key) {
+        return locks.computeIfAbsent(key, absent -> new Object());
     }
     
     /**

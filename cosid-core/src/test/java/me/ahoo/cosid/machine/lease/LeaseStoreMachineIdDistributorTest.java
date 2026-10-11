@@ -28,6 +28,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Optional;
 
 /**
  * Runs {@link MachineIdDistributorSpec} through {@link LeaseStoreMachineIdDistributor} on the in-memory store.
@@ -81,5 +82,96 @@ class LeaseStoreMachineIdDistributorTest extends MachineIdDistributorSpec {
         Assertions.assertThrows(MachineIdOverflowException.class,
             () -> distributor.distribute(namespace, 1, InstanceId.of("stable", true), Duration.ofMillis(1)).getMachineId());
         Assertions.assertDoesNotThrow(() -> distributor.distribute(namespace, 1, InstanceId.of("temporary", false), Duration.ofMillis(1)));
+    }
+    
+    /**
+     * Delegates to the in-memory store, with switches to make the next renew land and then throw, and the next
+     * claimNew lose a race.
+     */
+    private static final class FlakyStore implements MachineLeaseStore {
+        private final InMemoryMachineLeaseStore delegate = new InMemoryMachineLeaseStore();
+        private volatile boolean failNextRenewAfterWrite;
+        private volatile int claimNewRacesToLose;
+        
+        @Override
+        public Optional<Lease> claimSelf(String namespace, InstanceId instanceId, long now) {
+            return delegate.claimSelf(namespace, instanceId, now);
+        }
+        
+        @Override
+        public Optional<Lease> claimReleased(String namespace, InstanceId instanceId, int maxMachineId, long now) {
+            return delegate.claimReleased(namespace, instanceId, maxMachineId, now);
+        }
+        
+        @Override
+        public Optional<Lease> claimNew(String namespace, InstanceId instanceId, int maxMachineId, long now) {
+            if (claimNewRacesToLose > 0) {
+                claimNewRacesToLose--;
+                return Optional.empty();
+            }
+            return delegate.claimNew(namespace, instanceId, maxMachineId, now);
+        }
+        
+        @Override
+        public Optional<Lease> claimExpired(String namespace, InstanceId instanceId, int maxMachineId, long expiredBefore, long now) {
+            return delegate.claimExpired(namespace, instanceId, maxMachineId, expiredBefore, now);
+        }
+        
+        @Override
+        public Optional<Lease> renew(Lease lease, long now) {
+            Optional<Lease> renewed = delegate.renew(lease, now);
+            if (failNextRenewAfterWrite) {
+                failNextRenewAfterWrite = false;
+                throw new IllegalStateException("timed out after the write landed");
+            }
+            return renewed;
+        }
+        
+        @Override
+        public boolean release(Lease lease, long lastTimestamp) {
+            return delegate.release(lease, lastTimestamp);
+        }
+    }
+    
+    @Test
+    void guardRecoversAfterRenewThrewButLanded() {
+        FlakyStore flakyStore = new FlakyStore();
+        String namespace = "renewThrew_" + MockIdGenerator.INSTANCE.generateAsString();
+        InstanceId owner = InstanceId.of("owner", false);
+        LeaseStoreMachineIdDistributor distributor = new LeaseStoreMachineIdDistributor(flakyStore, new InMemoryMachineStateStorage(),
+            ClockBackwardsSynchronizer.DEFAULT);
+        distributor.distribute(namespace, 4, owner, Duration.ofMinutes(1));
+        flakyStore.failNextRenewAfterWrite = true;
+        
+        Assertions.assertThrows(IllegalStateException.class, () -> distributor.guard(namespace, owner, Duration.ofMinutes(1)));
+        
+        // Nobody took the machine id over: the next guard must succeed, not report it lost.
+        Assertions.assertDoesNotThrow(() -> distributor.guard(namespace, owner, Duration.ofMinutes(1)));
+    }
+    
+    @Test
+    void guardReportsLostWhenTakenOverAfterRenewThrew() {
+        FlakyStore flakyStore = new FlakyStore();
+        String namespace = "renewThrewTaken_" + MockIdGenerator.INSTANCE.generateAsString();
+        InstanceId owner = InstanceId.of("owner", false);
+        LeaseStoreMachineIdDistributor distributor = new LeaseStoreMachineIdDistributor(flakyStore, new InMemoryMachineStateStorage(),
+            ClockBackwardsSynchronizer.DEFAULT);
+        distributor.distribute(namespace, 0 + 1, owner, Duration.ofMinutes(1));
+        flakyStore.failNextRenewAfterWrite = true;
+        Assertions.assertThrows(IllegalStateException.class, () -> distributor.guard(namespace, owner, Duration.ofMinutes(1)));
+        flakyStore.claimExpired(namespace, InstanceId.of("thief", false), 1, Long.MAX_VALUE - 1, flakyStore.serverTime()).orElseThrow();
+        
+        Assertions.assertThrows(MachineIdLostException.class, () -> distributor.guard(namespace, owner, Duration.ofMinutes(1)));
+    }
+    
+    @Test
+    void acquireRetriesAClaimThatLostARace() {
+        FlakyStore flakyStore = new FlakyStore();
+        flakyStore.claimNewRacesToLose = MachineLeaseManager.CLAIM_ROUNDS - 1;
+        String namespace = "lostRace_" + MockIdGenerator.INSTANCE.generateAsString();
+        
+        Lease lease = new MachineLeaseManager(flakyStore).acquire(namespace, InstanceId.of("owner", false), 4, Duration.ofMinutes(1));
+        
+        Assertions.assertEquals(0, lease.getMachineId());
     }
 }

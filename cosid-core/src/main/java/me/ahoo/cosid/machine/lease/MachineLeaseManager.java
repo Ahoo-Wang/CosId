@@ -40,6 +40,11 @@ import java.util.Optional;
  */
 @Slf4j
 public class MachineLeaseManager {
+    /**
+     * Rounds of the claim sequence: a claim that lost a race to a concurrent instance is tried again before reporting
+     * an overflow.
+     */
+    static final int CLAIM_ROUNDS = 3;
     private final MachineLeaseStore store;
     
     public MachineLeaseManager(MachineLeaseStore store) {
@@ -57,6 +62,20 @@ public class MachineLeaseManager {
      */
     public Lease acquire(String namespace, InstanceId instanceId, int machineBit, Duration safeGuardDuration) throws MachineIdOverflowException {
         int maxMachineId = MachineIdDistributor.maxMachineId(machineBit);
+        Optional<Lease> lease = Optional.empty();
+        for (int round = 0; round < CLAIM_ROUNDS && lease.isEmpty(); round++) {
+            lease = claimOnce(namespace, instanceId, maxMachineId, safeGuardDuration);
+        }
+        if (lease.isEmpty()) {
+            throw new MachineIdOverflowException(MachineIdDistributor.totalMachineIds(machineBit), instanceId);
+        }
+        if (log.isInfoEnabled()) {
+            log.info("Acquire [{}].", lease.get());
+        }
+        return lease.get();
+    }
+    
+    private Optional<Lease> claimOnce(String namespace, InstanceId instanceId, int maxMachineId, Duration safeGuardDuration) {
         long now = store.serverTime();
         Optional<Lease> lease = store.claimSelf(namespace, instanceId, now);
         if (lease.isEmpty()) {
@@ -68,13 +87,7 @@ public class MachineLeaseManager {
         if (lease.isEmpty() && canTakeOverExpired(instanceId, safeGuardDuration)) {
             lease = store.claimExpired(namespace, instanceId, maxMachineId, now - safeGuardDuration.toMillis(), now);
         }
-        if (lease.isEmpty()) {
-            throw new MachineIdOverflowException(MachineIdDistributor.totalMachineIds(machineBit), instanceId);
-        }
-        if (log.isInfoEnabled()) {
-            log.info("Acquire [{}].", lease.get());
-        }
-        return lease.get();
+        return lease;
     }
     
     /**

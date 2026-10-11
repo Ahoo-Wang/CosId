@@ -224,6 +224,43 @@ public abstract class MachineLeaseStoreSpec {
     }
     
     @Test
+    public void concurrentClaimersOfAsManyReleasedIdsAllSucceed() throws Exception {
+        MachineLeaseStore store = getStore();
+        String namespace = newNamespace("allReleased");
+        for (int i = 0; i < CONCURRENCY; i++) {
+            store.release(store.claimNew(namespace, instance("owner" + i), MAX_MACHINE_ID, T0).orElseThrow(), T0 + 10);
+        }
+        
+        List<Optional<Lease>> results = concurrently(CONCURRENCY,
+            index -> () -> store.claimReleased(namespace, instance("claimer" + index), MAX_MACHINE_ID, T0 + 20));
+        
+        assertDistinctWinners(results, CONCURRENCY);
+    }
+    
+    @Test
+    public void concurrentClaimersOfAsManyExpiredIdsAllSucceed() throws Exception {
+        MachineLeaseStore store = getStore();
+        String namespace = newNamespace("allExpired");
+        for (int i = 0; i < CONCURRENCY; i++) {
+            store.claimNew(namespace, instance("owner" + i), MAX_MACHINE_ID, T0).orElseThrow();
+        }
+        
+        List<Optional<Lease>> results = concurrently(CONCURRENCY,
+            index -> () -> store.claimExpired(namespace, instance("claimer" + index), MAX_MACHINE_ID, T0 + 100, T0 + 200));
+        
+        assertDistinctWinners(results, CONCURRENCY);
+    }
+    
+    private static void assertDistinctWinners(List<Optional<Lease>> results, int expected) {
+        Set<Integer> machineIds = new HashSet<>();
+        for (Optional<Lease> result : results) {
+            assertThat("every claimer gets one of the free machine ids", result.isPresent(), equalTo(true));
+            machineIds.add(result.get().getMachineId());
+        }
+        assertThat(machineIds, hasSize(expected));
+    }
+    
+    @Test
     public void concurrentRenewOfOneVersionHasOneWinner() throws Exception {
         MachineLeaseStore store = getStore();
         String namespace = newNamespace("concurrentRenew");

@@ -32,6 +32,11 @@ import org.jspecify.annotations.Nullable;
  * <p>A provider supports either side by returning a value from its method, and {@code null} for the side it does not
  * support.</p>
  *
+ * <p>The built-in backends check for application providers when they register their beans, by bean type. Define the
+ * provider as a bean of its concrete type, in the application's configuration or in an auto-configuration ordered
+ * before CosId's backend auto-configurations ({@code @AutoConfiguration(before = ...)}); a provider registered later, or
+ * through a raw-typed {@code FactoryBean}, is ignored and a warning is logged at startup.</p>
+ *
  * @author ahoo wang
  * @since 3.4.0
  */

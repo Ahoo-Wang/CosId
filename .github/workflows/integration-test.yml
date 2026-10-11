@@ -46,6 +46,26 @@ jobs:
       - name: Test CosId-Core
         run: ./gradlew cosid-core:clean cosid-core:check
 
+  # Publishing builds the javadoc of every module: a broken reference fails the release otherwise.
+  javadoc:
+    name: Javadoc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          server-id: github
+          cache: gradle
+          settings-path: ${{ github.workspace }}
+
+      - name: Javadoc
+        run: ./gradlew javadoc
+
   cosid-jackson-test:
     name: CosId Jackson Test
     needs: [ cosid-core-test ]

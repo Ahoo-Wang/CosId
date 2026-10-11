@@ -26,6 +26,8 @@ import me.ahoo.cosid.accessor.field.FieldGetter;
 import me.ahoo.cosid.accessor.field.FieldSetter;
 import me.ahoo.cosid.accessor.method.MethodGetter;
 import me.ahoo.cosid.accessor.method.MethodSetter;
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
@@ -56,14 +58,27 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
 
     private final ConcurrentHashMap<Class<?>, CosIdAccessor> classMapAccessor = new ConcurrentHashMap<>();
     private final FieldDefinitionParser definitionParser;
+    private final IdGeneratorProvider idGeneratorProvider;
 
     /**
-     * Creates a parser with the specified definition parser.
+     * Creates a parser with the specified definition parser, resolving generators from
+     * {@link DefaultIdGeneratorProvider#INSTANCE}.
      *
      * @param definitionParser the field definition parser
      */
     public DefaultAccessorParser(FieldDefinitionParser definitionParser) {
+        this(definitionParser, DefaultIdGeneratorProvider.INSTANCE);
+    }
+
+    /**
+     * Creates a parser whose accessors resolve generators from the given provider.
+     *
+     * @param definitionParser    the field definition parser
+     * @param idGeneratorProvider the provider used by parsed accessors to resolve generators
+     */
+    public DefaultAccessorParser(FieldDefinitionParser definitionParser, IdGeneratorProvider idGeneratorProvider) {
         this.definitionParser = definitionParser;
+        this.idGeneratorProvider = idGeneratorProvider;
     }
 
     @Override
@@ -203,7 +218,7 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
 
         CosIdGetter cosIdGetter = getter != null ? new MethodGetter(getter) : new FieldGetter(idField);
         CosIdSetter cosIdSetter = setter != null ? new MethodSetter(setter) : new FieldSetter(idField);
-        return new DefaultCosIdAccessor(idDefinition, cosIdGetter, cosIdSetter);
+        return new DefaultCosIdAccessor(idDefinition, cosIdGetter, cosIdSetter, idGeneratorProvider);
     }
 
 }

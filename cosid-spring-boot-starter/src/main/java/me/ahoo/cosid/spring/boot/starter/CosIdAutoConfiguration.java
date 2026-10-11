@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.accessor.parser.CompositeFieldDefinitionParser;
 import me.ahoo.cosid.accessor.parser.CosIdAccessorParser;
 import me.ahoo.cosid.accessor.parser.DefaultAccessorParser;
@@ -25,6 +26,7 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -54,18 +56,39 @@ import java.util.List;
 public class CosIdAutoConfiguration {
 
     /**
-     * Provides the default ID generator provider instance.
+     * Property that switches the provider bean to one isolated per application context.
+     */
+    public static final String PROVIDER_ISOLATED_KEY = CosId.COSID_PREFIX + "provider.isolated";
+
+    /**
+     * Provides the shared ID generator provider (default).
      *
-     * <p>This bean supplies a singleton instance of {@link DefaultIdGeneratorProvider}
-     * that manages all registered ID generators in the application. It serves as the
-     * central registry for accessing ID generators by name.</p>
+     * <p>Returns {@link DefaultIdGeneratorProvider#INSTANCE}, so code that reads {@code INSTANCE} directly keeps
+     * working. Adapters (accessors, MyBatis, Spring Data JDBC, workflow engines, Axon) resolve generators from this
+     * bean, so a user-defined {@link IdGeneratorProvider} bean replaces it everywhere.</p>
      *
-     * @return the default ID generator provider instance
+     * @return the shared ID generator provider
      */
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnProperty(value = PROVIDER_ISOLATED_KEY, havingValue = "false", matchIfMissing = true)
     public IdGeneratorProvider idGeneratorProvider() {
         return DefaultIdGeneratorProvider.INSTANCE;
+    }
+
+    /**
+     * Provides an ID generator provider owned by this application context ({@code cosid.provider.isolated=true}).
+     *
+     * <p>Generators registered in one context are not visible to others, and the provider is cleared when the
+     * context closes. {@link DefaultIdGeneratorProvider#INSTANCE} is not populated in this mode.</p>
+     *
+     * @return the ID generator provider of this application context
+     */
+    @Bean(name = "idGeneratorProvider", destroyMethod = "clear")
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(value = PROVIDER_ISOLATED_KEY, havingValue = "true")
+    public IdGeneratorProvider isolatedIdGeneratorProvider() {
+        return new DefaultIdGeneratorProvider();
     }
 
     /**
@@ -104,13 +127,14 @@ public class CosIdAutoConfiguration {
      * <p>This parser analyzes classes and creates accessors for ID fields identified
      * by the field definition parser. It enables runtime reading and writing of ID values.</p>
      *
-     * @param definitionParser the field definition parser to use for field identification
+     * @param definitionParser    the field definition parser to use for field identification
+     * @param idGeneratorProvider the provider accessors resolve their generators from
      * @return a new default accessor parser instance
      */
     @Bean
     @ConditionalOnMissingBean
-    public CosIdAccessorParser cosIdAccessorParser(FieldDefinitionParser definitionParser) {
-        return new DefaultAccessorParser(definitionParser);
+    public CosIdAccessorParser cosIdAccessorParser(FieldDefinitionParser definitionParser, IdGeneratorProvider idGeneratorProvider) {
+        return new DefaultAccessorParser(definitionParser, idGeneratorProvider);
     }
 
     /**

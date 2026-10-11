@@ -48,6 +48,10 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "flowable-support", version.toString())
     }
+    registerFeature("axonSupport") {
+        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
+        capability(group.toString(), "axon-support", version.toString())
+    }
     registerFeature("cloudSupport") {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "cloud-support", version.toString())
@@ -78,6 +82,9 @@ dependencies {
     "flowableSupportImplementation"(project(":cosid-flowable"))
     "flowableSupportImplementation"(libs.flowable.spring)
     "flowableSupportImplementation"(libs.flowable.spring.boot.autoconfigure)
+    "axonSupportImplementation"(project(":cosid-axon"))
+    "axonSupportImplementation"(platform(libs.axon.bom))
+    "axonSupportImplementation"("org.axonframework:axon-messaging")
     "mybatisSupportImplementation"(project(":cosid-mybatis"))
     "dataJdbcSupportImplementation"(project(":cosid-spring-data-jdbc"))
     api("org.springframework.boot:spring-boot-starter")

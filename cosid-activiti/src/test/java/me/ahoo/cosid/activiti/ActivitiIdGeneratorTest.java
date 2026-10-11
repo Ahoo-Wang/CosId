@@ -55,4 +55,15 @@ class ActivitiIdGeneratorTest {
         System.clearProperty(ID_KEY);
         DefaultIdGeneratorProvider.INSTANCE.clear();
     }
+
+    @Test
+    @Order(3)
+    void getNextIdUsesGivenProvider() {
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.setShare(MockIdGenerator.usePrefix("provider_"));
+
+        String id = new ActivitiIdGenerator(provider).getNextId();
+
+        assertThat(id, startsWith("provider_"));
+    }
 }

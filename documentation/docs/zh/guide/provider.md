@@ -46,6 +46,14 @@ DefaultIdGeneratorProvider.INSTANCE.set("order", segmentChainId);
 IdGenerator removed = DefaultIdGeneratorProvider.INSTANCE.remove("order");
 ```
 
+## 在 Spring Boot 中使用
+
+Spring Boot 应用请注入 `IdGeneratorProvider` Bean，而不是直接使用 `DefaultIdGeneratorProvider.INSTANCE`。注解访问器、MyBatis、Spring Data JDBC、Activiti、Flowable、Axon 适配器都从这个 Bean 获取生成器，因此自定义的 `IdGeneratorProvider` Bean 会对它们全部生效。
+
+| 配置 | 默认值 | 说明 |
+|------|--------|------|
+| `cosid.provider.isolated` | `false` | `false`：`IdGeneratorProvider` Bean 就是 `DefaultIdGeneratorProvider.INSTANCE`（与以往版本一致）。`true`：每个 `ApplicationContext` 使用独立的 `DefaultIdGeneratorProvider`，Context 关闭时清空；多个 Context（如 devtools 重启、测试缓存的 Context）之间不会共享生成器，`INSTANCE` 中也不再包含 Spring 注册的生成器。 |
+
 ## LazyIdGenerator
 
 `LazyIdGenerator` 提供 ID 生成器的懒加载功能。生成器只在首次访问时创建。

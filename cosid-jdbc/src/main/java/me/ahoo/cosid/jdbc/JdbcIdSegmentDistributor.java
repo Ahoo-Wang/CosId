@@ -28,6 +28,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 
 /**
  * Jdbc IdSegment Distributor.
@@ -48,12 +49,24 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
     private final DataSource dataSource;
     private final String incrementMaxIdSql;
     private final String fetchMaxIdSql;
+    private final int queryTimeoutSeconds;
+    private volatile long lastMaxId;
 
     public JdbcIdSegmentDistributor(String namespace, String name, long step, DataSource dataSource) {
         this(namespace, name, step, INCREMENT_MAX_ID_SQL, FETCH_MAX_ID_SQL, dataSource);
     }
 
     public JdbcIdSegmentDistributor(String namespace, String name, long step, String incrementMaxIdSql, String fetchMaxIdSql, DataSource dataSource) {
+        this(namespace, name, step, incrementMaxIdSql, fetchMaxIdSql, dataSource, JdbcSupport.DEFAULT_QUERY_TIMEOUT);
+    }
+
+    /**
+     * Create a JDBC segment distributor.
+     *
+     * @param queryTimeout timeout applied to each statement, {@code null} or zero means no timeout
+     */
+    public JdbcIdSegmentDistributor(String namespace, String name, long step, String incrementMaxIdSql, String fetchMaxIdSql, DataSource dataSource,
+                                    Duration queryTimeout) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
         Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
@@ -67,6 +80,7 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
         this.incrementMaxIdSql = incrementMaxIdSql;
         this.fetchMaxIdSql = fetchMaxIdSql;
         this.dataSource = dataSource;
+        this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
     }
 
     @Override
@@ -89,32 +103,46 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
         IdSegmentDistributor.ensureStep(step);
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
-            try (PreparedStatement accStatement = connection.prepareStatement(incrementMaxIdSql)) {
-                accStatement.setLong(1, step);
-                accStatement.setString(2, getNamespacedName());
-                int affected = accStatement.executeUpdate();
-                if (affected == 0) {
-                    throw new SegmentNameMissingException(getNamespacedName());
-                }
-            }
-
+            final long nextMinMaxId = lastMaxId + step;
             long nextMaxId;
-            try (PreparedStatement fetchStatement = connection.prepareStatement(fetchMaxIdSql)) {
-                fetchStatement.setString(1, getNamespacedName());
-                try (ResultSet resultSet = fetchStatement.executeQuery()) {
-                    if (!resultSet.next()) {
-                        throw new NotFoundMaxIdException(getNamespacedName());
-                    }
-                    nextMaxId = resultSet.getLong(1);
-                }
+            try {
+                nextMaxId = incrementAndFetch(connection, step);
+                connection.commit();
+            } catch (Throwable throwable) {
+                // Never hand a connection with an open transaction (and its row lock) back to the pool.
+                JdbcSupport.rollbackQuietly(connection, throwable);
+                throw throwable;
             }
-            connection.commit();
+            // The stored max id went backwards (e.g. restored from a backup): this range overlaps ids already issued.
+            Preconditions.checkState(nextMaxId >= nextMinMaxId, "nextMaxId:[%s] must be greater than nextMinMaxId:[%s]!", nextMaxId, nextMinMaxId);
+            this.lastMaxId = nextMaxId;
             return nextMaxId;
         } catch (SQLException sqlException) {
             if (log.isErrorEnabled()) {
                 log.error(sqlException.getMessage(), sqlException);
             }
             throw new CosIdException(sqlException.getMessage(), sqlException);
+        }
+    }
+
+    private long incrementAndFetch(Connection connection, long step) throws SQLException {
+        try (PreparedStatement accStatement = JdbcSupport.prepareStatement(connection, incrementMaxIdSql, queryTimeoutSeconds)) {
+            accStatement.setLong(1, step);
+            accStatement.setString(2, getNamespacedName());
+            int affected = accStatement.executeUpdate();
+            if (affected == 0) {
+                throw new SegmentNameMissingException(getNamespacedName());
+            }
+        }
+
+        try (PreparedStatement fetchStatement = JdbcSupport.prepareStatement(connection, fetchMaxIdSql, queryTimeoutSeconds)) {
+            fetchStatement.setString(1, getNamespacedName());
+            try (ResultSet resultSet = fetchStatement.executeQuery()) {
+                if (!resultSet.next()) {
+                    throw new NotFoundMaxIdException(getNamespacedName());
+                }
+                return resultSet.getLong(1);
+            }
         }
     }
 

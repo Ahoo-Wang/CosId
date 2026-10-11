@@ -20,6 +20,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import org.jspecify.annotations.NonNull;
 
 import javax.sql.DataSource;
+import java.time.Duration;
 
 /**
  * Jdbc IdSegment Distributor Factory.
@@ -32,13 +33,20 @@ public class JdbcIdSegmentDistributorFactory implements IdSegmentDistributorFact
     private final JdbcIdSegmentInitializer jdbcIdSegmentInitializer;
     private final String incrementMaxIdSql;
     private final String fetchMaxIdSql;
+    private final Duration queryTimeout;
 
     public JdbcIdSegmentDistributorFactory(DataSource dataSource, boolean enableAutoInitIdSegment, JdbcIdSegmentInitializer jdbcIdSegmentInitializer, String incrementMaxIdSql, String fetchMaxIdSql) {
+        this(dataSource, enableAutoInitIdSegment, jdbcIdSegmentInitializer, incrementMaxIdSql, fetchMaxIdSql, JdbcSupport.DEFAULT_QUERY_TIMEOUT);
+    }
+
+    public JdbcIdSegmentDistributorFactory(DataSource dataSource, boolean enableAutoInitIdSegment, JdbcIdSegmentInitializer jdbcIdSegmentInitializer, String incrementMaxIdSql, String fetchMaxIdSql,
+                                           Duration queryTimeout) {
         this.dataSource = dataSource;
         this.enableAutoInitIdSegment = enableAutoInitIdSegment;
         this.jdbcIdSegmentInitializer = jdbcIdSegmentInitializer;
         this.incrementMaxIdSql = incrementMaxIdSql;
         this.fetchMaxIdSql = fetchMaxIdSql;
+        this.queryTimeout = queryTimeout;
     }
 
     @Override
@@ -48,7 +56,7 @@ public class JdbcIdSegmentDistributorFactory implements IdSegmentDistributorFact
         }
         return new JdbcIdSegmentDistributor(
             definition.getNamespace(), definition.getName(), definition.getStep(),
-            incrementMaxIdSql, fetchMaxIdSql, dataSource
+            incrementMaxIdSql, fetchMaxIdSql, dataSource, queryTimeout
         );
     }
 }

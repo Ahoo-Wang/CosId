@@ -63,6 +63,7 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
     private final long offset;
     private final long step;
     private final StringRedisTemplate redisTemplate;
+    private final RedisCommandTimeout commandTimeout;
     private volatile long lastMaxId;
     
     public SpringRedisIdSegmentDistributor(String namespace,
@@ -76,6 +77,15 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
                                            long offset,
                                            long step,
                                            StringRedisTemplate redisTemplate) {
+        this(namespace, name, offset, step, redisTemplate, RedisCommandTimeout.NONE);
+    }
+    
+    public SpringRedisIdSegmentDistributor(String namespace,
+                                           String name,
+                                           long offset,
+                                           long step,
+                                           StringRedisTemplate redisTemplate,
+                                           RedisCommandTimeout commandTimeout) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
         Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
@@ -86,6 +96,7 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         this.offset = offset;
         this.step = step;
         this.redisTemplate = redisTemplate;
+        this.commandTimeout = Preconditions.checkNotNull(commandTimeout, "commandTimeout can not be null!");
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
     }
     
@@ -93,6 +104,7 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         if (log.isDebugEnabled()) {
             log.debug("Ensure Offset [{}] offset:[{}].", adderKey, offset);
         }
+        // Not bounded by commandTimeout: this is the first command at startup and pays for connecting and class loading.
         Boolean notExists = redisTemplate.opsForValue().setIfAbsent(adderKey, String.valueOf(offset));
         if (log.isDebugEnabled()) {
             log.debug("Ensure Offset [{}] offset:[{}] - notExists:[{}].", adderKey, offset, notExists);
@@ -130,7 +142,8 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         }
         
         final long nextMinMaxId = lastMaxId + step;
-        String nextMaxIdValue = redisTemplate.execute(REDIS_ID_GENERATE, Collections.singletonList(adderKey), String.valueOf(offset), String.valueOf(step));
+        String nextMaxIdValue = commandTimeout.call("nextMaxId",
+            () -> redisTemplate.execute(REDIS_ID_GENERATE, Collections.singletonList(adderKey), String.valueOf(offset), String.valueOf(step)));
         Preconditions.checkNotNull(nextMaxIdValue, "nextMaxId can not be null!");
         long nextMaxId = Long.parseLong(nextMaxIdValue);
         if (log.isDebugEnabled()) {

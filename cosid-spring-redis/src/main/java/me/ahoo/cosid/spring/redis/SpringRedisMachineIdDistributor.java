@@ -59,13 +59,26 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     public static final RedisScript<Long> MACHINE_ID_GUARD = RedisScript.of(MACHINE_ID_GUARD_SOURCE, Long.class);
     
     private final StringRedisTemplate redisTemplate;
+    private final RedisCommandTimeout commandTimeout;
     
     public SpringRedisMachineIdDistributor(StringRedisTemplate redisTemplate,
                                            MachineStateStorage machineStateStorage,
                                            ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        this(redisTemplate, machineStateStorage, clockBackwardsSynchronizer, RedisCommandTimeout.NONE);
+    }
+    
+    public SpringRedisMachineIdDistributor(StringRedisTemplate redisTemplate,
+                                           MachineStateStorage machineStateStorage,
+                                           ClockBackwardsSynchronizer clockBackwardsSynchronizer,
+                                           RedisCommandTimeout commandTimeout) {
         super(machineStateStorage, clockBackwardsSynchronizer);
         
         this.redisTemplate = redisTemplate;
+        this.commandTimeout = Preconditions.checkNotNull(commandTimeout, "commandTimeout can not be null!");
+    }
+    
+    public RedisCommandTimeout getCommandTimeout() {
+        return commandTimeout;
     }
     
     @Override
@@ -77,6 +90,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         List<String> keys = Collections.singletonList(hashTag(namespace));
         Object[] values = {instanceId.getInstanceId(), String.valueOf(MachineIdDistributor.maxMachineId(machineBit)), String.valueOf(System.currentTimeMillis()),
             String.valueOf(MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()))};
+        // Not bounded by commandTimeout: this is the first command at startup and pays for connecting and class loading.
         @SuppressWarnings("unchecked")
         List<Long> state = (List<Long>) redisTemplate.execute(MACHINE_ID_DISTRIBUTE, keys, values);
         assert state != null;
@@ -118,7 +132,8 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         List<String> keys = Collections.singletonList(hashTag(namespace));
         Object[] values = {instanceId.getInstanceId(), String.valueOf(lastStamp)};
         
-        redisTemplate.execute(script, keys, values);
+        final RedisScript<Long> revertScript = script;
+        commandTimeout.call("revertMachineId", () -> redisTemplate.execute(revertScript, keys, values));
     }
     
     @Override
@@ -130,7 +145,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         List<String> keys = Collections.singletonList(hashTag(namespace));
         Object[] values = {instanceId.getInstanceId(), String.valueOf(machineState.getLastTimeStamp())};
         
-        Long affected = redisTemplate.<Long>execute(MACHINE_ID_GUARD, keys, values);
+        Long affected = commandTimeout.call("guardMachineId", () -> redisTemplate.execute(MACHINE_ID_GUARD, keys, values));
         
         if (null != affected && 0 == affected) {
             throw new MachineIdLostException(namespace, instanceId, machineState);

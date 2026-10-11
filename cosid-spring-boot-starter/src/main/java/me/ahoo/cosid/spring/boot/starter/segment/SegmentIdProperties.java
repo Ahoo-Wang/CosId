@@ -18,7 +18,6 @@ import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
-import me.ahoo.cosid.jdbc.JdbcSupport;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
@@ -478,7 +477,8 @@ public class SegmentIdProperties {
             /**
              * Timeout of each distributor statement, rounded up to seconds. Zero disables it.
              */
-            private Duration queryTimeout = JdbcSupport.DEFAULT_QUERY_TIMEOUT;
+            // Not JdbcSupport.DEFAULT_QUERY_TIMEOUT: a Duration is not inlined, so it would load cosid-jdbc for every starter user.
+            private Duration queryTimeout = Duration.ofSeconds(5);
 
             public Duration getQueryTimeout() {
                 return queryTimeout;

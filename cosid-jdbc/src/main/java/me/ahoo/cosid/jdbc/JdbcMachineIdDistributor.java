@@ -45,6 +45,11 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     private final DataSource dataSource;
     private final int queryTimeoutSeconds;
     
+    /**
+     * Upper bound of insert attempts when concurrent instances race for the same new machine id.
+     */
+    static final int MAX_DISTRIBUTE_ATTEMPTS = 32;
+    
     private static final String GET_MACHINE_STATE =
         "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id=? and last_timestamp>?";
     
@@ -141,6 +146,10 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     }
     
     private MachineState distributeMachine(String namespace, int machineBit, InstanceId instanceId, Connection connection) throws SQLException {
+        return distributeMachine(namespace, machineBit, instanceId, connection, 1);
+    }
+    
+    private MachineState distributeMachine(String namespace, int machineBit, InstanceId instanceId, Connection connection, int attempt) throws SQLException {
         int nextMachineId = nextMachineId(connection, namespace);
         if (nextMachineId > MachineIdDistributor.maxMachineId(machineBit)) {
             throw new MachineIdOverflowException(MachineIdDistributor.totalMachineIds(machineBit), instanceId);
@@ -157,13 +166,14 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
                 nextMachineStatement.executeUpdate();
                 return nextMachineState;
             } catch (SQLException sqlException) {
-                if (!JdbcSupport.isIntegrityConstraintViolation(sqlException)) {
+                // Another instance inserted the same machine id first: recompute and retry, a bounded number of times.
+                if (!JdbcSupport.isDuplicateKey(sqlException) || attempt >= MAX_DISTRIBUTE_ATTEMPTS) {
                     throw sqlException;
                 }
                 if (log.isInfoEnabled()) {
-                    log.info("Distribute Machine [{}]", sqlException.getMessage());
+                    log.info("Distribute Machine attempt:[{}] - [{}]", attempt, sqlException.getMessage());
                 }
-                return distributeMachine(namespace, machineBit, instanceId, connection);
+                return distributeMachine(namespace, machineBit, instanceId, connection, attempt + 1);
             }
         }
     }

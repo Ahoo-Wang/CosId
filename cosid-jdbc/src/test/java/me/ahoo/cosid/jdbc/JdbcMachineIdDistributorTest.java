@@ -168,6 +168,40 @@ class JdbcMachineIdDistributorTest extends MachineIdDistributorSpec {
     }
 
     @Test
+    void distributeMachineShouldNotRetryOnNonDuplicateIntegrityViolation() {
+        // MySQL reports NOT NULL violations as 23000 too; only 1062 is a duplicate key.
+        dataSource.failMachineInserts("23000", 1048, 1);
+        TestableJdbcMachineIdDistributor distributor = new TestableJdbcMachineIdDistributor(dataSource);
+
+        Assertions.assertThrows(CosIdException.class, () -> distributor.distributeRemoteForTest(NAMESPACE, 4, INSTANCE_ID, Duration.ZERO));
+
+        assertThat(dataSource.getMachineInsertAttempts(), equalTo(1));
+    }
+
+    @Test
+    void distributeMachineShouldRetryMySqlDuplicate() {
+        dataSource.failMachineInserts("23000", 1062, 3);
+        TestableJdbcMachineIdDistributor distributor = new TestableJdbcMachineIdDistributor(dataSource);
+
+        MachineState actual = distributor.distributeRemoteForTest(NAMESPACE, 4, INSTANCE_ID, Duration.ZERO);
+
+        assertThat(actual.getMachineId(), equalTo(0));
+        assertThat(dataSource.getMachineInsertAttempts(), equalTo(4));
+    }
+
+    @Test
+    void distributeMachineShouldStopRetryingAfterMaxAttempts() {
+        dataSource.failMachineInserts("23505", 0, Integer.MAX_VALUE);
+        TestableJdbcMachineIdDistributor distributor = new TestableJdbcMachineIdDistributor(dataSource);
+
+        CosIdException actual = Assertions.assertThrows(CosIdException.class,
+            () -> distributor.distributeRemoteForTest(NAMESPACE, 4, INSTANCE_ID, Duration.ZERO));
+
+        assertThat(((SQLException) actual.getCause()).getSQLState(), equalTo("23505"));
+        assertThat(dataSource.getMachineInsertAttempts(), equalTo(JdbcMachineIdDistributor.MAX_DISTRIBUTE_ATTEMPTS));
+    }
+
+    @Test
     void statementsShouldUseQueryTimeoutRoundedUpToSeconds() {
         JdbcMachineIdDistributor distributor = new JdbcMachineIdDistributor(dataSource, machineStateStorage, ClockBackwardsSynchronizer.DEFAULT,
             Duration.ofMillis(1500));

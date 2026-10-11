@@ -26,6 +26,9 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
 class RedisCommandTimeoutTest {
@@ -71,6 +74,34 @@ class RedisCommandTimeoutTest {
         assertThat(actual.getOperation(), equalTo("guardMachineId"));
         assertThat(actual.getTimeout(), equalTo(Duration.ofMillis(100)));
         assertThat(interrupted.await(5, TimeUnit.SECONDS), equalTo(true));
+    }
+
+    @Test
+    void rejectsWhenTooManyCommandsInFlight() throws Exception {
+        RedisCommandTimeout timeout = RedisCommandTimeout.of(Duration.ofSeconds(10));
+        CountDownLatch started = new CountDownLatch(RedisCommandTimeout.MAX_CONCURRENT_COMMANDS);
+        CountDownLatch release = new CountDownLatch(1);
+        ExecutorService callers = Executors.newFixedThreadPool(RedisCommandTimeout.MAX_CONCURRENT_COMMANDS);
+        try {
+            for (int i = 0; i < RedisCommandTimeout.MAX_CONCURRENT_COMMANDS; i++) {
+                callers.submit(() -> timeout.run("hang", () -> {
+                    started.countDown();
+                    try {
+                        release.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }));
+            }
+            assertThat(started.await(10, TimeUnit.SECONDS), equalTo(true));
+
+            CosIdException actual = Assertions.assertThrows(CosIdException.class, () -> timeout.call("one-more", () -> 1));
+            assertThat(actual.getCause() instanceof RejectedExecutionException, equalTo(true));
+        } finally {
+            release.countDown();
+            callers.shutdown();
+            assertThat(callers.awaitTermination(10, TimeUnit.SECONDS), equalTo(true));
+        }
     }
 
     @Test

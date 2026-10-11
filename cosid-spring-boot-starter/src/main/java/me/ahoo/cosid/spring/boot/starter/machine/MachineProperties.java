@@ -15,7 +15,6 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.jdbc.JdbcMachineIdInitializer;
-import me.ahoo.cosid.jdbc.JdbcSupport;
 import me.ahoo.cosid.machine.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
 import me.ahoo.cosid.machine.LocalMachineStateStorage;
@@ -702,7 +701,8 @@ public class MachineProperties {
          * Timeout of each distributor statement ({@link java.sql.Statement#setQueryTimeout(int)}, rounded up to seconds).
          * Default is 5 seconds; zero disables it.
          */
-        private Duration queryTimeout = JdbcSupport.DEFAULT_QUERY_TIMEOUT;
+        // Not JdbcSupport.DEFAULT_QUERY_TIMEOUT: a Duration is not inlined, so it would load cosid-jdbc for every starter user.
+        private Duration queryTimeout = Duration.ofSeconds(5);
 
         public Duration getQueryTimeout() {
             return queryTimeout;

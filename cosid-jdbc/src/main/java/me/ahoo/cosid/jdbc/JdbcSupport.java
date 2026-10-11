@@ -21,9 +21,10 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Duration;
+import java.util.Set;
 
 /**
- * Shared JDBC helpers: statement query timeout, transaction rollback and constraint violation detection.
+ * Shared JDBC helpers: statement query timeout, transaction rollback and duplicate key detection.
  *
  * @author ahoo wang
  */
@@ -37,6 +38,14 @@ public final class JdbcSupport {
      * SQLState class {@code 23}: integrity constraint violation (SQL standard).
      */
     private static final String INTEGRITY_CONSTRAINT_VIOLATION_CLASS = "23";
+    /**
+     * SQLState {@code 23505}: unique violation.
+     */
+    private static final String UNIQUE_VIOLATION = "23505";
+    /**
+     * Duplicate-key vendor error codes: MySQL/MariaDB 1062, Oracle ORA-00001, SQL Server 2627 and 2601.
+     */
+    private static final Set<Integer> DUPLICATE_KEY_VENDOR_CODES = Set.of(1062, 1, 2627, 2601);
 
     private JdbcSupport() {
     }
@@ -72,22 +81,30 @@ public final class JdbcSupport {
     }
 
     /**
-     * Whether the exception (or any exception in its chain) is an integrity constraint violation,
-     * e.g. a duplicate primary key.
+     * Whether the exception (or any exception in its {@link SQLException#getNextException() chain}) reports a duplicate key.
      *
-     * <p>Not every driver throws {@link SQLIntegrityConstraintViolationException} (PostgreSQL, for one, throws a plain
-     * {@link SQLException} with SQLState {@code 23505}), so SQLState class {@code 23} is checked as well.</p>
+     * <p>SQLState class {@code 23} alone is too broad: it also covers NOT NULL, foreign key and CHECK violations, and
+     * MySQL, Oracle and SQL Server report every integrity violation as {@code 23000}. So this matches
+     * SQLState {@code 23505} (PostgreSQL, H2, Derby, DB2, HSQLDB) or a class {@code 23} error with a known duplicate-key
+     * vendor code: MySQL/MariaDB {@code 1062}, Oracle {@code 1} (ORA-00001), SQL Server {@code 2627}/{@code 2601}.
+     * A {@link SQLIntegrityConstraintViolationException} without any SQLState is also treated as a duplicate.</p>
      *
      * @param sqlException the exception thrown by the driver
-     * @return true if it is an integrity constraint violation
+     * @return true if it is a duplicate key violation
      */
-    public static boolean isIntegrityConstraintViolation(SQLException sqlException) {
+    public static boolean isDuplicateKey(SQLException sqlException) {
         for (SQLException current = sqlException; current != null; current = current.getNextException()) {
-            if (current instanceof SQLIntegrityConstraintViolationException) {
+            String sqlState = current.getSQLState();
+            if (UNIQUE_VIOLATION.equals(sqlState)) {
                 return true;
             }
-            String sqlState = current.getSQLState();
-            if (sqlState != null && sqlState.startsWith(INTEGRITY_CONSTRAINT_VIOLATION_CLASS)) {
+            if (sqlState == null) {
+                if (current instanceof SQLIntegrityConstraintViolationException) {
+                    return true;
+                }
+                continue;
+            }
+            if (sqlState.startsWith(INTEGRITY_CONSTRAINT_VIOLATION_CLASS) && DUPLICATE_KEY_VENDOR_CODES.contains(current.getErrorCode())) {
                 return true;
             }
         }

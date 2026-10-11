@@ -21,8 +21,10 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
@@ -51,10 +53,18 @@ public final class RedisCommandTimeout {
      */
     public static final RedisCommandTimeout NONE = new RedisCommandTimeout(Duration.ZERO);
 
-    private static final ExecutorService EXECUTOR = Executors.newCachedThreadPool(new ThreadFactoryBuilder()
-        .setNameFormat("CosId-Redis-Command-%d")
-        .setDaemon(true)
-        .build());
+    /**
+     * Upper bound of concurrently running commands. Beyond it, callers fail fast instead of piling up threads behind
+     * a hung Redis.
+     */
+    public static final int MAX_CONCURRENT_COMMANDS = 64;
+
+    private static final ExecutorService EXECUTOR = new ThreadPoolExecutor(0, MAX_CONCURRENT_COMMANDS,
+        60L, TimeUnit.SECONDS, new SynchronousQueue<>(),
+        new ThreadFactoryBuilder()
+            .setNameFormat("CosId-Redis-Command-%d")
+            .setDaemon(true)
+            .build());
 
     private final Duration timeout;
 
@@ -96,7 +106,13 @@ public final class RedisCommandTimeout {
         if (!isEnabled()) {
             return command.get();
         }
-        Future<T> future = EXECUTOR.submit(command::get);
+        Future<T> future;
+        try {
+            future = EXECUTOR.submit(command::get);
+        } catch (RejectedExecutionException rejectedExecutionException) {
+            throw new CosIdException("Too many Redis operations in flight (max " + MAX_CONCURRENT_COMMANDS + "), rejected [" + operation + "].",
+                rejectedExecutionException);
+        }
         try {
             return future.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException timeoutException) {

@@ -37,17 +37,27 @@ class JdbcSupportTest {
     }
 
     @Test
-    void isIntegrityConstraintViolation() {
-        assertThat(JdbcSupport.isIntegrityConstraintViolation(new SQLIntegrityConstraintViolationException("dup")), equalTo(true));
-        // PostgreSQL unique_violation
-        assertThat(JdbcSupport.isIntegrityConstraintViolation(new SQLException("dup", "23505")), equalTo(true));
-        // MySQL / H2 / Oracle integrity constraint violation
-        assertThat(JdbcSupport.isIntegrityConstraintViolation(new SQLException("dup", "23000")), equalTo(true));
-        assertThat(JdbcSupport.isIntegrityConstraintViolation(new SQLException("connection failure", "08006")), equalTo(false));
-        assertThat(JdbcSupport.isIntegrityConstraintViolation(new SQLException("no state")), equalTo(false));
+    void isDuplicateKey() {
+        // PostgreSQL / H2 unique_violation
+        assertThat(JdbcSupport.isDuplicateKey(new SQLException("dup", "23505")), equalTo(true));
+        // MySQL duplicate entry
+        assertThat(JdbcSupport.isDuplicateKey(new SQLIntegrityConstraintViolationException("dup", "23000", 1062)), equalTo(true));
+        // Oracle ORA-00001, SQL Server 2627 / 2601
+        assertThat(JdbcSupport.isDuplicateKey(new SQLException("dup", "23000", 1)), equalTo(true));
+        assertThat(JdbcSupport.isDuplicateKey(new SQLException("dup", "23000", 2627)), equalTo(true));
+        assertThat(JdbcSupport.isDuplicateKey(new SQLException("dup", "23000", 2601)), equalTo(true));
+        // Driver without SQLState
+        assertThat(JdbcSupport.isDuplicateKey(new SQLIntegrityConstraintViolationException("dup")), equalTo(true));
+
+        // MySQL NOT NULL (1048) and foreign key (1452) violations, PostgreSQL not_null_violation
+        assertThat(JdbcSupport.isDuplicateKey(new SQLIntegrityConstraintViolationException("null", "23000", 1048)), equalTo(false));
+        assertThat(JdbcSupport.isDuplicateKey(new SQLIntegrityConstraintViolationException("fk", "23000", 1452)), equalTo(false));
+        assertThat(JdbcSupport.isDuplicateKey(new SQLException("null", "23502")), equalTo(false));
+        assertThat(JdbcSupport.isDuplicateKey(new SQLException("connection failure", "08006")), equalTo(false));
+        assertThat(JdbcSupport.isDuplicateKey(new SQLException("no state")), equalTo(false));
 
         SQLException batch = new SQLException("batch failed", "XX000");
         batch.setNextException(new SQLException("dup", "23505"));
-        assertThat(JdbcSupport.isIntegrityConstraintViolation(batch), equalTo(true));
+        assertThat(JdbcSupport.isDuplicateKey(batch), equalTo(true));
     }
 }

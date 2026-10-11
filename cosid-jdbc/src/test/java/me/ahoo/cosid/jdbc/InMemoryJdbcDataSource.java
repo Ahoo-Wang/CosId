@@ -50,7 +50,10 @@ final class InMemoryJdbcDataSource implements DataSource {
     private volatile int loginTimeout;
     private PrintWriter logWriter;
     private int failedRevertDistributeUpdates;
-    private String nextMachineInsertFailureSqlState;
+    private String machineInsertFailureSqlState;
+    private int machineInsertFailureVendorCode;
+    private int machineInsertFailures;
+    private int machineInsertAttempts;
     private final List<Integer> queryTimeouts = Collections.synchronizedList(new ArrayList<>());
     private final AtomicInteger rollbackCount = new AtomicInteger();
     private boolean cosIdTableInitialized;
@@ -135,11 +138,21 @@ final class InMemoryJdbcDataSource implements DataSource {
     }
 
     /**
-     * Makes the next machine insert fail with a plain {@link SQLException} carrying the given SQLState,
-     * the way drivers such as PostgreSQL report duplicate keys.
+     * Makes the next machine inserts fail with a plain {@link SQLException} carrying the given SQLState and vendor code,
+     * the way real drivers report constraint violations.
      */
+    synchronized void failMachineInserts(String sqlState, int vendorCode, int times) {
+        machineInsertFailureSqlState = sqlState;
+        machineInsertFailureVendorCode = vendorCode;
+        machineInsertFailures = times;
+    }
+
     synchronized void failNextMachineInsertWithSqlState(String sqlState) {
-        nextMachineInsertFailureSqlState = sqlState;
+        failMachineInserts(sqlState, 0, 1);
+    }
+
+    synchronized int getMachineInsertAttempts() {
+        return machineInsertAttempts;
     }
 
     List<Integer> getQueryTimeouts() {
@@ -376,10 +389,10 @@ final class InMemoryJdbcDataSource implements DataSource {
 
     private int insertMachine(Map<Integer, Object> params) throws SQLException {
         String name = (String) params.get(1);
-        if (nextMachineInsertFailureSqlState != null) {
-            String sqlState = nextMachineInsertFailureSqlState;
-            nextMachineInsertFailureSqlState = null;
-            throw new SQLException("Injected failure for machine: " + name, sqlState);
+        machineInsertAttempts++;
+        if (machineInsertFailures > 0) {
+            machineInsertFailures--;
+            throw new SQLException("Injected failure for machine: " + name, machineInsertFailureSqlState, machineInsertFailureVendorCode);
         }
         if (machineRows.containsKey(name)) {
             throw new SQLIntegrityConstraintViolationException("Duplicate machine: " + name);

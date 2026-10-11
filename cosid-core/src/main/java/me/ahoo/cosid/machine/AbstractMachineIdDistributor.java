@@ -88,8 +88,13 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     public void revert(String namespace, InstanceId instanceId) {
         MachineState lastLocalState = resetStorage(namespace, instanceId);
 
-        revertRemote(namespace, instanceId, lastLocalState);
-        machineStateStorage.remove(namespace, instanceId);
+        try {
+            revertRemote(namespace, instanceId, lastLocalState);
+        } finally {
+            // Also when revertRemote fails or times out (it may still have been applied remotely):
+            // the next start must then ask the remote instead of trusting a stale local state.
+            machineStateStorage.remove(namespace, instanceId);
+        }
     }
 
     protected abstract void revertRemote(String namespace, InstanceId instanceId, MachineState machineState);

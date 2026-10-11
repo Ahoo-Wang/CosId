@@ -40,7 +40,24 @@ import java.util.List;
 @ConfigurationProperties(prefix = ProxyAuthProperties.PREFIX)
 public class ProxyAuthProperties {
     public static final String PREFIX = "cosid.proxy.server.auth";
-    public static final List<String> DEFAULT_PUBLIC_PATHS = List.of("/actuator/health", "/actuator/health/**");
+    public static final List<String> DEFAULT_PUBLIC_PATHS = healthPaths("/actuator");
+    
+    /**
+     * The health endpoint and its groups under an actuator base path.
+     *
+     * @param actuatorBasePath {@code management.endpoints.web.base-path}
+     * @return the public path patterns
+     */
+    public static List<String> healthPaths(String actuatorBasePath) {
+        String basePath = actuatorBasePath == null ? "" : actuatorBasePath.trim();
+        while (basePath.endsWith("/")) {
+            basePath = basePath.substring(0, basePath.length() - 1);
+        }
+        if (!basePath.isEmpty() && !basePath.startsWith("/")) {
+            basePath = "/" + basePath;
+        }
+        return List.of(basePath + "/health", basePath + "/health/**");
+    }
     
     /**
      * Accepted bearer tokens. Empty means no authentication.
@@ -48,9 +65,10 @@ public class ProxyAuthProperties {
     private List<String> tokens = new ArrayList<>();
     
     /**
-     * Path patterns that need no token.
+     * Path patterns that need no token. Not set: the health endpoint under
+     * {@code management.endpoints.web.base-path} ({@code /actuator/health} and {@code /actuator/health/**} by default).
      */
-    private List<String> publicPaths = new ArrayList<>(DEFAULT_PUBLIC_PATHS);
+    private List<String> publicPaths;
     
     public List<String> getTokens() {
         return tokens;

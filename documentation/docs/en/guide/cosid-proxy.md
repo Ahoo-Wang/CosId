@@ -79,7 +79,7 @@ cosid:
       auth:
         tokens:
           - ${COSID_PROXY_TOKEN}   # several tokens can be listed to rotate them
-        public-paths:              # need no token; default: /actuator/health, /actuator/health/**
+        public-paths:              # need no token; default: the health endpoint under management.endpoints.web.base-path
           - /actuator/health
           - /actuator/health/**
 ```

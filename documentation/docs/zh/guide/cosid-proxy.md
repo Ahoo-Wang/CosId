@@ -79,7 +79,7 @@ cosid:
       auth:
         tokens:
           - ${COSID_PROXY_TOKEN}   # 可以同时配置多个，用于轮换
-        public-paths:              # 无需 token 的路径，默认：/actuator/health、/actuator/health/**
+        public-paths:              # 无需 token 的路径，默认：management.endpoints.web.base-path 下的健康检查端点
           - /actuator/health
           - /actuator/health/**
 ```

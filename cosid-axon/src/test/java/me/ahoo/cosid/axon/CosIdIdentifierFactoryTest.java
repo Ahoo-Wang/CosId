@@ -19,9 +19,14 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.provider.NotFoundIdGeneratorException;
 import me.ahoo.cosid.test.MockIdGenerator;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.axonframework.common.IdentifierFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -29,6 +34,7 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.slf4j.LoggerFactory;
 
 /**
  * CosIdIdentifierFactoryTest .
@@ -124,5 +130,39 @@ class CosIdIdentifierFactoryTest {
         CosIdIdentifierFactory factory = new CosIdIdentifierFactory("missing", new DefaultIdGeneratorProvider());
 
         Assertions.assertThrows(NotFoundIdGeneratorException.class, factory::generateIdentifier);
+    }
+    
+    @Test
+    void warnsOnceWhenDifferentProvidersAreBound() {
+        Logger logger = (Logger) LoggerFactory.getLogger(CosIdIdentifierFactory.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        CosIdIdentifierFactory.resetMultipleProvidersWarning();
+        IdGeneratorProvider first = new DefaultIdGeneratorProvider();
+        IdGeneratorProvider second = new DefaultIdGeneratorProvider();
+        IdGeneratorProvider third = new DefaultIdGeneratorProvider();
+        try {
+            CosIdIdentifierFactory.bind(first);
+            CosIdIdentifierFactory.bind(first);
+            Assertions.assertEquals(0, warnings(appender));
+            
+            CosIdIdentifierFactory.bind(second);
+            CosIdIdentifierFactory.bind(third);
+            
+            Assertions.assertEquals(1, warnings(appender));
+        } finally {
+            CosIdIdentifierFactory.unbind(third);
+            CosIdIdentifierFactory.unbind(second);
+            CosIdIdentifierFactory.unbind(first);
+            CosIdIdentifierFactory.unbind(first);
+            logger.detachAppender(appender);
+        }
+    }
+    
+    private static long warnings(ListAppender<ILoggingEvent> appender) {
+        return appender.list.stream()
+            .filter(event -> event.getLevel() == Level.WARN && event.getFormattedMessage().contains("different IdGeneratorProviders are bound"))
+            .count();
     }
 }

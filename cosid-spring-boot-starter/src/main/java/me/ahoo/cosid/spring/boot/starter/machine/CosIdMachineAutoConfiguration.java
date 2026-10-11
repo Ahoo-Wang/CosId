@@ -29,17 +29,17 @@ import me.ahoo.cosid.machine.k8s.StatefulSetMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
-import me.ahoo.cosid.spring.boot.starter.store.CosIdMachineStoreConfiguration;
-import me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
 import me.ahoo.cosid.util.ProcessId;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 
 import java.util.Objects;
 
@@ -81,7 +81,6 @@ import java.util.Objects;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
 @EnableConfigurationProperties(MachineProperties.class)
-@Import(CosIdMachineStoreConfiguration.class)
 public class CosIdMachineAutoConfiguration {
     private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
@@ -164,21 +163,41 @@ public class CosIdMachineAutoConfiguration {
     }
 
     @Bean
-    public CosIdStoreProvider cosIdManualMachineStoreProvider() {
-        return BuiltInStoreProvider.machine("manual", context -> {
-            MachineProperties.Manual manual = context.getMachineProperties().getDistributor().getManual();
-            Preconditions.checkNotNull(manual, "cosid.machine.distributor.manual can not be null.");
-            Integer machineId = manual.getMachineId();
-            Preconditions.checkNotNull(machineId, "cosid.machine.distributor.manual.machineId can not be null.");
-            Preconditions.checkArgument(machineId >= 0, "cosid.machine.distributor.manual.machineId can not be less than 0.");
-            return new ManualMachineIdDistributor(machineId, context.getMachineStateStorage(), context.getClockBackwardsSynchronizer());
-        });
+    @ConditionalOnMissingBean(MachineIdDistributor.class)
+    @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "manual")
+    @ConditionalOnBuiltInMachineStore
+    public ManualMachineIdDistributor machineIdDistributor(MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        MachineProperties.Manual manual = machineProperties.getDistributor().getManual();
+        Preconditions.checkNotNull(manual, "cosid.machine.distributor.manual can not be null.");
+        Integer machineId = manual.getMachineId();
+        Preconditions.checkNotNull(machineId, "cosid.machine.distributor.manual.machineId can not be null.");
+        Preconditions.checkArgument(machineId >= 0, "cosid.machine.distributor.manual.machineId can not be less than 0.");
+        return new ManualMachineIdDistributor(machineId, localMachineState, clockBackwardsSynchronizer);
+    }
+
+    /**
+     * The manual backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdManualMachineStoreProvider() {
+        return BuiltInStoreProvider.machine("manual", context -> machineIdDistributor(context.getMachineStateStorage(), context.getClockBackwardsSynchronizer()));
     }
 
     @Bean
-    public CosIdStoreProvider cosIdStatefulSetMachineStoreProvider() {
+    @ConditionalOnMissingBean(MachineIdDistributor.class)
+    @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "stateful_set")
+    @ConditionalOnBuiltInMachineStore
+    public StatefulSetMachineIdDistributor statefulSetMachineIdDistributor(MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        return new StatefulSetMachineIdDistributor(localMachineState, clockBackwardsSynchronizer);
+    }
+
+    /**
+     * The Kubernetes StatefulSet backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdStatefulSetMachineStoreProvider() {
         return BuiltInStoreProvider.machine("stateful_set",
-            context -> new StatefulSetMachineIdDistributor(context.getMachineStateStorage(), context.getClockBackwardsSynchronizer()));
+            context -> statefulSetMachineIdDistributor(context.getMachineStateStorage(), context.getClockBackwardsSynchronizer()));
     }
 
     /**

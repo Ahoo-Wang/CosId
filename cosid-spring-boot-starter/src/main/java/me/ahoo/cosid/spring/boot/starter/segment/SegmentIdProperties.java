@@ -435,6 +435,7 @@ public class SegmentIdProperties {
 
     public static class Distributor {
         public static final String TYPE = PREFIX + ".distributor.type";
+        public static final String PROVIDER = PREFIX + ".distributor.provider";
         private Type type = Type.REDIS;
         
         /**

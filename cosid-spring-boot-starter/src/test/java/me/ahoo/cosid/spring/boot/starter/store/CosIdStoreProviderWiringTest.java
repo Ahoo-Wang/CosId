@@ -75,16 +75,12 @@ import java.util.function.Function;
 import javax.sql.DataSource;
 
 /**
- * Each backend registers its own provider. The application provides the distributor or factory here, so only the
- * provider is wired, and the test creates through it.
+ * Each backend registers its own provider, which creates the same distributor or factory as the backend's own bean.
  */
 class CosIdStoreProviderWiringTest {
     private static final String PROXY_HOST = "cosid.proxy.host=http://localhost:8688";
-    private static final MachineIdDistributor USER_DISTRIBUTOR = mock(MachineIdDistributor.class);
-    private static final IdSegmentDistributorFactory USER_FACTORY = mock(IdSegmentDistributorFactory.class);
-    
     private final ApplicationContextRunner machineRunner = new ApplicationContextRunner()
-        .withBean(MachineIdDistributor.class, () -> USER_DISTRIBUTOR)
+        .withConfiguration(AutoConfigurations.of(CosIdMachineStoreAutoConfiguration.class))
         .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
         .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
         .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", PROXY_HOST,
@@ -92,7 +88,7 @@ class CosIdStoreProviderWiringTest {
             MachineProperties.PREFIX + ".distributor.manual.machine-id=1");
     
     private final ApplicationContextRunner segmentRunner = new ApplicationContextRunner()
-        .withBean(IdSegmentDistributorFactory.class, () -> USER_FACTORY)
+        .withConfiguration(AutoConfigurations.of(CosIdSegmentStoreAutoConfiguration.class))
         .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", PROXY_HOST,
             SegmentIdProperties.PREFIX + ".distributor.jdbc.enable-auto-init-cosid-table=false");
     
@@ -108,7 +104,7 @@ class CosIdStoreProviderWiringTest {
         runner.withConfiguration(AutoConfigurations.of(configuration))
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=" + type)
             .run(context -> {
-                assertThat(context.getBean(MachineIdDistributor.class)).isSameAs(USER_DISTRIBUTOR);
+                assertThat(context.getBean(MachineIdDistributor.class)).isInstanceOf(expected);
                 MachineStoreContext storeContext = new MachineStoreContext(context.getBean(MachineProperties.class), MachineStateStorage.IN_MEMORY,
                     ClockBackwardsSynchronizer.DEFAULT);
                 assertThat(provider(context, type).createMachineIdDistributor(storeContext)).isInstanceOf(expected);
@@ -120,7 +116,7 @@ class CosIdStoreProviderWiringTest {
         runner.withConfiguration(AutoConfigurations.of(configuration))
             .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=" + type)
             .run(context -> {
-                assertThat(context.getBean(IdSegmentDistributorFactory.class)).isSameAs(USER_FACTORY);
+                assertThat(context.getBean(IdSegmentDistributorFactory.class)).isInstanceOf(expected);
                 assertThat(provider(context, type).createIdSegmentDistributorFactory(new SegmentStoreContext(context.getBean(SegmentIdProperties.class))))
                     .isInstanceOf(expected);
             });

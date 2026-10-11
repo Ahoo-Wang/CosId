@@ -14,30 +14,46 @@
 package me.ahoo.cosid.spring.boot.starter.store;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.segment.ConditionalOnCosIdSegmentEnabled;
+import me.ahoo.cosid.spring.boot.starter.segment.CosIdJdbcSegmentAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.segment.CosIdMongoSegmentAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.segment.CosIdProxySegmentAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.segment.CosIdSpringRedisSegmentAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.segment.CosIdZookeeperSegmentAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 import java.util.stream.Collectors;
 
 /**
- * Creates the id segment distributor factory with the {@link CosIdStoreProvider} of the configured store type.
- * Imported by the segment auto-configurations.
+ * Creates the id segment distributor factory with the {@link CosIdStoreProvider} of the configured store type, when no
+ * built-in backend bean was created: the application selected a provider of its own, or no backend of the type is on
+ * the classpath (then startup fails naming the type).
  *
  * @author ahoo wang
  * @since 3.4.0
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration(after = {
+    CosIdJdbcSegmentAutoConfiguration.class,
+    CosIdMongoSegmentAutoConfiguration.class,
+    CosIdProxySegmentAutoConfiguration.class,
+    CosIdSpringRedisSegmentAutoConfiguration.class,
+    CosIdZookeeperSegmentAutoConfiguration.class
+})
+@ConditionalOnCosIdEnabled
+@ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
-public class CosIdSegmentStoreConfiguration {
+public class CosIdSegmentStoreAutoConfiguration {
     
     @Bean
     @ConditionalOnMissingBean(IdSegmentDistributorFactory.class)
-    public IdSegmentDistributorFactory idSegmentDistributorFactory(SegmentIdProperties segmentIdProperties, ObjectProvider<CosIdStoreProvider> providers) {
+    public IdSegmentDistributorFactory cosIdIdSegmentDistributorFactory(SegmentIdProperties segmentIdProperties, ObjectProvider<CosIdStoreProvider> providers) {
         SegmentIdProperties.Distributor distributor = segmentIdProperties.getDistributor();
         String type = CosIdStoreProviders.storeType(distributor.getProvider(), distributor.getType());
         SegmentStoreContext context = new SegmentStoreContext(segmentIdProperties);

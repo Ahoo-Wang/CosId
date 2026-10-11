@@ -391,6 +391,7 @@ public class MachineProperties {
          * The configuration property key for distributor type.
          */
         public static final String TYPE = PREFIX + ".distributor.type";
+        public static final String PROVIDER = PREFIX + ".distributor.provider";
 
         /**
          * The type of distributor to use.

@@ -21,8 +21,7 @@ import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientAuthConfiguration;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientTimeoutConfiguration;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
-import me.ahoo.cosid.spring.boot.starter.store.CosIdSegmentStoreConfiguration;
-import me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -43,12 +42,22 @@ import org.springframework.context.annotation.Import;
 @EnableConfigurationProperties(SegmentIdProperties.class)
 @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "proxy")
 @EnableCoApi(clients = SegmentClient.class)
-@Import({CosIdSegmentStoreConfiguration.class, CosIdProxyClientTimeoutConfiguration.class, CosIdProxyClientAuthConfiguration.class})
+@Import({CosIdProxyClientTimeoutConfiguration.class, CosIdProxyClientAuthConfiguration.class})
 public class CosIdProxySegmentAutoConfiguration {
 
     @Bean
-    public CosIdStoreProvider cosIdProxySegmentStoreProvider(ObjectProvider<SegmentClient> segmentClient) {
-        return BuiltInStoreProvider.segment("proxy", context -> new ProxyIdSegmentDistributorFactory(segmentClient.getObject()));
+    @ConditionalOnMissingBean
+    @ConditionalOnBuiltInSegmentStore
+    public IdSegmentDistributorFactory idSegmentDistributorFactory(SegmentClient segmentClient) {
+        return new ProxyIdSegmentDistributorFactory(segmentClient);
+    }
+
+    /**
+     * The proxy backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdProxySegmentStoreProvider(ObjectProvider<SegmentClient> segmentClient) {
+        return BuiltInStoreProvider.segment("proxy", context -> idSegmentDistributorFactory(segmentClient.getObject()));
     }
 
 }

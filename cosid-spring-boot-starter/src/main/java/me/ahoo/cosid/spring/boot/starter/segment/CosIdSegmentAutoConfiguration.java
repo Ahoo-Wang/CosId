@@ -18,7 +18,6 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
-import me.ahoo.cosid.spring.boot.starter.store.CosIdSegmentStoreConfiguration;
 
 import com.google.common.base.Preconditions;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -26,7 +25,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Import;
 import org.springframework.lang.Nullable;
 
 /**
@@ -38,7 +36,6 @@ import org.springframework.lang.Nullable;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
-@Import(CosIdSegmentStoreConfiguration.class)
 public class CosIdSegmentAutoConfiguration {
     
     private final CosIdProperties cosIdProperties;

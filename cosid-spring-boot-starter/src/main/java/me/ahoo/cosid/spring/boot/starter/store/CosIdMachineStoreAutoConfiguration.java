@@ -16,31 +16,49 @@ package me.ahoo.cosid.spring.boot.starter.store;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdJdbcMachineIdDistributorAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdMongoMachineIdDistributorAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdProxyMachineIdDistributorAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdSpringRedisMachineIdDistributorAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdZookeeperMachineIdDistributorAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 import java.util.stream.Collectors;
 
 /**
- * Creates the machine id distributor with the {@link CosIdStoreProvider} of the configured store type. Imported by the
- * machine auto-configurations.
+ * Creates the machine id distributor with the {@link CosIdStoreProvider} of the configured store type, when no
+ * built-in backend bean was created: the application selected a provider of its own, or no backend of the type is on
+ * the classpath (then startup fails naming the type).
  *
  * @author ahoo wang
  * @since 3.4.0
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration(after = {
+    CosIdMachineAutoConfiguration.class,
+    CosIdJdbcMachineIdDistributorAutoConfiguration.class,
+    CosIdMongoMachineIdDistributorAutoConfiguration.class,
+    CosIdProxyMachineIdDistributorAutoConfiguration.class,
+    CosIdSpringRedisMachineIdDistributorAutoConfiguration.class,
+    CosIdZookeeperMachineIdDistributorAutoConfiguration.class
+})
+@ConditionalOnCosIdEnabled
+@ConditionalOnCosIdMachineEnabled
 @EnableConfigurationProperties(MachineProperties.class)
-public class CosIdMachineStoreConfiguration {
+public class CosIdMachineStoreAutoConfiguration {
     
     @Bean
     @ConditionalOnMissingBean(MachineIdDistributor.class)
-    public MachineIdDistributor machineIdDistributor(MachineProperties machineProperties, ObjectProvider<CosIdStoreProvider> providers,
-                                                     MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+    public MachineIdDistributor cosIdMachineIdDistributor(MachineProperties machineProperties, ObjectProvider<CosIdStoreProvider> providers,
+                                                          MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         MachineProperties.Distributor distributor = machineProperties.getDistributor();
         String type = CosIdStoreProviders.storeType(distributor.getProvider(), distributor.getType());
         MachineStoreContext context = new MachineStoreContext(machineProperties, machineStateStorage, clockBackwardsSynchronizer);

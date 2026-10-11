@@ -41,7 +41,8 @@ class CosIdStoreProviderOverrideTest {
     private static final MachineIdDistributor CUSTOM_DISTRIBUTOR = mock(MachineIdDistributor.class);
     
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(CosIdSpringRedisSegmentAutoConfiguration.class, CosIdSpringRedisMachineIdDistributorAutoConfiguration.class))
+        .withConfiguration(AutoConfigurations.of(CosIdSpringRedisSegmentAutoConfiguration.class, CosIdSpringRedisMachineIdDistributorAutoConfiguration.class,
+            CosIdSegmentStoreAutoConfiguration.class, CosIdMachineStoreAutoConfiguration.class))
         .withBean(StringRedisTemplate.class, () -> mock(StringRedisTemplate.class))
         .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
         .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
@@ -69,7 +70,11 @@ class CosIdStoreProviderOverrideTest {
     
     @Test
     void builtInProviderIsUsedByDefault() {
-        contextRunner.run(context -> assertThat(context.getBean(IdSegmentDistributorFactory.class)).isInstanceOf(SpringRedisIdSegmentDistributorFactory.class));
+        contextRunner.run(context -> {
+            assertThat(context.getBean("idSegmentDistributorFactory")).isInstanceOf(SpringRedisIdSegmentDistributorFactory.class);
+            assertThat(context).hasSingleBean(IdSegmentDistributorFactory.class).doesNotHaveBean("cosIdIdSegmentDistributorFactory");
+            assertThat(context).hasSingleBean(MachineIdDistributor.class).doesNotHaveBean("cosIdMachineIdDistributor");
+        });
     }
     
     @Test

@@ -3,7 +3,12 @@ changelog:
     labels:
       - ignore-for-release
 
+  # Labels are applied automatically from the Conventional Commits type of the
+  # pull request title, see .github/workflows/labeler.yml.
   categories:
+    - title: 🔧 Breaking Changes
+      labels:
+        - breaking-change
     - title: 🎉 New Features
       labels:
         - enhancement
@@ -13,18 +18,17 @@ changelog:
     - title: ⚡ Performance Improvements
       labels:
         - performance
-    - title: 🔧 Breaking Changes
-      labels:
-        - breaking-change
     - title: 📚 Documentation Updates
       labels:
         - documentation
+    - title: 🤖 Dependency Updates
+      labels:
+        - dependencies
+        - dependency
     - title: 🔨 Maintenance
       labels:
         - maintenance
-    - title: 🤖 Dependency Updates
-      labels:
-        - dependency
+        - refactor
     - title: Other Changes
       labels:
         - '*'

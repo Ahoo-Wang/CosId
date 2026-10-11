@@ -24,6 +24,13 @@
         <property name="optional" value="false"/>
     </module>
 
+    <!-- Every Java source file starts with the Apache 2.0 license header -->
+    <!-- See https://checkstyle.org/checks/header/header.html -->
+    <module name="Header">
+        <property name="headerFile" value="${config_loc}/java.header"/>
+        <property name="fileExtensions" value="java"/>
+    </module>
+
     <!-- Checks for whitespace                               -->
     <!-- See http://checkstyle.org/config_whitespace.html -->
     <module name="FileTabCharacter">

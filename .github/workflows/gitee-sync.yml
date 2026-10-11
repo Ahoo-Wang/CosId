@@ -8,6 +8,9 @@ on:
       - gh-pages
       - gh-pages-with-site-base
   workflow_dispatch:
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest

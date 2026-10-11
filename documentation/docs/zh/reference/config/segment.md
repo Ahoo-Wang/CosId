@@ -18,7 +18,8 @@
 
 | 名称   | 数据类型               | 说明                                  | 默认值          |
 |------|--------------------|-------------------------------------|--------------|
-| type | `Distributor.Type` | 号段分发器类型： `REDIS`/`JDBC`/`ZOOKEEPER` | `Type.REDIS` |
+| type | `Distributor.Type` | 号段分发器类型： `REDIS`/`JDBC`/`ZOOKEEPER`/`MONGO`/`PROXY` | `Type.REDIS` |
+| provider | `String` | 使用该名称的 `CosIdStoreProvider` 替代 `type` 对应的内置实现，用于接入 CosId 未内置的存储（3.4.0 起） | |
 | jdbc | `Distributor.Jdbc` | Jdbc号段生成器配置                         |              |
 
 ### Distributor.Jdbc

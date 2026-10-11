@@ -17,7 +17,10 @@ import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributorFactory;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -59,10 +62,19 @@ public class CosIdJdbcSegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBuiltInSegmentStore
     public IdSegmentDistributorFactory idSegmentDistributorFactory(DataSource dataSource, JdbcIdSegmentInitializer jdbcIdSegmentInitializer) {
         SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
         return new JdbcIdSegmentDistributorFactory(dataSource, jdbc.isEnableAutoInitIdSegment(), jdbcIdSegmentInitializer, jdbc.getIncrementMaxIdSql(), jdbc.getFetchMaxIdSql(),
             jdbc.getQueryTimeout());
+    }
+
+    /**
+     * The JDBC backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdJdbcSegmentStoreProvider(ObjectProvider<DataSource> dataSource, ObjectProvider<JdbcIdSegmentInitializer> jdbcIdSegmentInitializer) {
+        return BuiltInStoreProvider.segment("jdbc", context -> idSegmentDistributorFactory(dataSource.getObject(), jdbcIdSegmentInitializer.getObject()));
     }
 
 }

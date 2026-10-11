@@ -21,7 +21,10 @@ import me.ahoo.cosid.proxy.api.MachineClient;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientAuthConfiguration;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientTimeoutConfiguration;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -43,9 +46,19 @@ public class CosIdProxyMachineIdDistributorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBuiltInMachineStore
     public ProxyMachineIdDistributor proxyMachineIdDistributor(MachineClient machineClient, MachineStateStorage localMachineState,
                                                                ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         return new ProxyMachineIdDistributor(machineClient, localMachineState, clockBackwardsSynchronizer);
+    }
+
+    /**
+     * The proxy backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdProxyMachineStoreProvider(ObjectProvider<MachineClient> machineClient) {
+        return BuiltInStoreProvider.machine("proxy", context -> proxyMachineIdDistributor(machineClient.getObject(), context.getMachineStateStorage(),
+            context.getClockBackwardsSynchronizer()));
     }
 
 

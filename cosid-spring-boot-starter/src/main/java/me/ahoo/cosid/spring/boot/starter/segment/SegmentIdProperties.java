@@ -23,9 +23,9 @@ import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 
+import jakarta.annotation.Nonnull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
-import jakarta.annotation.Nonnull;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -435,7 +435,14 @@ public class SegmentIdProperties {
 
     public static class Distributor {
         public static final String TYPE = PREFIX + ".distributor.type";
+        public static final String PROVIDER = PREFIX + ".distributor.provider";
         private Type type = Type.REDIS;
+        
+        /**
+         * Name of the {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} to use instead of the one of
+         * {@code type}, for a backend the starter does not ship. Empty by default: the provider of {@code type} is used.
+         */
+        private String provider;
         private Redis redis;
         private Jdbc jdbc;
         private Mongo mongo;
@@ -453,6 +460,14 @@ public class SegmentIdProperties {
 
         public void setType(Type type) {
             this.type = type;
+        }
+        
+        public String getProvider() {
+            return provider;
+        }
+        
+        public void setProvider(String provider) {
+            this.provider = provider;
         }
 
         public Redis getRedis() {

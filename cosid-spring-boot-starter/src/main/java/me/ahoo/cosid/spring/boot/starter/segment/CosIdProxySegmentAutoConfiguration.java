@@ -20,7 +20,10 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientAuthConfiguration;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientTimeoutConfiguration;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -44,8 +47,17 @@ public class CosIdProxySegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBuiltInSegmentStore
     public IdSegmentDistributorFactory idSegmentDistributorFactory(SegmentClient segmentClient) {
         return new ProxyIdSegmentDistributorFactory(segmentClient);
+    }
+
+    /**
+     * The proxy backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdProxySegmentStoreProvider(ObjectProvider<SegmentClient> segmentClient) {
+        return BuiltInStoreProvider.segment("proxy", context -> idSegmentDistributorFactory(segmentClient.getObject()));
     }
 
 }

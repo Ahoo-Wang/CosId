@@ -41,7 +41,8 @@
 
 | 名称     | 数据类型                 | 说明                                                          | 默认值      |
 |--------|----------------------|-------------------------------------------------------------|----------|
-| type   | `Distributor.Type`   | 机器号分配器类型：`MANUAL`/`STATEFUL_SET`/`JDBC`/`REDIS`/`ZOOKEEPER` | `MANUAL` |
+| type   | `Distributor.Type`   | 机器号分配器类型：`MANUAL`/`STATEFUL_SET`/`JDBC`/`REDIS`/`ZOOKEEPER`/`MONGO`/`PROXY` | `MANUAL` |
+| provider | `String` | 使用该名称的 `CosIdStoreProvider` 替代 `type` 对应的内置实现，用于接入 CosId 未内置的存储（3.4.0 起） | |
 | manual | `Distributor.Manual` | 手动分配器配置                                                     |          |
 
 #### Distributor.Manual

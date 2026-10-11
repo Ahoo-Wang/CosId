@@ -23,9 +23,12 @@ import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineCollection;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineInitializer;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.MongoReactiveDeprecation;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -57,8 +60,18 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
     
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBuiltInMachineStore
     public MongoMachineIdDistributor mongoMachineIdDistributor(MachineCollection machineCollection, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         return new MongoMachineIdDistributor(machineCollection, localMachineState, clockBackwardsSynchronizer);
+    }
+
+    /**
+     * The MongoDB backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdMongoMachineStoreProvider(ObjectProvider<MachineCollection> machineCollection) {
+        return BuiltInStoreProvider.machine("mongo", context -> mongoMachineIdDistributor(machineCollection.getObject(), context.getMachineStateStorage(),
+            context.getClockBackwardsSynchronizer()));
     }
     
     @Configuration

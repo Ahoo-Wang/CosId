@@ -20,7 +20,10 @@ import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.snowflake.ConditionalOnCosIdSnowflakeEnabled;
 import me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -68,6 +71,7 @@ public class CosIdJdbcMachineIdDistributorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBuiltInMachineStore
     public JdbcMachineIdDistributor jdbcMachineIdDistributor(
         JdbcMachineIdInitializer jdbcMachineIdInitializer,
         DataSource dataSource,
@@ -75,6 +79,16 @@ public class CosIdJdbcMachineIdDistributorAutoConfiguration {
         ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         return new JdbcMachineIdDistributor(dataSource, localMachineState, clockBackwardsSynchronizer,
             machineProperties.getDistributor().getJdbc().getQueryTimeout());
+    }
+
+    /**
+     * The JDBC backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdJdbcMachineStoreProvider(ObjectProvider<JdbcMachineIdInitializer> jdbcMachineIdInitializer,
+                                                              ObjectProvider<DataSource> dataSource) {
+        return BuiltInStoreProvider.machine("jdbc", context -> jdbcMachineIdDistributor(jdbcMachineIdInitializer.getObject(), dataSource.getObject(),
+            context.getMachineStateStorage(), context.getClockBackwardsSynchronizer()));
     }
 
 }

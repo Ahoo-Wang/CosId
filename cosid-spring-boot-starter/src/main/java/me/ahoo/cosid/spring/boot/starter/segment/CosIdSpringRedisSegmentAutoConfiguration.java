@@ -15,10 +15,13 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
 import me.ahoo.cosid.spring.redis.RedisCommandTimeout;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributor;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributorFactory;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -48,8 +51,17 @@ public class CosIdSpringRedisSegmentAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @ConditionalOnBuiltInSegmentStore
     public IdSegmentDistributorFactory idSegmentDistributorFactory(StringRedisTemplate stringRedisTemplate) {
         RedisCommandTimeout commandTimeout = RedisCommandTimeout.of(segmentIdProperties.getDistributor().getRedis().getTimeout());
         return new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate, commandTimeout);
+    }
+
+    /**
+     * The Redis backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
+     */
+    @Bean
+    public BuiltInStoreProvider cosIdRedisSegmentStoreProvider(ObjectProvider<StringRedisTemplate> stringRedisTemplate) {
+        return BuiltInStoreProvider.segment("redis", context -> idSegmentDistributorFactory(stringRedisTemplate.getObject()));
     }
 }

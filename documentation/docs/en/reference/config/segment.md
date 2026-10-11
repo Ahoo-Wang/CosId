@@ -18,7 +18,8 @@
 
 | Name   | Data Type               | Description                                  | Default Value          |
 |------|--------------------|-------------------------------------|--------------|
-| type | `Distributor.Type` | Segment distributor type: `REDIS`/`JDBC`/`ZOOKEEPER` | `Type.REDIS` |
+| type | `Distributor.Type` | Segment distributor type: `REDIS`/`JDBC`/`ZOOKEEPER`/`MONGO`/`PROXY` | `Type.REDIS` |
+| provider | `String` | Name of a `CosIdStoreProvider` bean to use instead of the one of `type`, for a backend CosId does not ship (since 3.4.0) | |
 | jdbc | `Distributor.Jdbc` | JDBC segment generator configuration                         |              |
 
 ### Distributor.Jdbc

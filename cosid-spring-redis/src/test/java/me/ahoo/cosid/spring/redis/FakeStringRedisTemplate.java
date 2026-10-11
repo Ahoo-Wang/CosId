@@ -45,6 +45,14 @@ final class FakeStringRedisTemplate extends StringRedisTemplate {
     @Override
     public <T> T execute(RedisScript<T> script, List<String> keys, Object... args) {
         scriptCalls.add(new ScriptCall<>(script, keys, args));
+        if (SpringRedisIdSegmentDistributor.REDIS_ID_GENERATE.equals(script)) {
+            // Emulates redis_id_generate.lua: SETNX adder offset, then INCRBY adder step.
+            String adderKey = keys.get(0);
+            values.putIfAbsent(adderKey, Long.parseLong((String) args[0]));
+            @SuppressWarnings("unchecked")
+            T next = (T) increment(adderKey, Long.parseLong((String) args[1]));
+            return next;
+        }
         @SuppressWarnings("unchecked")
         T result = (T) scriptResults.poll();
         return result;
@@ -52,6 +60,10 @@ final class FakeStringRedisTemplate extends StringRedisTemplate {
 
     void setValue(String key, long value) {
         values.put(key, value);
+    }
+
+    void deleteValue(String key) {
+        values.remove(key);
     }
 
     Long getValue(String key) {

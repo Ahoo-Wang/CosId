@@ -22,7 +22,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
+
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
  * Spring Redis IdSegmentDistributor.
@@ -31,6 +36,15 @@ import org.springframework.data.redis.core.StringRedisTemplate;
  */
 @Slf4j
 public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
+    
+    /**
+     * Initialize the adder to the offset when the key is missing and increment it, atomically.
+     * A plain {@code INCRBY} would restart from {@code 0} after the key is evicted, flushed or lost in a failover,
+     * and hand out ranges that were already used.
+     */
+    public static final RedisScript<Long> REDIS_ID_GENERATE = RedisScript.of(new ClassPathResource("redis_id_generate.lua"), Long.class);
+    private static final AtomicLongFieldUpdater<SpringRedisIdSegmentDistributor> LAST_MAX_ID =
+        AtomicLongFieldUpdater.newUpdater(SpringRedisIdSegmentDistributor.class, "lastMaxId");
     
     private final String namespace;
     private final String name;
@@ -109,16 +123,13 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         }
         
         final long nextMinMaxId = lastMaxId + step;
-        Long nextMaxId = redisTemplate.opsForValue().increment(adderKey, step);
-        
-        assert nextMaxId != null;
+        Long nextMaxId = redisTemplate.execute(REDIS_ID_GENERATE, Collections.singletonList(adderKey), String.valueOf(offset), String.valueOf(step));
         Preconditions.checkNotNull(nextMaxId, "nextMaxId can not be null!");
         if (log.isDebugEnabled()) {
             log.debug("Next MaxId [{}] step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);
         }
-        
         Preconditions.checkState(nextMaxId >= nextMinMaxId, "nextMaxId:[%s] must be greater than nextMinMaxId:[%s]!", nextMaxId, nextMinMaxId);
-        this.lastMaxId = nextMaxId;
+        LAST_MAX_ID.accumulateAndGet(this, nextMaxId, Math::max);
         return nextMaxId;
     }
     

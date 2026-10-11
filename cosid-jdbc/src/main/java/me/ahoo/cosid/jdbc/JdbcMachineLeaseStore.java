@@ -60,6 +60,8 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
      */
     private static final String PROBE_STABLE_COLUMN = "select stable from cosid_machine where 1=0";
     
+    private static final String PROBE_TABLE = "select 1 from cosid_machine where 1=0";
+    
     /**
      * Upper bound of attempts when concurrent instances race for the same rows.
      */
@@ -118,22 +120,40 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
      * Fail fast on a {@code cosid_machine} table without the {@code stable} column, instead of at the first claim.
      */
     private void checkStableColumn() {
+        SQLException sqlException = probe(PROBE_STABLE_COLUMN);
+        if (sqlException == null) {
+            return;
+        }
+        if (probe(PROBE_TABLE) != null) {
+            throw new IllegalStateException("Table cosid_machine does not exist: create it with JdbcMachineIdInitializer "
+                + "(or PostgreSqlDialect.INIT_COSID_MACHINE_TABLE_SQL on PostgreSQL).", sqlException);
+        }
+        throw new IllegalStateException("Table cosid_machine has no stable column, which JdbcMachineLeaseStore needs. Add it with: ["
+                + JdbcMachineIdDistributor.ADD_STABLE_COLUMN_SQL + "] (MySQL) or [" + PostgreSqlDialect.ADD_STABLE_COLUMN_SQL + "] (PostgreSQL).",
+            sqlException);
+    }
+    
+    /**
+     * Run a query that returns no row.
+     *
+     * @return {@code null} if it ran, or the SQLState class 42 error (syntax error or access rule violation: an unknown
+     *     table or column) it failed with
+     */
+    private SQLException probe(String sql) {
         try {
             execute(connection -> {
-                try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, PROBE_STABLE_COLUMN, queryTimeoutSeconds)) {
+                try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, sql, queryTimeoutSeconds)) {
                     statement.executeQuery().close();
                 }
                 return null;
             });
+            return null;
         } catch (CosIdException exception) {
             SQLException sqlException = (SQLException) exception.getCause();
-            // SQLState class 42: syntax error or access rule violation, here an unknown column.
             if (sqlException.getSQLState() == null || !sqlException.getSQLState().startsWith("42")) {
                 throw exception;
             }
-            throw new IllegalStateException("Table cosid_machine has no stable column, which JdbcMachineLeaseStore needs. Add it with: ["
-                + JdbcMachineIdDistributor.ADD_STABLE_COLUMN_SQL + "] (MySQL) or [" + PostgreSqlDialect.ADD_STABLE_COLUMN_SQL + "] (PostgreSQL).",
-                sqlException);
+            return sqlException;
         }
     }
     

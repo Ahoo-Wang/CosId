@@ -68,4 +68,17 @@ class JdbcMachineLeaseStoreTest {
         
         Assertions.assertTrue(exception.getMessage().contains(PostgreSqlDialect.ADD_STABLE_COLUMN_SQL), exception.getMessage());
     }
+    
+    @Test
+    void missingTableFailsAtConstructionNamingTheTable() {
+        DataSource dataSource = RealPostgres.createDataSource();
+        String schema = "empty_" + MockIdGenerator.INSTANCE.generateAsString().toLowerCase();
+        Assertions.assertDoesNotThrow(() -> RealPostgres.execute(dataSource, "create schema " + schema));
+        DataSource empty = new ManualCommitDataSource(dataSource, schema);
+        
+        IllegalStateException exception = Assertions.assertThrows(IllegalStateException.class,
+            () -> new JdbcMachineLeaseStore(empty, JdbcSupport.DEFAULT_QUERY_TIMEOUT, PostgreSqlDialect.SERVER_TIME_SQL));
+        
+        Assertions.assertTrue(exception.getMessage().contains("does not exist"), exception.getMessage());
+    }
 }

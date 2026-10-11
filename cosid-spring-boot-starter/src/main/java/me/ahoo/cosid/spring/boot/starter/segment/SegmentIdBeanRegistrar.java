@@ -125,7 +125,8 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
             segmentId = new DefaultSegmentId(ttl, idSegmentDistributor);
         } else {
             SegmentIdProperties.Chain chain = MoreObjects.firstNonNull(idDefinition.getChain(), segmentIdProperties.getChain());
-            segmentId = new SegmentChainId(ttl, chain.getSafeDistance(), idSegmentDistributor, prefetchWorkerExecutorService);
+            segmentId = new SegmentChainId(ttl, chain.getSafeDistance(), Math.max(chain.getSafeDistance(), chain.getMaxPrefetchDistance()),
+                idSegmentDistributor, prefetchWorkerExecutorService);
         }
 
         IdConverterDefinition converterDefinition = idDefinition.getConverter();

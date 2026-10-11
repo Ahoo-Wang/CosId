@@ -282,6 +282,13 @@ public class SegmentIdProperties {
         private int safeDistance = SegmentChainId.DEFAULT_SAFE_DISTANCE;
 
         /**
+         * The maximum number of segments a single prefetch may request when the generator is hungry.
+         * Caps the id range a traffic burst can waste on restart ({@code maxPrefetchDistance * step}).
+         * Default is {@link SegmentChainId#DEFAULT_MAX_PREFETCH_DISTANCE}.
+         */
+        private int maxPrefetchDistance = SegmentChainId.DEFAULT_MAX_PREFETCH_DISTANCE;
+
+        /**
          * Configuration for the prefetch worker.
          */
         private PrefetchWorker prefetchWorker;
@@ -309,6 +316,24 @@ public class SegmentIdProperties {
          */
         public void setSafeDistance(int safeDistance) {
             this.safeDistance = safeDistance;
+        }
+
+        /**
+         * Gets the maximum number of segments a single prefetch may request.
+         *
+         * @return the maximum prefetch distance
+         */
+        public int getMaxPrefetchDistance() {
+            return maxPrefetchDistance;
+        }
+
+        /**
+         * Sets the maximum number of segments a single prefetch may request.
+         *
+         * @param maxPrefetchDistance the maximum prefetch distance, at least the safe distance
+         */
+        public void setMaxPrefetchDistance(int maxPrefetchDistance) {
+            this.maxPrefetchDistance = maxPrefetchDistance;
         }
 
         /**

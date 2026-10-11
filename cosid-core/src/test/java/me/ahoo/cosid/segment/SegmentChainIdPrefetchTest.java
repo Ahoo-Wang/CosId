@@ -16,6 +16,7 @@ package me.ahoo.cosid.segment;
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+import me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor;
 import me.ahoo.cosid.util.Clock;
 
 import org.junit.jupiter.api.Assertions;
@@ -29,7 +30,7 @@ class SegmentChainIdPrefetchTest {
     void hungryPrefetchShouldNotExceedMaxPrefetchDistance() {
         PrefetchWorkerExecutorService executorService = new PrefetchWorkerExecutorService(Duration.ofHours(1), 1, false);
         try {
-            IdSegmentDistributor.Atomic distributor = new IdSegmentDistributor.Atomic(10);
+            AtomicIdSegmentDistributor distributor = new AtomicIdSegmentDistributor(10);
             SegmentChainId segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, 16, distributor, executorService);
             SegmentChainId.PrefetchJob prefetchJob = segmentChainId.getPrefetchJob();
             
@@ -50,7 +51,7 @@ class SegmentChainIdPrefetchTest {
     void defaultMaxPrefetchDistance() {
         PrefetchWorkerExecutorService executorService = new PrefetchWorkerExecutorService(Duration.ofHours(1), 1, false);
         try {
-            SegmentChainId segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, new IdSegmentDistributor.Atomic(), executorService);
+            SegmentChainId segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, new AtomicIdSegmentDistributor(), executorService);
             
             Assertions.assertEquals(SegmentChainId.DEFAULT_MAX_PREFETCH_DISTANCE, segmentChainId.getMaxPrefetchDistance());
         } finally {
@@ -63,7 +64,7 @@ class SegmentChainIdPrefetchTest {
         PrefetchWorkerExecutorService executorService = new PrefetchWorkerExecutorService(Duration.ofHours(1), 1, false);
         try {
             Assertions.assertThrows(IllegalArgumentException.class,
-                () -> new SegmentChainId(TIME_TO_LIVE_FOREVER, 4, 2, new IdSegmentDistributor.Atomic(), executorService));
+                () -> new SegmentChainId(TIME_TO_LIVE_FOREVER, 4, 2, new AtomicIdSegmentDistributor(), executorService));
         } finally {
             executorService.shutdown();
         }

@@ -28,6 +28,8 @@ import me.ahoo.cosid.stat.generator.CosIdGeneratorStat;
 import me.ahoo.cosid.stat.generator.SegmentIdStat;
 import me.ahoo.cosid.stat.generator.SimpleIdGeneratorStat;
 import me.ahoo.cosid.stat.generator.SnowflakeIdStat;
+import me.ahoo.cosid.test.segment.MockIdSegmentDistributor;
+
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
@@ -59,14 +61,14 @@ class StatisticalTest {
 
     @Test
     void statSegmentId() {
-        var segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
+        var segmentId = new DefaultSegmentId(new MockIdSegmentDistributor());
         var stat = segmentId.stat();
         assertThat(stat, Matchers.instanceOf(SegmentIdStat.class));
     }
 
     @Test
     void statStringSegmentId() {
-        var segmentId = new StringSegmentId(new DefaultSegmentId(new IdSegmentDistributor.Mock()), Radix62IdConverter.INSTANCE);
+        var segmentId = new StringSegmentId(new DefaultSegmentId(new MockIdSegmentDistributor()), Radix62IdConverter.INSTANCE);
         var stat = segmentId.stat();
         assertThat(stat, Matchers.instanceOf(SimpleIdGeneratorStat.class));
         assertThat(((SimpleIdGeneratorStat) stat).getKind(), equalTo(StringSegmentId.class.getSimpleName()));

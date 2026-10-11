@@ -30,7 +30,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 class CosIdJdbcAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, CosIdJdbcAutoConfiguration.class))
-        .withBean(CosIdAccessorRegistry.class, () -> mock(CosIdAccessorRegistry.class));
+        .withBean(CosIdAccessorRegistry.class, () -> mock(CosIdAccessorRegistry.class))
+        .withPropertyValues(CosIdJdbcAutoConfiguration.ENABLED_KEY + "=true");
 
     @Test
     void createsJdbcFieldParserAndBeforeConvertCallbackWhenDataJdbcAdapterIsPresent() {
@@ -87,5 +88,15 @@ class CosIdJdbcAutoConfigurationTest {
         this.contextRunner
             .withBean(IdAnnotationDefinitionParser.class, () -> parser)
             .run(context -> assertThat(context.getBean(IdAnnotationDefinitionParser.class)).isSameAs(parser));
+    }
+
+    @Test
+    void isOffByDefault() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, CosIdJdbcAutoConfiguration.class))
+            .withBean(CosIdAccessorRegistry.class, () -> mock(CosIdAccessorRegistry.class))
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(IdAnnotationDefinitionParser.class)
+                .doesNotHaveBean(CosIdBeforeConvertCallback.class));
     }
 }

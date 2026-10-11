@@ -22,6 +22,17 @@
 
 _Still to be filled in as the changes land: the thread-local grouped path (`GroupedAccessor`), the old machine id distributors, and the APIs deprecated for removal in 3.x._
 
+### APIs deprecated for removal in 3.x
+
+| Removed | Use instead |
+|---|---|
+| `AbstractSnowflakeId.nextTime()` (no longer called since 3.4) | override `getCurrentTime()` to change the clock |
+| `CosIdMachineIdLifecycle(MachineIdGuarder, MachineIdDistributor)` | `CosIdMachineIdLifecycle(MachineIdGuarder, MachineIdDistributor, GuardDistribute)` |
+
+### Test segment distributors
+
+`IdSegmentDistributor.Atomic` and `IdSegmentDistributor.Mock` moved out of `cosid-core` to the `cosid-test` artifact as `me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor` and `me.ahoo.cosid.test.segment.MockIdSegmentDistributor`, with the same constructors.
+
 ### Sharding algorithms moved to `cosid-sharding`
 
 `me.ahoo.cosid.sharding` (`ModCycle`, `IntervalTimeline`, `CachedSharding`, ...) moved from `cosid-core` to the new `me.ahoo.cosid:cosid-sharding` artifact, with the same package and class names. Add the dependency where you use them; the BOM manages its version. Downstream integrations need it too, such as the CosId sharding algorithms in Apache ShardingSphere (`shardingsphere-sharding-cosid`). Guava is now a dependency of `cosid-sharding` only.
@@ -32,6 +43,8 @@ _Still to be filled in as the changes land: the thread-local grouped path (`Grou
 |---|---|---|
 | `cosid.jdbc.enabled` | `true` | `false` |
 | `cosid.actuator.delete.enabled` | `true` | `false` |
+
+Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `cosid.jdbc.enabled=true`**: with it off, CosId no longer fills the `@Id` property (or `@CosId` fields) of Spring Data JDBC entities, and an INFO at startup names those entities. With `cosid.actuator.delete.enabled` off, the `cosid` endpoint is read-only (`CosIdReadOnlyEndpoint`), and the 3.4 startup warning is gone.
 
 ## API changes
 

@@ -26,3 +26,10 @@ By default, `CosIdIdentifierFactory` will retrieve the ID generator named `__sha
 
 Developers can also customize the ID generator name by configuring the system property `cosid.axon`.
 
+### Several application contexts
+
+With the starter, each Spring context binds its `IdGeneratorProvider` to `CosIdIdentifierFactory`, and factories created by Axon without a provider use the most recent binding. When different providers are bound (several contexts in one JVM, such as tests), a warning is logged. To choose the provider, create the factory yourself:
+
+```java
+IdentifierFactory factory = new CosIdIdentifierFactory(idGeneratorProvider);
+```

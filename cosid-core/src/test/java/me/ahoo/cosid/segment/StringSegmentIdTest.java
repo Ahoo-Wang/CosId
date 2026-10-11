@@ -14,6 +14,7 @@
 package me.ahoo.cosid.segment;
 
 import me.ahoo.cosid.converter.Radix62IdConverter;
+import me.ahoo.cosid.test.segment.MockIdSegmentDistributor;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,7 @@ class StringSegmentIdTest {
     
     @Test
     void ctor() {
-        DefaultSegmentId delegate = new DefaultSegmentId(new IdSegmentDistributor.Mock());
+        DefaultSegmentId delegate = new DefaultSegmentId(new MockIdSegmentDistributor());
         StringSegmentId stringSegmentId = new StringSegmentId(delegate, Radix62IdConverter.PAD_START);
 
         Assertions.assertSame(delegate.current(), stringSegmentId.current());

@@ -30,18 +30,17 @@ public class MockIdGenerator extends StringIdGeneratorDecorator {
     
     public static final String TEST_PREFIX = "test_";
     
+    /**
+     * Random per JVM: test JVMs running at the same time (Gradle forks, CI jobs on one database) never generate the same
+     * ids for the namespaces and names they share a backend with, while ids stay unique within a JVM.
+     */
+    private static final String JVM_TAG = Long.toString(ThreadLocalRandom.current().nextLong() & Long.MAX_VALUE, Character.MAX_RADIX) + "_";
+    
+    
     public static final IdGenerator INSTANCE = usePrefix(TEST_PREFIX);
     
     public MockIdGenerator(String prefix) {
-        super(new MillisecondSnowflakeId(randomMachineId()), new PrefixIdConverter(prefix, Radix62IdConverter.INSTANCE));
-    }
-    
-    /**
-     * A random machine id, so that test JVMs running at the same time (Gradle forks, CI jobs on one database) do not
-     * generate the same ids for the namespaces and names they share a backend with.
-     */
-    private static int randomMachineId() {
-        return ThreadLocalRandom.current().nextInt(1 << MillisecondSnowflakeId.DEFAULT_MACHINE_BIT);
+        super(new MillisecondSnowflakeId(0), new PrefixIdConverter(prefix + JVM_TAG, Radix62IdConverter.INSTANCE));
     }
     
     public static IdGenerator usePrefix(String prefix) {

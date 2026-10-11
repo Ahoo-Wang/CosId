@@ -19,21 +19,15 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 
 class DefaultIdSegmentTest {
 
-    @AfterEach
-    void clearGroupedContext() {
-        GroupedAccessor.clear();
-    }
 
     @Test
     void constructorShouldExposeRangeTtlAndGroupMetadata() {
@@ -73,13 +67,13 @@ class DefaultIdSegmentTest {
     }
 
     @Test
-    void incrementAndGetShouldPublishGroupWhenSegmentIsGrouped() {
+    void groupedSegmentKeepsItsGroup() {
         GroupedKey group = GroupedKey.forever("2024");
         DefaultIdSegment segment = new DefaultIdSegment(2, 2, 100, IdSegment.TIME_TO_LIVE_FOREVER, group);
 
         assertEquals(1, segment.incrementAndGet());
 
-        assertSame(group, GroupedAccessor.requiredGet());
+        assertSame(group, segment.group());
     }
 
     @Test

@@ -29,7 +29,6 @@ import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.segment.StringSegmentId;
 import me.ahoo.cosid.segment.grouped.GroupBySupplier;
-import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 import me.ahoo.cosid.segment.grouped.GroupedId;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.segment.grouped.GroupedIdSegmentDistributorFactory;
@@ -129,21 +128,17 @@ public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistribut
     }
     
     /**
-     * The deprecated thread-local path keeps working: generating sets the group that the converter reads.
+     * A string segment id with a grouped prefix takes the group from the segment the id came from.
      */
-    @SuppressWarnings("deprecation")
     @Test
-    public void generateAsStringUsesTheThreadLocalGroup() {
+    public void generateAsStringUsesTheSegmentGroup() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
         IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "generateAsString", TEST_OFFSET, TEST_STEP);
         IdSegmentDistributor distributor = factory().create(definition);
         SegmentId segmentId = new StringSegmentId(new DefaultSegmentId(distributor),
             new GroupedPrefixIdConverter("-", ToStringIdConverter.INSTANCE));
-        try {
-            assertThat(segmentId.generateAsString(), equalTo(groupedSupplier().get().getKey() + "-" + (TEST_OFFSET + 1)));
-        } finally {
-            GroupedAccessor.clear();
-        }
+        
+        assertThat(segmentId.generateAsString(), equalTo(groupedSupplier().get().getKey() + "-" + (TEST_OFFSET + 1)));
     }
     
     /**
@@ -174,7 +169,6 @@ public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistribut
      * With step 1 every id comes from its own call to the distributor: the id and its group must come from the same
      * grouped counter even when the group rolls over in between, or "2026-1" could be issued twice.
      */
-    @SuppressWarnings("deprecation")
     @Test
     public void oneStepIdKeepsItsGroupAcrossRollover() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();
@@ -189,7 +183,5 @@ public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistribut
         GroupedId grouped = segmentId.generateGrouped();
         
         assertThat(grouped, equalTo(GroupedId.of(before, TEST_OFFSET + 1)));
-        assertThat(GroupedAccessor.get(), equalTo(before));
-        GroupedAccessor.clear();
     }
 }

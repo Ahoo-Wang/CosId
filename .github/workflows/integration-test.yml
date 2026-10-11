@@ -191,6 +191,8 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Spring-Redis
+        env:
+          COSID_TEST_REDIS_URI: redis://localhost:6379
         run: ./gradlew cosid-spring-redis:clean cosid-spring-redis:check
 
   cosid-mongo-test:
@@ -281,6 +283,10 @@ jobs:
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: Test CosId-Jdbc
+        env:
+          COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
+          COSID_TEST_MYSQL_USERNAME: root
+          COSID_TEST_MYSQL_PASSWORD: root
         run: ./gradlew cosid-jdbc:clean cosid-jdbc:check
 
   cosid-spring-boot-starter-test:

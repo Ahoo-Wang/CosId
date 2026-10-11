@@ -50,6 +50,19 @@
 |-----------|-----------|-----|--------|
 | machineId | `Integer` | 机器号 | `null` |
 
+### Guarder
+
+> 机器号（心跳）守护配置
+
+| 名称                 | 数据类型       | 说明 | 默认值 |
+|--------------------|------------|----|-----|
+| enabled            | `boolean`  | 是否开启机器号守护 | `true` |
+| initialDelay       | `Duration` | 首次守护前的延迟 | `PT1M` |
+| delay              | `Duration` | 守护（远端心跳）间隔 | `PT1M` |
+| safeGuardDuration  | `Duration` | 超过该时长未守护的机器号可能被其他实例回收 | `PT5M` |
+| failFast           | `boolean`  | 机器号租约丢失或过期后停止发号 | `true` |
+| localStateInterval | `Duration` | 本地机器状态（重启后用于时钟回拨保护的时间水位）的刷新间隔。崩溃重启时，短于该间隔的时钟回拨可能检测不到。仅在开启守护且使用本地文件状态存储（`stateStorage.local`）时生效。`0` 表示关闭 | `PT1S` |
+
 ## ClockBackwards
 
 > `me.ahoo.cosid.spring.boot.starter.machine.MachineProperties.ClockBackwards`

@@ -17,9 +17,11 @@ import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.IdGeneratorDecorator;
+import me.ahoo.cosid.StringIdGenerator;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import com.google.common.base.Strings;
 import org.jspecify.annotations.NonNull;
@@ -32,13 +34,17 @@ import java.util.Optional;
  * <p>Delays the lookup of an ID generator from the provider until first access.
  * This is useful when the generator might not be immediately available at startup.
  *
+ * <p>The named generator may generate string ids only, such as a {@link me.ahoo.cosid.cosid.CosIdGenerator}:
+ * {@link #generateAsString()} then works, while {@link #generate()} and {@link #getActual()} throw
+ * {@link CosIdException}.
+ *
  * @author ahoo wang
  */
 public final class LazyIdGenerator implements IdGeneratorDecorator {
 
     private final String generatorName;
 
-    private volatile IdGenerator lazyIdGen;
+    private volatile StringIdGenerator lazyIdGen;
 
     private final IdGeneratorProvider idGeneratorProvider;
 
@@ -78,12 +84,12 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
      * @return the generator or null if not required and not found
      * @throws NotFoundIdGeneratorException if required and not found
      */
-    public IdGenerator tryGet(boolean required) {
+    public StringIdGenerator tryGet(boolean required) {
         if (null != lazyIdGen) {
             return lazyIdGen;
         }
         String generatorName = getGeneratorName();
-        Optional<IdGenerator> idGeneratorOp = idGeneratorProvider.get(generatorName);
+        Optional<StringIdGenerator> idGeneratorOp = idGeneratorProvider.get(generatorName);
         if (idGeneratorOp.isPresent()) {
             lazyIdGen = idGeneratorOp.get();
             return lazyIdGen;
@@ -101,7 +107,7 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
      * @throws CosIdException if not a SnowflakeId when required
      */
     public SnowflakeId asSnowflakeId(boolean required) {
-        IdGenerator idGenerator = tryGet(required);
+        StringIdGenerator idGenerator = tryGet(required);
         if (null == idGenerator) {
             return null;
         }
@@ -119,7 +125,7 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
      * @throws CosIdException if not a SnowflakeFriendlyId when required
      */
     public SnowflakeFriendlyId asFriendlyId(boolean required) {
-        IdGenerator idGenerator = tryGet(required);
+        StringIdGenerator idGenerator = tryGet(required);
         if (null == idGenerator) {
             return null;
         }
@@ -137,7 +143,7 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
      * @throws CosIdException if not a SegmentId when required
      */
     public SegmentId asSegmentId(boolean required) {
-        IdGenerator idGenerator = tryGet(required);
+        StringIdGenerator idGenerator = tryGet(required);
         if (null == idGenerator) {
             return null;
         }
@@ -149,7 +155,25 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
 
     @Override
     public @NonNull IdGenerator getActual() {
-        return tryGet(true);
+        StringIdGenerator idGenerator = tryGet(true);
+        if (idGenerator instanceof IdGenerator actual) {
+            return actual;
+        }
+        throw new CosIdException(Strings.lenientFormat("IdGenerator:[%s] generates string ids only, use generateAsString()!", generatorName));
+    }
+
+    @Override
+    public @NonNull String generateAsString() {
+        return tryGet(true).generateAsString();
+    }
+
+    @Override
+    public IdGeneratorStat stat() {
+        StringIdGenerator idGenerator = tryGet(true);
+        if (idGenerator instanceof IdGenerator) {
+            return IdGeneratorDecorator.super.stat();
+        }
+        return IdGeneratorStat.simple(getClass().getSimpleName(), idGenerator.stat(), null);
     }
 
     @Override

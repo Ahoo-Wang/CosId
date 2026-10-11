@@ -13,8 +13,7 @@
 
 package me.ahoo.cosid.cosid;
 
-import me.ahoo.cosid.IdConverter;
-import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.StringIdGenerator;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.generator.CosIdGeneratorStat;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
@@ -29,6 +28,8 @@ import org.jspecify.annotations.NonNull;
  * flexible format. Unlike traditional algorithms like Snowflake, CosId uses a
  * state-based approach that can be serialized to and from string representations.
  * 
+ * <p>It generates string ids only: it is a {@link StringIdGenerator}, not an {@link me.ahoo.cosid.IdGenerator}.
+ *
  * <p>Key features of the CosId algorithm:
  * <ul>
  *   <li>State-based design with explicit timestamp, machine ID, and sequence components</li>
@@ -48,7 +49,7 @@ import org.jspecify.annotations.NonNull;
  *
  * @author ahoo wang
  */
-public interface CosIdGenerator extends IdGenerator {
+public interface CosIdGenerator extends StringIdGenerator {
     /**
      * Get the machine ID assigned to this generator.
      * 
@@ -81,36 +82,6 @@ public interface CosIdGenerator extends IdGenerator {
      */
     @NonNull
     CosIdIdStateParser getStateParser();
-    
-    /**
-     * Get the ID converter (unsupported in CosIdGenerator).
-     * 
-     * <p>CosIdGenerator does not support the traditional {@link IdConverter} approach
-     * because it uses a state-based design with explicit {@link CosIdIdStateParser}
-     * for string conversion. This method always throws {@link UnsupportedOperationException}.
-     *
-     * @return Never returns (always throws exception)
-     * @throws UnsupportedOperationException always thrown because CosIdGenerator uses state parsers instead
-     */
-    @Override
-    default @NonNull IdConverter idConverter() {
-        throw new UnsupportedOperationException("CosIdGenerator does not support IdConverter,please use CosIdIdStateParser instead!");
-    }
-    
-    /**
-     * Generate an ID as a long value (unsupported in CosIdGenerator).
-     * 
-     * <p>CosIdGenerator does not support generating simple long IDs because it
-     * uses a state-based approach that includes structured information. This
-     * method always throws {@link UnsupportedOperationException}.
-     *
-     * @return Never returns (always throws exception)
-     * @throws UnsupportedOperationException always thrown because CosIdGenerator uses state-based generation
-     */
-    @Override
-    default long generate() {
-        throw new UnsupportedOperationException("CosIdGenerator does not support the generation of long IDs!");
-    }
     
     /**
      * Generate an ID as a state object.

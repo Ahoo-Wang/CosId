@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.proxy.server.controller;
 
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -52,7 +53,7 @@ public class IdController {
     @GetMapping("{name}")
     public long generate(@PathVariable String name) {
         return provider
-            .getRequired(name)
+            .getRequired(name, IdGenerator.class)
             .generate();
     }
     

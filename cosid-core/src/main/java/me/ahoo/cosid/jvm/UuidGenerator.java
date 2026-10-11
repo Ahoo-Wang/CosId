@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.jvm;
 
-import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.StringIdGenerator;
 
 import org.jspecify.annotations.NonNull;
 
@@ -23,21 +23,16 @@ import java.util.UUID;
  * UUID ID Generator.
  *
  * <p>Generates UUIDs as string representations.
- * Note: Does not support {@link #generate()} for long IDs.
+ * It generates string ids only.
  *
  * @author ahoo wang
  */
-public class UuidGenerator implements IdGenerator {
+public class UuidGenerator implements StringIdGenerator {
 
     /**
      * Shared singleton instance.
      */
-    public static final IdGenerator INSTANCE = new UuidGenerator();
-
-    @Override
-    public long generate() {
-        throw new UnsupportedOperationException("UuidGenerator does not support the generation of long IDs!");
-    }
+    public static final StringIdGenerator INSTANCE = new UuidGenerator();
 
     @Override
     public @NonNull String generateAsString() {

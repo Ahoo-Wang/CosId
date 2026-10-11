@@ -14,6 +14,7 @@
 package me.ahoo.cosid.provider;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.StringIdGenerator;
 
 import com.google.common.base.Strings;
 import com.google.errorprone.annotations.ThreadSafe;
@@ -24,7 +25,12 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Container for managing named {@link IdGenerator} instances.
+ * Container for managing named {@link StringIdGenerator} instances.
+ *
+ * <p>A provider holds both {@link IdGenerator}s ({@code long} ids) and generators of string ids only, such as
+ * {@link me.ahoo.cosid.cosid.CosIdGenerator}. Use {@link #get(String, Class)} or {@link #getRequired(String, Class)}
+ * to look one up by the type you need, for example {@code getRequired(name, IdGenerator.class)} to call
+ * {@code generate()}. The shared generator is always an {@link IdGenerator}.
  * 
  * <p>This interface provides a registry for ID generators that can be accessed
  * by name throughout an application. It supports both named generators and a
@@ -101,7 +107,26 @@ public interface IdGeneratorProvider {
      * @param name The name of the ID generator to retrieve
      * @return An optional containing the ID generator, or empty if not found
      */
-    Optional<IdGenerator> get(String name);
+    Optional<StringIdGenerator> get(String name);
+
+    /**
+     * Get an ID generator by its name and type.
+     *
+     * @param name The name of the ID generator to retrieve
+     * @param type The type the generator must have, such as {@code IdGenerator.class}
+     * @param <T> The generator type
+     * @return An optional containing the ID generator, or empty if not found
+     * @throws IllegalArgumentException if the generator with that name is not of the given type
+     */
+    default <T extends StringIdGenerator> Optional<T> get(String name, Class<T> type) {
+        return get(name).map(idGenerator -> {
+            if (!type.isInstance(idGenerator)) {
+                throw new IllegalArgumentException(Strings.lenientFormat("ID generator named:[%s] is a [%s], not a [%s]!",
+                    name, idGenerator.getClass().getName(), type.getName()));
+            }
+            return type.cast(idGenerator);
+        });
+    }
     
     /**
      * Get an ID generator by its name, throwing an exception if not found.
@@ -113,8 +138,21 @@ public interface IdGeneratorProvider {
      * @return The ID generator with the specified name
      * @throws IllegalArgumentException if no generator with the specified name exists
      */
-    default IdGenerator getRequired(String name) {
-        return get(name)
+    default StringIdGenerator getRequired(String name) {
+        return getRequired(name, StringIdGenerator.class);
+    }
+
+    /**
+     * Get an ID generator by its name and type, throwing an exception if not found.
+     *
+     * @param name The name of the ID generator to retrieve
+     * @param type The type the generator must have, such as {@code IdGenerator.class}
+     * @param <T> The generator type
+     * @return The ID generator with the specified name
+     * @throws IllegalArgumentException if no generator with the specified name exists, or it is not of the given type
+     */
+    default <T extends StringIdGenerator> T getRequired(String name, Class<T> type) {
+        return get(name, type)
             .orElseThrow(() -> new IllegalArgumentException(Strings.lenientFormat("Not found ID generator named:[%s]!", name)));
     }
     
@@ -126,8 +164,9 @@ public interface IdGeneratorProvider {
      *
      * @param name The name to register the generator under
      * @param idGenerator The ID generator to register
+     * @throws IllegalArgumentException if the name is {@link #SHARE} and the generator is not an {@link IdGenerator}
      */
-    void set(String name, IdGenerator idGenerator);
+    void set(String name, StringIdGenerator idGenerator);
     
     /**
      * Remove an ID generator by its name.
@@ -138,7 +177,7 @@ public interface IdGeneratorProvider {
      * @param name The name of the ID generator to remove
      * @return The removed ID generator, or null if not found
      */
-    IdGenerator remove(String name);
+    StringIdGenerator remove(String name);
     
     /**
      * Clear all registered ID generators.
@@ -156,7 +195,7 @@ public interface IdGeneratorProvider {
      *
      * @return A set of entries for all registered ID generators
      */
-    Set<Map.Entry<String, IdGenerator>> entries();
+    Set<Map.Entry<String, StringIdGenerator>> entries();
     
     /**
      * Get all registered ID generators.
@@ -166,6 +205,6 @@ public interface IdGeneratorProvider {
      *
      * @return A collection of all registered ID generators
      */
-    Collection<IdGenerator> getAll();
+    Collection<StringIdGenerator> getAll();
     
 }

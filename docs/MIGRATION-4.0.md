@@ -64,6 +64,23 @@ Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `
 
 ## API changes
 
-_To be filled in: `StringIdGenerator` and the `IdGeneratorProvider` injection points, `SnowflakeLayout`, the new `cosid-sharding` and `cosid-accessor` modules, the configuration property model._
+### String-only generators are not `IdGenerator`s
+
+`CosIdGenerator` (and its decorators) and `UuidGenerator` now implement only `StringIdGenerator`, which `IdGenerator` extends; `StringIdGenerator` is `Statistical`. Their `generate()` and `idConverter()`, which always threw `UnsupportedOperationException`, are gone. `IdGeneratorProvider` holds `StringIdGenerator`s and has typed lookups:
+
+| Injection point or call | 3.x | 4.0 |
+|---|---|---|
+| a Spring `IdGenerator` injection point | could resolve to the `CosIdGenerator` bean | never does: inject `CosIdGenerator` or `StringIdGenerator` for it |
+| `provider.get(name)` | `Optional<IdGenerator>` | `Optional<StringIdGenerator>`; `get(name, IdGenerator.class)` for a `long` generator |
+| `provider.getRequired(name).generate()` | | `provider.getRequired(name, IdGenerator.class).generate()` |
+| `provider.getRequired(name).generateAsString()` | | unchanged |
+| `provider.set(name, ...)`, `remove`, `entries()`, `getAll()` | `IdGenerator` | `StringIdGenerator` |
+| `provider.getShare()`, `setShare(...)` | `IdGenerator` | unchanged; `set(SHARE, ...)` with a string-only generator throws `IllegalArgumentException` |
+| `UuidGenerator.INSTANCE` | `IdGenerator` | `StringIdGenerator` |
+| `LazyIdGenerator.tryGet(...)` | `IdGenerator` | `StringIdGenerator`; `generate()` and `getActual()` on a string-only generator throw `CosIdException`, `generateAsString()` works |
+
+A typed lookup of a generator with another type throws `IllegalArgumentException` naming both types. `@CosId` fields of type `String` keep working with the `cosid` generator; `long` and `int` fields need an `IdGenerator`.
+
+_To be filled in: `SnowflakeLayout`, the new `cosid-sharding` and `cosid-accessor` modules, the configuration property model._
 
 The API diff against 3.4 is reported on every pull request to `main` (the **API Diff** workflow).

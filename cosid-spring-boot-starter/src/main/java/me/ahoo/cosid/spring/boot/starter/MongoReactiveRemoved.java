@@ -22,7 +22,7 @@ package me.ahoo.cosid.spring.boot.starter;
  */
 public final class MongoReactiveRemoved {
     public static final String MESSAGE = "CosId's MongoDB reactive support was removed in 4.0 and only the reactive MongoDB driver is on the "
-        + "classpath. Add org.mongodb:mongodb-driver-sync: see docs/MIGRATION-4.0.md.";
+        + "classpath. Add org.mongodb:mongodb-driver-sync: see https://github.com/Ahoo-Wang/CosId/blob/main/docs/MIGRATION-4.0.md";
     
     private MongoReactiveRemoved() {
     }

@@ -97,7 +97,7 @@ public class CosIdMongoSegmentAutoConfiguration {
         }
 
         /**
-         * The MongoDB backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection selection.
+         * The MongoDB backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
          */
         @Bean
         public BuiltInStoreProvider cosIdMongoSegmentStoreProvider(ObjectProvider<MongoClient> mongoClient, ObjectProvider<IdSegmentInitializer> idSegmentInitializer) {

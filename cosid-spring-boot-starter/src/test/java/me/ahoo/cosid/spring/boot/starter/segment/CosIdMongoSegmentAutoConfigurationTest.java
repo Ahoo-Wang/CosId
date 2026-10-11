@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.MongoIdSegmentInitializer;
+import me.ahoo.cosid.spring.boot.starter.MongoReactiveRemoved;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -100,5 +101,15 @@ class CosIdMongoSegmentAutoConfigurationTest {
         when(database.getCollection(anyString())).thenReturn(collection);
         when(database.withTimeout(anyLong(), any())).thenReturn(database);
         return client;
+    }
+
+    @Test
+    void failsAtStartupWithOnlyTheReactiveDriver() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdMongoSegmentAutoConfiguration.class))
+            .withClassLoader(new FilteredClassLoader(MongoClient.class))
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", SegmentIdProperties.Distributor.TYPE + "=mongo")
+            .run(context -> assertThat(context).hasFailed()
+                .getFailure().rootCause().hasMessage(MongoReactiveRemoved.MESSAGE));
     }
 }

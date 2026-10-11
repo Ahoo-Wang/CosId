@@ -44,7 +44,9 @@ tasks.register<Javadoc>("aggregateJavadoc") {
     dependsOn(libraryProjects.map { it.tasks.named("compileJava") })
     title = "CosId | 通用、灵活、高性能的分布式 ID 生成器"
     options.header("<a href='${project.properties["website"]}' target='_blank'>GitHub</a>")
-    options.destinationDirectory =
+    // Set the task's own output directory, not options.destinationDirectory: only destinationDir is a
+    // tracked output, so a build cache hit restores the docs here instead of to the default location.
+    destinationDir =
         rootProject.layout.buildDirectory
             .dir("aggregatedJavadoc")
             .get()

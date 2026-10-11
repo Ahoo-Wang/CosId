@@ -17,9 +17,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
@@ -27,6 +27,7 @@ import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.mongo.MongoMachineCollection;
 import me.ahoo.cosid.mongo.MongoMachineIdDistributor;
 import me.ahoo.cosid.mongo.MongoMachineInitializer;
+import me.ahoo.cosid.spring.boot.starter.MongoReactiveRemoved;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -142,5 +143,18 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
         when(database.getCollection(anyString())).thenReturn(collection);
         when(database.withTimeout(anyLong(), any())).thenReturn(database);
         return client;
+    }
+
+    @Test
+    void failsAtStartupWithOnlyTheReactiveDriver() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdMongoMachineIdDistributorAutoConfiguration.class))
+            .withClassLoader(new FilteredClassLoader(MongoClient.class))
+            .withBean(MachineProperties.class, MachineProperties::new)
+            .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
+            .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.Distributor.TYPE + "=mongo")
+            .run(context -> assertThat(context).hasFailed()
+                .getFailure().rootCause().hasMessage(MongoReactiveRemoved.MESSAGE));
     }
 }

@@ -16,6 +16,10 @@
 
 ## Removed
 
+### MongoDB reactive support
+
+`me.ahoo.cosid.mongo.reactive` (`MongoReactiveIdSegmentDistributorFactory`, `MongoReactiveMachineCollection`, the reactive initializers and `BlockingAdapter`) is removed: it only blocked on the reactive driver. Use the sync driver, `org.mongodb:mongodb-driver-sync`, with the classes in `me.ahoo.cosid.mongo`; the data format is the same. With the starter, selecting MongoDB while only the reactive driver is on the classpath fails at startup with a message pointing here.
+
 ### Thread-local grouped ids
 
 `GroupedAccessor` is removed, and generating an id no longer publishes its group on the current thread. The group travels with the id instead:
@@ -28,7 +32,14 @@
 
 `SegmentId.generateGrouped()` has no default implementation any more: a custom `SegmentId` must implement it. A custom converter decorator should override `asString(long, GroupedKey)` and pass the group on. With the starter, `converter.group-prefix.enabled` on a segment id without `group.by` fails at startup.
 
-_Still to be filled in as the changes land: the old machine id distributors, and the APIs deprecated for removal in 3.x._
+_Still to be filled in as the changes land: the old machine id distributors._
+
+### APIs deprecated for removal in 3.x
+
+| Removed | Use instead |
+|---|---|
+| `AbstractSnowflakeId.nextTime()` (no longer called since 3.4) | override `getCurrentTime()` to change the clock |
+| `CosIdMachineIdLifecycle(MachineIdGuarder, MachineIdDistributor)` | `CosIdMachineIdLifecycle(MachineIdGuarder, MachineIdDistributor, GuardDistribute)` |
 
 ## Changed defaults
 

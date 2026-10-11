@@ -91,13 +91,13 @@ dependencies {
     "cloudSupportImplementation"("org.springframework.cloud:spring-cloud-commons")
     "actuatorSupportImplementation"("org.springframework.boot:spring-boot-starter-actuator")
     compileOnly("org.mongodb:mongodb-driver-sync")
-    compileOnly("org.mongodb:mongodb-driver-reactivestreams")
     // Only for the proxy clients' WebClient timeout, applied when the application uses WebFlux.
     compileOnly("org.springframework:spring-webflux")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
     testImplementation(project(":cosid-test"))
     testImplementation("org.mongodb:mongodb-driver-sync")
+    // Only to check that a classpath with just the reactive driver fails at startup.
     testImplementation("org.mongodb:mongodb-driver-reactivestreams")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework:spring-webflux")

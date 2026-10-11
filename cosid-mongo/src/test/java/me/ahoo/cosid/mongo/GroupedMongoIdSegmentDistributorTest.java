@@ -13,42 +13,39 @@
 
 package me.ahoo.cosid.mongo;
 
-import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentDistributorFactory;
-import me.ahoo.cosid.mongo.reactive.MongoReactiveIdSegmentInitializer;
-import me.ahoo.cosid.mongo.reactive.BlockingAdapter;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.container.MongoLauncher;
 import me.ahoo.cosid.test.segment.distributor.GroupedIdSegmentDistributorSpec;
 
-import com.mongodb.reactivestreams.client.MongoClient;
-import com.mongodb.reactivestreams.client.MongoClients;
-import com.mongodb.reactivestreams.client.MongoDatabase;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoDatabase;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 
 import java.util.UUID;
 
-class GroupedMongoReactiveIdSegmentDistributorTest extends GroupedIdSegmentDistributorSpec {
+class GroupedMongoIdSegmentDistributorTest extends GroupedIdSegmentDistributorSpec {
     MongoClient mongoClient;
     MongoDatabase mongoDatabase;
     IdSegmentDistributorFactory distributorFactory;
-    MongoReactiveIdSegmentInitializer idSegmentInitializer;
+    MongoIdSegmentInitializer idSegmentInitializer;
     
     @BeforeEach
     void setup() {
         mongoClient = MongoClients.create(MongoLauncher.getConnectionString());
-        mongoDatabase = mongoClient.getDatabase("cosid_db_grouped_reactive_" + UUID.randomUUID().toString().replace("-", ""));
-        idSegmentInitializer = new MongoReactiveIdSegmentInitializer(mongoDatabase);
+        mongoDatabase = mongoClient.getDatabase("cosid_db_grouped_" + UUID.randomUUID().toString().replace("-", ""));
+        idSegmentInitializer = new MongoIdSegmentInitializer(mongoDatabase);
         idSegmentInitializer.ensureCosIdCollection();
         distributorFactory =
-            new MongoReactiveIdSegmentDistributorFactory(mongoDatabase);
+            new MongoIdSegmentDistributorFactory(mongoDatabase);
     }
 
     @AfterEach
     void destroy() {
         try {
             if (mongoDatabase != null) {
-                BlockingAdapter.block(mongoDatabase.drop());
+                mongoDatabase.drop();
             }
         } finally {
             if (mongoClient != null) {

@@ -39,6 +39,8 @@ public final class MongoReactiveDeprecation {
     }
     
     /**
+     * Logs the warning at most once, and only without the synchronous driver.
+     *
      * @return whether the warning was logged by this call
      */
     static boolean warnIfSelected(boolean syncDriverPresent, AtomicBoolean warned) {

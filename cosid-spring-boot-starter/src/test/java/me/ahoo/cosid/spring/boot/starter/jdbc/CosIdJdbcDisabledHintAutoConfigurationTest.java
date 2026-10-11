@@ -35,9 +35,13 @@ class CosIdJdbcDisabledHintAutoConfigurationTest {
         Long id;
     }
     
-    static class Plain {
+    static class SpringId {
         @Id
         Long id;
+    }
+    
+    static class NoId {
+        String name;
     }
     
     private static ApplicationContextRunner runner(Class<?> entity) {
@@ -51,15 +55,22 @@ class CosIdJdbcDisabledHintAutoConfigurationTest {
     }
     
     @Test
-    void saysOnceThatCosIdFieldsAreNotFilled(CapturedOutput output) {
+    void namesEntitiesWithCosIdFields(CapturedOutput output) {
         runner(Order.class).run(context -> assertThat(output)
-            .contains("have @CosId fields, but the CosId Spring Data JDBC integration is off")
+            .contains("have @Id or @CosId fields that CosId no longer fills")
             .contains(Order.class.getName()));
     }
     
     @Test
-    void staysQuietWithoutCosIdFields(CapturedOutput output) {
-        runner(Plain.class).run(context -> assertThat(output).doesNotContain("@CosId fields"));
+    void namesEntitiesWithASpringDataId(CapturedOutput output) {
+        runner(SpringId.class).run(context -> assertThat(output)
+            .contains("have @Id or @CosId fields that CosId no longer fills")
+            .contains(SpringId.class.getName()));
+    }
+    
+    @Test
+    void staysQuietWithoutIdFields(CapturedOutput output) {
+        runner(NoId.class).run(context -> assertThat(output).doesNotContain("CosId no longer fills"));
     }
     
     @Test

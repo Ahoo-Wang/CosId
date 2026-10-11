@@ -32,8 +32,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * With the Spring Data JDBC integration off (the 4.0 default), says once at startup when Spring Data JDBC entities have
- * {@link CosId} fields that are therefore not filled.
+ * With the Spring Data JDBC integration off (the 4.0 default), says once at startup which Spring Data JDBC entities
+ * have an {@code @Id} property or {@link CosId} fields that CosId would fill with the integration on.
  *
  * @author ahoo wang
  * @since 4.0.0
@@ -51,14 +51,16 @@ public class CosIdJdbcDisabledHintAutoConfiguration {
             List<String> entities = new ArrayList<>();
             mappingContexts.orderedStream().forEach(mappingContext -> {
                 for (RelationalPersistentEntity<?> entity : mappingContext.getPersistentEntities()) {
-                    if (hasCosIdField(entity.getType())) {
+                    // With the integration on, CosId fills the @Id property and @CosId fields of these entities.
+                    if (entity.hasIdProperty() || hasCosIdField(entity.getType())) {
                         entities.add(entity.getType().getName());
                     }
                 }
             });
             if (!entities.isEmpty() && log.isInfoEnabled()) {
-                log.info("Spring Data JDBC entities {} have @CosId fields, but the CosId Spring Data JDBC integration is off: "
-                    + "set [{}=true] to fill them.", entities, CosIdJdbcAutoConfiguration.ENABLED_KEY);
+                log.info("Spring Data JDBC entities {} have @Id or @CosId fields that CosId no longer fills, because the CosId "
+                    + "Spring Data JDBC integration is off by default since 4.0: set [{}=true] to fill them.", entities,
+                    CosIdJdbcAutoConfiguration.ENABLED_KEY);
             }
         };
     }

@@ -17,8 +17,9 @@
         "https://checkstyle.org/dtds/suppressions_1_2.dtd">
 
 <suppressions>
-    <suppress checks=".*" files=".*/src/test/.*"/>
-    <suppress checks=".*" files=".*/src/jmh/.*"/>
+    <!-- Test and JMH sources skip every check except the license header -->
+    <suppress checks="^(?!.*HeaderCheck$).*$" files=".*/src/test/.*"/>
+    <suppress checks="^(?!.*HeaderCheck$).*$" files=".*/src/jmh/.*"/>
     <suppress checks="InvalidJavadocPosition"/>
     <suppress checks="MissingJavadocMethod"/>
     <suppress checks="MissingJavadocType"/>

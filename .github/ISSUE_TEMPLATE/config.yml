@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 Documentation
+    url: https://cosid.ahoo.me/
+    about: Guides, configuration reference and FAQ.
+  - name: 💬 Questions and ideas
+    url: https://github.com/Ahoo-Wang/CosId/discussions
+    about: Ask usage questions and discuss ideas before opening an issue.
+  - name: 🔒 Security vulnerability
+    url: https://github.com/Ahoo-Wang/CosId/security/policy
+    about: Report security problems privately, not in a public issue.

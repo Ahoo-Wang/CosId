@@ -18,6 +18,9 @@ on:
       - 'wiki/**'
 env:
   CI: true
+permissions:
+  contents: read
+
 jobs:
   codecov:
     name: Codecov
@@ -41,7 +44,7 @@ jobs:
         run: sudo /etc/init.d/mysql start
 
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6

@@ -39,9 +39,13 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     }
 
     /**
-     * 1. get from {@link MachineStateStorage}
-     * 2. when not found: {@link #distributeRemote}
-     * 3. set {@link MachineState} to {@link MachineStateStorage}
+     * 1. {@link #distributeRemote} — the remote store is the only authority for which instance owns a machine id.
+     * 2. use the local {@link MachineStateStorage} only as a clock watermark when it holds the same machine id.
+     * 3. wait for clock backwards, releasing the machine id if the clock is too far behind.
+     * 4. set {@link MachineState} to {@link MachineStateStorage}
+     *
+     * <p>A local state must never be trusted on its own: after a crash the remote lease may have expired and the machine id
+     * may already belong to another instance.
      */
     @Override
     public @NonNull MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException {
@@ -51,21 +55,40 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
 
         MachineState localState = machineStateStorage.get(namespace, instanceId);
+        MachineState remoteState = distributeRemote(namespace, machineBit, instanceId, safeGuardDuration);
+        ensureMachineId(machineBit, instanceId, remoteState);
+
+        long lastTimeStamp = remoteState.getLastTimeStamp();
         if (!MachineState.NOT_FOUND.equals(localState)) {
-            ensureMachineId(machineBit, instanceId, localState);
-            clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastTimeStamp());
-            return localState;
+            if (localState.getMachineId() == remoteState.getMachineId()) {
+                lastTimeStamp = Math.max(lastTimeStamp, localState.getLastTimeStamp());
+            } else if (log.isWarnEnabled()) {
+                log.warn("Distribute [{}] @ namespace:[{}] - local machine id [{}] is stale, the remote store distributed [{}].",
+                    instanceId, namespace, localState.getMachineId(), remoteState.getMachineId());
+            }
         }
 
-        localState = distributeRemote(namespace, machineBit, instanceId, safeGuardDuration);
-        ensureMachineId(machineBit, instanceId, localState);
-        if (ClockBackwardsSynchronizer.getBackwardsTimeStamp(localState.getLastTimeStamp()) > 0) {
-            clockBackwardsSynchronizer.syncUninterruptibly(localState.getLastTimeStamp());
-            localState = MachineState.of(localState.getMachineId(), System.currentTimeMillis());
+        MachineState machineState = remoteState;
+        if (ClockBackwardsSynchronizer.getBackwardsTimeStamp(lastTimeStamp) > 0) {
+            try {
+                clockBackwardsSynchronizer.syncUninterruptibly(lastTimeStamp);
+            } catch (RuntimeException syncException) {
+                releaseAfterFailedDistribute(namespace, instanceId, remoteState, syncException);
+                throw syncException;
+            }
+            machineState = MachineState.of(remoteState.getMachineId(), System.currentTimeMillis());
         }
 
-        machineStateStorage.set(namespace, localState.getMachineId(), instanceId);
-        return localState;
+        machineStateStorage.set(namespace, machineState.getMachineId(), instanceId);
+        return machineState;
+    }
+
+    private void releaseAfterFailedDistribute(String namespace, InstanceId instanceId, MachineState machineState, RuntimeException cause) {
+        try {
+            revertRemote(namespace, instanceId, machineState);
+        } catch (RuntimeException revertException) {
+            cause.addSuppressed(revertException);
+        }
     }
 
     protected abstract MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration);

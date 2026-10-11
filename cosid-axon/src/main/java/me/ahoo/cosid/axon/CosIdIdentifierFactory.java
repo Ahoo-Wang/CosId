@@ -22,6 +22,7 @@ import org.axonframework.common.IdentifierFactory;
 
 import java.util.Deque;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * CosId Identifier Factory .
@@ -39,6 +40,7 @@ public class CosIdIdentifierFactory extends IdentifierFactory {
     public static final String ID_KEY = "cosid.axon";
 
     private static final Deque<IdGeneratorProvider> BOUND_PROVIDERS = new ConcurrentLinkedDeque<>();
+    private static final AtomicBoolean MULTIPLE_PROVIDERS_WARNED = new AtomicBoolean();
 
     private final String generatorName;
     private final IdGeneratorProvider idGeneratorProvider;
@@ -78,13 +80,20 @@ public class CosIdIdentifierFactory extends IdentifierFactory {
     public static void bind(IdGeneratorProvider idGeneratorProvider) {
         BOUND_PROVIDERS.addFirst(idGeneratorProvider);
         long distinct = BOUND_PROVIDERS.stream().distinct().count();
-        if (distinct > 1 && log.isWarnEnabled()) {
+        if (distinct > 1 && MULTIPLE_PROVIDERS_WARNED.compareAndSet(false, true) && log.isWarnEnabled()) {
             log.warn("{} different IdGeneratorProviders are bound to CosIdIdentifierFactory (for example, several Spring contexts): "
                 + "factories created without a provider use the most recent one. Create the factory with "
                 + "new CosIdIdentifierFactory(provider) to choose.", distinct);
         }
     }
 
+    /**
+     * Lets the multiple-providers warning, logged once per process, be logged again. For tests.
+     */
+    static void resetMultipleProvidersWarning() {
+        MULTIPLE_PROVIDERS_WARNED.set(false);
+    }
+    
     /**
      * Removes one binding of the provider, leaving bindings made by others in place.
      *

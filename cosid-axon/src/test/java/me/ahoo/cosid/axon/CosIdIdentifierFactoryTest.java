@@ -133,27 +133,36 @@ class CosIdIdentifierFactoryTest {
     }
     
     @Test
-    void warnsWhenDifferentProvidersAreBound() {
+    void warnsOnceWhenDifferentProvidersAreBound() {
         Logger logger = (Logger) LoggerFactory.getLogger(CosIdIdentifierFactory.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
         appender.start();
         logger.addAppender(appender);
+        CosIdIdentifierFactory.resetMultipleProvidersWarning();
         IdGeneratorProvider first = new DefaultIdGeneratorProvider();
         IdGeneratorProvider second = new DefaultIdGeneratorProvider();
+        IdGeneratorProvider third = new DefaultIdGeneratorProvider();
         try {
             CosIdIdentifierFactory.bind(first);
             CosIdIdentifierFactory.bind(first);
-            Assertions.assertTrue(appender.list.stream().noneMatch(event -> event.getLevel() == Level.WARN));
+            Assertions.assertEquals(0, warnings(appender));
             
             CosIdIdentifierFactory.bind(second);
+            CosIdIdentifierFactory.bind(third);
             
-            Assertions.assertTrue(appender.list.stream().anyMatch(event -> event.getLevel() == Level.WARN
-                && event.getFormattedMessage().contains("different IdGeneratorProviders are bound")));
+            Assertions.assertEquals(1, warnings(appender));
         } finally {
+            CosIdIdentifierFactory.unbind(third);
             CosIdIdentifierFactory.unbind(second);
             CosIdIdentifierFactory.unbind(first);
             CosIdIdentifierFactory.unbind(first);
             logger.detachAppender(appender);
         }
+    }
+    
+    private static long warnings(ListAppender<ILoggingEvent> appender) {
+        return appender.list.stream()
+            .filter(event -> event.getLevel() == Level.WARN && event.getFormattedMessage().contains("different IdGeneratorProviders are bound"))
+            .count();
     }
 }

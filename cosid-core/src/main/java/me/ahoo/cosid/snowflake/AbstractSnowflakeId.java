@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.snowflake;
 
+import me.ahoo.cosid.internal.TimestampSequencer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
@@ -78,15 +79,19 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
      */
     protected final long machineId;
     /**
-     * Threshold for resetting sequence counter when timestamp advances.
+     * Timestamp and sequence logic, shared with the CosId generator.
      */
-    private final long sequenceResetThreshold;
+    private final TimestampSequencer sequencer;
     /**
-     * Current sequence counter value.
+     * Sequence of the last generated ID.
+     *
+     * <p>A read-only mirror of the {@link TimestampSequencer} state since 3.4.0: changing it has no effect.</p>
      */
     protected long sequence = 0L;
     /**
      * Timestamp of the last generated ID.
+     *
+     * <p>A read-only mirror of the {@link TimestampSequencer} state since 3.4.0: changing it has no effect.</p>
      */
     protected long lastTimestamp = -1L;
 
@@ -123,14 +128,17 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
             throw new IllegalArgumentException(Strings.lenientFormat("machineId[%s] can't be greater than maxMachineId[%s] or less than 0 .", machineId, maxMachineId));
         }
         this.machineId = machineId;
-        this.sequenceResetThreshold = sequenceResetThreshold;
+        this.sequencer = new TimestampSequencer(this::getCurrentTime, maxSequence, sequenceResetThreshold);
     }
 
     /**
-     * Waits until the current time is greater than the last timestamp.
+     * Waits until the current time is greater than {@link #lastTimestamp}.
      *
      * @return the next valid timestamp
+     * @deprecated since 3.4.0, {@link #generate()} no longer calls it (the {@link TimestampSequencer} waits for the
+     *     next time unit), so overriding it has no effect. Override {@link #getCurrentTime()} instead.
      */
+    @Deprecated(since = "3.4.0", forRemoval = true)
     protected long nextTime() {
         long time = getCurrentTime();
         while (time <= lastTimestamp) {
@@ -139,11 +147,6 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         return time;
     }
 
-    /**
-     * Gets the current time in the appropriate unit for this snowflake ID variant.
-     *
-     * @return current time value
-     */
     protected abstract long getCurrentTime();
 
     /**
@@ -157,25 +160,8 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
      */
     @Override
     public synchronized long generate() {
-        long currentTimestamp = getCurrentTime();
-        if (currentTimestamp < lastTimestamp) {
-            throw new ClockBackwardsException(lastTimestamp, currentTimestamp);
-        }
-
-        //region Reset sequence based on sequence reset threshold,Optimize the problem of uneven sharding.
-
-        if (currentTimestamp > lastTimestamp
-                && sequence >= sequenceResetThreshold) {
-            sequence = 0L;
-        }
-
-        sequence = (sequence + 1) & maxSequence;
-
-        if (sequence == 0L) {
-            currentTimestamp = nextTime();
-        }
-
-        //endregion
+        long currentTimestamp = sequencer.next();
+        sequence = sequencer.getSequence();
         lastTimestamp = currentTimestamp;
         long diffTimestamp = (currentTimestamp - epoch);
         if (diffTimestamp > maxTimestamp) {

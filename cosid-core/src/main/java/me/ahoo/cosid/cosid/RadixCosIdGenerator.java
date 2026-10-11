@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.cosid;
 
-import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
+import me.ahoo.cosid.internal.TimestampSequencer;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
 import com.google.common.base.Strings;
@@ -53,11 +53,9 @@ public class RadixCosIdGenerator implements CosIdGenerator {
     private final long maxTimestamp;
     private final int maxMachine;
     private final int maxSequence;
-    private final int sequenceResetThreshold;
 
     private final int machineId;
-    private int sequence = 0;
-    private long lastTimestamp = -1L;
+    private final TimestampSequencer sequencer;
 
     private final CosIdIdStateParser stateParser;
 
@@ -80,12 +78,12 @@ public class RadixCosIdGenerator implements CosIdGenerator {
         this.maxTimestamp = ~(-1L << timestampBit);
         this.maxMachine = ~(-1 << machineIdBit);
         this.maxSequence = ~(-1 << sequenceBit);
-        this.sequenceResetThreshold = sequenceResetThreshold;
         if (machineId > this.maxMachine || machineId < 0) {
             throw new IllegalArgumentException(Strings.lenientFormat("machineId can't be greater than maxMachine[%s] or less than 0 .", maxMachine));
         }
         this.machineId = machineId;
         this.stateParser = stateParser;
+        this.sequencer = new TimestampSequencer(this::currentTimeMillis, maxSequence, sequenceResetThreshold);
     }
 
     @Override
@@ -95,7 +93,7 @@ public class RadixCosIdGenerator implements CosIdGenerator {
 
     @Override
     public long getLastTimestamp() {
-        return lastTimestamp;
+        return sequencer.getLastTimestamp();
     }
 
     @NonNull
@@ -108,46 +106,13 @@ public class RadixCosIdGenerator implements CosIdGenerator {
         return System.currentTimeMillis();
     }
 
-    private long nextTime() {
-        long time = currentTimeMillis();
-        while (time <= lastTimestamp) {
-            time = currentTimeMillis();
-        }
-        return time;
-    }
-
-    /**
-     * Generates the next ID as a state object.
-     *
-     * @return the generated CosIdState
-     */
     @NonNull
     public synchronized CosIdState generateAsState() {
-        long currentTimestamp = currentTimeMillis();
-        if (currentTimestamp < lastTimestamp) {
-            throw new ClockBackwardsException(lastTimestamp, currentTimestamp);
-        }
-
-        //region Reset sequence based on sequence reset threshold,Optimize the problem of uneven sharding.
-
-        if (currentTimestamp > lastTimestamp
-            && sequence >= sequenceResetThreshold) {
-            sequence = 0;
-        }
-
-        sequence = (sequence + 1) & maxSequence;
-
-        if (sequence == 0) {
-            currentTimestamp = nextTime();
-        }
-
-        //endregion
-
+        long currentTimestamp = sequencer.next();
         if (currentTimestamp > maxTimestamp) {
             throw new TimestampOverflowException(0, currentTimestamp, maxTimestamp);
         }
-        lastTimestamp = currentTimestamp;
-        return new CosIdState(lastTimestamp, machineId, sequence);
+        return new CosIdState(currentTimestamp, machineId, (int) sequencer.getSequence());
     }
 
 }

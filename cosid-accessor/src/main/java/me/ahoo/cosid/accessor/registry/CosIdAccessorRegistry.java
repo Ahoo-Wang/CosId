@@ -52,6 +52,12 @@ public interface CosIdAccessorRegistry {
     CosIdAccessor get(Class<?> clazz);
 
     /**
+     * Validates every registered accessor against the generators registered now, see {@link CosIdAccessor#validate()}.
+     */
+    default void validate() {
+    }
+
+    /**
      * Ensures the target object has an ID, registering if needed.
      *
      * @param target the target object

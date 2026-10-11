@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid;
 
+import me.ahoo.cosid.stat.Statistical;
+import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import com.google.errorprone.annotations.ThreadSafe;
 import org.jspecify.annotations.NonNull;
@@ -27,10 +29,14 @@ import org.jspecify.annotations.NonNull;
  * <p>Implementations of this interface are expected to be thread-safe and can be
  * used concurrently across multiple threads.
  *
+ * <p>{@link IdGenerator} extends it for generators of {@code long} ids. Generators that only produce strings,
+ * such as {@link me.ahoo.cosid.cosid.CosIdGenerator} and {@link me.ahoo.cosid.jvm.UuidGenerator}, implement only
+ * this interface.
+ *
  * @author ahoo wang
  */
 @ThreadSafe
-public interface StringIdGenerator {
+public interface StringIdGenerator extends Statistical {
     /**
      * Generate a distributed ID as a string value.
      * 
@@ -42,4 +48,14 @@ public interface StringIdGenerator {
      */
     @NonNull
     String generateAsString();
+
+    /**
+     * Get statistical information about this ID generator.
+     *
+     * @return Statistical information about this ID generator
+     */
+    @Override
+    default IdGeneratorStat stat() {
+        return IdGeneratorStat.simple(getClass().getSimpleName(), null);
+    }
 }

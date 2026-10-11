@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.example.redis.controller;
 
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import org.springframework.web.bind.annotation.GetMapping;
@@ -37,7 +38,7 @@ public class IdController {
     @GetMapping("{idName}")
     public long generate(@PathVariable String idName) {
         return provider
-            .getRequired(idName)
+            .getRequired(idName, IdGenerator.class)
             .generate();
     }
     

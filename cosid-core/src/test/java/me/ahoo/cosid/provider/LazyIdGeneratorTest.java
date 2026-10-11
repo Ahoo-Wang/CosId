@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.nullValue;
 
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.cosid.Radix62CosIdGenerator;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentId;
@@ -130,5 +131,18 @@ class LazyIdGeneratorTest {
         });
 
         assertThat(exception.getMessage(), equalTo("IdGenerator:[typedAccessorShouldRejectMismatchedGenerator] is not instanceof SegmentId!"));
+    }
+
+    @Test
+    void stringOnlyGenerator() {
+        String generatorName = "stringOnlyGenerator";
+        DefaultIdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
+        idGeneratorProvider.set(generatorName, new Radix62CosIdGenerator(1));
+        LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName, idGeneratorProvider);
+
+        Assertions.assertFalse(lazyIdGenerator.generateAsString().isEmpty());
+        Assertions.assertEquals("LazyIdGenerator", lazyIdGenerator.stat().getKind());
+        Assertions.assertThrows(CosIdException.class, lazyIdGenerator::generate);
+        Assertions.assertThrows(CosIdException.class, lazyIdGenerator::getActual);
     }
 }

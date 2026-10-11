@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.actuate;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
@@ -35,7 +36,7 @@ public class CosIdGeneratorEndpoint {
     
     @ReadOperation
     public long generate(@Selector String name) {
-        return idGeneratorProvider.getRequired(name).generate();
+        return idGeneratorProvider.getRequired(name, IdGenerator.class).generate();
     }
     
 }

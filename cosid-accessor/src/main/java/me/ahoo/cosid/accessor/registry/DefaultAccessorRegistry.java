@@ -47,11 +47,21 @@ public class DefaultAccessorRegistry implements CosIdAccessorRegistry {
 
     @Override
     public void register(Class<?> clazz, CosIdAccessor cosIdAccessor) {
+        cosIdAccessor.validate();
         classMapAccessor.put(clazz, cosIdAccessor);
     }
 
     @Override
     public CosIdAccessor get(Class<?> clazz) {
-        return classMapAccessor.computeIfAbsent(clazz, accessorParser::parse);
+        return classMapAccessor.computeIfAbsent(clazz, type -> {
+            CosIdAccessor cosIdAccessor = accessorParser.parse(type);
+            cosIdAccessor.validate();
+            return cosIdAccessor;
+        });
+    }
+
+    @Override
+    public void validate() {
+        classMapAccessor.values().forEach(CosIdAccessor::validate);
     }
 }

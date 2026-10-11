@@ -16,10 +16,14 @@ package me.ahoo.cosid.provider;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.StringIdGenerator;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
+import me.ahoo.cosid.jvm.UuidGenerator;
 
 import org.junit.jupiter.api.Test;
 
@@ -100,7 +104,7 @@ class DefaultIdGeneratorProviderTest {
         DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
         IdGenerator namedGenerator = new AtomicLongGenerator();
 
-        Collection<IdGenerator> generators = provider.getAll();
+        Collection<StringIdGenerator> generators = provider.getAll();
         assertTrue(generators.isEmpty());
 
         provider.setShare(AtomicLongGenerator.INSTANCE);
@@ -113,5 +117,27 @@ class DefaultIdGeneratorProviderTest {
         provider.remove("named");
         assertEquals(1, generators.size());
         assertFalse(generators.contains(namedGenerator));
+    }
+
+    @Test
+    void getByType() {
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.set("long", AtomicLongGenerator.INSTANCE);
+        provider.set("uuid", UuidGenerator.INSTANCE);
+
+        assertSame(AtomicLongGenerator.INSTANCE, provider.getRequired("long", IdGenerator.class));
+        assertSame(UuidGenerator.INSTANCE, provider.getRequired("uuid", StringIdGenerator.class));
+        assertSame(UuidGenerator.INSTANCE, provider.getRequired("uuid"));
+        assertFalse(provider.get("missing", IdGenerator.class).isPresent());
+        assertThrows(IllegalArgumentException.class, () -> provider.get("uuid", IdGenerator.class));
+        assertThrows(IllegalArgumentException.class, () -> provider.getRequired("missing", IdGenerator.class));
+    }
+
+    @Test
+    void setShareRequiresIdGenerator() {
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        assertThrows(IllegalArgumentException.class, () -> provider.set(IdGeneratorProvider.SHARE, UuidGenerator.INSTANCE));
+        provider.set(IdGeneratorProvider.SHARE, AtomicLongGenerator.INSTANCE);
+        assertSame(AtomicLongGenerator.INSTANCE, provider.getShare());
     }
 }

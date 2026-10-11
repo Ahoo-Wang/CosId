@@ -90,6 +90,14 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
     }
 
     /**
+     * Checks that the ID generator, when it is already registered, can generate the type of the id field.
+     *
+     * @throws me.ahoo.cosid.CosIdException naming the field and the generator if they do not fit
+     */
+    default void validate() {
+    }
+
+    /**
      * Sentinel implementation representing a "not found" accessor.
      *
      * <p>This implementation provides null/default behavior for all accessor

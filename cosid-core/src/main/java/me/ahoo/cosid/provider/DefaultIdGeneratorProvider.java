@@ -14,6 +14,7 @@
 package me.ahoo.cosid.provider;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.StringIdGenerator;
 
 import com.google.errorprone.annotations.ThreadSafe;
 
@@ -40,7 +41,7 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
     public static final IdGeneratorProvider INSTANCE = new DefaultIdGeneratorProvider();
     private volatile IdGenerator shareIdGenerator;
 
-    private final ConcurrentHashMap<String, IdGenerator> nameMapIdGen;
+    private final ConcurrentHashMap<String, StringIdGenerator> nameMapIdGen;
 
     /**
      * Creates a new instance with an empty registry.
@@ -62,18 +63,20 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
 
     @Override
     public IdGenerator removeShare() {
+        IdGenerator removed = shareIdGenerator;
         shareIdGenerator = null;
-        return nameMapIdGen.remove(SHARE);
+        nameMapIdGen.remove(SHARE);
+        return removed;
     }
 
     @Override
-    public Optional<IdGenerator> get(String name) {
-        IdGenerator idGen = nameMapIdGen.get(name);
+    public Optional<StringIdGenerator> get(String name) {
+        StringIdGenerator idGen = nameMapIdGen.get(name);
         return Optional.ofNullable(idGen);
     }
 
     @Override
-    public IdGenerator remove(String name) {
+    public StringIdGenerator remove(String name) {
         if (SHARE.equals(name)) {
             return removeShare();
         }
@@ -81,9 +84,12 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
     }
 
     @Override
-    public void set(String name, IdGenerator idGenerator) {
+    public void set(String name, StringIdGenerator idGenerator) {
         if (SHARE.equals(name)) {
-            setShare(idGenerator);
+            if (!(idGenerator instanceof IdGenerator share)) {
+                throw new IllegalArgumentException("The shared ID generator must be an IdGenerator, not a [" + idGenerator.getClass().getName() + "]!");
+            }
+            setShare(share);
             return;
         }
         nameMapIdGen.put(name, idGenerator);
@@ -96,12 +102,12 @@ public class DefaultIdGeneratorProvider implements IdGeneratorProvider {
     }
 
     @Override
-    public Set<Map.Entry<String, IdGenerator>> entries() {
+    public Set<Map.Entry<String, StringIdGenerator>> entries() {
         return nameMapIdGen.entrySet();
     }
 
     @Override
-    public Collection<IdGenerator> getAll() {
+    public Collection<StringIdGenerator> getAll() {
         return nameMapIdGen.values();
     }
 

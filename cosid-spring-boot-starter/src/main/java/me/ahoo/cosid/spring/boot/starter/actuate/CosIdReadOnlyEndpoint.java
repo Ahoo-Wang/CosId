@@ -14,7 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.actuate;
 
 import me.ahoo.cosid.CosId;
-import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.StringIdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
@@ -44,7 +44,7 @@ public class CosIdReadOnlyEndpoint {
     @ReadOperation
     public Map<String, IdGeneratorStat> stat() {
         Map<String, IdGeneratorStat> statMap = new HashMap<>();
-        for (Map.Entry<String, IdGenerator> entry : idGeneratorProvider.entries()) {
+        for (Map.Entry<String, StringIdGenerator> entry : idGeneratorProvider.entries()) {
             var stat = entry.getValue().stat();
             statMap.put(entry.getKey(), stat);
         }

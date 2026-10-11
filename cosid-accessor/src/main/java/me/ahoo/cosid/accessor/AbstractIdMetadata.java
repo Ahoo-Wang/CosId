@@ -13,10 +13,14 @@
 
 package me.ahoo.cosid.accessor;
 
+import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.StringIdGenerator;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.provider.LazyIdGenerator;
+
+import java.lang.reflect.Field;
 
 
 /**
@@ -61,6 +65,27 @@ public abstract class AbstractIdMetadata implements IdMetadata {
     @Override
     public IdGenerator getIdGenerator() {
         return idGenerator;
+    }
+
+    /**
+     * Checks that the ID generator, if it is already registered (or, with {@code required}, always), can generate
+     * the type of the id field: a {@code long} or {@code int} field needs an {@link IdGenerator}, not a generator of
+     * string ids only.
+     *
+     * @param required whether a missing generator fails too
+     * @throws CosIdException naming the field and the generator if they do not fit
+     */
+    protected void checkGeneratorSupportsIdType(boolean required) {
+        if (String.class.equals(getIdType())) {
+            return;
+        }
+        StringIdGenerator generator = idGenerator.tryGet(required);
+        if (generator != null && !(generator instanceof IdGenerator)) {
+            Field idField = getIdField();
+            throw new CosIdException("@CosId field [" + idField.getDeclaringClass().getName() + "." + idField.getName() + "] is a ["
+                + getIdType().getSimpleName() + "], but ID generator [" + getGeneratorName() + "] (" + generator.getClass().getSimpleName()
+                + ") generates string ids only: use a String field or an IdGenerator.");
+        }
     }
 
 }

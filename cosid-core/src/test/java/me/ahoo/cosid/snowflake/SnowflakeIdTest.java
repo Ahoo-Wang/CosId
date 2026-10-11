@@ -63,6 +63,11 @@ class SnowflakeIdTest {
 
     private record StubSnowflakeId(int timestampBit, int machineBit, int sequenceBit, long lastTimestamp) implements SnowflakeId {
         @Override
+        public SnowflakeLayout layout() {
+            return new SnowflakeLayout(getEpoch(), getTimestampBit(), getMachineBit(), getSequenceBit());
+        }
+
+        @Override
         public long getEpoch() {
             return 100;
         }

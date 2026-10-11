@@ -40,38 +40,8 @@ public class StringSnowflakeId extends StringIdGeneratorDecorator implements Sno
     }
 
     @Override
-    public long getEpoch() {
-        return snowflakeId.getEpoch();
-    }
-
-    @Override
-    public int getTimestampBit() {
-        return snowflakeId.getTimestampBit();
-    }
-
-    @Override
-    public int getMachineBit() {
-        return snowflakeId.getMachineBit();
-    }
-
-    @Override
-    public int getSequenceBit() {
-        return snowflakeId.getSequenceBit();
-    }
-
-    @Override
-    public long getMaxTimestamp() {
-        return snowflakeId.getMaxTimestamp();
-    }
-
-    @Override
-    public int getMaxMachineId() {
-        return snowflakeId.getMaxMachineId();
-    }
-
-    @Override
-    public long getMaxSequence() {
-        return snowflakeId.getMaxSequence();
+    public SnowflakeLayout layout() {
+        return snowflakeId.layout();
     }
 
     @Override
@@ -80,10 +50,14 @@ public class StringSnowflakeId extends StringIdGeneratorDecorator implements Sno
     }
 
     @Override
+    public long getLastTimestampAsMilliseconds() {
+        return snowflakeId.getLastTimestampAsMilliseconds();
+    }
+
+    @Override
     public int getMachineId() {
         return snowflakeId.getMachineId();
     }
-
 
     @Override
     public IdGeneratorStat stat() {

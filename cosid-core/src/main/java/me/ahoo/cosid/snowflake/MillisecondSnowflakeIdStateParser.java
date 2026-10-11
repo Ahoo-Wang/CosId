@@ -89,6 +89,15 @@ public class MillisecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
         super(epoch, timestampBit, machineBit, sequenceBit, zoneId, padStart);
     }
 
+    /**
+     * Creates a parser for ids of the given layout.
+     *
+     * @since 4.0.0
+     */
+    public MillisecondSnowflakeIdStateParser(SnowflakeLayout layout, ZoneId zoneId, boolean padStart) {
+        super(layout, zoneId, padStart);
+    }
+
     @Override
     protected DateTimeFormatter getDateTimeFormatter() {
         return DATE_TIME_FORMATTER;
@@ -113,11 +122,6 @@ public class MillisecondSnowflakeIdStateParser extends SnowflakeIdStateParser {
     }
 
     public static MillisecondSnowflakeIdStateParser of(SnowflakeId snowflakeId, ZoneId zoneId, boolean padStart) {
-        return new MillisecondSnowflakeIdStateParser(snowflakeId.getEpoch(),
-            snowflakeId.getTimestampBit(),
-            snowflakeId.getMachineBit(),
-            snowflakeId.getSequenceBit(),
-            zoneId,
-            padStart);
+        return new MillisecondSnowflakeIdStateParser(snowflakeId.layout(), zoneId, padStart);
     }
 }

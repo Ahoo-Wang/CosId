@@ -164,6 +164,7 @@ public final class Checks {
             String threadName = numbered ? name.replace("%d", String.valueOf(counter.getAndIncrement())) : name;
             Thread thread = new Thread(runnable, threadName);
             thread.setDaemon(true);
+            thread.setPriority(Thread.NORM_PRIORITY);
             return thread;
         };
     }

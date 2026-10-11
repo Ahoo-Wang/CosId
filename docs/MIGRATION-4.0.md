@@ -79,7 +79,7 @@ Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `
 | `UuidGenerator.INSTANCE` | `IdGenerator` | `StringIdGenerator` |
 | `LazyIdGenerator.tryGet(...)` | `IdGenerator` | `StringIdGenerator`; `generate()` and `getActual()` on a string-only generator throw `CosIdException`, `generateAsString()` works |
 
-A typed lookup of a generator with another type throws `IllegalArgumentException` naming both types. `@CosId` fields of type `String` keep working with the `cosid` generator; `long` and `int` fields need an `IdGenerator`.
+A typed lookup of a generator with another type throws `IllegalArgumentException` naming both types. `@CosId` fields of type `String` keep working with the `cosid` generator; `long` and `int` fields need an `IdGenerator`. A `long` or `int` field bound to a string-only generator fails when its accessor is registered, at the end of startup with the starter, or at the latest on the first fill, with a `CosIdException` naming the field and the generator.
 
 _To be filled in: `SnowflakeLayout`, the new `cosid-sharding` and `cosid-accessor` modules, the configuration property model._
 

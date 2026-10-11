@@ -33,6 +33,7 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
     private final CosIdGetter getter;
     private final CosIdSetter setter;
     private final EnsureId ensureId;
+    private volatile boolean generatorChecked;
 
     /**
      * Creates a new accessor.
@@ -60,6 +61,13 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
         this.ensureId = getEnsureId();
     }
 
+    private void ensureGeneratorChecked() {
+        if (!generatorChecked) {
+            checkGeneratorSupportsIdType(true);
+            generatorChecked = true;
+        }
+    }
+
     private EnsureId getEnsureId() {
         Class<?> idFieldType = getIdType();
         if (Long.class.equals(idFieldType) || long.class.equals(idFieldType)) {
@@ -79,6 +87,11 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
     @Override
     public void setId(Object target, Object id) {
         setter.setId(target, id);
+    }
+
+    @Override
+    public void validate() {
+        checkGeneratorSupportsIdType(false);
     }
 
     /**
@@ -134,6 +147,7 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
             if (null != previousId && (Long) previousId > MIN_ID) {
                 return false;
             }
+            ensureGeneratorChecked();
             setId(target, getIdGenerator().generate());
             return true;
         }
@@ -156,6 +170,7 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
             if (null != previousId && (Integer) previousId > MIN_ID) {
                 return false;
             }
+            ensureGeneratorChecked();
             setId(target, integerIdGenerator.generate());
             return true;
         }

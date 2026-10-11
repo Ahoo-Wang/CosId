@@ -24,6 +24,7 @@ import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
+import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -150,5 +151,17 @@ public class CosIdAutoConfiguration {
     @ConditionalOnMissingBean
     public CosIdAccessorRegistry cosIdAccessorRegistry(CosIdAccessorParser cosIdAccessorParser) {
         return new DefaultAccessorRegistry(cosIdAccessorParser);
+    }
+
+    /**
+     * Validates the registered accessors once every singleton, and so every ID generator, is created: a
+     * {@code long} or {@code int} {@code @CosId} field bound to a generator of string ids only fails startup.
+     *
+     * @param cosIdAccessorRegistry the accessor registry
+     * @return the validator
+     */
+    @Bean
+    public SmartInitializingSingleton cosIdAccessorRegistryValidator(CosIdAccessorRegistry cosIdAccessorRegistry) {
+        return cosIdAccessorRegistry::validate;
     }
 }

@@ -96,6 +96,14 @@ public interface CosIdAccessor extends CosIdGetter, CosIdSetter, IdMetadata, Ens
      * methods, allowing the framework to handle cases where no valid ID field
      * is found without explicit null checks throughout the code.
      */
+    /**
+     * Checks that the ID generator, when it is already registered, can generate the type of the id field.
+     *
+     * @throws me.ahoo.cosid.CosIdException naming the field and the generator if they do not fit
+     */
+    default void validate() {
+    }
+
     class NotFound implements CosIdAccessor {
 
         /**

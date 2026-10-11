@@ -24,6 +24,8 @@ import me.ahoo.cosid.spring.boot.starter.segment.CosIdZookeeperSegmentAutoConfig
 import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -59,5 +61,13 @@ public class CosIdSegmentStoreAutoConfiguration {
         SegmentStoreContext context = new SegmentStoreContext(segmentIdProperties);
         return CosIdStoreProviders.create(type, providers.orderedStream().collect(Collectors.toList()),
             provider -> provider.createIdSegmentDistributorFactory(context), "id segment distributor factory");
+    }
+    
+    @Bean
+    static SmartInitializingSingleton cosIdIgnoredSegmentStoreProviderWarning(ListableBeanFactory beanFactory, ObjectProvider<SegmentIdProperties> segmentIdProperties) {
+        return new IgnoredStoreProviderWarning(beanFactory, "id segment distributor factory", IdSegmentDistributorFactory.class, "cosIdIdSegmentDistributorFactory", () -> {
+            SegmentIdProperties.Distributor distributor = segmentIdProperties.getObject().getDistributor();
+            return CosIdStoreProviders.storeType(distributor.getProvider(), distributor.getType());
+        });
     }
 }

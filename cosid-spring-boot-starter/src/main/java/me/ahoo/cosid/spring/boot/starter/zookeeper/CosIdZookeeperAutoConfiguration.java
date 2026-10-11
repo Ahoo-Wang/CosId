@@ -26,6 +26,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
 
 import java.util.concurrent.TimeUnit;
 
@@ -38,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdZookeeperEnabled
+@Conditional(OnZookeeperSelectedCondition.class)
 @ConditionalOnClass(ZookeeperIdSegmentDistributorFactory.class)
 @EnableConfigurationProperties(CosIdZookeeperProperties.class)
 public class CosIdZookeeperAutoConfiguration {

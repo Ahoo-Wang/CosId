@@ -28,7 +28,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 class CosIdZookeeperAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(CosIdZookeeperAutoConfiguration.class));
+        .withConfiguration(AutoConfigurations.of(CosIdZookeeperAutoConfiguration.class))
+        .withPropertyValues("cosid.segment.distributor.type=zookeeper");
 
     @Test
     void createsRetryPolicyFromBoundPropertiesWithoutStartingCuratorWhenUserProvidesCurator() {
@@ -89,5 +90,27 @@ class CosIdZookeeperAutoConfigurationTest {
                 .doesNotHaveBean(CosIdZookeeperProperties.class)
                 .doesNotHaveBean(RetryPolicy.class)
                 .doesNotHaveBean(CuratorFramework.class));
+    }
+
+    @Test
+    void doesNotConnectWhenNeitherDistributorIsZookeeper() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdZookeeperAutoConfiguration.class))
+            .withPropertyValues("cosid.machine.distributor.type=redis", "cosid.segment.distributor.type=redis")
+            .run(context -> assertThat(context)
+                .hasNotFailed()
+                .doesNotHaveBean(CosIdZookeeperProperties.class)
+                .doesNotHaveBean(CuratorFramework.class));
+    }
+
+    @Test
+    void createsZookeeperInfrastructureWhenTheMachineDistributorIsZookeeper() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdZookeeperAutoConfiguration.class))
+            .withBean(CuratorFramework.class, () -> mock(CuratorFramework.class))
+            .withPropertyValues("cosid.machine.distributor.type=ZOOKEEPER")
+            .run(context -> assertThat(context)
+                .hasSingleBean(RetryPolicy.class)
+                .hasSingleBean(CuratorFramework.class));
     }
 }

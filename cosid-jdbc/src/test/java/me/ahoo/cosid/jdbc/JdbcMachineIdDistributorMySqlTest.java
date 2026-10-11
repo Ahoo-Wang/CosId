@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import javax.sql.DataSource;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -163,6 +164,34 @@ class JdbcMachineIdDistributorMySqlTest {
         
         Assertions.assertThrows(MachineIdLostException.class,
             () -> distributor().distributeRemoteForTest(namespace, 4, INSTANCE_ID, Duration.ofMinutes(1)));
+    }
+    
+    /**
+     * A table created before the stable column existed: distribution keeps working, and a stable instance gets its own
+     * machine id back. The legacy table is a temporary table on one shared connection, which hides the real one.
+     */
+    @Test
+    void tableWithoutStableColumnKeepsDistributing() throws SQLException {
+        try (Connection shared = realDataSource.getConnection()) {
+            try (PreparedStatement statement = shared.prepareStatement(JdbcMachineIdInitializer.INIT_COSID_MACHINE_TABLE_SQL
+                .replace("create table if not exists cosid_machine", "create temporary table cosid_machine")
+                .replace("    stable          tinyint          not null default 0,\n", ""))) {
+                statement.execute();
+            }
+            Connection unclosable = (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(), new Class<?>[] {Connection.class},
+                (proxy, method, args) -> "close".equals(method.getName()) ? null : method.invoke(shared, args));
+            DataSource legacy = (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(), new Class<?>[] {DataSource.class},
+                (proxy, method, args) -> "getConnection".equals(method.getName()) ? unclosable : method.invoke(realDataSource, args));
+            InstanceId stableInstance = InstanceId.of("host", 2, true);
+            
+            int machineId = new TestableJdbcMachineIdDistributor(legacy, JdbcSupport.DEFAULT_QUERY_TIMEOUT)
+                .distributeRemoteForTest(namespace, 4, stableInstance, Duration.ZERO).getMachineId();
+            int again = new TestableJdbcMachineIdDistributor(legacy, JdbcSupport.DEFAULT_QUERY_TIMEOUT)
+                .distributeRemoteForTest(namespace, 4, stableInstance, Duration.ZERO).getMachineId();
+            
+            assertThat(again, equalTo(machineId));
+            assertThat(findMachine(machineId).isPresent(), equalTo(false));
+        }
     }
     
     @Test

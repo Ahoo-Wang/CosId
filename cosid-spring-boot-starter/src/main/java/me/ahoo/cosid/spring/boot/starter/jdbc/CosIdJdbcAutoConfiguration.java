@@ -13,15 +13,18 @@
 
 package me.ahoo.cosid.spring.boot.starter.jdbc;
 
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.accessor.parser.FieldDefinitionParser;
 import me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.EnabledSuffix;
 import me.ahoo.cosid.spring.data.jdbc.CosIdBeforeConvertCallback;
 import me.ahoo.cosid.spring.data.jdbc.IdAnnotationDefinitionParser;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 
 /**
@@ -32,8 +35,17 @@ import org.springframework.context.annotation.Bean;
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnClass(CosIdBeforeConvertCallback.class)
+@ConditionalOnProperty(value = CosIdJdbcAutoConfiguration.ENABLED_KEY, matchIfMissing = true, havingValue = "true")
 public class CosIdJdbcAutoConfiguration {
+    /**
+     * Turns the Spring Data JDBC integration ({@code @Id} fields and the before-convert callback) off with {@code false}.
+     * Default {@code true} in 3.x; 4.0 will default to {@code false}, because the {@code @Id} parser joins the global
+     * field definition parser and also takes over {@code @Id} fields on other paths, such as MyBatis.
+     */
+    public static final String ENABLED_KEY = CosId.COSID_PREFIX + "jdbc" + EnabledSuffix.KEY;
+
     @Bean
+    @ConditionalOnMissingBean(IdAnnotationDefinitionParser.class)
     public FieldDefinitionParser idAnnotationDefinitionParser() {
         return IdAnnotationDefinitionParser.INSTANCE;
     }

@@ -115,4 +115,11 @@ class ActivitiIdGeneratorAutoConfigurationTest {
                 assertThat(idGenerator.getNextId()).startsWith("ctx_");
             });
     }
+
+    @Test
+    void doesNotCreateConfigurerWhenActivitiIsDisabled() {
+        this.contextRunner
+            .withPropertyValues(ActivitiIdGeneratorAutoConfiguration.ENABLED_KEY + "=false")
+            .run(context -> assertThat(context).doesNotHaveBean("cosidActivitiProcessEngineConfigurationConfigurer"));
+    }
 }

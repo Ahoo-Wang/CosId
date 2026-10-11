@@ -13,14 +13,17 @@
 
 package me.ahoo.cosid.spring.boot.starter.flowable;
 
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.flowable.FlowableIdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.EnabledSuffix;
 
 import org.flowable.spring.SpringProcessEngineConfiguration;
 import org.flowable.spring.boot.EngineConfigurationConfigurer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 
 /**
@@ -35,10 +38,16 @@ import org.springframework.context.annotation.Bean;
     SpringProcessEngineConfiguration.class,
     EngineConfigurationConfigurer.class
 })
+@ConditionalOnProperty(value = FlowableIdGeneratorAutoConfiguration.ENABLED_KEY, matchIfMissing = true, havingValue = "true")
 public class FlowableIdGeneratorAutoConfiguration {
+    /**
+     * Turns the Flowable id generator off with {@code false}. Default {@code true}.
+     */
+    public static final String ENABLED_KEY = CosId.COSID_PREFIX + "flowable" + EnabledSuffix.KEY;
+
     
     @Bean
-    public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> engineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
+    public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> cosidFlowableEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
         return new CosIdEngineConfigurationConfigurer(idGeneratorProvider);
     }
     

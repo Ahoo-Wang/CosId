@@ -13,7 +13,11 @@
 
 package me.ahoo.cosid.spring.boot.starter.mybatis;
 
+import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.spring.boot.starter.EnabledSuffix;
+
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -28,5 +32,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD})
 @ConditionalOnClass(name = "me.ahoo.cosid.mybatis.CosIdPlugin")
+@ConditionalOnProperty(value = ConditionalOnCosIdMybatisEnabled.ENABLED_KEY, matchIfMissing = true, havingValue = "true")
 public @interface ConditionalOnCosIdMybatisEnabled {
+    /**
+     * Turns the MyBatis plugin off with {@code false}. Default {@code true}.
+     */
+    String ENABLED_KEY = CosId.COSID_PREFIX + "mybatis" + EnabledSuffix.KEY;
 }

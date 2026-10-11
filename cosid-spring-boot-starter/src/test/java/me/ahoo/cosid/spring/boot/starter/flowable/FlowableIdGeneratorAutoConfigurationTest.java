@@ -22,6 +22,7 @@ import static org.mockito.Mockito.verify;
 import me.ahoo.cosid.flowable.FlowableIdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.activiti.ActivitiIdGeneratorAutoConfiguration;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.flowable.spring.SpringProcessEngineConfiguration;
@@ -82,5 +83,26 @@ class FlowableIdGeneratorAutoConfigurationTest {
 
                 verify(engineConfiguration).setIdGenerator(argThat(idGenerator -> idGenerator.getNextId().startsWith("ctx_")));
             });
+    }
+
+    @Test
+    void doesNotCreateConfigurerWhenFlowableIsDisabled() {
+        this.contextRunner
+            .withPropertyValues(FlowableIdGeneratorAutoConfiguration.ENABLED_KEY + "=false")
+            .run(context -> assertThat(context).doesNotHaveBean(EngineConfigurationConfigurer.class));
+    }
+
+    /**
+     * Both integrations used to name their bean engineConfigurationConfigurer, which failed startup with both present.
+     */
+    @Test
+    void startsWithActivitiToo() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, FlowableIdGeneratorAutoConfiguration.class,
+                ActivitiIdGeneratorAutoConfiguration.class))
+            .run(context -> assertThat(context)
+                .hasNotFailed()
+                .hasBean("cosidFlowableEngineConfigurationConfigurer")
+                .hasBean("cosidActivitiProcessEngineConfigurationConfigurer"));
     }
 }

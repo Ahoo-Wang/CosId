@@ -71,4 +71,21 @@ class CosIdJdbcAutoConfigurationTest {
                 .doesNotHaveBean(IdAnnotationDefinitionParser.class)
                 .doesNotHaveBean(CosIdBeforeConvertCallback.class));
     }
+
+    @Test
+    void doesNotRegisterTheIdParserWhenJdbcIsDisabled() {
+        this.contextRunner
+            .withPropertyValues(CosIdJdbcAutoConfiguration.ENABLED_KEY + "=false")
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(IdAnnotationDefinitionParser.class)
+                .doesNotHaveBean(CosIdBeforeConvertCallback.class));
+    }
+
+    @Test
+    void backsOffForUserProvidedIdParser() {
+        IdAnnotationDefinitionParser parser = new IdAnnotationDefinitionParser();
+        this.contextRunner
+            .withBean(IdAnnotationDefinitionParser.class, () -> parser)
+            .run(context -> assertThat(context.getBean(IdAnnotationDefinitionParser.class)).isSameAs(parser));
+    }
 }

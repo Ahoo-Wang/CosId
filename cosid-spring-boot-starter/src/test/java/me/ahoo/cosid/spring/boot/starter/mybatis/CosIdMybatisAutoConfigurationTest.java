@@ -57,4 +57,11 @@ class CosIdMybatisAutoConfigurationTest {
             .withClassLoader(new FilteredClassLoader(CosIdPlugin.class))
             .run(context -> assertThat(context).doesNotHaveBean(CosIdPlugin.class));
     }
+
+    @Test
+    void doesNotCreatePluginWhenMybatisIsDisabled() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMybatisEnabled.ENABLED_KEY + "=false")
+            .run(context -> assertThat(context).doesNotHaveBean(CosIdPlugin.class));
+    }
 }

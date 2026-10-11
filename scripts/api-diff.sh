@@ -23,14 +23,23 @@ build_jars() {
 build_jars "$WORK/baseline"
 build_jars "$ROOT"
 
-# The main jar of a module: <module>-<version>.jar, no classifier.
+version_of() {
+  sed -n 's/^version=//p' "$1/gradle.properties"
+}
+OLD_VERSION="$(version_of "$WORK/baseline")"
+NEW_VERSION="$(version_of "$ROOT")"
+
+# The main jar of a module at a version: <module>-<version>.jar, no classifier.
 main_jar() {
-  find "$1/build/libs" -maxdepth 1 -name '*.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name '*-plain.jar' 2>/dev/null | head -1
+  local jar="$1/build/libs/$(basename "$1")-$2.jar"
+  if [ -f "$jar" ]; then
+    echo "$jar"
+  fi
 }
 
 SUMMARY="$OUT/summary.md"
 {
-  echo "## API diff against ${BASELINE} (report only)"
+  echo "## API diff of ${NEW_VERSION} against ${BASELINE} (${OLD_VERSION}, report only)"
   echo
   echo "| Module | Result |"
   echo "|---|---|"
@@ -39,8 +48,8 @@ SUMMARY="$OUT/summary.md"
 while IFS= read -r libs; do
   module_dir="${libs%/build/libs}"
   module="${module_dir#"$ROOT"/}"
-  new_jar="$(main_jar "$module_dir")"
-  old_jar="$(main_jar "$WORK/baseline/$module")"
+  new_jar="$(main_jar "$module_dir" "$NEW_VERSION")"
+  old_jar="$(main_jar "$WORK/baseline/$module" "$OLD_VERSION")"
   name="$(basename "$module")"
   if [ -z "$new_jar" ]; then
     continue
@@ -49,9 +58,10 @@ while IFS= read -r libs; do
     echo "| \`$module\` | new module |" >> "$SUMMARY"
     continue
   fi
-  java -jar "$WORK/japicmp.jar" --old "$old_jar" --new "$new_jar" --only-modified --ignore-missing-classes \
-    --html-file "$OUT/$name.html" --markdown > "$OUT/$name.md" 2>/dev/null || true
-  if grep -q "No incompatible changes found" "$OUT/$name.md"; then
+  # japicmp exits with 1 when it finds a binary or source incompatible change.
+  if java -jar "$WORK/japicmp.jar" --old "$old_jar" --new "$new_jar" --only-modified --ignore-missing-classes \
+    --error-on-binary-incompatibility --error-on-source-incompatibility \
+    --html-file "$OUT/$name.html" --markdown > "$OUT/$name.md" 2> "$OUT/$name.err"; then
     result="compatible"
   else
     result="**incompatible changes**, see \`$name.html\`"

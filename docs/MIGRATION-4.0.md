@@ -40,6 +40,8 @@ _Still to be filled in as the changes land: the thread-local grouped path (`Grou
 | `cosid.jdbc.enabled` | `true` | `false` |
 | `cosid.actuator.delete.enabled` | `true` | `false` |
 
+Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `cosid.jdbc.enabled=true`**: with it off, CosId no longer fills the `@Id` property (or `@CosId` fields) of Spring Data JDBC entities, and an INFO at startup names those entities. With `cosid.actuator.delete.enabled` off, the `cosid` endpoint is read-only (`CosIdReadOnlyEndpoint`), and the 3.4 startup warning is gone.
+
 ## API changes
 
 _To be filled in: `StringIdGenerator` and the `IdGeneratorProvider` injection points, `SnowflakeLayout`, the new `cosid-sharding` and `cosid-accessor` modules, the configuration property model._

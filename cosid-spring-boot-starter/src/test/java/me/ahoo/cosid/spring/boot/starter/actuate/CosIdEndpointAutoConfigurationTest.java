@@ -32,7 +32,7 @@ class CosIdEndpointAutoConfigurationTest {
 
     @Test
     void createsAllEndpointsWhenActuatorEndpointApiIsPresent() {
-        this.contextRunner.run(context -> assertThat(context)
+        this.contextRunner.withPropertyValues(CosIdEndpointAutoConfiguration.DELETE_ENABLED_KEY + "=true").run(context -> assertThat(context)
             .hasSingleBean(CosIdEndpoint.class)
             .hasSingleBean(CosIdGeneratorEndpoint.class)
             .hasSingleBean(CosIdStringGeneratorEndpoint.class));
@@ -98,5 +98,10 @@ class CosIdEndpointAutoConfigurationTest {
                 assertThat(context).hasSingleBean(CosIdReadOnlyEndpoint.class).doesNotHaveBean(CosIdEndpoint.class);
                 assertThat(CosIdReadOnlyEndpoint.class.getMethods()).noneMatch(method -> method.getName().equals("remove"));
             });
+    }
+
+    @Test
+    void createsTheReadOnlyEndpointByDefault() {
+        this.contextRunner.run(context -> assertThat(context).hasSingleBean(CosIdReadOnlyEndpoint.class).doesNotHaveBean(CosIdEndpoint.class));
     }
 }

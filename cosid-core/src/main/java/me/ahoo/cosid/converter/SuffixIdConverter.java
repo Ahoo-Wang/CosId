@@ -15,6 +15,7 @@ package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.SuffixConverterStat;
 
@@ -58,7 +59,15 @@ public class SuffixIdConverter implements IdConverter, Decorator<IdConverter> {
 
     @Override
     public @NonNull String asString(long id) {
-        String idStr = actual.asString(id);
+        return withSuffix(actual.asString(id));
+    }
+    
+    @Override
+    public @NonNull String asString(long id, @NonNull GroupedKey group) {
+        return withSuffix(actual.asString(id, group));
+    }
+    
+    private String withSuffix(String idStr) {
         if (suffix.isEmpty()) {
             return idStr;
         }

@@ -15,6 +15,7 @@ package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.PrefixConverterStat;
 
@@ -60,7 +61,15 @@ public class PrefixIdConverter implements IdConverter, Decorator<IdConverter> {
 
     @Override
     public @NonNull String asString(long id) {
-        String idStr = actual.asString(id);
+        return withPrefix(actual.asString(id));
+    }
+    
+    @Override
+    public @NonNull String asString(long id, @NonNull GroupedKey group) {
+        return withPrefix(actual.asString(id, group));
+    }
+    
+    private String withPrefix(String idStr) {
         if (prefix.isEmpty()) {
             return idStr;
         }

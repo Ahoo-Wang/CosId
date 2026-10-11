@@ -18,11 +18,14 @@ import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 import me.ahoo.cosid.segment.concurrent.AffinityJob;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorker;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+import me.ahoo.cosid.segment.grouped.GroupedId;
 import me.ahoo.cosid.util.Clock;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Segment chain algorithm ID generator.
@@ -250,6 +253,22 @@ public class SegmentChainId implements SegmentId {
      */
     @Override
     public long generate() {
+        return next(null);
+    }
+    
+    @Override
+    public @NonNull GroupedId generateGrouped() {
+        IdSegment[] source = new IdSegment[1];
+        long id = next(source);
+        return GroupedId.of(source[0].group(), id);
+    }
+    
+    /**
+     * Generate the next id.
+     *
+     * @param source when not {@code null}, receives the segment the id came from
+     */
+    private long next(IdSegment @Nullable [] source) {
         while (true) {
             IdSegmentChain currentChain = headChain;
             while (currentChain != null) {
@@ -257,6 +276,9 @@ public class SegmentChainId implements SegmentId {
                     long nextSeq = currentChain.incrementAndGet();
                     if (!currentChain.isOverflow(nextSeq)) {
                         forward(currentChain);
+                        if (source != null) {
+                            source[0] = currentChain;
+                        }
                         return nextSeq;
                     }
                 }

@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid;
 
+import me.ahoo.cosid.segment.grouped.GroupedId;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.Statistical;
 
@@ -54,6 +56,35 @@ public interface IdConverter extends Statistical {
      */
     @NonNull
     String asString(long id);
+    
+    /**
+     * Convert an id from a segment of {@code group} to its {@link String} representation.
+     *
+     * <p>Converters that do not depend on the group ignore it, which is the default; decorators pass it on to the
+     * converter they wrap. Unlike {@link #asString(long)}, a group-aware converter such as
+     * {@link me.ahoo.cosid.converter.GroupedPrefixIdConverter} takes the group from here instead of the thread-local
+     * {@link me.ahoo.cosid.segment.grouped.GroupedAccessor}.</p>
+     *
+     * <p>A custom decorator that does not override this method falls back to {@link #asString(long)} of the converter
+     * it wraps, and so to the thread-local group: override it and pass {@code group} on.</p>
+     *
+     * @param id    the id
+     * @param group the group of the segment the id came from, {@link GroupedKey#NEVER} when it is not grouped
+     * @return the {@link String} representation of the id
+     * @since 3.4.0
+     */
+    default @NonNull String asString(long id, @NonNull GroupedKey group) {
+        return asString(id);
+    }
+    
+    /**
+     * Convert a {@link GroupedId} to its {@link String} representation, see {@link #asString(long, GroupedKey)}.
+     *
+     * @since 3.4.0
+     */
+    default @NonNull String asString(@NonNull GroupedId groupedId) {
+        return asString(groupedId.getValue(), groupedId.getGroup());
+    }
     
     /**
      * Convert a {@link String} type ID back to its {@code long} representation.

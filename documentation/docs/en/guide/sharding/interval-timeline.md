@@ -1,5 +1,9 @@
 # Interval-Based Time Range Sharding Algorithm
 
+::: tip Module
+Since 4.0 the sharding algorithms are in their own artifact, `me.ahoo.cosid:cosid-sharding` (package `me.ahoo.cosid.sharding`, unchanged).
+:::
+
 <p align="center" >
   <img src="../../../public/assets/design/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"/>
 </p>

@@ -1,5 +1,9 @@
 # 取模分片算法
 
+::: tip 模块
+自 4.0 起分片算法拆分到独立的构件 `me.ahoo.cosid:cosid-sharding`（包名 `me.ahoo.cosid.sharding` 不变）。
+:::
+
 <p align="center" >
   <img src="../../../public/assets/design/CosIdModShardingAlgorithm.png" alt="CosIdModShardingAlgorithm"/>
 </p>

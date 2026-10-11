@@ -45,6 +45,10 @@ _Still to be filled in as the changes land: the old machine id distributors._
 
 `IdSegmentDistributor.Atomic` and `IdSegmentDistributor.Mock` moved out of `cosid-core` to the `cosid-test` artifact as `me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor` and `me.ahoo.cosid.test.segment.MockIdSegmentDistributor`, with the same constructors.
 
+### Sharding algorithms moved to `cosid-sharding`
+
+`me.ahoo.cosid.sharding` (`ModCycle`, `IntervalTimeline`, `CachedSharding`, ...) moved from `cosid-core` to the new `me.ahoo.cosid:cosid-sharding` artifact, with the same package and class names. Add the dependency where you use them; the BOM manages its version. Downstream integrations need it too, such as the CosId sharding algorithms in Apache ShardingSphere (`shardingsphere-sharding-cosid`). Guava is now a dependency of `cosid-sharding` only.
+
 ## Changed defaults
 
 | Property | 3.x | 4.0 |

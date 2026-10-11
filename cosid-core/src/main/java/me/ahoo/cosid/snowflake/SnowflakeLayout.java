@@ -29,12 +29,16 @@ public record SnowflakeLayout(long epoch, int timestampBit, int machineBit, int 
     /**
      * Validates the layout.
      *
-     * @throws IllegalArgumentException if a bit count is negative or the total exceeds {@link SnowflakeId#TOTAL_BIT}
+     * @throws IllegalArgumentException if a bit count is negative, {@code machineBit} is 32 or more, or the total exceeds
+     *     {@link SnowflakeId#TOTAL_BIT}
      */
     public SnowflakeLayout {
         if (timestampBit < 0 || machineBit < 0 || sequenceBit < 0) {
             throw new IllegalArgumentException("bit counts can't be negative: timestampBit[" + timestampBit + "], machineBit[" + machineBit
                 + "], sequenceBit[" + sequenceBit + "].");
+        }
+        if (machineBit >= Integer.SIZE) {
+            throw new IllegalArgumentException("machineBit[" + machineBit + "] must be less than 32: machine ids are ints.");
         }
         if (timestampBit + machineBit + sequenceBit > SnowflakeId.TOTAL_BIT) {
             throw new IllegalArgumentException("total bit can't be greater than TOTAL_BIT[63] .");

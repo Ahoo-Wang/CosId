@@ -58,6 +58,14 @@ public interface SnowflakeId extends IdGenerator {
     int TOTAL_BIT = 63;
 
     /**
+     * The bit layout of the ids.
+     *
+     * @return the layout
+     * @since 4.0.0
+     */
+    SnowflakeLayout layout();
+    
+    /**
      * Get the epoch timestamp used as the base for time calculations.
      *
      * <p>This is the timestamp (in milliseconds) that serves as the starting
@@ -66,14 +74,6 @@ public interface SnowflakeId extends IdGenerator {
      *
      * @return The epoch timestamp in milliseconds
      */
-    /**
-     * The bit layout of the ids.
-     *
-     * @return the layout
-     * @since 4.0.0
-     */
-    SnowflakeLayout layout();
-    
     default long getEpoch() {
         return layout().epoch();
     }

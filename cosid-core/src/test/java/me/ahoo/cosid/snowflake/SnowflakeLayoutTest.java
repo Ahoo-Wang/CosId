@@ -44,6 +44,7 @@ class SnowflakeLayoutTest {
     void rejectsTooManyOrNegativeBits() {
         assertThrows(IllegalArgumentException.class, () -> new SnowflakeLayout(0, 42, 10, 12));
         assertThrows(IllegalArgumentException.class, () -> new SnowflakeLayout(0, -1, 10, 12));
+        assertThrows(IllegalArgumentException.class, () -> new SnowflakeLayout(0, 20, 32, 10));
     }
     
     @Test

@@ -40,7 +40,7 @@ _Still to be filled in as the changes land: the thread-local grouped path (`Grou
 
 ### `SnowflakeLayout`
 
-`SnowflakeId.layout()` returns a `SnowflakeLayout(epoch, timestampBit, machineBit, sequenceBit)`, which also gives the maxima, the shifts and `isSafeJavascript()`. A custom `SnowflakeId` implements `layout()`; `getEpoch()`, `getTimestampBit()`, `getMachineBit()`, `getSequenceBit()`, `getMaxTimestamp()`, `getMaxMachineId()`, `getMaxSequence()` and `isSafeJavascript()` are now default methods built on it. `SnowflakeIdStateParser` and its subclasses have constructors taking a layout.
+`SnowflakeId.layout()` returns a `SnowflakeLayout(epoch, timestampBit, machineBit, sequenceBit)`, which also gives the maxima, the shifts and `isSafeJavascript()`. A custom `SnowflakeId` implements `layout()`; `getEpoch()`, `getTimestampBit()`, `getMachineBit()`, `getSequenceBit()`, `getMaxTimestamp()`, `getMaxMachineId()`, `getMaxSequence()` and `isSafeJavascript()` are now default methods built on it. `SnowflakeIdStateParser` and its subclasses have constructors taking a layout. A custom generator with its own layout must override `layout()`: the parsers, friendly ids and stats read the layout, so overriding only `getEpoch()` or the bit getters is ignored by them. Machine bits are limited to 31.
 
 _To be filled in: `StringIdGenerator` and the `IdGeneratorProvider` injection points, the new `cosid-sharding` and `cosid-accessor` modules, the configuration property model._
 

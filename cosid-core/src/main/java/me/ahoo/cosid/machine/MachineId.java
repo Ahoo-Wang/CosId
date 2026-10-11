@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.machine;
 
-import com.google.common.base.Objects;
 import com.google.errorprone.annotations.Immutable;
+
+import java.util.Objects;
 
 /**
  * Logical machine identifier for distributed ID generation.
@@ -62,6 +63,6 @@ public class MachineId {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(getMachineId());
+        return Objects.hash(getMachineId());
     }
 }

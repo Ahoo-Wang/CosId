@@ -13,10 +13,8 @@
 
 package me.ahoo.cosid.machine;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import me.ahoo.cosid.internal.Checks;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -136,7 +134,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      * @return a new ScheduledExecutorService configured for machine ID guarding
      */
     public static ScheduledExecutorService executorService() {
-        return new ScheduledThreadPoolExecutor(1, new ThreadFactoryBuilder().setDaemon(true).setNameFormat("MachineIdGuarder").build());
+        return new ScheduledThreadPoolExecutor(1, Checks.daemonThreadFactory("MachineIdGuarder"));
     }
 
     /**
@@ -147,7 +145,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      */
     @Override
     public Map<NamespacedInstanceId, GuardianState> getGuardianStates() {
-        return ImmutableMap.copyOf(guardianStates);
+        return Map.copyOf(guardianStates);
     }
 
     /**
@@ -168,7 +166,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      */
     @Override
     public void register(String namespace, InstanceId instanceId, long distributedAt) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(namespace), "namespace can not be empty!");
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
         boolean absent = guardianStates.put(namespacedInstanceId, GuardianState.INITIAL) == null;
         leases.computeIfAbsent(namespacedInstanceId, key -> new MachineIdLease(namespace, instanceId, safeGuardDuration))
@@ -208,7 +206,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
             if (localStateInterval != null && !localStateInterval.isZero() && !localStateInterval.isNegative()) {
                 long intervalMillis = localStateInterval.toMillis();
                 localStateExecutor = new ScheduledThreadPoolExecutor(1,
-                    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("MachineIdGuarder-LocalState").build());
+                    Checks.daemonThreadFactory("MachineIdGuarder-LocalState"));
                 localStateExecutor.scheduleWithFixedDelay(this::refreshLocalStates, intervalMillis, intervalMillis, TimeUnit.MILLISECONDS);
             }
         }

@@ -15,8 +15,8 @@ package me.ahoo.cosid.machine;
 
 import static me.ahoo.cosid.machine.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import me.ahoo.cosid.internal.Checks;
+
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 
@@ -51,9 +51,9 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     @Override
     public @NonNull MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException {
 
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
-        Preconditions.checkArgument(machineBit > 0, "machineBit:[%s] must be greater than 0!", machineBit);
-        Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Checks.checkArgument(machineBit > 0, "machineBit:[%s] must be greater than 0!", machineBit);
+        Checks.checkNotNull(instanceId, "instanceId can not be null!");
 
         MachineState localState = machineStateStorage.get(namespace, instanceId);
         MachineState remoteState = distributeRemote(namespace, machineBit, instanceId, safeGuardDuration);
@@ -149,8 +149,8 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
     }
 
     private MachineState resetStorage(String namespace, InstanceId instanceId) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
-        Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Checks.checkNotNull(instanceId, "instanceId can not be null!");
 
         synchronized (localStateLock) {
             MachineState lastLocalState = machineStateStorage.get(namespace, instanceId);

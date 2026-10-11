@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.machine;
 
-import com.google.common.base.Preconditions;
+import me.ahoo.cosid.internal.Checks;
 
 import java.time.Duration;
 
@@ -66,7 +66,7 @@ public final class StatelessMachineIdDistributor {
     }
 
     private static void checkMachineState(MachineState machineState) {
-        Preconditions.checkArgument(machineState.getMachineId() >= 0, "machineId:[%s] must be greater than or equal to 0!", machineState.getMachineId());
-        Preconditions.checkArgument(machineState.getLastTimeStamp() > 0, "lastTimeStamp:[%s] must be greater than 0!", machineState.getLastTimeStamp());
+        Checks.checkArgument(machineState.getMachineId() >= 0, "machineId:[%s] must be greater than or equal to 0!", machineState.getMachineId());
+        Checks.checkArgument(machineState.getLastTimeStamp() > 0, "lastTimeStamp:[%s] must be greater than 0!", machineState.getLastTimeStamp());
     }
 }

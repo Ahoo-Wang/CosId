@@ -16,10 +16,10 @@ package me.ahoo.cosid.converter;
 import static me.ahoo.cosid.converter.RadixIdConverter.PAD_CHAR;
 
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.ToStringConverterStat;
 
-import com.google.common.base.Strings;
 import org.jspecify.annotations.NonNull;
 
 
@@ -56,7 +56,7 @@ public class ToStringIdConverter implements IdConverter {
         if (!padStart) {
             return idStr;
         }
-        return Strings.padStart(idStr, charSize, PAD_CHAR);
+        return Checks.padStart(idStr, charSize, PAD_CHAR);
     }
 
     @Override

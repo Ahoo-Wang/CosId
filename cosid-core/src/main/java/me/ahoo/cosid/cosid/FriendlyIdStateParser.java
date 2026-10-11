@@ -24,16 +24,16 @@ import static me.ahoo.cosid.converter.RadixIdConverter.PAD_CHAR;
 import static me.ahoo.cosid.snowflake.SnowflakeIdStateParser.DELIMITER;
 
 import me.ahoo.cosid.converter.RadixIdConverter;
-
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
+import me.ahoo.cosid.internal.Checks;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
+import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Parser for CosIdState using a human-readable format.
@@ -86,9 +86,9 @@ public class FriendlyIdStateParser implements CosIdIdStateParser {
 
     @Override
     public CosIdState asState(String id) {
-        List<String> segments = Splitter.on(DELIMITER).trimResults().omitEmptyStrings().splitToList(id);
+        List<String> segments = Arrays.stream(id.split(Pattern.quote(DELIMITER))).map(String::trim).filter(part -> !part.isEmpty()).toList();
         if (segments.size() != 3) {
-            throw new IllegalArgumentException(Strings.lenientFormat("id :[%s] Illegal.", id));
+            throw new IllegalArgumentException(Checks.lenientFormat("id :[%s] Illegal.", id));
         }
         String timestampStr = segments.get(0);
         long timestamp = LocalDateTime.parse(timestampStr, DATE_TIME_FORMATTER).atZone(zoneId).toInstant().toEpochMilli();
@@ -107,7 +107,7 @@ public class FriendlyIdStateParser implements CosIdIdStateParser {
      */
     public static String intAsString(boolean padStart, int value, int charSize) {
         if (padStart) {
-            return Strings.padStart(String.valueOf(value), charSize, PAD_CHAR);
+            return Checks.padStart(String.valueOf(value), charSize, PAD_CHAR);
         }
         return String.valueOf(value);
     }

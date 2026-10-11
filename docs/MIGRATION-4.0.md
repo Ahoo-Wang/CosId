@@ -53,6 +53,10 @@ _Still to be filled in as the changes land: the old machine id distributors._
 
 `me.ahoo.cosid.accessor` (id field accessors, `CosIdAccessorRegistry`, the field parsers) and `me.ahoo.cosid.annotation` (`@CosId`, `@AccessorFactory`) moved from `cosid-core` to the new `me.ahoo.cosid:cosid-accessor` artifact, with the same package and class names. The starter, `cosid-mybatis` and `cosid-spring-data-jdbc` depend on it, so applications using them need no change; add it only where you use `@CosId` or the accessors without them.
 
+### Guava in `cosid-core`, `cosid-accessor` and `cosid-jackson`
+
+These artifacts no longer depend on Guava, and `@Beta` markers are gone. If your code used Guava only because CosId brought it in, add `com.google.guava:guava` to your own build. The store integrations and `cosid-sharding` still depend on it. `me.ahoo.cosid.internal` holds CosId's own helpers and is not a public API.
+
 ## Changed defaults
 
 | Property | 3.x | 4.0 |
@@ -63,6 +67,10 @@ _Still to be filled in as the changes land: the old machine id distributors._
 Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `cosid.jdbc.enabled=true`**: with it off, CosId no longer fills the `@Id` property (or `@CosId` fields) of Spring Data JDBC entities, and an INFO at startup names those entities. With `cosid.actuator.delete.enabled` off, the `cosid` endpoint is read-only (`CosIdReadOnlyEndpoint`), and the 3.4 startup warning is gone.
 
 ## API changes
+
+### `SnowflakeLayout`
+
+`SnowflakeId.layout()` returns a `SnowflakeLayout(epoch, timestampBit, machineBit, sequenceBit)`, which also gives the maxima, the shifts and `isSafeJavascript()`. A custom `SnowflakeId` implements `layout()`; `getEpoch()`, `getTimestampBit()`, `getMachineBit()`, `getSequenceBit()`, `getMaxTimestamp()`, `getMaxMachineId()`, `getMaxSequence()` and `isSafeJavascript()` are now default methods built on it. `SnowflakeIdStateParser` and its subclasses have constructors taking a layout. A custom generator with its own layout must override `layout()`: the parsers, friendly ids and stats read the layout, so overriding only `getEpoch()` or the bit getters is ignored by them. Machine bits are limited to 31.
 
 ### String-only generators are not `IdGenerator`s
 
@@ -81,6 +89,6 @@ Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `
 
 A typed lookup of a generator with another type throws `IllegalArgumentException` naming both types. `@CosId` fields of type `String` keep working with the `cosid` generator; `long` and `int` fields need an `IdGenerator`. A `long` or `int` field bound to a string-only generator fails when its accessor is registered, at the end of startup with the starter, or at the latest on the first fill, with a `CosIdException` naming the field and the generator.
 
-_To be filled in: `SnowflakeLayout`, the new `cosid-sharding` and `cosid-accessor` modules, the configuration property model._
+_To be filled in: the configuration property model._
 
 The API diff against 3.4 is reported on every pull request to `main` (the **API Diff** workflow).

@@ -13,11 +13,11 @@
 
 package me.ahoo.cosid.snowflake;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.internal.TimestampSequencer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
-import com.google.common.base.Strings;
 
 /**
  * Abstract SnowflakeId implementation.
@@ -94,6 +94,10 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
      * <p>A read-only mirror of the {@link TimestampSequencer} state: changing it has no effect.</p>
      */
     protected long lastTimestamp = -1L;
+    /**
+     * The bit layout.
+     */
+    private final SnowflakeLayout layout;
 
     /**
      * Creates a new AbstractSnowflakeId.
@@ -112,9 +116,7 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
                                int sequenceBit,
                                int machineId,
                                long sequenceResetThreshold) {
-        if ((timestampBit + machineBit + sequenceBit) > TOTAL_BIT) {
-            throw new IllegalArgumentException("total bit can't be greater than TOTAL_BIT[63] .");
-        }
+        this.layout = new SnowflakeLayout(epoch, timestampBit, machineBit, sequenceBit);
         this.epoch = epoch;
         this.timestampBit = timestampBit;
         this.machineBit = machineBit;
@@ -125,7 +127,7 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         this.machineLeft = sequenceBit;
         this.timestampLeft = this.machineLeft + machineBit;
         if (machineId > this.maxMachineId || machineId < 0) {
-            throw new IllegalArgumentException(Strings.lenientFormat("machineId[%s] can't be greater than maxMachineId[%s] or less than 0 .", machineId, maxMachineId));
+            throw new IllegalArgumentException(Checks.lenientFormat("machineId[%s] can't be greater than maxMachineId[%s] or less than 0 .", machineId, maxMachineId));
         }
         this.machineId = machineId;
         this.sequencer = new TimestampSequencer(this::getCurrentTime, maxSequence, sequenceResetThreshold);
@@ -154,6 +156,11 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         return diffTimestamp << timestampLeft
                 | machineId << machineLeft
                 | sequence;
+    }
+
+    @Override
+    public SnowflakeLayout layout() {
+        return layout;
     }
 
     @Override

@@ -15,8 +15,8 @@ package me.ahoo.cosid.provider;
 
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.StringIdGenerator;
+import me.ahoo.cosid.internal.Checks;
 
-import com.google.common.base.Strings;
 import com.google.errorprone.annotations.ThreadSafe;
 
 import java.util.Collection;
@@ -121,7 +121,7 @@ public interface IdGeneratorProvider {
     default <T extends StringIdGenerator> Optional<T> get(String name, Class<T> type) {
         return get(name).map(idGenerator -> {
             if (!type.isInstance(idGenerator)) {
-                throw new IllegalArgumentException(Strings.lenientFormat("ID generator named:[%s] is a [%s], not a [%s]!",
+                throw new IllegalArgumentException(Checks.lenientFormat("ID generator named:[%s] is a [%s], not a [%s]!",
                     name, idGenerator.getClass().getName(), type.getName()));
             }
             return type.cast(idGenerator);
@@ -153,7 +153,7 @@ public interface IdGeneratorProvider {
      */
     default <T extends StringIdGenerator> T getRequired(String name, Class<T> type) {
         return get(name, type)
-            .orElseThrow(() -> new IllegalArgumentException(Strings.lenientFormat("Not found ID generator named:[%s]!", name)));
+            .orElseThrow(() -> new IllegalArgumentException(Checks.lenientFormat("Not found ID generator named:[%s]!", name)));
     }
     
     /**

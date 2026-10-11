@@ -13,11 +13,11 @@
 
 package me.ahoo.cosid.cosid;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.internal.TimestampSequencer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
-import com.google.common.base.Strings;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -80,7 +80,7 @@ public class RadixCosIdGenerator implements CosIdGenerator {
         this.maxMachine = ~(-1 << machineIdBit);
         this.maxSequence = ~(-1 << sequenceBit);
         if (machineId > this.maxMachine || machineId < 0) {
-            throw new IllegalArgumentException(Strings.lenientFormat("machineId can't be greater than maxMachine[%s] or less than 0 .", maxMachine));
+            throw new IllegalArgumentException(Checks.lenientFormat("machineId can't be greater than maxMachine[%s] or less than 0 .", maxMachine));
         }
         this.machineId = machineId;
         this.stateParser = stateParser;

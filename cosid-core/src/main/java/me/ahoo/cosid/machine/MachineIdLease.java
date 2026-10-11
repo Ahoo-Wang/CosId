@@ -13,7 +13,8 @@
 
 package me.ahoo.cosid.machine;
 
-import com.google.common.base.Preconditions;
+import me.ahoo.cosid.internal.Checks;
+
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
@@ -48,7 +49,7 @@ public final class MachineIdLease {
     private volatile boolean released;
     
     public MachineIdLease(@Nullable String namespace, @Nullable InstanceId instanceId, Duration safeGuardDuration) {
-        Preconditions.checkNotNull(safeGuardDuration, "safeGuardDuration can not be null!");
+        Checks.checkNotNull(safeGuardDuration, "safeGuardDuration can not be null!");
         this.namespace = namespace;
         this.instanceId = instanceId;
         this.validityMillis = validityMillis(safeGuardDuration);

@@ -14,8 +14,8 @@
 package me.ahoo.cosid.machine;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 
-import com.google.common.base.Strings;
 
 /**
  * Exception thrown when machine state is not found.
@@ -36,7 +36,7 @@ public class NotFoundMachineStateException extends CosIdException {
      * @param instanceId the instance ID
      */
     public NotFoundMachineStateException(String namespace, InstanceId instanceId) {
-        super(Strings.lenientFormat("Not found the MachineState of instance[%s]@[%s]!", instanceId, namespace));
+        super(Checks.lenientFormat("Not found the MachineState of instance[%s]@[%s]!", instanceId, namespace));
         this.namespace = namespace;
         this.instanceId = instanceId;
     }

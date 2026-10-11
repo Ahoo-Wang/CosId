@@ -22,11 +22,11 @@ import me.ahoo.cosid.annotation.entity.IntIdEntity;
 import me.ahoo.cosid.annotation.entity.LongIdEntity;
 import me.ahoo.cosid.annotation.entity.MissingIdGenEntity;
 import me.ahoo.cosid.annotation.entity.StringIdEntity;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.jvm.AtomicLongGenerator;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.NotFoundIdGeneratorException;
 
-import com.google.common.base.Strings;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -65,7 +65,7 @@ class DefaultAccessorRegistryTest {
         DefaultIdGeneratorProvider.INSTANCE.setShare(new AtomicLongGenerator());
         StringIdEntity entity = new StringIdEntity();
         accessorRegistry.ensureId(entity);
-        Assertions.assertFalse(Strings.isNullOrEmpty(entity.getId()));
+        Assertions.assertFalse(Checks.isNullOrEmpty(entity.getId()));
         assertThat(entity.getId(), equalTo("00000000001"));
     }
     

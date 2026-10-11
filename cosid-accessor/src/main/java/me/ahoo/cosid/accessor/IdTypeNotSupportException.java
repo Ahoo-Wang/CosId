@@ -14,8 +14,7 @@
 package me.ahoo.cosid.accessor;
 
 import me.ahoo.cosid.CosIdException;
-
-import com.google.common.base.Strings;
+import me.ahoo.cosid.internal.Checks;
 
 import java.lang.reflect.Field;
 
@@ -36,7 +35,7 @@ public class IdTypeNotSupportException extends CosIdException {
      * @param idField the unsupported ID field
      */
     public IdTypeNotSupportException(Field idField) {
-        super(Strings.lenientFormat("ID type only supports Long/long/Integer/int/String, idField:[%s]!", idField));
+        super(Checks.lenientFormat("ID type only supports Long/long/Integer/int/String, idField:[%s]!", idField));
         this.idField = idField;
     }
 

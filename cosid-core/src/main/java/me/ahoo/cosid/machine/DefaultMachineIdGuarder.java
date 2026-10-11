@@ -58,6 +58,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     public static final Duration DEFAULT_INITIAL_DELAY = Duration.ofMinutes(1);
     public static final Duration DEFAULT_DELAY = Duration.ofMinutes(1);
     private final ConcurrentHashMap<NamespacedInstanceId, GuardianState> guardianStates;
+    private final ConcurrentHashMap<NamespacedInstanceId, MachineIdLease> leases = new ConcurrentHashMap<>();
     private final MachineIdDistributor machineIdDistributor;
     private final ScheduledExecutorService executorService;
     private final Duration initialDelay;
@@ -132,9 +133,21 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      */
     @Override
     public void register(String namespace, InstanceId instanceId) {
+        register(namespace, instanceId, System.currentTimeMillis());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The lease is renewed from {@code distributedAt}, not from now: the distribute call may have taken a while.
+     */
+    @Override
+    public void register(String namespace, InstanceId instanceId, long distributedAt) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
         boolean absent = guardianStates.put(namespacedInstanceId, GuardianState.INITIAL) == null;
+        leases.computeIfAbsent(namespacedInstanceId, key -> new MachineIdLease(namespace, instanceId, safeGuardDuration))
+            .renew(distributedAt);
         if (log.isDebugEnabled()) {
             log.debug("Register Instance:[{}] - [{}].", namespacedInstanceId, absent);
         }
@@ -148,7 +161,9 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      */
     @Override
     public void unregister(String namespace, InstanceId instanceId) {
-        guardianStates.remove(new NamespacedInstanceId(namespace, instanceId));
+        NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
+        guardianStates.remove(namespacedInstanceId);
+        leases.remove(namespacedInstanceId);
     }
 
     /**
@@ -184,13 +199,33 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
             try {
                 machineIdDistributor.guard(registeredInstance.getNamespace(), registeredInstance.getInstanceId(), safeGuardDuration);
                 guardianStates.put(registeredInstance, GuardianState.success(guardAt));
+                renewLease(registeredInstance, guardAt);
             } catch (Throwable throwable) {
+                if (throwable instanceof MachineIdLostException) {
+                    MachineIdLease lease = leases.get(registeredInstance);
+                    if (lease != null) {
+                        lease.markLost();
+                    }
+                }
                 guardianStates.put(registeredInstance, GuardianState.failed(guardAt, throwable));
                 if (log.isErrorEnabled()) {
                     log.error("Guard Failed:[{}]!", throwable.getMessage(), throwable);
                 }
             }
         }
+    }
+
+    private void renewLease(NamespacedInstanceId registeredInstance, long guardAt) {
+        MachineIdLease lease = leases.get(registeredInstance);
+        if (lease != null) {
+            lease.renew(guardAt);
+        }
+    }
+
+    @Override
+    public MachineIdLease getLease(String namespace, InstanceId instanceId) {
+        MachineIdLease lease = leases.get(new NamespacedInstanceId(namespace, instanceId));
+        return lease == null ? MachineIdLease.FOREVER : lease;
     }
 
     /**

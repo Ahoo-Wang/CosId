@@ -75,6 +75,29 @@ public interface MachineIdGuarder {
     void register(String namespace, InstanceId instanceId);
 
     /**
+     * Registers an instance whose machine id was distributed by a call started at {@code distributedAt}.
+     * Guarders that track a {@link MachineIdLease} start it from that time rather than from the time of registration.
+     *
+     * @param namespace namespace
+     * @param instanceId instance id
+     * @param distributedAt the time, in milliseconds, at which the distribute call was started
+     */
+    default void register(String namespace, InstanceId instanceId, long distributedAt) {
+        register(namespace, instanceId);
+    }
+
+    /**
+     * The lease of a registered instance, renewed by every successful guard.
+     *
+     * @param namespace namespace
+     * @param instanceId instance id
+     * @return the lease, or {@link MachineIdLease#FOREVER} when this guarder does not track leases
+     */
+    default MachineIdLease getLease(String namespace, InstanceId instanceId) {
+        return MachineIdLease.FOREVER;
+    }
+
+    /**
      * Unregisters an instance ID from a specific namespace.
      *
      * <p>This method removes the association of the given instance ID with the provided namespace,

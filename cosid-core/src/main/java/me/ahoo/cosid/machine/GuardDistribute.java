@@ -16,10 +16,13 @@ package me.ahoo.cosid.machine;
 import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class GuardDistribute implements MachineIdDistribute {
     private final MachineIdDistributor machineIdDistributor;
     private final MachineIdGuarder machineIdGuarder;
+    private final Set<NamespacedInstanceId> distributed = ConcurrentHashMap.newKeySet();
 
     public GuardDistribute(MachineIdDistributor machineIdDistributor, MachineIdGuarder machineIdGuarder) {
         this.machineIdDistributor = machineIdDistributor;
@@ -29,8 +32,34 @@ public class GuardDistribute implements MachineIdDistribute {
     @NonNull
     @Override
     public MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException {
+        // Taken before distributing: the remote store may count the safe guard duration from any point of the call.
+        long distributeStartedAt = System.currentTimeMillis();
         MachineState machineState = machineIdDistributor.distribute(namespace, machineBit, instanceId, safeGuardDuration);
-        machineIdGuarder.register(namespace, instanceId);
+        distributed.add(new NamespacedInstanceId(namespace, instanceId));
+        machineIdGuarder.register(namespace, instanceId, distributeStartedAt);
         return machineState;
+    }
+
+    /**
+     * The lease that keeps the distributed machine id usable, see {@link MachineIdLease}.
+     *
+     * @param namespace namespace
+     * @param instanceId instance id
+     * @return the lease of the instance
+     */
+    @NonNull
+    public MachineIdLease getLease(String namespace, InstanceId instanceId) {
+        return machineIdGuarder.getLease(namespace, instanceId);
+    }
+
+    /**
+     * Every machine id distributed through this instance, whether or not a guarder is running,
+     * so that they can all be reverted on shutdown.
+     *
+     * @return a snapshot of the distributed instances
+     */
+    @NonNull
+    public Set<NamespacedInstanceId> getDistributed() {
+        return Set.copyOf(distributed);
     }
 }

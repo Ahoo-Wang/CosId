@@ -29,9 +29,19 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 public class SpringRedisIdSegmentDistributorFactory implements IdSegmentDistributorFactory {
     
     private final StringRedisTemplate redisTemplate;
+    private final RedisCommandTimeout commandTimeout;
     
     public SpringRedisIdSegmentDistributorFactory(StringRedisTemplate redisTemplate) {
+        this(redisTemplate, RedisCommandTimeout.NONE);
+    }
+    
+    public SpringRedisIdSegmentDistributorFactory(StringRedisTemplate redisTemplate, RedisCommandTimeout commandTimeout) {
         this.redisTemplate = redisTemplate;
+        this.commandTimeout = commandTimeout;
+    }
+    
+    public RedisCommandTimeout getCommandTimeout() {
+        return commandTimeout;
     }
     
     @Override
@@ -41,7 +51,8 @@ public class SpringRedisIdSegmentDistributorFactory implements IdSegmentDistribu
             definition.getName(),
             definition.getOffset(),
             definition.getStep(),
-            redisTemplate);
+            redisTemplate,
+            commandTimeout);
         springRedisIdSegmentDistributor.ensureOffset();
         return springRedisIdSegmentDistributor;
     }

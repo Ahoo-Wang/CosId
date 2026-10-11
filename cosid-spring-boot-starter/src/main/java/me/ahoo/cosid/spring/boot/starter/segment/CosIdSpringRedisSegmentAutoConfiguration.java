@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.redis.RedisCommandTimeout;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributor;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributorFactory;
 
@@ -39,9 +40,16 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "redis")
 public class CosIdSpringRedisSegmentAutoConfiguration {
 
+    private final SegmentIdProperties segmentIdProperties;
+
+    public CosIdSpringRedisSegmentAutoConfiguration(SegmentIdProperties segmentIdProperties) {
+        this.segmentIdProperties = segmentIdProperties;
+    }
+
     @Bean
     @ConditionalOnMissingBean
     public IdSegmentDistributorFactory idSegmentDistributorFactory(StringRedisTemplate stringRedisTemplate) {
-        return new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate);
+        RedisCommandTimeout commandTimeout = RedisCommandTimeout.of(segmentIdProperties.getDistributor().getRedis().getTimeout());
+        return new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate, commandTimeout);
     }
 }

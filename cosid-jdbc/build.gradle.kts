@@ -14,4 +14,7 @@
 dependencies {
     api(project(":cosid-core"))
     testImplementation(project(":cosid-test"))
+    testImplementation("org.testcontainers:testcontainers")
+    testImplementation("org.testcontainers:testcontainers-mysql")
+    testImplementation("com.mysql:mysql-connector-j")
 }

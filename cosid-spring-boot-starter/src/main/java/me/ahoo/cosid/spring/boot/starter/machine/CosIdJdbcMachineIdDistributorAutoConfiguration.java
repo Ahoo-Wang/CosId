@@ -73,7 +73,8 @@ public class CosIdJdbcMachineIdDistributorAutoConfiguration {
         DataSource dataSource,
         MachineStateStorage localMachineState,
         ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new JdbcMachineIdDistributor(dataSource, localMachineState, clockBackwardsSynchronizer);
+        return new JdbcMachineIdDistributor(dataSource, localMachineState, clockBackwardsSynchronizer,
+            machineProperties.getDistributor().getJdbc().getQueryTimeout());
     }
 
 }

@@ -102,12 +102,30 @@ class ProxyMachineIdDistributorTest {
         MachineIdDistributor distributor = new ProxyMachineIdDistributor(machineClient, machineStateStorage, ClockBackwardsSynchronizer.DEFAULT);
         InstanceId instanceId = InstanceId.of("instance", true);
         machineStateStorage.set("test_namespace", 3, instanceId);
+        long lastTimeStamp = machineStateStorage.get("test_namespace", instanceId).getLastTimeStamp();
 
         distributor.revert("test_namespace", instanceId);
 
         assertEquals("test_namespace", machineClient.revertNamespace);
         assertEquals("instance", machineClient.revertInstanceId);
         assertTrue(machineClient.revertStable);
+        assertEquals(3, machineClient.revertMachineId);
+        assertTrue(machineClient.revertLastTimeStamp >= lastTimeStamp);
+    }
+
+    @Test
+    public void guardSendsClientMachineStateSoServerStaysStateless() {
+        RecordingMachineClient machineClient = new RecordingMachineClient();
+        MachineStateStorage machineStateStorage = new InMemoryMachineStateStorage();
+        MachineIdDistributor distributor = new ProxyMachineIdDistributor(machineClient, machineStateStorage, ClockBackwardsSynchronizer.DEFAULT);
+        InstanceId instanceId = InstanceId.of("instance", false);
+        machineStateStorage.set("test_namespace", 10, instanceId);
+        long lastTimeStamp = machineStateStorage.get("test_namespace", instanceId).getLastTimeStamp();
+
+        distributor.guard("test_namespace", instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+
+        assertEquals(10, machineClient.guardMachineId);
+        assertTrue(machineClient.guardLastTimeStamp >= lastTimeStamp);
     }
 
     private static HttpClientErrorException badRequest(String code, String message) {
@@ -131,7 +149,11 @@ class ProxyMachineIdDistributorTest {
         private String revertNamespace;
         private String revertInstanceId;
         private boolean revertStable;
+        private Integer revertMachineId;
+        private Long revertLastTimeStamp;
         private HttpClientErrorException guardFailure;
+        private Integer guardMachineId;
+        private Long guardLastTimeStamp;
 
         @Override
         public MachineStateResponse distribute(String namespace, int machineBit, String instanceId, boolean stable, String safeGuardDuration) {
@@ -147,17 +169,21 @@ class ProxyMachineIdDistributorTest {
         }
 
         @Override
-        public void revert(String namespace, String instanceId, boolean stable) {
+        public void revert(String namespace, String instanceId, boolean stable, Integer machineId, Long lastTimeStamp) {
             this.revertNamespace = namespace;
             this.revertInstanceId = instanceId;
             this.revertStable = stable;
+            this.revertMachineId = machineId;
+            this.revertLastTimeStamp = lastTimeStamp;
         }
 
         @Override
-        public void guard(String namespace, String instanceId, boolean stable, String safeGuardDuration) {
+        public void guard(String namespace, String instanceId, boolean stable, String safeGuardDuration, Integer machineId, Long lastTimeStamp) {
             if (guardFailure != null) {
                 throw guardFailure;
             }
+            this.guardMachineId = machineId;
+            this.guardLastTimeStamp = lastTimeStamp;
         }
     }
 }

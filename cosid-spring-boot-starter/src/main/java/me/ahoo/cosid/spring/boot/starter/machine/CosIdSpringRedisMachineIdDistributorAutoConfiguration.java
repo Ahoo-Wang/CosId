@@ -16,12 +16,14 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.redis.RedisCommandTimeout;
 import me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
@@ -35,12 +37,20 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "redis")
 @ConditionalOnClass(SpringRedisMachineIdDistributor.class)
+@EnableConfigurationProperties(MachineProperties.class)
 public class CosIdSpringRedisMachineIdDistributorAutoConfiguration {
+    
+    private final MachineProperties machineProperties;
+    
+    public CosIdSpringRedisMachineIdDistributorAutoConfiguration(MachineProperties machineProperties) {
+        this.machineProperties = machineProperties;
+    }
     
     @Bean
     @ConditionalOnMissingBean
     public SpringRedisMachineIdDistributor springRedisMachineIdDistributor(StringRedisTemplate redisTemplate, MachineStateStorage localMachineState,
                                                                            ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new SpringRedisMachineIdDistributor(redisTemplate, localMachineState, clockBackwardsSynchronizer);
+        RedisCommandTimeout commandTimeout = RedisCommandTimeout.of(machineProperties.getDistributor().getRedis().getTimeout());
+        return new SpringRedisMachineIdDistributor(redisTemplate, localMachineState, clockBackwardsSynchronizer, commandTimeout);
     }
 }

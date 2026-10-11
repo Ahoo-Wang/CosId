@@ -24,6 +24,7 @@ import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.segment.distributor.GroupedIdSegmentDistributorSpec;
 
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -61,9 +62,6 @@ class GroupedJdbcIdSegmentDistributorTest extends GroupedIdSegmentDistributorSpe
         assertThat(firstMaxId, equalTo(TEST_OFFSET + TEST_STEP));
 
         dataSource.setSegmentMaxId(groupedNamespacedName, TEST_OFFSET);
-        long nextMaxId = distributor.nextMaxId();
-
-        assertThat(nextMaxId, equalTo(TEST_OFFSET + TEST_STEP));
-        assertThat(dataSource.getSegmentMaxId(groupedNamespacedName), equalTo(TEST_OFFSET + TEST_STEP));
+        Assertions.assertThrows(IllegalStateException.class, distributor::nextMaxId);
     }
 }

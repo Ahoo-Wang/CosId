@@ -14,6 +14,7 @@
 package me.ahoo.cosid.snowflake;
 
 import me.ahoo.cosid.internal.TimestampSequencer;
+import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
 import com.google.common.base.Strings;
@@ -82,11 +83,15 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
      */
     private final TimestampSequencer sequencer;
     /**
-     * Current sequence counter value.
+     * Sequence of the last generated ID.
+     *
+     * <p>A read-only mirror of the {@link TimestampSequencer} state since 3.4.0: changing it has no effect.</p>
      */
     protected long sequence = 0L;
     /**
      * Timestamp of the last generated ID.
+     *
+     * <p>A read-only mirror of the {@link TimestampSequencer} state since 3.4.0: changing it has no effect.</p>
      */
     protected long lastTimestamp = -1L;
 
@@ -127,15 +132,13 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
     }
 
     /**
-     * Waits until the current time is greater than the last timestamp.
+     * Waits until the current time is greater than {@link #lastTimestamp}.
      *
      * @return the next valid timestamp
+     * @deprecated since 3.4.0, {@link #generate()} no longer calls it (the {@link TimestampSequencer} waits for the
+     *     next time unit), so overriding it has no effect. Override {@link #getCurrentTime()} instead.
      */
-    /**
-     * Wait for the next time unit after {@link #lastTimestamp}.
-     *
-     * @return the next time
-     */
+    @Deprecated(since = "3.4.0", forRemoval = true)
     protected long nextTime() {
         long time = getCurrentTime();
         while (time <= lastTimestamp) {
@@ -146,6 +149,15 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
 
     protected abstract long getCurrentTime();
 
+    /**
+     * Generates the next unique ID.
+     *
+     * <p>This method is synchronized to ensure thread-safe ID generation.
+     *
+     * @return a unique snowflake ID
+     * @throws ClockBackwardsException   if system clock has moved backwards
+     * @throws TimestampOverflowException if timestamp exceeds maximum value
+     */
     @Override
     public synchronized long generate() {
         long currentTimestamp = sequencer.next();

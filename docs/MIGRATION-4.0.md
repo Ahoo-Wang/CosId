@@ -25,6 +25,8 @@ _To be filled in as the changes land: MongoDB reactive support, the thread-local
 | `cosid.jdbc.enabled` | `true` | `false` |
 | `cosid.actuator.delete.enabled` | `true` | `false` |
 
+Set them to `true` to keep the 3.x behavior. With `cosid.jdbc.enabled` off, Spring Data JDBC entities with `@CosId` fields are no longer filled; an INFO at startup names them. With `cosid.actuator.delete.enabled` off, the `cosid` endpoint is read-only (`CosIdReadOnlyEndpoint`), and the 3.4 startup warning is gone.
+
 ## API changes
 
 _To be filled in: `StringIdGenerator` and the `IdGeneratorProvider` injection points, `SnowflakeLayout`, the new `cosid-sharding` and `cosid-accessor` modules, the configuration property model._

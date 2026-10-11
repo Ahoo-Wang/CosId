@@ -18,7 +18,6 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.EnabledSuffix;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.actuate.autoconfigure.endpoint.condition.ConditionalOnAvailableEndpoint;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -27,13 +26,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 
-@Slf4j
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnClass(Endpoint.class)
 public class CosIdEndpointAutoConfiguration {
     /**
-     * Whether the {@code cosid} endpoint has its DELETE operation. Default {@code true} in 3.x, {@code false} in 4.0.
+     * Whether the {@code cosid} endpoint has its DELETE operation, which removes id generators at runtime. Default
+     * {@code false} since 4.0.
      */
     public static final String DELETE_ENABLED_KEY = CosId.COSID_PREFIX + "actuator.delete" + EnabledSuffix.KEY;
 
@@ -41,19 +40,15 @@ public class CosIdEndpointAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(CosIdReadOnlyEndpoint.class)
     @ConditionalOnAvailableEndpoint(endpoint = CosIdEndpoint.class)
-    @ConditionalOnProperty(value = DELETE_ENABLED_KEY, matchIfMissing = true, havingValue = "true")
+    @ConditionalOnProperty(value = DELETE_ENABLED_KEY, havingValue = "true")
     public CosIdEndpoint cosIdEndpoint(IdGeneratorProvider idGeneratorProvider) {
-        if (log.isWarnEnabled()) {
-            log.warn("The cosid endpoint exposes a DELETE operation that removes id generators at runtime. Turn it off with [{}=false]; "
-                + "it will be off by default in 4.0.", DELETE_ENABLED_KEY);
-        }
         return new CosIdEndpoint(idGeneratorProvider);
     }
     
     @Bean
     @ConditionalOnMissingBean(CosIdReadOnlyEndpoint.class)
     @ConditionalOnAvailableEndpoint(endpoint = CosIdReadOnlyEndpoint.class)
-    @ConditionalOnProperty(value = DELETE_ENABLED_KEY, havingValue = "false")
+    @ConditionalOnProperty(value = DELETE_ENABLED_KEY, matchIfMissing = true, havingValue = "false")
     public CosIdReadOnlyEndpoint cosIdReadOnlyEndpoint(IdGeneratorProvider idGeneratorProvider) {
         return new CosIdReadOnlyEndpoint(idGeneratorProvider);
     }

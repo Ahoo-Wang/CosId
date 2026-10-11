@@ -108,7 +108,7 @@ public final class Checks {
     
     /**
      * Replaces each {@code %s} in {@code template} with the next argument; arguments left over are appended in square
-     * brackets. The same behavior as Guava's {@code Checks.lenientFormat}.
+     * brackets. The same behavior as Guava's {@code Strings.lenientFormat}.
      */
     public static String lenientFormat(@Nullable String template, @Nullable Object... args) {
         String text = String.valueOf(template);

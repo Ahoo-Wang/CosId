@@ -27,7 +27,8 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 class CosIdEndpointAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CosIdEndpointAutoConfiguration.class))
-        .withBean(IdGeneratorProvider.class, () -> mock(IdGeneratorProvider.class));
+        .withBean(IdGeneratorProvider.class, () -> mock(IdGeneratorProvider.class))
+        .withPropertyValues("management.endpoints.web.exposure.include=*");
 
     @Test
     void createsAllEndpointsWhenActuatorEndpointApiIsPresent() {
@@ -76,5 +77,26 @@ class CosIdEndpointAutoConfigurationTest {
                 .doesNotHaveBean(CosIdEndpoint.class)
                 .doesNotHaveBean(CosIdGeneratorEndpoint.class)
                 .doesNotHaveBean(CosIdStringGeneratorEndpoint.class));
+    }
+
+    @Test
+    void doesNotCreateEndpointsThatAreNotExposed() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdEndpointAutoConfiguration.class))
+            .withBean(IdGeneratorProvider.class, () -> mock(IdGeneratorProvider.class))
+            .run(context -> assertThat(context)
+                .doesNotHaveBean(CosIdReadOnlyEndpoint.class)
+                .doesNotHaveBean(CosIdGeneratorEndpoint.class)
+                .doesNotHaveBean(CosIdStringGeneratorEndpoint.class));
+    }
+
+    @Test
+    void createsTheReadOnlyEndpointWhenDeleteIsDisabled() {
+        this.contextRunner
+            .withPropertyValues(CosIdEndpointAutoConfiguration.DELETE_ENABLED_KEY + "=false")
+            .run(context -> {
+                assertThat(context).hasSingleBean(CosIdReadOnlyEndpoint.class).doesNotHaveBean(CosIdEndpoint.class);
+                assertThat(CosIdReadOnlyEndpoint.class.getMethods()).noneMatch(method -> method.getName().equals("remove"));
+            });
     }
 }

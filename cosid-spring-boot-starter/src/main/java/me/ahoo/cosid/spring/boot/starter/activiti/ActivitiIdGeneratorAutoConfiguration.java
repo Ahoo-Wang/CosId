@@ -13,14 +13,17 @@
 
 package me.ahoo.cosid.spring.boot.starter.activiti;
 
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.activiti.ActivitiIdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.EnabledSuffix;
 
 import org.activiti.spring.SpringProcessEngineConfiguration;
 import org.activiti.spring.boot.ProcessEngineConfigurationConfigurer;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 
 /**
@@ -35,10 +38,16 @@ import org.springframework.context.annotation.Bean;
     SpringProcessEngineConfiguration.class,
     ProcessEngineConfigurationConfigurer.class
 })
+@ConditionalOnProperty(value = ActivitiIdGeneratorAutoConfiguration.ENABLED_KEY, matchIfMissing = true, havingValue = "true")
 public class ActivitiIdGeneratorAutoConfiguration {
+    /**
+     * Turns the Activiti id generator off with {@code false}. Default {@code true}.
+     */
+    public static final String ENABLED_KEY = CosId.COSID_PREFIX + "activiti" + EnabledSuffix.KEY;
+
     
     @Bean
-    public ProcessEngineConfigurationConfigurer engineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
+    public ProcessEngineConfigurationConfigurer cosidActivitiProcessEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
         return new ActivitiIdGeneratorAutoConfiguration.CosIdProcessEngineConfigurationConfigurer(idGeneratorProvider);
     }
     

@@ -14,40 +14,22 @@
 package me.ahoo.cosid.spring.boot.starter.actuate;
 
 import me.ahoo.cosid.CosId;
-import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import org.springframework.boot.actuate.endpoint.annotation.DeleteOperation;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
-import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.annotation.Selector;
 
-import java.util.HashMap;
-import java.util.Map;
-
+/**
+ * The {@code cosid} endpoint with its read operations and a delete operation that removes an id generator at runtime.
+ * Turned into {@link CosIdReadOnlyEndpoint} with {@code cosid.actuator.delete.enabled=false}.
+ */
 @Endpoint(id = CosId.COSID)
-public class CosIdEndpoint {
-    private final IdGeneratorProvider idGeneratorProvider;
+public class CosIdEndpoint extends CosIdReadOnlyEndpoint {
     
     public CosIdEndpoint(IdGeneratorProvider idGeneratorProvider) {
-        this.idGeneratorProvider = idGeneratorProvider;
-    }
-    
-    @ReadOperation
-    public Map<String, IdGeneratorStat> stat() {
-        Map<String, IdGeneratorStat> statMap = new HashMap<>();
-        for (Map.Entry<String, IdGenerator> entry : idGeneratorProvider.entries()) {
-            var stat = entry.getValue().stat();
-            statMap.put(entry.getKey(), stat);
-        }
-        return statMap;
-    }
-    
-    @ReadOperation
-    public IdGeneratorStat getStat(@Selector String name) {
-        var idGenerator = idGeneratorProvider.getRequired(name);
-        return idGenerator.stat();
+        super(idGeneratorProvider);
     }
     
     @DeleteOperation
@@ -56,5 +38,4 @@ public class CosIdEndpoint {
         idGeneratorProvider.remove(name);
         return idGenerator.stat();
     }
-    
 }

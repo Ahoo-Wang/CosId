@@ -27,11 +27,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import javax.sql.DataSource;
-import java.io.PrintWriter;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
-import java.util.logging.Logger;
 
 /**
  * Runs {@link MachineIdDistributorSpec} against a real PostgreSQL with {@link PostgreSqlDialect}.
@@ -61,73 +58,12 @@ class JdbcMachineIdDistributorPostgresContractTest extends MachineIdDistributorS
         RealPostgres.execute(dataSource, PostgreSqlDialect.INIT_COSID_MACHINE_TABLE_SQL
             .replace("create table if not exists cosid_machine", "create table " + schema + ".cosid_machine")
             .replace("    stable          smallint     not null default 0,\n", ""));
-        DataSource legacyNoAutoCommit = new SchemaDataSource(dataSource, schema);
+        DataSource legacyNoAutoCommit = new ManualCommitDataSource(dataSource, schema);
         JdbcMachineIdDistributor distributor = new JdbcMachineIdDistributor(legacyNoAutoCommit, new InMemoryMachineStateStorage(),
             ClockBackwardsSynchronizer.DEFAULT);
         
         int machineId = distributor.distribute("legacy", 4, InstanceId.of("host", 1, true), Duration.ofMinutes(1)).getMachineId();
         
         Assertions.assertEquals(0, machineId);
-    }
-    
-    /**
-     * Connections with auto-commit off whose search path is {@code schema}.
-     */
-    private static final class SchemaDataSource implements DataSource {
-        private final DataSource delegate;
-        private final String schema;
-        
-        private SchemaDataSource(DataSource delegate, String schema) {
-            this.delegate = delegate;
-            this.schema = schema;
-        }
-        
-        @Override
-        public Connection getConnection() throws SQLException {
-            Connection connection = delegate.getConnection();
-            connection.setSchema(schema);
-            connection.setAutoCommit(false);
-            return connection;
-        }
-        
-        @Override
-        public Connection getConnection(String username, String password) throws SQLException {
-            return getConnection();
-        }
-        
-        @Override
-        public PrintWriter getLogWriter() throws SQLException {
-            return delegate.getLogWriter();
-        }
-        
-        @Override
-        public void setLogWriter(PrintWriter out) throws SQLException {
-            delegate.setLogWriter(out);
-        }
-        
-        @Override
-        public void setLoginTimeout(int seconds) throws SQLException {
-            delegate.setLoginTimeout(seconds);
-        }
-        
-        @Override
-        public int getLoginTimeout() throws SQLException {
-            return delegate.getLoginTimeout();
-        }
-        
-        @Override
-        public Logger getParentLogger() {
-            return Logger.getGlobal();
-        }
-        
-        @Override
-        public <T> T unwrap(Class<T> iface) throws SQLException {
-            return delegate.unwrap(iface);
-        }
-        
-        @Override
-        public boolean isWrapperFor(Class<?> iface) throws SQLException {
-            return delegate.isWrapperFor(iface);
-        }
     }
 }

@@ -93,11 +93,17 @@ public class JdbcMachineIdInitializer {
         }
 
         try (Connection connection = dataSource.getConnection()) {
-            try (PreparedStatement initStatement = connection.prepareStatement(initCosIdMachineTableSql)) {
-                initStatement.executeUpdate();
+            try {
+                try (PreparedStatement initStatement = connection.prepareStatement(initCosIdMachineTableSql)) {
+                    initStatement.executeUpdate();
+                }
+                executeIfPresent(connection, initNamespaceIdxSql);
+                executeIfPresent(connection, initInstanceIdIdxSql);
+                JdbcSupport.commitIfManual(connection);
+            } catch (SQLException | RuntimeException exception) {
+                JdbcSupport.rollbackIfManual(connection, exception);
+                throw exception;
             }
-            executeIfPresent(connection, initNamespaceIdxSql);
-            executeIfPresent(connection, initInstanceIdIdxSql);
         }
     }
 

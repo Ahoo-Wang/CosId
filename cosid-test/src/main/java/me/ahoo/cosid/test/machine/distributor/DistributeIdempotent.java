@@ -18,13 +18,16 @@ import static me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec.mo
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.instanceOf;
 
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
-import me.ahoo.cosid.test.Assert;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.TestSpec;
+
+import com.google.common.base.Stopwatch;
+import org.junit.jupiter.api.Assumptions;
 
 import java.time.Duration;
 import java.util.List;
@@ -57,19 +60,43 @@ public class DistributeIdempotent implements TestSpec {
         List<InstanceId> allInstances = allInstances(machineBit, false);
         assertThat(allInstances, hasSize(MachineIdDistributor.totalMachineIds(machineBit)));
         
+        Stopwatch stopwatch = Stopwatch.createStarted();
         for (int i = 0; i < allInstances.size(); i++) {
             int machineId = distributor.distribute(namespace, machineBit, allInstances.get(i), safeGuardDuration).getMachineId();
+            if (machineId != i) {
+                abortIfOutlastedSafeGuard(stopwatch);
+            }
             assertThat(machineId, equalTo(i));
         }
         
         InstanceId overflowInstanceId = mockInstance(MachineIdDistributor.totalMachineIds(machineBit), false);
-        Assert.assertThrows(MachineIdOverflowException.class, () -> {
+        MachineIdOverflowException overflowException = null;
+        try {
             distributor.distribute(namespace, machineBit, overflowInstanceId, safeGuardDuration);
-        });
+        } catch (MachineIdOverflowException expected) {
+            overflowException = expected;
+        }
+        if (overflowException == null) {
+            abortIfOutlastedSafeGuard(stopwatch);
+        }
+        assertThat(overflowException, instanceOf(MachineIdOverflowException.class));
         
         for (int i = 0; i < allInstances.size(); i++) {
             int machineId = distributor.distribute(namespace, machineBit, allInstances.get(i), safeGuardDuration).getMachineId();
+            if (machineId != i) {
+                abortIfOutlastedSafeGuard(stopwatch);
+            }
             assertThat(machineId, equalTo(i));
+        }
+    }
+    
+    /**
+     * The instances distributed here are never guarded: once the test outlasts the safe guard window (a slow backend in CI),
+     * later instances may legitimately recycle the expired machine ids of earlier ones, which says nothing about the distributor.
+     */
+    private void abortIfOutlastedSafeGuard(Stopwatch stopwatch) {
+        if (stopwatch.elapsed().compareTo(safeGuardDuration) > 0) {
+            Assumptions.abort("distribute phase exceeded safe guard window: " + stopwatch.elapsed() + " > " + safeGuardDuration);
         }
     }
 }

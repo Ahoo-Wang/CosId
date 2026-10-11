@@ -73,6 +73,11 @@ keep the old behavior (a warning is logged at startup); add it with the statemen
 alter table cosid_machine add column stable tinyint not null default 0;
 ```
 
+::: warning Use a dedicated DataSource
+CosId commits its own writes (also when the pool has `autoCommit=false`). Give it a `DataSource` that does not take part in
+business transactions: a `TransactionAwareDataSourceProxy` or a JTA `DataSource` would commit the caller's transaction early.
+:::
+
 ### PostgreSQL
 
 The default DDL and segment statements use MySQL syntax. `me.ahoo.cosid.jdbc.PostgreSqlDialect` holds PostgreSQL versions

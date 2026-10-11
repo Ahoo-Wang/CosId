@@ -69,7 +69,11 @@ public class JdbcIdSegmentInitializer {
         try (Connection connection = dataSource.getConnection()) {
             try (PreparedStatement initStatement = connection.prepareStatement(initCosIdTableSql)) {
                 int affected = initStatement.executeUpdate();
+                JdbcSupport.commitIfManual(connection);
                 return affected;
+            } catch (SQLException | RuntimeException exception) {
+                JdbcSupport.rollbackIfManual(connection, exception);
+                throw exception;
             }
         }
     }
@@ -98,7 +102,11 @@ public class JdbcIdSegmentInitializer {
                 initStatement.setString(1, segmentName);
                 initStatement.setLong(2, offset);
                 int affected = initStatement.executeUpdate();
+                JdbcSupport.commitIfManual(connection);
                 return affected;
+            } catch (SQLException | RuntimeException exception) {
+                JdbcSupport.rollbackIfManual(connection, exception);
+                throw exception;
             }
         }
     }

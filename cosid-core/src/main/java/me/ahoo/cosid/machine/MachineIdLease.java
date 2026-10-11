@@ -45,6 +45,7 @@ public final class MachineIdLease {
     private final long validityMillis;
     private volatile long validUntil;
     private volatile boolean lost;
+    private volatile boolean released;
     
     public MachineIdLease(@Nullable String namespace, @Nullable InstanceId instanceId, Duration safeGuardDuration) {
         Preconditions.checkNotNull(safeGuardDuration, "safeGuardDuration can not be null!");
@@ -87,6 +88,10 @@ public final class MachineIdLease {
      * The remote store reported that the machine id now belongs to another instance. The lease never becomes valid again.
      */
     public void markLost() {
+        if (this == FOREVER) {
+            // Shared by every generator without a tracked lease: marking it would stop all of them.
+            return;
+        }
         lost = true;
     }
     
@@ -94,19 +99,34 @@ public final class MachineIdLease {
         return lost;
     }
     
+    /**
+     * The machine id is about to be reverted on shutdown. The lease never becomes valid again, so no id is generated with
+     * a machine id that another instance may already have taken.
+     */
+    public void markReleased() {
+        if (this == FOREVER) {
+            return;
+        }
+        released = true;
+    }
+    
+    public boolean isReleased() {
+        return released;
+    }
+    
     public long getValidUntil() {
         return validUntil;
     }
     
     public boolean isValid(long now) {
-        return !lost && now <= validUntil;
+        return !lost && !released && now <= validUntil;
     }
     
     /**
      * Throw {@link MachineIdLostException} if the lease is lost or expired.
      */
     public void ensureValid() throws MachineIdLostException {
-        if (validityMillis == Long.MAX_VALUE && !lost) {
+        if (validityMillis == Long.MAX_VALUE && !lost && !released) {
             return;
         }
         if (!isValid(System.currentTimeMillis())) {
@@ -129,6 +149,7 @@ public final class MachineIdLease {
             + ", instanceId=" + instanceId
             + ", validUntil=" + validUntil
             + ", lost=" + lost
+            + ", released=" + released
             + '}';
     }
 }

@@ -32,9 +32,11 @@ public class GuardDistribute implements MachineIdDistribute {
     @NonNull
     @Override
     public MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException {
+        // Taken before distributing: the remote store may count the safe guard duration from any point of the call.
+        long distributeStartedAt = System.currentTimeMillis();
         MachineState machineState = machineIdDistributor.distribute(namespace, machineBit, instanceId, safeGuardDuration);
         distributed.add(new NamespacedInstanceId(namespace, instanceId));
-        machineIdGuarder.register(namespace, instanceId);
+        machineIdGuarder.register(namespace, instanceId, distributeStartedAt);
         return machineState;
     }
 

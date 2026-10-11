@@ -77,4 +77,35 @@ class MachineIdLeaseTest {
         Assertions.assertEquals("ns", exception.getNamespace());
         Assertions.assertEquals(INSTANCE_ID, exception.getInstanceId());
     }
+    
+    @Test
+    void releasedLeaseNeverBecomesValidAgain() {
+        MachineIdLease lease = new MachineIdLease("ns", INSTANCE_ID, Duration.ofMinutes(5));
+        lease.renew(System.currentTimeMillis());
+        
+        lease.markReleased();
+        lease.renew(System.currentTimeMillis());
+        
+        Assertions.assertTrue(lease.isReleased());
+        Assertions.assertThrows(MachineIdLostException.class, lease::ensureValid);
+    }
+    
+    @Test
+    void releasedForeverValidityLeaseIsInvalid() {
+        MachineIdLease lease = new MachineIdLease("ns", INSTANCE_ID, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+        
+        lease.markReleased();
+        
+        Assertions.assertThrows(MachineIdLostException.class, lease::ensureValid);
+    }
+    
+    @Test
+    void sharedForeverLeaseCannotBeMarkedLostOrReleased() {
+        MachineIdLease.FOREVER.markLost();
+        MachineIdLease.FOREVER.markReleased();
+        
+        Assertions.assertFalse(MachineIdLease.FOREVER.isLost());
+        Assertions.assertFalse(MachineIdLease.FOREVER.isReleased());
+        Assertions.assertDoesNotThrow(MachineIdLease.FOREVER::ensureValid);
+    }
 }

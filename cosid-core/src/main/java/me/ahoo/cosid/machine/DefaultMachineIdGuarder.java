@@ -133,11 +133,21 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      */
     @Override
     public void register(String namespace, InstanceId instanceId) {
+        register(namespace, instanceId, System.currentTimeMillis());
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The lease is renewed from {@code distributedAt}, not from now: the distribute call may have taken a while.
+     */
+    @Override
+    public void register(String namespace, InstanceId instanceId, long distributedAt) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         NamespacedInstanceId namespacedInstanceId = new NamespacedInstanceId(namespace, instanceId);
         boolean absent = guardianStates.put(namespacedInstanceId, GuardianState.INITIAL) == null;
         leases.computeIfAbsent(namespacedInstanceId, key -> new MachineIdLease(namespace, instanceId, safeGuardDuration))
-            .renew(System.currentTimeMillis());
+            .renew(distributedAt);
         if (log.isDebugEnabled()) {
             log.debug("Register Instance:[{}] - [{}].", namespacedInstanceId, absent);
         }
@@ -205,12 +215,6 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>This implementation cancels the scheduled guarding task and marks the guarder as stopped.
-     * The cancellation is forceful, interrupting any ongoing guard operation.
-     */
     private void renewLease(NamespacedInstanceId registeredInstance, long guardAt) {
         MachineIdLease lease = leases.get(registeredInstance);
         if (lease != null) {
@@ -224,6 +228,12 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         return lease == null ? MachineIdLease.FOREVER : lease;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This implementation cancels the scheduled guarding task and marks the guarder as stopped.
+     * The cancellation is forceful, interrupting any ongoing guard operation.
+     */
     @Override
     public void stop() {
         if (log.isDebugEnabled()) {

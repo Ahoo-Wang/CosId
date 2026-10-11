@@ -88,6 +88,8 @@ public class CosIdMachineIdLifecycle implements SmartLifecycle {
 
     private void revert(NamespacedInstanceId distributedInstance) {
         try {
+            // Stop generating ids with the machine id before it can be handed to another instance.
+            machineIdGuarder.getLease(distributedInstance.getNamespace(), distributedInstance.getInstanceId()).markReleased();
             machineIdDistributor.revert(distributedInstance.getNamespace(), distributedInstance.getInstanceId());
         } catch (RuntimeException revertException) {
             log.error("Revert machine id of [{}] failed!", distributedInstance, revertException);

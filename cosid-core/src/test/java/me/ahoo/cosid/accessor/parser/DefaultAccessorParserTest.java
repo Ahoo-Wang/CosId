@@ -26,6 +26,8 @@ import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
 import me.ahoo.cosid.annotation.entity.ChildEntity;
 import me.ahoo.cosid.annotation.CosId;
 import me.ahoo.cosid.annotation.entity.LongIdEntity;
+import me.ahoo.cosid.jvm.AtomicLongGenerator;
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import lombok.SneakyThrows;
@@ -50,6 +52,19 @@ class DefaultAccessorParserTest {
         Assertions.assertEquals(IdGeneratorProvider.SHARE, cosIdAccessor.getGeneratorName());
         Assertions.assertEquals(LongIdEntity.class, cosIdAccessor.getIdDeclaringClass());
         Assertions.assertEquals(LongIdEntity.class.getDeclaredField("id"), cosIdAccessor.getIdField());
+    }
+
+    @Test
+    void parseWithProviderResolvesGeneratorFromThatProvider() {
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.setShare(new AtomicLongGenerator());
+        DefaultAccessorParser parser = new DefaultAccessorParser(AnnotationDefinitionParser.INSTANCE, provider);
+
+        CosIdAccessor cosIdAccessor = parser.parse(LongIdEntity.class);
+        LongIdEntity entity = new LongIdEntity();
+
+        Assertions.assertTrue(cosIdAccessor.ensureId(entity));
+        Assertions.assertEquals(1L, entity.getId());
     }
 
     @SneakyThrows

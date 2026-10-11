@@ -55,4 +55,15 @@ class FlowableIdGeneratorTest {
         System.clearProperty(ID_KEY);
         DefaultIdGeneratorProvider.INSTANCE.clear();
     }
+
+    @Test
+    @Order(3)
+    void getNextIdUsesGivenProvider() {
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.setShare(MockIdGenerator.usePrefix("provider_"));
+
+        String id = new FlowableIdGenerator(provider).getNextId();
+
+        assertThat(id, startsWith("provider_"));
+    }
 }

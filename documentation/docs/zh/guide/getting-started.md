@@ -58,7 +58,7 @@ cosid:
 ```
 
 :::tip
-默认情况下，开启 `snowflake`/`segment` 会生成共享的(`__share__`) `IdGenerator` 注册到 `Spring` 容器 以及 `DefaultIdGeneratorProvider.INSTANCE`。
+默认情况下，开启 `snowflake`/`segment` 会生成共享的(`__share__`) `IdGenerator` 注册到 `Spring` 容器以及 `IdGeneratorProvider`（默认即 `DefaultIdGeneratorProvider.INSTANCE`）。
 :::
 
 :::warning
@@ -85,11 +85,24 @@ cosid:
     private SnowflakeId snowflakeId;
 ``` 
 
-> 通过 `DefaultIdGeneratorProvider.INSTANCE` 获取共享 `IdGenerator` 。
+> 通过注入 `IdGeneratorProvider` 获取共享 `IdGenerator`（推荐）。
+
+```java
+    @Autowired
+    private IdGeneratorProvider provider;
+
+    provider.getShare();
+```
+
+> 也可以通过 `DefaultIdGeneratorProvider.INSTANCE` 获取共享 `IdGenerator`（仅在未开启 `cosid.provider.isolated` 时可用）。
 
 ```java
     DefaultIdGeneratorProvider.INSTANCE.getShare();
 ```
+
+:::tip
+默认情况下 `IdGeneratorProvider` Bean 就是 `DefaultIdGeneratorProvider.INSTANCE`。设置 `cosid.provider.isolated=true` 后，每个 `ApplicationContext` 使用自己的 `IdGeneratorProvider`，在 Context 关闭时清空，此时 `DefaultIdGeneratorProvider.INSTANCE` 不再包含 Spring 注册的生成器，请改为注入 `IdGeneratorProvider`。
+:::
 
 ### 注册多个 ID 生成器
 

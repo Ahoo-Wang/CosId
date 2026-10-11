@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.flowable;
 
 import me.ahoo.cosid.flowable.FlowableIdGenerator;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
 import org.flowable.spring.SpringProcessEngineConfiguration;
@@ -37,15 +38,20 @@ import org.springframework.context.annotation.Bean;
 public class FlowableIdGeneratorAutoConfiguration {
     
     @Bean
-    public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> engineConfigurationConfigurer() {
-        return new CosIdEngineConfigurationConfigurer();
+    public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> engineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
+        return new CosIdEngineConfigurationConfigurer(idGeneratorProvider);
     }
     
     static class CosIdEngineConfigurationConfigurer implements EngineConfigurationConfigurer<SpringProcessEngineConfiguration> {
-        
+        private final IdGeneratorProvider idGeneratorProvider;
+
+        CosIdEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
+            this.idGeneratorProvider = idGeneratorProvider;
+        }
+
         @Override
         public void configure(SpringProcessEngineConfiguration engineConfiguration) {
-            engineConfiguration.setIdGenerator(new FlowableIdGenerator());
+            engineConfiguration.setIdGenerator(new FlowableIdGenerator(idGeneratorProvider));
         }
     }
 }

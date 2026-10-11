@@ -14,6 +14,8 @@
 package me.ahoo.cosid.accessor;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.provider.LazyIdGenerator;
 
 
@@ -31,13 +33,24 @@ public abstract class AbstractIdMetadata implements IdMetadata {
     private final LazyIdGenerator idGenerator;
 
     /**
-     * Creates an instance with the given ID definition.
+     * Creates an instance with the given ID definition, resolving generators from
+     * {@link DefaultIdGeneratorProvider#INSTANCE}.
      *
      * @param idDefinition the ID definition
      */
     public AbstractIdMetadata(IdDefinition idDefinition) {
+        this(idDefinition, DefaultIdGeneratorProvider.INSTANCE);
+    }
+
+    /**
+     * Creates an instance with the given ID definition and provider.
+     *
+     * @param idDefinition        the ID definition
+     * @param idGeneratorProvider the provider used to resolve the generator
+     */
+    public AbstractIdMetadata(IdDefinition idDefinition, IdGeneratorProvider idGeneratorProvider) {
         this.idDefinition = idDefinition;
-        this.idGenerator = new LazyIdGenerator(idDefinition.getGeneratorName());
+        this.idGenerator = new LazyIdGenerator(idDefinition.getGeneratorName(), idGeneratorProvider);
     }
 
     @Override

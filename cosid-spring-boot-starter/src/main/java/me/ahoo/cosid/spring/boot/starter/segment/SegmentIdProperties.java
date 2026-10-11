@@ -289,6 +289,12 @@ public class SegmentIdProperties {
         private int maxPrefetchDistance = SegmentChainId.DEFAULT_MAX_PREFETCH_DISTANCE;
 
         /**
+         * The timeout of each background prefetch. A slower prefetch is given up so it does not hold the prefetch
+         * worker shared with other segment ids. Default is {@code 0}, no timeout.
+         */
+        private Duration prefetchTimeout = Duration.ZERO;
+
+        /**
          * Configuration for the prefetch worker.
          */
         private PrefetchWorker prefetchWorker;
@@ -334,6 +340,24 @@ public class SegmentIdProperties {
          */
         public void setMaxPrefetchDistance(int maxPrefetchDistance) {
             this.maxPrefetchDistance = maxPrefetchDistance;
+        }
+
+        /**
+         * Gets the timeout of each background prefetch.
+         *
+         * @return the prefetch timeout, zero for none
+         */
+        public Duration getPrefetchTimeout() {
+            return prefetchTimeout;
+        }
+
+        /**
+         * Sets the timeout of each background prefetch.
+         *
+         * @param prefetchTimeout the prefetch timeout, zero for none
+         */
+        public void setPrefetchTimeout(Duration prefetchTimeout) {
+            this.prefetchTimeout = prefetchTimeout;
         }
 
         /**

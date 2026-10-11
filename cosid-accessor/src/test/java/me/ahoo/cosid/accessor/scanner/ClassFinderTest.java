@@ -18,9 +18,16 @@ import me.ahoo.cosid.accessor.scanner.entity.OrderItemEntity;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 class ClassFinderTest {
 
@@ -46,5 +53,24 @@ class ClassFinderTest {
     @Test
     void findMissingPackage() throws IOException {
         Assertions.assertTrue(ClassFinder.findTopLevelClasses(getClass().getClassLoader(), "me.ahoo.cosid.missing").isEmpty());
+    }
+
+    @Test
+    void findInJarWithoutDirectoryEntries(@TempDir Path tempDir) throws IOException {
+        Path jar = tempDir.resolve("no-directory-entries.jar");
+        try (JarOutputStream out = new JarOutputStream(Files.newOutputStream(jar))) {
+            for (String entry : new String[] {"com/example/nodir/Order.class", "com/example/nodir/Order$Line.class", "com/example/nodir/item/Item.class"}) {
+                out.putNextEntry(new JarEntry(entry));
+                out.write(new byte[] {(byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE});
+                out.closeEntry();
+            }
+        }
+
+        try (URLClassLoader classLoader = new URLClassLoader(new URL[] {jar.toUri().toURL()}, null)) {
+            Assertions.assertFalse(classLoader.getResources("com/example/nodir").hasMoreElements());
+            Set<String> classNames = ClassFinder.findTopLevelClasses(classLoader, "com.example.nodir");
+
+            Assertions.assertEquals(Set.of("com.example.nodir.Order", "com.example.nodir.item.Item"), classNames);
+        }
     }
 }

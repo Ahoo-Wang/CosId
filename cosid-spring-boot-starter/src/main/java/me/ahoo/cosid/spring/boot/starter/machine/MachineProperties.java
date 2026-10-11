@@ -397,6 +397,12 @@ public class MachineProperties {
          * Default is MANUAL.
          */
         private MachineProperties.Distributor.Type type = MachineProperties.Distributor.Type.MANUAL;
+        
+        /**
+         * Name of the {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} to use instead of the one of
+         * {@code type}, for a backend the starter does not ship. Empty by default: the provider of {@code type} is used.
+         */
+        private String provider;
 
         /**
          * Configuration for manual machine ID assignment.
@@ -448,6 +454,14 @@ public class MachineProperties {
          */
         public void setType(MachineProperties.Distributor.Type type) {
             this.type = type;
+        }
+        
+        public String getProvider() {
+            return provider;
+        }
+        
+        public void setProvider(String provider) {
+            this.provider = provider;
         }
 
         /**

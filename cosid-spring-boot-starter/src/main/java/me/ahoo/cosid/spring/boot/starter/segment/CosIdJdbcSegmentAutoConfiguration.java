@@ -17,13 +17,18 @@ import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributorFactory;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.CosIdSegmentStoreConfiguration;
+import me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 
 import javax.sql.DataSource;
 
@@ -38,6 +43,7 @@ import javax.sql.DataSource;
 @EnableConfigurationProperties(SegmentIdProperties.class)
 @ConditionalOnClass({JdbcIdSegmentInitializer.class, JdbcIdSegmentDistributorFactory.class})
 @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "jdbc")
+@Import(CosIdSegmentStoreConfiguration.class)
 public class CosIdJdbcSegmentAutoConfiguration {
 
     private final SegmentIdProperties segmentIdProperties;
@@ -58,11 +64,12 @@ public class CosIdJdbcSegmentAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean
-    public IdSegmentDistributorFactory idSegmentDistributorFactory(DataSource dataSource, JdbcIdSegmentInitializer jdbcIdSegmentInitializer) {
-        SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
-        return new JdbcIdSegmentDistributorFactory(dataSource, jdbc.isEnableAutoInitIdSegment(), jdbcIdSegmentInitializer, jdbc.getIncrementMaxIdSql(), jdbc.getFetchMaxIdSql(),
-            jdbc.getQueryTimeout());
+    public CosIdStoreProvider cosIdJdbcSegmentStoreProvider(ObjectProvider<DataSource> dataSource, ObjectProvider<JdbcIdSegmentInitializer> jdbcIdSegmentInitializer) {
+        return BuiltInStoreProvider.segment("jdbc", context -> {
+            SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
+            return new JdbcIdSegmentDistributorFactory(dataSource.getObject(), jdbc.isEnableAutoInitIdSegment(), jdbcIdSegmentInitializer.getObject(),
+                jdbc.getIncrementMaxIdSql(), jdbc.getFetchMaxIdSql(), jdbc.getQueryTimeout());
+        });
     }
 
 }

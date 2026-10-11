@@ -23,9 +23,13 @@ import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineCollection;
 import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineInitializer;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.MongoReactiveDeprecation;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.CosIdMachineStoreConfiguration;
+import me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -35,6 +39,7 @@ import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
 import org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 
 /**
@@ -48,6 +53,7 @@ import org.springframework.context.annotation.Primary;
 @ConditionalOnClass(MongoMachineIdDistributor.class)
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "mongo")
 @AutoConfigureAfter(value = {MongoAutoConfiguration.class, MongoReactiveAutoConfiguration.class})
+@Import(CosIdMachineStoreConfiguration.class)
 public class CosIdMongoMachineIdDistributorAutoConfiguration {
     private final MachineProperties machineProperties;
     
@@ -56,9 +62,9 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
     }
     
     @Bean
-    @ConditionalOnMissingBean
-    public MongoMachineIdDistributor mongoMachineIdDistributor(MachineCollection machineCollection, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new MongoMachineIdDistributor(machineCollection, localMachineState, clockBackwardsSynchronizer);
+    public CosIdStoreProvider cosIdMongoMachineStoreProvider(ObjectProvider<MachineCollection> machineCollection) {
+        return BuiltInStoreProvider.machine("mongo",
+            context -> new MongoMachineIdDistributor(machineCollection.getObject(), context.getMachineStateStorage(), context.getClockBackwardsSynchronizer()));
     }
     
     @Configuration

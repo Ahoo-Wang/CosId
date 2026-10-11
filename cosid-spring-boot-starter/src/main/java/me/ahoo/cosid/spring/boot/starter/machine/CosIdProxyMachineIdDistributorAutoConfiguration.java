@@ -21,7 +21,11 @@ import me.ahoo.cosid.proxy.api.MachineClient;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientAuthConfiguration;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientTimeoutConfiguration;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.CosIdMachineStoreConfiguration;
+import me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -38,14 +42,13 @@ import org.springframework.context.annotation.Import;
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "proxy")
 @EnableCoApi(clients = MachineClient.class)
-@Import({CosIdProxyClientTimeoutConfiguration.class, CosIdProxyClientAuthConfiguration.class})
+@Import({CosIdMachineStoreConfiguration.class, CosIdProxyClientTimeoutConfiguration.class, CosIdProxyClientAuthConfiguration.class})
 public class CosIdProxyMachineIdDistributorAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
-    public ProxyMachineIdDistributor proxyMachineIdDistributor(MachineClient machineClient, MachineStateStorage localMachineState,
-                                                               ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new ProxyMachineIdDistributor(machineClient, localMachineState, clockBackwardsSynchronizer);
+    public CosIdStoreProvider cosIdProxyMachineStoreProvider(ObjectProvider<MachineClient> machineClient) {
+        return BuiltInStoreProvider.machine("proxy",
+            context -> new ProxyMachineIdDistributor(machineClient.getObject(), context.getMachineStateStorage(), context.getClockBackwardsSynchronizer()));
     }
 
 

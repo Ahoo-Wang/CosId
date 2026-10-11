@@ -16,16 +16,21 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.CosIdMachineStoreConfiguration;
+import me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider;
 import me.ahoo.cosid.util.CallTimeout;
 import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 
 /**
  * CosId Zookeeper MachineIdDistributor AutoConfiguration.
@@ -37,13 +42,13 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "zookeeper")
 @ConditionalOnClass(ZookeeperMachineIdDistributor.class)
+@Import(CosIdMachineStoreConfiguration.class)
 public class CosIdZookeeperMachineIdDistributorAutoConfiguration {
     
     @Bean
-    @ConditionalOnMissingBean
-    public ZookeeperMachineIdDistributor zookeeperMachineIdDistributor(CuratorFramework curatorFramework, RetryPolicy retryPolicy, MachineStateStorage localMachineState,
-                                                                       ClockBackwardsSynchronizer clockBackwardsSynchronizer, MachineProperties machineProperties) {
-        return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, localMachineState, clockBackwardsSynchronizer,
-            CallTimeout.of(machineProperties.getDistributor().getZookeeper().getTimeout()));
+    public CosIdStoreProvider cosIdZookeeperMachineStoreProvider(ObjectProvider<CuratorFramework> curatorFramework, ObjectProvider<RetryPolicy> retryPolicy) {
+        return BuiltInStoreProvider.machine("zookeeper",
+            context -> new ZookeeperMachineIdDistributor(curatorFramework.getObject(), retryPolicy.getObject(), context.getMachineStateStorage(),
+                context.getClockBackwardsSynchronizer(), CallTimeout.of(context.getMachineProperties().getDistributor().getZookeeper().getTimeout())));
     }
 }

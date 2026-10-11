@@ -15,18 +15,23 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
+import me.ahoo.cosid.spring.boot.starter.store.CosIdSegmentStoreConfiguration;
+import me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider;
 import me.ahoo.cosid.util.CallTimeout;
 import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributor;
 import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributorFactory;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 
 /**
  * CosId Zookeeper Segment AutoConfiguration.
@@ -39,14 +44,14 @@ import org.springframework.context.annotation.Bean;
 @EnableConfigurationProperties(SegmentIdProperties.class)
 @ConditionalOnClass(ZookeeperIdSegmentDistributor.class)
 @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "zookeeper")
+@Import(CosIdSegmentStoreConfiguration.class)
 public class CosIdZookeeperSegmentAutoConfiguration {
 
     @Bean
-    @ConditionalOnMissingBean
-    public IdSegmentDistributorFactory idSegmentDistributorFactory(CuratorFramework curatorFramework, RetryPolicy retryPolicy,
-                                                                   SegmentIdProperties segmentIdProperties) {
-        return new ZookeeperIdSegmentDistributorFactory(curatorFramework, retryPolicy,
-            CallTimeout.of(segmentIdProperties.getDistributor().getZookeeper().getTimeout()));
+    public CosIdStoreProvider cosIdZookeeperSegmentStoreProvider(ObjectProvider<CuratorFramework> curatorFramework, ObjectProvider<RetryPolicy> retryPolicy) {
+        return BuiltInStoreProvider.segment("zookeeper",
+            context -> new ZookeeperIdSegmentDistributorFactory(curatorFramework.getObject(), retryPolicy.getObject(),
+                CallTimeout.of(context.getSegmentIdProperties().getDistributor().getZookeeper().getTimeout())));
     }
 
 }

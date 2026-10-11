@@ -14,12 +14,17 @@
   "packageRules": [
     {
       "description": "Group Spring ecosystem updates into a single PR",
-      "matchPackagePatterns": ["^org\\.springframework"],
+      "matchPackageNames": ["/^org\\.springframework/"],
       "groupName": "spring"
     },
     {
+      "description": "Activiti early-access builds (e.g. 7-201802-EA) predate the 7.0.0 releases but sort above them",
+      "matchPackageNames": ["/^org\\.activiti:/"],
+      "allowedVersions": "!/-EA$/i"
+    },
+    {
       "description": "Group Kotlin-related updates into a single PR",
-      "matchPackagePatterns": ["^org\\.jetbrains\\.kotlin"],
+      "matchPackageNames": ["/^org\\.jetbrains\\.kotlin/"],
       "groupName": "kotlin"
     }
   ]

@@ -72,6 +72,12 @@ create index if not exists idx_instance_id on cosid_machine (instance_id);
 alter table cosid_machine add column stable tinyint not null default 0;
 ```
 
+### PostgreSQL
+
+默认的建表语句和号段语句使用 MySQL 语法。`me.ahoo.cosid.jdbc.PostgreSqlDialect` 提供了 PostgreSQL 版本（在 PostgreSQL 16 上测试过）：
+传给 `JdbcIdSegmentInitializer`、`JdbcIdSegmentDistributorFactory` 和 `JdbcMachineIdInitializer`，或者配置到对应的 `cosid.*.distributor.jdbc` SQL 属性。
+机器号分配器的语句是标准 SQL，无需修改。
+
 ## 配置案例
 
 ```yaml {4,10,14}

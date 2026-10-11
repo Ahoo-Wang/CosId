@@ -73,6 +73,13 @@ keep the old behavior (a warning is logged at startup); add it with the statemen
 alter table cosid_machine add column stable tinyint not null default 0;
 ```
 
+### PostgreSQL
+
+The default DDL and segment statements use MySQL syntax. `me.ahoo.cosid.jdbc.PostgreSqlDialect` holds PostgreSQL versions
+(tested on PostgreSQL 16): pass them to `JdbcIdSegmentInitializer`, `JdbcIdSegmentDistributorFactory` and
+`JdbcMachineIdInitializer`, or set them as the corresponding `cosid.*.distributor.jdbc` SQL properties.
+The machine id distributor's statements are standard SQL and need no change.
+
 ## Configuration Example
 
 ```yaml {4,10,14}

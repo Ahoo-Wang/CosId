@@ -24,6 +24,11 @@ spring:
 #    password: root
 cosid:
   namespace: ${spring.application.name}
+#  proxy:
+#    server:
+#      auth:
+#        tokens:
+#          - ${COSID_PROXY_TOKEN}
   machine:
     enabled: true
     distributor:

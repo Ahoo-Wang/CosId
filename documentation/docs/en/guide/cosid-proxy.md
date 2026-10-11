@@ -54,3 +54,28 @@ This architecture is useful when:
 ## High Availability: Server-Restart Self-Healing
 
 The proxy server's segment distributor cache lives in memory only. Since clients call `createDistributor` exactly once at startup, a server restart leaves the cache empty; on the next `nextMaxId` call the distributor is rebuilt lazily from the backing store (lazy rebuild uses the default `offset=0`, which only applies on first-ever initialization), so already-allocated segment state is never lost. In short: **after a proxy server restart, running clients recover automatically without a restart** (since v3.2.1).
+
+## Authentication
+
+By default the proxy API (`/machines`, `/segments`, `/ids`) is open to anyone who can reach the server, and the server logs a warning at startup.
+Configure one or more bearer tokens on the server, and the same token on every client:
+
+```yaml
+# proxy server
+cosid:
+  proxy:
+    server:
+      auth:
+        tokens:
+          - ${COSID_PROXY_TOKEN}   # several tokens can be listed to rotate them
+```
+
+```yaml
+# client application
+cosid:
+  proxy:
+    host: http://cosid-proxy:8688
+    token: ${COSID_PROXY_TOKEN}
+```
+
+Requests to the proxy API without a valid `Authorization: Bearer <token>` get `401`. Actuator and API docs paths are not affected.

@@ -54,3 +54,28 @@ CosId Proxy 提供客户端-服务器架构：
 ## 高可用：服务端重启自愈
 
 代理服务器的号段分发器缓存仅存在于内存中。由于客户端只在启动时调用一次 `createDistributor`，服务端重启后缓存未命中时，`nextMaxId` 会基于底层存储自动重建分发器（懒重建使用默认 `offset=0`，仅在后端首次初始化时生效），已分配的号段状态不会丢失。即：**代理服务器重启后，已运行的客户端无需重启即可自动恢复取号**（自 v3.2.1 起）。
+
+## 鉴权
+
+默认情况下，代理 API（`/machines`、`/segments`、`/ids`）对所有能访问到服务端的人开放，服务端启动时会打印告警。
+可以在服务端配置一个或多个 Bearer token，并在每个客户端配置相同的 token：
+
+```yaml
+# 代理服务端
+cosid:
+  proxy:
+    server:
+      auth:
+        tokens:
+          - ${COSID_PROXY_TOKEN}   # 可以同时配置多个，用于轮换
+```
+
+```yaml
+# 客户端应用
+cosid:
+  proxy:
+    host: http://cosid-proxy:8688
+    token: ${COSID_PROXY_TOKEN}
+```
+
+没有携带有效 `Authorization: Bearer <token>` 的代理 API 请求会返回 `401`。Actuator 和 API 文档路径不受影响。

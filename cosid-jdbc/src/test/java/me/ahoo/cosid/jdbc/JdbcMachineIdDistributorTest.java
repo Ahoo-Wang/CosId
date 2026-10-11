@@ -84,6 +84,39 @@ class JdbcMachineIdDistributorTest extends MachineIdDistributorSpec {
     }
 
     @Test
+    void distributeShouldRecordStable() {
+        TestableJdbcMachineIdDistributor distributor = new TestableJdbcMachineIdDistributor(dataSource);
+        InstanceId stableInstance = InstanceId.of("host", 2, true);
+
+        MachineState actual = distributor.distributeRemoteForTest(NAMESPACE, 4, stableInstance, Duration.ZERO);
+
+        assertThat(dataSource.isStable(NAMESPACE, actual.getMachineId()), equalTo(true));
+    }
+
+    @Test
+    void distributeBySelfShouldClearStableWhenNoLongerStable() {
+        TestableJdbcMachineIdDistributor distributor = new TestableJdbcMachineIdDistributor(dataSource);
+        int machineId = distributor.distributeRemoteForTest(NAMESPACE, 4, InstanceId.of("host", 2, true), Duration.ZERO).getMachineId();
+
+        distributor.distributeRemoteForTest(NAMESPACE, 4, InstanceId.of("host", 2, false), Duration.ofMinutes(1));
+
+        assertThat(dataSource.isStable(NAMESPACE, machineId), equalTo(false));
+    }
+
+    @Test
+    void tableWithoutStableColumnKeepsDistributing() {
+        dataSource.dropStableColumn();
+        TestableJdbcMachineIdDistributor distributor = new TestableJdbcMachineIdDistributor(dataSource);
+        InstanceId stableInstance = InstanceId.of("host", 2, true);
+
+        MachineState actual = distributor.distributeRemoteForTest(NAMESPACE, 4, stableInstance, Duration.ZERO);
+        MachineState again = distributor.distributeRemoteForTest(NAMESPACE, 4, stableInstance, Duration.ZERO);
+
+        assertThat(again.getMachineId(), equalTo(actual.getMachineId()));
+        assertThat(dataSource.findMachine(NAMESPACE, actual.getMachineId()).orElseThrow().instanceId(), equalTo(stableInstance.getInstanceId()));
+    }
+
+    @Test
     void distributeBySelfShouldReturnRemoteFutureTimestamp() {
         long futureLastTimestamp = System.currentTimeMillis() + Duration.ofMinutes(1).toMillis();
         dataSource.putMachine(NAMESPACE, 7, INSTANCE_ID.getInstanceId(), futureLastTimestamp);

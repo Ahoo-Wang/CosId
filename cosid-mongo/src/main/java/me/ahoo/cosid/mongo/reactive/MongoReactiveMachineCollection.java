@@ -113,7 +113,7 @@ public class MongoReactiveMachineCollection implements MachineCollection {
         long lastTimestamp = System.currentTimeMillis();
         Publisher<Document> afterDocPublisher = machineCollection.findOneAndUpdate(
             distributeBySelfFilter(namespace, instanceId, safeGuardDuration),
-            distributeBySelfUpdate(lastTimestamp),
+            distributeBySelfUpdate(instanceId, lastTimestamp),
             Documents.UPDATE_AFTER_OPTIONS
         );
         Document afterDoc = BlockingAdapter.block(afterDocPublisher);

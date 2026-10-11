@@ -37,6 +37,11 @@ public interface MachineOperates {
     String INSTANCE_ID_FIELD = "instanceId";
     String DISTRIBUTE_TIME_FIELD = "distributeTime";
     String REVERT_TIME_FIELD = "revertTime";
+    /**
+     * Whether the owner is a stable instance, whose machine id is never recycled by other instances.
+     * Documents written before this field existed have none, which means not stable.
+     */
+    String STABLE_FIELD = "stable";
     String MAX_MACHINE_ID_FIELD = "maxMachineId";
     
     static List<? extends Bson> nextMachineIdPipeline(String namespace) {
@@ -56,6 +61,7 @@ public interface MachineOperates {
             .append(MACHINE_ID_FIELD, nextMachineState.getMachineId())
             .append(LAST_TIMESTAMP_FIELD, nextMachineState.getLastTimeStamp())
             .append(INSTANCE_ID_FIELD, instanceId.getInstanceId())
+            .append(STABLE_FIELD, instanceId.isStable())
             .append(DISTRIBUTE_TIME_FIELD, System.currentTimeMillis())
             .append(REVERT_TIME_FIELD, 0L);
     }
@@ -65,7 +71,10 @@ public interface MachineOperates {
             Filters.eq(NAMESPACE_FIELD, namespace),
             Filters.or(
                 Filters.eq(INSTANCE_ID_FIELD, ""),
-                Filters.lte(LAST_TIMESTAMP_FIELD, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()))
+                Filters.and(
+                    Filters.lte(LAST_TIMESTAMP_FIELD, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable())),
+                    Filters.ne(STABLE_FIELD, true)
+                )
             )
         );
     }
@@ -73,6 +82,7 @@ public interface MachineOperates {
     static Bson distributeByRevertUpdate(InstanceId instanceId, long lastTimestamp) {
         return Updates.combine(
             Updates.set(INSTANCE_ID_FIELD, instanceId.getInstanceId()),
+            Updates.set(STABLE_FIELD, instanceId.isStable()),
             Updates.max(LAST_TIMESTAMP_FIELD, lastTimestamp)
         );
     }
@@ -87,6 +97,13 @@ public interface MachineOperates {
     
     static Bson distributeBySelfUpdate(long lastTimestamp) {
         return Updates.max(LAST_TIMESTAMP_FIELD, lastTimestamp);
+    }
+    
+    static Bson distributeBySelfUpdate(InstanceId instanceId, long lastTimestamp) {
+        return Updates.combine(
+            Updates.set(STABLE_FIELD, instanceId.isStable()),
+            Updates.max(LAST_TIMESTAMP_FIELD, lastTimestamp)
+        );
     }
     
     static Bson revertFilter(String namespace, InstanceId instanceId, MachineState machineState) {

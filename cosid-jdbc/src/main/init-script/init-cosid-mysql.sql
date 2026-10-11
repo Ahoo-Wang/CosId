@@ -37,6 +37,7 @@ create table if not exists cosid_machine
     instance_id     varchar(100)     not null default '',
     distribute_time bigint unsigned  not null default 0,
     revert_time     bigint unsigned  not null default 0,
+    stable          tinyint          not null default 0 comment 'machine id of a stable instance is never recycled',
     constraint cosid_machine_pk
         primary key (name)
 ) engine = InnoDB;

@@ -1,6 +1,7 @@
 -- itc_idx: [Type:Hash] instanceId > machineId
 -- adder: [Type:String] machineId adder
 -- revert: [Type:Hash] machineId lastStamp
+-- stable: [Type:Set] instanceIds of stable instances, whose machine ids are never recycled by other instances
 
 local stateDelimiter = "|";
 local keyPrefix = 'cosid' .. ':';
@@ -9,10 +10,13 @@ local instanceId = ARGV[1];
 local maxMachineId = tonumber(ARGV[2]);
 local currentStamp = tonumber(ARGV[3]);
 local safeGuardAt = tonumber(ARGV[4]);
+-- Absent (older callers) means not stable.
+local stable = ARGV[5] == '1';
 
 local instanceIdxKey = keyPrefix .. namespace .. ':itc_idx';
 local machineIdAdderKey = keyPrefix .. namespace .. ':adder';
 local instanceRevertKey = keyPrefix .. namespace .. ':revert';
+local instanceStableKey = keyPrefix .. namespace .. ':stable';
 
 local function convertStingToState(machineState)
     local splitIdx = string.find(machineState, stateDelimiter, 1);
@@ -28,6 +32,11 @@ end
 local function setState(machineId, lastStamp)
     local machineState = convertStateToString(machineId, lastStamp);
     redis.call('hset', instanceIdxKey, instanceId, machineState);
+    if stable then
+        redis.call('sadd', instanceStableKey, instanceId);
+    else
+        redis.call('srem', instanceStableKey, instanceId);
+    end
 end
 
 local function moveRevertToCurrent(machineId, lastStamp)
@@ -91,8 +100,8 @@ for idx, val in ipairs(instanceData) do
         local eachMachineState = convertStingToState(eachMachineStateStr);
         local eachMachineId = eachMachineState[1];
         local eachLastStamp = eachMachineState[2];
-        -- Recyclable
-        if eachLastStamp <= safeGuardAt then
+        -- Recyclable, unless its owner is stable
+        if eachLastStamp <= safeGuardAt and redis.call('sismember', instanceStableKey, eachInstanceId) == 0 then
             return moveRecyclableToCurrent(eachInstanceId, eachMachineId);
         end
     end

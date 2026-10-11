@@ -60,6 +60,11 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
      * data:lastStamp
      */
     private static final String REVERT_PATH = "__revert";
+    /**
+     * /cosid/{namespace}/__stable/{instanceId} .
+     * Marks a stable instance: its machine id is never recycled by other instances.
+     */
+    private static final String STABLE_PATH = "__stable";
     
     private final CuratorFramework curatorFramework;
     private final RetryPolicy retryPolicy;
@@ -93,6 +98,10 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     
     private static String getInstancePath(String namespace, String instanceId) {
         return Strings.lenientFormat("%s/%s", getInstanceIdxPath(namespace), instanceId);
+    }
+    
+    private static String getStablePath(String namespace, String instanceId) {
+        return Strings.lenientFormat("/%s/%s/%s/%s", CosId.COSID, namespace, STABLE_PATH, instanceId);
     }
     
     private static String getRevertPath(String namespace) {
@@ -140,6 +149,10 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     
     private MachineState tryDistribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws Exception {
         String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
+        /*
+         * Marked before the machine id is taken, so the mark is in place by the time the instance node could look expired.
+         */
+        markStable(namespace, instanceId);
         MachineState selfState = distributeBySelf(instancePath);
         if (selfState != null) {
             return selfState;
@@ -254,6 +267,9 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
             if (instanceMachineState.getLastTimeStamp() > safeGuardAt) {
                 continue;
             }
+            if (isStable(namespace, eachInstance)) {
+                continue;
+            }
             MachineState machineState = renew(instanceMachineState);
             /*
              * The versioned delete fails if the owner guarded (setData) after the read above, so a live machine id is never taken over.
@@ -329,6 +345,30 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         } catch (Exception exception) {
             throw new CosIdException(exception.getMessage(), exception);
         }
+    }
+    
+    /**
+     * Record whether the instance is stable. Instances that are no longer configured as stable lose the mark.
+     */
+    private void markStable(String namespace, InstanceId instanceId) throws Exception {
+        String stablePath = getStablePath(namespace, instanceId.getInstanceId());
+        if (instanceId.isStable()) {
+            try {
+                curatorFramework.create().creatingParentsIfNeeded().forPath(stablePath, new byte[0]);
+            } catch (KeeperException.NodeExistsException ignored) {
+                // already marked.
+            }
+            return;
+        }
+        try {
+            curatorFramework.delete().forPath(stablePath);
+        } catch (KeeperException.NoNodeException ignored) {
+            // not marked.
+        }
+    }
+    
+    private boolean isStable(String namespace, String instanceId) throws Exception {
+        return curatorFramework.checkExists().forPath(getStablePath(namespace, instanceId)) != null;
     }
     
     private void revertTemporary(String namespace, String instancePath, int instanceVersion, MachineState machineState) {

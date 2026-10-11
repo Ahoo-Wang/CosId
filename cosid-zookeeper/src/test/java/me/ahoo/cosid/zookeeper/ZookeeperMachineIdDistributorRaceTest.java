@@ -238,18 +238,19 @@ class ZookeeperMachineIdDistributorRaceTest {
     void reclaimOwnMachineIdFallsBackWhenRecycledAfterRead() {
         String namespace = MockIdGenerator.usePrefix("reclaimOwnRecycled").generateAsString();
         ZookeeperMachineIdDistributor distributor = distributor(curatorFramework, new InMemoryMachineStateStorage());
-        InstanceId stable = InstanceId.of("stable", true);
-        Assertions.assertEquals(0, distributor.distribute(namespace, MACHINE_BIT, stable, SAFE_GUARD_DURATION).getMachineId());
+        // Not stable: the machine id of a stable instance is never recycled.
+        InstanceId restarted = InstanceId.of("restarted", false);
+        Assertions.assertEquals(0, distributor.distribute(namespace, MACHINE_BIT, restarted, SAFE_GUARD_DURATION).getMachineId());
         Assertions.assertEquals(1, distributor.distribute(namespace, MACHINE_BIT, InstanceId.of("live-owner", false), SAFE_GUARD_DURATION).getMachineId());
-        String stablePath = instancePath(namespace, stable);
-        writeState(stablePath, MachineState.of(0, 1));
+        String restartedPath = instancePath(namespace, restarted);
+        writeState(restartedPath, MachineState.of(0, 1));
         InstanceId newcomer = InstanceId.of("newcomer", false);
         // Another instance recycles the expired machine id right after the restarted owner read its own node.
-        CuratorFramework racingCurator = afterRead(curatorFramework, stablePath,
+        CuratorFramework racingCurator = afterRead(curatorFramework, restartedPath,
             () -> distributor(curatorFramework, new InMemoryMachineStateStorage()).distribute(namespace, MACHINE_BIT, newcomer, SAFE_GUARD_DURATION));
 
         Assertions.assertThrows(MachineIdOverflowException.class,
-            () -> distributor(racingCurator, new InMemoryMachineStateStorage()).distribute(namespace, MACHINE_BIT, stable, SAFE_GUARD_DURATION));
+            () -> distributor(racingCurator, new InMemoryMachineStateStorage()).distribute(namespace, MACHINE_BIT, restarted, SAFE_GUARD_DURATION));
 
         Assertions.assertEquals(0, readState(instancePath(namespace, newcomer)).getMachineId());
     }

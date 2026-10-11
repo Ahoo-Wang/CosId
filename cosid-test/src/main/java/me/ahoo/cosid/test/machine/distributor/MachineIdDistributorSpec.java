@@ -101,6 +101,11 @@ public abstract class MachineIdDistributorSpec {
     }
     
     @Test
+    public void distributeStableNotRecycled() {
+        new DistributeStableNotRecycled(this::getDistributor, getSafeGuardDuration()).verify();
+    }
+    
+    @Test
     public void revert() {
         new Revert(this::getDistributor, getMachineBit()).verify();
     }

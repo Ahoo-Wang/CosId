@@ -58,6 +58,7 @@ final class InMemoryJdbcDataSource implements DataSource {
     private final AtomicInteger rollbackCount = new AtomicInteger();
     private boolean cosIdTableInitialized;
     private boolean cosIdMachineTableInitialized;
+    private boolean stableColumn = true;
 
     @Override
     public Connection getConnection() {
@@ -123,6 +124,17 @@ final class InMemoryJdbcDataSource implements DataSource {
     synchronized void putMachine(String namespace, int machineId, String instanceId, long lastTimestamp) {
         String name = namespacedMachineId(namespace, machineId);
         machineRows.put(name, new MachineRow(name, namespace, machineId, lastTimestamp, instanceId, System.currentTimeMillis(), 0));
+    }
+
+    /**
+     * Emulates a {@code cosid_machine} table created before the {@code stable} column existed.
+     */
+    synchronized void dropStableColumn() {
+        stableColumn = false;
+    }
+
+    synchronized boolean isStable(String namespace, int machineId) {
+        return machineRows.get(namespacedMachineId(namespace, machineId)).stable;
     }
 
     synchronized Optional<MachineRowSnapshot> findMachine(String namespace, int machineId) {
@@ -319,8 +331,19 @@ final class InMemoryJdbcDataSource implements DataSource {
             || normalizedSql.startsWith("create index if not exists idx_instance_id")) {
             return 0;
         }
+        if (normalizedSql.startsWith("update cosid_machine set instance_id=?,last_timestamp=?,distribute_time=?,stable=? where name=?")) {
+            requireStableColumn(sql);
+            return distributeRevertedMachine((String) params.get(5), (String) params.get(1), (Long) params.get(2), (Long) params.get(3), (Long) params.get(6),
+                (Integer) params.get(4) == 1);
+        }
+        if (normalizedSql.startsWith("update cosid_machine set last_timestamp=?,stable=? where namespace=?")) {
+            requireStableColumn(sql);
+            return distributeSelfMachine((String) params.get(3), (String) params.get(4), (Integer) params.get(5), (Long) params.get(1),
+                (Integer) params.get(2) == 1);
+        }
         if (normalizedSql.startsWith("update cosid_machine set instance_id=?,last_timestamp=?,distribute_time=? where name=?")) {
-            return distributeRevertedMachine((String) params.get(4), (String) params.get(1), (Long) params.get(2), (Long) params.get(3), (Long) params.get(5));
+            return distributeRevertedMachine((String) params.get(4), (String) params.get(1), (Long) params.get(2), (Long) params.get(3), (Long) params.get(5),
+                null);
         }
         if (normalizedSql.startsWith("insert into cosid_machine")) {
             return insertMachine(params);
@@ -346,8 +369,16 @@ final class InMemoryJdbcDataSource implements DataSource {
         if (normalizedSql.startsWith("select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id=?")) {
             return resultSet(findSelfMachineRows((String) params.get(1), (String) params.get(2), (Long) params.get(3)));
         }
+        if (normalizedSql.equals("select stable from cosid_machine where 1=0")) {
+            requireStableColumn(sql);
+            return resultSet(List.of());
+        }
+        if (normalizedSql.startsWith("select machine_id, last_timestamp from cosid_machine where namespace=? and (instance_id='' or (last_timestamp<=? and stable=0))")) {
+            requireStableColumn(sql);
+            return resultSet(findRevertibleMachineRows((String) params.get(1), (Long) params.get(2), true));
+        }
         if (normalizedSql.startsWith("select machine_id, last_timestamp from cosid_machine where namespace=? and (instance_id=''")) {
-            return resultSet(findRevertibleMachineRows((String) params.get(1), (Long) params.get(2)));
+            return resultSet(findRevertibleMachineRows((String) params.get(1), (Long) params.get(2), false));
         }
         if (normalizedSql.startsWith("select max(machine_id)+1 as next_machine_id from cosid_machine where namespace=?")) {
             return resultSet(List.of(Row.of(nextMachineId((String) params.get(1)))));
@@ -372,9 +403,12 @@ final class InMemoryJdbcDataSource implements DataSource {
         return 1;
     }
 
-    private int distributeRevertedMachine(String name, String instanceId, long lastTimestamp, long distributeTime, long safeGuardAt) {
+    /**
+     * @param stable {@code null} when the statement does not write the stable column
+     */
+    private int distributeRevertedMachine(String name, String instanceId, long lastTimestamp, long distributeTime, long safeGuardAt, Boolean stable) {
         MachineRow row = machineRows.get(name);
-        if (row == null || (!row.instanceId.isEmpty() && row.lastTimestamp > safeGuardAt)) {
+        if (row == null || (!row.instanceId.isEmpty() && (row.lastTimestamp > safeGuardAt || (stable != null && row.stable)))) {
             return 0;
         }
         if (failedRevertDistributeUpdates > 0) {
@@ -384,11 +418,32 @@ final class InMemoryJdbcDataSource implements DataSource {
         row.instanceId = instanceId;
         row.lastTimestamp = lastTimestamp;
         row.distributeTime = distributeTime;
+        if (stable != null) {
+            row.stable = stable;
+        }
         return 1;
+    }
+
+    private int distributeSelfMachine(String namespace, String instanceId, int machineId, long lastTimestamp, boolean stable) {
+        int affected = guardMachine(namespace, instanceId, machineId, lastTimestamp);
+        if (affected > 0) {
+            machineRows.get(namespacedMachineId(namespace, machineId)).stable = stable;
+        }
+        return affected;
+    }
+
+    private void requireStableColumn(String sql) throws SQLException {
+        if (!stableColumn) {
+            throw new SQLException("Unknown column 'stable' in: " + sql, "42S22", 1054);
+        }
     }
 
     private int insertMachine(Map<Integer, Object> params) throws SQLException {
         String name = (String) params.get(1);
+        boolean stable = params.containsKey(7) && (Integer) params.get(7) == 1;
+        if (params.containsKey(7)) {
+            requireStableColumn("insert into cosid_machine (..., stable)");
+        }
         machineInsertAttempts++;
         if (machineInsertFailures > 0) {
             machineInsertFailures--;
@@ -406,6 +461,7 @@ final class InMemoryJdbcDataSource implements DataSource {
             (Long) params.get(6),
             0
         ));
+        machineRows.get(name).stable = stable;
         return 1;
     }
 
@@ -442,11 +498,11 @@ final class InMemoryJdbcDataSource implements DataSource {
             .toList();
     }
 
-    private List<Row> findRevertibleMachineRows(String namespace, long safeGuardAt) {
+    private List<Row> findRevertibleMachineRows(String namespace, long safeGuardAt, boolean excludeStable) {
         return machineRows.values()
             .stream()
             .filter(row -> row.namespace.equals(namespace))
-            .filter(row -> row.instanceId.isEmpty() || row.lastTimestamp <= safeGuardAt)
+            .filter(row -> row.instanceId.isEmpty() || (row.lastTimestamp <= safeGuardAt && !(excludeStable && row.stable)))
             .sorted(Comparator.comparingInt(row -> row.machineId))
             .map(row -> Row.of(row.machineId, row.lastTimestamp))
             .toList();
@@ -515,6 +571,7 @@ final class InMemoryJdbcDataSource implements DataSource {
         private String instanceId;
         private long distributeTime;
         private long revertTime;
+        private boolean stable;
 
         private MachineRow(String name, String namespace, int machineId, long lastTimestamp, String instanceId, long distributeTime, long revertTime) {
             this.name = name;

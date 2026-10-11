@@ -56,12 +56,20 @@ create table if not exists cosid_machine
     instance_id     varchar(100) not null default '',
     distribute_time bigint       not null default 0,
     revert_time     bigint       not null default 0,
+    stable          tinyint      not null default 0,
     constraint cosid_machine_pk
         primary key (name)
 ) engine = InnoDB;
 
 create index if not exists idx_namespace on cosid_machine (namespace);
 create index if not exists idx_instance_id on cosid_machine (instance_id);
+```
+
+`stable` 标记稳定实例（`cosid.machine.stable=true`）的机器号：即使持有者离线超过安全守护时长，其他实例也不会回收它。
+旧版本创建的表没有这一列，会保持原来的行为（启动时打印告警），可以这样加上：
+
+```sql
+alter table cosid_machine add column stable tinyint not null default 0;
 ```
 
 ## 配置案例

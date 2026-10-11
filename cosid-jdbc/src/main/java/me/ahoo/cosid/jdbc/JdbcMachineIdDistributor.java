@@ -80,6 +80,44 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             + "set last_timestamp=? "
             + "where namespace=? and instance_id=? and machine_id=?";
     
+    /*
+     * With the stable column: the machine id of a stable instance is never recycled by other instances.
+     */
+    
+    /**
+     * Fails on tables created before the {@code stable} column existed.
+     */
+    private static final String PROBE_STABLE_COLUMN = "select stable from cosid_machine where 1=0";
+    
+    /**
+     * Migration of a table created before the {@code stable} column existed (MySQL syntax).
+     */
+    public static final String ADD_STABLE_COLUMN_SQL = "alter table cosid_machine add column stable tinyint not null default 0";
+    
+    private static final String GET_REVERT_MACHINE_STATE_EXCLUDING_STABLE =
+        "select machine_id, last_timestamp from cosid_machine where namespace=? and (instance_id='' or (last_timestamp<=? and stable=0))";
+    
+    private static final String DISTRIBUTE_REVERT_MACHINE_STATE_WITH_STABLE =
+        "update cosid_machine "
+            + "set instance_id=?,last_timestamp=?,distribute_time=?,stable=? "
+            + "where name=? and (instance_id='' or (last_timestamp<=? and stable=0))";
+    
+    private static final String DISTRIBUTE_MACHINE_WITH_STABLE =
+        "insert into cosid_machine "
+            + "(name, namespace, machine_id, last_timestamp, instance_id, distribute_time, revert_time, stable) "
+            + "values "
+            + "(?,?,?,?,?,?,0,?);";
+    
+    private static final String DISTRIBUTE_SELF_WITH_STABLE =
+        "update cosid_machine "
+            + "set last_timestamp=?,stable=? "
+            + "where namespace=? and instance_id=? and machine_id=?";
+    
+    /**
+     * Whether {@code cosid_machine} has the {@code stable} column, probed once.
+     */
+    private volatile Boolean stableColumn;
+    
     public JdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         this(dataSource, machineStateStorage, clockBackwardsSynchronizer, JdbcSupport.DEFAULT_QUERY_TIMEOUT);
     }
@@ -97,6 +135,17 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     }
     
     private int distributeRevertMachineState(Connection connection, String namespace, int machineId, InstanceId instanceId, Duration safeGuardDuration) throws SQLException {
+        if (hasStableColumn(connection)) {
+            try (PreparedStatement revertMachineStatement = JdbcSupport.prepareStatement(connection, DISTRIBUTE_REVERT_MACHINE_STATE_WITH_STABLE, queryTimeoutSeconds)) {
+                revertMachineStatement.setString(1, instanceId.getInstanceId());
+                revertMachineStatement.setLong(2, System.currentTimeMillis());
+                revertMachineStatement.setLong(3, System.currentTimeMillis());
+                revertMachineStatement.setInt(4, stableValue(instanceId));
+                revertMachineStatement.setString(5, namespacedMachineId(namespace, machineId));
+                revertMachineStatement.setLong(6, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()));
+                return revertMachineStatement.executeUpdate();
+            }
+        }
         try (PreparedStatement revertMachineStatement = JdbcSupport.prepareStatement(connection, DISTRIBUTE_REVERT_MACHINE_STATE, queryTimeoutSeconds)) {
             revertMachineStatement.setString(1, instanceId.getInstanceId());
             revertMachineStatement.setLong(2, System.currentTimeMillis());
@@ -155,13 +204,18 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             throw new MachineIdOverflowException(MachineIdDistributor.totalMachineIds(machineBit), instanceId);
         }
         MachineState nextMachineState = MachineState.of(nextMachineId, System.currentTimeMillis());
-        try (PreparedStatement nextMachineStatement = JdbcSupport.prepareStatement(connection, DISTRIBUTE_MACHINE, queryTimeoutSeconds)) {
+        boolean stableColumnPresent = hasStableColumn(connection);
+        String distributeMachineSql = stableColumnPresent ? DISTRIBUTE_MACHINE_WITH_STABLE : DISTRIBUTE_MACHINE;
+        try (PreparedStatement nextMachineStatement = JdbcSupport.prepareStatement(connection, distributeMachineSql, queryTimeoutSeconds)) {
             nextMachineStatement.setString(1, namespacedMachineId(namespace, nextMachineId));
             nextMachineStatement.setString(2, namespace);
             nextMachineStatement.setInt(3, nextMachineId);
             nextMachineStatement.setLong(4, nextMachineState.getLastTimeStamp());
             nextMachineStatement.setString(5, instanceId.getInstanceId());
             nextMachineStatement.setLong(6, System.currentTimeMillis());
+            if (stableColumnPresent) {
+                nextMachineStatement.setInt(7, stableValue(instanceId));
+            }
             try {
                 nextMachineStatement.executeUpdate();
                 return nextMachineState;
@@ -179,7 +233,8 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     }
     
     private MachineState distributeByRevert(String namespace, InstanceId instanceId, Connection connection, Duration safeGuardDuration) throws SQLException {
-        try (PreparedStatement getRevertMachineStatement = JdbcSupport.prepareStatement(connection, GET_REVERT_MACHINE_STATE, queryTimeoutSeconds)) {
+        String getRevertMachineStateSql = hasStableColumn(connection) ? GET_REVERT_MACHINE_STATE_EXCLUDING_STABLE : GET_REVERT_MACHINE_STATE;
+        try (PreparedStatement getRevertMachineStatement = JdbcSupport.prepareStatement(connection, getRevertMachineStateSql, queryTimeoutSeconds)) {
             getRevertMachineStatement.setString(1, namespace);
             getRevertMachineStatement.setLong(2, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()));
             try (ResultSet resultSet = getRevertMachineStatement.executeQuery()) {
@@ -205,12 +260,62 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
                     int machineId = resultSet.getInt(1);
                     long lastTimeStamp = resultSet.getLong(2);
                     MachineState machineState = MachineState.of(machineId, Math.max(lastTimeStamp, System.currentTimeMillis()));
-                    guardRemote(namespace, instanceId, machineState, safeGuardDuration);
+                    if (hasStableColumn(connection)) {
+                        // Also records a change of the stable setting of this instance.
+                        distributeSelfWithStable(connection, namespace, instanceId, machineState);
+                    } else {
+                        guardRemote(namespace, instanceId, machineState, safeGuardDuration);
+                    }
                     return machineState;
                 }
             }
         }
         return null;
+    }
+    
+    private void distributeSelfWithStable(Connection connection, String namespace, InstanceId instanceId, MachineState machineState) throws SQLException {
+        try (PreparedStatement selfStatement = JdbcSupport.prepareStatement(connection, DISTRIBUTE_SELF_WITH_STABLE, queryTimeoutSeconds)) {
+            selfStatement.setLong(1, machineState.getLastTimeStamp());
+            selfStatement.setInt(2, stableValue(instanceId));
+            selfStatement.setString(3, namespace);
+            selfStatement.setString(4, instanceId.getInstanceId());
+            selfStatement.setInt(5, machineState.getMachineId());
+            if (selfStatement.executeUpdate() == 0) {
+                throw new MachineIdLostException(namespace, instanceId, machineState);
+            }
+        }
+    }
+    
+    private static int stableValue(InstanceId instanceId) {
+        return instanceId.isStable() ? 1 : 0;
+    }
+    
+    /**
+     * Probe once whether {@code cosid_machine} has the {@code stable} column. Without it (a table created by an older
+     * version), the machine id of a stable instance can still be recycled after it has been offline for longer than the
+     * safe guard duration, as before; add the column with {@link #ADD_STABLE_COLUMN_SQL} to prevent that.
+     */
+    private boolean hasStableColumn(Connection connection) throws SQLException {
+        Boolean present = stableColumn;
+        if (present != null) {
+            return present;
+        }
+        try (PreparedStatement probeStatement = JdbcSupport.prepareStatement(connection, PROBE_STABLE_COLUMN, queryTimeoutSeconds)) {
+            probeStatement.executeQuery().close();
+            present = true;
+        } catch (SQLException sqlException) {
+            // SQLState class 42: syntax error or access rule violation, here an unknown column. Anything else is not an answer.
+            if (sqlException.getSQLState() == null || !sqlException.getSQLState().startsWith("42")) {
+                throw sqlException;
+            }
+            present = false;
+            if (log.isWarnEnabled()) {
+                log.warn("Table cosid_machine has no stable column, so the machine id of a stable instance may be recycled by other instances "
+                    + "once it has been offline for longer than the safe guard duration. Add it with: [{}].", ADD_STABLE_COLUMN_SQL);
+            }
+        }
+        stableColumn = present;
+        return present;
     }
     
     @Override

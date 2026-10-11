@@ -89,7 +89,7 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         
         List<String> keys = Collections.singletonList(hashTag(namespace));
         Object[] values = {instanceId.getInstanceId(), String.valueOf(MachineIdDistributor.maxMachineId(machineBit)), String.valueOf(System.currentTimeMillis()),
-            String.valueOf(MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()))};
+            String.valueOf(MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable())), instanceId.isStable() ? "1" : "0"};
         // Not bounded by commandTimeout: this is the first command at startup and pays for connecting and class loading.
         @SuppressWarnings("unchecked")
         List<Long> state = (List<Long>) redisTemplate.execute(MACHINE_ID_DISTRIBUTE, keys, values);

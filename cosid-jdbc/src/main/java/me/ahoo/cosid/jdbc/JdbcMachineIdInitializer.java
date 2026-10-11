@@ -45,6 +45,7 @@ public class JdbcMachineIdInitializer {
             + "    instance_id     varchar(100)     not null default '',\n"
             + "    distribute_time bigint unsigned  not null default 0,\n"
             + "    revert_time     bigint unsigned  not null default 0,\n"
+            + "    stable          tinyint          not null default 0,\n"
             + "    constraint cosid_machine_pk\n"
             + "        primary key (name),\n"
             + "    key idx_namespace (namespace),\n"

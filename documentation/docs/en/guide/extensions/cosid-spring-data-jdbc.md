@@ -24,6 +24,11 @@ Since 4.0 the integration is off by default. With the starter, set `cosid.jdbc.e
 ```
 :::
 
+
+::: tip `cosid-accessor`
+`@CosId` and the id field accessors are in the `me.ahoo.cosid:cosid-accessor` artifact (since 4.0), which this module brings in. Use it directly only to fill `@CosId` fields without MyBatis, Spring Data JDBC or the starter.
+:::
+
 ## Usage
 
 ::: code-group

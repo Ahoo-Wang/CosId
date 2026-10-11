@@ -52,6 +52,32 @@ class ProxyServerTest {
             .build();
 
     @Test
+    void segmentStepIsUnlimitedByDefaultAndCanBeCapped() {
+        webTestClient.patch().uri("/segments/test_namespace/large?step=100000000").exchange().expectStatus().isOk();
+
+        me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties properties = new me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties();
+        properties.getSegment().setMaxStep(1000);
+        WebTestClient capped = WebTestClient
+            .bindToController(new SegmentController(segmentDistributorFactory, properties))
+            .controllerAdvice(new GlobalRestExceptionHandler())
+            .build();
+        capped.patch().uri("/segments/test_namespace/capped?step=1000").exchange().expectStatus().isOk();
+        capped.patch().uri("/segments/test_namespace/capped?step=1001").exchange().expectStatus().isBadRequest();
+        capped.post().uri("/segments/distributor/test_namespace/capped2?offset=0&step=1001").exchange().expectStatus().isBadRequest();
+    }
+
+    @Test
+    void segmentArgumentsAreValidated() {
+        webTestClient.post().uri("/segments/distributor/test_namespace/order?offset=-1&step=20").exchange().expectStatus().isBadRequest();
+        webTestClient.post().uri("/segments/distributor/test_namespace/order?offset=0&step=0").exchange().expectStatus().isBadRequest();
+        webTestClient.post().uri("/segments/distributor/test_namespace/order?offset=9223372036854775807&step=1").exchange().expectStatus().isBadRequest();
+        webTestClient.patch().uri("/segments/test_namespace/order?step=-5").exchange().expectStatus().isBadRequest();
+        webTestClient.patch().uri(java.net.URI.create("/segments/%20/order?step=5")).exchange().expectStatus().isBadRequest();
+
+        assertThat(segmentDistributorFactory.lastDefinition.get()).isNull();
+    }
+
+    @Test
     void segmentEndpointsExposeCreateAndNextMaxIdContract() {
         webTestClient
             .post()

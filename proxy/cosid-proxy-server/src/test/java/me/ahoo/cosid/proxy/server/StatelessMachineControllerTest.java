@@ -160,7 +160,8 @@ class StatelessMachineControllerTest {
 
     @Test
     void serverNeverSynchronizesItsOwnClockAgainstClientState() {
-        long future = System.currentTimeMillis() + Duration.ofHours(1).toMillis();
+        // Ahead of the server clock, but within cosid.proxy.server.max-clock-skew.
+        long future = System.currentTimeMillis() + Duration.ofSeconds(30).toMillis();
         store.states.put("node-1", MachineState.of(0, future));
         WebTestClient server = newServerNode();
 
@@ -172,6 +173,25 @@ class StatelessMachineControllerTest {
 
         assertThat(state.getLastTimeStamp()).isEqualTo(future);
         assertThat(clockSyncCalls).hasValue(0);
+    }
+
+    @Test
+    void lastTimeStampTooFarAheadIsBadRequest() {
+        WebTestClient server = newServerNode();
+        MachineState state = distribute(server, "node-1");
+        long tooFar = System.currentTimeMillis() + Duration.ofMinutes(10).toMillis();
+
+        server.patch()
+            .uri("/machines/{ns}?instanceId=node-1&stable=false&safeGuardDuration=PT30S&machineId={m}&lastTimeStamp={t}",
+                NAMESPACE, state.getMachineId(), tooFar)
+            .exchange()
+            .expectStatus().isBadRequest();
+        server.delete()
+            .uri("/machines/{ns}?instanceId=node-1&stable=false&machineId={m}&lastTimeStamp={t}", NAMESPACE, state.getMachineId(), tooFar)
+            .exchange()
+            .expectStatus().isBadRequest();
+
+        assertThat(store.states.get("node-1").getLastTimeStamp()).isLessThan(tooFar);
     }
 
     @Test

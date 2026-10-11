@@ -87,7 +87,7 @@ public class ProxyAuthWebFilter implements WebFilter {
         return exchange.getResponse().setComplete();
     }
     
-    boolean isPublic(PathContainer path) {
+    public boolean isPublic(PathContainer path) {
         for (PathPattern publicPath : publicPaths) {
             if (publicPath.matches(path)) {
                 return true;

@@ -29,6 +29,7 @@ import me.ahoo.cosid.machine.lease.MachineLeaseStore;
 
 import com.google.common.base.Preconditions;
 import com.mongodb.ErrorCategory;
+import com.mongodb.MongoCommandException;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -53,7 +54,8 @@ import java.util.concurrent.TimeUnit;
  * <p>It uses the same documents as {@link MongoMachineIdDistributor} (a released machine id has an empty
  * {@code instanceId}), so instances running either one can share a namespace during an upgrade. The server clock is
  * the {@code localTime} of the {@code hello} command, and every operation has the driver's client-side timeout
- * ({@code timeoutMS}). Claims use pipeline updates, which need MongoDB 4.2 or later.</p>
+ * ({@code timeoutMS}). Claims use pipeline updates, which need MongoDB 4.2 or later. On a sharded cluster the server clock is the
+ * {@code mongos} one, so keep the {@code mongos} clocks in sync.</p>
  *
  * @author ahoo wang
  * @since 3.4.0
@@ -63,6 +65,11 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
      * Upper bound of insert attempts when concurrent instances race for the same new machine id.
      */
     static final int MAX_ATTEMPTS = 32;
+    
+    /**
+     * Error code of an unknown command ({@code CommandNotFound}).
+     */
+    private static final int COMMAND_NOT_FOUND = 59;
     
     private static final FindOneAndUpdateOptions SMALLEST_MACHINE_ID_AFTER = new FindOneAndUpdateOptions()
         .sort(Sorts.ascending(MACHINE_ID_FIELD))
@@ -182,11 +189,21 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
     }
     
     /**
-     * The {@code localTime} of the server's {@code hello} command.
+     * The {@code localTime} of the server's {@code hello} command, or of {@code isMaster} on servers before 4.2.10,
+     * which have no {@code hello}.
      */
     @Override
     public long serverTime() {
-        Date localTime = database.runCommand(new Document("hello", 1)).getDate("localTime");
+        Document reply;
+        try {
+            reply = database.runCommand(new Document("hello", 1));
+        } catch (MongoCommandException commandException) {
+            if (commandException.getErrorCode() != COMMAND_NOT_FOUND) {
+                throw commandException;
+            }
+            reply = database.runCommand(new Document("isMaster", 1));
+        }
+        Date localTime = reply.getDate("localTime");
         return Preconditions.checkNotNull(localTime, "hello returned no localTime!").getTime();
     }
 }

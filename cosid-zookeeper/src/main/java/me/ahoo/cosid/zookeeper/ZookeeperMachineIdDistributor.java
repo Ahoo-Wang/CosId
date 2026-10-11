@@ -167,15 +167,31 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         /**
          * when {@link instanceId.stable} is true .
          */
+        Stat stat = new Stat();
+        MachineState selfState;
         try {
-            byte[] stateBuf = curatorFramework.getData().forPath(instancePath);
-            if (stateBuf != null) {
-                return MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+            byte[] stateBuf = curatorFramework.getData().storingStatIn(stat).forPath(instancePath);
+            if (stateBuf == null) {
+                return null;
             }
+            selfState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
         } catch (KeeperException.NoNodeException noNodeException) {
             return null;
         }
-        return null;
+        MachineState renewedState = renew(selfState);
+        /*
+         * Renew with the version that was read: if another instance recycled (or changed) the node in between, the machine id
+         * is no longer ours, so fall back to the other distribution paths instead of reusing it.
+         */
+        try {
+            curatorFramework.setData().withVersion(stat.getVersion()).forPath(instancePath, toBytes(renewedState));
+        } catch (KeeperException.NoNodeException | KeeperException.BadVersionException conflictException) {
+            if (log.isDebugEnabled()) {
+                log.debug("Try Distribute - reclaim instancePath:[{}] failed!", instancePath);
+            }
+            return null;
+        }
+        return renewedState;
     }
     
     private MachineState distributeByRevert(String namespace, String instancePath) throws Exception {
@@ -197,13 +213,18 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
                  * Claim the reverted machine id atomically: the revert node is removed only if nobody changed it since it was read,
                  * and the instance node is created in the same transaction, so a crash can never leak the machine id.
                  */
-                if (!tryMove(revertMachinePath, stat.getVersion(), instancePath, revertMachineState)) {
+                /*
+                 * The claimed state is renewed: keeping the reverted timestamp would make it look expired to other instances,
+                 * which could then recycle it while this instance is still using it.
+                 */
+                MachineState claimedState = renew(revertMachineState);
+                if (!tryMove(revertMachinePath, stat.getVersion(), instancePath, claimedState)) {
                     if (log.isDebugEnabled()) {
                         log.debug("Try Distribute - claim revertMachinePath:[{}] failed!", revertMachinePath);
                     }
                     continue;
                 }
-                return revertMachineState;
+                return claimedState;
             }
         }
         return null;
@@ -233,7 +254,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
             if (instanceMachineState.getLastTimeStamp() > safeGuardAt) {
                 continue;
             }
-            MachineState machineState = MachineState.of(instanceMachineState.getMachineId(), Math.max(instanceMachineState.getLastTimeStamp(), System.currentTimeMillis()));
+            MachineState machineState = renew(instanceMachineState);
             /*
              * The versioned delete fails if the owner guarded (setData) after the read above, so a live machine id is never taken over.
              */
@@ -290,8 +311,18 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         }
         String instancePath = getInstancePath(namespace, instanceId.getInstanceId());
         try {
-            curatorFramework.setData().forPath(instancePath, machineState.toStateString().getBytes(StandardCharsets.UTF_8));
-        } catch (KeeperException.NoNodeException noNodeException) {
+            Stat stat = new Stat();
+            byte[] stateBuf = curatorFramework.getData().storingStatIn(stat).forPath(instancePath);
+            MachineState remoteMachineState = MachineState.of(new String(stateBuf, StandardCharsets.UTF_8));
+            /*
+             * Only renew a machine id this instance still owns: the node must hold the same machine id, and must not change
+             * between the read and the versioned write.
+             */
+            if (remoteMachineState.getMachineId() != machineState.getMachineId()) {
+                throw new MachineIdLostException(namespace, instanceId, machineState);
+            }
+            curatorFramework.setData().withVersion(stat.getVersion()).forPath(instancePath, toBytes(machineState));
+        } catch (KeeperException.NoNodeException | KeeperException.BadVersionException lostException) {
             throw new MachineIdLostException(namespace, instanceId, machineState);
         } catch (RuntimeException | Error runtimeException) {
             throw runtimeException;
@@ -350,6 +381,13 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         } catch (Exception exception) {
             throw new CosIdException(exception.getMessage(), exception);
         }
+    }
+    
+    /**
+     * The state to write when taking a machine id: same machine id, last timestamp moved up to now (never backwards).
+     */
+    private static MachineState renew(MachineState machineState) {
+        return MachineState.of(machineState.getMachineId(), Math.max(machineState.getLastTimeStamp(), System.currentTimeMillis()));
     }
     
     private static byte[] toBytes(MachineState machineState) {

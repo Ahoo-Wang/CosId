@@ -197,6 +197,128 @@ class ZookeeperMachineIdDistributorRaceTest {
         Assertions.assertEquals(2, exception.getTotalMachineIds());
     }
 
+    @Test
+    void claimFromRevertPoolRenewsTimestamp() {
+        String namespace = MockIdGenerator.usePrefix("claimRevertRenews").generateAsString();
+        ZookeeperMachineIdDistributor distributor = distributor(curatorFramework, new InMemoryMachineStateStorage());
+        InstanceId reverted = InstanceId.of("reverted", false);
+        distributor.distribute(namespace, MACHINE_BIT, reverted, SAFE_GUARD_DURATION);
+        distributor.revert(namespace, reverted);
+        // The reverted machine id carries an old timestamp.
+        writeState(revertPath(namespace) + "/0", MachineState.of(0, 1));
+        InstanceId claimer = InstanceId.of("claimer", false);
+        long before = System.currentTimeMillis();
+
+        MachineState actual = distributor(curatorFramework, new InMemoryMachineStateStorage())
+            .distribute(namespace, MACHINE_BIT, claimer, SAFE_GUARD_DURATION);
+
+        Assertions.assertEquals(0, actual.getMachineId());
+        Assertions.assertTrue(readState(instancePath(namespace, claimer)).getLastTimeStamp() >= before);
+        assertNotRecyclable(namespace);
+    }
+
+    @Test
+    void reclaimOwnMachineIdRenewsTimestamp() {
+        String namespace = MockIdGenerator.usePrefix("reclaimOwnRenews").generateAsString();
+        InstanceId stable = InstanceId.of("stable", true);
+        distributor(curatorFramework, new InMemoryMachineStateStorage()).distribute(namespace, MACHINE_BIT, stable, SAFE_GUARD_DURATION);
+        writeState(instancePath(namespace, stable), MachineState.of(0, 1));
+        long before = System.currentTimeMillis();
+
+        // Restart: no local state.
+        MachineState actual = distributor(curatorFramework, new InMemoryMachineStateStorage())
+            .distribute(namespace, MACHINE_BIT, stable, SAFE_GUARD_DURATION);
+
+        Assertions.assertEquals(0, actual.getMachineId());
+        Assertions.assertTrue(readState(instancePath(namespace, stable)).getLastTimeStamp() >= before);
+        assertNotRecyclable(namespace);
+    }
+
+    @Test
+    void reclaimOwnMachineIdFallsBackWhenRecycledAfterRead() {
+        String namespace = MockIdGenerator.usePrefix("reclaimOwnRecycled").generateAsString();
+        ZookeeperMachineIdDistributor distributor = distributor(curatorFramework, new InMemoryMachineStateStorage());
+        InstanceId stable = InstanceId.of("stable", true);
+        Assertions.assertEquals(0, distributor.distribute(namespace, MACHINE_BIT, stable, SAFE_GUARD_DURATION).getMachineId());
+        Assertions.assertEquals(1, distributor.distribute(namespace, MACHINE_BIT, InstanceId.of("live-owner", false), SAFE_GUARD_DURATION).getMachineId());
+        String stablePath = instancePath(namespace, stable);
+        writeState(stablePath, MachineState.of(0, 1));
+        InstanceId newcomer = InstanceId.of("newcomer", false);
+        // Another instance recycles the expired machine id right after the restarted owner read its own node.
+        CuratorFramework racingCurator = afterRead(curatorFramework, stablePath,
+            () -> distributor(curatorFramework, new InMemoryMachineStateStorage()).distribute(namespace, MACHINE_BIT, newcomer, SAFE_GUARD_DURATION));
+
+        Assertions.assertThrows(MachineIdOverflowException.class,
+            () -> distributor(racingCurator, new InMemoryMachineStateStorage()).distribute(namespace, MACHINE_BIT, stable, SAFE_GUARD_DURATION));
+
+        Assertions.assertEquals(0, readState(instancePath(namespace, newcomer)).getMachineId());
+    }
+
+    @Test
+    @SneakyThrows
+    void recycleSkipsCandidateRenewedAfterReadAndTakesNext() {
+        String namespace = MockIdGenerator.usePrefix("recycleNext").generateAsString();
+        ZookeeperMachineIdDistributor distributor = distributor(curatorFramework, new InMemoryMachineStateStorage());
+        InstanceId renewedOwner = InstanceId.of("renewed-owner", false);
+        InstanceId expiredOwner = InstanceId.of("expired-owner", false);
+        int renewedMachineId = distributor.distribute(namespace, MACHINE_BIT, renewedOwner, SAFE_GUARD_DURATION).getMachineId();
+        int expiredMachineId = distributor.distribute(namespace, MACHINE_BIT, expiredOwner, SAFE_GUARD_DURATION).getMachineId();
+        String renewedOwnerPath = instancePath(namespace, renewedOwner);
+        writeState(renewedOwnerPath, MachineState.of(renewedMachineId, 1));
+        writeState(instancePath(namespace, expiredOwner), MachineState.of(expiredMachineId, 1));
+        CuratorFramework racingCurator = afterRead(curatorFramework, renewedOwnerPath,
+            () -> writeState(renewedOwnerPath, MachineState.of(renewedMachineId, System.currentTimeMillis())));
+        InstanceId newcomer = InstanceId.of("newcomer", false);
+
+        MachineState actual = distributor(racingCurator, new InMemoryMachineStateStorage()).distribute(namespace, MACHINE_BIT, newcomer, SAFE_GUARD_DURATION);
+
+        Assertions.assertEquals(expiredMachineId, actual.getMachineId());
+        Assertions.assertEquals(renewedMachineId, readState(renewedOwnerPath).getMachineId());
+        Assertions.assertNull(curatorFramework.checkExists().forPath(instancePath(namespace, expiredOwner)));
+    }
+
+    @Test
+    void guardMustRejectMachineIdNotOwned() {
+        String namespace = MockIdGenerator.usePrefix("guardNotOwned").generateAsString();
+        InstanceId owner = InstanceId.of("owner", false);
+        distributor(curatorFramework, new InMemoryMachineStateStorage()).distribute(namespace, MACHINE_BIT, owner, SAFE_GUARD_DURATION);
+        MachineState ownerState = readState(instancePath(namespace, owner));
+        // e.g. a forged machine id sent through the proxy.
+        MachineStateStorage forgedStorage = new InMemoryMachineStateStorage();
+        forgedStorage.set(namespace, 1, owner);
+
+        Assertions.assertThrows(MachineIdLostException.class,
+            () -> distributor(curatorFramework, forgedStorage).guard(namespace, owner, SAFE_GUARD_DURATION));
+
+        Assertions.assertEquals(ownerState.toStateString(), readState(instancePath(namespace, owner)).toStateString());
+    }
+
+    @Test
+    void guardMustNotOverwriteNodeChangedAfterRead() {
+        String namespace = MockIdGenerator.usePrefix("guardChanged").generateAsString();
+        MachineStateStorage storage = new InMemoryMachineStateStorage();
+        InstanceId owner = InstanceId.of("owner", false);
+        distributor(curatorFramework, storage).distribute(namespace, MACHINE_BIT, owner, SAFE_GUARD_DURATION);
+        String ownerPath = instancePath(namespace, owner);
+        MachineState changed = MachineState.of(1, 42);
+        CuratorFramework racingCurator = afterRead(curatorFramework, ownerPath, () -> writeState(ownerPath, changed));
+
+        Assertions.assertThrows(MachineIdLostException.class,
+            () -> distributor(racingCurator, storage).guard(namespace, owner, SAFE_GUARD_DURATION));
+
+        Assertions.assertEquals(changed.toStateString(), readState(ownerPath).toStateString());
+    }
+
+    /**
+     * Fill the remaining machine id with a live owner, then check a newcomer cannot recycle any machine id of the namespace.
+     */
+    private void assertNotRecyclable(String namespace) {
+        ZookeeperMachineIdDistributor distributor = distributor(curatorFramework, new InMemoryMachineStateStorage());
+        distributor.distribute(namespace, MACHINE_BIT, InstanceId.of("live-owner", false), SAFE_GUARD_DURATION);
+        Assertions.assertThrows(MachineIdOverflowException.class,
+            () -> distributor.distribute(namespace, MACHINE_BIT, InstanceId.of("newcomer", false), SAFE_GUARD_DURATION));
+    }
+
     /**
      * Wrap a {@link CuratorFramework} so that {@code hook} runs once, right after {@code getData()...forPath(targetPath)} returns.
      */

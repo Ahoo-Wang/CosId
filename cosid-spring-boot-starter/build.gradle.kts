@@ -64,6 +64,7 @@ java {
 
 dependencies {
     api(project(":cosid-core"))
+    api(project(":cosid-accessor"))
 
     "springRedisSupportImplementation"(project(":cosid-spring-redis"))
     "springRedisSupportImplementation"("org.springframework.boot:spring-boot-starter-data-redis")

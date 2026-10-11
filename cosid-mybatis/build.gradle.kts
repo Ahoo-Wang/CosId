@@ -12,7 +12,7 @@
  */
 
 dependencies {
-    api(project(":cosid-core"))
+    api(project(":cosid-accessor"))
     implementation("org.mybatis:mybatis")
     testImplementation(project(":cosid-test"))
 }

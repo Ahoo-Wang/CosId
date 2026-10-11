@@ -35,12 +35,12 @@ import org.springframework.context.annotation.Bean;
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnClass(CosIdBeforeConvertCallback.class)
-@ConditionalOnProperty(value = CosIdJdbcAutoConfiguration.ENABLED_KEY, matchIfMissing = true, havingValue = "true")
+@ConditionalOnProperty(value = CosIdJdbcAutoConfiguration.ENABLED_KEY, havingValue = "true")
 public class CosIdJdbcAutoConfiguration {
     /**
-     * Turns the Spring Data JDBC integration ({@code @Id} fields and the before-convert callback) off with {@code false}.
-     * Default {@code true} in 3.x; 4.0 will default to {@code false}, because the {@code @Id} parser joins the global
-     * field definition parser and also takes over {@code @Id} fields on other paths, such as MyBatis.
+     * Turns the Spring Data JDBC integration ({@code @Id} fields and the before-convert callback) on with {@code true}.
+     * Default {@code false} since 4.0, because the {@code @Id} parser joins the global field definition parser and also
+     * takes over {@code @Id} fields on other paths, such as MyBatis.
      */
     public static final String ENABLED_KEY = CosId.COSID_PREFIX + "jdbc" + EnabledSuffix.KEY;
 

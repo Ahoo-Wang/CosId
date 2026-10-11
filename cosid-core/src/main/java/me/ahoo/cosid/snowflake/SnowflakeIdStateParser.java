@@ -18,16 +18,16 @@ import static me.ahoo.cosid.cosid.FriendlyIdStateParser.intAsString;
 
 import me.ahoo.cosid.IdGeneratorDecorator;
 import me.ahoo.cosid.converter.RadixIdConverter;
+import me.ahoo.cosid.internal.Checks;
 
 import com.google.errorprone.annotations.ThreadSafe;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 
 /**
@@ -206,10 +206,13 @@ public abstract class SnowflakeIdStateParser {
      * @throws NullPointerException     if friendlyId is null
      */
     public SnowflakeIdState parse(String friendlyId) {
-        Preconditions.checkNotNull(friendlyId, "friendlyId can not be null!");
-        List<String> segments = Splitter.on(DELIMITER).trimResults().omitEmptyStrings().splitToList(friendlyId);
+        Checks.checkNotNull(friendlyId, "friendlyId can not be null!");
+        List<String> segments = Arrays.stream(friendlyId.split(Pattern.quote(DELIMITER)))
+            .map(String::trim)
+            .filter(part -> !part.isEmpty())
+            .toList();
         if (segments.size() != 3) {
-            throw new IllegalArgumentException(Strings.lenientFormat("friendlyId :[%s] Illegal.", friendlyId));
+            throw new IllegalArgumentException(Checks.lenientFormat("friendlyId :[%s] Illegal.", friendlyId));
         }
         String timestampStr = segments.get(0);
         LocalDateTime timestamp = LocalDateTime.parse(timestampStr, getDateTimeFormatter());
@@ -262,7 +265,7 @@ public abstract class SnowflakeIdStateParser {
     }
 
     private void checkComponentRange(String component, long value, String maxComponent, long maxValue) {
-        Preconditions.checkArgument(value >= 0 && value <= maxValue,
+        Checks.checkArgument(value >= 0 && value <= maxValue,
             "%s:[%s] must be between 0 and %s:[%s]!", component, value, maxComponent, maxValue);
     }
 

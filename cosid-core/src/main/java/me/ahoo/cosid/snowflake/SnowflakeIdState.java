@@ -134,7 +134,7 @@ public class SnowflakeIdState implements Comparable<SnowflakeIdState> {
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(id);
+        return Objects.hash(id);
     }
 
     @Override

@@ -13,10 +13,10 @@
 
 package me.ahoo.cosid.machine.lease;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineState;
 
-import com.google.common.base.Preconditions;
 import com.google.errorprone.annotations.Immutable;
 
 import java.util.Objects;
@@ -41,9 +41,9 @@ public final class Lease {
     private final long version;
     
     public Lease(String namespace, InstanceId instanceId, int machineId, long lastTimestamp, long version) {
-        Preconditions.checkNotNull(namespace, "namespace can not be null!");
-        Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
-        Preconditions.checkArgument(machineId >= 0, "machineId:[%s] must be greater than or equal to 0!", machineId);
+        Checks.checkNotNull(namespace, "namespace can not be null!");
+        Checks.checkNotNull(instanceId, "instanceId can not be null!");
+        Checks.checkArgument(machineId >= 0, "machineId:[%s] must be greater than or equal to 0!", machineId);
         this.namespace = namespace;
         this.instanceId = instanceId;
         this.machineId = machineId;

@@ -14,8 +14,8 @@
 package me.ahoo.cosid.snowflake.exception;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 
-import com.google.common.base.Strings;
 
 /**
  * Exception thrown when timestamp exceeds maximum value.
@@ -39,7 +39,7 @@ public class TimestampOverflowException extends CosIdException {
      * @param maxTimestamp   the maximum representable timestamp
      */
     public TimestampOverflowException(long epoch, long diffTimestamp, long maxTimestamp) {
-        super(Strings.lenientFormat("epoch:[%s] - diffTimestamp:[%s] can't be greater than maxTimestamp:[%s]", epoch, diffTimestamp, maxTimestamp));
+        super(Checks.lenientFormat("epoch:[%s] - diffTimestamp:[%s] can't be greater than maxTimestamp:[%s]", epoch, diffTimestamp, maxTimestamp));
         this.epoch = epoch;
         this.diffTimestamp = diffTimestamp;
         this.maxTimestamp = maxTimestamp;

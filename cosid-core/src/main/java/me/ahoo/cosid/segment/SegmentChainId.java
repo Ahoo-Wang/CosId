@@ -15,14 +15,13 @@ package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.concurrent.AffinityJob;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorker;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.segment.grouped.GroupedId;
 import me.ahoo.cosid.util.Clock;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -155,9 +154,9 @@ public class SegmentChainId implements SegmentId {
      */
     public SegmentChainId(long idSegmentTtl, int safeDistance, int maxPrefetchDistance, IdSegmentDistributor maxIdDistributor,
                           PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
-        Preconditions.checkArgument(idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
-        Preconditions.checkArgument(safeDistance > 0, "The safety distance must be greater than 0.");
-        Preconditions.checkArgument(maxPrefetchDistance >= safeDistance, "maxPrefetchDistance:[%s] must be greater than or equal to safeDistance:[%s].",
+        Checks.checkArgument(idSegmentTtl > 0, Checks.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
+        Checks.checkArgument(safeDistance > 0, "The safety distance must be greater than 0.");
+        Checks.checkArgument(maxPrefetchDistance >= safeDistance, "maxPrefetchDistance:[%s] must be greater than or equal to safeDistance:[%s].",
             maxPrefetchDistance, safeDistance);
         this.headChain = IdSegmentChain.newRoot(maxIdDistributor.allowReset());
         this.idSegmentTtl = idSegmentTtl;

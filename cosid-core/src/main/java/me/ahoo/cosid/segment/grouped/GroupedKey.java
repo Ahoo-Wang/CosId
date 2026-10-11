@@ -13,10 +13,9 @@
 
 package me.ahoo.cosid.segment.grouped;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.IdSegment;
 import me.ahoo.cosid.util.Clock;
-
-import com.google.common.base.MoreObjects;
 
 import java.util.Objects;
 
@@ -94,10 +93,7 @@ public final class GroupedKey {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("key", key)
-            .add("ttlAt", ttlAt)
-            .toString();
+        return Checks.toString(this, "key", key, "ttlAt", ttlAt);
     }
 
     /**

@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.segment;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import me.ahoo.cosid.internal.Checks;
+
 import org.jspecify.annotations.NonNull;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -37,8 +37,8 @@ public abstract class AbstractIdSegmentDistributor implements IdSegmentDistribut
     private final AtomicLong lastMaxId = new AtomicLong();
     
     protected AbstractIdSegmentDistributor(String namespace, String name, long step) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(namespace), "namespace can not be empty!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(name), "name can not be empty!");
         IdSegmentDistributor.ensureStep(step);
         this.namespace = namespace;
         this.name = name;

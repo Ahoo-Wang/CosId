@@ -21,8 +21,6 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.test.segment.distributor.IdSegmentDistributorSpec;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -66,9 +64,4 @@ class ProxyIdSegmentDistributorEndToEndTest extends IdSegmentDistributorSpec {
         redisTemplate.opsForValue().set(CosId.COSID + ":{" + distributor.getNamespacedName() + "}.adder", String.valueOf(maxId));
     }
     
-    @Test
-    @Disabled("The proxy client has no lastMaxId guard yet; P1-3 adds one in AbstractIdSegmentDistributor.")
-    @Override
-    public void nextMaxIdWhenBack() {
-    }
 }

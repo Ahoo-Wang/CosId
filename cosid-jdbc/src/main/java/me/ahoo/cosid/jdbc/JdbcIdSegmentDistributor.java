@@ -16,7 +16,7 @@ package me.ahoo.cosid.jdbc;
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.jdbc.exception.NotFoundMaxIdException;
 import me.ahoo.cosid.jdbc.exception.SegmentNameMissingException;
-import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -36,21 +36,17 @@ import java.time.Duration;
  * @author ahoo wang
  */
 @Slf4j
-public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
+public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
 
     public static final String INCREMENT_MAX_ID_SQL
         = "update cosid set last_max_id=(last_max_id + ?),last_fetch_time=unix_timestamp() where name = ?;";
     public static final String FETCH_MAX_ID_SQL
         = "select last_max_id from cosid where name = ?;";
 
-    private final String namespace;
-    private final String name;
-    private final long step;
     private final DataSource dataSource;
     private final String incrementMaxIdSql;
     private final String fetchMaxIdSql;
     private final int queryTimeoutSeconds;
-    private volatile long lastMaxId;
 
     public JdbcIdSegmentDistributor(String namespace, String name, long step, DataSource dataSource) {
         this(namespace, name, step, INCREMENT_MAX_ID_SQL, FETCH_MAX_ID_SQL, dataSource);
@@ -67,43 +63,24 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
      */
     public JdbcIdSegmentDistributor(String namespace, String name, long step, String incrementMaxIdSql, String fetchMaxIdSql, DataSource dataSource,
                                     Duration queryTimeout) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
-        Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
+        super(namespace, name, step);
         Preconditions.checkArgument(!Strings.isNullOrEmpty(incrementMaxIdSql), "incrementMaxIdSql can not be empty!");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(fetchMaxIdSql), "fetchMaxIdSql can not be empty!");
         Preconditions.checkNotNull(dataSource, "dataSource can not be null!");
 
-        this.namespace = namespace;
-        this.name = name;
-        this.step = step;
         this.incrementMaxIdSql = incrementMaxIdSql;
         this.fetchMaxIdSql = fetchMaxIdSql;
         this.dataSource = dataSource;
         this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
     }
 
-    @Override
-    public @NonNull String getNamespace() {
-        return namespace;
-    }
+
+
 
     @Override
-    public @NonNull String getName() {
-        return name;
-    }
-
-    @Override
-    public long getStep() {
-        return step;
-    }
-
-    @Override
-    public long nextMaxId(long step) {
-        IdSegmentDistributor.ensureStep(step);
+    protected long doNextMaxId(long step) {
         try (Connection connection = dataSource.getConnection()) {
             connection.setAutoCommit(false);
-            final long nextMinMaxId = lastMaxId + step;
             long nextMaxId;
             try {
                 nextMaxId = incrementAndFetch(connection, step);
@@ -113,9 +90,6 @@ public class JdbcIdSegmentDistributor implements IdSegmentDistributor {
                 JdbcSupport.rollbackQuietly(connection, throwable);
                 throw throwable;
             }
-            // The stored max id went backwards (e.g. restored from a backup): this range overlaps ids already issued.
-            Preconditions.checkState(nextMaxId >= nextMinMaxId, "nextMaxId:[%s] must be greater than nextMinMaxId:[%s]!", nextMaxId, nextMinMaxId);
-            this.lastMaxId = nextMaxId;
             return nextMaxId;
         } catch (SQLException sqlException) {
             if (log.isErrorEnabled()) {

@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.proxy.server.error;
 
+import static me.ahoo.cosid.proxy.api.ErrorResponse.ILLEGAL_STATE;
 import static me.ahoo.cosid.proxy.api.ErrorResponse.MACHINE_ID_LOST;
 import static me.ahoo.cosid.proxy.api.ErrorResponse.MACHINE_ID_OVERFLOW;
 import static me.ahoo.cosid.proxy.api.ErrorResponse.NOT_FOUND_MACHINE_STATE;
@@ -76,6 +77,19 @@ public class GlobalRestExceptionHandler {
         return ResponseEntity
             .badRequest()
             .body(ErrorResponse.of(MACHINE_ID_LOST, ex.getMessage()));
+    }
+    
+    /**
+     * E.g. the segment max id moved backwards: a conflict with the server's state, not a server bug.
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalState(IllegalStateException ex) {
+        if (log.isWarnEnabled()) {
+            log.warn(ex.getMessage(), ex);
+        }
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ErrorResponse.of(ILLEGAL_STATE, ex.getMessage()));
     }
     
     @ResponseStatus(HttpStatus.BAD_REQUEST)

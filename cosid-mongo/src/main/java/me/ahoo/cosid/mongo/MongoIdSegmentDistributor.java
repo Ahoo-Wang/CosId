@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.mongo;
 
+import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
 import com.google.common.base.Preconditions;
@@ -25,41 +26,22 @@ import org.jspecify.annotations.NonNull;
  * @author ahoo wang
  */
 @Slf4j
-public class MongoIdSegmentDistributor implements IdSegmentDistributor {
-    private final String namespace;
-    private final String name;
+public class MongoIdSegmentDistributor extends AbstractIdSegmentDistributor {
     private final long offset;
-    private final long step;
     private final IdSegmentCollection idSegmentCollection;
     
     public MongoIdSegmentDistributor(String namespace, String name, long offset, long step, IdSegmentCollection idSegmentCollection) {
+        super(namespace, name, step);
         Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
-        IdSegmentDistributor.ensureStep(step);
-        this.namespace = namespace;
-        this.name = name;
         this.offset = offset;
-        this.step = step;
         this.idSegmentCollection = idSegmentCollection;
     }
     
-    @Override
-    public @NonNull String getNamespace() {
-        return namespace;
-    }
+    
+    
     
     @Override
-    public @NonNull String getName() {
-        return name;
-    }
-    
-    @Override
-    public long getStep() {
-        return step;
-    }
-    
-    @Override
-    public long nextMaxId(long step) {
-        IdSegmentDistributor.ensureStep(step);
+    protected long doNextMaxId(long step) {
         String namespacedName = getNamespacedName();
         return idSegmentCollection.incrementAndGet(namespacedName, offset, step);
     }

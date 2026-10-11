@@ -13,12 +13,16 @@
 
 package me.ahoo.cosid.proxy;
 
+import me.ahoo.cosid.proxy.api.ErrorResponse;
 import me.ahoo.cosid.proxy.api.SegmentClient;
+import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
+import com.google.common.base.Strings;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.web.client.HttpClientErrorException;
 
 /**
  * ProxyIdSegmentDistributor .
@@ -28,37 +32,27 @@ import org.jspecify.annotations.NonNull;
  * @author ahoo wang
  */
 @Slf4j
-public class ProxyIdSegmentDistributor implements IdSegmentDistributor {
+public class ProxyIdSegmentDistributor extends AbstractIdSegmentDistributor {
     private final SegmentClient segmentClient;
-    private final String namespace;
-    private final String name;
-    private final long step;
     
     public ProxyIdSegmentDistributor(SegmentClient segmentClient, String namespace, String name, long step) {
+        super(namespace, name, step);
         this.segmentClient = segmentClient;
-        this.namespace = namespace;
-        this.name = name;
-        this.step = step;
     }
     
-    @Override
-    public @NonNull String getNamespace() {
-        return namespace;
-    }
     
-    @Override
-    public @NonNull String getName() {
-        return name;
-    }
     
-    @Override
-    public long getStep() {
-        return step;
-    }
     
     @SneakyThrows
     @Override
-    public long nextMaxId(long step) {
-        return segmentClient.nextMaxId(getNamespace(), getName(), step);
+    protected long doNextMaxId(long step) {
+        try {
+            return segmentClient.nextMaxId(getNamespace(), getName(), step);
+        } catch (HttpClientErrorException.Conflict conflict) {
+            // The server detected that the max id moved backwards: same rule, and same exception, as the client's own check.
+            ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(conflict.getResponseBodyAsByteArray(), ErrorResponse.class);
+            throw new IllegalStateException(Strings.lenientFormat("Unexpected code:[%s] - message:[%s].", errorResponse.getCode(), errorResponse.getMsg()),
+                conflict);
+        }
     }
 }

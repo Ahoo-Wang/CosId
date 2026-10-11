@@ -27,4 +27,9 @@ dependencies {
     "mongoSupportImplementation"("org.testcontainers:testcontainers")
     "mongoSupportImplementation"("org.testcontainers:testcontainers-junit-jupiter")
     "mongoSupportImplementation"("org.testcontainers:testcontainers-mongodb")
+    // Redis/MySQL launchers: modules that use them bring Testcontainers on their own test classpath.
+    compileOnly("org.testcontainers:testcontainers")
+    compileOnly("org.testcontainers:testcontainers-mysql")
+    testImplementation("org.testcontainers:testcontainers")
+    testImplementation("org.testcontainers:testcontainers-mysql")
 }

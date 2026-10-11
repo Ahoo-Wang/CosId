@@ -32,7 +32,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Duration;
 
 /**
@@ -44,6 +43,12 @@ import java.time.Duration;
 public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     
     private final DataSource dataSource;
+    private final int queryTimeoutSeconds;
+    
+    /**
+     * Upper bound of insert attempts when concurrent instances race for the same new machine id.
+     */
+    static final int MAX_DISTRIBUTE_ATTEMPTS = 32;
     
     private static final String GET_MACHINE_STATE =
         "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id=? and last_timestamp>?";
@@ -76,12 +81,23 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             + "where namespace=? and instance_id=? and machine_id=?";
     
     public JdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        this(dataSource, machineStateStorage, clockBackwardsSynchronizer, JdbcSupport.DEFAULT_QUERY_TIMEOUT);
+    }
+    
+    /**
+     * Create a JDBC machine id distributor.
+     *
+     * @param queryTimeout timeout applied to each statement, {@code null} or zero means no timeout
+     */
+    public JdbcMachineIdDistributor(DataSource dataSource, MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer,
+                                    Duration queryTimeout) {
         super(machineStateStorage, clockBackwardsSynchronizer);
         this.dataSource = dataSource;
+        this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
     }
     
     private int distributeRevertMachineState(Connection connection, String namespace, int machineId, InstanceId instanceId, Duration safeGuardDuration) throws SQLException {
-        try (PreparedStatement revertMachineStatement = connection.prepareStatement(DISTRIBUTE_REVERT_MACHINE_STATE)) {
+        try (PreparedStatement revertMachineStatement = JdbcSupport.prepareStatement(connection, DISTRIBUTE_REVERT_MACHINE_STATE, queryTimeoutSeconds)) {
             revertMachineStatement.setString(1, instanceId.getInstanceId());
             revertMachineStatement.setLong(2, System.currentTimeMillis());
             revertMachineStatement.setLong(3, System.currentTimeMillis());
@@ -93,7 +109,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     }
     
     private int nextMachineId(Connection connection, String namespace) throws SQLException {
-        try (PreparedStatement nextMachineStatement = connection.prepareStatement(NEXT_MACHINE_ID)) {
+        try (PreparedStatement nextMachineStatement = JdbcSupport.prepareStatement(connection, NEXT_MACHINE_ID, queryTimeoutSeconds)) {
             nextMachineStatement.setString(1, namespace);
             try (ResultSet resultSet = nextMachineStatement.executeQuery()) {
                 if (resultSet.next()) {
@@ -130,12 +146,16 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     }
     
     private MachineState distributeMachine(String namespace, int machineBit, InstanceId instanceId, Connection connection) throws SQLException {
+        return distributeMachine(namespace, machineBit, instanceId, connection, 1);
+    }
+    
+    private MachineState distributeMachine(String namespace, int machineBit, InstanceId instanceId, Connection connection, int attempt) throws SQLException {
         int nextMachineId = nextMachineId(connection, namespace);
         if (nextMachineId > MachineIdDistributor.maxMachineId(machineBit)) {
             throw new MachineIdOverflowException(MachineIdDistributor.totalMachineIds(machineBit), instanceId);
         }
         MachineState nextMachineState = MachineState.of(nextMachineId, System.currentTimeMillis());
-        try (PreparedStatement nextMachineStatement = connection.prepareStatement(DISTRIBUTE_MACHINE)) {
+        try (PreparedStatement nextMachineStatement = JdbcSupport.prepareStatement(connection, DISTRIBUTE_MACHINE, queryTimeoutSeconds)) {
             nextMachineStatement.setString(1, namespacedMachineId(namespace, nextMachineId));
             nextMachineStatement.setString(2, namespace);
             nextMachineStatement.setInt(3, nextMachineId);
@@ -145,17 +165,21 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             try {
                 nextMachineStatement.executeUpdate();
                 return nextMachineState;
-            } catch (SQLIntegrityConstraintViolationException sqlIntegrityConstraintViolationException) {
-                if (log.isInfoEnabled()) {
-                    log.info("Distribute Machine [{}]", sqlIntegrityConstraintViolationException.getMessage());
+            } catch (SQLException sqlException) {
+                // Another instance inserted the same machine id first: recompute and retry, a bounded number of times.
+                if (!JdbcSupport.isDuplicateKey(sqlException) || attempt >= MAX_DISTRIBUTE_ATTEMPTS) {
+                    throw sqlException;
                 }
-                return distributeMachine(namespace, machineBit, instanceId, connection);
+                if (log.isInfoEnabled()) {
+                    log.info("Distribute Machine attempt:[{}] - [{}]", attempt, sqlException.getMessage());
+                }
+                return distributeMachine(namespace, machineBit, instanceId, connection, attempt + 1);
             }
         }
     }
     
     private MachineState distributeByRevert(String namespace, InstanceId instanceId, Connection connection, Duration safeGuardDuration) throws SQLException {
-        try (PreparedStatement getRevertMachineStatement = connection.prepareStatement(GET_REVERT_MACHINE_STATE)) {
+        try (PreparedStatement getRevertMachineStatement = JdbcSupport.prepareStatement(connection, GET_REVERT_MACHINE_STATE, queryTimeoutSeconds)) {
             getRevertMachineStatement.setString(1, namespace);
             getRevertMachineStatement.setLong(2, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()));
             try (ResultSet resultSet = getRevertMachineStatement.executeQuery()) {
@@ -172,7 +196,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
     }
     
     private MachineState distributeBySelf(String namespace, InstanceId instanceId, Connection connection, Duration safeGuardDuration) throws SQLException {
-        try (PreparedStatement getMachineStatement = connection.prepareStatement(GET_MACHINE_STATE)) {
+        try (PreparedStatement getMachineStatement = JdbcSupport.prepareStatement(connection, GET_MACHINE_STATE, queryTimeoutSeconds)) {
             getMachineStatement.setString(1, namespace);
             getMachineStatement.setString(2, instanceId.getInstanceId());
             getMachineStatement.setLong(3, MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable()));
@@ -195,7 +219,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
         try (Connection connection = dataSource.getConnection()) {
-            try (PreparedStatement revertMachineStatement = connection.prepareStatement(REVERT_MACHINE_STATE)) {
+            try (PreparedStatement revertMachineStatement = JdbcSupport.prepareStatement(connection, REVERT_MACHINE_STATE, queryTimeoutSeconds)) {
                 revertMachineStatement.setString(1, instanceId.isStable() ? instanceId.getInstanceId() : "");
                 revertMachineStatement.setLong(2, machineState.getLastTimeStamp());
                 revertMachineStatement.setLong(3, System.currentTimeMillis());
@@ -221,7 +245,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
         }
         
         try (Connection connection = dataSource.getConnection()) {
-            try (PreparedStatement guardMachineStatement = connection.prepareStatement(GUARD_MACHINE_STATE)) {
+            try (PreparedStatement guardMachineStatement = JdbcSupport.prepareStatement(connection, GUARD_MACHINE_STATE, queryTimeoutSeconds)) {
                 guardMachineStatement.setLong(1, machineState.getLastTimeStamp());
                 guardMachineStatement.setString(2, namespace);
                 guardMachineStatement.setString(3, instanceId.getInstanceId());

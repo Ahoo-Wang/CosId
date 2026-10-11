@@ -157,4 +157,17 @@ public interface MachineIdDistributor extends MachineIdDistribute {
      */
     void guard(String namespace, InstanceId instanceId, Duration safeGuardDuration) throws NotFoundMachineStateException, MachineIdLostException;
 
+    /**
+     * Record the current time as the last timestamp of the local machine state, without contacting the remote store.
+     *
+     * <p>The local state is the clock-backwards watermark used after a restart: a restarted instance waits until the clock
+     * passes it before generating ids. Every id generated so far has a timestamp at or before now, so refreshing it often
+     * bounds how far the clock may go back across a crash without being detected. Does nothing when there is no local state.
+     *
+     * @param namespace  The namespace of the machine ID
+     * @param instanceId The instance identifier
+     */
+    default void refreshLocalState(String namespace, InstanceId instanceId) {
+    }
+
 }

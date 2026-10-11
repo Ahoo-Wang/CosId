@@ -113,4 +113,80 @@ class DefaultMachineIdGuarderTest {
 
         assertThat(guarder.getLease("unknown", InstanceId.NONE), sameInstance(MachineIdLease.FOREVER));
     }
+
+    @Test
+    void localStateShouldBeRefreshedBetweenGuards() throws InterruptedException {
+        InMemoryMachineStateStorage storage = new InMemoryMachineStateStorage();
+        ManualMachineIdDistributor localDistributor = new ManualMachineIdDistributor(1, storage, ClockBackwardsSynchronizer.DEFAULT);
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        InstanceId instanceId = InstanceId.of("watermark", false);
+        localDistributor.distribute(namespace, 10, instanceId, Duration.ofMinutes(5));
+        long distributedAt = storage.get(namespace, instanceId).getLastTimeStamp();
+        // The remote guard does not run during the test: only the local refresh does.
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(localDistributor, DefaultMachineIdGuarder.executorService(),
+            Duration.ofHours(1), Duration.ofHours(1), Duration.ofMinutes(5), Duration.ofMillis(20));
+        guarder.register(namespace, instanceId);
+        
+        guarder.start();
+        try {
+            Thread.sleep(200);
+            assertThat(storage.get(namespace, instanceId).getLastTimeStamp(), greaterThan(distributedAt));
+        } finally {
+            guarder.stop();
+        }
+    }
+    
+    @Test
+    void localStateRefreshCanBeDisabled() throws InterruptedException {
+        InMemoryMachineStateStorage storage = new InMemoryMachineStateStorage();
+        ManualMachineIdDistributor localDistributor = new ManualMachineIdDistributor(1, storage, ClockBackwardsSynchronizer.DEFAULT);
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        InstanceId instanceId = InstanceId.of("watermark", false);
+        localDistributor.distribute(namespace, 10, instanceId, Duration.ofMinutes(5));
+        long distributedAt = storage.get(namespace, instanceId).getLastTimeStamp();
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(localDistributor, DefaultMachineIdGuarder.executorService(),
+            Duration.ofHours(1), Duration.ofHours(1), Duration.ofMinutes(5), Duration.ZERO);
+        guarder.register(namespace, instanceId);
+        
+        guarder.start();
+        try {
+            Thread.sleep(100);
+            assertThat(storage.get(namespace, instanceId).getLastTimeStamp(), equalTo(distributedAt));
+        } finally {
+            guarder.stop();
+        }
+    }
+
+    @Test
+    void localStateShouldBeRefreshedWhileRemoteGuardHangs() throws InterruptedException {
+        InMemoryMachineStateStorage storage = new InMemoryMachineStateStorage();
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        ManualMachineIdDistributor hangingDistributor = new ManualMachineIdDistributor(1, storage, ClockBackwardsSynchronizer.DEFAULT) {
+            @Override
+            protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
+                try {
+                    release.await();
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        };
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        InstanceId instanceId = InstanceId.of("watermark", false);
+        hangingDistributor.distribute(namespace, 10, instanceId, Duration.ofMinutes(5));
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(hangingDistributor, DefaultMachineIdGuarder.executorService(),
+            Duration.ZERO, Duration.ofHours(1), Duration.ofMinutes(5), Duration.ofMillis(20));
+        guarder.register(namespace, instanceId);
+        
+        guarder.start();
+        try {
+            Thread.sleep(100);
+            long afterGuardStarted = storage.get(namespace, instanceId).getLastTimeStamp();
+            Thread.sleep(200);
+            assertThat(storage.get(namespace, instanceId).getLastTimeStamp(), greaterThan(afterGuardStarted));
+        } finally {
+            release.countDown();
+            guarder.stop();
+        }
+    }
 }

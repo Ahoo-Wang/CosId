@@ -51,6 +51,18 @@ When upgrading from an earlier version:
 |-----------|-----------|-----|--------|
 | machineId | `Integer` | Machine ID | `null` |
 
+### Guarder
+
+> Machine ID (heartbeat) guarder configuration
+
+| Name               | Data Type  | Description | Default Value |
+|--------------------|------------|-------------|---------------|
+| enabled            | `boolean`  | Whether machine ID guarding is enabled | `true` |
+| initialDelay       | `Duration` | Initial delay before the first guard | `PT1M` |
+| delay              | `Duration` | Delay between guards (remote heartbeat) | `PT1M` |
+| safeGuardDuration  | `Duration` | Machine IDs not guarded for this long may be recycled by other instances | `PT5M` |
+| failFast           | `boolean`  | Stop generating IDs once the machine ID lease is lost or expired | `true` |
+| localStateInterval | `Duration` | How often the local machine state (the clock-backwards watermark used after a restart) is refreshed. After a crash, clock backwards shorter than about this interval may go undetected. Applies only with the guarder enabled and local file state storage (`stateStorage.local`). `0` disables it | `PT1S` |
 ### Backend Call Timeouts
 
 | Property | Default Value | Description |

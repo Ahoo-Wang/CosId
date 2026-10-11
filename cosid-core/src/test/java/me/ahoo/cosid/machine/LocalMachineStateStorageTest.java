@@ -61,6 +61,30 @@ class LocalMachineStateStorageTest {
     }
 
     @Test
+    void getShouldReturnNotFoundWhenStateFileIsCorrupted() throws IOException {
+        LocalMachineStateStorage storage = storage();
+        InstanceId instanceId = InstanceId.of("instance-a", false);
+        // e.g. a write cut short by a crash
+        Files.writeString(stateFile("namespace", instanceId), "3|", StandardCharsets.UTF_8);
+
+        assertSame(MachineState.NOT_FOUND, storage.get("namespace", instanceId));
+    }
+
+    @Test
+    void setShouldReplaceTheStateFileWithoutLeavingTemporaryFiles() throws IOException {
+        LocalMachineStateStorage storage = storage();
+        InstanceId instanceId = InstanceId.of("instance-a", false);
+
+        storage.set("namespace", 1, instanceId);
+        storage.set("namespace", 2, instanceId);
+
+        try (var files = Files.list(stateDirectory)) {
+            assertEquals(1, files.count());
+        }
+        assertEquals(2, storage.get("namespace", instanceId).getMachineId());
+    }
+
+    @Test
     void removeShouldDeleteOnlyExactNamespacedInstanceFile() {
         LocalMachineStateStorage storage = storage();
         InstanceId target = InstanceId.of("same-id", false);

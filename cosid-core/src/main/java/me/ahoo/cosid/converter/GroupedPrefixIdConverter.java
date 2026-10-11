@@ -80,6 +80,10 @@ public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConver
      */
     @Override
     public @NonNull String asString(long id, @NonNull GroupedKey group) {
+        if (GroupedKey.NEVER.equals(group)) {
+            throw new IllegalArgumentException("GroupedPrefixIdConverter needs a grouped id, but id [" + id + "] has no group: "
+                + "use it with a grouped segment distributor.");
+        }
         return withGroup(actual.asString(id, group), group);
     }
     

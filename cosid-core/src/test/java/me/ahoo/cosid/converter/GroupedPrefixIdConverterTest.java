@@ -95,4 +95,11 @@ class GroupedPrefixIdConverterTest {
         assertEquals("/", stat.getDelimiter());
         assertEquals(ToStringIdConverter.INSTANCE.stat(), stat.getActual());
     }
+
+    @Test
+    void asStringWithoutAGroupIsRejected() {
+        GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter("-", ToStringIdConverter.INSTANCE);
+
+        assertThrows(IllegalArgumentException.class, () -> converter.asString(123, GroupedKey.NEVER));
+    }
 }

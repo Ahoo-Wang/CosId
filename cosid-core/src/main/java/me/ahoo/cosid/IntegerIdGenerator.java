@@ -88,6 +88,9 @@ public class IntegerIdGenerator implements StringIdGenerator {
      * (Integer.MIN_VALUE to Integer.MAX_VALUE), an {@link IdOverflowException}
      * is thrown.
      *
+     * <p>The id is converted without a group, so a group-aware converter such as
+     * {@link me.ahoo.cosid.converter.GroupedPrefixIdConverter} throws {@link UnsupportedOperationException} here.
+     *
      * @return A unique distributed ID as a string value
      * @throws IdOverflowException if the generated long ID exceeds the integer range
      */

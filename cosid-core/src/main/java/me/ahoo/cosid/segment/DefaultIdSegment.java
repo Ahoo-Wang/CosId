@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.segment;
 
-import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.util.Clock;
 
@@ -241,13 +240,11 @@ public class DefaultIdSegment implements IdSegment {
      *   <li>Check if the segment has already overflowed</li>
      *   <li>Atomically increment the sequence number</li>
      *   <li>Check if the new sequence represents an overflow</li>
-     *   <li>Update grouped accessor if needed</li>
      *   <li>Return the allocated ID or overflow indicator</li>
      * </ol>
      *
      * @return The next allocated ID, or {@link IdSegment#SEQUENCE_OVERFLOW} if exhausted
      */
-    @SuppressWarnings("deprecation")
     @Override
     public long incrementAndGet() {
         if (isOverflow()) {
@@ -259,7 +256,6 @@ public class DefaultIdSegment implements IdSegment {
         if (isOverflow(nextSeq)) {
             return SEQUENCE_OVERFLOW;
         }
-        GroupedAccessor.setIfNotNever(group());
         return nextSeq;
     }
 

@@ -20,11 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.converter.Radix62IdConverter;
-import me.ahoo.cosid.segment.grouped.GroupedAccessor;
+import me.ahoo.cosid.segment.grouped.GroupedId;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -33,10 +32,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 class DefaultSegmentIdTest {
 
-    @AfterEach
-    void clearGroupedContext() {
-        GroupedAccessor.clear();
-    }
 
     @Test
     void currentShouldStartAsOverflowSegmentUntilFirstAllocation() {
@@ -69,10 +64,9 @@ class DefaultSegmentIdTest {
         DefaultSegmentId generator = new DefaultSegmentId(distributor);
 
         assertEquals(1, generator.generate());
-        assertEquals(2, generator.generate());
+        assertEquals(GroupedId.of(group, 2), generator.generateGrouped());
 
         assertSame(DefaultIdSegment.OVERFLOW, generator.current());
-        assertSame(group, GroupedAccessor.requiredGet());
         assertEquals(2, distributor.nextMaxIdCalls);
     }
 

@@ -61,12 +61,11 @@ public interface IdConverter extends Statistical {
      * Convert an id from a segment of {@code group} to its {@link String} representation.
      *
      * <p>Converters that do not depend on the group ignore it, which is the default; decorators pass it on to the
-     * converter they wrap. Unlike {@link #asString(long)}, a group-aware converter such as
-     * {@link me.ahoo.cosid.converter.GroupedPrefixIdConverter} takes the group from here instead of the thread-local
-     * {@link me.ahoo.cosid.segment.grouped.GroupedAccessor}.</p>
+     * converter they wrap. A group-aware converter such as {@link me.ahoo.cosid.converter.GroupedPrefixIdConverter}
+     * only works through this method.</p>
      *
      * <p>A custom decorator that does not override this method falls back to {@link #asString(long)} of the converter
-     * it wraps, and so to the thread-local group: override it and pass {@code group} on.</p>
+     * it wraps and loses the group: override it and pass {@code group} on.</p>
      *
      * @param id    the id
      * @param group the group of the segment the id came from, {@link GroupedKey#NEVER} when it is not grouped

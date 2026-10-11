@@ -211,13 +211,20 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             if (prefetchSubmitted || closed) {
                 return;
             }
-            prefetchWorkerExecutorService.submit(prefetchJob);
             prefetchSubmitted = true;
+            try {
+                prefetchWorkerExecutorService.submit(prefetchJob);
+            } catch (RuntimeException rejected) {
+                // A shut-down executor (for example during shutdown): generation fetches segments itself from now on.
+                if (log.isWarnEnabled()) {
+                    log.warn("Prefetch [{}] - not started, segments are fetched on generation: {}", maxIdDistributor.getNamespacedName(), rejected.toString());
+                }
+            }
         }
     }
 
     private void wakeUpPrefetch() {
-        if (prefetchSubmitted && !closed) {
+        if (prefetchSubmitted && !closed && prefetchJob.getPrefetchWorker() != null) {
             prefetchJob.hungry();
         }
     }

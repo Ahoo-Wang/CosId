@@ -168,6 +168,18 @@ class SegmentChainIdTest {
     }
 
     @Test
+    void generateShouldKeepWorkingWhenTheExecutorIsAlreadyShutDown() {
+        PrefetchWorkerExecutorService executor = new PrefetchWorkerExecutorService(Duration.ofDays(1), 1, false);
+        executor.shutdown();
+        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, new AtomicIdSegmentDistributor(2), executor);
+
+        for (int i = 1; i <= 20; i++) {
+            assertEquals(i, generator.generate());
+        }
+        assertEquals(null, generator.getPrefetchJob().getPrefetchWorker());
+    }
+
+    @Test
     void slowPrefetchWithTimeoutShouldNotStallAnotherChainOnTheSameWorker() throws InterruptedException {
         PrefetchWorkerExecutorService executor = new PrefetchWorkerExecutorService(Duration.ofMillis(20), 1, false);
         SlowIdSegmentDistributor slowDistributor = new SlowIdSegmentDistributor();

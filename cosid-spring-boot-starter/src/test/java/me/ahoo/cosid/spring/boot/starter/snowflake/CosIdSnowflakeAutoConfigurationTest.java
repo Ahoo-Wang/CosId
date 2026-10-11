@@ -74,4 +74,13 @@ class CosIdSnowflakeAutoConfigurationTest {
                 .doesNotHaveBean(SnowflakeIdProperties.class)
                 .doesNotHaveBean(SnowflakeIdBeanRegistrar.class));
     }
+
+    @Test
+    void groupPrefixFailsAtStartup() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.order.converter.group-prefix.enabled=true")
+            .run(context -> assertThat(context).hasFailed()
+                .getFailure().rootCause().hasMessageContaining("Snowflake id [order] has converter.group-prefix enabled"));
+    }
 }

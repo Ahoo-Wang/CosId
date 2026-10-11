@@ -129,4 +129,15 @@ class CosIdSegmentAutoConfigurationTest {
                 .doesNotHaveBean(PrefetchWorkerExecutorService.class)
                 .doesNotHaveBean(CosIdLifecyclePrefetchWorkerExecutorService.class));
     }
+
+    @Test
+    void groupPrefixWithoutGroupFailsAtStartup() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(SegmentIdProperties.PREFIX + ".share.enabled=false")
+            .withPropertyValues(SegmentIdProperties.PREFIX + ".provider.test.converter.type=to_string")
+            .withPropertyValues(SegmentIdProperties.PREFIX + ".provider.test.converter.group-prefix.enabled=true")
+            .run(context -> assertThat(context).hasFailed()
+                .getFailure().rootCause().hasMessageContaining("Segment id [test] has converter.group-prefix enabled but no group"));
+    }
 }

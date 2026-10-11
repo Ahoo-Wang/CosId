@@ -83,6 +83,11 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     }
     
     private void registerIdDefinition(String name, SnowflakeIdProperties.IdDefinition idDefinition) {
+        IdConverterDefinition converterDefinition = idDefinition.getConverter();
+        if (converterDefinition != null && converterDefinition.getGroupPrefix() != null && converterDefinition.getGroupPrefix().isEnabled()) {
+            throw new IllegalStateException("Snowflake id [" + name + "] has converter.group-prefix enabled, but snowflake ids have no group: "
+                + "turn the group prefix off, or use a grouped segment id.");
+        }
         SnowflakeId idGenerator = createIdGen(idDefinition, clockBackwardsSynchronizer);
         registerSnowflakeId(name, idGenerator);
     }

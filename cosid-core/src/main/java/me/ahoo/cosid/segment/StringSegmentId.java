@@ -14,7 +14,9 @@
 package me.ahoo.cosid.segment;
 
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.StringIdGeneratorDecorator;
+import me.ahoo.cosid.converter.GroupedPrefixIdConverter;
 import me.ahoo.cosid.segment.grouped.GroupedId;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
@@ -30,6 +32,7 @@ import org.jspecify.annotations.NonNull;
  */
 public class StringSegmentId extends StringIdGeneratorDecorator implements SegmentId {
     private final SegmentId actualSegmentId;
+    private final boolean groupAware;
 
     /**
      * Creates a new StringSegmentId.
@@ -40,6 +43,33 @@ public class StringSegmentId extends StringIdGeneratorDecorator implements Segme
     public StringSegmentId(SegmentId actual, IdConverter idConverter) {
         super(actual, idConverter);
         this.actualSegmentId = actual;
+        this.groupAware = isGroupAware(idConverter);
+    }
+    
+    /**
+     * Whether the converter, or a converter it decorates, uses the group of the id.
+     */
+    static boolean isGroupAware(IdConverter idConverter) {
+        IdConverter current = idConverter;
+        while (current != null) {
+            if (current instanceof GroupedPrefixIdConverter) {
+                return true;
+            }
+            current = current instanceof Decorator<?> decorator && decorator.getActual() instanceof IdConverter actual ? actual : null;
+        }
+        return false;
+    }
+    
+    /**
+     * Converts with the group of the id when the converter uses it, so a grouped prefix comes from the segment the id
+     * came from.
+     */
+    @Override
+    public @NonNull String generateAsString() {
+        if (groupAware) {
+            return idConverter.asString(actualSegmentId.generateGrouped());
+        }
+        return super.generateAsString();
     }
 
     @Override

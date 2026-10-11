@@ -15,7 +15,6 @@ package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
-import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.GroupedPrefixConverterStat;
@@ -26,7 +25,8 @@ import org.jspecify.annotations.NonNull;
 /**
  * Converter that prepends a dynamic group key as prefix to string IDs.
  *
- * <p>The group key is obtained from the current GroupedAccessor context.
+ * <p>The group key comes with the id: {@link #asString(long, GroupedKey)}, as called by
+ * {@link me.ahoo.cosid.segment.SegmentId#generateGroupedAsString()} and the string segment generators.
  *
  * @author ahoo wang
  */
@@ -65,16 +65,14 @@ public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConver
     }
 
     /**
-     * Prefix the id with the group set on the current thread by the last generated id.
+     * Not supported: the group is not known from the id alone.
      *
-     * @deprecated since 3.4.0, the thread-local group can belong to another generator's last id; use
-     *     {@link #asString(long, GroupedKey)} with the group from {@link me.ahoo.cosid.segment.SegmentId#generateGrouped()}.
+     * @throws UnsupportedOperationException always; use {@link #asString(long, GroupedKey)}
      */
-    @Deprecated(since = "3.4.0")
-    @SuppressWarnings("deprecation")
     @Override
     public @NonNull String asString(long id) {
-        return withGroup(actual.asString(id), GroupedAccessor.requiredGet());
+        throw new UnsupportedOperationException("GroupedPrefixIdConverter needs the group of the id: use asString(id, group), "
+            + "SegmentId.generateGroupedAsString(), or a string segment id with a grouped segment distributor.");
     }
     
     /**
@@ -82,6 +80,10 @@ public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConver
      */
     @Override
     public @NonNull String asString(long id, @NonNull GroupedKey group) {
+        if (GroupedKey.NEVER.equals(group)) {
+            throw new IllegalArgumentException("GroupedPrefixIdConverter needs a grouped id, but id [" + id + "] has no group: "
+                + "use it with a grouped segment distributor.");
+        }
         return withGroup(actual.asString(id, group), group);
     }
     

@@ -20,7 +20,19 @@
 
 `me.ahoo.cosid.mongo.reactive` (`MongoReactiveIdSegmentDistributorFactory`, `MongoReactiveMachineCollection`, the reactive initializers and `BlockingAdapter`) is removed: it only blocked on the reactive driver. Use the sync driver, `org.mongodb:mongodb-driver-sync`, with the classes in `me.ahoo.cosid.mongo`; the data format is the same. With the starter, selecting MongoDB while only the reactive driver is on the classpath fails at startup with a message pointing here.
 
-_Still to be filled in as the changes land: the thread-local grouped path (`GroupedAccessor`), the old machine id distributors, and the APIs deprecated for removal in 3.x._
+### Thread-local grouped ids
+
+`GroupedAccessor` is removed, and generating an id no longer publishes its group on the current thread. The group travels with the id instead:
+
+| 3.x | 4.0 |
+|---|---|
+| `segmentId.generate()` then `GroupedAccessor.get()` | `segmentId.generateGrouped()` returns a `GroupedId` (group and value) |
+| `groupedPrefixConverter.asString(id)` (group from the thread) | `converter.asString(id, group)` or `converter.asString(groupedId)`; `asString(long)` throws `UnsupportedOperationException` |
+| `stringSegmentId.generateAsString()` | unchanged: a string segment id whose converter has a grouped prefix passes the group of the segment |
+
+`SegmentId.generateGrouped()` has no default implementation any more: a custom `SegmentId` must implement it. A custom converter decorator should override `asString(long, GroupedKey)` and pass the group on. With the starter, `converter.group-prefix.enabled` on a segment id without `group.by` fails at startup.
+
+_Still to be filled in as the changes land: the old machine id distributors._
 
 ### APIs deprecated for removal in 3.x
 

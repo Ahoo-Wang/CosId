@@ -29,6 +29,9 @@ cosid:
 #      auth:
 #        tokens:
 #          - ${COSID_PROXY_TOKEN}
+#        public-paths:
+#          - /actuator/health
+#          - /actuator/health/**
   machine:
     enabled: true
     distributor:

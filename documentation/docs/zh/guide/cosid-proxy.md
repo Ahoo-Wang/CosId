@@ -57,7 +57,7 @@ CosId Proxy 提供客户端-服务器架构：
 
 ## 鉴权
 
-默认情况下，代理 API（`/machines`、`/segments`、`/ids`）对所有能访问到服务端的人开放，服务端启动时会打印告警。
+默认情况下，代理服务端对所有能访问到它的人开放，启动时会打印告警。
 可以在服务端配置一个或多个 Bearer token，并在每个客户端配置相同的 token：
 
 ```yaml
@@ -68,6 +68,9 @@ cosid:
       auth:
         tokens:
           - ${COSID_PROXY_TOKEN}   # 可以同时配置多个，用于轮换
+        public-paths:              # 无需 token 的路径，默认：/actuator/health、/actuator/health/**
+          - /actuator/health
+          - /actuator/health/**
 ```
 
 ```yaml
@@ -78,4 +81,4 @@ cosid:
     token: ${COSID_PROXY_TOKEN}
 ```
 
-没有携带有效 `Authorization: Bearer <token>` 的代理 API 请求会返回 `401`。Actuator 和 API 文档路径不受影响。
+配置 token 后，除公开路径外，所有没有携带有效 `Authorization: Bearer <token>` 的请求都返回 `401`，包括 Actuator 端点（其中有的能发号或删除生成器）和 API 文档。公开路径是按解码后的路径匹配的路径模式。需要公开 API 文档时，加上 `/v3/api-docs/**` 和 `/swagger-ui/**`。

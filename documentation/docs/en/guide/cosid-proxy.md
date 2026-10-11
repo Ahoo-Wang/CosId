@@ -57,7 +57,7 @@ The proxy server's segment distributor cache lives in memory only. Since clients
 
 ## Authentication
 
-By default the proxy API (`/machines`, `/segments`, `/ids`) is open to anyone who can reach the server, and the server logs a warning at startup.
+By default the proxy server is open to anyone who can reach it, and it logs a warning at startup.
 Configure one or more bearer tokens on the server, and the same token on every client:
 
 ```yaml
@@ -68,6 +68,9 @@ cosid:
       auth:
         tokens:
           - ${COSID_PROXY_TOKEN}   # several tokens can be listed to rotate them
+        public-paths:              # need no token; default: /actuator/health, /actuator/health/**
+          - /actuator/health
+          - /actuator/health/**
 ```
 
 ```yaml
@@ -78,4 +81,4 @@ cosid:
     token: ${COSID_PROXY_TOKEN}
 ```
 
-Requests to the proxy API without a valid `Authorization: Bearer <token>` get `401`. Actuator and API docs paths are not affected.
+With tokens configured, every request without a valid `Authorization: Bearer <token>` gets `401`, including the actuator endpoints (some of them generate or remove IDs) and the API docs, except the public paths. Public paths are path patterns matched on the decoded path. To open the API docs, add `/v3/api-docs/**` and `/swagger-ui/**`.

@@ -34,6 +34,6 @@ public class ProxyAuthConfiguration {
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public ProxyAuthWebFilter proxyAuthWebFilter(ProxyAuthProperties proxyAuthProperties) {
-        return new ProxyAuthWebFilter(proxyAuthProperties.getTokens());
+        return new ProxyAuthWebFilter(proxyAuthProperties.getTokens(), proxyAuthProperties.getPublicPaths());
     }
 }

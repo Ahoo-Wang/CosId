@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Authentication of the CosId proxy API ({@code /machines}, {@code /segments}, {@code /ids}).
+ * Authentication of the CosId proxy server: with tokens configured, every path needs one except the public paths.
  *
  * <pre>{@code
  * cosid:
@@ -31,6 +31,8 @@ import java.util.List;
  * }</pre>
  *
  * <p>Clients send {@code Authorization: Bearer <token>}. Several tokens can be configured at once to rotate them.
+ * Public paths ({@code /actuator/health} by default) are path patterns that need no token, for example
+ * {@code /v3/api-docs/**} and {@code /swagger-ui/**} to open the API docs.
  * Without any token the API is open, as before, and a warning is logged at startup.</p>
  *
  * @author ahoo wang
@@ -38,11 +40,17 @@ import java.util.List;
 @ConfigurationProperties(prefix = ProxyAuthProperties.PREFIX)
 public class ProxyAuthProperties {
     public static final String PREFIX = "cosid.proxy.server.auth";
+    public static final List<String> DEFAULT_PUBLIC_PATHS = List.of("/actuator/health", "/actuator/health/**");
     
     /**
      * Accepted bearer tokens. Empty means no authentication.
      */
     private List<String> tokens = new ArrayList<>();
+    
+    /**
+     * Path patterns that need no token.
+     */
+    private List<String> publicPaths = new ArrayList<>(DEFAULT_PUBLIC_PATHS);
     
     public List<String> getTokens() {
         return tokens;
@@ -50,5 +58,13 @@ public class ProxyAuthProperties {
     
     public void setTokens(List<String> tokens) {
         this.tokens = tokens;
+    }
+    
+    public List<String> getPublicPaths() {
+        return publicPaths;
+    }
+    
+    public void setPublicPaths(List<String> publicPaths) {
+        this.publicPaths = publicPaths;
     }
 }

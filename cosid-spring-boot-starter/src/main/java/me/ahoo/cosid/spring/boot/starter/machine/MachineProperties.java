@@ -812,6 +812,13 @@ public class MachineProperties {
         private Duration delay = DefaultMachineIdGuarder.DEFAULT_DELAY;
 
         /**
+         * How often the local machine state (the clock-backwards watermark used after a restart) is refreshed.
+         * After a crash, clock backwards shorter than about this interval may go undetected. Zero disables it.
+         * Default is {@link DefaultMachineIdGuarder#DEFAULT_LOCAL_STATE_INTERVAL}.
+         */
+        private Duration localStateInterval = DefaultMachineIdGuarder.DEFAULT_LOCAL_STATE_INTERVAL;
+
+        /**
          * Duration for which the machine ID is considered safely guarded.
          * Default is 5 minutes.
          */
@@ -901,6 +908,26 @@ public class MachineProperties {
          */
         public MachineProperties.Guarder setDelay(Duration delay) {
             this.delay = delay;
+            return this;
+        }
+
+        /**
+         * Gets how often the local machine state is refreshed.
+         *
+         * @return the local state refresh interval
+         */
+        public Duration getLocalStateInterval() {
+            return localStateInterval;
+        }
+
+        /**
+         * Sets how often the local machine state is refreshed; zero disables it.
+         *
+         * @param localStateInterval the local state refresh interval
+         * @return this guarder configuration for method chaining
+         */
+        public MachineProperties.Guarder setLocalStateInterval(Duration localStateInterval) {
+            this.localStateInterval = localStateInterval;
             return this;
         }
 

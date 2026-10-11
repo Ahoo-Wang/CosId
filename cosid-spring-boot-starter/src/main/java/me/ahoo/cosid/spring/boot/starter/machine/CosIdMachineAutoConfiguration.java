@@ -195,7 +195,8 @@ public class CosIdMachineAutoConfiguration {
         if (!guarder.isEnabled()) {
             return MachineIdGuarder.NONE;
         }
-        return new DefaultMachineIdGuarder(machineIdDistributor, DefaultMachineIdGuarder.executorService(), guarder.getInitialDelay(), guarder.getDelay(), machineProperties.getSafeGuardDuration());
+        return new DefaultMachineIdGuarder(machineIdDistributor, DefaultMachineIdGuarder.executorService(), guarder.getInitialDelay(), guarder.getDelay(), machineProperties.getSafeGuardDuration(),
+            guarder.getLocalStateInterval());
     }
 
     @Bean

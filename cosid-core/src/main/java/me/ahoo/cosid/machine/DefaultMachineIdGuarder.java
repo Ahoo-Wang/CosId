@@ -57,6 +57,11 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
 
     public static final Duration DEFAULT_INITIAL_DELAY = Duration.ofMinutes(1);
     public static final Duration DEFAULT_DELAY = Duration.ofMinutes(1);
+    /**
+     * How often the local machine state of each registered instance is refreshed, see
+     * {@link MachineIdDistributor#refreshLocalState(String, InstanceId)}.
+     */
+    public static final Duration DEFAULT_LOCAL_STATE_INTERVAL = Duration.ofSeconds(1);
     private final ConcurrentHashMap<NamespacedInstanceId, GuardianState> guardianStates;
     private final ConcurrentHashMap<NamespacedInstanceId, MachineIdLease> leases = new ConcurrentHashMap<>();
     private final MachineIdDistributor machineIdDistributor;
@@ -64,7 +69,9 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     private final Duration initialDelay;
     private final Duration delay;
     private final Duration safeGuardDuration;
+    private final Duration localStateInterval;
     private volatile ScheduledFuture<?> scheduledFuture;
+    private volatile ScheduledFuture<?> localStateFuture;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     /**
@@ -94,7 +101,22 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      */
     public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, ScheduledExecutorService executorService,
                                    Duration initialDelay, Duration delay, Duration safeGuardDuration) {
+        this(machineIdDistributor, executorService, initialDelay, delay, safeGuardDuration, DEFAULT_LOCAL_STATE_INTERVAL);
+    }
+
+    /**
+     * Constructs a DefaultMachineIdGuarder that also refreshes the local machine state every {@code localStateInterval}.
+     *
+     * <p>The remote guard runs every {@code delay}, but the local state is the clock-backwards watermark used after a crash:
+     * refreshing it more often (a local write only) bounds how far the clock may go back across a restart without being
+     * detected to about {@code localStateInterval}.
+     *
+     * @param localStateInterval how often the local machine state is refreshed, zero or negative disables it
+     */
+    public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, ScheduledExecutorService executorService,
+                                   Duration initialDelay, Duration delay, Duration safeGuardDuration, Duration localStateInterval) {
         this.guardianStates = new ConcurrentHashMap<>();
+        this.localStateInterval = localStateInterval;
         this.machineIdDistributor = machineIdDistributor;
         this.executorService = executorService;
         this.initialDelay = initialDelay;
@@ -180,6 +202,10 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         }
         if (running.compareAndSet(false, true)) {
             scheduledFuture = executorService.scheduleWithFixedDelay(this::safeGuard, initialDelay.toMillis(), delay.toMillis(), TimeUnit.MILLISECONDS);
+            if (localStateInterval != null && !localStateInterval.isZero() && !localStateInterval.isNegative()) {
+                long intervalMillis = localStateInterval.toMillis();
+                localStateFuture = executorService.scheduleWithFixedDelay(this::refreshLocalStates, intervalMillis, intervalMillis, TimeUnit.MILLISECONDS);
+            }
         }
     }
 
@@ -215,6 +241,21 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         }
     }
 
+    /**
+     * Refreshes the local machine state (the clock-backwards watermark) of every registered instance.
+     */
+    void refreshLocalStates() {
+        for (NamespacedInstanceId registeredInstance : guardianStates.keySet()) {
+            try {
+                machineIdDistributor.refreshLocalState(registeredInstance.getNamespace(), registeredInstance.getInstanceId());
+            } catch (Throwable throwable) {
+                if (log.isWarnEnabled()) {
+                    log.warn("Refresh local state of [{}] failed!", registeredInstance, throwable);
+                }
+            }
+        }
+    }
+
     private void renewLease(NamespacedInstanceId registeredInstance, long guardAt) {
         MachineIdLease lease = leases.get(registeredInstance);
         if (lease != null) {
@@ -241,6 +282,9 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         }
         if (running.compareAndSet(true, false)) {
             scheduledFuture.cancel(true);
+            if (localStateFuture != null) {
+                localStateFuture.cancel(false);
+            }
         }
     }
 

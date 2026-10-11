@@ -31,6 +31,7 @@ import java.time.Duration;
 public abstract class AbstractMachineIdDistributor implements MachineIdDistributor {
     public static final int NOT_FOUND_LAST_STAMP = -1;
     private final MachineStateStorage machineStateStorage;
+    private final Object localStateLock = new Object();
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
 
     public AbstractMachineIdDistributor(MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
@@ -116,7 +117,9 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
         } finally {
             // Also when revertRemote fails or times out (it may still have been applied remotely):
             // the next start must then ask the remote instead of trusting a stale local state.
-            machineStateStorage.remove(namespace, instanceId);
+            synchronized (localStateLock) {
+                machineStateStorage.remove(namespace, instanceId);
+            }
         }
     }
 
@@ -128,6 +131,20 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
         guardRemote(namespace, instanceId, lastLocalState, safeGuardDuration);
     }
 
+
+    @Override
+    public void refreshLocalState(String namespace, InstanceId instanceId) {
+        // Atomic with the removal in revert: a refresh must never bring back the local state of a reverted machine id.
+        synchronized (localStateLock) {
+            MachineState lastLocalState = machineStateStorage.get(namespace, instanceId);
+            if (MachineState.NOT_FOUND.equals(lastLocalState)) {
+                return;
+            }
+            if (getBackwardsTimeStamp(lastLocalState.getLastTimeStamp()) < 0) {
+                machineStateStorage.set(namespace, lastLocalState.getMachineId(), instanceId);
+            }
+        }
+    }
 
     private MachineState resetStorage(String namespace, InstanceId instanceId) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");

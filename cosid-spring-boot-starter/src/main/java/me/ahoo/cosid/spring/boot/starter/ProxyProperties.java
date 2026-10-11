@@ -47,6 +47,11 @@ public class ProxyProperties {
      * is kept.
      */
     private Duration readTimeout = Duration.ofSeconds(5);
+    /**
+     * Bearer token sent to the proxy server ({@code Authorization: Bearer <token>}), matching one of its
+     * {@code cosid.proxy.server.auth.tokens}. Empty sends none.
+     */
+    private String token;
 
     /**
      * Gets the proxy server host URL.
@@ -83,6 +88,15 @@ public class ProxyProperties {
 
     public ProxyProperties setReadTimeout(Duration readTimeout) {
         this.readTimeout = readTimeout;
+        return this;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public ProxyProperties setToken(String token) {
+        this.token = token;
         return this;
     }
 }

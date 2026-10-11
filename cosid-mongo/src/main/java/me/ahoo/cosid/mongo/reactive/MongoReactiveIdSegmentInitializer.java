@@ -21,6 +21,13 @@ import com.mongodb.MongoCommandException;
 import com.mongodb.reactivestreams.client.MongoDatabase;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * MongoReactiveIdSegmentInitializer of the reactive MongoDB support.
+ *
+ * @deprecated Reactive MongoDB support only blocks on the reactive driver and will be removed in 4.0;
+ *     use the synchronous MongoDB driver ({@code mongodb-driver-sync}) instead.
+ */
+@Deprecated(since = "3.4.0", forRemoval = true)
 @Slf4j
 public class MongoReactiveIdSegmentInitializer implements IdSegmentInitializer {
     

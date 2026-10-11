@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.mongo.reactive;
 
+import me.ahoo.cosid.mongo.Documents;
+
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Mono;
 
@@ -20,8 +22,15 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * BlockingAdapter of the reactive MongoDB support.
+ *
+ * @deprecated Reactive MongoDB support only blocks on the reactive driver and will be removed in 4.0;
+ *     use the synchronous MongoDB driver ({@code mongodb-driver-sync}) instead.
+ */
+@Deprecated(since = "3.4.0", forRemoval = true)
 public final class BlockingAdapter {
-    public static final Duration DEFAULT_TIME_OUT = Duration.ofSeconds(10);
+    public static final Duration DEFAULT_TIME_OUT = Documents.DEFAULT_TIME_OUT;
 
     private BlockingAdapter() {
     }

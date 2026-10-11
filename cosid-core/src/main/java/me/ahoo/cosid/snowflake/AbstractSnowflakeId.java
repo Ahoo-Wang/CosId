@@ -85,13 +85,13 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
     /**
      * Sequence of the last generated ID.
      *
-     * <p>A read-only mirror of the {@link TimestampSequencer} state since 3.4.0: changing it has no effect.</p>
+     * <p>A read-only mirror of the {@link TimestampSequencer} state: changing it has no effect.</p>
      */
     protected long sequence = 0L;
     /**
      * Timestamp of the last generated ID.
      *
-     * <p>A read-only mirror of the {@link TimestampSequencer} state since 3.4.0: changing it has no effect.</p>
+     * <p>A read-only mirror of the {@link TimestampSequencer} state: changing it has no effect.</p>
      */
     protected long lastTimestamp = -1L;
     /**
@@ -131,22 +131,6 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         }
         this.machineId = machineId;
         this.sequencer = new TimestampSequencer(this::getCurrentTime, maxSequence, sequenceResetThreshold);
-    }
-
-    /**
-     * Waits until the current time is greater than {@link #lastTimestamp}.
-     *
-     * @return the next valid timestamp
-     * @deprecated since 3.4.0, {@link #generate()} no longer calls it (the {@link TimestampSequencer} waits for the
-     *     next time unit), so overriding it has no effect. Override {@link #getCurrentTime()} instead.
-     */
-    @Deprecated(since = "3.4.0", forRemoval = true)
-    protected long nextTime() {
-        long time = getCurrentTime();
-        while (time <= lastTimestamp) {
-            time = getCurrentTime();
-        }
-        return time;
     }
 
     protected abstract long getCurrentTime();

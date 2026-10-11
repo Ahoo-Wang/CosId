@@ -27,6 +27,8 @@ import me.ahoo.cosid.machine.MachineStateStorage;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -62,6 +64,26 @@ class SpringRedisMachineIdDistributorTest {
         assertThat(storage.get(NAMESPACE, instanceId).getMachineId(), equalTo(3));
     }
 
+    @Test
+    void distributeShouldTimeOutWhenRedisHangs() {
+        StringRedisTemplate hangingTemplate = new StringRedisTemplate() {
+            @Override
+            public <T> T execute(RedisScript<T> script, List<String> keys, Object... args) {
+                try {
+                    Thread.sleep(Duration.ofSeconds(30).toMillis());
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                return null;
+            }
+        };
+        SpringRedisMachineIdDistributor distributor = new SpringRedisMachineIdDistributor(hangingTemplate, new TestMachineStateStorage(),
+            ClockBackwardsSynchronizer.DEFAULT, RedisCommandTimeout.of(Duration.ofSeconds(1)), RedisCommandTimeout.of(Duration.ofMillis(200)));
+        InstanceId instanceId = InstanceId.of("127.0.0.1", 8080, false);
+        
+        Assertions.assertThrows(RedisCommandTimeoutException.class, () -> distributor.distribute(NAMESPACE, 5, instanceId, SAFE_GUARD_DURATION));
+    }
+    
     @Test
     void distributeShouldThrowOverflowWhenScriptReturnsMinusOne() {
         FakeStringRedisTemplate redisTemplate = new FakeStringRedisTemplate();

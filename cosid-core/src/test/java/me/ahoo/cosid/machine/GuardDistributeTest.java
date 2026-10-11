@@ -32,5 +32,6 @@ class GuardDistributeTest {
         MachineState machineState = guardDistribute.distribute(namespace, 10, instanceId, Duration.ofMinutes(1));
         assertThat(machineState.getMachineId(), equalTo(1));
         assertThat(machineStateStorage.get(namespace, instanceId), equalTo(machineState));
+        assertThat(guardDistribute.getDistributed(), contains(new NamespacedInstanceId(namespace, instanceId)));
     }
 }

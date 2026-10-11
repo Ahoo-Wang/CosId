@@ -222,7 +222,8 @@ public class CosIdMachineAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public CosIdMachineIdLifecycle cosIdMachineIdLifecycle(MachineIdGuarder machineIdGuarder, MachineIdDistributor machineIdDistributor) {
-        return new CosIdMachineIdLifecycle(machineIdGuarder, machineIdDistributor);
+    public CosIdMachineIdLifecycle cosIdMachineIdLifecycle(MachineIdGuarder machineIdGuarder, MachineIdDistributor machineIdDistributor,
+                                                           GuardDistribute guardDistribute) {
+        return new CosIdMachineIdLifecycle(machineIdGuarder, machineIdDistributor, guardDistribute);
     }
 }

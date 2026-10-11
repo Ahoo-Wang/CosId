@@ -15,7 +15,6 @@ package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
-import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 import me.ahoo.cosid.segment.grouped.GroupedId;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
@@ -87,14 +86,12 @@ public class DefaultSegmentId implements SegmentId {
      *
      * @param source when not {@code null}, receives the segment the id came from
      */
-    @SuppressWarnings("deprecation")
     private long next(IdSegment @Nullable [] source) {
 
         if (maxIdDistributor.getStep() == ONE_STEP) {
             // The segment binds the group its id came from: reading the distributor's group separately could see the next
             // group after a rollover and label an id of the old counter with it.
             IdSegment oneStep = maxIdDistributor.nextIdSegment(idSegmentTtl);
-            GroupedAccessor.setIfNotNever(oneStep.group());
             return sourced(source, oneStep, oneStep.getMaxId());
         }
         long nextSeq;

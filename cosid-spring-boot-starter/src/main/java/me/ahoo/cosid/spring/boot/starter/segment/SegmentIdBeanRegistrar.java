@@ -91,6 +91,11 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
             default ->  groupBySupplier = null;
         }
 
+        IdConverterDefinition.GroupPrefix groupPrefix = idDefinition.getConverter() == null ? null : idDefinition.getConverter().getGroupPrefix();
+        if (groupBySupplier == null && groupPrefix != null && groupPrefix.isEnabled()) {
+            throw new IllegalStateException("Segment id [" + name + "] has converter.group-prefix enabled but no group: set group.by "
+                + "(year, year_month or year_month_day), or turn the group prefix off.");
+        }
         if (groupBySupplier != null) {
             idSegmentDistributor = new GroupedIdSegmentDistributorFactory(groupBySupplier, distributorFactory).create(distributorDefinition);
         } else {

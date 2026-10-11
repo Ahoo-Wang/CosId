@@ -73,22 +73,13 @@ public interface SegmentId extends IdGenerator {
     IdSegment current();
     
     /**
-     * Generate an id together with the group of the segment it came from, without the thread-local
-     * {@link me.ahoo.cosid.segment.grouped.GroupedAccessor}.
-     *
-     * <p>The default implementation, for generators that only set the thread-local group, clears it, generates, and reads
-     * it back. CosId's segment generators take the group from the segment directly.</p>
+     * Generate an id together with the group of the segment it came from.
      *
      * @return the id and its group, {@link GroupedKey#NEVER} when it is not grouped
      * @since 3.4.0
      */
-    @SuppressWarnings("deprecation")
-    default @NonNull GroupedId generateGrouped() {
-        me.ahoo.cosid.segment.grouped.GroupedAccessor.clear();
-        long id = generate();
-        GroupedKey group = me.ahoo.cosid.segment.grouped.GroupedAccessor.get();
-        return GroupedId.of(group == null ? GroupedKey.NEVER : group, id);
-    }
+    @NonNull
+    GroupedId generateGrouped();
     
     /**
      * Generate an id and convert it with its group, see {@link #generateGrouped()} and

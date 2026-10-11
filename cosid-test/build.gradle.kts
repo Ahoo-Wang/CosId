@@ -30,6 +30,8 @@ dependencies {
     // Redis/MySQL launchers: modules that use them bring Testcontainers on their own test classpath.
     compileOnly("org.testcontainers:testcontainers")
     compileOnly("org.testcontainers:testcontainers-mysql")
+    compileOnly("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:testcontainers-mysql")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
 }

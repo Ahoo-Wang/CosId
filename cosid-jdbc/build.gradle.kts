@@ -17,4 +17,6 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:testcontainers-mysql")
     testImplementation("com.mysql:mysql-connector-j")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
+    testImplementation("org.postgresql:postgresql")
 }

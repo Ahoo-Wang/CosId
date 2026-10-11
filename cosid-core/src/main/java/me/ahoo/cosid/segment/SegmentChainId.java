@@ -62,6 +62,14 @@ public class SegmentChainId implements SegmentId {
     public static final int DEFAULT_SAFE_DISTANCE = 2;
 
     /**
+     * The default upper bound, in segments, of what one prefetch may request when the generator is hungry.
+     *
+     * <p>Every prefetched segment that is not consumed before a restart is wasted, so the bound caps the id range a
+     * traffic burst can burn ({@code maxPrefetchDistance * step}).
+     */
+    public static final int DEFAULT_MAX_PREFETCH_DISTANCE = 10_000;
+
+    /**
      * The time-to-live for ID segments in milliseconds.
      *
      * <p>This determines how long segments remain valid before they should
@@ -76,6 +84,11 @@ public class SegmentChainId implements SegmentId {
      * continuous ID generation even under high demand.
      */
     private final int safeDistance;
+
+    /**
+     * The maximum number of segments a single prefetch may request.
+     */
+    private final int maxPrefetchDistance;
 
     /**
      * The distributor used to allocate new segments.
@@ -125,11 +138,28 @@ public class SegmentChainId implements SegmentId {
      * @param prefetchWorkerExecutorService The executor for prefetch jobs
      */
     public SegmentChainId(long idSegmentTtl, int safeDistance, IdSegmentDistributor maxIdDistributor, PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
+        this(idSegmentTtl, safeDistance, Math.max(safeDistance, DEFAULT_MAX_PREFETCH_DISTANCE), maxIdDistributor, prefetchWorkerExecutorService);
+    }
+
+    /**
+     * Create a new SegmentChainId with custom configuration.
+     *
+     * @param idSegmentTtl                  The time-to-live for segments
+     * @param safeDistance                  The safe distance for prefetching
+     * @param maxPrefetchDistance           The maximum number of segments a single prefetch may request, at least {@code safeDistance}
+     * @param maxIdDistributor              The distributor for allocating new segments
+     * @param prefetchWorkerExecutorService The executor for prefetch jobs
+     */
+    public SegmentChainId(long idSegmentTtl, int safeDistance, int maxPrefetchDistance, IdSegmentDistributor maxIdDistributor,
+                          PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         Preconditions.checkArgument(idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
         Preconditions.checkArgument(safeDistance > 0, "The safety distance must be greater than 0.");
+        Preconditions.checkArgument(maxPrefetchDistance >= safeDistance, "maxPrefetchDistance:[%s] must be greater than or equal to safeDistance:[%s].",
+            maxPrefetchDistance, safeDistance);
         this.headChain = IdSegmentChain.newRoot(maxIdDistributor.allowReset());
         this.idSegmentTtl = idSegmentTtl;
         this.safeDistance = safeDistance;
+        this.maxPrefetchDistance = maxPrefetchDistance;
         this.maxIdDistributor = maxIdDistributor;
         prefetchJob = new PrefetchJob(headChain);
         prefetchWorkerExecutorService.submit(prefetchJob);
@@ -157,6 +187,14 @@ public class SegmentChainId implements SegmentId {
      *
      * @return The head of the segment chain
      */
+    public int getMaxPrefetchDistance() {
+        return maxPrefetchDistance;
+    }
+
+    PrefetchJob getPrefetchJob() {
+        return prefetchJob;
+    }
+
     public IdSegmentChain getHead() {
         return headChain;
     }
@@ -253,11 +291,6 @@ public class SegmentChainId implements SegmentId {
      */
     public class PrefetchJob implements AffinityJob {
         /**
-         * The maximum prefetch distance to prevent excessive resource usage.
-         */
-        private static final int MAX_PREFETCH_DISTANCE = 100_000_000;
-
-        /**
          * The hunger threshold in seconds.
          *
          * <p>If the time since the last hunger signal is less than this
@@ -276,7 +309,7 @@ public class SegmentChainId implements SegmentId {
          * <p>This value is dynamically adjusted based on demand patterns
          * to optimize performance.
          */
-        private int prefetchDistance = safeDistance;
+        private volatile int prefetchDistance = safeDistance;
 
         /**
          * The tail of the segment chain.
@@ -311,6 +344,10 @@ public class SegmentChainId implements SegmentId {
          *
          * @return The job ID
          */
+        public int getPrefetchDistance() {
+            return prefetchDistance;
+        }
+
         @Override
         public String getJobId() {
             return maxIdDistributor.getNamespacedName();
@@ -385,7 +422,7 @@ public class SegmentChainId implements SegmentId {
 
             final int prePrefetchDistance = this.prefetchDistance;
             if (hunger) {
-                this.prefetchDistance = Math.min(Math.multiplyExact(this.prefetchDistance, 2), MAX_PREFETCH_DISTANCE);
+                this.prefetchDistance = (int) Math.min(2L * this.prefetchDistance, maxPrefetchDistance);
                 if (log.isInfoEnabled()) {
                     log.info("Prefetch [{}] - Hunger, Safety distance expansion.[{}->{}]", maxIdDistributor.getNamespacedName(), prePrefetchDistance, this.prefetchDistance);
                 }

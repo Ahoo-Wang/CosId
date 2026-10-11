@@ -15,6 +15,7 @@ package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.concurrent.AffinityJob;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorker;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
@@ -22,8 +23,6 @@ import me.ahoo.cosid.segment.grouped.GroupedId;
 import me.ahoo.cosid.util.CallTimeout;
 import me.ahoo.cosid.util.Clock;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -122,6 +121,12 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
 
     private volatile boolean closed;
 
+    private final PrefetchWorkerExecutorService prefetchWorkerExecutorService;
+
+    private final Object prefetchLock = new Object();
+
+    private volatile boolean prefetchSubmitted;
+
     /**
      * Create a new SegmentChainId with default configuration.
      *
@@ -168,7 +173,9 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
      *
      * <p>A prefetch that takes longer than {@code prefetchTimeout} is given up, so a slow distributor does not hold
      * the prefetch worker, which other segment chains share. Generation then fetches the next segment itself when it
-     * runs out. A given-up call that still completes leaves a gap in the ids, as a restart does.
+     * runs out. The given-up distributor call is interrupted; if it still completes, its segments are skipped, which
+     * leaves a gap in the ids, as a restart does. The first failure is logged with its stack trace, later ones as a
+     * one-line warning until a prefetch succeeds again.
      *
      * @param idSegmentTtl                  The time-to-live for segments
      * @param safeDistance                  The safe distance for prefetching
@@ -179,9 +186,9 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
      */
     public SegmentChainId(long idSegmentTtl, int safeDistance, int maxPrefetchDistance, IdSegmentDistributor maxIdDistributor,
                           PrefetchWorkerExecutorService prefetchWorkerExecutorService, CallTimeout prefetchTimeout) {
-        Preconditions.checkArgument(idSegmentTtl > 0, Strings.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
-        Preconditions.checkArgument(safeDistance > 0, "The safety distance must be greater than 0.");
-        Preconditions.checkArgument(maxPrefetchDistance >= safeDistance, "maxPrefetchDistance:[%s] must be greater than or equal to safeDistance:[%s].",
+        Checks.checkArgument(idSegmentTtl > 0, Checks.lenientFormat("Illegal idSegmentTtl parameter:[%s].", idSegmentTtl));
+        Checks.checkArgument(safeDistance > 0, "The safety distance must be greater than 0.");
+        Checks.checkArgument(maxPrefetchDistance >= safeDistance, "maxPrefetchDistance:[%s] must be greater than or equal to safeDistance:[%s].",
             maxPrefetchDistance, safeDistance);
         this.headChain = IdSegmentChain.newRoot(maxIdDistributor.allowReset());
         this.idSegmentTtl = idSegmentTtl;
@@ -189,8 +196,30 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
         this.maxPrefetchDistance = maxPrefetchDistance;
         this.maxIdDistributor = maxIdDistributor;
         this.prefetchTimeout = prefetchTimeout;
+        this.prefetchWorkerExecutorService = prefetchWorkerExecutorService;
         prefetchJob = new PrefetchJob(headChain);
-        prefetchWorkerExecutorService.submit(prefetchJob);
+    }
+
+    /**
+     * Submit the prefetch job on the first generation, once, unless closed.
+     */
+    private void ensurePrefetchSubmitted() {
+        if (prefetchSubmitted) {
+            return;
+        }
+        synchronized (prefetchLock) {
+            if (prefetchSubmitted || closed) {
+                return;
+            }
+            prefetchWorkerExecutorService.submit(prefetchJob);
+            prefetchSubmitted = true;
+        }
+    }
+
+    private void wakeUpPrefetch() {
+        if (prefetchSubmitted && !closed) {
+            prefetchJob.hungry();
+        }
     }
 
     /**
@@ -294,6 +323,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
      * @param source when not {@code null}, receives the segment the id came from
      */
     private long next(IdSegment @Nullable [] source) {
+        ensurePrefetchSubmitted();
         while (true) {
             IdSegmentChain currentChain = headChain;
             while (currentChain != null) {
@@ -325,25 +355,28 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
                     log.warn("Generate [{}] - gave up this next IdSegmentChain.", maxIdDistributor.getNamespacedName(), nextIdSegmentExpiredException);
                 }
             }
-            this.prefetchJob.hungry();
+            wakeUpPrefetch();
         }
     }
 
     /**
      * Stop prefetching segments in the background.
      *
-     * <p>The generator keeps working after it is closed: it fetches the next segment itself when the current ones run
-     * out. Closing again has no effect.
+     * <p>The prefetch job is submitted on the first generation, not by the constructor, and never after close. The
+     * generator keeps working after it is closed: it fetches the next segment itself when the current ones run out.
+     * Closing again has no effect.
      */
     @Override
     public void close() {
-        if (closed) {
-            return;
-        }
-        closed = true;
-        PrefetchWorker prefetchWorker = prefetchJob.getPrefetchWorker();
-        if (prefetchWorker != null) {
-            prefetchWorker.cancel(prefetchJob);
+        synchronized (prefetchLock) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            PrefetchWorker prefetchWorker = prefetchJob.getPrefetchWorker();
+            if (prefetchWorker != null) {
+                prefetchWorker.cancel(prefetchJob);
+            }
         }
     }
 
@@ -401,6 +434,8 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
          * @see java.util.concurrent.TimeUnit#SECONDS
          */
         private volatile long lastHungerTime;
+
+        private boolean failing;
 
         /**
          * Create a new prefetch job for the specified tail chain.
@@ -553,20 +588,39 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             }
 
             try {
-                final IdSegmentChain preTail = tailChain;
-                tailChain = tailChain.ensureSetNext((preChain) -> prefetchTimeout.call("Prefetch " + maxIdDistributor.getNamespacedName(),
-                    () -> generateNext(preChain, prefetchSegments))).getNext();
-                while (tailChain.getNext() != null) {
-                    tailChain = tailChain.getNext();
-                }
-                if (log.isDebugEnabled()) {
-                    log.debug("AppendChain [{}] - restTail - tailChain.version:[{}:{}->{}] .", maxIdDistributor.getNamespacedName(), preTail.gap(tailChain, maxIdDistributor.getStep()),
-                        preTail.getVersion(), tailChain.getVersion());
+                appendChainOrFail(prefetchSegments);
+                if (failing) {
+                    failing = false;
+                    if (log.isInfoEnabled()) {
+                        log.info("AppendChain [{}] - prefetch recovered.", maxIdDistributor.getNamespacedName());
+                    }
                 }
             } catch (NextIdSegmentExpiredException nextIdSegmentExpiredException) {
                 if (log.isWarnEnabled()) {
                     log.warn("AppendChain [{}] - gave up this next IdSegmentChain.", maxIdDistributor.getNamespacedName(), nextIdSegmentExpiredException);
                 }
+            } catch (RuntimeException prefetchException) {
+                if (!failing) {
+                    failing = true;
+                    if (log.isErrorEnabled()) {
+                        log.error("AppendChain [{}] - prefetch failed.", maxIdDistributor.getNamespacedName(), prefetchException);
+                    }
+                } else if (log.isWarnEnabled()) {
+                    log.warn("AppendChain [{}] - prefetch still failing: {}", maxIdDistributor.getNamespacedName(), prefetchException.toString());
+                }
+            }
+        }
+
+        private void appendChainOrFail(int prefetchSegments) {
+            final IdSegmentChain preTail = tailChain;
+            tailChain = tailChain.ensureSetNext((preChain) -> prefetchTimeout.call("Prefetch " + maxIdDistributor.getNamespacedName(),
+                () -> generateNext(preChain, prefetchSegments))).getNext();
+            while (tailChain.getNext() != null) {
+                tailChain = tailChain.getNext();
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("AppendChain [{}] - restTail - tailChain.version:[{}:{}->{}] .", maxIdDistributor.getNamespacedName(), preTail.gap(tailChain, maxIdDistributor.getStep()),
+                    preTail.getVersion(), tailChain.getVersion());
             }
         }
     }

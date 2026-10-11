@@ -13,7 +13,8 @@
 
 package me.ahoo.cosid.segment.concurrent;
 
-import com.google.common.base.Preconditions;
+import me.ahoo.cosid.internal.Checks;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -57,7 +58,7 @@ public class PrefetchWorkerExecutorService {
     }
 
     public PrefetchWorkerExecutorService(Duration prefetchPeriod, int corePoolSize, boolean shutdownHook) {
-        Preconditions.checkArgument(corePoolSize > 0, "corePoolSize:[%s] must be greater than 0.", corePoolSize);
+        Checks.checkArgument(corePoolSize > 0, "corePoolSize:[%s] must be greater than 0.", corePoolSize);
         this.prefetchPeriod = prefetchPeriod;
         this.corePoolSize = corePoolSize;
         this.workers = new DefaultPrefetchWorker[corePoolSize];
@@ -98,7 +99,7 @@ public class PrefetchWorkerExecutorService {
     }
 
     public void submit(AffinityJob affinityJob) {
-        Preconditions.checkNotNull(affinityJob, "affinityJob can not be null!");
+        Checks.checkNotNull(affinityJob, "affinityJob can not be null!");
         if (log.isInfoEnabled()) {
             log.info("Submit jobId:[{}].", affinityJob.getJobId());
         }

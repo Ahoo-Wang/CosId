@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.segment.grouped;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Preconditions;
+import me.ahoo.cosid.internal.Checks;
+
 import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
@@ -33,7 +33,7 @@ public final class GroupedId {
     private final long value;
     
     public GroupedId(@NonNull GroupedKey group, long value) {
-        this.group = Preconditions.checkNotNull(group, "group can not be null!");
+        this.group = Checks.checkNotNull(group, "group can not be null!");
         this.value = value;
     }
     
@@ -71,9 +71,6 @@ public final class GroupedId {
     
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("group", group)
-            .add("value", value)
-            .toString();
+        return Checks.toString(this, "group", group, "value", value);
     }
 }

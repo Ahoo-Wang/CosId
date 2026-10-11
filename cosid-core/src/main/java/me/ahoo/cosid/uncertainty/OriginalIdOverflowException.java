@@ -14,8 +14,8 @@
 package me.ahoo.cosid.uncertainty;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 
-import com.google.common.base.Strings;
 
 /**
  * Exception thrown when original ID exceeds maximum representable value.
@@ -35,7 +35,7 @@ public class OriginalIdOverflowException extends CosIdException {
      * @param maxOriginalId  the maximum representable ID
      */
     public OriginalIdOverflowException(long originalId, int originalIdBits, long maxOriginalId) {
-        super(Strings.lenientFormat("OriginalId[%s] overflow - originalIdBits[%s] - maxOriginalId[%s].", originalId, originalIdBits, maxOriginalId));
+        super(Checks.lenientFormat("OriginalId[%s] overflow - originalIdBits[%s] - maxOriginalId[%s].", originalId, originalIdBits, maxOriginalId));
         this.originalId = originalId;
         this.originalIdBits = originalIdBits;
         this.maxOriginalId = maxOriginalId;

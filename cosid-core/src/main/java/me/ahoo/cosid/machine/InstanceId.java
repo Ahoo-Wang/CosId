@@ -13,9 +13,11 @@
 
 package me.ahoo.cosid.machine;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
+import me.ahoo.cosid.internal.Checks;
+
 import com.google.errorprone.annotations.Immutable;
+
+import java.util.Objects;
 
 /**
  * Represents a specific deployment instance of a service.
@@ -71,10 +73,7 @@ public class InstanceId {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("instanceId", instanceId)
-            .add("stable", stable)
-            .toString();
+        return Checks.toString(this, "instanceId", instanceId, "stable", stable);
     }
 
     /**
@@ -110,11 +109,11 @@ public class InstanceId {
             return false;
         }
         InstanceId that = (InstanceId) o;
-        return stable == that.stable && Objects.equal(instanceId, that.instanceId);
+        return stable == that.stable && Objects.equals(instanceId, that.instanceId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(instanceId, stable);
+        return Objects.hash(instanceId, stable);
     }
 }

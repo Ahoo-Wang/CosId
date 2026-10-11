@@ -14,9 +14,9 @@
 package me.ahoo.cosid.machine;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.snowflake.exception.ClockTooManyBackwardsException;
 
-import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.TimeUnit;
@@ -39,8 +39,8 @@ public class DefaultClockBackwardsSynchronizer implements ClockBackwardsSynchron
     }
 
     public DefaultClockBackwardsSynchronizer(int spinThreshold, int brokenThreshold) {
-        Preconditions.checkArgument(spinThreshold > 0, "spinThreshold:[%s] must be greater than 0!", spinThreshold);
-        Preconditions.checkArgument(brokenThreshold > spinThreshold, "spinThreshold:[%s] must be greater than brokenThreshold:[%s]!", spinThreshold, brokenThreshold);
+        Checks.checkArgument(spinThreshold > 0, "spinThreshold:[%s] must be greater than 0!", spinThreshold);
+        Checks.checkArgument(brokenThreshold > spinThreshold, "spinThreshold:[%s] must be greater than brokenThreshold:[%s]!", spinThreshold, brokenThreshold);
 
         this.spinThreshold = spinThreshold;
         this.brokenThreshold = brokenThreshold;

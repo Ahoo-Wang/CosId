@@ -16,8 +16,8 @@ package me.ahoo.cosid.cosid;
 import me.ahoo.cosid.converter.Radix36IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.RadixIdConverter;
+import me.ahoo.cosid.internal.Checks;
 
-import com.google.common.base.Preconditions;
 
 /**
  * Parser for converting {@link CosIdState} to String and vice versa.
@@ -42,7 +42,7 @@ public class RadixCosIdStateParser implements CosIdIdStateParser {
     @Override
     public CosIdState asState(String id) {
         int totalCharSize = timestampConvert.getCharSize() + machineConvert.getCharSize() + sequenceConvert.getCharSize();
-        Preconditions.checkArgument(id.length() == totalCharSize, "id[%s] length must equal to totalCharSize:[%s].", id, totalCharSize);
+        Checks.checkArgument(id.length() == totalCharSize, "id[%s] length must equal to totalCharSize:[%s].", id, totalCharSize);
         String timestampPart = id.substring(0, timestampConvert.getCharSize());
         String machineIdPart = id.substring(timestampConvert.getCharSize(), timestampConvert.getCharSize() + machineConvert.getCharSize());
         String sequencePart = id.substring(timestampConvert.getCharSize() + machineConvert.getCharSize());

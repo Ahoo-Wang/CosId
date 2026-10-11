@@ -12,6 +12,7 @@
  */
 
 dependencies {
+    implementation(libs.guava)
     api(project(":cosid-core"))
     compileOnly("org.mongodb:mongodb-driver-sync")
     testImplementation(project(":cosid-test"))

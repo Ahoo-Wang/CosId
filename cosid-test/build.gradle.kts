@@ -21,6 +21,7 @@ java {
 }
 
 dependencies {
+    implementation(libs.guava)
     implementation(project(":cosid-core"))
     implementation("org.junit.jupiter:junit-jupiter-api")
     implementation("org.hamcrest:hamcrest")

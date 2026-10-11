@@ -152,7 +152,9 @@ configure(libraryProjects) {
         annotationProcessor("org.projectlombok:lombok")
         testCompileOnly("org.projectlombok:lombok")
         testAnnotationProcessor("org.projectlombok:lombok")
-        implementation("com.google.guava:guava")
+        // @ThreadSafe and @Immutable document thread safety; consumers do not need them.
+        compileOnly(rootProject.libs.error.prone.annotations)
+        testCompileOnly(rootProject.libs.error.prone.annotations)
         implementation("org.slf4j:slf4j-api")
         testImplementation("ch.qos.logback:logback-classic")
         testImplementation("org.junit.jupiter:junit-jupiter-api")

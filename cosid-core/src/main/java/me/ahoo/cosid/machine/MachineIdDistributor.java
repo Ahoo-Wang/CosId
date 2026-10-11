@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.machine;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import me.ahoo.cosid.internal.Checks;
+
 import com.google.errorprone.annotations.ThreadSafe;
 
 import java.time.Duration;
@@ -68,7 +68,7 @@ public interface MachineIdDistributor extends MachineIdDistribute {
      * @return The maximum machine ID value
      */
     static int maxMachineId(int machineBit) {
-        Preconditions.checkArgument(machineBit > 0 && machineBit < Integer.SIZE, "machineBit:[%s] must be between 1 and 31!", machineBit);
+        Checks.checkArgument(machineBit > 0 && machineBit < Integer.SIZE, "machineBit:[%s] must be between 1 and 31!", machineBit);
         return ~(-1 << machineBit);
     }
 
@@ -97,7 +97,7 @@ public interface MachineIdDistributor extends MachineIdDistribute {
      * @return A formatted namespaced machine ID string
      */
     static String namespacedMachineId(String namespace, int machineId) {
-        return namespace + "." + Strings.padStart(String.valueOf(machineId), 8, '0');
+        return namespace + "." + Checks.padStart(String.valueOf(machineId), 8, '0');
     }
 
     /**

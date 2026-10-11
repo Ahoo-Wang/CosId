@@ -14,4 +14,5 @@
 dependencies {
     api(libs.jspecify)
     testImplementation(project(":cosid-test"))
+    testImplementation(libs.archunit.junit5)
 }

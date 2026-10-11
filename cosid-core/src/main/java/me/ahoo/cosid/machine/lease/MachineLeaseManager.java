@@ -13,11 +13,11 @@
 
 package me.ahoo.cosid.machine.lease;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 
-import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -48,7 +48,7 @@ public class MachineLeaseManager {
     private final MachineLeaseStore store;
     
     public MachineLeaseManager(MachineLeaseStore store) {
-        this.store = Preconditions.checkNotNull(store, "store can not be null!");
+        this.store = Checks.checkNotNull(store, "store can not be null!");
     }
     
     public MachineLeaseStore getStore() {

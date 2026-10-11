@@ -53,9 +53,13 @@ _Still to be filled in as the changes land: the old machine id distributors._
 
 `me.ahoo.cosid.accessor` (id field accessors, `CosIdAccessorRegistry`, the field parsers) and `me.ahoo.cosid.annotation` (`@CosId`, `@AccessorFactory`) moved from `cosid-core` to the new `me.ahoo.cosid:cosid-accessor` artifact, with the same package and class names. The starter, `cosid-mybatis` and `cosid-spring-data-jdbc` depend on it, so applications using them need no change; add it only where you use `@CosId` or the accessors without them.
 
+### Guava in `cosid-core`, `cosid-accessor` and `cosid-jackson`
+
+These artifacts no longer depend on Guava, and `@Beta` markers are gone. If your code used Guava only because CosId brought it in, add `com.google.guava:guava` to your own build. The store integrations and `cosid-sharding` still depend on it. `me.ahoo.cosid.internal` holds CosId's own helpers and is not a public API.
+
 ### `PrefetchWorkerExecutorService.DEFAULT`
 
-Replaced by `PrefetchWorkerExecutorService.shared()`, which creates the shared executor (and its shutdown hook) on first use instead of when the class loads. `SegmentChainId` is now `AutoCloseable`: `close()` stops its background prefetch, generation keeps working, and the actuator delete operation closes a removed segment chain. A new constructor argument and the `cosid.segment.chain.prefetch-timeout` property (default `0`, none) bound each background prefetch.
+Replaced by `PrefetchWorkerExecutorService.shared()`, which creates the shared executor (and its shutdown hook) on first use instead of when the class loads. `SegmentChainId` is now `AutoCloseable` and submits its prefetch job on the first generation instead of in the constructor: `close()` stops its background prefetch, generation keeps working, and the actuator delete operation closes a removed segment chain. A new constructor argument and the `cosid.segment.chain.prefetch-timeout` property (default `0`, none) bound each background prefetch.
 
 ## Changed defaults
 

@@ -14,8 +14,8 @@
 package me.ahoo.cosid.machine;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 
-import com.google.common.base.Strings;
 
 /**
  * Exception thrown when machine ID cannot be allocated.
@@ -36,7 +36,7 @@ public class MachineIdOverflowException extends CosIdException {
      * @param instanceId     the instance that failed to get an ID
      */
     public MachineIdOverflowException(int totalMachineIds, InstanceId instanceId) {
-        super(Strings.lenientFormat("InstanceId:[%s] - distribution failed - totalMachineIds:[%s]", instanceId, totalMachineIds));
+        super(Checks.lenientFormat("InstanceId:[%s] - distribution failed - totalMachineIds:[%s]", instanceId, totalMachineIds));
         this.totalMachineIds = totalMachineIds;
         this.instanceId = instanceId;
     }

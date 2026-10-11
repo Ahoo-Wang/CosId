@@ -14,11 +14,10 @@
 package me.ahoo.cosid.accessor;
 
 import me.ahoo.cosid.IntegerIdGenerator;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 
 /**
  * Default {@link CosIdAccessor} implementation.
@@ -101,7 +100,7 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
 
     @Override
     public boolean ensureId(Object target) {
-        Preconditions.checkArgument(getIdDeclaringClass().isInstance(target), "Target:[%s] is not instance of IdDeclaringClass:[%s]", target, getIdDeclaringClass());
+        Checks.checkArgument(getIdDeclaringClass().isInstance(target), "Target:[%s] is not instance of IdDeclaringClass:[%s]", target, getIdDeclaringClass());
         return ensureId.ensureId(target);
     }
 
@@ -113,7 +112,7 @@ public class DefaultCosIdAccessor extends AbstractIdMetadata implements CosIdAcc
         @Override
         public boolean ensureId(Object target) {
             Object previousId = getId(target);
-            if (null != previousId && !Strings.isNullOrEmpty((String) previousId)) {
+            if (null != previousId && !Checks.isNullOrEmpty((String) previousId)) {
                 return false;
             }
 

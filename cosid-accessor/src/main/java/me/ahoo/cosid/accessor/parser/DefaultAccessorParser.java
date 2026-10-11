@@ -16,20 +16,20 @@ package me.ahoo.cosid.accessor.parser;
 import static java.util.Locale.ENGLISH;
 
 import me.ahoo.cosid.accessor.CosIdAccessor;
-import me.ahoo.cosid.accessor.IdDefinition;
 import me.ahoo.cosid.accessor.CosIdGetter;
 import me.ahoo.cosid.accessor.CosIdSetter;
 import me.ahoo.cosid.accessor.DefaultCosIdAccessor;
+import me.ahoo.cosid.accessor.IdDefinition;
 import me.ahoo.cosid.accessor.IdTypeNotSupportException;
 import me.ahoo.cosid.accessor.MultipleIdNotSupportException;
 import me.ahoo.cosid.accessor.field.FieldGetter;
 import me.ahoo.cosid.accessor.field.FieldSetter;
 import me.ahoo.cosid.accessor.method.MethodGetter;
 import me.ahoo.cosid.accessor.method.MethodSetter;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Field;
@@ -193,7 +193,7 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
             }
         }
         if (genericVarIdx == -1) {
-            throw new IllegalArgumentException(Strings.lenientFormat("Type Parameter:[%s] not found in Class:[%].", typeVariable, superClass));
+            throw new IllegalArgumentException(Checks.lenientFormat("Type Parameter:[%s] not found in Class:[%].", typeVariable, superClass));
         }
 
         ParameterizedType genericSuperclass = (ParameterizedType) subClass.getGenericSuperclass();

@@ -17,11 +17,11 @@ import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.IdGeneratorDecorator;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 
-import com.google.common.base.Strings;
 import org.jspecify.annotations.NonNull;
 
 import java.util.Optional;
@@ -108,7 +108,7 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
         if (idGenerator instanceof SnowflakeId) {
             return (SnowflakeId) idGenerator;
         }
-        throw new CosIdException(Strings.lenientFormat("IdGenerator:[%s] is not instanceof SnowflakeId!", generatorName));
+        throw new CosIdException(Checks.lenientFormat("IdGenerator:[%s] is not instanceof SnowflakeId!", generatorName));
     }
 
     /**
@@ -126,7 +126,7 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
         if (idGenerator instanceof SnowflakeFriendlyId) {
             return (SnowflakeFriendlyId) idGenerator;
         }
-        throw new CosIdException(Strings.lenientFormat("IdGenerator:[%s] is not instanceof SnowflakeFriendlyId!", generatorName));
+        throw new CosIdException(Checks.lenientFormat("IdGenerator:[%s] is not instanceof SnowflakeFriendlyId!", generatorName));
     }
 
     /**
@@ -144,7 +144,7 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
         if (idGenerator instanceof SegmentId) {
             return (SegmentId) idGenerator;
         }
-        throw new CosIdException(Strings.lenientFormat("IdGenerator:[%s] is not instanceof SegmentId!", generatorName));
+        throw new CosIdException(Checks.lenientFormat("IdGenerator:[%s] is not instanceof SegmentId!", generatorName));
     }
 
     @Override

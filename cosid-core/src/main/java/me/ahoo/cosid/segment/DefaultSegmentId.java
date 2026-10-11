@@ -15,10 +15,10 @@ package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.grouped.GroupedId;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -58,7 +58,7 @@ public class DefaultSegmentId implements SegmentId {
      * @param maxIdDistributor the segment distributor
      */
     public DefaultSegmentId(long idSegmentTtl, IdSegmentDistributor maxIdDistributor) {
-        Preconditions.checkArgument(idSegmentTtl > 0, "idSegmentTtl:[%s] must be greater than 0.", idSegmentTtl);
+        Checks.checkArgument(idSegmentTtl > 0, "idSegmentTtl:[%s] must be greater than 0.", idSegmentTtl);
 
         this.idSegmentTtl = idSegmentTtl;
         this.maxIdDistributor = maxIdDistributor;

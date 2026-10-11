@@ -13,13 +13,13 @@
 
 package me.ahoo.cosid.machine.k8s;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.MachineStateStorage;
 
-import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -40,9 +40,9 @@ public class StatefulSetMachineIdDistributor extends AbstractMachineIdDistributo
     
     public static int resolveMachineId() {
         String hostName = System.getenv(HOSTNAME_KEY);
-        Preconditions.checkNotNull(hostName, "HOSTNAME can not be null.");
+        Checks.checkNotNull(hostName, "HOSTNAME can not be null.");
         int lastSplitIdx = hostName.lastIndexOf("-");
-        Preconditions.checkArgument(lastSplitIdx > 0, "The format of hostName:[%s] is incorrect.", hostName);
+        Checks.checkArgument(lastSplitIdx > 0, "The format of hostName:[%s] is incorrect.", hostName);
         String idStr = hostName.substring(lastSplitIdx + 1);
         if (log.isInfoEnabled()) {
             log.info("Resolve MachineId[{}] from Env HOSTNAME:[{}]", idStr, hostName);

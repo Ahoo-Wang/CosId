@@ -14,11 +14,10 @@
 package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.RadixConverterStat;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import org.jspecify.annotations.NonNull;
 
 
@@ -100,7 +99,7 @@ public abstract class RadixIdConverter implements IdConverter {
      * @param charSize the fixed character size for output
      */
     protected RadixIdConverter(boolean padStart, int charSize) {
-        Preconditions.checkArgument(charSize > 0 && charSize <= getMaxCharSize(), "charSize cannot be greater than MAX_CHAR_SIZE[%s]!", getMaxCharSize());
+        Checks.checkArgument(charSize > 0 && charSize <= getMaxCharSize(), "charSize cannot be greater than MAX_CHAR_SIZE[%s]!", getMaxCharSize());
         this.padStart = padStart;
         this.charSize = charSize;
         if (getMaxCharSize() == charSize) {
@@ -185,12 +184,12 @@ public abstract class RadixIdConverter implements IdConverter {
     @Override
     public @NonNull String asString(long id) {
 
-        Preconditions.checkArgument(id > -1, "id[%s] must be greater than -1!", id);
+        Checks.checkArgument(id > -1, "id[%s] must be greater than -1!", id);
 
         final int maxCharSize = getMaxCharSize();
 
         if (charSize < maxCharSize) {
-            Preconditions.checkArgument(id < maxId, "id[%s] cannot be greater than maxId:[%s]!", id, maxId);
+            Checks.checkArgument(id < maxId, "id[%s] cannot be greater than maxId:[%s]!", id, maxId);
         }
 
         char[] buf = new char[charSize];
@@ -218,25 +217,25 @@ public abstract class RadixIdConverter implements IdConverter {
     public long asLong(@NonNull String idString) {
         char firstChar = idString.charAt(0);
         if (firstChar < ZERO) {
-            throw new NumberFormatException(Strings.lenientFormat("For input string: [%s]!", idString));
+            throw new NumberFormatException(Checks.lenientFormat("For input string: [%s]!", idString));
         }
         long result = 0;
         int charIdx = 0;
         int charLen = idString.length();
         if (charLen > charSize) {
-            throw new NumberFormatException(Strings.lenientFormat("For input string:[%s]. charLen cannot be greater than charSize:[%s]!", idString, charSize));
+            throw new NumberFormatException(Checks.lenientFormat("For input string:[%s]. charLen cannot be greater than charSize:[%s]!", idString, charSize));
         }
         final int radix = getRadix();
         while (charIdx < charLen) {
             char digitChar = idString.charAt(charIdx++);
             int digit = offset(digitChar);
             if (digit < 0 || digit >= radix) {
-                throw new NumberFormatException(Strings.lenientFormat("For input string:[%s]. digitChar:[%s]@[%s] !", idString, digitChar, charIdx));
+                throw new NumberFormatException(Checks.lenientFormat("For input string:[%s]. digitChar:[%s]@[%s] !", idString, digitChar, charIdx));
             }
             try {
                 result = Math.addExact(Math.multiplyExact(result, radix), digit);
             } catch (ArithmeticException arithmeticException) {
-                throw new NumberFormatException(Strings.lenientFormat("For input string:[%s]. long overflow!", idString));
+                throw new NumberFormatException(Checks.lenientFormat("For input string:[%s]. long overflow!", idString));
             }
         }
         return result;

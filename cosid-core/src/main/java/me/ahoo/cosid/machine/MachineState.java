@@ -13,12 +13,14 @@
 
 package me.ahoo.cosid.machine;
 
-import com.google.common.base.Objects;
-import com.google.common.base.Splitter;
-import com.google.common.base.Strings;
+import me.ahoo.cosid.internal.Checks;
+
 import com.google.errorprone.annotations.Immutable;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.regex.Pattern;
 
 /**
  * Machine state representing the status of a distributed machine instance.
@@ -139,7 +141,7 @@ public class MachineState {
      */
     @Override
     public int hashCode() {
-        return Objects.hashCode(getMachineId());
+        return Objects.hash(getMachineId());
     }
 
     /**
@@ -164,7 +166,7 @@ public class MachineState {
      * @return The string representation
      */
     public String toStateString() {
-        return Strings.lenientFormat("%s%s%s", machineId, STATE_DELIMITER, lastTimeStamp);
+        return Checks.lenientFormat("%s%s%s", machineId, STATE_DELIMITER, lastTimeStamp);
     }
 
     /**
@@ -199,9 +201,11 @@ public class MachineState {
      * @throws IllegalArgumentException if the string format is invalid
      */
     public static MachineState of(String stateString) {
-        List<String> stateSplits = Splitter.on(STATE_DELIMITER).omitEmptyStrings().splitToList(stateString);
+        List<String> stateSplits = Arrays.stream(stateString.split(Pattern.quote(STATE_DELIMITER)))
+            .filter(part -> !part.isEmpty())
+            .toList();
         if (stateSplits.size() != 2) {
-            throw new IllegalArgumentException(Strings.lenientFormat("Machine status data:[{%s}] format error.", stateString));
+            throw new IllegalArgumentException(Checks.lenientFormat("Machine status data:[{%s}] format error.", stateString));
         }
         int machineId = Integer.parseInt(stateSplits.get(0));
         long lastStamp = Long.parseLong(stateSplits.get(1));

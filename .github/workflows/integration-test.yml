@@ -66,6 +66,26 @@ jobs:
       - name: Javadoc
         run: ./gradlew javadoc
 
+  cosid-accessor-test:
+    name: CosId Accessor Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          server-id: github
+          cache: gradle
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Accessor
+        run: ./gradlew cosid-accessor:clean cosid-accessor:check
+
   cosid-jackson-test:
     name: CosId Jackson Test
     needs: [ cosid-core-test ]

@@ -20,6 +20,11 @@
 ```
 :::
 
+
+::: tip `cosid-accessor`
+`@CosId` 注解与 ID 字段访问器位于 `me.ahoo.cosid:cosid-accessor` 构件中（4.0 起），本模块已经引入。只有在不使用 MyBatis、Spring Data JDBC 或 starter 填充 `@CosId` 字段时，才需要直接依赖它。
+:::
+
 ## 使用
 
 ::: code-group

@@ -67,6 +67,11 @@ public final class PostgreSqlDialect {
      */
     public static final String ADD_STABLE_COLUMN_SQL = "alter table cosid_machine add column if not exists stable smallint not null default 0";
     
+    /**
+     * Current time of the server in milliseconds, for {@link JdbcMachineLeaseStore}.
+     */
+    public static final String SERVER_TIME_SQL = "select cast(extract(epoch from clock_timestamp()) * 1000 as bigint)";
+    
     private PostgreSqlDialect() {
     }
 }

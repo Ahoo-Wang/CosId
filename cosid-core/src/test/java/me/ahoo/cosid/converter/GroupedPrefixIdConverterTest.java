@@ -18,7 +18,9 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.segment.grouped.GroupedAccessor;
+import me.ahoo.cosid.segment.grouped.GroupedId;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.converter.GroupedPrefixConverterStat;
 
@@ -55,6 +57,35 @@ class GroupedPrefixIdConverterTest {
         assertEquals("tenantA42", converter.asString(42));
     }
 
+    @Test
+    void asStringWithGroupIgnoresTheThreadLocalGroup() {
+        GroupedAccessor.set(GroupedKey.forever("stale"));
+        GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter("-", ToStringIdConverter.INSTANCE);
+        
+        assertEquals("2025-42", converter.asString(42, GroupedKey.forever("2025")));
+        assertEquals("2025-42", converter.asString(GroupedId.of(GroupedKey.forever("2025"), 42)));
+    }
+    
+    @Test
+    void asStringWithGroupNeedsNoGroupedContext() {
+        GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter("", ToStringIdConverter.INSTANCE);
+        
+        assertEquals("tenantB7", converter.asString(GroupedId.of(GroupedKey.forever("tenantB"), 7)));
+    }
+    
+    @Test
+    void decoratorsPassTheGroupThrough() {
+        IdConverter converter = new SuffixIdConverter("-s", new PrefixIdConverter("p-",
+            new GroupedPrefixIdConverter("-", ToStringIdConverter.INSTANCE)));
+        
+        assertEquals("p-2025-1-s", converter.asString(GroupedId.of(GroupedKey.forever("2025"), 1)));
+    }
+    
+    @Test
+    void converterWithoutGroupIgnoresIt() {
+        assertEquals("1", ToStringIdConverter.INSTANCE.asString(GroupedId.of(GroupedKey.forever("2025"), 1)));
+    }
+    
     @Test
     void asStringShouldRequireGroupedContext() {
         GroupedPrefixIdConverter converter = new GroupedPrefixIdConverter("-", ToStringIdConverter.INSTANCE);

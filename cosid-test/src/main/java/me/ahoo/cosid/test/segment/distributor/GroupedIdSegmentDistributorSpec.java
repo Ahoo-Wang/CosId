@@ -17,12 +17,21 @@ import static me.ahoo.cosid.segment.IdSegmentDistributor.DEFAULT_SEGMENTS;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
+import me.ahoo.cosid.converter.GroupedPrefixIdConverter;
+import me.ahoo.cosid.converter.ToStringIdConverter;
+import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegment;
 import me.ahoo.cosid.segment.IdSegmentChain;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.segment.SegmentChainId;
+import me.ahoo.cosid.segment.SegmentId;
+import me.ahoo.cosid.segment.StringSegmentId;
 import me.ahoo.cosid.segment.grouped.GroupBySupplier;
+import me.ahoo.cosid.segment.grouped.GroupedAccessor;
+import me.ahoo.cosid.segment.grouped.GroupedId;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.segment.grouped.GroupedIdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.grouped.date.YearGroupBySupplier;
 import me.ahoo.cosid.test.MockIdGenerator;
@@ -91,5 +100,49 @@ public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistribut
         assertThat(actual.getStep(), equalTo(TEST_STEP));
         assertThat(actual.getSequence(), equalTo(0L));
         assertThat(actual.getTtl(), allOf(greaterThanOrEqualTo(ttlAfter), lessThanOrEqualTo(ttlBefore)));
+    }
+    
+    @Test
+    public void generateGroupedCarriesTheGroup() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "generateGrouped", TEST_OFFSET, TEST_STEP);
+        IdSegmentDistributor distributor = factory().create(definition);
+        GroupedKey expected = groupedSupplier().get();
+        
+        GroupedId segmentId = new DefaultSegmentId(distributor).generateGrouped();
+        GroupedId chainId = new SegmentChainId(distributor).generateGrouped();
+        
+        assertThat(segmentId, equalTo(GroupedId.of(expected, TEST_OFFSET + 1)));
+        assertThat(chainId.getGroup(), equalTo(expected));
+        assertThat(chainId.getValue(), greaterThan(segmentId.getValue()));
+    }
+    
+    @Test
+    public void generateGroupedAsStringNeedsNoThreadLocalGroup() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "generateGroupedAsString", TEST_OFFSET, TEST_STEP);
+        IdSegmentDistributor distributor = factory().create(definition);
+        SegmentId segmentId = new StringSegmentId(new DefaultSegmentId(distributor),
+            new GroupedPrefixIdConverter("-", ToStringIdConverter.INSTANCE));
+        
+        assertThat(segmentId.generateGroupedAsString(), equalTo(groupedSupplier().get().getKey() + "-" + (TEST_OFFSET + 1)));
+    }
+    
+    /**
+     * The deprecated thread-local path keeps working: generating sets the group that the converter reads.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void generateAsStringUsesTheThreadLocalGroup() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "generateAsString", TEST_OFFSET, TEST_STEP);
+        IdSegmentDistributor distributor = factory().create(definition);
+        SegmentId segmentId = new StringSegmentId(new DefaultSegmentId(distributor),
+            new GroupedPrefixIdConverter("-", ToStringIdConverter.INSTANCE));
+        try {
+            assertThat(segmentId.generateAsString(), equalTo(groupedSupplier().get().getKey() + "-" + (TEST_OFFSET + 1)));
+        } finally {
+            GroupedAccessor.clear();
+        }
     }
 }

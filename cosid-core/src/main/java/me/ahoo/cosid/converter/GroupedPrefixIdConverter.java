@@ -16,6 +16,7 @@ package me.ahoo.cosid.converter;
 import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.segment.grouped.GroupedAccessor;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.GroupedPrefixConverterStat;
 
@@ -63,10 +64,29 @@ public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConver
         return delimiter;
     }
 
+    /**
+     * Prefix the id with the group set on the current thread by the last generated id.
+     *
+     * @deprecated since 3.4.0, the thread-local group can belong to another generator's last id; use
+     *     {@link #asString(long, GroupedKey)} with the group from {@link me.ahoo.cosid.segment.SegmentId#generateGrouped()}.
+     */
+    @Deprecated(since = "3.4.0")
+    @SuppressWarnings("deprecation")
     @Override
     public @NonNull String asString(long id) {
-        String idStr = actual.asString(id);
-        String groupKey = GroupedAccessor.requiredGet().getKey();
+        return withGroup(actual.asString(id), GroupedAccessor.requiredGet());
+    }
+    
+    /**
+     * Prefix the id with the key of {@code group}.
+     */
+    @Override
+    public @NonNull String asString(long id, @NonNull GroupedKey group) {
+        return withGroup(actual.asString(id, group), group);
+    }
+    
+    private String withGroup(String idStr, GroupedKey group) {
+        String groupKey = group.getKey();
         if (delimiter.isEmpty()) {
             return groupKey + idStr;
         }

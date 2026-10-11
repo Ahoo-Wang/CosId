@@ -247,6 +247,7 @@ public class DefaultIdSegment implements IdSegment {
      *
      * @return The next allocated ID, or {@link IdSegment#SEQUENCE_OVERFLOW} if exhausted
      */
+    @SuppressWarnings("deprecation")
     @Override
     public long incrementAndGet() {
         if (isOverflow()) {

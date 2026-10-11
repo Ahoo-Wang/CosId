@@ -49,8 +49,12 @@ public abstract class MachineLeaseStoreSpec {
     
     protected abstract MachineLeaseStore getStore();
     
+    /**
+     * A unique namespace. {@code MockIdGenerator.usePrefix(prefix)} creates a new generator on every call, so two calls in
+     * the same millisecond return the same id: use the shared instance instead.
+     */
     protected static String newNamespace(String prefix) {
-        return MockIdGenerator.usePrefix(prefix).generateAsString();
+        return prefix + "_" + MockIdGenerator.INSTANCE.generateAsString();
     }
     
     private static InstanceId instance(String name) {

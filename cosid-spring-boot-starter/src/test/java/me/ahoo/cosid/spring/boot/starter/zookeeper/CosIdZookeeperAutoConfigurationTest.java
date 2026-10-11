@@ -113,4 +113,16 @@ class CosIdZookeeperAutoConfigurationTest {
                 .hasSingleBean(RetryPolicy.class)
                 .hasSingleBean(CuratorFramework.class));
     }
+
+    @Test
+    void createsZookeeperInfrastructureWhenExplicitlyEnabled() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdZookeeperAutoConfiguration.class))
+            .withBean(CuratorFramework.class, () -> mock(CuratorFramework.class))
+            .withPropertyValues("cosid.machine.distributor.type=redis", "cosid.segment.distributor.type=redis", "cosid.zookeeper.enabled=true")
+            .run(context -> assertThat(context)
+                .hasSingleBean(CosIdZookeeperProperties.class)
+                .hasSingleBean(RetryPolicy.class)
+                .hasSingleBean(CuratorFramework.class));
+    }
 }

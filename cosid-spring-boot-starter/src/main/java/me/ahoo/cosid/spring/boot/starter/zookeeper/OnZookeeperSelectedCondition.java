@@ -21,7 +21,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 /**
  * Matches when ZooKeeper is the machine id distributor or the segment distributor, so that the ZooKeeper client only
- * connects when CosId uses it.
+ * connects when CosId uses it, or when {@code cosid.zookeeper.enabled=true} is set explicitly (for applications that use
+ * the CosId Curator client themselves, or a custom store provider that needs it).
  *
  * @author ahoo wang
  * @since 3.4.0
@@ -38,5 +39,9 @@ class OnZookeeperSelectedCondition extends AnyNestedCondition {
     
     @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "zookeeper")
     static class SegmentDistributor {
+    }
+    
+    @ConditionalOnProperty(value = ConditionalOnCosIdZookeeperEnabled.ENABLED_KEY, havingValue = "true")
+    static class ExplicitlyEnabled {
     }
 }

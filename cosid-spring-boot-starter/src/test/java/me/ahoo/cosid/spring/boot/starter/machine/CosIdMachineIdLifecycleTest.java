@@ -16,12 +16,15 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.lessThan;
 
+import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
 import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdGuarder;
+import me.ahoo.cosid.machine.MachineIdLease;
 import me.ahoo.cosid.machine.MachineState;
 
 import org.jspecify.annotations.NonNull;
@@ -63,6 +66,24 @@ class CosIdMachineIdLifecycleTest {
     }
     
     @Test
+    void stopShouldReleaseLeaseBeforeRevert() {
+        RecordingDistributor distributor = new RecordingDistributor();
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, Duration.ofMinutes(1));
+        GuardDistribute guardDistribute = new GuardDistribute(distributor, guarder);
+        InstanceId instanceId = InstanceId.of("instance", false);
+        guardDistribute.distribute("ns", 10, instanceId, Duration.ofMinutes(1));
+        MachineIdLease lease = guardDistribute.getLease("ns", instanceId);
+        distributor.onRevert = () -> distributor.releasedAtRevert.add(lease.isReleased());
+        CosIdMachineIdLifecycle lifecycle = new CosIdMachineIdLifecycle(guarder, distributor, guardDistribute);
+        
+        lifecycle.start();
+        lifecycle.stop();
+        
+        assertThat(distributor.releasedAtRevert, contains(true));
+        assertThat(lease.isValid(System.currentTimeMillis()), equalTo(false));
+    }
+    
+    @Test
     void phaseShouldStopAfterWebServerGracefulShutdown() {
         CosIdMachineIdLifecycle lifecycle = new CosIdMachineIdLifecycle(MachineIdGuarder.NONE, new RecordingDistributor(), null);
         
@@ -71,7 +92,9 @@ class CosIdMachineIdLifecycleTest {
     
     static class RecordingDistributor implements MachineIdDistributor {
         final List<String> reverted = new ArrayList<>();
+        final List<Boolean> releasedAtRevert = new ArrayList<>();
         String failingInstance;
+        Runnable onRevert = () -> { };
         
         @Override
         public @NonNull MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
@@ -81,6 +104,7 @@ class CosIdMachineIdLifecycleTest {
         @Override
         public void revert(String namespace, InstanceId instanceId) {
             reverted.add(namespace + ":" + instanceId.getInstanceId());
+            onRevert.run();
             if (instanceId.getInstanceId().equals(failingInstance)) {
                 throw new IllegalStateException("revert failed");
             }

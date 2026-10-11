@@ -34,4 +34,33 @@ class GuardDistributeTest {
         assertThat(machineStateStorage.get(namespace, instanceId), equalTo(machineState));
         assertThat(guardDistribute.getDistributed(), contains(new NamespacedInstanceId(namespace, instanceId)));
     }
+
+    @Test
+    void leaseStartsWhenDistributeStarts() {
+        long distributeMillis = 300;
+        Duration safeGuardDuration = Duration.ofSeconds(1);
+        MachineIdDistributor slowDistributor = new ManualMachineIdDistributor(1, new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT) {
+            @Override
+            protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
+                try {
+                    Thread.sleep(distributeMillis);
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+                return super.distributeRemote(namespace, machineBit, instanceId, safeGuardDuration);
+            }
+        };
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(slowDistributor, safeGuardDuration);
+        GuardDistribute guardDistribute = new GuardDistribute(slowDistributor, guarder);
+        InstanceId instanceId = InstanceId.of("slow", false);
+        long before = System.currentTimeMillis();
+
+        guardDistribute.distribute("test", 10, instanceId, safeGuardDuration);
+
+        long validUntil = guardDistribute.getLease("test", instanceId).getValidUntil();
+        long validityMillis = MachineIdLease.validityMillis(safeGuardDuration);
+        assertThat(validUntil, greaterThanOrEqualTo(before + validityMillis));
+        // Counted from the end of the distribute call it would be at least before + distributeMillis + validityMillis.
+        assertThat(validUntil, lessThan(before + distributeMillis + validityMillis));
+    }
 }

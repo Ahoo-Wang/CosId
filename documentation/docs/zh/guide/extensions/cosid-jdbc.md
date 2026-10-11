@@ -78,6 +78,38 @@ alter table cosid_machine add column stable tinyint not null default 0;
 传给 `JdbcIdSegmentInitializer`、`JdbcIdSegmentDistributorFactory` 和 `JdbcMachineIdInitializer`，或者配置到对应的 `cosid.*.distributor.jdbc` SQL 属性。
 机器号分配器的语句是标准 SQL，无需修改。
 
+使用 Spring Boot starter 时：
+
+```yaml
+cosid:
+  segment:
+    distributor:
+      type: jdbc
+      jdbc:
+        enable-auto-init-cosid-table: true
+        init-cosid-table-sql: >-
+          create table if not exists cosid (name varchar(100) not null, last_max_id bigint not null default 0,
+          last_fetch_time bigint not null default 0, constraint cosid_pk primary key (name))
+        init-id-segment-sql: >-
+          insert into cosid (name, last_max_id, last_fetch_time) values (?, ?, cast(extract(epoch from now()) as bigint))
+        increment-max-id-sql: >-
+          update cosid set last_max_id=(last_max_id + ?),last_fetch_time=cast(extract(epoch from now()) as bigint) where name = ?
+        fetch-max-id-sql: select last_max_id from cosid where name = ?
+  machine:
+    distributor:
+      type: jdbc
+      jdbc:
+        enable-auto-init-cosid-machine-table: true
+        init-cos-id-machine-table-sql: >-
+          create table if not exists cosid_machine (name varchar(100) not null, namespace varchar(100) not null,
+          machine_id integer not null default 0, last_timestamp bigint not null default 0,
+          instance_id varchar(100) not null default '', distribute_time bigint not null default 0,
+          revert_time bigint not null default 0, stable smallint not null default 0,
+          constraint cosid_machine_pk primary key (name))
+        init-namespace-idx-sql: create index if not exists idx_namespace on cosid_machine (namespace)
+        init-instance-id-idx-sql: create index if not exists idx_instance_id on cosid_machine (instance_id)
+```
+
 ## 配置案例
 
 ```yaml {4,10,14}

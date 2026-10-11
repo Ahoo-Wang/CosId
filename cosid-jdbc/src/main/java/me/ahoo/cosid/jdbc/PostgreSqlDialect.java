@@ -22,6 +22,7 @@ package me.ahoo.cosid.jdbc;
  * matching {@code cosid.segment.distributor.jdbc.*} and {@code cosid.machine.distributor.jdbc.*} properties.</p>
  *
  * @author ahoo wang
+ * @since 3.4.0
  */
 public final class PostgreSqlDialect {
     private static final String NOW_EPOCH_SECONDS = "cast(extract(epoch from now()) as bigint)";

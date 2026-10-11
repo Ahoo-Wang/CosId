@@ -33,10 +33,12 @@ import me.ahoo.cosid.util.ProcessId;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import java.util.Objects;
 
@@ -205,26 +207,34 @@ public class CosIdMachineAutoConfiguration {
         return new GuardDistribute(machineIdDistributor, machineIdGuarder);
     }
 
-    /**
-     * Creates the health indicator for machine ID monitoring.
-     *
-     * <p>This Spring Boot Actuator health indicator reports the status of machine
-     * ID distribution and guarding. It integrates with the health check endpoints
-     * to provide operational visibility.</p>
-     *
-     * @param machineIdGuarder the guarder to monitor for health status
-     * @return the machine ID health indicator
-     */
-    @Bean
-    @ConditionalOnMissingBean
-    public MachineIdHealthIndicator machineIdHealthIndicator(MachineIdGuarder machineIdGuarder) {
-        return new MachineIdHealthIndicator(machineIdGuarder);
-    }
 
     @Bean
     @ConditionalOnMissingBean
     public CosIdMachineIdLifecycle cosIdMachineIdLifecycle(MachineIdGuarder machineIdGuarder, MachineIdDistributor machineIdDistributor,
                                                            GuardDistribute guardDistribute) {
         return new CosIdMachineIdLifecycle(machineIdGuarder, machineIdDistributor, guardDistribute);
+    }
+
+    /**
+     * The health indicator, only when the health support of Spring Boot Actuator is on the classpath.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.springframework.boot.health.contributor.HealthIndicator")
+    static class Health {
+        /**
+         * Creates the health indicator for machine ID monitoring.
+         *
+         * <p>This Spring Boot Actuator health indicator reports the status of machine
+         * ID distribution and guarding. It integrates with the health check endpoints
+         * to provide operational visibility.</p>
+         *
+         * @param machineIdGuarder the guarder to monitor for health status
+         * @return the machine ID health indicator
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        public MachineIdHealthIndicator machineIdHealthIndicator(MachineIdGuarder machineIdGuarder) {
+            return new MachineIdHealthIndicator(machineIdGuarder);
+        }
     }
 }

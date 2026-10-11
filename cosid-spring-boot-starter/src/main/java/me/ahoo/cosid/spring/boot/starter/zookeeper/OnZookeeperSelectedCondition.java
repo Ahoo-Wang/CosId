@@ -34,14 +34,14 @@ class OnZookeeperSelectedCondition extends AnyNestedCondition {
     }
     
     @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "zookeeper")
-    static class MachineDistributor {
+    interface MachineDistributor {
     }
     
     @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "zookeeper")
-    static class SegmentDistributor {
+    interface SegmentDistributor {
     }
     
     @ConditionalOnProperty(value = ConditionalOnCosIdZookeeperEnabled.ENABLED_KEY, havingValue = "true")
-    static class ExplicitlyEnabled {
+    interface ExplicitlyEnabled {
     }
 }

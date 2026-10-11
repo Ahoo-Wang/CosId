@@ -14,8 +14,12 @@
 package me.ahoo.cosid.segment;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.segment.grouped.GroupedId;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 import me.ahoo.cosid.stat.generator.SegmentIdStat;
+
+import org.jspecify.annotations.NonNull;
 
 /**
  * Segment algorithm ID generator.
@@ -67,6 +71,34 @@ public interface SegmentId extends IdGenerator {
      * @return The current ID segment
      */
     IdSegment current();
+    
+    /**
+     * Generate an id together with the group of the segment it came from, without the thread-local
+     * {@link me.ahoo.cosid.segment.grouped.GroupedAccessor}.
+     *
+     * <p>The default implementation, for generators that only set the thread-local group, clears it, generates, and reads
+     * it back. CosId's segment generators take the group from the segment directly.</p>
+     *
+     * @return the id and its group, {@link GroupedKey#NEVER} when it is not grouped
+     * @since 3.4.0
+     */
+    @SuppressWarnings("deprecation")
+    default @NonNull GroupedId generateGrouped() {
+        me.ahoo.cosid.segment.grouped.GroupedAccessor.clear();
+        long id = generate();
+        GroupedKey group = me.ahoo.cosid.segment.grouped.GroupedAccessor.get();
+        return GroupedId.of(group == null ? GroupedKey.NEVER : group, id);
+    }
+    
+    /**
+     * Generate an id and convert it with its group, see {@link #generateGrouped()} and
+     * {@link me.ahoo.cosid.IdConverter#asString(GroupedId)}.
+     *
+     * @since 3.4.0
+     */
+    default @NonNull String generateGroupedAsString() {
+        return idConverter().asString(generateGrouped());
+    }
 
     /**
      * Get statistical information about this Segment ID generator.

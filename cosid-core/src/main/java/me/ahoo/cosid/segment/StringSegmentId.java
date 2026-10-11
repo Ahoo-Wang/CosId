@@ -15,7 +15,10 @@ package me.ahoo.cosid.segment;
 
 import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.StringIdGeneratorDecorator;
+import me.ahoo.cosid.segment.grouped.GroupedId;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
+
+import org.jspecify.annotations.NonNull;
 
 /**
  * String-based SegmentId wrapper.
@@ -42,6 +45,11 @@ public class StringSegmentId extends StringIdGeneratorDecorator implements Segme
     @Override
     public IdSegment current() {
         return actualSegmentId.current();
+    }
+    
+    @Override
+    public @NonNull GroupedId generateGrouped() {
+        return actualSegmentId.generateGrouped();
     }
 
     @Override

@@ -16,10 +16,13 @@ package me.ahoo.cosid.segment;
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
 import me.ahoo.cosid.segment.grouped.GroupedAccessor;
+import me.ahoo.cosid.segment.grouped.GroupedId;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 
 /**
@@ -69,16 +72,37 @@ public class DefaultSegmentId implements SegmentId {
 
     @Override
     public long generate() {
+        return next(null);
+    }
+    
+    @Override
+    public @NonNull GroupedId generateGrouped() {
+        IdSegment[] source = new IdSegment[1];
+        long id = next(source);
+        return GroupedId.of(source[0].group(), id);
+    }
+    
+    /**
+     * Generate the next id.
+     *
+     * @param source when not {@code null}, receives the segment the id came from
+     */
+    @SuppressWarnings("deprecation")
+    private long next(IdSegment @Nullable [] source) {
 
         if (maxIdDistributor.getStep() == ONE_STEP) {
-            GroupedAccessor.setIfNotNever(maxIdDistributor.group());
-            return maxIdDistributor.nextMaxId();
+            // The segment binds the group its id came from: reading the distributor's group separately could see the next
+            // group after a rollover and label an id of the old counter with it.
+            IdSegment oneStep = maxIdDistributor.nextIdSegment(idSegmentTtl);
+            GroupedAccessor.setIfNotNever(oneStep.group());
+            return sourced(source, oneStep, oneStep.getMaxId());
         }
         long nextSeq;
         if (segment.isAvailable()) {
-            nextSeq = segment.incrementAndGet();
-            if (!segment.isOverflow(nextSeq)) {
-                return nextSeq;
+            IdSegment current = segment;
+            nextSeq = current.incrementAndGet();
+            if (!current.isOverflow(nextSeq)) {
+                return sourced(source, current, nextSeq);
             }
         }
 
@@ -87,7 +111,7 @@ public class DefaultSegmentId implements SegmentId {
                 if (segment.isAvailable()) {
                     nextSeq = segment.incrementAndGet();
                     if (!segment.isOverflow(nextSeq)) {
-                        return nextSeq;
+                        return sourced(source, segment, nextSeq);
                     }
                 }
                 IdSegment nextIdSegment = maxIdDistributor.nextIdSegment(idSegmentTtl);
@@ -98,5 +122,11 @@ public class DefaultSegmentId implements SegmentId {
             }
         }
     }
-
+    
+    private static long sourced(IdSegment @Nullable [] source, IdSegment segment, long id) {
+        if (source != null) {
+            source[0] = segment;
+        }
+        return id;
+    }
 }

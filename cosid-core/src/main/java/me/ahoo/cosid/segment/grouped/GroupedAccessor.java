@@ -25,7 +25,11 @@ import java.util.Objects;
  * allowing different threads to work with different group contexts.
  *
  * @author ahoo wang
+ * @deprecated since 3.4.0, the thread-local group is whatever the last generated id on this thread set, which can
+ *     belong to another generator. Generate with {@link me.ahoo.cosid.segment.SegmentId#generateGrouped()} and convert
+ *     with {@link me.ahoo.cosid.IdConverter#asString(GroupedId)} instead. The behavior is unchanged.
  */
+@Deprecated(since = "3.4.0")
 @ThreadSafe
 public final class GroupedAccessor {
     private static final ThreadLocal<GroupedKey> CURRENT = new ThreadLocal<>();

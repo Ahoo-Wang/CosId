@@ -111,6 +111,29 @@ public final class JdbcSupport {
         return false;
     }
 
+    /**
+     * Commit when the connection is not in auto-commit mode, e.g. from a pool configured with {@code autoCommit=false};
+     * otherwise the writes would be rolled back when the connection is closed or returned.
+     */
+    static void commitIfManual(Connection connection) throws SQLException {
+        if (!connection.getAutoCommit()) {
+            connection.commit();
+        }
+    }
+    
+    /**
+     * Roll back after a failure when the connection is not in auto-commit mode.
+     */
+    static void rollbackIfManual(Connection connection, Throwable cause) {
+        try {
+            if (!connection.getAutoCommit()) {
+                rollbackQuietly(connection, cause);
+            }
+        } catch (SQLException autoCommitException) {
+            cause.addSuppressed(autoCommitException);
+        }
+    }
+    
     static void rollbackQuietly(Connection connection, Throwable cause) {
         try {
             connection.rollback();

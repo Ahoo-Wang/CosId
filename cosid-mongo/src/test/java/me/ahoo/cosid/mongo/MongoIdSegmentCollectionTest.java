@@ -80,7 +80,7 @@ class MongoIdSegmentCollectionTest {
         assertThat(recordingCollection.incrementOptions.isUpsert(), equalTo(true));
         assertThat(recordingCollection.incrementOptions.getReturnDocument(), equalTo(ReturnDocument.AFTER));
         assertThat(recordingCollection.incrementOptions.getMaxTime(TimeUnit.MILLISECONDS),
-            equalTo(me.ahoo.cosid.mongo.reactive.BlockingAdapter.DEFAULT_TIME_OUT.toMillis()));
+            equalTo(Documents.DEFAULT_TIME_OUT.toMillis()));
     }
 
     @Test

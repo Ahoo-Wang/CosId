@@ -175,23 +175,35 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
             log.info("Distribute Remote instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
         }
         try (Connection connection = dataSource.getConnection()) {
-            MachineState machineState = distributeBySelf(namespace, instanceId, connection, safeGuardDuration);
-            if (machineState != null) {
+            try {
+                MachineState machineState = distributeConnected(namespace, machineBit, instanceId, connection, safeGuardDuration);
+                JdbcSupport.commitIfManual(connection);
                 return machineState;
+            } catch (SQLException | RuntimeException exception) {
+                JdbcSupport.rollbackIfManual(connection, exception);
+                throw exception;
             }
-            
-            machineState = distributeByRevert(namespace, instanceId, connection, safeGuardDuration);
-            if (machineState != null) {
-                return machineState;
-            }
-            
-            return distributeMachine(namespace, machineBit, instanceId, connection);
         } catch (SQLException sqlException) {
             if (log.isErrorEnabled()) {
                 log.error(sqlException.getMessage(), sqlException);
             }
             throw new CosIdException(sqlException.getMessage(), sqlException);
         }
+    }
+    
+    private MachineState distributeConnected(String namespace, int machineBit, InstanceId instanceId, Connection connection, Duration safeGuardDuration)
+        throws SQLException {
+        MachineState machineState = distributeBySelf(namespace, instanceId, connection, safeGuardDuration);
+        if (machineState != null) {
+            return machineState;
+        }
+        
+        machineState = distributeByRevert(namespace, instanceId, connection, safeGuardDuration);
+        if (machineState != null) {
+            return machineState;
+        }
+        
+        return distributeMachine(namespace, machineBit, instanceId, connection);
     }
     
     private MachineState distributeMachine(String namespace, int machineBit, InstanceId instanceId, Connection connection) throws SQLException {
@@ -227,6 +239,8 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
                 if (log.isInfoEnabled()) {
                     log.info("Distribute Machine attempt:[{}] - [{}]", attempt, sqlException.getMessage());
                 }
+                // Nothing was written yet in this call; on PostgreSQL the failed insert also aborted the transaction.
+                JdbcSupport.rollbackIfManual(connection, sqlException);
                 return distributeMachine(namespace, machineBit, instanceId, connection, attempt + 1);
             }
         }
@@ -335,9 +349,13 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
                 revertMachineStatement.setString(4, namespace);
                 revertMachineStatement.setString(5, instanceId.getInstanceId());
                 int affected = revertMachineStatement.executeUpdate();
+                JdbcSupport.commitIfManual(connection);
                 if (log.isInfoEnabled()) {
                     log.info("Revert Remote affected:[{}]", affected);
                 }
+            } catch (SQLException | RuntimeException exception) {
+                JdbcSupport.rollbackIfManual(connection, exception);
+                throw exception;
             }
         } catch (SQLException sqlException) {
             if (log.isErrorEnabled()) {
@@ -360,6 +378,7 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
                 guardMachineStatement.setString(3, instanceId.getInstanceId());
                 guardMachineStatement.setInt(4, machineState.getMachineId());
                 int affected = guardMachineStatement.executeUpdate();
+                JdbcSupport.commitIfManual(connection);
                 if (log.isDebugEnabled()) {
                     log.debug("Guard Remote - affected:[{}]", affected);
                 }
@@ -367,6 +386,9 @@ public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {
                 if (0 == affected) {
                     throw new MachineIdLostException(namespace, instanceId, machineState);
                 }
+            } catch (SQLException exception) {
+                JdbcSupport.rollbackIfManual(connection, exception);
+                throw exception;
             }
         } catch (SQLException sqlException) {
             if (log.isErrorEnabled()) {

@@ -13,22 +13,27 @@
 
 package me.ahoo.cosid.mongo;
 
-import me.ahoo.cosid.mongo.reactive.BlockingAdapter;
-
 import com.mongodb.client.model.FindOneAndUpdateOptions;
 import com.mongodb.client.model.ReturnDocument;
+
+import java.time.Duration;
 
 public interface Documents {
     String ID_FIELD = "_id";
 
+    /**
+     * Server-side time limit ({@code maxTime}) of each find-and-update.
+     */
+    Duration DEFAULT_TIME_OUT = Duration.ofSeconds(10);
+
     FindOneAndUpdateOptions UPDATE_AFTER_OPTIONS = new FindOneAndUpdateOptions()
         .returnDocument(ReturnDocument.AFTER)
-        .maxTime(BlockingAdapter.DEFAULT_TIME_OUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+        .maxTime(DEFAULT_TIME_OUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
 
     FindOneAndUpdateOptions UPDATE_UPSERT_AFTER_OPTIONS = new FindOneAndUpdateOptions()
             .upsert(true)
             .returnDocument(ReturnDocument.AFTER)
-            .maxTime(BlockingAdapter.DEFAULT_TIME_OUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+            .maxTime(DEFAULT_TIME_OUT.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
 
 
 }

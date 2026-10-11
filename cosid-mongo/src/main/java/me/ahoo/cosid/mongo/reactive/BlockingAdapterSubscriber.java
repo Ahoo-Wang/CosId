@@ -20,6 +20,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * BlockingAdapterSubscriber of the reactive MongoDB support.
+ *
+ * @deprecated Reactive MongoDB support only blocks on the reactive driver and will be removed in 4.0;
+ *     use the synchronous MongoDB driver ({@code mongodb-driver-sync}) instead.
+ */
+@Deprecated(since = "3.4.0", forRemoval = true)
 public class BlockingAdapterSubscriber<T> extends BaseSubscriber<T> {
     private final CountDownLatch latch;
 

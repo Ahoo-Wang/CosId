@@ -15,6 +15,7 @@ package me.ahoo.cosid.zookeeper;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.util.CallTimeout;
 
@@ -36,12 +37,9 @@ import java.util.concurrent.TimeUnit;
  * @author ahoo wang
  */
 @Slf4j
-public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
+public class ZookeeperIdSegmentDistributor extends AbstractIdSegmentDistributor {
     
-    private final String namespace;
-    private final String name;
     private final long offset;
-    private final long step;
     /**
      * /cosid/{namespace}.{name}
      */
@@ -63,14 +61,9 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
      */
     public ZookeeperIdSegmentDistributor(String namespace, String name, long offset, long step, CuratorFramework curatorFramework, RetryPolicy retryPolicy,
                                          CallTimeout callTimeout) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(name), "name can not be empty!");
+        super(namespace, name, step);
         Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
-        Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
-        this.namespace = namespace;
-        this.name = name;
         this.offset = offset;
-        this.step = step;
         this.counterPath = Strings.lenientFormat("/%s/%s", CosId.COSID, getNamespacedName());
         this.counterLockerPath = counterPath + "-locker";
         PromotedToLock promotedToLock = PromotedToLock.builder()
@@ -82,20 +75,8 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
         this.callTimeout = callTimeout;
     }
     
-    @Override
-    public @NonNull String getNamespace() {
-        return namespace;
-    }
     
-    @Override
-    public @NonNull String getName() {
-        return name;
-    }
     
-    @Override
-    public long getStep() {
-        return step;
-    }
     
     void ensureOffset() {
         if (log.isDebugEnabled()) {
@@ -114,8 +95,7 @@ public class ZookeeperIdSegmentDistributor implements IdSegmentDistributor {
     }
     
     @Override
-    public long nextMaxId(long step) {
-        IdSegmentDistributor.ensureStep(step);
+    protected long doNextMaxId(long step) {
         if (log.isDebugEnabled()) {
             log.debug("Next MaxId [{}] step:[{}].", counterPath, step);
         }

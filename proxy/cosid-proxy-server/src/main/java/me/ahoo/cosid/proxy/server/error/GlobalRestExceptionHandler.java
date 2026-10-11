@@ -16,11 +16,13 @@ package me.ahoo.cosid.proxy.server.error;
 import static me.ahoo.cosid.proxy.api.ErrorResponse.MACHINE_ID_LOST;
 import static me.ahoo.cosid.proxy.api.ErrorResponse.MACHINE_ID_OVERFLOW;
 import static me.ahoo.cosid.proxy.api.ErrorResponse.NOT_FOUND_MACHINE_STATE;
+import static me.ahoo.cosid.proxy.api.ErrorResponse.SEGMENT_ROLLBACK;
 
-import me.ahoo.cosid.proxy.api.ErrorResponse;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.NotFoundMachineStateException;
+import me.ahoo.cosid.proxy.api.ErrorResponse;
+import me.ahoo.cosid.segment.IdSegmentRollbackException;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -76,6 +78,19 @@ public class GlobalRestExceptionHandler {
         return ResponseEntity
             .badRequest()
             .body(ErrorResponse.of(MACHINE_ID_LOST, ex.getMessage()));
+    }
+    
+    /**
+     * The segment max id moved backwards: a conflict with the store's state, not a server bug.
+     */
+    @ExceptionHandler(IdSegmentRollbackException.class)
+    public ResponseEntity<ErrorResponse> handleSegmentRollback(IdSegmentRollbackException ex) {
+        if (log.isWarnEnabled()) {
+            log.warn(ex.getMessage(), ex);
+        }
+        return ResponseEntity
+            .status(HttpStatus.CONFLICT)
+            .body(ErrorResponse.of(SEGMENT_ROLLBACK, ex.getMessage()));
     }
     
     @ResponseStatus(HttpStatus.BAD_REQUEST)

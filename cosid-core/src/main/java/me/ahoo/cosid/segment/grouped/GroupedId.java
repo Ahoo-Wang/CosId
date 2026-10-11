@@ -23,8 +23,7 @@ import java.util.Objects;
  * An id together with the group of the segment it came from.
  *
  * <p>Returned by {@link me.ahoo.cosid.segment.SegmentId#generateGrouped()} and passed to
- * {@link me.ahoo.cosid.IdConverter#asString(GroupedId)}: the group travels with the id instead of through the
- * thread-local {@link GroupedAccessor}.</p>
+ * {@link me.ahoo.cosid.IdConverter#asString(GroupedId)}: the group travels with the id.</p>
  *
  * @author ahoo wang
  * @since 3.4.0

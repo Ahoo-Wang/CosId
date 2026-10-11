@@ -2,6 +2,10 @@
 
 [cosid-spring-data-jdbc](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-spring-data-jdbc) 模块提供了对 `org.springframework.data.annotation.Id` 注解的支持，支持自动注入**分布式ID**。
 
+::: warning 4.0 需要设置 `cosid.jdbc.enabled=true`
+自 4.0 起该集成默认关闭。使用 starter 时请设置 `cosid.jdbc.enabled=true`，否则 CosId 不会填充 Spring Data JDBC 实体的 `@Id` 和 `@CosId` 字段（启动时会打印一条 INFO 列出这些实体）。
+:::
+
 ## 安装
 
 ::: code-group
@@ -18,6 +22,11 @@
         </dependency>
     </dependencies>
 ```
+:::
+
+
+::: tip `cosid-accessor`
+`@CosId` 注解与 ID 字段访问器位于 `me.ahoo.cosid:cosid-accessor` 构件中（4.0 起），本模块已经引入。只有在不使用 MyBatis、Spring Data JDBC 或 starter 填充 `@CosId` 字段时，才需要直接依赖它。
 :::
 
 ## 使用

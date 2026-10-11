@@ -20,7 +20,19 @@
 
 `me.ahoo.cosid.mongo.reactive` (`MongoReactiveIdSegmentDistributorFactory`, `MongoReactiveMachineCollection`, the reactive initializers and `BlockingAdapter`) is removed: it only blocked on the reactive driver. Use the sync driver, `org.mongodb:mongodb-driver-sync`, with the classes in `me.ahoo.cosid.mongo`; the data format is the same. With the starter, selecting MongoDB while only the reactive driver is on the classpath fails at startup with a message pointing here.
 
-_Still to be filled in as the changes land: the thread-local grouped path (`GroupedAccessor`), the old machine id distributors, and the APIs deprecated for removal in 3.x._
+### Thread-local grouped ids
+
+`GroupedAccessor` is removed, and generating an id no longer publishes its group on the current thread. The group travels with the id instead:
+
+| 3.x | 4.0 |
+|---|---|
+| `segmentId.generate()` then `GroupedAccessor.get()` | `segmentId.generateGrouped()` returns a `GroupedId` (group and value) |
+| `groupedPrefixConverter.asString(id)` (group from the thread) | `converter.asString(id, group)` or `converter.asString(groupedId)`; `asString(long)` throws `UnsupportedOperationException` |
+| `stringSegmentId.generateAsString()` | unchanged: a string segment id whose converter has a grouped prefix passes the group of the segment |
+
+`SegmentId.generateGrouped()` has no default implementation any more: a custom `SegmentId` must implement it. A custom converter decorator should override `asString(long, GroupedKey)` and pass the group on. With the starter, `converter.group-prefix.enabled` on a segment id without `group.by` fails at startup.
+
+_Still to be filled in as the changes land: the old machine id distributors._
 
 ### APIs deprecated for removal in 3.x
 
@@ -29,12 +41,26 @@ _Still to be filled in as the changes land: the thread-local grouped path (`Grou
 | `AbstractSnowflakeId.nextTime()` (no longer called since 3.4) | override `getCurrentTime()` to change the clock |
 | `CosIdMachineIdLifecycle(MachineIdGuarder, MachineIdDistributor)` | `CosIdMachineIdLifecycle(MachineIdGuarder, MachineIdDistributor, GuardDistribute)` |
 
+### Test segment distributors
+
+`IdSegmentDistributor.Atomic` and `IdSegmentDistributor.Mock` moved out of `cosid-core` to the `cosid-test` artifact as `me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor` and `me.ahoo.cosid.test.segment.MockIdSegmentDistributor`, with the same constructors.
+
+### Sharding algorithms moved to `cosid-sharding`
+
+`me.ahoo.cosid.sharding` (`ModCycle`, `IntervalTimeline`, `CachedSharding`, ...) moved from `cosid-core` to the new `me.ahoo.cosid:cosid-sharding` artifact, with the same package and class names. Add the dependency where you use them; the BOM manages its version. Downstream integrations need it too, such as the CosId sharding algorithms in Apache ShardingSphere (`shardingsphere-sharding-cosid`). Guava is now a dependency of `cosid-sharding` only.
+
+### Accessor and annotations moved to `cosid-accessor`
+
+`me.ahoo.cosid.accessor` (id field accessors, `CosIdAccessorRegistry`, the field parsers) and `me.ahoo.cosid.annotation` (`@CosId`, `@AccessorFactory`) moved from `cosid-core` to the new `me.ahoo.cosid:cosid-accessor` artifact, with the same package and class names. The starter, `cosid-mybatis` and `cosid-spring-data-jdbc` depend on it, so applications using them need no change; add it only where you use `@CosId` or the accessors without them.
+
 ## Changed defaults
 
 | Property | 3.x | 4.0 |
 |---|---|---|
 | `cosid.jdbc.enabled` | `true` | `false` |
 | `cosid.actuator.delete.enabled` | `true` | `false` |
+
+Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `cosid.jdbc.enabled=true`**: with it off, CosId no longer fills the `@Id` property (or `@CosId` fields) of Spring Data JDBC entities, and an INFO at startup names those entities. With `cosid.actuator.delete.enabled` off, the `cosid` endpoint is read-only (`CosIdReadOnlyEndpoint`), and the 3.4 startup warning is gone.
 
 ## API changes
 

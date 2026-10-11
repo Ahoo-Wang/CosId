@@ -25,6 +25,7 @@ import me.ahoo.cosid.segment.concurrent.AffinityJob;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorker;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
+import me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor;
 
 import org.junit.jupiter.api.Test;
 
@@ -35,7 +36,7 @@ class SegmentChainIdTest {
 
     @Test
     void currentShouldStartAtUnavailableRootChain() {
-        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, new IdSegmentDistributor.Atomic(2), new NoopPrefetchWorkerExecutorService());
+        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, new AtomicIdSegmentDistributor(2), new NoopPrefetchWorkerExecutorService());
 
         assertEquals(IdSegmentChain.ROOT_VERSION, generator.getHead().getVersion());
         assertSame(generator.getHead(), generator.current());
@@ -44,7 +45,7 @@ class SegmentChainIdTest {
 
     @Test
     void generateShouldAppendChainAndForwardHeadThroughAvailableSegments() {
-        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, new IdSegmentDistributor.Atomic(2), new NoopPrefetchWorkerExecutorService());
+        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, new AtomicIdSegmentDistributor(2), new NoopPrefetchWorkerExecutorService());
 
         assertEquals(1, generator.generate());
         assertEquals(2, generator.generate());
@@ -60,7 +61,7 @@ class SegmentChainIdTest {
 
     @Test
     void nextIdSegmentChainShouldCreateMergedChainWithExpectedVersionAndRange() {
-        IdSegmentDistributor distributor = new IdSegmentDistributor.Atomic(10);
+        IdSegmentDistributor distributor = new AtomicIdSegmentDistributor(10);
         IdSegmentChain root = IdSegmentChain.newRoot(false);
 
         IdSegmentChain chain = distributor.nextIdSegmentChain(root, 3, TIME_TO_LIVE_FOREVER);
@@ -86,7 +87,7 @@ class SegmentChainIdTest {
 
     @Test
     void multipleInstancesSharingDistributorShouldGenerateGloballyUniqueIdsWithPossibleGaps() {
-        IdSegmentDistributor distributor = new IdSegmentDistributor.Atomic(2);
+        IdSegmentDistributor distributor = new AtomicIdSegmentDistributor(2);
         SegmentChainId first = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, distributor, new NoopPrefetchWorkerExecutorService());
         SegmentChainId second = new SegmentChainId(TIME_TO_LIVE_FOREVER, 2, distributor, new NoopPrefetchWorkerExecutorService());
         long[] ids = new long[]{
@@ -103,7 +104,7 @@ class SegmentChainIdTest {
 
     @Test
     void constructorShouldRejectInvalidTtlAndSafeDistance() {
-        IdSegmentDistributor distributor = new IdSegmentDistributor.Atomic(2);
+        IdSegmentDistributor distributor = new AtomicIdSegmentDistributor(2);
         NoopPrefetchWorkerExecutorService executor = new NoopPrefetchWorkerExecutorService();
 
         assertEquals(
@@ -118,7 +119,7 @@ class SegmentChainIdTest {
 
     @Test
     void generateShouldRemainUniqueUnderSmallConcurrentLoad() {
-        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 4, new IdSegmentDistributor.Atomic(64), new NoopPrefetchWorkerExecutorService());
+        SegmentChainId generator = new SegmentChainId(TIME_TO_LIVE_FOREVER, 4, new AtomicIdSegmentDistributor(64), new NoopPrefetchWorkerExecutorService());
 
         new ConcurrentGenerateSpec(4, 256, Duration.ofSeconds(5), generator).verify();
     }

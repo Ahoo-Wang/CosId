@@ -13,7 +13,7 @@
 
 
 dependencies {
-    api(project(":cosid-core"))
+    api(project(":cosid-accessor"))
     api("org.springframework.data:spring-data-jdbc")
     testImplementation(project(":cosid-test"))
 }

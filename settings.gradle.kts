@@ -16,6 +16,8 @@ rootProject.name = "CosId"
 include(":cosid-bom")
 include(":cosid-dependencies")
 include(":cosid-core")
+include(":cosid-sharding")
+include(":cosid-accessor")
 include(":cosid-spring-boot-starter")
 include(":cosid-spring-redis")
 include(":cosid-jdbc")

@@ -12,6 +12,7 @@
  */
 dependencies {
     implementation(project(":cosid-core"))
+    implementation(project(":cosid-sharding"))
     testImplementation(project(":cosid-test"))
     testImplementation("com.netease.nim:camellia-id-gen-core:1.4.2")
     testImplementation("org.apache.shardingsphere:shardingsphere-infra-algorithm-key-generator-snowflake:5.5.3")

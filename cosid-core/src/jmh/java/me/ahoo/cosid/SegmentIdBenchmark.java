@@ -21,6 +21,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+import me.ahoo.cosid.test.segment.MockIdSegmentDistributor;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Scope;
@@ -48,8 +49,8 @@ public class SegmentIdBenchmark {
     @Setup
     public void setup() {
         atomicLongGenerator = new AtomicLongGenerator();
-        segmentId = new DefaultSegmentId(new IdSegmentDistributor.Mock());
-        segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new IdSegmentDistributor.Mock(), PrefetchWorkerExecutorService.DEFAULT);
+        segmentId = new DefaultSegmentId(new MockIdSegmentDistributor());
+        segmentChainId = new SegmentChainId(TIME_TO_LIVE_FOREVER, 10, new MockIdSegmentDistributor(), PrefetchWorkerExecutorService.DEFAULT);
     }
     
     @Benchmark

@@ -58,7 +58,7 @@ The proxy server checks what clients send:
 | Property | Default | Description |
 |----------|---------|-------------|
 | `cosid.proxy.server.max-clock-skew` | `1m` | A client's `lastTimeStamp` (guard, revert) may be at most this far ahead of the server clock; a timestamp far in the future would keep a machine ID from ever being recycled. `0` disables the check |
-| `cosid.proxy.server.segment.max-step` | `1000000` | Largest segment `step` a client may ask for; `offset` must be `>= 0` |
+| `cosid.proxy.server.segment.max-step` | `0` (no limit) | Largest segment `step` a client may ask for. Segment chains ask for `step × segments` at once and prefetch more under load, so set it to at least the largest `step × max prefetch distance` of all clients. `offset` must be `>= 0` and `offset + step` must not overflow |
 
 Requests outside these limits get `400`.
 

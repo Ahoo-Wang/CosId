@@ -96,6 +96,20 @@ class ProxyMachineIdDistributorTest {
     }
 
     @Test
+    public void guardKeepsTheServerReasonForOtherBadRequests() {
+        RecordingMachineClient machineClient = new RecordingMachineClient();
+        machineClient.guardFailure = badRequest(ErrorResponse.BAD_REQUEST, "lastTimeStamp is more than [PT1M] ahead of the server clock!");
+        MachineStateStorage machineStateStorage = new InMemoryMachineStateStorage();
+        MachineIdDistributor distributor = new ProxyMachineIdDistributor(machineClient, machineStateStorage, ClockBackwardsSynchronizer.DEFAULT);
+        InstanceId instanceId = InstanceId.of("instance", false);
+        machineStateStorage.set("test_namespace", 10, instanceId);
+
+        IllegalStateException actual = assertThrows(IllegalStateException.class,
+            () -> distributor.guard("test_namespace", instanceId, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION));
+        org.junit.jupiter.api.Assertions.assertTrue(actual.getMessage().contains("ahead of the server clock"), actual.getMessage());
+    }
+
+    @Test
     public void revertDelegatesToMachineClientWhenLocalStateExists() {
         RecordingMachineClient machineClient = new RecordingMachineClient();
         MachineStateStorage machineStateStorage = new InMemoryMachineStateStorage();

@@ -58,7 +58,7 @@ CosId Proxy 提供客户端-服务器架构：
 | 属性 | 默认值 | 说明 |
 |----|-----|----|
 | `cosid.proxy.server.max-clock-skew` | `1m` | 客户端（守护、归还时）上报的 `lastTimeStamp` 最多比服务端时钟超前这么多；过于超前的时间戳会让机器号永远无法被回收。`0` 表示不检查 |
-| `cosid.proxy.server.segment.max-step` | `1000000` | 客户端可申请的最大号段 `step`；`offset` 必须 `>= 0` |
+| `cosid.proxy.server.segment.max-step` | `0`（不限制） | 客户端可申请的最大号段 `step`。号段链一次申请 `step × 号段数`，负载高时预取得更多，所以至少要设为所有客户端中最大的 `step × 最大预取距离`。`offset` 必须 `>= 0`，且 `offset + step` 不能溢出 |
 
 超出这些限制的请求返回 `400`。
 

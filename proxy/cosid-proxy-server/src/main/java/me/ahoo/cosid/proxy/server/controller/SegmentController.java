@@ -53,7 +53,8 @@ public class SegmentController implements SegmentApi {
     private void checkArguments(String namespace, String name, long step) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace) && !namespace.isBlank(), "namespace can not be blank!");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(name) && !name.isBlank(), "name can not be blank!");
-        Preconditions.checkArgument(step > 0 && step <= maxStep, "step:[%s] must be in [1, %s]!", step, maxStep);
+        Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
+        Preconditions.checkArgument(maxStep <= 0 || step <= maxStep, "step:[%s] must not exceed [%s]!", step, maxStep);
     }
 
     /**
@@ -64,6 +65,11 @@ public class SegmentController implements SegmentApi {
     public void createDistributor(@PathVariable String namespace, @PathVariable String name, long offset, long step) {
         checkArguments(namespace, name, step);
         Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        try {
+            Math.addExact(offset, step);
+        } catch (ArithmeticException overflow) {
+            throw new IllegalArgumentException(Strings.lenientFormat("offset:[%s] + step:[%s] overflows!", offset, step), overflow);
+        }
         String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);
         distributors.computeIfAbsent(namespacedName,
             key -> distributorFactory.create(new IdSegmentDistributorDefinition(namespace, name, offset, step)));

@@ -26,7 +26,10 @@ import java.time.Duration;
 public class ProxyServerProperties {
     public static final String PREFIX = "cosid.proxy.server";
     public static final Duration DEFAULT_MAX_CLOCK_SKEW = Duration.ofMinutes(1);
-    public static final long DEFAULT_MAX_SEGMENT_STEP = 1_000_000;
+    /**
+     * No limit.
+     */
+    public static final long DEFAULT_MAX_SEGMENT_STEP = 0;
     
     /**
      * How far ahead of the server's clock a client's {@code lastTimeStamp} (guard, revert) may be. A timestamp far in
@@ -54,7 +57,9 @@ public class ProxyServerProperties {
     
     public static class Segment {
         /**
-         * Largest {@code step} a client may ask for, so that one request cannot use up the id range.
+         * Largest {@code step} a client may ask for, so that one request cannot use up the id range. Zero (the default)
+         * means no limit. Segment chains ask for {@code step × segments} at once and the prefetch distance grows under
+         * load, so a limit must be at least the largest {@code step × max prefetch distance} of all clients.
          */
         private long maxStep = DEFAULT_MAX_SEGMENT_STEP;
         

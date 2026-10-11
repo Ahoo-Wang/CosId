@@ -32,10 +32,10 @@ public class ErrorResponse {
     public static final String NOT_FOUND_MACHINE_STATE = "M-02";
     public static final String MACHINE_ID_LOST = "M-03";
     /**
-     * The server's state does not allow the request, e.g. the stored segment max id moved backwards and the next segment
-     * would overlap ids already issued. Clients raise {@link IllegalStateException}.
+     * The stored segment max id moved backwards: the next segment would overlap ids already issued. Clients raise
+     * {@code IdSegmentRollbackException}.
      */
-    public static final String ILLEGAL_STATE = "409";
+    public static final String SEGMENT_ROLLBACK = "S-01";
     
     private final String code;
     private final String msg;

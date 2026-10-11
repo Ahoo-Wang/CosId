@@ -16,9 +16,9 @@ package me.ahoo.cosid.proxy;
 import me.ahoo.cosid.proxy.api.ErrorResponse;
 import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentRollbackException;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
-import com.google.common.base.Strings;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
@@ -41,18 +41,29 @@ public class ProxyIdSegmentDistributor extends AbstractIdSegmentDistributor {
     }
     
     
-    
-    
     @SneakyThrows
     @Override
     protected long doNextMaxId(long step) {
         try {
             return segmentClient.nextMaxId(getNamespace(), getName(), step);
         } catch (HttpClientErrorException.Conflict conflict) {
-            // The server detected that the max id moved backwards: same rule, and same exception, as the client's own check.
-            ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(conflict.getResponseBodyAsByteArray(), ErrorResponse.class);
-            throw new IllegalStateException(Strings.lenientFormat("Unexpected code:[%s] - message:[%s].", errorResponse.getCode(), errorResponse.getMsg()),
-                conflict);
+            throw rollbackOrOriginal(conflict);
         }
+    }
+    
+    /**
+     * The server detected that the max id moved backwards: raise the same exception as the client's own check. Any
+     * other conflict, or a body that cannot be parsed, keeps the original exception.
+     */
+    private RuntimeException rollbackOrOriginal(HttpClientErrorException.Conflict conflict) {
+        try {
+            ErrorResponse errorResponse = Jsons.OBJECT_MAPPER.readValue(conflict.getResponseBodyAsByteArray(), ErrorResponse.class);
+            if (ErrorResponse.SEGMENT_ROLLBACK.equals(errorResponse.getCode())) {
+                return new IdSegmentRollbackException(getNamespacedName(), errorResponse.getMsg(), conflict);
+            }
+        } catch (Exception parseException) {
+            conflict.addSuppressed(parseException);
+        }
+        return conflict;
     }
 }

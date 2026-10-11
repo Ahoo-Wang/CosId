@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * <p>The max id this distributor got from the store must strictly move forward. If the store hands out a max id below
  * {@code last max id + step} (restored from a backup, a lost Redis key, a manual edit), the range overlaps ids already
- * issued, and {@link #nextMaxId(long)} throws {@link IllegalStateException} instead of issuing duplicates. Subclasses
+ * issued, and {@link #nextMaxId(long)} throws {@link IdSegmentRollbackException} (an {@link IllegalStateException}) instead of issuing duplicates. Subclasses
  * only implement {@link #doNextMaxId(long)}.</p>
  *
  * @author ahoo wang
@@ -72,7 +72,9 @@ public abstract class AbstractIdSegmentDistributor implements IdSegmentDistribut
         IdSegmentDistributor.ensureStep(step);
         final long nextMinMaxId = lastMaxId.get() + step;
         long nextMaxId = doNextMaxId(step);
-        Preconditions.checkState(nextMaxId >= nextMinMaxId, "nextMaxId:[%s] must be greater than nextMinMaxId:[%s]!", nextMaxId, nextMinMaxId);
+        if (nextMaxId < nextMinMaxId) {
+            throw new IdSegmentRollbackException(getNamespacedName(), nextMaxId, nextMinMaxId);
+        }
         lastMaxId.accumulateAndGet(nextMaxId, Math::max);
         return nextMaxId;
     }

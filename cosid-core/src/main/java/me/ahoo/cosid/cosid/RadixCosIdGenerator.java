@@ -14,6 +14,7 @@
 package me.ahoo.cosid.cosid;
 
 import me.ahoo.cosid.internal.TimestampSequencer;
+import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
 import com.google.common.base.Strings;

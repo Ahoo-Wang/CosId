@@ -38,6 +38,10 @@ _Still to be filled in as the changes land: the thread-local grouped path (`Grou
 
 ## API changes
 
-_To be filled in: `StringIdGenerator` and the `IdGeneratorProvider` injection points, `SnowflakeLayout`, the new `cosid-sharding` and `cosid-accessor` modules, the configuration property model._
+### `SnowflakeLayout`
+
+`SnowflakeId.layout()` returns a `SnowflakeLayout(epoch, timestampBit, machineBit, sequenceBit)`, which also gives the maxima, the shifts and `isSafeJavascript()`. A custom `SnowflakeId` implements `layout()`; `getEpoch()`, `getTimestampBit()`, `getMachineBit()`, `getSequenceBit()`, `getMaxTimestamp()`, `getMaxMachineId()`, `getMaxSequence()` and `isSafeJavascript()` are now default methods built on it. `SnowflakeIdStateParser` and its subclasses have constructors taking a layout.
+
+_To be filled in: `StringIdGenerator` and the `IdGeneratorProvider` injection points, the new `cosid-sharding` and `cosid-accessor` modules, the configuration property model._
 
 The API diff against 3.4 is reported on every pull request to `main` (the **API Diff** workflow).

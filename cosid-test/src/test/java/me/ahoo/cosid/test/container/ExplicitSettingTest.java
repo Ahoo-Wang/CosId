@@ -46,6 +46,7 @@ class ExplicitSettingTest {
     void explicitRedisUriBypassesContainer() {
         System.setProperty(RedisLauncher.URI_PROPERTY, "redis://example.com:6379");
 
+        assertThat(RedisLauncher.isAvailable(), equalTo(true));
         assertThat(RedisLauncher.getUri(), equalTo("redis://example.com:6379"));
     }
 
@@ -54,6 +55,7 @@ class ExplicitSettingTest {
         System.setProperty(MySqlLauncher.URL_PROPERTY, "jdbc:mysql://example.com:3306/cosid_db");
         System.setProperty(MySqlLauncher.PASSWORD_PROPERTY, "secret");
 
+        assertThat(MySqlLauncher.isAvailable(), equalTo(true));
         assertThat(MySqlLauncher.getConnection(),
             equalTo(new MySqlLauncher.Connection("jdbc:mysql://example.com:3306/cosid_db", "root", "secret")));
     }

@@ -18,14 +18,6 @@ java {
         usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
         capability(group.toString(), "mongo-support", version.toString())
     }
-    registerFeature("redisSupport") {
-        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
-        capability(group.toString(), "redis-support", version.toString())
-    }
-    registerFeature("mysqlSupport") {
-        usingSourceSet(sourceSets[SourceSet.MAIN_SOURCE_SET_NAME])
-        capability(group.toString(), "mysql-support", version.toString())
-    }
 }
 
 dependencies {
@@ -35,7 +27,9 @@ dependencies {
     "mongoSupportImplementation"("org.testcontainers:testcontainers")
     "mongoSupportImplementation"("org.testcontainers:testcontainers-junit-jupiter")
     "mongoSupportImplementation"("org.testcontainers:testcontainers-mongodb")
-    "redisSupportImplementation"("org.testcontainers:testcontainers")
-    "mysqlSupportImplementation"("org.testcontainers:testcontainers")
-    "mysqlSupportImplementation"("org.testcontainers:testcontainers-mysql")
+    // Redis/MySQL launchers: modules that use them bring Testcontainers on their own test classpath.
+    compileOnly("org.testcontainers:testcontainers")
+    compileOnly("org.testcontainers:testcontainers-mysql")
+    testImplementation("org.testcontainers:testcontainers")
+    testImplementation("org.testcontainers:testcontainers-mysql")
 }

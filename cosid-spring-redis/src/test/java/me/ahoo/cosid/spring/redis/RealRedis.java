@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.redis;
 
 import me.ahoo.cosid.test.container.RedisLauncher;
 
+import org.junit.jupiter.api.Assumptions;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -29,7 +30,11 @@ final class RealRedis {
     private RealRedis() {
     }
 
+    /**
+     * Skips the calling test class when neither {@code COSID_TEST_REDIS_URI} nor Docker is available.
+     */
     static LettuceConnectionFactory createConnectionFactory() {
+        Assumptions.assumeTrue(RedisLauncher.isAvailable(), "Redis contract tests need Docker or " + RedisLauncher.URI_ENV);
         URI uri = URI.create(RedisLauncher.getUri());
         LettuceConnectionFactory connectionFactory = new LettuceConnectionFactory(new RedisStandaloneConfiguration(uri.getHost(), uri.getPort()));
         connectionFactory.afterPropertiesSet();

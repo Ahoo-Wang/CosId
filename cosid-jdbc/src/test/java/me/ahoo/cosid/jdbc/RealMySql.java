@@ -16,6 +16,7 @@ package me.ahoo.cosid.jdbc;
 import me.ahoo.cosid.test.container.MySqlLauncher;
 
 import com.mysql.cj.jdbc.MysqlDataSource;
+import org.junit.jupiter.api.Assumptions;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -30,7 +31,11 @@ final class RealMySql {
     private RealMySql() {
     }
 
+    /**
+     * Skips the calling test class when neither {@code COSID_TEST_MYSQL_URL} nor Docker is available.
+     */
     static DataSource createDataSource() {
+        Assumptions.assumeTrue(MySqlLauncher.isAvailable(), "JDBC contract tests need Docker or " + MySqlLauncher.URL_ENV);
         MySqlLauncher.Connection connection = MySqlLauncher.getConnection();
         MysqlDataSource dataSource = new MysqlDataSource();
         dataSource.setUrl(connection.jdbcUrl());

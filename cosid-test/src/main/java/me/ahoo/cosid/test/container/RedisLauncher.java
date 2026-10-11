@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.test.container;
 
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -20,7 +21,7 @@ import org.testcontainers.utility.DockerImageName;
  * Provides a real Redis for backend contract tests.
  *
  * <p>Uses {@code cosid.test.redis.uri} / {@code COSID_TEST_REDIS_URI} (for example {@code redis://localhost:6379})
- * when set, otherwise starts a shared Redis container.
+ * when set, otherwise starts a shared Redis container. Tests should skip when {@link #isAvailable()} is false.
  */
 public final class RedisLauncher {
     public static final String URI_PROPERTY = "cosid.test.redis.uri";
@@ -31,6 +32,15 @@ public final class RedisLauncher {
         .withExposedPorts(REDIS_PORT);
 
     private RedisLauncher() {
+    }
+
+    /**
+     * Whether a Redis can be provided: an explicit URI is set or Docker is available.
+     *
+     * @return true if {@link #getUri()} can succeed
+     */
+    public static boolean isAvailable() {
+        return ExplicitSetting.resolve(URI_PROPERTY, URI_ENV).isPresent() || DockerClientFactory.instance().isDockerAvailable();
     }
 
     /**

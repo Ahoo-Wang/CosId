@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.test.container;
 
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -25,6 +26,7 @@ import java.util.Optional;
  * {@code cosid.test.mysql.username} / {@code COSID_TEST_MYSQL_USERNAME} and
  * {@code cosid.test.mysql.password} / {@code COSID_TEST_MYSQL_PASSWORD} (both default to {@code root}).
  * Otherwise starts a shared MySQL container with an empty {@code cosid_db} database.
+ * Tests should skip when {@link #isAvailable()} is false.
  */
 public final class MySqlLauncher {
     public static final String URL_PROPERTY = "cosid.test.mysql.url";
@@ -39,6 +41,15 @@ public final class MySqlLauncher {
         .withDatabaseName("cosid_db");
 
     private MySqlLauncher() {
+    }
+
+    /**
+     * Whether a MySQL can be provided: an explicit URL is set or Docker is available.
+     *
+     * @return true if {@link #getConnection()} can succeed
+     */
+    public static boolean isAvailable() {
+        return ExplicitSetting.resolve(URL_PROPERTY, URL_ENV).isPresent() || DockerClientFactory.instance().isDockerAvailable();
     }
 
     public static Connection getConnection() {

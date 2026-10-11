@@ -19,6 +19,7 @@ import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.MachineState;
+import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.StatelessMachineIdDistributor;
 import me.ahoo.cosid.proxy.api.MachineApi;
 
@@ -51,10 +52,16 @@ public class MachineController implements MachineApi {
     @Nullable
     private final StatelessMachineIdDistributor statelessDistributor;
 
-    public MachineController(MachineIdDistributor distributor) {
+    /**
+     * Creates the controller.
+     *
+     * @param distributor the store-backed distributor
+     * @param machineStateStorage the same storage {@code distributor} uses, kept up to date only for older clients
+     */
+    public MachineController(MachineIdDistributor distributor, MachineStateStorage machineStateStorage) {
         this.distributor = distributor;
         this.statelessDistributor = distributor instanceof AbstractMachineIdDistributor abstractDistributor
-            ? new StatelessMachineIdDistributor(abstractDistributor) : null;
+            ? new StatelessMachineIdDistributor(abstractDistributor, machineStateStorage) : null;
     }
 
     /**

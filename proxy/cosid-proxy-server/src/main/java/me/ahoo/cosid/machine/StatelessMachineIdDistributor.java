@@ -27,6 +27,10 @@ import java.time.Duration;
  * its own clock against a client's timestamp. The client keeps its own state and sends it with
  * every guard and revert.
  *
+ * <p>{@code legacyStateStorage} is written on distribute and cleared on revert only so that older clients, which
+ * do not send their machine state, can still guard and revert through the delegate's stateful path on the node
+ * that served their distribute. The stateless path never reads it.
+ *
  * <p>Lives in {@code me.ahoo.cosid.machine} so it can reach the protected {@code *Remote} methods
  * without widening the core API.
  *
@@ -34,9 +38,11 @@ import java.time.Duration;
  */
 public final class StatelessMachineIdDistributor {
     private final AbstractMachineIdDistributor delegate;
+    private final MachineStateStorage legacyStateStorage;
 
-    public StatelessMachineIdDistributor(AbstractMachineIdDistributor delegate) {
+    public StatelessMachineIdDistributor(AbstractMachineIdDistributor delegate, MachineStateStorage legacyStateStorage) {
         this.delegate = delegate;
+        this.legacyStateStorage = legacyStateStorage;
     }
 
     public MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) throws MachineIdOverflowException {
@@ -44,6 +50,7 @@ public final class StatelessMachineIdDistributor {
         if (machineState.getMachineId() > MachineIdDistributor.maxMachineId(machineBit)) {
             throw new MachineIdOverflowException(MachineIdDistributor.totalMachineIds(machineBit), instanceId);
         }
+        legacyStateStorage.set(namespace, machineState.getMachineId(), instanceId);
         return machineState;
     }
 
@@ -55,6 +62,7 @@ public final class StatelessMachineIdDistributor {
     public void revert(String namespace, InstanceId instanceId, MachineState machineState) {
         checkMachineState(machineState);
         delegate.revertRemote(namespace, instanceId, machineState);
+        legacyStateStorage.remove(namespace, instanceId);
     }
 
     private static void checkMachineState(MachineState machineState) {

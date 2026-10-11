@@ -21,6 +21,7 @@ import me.ahoo.cosid.machine.InMemoryMachineStateStorage;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineState;
+import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.proxy.api.ErrorResponse;
 import me.ahoo.cosid.proxy.server.controller.MachineController;
 import me.ahoo.cosid.proxy.server.error.GlobalRestExceptionHandler;
@@ -57,9 +58,10 @@ class StatelessMachineControllerTest {
                 clockSyncCalls.incrementAndGet();
             }
         };
-        StoreBackedMachineIdDistributor distributor = new StoreBackedMachineIdDistributor(store, recordingSynchronizer);
+        MachineStateStorage storage = new InMemoryMachineStateStorage();
+        StoreBackedMachineIdDistributor distributor = new StoreBackedMachineIdDistributor(store, storage, recordingSynchronizer);
         return WebTestClient
-            .bindToController(new MachineController(distributor))
+            .bindToController(new MachineController(distributor, storage))
             .controllerAdvice(new GlobalRestExceptionHandler())
             .build();
     }
@@ -104,6 +106,27 @@ class StatelessMachineControllerTest {
         nodeB.delete()
             .uri("/machines/{ns}?instanceId=node-1&stable=false&machineId={m}&lastTimeStamp={t}",
                 NAMESPACE, state.getMachineId(), state.getLastTimeStamp())
+            .exchange()
+            .expectStatus().isOk();
+
+        assertThat(store.states).doesNotContainKey("node-1");
+    }
+
+    /**
+     * Rolling upgrade with the server first: an older client sends no machine state, and must still be able to
+     * guard and revert on the node that served its distribute.
+     */
+    @Test
+    void legacyClientCanGuardAndRevertOnSameNode() {
+        WebTestClient server = newServerNode();
+        distribute(server, "node-1");
+
+        server.patch()
+            .uri("/machines/{ns}?instanceId=node-1&stable=false&safeGuardDuration=PT30S", NAMESPACE)
+            .exchange()
+            .expectStatus().isOk();
+        server.delete()
+            .uri("/machines/{ns}?instanceId=node-1&stable=false", NAMESPACE)
             .exchange()
             .expectStatus().isOk();
 
@@ -194,8 +217,8 @@ class StatelessMachineControllerTest {
     static class StoreBackedMachineIdDistributor extends AbstractMachineIdDistributor {
         private final SharedStore store;
 
-        StoreBackedMachineIdDistributor(SharedStore store, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-            super(new InMemoryMachineStateStorage(), clockBackwardsSynchronizer);
+        StoreBackedMachineIdDistributor(SharedStore store, MachineStateStorage storage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+            super(storage, clockBackwardsSynchronizer);
             this.store = store;
         }
 

@@ -65,6 +65,9 @@ public interface IdConverter extends Statistical {
      * {@link me.ahoo.cosid.converter.GroupedPrefixIdConverter} takes the group from here instead of the thread-local
      * {@link me.ahoo.cosid.segment.grouped.GroupedAccessor}.</p>
      *
+     * <p>A custom decorator that does not override this method falls back to {@link #asString(long)} of the converter
+     * it wraps, and so to the thread-local group: override it and pass {@code group} on.</p>
+     *
      * @param id    the id
      * @param group the group of the segment the id came from, {@link GroupedKey#NEVER} when it is not grouped
      * @return the {@link String} representation of the id

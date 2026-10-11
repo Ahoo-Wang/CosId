@@ -17,7 +17,6 @@ import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
 import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 import me.ahoo.cosid.segment.grouped.GroupedId;
-import me.ahoo.cosid.segment.grouped.GroupedKey;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.google.common.base.Preconditions;
@@ -80,22 +79,23 @@ public class DefaultSegmentId implements SegmentId {
     public @NonNull GroupedId generateGrouped() {
         IdSegment[] source = new IdSegment[1];
         long id = next(source);
-        GroupedKey group = source[0] == null ? maxIdDistributor.group() : source[0].group();
-        return GroupedId.of(group, id);
+        return GroupedId.of(source[0].group(), id);
     }
     
     /**
      * Generate the next id.
      *
-     * @param source when not {@code null}, receives the segment the id came from; stays empty for one-step distributors,
-     *               whose id comes straight from the distributor
+     * @param source when not {@code null}, receives the segment the id came from
      */
     @SuppressWarnings("deprecation")
     private long next(IdSegment @Nullable [] source) {
 
         if (maxIdDistributor.getStep() == ONE_STEP) {
-            GroupedAccessor.setIfNotNever(maxIdDistributor.group());
-            return maxIdDistributor.nextMaxId();
+            // The segment binds the group its id came from: reading the distributor's group separately could see the next
+            // group after a rollover and label an id of the old counter with it.
+            IdSegment oneStep = maxIdDistributor.nextIdSegment(idSegmentTtl);
+            GroupedAccessor.setIfNotNever(oneStep.group());
+            return sourced(source, oneStep, oneStep.getMaxId());
         }
         long nextSeq;
         if (segment.isAvailable()) {

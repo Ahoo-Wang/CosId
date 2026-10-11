@@ -145,4 +145,51 @@ public abstract class GroupedIdSegmentDistributorSpec extends IdSegmentDistribut
             GroupedAccessor.clear();
         }
     }
+    
+    /**
+     * A group supplier that returns {@code before} once more after being armed, then {@code after}: the group rolls
+     * over right after the distributor picked the group of the next id.
+     */
+    private static final class RollingGroupBySupplier implements GroupBySupplier {
+        private final GroupedKey before;
+        private final GroupedKey after;
+        private final java.util.concurrent.atomic.AtomicInteger beforeLeft = new java.util.concurrent.atomic.AtomicInteger(Integer.MAX_VALUE);
+        
+        private RollingGroupBySupplier(GroupedKey before, GroupedKey after) {
+            this.before = before;
+            this.after = after;
+        }
+        
+        void rollOverAfterNextGet() {
+            beforeLeft.set(1);
+        }
+        
+        @Override
+        public GroupedKey get() {
+            return beforeLeft.getAndDecrement() > 0 ? before : after;
+        }
+    }
+    
+    /**
+     * With step 1 every id comes from its own call to the distributor: the id and its group must come from the same
+     * grouped counter even when the group rolls over in between, or "2026-1" could be issued twice.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void oneStepIdKeepsItsGroupAcrossRollover() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        long ttlAt = groupedSupplier().get().getTtlAt();
+        GroupedKey before = new GroupedKey("before", ttlAt);
+        RollingGroupBySupplier supplier = new RollingGroupBySupplier(before, new GroupedKey("after", ttlAt));
+        IdSegmentDistributor distributor = new GroupedIdSegmentDistributorFactory(supplier, getFactory())
+            .create(new IdSegmentDistributorDefinition(namespace, "oneStepRollover", TEST_OFFSET, 1));
+        DefaultSegmentId segmentId = new DefaultSegmentId(distributor);
+        
+        supplier.rollOverAfterNextGet();
+        GroupedId grouped = segmentId.generateGrouped();
+        
+        assertThat(grouped, equalTo(GroupedId.of(before, TEST_OFFSET + 1)));
+        assertThat(GroupedAccessor.get(), equalTo(before));
+        GroupedAccessor.clear();
+    }
 }

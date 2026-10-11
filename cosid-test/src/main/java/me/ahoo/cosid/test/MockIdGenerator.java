@@ -19,6 +19,8 @@ import me.ahoo.cosid.converter.PrefixIdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 /**
  * Mock ID Generator for test.
  *
@@ -28,10 +30,17 @@ public class MockIdGenerator extends StringIdGeneratorDecorator {
     
     public static final String TEST_PREFIX = "test_";
     
+    /**
+     * Random per JVM: test JVMs running at the same time (Gradle forks, CI jobs on one database) never generate the same
+     * ids for the namespaces and names they share a backend with, while ids stay unique within a JVM.
+     */
+    private static final String JVM_TAG = Long.toString(ThreadLocalRandom.current().nextLong() & Long.MAX_VALUE, Character.MAX_RADIX) + "_";
+    
+    
     public static final IdGenerator INSTANCE = usePrefix(TEST_PREFIX);
     
     public MockIdGenerator(String prefix) {
-        super(new MillisecondSnowflakeId(1, 0), new PrefixIdConverter(prefix, Radix62IdConverter.INSTANCE));
+        super(new MillisecondSnowflakeId(0), new PrefixIdConverter(prefix + JVM_TAG, Radix62IdConverter.INSTANCE));
     }
     
     public static IdGenerator usePrefix(String prefix) {

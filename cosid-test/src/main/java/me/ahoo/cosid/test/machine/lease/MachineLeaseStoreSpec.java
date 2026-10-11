@@ -49,8 +49,12 @@ public abstract class MachineLeaseStoreSpec {
     
     protected abstract MachineLeaseStore getStore();
     
+    /**
+     * A unique namespace. {@code MockIdGenerator.usePrefix(prefix)} creates a new generator on every call, so two calls in
+     * the same millisecond return the same id: use the shared instance instead.
+     */
     protected static String newNamespace(String prefix) {
-        return MockIdGenerator.usePrefix(prefix).generateAsString();
+        return prefix + "_" + MockIdGenerator.INSTANCE.generateAsString();
     }
     
     private static InstanceId instance(String name) {
@@ -217,6 +221,43 @@ public abstract class MachineLeaseStoreSpec {
             index -> () -> store.claimReleased(namespace, instance("i" + index), MAX_MACHINE_ID, T0 + 20));
         
         assertThat(results.stream().filter(Optional::isPresent).count(), equalTo(1L));
+    }
+    
+    @Test
+    public void concurrentClaimersOfAsManyReleasedIdsAllSucceed() throws Exception {
+        MachineLeaseStore store = getStore();
+        String namespace = newNamespace("allReleased");
+        for (int i = 0; i < CONCURRENCY; i++) {
+            store.release(store.claimNew(namespace, instance("owner" + i), MAX_MACHINE_ID, T0).orElseThrow(), T0 + 10);
+        }
+        
+        List<Optional<Lease>> results = concurrently(CONCURRENCY,
+            index -> () -> store.claimReleased(namespace, instance("claimer" + index), MAX_MACHINE_ID, T0 + 20));
+        
+        assertDistinctWinners(results, CONCURRENCY);
+    }
+    
+    @Test
+    public void concurrentClaimersOfAsManyExpiredIdsAllSucceed() throws Exception {
+        MachineLeaseStore store = getStore();
+        String namespace = newNamespace("allExpired");
+        for (int i = 0; i < CONCURRENCY; i++) {
+            store.claimNew(namespace, instance("owner" + i), MAX_MACHINE_ID, T0).orElseThrow();
+        }
+        
+        List<Optional<Lease>> results = concurrently(CONCURRENCY,
+            index -> () -> store.claimExpired(namespace, instance("claimer" + index), MAX_MACHINE_ID, T0 + 100, T0 + 200));
+        
+        assertDistinctWinners(results, CONCURRENCY);
+    }
+    
+    private static void assertDistinctWinners(List<Optional<Lease>> results, int expected) {
+        Set<Integer> machineIds = new HashSet<>();
+        for (Optional<Lease> result : results) {
+            assertThat("every claimer gets one of the free machine ids", result.isPresent(), equalTo(true));
+            machineIds.add(result.get().getMachineId());
+        }
+        assertThat(machineIds, hasSize(expected));
     }
     
     @Test

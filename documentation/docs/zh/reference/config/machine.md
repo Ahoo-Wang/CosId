@@ -63,6 +63,20 @@
 | failFast           | `boolean`  | 机器号租约丢失或过期后停止发号 | `true` |
 | localStateInterval | `Duration` | 本地机器状态（重启后用于时钟回拨保护的时间水位）的刷新间隔。崩溃重启时，短于该间隔的时钟回拨可能检测不到。仅在开启守护且使用本地文件状态存储（`stateStorage.local`）时生效。`0` 表示关闭 | `PT1S` |
 
+### 后端调用超时
+
+| 属性 | 默认值 | 说明 |
+|----|-----|----|
+| `cosid.machine.distributor.redis.timeout` | `1s` | Redis 机器号守护与归还 |
+| `cosid.machine.distributor.jdbc.query-timeout` | `5s` | 每条 JDBC 语句 |
+| `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper 机器号守护与归还（Curator 没有单次操作超时） |
+| `cosid.machine.distributor.mongo.timeout` | `5s` | 每次 MongoDB 操作（驱动的 `timeoutMS`）；`0` 表示沿用 `MongoClient` 的设置 |
+| `cosid.segment.distributor.mongo.timeout` | `5s` | 每次 MongoDB 号段操作 |
+| `cosid.proxy.connect-timeout` | `2s` | 连接 CosId Proxy 服务端 |
+| `cosid.proxy.read-timeout` | `5s` | 等待 CosId Proxy 服务端响应 |
+
+`0` 表示不设超时。
+
 ## ClockBackwards
 
 > `me.ahoo.cosid.spring.boot.starter.machine.MachineProperties.ClockBackwards`

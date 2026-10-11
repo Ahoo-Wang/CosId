@@ -88,6 +88,8 @@ class CosIdProxyMachineIdDistributorAutoConfigurationTest {
             .withConfiguration(AutoConfigurations.of(CosIdProxyMachineIdDistributorAutoConfiguration.class))
             .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
             .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
+            // spring-webflux is on the test classpath (for the WebClient timeout test): pin the blocking client mode.
+            .withPropertyValues("coapi.mode=SYNC")
             .withPropertyValues(COAP_PROXY_HOST)
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=proxy")

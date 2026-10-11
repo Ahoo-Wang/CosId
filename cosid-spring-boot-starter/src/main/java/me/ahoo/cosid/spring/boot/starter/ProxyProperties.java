@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
+import java.time.Duration;
+
 /**
  * Configuration properties for CosId proxy server connection.
  *
@@ -35,6 +37,14 @@ public class ProxyProperties {
      * Default is "http://localhost:8688".
      */
     private String host = "http://localhost:8688";
+    /**
+     * Timeout for connecting to the proxy server. Zero keeps the HTTP client's default.
+     */
+    private Duration connectTimeout = Duration.ofSeconds(2);
+    /**
+     * Timeout for the proxy server's response. Zero keeps the HTTP client's default (no timeout).
+     */
+    private Duration readTimeout = Duration.ofSeconds(5);
 
     /**
      * Gets the proxy server host URL.
@@ -56,4 +66,21 @@ public class ProxyProperties {
         return this;
     }
 
+    public Duration getConnectTimeout() {
+        return connectTimeout;
+    }
+
+    public ProxyProperties setConnectTimeout(Duration connectTimeout) {
+        this.connectTimeout = connectTimeout;
+        return this;
+    }
+
+    public Duration getReadTimeout() {
+        return readTimeout;
+    }
+
+    public ProxyProperties setReadTimeout(Duration readTimeout) {
+        this.readTimeout = readTimeout;
+        return this;
+    }
 }

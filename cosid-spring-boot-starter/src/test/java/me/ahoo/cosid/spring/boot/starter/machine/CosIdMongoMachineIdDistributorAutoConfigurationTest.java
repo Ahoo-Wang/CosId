@@ -14,7 +14,11 @@
 package me.ahoo.cosid.spring.boot.starter.machine;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -52,6 +56,40 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
                 .hasSingleBean(MongoMachineInitializer.class)
                 .hasSingleBean(MongoMachineCollection.class)
                 .hasSingleBean(MongoMachineIdDistributor.class));
+    }
+
+    @Test
+    void boundsMongoOperationsWithTimeout() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=mongo")
+            .run(context -> {
+                assertThat(context).hasSingleBean(MongoMachineCollection.class);
+                MongoDatabase database = context.getBean(MongoClient.class).getDatabase("cosid_db");
+                verify(database, org.mockito.Mockito.atLeastOnce()).withTimeout(5000L, java.util.concurrent.TimeUnit.MILLISECONDS);
+            });
+    }
+
+    @Test
+    void keepsMongoClientSettingsWhenTimeoutIsZero() {
+        MongoClient client = mongoClient();
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdMongoMachineIdDistributorAutoConfiguration.class))
+            .withClassLoader(new FilteredClassLoader(com.mongodb.reactivestreams.client.MongoClient.class))
+            .withBean(MachineProperties.class, () -> {
+                MachineProperties machineProperties = new MachineProperties();
+                machineProperties.getDistributor().getMongo().setTimeout(java.time.Duration.ZERO);
+                return machineProperties;
+            })
+            .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
+            .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
+            .withBean(MongoClient.class, () -> client)
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=mongo")
+            .run(context -> {
+                assertThat(context).hasSingleBean(MongoMachineCollection.class);
+                verify(client.getDatabase("cosid_db"), never()).withTimeout(anyLong(), any());
+            });
     }
 
     @Test
@@ -102,6 +140,7 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
         MongoCollection<Document> collection = mock(MongoCollection.class);
         when(client.getDatabase(anyString())).thenReturn(database);
         when(database.getCollection(anyString())).thenReturn(collection);
+        when(database.withTimeout(anyLong(), any())).thenReturn(database);
         return client;
     }
 }

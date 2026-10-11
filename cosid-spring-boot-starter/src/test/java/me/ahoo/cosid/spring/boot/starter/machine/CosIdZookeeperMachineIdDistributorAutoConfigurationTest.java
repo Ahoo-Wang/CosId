@@ -32,6 +32,7 @@ class CosIdZookeeperMachineIdDistributorAutoConfigurationTest {
         .withConfiguration(AutoConfigurations.of(CosIdZookeeperMachineIdDistributorAutoConfiguration.class))
         .withBean(CuratorFramework.class, () -> mock(CuratorFramework.class))
         .withBean(RetryPolicy.class, () -> mock(RetryPolicy.class))
+        .withBean(MachineProperties.class, MachineProperties::new)
         .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
         .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT);
 

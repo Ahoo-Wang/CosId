@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.util.CallTimeout;
 import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
 
 import org.apache.curator.RetryPolicy;
@@ -41,7 +42,8 @@ public class CosIdZookeeperMachineIdDistributorAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ZookeeperMachineIdDistributor zookeeperMachineIdDistributor(CuratorFramework curatorFramework, RetryPolicy retryPolicy, MachineStateStorage localMachineState,
-                                                                       ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, localMachineState, clockBackwardsSynchronizer);
+                                                                       ClockBackwardsSynchronizer clockBackwardsSynchronizer, MachineProperties machineProperties) {
+        return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, localMachineState, clockBackwardsSynchronizer,
+            CallTimeout.of(machineProperties.getDistributor().getZookeeper().getTimeout()));
     }
 }

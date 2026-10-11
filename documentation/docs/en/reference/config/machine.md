@@ -64,6 +64,20 @@ When upgrading from an earlier version:
 | failFast           | `boolean`  | Stop generating IDs once the machine ID lease is lost or expired | `true` |
 | localStateInterval | `Duration` | How often the local machine state (the clock-backwards watermark used after a restart) is refreshed. After a crash, clock backwards shorter than about this interval may go undetected. Applies only with the guarder enabled and local file state storage (`stateStorage.local`). `0` disables it | `PT1S` |
 
+### Backend Call Timeouts
+
+| Property | Default Value | Description |
+|----------|---------------|-------------|
+| `cosid.machine.distributor.redis.timeout` | `1s` | Redis machine ID guard and revert |
+| `cosid.machine.distributor.jdbc.query-timeout` | `5s` | Each JDBC statement |
+| `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper machine ID guard and revert (Curator has no per-operation timeout) |
+| `cosid.machine.distributor.mongo.timeout` | `5s` | Each MongoDB operation (driver `timeoutMS`); `0` keeps the `MongoClient` settings |
+| `cosid.segment.distributor.mongo.timeout` | `5s` | Each MongoDB segment operation |
+| `cosid.proxy.connect-timeout` | `2s` | Connecting to the CosId proxy server |
+| `cosid.proxy.read-timeout` | `5s` | Waiting for the CosId proxy server's response |
+
+`0` disables a timeout.
+
 ## ClockBackwards
 
 > `me.ahoo.cosid.spring.boot.starter.machine.MachineProperties.ClockBackwards`

@@ -22,12 +22,14 @@ import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.StatelessMachineIdDistributor;
 import me.ahoo.cosid.proxy.api.MachineApi;
+import me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -51,6 +53,7 @@ public class MachineController implements MachineApi {
     private final MachineIdDistributor distributor;
     @Nullable
     private final StatelessMachineIdDistributor statelessDistributor;
+    private final Duration maxClockSkew;
 
     /**
      * Creates the controller.
@@ -59,6 +62,12 @@ public class MachineController implements MachineApi {
      * @param machineStateStorage the same storage {@code distributor} uses, kept up to date only for older clients
      */
     public MachineController(MachineIdDistributor distributor, MachineStateStorage machineStateStorage) {
+        this(distributor, machineStateStorage, new ProxyServerProperties());
+    }
+
+    @Autowired
+    public MachineController(MachineIdDistributor distributor, MachineStateStorage machineStateStorage, ProxyServerProperties proxyServerProperties) {
+        this.maxClockSkew = proxyServerProperties.getMaxClockSkew();
         this.distributor = distributor;
         this.statelessDistributor = distributor instanceof AbstractMachineIdDistributor abstractDistributor
             ? new StatelessMachineIdDistributor(abstractDistributor, machineStateStorage) : null;
@@ -132,10 +141,15 @@ public class MachineController implements MachineApi {
     }
 
     @Nullable
-    private static MachineState clientMachineState(@Nullable Integer machineId, @Nullable Long lastTimeStamp) {
+    private MachineState clientMachineState(@Nullable Integer machineId, @Nullable Long lastTimeStamp) {
         Preconditions.checkArgument((machineId == null) == (lastTimeStamp == null), "machineId and lastTimeStamp must be provided together!");
         if (machineId == null) {
             return null;
+        }
+        // A timestamp far ahead would keep the machine id from ever being recycled, or make its next owner wait.
+        if (maxClockSkew != null && !maxClockSkew.isZero() && !maxClockSkew.isNegative()) {
+            long latest = System.currentTimeMillis() + maxClockSkew.toMillis();
+            Preconditions.checkArgument(lastTimeStamp <= latest, "lastTimeStamp:[%s] is more than [%s] ahead of the server clock!", lastTimeStamp, maxClockSkew);
         }
         return MachineState.of(machineId, lastTimeStamp);
     }

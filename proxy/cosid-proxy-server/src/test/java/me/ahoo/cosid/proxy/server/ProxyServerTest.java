@@ -52,6 +52,18 @@ class ProxyServerTest {
             .build();
 
     @Test
+    void segmentArgumentsAreValidated() {
+        webTestClient.post().uri("/segments/distributor/test_namespace/order?offset=-1&step=20").exchange().expectStatus().isBadRequest();
+        webTestClient.post().uri("/segments/distributor/test_namespace/order?offset=0&step=0").exchange().expectStatus().isBadRequest();
+        webTestClient.post().uri("/segments/distributor/test_namespace/order?offset=0&step=1000001").exchange().expectStatus().isBadRequest();
+        webTestClient.patch().uri("/segments/test_namespace/order?step=-5").exchange().expectStatus().isBadRequest();
+        webTestClient.patch().uri("/segments/test_namespace/order?step=9223372036854775807").exchange().expectStatus().isBadRequest();
+        webTestClient.patch().uri(java.net.URI.create("/segments/%20/order?step=5")).exchange().expectStatus().isBadRequest();
+
+        assertThat(segmentDistributorFactory.lastDefinition.get()).isNull();
+    }
+
+    @Test
     void segmentEndpointsExposeCreateAndNextMaxIdContract() {
         webTestClient
             .post()

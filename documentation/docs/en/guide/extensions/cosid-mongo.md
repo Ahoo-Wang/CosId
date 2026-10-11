@@ -6,7 +6,7 @@
 - `IdSegmentDistributor`: As the segment distributor for **segment algorithm** (`SegmentId`).
 
 ::: warning Reactive driver support is deprecated
-The reactive classes (`me.ahoo.cosid.mongo.reactive`) only block on the reactive driver. They are deprecated in 3.4.0 and will be removed in 4.0.
+The reactive classes (`me.ahoo.cosid.mongo.reactive`), which only blocked on the reactive driver, were removed in 4.0: use the sync driver (`org.mongodb:mongodb-driver-sync`).
 Use the synchronous driver (`org.mongodb:mongodb-driver-sync`, included in `spring-boot-starter-data-mongodb`). When only the reactive driver is present, the starter logs a warning.
 :::
 

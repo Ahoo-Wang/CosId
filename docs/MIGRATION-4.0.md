@@ -18,6 +18,10 @@
 
 _To be filled in as the changes land: MongoDB reactive support, the thread-local grouped path (`GroupedAccessor`), the old machine id distributors, and the APIs deprecated for removal in 3.x._
 
+### Test segment distributors
+
+`IdSegmentDistributor.Atomic` and `IdSegmentDistributor.Mock` moved out of `cosid-core` to the `cosid-test` artifact as `me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor` and `me.ahoo.cosid.test.segment.MockIdSegmentDistributor`, with the same constructors.
+
 ## Changed defaults
 
 | Property | 3.x | 4.0 |

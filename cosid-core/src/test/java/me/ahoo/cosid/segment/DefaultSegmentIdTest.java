@@ -23,6 +23,7 @@ import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.segment.grouped.GroupedAccessor;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.test.ConcurrentGenerateSpec;
+import me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -40,7 +41,7 @@ class DefaultSegmentIdTest {
 
     @Test
     void currentShouldStartAsOverflowSegmentUntilFirstAllocation() {
-        DefaultSegmentId generator = new DefaultSegmentId(new IdSegmentDistributor.Atomic(3));
+        DefaultSegmentId generator = new DefaultSegmentId(new AtomicIdSegmentDistributor(3));
 
         assertSame(DefaultIdSegment.OVERFLOW, generator.current());
     }
@@ -78,7 +79,7 @@ class DefaultSegmentIdTest {
 
     @Test
     void generateAsStringShouldUseDefaultRadix62Converter() {
-        DefaultSegmentId generator = new DefaultSegmentId(new IdSegmentDistributor.Atomic(3));
+        DefaultSegmentId generator = new DefaultSegmentId(new AtomicIdSegmentDistributor(3));
 
         String id = generator.generateAsString();
 
@@ -87,7 +88,7 @@ class DefaultSegmentIdTest {
 
     @Test
     void multipleInstancesSharingDistributorShouldGenerateGloballyUniqueIds() {
-        IdSegmentDistributor distributor = new IdSegmentDistributor.Atomic(2);
+        IdSegmentDistributor distributor = new AtomicIdSegmentDistributor(2);
         DefaultSegmentId first = new DefaultSegmentId(distributor);
         DefaultSegmentId second = new DefaultSegmentId(distributor);
         long[] ids = new long[]{
@@ -106,7 +107,7 @@ class DefaultSegmentIdTest {
     void constructorShouldRejectNonPositiveTtl() {
         IllegalArgumentException error = assertThrows(
             IllegalArgumentException.class,
-            () -> new DefaultSegmentId(0, new IdSegmentDistributor.Atomic())
+            () -> new DefaultSegmentId(0, new AtomicIdSegmentDistributor())
         );
 
         assertEquals("idSegmentTtl:[0] must be greater than 0.", error.getMessage());
@@ -114,7 +115,7 @@ class DefaultSegmentIdTest {
 
     @Test
     void generateShouldRemainUniqueUnderSmallConcurrentLoad() {
-        DefaultSegmentId generator = new DefaultSegmentId(new IdSegmentDistributor.Atomic(64));
+        DefaultSegmentId generator = new DefaultSegmentId(new AtomicIdSegmentDistributor(64));
 
         new ConcurrentGenerateSpec(4, 256, Duration.ofSeconds(5), generator).verify();
         assertTrue(generator.current().getMaxId() >= 256);

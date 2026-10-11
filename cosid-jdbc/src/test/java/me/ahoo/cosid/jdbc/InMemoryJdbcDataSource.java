@@ -38,6 +38,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 
@@ -49,6 +50,9 @@ final class InMemoryJdbcDataSource implements DataSource {
     private volatile int loginTimeout;
     private PrintWriter logWriter;
     private int failedRevertDistributeUpdates;
+    private String nextMachineInsertFailureSqlState;
+    private final List<Integer> queryTimeouts = Collections.synchronizedList(new ArrayList<>());
+    private final AtomicInteger rollbackCount = new AtomicInteger();
     private boolean cosIdTableInitialized;
     private boolean cosIdMachineTableInitialized;
 
@@ -130,6 +134,24 @@ final class InMemoryJdbcDataSource implements DataSource {
         failedRevertDistributeUpdates = times;
     }
 
+    /**
+     * Makes the next machine insert fail with a plain {@link SQLException} carrying the given SQLState,
+     * the way drivers such as PostgreSQL report duplicate keys.
+     */
+    synchronized void failNextMachineInsertWithSqlState(String sqlState) {
+        nextMachineInsertFailureSqlState = sqlState;
+    }
+
+    List<Integer> getQueryTimeouts() {
+        synchronized (queryTimeouts) {
+            return List.copyOf(queryTimeouts);
+        }
+    }
+
+    int getRollbackCount() {
+        return rollbackCount.get();
+    }
+
     boolean isCosIdTableInitialized() {
         return cosIdTableInitialized;
     }
@@ -164,6 +186,9 @@ final class InMemoryJdbcDataSource implements DataSource {
                     }
                     return null;
                 }
+                if ("rollback".equals(methodName)) {
+                    rollbackCount.incrementAndGet();
+                }
                 if ("commit".equals(methodName) || "rollback".equals(methodName) || "close".equals(methodName)) {
                     unlockTransaction();
                     return null;
@@ -196,6 +221,10 @@ final class InMemoryJdbcDataSource implements DataSource {
         Map<Integer, Object> params = new HashMap<>();
         return proxy(PreparedStatement.class, (proxy, method, args) -> {
             String methodName = method.getName();
+            if ("setQueryTimeout".equals(methodName)) {
+                queryTimeouts.add((Integer) args[0]);
+                return null;
+            }
             if (methodName.startsWith("set")) {
                 params.put((Integer) args[0], args[1]);
                 return null;
@@ -345,8 +374,13 @@ final class InMemoryJdbcDataSource implements DataSource {
         return 1;
     }
 
-    private int insertMachine(Map<Integer, Object> params) throws SQLIntegrityConstraintViolationException {
+    private int insertMachine(Map<Integer, Object> params) throws SQLException {
         String name = (String) params.get(1);
+        if (nextMachineInsertFailureSqlState != null) {
+            String sqlState = nextMachineInsertFailureSqlState;
+            nextMachineInsertFailureSqlState = null;
+            throw new SQLException("Injected failure for machine: " + name, sqlState);
+        }
         if (machineRows.containsKey(name)) {
             throw new SQLIntegrityConstraintViolationException("Duplicate machine: " + name);
         }

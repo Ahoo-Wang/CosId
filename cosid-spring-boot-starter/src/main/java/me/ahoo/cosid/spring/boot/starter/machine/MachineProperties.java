@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.jdbc.JdbcMachineIdInitializer;
+import me.ahoo.cosid.jdbc.JdbcSupport;
 import me.ahoo.cosid.machine.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
 import me.ahoo.cosid.machine.LocalMachineStateStorage;
@@ -696,6 +697,20 @@ public class MachineProperties {
          * Default is {@link JdbcMachineIdInitializer#INIT_INSTANCE_ID_IDX_SQL}.
          */
         private String initInstanceIdIdxSql = JdbcMachineIdInitializer.INIT_INSTANCE_ID_IDX_SQL;
+
+        /**
+         * Timeout of each distributor statement ({@link java.sql.Statement#setQueryTimeout(int)}, rounded up to seconds).
+         * Default is 5 seconds; zero disables it.
+         */
+        private Duration queryTimeout = JdbcSupport.DEFAULT_QUERY_TIMEOUT;
+
+        public Duration getQueryTimeout() {
+            return queryTimeout;
+        }
+
+        public void setQueryTimeout(Duration queryTimeout) {
+            this.queryTimeout = queryTimeout;
+        }
 
         /**
          * Checks whether automatic {@code cosid_machine} table initialization is enabled.

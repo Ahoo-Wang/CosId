@@ -26,6 +26,8 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.time.Duration;
+
 /**
  * CosIdSpringRedisMachineIdDistributorAutoConfigurationTest .
  *
@@ -49,6 +51,21 @@ class CosIdSpringRedisMachineIdDistributorAutoConfigurationTest {
                     .hasSingleBean(SpringRedisMachineIdDistributor.class)
                 ;
             });
+    }
+
+    @Test
+    void wiresRedisTimeoutProperty() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
+            .run(context -> assertThat(context.getBean(SpringRedisMachineIdDistributor.class).getCommandTimeout().getTimeout())
+                .isEqualTo(Duration.ofSeconds(1)));
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
+            .withPropertyValues("cosid.machine.distributor.redis.timeout=3s")
+            .run(context -> assertThat(context.getBean(SpringRedisMachineIdDistributor.class).getCommandTimeout().getTimeout())
+                .isEqualTo(Duration.ofSeconds(3)));
     }
 
     @Test

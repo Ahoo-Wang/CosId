@@ -5,12 +5,15 @@ import static org.mockito.Mockito.mock;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributor;
+import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributorFactory;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.data.redis.core.StringRedisTemplate;
+
+import java.time.Duration;
 
 /**
  * CosIdSpringRedisSegmentAutoConfigurationTest .
@@ -34,6 +37,18 @@ class CosIdSpringRedisSegmentAutoConfigurationTest {
                     .hasSingleBean(SegmentIdProperties.class)
                     .hasSingleBean(IdSegmentDistributorFactory.class)
                 ;
+            });
+    }
+
+    @Test
+    void wiresRedisTimeoutProperty() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=redis")
+            .withPropertyValues("cosid.segment.distributor.redis.timeout=3s")
+            .run(context -> {
+                SpringRedisIdSegmentDistributorFactory factory = (SpringRedisIdSegmentDistributorFactory) context.getBean(IdSegmentDistributorFactory.class);
+                assertThat(factory.getCommandTimeout().getTimeout()).isEqualTo(Duration.ofSeconds(3));
             });
     }
 

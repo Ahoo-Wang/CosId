@@ -43,7 +43,7 @@ public interface IdGeneratorStat extends Stat {
      * @param converter the converter stat
      * @return the stat
      */
-    static IdGeneratorStat simple(String kind, @Nullable IdGeneratorStat actual, Stat converter) {
+    static IdGeneratorStat simple(String kind, @Nullable IdGeneratorStat actual, @Nullable Stat converter) {
         return new SimpleIdGeneratorStat(kind, actual, converter);
     }
 
@@ -54,7 +54,7 @@ public interface IdGeneratorStat extends Stat {
      * @param converter the converter stat
      * @return the stat
      */
-    static IdGeneratorStat simple(String kind, Stat converter) {
+    static IdGeneratorStat simple(String kind, @Nullable Stat converter) {
         return simple(kind, null, converter);
     }
 }

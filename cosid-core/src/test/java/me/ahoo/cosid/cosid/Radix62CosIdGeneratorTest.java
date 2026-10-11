@@ -68,15 +68,6 @@ class Radix62CosIdGeneratorTest {
         new ConcurrentGenerateStingSpec(new Radix62CosIdGenerator(1)).verify();
     }
 
-    @Test
-    public void idConvert() {
-        Assertions.assertThrows(UnsupportedOperationException.class, radix62CosIdGenerator::idConverter);
-    }
-
-    @Test
-    public void generate() {
-        Assertions.assertThrows(UnsupportedOperationException.class, radix62CosIdGenerator::generate);
-    }
 
     static class TestRadix62CosIdGenerator extends Radix62CosIdGenerator {
         private long currentTimeMillis = 1000;

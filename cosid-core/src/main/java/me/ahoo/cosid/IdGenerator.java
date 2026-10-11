@@ -40,7 +40,7 @@ import org.jspecify.annotations.NonNull;
  * @author ahoo wang
  */
 @ThreadSafe
-public interface IdGenerator extends StringIdGenerator, Statistical {
+public interface IdGenerator extends StringIdGenerator {
 
     /**
      * Get the ID converter used to convert {@code long} type IDs to {@link String}.

@@ -35,6 +35,7 @@ class AppServerTest {
         IdGeneratorProvider provider = mock(IdGeneratorProvider.class);
         IdGenerator generator = mock(IdGenerator.class);
         when(provider.getRequired("biz_prefix_no")).thenReturn(generator);
+        when(provider.getRequired("biz_prefix_no", IdGenerator.class)).thenReturn(generator);
         when(generator.generate()).thenReturn(2000000001L);
         when(generator.generateAsString()).thenReturn("BIZ2000000001");
 

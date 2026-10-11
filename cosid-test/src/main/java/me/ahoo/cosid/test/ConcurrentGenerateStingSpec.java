@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.test;
 
-import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.StringIdGenerator;
 
 import com.google.common.base.Preconditions;
 
@@ -40,21 +40,21 @@ public class ConcurrentGenerateStingSpec implements TestSpec {
     public static final Duration DEFAULT_TIMEOUT = ConcurrentGenerateSpec.DEFAULT_TIMEOUT;
     private static final int ORIGIN_LIMIT = 5;
 
-    private final IdGenerator[] idGenerators;
+    private final StringIdGenerator[] idGenerators;
     private final int concurrentThreads;
     private final long idSize;
     private final int singleGenerates;
     private final Duration timeout;
 
-    public ConcurrentGenerateStingSpec(IdGenerator... idGenerators) {
+    public ConcurrentGenerateStingSpec(StringIdGenerator... idGenerators) {
         this(DEFAULT_CONCURRENT_THREADS, DEFAULT_ID_SIZE, idGenerators);
     }
 
-    public ConcurrentGenerateStingSpec(int concurrentThreads, long idSize, IdGenerator... idGenerators) {
+    public ConcurrentGenerateStingSpec(int concurrentThreads, long idSize, StringIdGenerator... idGenerators) {
         this(concurrentThreads, idSize, DEFAULT_TIMEOUT, idGenerators);
     }
 
-    public ConcurrentGenerateStingSpec(int concurrentThreads, long idSize, Duration timeout, IdGenerator... idGenerators) {
+    public ConcurrentGenerateStingSpec(int concurrentThreads, long idSize, Duration timeout, StringIdGenerator... idGenerators) {
         Preconditions.checkState(idGenerators.length > 0, "idGenerators can not be empty.");
         Preconditions.checkState(concurrentThreads > 0, "concurrentThreads:[%s] must greater than 0.", concurrentThreads);
         Preconditions.checkState(idSize > 0, "idSize:[%s] must greater than 0.", idSize);
@@ -76,7 +76,7 @@ public class ConcurrentGenerateStingSpec implements TestSpec {
         return idSize;
     }
 
-    private IdGenerator getIdGenerator(int threadIdx) {
+    private StringIdGenerator getIdGenerator(int threadIdx) {
         return idGenerators[getGeneratorIndex(threadIdx)];
     }
 
@@ -102,7 +102,7 @@ public class ConcurrentGenerateStingSpec implements TestSpec {
             for (int i = 0; i < futures.length; i++) {
                 int workerIndex = i;
                 int generatorIndex = getGeneratorIndex(i);
-                IdGenerator idGenerator = getIdGenerator(i);
+                StringIdGenerator idGenerator = getIdGenerator(i);
                 futures[i] = CompletableFuture.supplyAsync(() -> generateBatch(workerIndex, generatorIndex, idGenerator), executor);
             }
             waitForAll(futures);
@@ -121,7 +121,7 @@ public class ConcurrentGenerateStingSpec implements TestSpec {
         };
     }
 
-    private GeneratedBatch generateBatch(int workerIndex, int generatorIndex, IdGenerator idGenerator) {
+    private GeneratedBatch generateBatch(int workerIndex, int generatorIndex, StringIdGenerator idGenerator) {
         String[] ids = new String[singleGenerates];
         String previousId = "0";
         for (int i = 0; i < ids.length; i++) {

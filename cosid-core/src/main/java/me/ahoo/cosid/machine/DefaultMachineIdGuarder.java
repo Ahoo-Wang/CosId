@@ -71,7 +71,10 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     private final Duration safeGuardDuration;
     private final Duration localStateInterval;
     private volatile ScheduledFuture<?> scheduledFuture;
-    private volatile ScheduledFuture<?> localStateFuture;
+    /**
+     * Separate from {@link #executorService}: a remote guard that hangs must not hold back the local refresh.
+     */
+    private volatile ScheduledExecutorService localStateExecutor;
     private final AtomicBoolean running = new AtomicBoolean(false);
 
     /**
@@ -204,7 +207,9 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
             scheduledFuture = executorService.scheduleWithFixedDelay(this::safeGuard, initialDelay.toMillis(), delay.toMillis(), TimeUnit.MILLISECONDS);
             if (localStateInterval != null && !localStateInterval.isZero() && !localStateInterval.isNegative()) {
                 long intervalMillis = localStateInterval.toMillis();
-                localStateFuture = executorService.scheduleWithFixedDelay(this::refreshLocalStates, intervalMillis, intervalMillis, TimeUnit.MILLISECONDS);
+                localStateExecutor = new ScheduledThreadPoolExecutor(1,
+                    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("MachineIdGuarder-LocalState").build());
+                localStateExecutor.scheduleWithFixedDelay(this::refreshLocalStates, intervalMillis, intervalMillis, TimeUnit.MILLISECONDS);
             }
         }
     }
@@ -282,8 +287,9 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         }
         if (running.compareAndSet(true, false)) {
             scheduledFuture.cancel(true);
-            if (localStateFuture != null) {
-                localStateFuture.cancel(false);
+            if (localStateExecutor != null) {
+                localStateExecutor.shutdown();
+                localStateExecutor = null;
             }
         }
     }

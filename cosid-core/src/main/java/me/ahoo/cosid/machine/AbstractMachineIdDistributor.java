@@ -80,7 +80,9 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
             machineState = MachineState.of(remoteState.getMachineId(), System.currentTimeMillis());
         }
 
-        machineStateStorage.set(namespace, machineState.getMachineId(), instanceId);
+        synchronized (localStateLock) {
+            machineStateStorage.set(namespace, machineState.getMachineId(), instanceId);
+        }
         return machineState;
     }
 
@@ -134,7 +136,7 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
 
     @Override
     public void refreshLocalState(String namespace, InstanceId instanceId) {
-        // Atomic with the removal in revert: a refresh must never bring back the local state of a reverted machine id.
+        // Atomic with the other local state writes: a refresh must never bring back the state of a reverted or replaced machine id.
         synchronized (localStateLock) {
             MachineState lastLocalState = machineStateStorage.get(namespace, instanceId);
             if (MachineState.NOT_FOUND.equals(lastLocalState)) {
@@ -150,15 +152,17 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
         Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace), "namespace can not be empty!");
         Preconditions.checkNotNull(instanceId, "instanceId can not be null!");
 
-        MachineState lastLocalState = machineStateStorage.get(namespace, instanceId);
-        if (MachineState.NOT_FOUND.equals(lastLocalState)) {
-            throw new NotFoundMachineStateException(namespace, instanceId);
+        synchronized (localStateLock) {
+            MachineState lastLocalState = machineStateStorage.get(namespace, instanceId);
+            if (MachineState.NOT_FOUND.equals(lastLocalState)) {
+                throw new NotFoundMachineStateException(namespace, instanceId);
+            }
+            if (getBackwardsTimeStamp(lastLocalState.getLastTimeStamp()) < 0) {
+                lastLocalState = MachineState.of(lastLocalState.getMachineId(), System.currentTimeMillis());
+                machineStateStorage.set(namespace, lastLocalState.getMachineId(), instanceId);
+            }
+            return lastLocalState;
         }
-        if (getBackwardsTimeStamp(lastLocalState.getLastTimeStamp()) < 0) {
-            lastLocalState = MachineState.of(lastLocalState.getMachineId(), System.currentTimeMillis());
-            machineStateStorage.set(namespace, lastLocalState.getMachineId(), instanceId);
-        }
-        return lastLocalState;
     }
 
     protected abstract void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration);

@@ -814,6 +814,7 @@ public class MachineProperties {
         /**
          * How often the local machine state (the clock-backwards watermark used after a restart) is refreshed.
          * After a crash, clock backwards shorter than about this interval may go undetected. Zero disables it.
+         * Applies only with the guarder enabled and local file state storage, which survives a restart.
          * Default is {@link DefaultMachineIdGuarder#DEFAULT_LOCAL_STATE_INTERVAL}.
          */
         private Duration localStateInterval = DefaultMachineIdGuarder.DEFAULT_LOCAL_STATE_INTERVAL;

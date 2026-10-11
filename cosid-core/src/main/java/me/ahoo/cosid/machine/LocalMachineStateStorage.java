@@ -27,6 +27,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Base64;
 
 /**
@@ -98,7 +99,15 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         if (log.isDebugEnabled()) {
             log.debug("Get state data : [{}].", stateString);
         }
-        return MachineState.of(stateString);
+        try {
+            return MachineState.of(stateString);
+        } catch (IllegalArgumentException parseException) {
+            // e.g. a file left half-written by an older version: ask the remote store instead of failing to start.
+            if (log.isWarnEnabled()) {
+                log.warn("Get from stateLocation : [{}] state data [{}] is corrupted, ignored.", stateFile.getAbsolutePath(), stateString, parseException);
+            }
+            return MachineState.NOT_FOUND;
+        }
     }
 
     private File getStateFile(String namespace, InstanceId instanceId) {
@@ -160,18 +169,25 @@ public class LocalMachineStateStorage implements MachineStateStorage {
         }
 
         String stateString = MachineState.of(machineId, System.currentTimeMillis()).toStateString();
-        if (!stateFile.exists()) {
-            try {
-                boolean ignored = stateFile.createNewFile();
-            } catch (IOException e) {
-                throw new CosIdException(e);
+        /*
+         * Write a temporary file and move it into place, so that a crash never leaves a partial state file behind.
+         */
+        File tempFile = null;
+        try {
+            tempFile = File.createTempFile(".cosid-state-", ".tmp", stateFile.getParentFile());
+            try (FileOutputStream fileOutputStream = new FileOutputStream(tempFile, false)) {
+                fileOutputStream.write(stateString.getBytes(Charsets.UTF_8));
+                fileOutputStream.getFD().sync();
             }
-        }
-
-        try (FileOutputStream fileOutputStream = new FileOutputStream(stateFile, false)) {
-            fileOutputStream.write(stateString.getBytes(Charsets.UTF_8));
-            fileOutputStream.flush();
+            java.nio.file.Files.move(tempFile.toPath(), stateFile.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
+            if (tempFile != null) {
+                try {
+                    java.nio.file.Files.deleteIfExists(tempFile.toPath());
+                } catch (IOException deleteException) {
+                    e.addSuppressed(deleteException);
+                }
+            }
             throw new CosIdException(e.getMessage(), e);
         }
         File legacyStateFile = getLegacyStateFile(namespace, instanceId);

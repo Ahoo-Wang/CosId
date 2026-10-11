@@ -62,7 +62,7 @@ When upgrading from an earlier version:
 | delay              | `Duration` | Delay between guards (remote heartbeat) | `PT1M` |
 | safeGuardDuration  | `Duration` | Machine IDs not guarded for this long may be recycled by other instances | `PT5M` |
 | failFast           | `boolean`  | Stop generating IDs once the machine ID lease is lost or expired | `true` |
-| localStateInterval | `Duration` | How often the local machine state (the clock-backwards watermark used after a restart) is refreshed. After a crash, clock backwards shorter than about this interval may go undetected. `0` disables it | `PT1S` |
+| localStateInterval | `Duration` | How often the local machine state (the clock-backwards watermark used after a restart) is refreshed. After a crash, clock backwards shorter than about this interval may go undetected. Applies only with the guarder enabled and local file state storage (`stateStorage.local`). `0` disables it | `PT1S` |
 
 ## ClockBackwards
 

@@ -156,4 +156,37 @@ class DefaultMachineIdGuarderTest {
             guarder.stop();
         }
     }
+
+    @Test
+    void localStateShouldBeRefreshedWhileRemoteGuardHangs() throws InterruptedException {
+        InMemoryMachineStateStorage storage = new InMemoryMachineStateStorage();
+        java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+        ManualMachineIdDistributor hangingDistributor = new ManualMachineIdDistributor(1, storage, ClockBackwardsSynchronizer.DEFAULT) {
+            @Override
+            protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
+                try {
+                    release.await();
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        };
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        InstanceId instanceId = InstanceId.of("watermark", false);
+        hangingDistributor.distribute(namespace, 10, instanceId, Duration.ofMinutes(5));
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(hangingDistributor, DefaultMachineIdGuarder.executorService(),
+            Duration.ZERO, Duration.ofHours(1), Duration.ofMinutes(5), Duration.ofMillis(20));
+        guarder.register(namespace, instanceId);
+        
+        guarder.start();
+        try {
+            Thread.sleep(100);
+            long afterGuardStarted = storage.get(namespace, instanceId).getLastTimeStamp();
+            Thread.sleep(200);
+            assertThat(storage.get(namespace, instanceId).getLastTimeStamp(), greaterThan(afterGuardStarted));
+        } finally {
+            release.countDown();
+            guarder.stop();
+        }
+    }
 }

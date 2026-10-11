@@ -167,7 +167,8 @@ class LeaseStoreMachineIdDistributorTest extends MachineIdDistributorSpec {
     @Test
     void acquireRetriesAClaimThatLostARace() {
         FlakyStore flakyStore = new FlakyStore();
-        flakyStore.claimNewRacesToLose = MachineLeaseManager.CLAIM_ROUNDS - 1;
+        // Two lost races: needs at least three rounds.
+        flakyStore.claimNewRacesToLose = 2;
         String namespace = "lostRace_" + MockIdGenerator.INSTANCE.generateAsString();
         
         Lease lease = new MachineLeaseManager(flakyStore).acquire(namespace, InstanceId.of("owner", false), 4, Duration.ofMinutes(1));

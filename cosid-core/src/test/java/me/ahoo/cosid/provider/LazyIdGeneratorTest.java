@@ -28,6 +28,7 @@ import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeFriendlyId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.test.MockIdGenerator;
+import me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -80,7 +81,7 @@ class LazyIdGeneratorTest {
     void asSegmentId() {
         String generatorName = "asSegmentId";
         DefaultIdGeneratorProvider idGeneratorProvider = new DefaultIdGeneratorProvider();
-        SegmentId segmentId = new DefaultSegmentId(new IdSegmentDistributor.Atomic());
+        SegmentId segmentId = new DefaultSegmentId(new AtomicIdSegmentDistributor());
         LazyIdGenerator lazyIdGenerator = new LazyIdGenerator(generatorName, idGeneratorProvider);
         idGeneratorProvider.set(generatorName, segmentId);
         assertThat(lazyIdGenerator.asSegmentId(false), equalTo(segmentId));

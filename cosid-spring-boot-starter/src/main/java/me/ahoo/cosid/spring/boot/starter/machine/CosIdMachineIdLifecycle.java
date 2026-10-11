@@ -53,18 +53,6 @@ public class CosIdMachineIdLifecycle implements SmartLifecycle {
         this.guardDistribute = guardDistribute;
     }
 
-    /**
-     * Reverts only the instances registered in the guarder.
-     *
-     * @deprecated use {@link #CosIdMachineIdLifecycle(MachineIdGuarder, MachineIdDistributor, GuardDistribute)}, which also
-     *     reverts machine ids when the guarder is disabled.
-     */
-    @Deprecated
-    public CosIdMachineIdLifecycle(MachineIdGuarder machineIdGuarder,
-                                   MachineIdDistributor machineIdDistributor) {
-        this(machineIdGuarder, machineIdDistributor, null);
-    }
-
     @Override
     public void start() {
         if (running.compareAndSet(false, true)) {

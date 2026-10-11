@@ -2,6 +2,10 @@
 
 The [cosid-spring-data-jdbc](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-spring-data-jdbc) module provides support for the `org.springframework.data.annotation.Id` annotation and supports automatic injection of **distributed IDs**.
 
+::: warning 4.0 requires `cosid.jdbc.enabled=true`
+Since 4.0 the integration is off by default. With the starter, set `cosid.jdbc.enabled=true`, or CosId does not fill `@Id` and `@CosId` fields of Spring Data JDBC entities (an INFO at startup names them).
+:::
+
 ## Installation
 
 ::: code-group

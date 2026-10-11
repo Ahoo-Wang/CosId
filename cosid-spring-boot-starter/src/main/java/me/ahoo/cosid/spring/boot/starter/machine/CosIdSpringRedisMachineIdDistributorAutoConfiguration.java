@@ -50,7 +50,8 @@ public class CosIdSpringRedisMachineIdDistributorAutoConfiguration {
     @ConditionalOnMissingBean
     public SpringRedisMachineIdDistributor springRedisMachineIdDistributor(StringRedisTemplate redisTemplate, MachineStateStorage localMachineState,
                                                                            ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        RedisCommandTimeout commandTimeout = RedisCommandTimeout.of(machineProperties.getDistributor().getRedis().getTimeout());
-        return new SpringRedisMachineIdDistributor(redisTemplate, localMachineState, clockBackwardsSynchronizer, commandTimeout);
+        MachineProperties.Redis redis = machineProperties.getDistributor().getRedis();
+        return new SpringRedisMachineIdDistributor(redisTemplate, localMachineState, clockBackwardsSynchronizer,
+            RedisCommandTimeout.of(redis.getTimeout()), RedisCommandTimeout.of(redis.getDistributeTimeout()));
     }
 }

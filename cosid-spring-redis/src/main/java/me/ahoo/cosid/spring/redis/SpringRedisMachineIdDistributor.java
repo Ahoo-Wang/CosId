@@ -58,8 +58,14 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
     public static final Resource MACHINE_ID_GUARD_SOURCE = new ClassPathResource("machine_id_guard.lua");
     public static final RedisScript<Long> MACHINE_ID_GUARD = RedisScript.of(MACHINE_ID_GUARD_SOURCE, Long.class);
     
+    /**
+     * Default timeout of the first command at startup, which also pays for connecting and class loading.
+     */
+    public static final Duration DEFAULT_DISTRIBUTE_TIMEOUT = Duration.ofSeconds(10);
+    
     private final StringRedisTemplate redisTemplate;
     private final RedisCommandTimeout commandTimeout;
+    private final RedisCommandTimeout distributeTimeout;
     
     public SpringRedisMachineIdDistributor(StringRedisTemplate redisTemplate,
                                            MachineStateStorage machineStateStorage,
@@ -71,14 +77,34 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
                                            MachineStateStorage machineStateStorage,
                                            ClockBackwardsSynchronizer clockBackwardsSynchronizer,
                                            RedisCommandTimeout commandTimeout) {
+        this(redisTemplate, machineStateStorage, clockBackwardsSynchronizer, commandTimeout, RedisCommandTimeout.NONE);
+    }
+    
+    /**
+     * Create a Redis machine id distributor.
+     *
+     * @param commandTimeout    timeout of the guard and revert commands
+     * @param distributeTimeout timeout of the distribution at startup, usually longer: it is the first command and pays
+     *                          for connecting and class loading
+     */
+    public SpringRedisMachineIdDistributor(StringRedisTemplate redisTemplate,
+                                           MachineStateStorage machineStateStorage,
+                                           ClockBackwardsSynchronizer clockBackwardsSynchronizer,
+                                           RedisCommandTimeout commandTimeout,
+                                           RedisCommandTimeout distributeTimeout) {
         super(machineStateStorage, clockBackwardsSynchronizer);
         
         this.redisTemplate = redisTemplate;
         this.commandTimeout = Preconditions.checkNotNull(commandTimeout, "commandTimeout can not be null!");
+        this.distributeTimeout = Preconditions.checkNotNull(distributeTimeout, "distributeTimeout can not be null!");
     }
     
     public RedisCommandTimeout getCommandTimeout() {
         return commandTimeout;
+    }
+    
+    public RedisCommandTimeout getDistributeTimeout() {
+        return distributeTimeout;
     }
     
     @Override
@@ -90,9 +116,9 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         List<String> keys = Collections.singletonList(hashTag(namespace));
         Object[] values = {instanceId.getInstanceId(), String.valueOf(MachineIdDistributor.maxMachineId(machineBit)), String.valueOf(System.currentTimeMillis()),
             String.valueOf(MachineIdDistributor.getSafeGuardAt(safeGuardDuration, instanceId.isStable())), instanceId.isStable() ? "1" : "0"};
-        // Not bounded by commandTimeout: this is the first command at startup and pays for connecting and class loading.
+        // Bounded by its own, longer timeout: this is the first command at startup and pays for connecting and class loading.
         @SuppressWarnings("unchecked")
-        List<Long> state = (List<Long>) redisTemplate.execute(MACHINE_ID_DISTRIBUTE, keys, values);
+        List<Long> state = distributeTimeout.call("distributeMachineId", () -> (List<Long>) redisTemplate.execute(MACHINE_ID_DISTRIBUTE, keys, values));
         assert state != null;
         Preconditions.checkNotNull(state, "state can not be null!");
         Preconditions.checkState(!state.isEmpty(), "state can not be empty!");

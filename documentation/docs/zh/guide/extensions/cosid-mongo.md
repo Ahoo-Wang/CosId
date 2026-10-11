@@ -5,9 +5,8 @@
 - `MachineIdDistributor`：作为**雪花算法**(`SnowflakeId`)的机器号分配器 (`MachineIdDistributor`)。
 - `IdSegmentDistributor`：作为**号段算法**(`SegmentId`)的号段分发器 (`IdSegmentDistributor`)。
 
-::: warning 响应式驱动支持已弃用
-响应式实现（`me.ahoo.cosid.mongo.reactive`）只是在响应式驱动上阻塞调用，已在 3.4.0 标记为弃用，将在 4.0 移除。
-请使用同步驱动（`org.mongodb:mongodb-driver-sync`，`spring-boot-starter-data-mongodb` 已包含）。只有响应式驱动时，starter 会打印告警。
+::: warning 响应式驱动支持已在 4.0 移除
+响应式实现（`me.ahoo.cosid.mongo.reactive`）只是在响应式驱动上阻塞调用，已在 4.0 移除。请使用同步驱动（`org.mongodb:mongodb-driver-sync`，`spring-boot-starter-data-mongodb` 已包含）。类路径上只有响应式驱动时，starter 会在启动时失败。
 :::
 
 ## 安装

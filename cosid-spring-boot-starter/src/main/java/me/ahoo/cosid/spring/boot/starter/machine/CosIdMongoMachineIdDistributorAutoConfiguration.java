@@ -19,10 +19,8 @@ import me.ahoo.cosid.mongo.MachineCollection;
 import me.ahoo.cosid.mongo.MongoMachineCollection;
 import me.ahoo.cosid.mongo.MongoMachineIdDistributor;
 import me.ahoo.cosid.mongo.MongoMachineInitializer;
-import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineCollection;
-import me.ahoo.cosid.mongo.reactive.MongoReactiveMachineInitializer;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosid.spring.boot.starter.MongoReactiveDeprecation;
+import me.ahoo.cosid.spring.boot.starter.MongoReactiveRemoved;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
 
@@ -33,9 +31,9 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
-import org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -50,7 +48,7 @@ import org.springframework.context.annotation.Primary;
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnClass(MongoMachineIdDistributor.class)
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "mongo")
-@AutoConfigureAfter(value = {MongoAutoConfiguration.class, MongoReactiveAutoConfiguration.class})
+@AutoConfigureAfter(MongoAutoConfiguration.class)
 public class CosIdMongoMachineIdDistributorAutoConfiguration {
     private final MachineProperties machineProperties;
     
@@ -111,41 +109,16 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
         }
     }
     
-    @Configuration
-    @ConditionalOnClass(com.mongodb.reactivestreams.client.MongoClient.class)
-    @SuppressWarnings("removal")
-    class Reactive {
-        /**
-         * Bounds every CosId operation with the driver's client-side operation timeout.
-         */
-        private com.mongodb.reactivestreams.client.MongoDatabase withTimeout(com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase) {
-            java.time.Duration timeout = machineProperties.getDistributor().getMongo().getTimeout();
-            if (timeout == null || timeout.isZero()) {
-                return mongoDatabase;
-            }
-            return mongoDatabase.withTimeout(timeout.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
-        }
-        
+    /**
+     * Only the reactive driver: MongoDB reactive support was removed in 4.0, so startup fails with a hint.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "com.mongodb.reactivestreams.client.MongoClient")
+    @ConditionalOnMissingClass("com.mongodb.client.MongoClient")
+    static class ReactiveOnly {
         @Bean
-        @ConditionalOnMissingBean
-        public MongoReactiveMachineInitializer mongoReactiveMachineInitializer(com.mongodb.reactivestreams.client.MongoClient mongoClient) {
-            MongoReactiveDeprecation.warnIfSelected();
-            com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
-                machineProperties.getDistributor().getMongo().getDatabase()
-            );
-            mongoDatabase = withTimeout(mongoDatabase);
-            return new MongoReactiveMachineInitializer(mongoDatabase);
-        }
-        
-        @Bean
-        @ConditionalOnMissingBean
-        public MongoReactiveMachineCollection mongoReactiveMachineCollection(com.mongodb.reactivestreams.client.MongoClient mongoClient) {
-            MongoReactiveDeprecation.warnIfSelected();
-            com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
-                machineProperties.getDistributor().getMongo().getDatabase()
-            );
-            mongoDatabase = withTimeout(mongoDatabase);
-            return new MongoReactiveMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME));
+        public MachineCollection mongoMachineCollection() {
+            return MongoReactiveRemoved.fail();
         }
     }
 }

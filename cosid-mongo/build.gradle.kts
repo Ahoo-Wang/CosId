@@ -14,13 +14,8 @@
 dependencies {
     api(project(":cosid-core"))
     compileOnly("org.mongodb:mongodb-driver-sync")
-    compileOnly("org.mongodb:mongodb-driver-reactivestreams")
-    compileOnly("io.projectreactor:reactor-core")
     testImplementation(project(":cosid-test"))
-    testImplementation("io.projectreactor:reactor-test")
     testImplementation("org.mongodb:mongodb-driver-sync")
-    testImplementation("io.projectreactor:reactor-core")
-    testImplementation("org.mongodb:mongodb-driver-reactivestreams")
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-mongodb")

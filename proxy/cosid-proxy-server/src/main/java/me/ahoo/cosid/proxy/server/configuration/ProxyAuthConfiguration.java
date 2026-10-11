@@ -21,6 +21,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.core.env.Environment;
+
+import java.util.List;
 
 /**
  * Bearer token authentication of the CosId proxy API, see {@link ProxyAuthProperties}.
@@ -33,7 +36,12 @@ public class ProxyAuthConfiguration {
     
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    public ProxyAuthWebFilter proxyAuthWebFilter(ProxyAuthProperties proxyAuthProperties) {
-        return new ProxyAuthWebFilter(proxyAuthProperties.getTokens(), proxyAuthProperties.getPublicPaths());
+    public ProxyAuthWebFilter proxyAuthWebFilter(ProxyAuthProperties proxyAuthProperties, Environment environment) {
+        List<String> publicPaths = proxyAuthProperties.getPublicPaths();
+        if (publicPaths == null) {
+            // Follow a custom actuator base path, so health probes keep working.
+            publicPaths = ProxyAuthProperties.healthPaths(environment.getProperty("management.endpoints.web.base-path", "/actuator"));
+        }
+        return new ProxyAuthWebFilter(proxyAuthProperties.getTokens(), publicPaths);
     }
 }

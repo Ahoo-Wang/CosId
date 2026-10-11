@@ -14,11 +14,15 @@
 package me.ahoo.cosid.proxy.server.controller;
 
 import me.ahoo.cosid.proxy.api.SegmentApi;
+import me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,10 +37,24 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SegmentController implements SegmentApi {
     private final IdSegmentDistributorFactory distributorFactory;
     private final ConcurrentHashMap<String, IdSegmentDistributor> distributors;
+    private final long maxStep;
 
     public SegmentController(IdSegmentDistributorFactory distributorFactory) {
+        this(distributorFactory, new ProxyServerProperties());
+    }
+
+    @Autowired
+    public SegmentController(IdSegmentDistributorFactory distributorFactory, ProxyServerProperties proxyServerProperties) {
         this.distributorFactory = distributorFactory;
         this.distributors = new ConcurrentHashMap<>();
+        this.maxStep = proxyServerProperties.getSegment().getMaxStep();
+    }
+
+    private void checkArguments(String namespace, String name, long step) {
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace) && !namespace.isBlank(), "namespace can not be blank!");
+        Preconditions.checkArgument(!Strings.isNullOrEmpty(name) && !name.isBlank(), "name can not be blank!");
+        Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
+        Preconditions.checkArgument(maxStep <= 0 || step <= maxStep, "step:[%s] must not exceed [%s]!", step, maxStep);
     }
 
     /**
@@ -45,6 +63,13 @@ public class SegmentController implements SegmentApi {
     @Override
     @Operation(summary = "Create an ID segment dispatcher, the operation is idempotent.")
     public void createDistributor(@PathVariable String namespace, @PathVariable String name, long offset, long step) {
+        checkArguments(namespace, name, step);
+        Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        try {
+            Math.addExact(offset, step);
+        } catch (ArithmeticException overflow) {
+            throw new IllegalArgumentException(Strings.lenientFormat("offset:[%s] + step:[%s] overflows!", offset, step), overflow);
+        }
         String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);
         distributors.computeIfAbsent(namespacedName,
             key -> distributorFactory.create(new IdSegmentDistributorDefinition(namespace, name, offset, step)));
@@ -62,6 +87,7 @@ public class SegmentController implements SegmentApi {
     @Override
     @Operation(summary = "Get next max id.")
     public long nextMaxId(@PathVariable String namespace, @PathVariable String name, long step) {
+        checkArguments(namespace, name, step);
         String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);
         IdSegmentDistributor distributor = distributors.computeIfAbsent(namespacedName,
             key -> distributorFactory.create(new IdSegmentDistributorDefinition(namespace, name, IdSegmentDistributor.DEFAULT_OFFSET, step)));

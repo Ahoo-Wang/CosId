@@ -18,6 +18,13 @@
 
 _To be filled in as the changes land: MongoDB reactive support, the thread-local grouped path (`GroupedAccessor`), the old machine id distributors, and the APIs deprecated for removal in 3.x._
 
+### APIs deprecated for removal in 3.x
+
+| Removed | Use instead |
+|---|---|
+| `AbstractSnowflakeId.nextTime()` (no longer called since 3.4) | override `getCurrentTime()` to change the clock |
+| `CosIdMachineIdLifecycle(MachineIdGuarder, MachineIdDistributor)` | `CosIdMachineIdLifecycle(MachineIdGuarder, MachineIdDistributor, GuardDistribute)` |
+
 ## Changed defaults
 
 | Property | 3.x | 4.0 |

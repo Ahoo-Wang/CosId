@@ -40,6 +40,7 @@ class SegmentIdPropertiesTest {
         assertThat(properties.getChain().getPrefetchWorker().isShutdownHook()).isTrue();
         assertThat(properties.getDistributor().getType()).isEqualTo(SegmentIdProperties.Distributor.Type.REDIS);
         assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(1));
+        assertThat(properties.getDistributor().getJdbc().getQueryTimeout()).isEqualTo(Duration.ofSeconds(5));
         assertThat(properties.getDistributor().getJdbc().getIncrementMaxIdSql())
             .isEqualTo(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL);
         assertThat(properties.getDistributor().getJdbc().getFetchMaxIdSql())
@@ -61,6 +62,7 @@ class SegmentIdPropertiesTest {
             Map.entry("cosid.segment.ttl", "600"),
             Map.entry("cosid.segment.distributor.type", "jdbc"),
             Map.entry("cosid.segment.distributor.redis.timeout", "2s"),
+            Map.entry("cosid.segment.distributor.jdbc.query-timeout", "7s"),
             Map.entry("cosid.segment.distributor.jdbc.increment-max-id-sql", "update cosid set max_id=max_id+?"),
             Map.entry("cosid.segment.distributor.jdbc.fetch-max-id-sql", "select max_id from cosid"),
             Map.entry("cosid.segment.distributor.jdbc.enable-auto-init-cosid-table", "true"),
@@ -90,6 +92,7 @@ class SegmentIdPropertiesTest {
         assertThat(properties.getTtl()).isEqualTo(600);
         assertThat(properties.getDistributor().getType()).isEqualTo(SegmentIdProperties.Distributor.Type.JDBC);
         assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(2));
+        assertThat(properties.getDistributor().getJdbc().getQueryTimeout()).isEqualTo(Duration.ofSeconds(7));
         assertThat(properties.getDistributor().getJdbc().getIncrementMaxIdSql()).isEqualTo("update cosid set max_id=max_id+?");
         assertThat(properties.getDistributor().getJdbc().getFetchMaxIdSql()).isEqualTo("select max_id from cosid");
         assertThat(properties.getDistributor().getJdbc().isEnableAutoInitCosidTable()).isTrue();

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.jdbc;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
@@ -69,12 +70,31 @@ class JdbcIdSegmentDistributorTest extends IdSegmentDistributorSpec {
         assertThat(firstMaxId, equalTo(TEST_OFFSET + TEST_STEP));
 
         setMaxIdBack(distributor, TEST_OFFSET);
-        long nextMaxId = distributor.nextMaxId();
-
-        assertThat(nextMaxId, equalTo(TEST_OFFSET + TEST_STEP));
-        assertThat(dataSource.getSegmentMaxId(distributor.getNamespacedName()), equalTo(TEST_OFFSET + TEST_STEP));
+        Assertions.assertThrows(IllegalStateException.class, distributor::nextMaxId);
     }
     
+    @Test
+    void nextMaxIdShouldRollbackWhenTransactionFails() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        JdbcIdSegmentDistributor jdbcIdSegmentDistributor = new JdbcIdSegmentDistributor(namespace, "rollback", 100, dataSource);
+
+        Assertions.assertThrows(SegmentNameMissingException.class, () -> jdbcIdSegmentDistributor.nextMaxId(1));
+
+        assertThat(dataSource.getRollbackCount(), equalTo(1));
+    }
+
+    @Test
+    void nextMaxIdShouldCommitWithoutRollbackAndUseQueryTimeout() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, "commit", TEST_OFFSET, TEST_STEP);
+        IdSegmentDistributor distributor = factory().create(definition);
+
+        assertThat(distributor.nextMaxId(), equalTo(TEST_OFFSET + TEST_STEP));
+
+        assertThat(dataSource.getRollbackCount(), equalTo(0));
+        assertThat(dataSource.getQueryTimeouts(), contains(5, 5));
+    }
+
     @Test
     void nextMaxIdWhenSegmentNameMissing() {
         String namespace = MockIdGenerator.INSTANCE.generateAsString();

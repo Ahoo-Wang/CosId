@@ -61,7 +61,8 @@ public class CosIdJdbcSegmentAutoConfiguration {
     @ConditionalOnMissingBean
     public IdSegmentDistributorFactory idSegmentDistributorFactory(DataSource dataSource, JdbcIdSegmentInitializer jdbcIdSegmentInitializer) {
         SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
-        return new JdbcIdSegmentDistributorFactory(dataSource, jdbc.isEnableAutoInitIdSegment(), jdbcIdSegmentInitializer, jdbc.getIncrementMaxIdSql(), jdbc.getFetchMaxIdSql());
+        return new JdbcIdSegmentDistributorFactory(dataSource, jdbc.isEnableAutoInitIdSegment(), jdbcIdSegmentInitializer, jdbc.getIncrementMaxIdSql(), jdbc.getFetchMaxIdSql(),
+            jdbc.getQueryTimeout());
     }
 
 }

@@ -14,8 +14,12 @@
 package me.ahoo.cosid.jdbc;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.not;
 
+import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.InMemoryMachineStateStorage;
@@ -27,12 +31,14 @@ import me.ahoo.cosid.test.Assert;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
 
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.Duration;
 
 /**
@@ -136,6 +142,56 @@ class JdbcMachineIdDistributorTest extends MachineIdDistributorSpec {
         distributor.guardRemoteForTest(NAMESPACE, INSTANCE_ID, MachineState.of(4, 456), Duration.ZERO);
 
         assertThat(dataSource.findMachine(NAMESPACE, 4).orElseThrow().lastTimestamp(), equalTo(456L));
+    }
+
+    @Test
+    void distributeMachineShouldRetryWhenDuplicateIsReportedBySqlStateClass23() {
+        dataSource.failNextMachineInsertWithSqlState("23505");
+        TestableJdbcMachineIdDistributor distributor = new TestableJdbcMachineIdDistributor(dataSource);
+
+        MachineState actual = distributor.distributeRemoteForTest(NAMESPACE, 4, INSTANCE_ID, Duration.ZERO);
+
+        assertThat(actual.getMachineId(), equalTo(0));
+        assertThat(dataSource.findMachine(NAMESPACE, 0).orElseThrow().instanceId(), equalTo(INSTANCE_ID.getInstanceId()));
+    }
+
+    @Test
+    void distributeMachineShouldNotRetryOnOtherSqlState() {
+        dataSource.failNextMachineInsertWithSqlState("08006");
+        TestableJdbcMachineIdDistributor distributor = new TestableJdbcMachineIdDistributor(dataSource);
+
+        CosIdException actual = Assertions.assertThrows(CosIdException.class,
+            () -> distributor.distributeRemoteForTest(NAMESPACE, 4, INSTANCE_ID, Duration.ZERO));
+
+        assertThat(((SQLException) actual.getCause()).getSQLState(), equalTo("08006"));
+        assertThat(dataSource.findMachine(NAMESPACE, 0).isPresent(), equalTo(false));
+    }
+
+    @Test
+    void statementsShouldUseQueryTimeoutRoundedUpToSeconds() {
+        JdbcMachineIdDistributor distributor = new JdbcMachineIdDistributor(dataSource, machineStateStorage, ClockBackwardsSynchronizer.DEFAULT,
+            Duration.ofMillis(1500));
+
+        distributor.distribute(NAMESPACE, 4, INSTANCE_ID, Duration.ZERO);
+
+        assertThat(dataSource.getQueryTimeouts(), not(empty()));
+        assertThat(dataSource.getQueryTimeouts(), everyItem(equalTo(2)));
+    }
+
+    @Test
+    void statementsShouldUseDefaultQueryTimeout() {
+        getDistributor().distribute(NAMESPACE, 4, INSTANCE_ID, Duration.ZERO);
+
+        assertThat(dataSource.getQueryTimeouts(), not(empty()));
+        assertThat(dataSource.getQueryTimeouts(), everyItem(equalTo(5)));
+    }
+
+    @Test
+    void zeroQueryTimeoutShouldNotSetTimeout() {
+        new JdbcMachineIdDistributor(dataSource, machineStateStorage, ClockBackwardsSynchronizer.DEFAULT, Duration.ZERO)
+            .distribute(NAMESPACE, 4, INSTANCE_ID, Duration.ZERO);
+
+        assertThat(dataSource.getQueryTimeouts(), empty());
     }
 
     private static final class TestableJdbcMachineIdDistributor extends JdbcMachineIdDistributor {

@@ -18,6 +18,7 @@ import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
+import me.ahoo.cosid.jdbc.JdbcSupport;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
@@ -474,6 +475,18 @@ public class SegmentIdProperties {
             private String initCosidTableSql = JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL;
             private boolean enableAutoInitIdSegment = true;
             private String initIdSegmentSql = JdbcIdSegmentInitializer.INIT_ID_SEGMENT_SQL;
+            /**
+             * Timeout of each distributor statement, rounded up to seconds. Zero disables it.
+             */
+            private Duration queryTimeout = JdbcSupport.DEFAULT_QUERY_TIMEOUT;
+
+            public Duration getQueryTimeout() {
+                return queryTimeout;
+            }
+
+            public void setQueryTimeout(Duration queryTimeout) {
+                this.queryTimeout = queryTimeout;
+            }
 
             public String getIncrementMaxIdSql() {
                 return incrementMaxIdSql;

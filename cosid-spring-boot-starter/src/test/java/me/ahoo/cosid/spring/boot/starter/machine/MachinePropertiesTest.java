@@ -45,6 +45,7 @@ class MachinePropertiesTest {
         assertThat(properties.getDistributor().getType()).isEqualTo(MachineProperties.Distributor.Type.MANUAL);
         assertThat(properties.getDistributor().getManual()).isNull();
         assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(1));
+        assertThat(properties.getDistributor().getJdbc().getQueryTimeout()).isEqualTo(Duration.ofSeconds(5));
         assertThat(properties.getDistributor().getMongo().getDatabase()).isEqualTo("cosid_db");
         assertThat(properties.getDistributor().getJdbc().isEnableAutoInitCosidMachineTable()).isFalse();
         assertThat(properties.getDistributor().getJdbc().getInitCosIdMachineTableSql())
@@ -75,6 +76,7 @@ class MachinePropertiesTest {
             Map.entry("cosid.machine.distributor.type", "redis"),
             Map.entry("cosid.machine.distributor.manual.machine-id", "7"),
             Map.entry("cosid.machine.distributor.redis.timeout", "2s"),
+            Map.entry("cosid.machine.distributor.jdbc.query-timeout", "7s"),
             Map.entry("cosid.machine.distributor.mongo.database", "machine_db"),
             Map.entry("cosid.machine.distributor.jdbc.enable-auto-init-cosid-machine-table", "true"),
             Map.entry("cosid.machine.distributor.jdbc.init-cos-id-machine-table-sql", "create table cosid_machine_test"),
@@ -97,6 +99,7 @@ class MachinePropertiesTest {
         assertThat(properties.getDistributor().getType()).isEqualTo(MachineProperties.Distributor.Type.REDIS);
         assertThat(properties.getDistributor().getManual().getMachineId()).isEqualTo(7);
         assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(2));
+        assertThat(properties.getDistributor().getJdbc().getQueryTimeout()).isEqualTo(Duration.ofSeconds(7));
         assertThat(properties.getDistributor().getMongo().getDatabase()).isEqualTo("machine_db");
         assertThat(properties.getDistributor().getJdbc().isEnableAutoInitCosidMachineTable()).isTrue();
         assertThat(properties.getDistributor().getJdbc().getInitCosIdMachineTableSql()).isEqualTo("create table cosid_machine_test");

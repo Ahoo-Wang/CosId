@@ -323,6 +323,20 @@ jobs:
       - name: Test CosId-Zookeeper
         run: ./gradlew cosid-zookeeper:clean cosid-zookeeper:check
 
+      # Distributor specs abort tests that outlast their safe guard window: make sure they really ran.
+      - name: Check contract tests ran
+        run: |
+          status=0
+          reports=$(ls cosid-zookeeper/build/test-results/test/TEST-*ContractTest.xml) || status=1
+          for report in $reports; do
+            skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
+            if [ "$skipped" -gt 0 ]; then
+              echo "::error::$report skipped $skipped tests"
+              status=1
+            fi
+          done
+          exit $status
+
   # https://github.com/actions/virtual-environments/issues/375
   # https://github.blog/changelog/2020-02-21-github-actions-breaking-change-ubuntu-virtual-environments-will-no-longer-start-the-mysql-service-automatically/
   cosid-jdbc-test:

@@ -801,6 +801,33 @@ public class MachineProperties {
          * Default is 5 minutes.
          */
         private Duration safeGuardDuration = Duration.ofMinutes(5);
+
+        /**
+         * Whether generators stop generating ids once the machine id lease is lost or has not been renewed
+         * within the safe guard duration, so that a machine id taken over by another instance never produces duplicates.
+         * Default is true.
+         */
+        private boolean failFast = true;
+
+        /**
+         * Checks if generators fail fast when the machine id lease is lost or expired.
+         *
+         * @return true if fail fast is enabled
+         */
+        public boolean isFailFast() {
+            return failFast;
+        }
+
+        /**
+         * Sets whether generators fail fast when the machine id lease is lost or expired.
+         *
+         * @param failFast true to fail fast
+         * @return this guarder configuration for method chaining
+         */
+        public MachineProperties.Guarder setFailFast(boolean failFast) {
+            this.failFast = failFast;
+            return this;
+        }
         
         /**
          * Checks if machine ID guarding is enabled.

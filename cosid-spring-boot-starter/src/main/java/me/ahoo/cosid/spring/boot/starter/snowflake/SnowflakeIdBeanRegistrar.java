@@ -18,6 +18,7 @@ import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
+import me.ahoo.cosid.snowflake.LeasedSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
@@ -111,6 +112,9 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         }
         if (idDefinition.isClockSync()) {
             snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
+        }
+        if (machineProperties.getGuarder().isFailFast()) {
+            snowflakeId = new LeasedSnowflakeId(snowflakeId, guardDistribute.getLease(namespace, instanceId));
         }
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
         final ZoneId zoneId = ZoneId.of(snowflakeIdProperties.getZoneId());

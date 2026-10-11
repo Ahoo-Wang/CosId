@@ -75,6 +75,17 @@ public interface MachineIdGuarder {
     void register(String namespace, InstanceId instanceId);
 
     /**
+     * The lease of a registered instance, renewed by every successful guard.
+     *
+     * @param namespace namespace
+     * @param instanceId instance id
+     * @return the lease, or {@link MachineIdLease#FOREVER} when this guarder does not track leases
+     */
+    default MachineIdLease getLease(String namespace, InstanceId instanceId) {
+        return MachineIdLease.FOREVER;
+    }
+
+    /**
      * Unregisters an instance ID from a specific namespace.
      *
      * <p>This method removes the association of the given instance ID with the provided namespace,

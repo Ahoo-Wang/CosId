@@ -161,6 +161,7 @@ public final class Checks {
         return runnable -> {
             Thread thread = new Thread(runnable, name);
             thread.setDaemon(true);
+            thread.setPriority(Thread.NORM_PRIORITY);
             return thread;
         };
     }

@@ -53,6 +53,10 @@ _Still to be filled in as the changes land: the old machine id distributors._
 
 `me.ahoo.cosid.accessor` (id field accessors, `CosIdAccessorRegistry`, the field parsers) and `me.ahoo.cosid.annotation` (`@CosId`, `@AccessorFactory`) moved from `cosid-core` to the new `me.ahoo.cosid:cosid-accessor` artifact, with the same package and class names. The starter, `cosid-mybatis` and `cosid-spring-data-jdbc` depend on it, so applications using them need no change; add it only where you use `@CosId` or the accessors without them.
 
+### Guava in `cosid-core`, `cosid-accessor` and `cosid-jackson`
+
+These artifacts no longer depend on Guava, and `@Beta` markers are gone. If your code used Guava only because CosId brought it in, add `com.google.guava:guava` to your own build. The store integrations and `cosid-sharding` still depend on it. `me.ahoo.cosid.internal` holds CosId's own helpers and is not a public API.
+
 ## Changed defaults
 
 | Property | 3.x | 4.0 |

@@ -6,6 +6,7 @@ jspecify = "1.0.1"
 coapi = "3.1.0"
 testcontainers = "2.0.5"
 guava = "33.7.2-jre"
+error-prone-annotations = "2.50.0"
 mybatis = "3.5.19"
 mybatis-spring-boot = "4.1.0"
 mongodb = "5.13.0"
@@ -30,6 +31,7 @@ coapi-bom = { module = "me.ahoo.coapi:coapi-bom", version.ref = "coapi" }
 axon-bom = { module = "org.axonframework:axon-bom", version.ref = "axon" }
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
+error-prone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "error-prone-annotations" }
 mybatis = { module = "org.mybatis:mybatis", version.ref = "mybatis" }
 mybatis-spring-boot-starter = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatis-spring-boot" }
 mongodb-driver-bom = { module = "org.mongodb:mongodb-driver-bom", version.ref = "mongodb" }

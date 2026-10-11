@@ -15,11 +15,11 @@ package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.SuffixConverterStat;
 
-import com.google.common.base.Preconditions;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -38,7 +38,7 @@ public class SuffixIdConverter implements IdConverter, Decorator<IdConverter> {
      * @param actual the underlying converter
      */
     public SuffixIdConverter(String suffix, IdConverter actual) {
-        Preconditions.checkNotNull(suffix, "suffix can not be null!");
+        Checks.checkNotNull(suffix, "suffix can not be null!");
         this.suffix = suffix;
         this.actual = actual;
     }
@@ -76,7 +76,7 @@ public class SuffixIdConverter implements IdConverter, Decorator<IdConverter> {
 
     @Override
     public long asLong(@NonNull String idString) {
-        Preconditions.checkArgument(idString.endsWith(suffix), "idString:[%s] must end with suffix:[%s]!", idString, suffix);
+        Checks.checkArgument(idString.endsWith(suffix), "idString:[%s] must end with suffix:[%s]!", idString, suffix);
         String idStr = idString.substring(0, idString.length() - suffix.length());
         return actual.asLong(idStr);
     }

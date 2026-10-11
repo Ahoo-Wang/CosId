@@ -20,8 +20,6 @@ import me.ahoo.cosid.accessor.parser.DefaultAccessorParser;
 import me.ahoo.cosid.accessor.parser.FieldDefinitionParser;
 import me.ahoo.cosid.accessor.registry.CosIdAccessorRegistry;
 
-import com.google.common.collect.ImmutableSet;
-import com.google.common.reflect.ClassPath;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -73,12 +71,9 @@ public class DefaultCosIdScanner implements CosIdScanner {
         }
         try {
             ClassLoader classLoader = getClass().getClassLoader();
-            ClassPath classPath = ClassPath.from(classLoader);
             for (String basePackage : basePackages) {
-
-                ImmutableSet<ClassPath.ClassInfo> classInfos = classPath.getTopLevelClassesRecursive(basePackage);
-                for (ClassPath.ClassInfo classInfo : classInfos) {
-                    Class<?> clazz = classLoader.loadClass(classInfo.getName());
+                for (String className : ClassFinder.findTopLevelClasses(classLoader, basePackage)) {
+                    Class<?> clazz = classLoader.loadClass(className);
                     if (clazz.isInterface()) {
                         continue;
                     }

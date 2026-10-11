@@ -15,11 +15,11 @@ package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.GroupedPrefixConverterStat;
 
-import com.google.common.base.Preconditions;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -45,7 +45,7 @@ public class GroupedPrefixIdConverter implements IdConverter, Decorator<IdConver
      * @param actual   the underlying converter
      */
     public GroupedPrefixIdConverter(String delimiter, IdConverter actual) {
-        Preconditions.checkNotNull(delimiter, "prefix can not be null!");
+        Checks.checkNotNull(delimiter, "prefix can not be null!");
         this.delimiter = delimiter;
         this.actual = actual;
     }

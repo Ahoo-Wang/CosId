@@ -108,7 +108,7 @@ public final class Checks {
     
     /**
      * Replaces each {@code %s} in {@code template} with the next argument; arguments left over are appended in square
-     * brackets. The same behavior as Guava's {@code Strings.lenientFormat}.
+     * brackets. The same behavior as Guava's {@code Checks.lenientFormat}.
      */
     public static String lenientFormat(@Nullable String template, @Nullable Object... args) {
         String text = String.valueOf(template);
@@ -155,11 +155,14 @@ public final class Checks {
     }
     
     /**
-     * A factory of daemon threads with the given name.
+     * A factory of daemon threads with the given name. A {@code %d} in the name is replaced by a counter starting at 0.
      */
     public static java.util.concurrent.ThreadFactory daemonThreadFactory(String name) {
+        boolean numbered = name.contains("%d");
+        java.util.concurrent.atomic.AtomicLong counter = new java.util.concurrent.atomic.AtomicLong();
         return runnable -> {
-            Thread thread = new Thread(runnable, name);
+            String threadName = numbered ? name.replace("%d", String.valueOf(counter.getAndIncrement())) : name;
+            Thread thread = new Thread(runnable, threadName);
             thread.setDaemon(true);
             return thread;
         };

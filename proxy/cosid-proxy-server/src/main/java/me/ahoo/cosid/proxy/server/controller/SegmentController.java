@@ -13,14 +13,13 @@
 
 package me.ahoo.cosid.proxy.server.controller;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.proxy.api.SegmentApi;
 import me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,10 +50,10 @@ public class SegmentController implements SegmentApi {
     }
 
     private void checkArguments(String namespace, String name, long step) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace) && !namespace.isBlank(), "namespace can not be blank!");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(name) && !name.isBlank(), "name can not be blank!");
-        Preconditions.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
-        Preconditions.checkArgument(maxStep <= 0 || step <= maxStep, "step:[%s] must not exceed [%s]!", step, maxStep);
+        Checks.checkArgument(!Checks.isNullOrEmpty(namespace) && !namespace.isBlank(), "namespace can not be blank!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(name) && !name.isBlank(), "name can not be blank!");
+        Checks.checkArgument(step > 0, "step:[%s] must be greater than 0!", step);
+        Checks.checkArgument(maxStep <= 0 || step <= maxStep, "step:[%s] must not exceed [%s]!", step, maxStep);
     }
 
     /**
@@ -64,11 +63,11 @@ public class SegmentController implements SegmentApi {
     @Operation(summary = "Create an ID segment dispatcher, the operation is idempotent.")
     public void createDistributor(@PathVariable String namespace, @PathVariable String name, long offset, long step) {
         checkArguments(namespace, name, step);
-        Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        Checks.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
         try {
             Math.addExact(offset, step);
         } catch (ArithmeticException overflow) {
-            throw new IllegalArgumentException(Strings.lenientFormat("offset:[%s] + step:[%s] overflows!", offset, step), overflow);
+            throw new IllegalArgumentException(Checks.lenientFormat("offset:[%s] + step:[%s] overflows!", offset, step), overflow);
         }
         String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);
         distributors.computeIfAbsent(namespacedName,

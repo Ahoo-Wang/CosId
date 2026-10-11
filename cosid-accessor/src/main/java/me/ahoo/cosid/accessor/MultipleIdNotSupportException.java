@@ -14,8 +14,8 @@
 package me.ahoo.cosid.accessor;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 
-import com.google.common.base.Strings;
 
 /**
  * Exception thrown when an entity has multiple @CosId fields.
@@ -34,7 +34,7 @@ public class MultipleIdNotSupportException extends CosIdException {
      * @param declaringClass the class with multiple ID fields
      */
     public MultipleIdNotSupportException(Class<?> declaringClass) {
-        super(Strings.lenientFormat("Not support defining multiple CosIds, declaringClass:[%s]!", declaringClass));
+        super(Checks.lenientFormat("Not support defining multiple CosIds, declaringClass:[%s]!", declaringClass));
         this.declaringClass = declaringClass;
     }
 

@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.cosid;
 
-import com.google.common.base.MoreObjects;
+import me.ahoo.cosid.internal.Checks;
 
 import java.util.Objects;
 
@@ -106,10 +106,6 @@ public final class CosIdState implements Comparable<CosIdState> {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("timestamp", timestamp)
-            .add("machineId", machineId)
-            .add("sequence", sequence)
-            .toString();
+        return Checks.toString(this, "timestamp", timestamp, "machineId", machineId, "sequence", sequence);
     }
 }

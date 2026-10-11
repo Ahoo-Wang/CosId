@@ -15,10 +15,9 @@ package me.ahoo.cosid.uncertainty;
 
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.IdGeneratorDecorator;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 
-import com.google.common.annotations.Beta;
-import com.google.common.base.Preconditions;
 import org.jspecify.annotations.NonNull;
 
 import java.util.concurrent.ThreadLocalRandom;
@@ -31,7 +30,6 @@ import java.util.concurrent.ThreadLocalRandom;
  *     2. I don’t want the generated ID to be predictable, such as preventing crawler by ID number, predicting transaction volume.
  * </pre>
  */
-@Beta
 public class UncertaintyIdGenerator implements IdGeneratorDecorator {
     protected final IdGenerator actual;
     private final int uncertaintyBits;
@@ -40,7 +38,7 @@ public class UncertaintyIdGenerator implements IdGeneratorDecorator {
     private final long maxOriginalId;
     
     public UncertaintyIdGenerator(IdGenerator actual, int uncertaintyBits) {
-        Preconditions.checkArgument(uncertaintyBits > 0 && uncertaintyBits < SnowflakeId.TOTAL_BIT, "uncertaintyBits[%s] must be greater than 0 and less than 63.");
+        Checks.checkArgument(uncertaintyBits > 0 && uncertaintyBits < SnowflakeId.TOTAL_BIT, "uncertaintyBits[%s] must be greater than 0 and less than 63.");
         this.actual = actual;
         this.uncertaintyBits = uncertaintyBits;
         this.originalIdBits = SnowflakeId.TOTAL_BIT - uncertaintyBits;

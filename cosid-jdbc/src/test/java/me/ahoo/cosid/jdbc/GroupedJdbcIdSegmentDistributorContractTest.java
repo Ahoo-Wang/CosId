@@ -13,10 +13,20 @@
 
 package me.ahoo.cosid.jdbc;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
+import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.segment.grouped.GroupedKey;
+import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.segment.distributor.GroupedIdSegmentDistributorSpec;
 
+import lombok.SneakyThrows;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import javax.sql.DataSource;
@@ -26,11 +36,12 @@ import javax.sql.DataSource;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GroupedJdbcIdSegmentDistributorContractTest extends GroupedIdSegmentDistributorSpec {
+    DataSource dataSource;
     JdbcIdSegmentDistributorFactory distributorFactory;
     
     @BeforeAll
     void setup() {
-        DataSource dataSource = RealMySql.createDataSource();
+        dataSource = RealMySql.createDataSource();
         distributorFactory = new JdbcIdSegmentDistributorFactory(dataSource, true, new JdbcIdSegmentInitializer(dataSource),
             JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
     }
@@ -38,5 +49,23 @@ class GroupedJdbcIdSegmentDistributorContractTest extends GroupedIdSegmentDistri
     @Override
     protected IdSegmentDistributorFactory getFactory() {
         return distributorFactory;
+    }
+    
+    /**
+     * The grouped counter ({@code name@group}) going backwards is detected like an ungrouped one.
+     */
+    @Test
+    @Override
+    @SneakyThrows
+    public void nextMaxIdWhenBack() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        String name = "nextMaxIdWhenBack";
+        IdSegmentDistributor distributor = factory().create(new IdSegmentDistributorDefinition(namespace, name, TEST_OFFSET, TEST_STEP));
+        GroupedKey groupedKey = groupedSupplier().get();
+        
+        assertThat(distributor.nextMaxId(), equalTo(TEST_OFFSET + TEST_STEP));
+        RealMySql.setSegmentMaxId(dataSource, IdSegmentDistributor.getNamespacedName(namespace, name + "@" + groupedKey.getKey()), TEST_OFFSET);
+        
+        Assertions.assertThrows(IllegalStateException.class, distributor::nextMaxId);
     }
 }

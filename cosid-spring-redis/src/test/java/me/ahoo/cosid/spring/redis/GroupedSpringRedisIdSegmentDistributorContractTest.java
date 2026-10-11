@@ -13,13 +13,21 @@
 
 package me.ahoo.cosid.spring.redis;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+
+import me.ahoo.cosid.segment.IdSegmentDistributor;
+import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.segment.distributor.GroupedIdSegmentDistributorSpec;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
  * Runs {@link GroupedIdSegmentDistributorSpec} against a real Redis.
@@ -27,12 +35,14 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class GroupedSpringRedisIdSegmentDistributorContractTest extends GroupedIdSegmentDistributorSpec {
     LettuceConnectionFactory connectionFactory;
+    StringRedisTemplate redisTemplate;
     SpringRedisIdSegmentDistributorFactory distributorFactory;
     
     @BeforeAll
     void setup() {
         connectionFactory = RealRedis.createConnectionFactory();
-        distributorFactory = new SpringRedisIdSegmentDistributorFactory(RealRedis.createRedisTemplate(connectionFactory));
+        redisTemplate = RealRedis.createRedisTemplate(connectionFactory);
+        distributorFactory = new SpringRedisIdSegmentDistributorFactory(redisTemplate);
     }
     
     @AfterAll
@@ -45,5 +55,16 @@ class GroupedSpringRedisIdSegmentDistributorContractTest extends GroupedIdSegmen
     @Override
     protected IdSegmentDistributorFactory getFactory() {
         return distributorFactory;
+    }
+    
+    @Test
+    void groupedDistributorUsesTheGroupedAdderKey() {
+        String namespace = MockIdGenerator.INSTANCE.generateAsString();
+        IdSegmentDistributor distributor = factory().create(new IdSegmentDistributorDefinition(namespace, "orders", 0, 100));
+        
+        distributor.nextIdSegment();
+        
+        String adderKey = "cosid:{" + namespace + ".orders@" + groupedSupplier().get().getKey() + "}.adder";
+        assertThat(redisTemplate.opsForValue().get(adderKey), equalTo("100"));
     }
 }

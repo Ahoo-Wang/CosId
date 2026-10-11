@@ -671,6 +671,20 @@ public class MachineProperties {
         public void setTimeout(Duration timeout) {
             this.timeout = timeout;
         }
+        
+        /**
+         * Timeout of the machine id distribution at startup, the first Redis command, which also pays for connecting.
+         * Default is 10 seconds, {@code 0} means no timeout.
+         */
+        private Duration distributeTimeout = Duration.ofSeconds(10);
+        
+        public Duration getDistributeTimeout() {
+            return distributeTimeout;
+        }
+        
+        public void setDistributeTimeout(Duration distributeTimeout) {
+            this.distributeTimeout = distributeTimeout;
+        }
     }
     
     /**

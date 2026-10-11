@@ -23,6 +23,7 @@ import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.util.CallTimeout;
 import me.ahoo.cosid.util.Exceptions;
 
 import com.google.common.base.Strings;
@@ -68,14 +69,31 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     
     private final CuratorFramework curatorFramework;
     private final RetryPolicy retryPolicy;
+    private final CallTimeout callTimeout;
     
     public ZookeeperMachineIdDistributor(CuratorFramework curatorFramework,
                                          RetryPolicy retryPolicy,
                                          MachineStateStorage machineStateStorage,
                                          ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        this(curatorFramework, retryPolicy, machineStateStorage, clockBackwardsSynchronizer, CallTimeout.NONE);
+    }
+    
+    /**
+     * Create a ZooKeeper machine id distributor whose guard and revert give up after {@code callTimeout}.
+     *
+     * <p>Curator has no per-operation timeout: while ZooKeeper does not answer, an operation waits for the session
+     * read timeout and the connection timeout of each retry, which adds up to minutes. Distribution at startup is not
+     * bounded.</p>
+     */
+    public ZookeeperMachineIdDistributor(CuratorFramework curatorFramework,
+                                         RetryPolicy retryPolicy,
+                                         MachineStateStorage machineStateStorage,
+                                         ClockBackwardsSynchronizer clockBackwardsSynchronizer,
+                                         CallTimeout callTimeout) {
         super(machineStateStorage, clockBackwardsSynchronizer);
         this.curatorFramework = curatorFramework;
         this.retryPolicy = retryPolicy;
+        this.callTimeout = callTimeout;
     }
     
     /**
@@ -287,6 +305,13 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
+        callTimeout.call("revertMachineId", () -> {
+            doRevertRemote(namespace, instanceId, machineState);
+            return null;
+        });
+    }
+    
+    private void doRevertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isInfoEnabled()) {
             log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }
@@ -322,6 +347,13 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
     
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
+        callTimeout.call("guardMachineId", () -> {
+            doGuardRemote(namespace, instanceId, machineState);
+            return null;
+        });
+    }
+    
+    private void doGuardRemote(String namespace, InstanceId instanceId, MachineState machineState) {
         if (log.isDebugEnabled()) {
             log.debug("Guard Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
         }

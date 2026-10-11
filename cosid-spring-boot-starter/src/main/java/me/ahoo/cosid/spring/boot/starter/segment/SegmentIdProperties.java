@@ -566,6 +566,20 @@ public class SegmentIdProperties {
         public static class Mongo {
             private String database = "cosid_db";
 
+            /**
+             * Timeout of each MongoDB operation (the driver's client-side operation timeout, {@code timeoutMS}).
+             * Zero keeps the MongoClient's settings.
+             */
+            private Duration timeout = Duration.ofSeconds(5);
+
+            public Duration getTimeout() {
+                return timeout;
+            }
+
+            public void setTimeout(Duration timeout) {
+                this.timeout = timeout;
+            }
+
             public String getDatabase() {
                 return database;
             }

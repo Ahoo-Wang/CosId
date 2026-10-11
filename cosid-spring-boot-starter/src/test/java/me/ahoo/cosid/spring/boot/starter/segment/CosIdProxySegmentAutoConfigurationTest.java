@@ -82,6 +82,8 @@ class CosIdProxySegmentAutoConfigurationTest {
     void failsFastWhenCoApiRestClientBuilderIsMissing() {
         new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(CosIdProxySegmentAutoConfiguration.class))
+            // spring-webflux is on the test classpath (for the WebClient timeout test): pin the blocking client mode.
+            .withPropertyValues("coapi.mode=SYNC")
             .withPropertyValues(COAP_PROXY_HOST)
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=proxy")

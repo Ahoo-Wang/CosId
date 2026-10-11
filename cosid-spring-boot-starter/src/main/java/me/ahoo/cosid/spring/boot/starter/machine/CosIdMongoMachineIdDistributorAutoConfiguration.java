@@ -63,6 +63,17 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
     @Configuration
     @ConditionalOnClass(MongoClient.class)
     class Sync {
+        /**
+         * Bounds every CosId operation with the driver's client-side operation timeout.
+         */
+        private MongoDatabase withTimeout(MongoDatabase mongoDatabase) {
+            java.time.Duration timeout = machineProperties.getDistributor().getMongo().getTimeout();
+            if (timeout == null || timeout.isZero()) {
+                return mongoDatabase;
+            }
+            return mongoDatabase.withTimeout(timeout.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+        }
+        
         @Bean
         @Primary
         @ConditionalOnMissingBean
@@ -70,6 +81,7 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
             MongoDatabase mongoDatabase = mongoClient.getDatabase(
                 machineProperties.getDistributor().getMongo().getDatabase()
             );
+            mongoDatabase = withTimeout(mongoDatabase);
             return new MongoMachineInitializer(mongoDatabase);
         }
         
@@ -80,6 +92,7 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
             MongoDatabase mongoDatabase = mongoClient.getDatabase(
                 machineProperties.getDistributor().getMongo().getDatabase()
             );
+            mongoDatabase = withTimeout(mongoDatabase);
             return new MongoMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME));
         }
     }
@@ -87,12 +100,24 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
     @Configuration
     @ConditionalOnClass(com.mongodb.reactivestreams.client.MongoClient.class)
     class Reactive {
+        /**
+         * Bounds every CosId operation with the driver's client-side operation timeout.
+         */
+        private com.mongodb.reactivestreams.client.MongoDatabase withTimeout(com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase) {
+            java.time.Duration timeout = machineProperties.getDistributor().getMongo().getTimeout();
+            if (timeout == null || timeout.isZero()) {
+                return mongoDatabase;
+            }
+            return mongoDatabase.withTimeout(timeout.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+        }
+        
         @Bean
         @ConditionalOnMissingBean
         public MongoReactiveMachineInitializer mongoReactiveMachineInitializer(com.mongodb.reactivestreams.client.MongoClient mongoClient) {
             com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
                 machineProperties.getDistributor().getMongo().getDatabase()
             );
+            mongoDatabase = withTimeout(mongoDatabase);
             return new MongoReactiveMachineInitializer(mongoDatabase);
         }
         
@@ -102,6 +127,7 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
             com.mongodb.reactivestreams.client.MongoDatabase mongoDatabase = mongoClient.getDatabase(
                 machineProperties.getDistributor().getMongo().getDatabase()
             );
+            mongoDatabase = withTimeout(mongoDatabase);
             return new MongoReactiveMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME));
         }
     }

@@ -419,6 +419,11 @@ public class MachineProperties {
         private MachineProperties.Jdbc jdbc;
 
         /**
+         * Configuration for ZooKeeper-based distribution.
+         */
+        private MachineProperties.Zookeeper zookeeper = new MachineProperties.Zookeeper();
+
+        /**
          * Constructs a new Distributor configuration with default Redis, Mongo, and Jdbc settings.
          */
         public Distributor() {
@@ -516,6 +521,24 @@ public class MachineProperties {
         public void setJdbc(Jdbc jdbc) {
             this.jdbc = jdbc;
         }
+
+        /**
+         * Gets the ZooKeeper configuration.
+         *
+         * @return the ZooKeeper configuration
+         */
+        public Zookeeper getZookeeper() {
+            return zookeeper;
+        }
+
+        /**
+         * Sets the ZooKeeper configuration.
+         *
+         * @param zookeeper the ZooKeeper configuration to set
+         */
+        public void setZookeeper(Zookeeper zookeeper) {
+            this.zookeeper = zookeeper;
+        }
         
         /**
          * Enumeration of supported machine ID distributor types.
@@ -604,6 +627,25 @@ public class MachineProperties {
      * <p>This configuration controls the timeout for Redis operations
      * used in machine ID allocation and coordination.</p>
      */
+    /**
+     * Configuration for ZooKeeper-based machine ID distribution.
+     */
+    public static class Zookeeper {
+        /**
+         * Timeout of machine ID guard and revert. Curator has no per-operation timeout, so without it a ZooKeeper
+         * that does not answer blocks the guarder for minutes. Default is 5 seconds; zero disables it.
+         */
+        private Duration timeout = Duration.ofSeconds(5);
+
+        public Duration getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
+        }
+    }
+
     public static class Redis {
 
         /**
@@ -643,6 +685,20 @@ public class MachineProperties {
          * Default is "cosid_db".
          */
         private String database = "cosid_db";
+
+        /**
+         * Timeout of each MongoDB operation (the driver's client-side operation timeout, {@code timeoutMS}).
+         * Default is 5 seconds; zero keeps the MongoClient's settings.
+         */
+        private Duration timeout = Duration.ofSeconds(5);
+
+        public Duration getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
+        }
         
         /**
          * Gets the MongoDB database name.

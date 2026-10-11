@@ -12,6 +12,7 @@
  */
 
 dependencies {
+    implementation(libs.guava)
     api(project(":cosid-core"))
     api("org.apache.curator:curator-recipes")
     testImplementation("org.apache.curator:curator-test")

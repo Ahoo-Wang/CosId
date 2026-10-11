@@ -17,6 +17,7 @@ import static me.ahoo.cosid.proxy.api.ErrorResponse.MACHINE_ID_LOST;
 import static me.ahoo.cosid.proxy.api.ErrorResponse.MACHINE_ID_OVERFLOW;
 import static me.ahoo.cosid.proxy.api.ErrorResponse.NOT_FOUND_MACHINE_STATE;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
@@ -28,7 +29,6 @@ import me.ahoo.cosid.machine.NotFoundMachineStateException;
 import me.ahoo.cosid.proxy.api.ErrorResponse;
 import me.ahoo.cosid.proxy.api.MachineClient;
 
-import com.google.common.base.Strings;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.client.HttpClientErrorException;
@@ -65,7 +65,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             if (errorResponse.getCode().equals(MACHINE_ID_OVERFLOW)) {
                 throw new MachineIdOverflowException(machineBit, instanceId);
             }
-            throw new IllegalStateException(Strings.lenientFormat("Unexpected code:[%s] - message:[%s].", errorResponse.getCode(), errorResponse.getMsg()));
+            throw new IllegalStateException(Checks.lenientFormat("Unexpected code:[%s] - message:[%s].", errorResponse.getCode(), errorResponse.getMsg()));
         }
     }
 
@@ -92,7 +92,7 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
                 case NOT_FOUND_MACHINE_STATE -> throw new NotFoundMachineStateException(namespace, instanceId);
                 case MACHINE_ID_LOST -> throw new MachineIdLostException(namespace, instanceId, machineState);
                 // e.g. a lastTimeStamp rejected by cosid.proxy.server.max-clock-skew: keep the server's reason.
-                default -> throw new IllegalStateException(Strings.lenientFormat("Unexpected code:[%s] - message:[%s].", errorResponse.getCode(), errorResponse.getMsg()));
+                default -> throw new IllegalStateException(Checks.lenientFormat("Unexpected code:[%s] - message:[%s].", errorResponse.getCode(), errorResponse.getMsg()));
             }
         }
 

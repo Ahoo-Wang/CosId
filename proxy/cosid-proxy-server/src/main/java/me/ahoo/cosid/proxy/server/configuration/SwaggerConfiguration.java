@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.proxy.server.configuration;
 
-import com.google.common.base.MoreObjects;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
@@ -26,7 +25,7 @@ public class SwaggerConfiguration {
     
     @Bean
     public OpenApiCustomizer openApiCustomizer() {
-        var version = MoreObjects.firstNonNull(getClass().getPackage().getImplementationVersion(), "3.0.0");
+        var version = java.util.Objects.requireNonNullElse(getClass().getPackage().getImplementationVersion(), "4.0.0");
         return openApi -> {
             var info = new Info()
                 .title("CosId Proxy Server")

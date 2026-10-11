@@ -19,6 +19,7 @@ import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.converter.SnowflakeFriendlyIdConverter;
 import me.ahoo.cosid.converter.ToStringIdConverter;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
@@ -26,7 +27,6 @@ import tools.jackson.core.JsonParser;
 import tools.jackson.databind.BeanProperty;
 import tools.jackson.databind.DeserializationContext;
 import tools.jackson.databind.ValueDeserializer;
-import com.google.common.base.Strings;
 
 import java.io.IOException;
 
@@ -84,7 +84,7 @@ public class AsStringDeserializer extends ValueDeserializer<Long> {
     @Override
     public Long deserialize(JsonParser p, DeserializationContext ctxt) {
         String valueStr = p.getValueAsString();
-        if (Strings.isNullOrEmpty(valueStr)) {
+        if (Checks.isNullOrEmpty(valueStr)) {
             return null;
         }
         return converter.asLong(valueStr);

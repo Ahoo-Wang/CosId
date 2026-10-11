@@ -63,6 +63,7 @@ java {
 }
 
 dependencies {
+    implementation(libs.guava)
     api(project(":cosid-core"))
     api(project(":cosid-accessor"))
 

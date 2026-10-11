@@ -15,11 +15,11 @@ package me.ahoo.cosid.converter;
 
 import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.IdConverter;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.PrefixConverterStat;
 
-import com.google.common.base.Preconditions;
 import org.jspecify.annotations.NonNull;
 
 
@@ -40,7 +40,7 @@ public class PrefixIdConverter implements IdConverter, Decorator<IdConverter> {
      * @param actual the underlying converter
      */
     public PrefixIdConverter(String prefix, IdConverter actual) {
-        Preconditions.checkNotNull(prefix, "prefix can not be null!");
+        Checks.checkNotNull(prefix, "prefix can not be null!");
         this.prefix = prefix;
         this.actual = actual;
     }
@@ -78,7 +78,7 @@ public class PrefixIdConverter implements IdConverter, Decorator<IdConverter> {
 
     @Override
     public long asLong(@NonNull String idString) {
-        Preconditions.checkArgument(idString.startsWith(prefix), "idString:[%s] must start with prefix:[%s]!", idString, prefix);
+        Checks.checkArgument(idString.startsWith(prefix), "idString:[%s] must start with prefix:[%s]!", idString, prefix);
         String idStr = idString.substring(prefix.length());
         return actual.asLong(idStr);
     }

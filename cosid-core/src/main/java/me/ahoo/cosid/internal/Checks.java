@@ -41,6 +41,39 @@ public final class Checks {
     }
     
     /**
+     * Checks an argument without boxing or allocating when it holds: for hot paths.
+     *
+     * @throws IllegalArgumentException with the formatted message if {@code expression} is false
+     */
+    public static void checkArgument(boolean expression, @Nullable String template, long arg) {
+        if (!expression) {
+            throw new IllegalArgumentException(lenientFormat(template, arg));
+        }
+    }
+    
+    /**
+     * Checks an argument without boxing or allocating when it holds: for hot paths.
+     *
+     * @throws IllegalArgumentException with the formatted message if {@code expression} is false
+     */
+    public static void checkArgument(boolean expression, @Nullable String template, long arg1, long arg2) {
+        if (!expression) {
+            throw new IllegalArgumentException(lenientFormat(template, arg1, arg2));
+        }
+    }
+    
+    /**
+     * Checks an argument without allocating an array when it holds: for hot paths.
+     *
+     * @throws IllegalArgumentException with the formatted message if {@code expression} is false
+     */
+    public static void checkArgument(boolean expression, @Nullable String template, @Nullable Object arg1, @Nullable Object arg2) {
+        if (!expression) {
+            throw new IllegalArgumentException(lenientFormat(template, arg1, arg2));
+        }
+    }
+    
+    /**
      * Checks an argument.
      *
      * @throws IllegalArgumentException if {@code expression} is false
@@ -155,11 +188,14 @@ public final class Checks {
     }
     
     /**
-     * A factory of daemon threads with the given name.
+     * A factory of daemon threads with the given name. A {@code %d} in the name is replaced by a counter starting at 0.
      */
     public static java.util.concurrent.ThreadFactory daemonThreadFactory(String name) {
+        boolean numbered = name.contains("%d");
+        java.util.concurrent.atomic.AtomicLong counter = new java.util.concurrent.atomic.AtomicLong();
         return runnable -> {
-            Thread thread = new Thread(runnable, name);
+            String threadName = numbered ? name.replace("%d", String.valueOf(counter.getAndIncrement())) : name;
+            Thread thread = new Thread(runnable, threadName);
             thread.setDaemon(true);
             thread.setPriority(Thread.NORM_PRIORITY);
             return thread;

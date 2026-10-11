@@ -14,9 +14,7 @@
 package me.ahoo.cosid.util;
 
 import me.ahoo.cosid.CosIdException;
-
-import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import me.ahoo.cosid.internal.Checks;
 
 import java.time.Duration;
 import java.util.concurrent.Callable;
@@ -49,10 +47,7 @@ public final class CallTimeout {
     
     private static final ExecutorService EXECUTOR = new ThreadPoolExecutor(0, MAX_CONCURRENT_CALLS,
         60L, TimeUnit.SECONDS, new SynchronousQueue<>(),
-        new ThreadFactoryBuilder()
-            .setNameFormat("CosId-Call-%d")
-            .setDaemon(true)
-            .build());
+        Checks.daemonThreadFactory("CosId-Call-%d"));
     
     private final Duration timeout;
     
@@ -70,7 +65,7 @@ public final class CallTimeout {
         if (timeout == null || timeout.isZero()) {
             return NONE;
         }
-        Preconditions.checkArgument(!timeout.isNegative(), "timeout:[%s] can not be negative!", timeout);
+        Checks.checkArgument(!timeout.isNegative(), "timeout:[%s] can not be negative!", timeout);
         return new CallTimeout(timeout);
     }
     

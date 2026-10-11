@@ -57,4 +57,11 @@ class ChecksTest {
         assertEquals("worker", thread.getName());
         assertTrue(thread.isDaemon());
     }
+
+    @Test
+    void daemonThreadFactoryNumbersTheThreads() {
+        var factory = Checks.daemonThreadFactory("Call-%d");
+        assertEquals("Call-0", factory.newThread(() -> { }).getName());
+        assertEquals("Call-1", factory.newThread(() -> { }).getName());
+    }
 }

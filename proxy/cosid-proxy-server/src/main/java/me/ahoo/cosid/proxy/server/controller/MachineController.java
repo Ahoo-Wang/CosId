@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.proxy.server.controller;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
@@ -24,8 +25,6 @@ import me.ahoo.cosid.machine.StatelessMachineIdDistributor;
 import me.ahoo.cosid.proxy.api.MachineApi;
 import me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -80,7 +79,7 @@ public class MachineController implements MachineApi {
     @Operation(summary = "Distribute a machine ID, the operation is idempotent.")
     public MachineState distribute(@PathVariable String namespace, int machineBit, String instanceId, boolean stable, String safeGuardDuration) throws MachineIdOverflowException {
         checkNamespaceAndInstanceId(namespace, instanceId);
-        Preconditions.checkArgument(machineBit > 0 && machineBit <= MAX_MACHINE_BIT, "machineBit:[%s] must be in [1, %s]!", machineBit, MAX_MACHINE_BIT);
+        Checks.checkArgument(machineBit > 0 && machineBit <= MAX_MACHINE_BIT, "machineBit:[%s] must be in [1, %s]!", machineBit, MAX_MACHINE_BIT);
         Duration duration = parseSafeGuardDuration(safeGuardDuration);
         InstanceId instance = new InstanceId(instanceId, stable);
         if (statelessDistributor == null) {
@@ -125,8 +124,8 @@ public class MachineController implements MachineApi {
     }
 
     private static void checkNamespaceAndInstanceId(String namespace, String instanceId) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(namespace) && !namespace.isBlank(), "namespace can not be blank!");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(instanceId) && !instanceId.isBlank(), "instanceId can not be blank!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(namespace) && !namespace.isBlank(), "namespace can not be blank!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(instanceId) && !instanceId.isBlank(), "instanceId can not be blank!");
     }
 
     private static Duration parseSafeGuardDuration(String safeGuardDuration) {
@@ -134,22 +133,22 @@ public class MachineController implements MachineApi {
         try {
             duration = Duration.parse(safeGuardDuration);
         } catch (DateTimeParseException | NullPointerException e) {
-            throw new IllegalArgumentException(Strings.lenientFormat("safeGuardDuration:[%s] is not an ISO-8601 duration!", safeGuardDuration), e);
+            throw new IllegalArgumentException(Checks.lenientFormat("safeGuardDuration:[%s] is not an ISO-8601 duration!", safeGuardDuration), e);
         }
-        Preconditions.checkArgument(!duration.isNegative(), "safeGuardDuration:[%s] can not be negative!", safeGuardDuration);
+        Checks.checkArgument(!duration.isNegative(), "safeGuardDuration:[%s] can not be negative!", safeGuardDuration);
         return duration;
     }
 
     @Nullable
     private MachineState clientMachineState(@Nullable Integer machineId, @Nullable Long lastTimeStamp) {
-        Preconditions.checkArgument((machineId == null) == (lastTimeStamp == null), "machineId and lastTimeStamp must be provided together!");
+        Checks.checkArgument((machineId == null) == (lastTimeStamp == null), "machineId and lastTimeStamp must be provided together!");
         if (machineId == null) {
             return null;
         }
         // A timestamp far ahead would keep the machine id from ever being recycled, or make its next owner wait.
         if (maxClockSkew != null && !maxClockSkew.isZero() && !maxClockSkew.isNegative()) {
             long latest = System.currentTimeMillis() + maxClockSkew.toMillis();
-            Preconditions.checkArgument(lastTimeStamp <= latest, "lastTimeStamp:[%s] is more than [%s] ahead of the server clock!", lastTimeStamp, maxClockSkew);
+            Checks.checkArgument(lastTimeStamp <= latest, "lastTimeStamp:[%s] is more than [%s] ahead of the server clock!", lastTimeStamp, maxClockSkew);
         }
         return MachineState.of(machineId, lastTimeStamp);
     }

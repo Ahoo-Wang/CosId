@@ -198,6 +198,20 @@ jobs:
           COSID_TEST_REDIS_URI: redis://localhost:6379
         run: ./gradlew cosid-spring-redis:clean cosid-spring-redis:check
 
+      # The real-Redis tests skip themselves without Redis: make sure they really ran.
+      - name: Check real Redis tests ran
+        run: |
+          status=0
+          reports=$(ls cosid-spring-redis/build/test-results/test/TEST-*ContractTest.xml cosid-spring-redis/build/test-results/test/TEST-*RedisTest.xml) || status=1
+          for report in $reports; do
+            skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
+            if [ "$skipped" -gt 0 ]; then
+              echo "::error::$report skipped $skipped tests"
+              status=1
+            fi
+          done
+          exit $status
+
   cosid-mongo-test:
     name: CosId Mongo Test
     needs: [ cosid-core-test ]

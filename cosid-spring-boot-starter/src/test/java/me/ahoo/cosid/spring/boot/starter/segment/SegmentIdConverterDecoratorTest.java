@@ -27,9 +27,10 @@ import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
+import me.ahoo.cosid.test.segment.MockIdSegmentDistributor;
 
-import org.junit.jupiter.api.Test;
 import jakarta.annotation.Nonnull;
+import org.junit.jupiter.api.Test;
 
 class SegmentIdConverterDecoratorTest {
 
@@ -111,7 +112,7 @@ class SegmentIdConverterDecoratorTest {
     }
 
     private static SegmentId decorate(IdConverterDefinition definition) {
-        return new SegmentIdConverterDecorator(new DefaultSegmentId(new IdSegmentDistributor.Mock()), definition).decorate();
+        return new SegmentIdConverterDecorator(new DefaultSegmentId(new MockIdSegmentDistributor()), definition).decorate();
     }
 
     public static class CustomIdConverter implements IdConverter {

@@ -29,6 +29,10 @@ _Still to be filled in as the changes land: the thread-local grouped path (`Grou
 | `AbstractSnowflakeId.nextTime()` (no longer called since 3.4) | override `getCurrentTime()` to change the clock |
 | `CosIdMachineIdLifecycle(MachineIdGuarder, MachineIdDistributor)` | `CosIdMachineIdLifecycle(MachineIdGuarder, MachineIdDistributor, GuardDistribute)` |
 
+### Test segment distributors
+
+`IdSegmentDistributor.Atomic` and `IdSegmentDistributor.Mock` moved out of `cosid-core` to the `cosid-test` artifact as `me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor` and `me.ahoo.cosid.test.segment.MockIdSegmentDistributor`, with the same constructors.
+
 ## Changed defaults
 
 | Property | 3.x | 4.0 |

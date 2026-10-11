@@ -87,6 +87,23 @@ class SpringRedisIdSegmentDistributorTest {
     }
 
     @Test
+    void nextMaxIdShouldRestoreOffsetWhenAdderIsLost() {
+        FakeStringRedisTemplate redisTemplate = new FakeStringRedisTemplate();
+        SpringRedisIdSegmentDistributor distributor = new SpringRedisIdSegmentDistributor(
+            "segment-ns",
+            "lost",
+            1000,
+            100,
+            redisTemplate
+        );
+        distributor.ensureOffset();
+        redisTemplate.deleteValue(distributor.getAdderKey());
+
+        assertThat(distributor.nextMaxId(), equalTo(1100L));
+        assertThat(redisTemplate.getValue(distributor.getAdderKey()), equalTo(1100L));
+    }
+
+    @Test
     void nextMaxIdShouldRejectRedisRollback() {
         FakeStringRedisTemplate redisTemplate = new FakeStringRedisTemplate();
         SpringRedisIdSegmentDistributor distributor = new SpringRedisIdSegmentDistributor(

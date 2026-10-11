@@ -91,6 +91,13 @@ dependencies {
     annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("io.projectreactor:reactor-test")
+    // End-to-end contract tests: the CosId proxy clients against this server, backed by a real Redis.
+    testImplementation(project(":cosid-proxy"))
+    testImplementation(project(":cosid-test"))
+    testImplementation("org.testcontainers:testcontainers")
+    // Starter smoke test: the client side wired by the starter's proxy autoconfiguration (CoApi + RestClient).
+    testImplementation("me.ahoo.coapi:coapi-spring-boot-starter")
+    testImplementation("org.springframework.boot:spring-boot-starter-restclient")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

@@ -238,6 +238,59 @@ jobs:
       - name: Test CosId-Proxy
         run: ./gradlew cosid-proxy:clean cosid-proxy:check --info
 
+  cosid-proxy-server-test:
+    name: CosId Proxy Server Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          server-id: github
+          cache: gradle
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Proxy-Server
+        env:
+          COSID_TEST_REDIS_URI: redis://localhost:6379
+        run: ./gradlew cosid-proxy-server:clean cosid-proxy-server:check
+
+      - name: Test results
+        if: always()
+        run: grep -h -o 'testsuite name="[^"]*" tests="[0-9]*" skipped="[0-9]*" failures="[0-9]*" errors="[0-9]*"' proxy/cosid-proxy-server/build/test-results/test/*.xml
+
+      # The end-to-end tests skip themselves without Redis: make sure they really ran.
+      # ProxyIdSegmentDistributorEndToEndTest has one intentionally @Disabled test (nextMaxIdWhenBack).
+      - name: Check end-to-end tests ran
+        run: |
+          status=0
+          for report in proxy/cosid-proxy-server/build/test-results/test/TEST-me.ahoo.cosid.proxy.server.contract.*.xml; do
+            skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
+            allowed=0
+            case "$report" in *ProxyIdSegmentDistributorEndToEndTest.xml) allowed=1 ;; esac
+            if [ "$skipped" -gt "$allowed" ]; then
+              echo "::error::$report skipped $skipped tests (allowed $allowed)"
+              status=1
+            fi
+          done
+          ls proxy/cosid-proxy-server/build/test-results/test/TEST-me.ahoo.cosid.proxy.server.contract.*.xml > /dev/null || status=1
+          exit $status
+
   cosid-zookeeper-test:
     name: CosId Zookeeper Test
     needs: [ cosid-core-test ]

@@ -58,7 +58,7 @@ cosid:
 ```
 
 :::tip
-By default, enabling `snowflake`/`segment` will generate shared (`__share__`) `IdGenerator` registered to `Spring` container and `DefaultIdGeneratorProvider.INSTANCE`.
+By default, enabling `snowflake`/`segment` will generate shared (`__share__`) `IdGenerator` registered to `Spring` container and the `IdGeneratorProvider` (by default `DefaultIdGeneratorProvider.INSTANCE`).
 :::
 
 :::warning
@@ -85,11 +85,24 @@ When enabling both `snowflake`/`segment` at the same time, only one shared (`__s
     private SnowflakeId snowflakeId;
 ```
 
-> Get shared `IdGenerator` via `DefaultIdGeneratorProvider.INSTANCE`.
+> Get shared `IdGenerator` by injecting `IdGeneratorProvider` (recommended).
+
+```java
+    @Autowired
+    private IdGeneratorProvider provider;
+
+    provider.getShare();
+```
+
+> Or get shared `IdGenerator` via `DefaultIdGeneratorProvider.INSTANCE` (only when `cosid.provider.isolated` is not enabled).
 
 ```java
     DefaultIdGeneratorProvider.INSTANCE.getShare();
 ```
+
+:::tip
+By default the `IdGeneratorProvider` bean is `DefaultIdGeneratorProvider.INSTANCE`. With `cosid.provider.isolated=true`, each `ApplicationContext` gets its own `IdGeneratorProvider`, cleared when the context closes; `DefaultIdGeneratorProvider.INSTANCE` then no longer holds Spring-registered generators, so inject `IdGeneratorProvider` instead.
+:::
 
 ### Register Multiple ID Generators
 

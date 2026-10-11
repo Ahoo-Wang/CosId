@@ -104,6 +104,7 @@ class ActivitiIdGeneratorAutoConfigurationTest {
     @Test
     void configuresIdGeneratorFromContextProvider() {
         this.contextRunner
+            .withPropertyValues(CosIdAutoConfiguration.PROVIDER_ISOLATED_KEY + "=true")
             .run(context -> {
                 context.getBean(IdGeneratorProvider.class).setShare(MockIdGenerator.usePrefix("ctx_"));
                 SpringProcessEngineConfiguration engineConfiguration = new SpringProcessEngineConfiguration();

@@ -85,15 +85,23 @@ class CosIdAutoConfigurationTest {
     }
 
     @Test
-    void createsProviderPerContextInsteadOfGlobalInstance() {
+    void usesSharedInstanceByDefault() {
+        this.contextRunner.run(context -> assertThat(context.getBean(IdGeneratorProvider.class))
+            .isSameAs(DefaultIdGeneratorProvider.INSTANCE));
+    }
+
+    @Test
+    void createsProviderPerContextWhenIsolated() {
         AtomicReference<IdGeneratorProvider> first = new AtomicReference<>();
-        this.contextRunner.run(context -> {
+        ApplicationContextRunner isolated = this.contextRunner.withPropertyValues(CosIdAutoConfiguration.PROVIDER_ISOLATED_KEY + "=true");
+        isolated.run(context -> {
             IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
             assertThat(provider).isNotSameAs(DefaultIdGeneratorProvider.INSTANCE);
+            assertThat(context.getBean(CosIdProperties.class).getProvider().isIsolated()).isTrue();
             provider.setShare(MockIdGenerator.INSTANCE);
             first.set(provider);
         });
-        this.contextRunner.run(context -> {
+        isolated.run(context -> {
             IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
             assertThat(provider).isNotSameAs(first.get());
             assertThat(provider.getShare()).isNull();
@@ -102,14 +110,16 @@ class CosIdAutoConfigurationTest {
     }
 
     @Test
-    void clearsProviderWhenContextCloses() {
+    void clearsIsolatedProviderWhenContextCloses() {
         AtomicReference<IdGeneratorProvider> holder = new AtomicReference<>();
-        this.contextRunner.run(context -> {
-            IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
-            provider.setShare(MockIdGenerator.INSTANCE);
-            provider.set("order", MockIdGenerator.INSTANCE);
-            holder.set(provider);
-        });
+        this.contextRunner
+            .withPropertyValues(CosIdAutoConfiguration.PROVIDER_ISOLATED_KEY + "=true")
+            .run(context -> {
+                IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
+                provider.setShare(MockIdGenerator.INSTANCE);
+                provider.set("order", MockIdGenerator.INSTANCE);
+                holder.set(provider);
+            });
         assertThat(holder.get().getShare()).isNull();
         assertThat(holder.get().getAll()).isEmpty();
     }

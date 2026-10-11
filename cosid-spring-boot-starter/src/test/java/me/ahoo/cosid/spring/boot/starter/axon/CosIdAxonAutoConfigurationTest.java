@@ -34,14 +34,16 @@ class CosIdAxonAutoConfigurationTest {
     @Test
     void bindsContextProviderWhileContextIsOpen() {
         AtomicReference<IdGeneratorProvider> holder = new AtomicReference<>();
-        this.contextRunner.run(context -> {
-            assertThat(context).hasSingleBean(CosIdAxonAutoConfiguration.CosIdAxonProviderBinding.class);
-            IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
-            provider.setShare(MockIdGenerator.usePrefix("ctx_"));
-            holder.set(provider);
+        this.contextRunner
+            .withPropertyValues(CosIdAutoConfiguration.PROVIDER_ISOLATED_KEY + "=true")
+            .run(context -> {
+                assertThat(context).hasSingleBean(CosIdAxonAutoConfiguration.CosIdAxonProviderBinding.class);
+                IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
+                provider.setShare(MockIdGenerator.usePrefix("ctx_"));
+                holder.set(provider);
 
-            assertThat(new CosIdIdentifierFactory().generateIdentifier()).startsWith("ctx_");
-        });
+                assertThat(new CosIdIdentifierFactory().generateIdentifier()).startsWith("ctx_");
+            });
         assertThat(CosIdIdentifierFactory.unbind(holder.get())).isFalse();
     }
 

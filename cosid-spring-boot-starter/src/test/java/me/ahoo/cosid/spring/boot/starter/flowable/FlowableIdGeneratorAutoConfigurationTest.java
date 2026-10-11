@@ -73,12 +73,14 @@ class FlowableIdGeneratorAutoConfigurationTest {
 
     @Test
     void configuresIdGeneratorFromContextProvider() {
-        this.contextRunner.run(context -> {
-            context.getBean(IdGeneratorProvider.class).setShare(MockIdGenerator.usePrefix("ctx_"));
-            SpringProcessEngineConfiguration engineConfiguration = mock(SpringProcessEngineConfiguration.class);
-            context.getBean(EngineConfigurationConfigurer.class).configure(engineConfiguration);
+        this.contextRunner
+            .withPropertyValues(CosIdAutoConfiguration.PROVIDER_ISOLATED_KEY + "=true")
+            .run(context -> {
+                context.getBean(IdGeneratorProvider.class).setShare(MockIdGenerator.usePrefix("ctx_"));
+                SpringProcessEngineConfiguration engineConfiguration = mock(SpringProcessEngineConfiguration.class);
+                context.getBean(EngineConfigurationConfigurer.class).configure(engineConfiguration);
 
-            verify(engineConfiguration).setIdGenerator(argThat(idGenerator -> idGenerator.getNextId().startsWith("ctx_")));
-        });
+                verify(engineConfiguration).setIdGenerator(argThat(idGenerator -> idGenerator.getNextId().startsWith("ctx_")));
+            });
     }
 }

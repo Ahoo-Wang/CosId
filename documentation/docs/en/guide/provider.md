@@ -46,6 +46,14 @@ DefaultIdGeneratorProvider.INSTANCE.set("order", segmentChainId);
 IdGenerator removed = DefaultIdGeneratorProvider.INSTANCE.remove("order");
 ```
 
+## Spring Boot
+
+In Spring Boot applications, inject the `IdGeneratorProvider` bean instead of using `DefaultIdGeneratorProvider.INSTANCE` directly. The annotation accessors and the MyBatis, Spring Data JDBC, Activiti, Flowable and Axon adapters all resolve generators from this bean, so a custom `IdGeneratorProvider` bean takes effect for all of them.
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `cosid.provider.isolated` | `false` | `false`: the `IdGeneratorProvider` bean is `DefaultIdGeneratorProvider.INSTANCE` (same as previous releases). `true`: each `ApplicationContext` gets its own `DefaultIdGeneratorProvider`, cleared when the context closes; generators are not shared between contexts (e.g. devtools restarts, cached test contexts) and `INSTANCE` no longer holds Spring-registered generators. |
+
 ## LazyIdGenerator
 
 `LazyIdGenerator` provides lazy loading of ID generators. The generator is only created when first accessed.

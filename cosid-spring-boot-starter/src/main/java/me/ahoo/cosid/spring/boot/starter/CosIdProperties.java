@@ -60,6 +60,9 @@ public class CosIdProperties {
      */
     @NestedConfigurationProperty
     private ProxyProperties proxy = new ProxyProperties();
+
+    @NestedConfigurationProperty
+    private ProviderProperties provider = new ProviderProperties();
     
     /**
      * Checks if CosId is enabled.
@@ -114,6 +117,15 @@ public class CosIdProperties {
      */
     public CosIdProperties setProxy(ProxyProperties proxy) {
         this.proxy = proxy;
+        return this;
+    }
+
+    public ProviderProperties getProvider() {
+        return provider;
+    }
+
+    public CosIdProperties setProvider(ProviderProperties provider) {
+        this.provider = provider;
         return this;
     }
 }

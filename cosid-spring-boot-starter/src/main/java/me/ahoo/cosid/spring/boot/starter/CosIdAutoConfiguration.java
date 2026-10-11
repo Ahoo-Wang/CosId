@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.accessor.parser.CompositeFieldDefinitionParser;
 import me.ahoo.cosid.accessor.parser.CosIdAccessorParser;
 import me.ahoo.cosid.accessor.parser.DefaultAccessorParser;
@@ -25,6 +26,7 @@ import me.ahoo.cosid.provider.IdGeneratorProvider;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -54,18 +56,38 @@ import java.util.List;
 public class CosIdAutoConfiguration {
 
     /**
-     * Provides the ID generator provider of this application context.
+     * Property that switches the provider bean to one isolated per application context.
+     */
+    public static final String PROVIDER_ISOLATED_KEY = CosId.COSID_PREFIX + "provider.isolated";
+
+    /**
+     * Provides the shared ID generator provider (default).
      *
-     * <p>Each application context gets its own {@link DefaultIdGeneratorProvider}, which manages all
-     * ID generators registered in it and is cleared when the context closes. Adapters (accessors,
-     * MyBatis, Spring Data JDBC, workflow engines, Axon) resolve generators from this bean, so a
-     * user-defined {@link IdGeneratorProvider} bean replaces it everywhere.</p>
+     * <p>Returns {@link DefaultIdGeneratorProvider#INSTANCE}, so code that reads {@code INSTANCE} directly keeps
+     * working. Adapters (accessors, MyBatis, Spring Data JDBC, workflow engines, Axon) resolve generators from this
+     * bean, so a user-defined {@link IdGeneratorProvider} bean replaces it everywhere.</p>
+     *
+     * @return the shared ID generator provider
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnProperty(value = PROVIDER_ISOLATED_KEY, havingValue = "false", matchIfMissing = true)
+    public IdGeneratorProvider idGeneratorProvider() {
+        return DefaultIdGeneratorProvider.INSTANCE;
+    }
+
+    /**
+     * Provides an ID generator provider owned by this application context ({@code cosid.provider.isolated=true}).
+     *
+     * <p>Generators registered in one context are not visible to others, and the provider is cleared when the
+     * context closes. {@link DefaultIdGeneratorProvider#INSTANCE} is not populated in this mode.</p>
      *
      * @return the ID generator provider of this application context
      */
-    @Bean(destroyMethod = "clear")
+    @Bean(name = "idGeneratorProvider", destroyMethod = "clear")
     @ConditionalOnMissingBean
-    public IdGeneratorProvider idGeneratorProvider() {
+    @ConditionalOnProperty(value = PROVIDER_ISOLATED_KEY, havingValue = "true")
+    public IdGeneratorProvider isolatedIdGeneratorProvider() {
         return new DefaultIdGeneratorProvider();
     }
 

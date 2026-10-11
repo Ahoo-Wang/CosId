@@ -59,6 +59,30 @@ class CosIdIdentifierFactoryTest {
         assertThat(id, startsWith("axon_"));
     }
 
+    @Test
+    @Order(6)
+    void unbindingOneProviderKeepsOtherBindings() {
+        DefaultIdGeneratorProvider first = new DefaultIdGeneratorProvider();
+        first.setShare(MockIdGenerator.usePrefix("first_"));
+        DefaultIdGeneratorProvider second = new DefaultIdGeneratorProvider();
+        second.setShare(MockIdGenerator.usePrefix("second_"));
+        CosIdIdentifierFactory factory = new CosIdIdentifierFactory();
+
+        CosIdIdentifierFactory.bind(first);
+        CosIdIdentifierFactory.bind(second);
+        try {
+            assertThat(factory.generateIdentifier(), startsWith("second_"));
+            CosIdIdentifierFactory.unbind(second);
+            assertThat(factory.generateIdentifier(), startsWith("first_"));
+            CosIdIdentifierFactory.bind(second);
+            CosIdIdentifierFactory.unbind(first);
+            assertThat(factory.generateIdentifier(), startsWith("second_"));
+        } finally {
+            CosIdIdentifierFactory.unbind(first);
+            CosIdIdentifierFactory.unbind(second);
+        }
+    }
+
     @AfterEach
     void destroy() {
         System.clearProperty(ID_KEY);

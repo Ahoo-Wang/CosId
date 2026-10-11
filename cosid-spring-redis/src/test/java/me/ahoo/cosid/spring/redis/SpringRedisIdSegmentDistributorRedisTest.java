@@ -88,4 +88,25 @@ class SpringRedisIdSegmentDistributorRedisTest {
 
         assertThat(distributor.nextMaxId(), equalTo(5100L));
     }
+
+    @Test
+    void nextMaxIdShouldStayExactAboveTwoToThe53() {
+        // 2^53 + 1 is the first integer a double cannot represent.
+        long offset = 1_800_000_000_000_000_001L;
+        long step = 100_000_000_000_000_001L;
+        SpringRedisIdSegmentDistributor distributor = create(offset, step);
+
+        assertThat(distributor.nextMaxId(), equalTo(offset + step));
+        assertThat(distributor.nextMaxId(), equalTo(offset + 2 * step));
+        assertThat(redisTemplate.opsForValue().get(distributor.getAdderKey()), equalTo(String.valueOf(offset + 2 * step)));
+    }
+
+    @Test
+    void nextMaxIdShouldRestoreLargeOffsetExactlyWhenAdderIsLost() {
+        long offset = 100_000_000_000_000_007L;
+        SpringRedisIdSegmentDistributor distributor = create(offset, 3);
+        redisTemplate.delete(distributor.getAdderKey());
+
+        assertThat(distributor.nextMaxId(), equalTo(offset + 3));
+    }
 }

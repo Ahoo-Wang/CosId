@@ -50,7 +50,7 @@ final class FakeStringRedisTemplate extends StringRedisTemplate {
             String adderKey = keys.get(0);
             values.putIfAbsent(adderKey, Long.parseLong((String) args[0]));
             @SuppressWarnings("unchecked")
-            T next = (T) increment(adderKey, Long.parseLong((String) args[1]));
+            T next = (T) String.valueOf(increment(adderKey, Long.parseLong((String) args[1])));
             return next;
         }
         @SuppressWarnings("unchecked")

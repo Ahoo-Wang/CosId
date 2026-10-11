@@ -41,8 +41,15 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
      * Initialize the adder to the offset when the key is missing and increment it, atomically.
      * A plain {@code INCRBY} would restart from {@code 0} after the key is evicted, flushed or lost in a failover,
      * and hand out ranges that were already used.
+     *
+     * <p>The script returns the new max id as a string: Lua numbers are doubles and lose precision above 2^53.</p>
+     *
+     * <p>The offset only bounds a lost key from below. If the key is lost after the counter moved past the offset,
+     * the counter restarts at the offset and segments already issued are handed out again; an instance started
+     * after the loss has no earlier max id to compare with, so it cannot detect this. Use Redis persistence
+     * (AOF) and replication if that matters.</p>
      */
-    public static final RedisScript<Long> REDIS_ID_GENERATE = RedisScript.of(new ClassPathResource("redis_id_generate.lua"), Long.class);
+    public static final RedisScript<String> REDIS_ID_GENERATE = RedisScript.of(new ClassPathResource("redis_id_generate.lua"), String.class);
     private static final AtomicLongFieldUpdater<SpringRedisIdSegmentDistributor> LAST_MAX_ID =
         AtomicLongFieldUpdater.newUpdater(SpringRedisIdSegmentDistributor.class, "lastMaxId");
     
@@ -123,8 +130,9 @@ public class SpringRedisIdSegmentDistributor implements IdSegmentDistributor {
         }
         
         final long nextMinMaxId = lastMaxId + step;
-        Long nextMaxId = redisTemplate.execute(REDIS_ID_GENERATE, Collections.singletonList(adderKey), String.valueOf(offset), String.valueOf(step));
-        Preconditions.checkNotNull(nextMaxId, "nextMaxId can not be null!");
+        String nextMaxIdValue = redisTemplate.execute(REDIS_ID_GENERATE, Collections.singletonList(adderKey), String.valueOf(offset), String.valueOf(step));
+        Preconditions.checkNotNull(nextMaxIdValue, "nextMaxId can not be null!");
+        long nextMaxId = Long.parseLong(nextMaxIdValue);
         if (log.isDebugEnabled()) {
             log.debug("Next MaxId [{}] step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);
         }

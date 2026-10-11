@@ -13,11 +13,11 @@
 
 package me.ahoo.cosid.snowflake;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.internal.TimestampSequencer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 
-import com.google.common.base.Strings;
 
 /**
  * Abstract SnowflakeId implementation.
@@ -127,7 +127,7 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         this.machineLeft = sequenceBit;
         this.timestampLeft = this.machineLeft + machineBit;
         if (machineId > this.maxMachineId || machineId < 0) {
-            throw new IllegalArgumentException(Strings.lenientFormat("machineId[%s] can't be greater than maxMachineId[%s] or less than 0 .", machineId, maxMachineId));
+            throw new IllegalArgumentException(Checks.lenientFormat("machineId[%s] can't be greater than maxMachineId[%s] or less than 0 .", machineId, maxMachineId));
         }
         this.machineId = machineId;
         this.sequencer = new TimestampSequencer(this::getCurrentTime, maxSequence, sequenceResetThreshold);

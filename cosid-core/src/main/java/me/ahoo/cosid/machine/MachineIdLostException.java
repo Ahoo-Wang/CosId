@@ -14,8 +14,8 @@
 package me.ahoo.cosid.machine;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 
-import com.google.common.base.Strings;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -39,7 +39,7 @@ public class MachineIdLostException extends CosIdException {
      * @param machineState the machine state (may be null)
      */
     public MachineIdLostException(String namespace, InstanceId instanceId, @Nullable MachineState machineState) {
-        super(Strings.lenientFormat("The machine id[%s] bound to the instance[%s]@[%s] has been lost!.", machineState, instanceId, namespace));
+        super(Checks.lenientFormat("The machine id[%s] bound to the instance[%s]@[%s] has been lost!.", machineState, instanceId, namespace));
         this.namespace = namespace;
         this.instanceId = instanceId;
         this.machineState = machineState;

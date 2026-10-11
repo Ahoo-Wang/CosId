@@ -13,7 +13,8 @@
 
 package me.ahoo.cosid.segment.concurrent;
 
-import com.google.common.base.Strings;
+import me.ahoo.cosid.internal.Checks;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Duration;
@@ -43,7 +44,7 @@ public class DefaultPrefetchWorker extends Thread implements PrefetchWorker {
      * @param prefetchPeriod the period between prefetch runs
      */
     public DefaultPrefetchWorker(Duration prefetchPeriod) {
-        super(Strings.lenientFormat("DefaultPrefetchWorker-" + THREAD_COUNTER.incrementAndGet()));
+        super(Checks.lenientFormat("DefaultPrefetchWorker-" + THREAD_COUNTER.incrementAndGet()));
         this.prefetchPeriod = prefetchPeriod;
     }
 

@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.machine;
 
-import com.google.common.annotations.Beta;
 
 import java.util.Map;
 
@@ -36,7 +35,6 @@ import java.util.Map;
  *
  * @author ahoo wang
  */
-@Beta
 public interface MachineIdGuarder {
     MachineIdGuarder NONE = new MachineIdGuarder.None();
 

@@ -13,10 +13,9 @@
 
 package me.ahoo.cosid.segment;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.util.Clock;
-
-import com.google.common.base.Preconditions;
 
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
@@ -148,7 +147,7 @@ public class DefaultIdSegment implements IdSegment {
      * @param group     The group key for this segment
      */
     public DefaultIdSegment(long maxId, long step, long fetchTime, long ttl, GroupedKey group) {
-        Preconditions.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
+        Checks.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
         this.maxId = maxId;
         this.step = step;
         this.offset = maxId - step;

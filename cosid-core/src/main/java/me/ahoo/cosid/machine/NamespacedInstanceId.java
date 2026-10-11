@@ -13,8 +13,9 @@
 
 package me.ahoo.cosid.machine;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.base.Objects;
+import me.ahoo.cosid.internal.Checks;
+
+import java.util.Objects;
 
 /**
  * Combines namespace with instance ID for unique identification.
@@ -67,19 +68,16 @@ public class NamespacedInstanceId {
             return false;
         }
         NamespacedInstanceId that = (NamespacedInstanceId) o;
-        return Objects.equal(getNamespace(), that.getNamespace()) && Objects.equal(getInstanceId(), that.getInstanceId());
+        return Objects.equals(getNamespace(), that.getNamespace()) && Objects.equals(getInstanceId(), that.getInstanceId());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(getNamespace(), getInstanceId());
+        return Objects.hash(getNamespace(), getInstanceId());
     }
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("namespace", namespace)
-            .add("instanceId", instanceId)
-            .toString();
+        return Checks.toString(this, "namespace", namespace, "instanceId", instanceId);
     }
 }

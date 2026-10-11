@@ -42,9 +42,16 @@ public class ProxyProperties {
      */
     private Duration connectTimeout = Duration.ofSeconds(2);
     /**
-     * Timeout for the proxy server's response. Zero keeps the HTTP client's default (no timeout).
+     * Timeout for the proxy server's response, including the machine id distribution at startup.
+     * Zero keeps the HTTP client's default (no timeout); with both timeouts zero, the application's own request factory
+     * is kept.
      */
     private Duration readTimeout = Duration.ofSeconds(5);
+    /**
+     * Bearer token sent to the proxy server ({@code Authorization: Bearer <token>}), matching one of its
+     * {@code cosid.proxy.server.auth.tokens}. Empty sends none.
+     */
+    private String token;
 
     /**
      * Gets the proxy server host URL.
@@ -81,6 +88,15 @@ public class ProxyProperties {
 
     public ProxyProperties setReadTimeout(Duration readTimeout) {
         this.readTimeout = readTimeout;
+        return this;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public ProxyProperties setToken(String token) {
+        this.token = token;
         return this;
     }
 }

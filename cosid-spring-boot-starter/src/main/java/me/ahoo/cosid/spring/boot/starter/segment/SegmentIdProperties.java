@@ -439,6 +439,7 @@ public class SegmentIdProperties {
         private Redis redis;
         private Jdbc jdbc;
         private Mongo mongo;
+        private Zookeeper zookeeper = new Zookeeper();
 
         public Distributor() {
             this.redis = new Redis();
@@ -472,6 +473,14 @@ public class SegmentIdProperties {
 
         public Mongo getMongo() {
             return mongo;
+        }
+
+        public Zookeeper getZookeeper() {
+            return zookeeper;
+        }
+
+        public void setZookeeper(Zookeeper zookeeper) {
+            this.zookeeper = zookeeper;
         }
 
         public void setMongo(Mongo mongo) {
@@ -561,6 +570,24 @@ public class SegmentIdProperties {
                 this.initIdSegmentSql = initIdSegmentSql;
             }
 
+        }
+
+        /**
+         * ZooKeeper segment distributor.
+         */
+        public static class Zookeeper {
+            /**
+             * Timeout of each {@code nextMaxId}; Curator has no per-operation timeout. Zero disables it.
+             */
+            private Duration timeout = Duration.ofSeconds(5);
+
+            public Duration getTimeout() {
+                return timeout;
+            }
+
+            public void setTimeout(Duration timeout) {
+                this.timeout = timeout;
+            }
         }
 
         public static class Mongo {

@@ -30,13 +30,16 @@ on:
       - 'cosid-jdbc/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   cosid-core-benchmark:
     name: CosId Core Benchmark
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6
@@ -48,7 +51,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: CosId-Core
-        run: gradle cosid-core:clean cosid-core:jmh
+        run: ./gradlew cosid-core:clean cosid-core:jmh
 
   cosid-spring-redis-benchmark:
     name: CosId Spring Redis Benchmark
@@ -65,7 +68,7 @@ jobs:
           - 6379:6379
     steps:
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6
@@ -87,7 +90,7 @@ jobs:
         run: sudo /etc/init.d/mysql start
 
       - name: Checkout
-        uses: actions/checkout@master
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6
@@ -102,4 +105,4 @@ jobs:
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: CosId-Jdbc
-        run: gradle cosid-jdbc:clean cosid-jdbc:jmh
+        run: ./gradlew cosid-jdbc:clean cosid-jdbc:jmh

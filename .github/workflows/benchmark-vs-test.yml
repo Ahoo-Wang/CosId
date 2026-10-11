@@ -28,6 +28,9 @@ on:
       - 'cosid-benchmark/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   # WARNING：中央仓库没有找到美团官方提供的Jar!!!
   # git clone https://github.com/Meituan-Dianping/Leaf
@@ -37,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Leaf
-        uses: actions/checkout@master
+        uses: actions/checkout@v7
         with:
           repository: Meituan-Dianping/Leaf
 
@@ -56,7 +59,7 @@ jobs:
         run: sudo /etc/init.d/mysql start
 
       - name: Checkout CosId
-        uses: actions/checkout@master
+        uses: actions/checkout@v7
 
       - name: Init Benchmark-Db
         run: mysql -vvv -h localhost -uroot -proot < cosid-benchmark/src/jmh/init/init-script.sql

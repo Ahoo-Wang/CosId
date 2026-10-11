@@ -373,3 +373,8 @@ spring:
 <p align="center" >
   <img  src="./document/docs/.vuepress/public/assets/perf/CosId-VS-Leaf.png" alt="CosId VS 美团 Leaf"/>
 </p>
+
+## 参与贡献
+
+欢迎提交问题、建议和 Pull Request。开发环境、提交规范、代码评审与发布流程见 [CONTRIBUTING.md](./CONTRIBUTING.md)；
+安全漏洞请按 [SECURITY.md](./SECURITY.md) 私下报告；后续规划见 [路线图](./docs/ROADMAP.md)。

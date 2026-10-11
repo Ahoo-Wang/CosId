@@ -65,14 +65,17 @@ depends on backends. Don't introduce core → backend or backend → starter cyc
 ## Conventions
 
 - **Base package:** `me.ahoo.cosid.*`, mirrored under `src/main/java`/`src/test/java` per module.
-- **Every source file starts with the Apache 2.0 license header** (see any existing `.java`). Preserve it on edits and add it to new files.
+- **Every source file starts with the Apache 2.0 license header** (`config/checkstyle/java.header`). Checkstyle's `Header`
+  check enforces it on main, test and JMH Java sources, so add it to every new file.
 - **Logging:** SLF4J API only in library code (`org.slf4j:slf4j-api`); Logback is a test-only dependency. Use Lombok
   `@Slf4j`. Test JVMs are launched with `-Dlogback.configurationFile=.../config/logback.xml`.
 - **Testing:** JUnit Jupiter + `junit-pioneer` + Hamcrest; shared helpers live in `cosid-test`. Prefer adding tests under
   the same package in the module's `src/test/java`.
 - **Coverage gates** (`codecov.yml`): patch target 60%, project target 80%. `cosid-test`, `examples`, `cosid-benchmark`,
   and `cosid-proxy-server` are ignored.
-- **Commit messages** follow Conventional Commits (`feat(scope):`, `fix(deps):`, `chore(release): bump version ...`).
+- **Commit messages and PR titles** follow Conventional Commits (`feat(scope):`, `fix(deps):`, `chore(release): bump version ...`).
+  The `Pull Request Title` workflow enforces it; the `Pull Request Labeler` workflow labels PRs from the title type and changed files.
+  See `CONTRIBUTING.md`.
   Releases are tagged `v<x.y.z>` and bump `version=` in `gradle.properties`.
 
 ## Gotchas

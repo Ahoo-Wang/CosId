@@ -51,6 +51,17 @@ CosId Proxy 提供客户端-服务器架构：
 - **集中管理**：当需要集中控制 ID 生成时
 - **多租户系统**：当希望通过代理隔离每个租户的 ID 生成时
 
+## 服务端限制
+
+代理服务端会校验客户端传来的参数：
+
+| 属性 | 默认值 | 说明 |
+|----|-----|----|
+| `cosid.proxy.server.max-clock-skew` | `1m` | 客户端（守护、归还时）上报的 `lastTimeStamp` 最多比服务端时钟超前这么多；过于超前的时间戳会让机器号永远无法被回收。`0` 表示不检查 |
+| `cosid.proxy.server.segment.max-step` | `0`（不限制） | 客户端可申请的最大号段 `step`。号段链一次申请 `step × 号段数`，负载高时预取得更多，所以至少要设为所有客户端中最大的 `step × 最大预取距离`。`offset` 必须 `>= 0`，且 `offset + step` 不能溢出 |
+
+超出这些限制的请求返回 `400`。
+
 ## 高可用：服务端重启自愈
 
 代理服务器的号段分发器缓存仅存在于内存中。由于客户端只在启动时调用一次 `createDistributor`，服务端重启后缓存未命中时，`nextMaxId` 会基于底层存储自动重建分发器（懒重建使用默认 `offset=0`，仅在后端首次初始化时生效），已分配的号段状态不会丢失。即：**代理服务器重启后，已运行的客户端无需重启即可自动恢复取号**（自 v3.2.1 起）。
@@ -68,7 +79,7 @@ cosid:
       auth:
         tokens:
           - ${COSID_PROXY_TOKEN}   # 可以同时配置多个，用于轮换
-        public-paths:              # 无需 token 的路径，默认：/actuator/health、/actuator/health/**
+        public-paths:              # 无需 token 的路径，默认：management.endpoints.web.base-path 下的健康检查端点
           - /actuator/health
           - /actuator/health/**
 ```

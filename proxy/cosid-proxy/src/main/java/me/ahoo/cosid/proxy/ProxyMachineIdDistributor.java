@@ -91,7 +91,8 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
             switch (errorResponse.getCode()) {
                 case NOT_FOUND_MACHINE_STATE -> throw new NotFoundMachineStateException(namespace, instanceId);
                 case MACHINE_ID_LOST -> throw new MachineIdLostException(namespace, instanceId, machineState);
-                default -> throw new IllegalStateException("Unexpected value: " + errorResponse.getCode());
+                // e.g. a lastTimeStamp rejected by cosid.proxy.server.max-clock-skew: keep the server's reason.
+                default -> throw new IllegalStateException(Strings.lenientFormat("Unexpected code:[%s] - message:[%s].", errorResponse.getCode(), errorResponse.getMsg()));
             }
         }
 

@@ -51,6 +51,17 @@ This architecture is useful when:
 - **Centralized management**: When you need centralized control over ID generation
 - **Multi-tenant systems**: When you want to isolate ID generation per tenant through the proxy
 
+## Server Limits
+
+The proxy server checks what clients send:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `cosid.proxy.server.max-clock-skew` | `1m` | A client's `lastTimeStamp` (guard, revert) may be at most this far ahead of the server clock; a timestamp far in the future would keep a machine ID from ever being recycled. `0` disables the check |
+| `cosid.proxy.server.segment.max-step` | `0` (no limit) | Largest segment `step` a client may ask for. Segment chains ask for `step × segments` at once and prefetch more under load, so set it to at least the largest `step × max prefetch distance` of all clients. `offset` must be `>= 0` and `offset + step` must not overflow |
+
+Requests outside these limits get `400`.
+
 ## High Availability: Server-Restart Self-Healing
 
 The proxy server's segment distributor cache lives in memory only. Since clients call `createDistributor` exactly once at startup, a server restart leaves the cache empty; on the next `nextMaxId` call the distributor is rebuilt lazily from the backing store (lazy rebuild uses the default `offset=0`, which only applies on first-ever initialization), so already-allocated segment state is never lost. In short: **after a proxy server restart, running clients recover automatically without a restart** (since v3.2.1).
@@ -68,7 +79,7 @@ cosid:
       auth:
         tokens:
           - ${COSID_PROXY_TOKEN}   # several tokens can be listed to rotate them
-        public-paths:              # need no token; default: /actuator/health, /actuator/health/**
+        public-paths:              # need no token; default: the health endpoint under management.endpoints.web.base-path
           - /actuator/health
           - /actuator/health/**
 ```

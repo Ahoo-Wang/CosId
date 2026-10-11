@@ -35,12 +35,20 @@ public final class MongoReactiveDeprecation {
     }
     
     public static void warnIfSelected() {
-        if (ClassUtils.isPresent(SYNC_MONGO_CLIENT, MongoReactiveDeprecation.class.getClassLoader())) {
-            return;
+        warnIfSelected(ClassUtils.isPresent(SYNC_MONGO_CLIENT, MongoReactiveDeprecation.class.getClassLoader()), WARNED);
+    }
+    
+    /**
+     * @return whether the warning was logged by this call
+     */
+    static boolean warnIfSelected(boolean syncDriverPresent, AtomicBoolean warned) {
+        if (syncDriverPresent || !warned.compareAndSet(false, true)) {
+            return false;
         }
-        if (WARNED.compareAndSet(false, true) && log.isWarnEnabled()) {
+        if (log.isWarnEnabled()) {
             log.warn("CosId reactive MongoDB support (me.ahoo.cosid.mongo.reactive) is deprecated and will be removed in 4.0: "
                 + "it only blocks on the reactive driver. Add org.mongodb:mongodb-driver-sync to use the synchronous support instead.");
         }
+        return true;
     }
 }

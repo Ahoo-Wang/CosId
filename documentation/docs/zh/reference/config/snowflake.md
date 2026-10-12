@@ -8,7 +8,7 @@ Snowflake ID 需要机器号：请同时设置 `cosid.machine.enabled=true`，�
 |------|------|--------|------|
 | `enabled` | `boolean` | `false` | 注册 Snowflake 生成器 |
 | `zone-id` | `ZoneId` | 系统默认 | `snowflake_friendly` 字符串使用的时区 |
-| `epoch` | `long` | `1577203200000`（2019-12-24T16:00:00Z） | 所有生成器的默认 epoch，单位与其时间戳一致 |
+| `epoch` | `long` | `1577203200000`（2019-12-24T16:00:00Z） | 所有生成器的默认 epoch，单位与其时间戳一致。保持此默认值时，`timestamp-unit: second` 的生成器自动使用 `1577203200`（以秒表示的同一时刻） |
 | `share` | `IdDefinition` | | 共享生成器，`__share__SnowflakeId` |
 | `share.enabled` | `boolean` | `true` | 注册共享生成器 |
 | `provider` | `Map<String, IdDefinition>` | 空 | 命名生成器，`{name}SnowflakeId` |
@@ -21,7 +21,7 @@ Snowflake ID 需要机器号：请同时设置 `cosid.machine.enabled=true`，�
 |------|------|--------|------|
 | `namespace` | `String` | `cosid.namespace` | 该生成器机器号所在的命名空间 |
 | `timestamp-unit` | `TimestampUnit` | `millisecond` | `millisecond` 或 `second` |
-| `epoch` | `long` | `cosid.snowflake.epoch` | 该生成器的 epoch；`0` 表示使用默认值。`timestamp-unit: second` 时以秒为单位 |
+| `epoch` | `long` | `cosid.snowflake.epoch` | 该生成器的 epoch；`0` 表示使用默认值。`timestamp-unit: second` 时以秒为单位。按生成器的单位晚于当前时间的 epoch 会导致启动失败 |
 | `timestamp-bit` | `int` | `41` | 时间戳位数 |
 | `machine-bit` | `Integer` | `cosid.machine.machine-bit` | 机器号位数，最多 31。位数更少的生成器请设置单独的 `namespace` |
 | `sequence-bit` | `int` | `12` | 序列号位数 |

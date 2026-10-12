@@ -8,7 +8,7 @@ Snowflake IDs need a machine id: set `cosid.machine.enabled=true` as well, see [
 |----------|------|---------|-------------|
 | `enabled` | `boolean` | `false` | Register the Snowflake generators |
 | `zone-id` | `ZoneId` | system default | Time zone of `snowflake_friendly` strings |
-| `epoch` | `long` | `1577203200000` (2019-12-24T16:00:00Z) | Default epoch of every generator, in the unit of its timestamp |
+| `epoch` | `long` | `1577203200000` (2019-12-24T16:00:00Z) | Default epoch of every generator, in the unit of its timestamp. Left at this default, `timestamp-unit: second` generators use `1577203200` (the same instant in seconds) |
 | `share` | `IdDefinition` | | The share generator, `__share__SnowflakeId` |
 | `share.enabled` | `boolean` | `true` | Register the share generator |
 | `provider` | `Map<String, IdDefinition>` | empty | Named generators, `{name}SnowflakeId` |
@@ -21,7 +21,7 @@ The properties of `share` and of each `provider.{name}`:
 |----------|------|---------|-------------|
 | `namespace` | `String` | `cosid.namespace` | Namespace of the generator's machine id |
 | `timestamp-unit` | `TimestampUnit` | `millisecond` | `millisecond` or `second` |
-| `epoch` | `long` | `cosid.snowflake.epoch` | Epoch of this generator; `0` uses the default. With `timestamp-unit: second`, give it in seconds |
+| `epoch` | `long` | `cosid.snowflake.epoch` | Epoch of this generator; `0` uses the default. With `timestamp-unit: second`, give it in seconds. An epoch later than now, in the generator's unit, fails startup |
 | `timestamp-bit` | `int` | `41` | Timestamp bits |
 | `machine-bit` | `Integer` | `cosid.machine.machine-bit` | Machine id bits, at most 31. Give a generator with fewer bits its own `namespace` |
 | `sequence-bit` | `int` | `12` | Sequence bits |

@@ -14,12 +14,18 @@
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
@@ -82,5 +88,52 @@ class CosIdSnowflakeAutoConfigurationTest {
             .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.order.converter.group-prefix.enabled=true")
             .run(context -> assertThat(context).hasFailed()
                 .getFailure().rootCause().hasMessageContaining("Snowflake id [order] has converter.group-prefix enabled"));
+    }
+    
+    private ApplicationContextRunner distributingRunner() {
+        GuardDistribute guardDistribute = mock(GuardDistribute.class);
+        when(guardDistribute.distribute(any(), anyInt(), any(), any())).thenReturn(MachineState.of(1, 0));
+        return contextRunner
+            .withAllowBeanDefinitionOverriding(true)
+            .withBean(MachineProperties.class, () -> {
+                MachineProperties properties = new MachineProperties();
+                properties.getGuarder().setFailFast(false);
+                return properties;
+            })
+            .withBean(GuardDistribute.class, () -> guardDistribute)
+            .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true");
+    }
+    
+    @Test
+    void secondIdsWithTheDefaultEpochArePositive() {
+        distributingRunner()
+            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.sec.timestamp-unit=second")
+            .run(context -> {
+                SnowflakeId sec = context.getBean(IdGeneratorProvider.class).getRequired("sec", SnowflakeId.class);
+                assertThat(sec.getEpoch()).isEqualTo(CosId.COSID_EPOCH_SECOND);
+                for (int i = 0; i < 100; i++) {
+                    assertThat(sec.generate()).isPositive();
+                }
+            });
+    }
+    
+    @Test
+    void secondIdsWithAnEpochInMillisecondsFailAtStartup() {
+        distributingRunner()
+            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.sec.timestamp-unit=second",
+                SnowflakeIdProperties.PREFIX + ".provider.sec.epoch=1600000000000")
+            .run(context -> assertThat(context).hasFailed()
+                .getFailure().rootCause().hasMessageContaining("Snowflake id [sec] has epoch [1600000000000] after the current time"));
+    }
+    
+    @Test
+    void millisecondIdsKeepTheDefaultEpoch() {
+        distributingRunner()
+            .withPropertyValues(SnowflakeIdProperties.PREFIX + ".provider.ms.sequence-bit=12")
+            .run(context -> {
+                SnowflakeId ms = context.getBean(IdGeneratorProvider.class).getRequired("ms", SnowflakeId.class);
+                assertThat(ms.getEpoch()).isEqualTo(CosId.COSID_EPOCH);
+                assertThat(ms.generate()).isPositive();
+            });
     }
 }

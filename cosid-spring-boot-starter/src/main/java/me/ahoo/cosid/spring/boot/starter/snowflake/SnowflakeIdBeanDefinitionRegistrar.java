@@ -13,16 +13,9 @@
 
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
-import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
-import me.ahoo.cosid.machine.GuardDistribute;
-import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.SnowflakeId;
-import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
-import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
-import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
@@ -30,25 +23,20 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.Environment;
-import org.springframework.util.function.SingletonSupplier;
-
-import java.util.function.Supplier;
 
 /**
  * Registers a bean definition per snowflake id of {@code cosid.snowflake.share} and {@code cosid.snowflake.provider},
  * named {@code {name}SnowflakeId}: other beans can depend on them ({@code @DependsOn("orderSnowflakeId")}).
  *
- * <p>The properties are bound from the environment and passed through every {@link CustomizeSnowflakeIdProperties} when
- * the bean definitions are registered, before other beans are created: a customizer must not depend on other beans.
- * The properties bean is that customized instance.
- * The ids themselves are created with the singletons, each distributing its machine id.</p>
+ * <p>It only reads the id names from the environment and instantiates nothing. Each bean definition is the factory
+ * method {@link SnowflakeIdBeanRegistrar#createBean(String)} of the {@link SnowflakeIdBeanRegistrar#BEAN_NAME} bean, which
+ * runs the {@link CustomizeSnowflakeIdProperties} in the normal bean lifecycle. Ids a customizer adds have no bean
+ * definition: they are only registered in the {@code IdGeneratorProvider}.</p>
  *
  * @since 4.0.0
  */
-public class SnowflakeIdBeanDefinitionRegistrar implements BeanDefinitionRegistryPostProcessor, BeanPostProcessor, EnvironmentAware {
+public class SnowflakeIdBeanDefinitionRegistrar implements BeanDefinitionRegistryPostProcessor, EnvironmentAware {
     private Environment environment;
-    @Nullable
-    private SnowflakeIdProperties customized;
     
     @Override
     public void setEnvironment(Environment environment) {
@@ -57,41 +45,24 @@ public class SnowflakeIdBeanDefinitionRegistrar implements BeanDefinitionRegistr
     
     @Override
     public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
-        ConfigurableListableBeanFactory beanFactory = (ConfigurableListableBeanFactory) registry;
         SnowflakeIdProperties snowflakeIdProperties = Binder.get(environment).bindOrCreate(SnowflakeIdProperties.PREFIX, SnowflakeIdProperties.class);
-        customized = snowflakeIdProperties;
-        beanFactory.getBeanProvider(CustomizeSnowflakeIdProperties.class).orderedStream()
-            .forEach(customize -> customize.customize(snowflakeIdProperties));
-        Supplier<SnowflakeIdBeanRegistrar> registrar = SingletonSupplier.of(() -> new SnowflakeIdBeanRegistrar(beanFactory.getBean(CosIdProperties.class),
-            beanFactory.getBean(MachineProperties.class), snowflakeIdProperties, beanFactory.getBean(InstanceId.class),
-            beanFactory.getBean(IdGeneratorProvider.class), beanFactory.getBean(GuardDistribute.class), beanFactory.getBean(ClockBackwardsSynchronizer.class)));
-        SnowflakeIdProperties.ShardIdDefinition share = snowflakeIdProperties.getShare();
-        if (share.isEnabled()) {
-            register(registry, IdGeneratorProvider.SHARE, share, registrar);
+        if (snowflakeIdProperties.getShare().isEnabled()) {
+            register(registry, IdGeneratorProvider.SHARE);
         }
-        snowflakeIdProperties.getProvider().forEach((name, idDefinition) -> register(registry, name, idDefinition, registrar));
+        snowflakeIdProperties.getProvider().keySet().forEach(name -> register(registry, name));
     }
     
-    private static void register(BeanDefinitionRegistry registry, String name, SnowflakeIdProperties.IdDefinition idDefinition,
-                                 Supplier<SnowflakeIdBeanRegistrar> registrar) {
-        RootBeanDefinition beanDefinition = new RootBeanDefinition(SnowflakeId.class);
-        beanDefinition.setInstanceSupplier(() -> registrar.get().create(name, idDefinition));
-        registry.registerBeanDefinition(name + "SnowflakeId", beanDefinition);
+    private static void register(BeanDefinitionRegistry registry, String name) {
+        RootBeanDefinition beanDefinition = new RootBeanDefinition();
+        beanDefinition.setTargetType(SnowflakeId.class);
+        beanDefinition.setFactoryBeanName(SnowflakeIdBeanRegistrar.BEAN_NAME);
+        beanDefinition.setFactoryMethodName("createBean");
+        beanDefinition.getConstructorArgumentValues().addIndexedArgumentValue(0, name);
+        registry.registerBeanDefinition(SnowflakeIdBeanRegistrar.beanName(name), beanDefinition);
     }
     
     @Override
     public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
         // The bean definitions are all registered above.
-    }
-    
-    /**
-     * The {@code SnowflakeIdProperties} bean is the customized instance the ids were registered from, so the customizers run once.
-     */
-    @Override
-    public Object postProcessAfterInitialization(Object bean, String beanName) {
-        if (bean instanceof SnowflakeIdProperties && customized != null) {
-            return customized;
-        }
-        return bean;
     }
 }

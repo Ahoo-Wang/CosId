@@ -33,30 +33,115 @@ import me.ahoo.cosid.util.CallTimeout;
 
 import com.google.common.base.MoreObjects;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
-public class SegmentIdBeanRegistrar {
+public class SegmentIdBeanRegistrar implements InitializingBean, DisposableBean {
+    /**
+     * The bean name, the factory bean of the {@code {name}SegmentId} bean definitions.
+     */
+    public static final String BEAN_NAME = "segmentIdBeanRegistrar";
     private final CosIdProperties cosIdProperties;
     private final SegmentIdProperties segmentIdProperties;
     private final IdSegmentDistributorFactory distributorFactory;
     private final IdGeneratorProvider idGeneratorProvider;
     private final PrefetchWorkerExecutorService prefetchWorkerExecutorService;
+    @Nullable
+    private final BeanDefinitionRegistry beanDefinitions;
+    private final Map<String, SegmentId> created = new ConcurrentHashMap<>();
+    private final Set<String> providerOnly = ConcurrentHashMap.newKeySet();
 
     /**
-     * Create the factory of the segment id beans.
+     * Create the factory of the segment ids: runs every {@link CustomizeSegmentIdProperties} on the properties first.
      *
-     * @param segmentIdProperties the segment properties, after the {@link CustomizeSegmentIdProperties} ran
+     * @param beanDefinitions the registry of the {@code {name}SegmentId} bean definitions, {@code null} for none
      */
     public SegmentIdBeanRegistrar(CosIdProperties cosIdProperties,
                                   SegmentIdProperties segmentIdProperties,
                                   IdSegmentDistributorFactory distributorFactory,
                                   IdGeneratorProvider idGeneratorProvider,
-                                  PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
+                                  PrefetchWorkerExecutorService prefetchWorkerExecutorService,
+                                  ObjectProvider<CustomizeSegmentIdProperties> customizers,
+                                  @Nullable BeanDefinitionRegistry beanDefinitions) {
         this.cosIdProperties = cosIdProperties;
         this.segmentIdProperties = segmentIdProperties;
         this.distributorFactory = distributorFactory;
         this.idGeneratorProvider = idGeneratorProvider;
         this.prefetchWorkerExecutorService = prefetchWorkerExecutorService;
+        this.beanDefinitions = beanDefinitions;
+        customizers.orderedStream().forEach(customize -> customize.customize(segmentIdProperties));
+    }
+    
+    /**
+     * The bean name of the segment id {@code name}.
+     */
+    public static String beanName(String name) {
+        return name + "SegmentId";
+    }
+    
+    /**
+     * The segment ids of the properties: the share, when enabled, and the named ones.
+     */
+    public Map<String, SegmentIdProperties.IdDefinition> definitions() {
+        Map<String, SegmentIdProperties.IdDefinition> definitions = new LinkedHashMap<>();
+        if (segmentIdProperties.getShare().isEnabled()) {
+            definitions.put(IdGeneratorProvider.SHARE, segmentIdProperties.getShare());
+        }
+        definitions.putAll(segmentIdProperties.getProvider());
+        return definitions;
+    }
+    
+    /**
+     * The factory method of the {@code {name}SegmentId} beans.
+     */
+    public SegmentId createBean(String name) {
+        SegmentIdProperties.IdDefinition idDefinition = definitions().get(name);
+        if (idDefinition == null) {
+            throw new IllegalStateException("Segment id [" + name + "] is not configured any more: a customizer removed it.");
+        }
+        return create(name, idDefinition);
+    }
+    
+    /**
+     * Segment ids a customizer added have no bean definition: they are only registered in the provider, here.
+     */
+    @Override
+    public void afterPropertiesSet() {
+        definitions().forEach((name, idDefinition) -> {
+            if (beanDefinitions != null && beanDefinitions.containsBeanDefinition(beanName(name))) {
+                return;
+            }
+            create(name, idDefinition);
+            providerOnly.add(name);
+            if (log.isInfoEnabled()) {
+                log.info("Segment id [{}] was added by a customizer: registered in the IdGeneratorProvider only, not as a bean.", name);
+            }
+        });
+    }
+    
+    /**
+     * Remove the ids from the provider, where it still holds them, so a later context does not get closed ones; close
+     * the ids that are not beans.
+     */
+    @Override
+    public void destroy() throws Exception {
+        for (Map.Entry<String, SegmentId> entry : created.entrySet()) {
+            if (idGeneratorProvider.get(entry.getKey()).orElse(null) == entry.getValue()) {
+                idGeneratorProvider.remove(entry.getKey());
+            }
+            if (providerOnly.contains(entry.getKey()) && entry.getValue() instanceof AutoCloseable closeable) {
+                closeable.close();
+            }
+        }
     }
 
     /**
@@ -89,6 +174,7 @@ public class SegmentIdBeanRegistrar {
         if (idGeneratorProvider.get(name).isEmpty()) {
             idGeneratorProvider.set(name, idGenerator);
         }
+        created.put(name, idGenerator);
         return idGenerator;
     }
 

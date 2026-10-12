@@ -28,10 +28,24 @@ import me.ahoo.cosid.spring.boot.starter.Namespaces;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import com.google.common.base.MoreObjects;
+import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.DisposableBean;
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 
 import java.time.ZoneId;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-public class SnowflakeIdBeanRegistrar {
+@Slf4j
+public class SnowflakeIdBeanRegistrar implements InitializingBean, DisposableBean {
+    /**
+     * The bean name, the factory bean of the {@code {name}SnowflakeId} bean definitions.
+     */
+    public static final String BEAN_NAME = "snowflakeIdBeanRegistrar";
     private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
     private final SnowflakeIdProperties snowflakeIdProperties;
@@ -39,11 +53,14 @@ public class SnowflakeIdBeanRegistrar {
     private final IdGeneratorProvider idGeneratorProvider;
     private final GuardDistribute guardDistribute;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
+    @Nullable
+    private final BeanDefinitionRegistry beanDefinitions;
+    private final Map<String, SnowflakeId> created = new ConcurrentHashMap<>();
     
     /**
-     * Create the factory of the snowflake id beans.
+     * Create the factory of the snowflake ids: runs every {@link CustomizeSnowflakeIdProperties} on the properties first.
      *
-     * @param snowflakeIdProperties the snowflake properties, after the {@link CustomizeSnowflakeIdProperties} ran
+     * @param beanDefinitions the registry of the {@code {name}SnowflakeId} bean definitions, {@code null} for none
      */
     public SnowflakeIdBeanRegistrar(CosIdProperties cosIdProperties,
                                     MachineProperties machineProperties,
@@ -51,7 +68,9 @@ public class SnowflakeIdBeanRegistrar {
                                     InstanceId instanceId,
                                     IdGeneratorProvider idGeneratorProvider,
                                     GuardDistribute guardDistribute,
-                                    ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+                                    ClockBackwardsSynchronizer clockBackwardsSynchronizer,
+                                    ObjectProvider<CustomizeSnowflakeIdProperties> customizers,
+                                    @Nullable BeanDefinitionRegistry beanDefinitions) {
         this.cosIdProperties = cosIdProperties;
         this.machineProperties = machineProperties;
         this.snowflakeIdProperties = snowflakeIdProperties;
@@ -59,6 +78,67 @@ public class SnowflakeIdBeanRegistrar {
         this.idGeneratorProvider = idGeneratorProvider;
         this.guardDistribute = guardDistribute;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
+        this.beanDefinitions = beanDefinitions;
+        customizers.orderedStream().forEach(customize -> customize.customize(snowflakeIdProperties));
+    }
+    
+    /**
+     * The bean name of the snowflake id {@code name}.
+     */
+    public static String beanName(String name) {
+        return name + "SnowflakeId";
+    }
+    
+    /**
+     * The snowflake ids of the properties: the share, when enabled, and the named ones.
+     */
+    public Map<String, SnowflakeIdProperties.IdDefinition> definitions() {
+        Map<String, SnowflakeIdProperties.IdDefinition> definitions = new LinkedHashMap<>();
+        if (snowflakeIdProperties.getShare().isEnabled()) {
+            definitions.put(IdGeneratorProvider.SHARE, snowflakeIdProperties.getShare());
+        }
+        definitions.putAll(snowflakeIdProperties.getProvider());
+        return definitions;
+    }
+    
+    /**
+     * The factory method of the {@code {name}SnowflakeId} beans.
+     */
+    public SnowflakeId createBean(String name) {
+        SnowflakeIdProperties.IdDefinition idDefinition = definitions().get(name);
+        if (idDefinition == null) {
+            throw new IllegalStateException("Snowflake id [" + name + "] is not configured any more: a customizer removed it.");
+        }
+        return create(name, idDefinition);
+    }
+    
+    /**
+     * Snowflake ids a customizer added have no bean definition: they are only registered in the provider, here.
+     */
+    @Override
+    public void afterPropertiesSet() {
+        definitions().forEach((name, idDefinition) -> {
+            if (beanDefinitions != null && beanDefinitions.containsBeanDefinition(beanName(name))) {
+                return;
+            }
+            create(name, idDefinition);
+            if (log.isInfoEnabled()) {
+                log.info("Snowflake id [{}] was added by a customizer: registered in the IdGeneratorProvider only, not as a bean.", name);
+            }
+        });
+    }
+    
+    /**
+     * Remove the ids from the provider, where it still holds them, so a later context does not get ids of this one,
+     * whose machine ids are released.
+     */
+    @Override
+    public void destroy() {
+        created.forEach((name, snowflakeId) -> {
+            if (idGeneratorProvider.get(name).orElse(null) == snowflakeId) {
+                idGeneratorProvider.remove(name);
+            }
+        });
     }
     
     /**
@@ -74,6 +154,7 @@ public class SnowflakeIdBeanRegistrar {
         if (idGeneratorProvider.get(name).isEmpty()) {
             idGeneratorProvider.set(name, idGenerator);
         }
+        created.put(name, idGenerator);
         return idGenerator;
     }
     

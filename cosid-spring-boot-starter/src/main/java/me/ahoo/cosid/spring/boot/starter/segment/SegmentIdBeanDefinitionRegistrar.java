@@ -14,13 +14,8 @@
 package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.SegmentId;
-import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
-import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 
-import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.beans.factory.support.AbstractBeanDefinition;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
@@ -29,26 +24,21 @@ import org.springframework.beans.factory.support.RootBeanDefinition;
 import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.Environment;
-import org.springframework.util.function.SingletonSupplier;
-
-import java.util.function.Supplier;
 
 /**
  * Registers a bean definition per segment id of {@code cosid.segment.share} and {@code cosid.segment.provider}, named
  * {@code {name}SegmentId}: other beans can depend on them ({@code @DependsOn("orderSegmentId")}), and the context
  * closes them on shutdown, which stops a segment chain's background prefetch.
  *
- * <p>The properties are bound from the environment and passed through every {@link CustomizeSegmentIdProperties} when
- * the bean definitions are registered, before other beans are created: a customizer must not depend on other beans.
- * The properties bean is that customized instance.
- * The ids themselves are created with the singletons, on the {@link IdSegmentDistributorFactory} bean.</p>
+ * <p>It only reads the id names from the environment and instantiates nothing. Each bean definition is the factory
+ * method {@link SegmentIdBeanRegistrar#createBean(String)} of the {@link SegmentIdBeanRegistrar#BEAN_NAME} bean, which
+ * runs the {@link CustomizeSegmentIdProperties} in the normal bean lifecycle. Ids a customizer adds have no bean
+ * definition: they are only registered in the {@code IdGeneratorProvider}.</p>
  *
  * @since 4.0.0
  */
-public class SegmentIdBeanDefinitionRegistrar implements BeanDefinitionRegistryPostProcessor, BeanPostProcessor, EnvironmentAware {
+public class SegmentIdBeanDefinitionRegistrar implements BeanDefinitionRegistryPostProcessor, EnvironmentAware {
     private Environment environment;
-    @Nullable
-    private SegmentIdProperties customized;
     
     @Override
     public void setEnvironment(Environment environment) {
@@ -57,42 +47,25 @@ public class SegmentIdBeanDefinitionRegistrar implements BeanDefinitionRegistryP
     
     @Override
     public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
-        ConfigurableListableBeanFactory beanFactory = (ConfigurableListableBeanFactory) registry;
         SegmentIdProperties segmentIdProperties = Binder.get(environment).bindOrCreate(SegmentIdProperties.PREFIX, SegmentIdProperties.class);
-        customized = segmentIdProperties;
-        beanFactory.getBeanProvider(CustomizeSegmentIdProperties.class).orderedStream()
-            .forEach(customize -> customize.customize(segmentIdProperties));
-        Supplier<SegmentIdBeanRegistrar> registrar = SingletonSupplier.of(() -> new SegmentIdBeanRegistrar(beanFactory.getBean(CosIdProperties.class),
-            segmentIdProperties, beanFactory.getBean(IdSegmentDistributorFactory.class), beanFactory.getBean(IdGeneratorProvider.class),
-            beanFactory.getBean(PrefetchWorkerExecutorService.class)));
-        SegmentIdProperties.ShardIdDefinition share = segmentIdProperties.getShare();
-        if (share.isEnabled()) {
-            register(registry, IdGeneratorProvider.SHARE, share, registrar);
+        if (segmentIdProperties.getShare().isEnabled()) {
+            register(registry, IdGeneratorProvider.SHARE);
         }
-        segmentIdProperties.getProvider().forEach((name, idDefinition) -> register(registry, name, idDefinition, registrar));
+        segmentIdProperties.getProvider().keySet().forEach(name -> register(registry, name));
     }
     
-    private static void register(BeanDefinitionRegistry registry, String name, SegmentIdProperties.IdDefinition idDefinition,
-                                 Supplier<SegmentIdBeanRegistrar> registrar) {
-        RootBeanDefinition beanDefinition = new RootBeanDefinition(SegmentId.class);
-        beanDefinition.setInstanceSupplier(() -> registrar.get().create(name, idDefinition));
+    private static void register(BeanDefinitionRegistry registry, String name) {
+        RootBeanDefinition beanDefinition = new RootBeanDefinition();
+        beanDefinition.setTargetType(SegmentId.class);
+        beanDefinition.setFactoryBeanName(SegmentIdBeanRegistrar.BEAN_NAME);
+        beanDefinition.setFactoryMethodName("createBean");
+        beanDefinition.getConstructorArgumentValues().addIndexedArgumentValue(0, name);
         beanDefinition.setDestroyMethodName(AbstractBeanDefinition.INFER_METHOD);
-        registry.registerBeanDefinition(name + "SegmentId", beanDefinition);
+        registry.registerBeanDefinition(SegmentIdBeanRegistrar.beanName(name), beanDefinition);
     }
     
     @Override
     public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
         // The bean definitions are all registered above.
-    }
-    
-    /**
-     * The {@code SegmentIdProperties} bean is the customized instance the ids were registered from, so the customizers run once.
-     */
-    @Override
-    public Object postProcessAfterInitialization(Object bean, String beanName) {
-        if (bean instanceof SegmentIdProperties && customized != null) {
-            return customized;
-        }
-        return bean;
     }
 }

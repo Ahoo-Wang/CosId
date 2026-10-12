@@ -4,7 +4,7 @@
 
 ## 滚动重启
 
-- **机器号。** 停止中的实例在 Web 服务器停止后释放机器号，下一个实例可以立即使用。以相同实例 ID 重启的实例会取回自己的租约；默认实例 ID 是 `host:PID`，因此需要固定的 `cosid.machine.instance-id` 或 `port`，或者稳定的 PID。被强制终止、或启动过程中失败的实例，其租约要在 `cosid.machine.guarder.safe-guard-duration`（5 分钟）后才会空出；启动失败目前不会释放租约（计划在 4.0.1 修复），反复启动失败可能耗尽命名空间中的机器号。如果在此期间命名空间中空闲的机器号少于启动中的实例数，启动会失败并抛出 `MachineIdOverflowException`。请为一次完整发布预留足够的 `machine-bit`。
+- **机器号。** 停止中的实例在 Web 服务器停止后释放机器号，下一个实例可以立即使用。以相同实例 ID 重启的实例会取回自己的租约，这需要固定的 `cosid.machine.instance-id` 或 `port`：非稳定实例的默认 ID 带随机后缀，见[机器号](../concepts/machine-id.md)。启动失败的实例会释放租约；被强制终止的实例，其租约要在 `cosid.machine.guarder.safe-guard-duration`（5 分钟）后才会空出，因此反复崩溃重启可能耗尽命名空间中的机器号。如果在此期间命名空间中空闲的机器号少于启动中的实例数，启动会失败并抛出 `MachineIdOverflowException`。请为一次完整发布预留足够的 `machine-bit`。
 - **时钟。** 机器号的新持有者会等待自己的时钟越过上一个持有者留下的水位线。请保持各主机时钟彼此同步、并与存储的时钟同步，否则差距超过 `cosid.machine.clock-backwards.broken-threshold`（500 毫秒）时，启动会失败并抛出 `ClockTooManyBackwardsException`。
 - **号段。** 重启后的实例会申请新号段，旧号段中未用完的部分被跳过。无需其他操作。
 - **修改配置。** 只有在命名空间中不再有使用旧值的实例时，才修改 `safe-guard-duration`：新旧值同时存在时，使用较短值的实例可能接管一份持有者仍认为有效的租约。不要修改正在使用的 Snowflake 生成器的 `machine-bit`、`epoch`、时间戳位数或序列号位数：旧布局下生成的 ID 可能与新 ID 冲突。

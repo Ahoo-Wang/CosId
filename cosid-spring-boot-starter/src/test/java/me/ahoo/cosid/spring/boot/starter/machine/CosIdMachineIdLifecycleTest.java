@@ -16,20 +16,30 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 
 import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
 import me.ahoo.cosid.machine.GuardDistribute;
+import me.ahoo.cosid.machine.HostAddressSupplier;
 import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdGuarder;
 import me.ahoo.cosid.machine.MachineIdLease;
 import me.ahoo.cosid.machine.MachineState;
+import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 
 import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.web.server.context.WebServerGracefulShutdownLifecycle;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -88,6 +98,42 @@ class CosIdMachineIdLifecycleTest {
         CosIdMachineIdLifecycle lifecycle = new CosIdMachineIdLifecycle(MachineIdGuarder.NONE, new RecordingDistributor(), null);
         
         assertThat(lifecycle.getPhase(), lessThan(WebServerGracefulShutdownLifecycle.SMART_LIFECYCLE_PHASE - 1024));
+    }
+    
+    private ApplicationContextRunner contextRunner(RecordingDistributor distributor) {
+        return new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, CosIdMachineAutoConfiguration.class))
+            .withBean(HostAddressSupplier.class, () -> () -> "10.0.0.10")
+            .withBean(MachineIdDistributor.class, () -> distributor)
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.PREFIX + ".instance-id=worker-a");
+    }
+    
+    @Test
+    void failedStartupRevertsTheDistributedMachineId() {
+        RecordingDistributor distributor = new RecordingDistributor();
+        contextRunner(distributor).withUserConfiguration(FailingAfterMachineId.class).run(context -> {
+            assertThat(context.getStartupFailure(), notNullValue());
+            assertThat(distributor.reverted, contains("cosid:worker-a"));
+        });
+    }
+    
+    @Test
+    void shutdownRevertsTheMachineIdOnce() {
+        RecordingDistributor distributor = new RecordingDistributor();
+        contextRunner(distributor).run(context -> {
+            assertThat(context.getStartupFailure(), nullValue());
+            context.getBean(MachineId.class);
+            assertThat(distributor.reverted, empty());
+        });
+        assertThat(distributor.reverted, contains("cosid:worker-a"));
+    }
+    
+    @Configuration(proxyBeanMethods = false)
+    static class FailingAfterMachineId {
+        @Bean
+        String failingBean(MachineId machineId) {
+            throw new IllegalStateException("fails after the machine id was distributed: " + machineId.getMachineId());
+        }
     }
     
     static class RecordingDistributor implements MachineIdDistributor {

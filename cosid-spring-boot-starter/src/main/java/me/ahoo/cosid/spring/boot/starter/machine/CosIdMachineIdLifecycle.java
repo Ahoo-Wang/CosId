@@ -75,6 +75,11 @@ public class CosIdMachineIdLifecycle implements SmartLifecycle {
     }
 
     private void revert(NamespacedInstanceId distributedInstance) {
+        if (guardDistribute instanceof CosIdGuardDistribute cosIdGuardDistribute) {
+            // Records the revert, so that destroying the guard distribute does not revert again.
+            cosIdGuardDistribute.revert(distributedInstance);
+            return;
+        }
         try {
             // Stop generating ids with the machine id before it can be handed to another instance.
             machineIdGuarder.getLease(distributedInstance.getNamespace(), distributedInstance.getInstanceId()).markReleased();

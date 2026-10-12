@@ -16,6 +16,33 @@ trap 'git -C "$ROOT" worktree remove --force "$WORK/baseline" >/dev/null 2>&1 ||
 curl -sSfL -o "$WORK/japicmp.jar" \
   "https://repo1.maven.org/maven2/com/github/siom79/japicmp/japicmp/${JAPICMP_VERSION}/japicmp-${JAPICMP_VERSION}-jar-with-dependencies.jar"
 
+# japicmp of two jars into $OUT/<name>.html|.md, printing the summary row's result.
+# japicmp exits with 1 both when it finds an incompatible change and when it fails, for example on a jar it cannot read:
+# only its incompatibility message is a result, any other failure is recorded in $FAILED and fails the script.
+INCOMPATIBLE_MESSAGE="There is at least one incompatibility"
+FAILED="$WORK/failed"
+compare() {
+  local old_jar="$1" new_jar="$2" name="$3"
+  if java -jar "$WORK/japicmp.jar" --old "$old_jar" --new "$new_jar" --only-modified --ignore-missing-classes \
+    --error-on-binary-incompatibility --error-on-source-incompatibility \
+    --html-file "$OUT/$name.html" --markdown > "$OUT/$name.md" 2> "$OUT/$name.err"; then
+    echo "compatible"
+  elif grep -q "$INCOMPATIBLE_MESSAGE" "$OUT/$name.err"; then
+    echo "**incompatible changes**, see \`$name.html\`"
+  else
+    echo "$name: $(grep -v '^Picked up JAVA_TOOL_OPTIONS' "$OUT/$name.err" | head -c 500)" >> "$FAILED"
+    echo "**error**, see \`$name.err\`"
+  fi
+}
+
+# Self-check: a jar japicmp cannot read must count as an error, not as an incompatible change.
+: > "$WORK/unreadable.jar"
+if [ "$(compare "$WORK/unreadable.jar" "$WORK/unreadable.jar" self-check)" != "**error**, see \`self-check.err\`" ]; then
+  echo "api-diff self-check failed: an unreadable jar was not reported as an error" >&2
+  exit 1
+fi
+rm -f "$FAILED" "$OUT"/self-check.*
+
 git -C "$ROOT" fetch --quiet --tags origin || true
 git -C "$ROOT" worktree add --quiet --detach "$WORK/baseline" "$BASELINE"
 
@@ -38,33 +65,6 @@ main_jar() {
     echo "$jar"
   fi
 }
-
-# japicmp of two jars into $OUT/<name>.html|.md, printing the summary row's result.
-# japicmp exits with 1 both when it finds an incompatible change and when it fails, for example on a jar it cannot read:
-# only its incompatibility message is a result, any other failure is recorded in $FAILED and fails the script.
-INCOMPATIBLE_MESSAGE="There is at least one incompatibility"
-FAILED="$WORK/failed"
-compare() {
-  local old_jar="$1" new_jar="$2" name="$3"
-  if java -jar "$WORK/japicmp.jar" --old "$old_jar" --new "$new_jar" --only-modified --ignore-missing-classes \
-    --error-on-binary-incompatibility --error-on-source-incompatibility \
-    --html-file "$OUT/$name.html" --markdown > "$OUT/$name.md" 2> "$OUT/$name.err"; then
-    echo "compatible"
-  elif grep -q "$INCOMPATIBLE_MESSAGE" "$OUT/$name.err"; then
-    echo "**incompatible changes**, see \`$name.html\`"
-  else
-    echo "$name: $(head -c 500 "$OUT/$name.err")" >> "$FAILED"
-    echo "**error**, see \`$name.err\`"
-  fi
-}
-
-# Self-check: a jar japicmp cannot read must count as an error, not as an incompatible change.
-: > "$WORK/unreadable.jar"
-if [ "$(compare "$WORK/unreadable.jar" "$WORK/unreadable.jar" self-check)" != "**error**, see \`self-check.err\`" ]; then
-  echo "api-diff self-check failed: an unreadable jar was not reported as an error" >&2
-  exit 1
-fi
-rm -f "$FAILED" "$OUT"/self-check.*
 
 # One jar with the classes of the core modules that exist at a version.
 combined_core_jar() {

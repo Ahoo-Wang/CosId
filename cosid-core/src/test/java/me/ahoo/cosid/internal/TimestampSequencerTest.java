@@ -18,6 +18,8 @@ import static org.hamcrest.Matchers.equalTo;
 
 import me.ahoo.cosid.cosid.CosIdState;
 import me.ahoo.cosid.cosid.Radix62CosIdGenerator;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
@@ -25,6 +27,9 @@ import me.ahoo.cosid.snowflake.exception.TimestampOverflowException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 class TimestampSequencerTest {
@@ -125,6 +130,70 @@ class TimestampSequencerTest {
         
         Assertions.assertNotNull(exception.getMessage());
         assertThat(sequencer.getLastTimestamp(), equalTo(100L));
+    }
+    
+    /**
+     * The sequence of tick 100 is used up, and the clock moves back to 99 while the sequencer waits for 101. It used to
+     * wait forever; now it throws, and tick 100 stays used up when the clock comes back to it.
+     */
+    @Test
+    void clockMovingBackWhileWaitingThrowsAndDoesNotRepeatTheUsedUpTick() {
+        long[] times = {100, 100, 100, 100, 99, 100, 100, 101};
+        int[] read = {0};
+        TimestampSequencer sequencer = new TimestampSequencer(() -> times[Math.min(read[0]++, times.length - 1)], 3, 100);
+        for (int i = 0; i < 3; i++) {
+            assertThat(sequencer.next(), equalTo(100L));
+        }
+        
+        Assertions.assertTimeoutPreemptively(Duration.ofSeconds(5),
+            () -> Assertions.assertThrows(ClockBackwardsException.class, sequencer::next));
+        
+        assertThat(sequencer.next(), equalTo(101L));
+        assertThat(sequencer.getSequence(), equalTo(0L));
+    }
+    
+    @Test
+    void clockSyncSnowflakeIdRecoversFromTheClockMovingBackWhileWaiting() {
+        long[] times = {EPOCH + 100, EPOCH + 100, EPOCH + 100, EPOCH + 100, EPOCH + 99, EPOCH + 101};
+        int[] read = {0};
+        MillisecondSnowflakeId snowflakeId = new MillisecondSnowflakeId(EPOCH, 41, 10, 2, 1, 100) {
+            @Override
+            protected long getCurrentTime() {
+                return times[Math.min(read[0]++, times.length - 1)];
+            }
+        };
+        ClockSyncSnowflakeId clockSync = new ClockSyncSnowflakeId(snowflakeId, new ClockBackwardsSynchronizer() {
+            @Override
+            public void sync(long lastTimestamp) {
+            }
+            
+            @Override
+            public void syncUninterruptibly(long lastTimestamp) {
+            }
+        });
+        Set<Long> ids = new HashSet<>();
+        for (int i = 0; i < 4; i++) {
+            ids.add(Assertions.assertTimeoutPreemptively(Duration.ofSeconds(5), clockSync::generate));
+        }
+        assertThat(ids.size(), equalTo(4));
+    }
+    
+    /**
+     * A second-based sequencer that used up a second parks until the next one instead of reading the clock in a loop.
+     */
+    @Test
+    void secondsParkInsteadOfSpinning() {
+        long until = System.nanoTime() + Duration.ofMillis(200).toNanos();
+        AtomicLong reads = new AtomicLong();
+        TimestampSequencer sequencer = new TimestampSequencer(() -> {
+            reads.incrementAndGet();
+            return System.nanoTime() < until ? 100 : 101;
+        }, 1, 100, TimestampSequencer::parkUntilNextSecond);
+        sequencer.next();
+        reads.set(0);
+        
+        assertThat(sequencer.next(), equalTo(101L));
+        assertThat(reads.get() < 1000, equalTo(true));
     }
     
     @Test

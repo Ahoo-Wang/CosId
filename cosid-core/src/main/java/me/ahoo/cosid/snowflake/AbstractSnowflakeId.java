@@ -130,7 +130,10 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
             throw new IllegalArgumentException(Checks.lenientFormat("machineId[%s] can't be greater than maxMachineId[%s] or less than 0 .", machineId, maxMachineId));
         }
         this.machineId = machineId;
-        this.sequencer = new TimestampSequencer(this::getCurrentTime, maxSequence, sequenceResetThreshold);
+        // A second-based generator that used up the sequence of a second parks instead of spinning for up to a second.
+        this.sequencer = this instanceof SecondSnowflakeId
+            ? new TimestampSequencer(this::getCurrentTime, maxSequence, sequenceResetThreshold, TimestampSequencer::parkUntilNextSecond)
+            : new TimestampSequencer(this::getCurrentTime, maxSequence, sequenceResetThreshold);
     }
 
     protected abstract long getCurrentTime();

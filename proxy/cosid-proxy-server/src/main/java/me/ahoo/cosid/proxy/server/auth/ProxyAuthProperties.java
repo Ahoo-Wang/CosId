@@ -33,7 +33,8 @@ import java.util.List;
  * <p>Clients send {@code Authorization: Bearer <token>}. Several tokens can be configured at once to rotate them.
  * Public paths ({@code /actuator/health} by default) are path patterns that need no token, for example
  * {@code /v3/api-docs/**} and {@code /swagger-ui/**} to open the API docs.
- * Without any token the API is open, as before, and a warning is logged at startup.</p>
+ * Without any token the server fails to start, unless {@code allow-anonymous} is set: then the API is open to anyone
+ * who can reach it, and a warning is logged at startup.</p>
  *
  * @author ahoo wang
  */
@@ -69,6 +70,21 @@ public class ProxyAuthProperties {
      * {@code management.endpoints.web.base-path} ({@code /actuator/health} and {@code /actuator/health/**} by default).
      */
     private List<String> publicPaths;
+    
+    /**
+     * Run without any token, the API open to anyone who can reach it. Only behind a trusted network boundary: an
+     * anonymous caller can release a live machine id, and two instances then generate the same ids. Default is
+     * {@code false}: without tokens the server fails to start.
+     */
+    private boolean allowAnonymous = false;
+    
+    public boolean isAllowAnonymous() {
+        return allowAnonymous;
+    }
+    
+    public void setAllowAnonymous(boolean allowAnonymous) {
+        this.allowAnonymous = allowAnonymous;
+    }
     
     public List<String> getTokens() {
         return tokens;

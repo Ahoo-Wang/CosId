@@ -34,6 +34,10 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @RestController
 public class SegmentController implements SegmentApi {
+    /**
+     * Leaves half of the {@code long} range for the segments, so that the offset cannot make the id overflow.
+     */
+    static final long MAX_OFFSET = Long.MAX_VALUE / 2;
     private final IdSegmentDistributorFactory distributorFactory;
     private final ConcurrentHashMap<String, IdSegmentDistributor> distributors;
     private final long maxStep;
@@ -64,6 +68,7 @@ public class SegmentController implements SegmentApi {
     public void createDistributor(@PathVariable String namespace, @PathVariable String name, long offset, long step) {
         checkArguments(namespace, name, step);
         Checks.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        Checks.checkArgument(offset <= MAX_OFFSET, "offset:[%s] must not exceed [%s]!", offset, MAX_OFFSET);
         try {
             Math.addExact(offset, step);
         } catch (ArithmeticException overflow) {

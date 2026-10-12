@@ -28,13 +28,15 @@ public class ProxyServerProperties {
     public static final Duration DEFAULT_MAX_CLOCK_SKEW = Duration.ofMinutes(1);
     public static final Duration DEFAULT_MIN_SAFE_GUARD_DURATION = Duration.ofMinutes(5);
     /**
-     * No limit.
+     * One trillion ids per request: more than a segment chain with a large step asks for while prefetching at peak, and
+     * far from overflowing a {@code long}.
      */
-    public static final long DEFAULT_MAX_SEGMENT_STEP = 0;
+    public static final long DEFAULT_MAX_SEGMENT_STEP = 1_000_000_000_000L;
     
     /**
      * How far ahead of the server's clock a client's {@code lastTimeStamp} (guard, revert) may be. A timestamp far in
-     * the future would keep a machine id from ever being recycled, or make its next owner wait. Zero disables the check.
+     * the future would keep a machine id from ever being recycled, or make its next owner wait. Zero disables the check;
+     * it must not be negative.
      */
     private Duration maxClockSkew = DEFAULT_MAX_CLOCK_SKEW;
     
@@ -43,7 +45,8 @@ public class ProxyServerProperties {
      * last renewed at least this long ago (version 2 {@code expiredBefore}, version 1 {@code safeGuardDuration}).
      * Without it, any client could take a live lease and generate the same ids as its owner. Lower it only if your
      * clients use a shorter {@code cosid.machine.guarder.safe-guard-duration}. Default is 5 minutes, the clients'
-     * default; zero still rejects cut-offs in the future.
+     * default; zero still rejects cut-offs in the future. It must not be negative: a negative minimum would accept
+     * cut-offs in the future, and a client could take a live lease.
      */
     private Duration minSafeGuardDuration = DEFAULT_MIN_SAFE_GUARD_DURATION;
     
@@ -54,7 +57,7 @@ public class ProxyServerProperties {
     }
     
     public void setMinSafeGuardDuration(Duration minSafeGuardDuration) {
-        this.minSafeGuardDuration = minSafeGuardDuration;
+        this.minSafeGuardDuration = nonNegative(minSafeGuardDuration, "min-safe-guard-duration");
     }
     
     public Duration getMaxClockSkew() {
@@ -62,7 +65,14 @@ public class ProxyServerProperties {
     }
     
     public void setMaxClockSkew(Duration maxClockSkew) {
-        this.maxClockSkew = maxClockSkew;
+        this.maxClockSkew = nonNegative(maxClockSkew, "max-clock-skew");
+    }
+    
+    private static Duration nonNegative(Duration duration, String property) {
+        if (duration == null || duration.isNegative()) {
+            throw new IllegalArgumentException("[" + PREFIX + "." + property + "] must not be null or negative, but was [" + duration + "].");
+        }
+        return duration;
     }
     
     public Segment getSegment() {
@@ -75,8 +85,8 @@ public class ProxyServerProperties {
     
     public static class Segment {
         /**
-         * Largest {@code step} a client may ask for, so that one request cannot use up the id range. Zero (the default)
-         * means no limit. Segment chains ask for {@code step × segments} at once and the prefetch distance grows under
+         * Largest {@code step} a client may ask for, so that one request cannot use up or overflow the id range.
+         * Default is one trillion; zero means no limit. Segment chains ask for {@code step × segments} at once and the prefetch distance grows under
          * load, so a limit must be at least the largest {@code step × max prefetch distance} of all clients.
          */
         private long maxStep = DEFAULT_MAX_SEGMENT_STEP;

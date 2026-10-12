@@ -20,5 +20,5 @@ import me.ahoo.coapi.api.CoApi;
  */
 @CoApi(baseUrl = MachineLeaseClient.BASE_URL)
 public interface MachineLeaseClient extends MachineLeaseApi {
-    String BASE_URL = "${cosid.proxy.host}";
+    String BASE_URL = "${cosid.proxy.host:http://localhost:8688}";
 }

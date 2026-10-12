@@ -42,6 +42,11 @@ public class ProxyAuthConfiguration {
             // Follow a custom actuator base path, so health probes keep working.
             publicPaths = ProxyAuthProperties.healthPaths(environment.getProperty("management.endpoints.web.base-path", "/actuator"));
         }
-        return new ProxyAuthWebFilter(proxyAuthProperties.getTokens(), publicPaths);
+        ProxyAuthWebFilter filter = new ProxyAuthWebFilter(proxyAuthProperties.getTokens(), publicPaths);
+        if (!filter.isEnabled() && !proxyAuthProperties.isAllowAnonymous()) {
+            throw new IllegalStateException("No [" + ProxyAuthProperties.PREFIX + ".tokens] configured: set a token, or set ["
+                + ProxyAuthProperties.PREFIX + ".allow-anonymous=true] to run the proxy without authentication (only behind a trusted network boundary).");
+        }
+        return filter;
     }
 }

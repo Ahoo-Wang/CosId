@@ -1,6 +1,6 @@
 # gradle cosid-proxy-server:installDist
 # docker buildx build --push --platform linux/amd64,linux/arm64 -t ahoowang/cosid-proxy:TAG .
-# docker run --name cosid-proxy -d -p 8688:8688 --link redis -e SPRING_REDIS_URL=redis://redis:6379 ahoowang/cosid-proxy:main --health-cmd "curl --fail --silent localhost:8688/actuator/health | grep UP || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
+# docker run --name cosid-proxy -d -p 8688:8688 --link redis -e SPRING_DATA_REDIS_URL=redis://redis:6379 -e COSID_PROXY_TOKEN=change-me ahoowang/cosid-proxy:main
 
 ARG APP_NAME=cosid-proxy-server
 ARG WORK_HOME=/opt/${APP_NAME}
@@ -19,14 +19,15 @@ ARG WORK_HOME
 
 LABEL maintainer="ahoowang@qq.com"
 
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser \
+    && (command -v curl > /dev/null || (apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*))
 
 COPY --from=build --chown=appuser:appgroup ${WORK_HOME} ${WORK_HOME}
 
 WORKDIR ${WORK_HOME}
 EXPOSE 8688
-HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD curl -f http://localhost:8080/actuator/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+  CMD curl -fsS http://localhost:8688/actuator/health || exit 1
 
 USER appuser
 STOPSIGNAL SIGTERM

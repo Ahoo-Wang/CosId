@@ -110,7 +110,7 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
             return Optional.empty();
         }
         long lastTimestamp = document.getLong(LAST_TIMESTAMP_FIELD);
-        return Optional.of(new Lease(namespace, instanceId, document.getInteger(MACHINE_ID_FIELD), lastTimestamp, lastTimestamp));
+        return Optional.of(new Lease(namespace, instanceId, document.getInteger(MACHINE_ID_FIELD), lastTimestamp, lastTimestamp, lastTimestamp));
     }
     
     private Optional<Lease> claim(String namespace, InstanceId instanceId, long now, Bson filter) {
@@ -149,7 +149,7 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
             }
             try {
                 collection.insertOne(MachineOperates.distributeDocument(namespace, instanceId, MachineState.of(machineId, now)));
-                return Optional.of(new Lease(namespace, instanceId, machineId, now, now));
+                return Optional.of(new Lease(namespace, instanceId, machineId, now, now, now));
             } catch (MongoWriteException mongoWriteException) {
                 // Another instance inserted the same machine id first.
                 if (mongoWriteException.getError().getCategory() != ErrorCategory.DUPLICATE_KEY || attempt >= MAX_ATTEMPTS) {
@@ -172,7 +172,7 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
         if (collection.updateOne(current(lease), Updates.set(LAST_TIMESTAMP_FIELD, timestamp)).getMatchedCount() == 0) {
             return Optional.empty();
         }
-        return Optional.of(new Lease(lease.getNamespace(), lease.getInstanceId(), lease.getMachineId(), timestamp, timestamp));
+        return Optional.of(new Lease(lease.getNamespace(), lease.getInstanceId(), lease.getMachineId(), timestamp, timestamp, timestamp));
     }
     
     @Override

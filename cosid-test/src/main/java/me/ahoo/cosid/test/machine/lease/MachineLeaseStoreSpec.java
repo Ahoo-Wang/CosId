@@ -50,6 +50,15 @@ public abstract class MachineLeaseStoreSpec {
     protected abstract MachineLeaseStore getStore();
     
     /**
+     * Whether the store keeps the watermark apart from the renewal time. Stores still on the 3.4 format, with one last
+     * timestamp for both, return {@code false}: the cases that need the separation then check that the store really keeps
+     * one timestamp, so the opt-out cannot outlive the store's new format.
+     */
+    protected boolean separatesWatermark() {
+        return true;
+    }
+    
+    /**
      * A unique namespace. {@code MockIdGenerator.usePrefix(prefix)} creates a new generator on every call, so two calls in
      * the same millisecond return the same id: use the shared instance instead.
      */
@@ -73,7 +82,8 @@ public abstract class MachineLeaseStoreSpec {
             Lease lease = store.claimNew(namespace, instance("i" + machineId), 3, T0).orElseThrow();
             assertThat(lease.getMachineId(), equalTo(machineId));
             assertThat(lease.getNamespace(), equalTo(namespace));
-            assertThat(lease.getLastTimestamp(), greaterThanOrEqualTo(T0));
+            assertThat(lease.getRenewedAt(), greaterThanOrEqualTo(T0));
+            assertThat(lease.getWatermark(), greaterThanOrEqualTo(T0));
         }
         assertThat(store.claimNew(namespace, instance("overflow"), 3, T0).isPresent(), equalTo(false));
     }
@@ -87,7 +97,8 @@ public abstract class MachineLeaseStoreSpec {
         Lease self = store.claimSelf(namespace, instance("owner"), T0 + 10).orElseThrow();
         
         assertThat(self.getMachineId(), equalTo(claimed.getMachineId()));
-        assertThat(self.getLastTimestamp(), greaterThanOrEqualTo(T0 + 10));
+        assertThat(self.getRenewedAt(), greaterThanOrEqualTo(T0 + 10));
+        assertThat(self.getWatermark(), greaterThanOrEqualTo(T0 + 10));
         assertThat(self.getVersion(), not(equalTo(claimed.getVersion())));
         assertThat(store.claimSelf(namespace, instance("stranger"), T0).isPresent(), equalTo(false));
     }
@@ -100,7 +111,7 @@ public abstract class MachineLeaseStoreSpec {
         
         Lease renewed = store.renew(claimed, T0 + 10).orElseThrow();
         
-        assertThat(renewed.getLastTimestamp(), greaterThanOrEqualTo(T0 + 10));
+        assertThat(renewed.getRenewedAt(), greaterThanOrEqualTo(T0 + 10));
         assertThat(store.renew(claimed, T0 + 20).isPresent(), equalTo(false));
         assertThat(store.renew(renewed, T0 + 20).isPresent(), equalTo(true));
     }
@@ -131,7 +142,9 @@ public abstract class MachineLeaseStoreSpec {
         Lease claimed = store.claimExpired(namespace, instance("newcomer"), MAX_MACHINE_ID, T0 + 10, T0 + 2000).orElseThrow();
         
         assertThat(claimed.getMachineId(), equalTo(expired.getMachineId()));
-        assertThat(claimed.getLastTimestamp(), greaterThanOrEqualTo(T0 + 2000));
+        assertThat(claimed.getRenewedAt(), greaterThanOrEqualTo(T0 + 2000));
+        // The previous owner may have used the machine id up to its last renewal; this host's clock may be behind the store.
+        assertThat(claimed.getWatermark(), greaterThanOrEqualTo(T0 + 2000));
         assertThat(store.claimExpired(namespace, instance("another"), MAX_MACHINE_ID, T0 + 10, T0 + 2000).isPresent(), equalTo(false));
         // Long past the stable owner's last renewal: still never recycled.
         assertThat(store.claimExpired(namespace, instance("another"), MAX_MACHINE_ID, Long.MAX_VALUE - 1, T0 + 2000).map(Lease::getMachineId),
@@ -166,7 +179,7 @@ public abstract class MachineLeaseStoreSpec {
     }
     
     @Test
-    public void lastTimestampNeverMovesBackwards() {
+    public void watermarkNeverMovesBackwards() {
         MachineLeaseStore store = getStore();
         String namespace = newNamespace("monotonic");
         Lease owner = store.claimNew(namespace, instance("owner"), 3, T0).orElseThrow();
@@ -175,8 +188,12 @@ public abstract class MachineLeaseStoreSpec {
         
         Lease next = store.claimReleased(namespace, instance("next"), MAX_MACHINE_ID, T0 + 2000).orElseThrow();
         
-        assertThat(next.getLastTimestamp(), greaterThanOrEqualTo(T0 + 5000));
-        assertThat(store.renew(next, T0 + 3000).orElseThrow().getLastTimestamp(), greaterThanOrEqualTo(T0 + 5000));
+        assertThat(next.getWatermark(), greaterThanOrEqualTo(T0 + 5000));
+        assertThat(store.renew(next, T0 + 3000).orElseThrow().getWatermark(), greaterThanOrEqualTo(T0 + 5000));
+        Lease released = store.claimSelf(namespace, instance("next"), T0 + 4000).orElseThrow();
+        store.release(released, T0 + 1000);
+        assertThat(store.claimReleased(namespace, instance("third"), MAX_MACHINE_ID, T0 + 4000).orElseThrow().getWatermark(),
+            greaterThanOrEqualTo(T0 + 5000));
     }
     
     @Test
@@ -277,9 +294,9 @@ public abstract class MachineLeaseStoreSpec {
         String namespace = newNamespace("boundary");
         Lease owner = store.claimNew(namespace, instance("owner"), 0, T0).orElseThrow();
         
-        assertThat(store.claimExpired(namespace, instance("early"), MAX_MACHINE_ID, owner.getLastTimestamp() - 1, T0 + 100).isPresent(),
+        assertThat(store.claimExpired(namespace, instance("early"), MAX_MACHINE_ID, owner.getRenewedAt() - 1, T0 + 100).isPresent(),
             equalTo(false));
-        assertThat(store.claimExpired(namespace, instance("onTime"), MAX_MACHINE_ID, owner.getLastTimestamp(), T0 + 100).isPresent(),
+        assertThat(store.claimExpired(namespace, instance("onTime"), MAX_MACHINE_ID, owner.getRenewedAt(), T0 + 100).isPresent(),
             equalTo(true));
     }
     
@@ -347,21 +364,59 @@ public abstract class MachineLeaseStoreSpec {
     }
     
     @Test
-    public void everyWriteStrictlyIncreasesTheLastTimestamp() {
+    public void everyWriteChangesTheVersion() {
         MachineLeaseStore store = getStore();
         String namespace = newNamespace("strict");
         Lease claimed = store.claimNew(namespace, instance("owner"), 3, T0).orElseThrow();
-        // Same and earlier "now": the timestamp, and so the version, must still change.
+        // Same and earlier "now" (the store clock moved back): renewing still succeeds, and the version still changes.
         Lease renewedSameTime = store.renew(claimed, T0).orElseThrow();
         Lease renewedEarlier = store.renew(renewedSameTime, T0 - 100).orElseThrow();
         Lease self = store.claimSelf(namespace, instance("owner"), T0 - 200).orElseThrow();
         
-        assertThat(renewedSameTime.getLastTimestamp(), greaterThan(claimed.getLastTimestamp()));
-        assertThat(renewedEarlier.getLastTimestamp(), greaterThan(renewedSameTime.getLastTimestamp()));
-        assertThat(self.getLastTimestamp(), greaterThan(renewedEarlier.getLastTimestamp()));
         Set<Long> versions = Set.of(claimed.getVersion(), renewedSameTime.getVersion(), renewedEarlier.getVersion(), self.getVersion());
         assertThat(versions, hasSize(4));
         assertThat(store.renew(renewedSameTime, T0 + 10).isPresent(), equalTo(false));
+    }
+    
+    @Test
+    public void renewDoesNotAdvanceTheWatermark() {
+        MachineLeaseStore store = getStore();
+        String namespace = newNamespace("renewWatermark");
+        Lease owner = store.claimNew(namespace, instance("owner"), 3, T0).orElseThrow();
+        store.release(owner, T0 + 500);
+        Lease next = store.claimReleased(namespace, instance("next"), MAX_MACHINE_ID, T0 + 1000).orElseThrow();
+        
+        Lease renewed = store.renew(next, T0 + 60_000).orElseThrow();
+        Lease renewedAgain = store.renew(renewed, T0 + 120_000).orElseThrow();
+        if (!separatesWatermark()) {
+            // A store that opts out must really keep one timestamp: drop the opt-out once its new format lands.
+            assertThat("separatesWatermark() is false but renewing left the watermark alone", renewedAgain.getWatermark(),
+                greaterThanOrEqualTo(T0 + 120_000));
+            return;
+        }
+        
+        assertThat(renewed.getWatermark(), equalTo(next.getWatermark()));
+        assertThat(renewedAgain.getWatermark(), equalTo(next.getWatermark()));
+        assertThat(renewedAgain.getRenewedAt(), greaterThanOrEqualTo(T0 + 120_000));
+    }
+    
+    @Test
+    public void renewAfterTheStoreClockMovedBackKeepsTheLeaseAlive() {
+        MachineLeaseStore store = getStore();
+        String namespace = newNamespace("renewBackwards");
+        Lease owner = store.claimNew(namespace, instance("owner"), 0, T0 + 1000).orElseThrow();
+        
+        // The store clock moved back by 900ms: the renewal still counts from the new clock.
+        Lease renewed = store.renew(owner, T0 + 100).orElseThrow();
+        if (!separatesWatermark()) {
+            assertThat("separatesWatermark() is false but the renewal time followed the clock back", renewed.getRenewedAt(),
+                greaterThanOrEqualTo(owner.getRenewedAt()));
+            return;
+        }
+        
+        assertThat(renewed.getRenewedAt(), equalTo(T0 + 100));
+        assertThat(store.claimExpired(namespace, instance("thief"), MAX_MACHINE_ID, T0 + 99, T0 + 150).isPresent(), equalTo(false));
+        assertThat(store.renew(renewed, T0 + 200).isPresent(), equalTo(true));
     }
     
     @Test

@@ -30,8 +30,8 @@ import java.util.Optional;
  * an expired one. A stable instance never takes over another instance's expired lease, and with
  * {@link MachineIdDistributor#FOREVER_SAFE_GUARD_DURATION} no lease ever expires.</p>
  *
- * <p>Every time comes from {@link MachineLeaseStore#serverTime()}, except the last timestamp written on
- * {@link #release release}, which is the generator's watermark from this host's clock. Hosts' clocks must therefore be
+ * <p>Every time comes from {@link MachineLeaseStore#serverTime()}, except the watermark written on
+ * {@link #release release}, which is the generator's last timestamp from this host's clock. Hosts' clocks must therefore be
  * kept in sync: a host running ahead only delays the next owner of a released machine id (it waits until its clock
  * passes the watermark), which is safe but slow.</p>
  *
@@ -118,10 +118,10 @@ public class MachineLeaseManager {
     /**
      * Release a lease on shutdown.
      *
-     * @param lastTimestamp the generator's last timestamp (host clock), the next owner's clock-backwards watermark
+     * @param watermark the generator's last timestamp (host clock), the next owner's clock-backwards watermark
      * @return {@code false} if the lease was taken over in the meantime
      */
-    public boolean release(Lease lease, long lastTimestamp) {
-        return store.release(lease, lastTimestamp);
+    public boolean release(Lease lease, long watermark) {
+        return store.release(lease, watermark);
     }
 }

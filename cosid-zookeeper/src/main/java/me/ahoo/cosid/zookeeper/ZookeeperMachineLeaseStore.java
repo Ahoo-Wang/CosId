@@ -211,7 +211,7 @@ public class ZookeeperMachineLeaseStore implements MachineLeaseStore {
     }
     
     private Lease lease(String namespace, InstanceId instanceId, int machineId, long lastTimestamp) {
-        return new Lease(namespace, instanceId, machineId, lastTimestamp, lastTimestamp);
+        return new Lease(namespace, instanceId, machineId, lastTimestamp, lastTimestamp, lastTimestamp);
     }
     
     @Override

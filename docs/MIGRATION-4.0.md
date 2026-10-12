@@ -93,6 +93,10 @@ Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `
 
 A typed lookup of a generator with another type throws `IllegalArgumentException` naming both types. `@CosId` fields of type `String` keep working with the `cosid` generator; `long` and `int` fields need an `IdGenerator`. A `long` or `int` field bound to a string-only generator fails with a `CosIdException` naming the field and the generator: for Spring Data JDBC entities (`cosid.jdbc.enabled=true`) at startup, since the starter registers the accessors of the mapping context entities; for accessors registered up front (for example by `CosIdScanner`) when they are registered; and otherwise, as with MyBatis, on the first insert.
 
+### Machine id leases
+
+`Lease` keeps the watermark (the last timestamp the machine id may have been used for, which only grows), the renewal time (the store time that decides expiry) and the version apart; `getLastTimestamp()` is replaced by `getWatermark()` and `getRenewedAt()`, and the constructor takes all three. Renewing no longer moves the watermark, and `MachineLeaseStore.release(lease, watermark)` names its argument for what it is. A custom `MachineLeaseStore` follows the time contract in its javadoc and must pass `MachineLeaseStoreSpec`. The built-in stores still write the 3.4 format until their new formats land.
+
 _To be filled in: the configuration property model._
 
 The API diff against 3.4 is reported on every pull request to `main` (the **API Diff** workflow).

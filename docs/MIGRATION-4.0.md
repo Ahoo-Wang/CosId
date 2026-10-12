@@ -1,6 +1,6 @@
 # Migrating from 3.x to 4.0
 
-> Work in progress: 4.0 is being built on `main` (see [ROADMAP.md](ROADMAP.md)). Each change adds its section here as it lands.
+> Upgrade to the latest 3.4.x first and clear its deprecation warnings. Rolling upgrades are supported from 3.4.x only.
 
 ## Requirements
 
@@ -9,10 +9,20 @@
 
 ## Rolling upgrade
 
-3.x and 4.0 instances can share a namespace during the upgrade: 4.0 reads and writes both lease formats. Finish the upgrade before removing 3.x instances, and keep host clocks in sync with the store.
+3.4.x and 4.0 instances can share a namespace during the upgrade: 4.0 reads and writes both lease formats. Finish the upgrade before removing 3.x instances, and keep host clocks in sync with the store.
 
-- **JDBC**: run the `ALTER TABLE` for the new lease columns before starting 4.0 instances; 4.0 fails at startup and prints the statement when the columns are missing.
-- **Proxy**: upgrade the servers first. A server only lets clients take over a lease renewed at least `cosid.proxy.server.min-safe-guard-duration` ago (default 5 minutes, the clients' default safe guard); 4.0 clients sending a later cut-off get a 400; a shorter guard from a 3.x client (v1) is raised to the minimum with a warning. Lower it if your clients use a shorter `cosid.machine.guarder.safe-guard-duration`. With the 4.0 starter, `cosid.proxy.read-timeout` must be positive. 4.0 servers keep the v1 machine API for 3.x clients (deprecated, now stateless on the backend lease store), and 4.0 clients use the v2 lease API (`/machines/v2`), which 3.x servers do not have.
+- **Same safe guard everywhere**: all instances of a namespace must use the same `cosid.machine.guarder.safe-guard-duration`. An instance with a shorter one can take over a lease that its holder still considers valid, and both then generate the same ids.
+- **JDBC**: run the `ALTER TABLE` for the new lease columns before starting 4.0 instances; 4.0 fails at startup and prints the statement when the columns are missing. 4.0 also fails at startup when the `stable` column is missing, where 3.4 only logged a WARN. The statements, as `JdbcMachineLeaseStore` and `PostgreSqlDialect` print them:
+
+  ```sql
+  -- MySQL / MariaDB
+  alter table cosid_machine add column stable tinyint not null default 0; -- only tables created before 3.3
+  alter table cosid_machine add column renew_time bigint unsigned not null default 0, add column watermark bigint unsigned not null default 0, add column lease_version bigint unsigned not null default 0;
+  -- PostgreSQL
+  alter table cosid_machine add column if not exists stable smallint not null default 0;
+  alter table cosid_machine add column if not exists renew_time bigint not null default 0, add column if not exists watermark bigint not null default 0, add column if not exists lease_version bigint not null default 0;
+  ```
+- **Proxy**: upgrade the servers first. A server only lets clients take over a lease renewed at least `cosid.proxy.server.min-safe-guard-duration` ago (default 5 minutes, the clients' default safe guard); 4.0 clients sending a later cut-off get a 400; a shorter guard from a 3.x client (v1) is raised to the minimum with a warning. Lower it if your clients use a shorter `cosid.machine.guarder.safe-guard-duration`. With the 4.0 starter, `cosid.proxy.read-timeout` must be positive. 4.0 servers keep the v1 machine API for 3.x clients (deprecated, now stateless on the backend lease store), and 4.0 clients use the v2 lease API (`/machines/v2`), which 3.x servers do not have. A 4.0 client whose `cosid.machine.guarder.safe-guard-duration` is below the server's `min-safe-guard-duration` gets `400` on `claims/expired`, so it fails to start when only expired machine ids are left; a 3.x client's safe guard is raised to the minimum instead.
 - **Redis**: 4.0 adds a `cosid:{namespace}:lease` hash next to the 3.4 keys; nothing to do.
 - **ZooKeeper and MongoDB**: the nodes and documents keep the 3.4 format; nothing to do.
 - Expiry is judged on the timestamp 3.4 reads, and a new owner starts after it, so 4.0 never takes a machine id earlier than 3.4 would. A host whose clock runs ahead of the others delays the reuse of the machine ids it releases (the next owner waits until its clock passes them), as in 3.4.
@@ -53,7 +63,7 @@
 
 ### Sharding algorithms moved to `cosid-sharding`
 
-`me.ahoo.cosid.sharding` (`ModCycle`, `IntervalTimeline`, `CachedSharding`, ...) moved from `cosid-core` to the new `me.ahoo.cosid:cosid-sharding` artifact, with the same package and class names. Add the dependency where you use them; the BOM manages its version. Downstream integrations need it too, such as the CosId sharding algorithms in Apache ShardingSphere (`shardingsphere-sharding-cosid`). Guava is now a dependency of `cosid-sharding` only.
+`me.ahoo.cosid.sharding` (`ModCycle`, `IntervalTimeline`, `CachedSharding`, ...) moved from `cosid-core` to the new `me.ahoo.cosid:cosid-sharding` artifact, with the same package and class names. Add the dependency where you use them; the BOM manages its version. Integrations compiled against CosId 3.x, such as ShardingSphere's CosId algorithms, must be rebuilt against 4.0. Guava is now a dependency of `cosid-sharding` only.
 
 ### Accessor and annotations moved to `cosid-accessor`
 
@@ -105,11 +115,13 @@ Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `
 
 A typed lookup of a generator with another type throws `IllegalArgumentException` naming both types. `@CosId` fields of type `String` keep working with the `cosid` generator; `long` and `int` fields need an `IdGenerator`. A `long` or `int` field bound to a string-only generator fails with a `CosIdException` naming the field and the generator: for Spring Data JDBC entities (`cosid.jdbc.enabled=true`) at startup, since the starter registers the accessors of the mapping context entities; for accessors registered up front (for example by `CosIdScanner`) when they are registered; and otherwise, as with MyBatis, on the first insert.
 
+**Binary compatibility**: `IdGeneratorProvider.set(String, IdGenerator)` is removed (`set(String, StringIdGenerator)` takes its place), and `getRequired(String)`, `remove(String)` and `LazyIdGenerator.tryGet(boolean)` return `StringIdGenerator` now. Code and libraries compiled against 3.x that call them fail with `NoSuchMethodError` and must be rebuilt against 4.0; for example ShardingSphere's `shardingsphere-sharding-cosid` calls `LazyIdGenerator.tryGet(boolean)`.
+
 ### Machine id leases
 
 `Lease` keeps the watermark (the last timestamp the machine id may have been used for, which only grows), the renewal time (the store time that decides expiry) and the version apart; `getLastTimestamp()` is replaced by `getWatermark()` and `getRenewedAt()`, and the constructor takes all three. Renewing no longer moves the watermark, and `MachineLeaseStore.release(lease, watermark)` names its argument for what it is. A custom `MachineLeaseStore` follows the time contract in its javadoc and must pass `MachineLeaseStoreSpec`. The built-in stores keep what 3.4 reads, see **Rolling upgrade**.
 
-With the starter, `cosid.machine.distributor.type` `redis`, `jdbc`, `zookeeper` and `mongo` run on the lease stores: the beans keep their names (`springRedisMachineIdDistributor`, `jdbcMachineIdDistributor`, `zookeeperMachineIdDistributor`, `mongoMachineIdDistributor`) but are `LeaseStoreMachineIdDistributor`s, and each store is a bean of its own (`springRedisMachineLeaseStore`, `jdbcMachineLeaseStore`, `zookeeperMachineLeaseStore`, `mongoMachineLeaseStore`). Inject `MachineIdDistributor` rather than the old concrete types; any `MachineIdDistributor` bean of yours replaces the built-in one.
+With the starter, `cosid.machine.distributor.type` `redis`, `jdbc`, `zookeeper` and `mongo` run on the lease stores: the beans keep their names (`springRedisMachineIdDistributor`, `jdbcMachineIdDistributor`, `zookeeperMachineIdDistributor`, `mongoMachineIdDistributor`) but are `LeaseStoreMachineIdDistributor`s, and each store is a bean of its own (`springRedisMachineLeaseStore`, `jdbcMachineLeaseStore`, `zookeeperMachineLeaseStore`, `mongoMachineLeaseStore`). The same holds for `proxy`: `proxyMachineIdDistributor` is a `LeaseStoreMachineIdDistributor` on the new `proxyMachineLeaseStore` bean. Inject `MachineIdDistributor` rather than the old concrete types; any `MachineIdDistributor` bean of yours replaces the built-in one.
 
 | Property | 4.0 |
 |---|---|
@@ -136,5 +148,18 @@ With the starter, `cosid.machine.distributor.type` `redis`, `jdbc`, `zookeeper` 
 The `{name}SegmentId` and `{name}SnowflakeId` beans are bean definitions now, registered by `SegmentIdBeanDefinitionRegistrar` and `SnowflakeIdBeanDefinitionRegistrar` for the ids in the configuration properties. Each definition is a factory method on the `segmentIdBeanRegistrar`/`snowflakeIdBeanRegistrar` bean, so the registration needs no other bean and works with ahead-of-time processing. Other beans can `@DependsOn("orderSegmentId")`, and closing the context closes the segment ids, which stops a segment chain's background prefetch (`StringSegmentId` is `AutoCloseable` and closes the id it decorates). Closing the context also removes its ids from the `IdGeneratorProvider`, unless the provider maps a name to another instance by then. The ids are created with the other singletons, so code that reads them from the `IdGeneratorProvider` while the context starts should depend on their beans.
 
 `CustomizeSegmentIdProperties` and `CustomizeSnowflakeIdProperties` are ordinary beans, applied to the `SegmentIdProperties` and `SnowflakeIdProperties` beans when the registrar beans are created. An id a customizer adds is registered in the `IdGeneratorProvider` only, not as a bean; declare it in the configuration properties to have a bean.
+
+The public constructors and `register()` of `SegmentIdBeanRegistrar` and `SnowflakeIdBeanRegistrar` are removed, and the constructors of `CosIdSegmentAutoConfiguration` and `CosIdSnowflakeAutoConfiguration` changed. To add ids in code, use a `CustomizeSegmentIdProperties`/`CustomizeSnowflakeIdProperties` bean, or `IdGeneratorProvider.set`.
+
+## Common startup errors
+
+| Error message contains | Fix |
+|---|---|
+| `Table cosid_machine has no lease columns` | Run the lease columns `ALTER TABLE` of **Rolling upgrade** (JDBC), then start again |
+| `Table cosid_machine has no stable column` | Run the `stable` column `ALTER TABLE` of **Rolling upgrade** (JDBC) |
+| `[cosid.machine.distributor.provider] was removed in 4.0` (or `cosid.segment.distributor.provider`) | Set the `type` the message names instead; it also selects your `CosIdStoreProvider` by its `getType()` |
+| `must be positive: the machine id lease store holds a lock during each call` | Set the named timeout (`cosid.machine.distributor.redis.timeout`, `redis.distribute-timeout`, `zookeeper.timeout`, `mongo.timeout`, `cosid.proxy.read-timeout`) to a positive duration |
+| `CosId's MongoDB reactive support was removed in 4.0` | Add `org.mongodb:mongodb-driver-sync`, see **MongoDB reactive support** |
+| `has converter.group-prefix enabled but no group` | Set `group.by` on that segment id, or turn `converter.group-prefix.enabled` off |
 
 The API diff against 3.4 is reported on every pull request to `main` (the **API Diff** workflow).

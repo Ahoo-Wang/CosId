@@ -36,9 +36,6 @@ public final class CosIdStoreProviders {
     }
     
     /**
-     * The store type to use: {@code provider} when set, otherwise the lower-case name of {@code type}.
-     */
-    /**
      * The store type a distributor setting selects, see {@link StoreTypes}. Fails naming the property that 4.0 removed
      * when the {@code provider} property is still set.
      *

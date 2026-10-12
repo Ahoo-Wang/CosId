@@ -408,7 +408,7 @@ public class MachineProperties {
         /**
          * The machine id store: {@code manual}, {@code stateful_set}, {@code jdbc}, {@code mongo}, {@code redis},
          * {@code zookeeper}, {@code proxy}, or the type of an application's
-         * {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider}. Case and {@code -}/{@code _} do not matter.
+         * {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider}. Compared by letters and digits only, without case, as Spring binds enums.
          * Default is {@code manual}.
          */
         private String type = MANUAL;
@@ -544,6 +544,15 @@ public class MachineProperties {
          */
         public Zookeeper getZookeeper() {
             return zookeeper;
+        }
+
+        /**
+         * Sets the ZooKeeper configuration.
+         *
+         * @param zookeeper the ZooKeeper configuration to set
+         */
+        public void setZookeeper(Zookeeper zookeeper) {
+            this.zookeeper = zookeeper;
         }
     }
     

@@ -52,7 +52,7 @@ class CosIdStoreProvidersTest {
         MockEnvironment environment = new MockEnvironment();
         String typeKey = MachineProperties.Distributor.TYPE;
         String providerKey = MachineProperties.Distributor.REMOVED_PROVIDER;
-        assertThat(CosIdStoreProviders.storeType(environment, typeKey, providerKey, "Stateful-Set", "manual")).isEqualTo("stateful_set");
+        assertThat(CosIdStoreProviders.storeType(environment, typeKey, providerKey, "Stateful-Set", "manual")).isEqualTo("statefulset");
         assertThat(CosIdStoreProviders.storeType(environment, typeKey, providerKey, " ", "redis")).isEqualTo("redis");
         assertThat(CosIdStoreProviders.storeType(environment, typeKey, providerKey, " ETCD ", "redis")).isEqualTo("etcd");
         

@@ -472,8 +472,8 @@ public class SegmentIdProperties {
         
         /**
          * The segment store: {@code redis}, {@code jdbc}, {@code mongo}, {@code zookeeper}, {@code proxy}, or the type of
-         * an application's {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider}. Case and
-         * {@code -}/{@code _} do not matter. Default is {@code redis}.
+         * an application's {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider}. Compared by letters and
+         * digits only, without case, as Spring binds enums. Default is {@code redis}.
          */
         private String type = REDIS;
         private Redis redis;

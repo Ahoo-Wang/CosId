@@ -37,7 +37,7 @@ class StoreTypeConditionTest {
     
     @Test
     void typesIgnoreCaseAndDashes() {
-        for (String type : new String[] {"stateful_set", "stateful-set", "STATEFUL_SET", " Stateful-Set "}) {
+        for (String type : new String[] {"stateful_set", "stateful-set", "STATEFUL_SET", " Stateful-Set ", "statefulSet", "StatefulSet", "statefulset"}) {
             contextRunner
                 .withPropertyValues(MachineProperties.Distributor.TYPE + "=" + type, SegmentIdProperties.Distributor.TYPE + "=REDIS")
                 .run(context -> assertThat(context)

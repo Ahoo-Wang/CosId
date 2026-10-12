@@ -15,11 +15,10 @@ package me.ahoo.cosid.spring.boot.starter.store;
 
 import org.jspecify.annotations.Nullable;
 
-import java.util.Locale;
-
 /**
- * Store types ({@code cosid.machine.distributor.type}, {@code cosid.segment.distributor.type}) compare without case and
- * with {@code -} and {@code _} alike, so {@code stateful-set}, {@code STATEFUL_SET} and {@code stateful_set} are one type.
+ * Store types ({@code cosid.machine.distributor.type}, {@code cosid.segment.distributor.type}) compare like Spring's
+ * relaxed binding of enums: only letters and digits count, without case, so {@code stateful_set}, {@code stateful-set},
+ * {@code STATEFUL_SET}, {@code statefulSet} and {@code statefulset} are one type.
  *
  * @since 4.0.0
  */
@@ -28,13 +27,20 @@ public final class StoreTypes {
     }
     
     /**
-     * The canonical form of a store type: trimmed, lower case, {@code _} for {@code -}.
+     * The canonical form of a store type: its letters and digits, in lower case.
      *
      * @param defaultType the type when {@code type} is blank
      */
     public static String normalize(@Nullable String type, String defaultType) {
         String value = type == null || type.isBlank() ? defaultType : type;
-        return value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        StringBuilder canonical = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (Character.isLetterOrDigit(c)) {
+                canonical.append(Character.toLowerCase(c));
+            }
+        }
+        return canonical.toString();
     }
     
     /**

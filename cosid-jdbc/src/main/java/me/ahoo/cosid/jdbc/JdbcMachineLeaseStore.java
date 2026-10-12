@@ -37,8 +37,16 @@ import java.util.Optional;
  * {@code (instance_id, last_timestamp)} as the compare-and-set.
  *
  * <p>It uses the same rows as {@link JdbcMachineIdDistributor} (a released machine id has an empty {@code instance_id}),
- * so instances running either one can share a namespace during an upgrade. The table needs the {@code stable} column
- * ({@link JdbcMachineIdDistributor#ADD_STABLE_COLUMN_SQL}). The server clock is read with {@code serverTimeSql}:
+ * so instances running either one, and 3.4 instances, can share a namespace during an upgrade. The lease keeps its
+ * renewal time, watermark and version in the {@code renew_time}, {@code watermark} and {@code lease_version} columns,
+ * and {@code last_timestamp} holds a value that is at least all of them and strictly increases, which 3.4 reads as its
+ * last timestamp and which is the lease version. {@code lease_version} equals {@code last_timestamp} when this store
+ * wrote the row last; otherwise a 3.4 instance did, and {@code last_timestamp} stands for the renewal time and the
+ * watermark. A 3.4 instance can write back the same {@code last_timestamp} (a host clock behind it), so handing a
+ * machine id to someone else never relies on the lease columns alone: expiry is judged on {@code last_timestamp},
+ * exactly as 3.4 judges it, and a new owner starts after it. The table needs the {@code stable} column ({@link JdbcMachineIdDistributor#ADD_STABLE_COLUMN_SQL}) and
+ * the lease columns ({@link #ADD_LEASE_COLUMNS_SQL}, {@link PostgreSqlDialect#ADD_LEASE_COLUMNS_SQL}): the constructor
+ * fails naming the statement when they are missing. The server clock is read with {@code serverTimeSql}:
  * {@link #MYSQL_SERVER_TIME_SQL} by default, {@link PostgreSqlDialect#SERVER_TIME_SQL} for PostgreSQL. Every statement
  * has the query timeout, and writes are committed when the connection is not in auto-commit mode.</p>
  *
@@ -63,35 +71,49 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
     private static final String PROBE_TABLE = "select 1 from cosid_machine where 1=0";
     
     /**
+     * Fails on tables created before 4.0.
+     */
+    private static final String PROBE_LEASE_COLUMNS = "select renew_time, watermark, lease_version from cosid_machine where 1=0";
+    
+    /**
+     * Migration of a {@code cosid_machine} table created before 4.0 (MySQL syntax).
+     */
+    public static final String ADD_LEASE_COLUMNS_SQL = "alter table cosid_machine add column renew_time bigint unsigned not null default 0, "
+        + "add column watermark bigint unsigned not null default 0, add column lease_version bigint unsigned not null default 0";
+    
+    private static final String COLUMNS = "machine_id, last_timestamp, instance_id, renew_time, watermark, lease_version";
+    
+    
+    /**
      * Upper bound of attempts when concurrent instances race for the same rows.
      */
     static final int MAX_ATTEMPTS = 32;
     
     private static final String SELECT_SELF =
-        "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id=? order by machine_id";
+        "select " + COLUMNS + " from cosid_machine where namespace=? and instance_id=? order by machine_id";
     
     private static final String SELECT_RELEASED =
-        "select machine_id, last_timestamp from cosid_machine where namespace=? and instance_id='' and machine_id<=? order by machine_id";
+        "select " + COLUMNS + " from cosid_machine where namespace=? and instance_id='' and machine_id<=? order by machine_id";
     
     private static final String SELECT_EXPIRED =
-        "select machine_id, last_timestamp, instance_id from cosid_machine "
+        "select " + COLUMNS + " from cosid_machine "
             + "where namespace=? and instance_id<>'' and stable=0 and last_timestamp<=? and machine_id<=? order by machine_id";
     
     private static final String SELECT_MAX_MACHINE_ID = "select max(machine_id) from cosid_machine where namespace=?";
     
     private static final String INSERT =
-        "insert into cosid_machine (name, namespace, machine_id, last_timestamp, instance_id, distribute_time, revert_time, stable) "
-            + "values (?,?,?,?,?,?,0,?)";
+        "insert into cosid_machine (name, namespace, machine_id, last_timestamp, instance_id, distribute_time, revert_time, stable, "
+            + "renew_time, watermark, lease_version) values (?,?,?,?,?,?,0,?,?,?,?)";
     
     private static final String TAKE =
-        "update cosid_machine set instance_id=?, last_timestamp=?, distribute_time=?, stable=? "
+        "update cosid_machine set instance_id=?, last_timestamp=?, distribute_time=?, stable=?, renew_time=?, watermark=?, lease_version=? "
             + "where name=? and instance_id=? and last_timestamp=?";
     
     private static final String RENEW =
-        "update cosid_machine set last_timestamp=?, stable=? where name=? and instance_id=? and last_timestamp=?";
+        "update cosid_machine set last_timestamp=?, stable=?, renew_time=?, lease_version=? where name=? and instance_id=? and last_timestamp=?";
     
     private static final String RELEASE =
-        "update cosid_machine set instance_id=?, last_timestamp=?, revert_time=?, stable=? "
+        "update cosid_machine set instance_id=?, last_timestamp=?, revert_time=?, stable=?, watermark=?, lease_version=? "
             + "where name=? and instance_id=? and last_timestamp=?";
     
     private final DataSource dataSource;
@@ -114,6 +136,7 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         Preconditions.checkArgument(serverTimeSql != null && !serverTimeSql.isBlank(), "serverTimeSql can not be blank!");
         this.serverTimeSql = serverTimeSql;
         checkStableColumn();
+        checkLeaseColumns();
     }
     
     /**
@@ -130,6 +153,20 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         }
         throw new IllegalStateException("Table cosid_machine has no stable column, which JdbcMachineLeaseStore needs. Add it with: ["
                 + JdbcMachineIdDistributor.ADD_STABLE_COLUMN_SQL + "] (MySQL) or [" + PostgreSqlDialect.ADD_STABLE_COLUMN_SQL + "] (PostgreSQL).",
+            sqlException);
+    }
+    
+    /**
+     * Fail fast on a {@code cosid_machine} table created before 4.0, naming the statement that adds the lease columns.
+     */
+    private void checkLeaseColumns() {
+        SQLException sqlException = probe(PROBE_LEASE_COLUMNS);
+        if (sqlException == null) {
+            return;
+        }
+        throw new IllegalStateException("Table cosid_machine has no lease columns (renew_time, watermark, lease_version), which "
+                + "JdbcMachineLeaseStore needs since 4.0. Add them with: [" + ADD_LEASE_COLUMNS_SQL + "] (MySQL) or ["
+                + PostgreSqlDialect.ADD_LEASE_COLUMNS_SQL + "] (PostgreSQL). 3.4 instances keep working with them.",
             sqlException);
     }
     
@@ -177,8 +214,12 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         }
     }
     
-    private static long nextTimestamp(long stored, long target) {
-        return Math.max(stored + 1, target);
+    /**
+     * The {@code last_timestamp} to write: strictly greater than the stored one, and at least the renewal time and the
+     * watermark, so 3.4 instances never see a lease older, or a watermark lower, than it is.
+     */
+    private static long nextTimestamp(long stored, long renewedAt, long watermark) {
+        return Math.max(stored + 1, Math.max(renewedAt, watermark));
     }
     
     private static int stableValue(InstanceId instanceId) {
@@ -192,15 +233,20 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         private final int machineId;
         private final long lastTimestamp;
         private final String instanceId;
+        private final long renewedAt;
+        private final long watermark;
         
-        private Row(int machineId, long lastTimestamp, String instanceId) {
+        private Row(int machineId, long lastTimestamp, String instanceId, long renewTime, long watermark, long leaseVersion) {
             this.machineId = machineId;
             this.lastTimestamp = lastTimestamp;
             this.instanceId = instanceId;
+            boolean writtenByLeaseStore = leaseVersion == lastTimestamp;
+            this.renewedAt = writtenByLeaseStore ? renewTime : lastTimestamp;
+            this.watermark = writtenByLeaseStore ? watermark : lastTimestamp;
         }
     }
     
-    private List<Row> select(Connection connection, String sql, String instanceId, Object... parameters) throws SQLException {
+    private List<Row> select(Connection connection, String sql, Object... parameters) throws SQLException {
         try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, sql, queryTimeoutSeconds)) {
             for (int i = 0; i < parameters.length; i++) {
                 statement.setObject(i + 1, parameters[i]);
@@ -208,29 +254,37 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
             List<Row> rows = new ArrayList<>();
             try (ResultSet resultSet = statement.executeQuery()) {
                 while (resultSet.next()) {
-                    String owner = instanceId == null ? resultSet.getString(3) : instanceId;
-                    rows.add(new Row(resultSet.getInt(1), resultSet.getLong(2), owner));
+                    rows.add(new Row(resultSet.getInt(1), resultSet.getLong(2), resultSet.getString(3), resultSet.getLong(4),
+                        resultSet.getLong(5), resultSet.getLong(6)));
                 }
             }
             return rows;
         }
     }
     
+    /**
+     * Take a machine id: the new owner starts no earlier than the previous owner's watermark, last renewal and last
+     * timestamp, and the store's current time.
+     */
     private Optional<Lease> take(Connection connection, String namespace, InstanceId instanceId, Row row, long now) throws SQLException {
-        long timestamp = nextTimestamp(row.lastTimestamp, now);
+        long watermark = Math.max(Math.max(row.watermark, row.renewedAt), Math.max(row.lastTimestamp, now));
+        long timestamp = nextTimestamp(row.lastTimestamp, now, watermark);
         try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, TAKE, queryTimeoutSeconds)) {
             statement.setString(1, instanceId.getInstanceId());
             statement.setLong(2, timestamp);
             statement.setLong(3, now);
             statement.setInt(4, stableValue(instanceId));
-            statement.setString(5, namespacedMachineId(namespace, row.machineId));
-            statement.setString(6, row.instanceId);
-            statement.setLong(7, row.lastTimestamp);
+            statement.setLong(5, now);
+            statement.setLong(6, watermark);
+            statement.setLong(7, timestamp);
+            statement.setString(8, namespacedMachineId(namespace, row.machineId));
+            statement.setString(9, row.instanceId);
+            statement.setLong(10, row.lastTimestamp);
             if (statement.executeUpdate() == 0) {
                 return Optional.empty();
             }
         }
-        return Optional.of(new Lease(namespace, instanceId, row.machineId, timestamp, timestamp, timestamp));
+        return Optional.of(new Lease(namespace, instanceId, row.machineId, watermark, now, timestamp));
     }
     
     /**
@@ -262,19 +316,19 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
     @Override
     public Optional<Lease> claimSelf(String namespace, InstanceId instanceId, long now) {
         return execute(connection -> takeFirst(connection, namespace, instanceId, now,
-            conn -> select(conn, SELECT_SELF, instanceId.getInstanceId(), namespace, instanceId.getInstanceId())));
+            conn -> select(conn, SELECT_SELF, namespace, instanceId.getInstanceId())));
     }
     
     @Override
     public Optional<Lease> claimReleased(String namespace, InstanceId instanceId, int maxMachineId, long now) {
         return execute(connection -> takeFirst(connection, namespace, instanceId, now,
-            conn -> select(conn, SELECT_RELEASED, "", namespace, maxMachineId)));
+            conn -> select(conn, SELECT_RELEASED, namespace, maxMachineId)));
     }
     
     @Override
     public Optional<Lease> claimExpired(String namespace, InstanceId instanceId, int maxMachineId, long expiredBefore, long now) {
         return execute(connection -> takeFirst(connection, namespace, instanceId, now,
-            conn -> select(conn, SELECT_EXPIRED, null, namespace, expiredBefore, maxMachineId)));
+            conn -> select(conn, SELECT_EXPIRED, namespace, expiredBefore, maxMachineId)));
     }
     
     @Override
@@ -293,6 +347,9 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
                     statement.setString(5, instanceId.getInstanceId());
                     statement.setLong(6, now);
                     statement.setInt(7, stableValue(instanceId));
+                    statement.setLong(8, now);
+                    statement.setLong(9, now);
+                    statement.setLong(10, now);
                     statement.executeUpdate();
                     return Optional.of(new Lease(namespace, instanceId, machineId, now, now, now));
                 } catch (SQLException sqlException) {
@@ -322,26 +379,29 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
     
     @Override
     public Optional<Lease> renew(Lease lease, long now) {
-        long timestamp = nextTimestamp(lease.getVersion(), now);
+        long timestamp = nextTimestamp(lease.getVersion(), now, lease.getWatermark());
         boolean renewed = execute(connection -> {
             try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, RENEW, queryTimeoutSeconds)) {
                 statement.setLong(1, timestamp);
                 statement.setInt(2, stableValue(lease.getInstanceId()));
-                statement.setString(3, namespacedMachineId(lease.getNamespace(), lease.getMachineId()));
-                statement.setString(4, lease.getInstanceId().getInstanceId());
-                statement.setLong(5, lease.getVersion());
+                statement.setLong(3, now);
+                statement.setLong(4, timestamp);
+                statement.setString(5, namespacedMachineId(lease.getNamespace(), lease.getMachineId()));
+                statement.setString(6, lease.getInstanceId().getInstanceId());
+                statement.setLong(7, lease.getVersion());
                 return statement.executeUpdate() > 0;
             }
         });
         if (!renewed) {
             return Optional.empty();
         }
-        return Optional.of(new Lease(lease.getNamespace(), lease.getInstanceId(), lease.getMachineId(), timestamp, timestamp, timestamp));
+        return Optional.of(new Lease(lease.getNamespace(), lease.getInstanceId(), lease.getMachineId(), lease.getWatermark(), now, timestamp));
     }
     
     @Override
-    public boolean release(Lease lease, long lastTimestamp) {
-        long timestamp = nextTimestamp(lease.getVersion(), lastTimestamp);
+    public boolean release(Lease lease, long watermark) {
+        long newWatermark = Math.max(lease.getWatermark(), watermark);
+        long timestamp = nextTimestamp(lease.getVersion(), lease.getRenewedAt(), newWatermark);
         boolean stable = lease.isStable();
         return execute(connection -> {
             try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, RELEASE, queryTimeoutSeconds)) {
@@ -349,9 +409,11 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
                 statement.setLong(2, timestamp);
                 statement.setLong(3, timestamp);
                 statement.setInt(4, stable ? 1 : 0);
-                statement.setString(5, namespacedMachineId(lease.getNamespace(), lease.getMachineId()));
-                statement.setString(6, lease.getInstanceId().getInstanceId());
-                statement.setLong(7, lease.getVersion());
+                statement.setLong(5, newWatermark);
+                statement.setLong(6, timestamp);
+                statement.setString(7, namespacedMachineId(lease.getNamespace(), lease.getMachineId()));
+                statement.setString(8, lease.getInstanceId().getInstanceId());
+                statement.setLong(9, lease.getVersion());
                 return statement.executeUpdate() > 0;
             }
         });

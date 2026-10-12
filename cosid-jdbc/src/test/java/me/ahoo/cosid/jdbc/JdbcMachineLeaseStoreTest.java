@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
+import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -67,6 +68,52 @@ class JdbcMachineLeaseStoreTest {
             () -> new JdbcMachineLeaseStore(legacy, JdbcSupport.DEFAULT_QUERY_TIMEOUT, PostgreSqlDialect.SERVER_TIME_SQL));
         
         Assertions.assertTrue(exception.getMessage().contains(PostgreSqlDialect.ADD_STABLE_COLUMN_SQL), exception.getMessage());
+    }
+    
+    @Test
+    void tableFrom34FailsAtConstructionNamingTheAlterAndWorksAfterIt() throws SQLException {
+        DataSource dataSource = RealPostgres.createDataSource();
+        String schema = "v34_" + MockIdGenerator.INSTANCE.generateAsString().toLowerCase();
+        RealPostgres.execute(dataSource, "create schema " + schema);
+        RealPostgres.execute(dataSource, PostgreSqlDialect.INIT_COSID_MACHINE_TABLE_SQL
+            .replace("create table if not exists cosid_machine", "create table " + schema + ".cosid_machine")
+            .replace("    renew_time      bigint       not null default 0,\n", "")
+            .replace("    watermark       bigint       not null default 0,\n", "")
+            .replace("    lease_version   bigint       not null default 0,\n", ""));
+        DataSource v34 = new ManualCommitDataSource(dataSource, schema);
+        
+        IllegalStateException exception = Assertions.assertThrows(IllegalStateException.class,
+            () -> new JdbcMachineLeaseStore(v34, JdbcSupport.DEFAULT_QUERY_TIMEOUT, PostgreSqlDialect.SERVER_TIME_SQL));
+        Assertions.assertTrue(exception.getMessage().contains(PostgreSqlDialect.ADD_LEASE_COLUMNS_SQL), exception.getMessage());
+        
+        RealPostgres.execute(dataSource, PostgreSqlDialect.ADD_LEASE_COLUMNS_SQL.replace("alter table cosid_machine", "alter table " + schema + ".cosid_machine"));
+        Assertions.assertDoesNotThrow(() -> new JdbcMachineLeaseStore(v34, JdbcSupport.DEFAULT_QUERY_TIMEOUT, PostgreSqlDialect.SERVER_TIME_SQL));
+    }
+    
+    /**
+     * A MySQL table from 3.4, as a temporary table on one shared connection, which hides the real one.
+     */
+    @Test
+    void mysqlTableFrom34FailsAtConstructionNamingTheAlter() throws SQLException {
+        DataSource realDataSource = RealMySql.createDataSource();
+        try (Connection shared = realDataSource.getConnection();
+             Statement statement = shared.createStatement()) {
+            statement.execute(JdbcMachineIdInitializer.INIT_COSID_MACHINE_TABLE_SQL
+                .replace("create table if not exists cosid_machine", "create temporary table cosid_machine")
+                .replace("    renew_time      bigint unsigned  not null default 0,\n", "")
+                .replace("    watermark       bigint unsigned  not null default 0,\n", "")
+                .replace("    lease_version   bigint unsigned  not null default 0,\n", ""));
+            Connection unclosable = (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(), new Class<?>[] {Connection.class},
+                (proxy, method, args) -> "close".equals(method.getName()) ? null : method.invoke(shared, args));
+            DataSource v34 = (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(), new Class<?>[] {DataSource.class},
+                (proxy, method, args) -> "getConnection".equals(method.getName()) ? unclosable : method.invoke(realDataSource, args));
+            
+            IllegalStateException exception = Assertions.assertThrows(IllegalStateException.class, () -> new JdbcMachineLeaseStore(v34));
+            Assertions.assertTrue(exception.getMessage().contains(JdbcMachineLeaseStore.ADD_LEASE_COLUMNS_SQL), exception.getMessage());
+            
+            statement.execute(JdbcMachineLeaseStore.ADD_LEASE_COLUMNS_SQL);
+            Assertions.assertDoesNotThrow(() -> new JdbcMachineLeaseStore(v34));
+        }
     }
     
     @Test

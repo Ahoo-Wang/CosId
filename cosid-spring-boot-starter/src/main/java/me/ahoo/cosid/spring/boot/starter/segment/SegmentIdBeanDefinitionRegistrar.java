@@ -55,13 +55,18 @@ public class SegmentIdBeanDefinitionRegistrar implements BeanDefinitionRegistryP
     }
     
     private static void register(BeanDefinitionRegistry registry, String name) {
+        String beanName = SegmentIdBeanRegistrar.beanName(name);
+        if (registry.containsBeanDefinition(beanName)) {
+            // Ahead-of-time processing already generated the definition, and runs this registrar again at runtime.
+            return;
+        }
         RootBeanDefinition beanDefinition = new RootBeanDefinition();
         beanDefinition.setTargetType(SegmentId.class);
         beanDefinition.setFactoryBeanName(SegmentIdBeanRegistrar.BEAN_NAME);
         beanDefinition.setFactoryMethodName("createBean");
         beanDefinition.getConstructorArgumentValues().addIndexedArgumentValue(0, name);
         beanDefinition.setDestroyMethodName(AbstractBeanDefinition.INFER_METHOD);
-        registry.registerBeanDefinition(SegmentIdBeanRegistrar.beanName(name), beanDefinition);
+        registry.registerBeanDefinition(beanName, beanDefinition);
     }
     
     @Override

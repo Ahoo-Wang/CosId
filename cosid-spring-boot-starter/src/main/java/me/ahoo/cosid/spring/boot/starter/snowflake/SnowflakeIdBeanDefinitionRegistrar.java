@@ -53,12 +53,17 @@ public class SnowflakeIdBeanDefinitionRegistrar implements BeanDefinitionRegistr
     }
     
     private static void register(BeanDefinitionRegistry registry, String name) {
+        String beanName = SnowflakeIdBeanRegistrar.beanName(name);
+        if (registry.containsBeanDefinition(beanName)) {
+            // Ahead-of-time processing already generated the definition, and runs this registrar again at runtime.
+            return;
+        }
         RootBeanDefinition beanDefinition = new RootBeanDefinition();
         beanDefinition.setTargetType(SnowflakeId.class);
         beanDefinition.setFactoryBeanName(SnowflakeIdBeanRegistrar.BEAN_NAME);
         beanDefinition.setFactoryMethodName("createBean");
         beanDefinition.getConstructorArgumentValues().addIndexedArgumentValue(0, name);
-        registry.registerBeanDefinition(SnowflakeIdBeanRegistrar.beanName(name), beanDefinition);
+        registry.registerBeanDefinition(beanName, beanDefinition);
     }
     
     @Override

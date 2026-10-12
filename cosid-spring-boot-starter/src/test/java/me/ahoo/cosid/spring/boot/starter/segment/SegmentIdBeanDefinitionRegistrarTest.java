@@ -22,6 +22,8 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.SegmentChainId;
 import me.ahoo.cosid.segment.SegmentId;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
+import me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdBeanDefinitionRegistrar;
+import me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties;
 import me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor;
 
 import jakarta.annotation.PostConstruct;
@@ -32,6 +34,7 @@ import org.springframework.aot.generate.GeneratedFiles;
 import org.springframework.aot.generate.InMemoryGeneratedFiles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.util.TestPropertyValues;
@@ -41,6 +44,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.aot.ApplicationContextAotGenerator;
 import org.springframework.javapoet.ClassName;
+import org.springframework.mock.env.MockEnvironment;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -127,6 +131,24 @@ class SegmentIdBeanDefinitionRegistrarTest {
             assertThat(files.getGeneratedFiles(GeneratedFiles.Kind.SOURCE)).isNotEmpty();
             assertThat(context.getBeanFactory().getBeanDefinition("orderSegmentId").getFactoryMethodName()).isEqualTo("createBean");
         }
+    }
+    
+    @Test
+    void runningTheRegistrarsAgainKeepsTheGeneratedDefinitions() {
+        DefaultListableBeanFactory registry = new DefaultListableBeanFactory();
+        registry.setAllowBeanDefinitionOverriding(false);
+        MockEnvironment environment = new MockEnvironment()
+            .withProperty(SegmentIdProperties.PREFIX + ".provider.order.step", "10")
+            .withProperty(SnowflakeIdProperties.PREFIX + ".provider.order.epoch", "1577203200000");
+        SegmentIdBeanDefinitionRegistrar segment = new SegmentIdBeanDefinitionRegistrar();
+        segment.setEnvironment(environment);
+        SnowflakeIdBeanDefinitionRegistrar snowflake = new SnowflakeIdBeanDefinitionRegistrar();
+        snowflake.setEnvironment(environment);
+        for (int i = 0; i < 2; i++) {
+            segment.postProcessBeanDefinitionRegistry(registry);
+            snowflake.postProcessBeanDefinitionRegistry(registry);
+        }
+        assertThat(registry.getBeanDefinitionNames()).containsExactlyInAnyOrder("__share__SegmentId", "orderSegmentId", "__share__SnowflakeId", "orderSnowflakeId");
     }
     
     @Configuration(proxyBeanMethods = false)

@@ -51,7 +51,8 @@ public abstract class MachineLeaseStoreSpec {
     
     /**
      * Whether the store keeps the watermark apart from the renewal time. Stores still on the 3.4 format, with one last
-     * timestamp for both, return {@code false}: the cases that need the separation then pass without checking anything.
+     * timestamp for both, return {@code false}: the cases that need the separation then check that the store really keeps
+     * one timestamp, so the opt-out cannot outlive the store's new format.
      */
     protected boolean separatesWatermark() {
         return true;
@@ -82,6 +83,7 @@ public abstract class MachineLeaseStoreSpec {
             assertThat(lease.getMachineId(), equalTo(machineId));
             assertThat(lease.getNamespace(), equalTo(namespace));
             assertThat(lease.getRenewedAt(), greaterThanOrEqualTo(T0));
+            assertThat(lease.getWatermark(), greaterThanOrEqualTo(T0));
         }
         assertThat(store.claimNew(namespace, instance("overflow"), 3, T0).isPresent(), equalTo(false));
     }
@@ -96,7 +98,7 @@ public abstract class MachineLeaseStoreSpec {
         
         assertThat(self.getMachineId(), equalTo(claimed.getMachineId()));
         assertThat(self.getRenewedAt(), greaterThanOrEqualTo(T0 + 10));
-        assertThat(self.getWatermark(), greaterThanOrEqualTo(claimed.getRenewedAt()));
+        assertThat(self.getWatermark(), greaterThanOrEqualTo(T0 + 10));
         assertThat(self.getVersion(), not(equalTo(claimed.getVersion())));
         assertThat(store.claimSelf(namespace, instance("stranger"), T0).isPresent(), equalTo(false));
     }
@@ -141,8 +143,8 @@ public abstract class MachineLeaseStoreSpec {
         
         assertThat(claimed.getMachineId(), equalTo(expired.getMachineId()));
         assertThat(claimed.getRenewedAt(), greaterThanOrEqualTo(T0 + 2000));
-        // The previous owner may have used the machine id up to its last renewal.
-        assertThat(claimed.getWatermark(), greaterThanOrEqualTo(expired.getRenewedAt()));
+        // The previous owner may have used the machine id up to its last renewal; this host's clock may be behind the store.
+        assertThat(claimed.getWatermark(), greaterThanOrEqualTo(T0 + 2000));
         assertThat(store.claimExpired(namespace, instance("another"), MAX_MACHINE_ID, T0 + 10, T0 + 2000).isPresent(), equalTo(false));
         // Long past the stable owner's last renewal: still never recycled.
         assertThat(store.claimExpired(namespace, instance("another"), MAX_MACHINE_ID, Long.MAX_VALUE - 1, T0 + 2000).map(Lease::getMachineId),
@@ -378,10 +380,6 @@ public abstract class MachineLeaseStoreSpec {
     
     @Test
     public void renewDoesNotAdvanceTheWatermark() {
-        if (!separatesWatermark()) {
-            // Not skipped with an assumption: CI fails real-backend test classes that skip tests.
-            return;
-        }
         MachineLeaseStore store = getStore();
         String namespace = newNamespace("renewWatermark");
         Lease owner = store.claimNew(namespace, instance("owner"), 3, T0).orElseThrow();
@@ -390,6 +388,12 @@ public abstract class MachineLeaseStoreSpec {
         
         Lease renewed = store.renew(next, T0 + 60_000).orElseThrow();
         Lease renewedAgain = store.renew(renewed, T0 + 120_000).orElseThrow();
+        if (!separatesWatermark()) {
+            // A store that opts out must really keep one timestamp: drop the opt-out once its new format lands.
+            assertThat("separatesWatermark() is false but renewing left the watermark alone", renewedAgain.getWatermark(),
+                greaterThanOrEqualTo(T0 + 120_000));
+            return;
+        }
         
         assertThat(renewed.getWatermark(), equalTo(next.getWatermark()));
         assertThat(renewedAgain.getWatermark(), equalTo(next.getWatermark()));
@@ -398,16 +402,17 @@ public abstract class MachineLeaseStoreSpec {
     
     @Test
     public void renewAfterTheStoreClockMovedBackKeepsTheLeaseAlive() {
-        if (!separatesWatermark()) {
-            // Not skipped with an assumption: CI fails real-backend test classes that skip tests.
-            return;
-        }
         MachineLeaseStore store = getStore();
         String namespace = newNamespace("renewBackwards");
         Lease owner = store.claimNew(namespace, instance("owner"), 0, T0 + 1000).orElseThrow();
         
         // The store clock moved back by 900ms: the renewal still counts from the new clock.
         Lease renewed = store.renew(owner, T0 + 100).orElseThrow();
+        if (!separatesWatermark()) {
+            assertThat("separatesWatermark() is false but the renewal time followed the clock back", renewed.getRenewedAt(),
+                greaterThanOrEqualTo(owner.getRenewedAt()));
+            return;
+        }
         
         assertThat(renewed.getRenewedAt(), equalTo(T0 + 100));
         assertThat(store.claimExpired(namespace, instance("thief"), MAX_MACHINE_ID, T0 + 99, T0 + 150).isPresent(), equalTo(false));

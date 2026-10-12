@@ -103,6 +103,9 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+          # latest belongs to the newest major line (4.x on main): 3.x releases must not move it.
+          flavor: |
+            latest=false
 
       - name: Build and push
         uses: docker/build-push-action@v7

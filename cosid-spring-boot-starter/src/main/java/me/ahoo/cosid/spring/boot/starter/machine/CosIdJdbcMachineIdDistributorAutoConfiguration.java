@@ -91,9 +91,16 @@ public class CosIdJdbcMachineIdDistributorAutoConfiguration {
     
     private static String serverTimeSqlOf(DataSource dataSource) {
         try (Connection connection = dataSource.getConnection()) {
-            String product = connection.getMetaData().getDatabaseProductName();
-            return product != null && product.toLowerCase(Locale.ROOT).contains("postgres")
-                ? PostgreSqlDialect.SERVER_TIME_SQL : JdbcMachineLeaseStore.MYSQL_SERVER_TIME_SQL;
+            String product = String.valueOf(connection.getMetaData().getDatabaseProductName());
+            String normalized = product.toLowerCase(Locale.ROOT);
+            if (normalized.contains("postgres")) {
+                return PostgreSqlDialect.SERVER_TIME_SQL;
+            }
+            if (normalized.contains("mysql") || normalized.contains("mariadb")) {
+                return JdbcMachineLeaseStore.MYSQL_SERVER_TIME_SQL;
+            }
+            throw new IllegalStateException("No server time query known for database [" + product + "]: set "
+                + MachineProperties.PREFIX + ".distributor.jdbc.server-time-sql to a query returning the server's current time in milliseconds.");
         } catch (SQLException sqlException) {
             throw new IllegalStateException("Can not read the database product to choose the server time query: set "
                 + MachineProperties.PREFIX + ".distributor.jdbc.server-time-sql.", sqlException);

@@ -642,8 +642,8 @@ public class MachineProperties {
      */
     public static class Zookeeper {
         /**
-         * Timeout of machine ID guard and revert. Curator has no per-operation timeout, so without it a ZooKeeper
-         * that does not answer blocks the guarder for minutes. Default is 5 seconds; zero disables it.
+         * Timeout of each machine id lease call. Curator has no per-operation timeout, so without it a ZooKeeper
+         * that does not answer blocks the guarder for minutes. Default is 5 seconds; it must be positive.
          */
         private Duration timeout = Duration.ofSeconds(5);
 
@@ -665,8 +665,8 @@ public class MachineProperties {
     public static class Redis {
 
         /**
-         * Timeout for Redis operations.
-         * Default is 1 second.
+         * Timeout of the machine id lease renewals and releases, which run under a lock.
+         * Default is 1 second; it must be positive.
          */
         private Duration timeout = Duration.ofSeconds(1);
         
@@ -689,8 +689,8 @@ public class MachineProperties {
         }
         
         /**
-         * Timeout of the machine id distribution at startup, the first Redis command, which also pays for connecting.
-         * Default is 10 seconds, {@code 0} means no timeout.
+         * Timeout of each machine id claim (the distribution at startup), whose first Redis command also pays for
+         * connecting. Default is 10 seconds, {@code 0} means no timeout.
          */
         private Duration distributeTimeout = Duration.ofSeconds(10);
         
@@ -718,7 +718,7 @@ public class MachineProperties {
 
         /**
          * Timeout of each MongoDB operation (the driver's client-side operation timeout, {@code timeoutMS}).
-         * Default is 5 seconds; zero keeps the MongoClient's settings.
+         * Default is 5 seconds; it must be positive.
          */
         private Duration timeout = Duration.ofSeconds(5);
 
@@ -792,7 +792,7 @@ public class MachineProperties {
 
         /**
          * Query returning the database server's current time in milliseconds, for the machine id lease store.
-         * Default is chosen from the database product: PostgreSQL's, otherwise MySQL's.
+         * Default is chosen from the database product (PostgreSQL, MySQL or MariaDB); other databases must set it.
          */
         @Nullable
         private String serverTimeSql;

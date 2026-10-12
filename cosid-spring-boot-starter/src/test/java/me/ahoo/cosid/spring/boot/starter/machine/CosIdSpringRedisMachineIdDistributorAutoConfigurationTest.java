@@ -71,6 +71,20 @@ class CosIdSpringRedisMachineIdDistributorAutoConfigurationTest {
     }
     
     @Test
+    void wiresRedisDistributeTimeoutPropertyToClaims() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
+            .run(context -> assertThat(context.getBean(SpringRedisMachineLeaseStore.class).getClaimTimeout().getTimeout())
+                .isEqualTo(Duration.ofSeconds(10)));
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
+            .withPropertyValues("cosid.machine.distributor.redis.distribute-timeout=0")
+            .run(context -> assertThat(context.getBean(SpringRedisMachineLeaseStore.class).getClaimTimeout().isEnabled()).isFalse());
+    }
+    
+    @Test
     void zeroRedisTimeoutFailsStartupNamingTheProperty() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")

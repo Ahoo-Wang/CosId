@@ -102,8 +102,8 @@ With the starter, `cosid.machine.distributor.type` `redis`, `jdbc`, `zookeeper` 
 | Property | 4.0 |
 |---|---|
 | `cosid.machine.distributor.redis.timeout`, `.zookeeper.timeout`, `.mongo.timeout` | bound every lease store call and must be positive: `0` fails startup naming the property |
-| `cosid.machine.distributor.redis.distribute-timeout` | no longer used: every command is bounded by `redis.timeout` |
-| `cosid.machine.distributor.jdbc.server-time-sql` | new: the query for the database clock, chosen from the database product (PostgreSQL or MySQL) when unset |
+| `cosid.machine.distributor.redis.timeout` and `.distribute-timeout` | `timeout` bounds renew and release, `distribute-timeout` the claims at startup, as in 3.4 |
+| `cosid.machine.distributor.jdbc.server-time-sql` | new: the query for the database clock, chosen from the database product (PostgreSQL, MySQL or MariaDB) when unset; other databases must set it |
 
 _To be filled in: the configuration property model._
 

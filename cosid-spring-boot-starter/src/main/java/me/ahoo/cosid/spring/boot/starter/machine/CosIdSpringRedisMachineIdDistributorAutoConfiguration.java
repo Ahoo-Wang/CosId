@@ -52,7 +52,9 @@ public class CosIdSpringRedisMachineIdDistributorAutoConfiguration {
     }
     
     /**
-     * The machine id lease store on Redis; every command is bounded by {@code cosid.machine.distributor.redis.timeout}.
+     * The machine id lease store on Redis: renew and release are bounded by {@code cosid.machine.distributor.redis.timeout},
+     * claims (the startup distribution, whose first command also pays for connecting) by
+     * {@code cosid.machine.distributor.redis.distribute-timeout}.
      */
     @Bean
     @ConditionalOnMissingBean
@@ -60,7 +62,7 @@ public class CosIdSpringRedisMachineIdDistributorAutoConfiguration {
     public SpringRedisMachineLeaseStore springRedisMachineLeaseStore(StringRedisTemplate redisTemplate) {
         MachineProperties.Redis redis = machineProperties.getDistributor().getRedis();
         return new SpringRedisMachineLeaseStore(redisTemplate, RedisCommandTimeout.of(MachineLeaseStores.positive(redis.getTimeout(),
-            MachineProperties.PREFIX + ".distributor.redis.timeout")));
+            MachineProperties.PREFIX + ".distributor.redis.timeout")), RedisCommandTimeout.of(redis.getDistributeTimeout()));
     }
     
     @Bean

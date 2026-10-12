@@ -57,7 +57,12 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
 
         MachineState localState = machineStateStorage.get(namespace, instanceId);
         MachineState remoteState = distributeRemote(namespace, machineBit, instanceId, safeGuardDuration);
-        ensureMachineId(machineBit, instanceId, remoteState);
+        try {
+            ensureMachineId(machineBit, instanceId, remoteState);
+        } catch (RuntimeException outOfRange) {
+            releaseAfterFailedDistribute(namespace, instanceId, remoteState, outOfRange);
+            throw outOfRange;
+        }
 
         long lastTimeStamp = remoteState.getLastTimeStamp();
         if (!MachineState.NOT_FOUND.equals(localState)) {
@@ -80,8 +85,14 @@ public abstract class AbstractMachineIdDistributor implements MachineIdDistribut
             machineState = MachineState.of(remoteState.getMachineId(), System.currentTimeMillis());
         }
 
-        synchronized (localStateLock) {
-            machineStateStorage.set(namespace, machineState.getMachineId(), instanceId);
+        try {
+            synchronized (localStateLock) {
+                machineStateStorage.set(namespace, machineState.getMachineId(), instanceId);
+            }
+        } catch (RuntimeException localStateException) {
+            // The machine id is taken in the store: give it back, or it stays blocked for the safe guard duration.
+            releaseAfterFailedDistribute(namespace, instanceId, machineState, localStateException);
+            throw localStateException;
         }
         return machineState;
     }

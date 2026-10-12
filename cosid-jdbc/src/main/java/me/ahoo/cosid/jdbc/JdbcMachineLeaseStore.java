@@ -42,7 +42,9 @@ import java.util.Optional;
  * and {@code last_timestamp} holds a value that is at least all of them and strictly increases, which 3.4 reads as its
  * last timestamp and which is the lease version. {@code lease_version} equals {@code last_timestamp} when this store
  * wrote the row last; otherwise a 3.4 instance did, and {@code last_timestamp} stands for the renewal time and the
- * watermark. The table needs the {@code stable} column ({@link JdbcMachineIdDistributor#ADD_STABLE_COLUMN_SQL}) and
+ * watermark. A 3.4 instance can write back the same {@code last_timestamp} (a host clock behind it), so handing a
+ * machine id to someone else never relies on the lease columns alone: expiry is judged on {@code last_timestamp},
+ * exactly as 3.4 judges it, and a new owner starts after it. The table needs the {@code stable} column ({@link JdbcMachineIdDistributor#ADD_STABLE_COLUMN_SQL}) and
  * the lease columns ({@link #ADD_LEASE_COLUMNS_SQL}, {@link PostgreSqlDialect#ADD_LEASE_COLUMNS_SQL}): the constructor
  * fails naming the statement when they are missing. The server clock is read with {@code serverTimeSql}:
  * {@link #MYSQL_SERVER_TIME_SQL} by default, {@link PostgreSqlDialect#SERVER_TIME_SQL} for PostgreSQL. Every statement
@@ -81,10 +83,6 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
     
     private static final String COLUMNS = "machine_id, last_timestamp, instance_id, renew_time, watermark, lease_version";
     
-    /**
-     * The renewal time of a row: its own column when this store wrote the row last, otherwise the 3.4 last timestamp.
-     */
-    private static final String RENEWED_AT = "(case when lease_version=last_timestamp then renew_time else last_timestamp end)";
     
     /**
      * Upper bound of attempts when concurrent instances race for the same rows.
@@ -99,13 +97,13 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
     
     private static final String SELECT_EXPIRED =
         "select " + COLUMNS + " from cosid_machine "
-            + "where namespace=? and instance_id<>'' and stable=0 and " + RENEWED_AT + "<=? and machine_id<=? order by machine_id";
+            + "where namespace=? and instance_id<>'' and stable=0 and last_timestamp<=? and machine_id<=? order by machine_id";
     
     private static final String SELECT_MAX_MACHINE_ID = "select max(machine_id) from cosid_machine where namespace=?";
     
     private static final String INSERT =
         "insert into cosid_machine (name, namespace, machine_id, last_timestamp, instance_id, distribute_time, revert_time, stable, "
-            + "renew_time, watermark, lease_version) values (?,?,?,?,?,?,0,?,?,0,?)";
+            + "renew_time, watermark, lease_version) values (?,?,?,?,?,?,0,?,?,?,?)";
     
     private static final String TAKE =
         "update cosid_machine set instance_id=?, last_timestamp=?, distribute_time=?, stable=?, renew_time=?, watermark=?, lease_version=? "
@@ -265,10 +263,11 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
     }
     
     /**
-     * Take a machine id: the watermark covers the previous owner's last renewal.
+     * Take a machine id: the new owner starts no earlier than the previous owner's watermark, last renewal and last
+     * timestamp, and the store's current time.
      */
     private Optional<Lease> take(Connection connection, String namespace, InstanceId instanceId, Row row, long now) throws SQLException {
-        long watermark = Math.max(row.watermark, row.renewedAt);
+        long watermark = Math.max(Math.max(row.watermark, row.renewedAt), Math.max(row.lastTimestamp, now));
         long timestamp = nextTimestamp(row.lastTimestamp, now, watermark);
         try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, TAKE, queryTimeoutSeconds)) {
             statement.setString(1, instanceId.getInstanceId());
@@ -350,8 +349,9 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
                     statement.setInt(7, stableValue(instanceId));
                     statement.setLong(8, now);
                     statement.setLong(9, now);
+                    statement.setLong(10, now);
                     statement.executeUpdate();
-                    return Optional.of(new Lease(namespace, instanceId, machineId, 0, now, now));
+                    return Optional.of(new Lease(namespace, instanceId, machineId, now, now, now));
                 } catch (SQLException sqlException) {
                     // Another instance inserted the same machine id first.
                     if (!JdbcSupport.isDuplicateKey(sqlException) || attempt >= MAX_ATTEMPTS) {

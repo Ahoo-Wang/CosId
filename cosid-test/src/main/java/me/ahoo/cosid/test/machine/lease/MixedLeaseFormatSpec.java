@@ -31,8 +31,8 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
+import java.util.SplittableRandom;
 
 /**
  * Compatibility kit for the upgrade from 3.4: 3.4 instances (the 3.4 machine id distributor of a backend, writing the
@@ -54,12 +54,18 @@ public abstract class MixedLeaseFormatSpec {
      */
     protected abstract MachineIdDistributor v40();
 
+    /**
+     * Do what a 3.4 instance whose host clock is behind does when it takes a released machine id: give it to
+     * {@code instanceId} and write back the very same last timestamp, in the 3.4 format.
+     */
+    protected abstract void takeReleasedAs34WithTheSameTimestamp(String namespace, int machineId, String instanceId);
+
     private static String newNamespace(String prefix) {
         return prefix + "_" + MockIdGenerator.INSTANCE.generateAsString();
     }
 
     @Test
-    public void randomDistributeAndRevertNeverSharesAMachineId() {
+    public void randomDistributeAndRevertNeverShareMachineIds() {
         String namespace = newNamespace("mixedRandom");
         MachineIdDistributor[] distributors = new MachineIdDistributor[SLOTS];
         InstanceId[] instances = new InstanceId[SLOTS];
@@ -70,7 +76,7 @@ public abstract class MixedLeaseFormatSpec {
         // Machine ids of live instances, and of stable instances that shut down (they keep theirs).
         Map<Integer, Integer> held = new HashMap<>();
         Set<Integer> live = new HashSet<>();
-        Random random = new Random(42);
+        SplittableRandom random = new SplittableRandom(42);
         for (int step = 0; step < 300; step++) {
             int slot = random.nextInt(SLOTS);
             if (live.contains(slot)) {
@@ -150,5 +156,27 @@ public abstract class MixedLeaseFormatSpec {
         MachineState again = v40().distribute(namespace, 1, InstanceId.of("new-again", false), safeGuard);
         assertThat(again.getMachineId(), equalTo(oldState.getMachineId()));
         assertThat(again.getLastTimeStamp(), greaterThanOrEqualTo(oldState.getLastTimeStamp()));
+    }
+
+    /**
+     * A 3.4 instance with a host clock behind takes a machine id that 4.0 released and writes back the very same
+     * timestamp: 4.0 must not take it from that live 3.4 owner, even though the 4.0 owner's last renewal is older than
+     * the safe guard.
+     */
+    @Test
+    public void releasedThenTakenBy34WithTheSameTimestampIsNotTakenAgain() throws InterruptedException {
+        String namespace = newNamespace("mixedSameTimestamp");
+        Duration safeGuard = Duration.ofMillis(300);
+        blockOneOfTwoMachineIds(namespace);
+        MachineIdDistributor newDistributor = v40();
+        InstanceId newOwner = InstanceId.of("new-owner", false);
+        int machineId = newDistributor.distribute(namespace, 1, newOwner, safeGuard).getMachineId();
+        Thread.sleep(600);
+        newDistributor.revert(namespace, newOwner);
+        
+        takeReleasedAs34WithTheSameTimestamp(namespace, machineId, "lagging-34");
+        
+        assertThrows(MachineIdOverflowException.class,
+            () -> v40().distribute(namespace, 1, InstanceId.of("new-claimer", false), safeGuard));
     }
 }

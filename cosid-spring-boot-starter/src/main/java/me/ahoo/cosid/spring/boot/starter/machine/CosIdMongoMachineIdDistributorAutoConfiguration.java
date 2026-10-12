@@ -14,11 +14,13 @@
 package me.ahoo.cosid.spring.boot.starter.machine;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.mongo.MachineCollection;
 import me.ahoo.cosid.mongo.MongoMachineCollection;
-import me.ahoo.cosid.mongo.MongoMachineIdDistributor;
 import me.ahoo.cosid.mongo.MongoMachineInitializer;
+import me.ahoo.cosid.mongo.MongoMachineLeaseStore;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.MongoReactiveRemoved;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
@@ -46,7 +48,7 @@ import org.springframework.context.annotation.Primary;
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
-@ConditionalOnClass(MongoMachineIdDistributor.class)
+@ConditionalOnClass(MongoMachineLeaseStore.class)
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "mongo")
 @AutoConfigureAfter(MongoAutoConfiguration.class)
 public class CosIdMongoMachineIdDistributorAutoConfiguration {
@@ -57,18 +59,19 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
     }
     
     @Bean
-    @ConditionalOnMissingBean
+    @ConditionalOnMissingBean(MachineIdDistributor.class)
     @ConditionalOnBuiltInMachineStore
-    public MongoMachineIdDistributor mongoMachineIdDistributor(MachineCollection machineCollection, MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new MongoMachineIdDistributor(machineCollection, localMachineState, clockBackwardsSynchronizer);
+    public LeaseStoreMachineIdDistributor mongoMachineIdDistributor(MongoMachineLeaseStore mongoMachineLeaseStore, MachineStateStorage localMachineState,
+                                                                    ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        return new LeaseStoreMachineIdDistributor(mongoMachineLeaseStore, localMachineState, clockBackwardsSynchronizer);
     }
 
     /**
      * The MongoDB backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
      */
     @Bean
-    public BuiltInStoreProvider cosIdMongoMachineStoreProvider(ObjectProvider<MachineCollection> machineCollection) {
-        return BuiltInStoreProvider.machine("mongo", context -> mongoMachineIdDistributor(machineCollection.getObject(), context.getMachineStateStorage(),
+    public BuiltInStoreProvider cosIdMongoMachineStoreProvider(ObjectProvider<MongoMachineLeaseStore> mongoMachineLeaseStore) {
+        return BuiltInStoreProvider.machine("mongo", context -> mongoMachineIdDistributor(mongoMachineLeaseStore.getObject(), context.getMachineStateStorage(),
             context.getClockBackwardsSynchronizer()));
     }
     
@@ -97,6 +100,18 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
             return new MongoMachineInitializer(mongoDatabase);
         }
         
+        /**
+         * The machine id lease store on MongoDB; every operation is bounded by
+         * {@code cosid.machine.distributor.mongo.timeout}.
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        public MongoMachineLeaseStore mongoMachineLeaseStore(MongoClient mongoClient) {
+            MachineProperties.Mongo mongo = machineProperties.getDistributor().getMongo();
+            return new MongoMachineLeaseStore(mongoClient.getDatabase(mongo.getDatabase()),
+                MachineLeaseStores.positive(mongo.getTimeout(), MachineProperties.PREFIX + ".distributor.mongo.timeout"));
+        }
+        
         @Bean
         @Primary
         @ConditionalOnMissingBean
@@ -118,6 +133,11 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
     static class ReactiveOnly {
         @Bean
         public MachineCollection mongoMachineCollection() {
+            return MongoReactiveRemoved.fail();
+        }
+        
+        @Bean
+        public MongoMachineLeaseStore mongoMachineLeaseStore() {
             return MongoReactiveRemoved.fail();
         }
     }

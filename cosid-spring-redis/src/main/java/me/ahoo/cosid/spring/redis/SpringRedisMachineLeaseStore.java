@@ -55,6 +55,10 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
         Preconditions.checkArgument(commandTimeout.isEnabled(), "commandTimeout must be enabled: the lease adapter holds a lock during each call!");
     }
     
+    public RedisCommandTimeout getCommandTimeout() {
+        return commandTimeout;
+    }
+    
     private static String stable(InstanceId instanceId) {
         return instanceId.isStable() ? "1" : "0";
     }

@@ -21,6 +21,7 @@ import me.ahoo.cosid.machine.LocalMachineStateStorage;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
@@ -788,6 +789,22 @@ public class MachineProperties {
          */
         // Not JdbcSupport.DEFAULT_QUERY_TIMEOUT: a Duration is not inlined, so it would load cosid-jdbc for every starter user.
         private Duration queryTimeout = Duration.ofSeconds(5);
+
+        /**
+         * Query returning the database server's current time in milliseconds, for the machine id lease store.
+         * Default is chosen from the database product: PostgreSQL's, otherwise MySQL's.
+         */
+        @Nullable
+        private String serverTimeSql;
+
+        @Nullable
+        public String getServerTimeSql() {
+            return serverTimeSql;
+        }
+
+        public void setServerTimeSql(@Nullable String serverTimeSql) {
+            this.serverTimeSql = serverTimeSql;
+        }
 
         public Duration getQueryTimeout() {
             return queryTimeout;

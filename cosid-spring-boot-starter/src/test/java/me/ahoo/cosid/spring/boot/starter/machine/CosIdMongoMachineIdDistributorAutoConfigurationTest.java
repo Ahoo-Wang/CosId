@@ -23,10 +23,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.mongo.MongoMachineCollection;
-import me.ahoo.cosid.mongo.MongoMachineIdDistributor;
 import me.ahoo.cosid.mongo.MongoMachineInitializer;
+import me.ahoo.cosid.mongo.MongoMachineLeaseStore;
 import me.ahoo.cosid.spring.boot.starter.MongoReactiveRemoved;
 
 import com.mongodb.client.MongoClient;
@@ -56,7 +58,7 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
                 .hasSingleBean(CosIdMongoMachineIdDistributorAutoConfiguration.class)
                 .hasSingleBean(MongoMachineInitializer.class)
                 .hasSingleBean(MongoMachineCollection.class)
-                .hasSingleBean(MongoMachineIdDistributor.class));
+                .hasSingleBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
@@ -72,7 +74,7 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
     }
 
     @Test
-    void keepsMongoClientSettingsWhenTimeoutIsZero() {
+    void zeroTimeoutFailsStartupNamingTheProperty() {
         MongoClient client = mongoClient();
         new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(CosIdMongoMachineIdDistributorAutoConfiguration.class))
@@ -87,21 +89,19 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
             .withBean(MongoClient.class, () -> client)
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=mongo")
-            .run(context -> {
-                assertThat(context).hasSingleBean(MongoMachineCollection.class);
-                verify(client.getDatabase("cosid_db"), never()).withTimeout(anyLong(), any());
-            });
+            .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
+                .hasMessageContaining("cosid.machine.distributor.mongo.timeout"));
     }
 
     @Test
     void backsOffWhenUserProvidesMongoMachineDistributor() {
-        MongoMachineIdDistributor distributor = mock(MongoMachineIdDistributor.class);
+        MachineIdDistributor distributor = mock(MachineIdDistributor.class);
 
         this.contextRunner
-            .withBean(MongoMachineIdDistributor.class, () -> distributor)
+            .withBean(MachineIdDistributor.class, () -> distributor)
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=mongo")
-            .run(context -> assertThat(context.getBean(MongoMachineIdDistributor.class)).isSameAs(distributor));
+            .run(context -> assertThat(context.getBean(MachineIdDistributor.class)).isSameAs(distributor));
     }
 
     @Test
@@ -111,7 +111,7 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=mongo")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdMongoMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(MongoMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
@@ -121,18 +121,18 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdMongoMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(MongoMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
     void doesNotCreateMongoMachineBeansWhenMongoDistributorClassIsMissing() {
         this.contextRunner
-            .withClassLoader(new FilteredClassLoader(MongoMachineIdDistributor.class))
+            .withClassLoader(new FilteredClassLoader(MongoMachineLeaseStore.class))
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=mongo")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdMongoMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(MongoMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     private static MongoClient mongoClient() {

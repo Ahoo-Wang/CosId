@@ -13,10 +13,13 @@
 
 package me.ahoo.cosid.spring.boot.starter.machine;
 
-import me.ahoo.cosid.jdbc.JdbcMachineIdDistributor;
 import me.ahoo.cosid.jdbc.JdbcMachineIdInitializer;
+import me.ahoo.cosid.jdbc.JdbcMachineLeaseStore;
+import me.ahoo.cosid.jdbc.PostgreSqlDialect;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.snowflake.ConditionalOnCosIdSnowflakeEnabled;
 import me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties;
@@ -32,6 +35,9 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Locale;
 import javax.sql.DataSource;
 
 /**
@@ -43,7 +49,7 @@ import javax.sql.DataSource;
 @AutoConfigureBefore(CosIdMachineAutoConfiguration.class)
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
-@ConditionalOnClass(JdbcMachineIdDistributor.class)
+@ConditionalOnClass(JdbcMachineLeaseStore.class)
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "jdbc")
 @EnableConfigurationProperties(MachineProperties.class)
 public class CosIdJdbcMachineIdDistributorAutoConfiguration {
@@ -69,25 +75,50 @@ public class CosIdJdbcMachineIdDistributorAutoConfiguration {
         return machineIdInitializer;
     }
 
+    /**
+     * The machine id lease store on the {@code cosid_machine} table. It fails at startup, naming the {@code ALTER
+     * TABLE}, when the table lacks the 4.0 lease columns. The server clock query follows
+     * {@code cosid.machine.distributor.jdbc.server-time-sql}, or the database product (PostgreSQL or MySQL).
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBuiltInMachineStore
-    public JdbcMachineIdDistributor jdbcMachineIdDistributor(
-        JdbcMachineIdInitializer jdbcMachineIdInitializer,
-        DataSource dataSource,
+    public JdbcMachineLeaseStore jdbcMachineLeaseStore(JdbcMachineIdInitializer jdbcMachineIdInitializer, DataSource dataSource) {
+        MachineProperties.Jdbc jdbc = machineProperties.getDistributor().getJdbc();
+        String serverTimeSql = jdbc.getServerTimeSql() != null ? jdbc.getServerTimeSql() : serverTimeSqlOf(dataSource);
+        return new JdbcMachineLeaseStore(dataSource, jdbc.getQueryTimeout(), serverTimeSql);
+    }
+    
+    private static String serverTimeSqlOf(DataSource dataSource) {
+        try (Connection connection = dataSource.getConnection()) {
+            String product = connection.getMetaData().getDatabaseProductName();
+            return product != null && product.toLowerCase(Locale.ROOT).contains("postgres")
+                ? PostgreSqlDialect.SERVER_TIME_SQL : JdbcMachineLeaseStore.MYSQL_SERVER_TIME_SQL;
+        } catch (SQLException sqlException) {
+            throw new IllegalStateException("Can not read the database product to choose the server time query: set "
+                + MachineProperties.PREFIX + ".distributor.jdbc.server-time-sql.", sqlException);
+        }
+    }
+    
+    @Bean
+    @ConditionalOnMissingBean(MachineIdDistributor.class)
+    @ConditionalOnBuiltInMachineStore
+    public LeaseStoreMachineIdDistributor jdbcMachineIdDistributor(
+        JdbcMachineLeaseStore jdbcMachineLeaseStore,
         MachineStateStorage localMachineState,
         ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new JdbcMachineIdDistributor(dataSource, localMachineState, clockBackwardsSynchronizer,
-            machineProperties.getDistributor().getJdbc().getQueryTimeout());
+        return new LeaseStoreMachineIdDistributor(jdbcMachineLeaseStore, localMachineState, clockBackwardsSynchronizer);
     }
 
     /**
      * The JDBC backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
      */
     @Bean
-    public BuiltInStoreProvider cosIdJdbcMachineStoreProvider(ObjectProvider<JdbcMachineIdInitializer> jdbcMachineIdInitializer,
+    public BuiltInStoreProvider cosIdJdbcMachineStoreProvider(ObjectProvider<JdbcMachineLeaseStore> jdbcMachineLeaseStore,
+                                                              ObjectProvider<JdbcMachineIdInitializer> jdbcMachineIdInitializer,
                                                               ObjectProvider<DataSource> dataSource) {
-        return BuiltInStoreProvider.machine("jdbc", context -> jdbcMachineIdDistributor(jdbcMachineIdInitializer.getObject(), dataSource.getObject(),
+        return BuiltInStoreProvider.machine("jdbc", context -> jdbcMachineIdDistributor(
+            jdbcMachineLeaseStore.getIfAvailable(() -> jdbcMachineLeaseStore(jdbcMachineIdInitializer.getObject(), dataSource.getObject())),
             context.getMachineStateStorage(), context.getClockBackwardsSynchronizer()));
     }
 

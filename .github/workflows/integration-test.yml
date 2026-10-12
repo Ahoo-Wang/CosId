@@ -44,7 +44,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Core
-        run: ./gradlew cosid-core:clean cosid-core:check
+        run: scripts/gradle-retry.sh cosid-core:clean cosid-core:check
 
   # Publishing builds the javadoc of every module: a broken reference fails the release otherwise.
   javadoc:
@@ -64,7 +64,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Javadoc
-        run: ./gradlew javadoc
+        run: scripts/gradle-retry.sh javadoc
 
   cosid-sharding-test:
     name: CosId Sharding Test
@@ -84,7 +84,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Sharding
-        run: ./gradlew cosid-sharding:clean cosid-sharding:check
+        run: scripts/gradle-retry.sh cosid-sharding:clean cosid-sharding:check
 
   cosid-accessor-test:
     name: CosId Accessor Test
@@ -104,7 +104,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Accessor
-        run: ./gradlew cosid-accessor:clean cosid-accessor:check
+        run: scripts/gradle-retry.sh cosid-accessor:clean cosid-accessor:check
 
   cosid-jackson-test:
     name: CosId Jackson Test
@@ -124,7 +124,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Jackson
-        run: ./gradlew cosid-jackson:clean cosid-jackson:check
+        run: scripts/gradle-retry.sh cosid-jackson:clean cosid-jackson:check
 
   cosid-axon-test:
     name: CosId Axon Test
@@ -144,7 +144,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Axon
-        run: ./gradlew cosid-axon:clean cosid-axon:check
+        run: scripts/gradle-retry.sh cosid-axon:clean cosid-axon:check
 
   cosid-activiti-test:
     name: CosId Activiti Test
@@ -164,7 +164,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Activiti
-        run: ./gradlew cosid-activiti:clean cosid-activiti:check
+        run: scripts/gradle-retry.sh cosid-activiti:clean cosid-activiti:check
 
   cosid-flowable-test:
     name: CosId Flowable Test
@@ -184,7 +184,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Flowable
-        run: ./gradlew cosid-flowable:clean cosid-flowable:check
+        run: scripts/gradle-retry.sh cosid-flowable:clean cosid-flowable:check
 
   cosid-mybatis-test:
     name: CosId Mybatis Test
@@ -204,7 +204,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Mybatis
-        run: ./gradlew cosid-mybatis:clean cosid-mybatis:check
+        run: scripts/gradle-retry.sh cosid-mybatis:clean cosid-mybatis:check
 
   cosid-spring-jdbc-test:
     name: CosId Spring Jdbc Test
@@ -224,7 +224,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Spring-Jdbc
-        run: ./gradlew cosid-spring-data-jdbc:clean cosid-spring-data-jdbc:check
+        run: scripts/gradle-retry.sh cosid-spring-data-jdbc:clean cosid-spring-data-jdbc:check
 
   cosid-spring-redis-test:
     name: CosId Spring Redis Test
@@ -256,7 +256,7 @@ jobs:
       - name: Test CosId-Spring-Redis
         env:
           COSID_TEST_REDIS_URI: redis://localhost:6379
-        run: ./gradlew cosid-spring-redis:clean cosid-spring-redis:check
+        run: scripts/gradle-retry.sh cosid-spring-redis:clean cosid-spring-redis:check
 
       # The real-Redis tests skip themselves without Redis: make sure they really ran.
       - name: Check real Redis tests ran
@@ -290,7 +290,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Mongo
-        run: ./gradlew cosid-mongo:clean cosid-mongo:check
+        run: scripts/gradle-retry.sh cosid-mongo:clean cosid-mongo:check
 
       # Distributor specs abort tests that outlast their safe guard window: make sure they really ran.
       - name: Check contract tests ran
@@ -324,7 +324,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Proxy
-        run: ./gradlew cosid-proxy:clean cosid-proxy:check --info
+        run: scripts/gradle-retry.sh cosid-proxy:clean cosid-proxy:check --info
 
   cosid-proxy-server-test:
     name: CosId Proxy Server Test
@@ -356,7 +356,7 @@ jobs:
       - name: Test CosId-Proxy-Server
         env:
           COSID_TEST_REDIS_URI: redis://localhost:6379
-        run: ./gradlew cosid-proxy-server:clean cosid-proxy-server:check
+        run: scripts/gradle-retry.sh cosid-proxy-server:clean cosid-proxy-server:check
 
       - name: Test results
         if: always()
@@ -395,7 +395,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test CosId-Zookeeper
-        run: ./gradlew cosid-zookeeper:clean cosid-zookeeper:check
+        run: scripts/gradle-retry.sh cosid-zookeeper:clean cosid-zookeeper:check
 
       # Distributor specs abort tests that outlast their safe guard window: make sure they really ran.
       - name: Check contract tests ran
@@ -447,7 +447,7 @@ jobs:
           COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
           COSID_TEST_MYSQL_USERNAME: root
           COSID_TEST_MYSQL_PASSWORD: root
-        run: ./gradlew cosid-jdbc:clean cosid-jdbc:check
+        run: scripts/gradle-retry.sh cosid-jdbc:clean cosid-jdbc:check
 
       # The real-database tests skip themselves without MySQL or PostgreSQL: make sure they really ran.
       - name: Check real database tests ran
@@ -497,7 +497,7 @@ jobs:
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
       - name: Test CosId-Spring-Boot-Starter
-        run: ./gradlew cosid-spring-boot-starter:clean cosid-spring-boot-starter:check
+        run: scripts/gradle-retry.sh cosid-spring-boot-starter:clean cosid-spring-boot-starter:check
 
       # No starter test may be skipped, and the run must have produced reports.
       - name: Check starter tests ran

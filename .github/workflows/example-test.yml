@@ -49,7 +49,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Example-Redis
-        run: ./gradlew cosid-example-redis:clean cosid-example-redis:check
+        run: scripts/gradle-retry.sh cosid-example-redis:clean cosid-example-redis:check
 
   example-zookeeper-test:
     name: Example Zookeeper Test
@@ -73,7 +73,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Example-Zookeeper
-        run: ./gradlew cosid-example-zookeeper:clean cosid-example-zookeeper:check
+        run: scripts/gradle-retry.sh cosid-example-zookeeper:clean cosid-example-zookeeper:check
         
   example-proxy-test:
     name: Example Proxy Test
@@ -97,5 +97,5 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Test Example-Proxy
-        run: ./gradlew cosid-example-proxy:clean cosid-example-proxy:check
+        run: scripts/gradle-retry.sh cosid-example-proxy:clean cosid-example-proxy:check
 

@@ -95,7 +95,15 @@ A typed lookup of a generator with another type throws `IllegalArgumentException
 
 ### Machine id leases
 
-`Lease` keeps the watermark (the last timestamp the machine id may have been used for, which only grows), the renewal time (the store time that decides expiry) and the version apart; `getLastTimestamp()` is replaced by `getWatermark()` and `getRenewedAt()`, and the constructor takes all three. Renewing no longer moves the watermark, and `MachineLeaseStore.release(lease, watermark)` names its argument for what it is. A custom `MachineLeaseStore` follows the time contract in its javadoc and must pass `MachineLeaseStoreSpec`. The built-in stores still write the 3.4 format until their new formats land.
+`Lease` keeps the watermark (the last timestamp the machine id may have been used for, which only grows), the renewal time (the store time that decides expiry) and the version apart; `getLastTimestamp()` is replaced by `getWatermark()` and `getRenewedAt()`, and the constructor takes all three. Renewing no longer moves the watermark, and `MachineLeaseStore.release(lease, watermark)` names its argument for what it is. A custom `MachineLeaseStore` follows the time contract in its javadoc and must pass `MachineLeaseStoreSpec`. The built-in stores keep what 3.4 reads, see **Rolling upgrade**.
+
+With the starter, `cosid.machine.distributor.type` `redis`, `jdbc`, `zookeeper` and `mongo` run on the lease stores: the beans keep their names (`springRedisMachineIdDistributor`, `jdbcMachineIdDistributor`, `zookeeperMachineIdDistributor`, `mongoMachineIdDistributor`) but are `LeaseStoreMachineIdDistributor`s, and each store is a bean of its own (`springRedisMachineLeaseStore`, `jdbcMachineLeaseStore`, `zookeeperMachineLeaseStore`, `mongoMachineLeaseStore`). Inject `MachineIdDistributor` rather than the old concrete types; any `MachineIdDistributor` bean of yours replaces the built-in one.
+
+| Property | 4.0 |
+|---|---|
+| `cosid.machine.distributor.redis.timeout`, `.zookeeper.timeout`, `.mongo.timeout` | bound every lease store call and must be positive: `0` fails startup naming the property |
+| `cosid.machine.distributor.redis.distribute-timeout` | no longer used: every command is bounded by `redis.timeout` |
+| `cosid.machine.distributor.jdbc.server-time-sql` | new: the query for the database clock, chosen from the database product (PostgreSQL or MySQL) when unset |
 
 _To be filled in: the configuration property model._
 

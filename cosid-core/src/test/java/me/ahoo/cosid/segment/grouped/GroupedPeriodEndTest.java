@@ -19,7 +19,9 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.ahoo.cosid.segment.DefaultIdSegment;
+import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegment;
+import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor;
 import me.ahoo.cosid.util.Clock;
@@ -87,5 +89,48 @@ class GroupedPeriodEndTest {
             new IdSegmentDistributorDefinition("ns", "order", 0, 10), definition -> new AtomicIdSegmentDistributor());
         
         assertThrows(IllegalStateException.class, () -> distributor.nextIdSegment(IdSegment.TIME_TO_LIVE_FOREVER));
+    }
+    
+    /**
+     * With step 1, every id is its own segment: one fetched across the end of its group is skipped, not issued with the
+     * previous period's prefix.
+     */
+    @Test
+    void aStepOneGeneratorSkipsASegmentOfAnEndedGroup() {
+        long now = Clock.SYSTEM.secondTime();
+        AtomicInteger fetches = new AtomicInteger();
+        IdSegmentDistributor distributor = new IdSegmentDistributor() {
+            @Override
+            public String getNamespace() {
+                return "ns";
+            }
+            
+            @Override
+            public String getName() {
+                return "order";
+            }
+            
+            @Override
+            public long getStep() {
+                return 1;
+            }
+            
+            @Override
+            public long nextMaxId(long step) {
+                return fetches.incrementAndGet();
+            }
+            
+            @Override
+            public IdSegment nextIdSegment(long ttl) {
+                long maxId = nextMaxId(1);
+                GroupedKey group = maxId == 1 ? new GroupedKey("yesterday", now - 1) : new GroupedKey("today", now + 3600);
+                return new DefaultIdSegment(maxId, 1, now, 0, group);
+            }
+        };
+        
+        GroupedId id = new DefaultSegmentId(distributor).generateGrouped();
+        
+        assertThat(id.getGroup().getKey(), equalTo("today"));
+        assertThat(id.getValue(), equalTo(2L));
     }
 }

@@ -1,5 +1,5 @@
 <p align="center" style="text-align:center">
-  <img width="300" src="./document/docs/.vuepress/public/logo.png"/>
+  <img width="300" src="./documentation/docs/public/logo.png"/>
 </p>
 
 # [CosId](https://cosid.ahoo.me/) Universal, flexible, high-performance distributed ID generator
@@ -16,11 +16,11 @@
 
 Every replica of a service needs IDs (primary keys, order numbers, event ids) that never collide with those of the other replicas. *CosId* generates them inside your process, without a network call per ID, and does the coordination that keeps them unique: it leases a distinct machine id to every Snowflake instance from a store you already run, takes ranges of segment IDs ahead of time, and handles clocks that move backwards.
 
-| Generator | ID | Throughput on one instance | Pick it when |
+| Generator | ID | Throughput on one instance (historical JMH) | Pick it when |
 |-----------|----|---------------------------:|--------------|
 | `SegmentChainId` | `long`, near-sequential | 127,439,148 ops/s | You want short numeric keys or business numbers. The default segment mode |
-| `SnowflakeId` | `long`, time-ordered | 4,096,000 ops/s | IDs should carry their creation time, with no store call after startup |
-| `CosIdGenerator` | `String`, 15 characters, time-ordered | 15,570,085 ops/s | You run very many instances (up to a million machine ids) |
+| `SnowflakeId` | `long`, time-ordered | 4,096,000 ops/s (theoretical maximum) | IDs should carry their creation time, with no store call after startup |
+| `CosIdGenerator` | `String`, 15 characters, time-ordered | — | You run very many instances (up to a million machine ids) |
 
 Stores: Redis, JDBC (MySQL, MariaDB, PostgreSQL), MongoDB, ZooKeeper, the CosId proxy, or your own. Integrations: Spring Boot, MyBatis, Spring Data JDBC, Jackson, ShardingSphere, Activiti, Flowable and Axon.
 
@@ -77,14 +77,14 @@ The [examples](./examples) are runnable applications for Redis, ZooKeeper, the p
 
 ## Performance
 
-[JMH benchmarks](https://cosid.ahoo.me/reference/performance/benchmark.html) on one development notebook (MacBook Pro M1, Redis on the same machine):
+Historical [JMH benchmarks](https://cosid.ahoo.me/reference/performance/benchmark.html) on one development notebook (MacBook Pro M1, Redis on the same machine):
 
 <p align="center">
-  <img src="./document/docs/.vuepress/public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput of SegmentChainId"/>
+  <img src="./documentation/docs/public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput of SegmentChainId"/>
 </p>
 
 <p align="center">
-  <img src="./document/docs/.vuepress/public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="Percentile sample of SegmentChainId"/>
+  <img src="./documentation/docs/public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="Percentile sample of SegmentChainId"/>
 </p>
 
 `SegmentChainId` is about five times as fast as Meituan Leaf's segment mode, see [CosId VS Leaf](https://cosid.ahoo.me/reference/performance/cosid-vs-leaf.html).

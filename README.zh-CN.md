@@ -1,5 +1,5 @@
 <p align="center" style="text-align:center">
-  <img width="300" src="./document/docs/.vuepress/public/logo.png" alt="CosId Logo"/>
+  <img width="300" src="./documentation/docs/public/logo.png" alt="CosId Logo"/>
 </p>
 
 # [CosId](https://cosid.ahoo.me/zh/) 通用、灵活、高性能分布式 ID 生成器
@@ -16,11 +16,11 @@
 
 服务的每个副本都需要生成 ID（主键、订单号、事件 ID），并且不能与其他副本的 ID 冲突。*CosId* 在应用进程内生成这样的 ID，每个 ID 都不需要网络调用，并替你完成保证唯一所需的协调：从你已有的存储为每个 Snowflake 实例租用不同的机器号，提前获取号段，并处理时钟回拨。
 
-| 生成器 | ID | 单实例吞吐量 | 适用场景 |
+| 生成器 | ID | 单实例吞吐量（历史 JMH 数据） | 适用场景 |
 |--------|----|-------------:|----------|
 | `SegmentChainId` | `long`，接近连续 | 127,439,148 ops/s | 需要较短的数字主键或业务编号。号段的默认模式 |
-| `SnowflakeId` | `long`，按时间有序 | 4,096,000 ops/s | ID 需要携带生成时间，启动后不再依赖存储 |
-| `CosIdGenerator` | `String`，15 个字符，按时间有序 | 15,570,085 ops/s | 实例数量非常多（最多约一百万个机器号） |
+| `SnowflakeId` | `long`，按时间有序 | 4,096,000 ops/s（理论上限） | ID 需要携带生成时间，启动后不再依赖存储 |
+| `CosIdGenerator` | `String`，15 个字符，按时间有序 | — | 实例数量非常多（最多约一百万个机器号） |
 
 存储：Redis、JDBC（MySQL、MariaDB、PostgreSQL）、MongoDB、ZooKeeper、CosId Proxy，或自定义存储。集成：Spring Boot、MyBatis、Spring Data JDBC、Jackson、ShardingSphere、Activiti、Flowable 和 Axon。
 
@@ -77,14 +77,14 @@ long orderId = idGeneratorProvider.getRequired("order", IdGenerator.class).gener
 
 ## 性能
 
-在一台开发笔记本（MacBook Pro M1，Redis 部署在同一台机器上）上运行的 [JMH 基准测试](https://cosid.ahoo.me/zh/reference/performance/benchmark.html)：
+在一台开发笔记本（MacBook Pro M1，Redis 部署在同一台机器上）上运行的历史 [JMH 基准测试](https://cosid.ahoo.me/zh/reference/performance/benchmark.html)：
 
 <p align="center">
-  <img src="./document/docs/.vuepress/public/assets/perf/Throughput-Of-SegmentChainId.png" alt="SegmentChainId 吞吐量"/>
+  <img src="./documentation/docs/public/assets/perf/Throughput-Of-SegmentChainId.png" alt="SegmentChainId 吞吐量"/>
 </p>
 
 <p align="center">
-  <img src="./document/docs/.vuepress/public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="SegmentChainId 每次操作耗时的百分位数"/>
+  <img src="./documentation/docs/public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="SegmentChainId 每次操作耗时的百分位数"/>
 </p>
 
 `SegmentChainId` 的速度约为美团 Leaf 号段模式的五倍，见 [CosId VS 美团 Leaf](https://cosid.ahoo.me/zh/reference/performance/cosid-vs-leaf.html)。

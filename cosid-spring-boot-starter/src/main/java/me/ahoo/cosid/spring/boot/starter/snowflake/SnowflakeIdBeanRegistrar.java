@@ -174,11 +174,12 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean, DisposableBea
             snowflakeId =
                 new MillisecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId, idDefinition.getSequenceResetThreshold());
         }
-        if (idDefinition.isClockSync()) {
-            snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
-        }
+        // The lease inside the clock sync: a generation retried after waiting for the clock checks the lease again.
         if (machineProperties.getGuarder().isFailFast()) {
             snowflakeId = new LeasedSnowflakeId(snowflakeId, guardDistribute.getLease(namespace, instanceId));
+        }
+        if (idDefinition.isClockSync()) {
+            snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
         }
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
         final ZoneId zoneId = snowflakeIdProperties.getZoneId();

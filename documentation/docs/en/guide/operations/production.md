@@ -24,7 +24,9 @@
 - **Keep `cosid.machine.guarder.fail-fast` on** (the default): a failed request is better than a duplicate ID.
 - **Size `machine-bit`** for the largest number of instances during a rollout, plus those whose leases have not expired yet.
 - **Mark only instances with a fixed identity as `stable`**, together with a fixed `instance-id`.
-- **Keep host clocks in sync** with each other and with the store's clock (NTP, slewing rather than stepping). Required for ZooKeeper leases, and it keeps restarts from waiting on a watermark.
+- **Keep host clocks in sync** with each other and with the store's clock (NTP or chrony, slewing rather than stepping). It keeps restarts from waiting on a watermark.
+  - With Redis, JDBC, MongoDB and the proxy, leases are judged on the store's clock: an offset between a host and the store does not make a machine id expire early.
+  - **ZooKeeper has no clock CosId can read**: leases are judged on the hosts' clocks. A host whose clock runs ahead of another's by more than the margin `min(10s, safe-guard-duration / 10)` can take over that host's machine id while it still generates IDs, and both then generate the same IDs. Monitor clock offsets and keep them well under the margin.
 
 ## Operations
 

@@ -80,6 +80,8 @@ classpath_of() {
   local file="$1/${2//\//__}.cp"
   if [ -f "$file" ]; then
     cat "$file"
+  else
+    echo "::warning::No compile classpath for $2 in $1: comparing it without its dependencies." >&2
   fi
 }
 

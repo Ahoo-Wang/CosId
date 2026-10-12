@@ -22,9 +22,10 @@ java {
 
 dependencies {
     implementation(libs.guava)
-    implementation(project(":cosid-core"))
-    implementation("org.junit.jupiter:junit-jupiter-api")
-    implementation("org.hamcrest:hamcrest")
+    // The specs extend and return core types and are JUnit tests with Hamcrest assertions.
+    api(project(":cosid-core"))
+    api("org.junit.jupiter:junit-jupiter-api")
+    api("org.hamcrest:hamcrest")
     "mongoSupportImplementation"("org.testcontainers:testcontainers")
     "mongoSupportImplementation"("org.testcontainers:testcontainers-junit-jupiter")
     "mongoSupportImplementation"("org.testcontainers:testcontainers-mongodb")

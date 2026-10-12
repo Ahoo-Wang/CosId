@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 dependencies {
-    implementation(project(":cosid-core"))
-    implementation("tools.jackson.core:jackson-databind")
+    // The serializers handle core types and plug into Jackson's ObjectMapper.
+    api(project(":cosid-core"))
+    api("tools.jackson.core:jackson-databind")
 }

@@ -30,6 +30,7 @@ import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnMachineStoreType;
 import me.ahoo.cosid.util.ProcessId;
 
 import com.google.common.base.Preconditions;
@@ -38,7 +39,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -166,7 +166,7 @@ public class CosIdMachineAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(MachineIdDistributor.class)
-    @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "manual")
+    @ConditionalOnMachineStoreType("manual")
     @ConditionalOnBuiltInMachineStore
     public ManualMachineIdDistributor machineIdDistributor(MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         MachineProperties.Manual manual = machineProperties.getDistributor().getManual();
@@ -187,7 +187,7 @@ public class CosIdMachineAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(MachineIdDistributor.class)
-    @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "stateful_set")
+    @ConditionalOnMachineStoreType("stateful_set")
     @ConditionalOnBuiltInMachineStore
     public StatefulSetMachineIdDistributor statefulSetMachineIdDistributor(MachineStateStorage localMachineState, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         return new StatefulSetMachineIdDistributor(localMachineState, clockBackwardsSynchronizer);

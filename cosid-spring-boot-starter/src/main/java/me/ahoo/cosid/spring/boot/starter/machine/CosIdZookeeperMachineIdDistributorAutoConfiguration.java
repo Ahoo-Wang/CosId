@@ -20,6 +20,7 @@ import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnMachineStoreType;
 import me.ahoo.cosid.util.CallTimeout;
 import me.ahoo.cosid.zookeeper.ZookeeperMachineLeaseStore;
 
@@ -28,7 +29,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 
 /**
@@ -39,7 +39,7 @@ import org.springframework.context.annotation.Bean;
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
-@ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "zookeeper")
+@ConditionalOnMachineStoreType("zookeeper")
 @ConditionalOnClass(ZookeeperMachineLeaseStore.class)
 public class CosIdZookeeperMachineIdDistributorAutoConfiguration {
     

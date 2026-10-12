@@ -26,13 +26,14 @@ import me.ahoo.cosid.spring.boot.starter.machine.CosIdSpringRedisMachineIdDistri
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdZookeeperMachineIdDistributorAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 import java.util.stream.Collectors;
 
@@ -59,20 +60,22 @@ public class CosIdMachineStoreAutoConfiguration {
     
     @Bean
     @ConditionalOnMissingBean(MachineIdDistributor.class)
-    public MachineIdDistributor cosIdMachineIdDistributor(MachineProperties machineProperties, ObjectProvider<CosIdStoreProvider> providers,
+    public MachineIdDistributor cosIdMachineIdDistributor(Environment environment, MachineProperties machineProperties, ObjectProvider<CosIdStoreProvider> providers,
                                                           MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         MachineProperties.Distributor distributor = machineProperties.getDistributor();
-        String type = CosIdStoreProviders.storeType(distributor.getProvider(), distributor.getType());
+        String type = CosIdStoreProviders.storeType(environment, MachineProperties.Distributor.TYPE, MachineProperties.Distributor.REMOVED_PROVIDER,
+            distributor.getType(), MachineProperties.Distributor.MANUAL);
         MachineStoreContext context = new MachineStoreContext(machineProperties, machineStateStorage, clockBackwardsSynchronizer);
         return CosIdStoreProviders.create(type, providers.orderedStream().collect(Collectors.toList()),
             provider -> provider.createMachineIdDistributor(context), "machine id distributor");
     }
     
     @Bean
-    static SmartInitializingSingleton cosIdIgnoredMachineStoreProviderWarning(ListableBeanFactory beanFactory, ObjectProvider<MachineProperties> machineProperties) {
+    static SmartInitializingSingleton cosIdIgnoredMachineStoreProviderWarning(Environment environment, ListableBeanFactory beanFactory, ObjectProvider<MachineProperties> machineProperties) {
         return new IgnoredStoreProviderWarning(beanFactory, "machine id distributor", MachineIdDistributor.class, "cosIdMachineIdDistributor", () -> {
             MachineProperties.Distributor distributor = machineProperties.getObject().getDistributor();
-            return CosIdStoreProviders.storeType(distributor.getProvider(), distributor.getType());
+            return CosIdStoreProviders.storeType(environment, MachineProperties.Distributor.TYPE, MachineProperties.Distributor.REMOVED_PROVIDER,
+            distributor.getType(), MachineProperties.Distributor.MANUAL);
         });
     }
 }

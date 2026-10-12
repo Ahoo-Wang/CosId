@@ -392,19 +392,26 @@ public class MachineProperties {
          * The configuration property key for distributor type.
          */
         public static final String TYPE = PREFIX + ".distributor.type";
-        public static final String PROVIDER = PREFIX + ".distributor.provider";
+        /**
+         * Removed in 4.0: {@link #TYPE} names any store, also an application's
+         * {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider}.
+         */
+        public static final String REMOVED_PROVIDER = PREFIX + ".distributor.provider";
+        public static final String MANUAL = "manual";
+        public static final String STATEFUL_SET = "stateful_set";
+        public static final String JDBC = "jdbc";
+        public static final String MONGO = "mongo";
+        public static final String REDIS = "redis";
+        public static final String ZOOKEEPER = "zookeeper";
+        public static final String PROXY = "proxy";
 
         /**
-         * The type of distributor to use.
-         * Default is MANUAL.
+         * The machine id store: {@code manual}, {@code stateful_set}, {@code jdbc}, {@code mongo}, {@code redis},
+         * {@code zookeeper}, {@code proxy}, or the type of an application's
+         * {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider}. Compared by letters and digits only, without case, as Spring binds enums.
+         * Default is {@code manual}.
          */
-        private MachineProperties.Distributor.Type type = MachineProperties.Distributor.Type.MANUAL;
-        
-        /**
-         * Name of the {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} to use instead of the one of
-         * {@code type}, for a backend the starter does not ship. Empty by default: the provider of {@code type} is used.
-         */
-        private String provider;
+        private String type = MANUAL;
 
         /**
          * Configuration for manual machine ID assignment.
@@ -445,7 +452,7 @@ public class MachineProperties {
          *
          * @return the distributor type
          */
-        public MachineProperties.Distributor.Type getType() {
+        public String getType() {
             return type;
         }
 
@@ -454,16 +461,8 @@ public class MachineProperties {
          *
          * @param type the distributor type to set
          */
-        public void setType(MachineProperties.Distributor.Type type) {
+        public void setType(String type) {
             this.type = type;
-        }
-        
-        public String getProvider() {
-            return provider;
-        }
-        
-        public void setProvider(String provider) {
-            this.provider = provider;
         }
 
         /**
@@ -554,53 +553,6 @@ public class MachineProperties {
          */
         public void setZookeeper(Zookeeper zookeeper) {
             this.zookeeper = zookeeper;
-        }
-        
-        /**
-         * Enumeration of supported machine ID distributor types.
-         */
-        public enum Type {
-            /**
-             * Manual assignment of machine IDs.
-             * Requires explicit configuration of machine IDs.
-             */
-            MANUAL,
-
-            /**
-             * Distribution based on Kubernetes StatefulSet ordinal.
-             * Uses StatefulSet pod index for machine ID assignment.
-             */
-            STATEFUL_SET,
-
-            /**
-             * Database-based distribution using JDBC.
-             * Stores machine ID assignments in a relational database.
-             */
-            JDBC,
-
-            /**
-             * MongoDB-based distribution.
-             * Uses MongoDB for coordinating machine ID assignments.
-             */
-            MONGO,
-
-            /**
-             * Redis-based distribution.
-             * Uses Redis for atomic machine ID allocation.
-             */
-            REDIS,
-
-            /**
-             * ZooKeeper-based distribution.
-             * Uses ZooKeeper for distributed coordination.
-             */
-            ZOOKEEPER,
-
-            /**
-             * Proxy service-based distribution.
-             * Delegates machine ID allocation to a proxy service.
-             */
-            PROXY
         }
     }
     

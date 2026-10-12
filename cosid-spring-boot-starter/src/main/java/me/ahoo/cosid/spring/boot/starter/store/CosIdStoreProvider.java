@@ -22,12 +22,11 @@ import org.jspecify.annotations.Nullable;
  * A backend for the starter: creates the machine id distributor and/or the id segment distributor factory of one store
  * type.
  *
- * <p>The starter picks the provider whose {@link #getType() type} is the configured store type:
- * {@code cosid.machine.distributor.provider} (or {@code cosid.segment.distributor.provider}) when set, otherwise the
- * lower-case {@code cosid.machine.distributor.type} (or {@code cosid.segment.distributor.type}), for example
- * {@code jdbc} or {@code stateful_set}. Every built-in backend registers its own provider. A provider bean of the
- * application with the same type as a built-in one takes precedence over it; one with a new type is selected with the
- * {@code provider} property.</p>
+ * <p>The starter picks the provider whose {@link #getType() type} is the configured store type,
+ * {@code cosid.machine.distributor.type} (or {@code cosid.segment.distributor.type}), compared as {@link StoreTypes} do:
+ * for example {@code jdbc}, {@code stateful_set} or {@code etcd}. Every built-in backend registers its own provider. A
+ * provider bean of the application with the same type as a built-in one takes precedence over it; one with a new type is
+ * selected by setting the type to it.</p>
  *
  * <p>A provider supports either side by returning a value from its method, and {@code null} for the side it does not
  * support.</p>

@@ -35,7 +35,10 @@ public class SnowflakeIdProperties {
     public static final String PREFIX = CosId.COSID_PREFIX + "snowflake";
     
     private boolean enabled = false;
-    private String zoneId = ZoneId.systemDefault().getId();
+    /**
+     * Time zone of the friendly id format, for example {@code Asia/Shanghai}. Default is the system's.
+     */
+    private ZoneId zoneId = ZoneId.systemDefault();
     private long epoch = CosId.COSID_EPOCH;
     private ShardIdDefinition share;
     private Map<String, IdDefinition> provider;
@@ -53,11 +56,11 @@ public class SnowflakeIdProperties {
         this.enabled = enabled;
     }
     
-    public String getZoneId() {
+    public ZoneId getZoneId() {
         return zoneId;
     }
     
-    public void setZoneId(String zoneId) {
+    public void setZoneId(ZoneId zoneId) {
         this.zoneId = zoneId;
     }
     

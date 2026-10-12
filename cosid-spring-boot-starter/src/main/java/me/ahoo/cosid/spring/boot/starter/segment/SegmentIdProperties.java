@@ -459,14 +459,23 @@ public class SegmentIdProperties {
 
     public static class Distributor {
         public static final String TYPE = PREFIX + ".distributor.type";
-        public static final String PROVIDER = PREFIX + ".distributor.provider";
-        private Type type = Type.REDIS;
+        /**
+         * Removed in 4.0: {@link #TYPE} names any store, also an application's
+         * {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider}.
+         */
+        public static final String REMOVED_PROVIDER = PREFIX + ".distributor.provider";
+        public static final String REDIS = "redis";
+        public static final String JDBC = "jdbc";
+        public static final String MONGO = "mongo";
+        public static final String ZOOKEEPER = "zookeeper";
+        public static final String PROXY = "proxy";
         
         /**
-         * Name of the {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} to use instead of the one of
-         * {@code type}, for a backend the starter does not ship. Empty by default: the provider of {@code type} is used.
+         * The segment store: {@code redis}, {@code jdbc}, {@code mongo}, {@code zookeeper}, {@code proxy}, or the type of
+         * an application's {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider}. Compared by letters and
+         * digits only, without case, as Spring binds enums. Default is {@code redis}.
          */
-        private String provider;
+        private String type = REDIS;
         private Redis redis;
         private Jdbc jdbc;
         private Mongo mongo;
@@ -478,20 +487,12 @@ public class SegmentIdProperties {
             this.mongo = new Mongo();
         }
 
-        public Type getType() {
+        public String getType() {
             return type;
         }
 
-        public void setType(Type type) {
+        public void setType(String type) {
             this.type = type;
-        }
-        
-        public String getProvider() {
-            return provider;
-        }
-        
-        public void setProvider(String provider) {
-            this.provider = provider;
         }
 
         public Redis getRedis() {
@@ -653,14 +654,6 @@ public class SegmentIdProperties {
             public void setDatabase(String database) {
                 this.database = database;
             }
-        }
-
-        public enum Type {
-            REDIS,
-            JDBC,
-            MONGO,
-            ZOOKEEPER,
-            PROXY
         }
     }
 

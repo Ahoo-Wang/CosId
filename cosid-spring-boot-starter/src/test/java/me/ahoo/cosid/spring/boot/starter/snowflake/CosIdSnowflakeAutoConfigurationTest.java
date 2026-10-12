@@ -53,8 +53,8 @@ class CosIdSnowflakeAutoConfigurationTest {
     void appliesCustomizerBeforeRegistrarRuns() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
-            .withBean(CustomizeSnowflakeIdProperties.class, () -> properties -> properties.setZoneId("UTC"))
-            .run(context -> assertThat(context.getBean(SnowflakeIdProperties.class).getZoneId()).isEqualTo("UTC"));
+            .withBean(CustomizeSnowflakeIdProperties.class, () -> properties -> properties.setZoneId(java.time.ZoneId.of("UTC")))
+            .run(context -> assertThat(context.getBean(SnowflakeIdProperties.class).getZoneId()).isEqualTo(java.time.ZoneId.of("UTC")));
     }
 
     @Test

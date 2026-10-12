@@ -33,7 +33,7 @@ class SnowflakeIdPropertiesTest {
         SnowflakeIdProperties properties = new SnowflakeIdProperties();
 
         assertThat(properties.isEnabled()).isFalse();
-        assertThat(properties.getZoneId()).isEqualTo(ZoneId.systemDefault().getId());
+        assertThat(properties.getZoneId()).isEqualTo(ZoneId.systemDefault());
         assertThat(properties.getEpoch()).isEqualTo(CosId.COSID_EPOCH);
         assertThat(properties.getProvider()).isEmpty();
         assertThat(properties.getShare().isEnabled()).isTrue();
@@ -67,7 +67,7 @@ class SnowflakeIdPropertiesTest {
         ));
 
         assertThat(properties.isEnabled()).isTrue();
-        assertThat(properties.getZoneId()).isEqualTo("UTC");
+        assertThat(properties.getZoneId()).isEqualTo(java.time.ZoneId.of("UTC"));
         assertThat(properties.getEpoch()).isEqualTo(123456789);
         assertThat(properties.getShare().isEnabled()).isFalse();
 

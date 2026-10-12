@@ -23,13 +23,14 @@ import me.ahoo.cosid.spring.boot.starter.segment.CosIdSpringRedisSegmentAutoConf
 import me.ahoo.cosid.spring.boot.starter.segment.CosIdZookeeperSegmentAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
 
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
-import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 import java.util.stream.Collectors;
 
@@ -55,19 +56,21 @@ public class CosIdSegmentStoreAutoConfiguration {
     
     @Bean
     @ConditionalOnMissingBean(IdSegmentDistributorFactory.class)
-    public IdSegmentDistributorFactory cosIdIdSegmentDistributorFactory(SegmentIdProperties segmentIdProperties, ObjectProvider<CosIdStoreProvider> providers) {
+    public IdSegmentDistributorFactory cosIdIdSegmentDistributorFactory(Environment environment, SegmentIdProperties segmentIdProperties, ObjectProvider<CosIdStoreProvider> providers) {
         SegmentIdProperties.Distributor distributor = segmentIdProperties.getDistributor();
-        String type = CosIdStoreProviders.storeType(distributor.getProvider(), distributor.getType());
+        String type = CosIdStoreProviders.storeType(environment, SegmentIdProperties.Distributor.TYPE, SegmentIdProperties.Distributor.REMOVED_PROVIDER,
+            distributor.getType(), SegmentIdProperties.Distributor.REDIS);
         SegmentStoreContext context = new SegmentStoreContext(segmentIdProperties);
         return CosIdStoreProviders.create(type, providers.orderedStream().collect(Collectors.toList()),
             provider -> provider.createIdSegmentDistributorFactory(context), "id segment distributor factory");
     }
     
     @Bean
-    static SmartInitializingSingleton cosIdIgnoredSegmentStoreProviderWarning(ListableBeanFactory beanFactory, ObjectProvider<SegmentIdProperties> segmentIdProperties) {
+    static SmartInitializingSingleton cosIdIgnoredSegmentStoreProviderWarning(Environment environment, ListableBeanFactory beanFactory, ObjectProvider<SegmentIdProperties> segmentIdProperties) {
         return new IgnoredStoreProviderWarning(beanFactory, "id segment distributor factory", IdSegmentDistributorFactory.class, "cosIdIdSegmentDistributorFactory", () -> {
             SegmentIdProperties.Distributor distributor = segmentIdProperties.getObject().getDistributor();
-            return CosIdStoreProviders.storeType(distributor.getProvider(), distributor.getType());
+            return CosIdStoreProviders.storeType(environment, SegmentIdProperties.Distributor.TYPE, SegmentIdProperties.Distributor.REMOVED_PROVIDER,
+            distributor.getType(), SegmentIdProperties.Distributor.REDIS);
         });
     }
 }

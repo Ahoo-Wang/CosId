@@ -98,7 +98,7 @@ public class SnowflakeIdBeanRegistrar {
             snowflakeId = new LeasedSnowflakeId(snowflakeId, guardDistribute.getLease(namespace, instanceId));
         }
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
-        final ZoneId zoneId = ZoneId.of(snowflakeIdProperties.getZoneId());
+        final ZoneId zoneId = snowflakeIdProperties.getZoneId();
         return new SnowflakeIdConverterDecorator(snowflakeId, converterDefinition, zoneId).decorate();
     }
     

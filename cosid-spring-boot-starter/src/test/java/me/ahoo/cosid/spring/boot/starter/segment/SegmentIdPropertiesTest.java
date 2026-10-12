@@ -52,7 +52,7 @@ class SegmentIdPropertiesTest {
         assertThat(properties.getChain().getPrefetchWorker().getCorePoolSize())
             .isEqualTo(Runtime.getRuntime().availableProcessors());
         assertThat(properties.getChain().getPrefetchWorker().isShutdownHook()).isTrue();
-        assertThat(properties.getDistributor().getType()).isEqualTo(SegmentIdProperties.Distributor.Type.REDIS);
+        assertThat(properties.getDistributor().getType()).isEqualTo(SegmentIdProperties.Distributor.REDIS);
         assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(1));
         assertThat(properties.getDistributor().getJdbc().getQueryTimeout()).isEqualTo(Duration.ofSeconds(5));
         assertThat(properties.getDistributor().getJdbc().getIncrementMaxIdSql())
@@ -104,7 +104,7 @@ class SegmentIdPropertiesTest {
         assertThat(properties.isEnabled()).isTrue();
         assertThat(properties.getMode()).isEqualTo(SegmentIdProperties.Mode.SEGMENT);
         assertThat(properties.getTtl()).isEqualTo(600);
-        assertThat(properties.getDistributor().getType()).isEqualTo(SegmentIdProperties.Distributor.Type.JDBC);
+        assertThat(properties.getDistributor().getType()).isEqualTo(SegmentIdProperties.Distributor.JDBC);
         assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(2));
         assertThat(properties.getDistributor().getJdbc().getQueryTimeout()).isEqualTo(Duration.ofSeconds(7));
         assertThat(properties.getDistributor().getJdbc().getIncrementMaxIdSql()).isEqualTo("update cosid set max_id=max_id+?");

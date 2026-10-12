@@ -27,12 +27,12 @@ import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientAuthConfiguration;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientTimeoutConfiguration;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnMachineStoreType;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 
@@ -45,7 +45,7 @@ import org.springframework.context.annotation.Import;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnClass(name = {"me.ahoo.cosid.proxy.ProxyMachineLeaseStore", "me.ahoo.coapi.spring.EnableCoApi"})
-@ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "proxy")
+@ConditionalOnMachineStoreType("proxy")
 @EnableCoApi(clients = MachineLeaseClient.class)
 @Import({CosIdProxyClientTimeoutConfiguration.class, CosIdProxyClientAuthConfiguration.class})
 public class CosIdProxyMachineIdDistributorAutoConfiguration {

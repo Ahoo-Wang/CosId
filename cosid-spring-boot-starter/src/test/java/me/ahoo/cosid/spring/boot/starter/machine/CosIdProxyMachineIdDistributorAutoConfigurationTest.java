@@ -22,10 +22,13 @@ import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.proxy.ProxyMachineLeaseStore;
 import me.ahoo.cosid.proxy.api.MachineLeaseClient;
+import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+
+import java.time.Duration;
 
 class CosIdProxyMachineIdDistributorAutoConfigurationTest {
     private static final String COAP_PROXY_HOST = "cosid.proxy.host=http://localhost:8688";
@@ -62,6 +65,20 @@ class CosIdProxyMachineIdDistributorAutoConfigurationTest {
                 .hasSingleBean(MachineIdDistributor.class)
                 .getBean(MachineIdDistributor.class)
                 .isSameAs(userDistributor));
+    }
+
+    @Test
+    void zeroReadTimeoutFailsStartupNamingTheProperty() {
+        this.contextRunner
+            .withBean(CosIdProperties.class, () -> {
+                CosIdProperties properties = new CosIdProperties();
+                properties.getProxy().setReadTimeout(Duration.ZERO);
+                return properties;
+            })
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=proxy")
+            .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
+                .hasMessageContaining("cosid.proxy.read-timeout"));
     }
 
     @Test

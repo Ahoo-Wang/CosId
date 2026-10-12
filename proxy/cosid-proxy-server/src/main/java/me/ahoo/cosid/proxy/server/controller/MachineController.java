@@ -52,6 +52,7 @@ public class MachineController implements MachineApi {
     private static final int MAX_MACHINE_BIT = Integer.SIZE - 1;
     private final MachineLeaseManager leaseManager;
     private final Duration maxClockSkew;
+    private final Duration minSafeGuardDuration;
     
     public MachineController(MachineLeaseStore store) {
         this(store, new ProxyServerProperties());
@@ -61,6 +62,7 @@ public class MachineController implements MachineApi {
     public MachineController(MachineLeaseStore store, ProxyServerProperties proxyServerProperties) {
         this.leaseManager = new MachineLeaseManager(store);
         this.maxClockSkew = proxyServerProperties.getMaxClockSkew();
+        this.minSafeGuardDuration = proxyServerProperties.getMinSafeGuardDuration();
     }
     
     /**
@@ -72,6 +74,8 @@ public class MachineController implements MachineApi {
         checkNamespaceAndInstanceId(namespace, instanceId);
         Checks.checkArgument(machineBit > 0 && machineBit <= MAX_MACHINE_BIT, "machineBit:[%s] must be in [1, %s]!", machineBit, MAX_MACHINE_BIT);
         Duration duration = parseSafeGuardDuration(safeGuardDuration);
+        Checks.checkArgument(duration.compareTo(minSafeGuardDuration) >= 0,
+            "safeGuardDuration:[%s] is shorter than the minimum safe guard duration [%s]!", safeGuardDuration, minSafeGuardDuration);
         return leaseManager.acquire(namespace, new InstanceId(instanceId, stable), machineBit, duration).toMachineState();
     }
     

@@ -44,6 +44,8 @@ final class ProxyEndToEnd {
     static void serverProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.data.redis.url", RedisLauncher::getUri);
         registry.add("cosid.proxy.server.auth.tokens[0]", () -> TOKEN);
+        // The specs take over leases after short safe guards.
+        registry.add("cosid.proxy.server.min-safe-guard-duration", () -> "0s");
     }
     
     private static HttpServiceProxyFactory clientFactory(int port, boolean withToken) {

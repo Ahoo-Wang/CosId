@@ -39,13 +39,16 @@ import java.util.Optional;
  * no state and can run as several nodes behind a load balancer.
  *
  * <p>Times sent by clients must come from {@link #serverTime()}: a time more than {@code cosid.proxy.server.max-clock-skew}
- * ahead of the store's clock is rejected, since it would keep a machine id from ever expiring.</p>
+ * ahead of the store's clock is rejected, since it would keep a machine id from ever expiring, and an expired claim's
+ * cut-off must be at least {@code cosid.proxy.server.min-safe-guard-duration} behind it, so no client takes over a live
+ * lease.</p>
  */
 @RestController
 public class MachineLeaseController implements MachineLeaseApi {
     private static final int MAX_MACHINE_ID = Integer.MAX_VALUE - 1;
     private final MachineLeaseStore store;
     private final Duration maxClockSkew;
+    private final Duration minSafeGuardDuration;
     
     public MachineLeaseController(MachineLeaseStore store) {
         this(store, new ProxyServerProperties());
@@ -55,6 +58,7 @@ public class MachineLeaseController implements MachineLeaseApi {
     public MachineLeaseController(MachineLeaseStore store, ProxyServerProperties proxyServerProperties) {
         this.store = store;
         this.maxClockSkew = proxyServerProperties.getMaxClockSkew();
+        this.minSafeGuardDuration = proxyServerProperties.getMinSafeGuardDuration();
     }
     
     @Override
@@ -74,7 +78,8 @@ public class MachineLeaseController implements MachineLeaseApi {
             case SELF -> store.claimSelf(namespace, instanceId, request.now());
             case RELEASED -> store.claimReleased(namespace, instanceId, checkMaxMachineId(request), request.now());
             case NEW -> store.claimNew(namespace, instanceId, checkMaxMachineId(request), request.now());
-            case EXPIRED -> store.claimExpired(namespace, instanceId, checkMaxMachineId(request), request.expiredBefore(), request.now());
+            case EXPIRED -> store.claimExpired(namespace, instanceId, checkMaxMachineId(request), checkExpiredBefore(request.expiredBefore()),
+                request.now());
             default -> throw new IllegalArgumentException("Unknown claim:[" + kind + "], expected self, released, new or expired!");
         };
         return response(lease);
@@ -103,6 +108,16 @@ public class MachineLeaseController implements MachineLeaseApi {
         Checks.checkNotNull(lease, "lease can not be null!");
         Checks.checkArgument(namespace.equals(lease.namespace()), "lease namespace:[%s] does not match the path:[%s]!", lease.namespace(), namespace);
         return lease.toLease();
+    }
+    
+    /**
+     * Only leases renewed at least {@code min-safe-guard-duration} ago, by the store's clock, may be taken over.
+     */
+    private long checkExpiredBefore(long expiredBefore) {
+        long latest = store.serverTime() - minSafeGuardDuration.toMillis();
+        Checks.checkArgument(expiredBefore <= latest, "expiredBefore:[%s] is later than the store clock minus the minimum safe guard duration [%s]!",
+            expiredBefore, minSafeGuardDuration);
+        return expiredBefore;
     }
     
     private static int checkMaxMachineId(ClaimRequest request) {

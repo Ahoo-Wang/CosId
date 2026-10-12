@@ -75,4 +75,21 @@ class MachineLeaseControllerTest {
         server.post().uri("/machines/v2/{ns}/renewals", "ns").bodyValue(new RenewRequest(otherNamespace, now))
             .exchange().expectStatus().isBadRequest();
     }
+
+    @Test
+    void expiredClaimWithACutOffTooRecentOrInTheFutureIsBadRequestAndTheHolderKeepsItsLease() {
+        long now = System.currentTimeMillis();
+        LeaseDto holder = claim("steal", "new", new ClaimRequest("holder", false, now, 0, 0))
+            .expectStatus().isOk().expectBody(LeaseResponse.class).returnResult().getResponseBody().lease();
+        
+        claim("steal", "expired", new ClaimRequest("thief", false, now, 0, Long.MAX_VALUE)).expectStatus().isBadRequest();
+        claim("steal", "expired", new ClaimRequest("thief", false, now, 0, now - Duration.ofMinutes(1).toMillis())).expectStatus().isBadRequest();
+        LeaseResponse past = claim("steal", "expired", new ClaimRequest("thief", false, now, 0, now - Duration.ofMinutes(10).toMillis()))
+            .expectStatus().isOk().expectBody(LeaseResponse.class).returnResult().getResponseBody();
+        
+        assertThat(past.lease()).isNull();
+        LeaseResponse renewed = server.post().uri("/machines/v2/{ns}/renewals", "steal").bodyValue(new RenewRequest(holder, now + 1))
+            .exchange().expectStatus().isOk().expectBody(LeaseResponse.class).returnResult().getResponseBody();
+        assertThat(renewed.lease()).isNotNull();
+    }
 }

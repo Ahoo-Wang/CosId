@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.proxy.api.ErrorResponse;
+import me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties;
 import me.ahoo.cosid.proxy.server.controller.MachineController;
 import me.ahoo.cosid.proxy.server.error.GlobalRestExceptionHandler;
 import me.ahoo.cosid.test.machine.lease.InMemoryMachineLeaseStore;
@@ -40,9 +41,15 @@ class MachineControllerV1Test {
      */
     private WebTestClient newServerNode() {
         return WebTestClient
-            .bindToController(new MachineController(store))
+            .bindToController(new MachineController(store, shortSafeGuards()))
             .controllerAdvice(new GlobalRestExceptionHandler())
             .build();
+    }
+    
+    private static ProxyServerProperties shortSafeGuards() {
+        ProxyServerProperties properties = new ProxyServerProperties();
+        properties.setMinSafeGuardDuration(Duration.ZERO);
+        return properties;
     }
     
     private MachineState distribute(WebTestClient server, String instanceId) {
@@ -149,6 +156,21 @@ class MachineControllerV1Test {
             .expectStatus().isBadRequest();
         
         assertThat(holds("node-1")).isTrue();
+    }
+    
+    @Test
+    void safeGuardShorterThanTheServerMinimumIsBadRequest() {
+        WebTestClient server = WebTestClient.bindToController(new MachineController(store))
+            .controllerAdvice(new GlobalRestExceptionHandler()).build();
+        
+        server.post()
+            .uri("/machines/{ns}?machineBit=8&instanceId=node-1&stable=false&safeGuardDuration=PT30S", NAMESPACE)
+            .exchange()
+            .expectStatus().isBadRequest();
+        server.post()
+            .uri("/machines/{ns}?machineBit=8&instanceId=node-1&stable=false&safeGuardDuration=PT5M", NAMESPACE)
+            .exchange()
+            .expectStatus().isOk();
     }
     
     @Test

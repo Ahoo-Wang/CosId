@@ -26,6 +26,7 @@ import java.time.Duration;
 public class ProxyServerProperties {
     public static final String PREFIX = "cosid.proxy.server";
     public static final Duration DEFAULT_MAX_CLOCK_SKEW = Duration.ofMinutes(1);
+    public static final Duration DEFAULT_MIN_SAFE_GUARD_DURATION = Duration.ofMinutes(5);
     /**
      * No limit.
      */
@@ -37,7 +38,24 @@ public class ProxyServerProperties {
      */
     private Duration maxClockSkew = DEFAULT_MAX_CLOCK_SKEW;
     
+    /**
+     * The shortest safe guard duration the server accepts: a client may only take over a machine id whose lease was
+     * last renewed at least this long ago (version 2 {@code expiredBefore}, version 1 {@code safeGuardDuration}).
+     * Without it, any client could take a live lease and generate the same ids as its owner. Lower it only if your
+     * clients use a shorter {@code cosid.machine.guarder.safe-guard-duration}. Default is 5 minutes, the clients'
+     * default; zero still rejects cut-offs in the future.
+     */
+    private Duration minSafeGuardDuration = DEFAULT_MIN_SAFE_GUARD_DURATION;
+    
     private Segment segment = new Segment();
+    
+    public Duration getMinSafeGuardDuration() {
+        return minSafeGuardDuration;
+    }
+    
+    public void setMinSafeGuardDuration(Duration minSafeGuardDuration) {
+        this.minSafeGuardDuration = minSafeGuardDuration;
+    }
     
     public Duration getMaxClockSkew() {
         return maxClockSkew;

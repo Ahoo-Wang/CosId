@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.proxy.api.ErrorResponse;
+import me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties;
 import me.ahoo.cosid.proxy.server.controller.MachineController;
 import me.ahoo.cosid.proxy.server.controller.SegmentController;
 import me.ahoo.cosid.proxy.server.error.GlobalRestExceptionHandler;
@@ -43,9 +44,15 @@ class ProxyServerTest {
     private final RecordingIdSegmentDistributorFactory segmentDistributorFactory = new RecordingIdSegmentDistributorFactory();
     private final InMemoryMachineLeaseStore leaseStore = new InMemoryMachineLeaseStore();
     private final WebTestClient webTestClient = WebTestClient
-        .bindToController(new SegmentController(segmentDistributorFactory), new MachineController(leaseStore))
+        .bindToController(new SegmentController(segmentDistributorFactory), new MachineController(leaseStore, shortSafeGuards()))
         .controllerAdvice(new GlobalRestExceptionHandler())
             .build();
+
+    private static ProxyServerProperties shortSafeGuards() {
+        ProxyServerProperties properties = new ProxyServerProperties();
+        properties.setMinSafeGuardDuration(Duration.ZERO);
+        return properties;
+    }
 
     @Test
     void segmentStepIsUnlimitedByDefaultAndCanBeCapped() {

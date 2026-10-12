@@ -113,7 +113,7 @@ With the starter, `cosid.machine.distributor.type` `redis`, `jdbc`, `zookeeper` 
 
 ### Store type properties
 
-`cosid.machine.distributor.type` and `cosid.segment.distributor.type` are strings now, compared by their letters and digits without case, as Spring binds enums: `stateful_set`, `stateful-set`, `STATEFUL_SET`, `statefulSet` and `statefulset` all select the StatefulSet distributor (in 3.x, `stateful-set` bound the enum but no auto-configuration matched it). The type also names an application's `CosIdStoreProvider`, so `cosid.machine.distributor.provider` and `cosid.segment.distributor.provider` are removed: startup fails naming the `type` setting to use instead. In code:
+`cosid.machine.distributor.type` and `cosid.segment.distributor.type` are strings now, compared by their letters and digits without case, as Spring binds enums: `stateful_set`, `stateful-set`, `STATEFUL_SET`, `statefulSet` and `statefulset` all select the StatefulSet distributor, as they did in 3.x. The type also names an application's `CosIdStoreProvider`, so `cosid.machine.distributor.provider` and `cosid.segment.distributor.provider` are removed: startup fails naming the `type` setting to use instead. In code:
 
 | 3.x | 4.0 |
 |---|---|
@@ -121,6 +121,8 @@ With the starter, `cosid.machine.distributor.type` `redis`, `jdbc`, `zookeeper` 
 | `SegmentIdProperties.Distributor.Type` (enum), `getType()`/`setType(Type)` | `String getType()`/`setType(String)`, constants `SegmentIdProperties.Distributor.REDIS`, `JDBC`, `MONGO`, `ZOOKEEPER`, `PROXY` |
 | `MachineProperties.Distributor.PROVIDER`, `getProvider()`/`setProvider()` (and the segment ones) | removed; `REMOVED_PROVIDER` names the old key |
 | `CosIdStoreProviders.storeType(String, Enum)` | `storeType(PropertyResolver, typeKey, providerKey, type, defaultType)`, see `StoreTypes` |
-| `SnowflakeIdProperties.getZoneId()`/`setZoneId(String)` | `ZoneId getZoneId()`/`setZoneId(ZoneId)` | `cosid.snowflake.zone-id` binds to a `ZoneId`, so an unknown zone fails at startup instead of when the first friendly id is built.
+| `SnowflakeIdProperties.getZoneId()`/`setZoneId(String)` | `ZoneId getZoneId()`/`setZoneId(ZoneId)` |
+
+`cosid.snowflake.zone-id` binds to a `ZoneId`, so an unknown zone fails at startup instead of when the first friendly id is built.
 
 The API diff against 3.4 is reported on every pull request to `main` (the **API Diff** workflow).

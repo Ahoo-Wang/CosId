@@ -21,7 +21,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.Decorator;
+import me.ahoo.cosid.cosid.ClockSyncCosIdGenerator;
 import me.ahoo.cosid.cosid.CosIdGenerator;
+import me.ahoo.cosid.cosid.LeasedCosIdGenerator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
@@ -35,6 +38,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 class CosIdGeneratorAutoConfigurationTest {
@@ -135,5 +140,23 @@ class CosIdGeneratorAutoConfigurationTest {
         when(guardDistribute.distribute(anyString(), anyInt(), any(InstanceId.class), any()))
             .thenReturn(new MachineState(1, 0));
         return guardDistribute;
+    }
+    
+    /**
+     * The lease is checked inside the clock sync, so a generation retried after waiting for the clock checks it again.
+     */
+    @Test
+    void theLeaseIsCheckedInsideTheClockSync() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdGeneratorEnabled.ENABLED_KEY + "=true")
+            .run(context -> {
+                List<Class<?>> chain = new ArrayList<>();
+                Object generator = context.getBean(CosIdGenerator.class);
+                while (generator instanceof Decorator<?> decorator) {
+                    chain.add(generator.getClass());
+                    generator = decorator.getActual();
+                }
+                assertThat(chain).containsExactly(ClockSyncCosIdGenerator.class, LeasedCosIdGenerator.class);
+            });
     }
 }

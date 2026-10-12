@@ -19,7 +19,7 @@ Import the CosId BOM, then add the starter and the backend module. The latest ve
 
 ::: code-group
 ```kotlin [Gradle (Kotlin)]
-val cosidVersion = "4.0.0"
+val cosidVersion = "4.0.0-RC2" // the latest release on Maven Central
 dependencies {
     implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
@@ -28,6 +28,9 @@ dependencies {
 }
 ```
 ```xml [Maven]
+<properties>
+    <cosid.version>4.0.0-RC2</cosid.version>
+</properties>
 <dependencyManagement>
     <dependencies>
         <dependency>
@@ -145,27 +148,35 @@ management:
         include: cosid, cosidGenerator, cosidStringGenerator, health
 ```
 
-`GET /actuator/cosid` lists the generators, `GET /actuator/cosidGenerator/order` generates an ID, and `/actuator/health` includes the machine id lease when Snowflake IDs are enabled.
+`GET /actuator/cosid` lists the generators, `GET /actuator/cosidGenerator/order` generates an ID, and `/actuator/health` includes the machine id lease when the machine id is enabled (`cosid.machine.enabled`).
 
 ## Registering a generator in code
 
-Generators can also be created at runtime from the store's `IdSegmentDistributorFactory`:
+Generators can also be created at runtime from the store's `IdSegmentDistributorFactory`. Close a segment chain you remove, so that its background prefetch stops:
 
 ```java
 @Service
 public class TenantIds {
     private final IdGeneratorProvider provider;
     private final IdSegmentDistributorFactory distributorFactory;
+    private final String namespace;
 
-    public TenantIds(IdGeneratorProvider provider, IdSegmentDistributorFactory distributorFactory) {
+    public TenantIds(IdGeneratorProvider provider, IdSegmentDistributorFactory distributorFactory, CosIdProperties cosIdProperties) {
         this.provider = provider;
         this.distributorFactory = distributorFactory;
+        this.namespace = cosIdProperties.getNamespace();
     }
 
     public void register(String tenant) {
-        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition("tenant", tenant, 0, 100);
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, tenant, 0, 100);
         IdSegmentDistributor distributor = distributorFactory.create(definition);
         provider.set(tenant, new SegmentChainId(distributor));
+    }
+
+    public void unregister(String tenant) {
+        if (provider.remove(tenant) instanceof SegmentChainId segmentChainId) {
+            segmentChainId.close(); // stops its background prefetch
+        }
     }
 }
 ```

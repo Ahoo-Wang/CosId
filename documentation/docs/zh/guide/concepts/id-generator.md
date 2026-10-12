@@ -11,7 +11,7 @@ public interface IdGenerator extends StringIdGenerator {
     long generate();
 
     default IdConverter idConverter() {
-        return ToStringIdConverter.INSTANCE;
+        return Radix62IdConverter.PAD_START;
     }
 
     @Override
@@ -22,6 +22,8 @@ public interface IdGenerator extends StringIdGenerator {
 ```
 
 `IdGenerator` 生成 `long` 型 ID，并通过其 [ID 转换器](./id-converter.md) 格式化为字符串。`StringIdGenerator` 只生成字符串：`CosIdGenerator` 和 `UuidGenerator` 都是只生成字符串的生成器，没有 `generate()`。
+
+没有配置转换器时，`generateAsString()` 返回补零到 11 个字符的 62 进制字符串（`Radix62IdConverter.PAD_START`），因此字符串的排序与数字一致。
 
 <p align="center">
   <img src="../../../public/assets/design/IdGenerator-impl-class.png" alt="IdGenerator 实现类图"/>

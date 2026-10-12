@@ -37,12 +37,12 @@ sequenceDiagram
 1. **Claim.** At startup the instance takes, in order: the lease it already holds (after a restart with the same instance id), a machine id another instance released, a never-used one, and only then one whose lease has not been renewed for `cosid.machine.guarder.safe-guard-duration` (5 minutes). If none is left, startup fails with `MachineIdOverflowException`. Claims are atomic: when instances race, each machine id goes to one of them.
 2. **Renew.** The guarder renews the lease every `cosid.machine.guarder.delay` (1 minute), starting after `initial-delay` (1 minute). A failed renewal is logged, and the `machineId` health indicator reports `DOWN` until the next one succeeds.
 3. **Fail fast.** With `cosid.machine.guarder.fail-fast: true` (the default), a generator throws `MachineIdLostException` instead of generating once its lease is lost (another instance owns the machine id now) or has not been renewed for the safe guard duration, minus a margin for clock skew of `min(10s, safe-guard-duration / 10)`. A failed request is better than a duplicate ID.
-4. **Release.** On shutdown, after the web server has stopped taking requests, the instance stops its generators and releases the machine id, so the next instance can take it at once.
+4. **Release.** On shutdown, after the web server has stopped taking requests, the instance stops its generators and releases the machine id, so the next instance can take it at once. A stable instance keeps its machine id: release only raises the watermark.
 
 A lease that is never renewed, because the process was killed, becomes available to other instances after the safe guard duration.
 
 ::: warning Keep the rules the same across a namespace
-All instances of a namespace must use the same `safe-guard-duration`. An instance with a shorter one can take over a lease its holder still considers valid, and both then generate the same IDs. Keep host clocks in sync (NTP) as well: lease times come from the store's clock where it has one (Redis, databases, MongoDB) and from the host clock otherwise (ZooKeeper).
+All instances of a namespace must use the same `safe-guard-duration`. An instance with a shorter one can take over a lease its holder still considers valid, and both then generate the same IDs. Keep host clocks in sync (NTP) as well: lease times come from the store's clock where it has one (Redis, databases, MongoDB, and for the proxy, the clock of the proxy's store) and from the host clock otherwise (ZooKeeper).
 :::
 
 ### Stable instances

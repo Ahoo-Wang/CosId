@@ -14,7 +14,7 @@
 - **机器号**：10 位允许一个命名空间同时有 1024 个实例。实例如何获得机器号见[机器号](./machine-id.md)。
 - **序列号**：12 位允许每个实例每毫秒生成 4096 个 ID，约每秒 400 万个。序列号用完时，生成器等待下一毫秒。
 
-`SecondSnowflakeId`（`timestamp-unit: second`）以秒计时，默认布局为 31 + 10 + 22 位。只要三部分加起来不超过 63 位，任何布局都可以；`SnowflakeId.layout()` 返回当前布局，机器号最多 31 位。
+`SecondSnowflakeId`（`timestamp-unit: second`）以秒计时。`new SecondSnowflakeId(machineId)` 使用 31 + 10 + 22 位，但 Starter 在 `timestamp-unit: second` 时仍沿用配置的位数（默认 41 + 10 + 12）和 epoch：请显式设置 `timestamp-bit`、`sequence-bit` 和以秒为单位的 `epoch`，见[配置示例](../../reference/config/snowflake.md)。只要三部分加起来不超过 63 位，任何布局都可以；`SnowflakeId.layout()` 返回当前布局，机器号最多 31 位。
 
 时间戳位于高位，因此同一实例的 ID 单调递增，跨实例的 ID 趋势递增，乱序程度取决于各主机时钟的差异。
 

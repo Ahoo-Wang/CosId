@@ -11,13 +11,13 @@
 存储为命名空间中的每个生成器名称维护一个计数器，即*最大 ID*。`IdSegmentDistributor` 原子地给它加上 `step` 并返回新值，于是该实例拥有从 `maxId - step + 1` 到 `maxId` 的 ID，其他实例拿不到这些 ID。
 
 - **有序性。** 每个实例发放递增的 ID，下一个号段总比上一个大：ID 在单实例内单调递增。不同实例同时持有不同的号段，因此跨实例的 ID 趋势递增，乱序窗口大约是 `step` 乘以实例数。只有一个实例时，ID 单调递增。
-- **步长。** 步长越小，ID 越接近连续，重启时丢弃的 ID 也越少（号段中未用完的部分会被跳过）；步长越大，访问存储的次数越少。
+- **步长。** 即使 `step=1`，跨实例也不是严格单调递增：两个实例可能拿到相邻的 ID，却以相反的顺序写入。步长越小，ID 越接近连续，重启时丢弃的 ID 也越少（号段中未用完的部分会被跳过）；步长越大，访问存储的次数越少。
 - **偏移量。** `offset` 是计数器创建时的初始值，例如用于接续已有表中的 ID。它只对尚不存在的计数器生效。
 - **可用性。** 每当需要新号段时，生成就要依赖存储。号段链会预留号段，以扛过存储短暂的不可用。
 
 ## DefaultSegmentId
 
-`DefaultSegmentId`（`cosid.segment.mode: segment`）在当前号段用完时，由调用线程获取下一个号段。该线程要等待一次存储往返，这会体现在尾延迟上：[基准测试](../../reference/performance/benchmark.md)中 P99.99 为 46.6 µs。
+`DefaultSegmentId`（`cosid.segment.mode: segment`）在当前号段用完时，由调用线程获取下一个号段。该线程要等待一次存储往返，这会体现在尾延迟上：CosId 1.x 的历史 JMH 结果中 P99.99 为 46.6 µs（[方案对比](../../reference/performance/comparison.md)、[基准测试](../../reference/performance/benchmark.md)）。
 
 ## SegmentChainId
 
@@ -25,7 +25,7 @@
   <img src="../../../public/assets/design/SegmentChainId.png" alt="SegmentChainId"/>
 </p>
 
-`SegmentChainId`（`cosid.segment.mode: chain`，默认）在正在使用的号段之后维护一条号段链。后台的*预取任务*（PrefetchWorker）让链的长度至少保持 `safe-distance` 个号段（默认 2），因此调用线程几乎从不等待存储：每秒约 1.27 亿个 ID，P99.99 为 0.208 µs，接近 `AtomicLong`。
+`SegmentChainId`（`cosid.segment.mode: chain`，默认）在正在使用的号段之后维护一条号段链。后台的*预取任务*（PrefetchWorker）让链的长度至少保持 `safe-distance` 个号段（默认 2），因此调用线程几乎从不等待存储：在同一批历史结果中每秒约 1.27 亿个 ID，P99.99 为 0.208 µs，接近 `AtomicLong`。
 
 号段链会根据需求自适应：
 
@@ -42,7 +42,7 @@
 
 `TPS(SegmentChainId) ≈ step × 扩容系数 × TPS(IdSegmentDistributor) × T ≤ TPS(AtomicLong)`
 
-更快的存储只是更早达到峰值（`T` 更小）。
+其中扩容系数是饥饿时预取距离的增长倍数（2，即翻倍），`T` 是基准测试已运行的时长。更快的存储只是更早达到峰值（`T` 更小）。
 
 <p align="center">
   <img src="../../../public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput-Of-SegmentChainId"/>

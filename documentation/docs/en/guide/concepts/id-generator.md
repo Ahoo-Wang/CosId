@@ -11,7 +11,7 @@ public interface IdGenerator extends StringIdGenerator {
     long generate();
 
     default IdConverter idConverter() {
-        return ToStringIdConverter.INSTANCE;
+        return Radix62IdConverter.PAD_START;
     }
 
     @Override
@@ -22,6 +22,8 @@ public interface IdGenerator extends StringIdGenerator {
 ```
 
 An `IdGenerator` produces `long` IDs and formats them as strings through its [ID converter](./id-converter.md). A `StringIdGenerator` produces strings only: `CosIdGenerator` and `UuidGenerator` are string-only generators and have no `generate()`.
+
+Without a configured converter, `generateAsString()` returns the ID in base 62, zero-padded to 11 characters (`Radix62IdConverter.PAD_START`), so the strings sort like the numbers.
 
 <p align="center">
   <img src="../../../public/assets/design/IdGenerator-impl-class.png" alt="IdGenerator implementation class diagram"/>

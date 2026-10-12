@@ -30,11 +30,11 @@ Every replica of a service needs to create IDs (primary keys, order numbers, eve
 | Scheme | Unique | Ordering | Throughput (ops/s) | P99.99 (µs/op) | Depends on | Size |
 |--------|:------:|----------|-------------------:|---------------:|------------|------|
 | UUID | Yes | None | 3,078,638 | 0.325 | Nothing | 128 bits |
-| SnowflakeId | Yes | Monotonic per instance, trend increasing (host clocks) | 4,096,000 | 0.244 | Clock, machine id | 64 bits |
+| SnowflakeId | Yes | Monotonic per instance, trend increasing (host clocks) | 4,096,000 (theoretical maximum, 4096 per ms) | 0.244 | Clock, machine id | 64 bits |
 | DefaultSegmentId | Yes | Monotonic per instance, trend increasing (step) | 29,506,073 | 46.624 | Segment store | 64 bits |
 | SegmentChainId | Yes | Monotonic per instance, trend increasing (step, safe distance) | 127,439,148 | 0.208 | Segment store, with IDs in reserve | 64 bits |
 
-The numbers come from the [JMH benchmark](../reference/performance/benchmark.md) on one machine; the [comparison of ID schemes](../reference/performance/comparison.md) has the background.
+The numbers are historical JMH results of CosId 1.x on one machine, from the [comparison of ID schemes](../reference/performance/comparison.md); they show the relative cost of each scheme, not what your hardware reaches. See the [JMH benchmark](../reference/performance/benchmark.md) for how to run them.
 
 ### Monotonic and trend increasing
 

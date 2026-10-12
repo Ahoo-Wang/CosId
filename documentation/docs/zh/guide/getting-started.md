@@ -19,7 +19,7 @@
 
 ::: code-group
 ```kotlin [Gradle (Kotlin)]
-val cosidVersion = "4.0.0"
+val cosidVersion = "4.0.0-RC2" // Maven Central 上的最新版本
 dependencies {
     implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
@@ -28,6 +28,9 @@ dependencies {
 }
 ```
 ```xml [Maven]
+<properties>
+    <cosid.version>4.0.0-RC2</cosid.version>
+</properties>
 <dependencyManagement>
     <dependencies>
         <dependency>
@@ -145,27 +148,35 @@ management:
         include: cosid, cosidGenerator, cosidStringGenerator, health
 ```
 
-`GET /actuator/cosid` 列出所有生成器，`GET /actuator/cosidGenerator/order` 生成一个 ID；启用 Snowflake ID 时，`/actuator/health` 会包含机器号租约的状态。
+`GET /actuator/cosid` 列出所有生成器，`GET /actuator/cosidGenerator/order` 生成一个 ID；启用机器号（`cosid.machine.enabled`）时，`/actuator/health` 会包含机器号租约的状态。
 
 ## 在代码中注册生成器
 
-也可以在运行时通过存储的 `IdSegmentDistributorFactory` 创建生成器：
+也可以在运行时通过存储的 `IdSegmentDistributorFactory` 创建生成器。移除号段链时请关闭它，以停止后台预取：
 
 ```java
 @Service
 public class TenantIds {
     private final IdGeneratorProvider provider;
     private final IdSegmentDistributorFactory distributorFactory;
+    private final String namespace;
 
-    public TenantIds(IdGeneratorProvider provider, IdSegmentDistributorFactory distributorFactory) {
+    public TenantIds(IdGeneratorProvider provider, IdSegmentDistributorFactory distributorFactory, CosIdProperties cosIdProperties) {
         this.provider = provider;
         this.distributorFactory = distributorFactory;
+        this.namespace = cosIdProperties.getNamespace();
     }
 
     public void register(String tenant) {
-        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition("tenant", tenant, 0, 100);
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, tenant, 0, 100);
         IdSegmentDistributor distributor = distributorFactory.create(definition);
         provider.set(tenant, new SegmentChainId(distributor));
+    }
+
+    public void unregister(String tenant) {
+        if (provider.remove(tenant) instanceof SegmentChainId segmentChainId) {
+            segmentChainId.close(); // stops its background prefetch
+        }
     }
 }
 ```

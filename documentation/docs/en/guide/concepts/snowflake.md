@@ -14,7 +14,7 @@ The default layout, `MillisecondSnowflakeId`, is `timestamp (41 bits) + machine 
 - **Machine id**: 10 bits allow 1024 instances in one namespace at the same time. See [Machine ID](./machine-id.md) for how an instance gets one.
 - **Sequence**: 12 bits allow 4096 IDs per millisecond per instance, about 4 million per second. When the sequence runs out, the generator waits for the next millisecond.
 
-`SecondSnowflakeId` (`timestamp-unit: second`) counts seconds instead, with a default layout of 31 + 10 + 22 bits. Any layout whose bits add up to at most 63 works; `SnowflakeId.layout()` returns it, and machine id bits are limited to 31.
+`SecondSnowflakeId` (`timestamp-unit: second`) counts seconds instead. `new SecondSnowflakeId(machineId)` uses 31 + 10 + 22 bits, but the starter keeps the configured bits (41 + 10 + 12 by default) and epoch for `timestamp-unit: second`: set `timestamp-bit`, `sequence-bit` and an `epoch` in seconds explicitly, as in the [configuration example](../../reference/config/snowflake.md). Any layout whose bits add up to at most 63 works; `SnowflakeId.layout()` returns it, and machine id bits are limited to 31.
 
 Because the timestamp is in the high bits, IDs of one instance increase monotonically, and IDs across instances are trend increasing, as far apart as the host clocks are.
 

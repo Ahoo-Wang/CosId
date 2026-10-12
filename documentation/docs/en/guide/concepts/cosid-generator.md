@@ -11,7 +11,7 @@
 `timestamp (44 bits) + machine id (20 bits) + sequence (16 bits) = 80 bits`
 
 - **Timestamp**: milliseconds since the Unix epoch.
-- **Machine id**: leased like a Snowflake machine id, see [Machine ID](./machine-id.md).
+- **Machine id**: leased like a Snowflake machine id, see [Machine ID](./machine-id.md), with `cosid.generator.machine-bit` bits (20 by default). Give the generator its own `cosid.generator.namespace`: an instance holds one machine id per namespace, and one leased for 20 bits may not fit a 10-bit Snowflake layout in the same namespace.
 - **Sequence**: 65,536 IDs per millisecond per instance, restarting past half its range like the [Snowflake sequence](./snowflake.md#sequence-reset).
 
 The ID is the three parts encoded as fixed-width strings, so IDs sort as strings in the order they were generated, and the parts can be parsed back (`getStateParser().asState(id)`).
@@ -27,7 +27,7 @@ Radix-62 IDs are case sensitive: store them in a case-sensitive (binary) column.
 ## Properties
 
 - Time-ordered: increasing per instance, trend increasing across instances.
-- Fast: about 15.6 million IDs per second on one instance, three times `UUID.randomUUID()`.
+- Local: generation needs no store call after the machine id is leased.
 - Short: 15 characters, against 36 for a UUID string.
 
 `CosIdGenerator` is a `StringIdGenerator`: it has no `long` form, so it cannot fill a `long` field or serve as the share generator.

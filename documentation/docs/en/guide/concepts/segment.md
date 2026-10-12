@@ -11,13 +11,13 @@ A segment ID comes from a counter in a store. Instead of asking the store for ev
 The store keeps one counter, the *max id*, for each generator name in a namespace. An `IdSegmentDistributor` adds `step` to it atomically and returns the new value, so the instance owns the IDs from `maxId - step + 1` to `maxId`. No other instance can get them.
 
 - **Ordering.** Each instance hands out increasing IDs, and its next segment is above its last one: IDs are monotonic per instance. Different instances hold different segments at the same time, so across instances IDs are trend increasing, with a disorder window of about `step` times the number of instances. With one instance, IDs are monotonic.
-- **Step.** A smaller step keeps IDs closer to sequential and loses fewer of them on restart (the unused rest of a segment is skipped); a larger step means fewer store calls.
+- **Step.** Even `step=1` is not strictly monotonic across instances: two instances can take consecutive IDs and write them in the opposite order. A smaller step keeps IDs closer to sequential and loses fewer of them on restart (the unused rest of a segment is skipped); a larger step means fewer store calls.
 - **Offset.** `offset` is the value the counter starts at when it is created, for example to continue after the IDs of an existing table. It applies only to a counter that does not exist yet.
 - **Availability.** Generation needs the store whenever a new segment is needed. A segment chain keeps segments in reserve to ride out short store outages.
 
 ## DefaultSegmentId
 
-`DefaultSegmentId` (`cosid.segment.mode: segment`) takes the next segment on the calling thread when the current one runs out. That thread waits for a store round trip, which shows in the tail latency: P99.99 of 46.6 µs in the [benchmark](../../reference/performance/benchmark.md).
+`DefaultSegmentId` (`cosid.segment.mode: segment`) takes the next segment on the calling thread when the current one runs out. That thread waits for a store round trip, which shows in the tail latency: P99.99 of 46.6 µs in the historical CosId 1.x JMH results ([comparison](../../reference/performance/comparison.md), [benchmark](../../reference/performance/benchmark.md)).
 
 ## SegmentChainId
 
@@ -25,7 +25,7 @@ The store keeps one counter, the *max id*, for each generator name in a namespac
   <img src="../../../public/assets/design/SegmentChainId.png" alt="SegmentChainId"/>
 </p>
 
-`SegmentChainId` (`cosid.segment.mode: chain`, the default) keeps a chain of segments ahead of the one in use. A background *prefetch worker* keeps the chain at least `safe-distance` segments long (by default 2), so calling threads almost never wait for the store: about 127 million IDs per second with a P99.99 of 0.208 µs, close to an `AtomicLong`.
+`SegmentChainId` (`cosid.segment.mode: chain`, the default) keeps a chain of segments ahead of the one in use. A background *prefetch worker* keeps the chain at least `safe-distance` segments long (by default 2), so calling threads almost never wait for the store: about 127 million IDs per second with a P99.99 of 0.208 µs in the same historical results, close to an `AtomicLong`.
 
 The chain adapts to demand:
 
@@ -42,7 +42,7 @@ In the benchmark, a Redis and a MySQL segment chain both reach about 120 million
 
 `TPS(SegmentChainId) ≈ step × expansion × TPS(IdSegmentDistributor) × T ≤ TPS(AtomicLong)`
 
-A faster store only reaches the peak sooner (a smaller `T`).
+Here `expansion` is the hunger growth factor of the prefetch distance (2: it doubles), and `T` is how long the benchmark has been running. A faster store only reaches the peak sooner (a smaller `T`).
 
 <p align="center">
   <img src="../../../public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput-Of-SegmentChainId"/>

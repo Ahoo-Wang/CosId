@@ -1,36 +1,30 @@
 # ZooKeeper Configuration
 
-> `me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperProperties`
+> `me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperProperties`, prefix `cosid.zookeeper`
 
-| Name                         | Data Type       | Description              | Default Value                      |
-|----------------------------|------------|-----------------|--------------------------|
-| enabled                    | `boolean`  | Whether to enable *ZooKeeper* | true                     |
-| connect-string             | `String`   | Connection string           | `localhost:2181`         |
-| block-until-connected-wait | `Duration` | Block until client is connected wait time  | `Duration.ofSeconds(10)` |
-| session-timeout            | `Duration` | Session timeout          | `Duration.ofSeconds(60)`  |
-| connection-timeout         | `Duration` | Connection timeout          | `Duration.ofSeconds(15)` |
-| retry                      | `Retry`    | Retry policy configuration          |                          |
+Used when `cosid.machine.distributor.type` or `cosid.segment.distributor.type` is `zookeeper`; the starter does not connect otherwise. See [ZooKeeper](../../guide/backends/zookeeper.md).
 
-## Retry (`ExponentialBackoffRetry`) Configuration
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | `boolean` | `true` | Create the Curator client when ZooKeeper is selected |
+| `connect-string` | `String` | `localhost:2181` | ZooKeeper servers |
+| `session-timeout` | `Duration` | `60s` | Session timeout |
+| `connection-timeout` | `Duration` | `15s` | Connection timeout |
+| `block-until-connected-wait` | `Duration` | `10s` | How long startup waits for the connection |
+| `retry.base-sleep-time-ms` | `int` | `100` | `ExponentialBackoffRetry`: initial wait between retries, in milliseconds |
+| `retry.max-retries` | `int` | `5` | Maximum retries |
+| `retry.max-sleep-ms` | `int` | `500` | Maximum wait between retries, in milliseconds |
 
-| Name              | Data Type  | Description                | Default Value   |
-|-----------------|-------|-------------------|-------|
-| baseSleepTimeMs | `int` | Initial amount of time to wait between retries (milliseconds) | `100` |
-| maxRetries      | `int` | Maximum number of retries            | `5`   |
-| maxSleepMs      | `int` | Maximum sleep time between retries (milliseconds)  | `500` |
-
-**YAML Configuration Example**
+The per-call timeouts are `cosid.segment.distributor.zookeeper.timeout` and `cosid.machine.distributor.zookeeper.timeout`, both `5s`.
 
 ```yaml
 cosid:
   zookeeper:
-    enabled: true
     connect-string: localhost:2181
     retry:
       base-sleep-time-ms: 100
       max-retries: 5
       max-sleep-ms: 500
-    block-until-connected-wait: 10s
   segment:
     distributor:
       type: zookeeper

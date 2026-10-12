@@ -1,106 +1,134 @@
-# CosId-Jdbc 模块
+# JDBC
 
-[cosid-jdbc](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-jdbc) 提供 **关系型数据库** 的支持。实现了：
+[`cosid-jdbc`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-jdbc) 通过应用的 `DataSource` 把号段计数器和机器号租约保存在关系数据库中：
 
-- `JdbcMachineLeaseStore`：作为**雪花算法**(`SnowflakeId`)的机器号租约存储，由 `LeaseStoreMachineIdDistributor` 使用。
-- `IdSegmentDistributor`：作为**号段算法**(`SegmentId`)的号段分发器 (`IdSegmentDistributor`)。
+- `JdbcIdSegmentDistributor`：号段计数器，每个生成器在 `cosid` 表中占一行。
+- `JdbcMachineLeaseStore`：机器号租约，每个机器号在 `cosid_machine` 表中占一行。租约时间取自数据库时钟。
+
+MySQL 和 MariaDB 使用默认语句即可；PostgreSQL 需要使用 `PostgreSqlDialect` 中的语句，见[下文](#postgresql)。其他数据库可以配置自己的语句。
 
 ## 安装
 
 ::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-    implementation("me.ahoo.cosid:cosid-jdbc:${cosidVersion}")
+```kotlin [Gradle (Kotlin)]
+dependencies {
+    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("me.ahoo.cosid:cosid-jdbc")
+    implementation("org.springframework.boot:spring-boot-starter-jdbc")
+}
 ```
 ```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jdbc</artifactId>
-            <version>${springboot.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-jdbc</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
+<dependencies>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-jdbc</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
+</dependencies>
 ```
 :::
 
-### 创建 `cosid` 表
+同时添加对应数据库的 JDBC 驱动。
 
-`cosid` 表作为号段分发器的号段分发记录表。
+## 配置
+
+```yaml
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/cosid_db
+cosid:
+  namespace: ${spring.application.name}
+  machine:
+    enabled: true # Snowflake ID 和 CosIdGenerator 需要
+    distributor:
+      type: jdbc
+  segment:
+    enabled: true # 号段 ID 需要
+    distributor:
+      type: jdbc
+      jdbc:
+        enable-auto-init-cosid-table: true
+```
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `cosid.segment.distributor.jdbc.enable-auto-init-cosid-table` | `false` | 启动时用 `init-cosid-table-sql` 创建 `cosid` 表 |
+| `cosid.segment.distributor.jdbc.enable-auto-init-id-segment` | `true` | 启动时用 `init-id-segment-sql` 插入缺失的生成器行 |
+| `cosid.segment.distributor.jdbc.init-cosid-table-sql`、`init-id-segment-sql`、`increment-max-id-sql`、`fetch-max-id-sql` | MySQL 语句 | 号段相关语句 |
+| `cosid.segment.distributor.jdbc.query-timeout` | `5s` | 每条号段语句；`0` 表示不限制 |
+| `cosid.machine.distributor.jdbc.enable-auto-init-cosid-machine-table` | `false` | 启动时创建 `cosid_machine` 表 |
+| `cosid.machine.distributor.jdbc.init-cos-id-machine-table-sql`、`init-namespace-idx-sql`、`init-instance-id-idx-sql` | MySQL 语句 | 机器号表相关语句；为空的索引语句会被跳过 |
+| `cosid.machine.distributor.jdbc.query-timeout` | `5s` | 每条机器号语句；`0` 表示不限制 |
+| `cosid.machine.distributor.jdbc.server-time-sql` | 自动识别 | 查询数据库时钟（epoch 毫秒）的语句。未设置时，Starter 会为 MySQL、MariaDB 和 PostgreSQL 自动选择；其他数据库必须设置 |
+
+::: warning 使用独立的 DataSource
+CosId 会自行提交它的写入（连接池设置了 `autoCommit=false` 时也一样）。请给它一个不参与业务事务的 `DataSource`：`TransactionAwareDataSourceProxy` 或 JTA `DataSource` 会提前提交调用方的事务。
+:::
+
+## 表结构
+
+可以自己建表，也可以通过 `enable-auto-init-*` 属性让 CosId 建表。
 
 ```sql
 create table if not exists cosid
 (
     name            varchar(100) not null comment '{namespace}.{name}',
-    last_max_id     bigint       not null default 0,
-    last_fetch_time bigint       not null,
+    last_max_id     bigint unsigned not null default 0,
+    last_fetch_time bigint unsigned not null default 0,
     constraint cosid_pk
         primary key (name)
 ) engine = InnoDB;
-```
 
-### 创建 `cosid_machine` 表
-
-```sql
 create table if not exists cosid_machine
 (
-    name            varchar(100) not null comment '{namespace}.{machine_id}',
-    namespace       varchar(100) not null,
+    name            varchar(100)     not null comment '{namespace}.{machine_id}',
+    namespace       varchar(100)     not null,
     machine_id      integer unsigned not null default 0,
-    last_timestamp  bigint unsigned not null default 0,
-    instance_id     varchar(100) not null default '',
-    distribute_time bigint unsigned not null default 0,
-    revert_time     bigint unsigned not null default 0,
-    stable          tinyint      not null default 0,
-    renew_time      bigint unsigned not null default 0,
-    watermark       bigint unsigned not null default 0,
-    lease_version   bigint unsigned not null default 0,
+    last_timestamp  bigint unsigned  not null default 0,
+    instance_id     varchar(100)     not null default '',
+    distribute_time bigint unsigned  not null default 0,
+    revert_time     bigint unsigned  not null default 0,
+    stable          tinyint          not null default 0,
+    renew_time      bigint unsigned  not null default 0,
+    watermark       bigint unsigned  not null default 0,
+    lease_version   bigint unsigned  not null default 0,
     constraint cosid_machine_pk
-        primary key (name)
+        primary key (name),
+    key idx_namespace (namespace),
+    key idx_instance_id (instance_id)
 ) engine = InnoDB;
-
-create index idx_namespace on cosid_machine (namespace);
-create index idx_instance_id on cosid_machine (instance_id);
 ```
 
-`stable` 标记稳定实例（`cosid.machine.stable=true`）的机器号：即使持有者离线超过安全守护时长，其他实例也不会回收它。
-3.3 之前创建的表没有这一列：4.0 启动时会失败，并给出添加该列的语句（3.4 只打印告警）：
+### 升级 3.x 创建的表
 
-```sql
-alter table cosid_machine add column stable tinyint not null default 0;
-```
-
-4.0 把机器号租约保存在 `renew_time`、`watermark` 和 `lease_version` 三列中。3.x 创建的表需要在启动 4.0 实例前加上它们（3.x 实例加列后照常工作）；缺少这几列时启动会失败，并给出要执行的语句：
+4.0 把租约保存在 `renew_time`、`watermark` 和 `lease_version` 中，缺少这些列或 `stable` 列（3.3 新增）时，启动会失败并打印所需语句。请在启动 4.0 实例之前添加；3.x 实例在添加之后仍可正常工作：
 
 ```sql
 -- MySQL / MariaDB
+alter table cosid_machine add column stable tinyint not null default 0; -- 仅限 3.3 之前创建的表
 alter table cosid_machine add column renew_time bigint unsigned not null default 0,
     add column watermark bigint unsigned not null default 0,
     add column lease_version bigint unsigned not null default 0;
 -- PostgreSQL
+alter table cosid_machine add column if not exists stable smallint not null default 0;
 alter table cosid_machine add column if not exists renew_time bigint not null default 0,
     add column if not exists watermark bigint not null default 0,
     add column if not exists lease_version bigint not null default 0;
 ```
 
-::: warning 使用独立的 DataSource
-CosId 会自己提交写入（连接池关闭自动提交时也是）。请给它一个不参与业务事务的 `DataSource`：如果传入 `TransactionAwareDataSourceProxy` 或 JTA `DataSource`，
-会提前提交调用方的事务。
-:::
+步骤顺序见[滚动升级](../migration/4.0.md)。
 
-### PostgreSQL
+## PostgreSQL
 
-默认的建表语句和号段语句使用 MySQL 语法。`me.ahoo.cosid.jdbc.PostgreSqlDialect` 提供了 PostgreSQL 版本（在 PostgreSQL 16 上测试过）：
-传给 `JdbcIdSegmentInitializer`、`JdbcIdSegmentDistributorFactory` 和 `JdbcMachineIdInitializer`，或者配置到对应的 `cosid.*.distributor.jdbc` SQL 属性。
-机器号租约存储会读取数据库时钟：starter 会为 MySQL、MariaDB 和 PostgreSQL 选择对应的查询，其他数据库必须配置
-`cosid.machine.distributor.jdbc.server-time-sql`。不使用 starter 时，PostgreSQL 用户需要把 `PostgreSqlDialect.SERVER_TIME_SQL` 传给 `JdbcMachineLeaseStore`。
-
-使用 Spring Boot starter 时：
+`me.ahoo.cosid.jdbc.PostgreSqlDialect` 提供了 PostgreSQL 版本的语句（在 PostgreSQL 16 上测试）。可以设置为上面的属性，不使用 Starter 时则传给 `JdbcIdSegmentInitializer`、`JdbcIdSegmentDistributorFactory` 和 `JdbcMachineIdInitializer`。Starter 会为 PostgreSQL 自动识别服务器时间查询；不使用 Starter 时，把 `PostgreSqlDialect.SERVER_TIME_SQL` 传给 `JdbcMachineLeaseStore`。
 
 ```yaml
 cosid:
@@ -131,22 +159,4 @@ cosid:
           constraint cosid_machine_pk primary key (name))
         init-namespace-idx-sql: create index if not exists idx_namespace on cosid_machine (namespace)
         init-instance-id-idx-sql: create index if not exists idx_instance_id on cosid_machine (instance_id)
-```
-
-## 配置案例
-
-```yaml {4,10,14}
-spring:
-  datasource:
-    url:  # Jdbc 分发器直接依赖 DataSource
-cosid:
-  namespace: ${spring.application.name}
-  machine:
-    enabled: true # 可选，当需要使用雪花算法时，需要设置为 true
-    distributor:
-      type: jdbc
-  segment:
-    enabled: true # 可选，当需要使用号段算法时，需要设置为 true
-    distributor:
-      type: jdbc
 ```

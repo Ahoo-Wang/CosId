@@ -12,7 +12,7 @@ Machine ids are scoped by a *namespace* (`cosid.namespace`, usually the applicat
 
 | Type | How | Recycling | Use it when |
 |------|-----|-----------|-------------|
-| `redis`, `jdbc`, `mongo`, `zookeeper`, `proxy` | Leased from a store (`LeaseStoreMachineIdDistributor` on the backend's `MachineLeaseStore`) | Yes, after the lease expires | Almost always: pick the store you already run, see the [backends](../backends/redis.md) |
+| `redis`, `jdbc`, `mongo`, `zookeeper`, `proxy` | Leased from a store (`LeaseStoreMachineIdDistributor` on the backend's `MachineLeaseStore`) | Yes, after the lease expires | Almost always: pick the store you already run, see [Choosing a backend](../backends/index.md) |
 | `stateful_set` | The ordinal of a Kubernetes StatefulSet pod, parsed from `HOSTNAME` (`order-service-3` gives 3) | Not needed | Pods of a StatefulSet; the ordinal must fit in the machine id bits |
 | `manual` (default) | `cosid.machine.distributor.manual.machine-id` | No | A single instance, or tests. Nothing stops two instances from using the same value |
 | any other value | The `CosIdStoreProvider` bean whose `getType()` matches | Depends on the provider | A store CosId does not ship |

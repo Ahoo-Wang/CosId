@@ -1,67 +1,68 @@
-# CosId-ZooKeeper 模块
+# ZooKeeper
 
-[cosid-zookeeper](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-zookeeper) 模块提供 *ZooKeeper* 的支持。实现了：
+[`cosid-zookeeper`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-zookeeper) 通过 Apache Curator 把号段计数器和机器号租约保存在 ZooKeeper 中：
 
-- `ZookeeperMachineLeaseStore`：作为**雪花算法**(`SnowflakeId`)的机器号租约存储，由 `LeaseStoreMachineIdDistributor` 使用。
-- `IdSegmentDistributor`：作为**号段算法**(`SegmentId`)的号段分发器 (`IdSegmentDistributor`)。
+- `ZookeeperIdSegmentDistributor`：号段计数器，使用 Curator 的分布式原子长整型。
+- `ZookeeperMachineLeaseStore`：机器号租约，用带版本的事务申领和释放。
+
+ZooKeeper 没有客户端可读取的服务器时钟，租约时间取自主机时钟。**请保持各主机时钟同步**（NTP）：时钟偏快的实例可能会在另一个实例的租约到期之前就认为它已过期。
+
+只有 `type` 选择了 ZooKeeper 时，Starter 才会连接 ZooKeeper。
 
 ## 安装
 
 ::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    implementation("me.ahoo.cosid:cosid-zookeeper:${cosidVersion}")
+```kotlin [Gradle (Kotlin)]
+dependencies {
+    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("me.ahoo.cosid:cosid-zookeeper")
+}
 ```
 ```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-zookeeper</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
+<dependencies>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-zookeeper</artifactId>
+    </dependency>
+</dependencies>
 ```
 :::
 
+`cosid-zookeeper` 会引入 `curator-recipes`。
+
 ## 配置
 
-- 配置类：[CosIdZookeeperProperties](https://github.com/Ahoo-Wang/CosId/blob/main/cosid-spring-boot-starter/src/main/java/me/ahoo/cosid/spring/boot/starter/zookeeper/CosIdZookeeperProperties.java)
-- 前缀：`cosid.zookeeper.`
-
-| 名称                         | 数据类型       | 说明              | 默认值                      |
-|----------------------------|------------|-----------------|--------------------------|
-| enabled                    | `boolean`  | 是否开启*ZooKeeper* | true                     |
-| connect-string             | `String`   | 链接字符串           | `localhost:2181`         |
-| block-until-connected-wait | `Duration` | 阻塞直到客户端已连接等待时间  | `Duration.ofSeconds(10)` |
-| session-timeout            | `Duration` | 会话超时时间          | `Duration.ofSeconds(60`  |
-| connection-timeout         | `Duration` | 连接超时时间          | `Duration.ofSeconds(15)` |
-| retry                      | `Retry`    | 重试策略配置          |                          |
-
-### Retry (`ExponentialBackoffRetry`) 配置
-
-| 名称              | 数据类型  | 说明                | 默认值   |
-|-----------------|-------|-------------------|-------|
-| baseSleepTimeMs | `int` | 重试之间等待的初始时间量 （毫秒） | `100` |
-| maxRetries      | `int` | 最大重试次数            | `5`   |
-| maxSleepMs      | `int` | 每次重试时的最大睡眠时间（毫秒）  | `500` |
-
-### 配置案例
-
-[CosId-Example-Zookeeper](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-zookeeper)
-
-```yaml {2-8,11,14}
+```yaml
 cosid:
+  namespace: ${spring.application.name}
   zookeeper:
     connect-string: localhost:2181
-    retry:
-      base-sleep-time-ms: 100
-      max-retries: 5
-      max-sleep-ms: 500
-    block-until-connected-wait: 10s
-  segment:
+  machine:
+    enabled: true # Snowflake ID 和 CosIdGenerator 需要
     distributor:
       type: zookeeper
-  machine:
+  segment:
+    enabled: true # 号段 ID 需要
     distributor:
       type: zookeeper
 ```
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `cosid.zookeeper.enabled` | `true` | 选择 ZooKeeper 时创建 Curator 客户端 |
+| `cosid.zookeeper.connect-string` | `localhost:2181` | ZooKeeper 服务器地址 |
+| `cosid.zookeeper.session-timeout` | `60s` | 会话超时 |
+| `cosid.zookeeper.connection-timeout` | `15s` | 连接超时 |
+| `cosid.zookeeper.block-until-connected-wait` | `10s` | 启动时等待连接建立的时长 |
+| `cosid.zookeeper.retry.base-sleep-time-ms` | `100` | `ExponentialBackoffRetry`：首次重试前的等待时间（毫秒） |
+| `cosid.zookeeper.retry.max-retries` | `5` | 最大重试次数 |
+| `cosid.zookeeper.retry.max-sleep-ms` | `500` | 两次重试之间的最长等待时间（毫秒） |
+| `cosid.segment.distributor.zookeeper.timeout` | `5s` | 每次号段 `nextMaxId` |
+| `cosid.machine.distributor.zookeeper.timeout` | `5s` | 租约续约和释放（Curator 没有单次操作超时）；必须为正数 |
+
+应用也可以自行定义 `CuratorFramework` Bean。可运行的示例见 [CosId-Example-Zookeeper](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-zookeeper)。

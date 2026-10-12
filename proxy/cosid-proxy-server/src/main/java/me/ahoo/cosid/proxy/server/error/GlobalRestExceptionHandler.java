@@ -31,10 +31,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.support.WebExchangeBindException;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -48,6 +49,7 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 @Slf4j
 public class GlobalRestExceptionHandler {
+    static final String INTERNAL_ERROR = "Internal error";
     
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleClientException(IllegalArgumentException ex) {
@@ -56,7 +58,7 @@ public class GlobalRestExceptionHandler {
         }
         return ResponseEntity
             .badRequest()
-            .body(ErrorResponse.unknown(ex.getMessage()));
+            .body(ErrorResponse.badRequest(ex.getMessage()));
     }
     
     @ExceptionHandler(MachineIdOverflowException.class)
@@ -93,9 +95,12 @@ public class GlobalRestExceptionHandler {
             .body(ErrorResponse.of(SEGMENT_ROLLBACK, ex.getMessage()));
     }
     
+    /**
+     * A request body or parameter that failed validation, as WebFlux reports it.
+     */
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler({MethodArgumentNotValidException.class})
-    public ErrorResponse argumentExceptionHandler(MethodArgumentNotValidException e) {
+    @ExceptionHandler({WebExchangeBindException.class})
+    public ErrorResponse argumentExceptionHandler(WebExchangeBindException e) {
         BindingResult exceptions = e.getBindingResult();
         List<ObjectError> allErrors = exceptions.getAllErrors();
         if (allErrors.isEmpty()) {
@@ -103,21 +108,41 @@ public class GlobalRestExceptionHandler {
         }
         List<ArgumentError> argumentErrors = allErrors
             .stream()
-            .map(objectError -> (FieldError) objectError)
-            .map(fieldError -> new ArgumentError(fieldError.getField(), fieldError.getDefaultMessage()))
+            .map(objectError -> objectError instanceof FieldError fieldError
+                ? new ArgumentError(fieldError.getField(), fieldError.getDefaultMessage())
+                : new ArgumentError(objectError.getObjectName(), objectError.getDefaultMessage()))
             .collect(Collectors.toList());
         
         return ErrorResponse.badRequest(argumentErrors);
     }
     
+    /**
+     * Keeps the status of a framework error, such as {@code 404}, {@code 405} or {@code 415}: as a {@code 500} it could
+     * be retried by a gateway, replaying a request that changes state.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex) {
+        if (log.isInfoEnabled()) {
+            log.info(ex.getMessage());
+        }
+        String reason = ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString();
+        return ResponseEntity
+            .status(ex.getStatusCode())
+            // Such as Allow of a 405, and Accept of a 415.
+            .headers(ex.getHeaders())
+            .body(ErrorResponse.of(String.valueOf(ex.getStatusCode().value()), reason));
+    }
+    
+    /**
+     * Any other error: logged with its details, which do not reach the client.
+     */
     @ExceptionHandler
-    @ResponseStatus
     public ResponseEntity<ErrorResponse> handleAll(Exception ex) {
         if (log.isErrorEnabled()) {
             log.error(ex.getMessage(), ex);
         }
         return ResponseEntity
             .internalServerError()
-            .body(ErrorResponse.unknown(ex.getMessage()));
+            .body(ErrorResponse.unknown(INTERNAL_ERROR));
     }
 }

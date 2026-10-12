@@ -18,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import me.ahoo.cosid.proxy.api.ClaimRequest;
 import me.ahoo.cosid.proxy.api.LeaseDto;
 import me.ahoo.cosid.proxy.api.LeaseResponse;
+import me.ahoo.cosid.proxy.api.ReleaseRequest;
 import me.ahoo.cosid.proxy.api.RenewRequest;
 import me.ahoo.cosid.proxy.server.controller.MachineLeaseController;
 import me.ahoo.cosid.proxy.server.error.GlobalRestExceptionHandler;
@@ -36,6 +37,17 @@ class MachineLeaseControllerTest {
     
     private WebTestClient.ResponseSpec claim(String namespace, String kind, ClaimRequest request) {
         return server.post().uri("/machines/v2/{ns}/claims/{kind}", namespace, kind).bodyValue(request).exchange();
+    }
+    
+    @Test
+    void aRequestWithoutALeaseIsABadRequest() {
+        long now = System.currentTimeMillis();
+        server.post().uri("/machines/v2/{ns}/renewals", "ns").bodyValue(new RenewRequest(null, now)).exchange()
+            .expectStatus().isBadRequest()
+            .expectBody().jsonPath("$.msg").isEqualTo("lease can not be null!");
+        server.post().uri("/machines/v2/{ns}/releases", "ns").bodyValue(new ReleaseRequest(null, now)).exchange()
+            .expectStatus().isBadRequest()
+            .expectBody().jsonPath("$.msg").isEqualTo("lease can not be null!");
     }
     
     @Test

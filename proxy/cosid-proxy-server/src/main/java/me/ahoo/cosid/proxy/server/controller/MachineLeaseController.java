@@ -105,7 +105,7 @@ public class MachineLeaseController implements MachineLeaseApi {
     
     private static Lease lease(String namespace, LeaseDto lease) {
         checkNamespace(namespace);
-        Checks.checkNotNull(lease, "lease can not be null!");
+        Checks.checkArgument(lease != null, "lease can not be null!");
         Checks.checkArgument(namespace.equals(lease.namespace()), "lease namespace:[%s] does not match the path:[%s]!", lease.namespace(), namespace);
         return lease.toLease();
     }

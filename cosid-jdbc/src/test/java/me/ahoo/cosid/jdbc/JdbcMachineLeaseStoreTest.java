@@ -116,6 +116,36 @@ class JdbcMachineLeaseStoreTest {
         }
     }
     
+    /**
+     * On PostgreSQL a failed statement aborts the transaction. With auto-commit off on one shared connection, the failed
+     * stable-column probe must be rolled back, so the next statement on that connection still runs.
+     */
+    @Test
+    void failedStableColumnProbeDoesNotLeaveTheTransactionAborted() throws SQLException {
+        DataSource dataSource = RealPostgres.createDataSource();
+        String schema = "probe_" + MockIdGenerator.INSTANCE.generateAsString().toLowerCase();
+        RealPostgres.execute(dataSource, "create schema " + schema);
+        RealPostgres.execute(dataSource, PostgreSqlDialect.INIT_COSID_MACHINE_TABLE_SQL
+            .replace("create table if not exists cosid_machine", "create table " + schema + ".cosid_machine")
+            .replace("    stable          smallint     not null default 0,\n", ""));
+        try (Connection shared = new ManualCommitDataSource(dataSource, schema).getConnection()) {
+            Connection unclosable = (Connection) Proxy.newProxyInstance(Connection.class.getClassLoader(), new Class<?>[] {Connection.class},
+                (proxy, method, args) -> "close".equals(method.getName()) ? null : method.invoke(shared, args));
+            DataSource oneConnection = (DataSource) Proxy.newProxyInstance(DataSource.class.getClassLoader(), new Class<?>[] {DataSource.class},
+                (proxy, method, args) -> "getConnection".equals(method.getName()) ? unclosable : method.invoke(dataSource, args));
+            Assertions.assertFalse(shared.getAutoCommit());
+            
+            IllegalStateException exception = Assertions.assertThrows(IllegalStateException.class,
+                () -> new JdbcMachineLeaseStore(oneConnection, JdbcSupport.DEFAULT_QUERY_TIMEOUT, PostgreSqlDialect.SERVER_TIME_SQL));
+            
+            Assertions.assertTrue(exception.getMessage().contains(PostgreSqlDialect.ADD_STABLE_COLUMN_SQL), exception.getMessage());
+            try (Statement statement = shared.createStatement();
+                 ResultSet resultSet = statement.executeQuery("select count(*) from cosid_machine")) {
+                Assertions.assertTrue(resultSet.next());
+            }
+        }
+    }
+    
     @Test
     void missingTableFailsAtConstructionNamingTheTable() {
         DataSource dataSource = RealPostgres.createDataSource();

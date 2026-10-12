@@ -29,12 +29,14 @@ import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.Namespaces;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
+import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
-import jakarta.annotation.Nonnull;
 
 /**
  * Auto-configuration class for CosId generators in Spring Boot applications.
@@ -65,10 +67,14 @@ import jakarta.annotation.Nonnull;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdGeneratorEnabled
 @EnableConfigurationProperties(CosIdGeneratorProperties.class)
-public class CosIdGeneratorAutoConfiguration {
+public class CosIdGeneratorAutoConfiguration implements DisposableBean {
     private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
     private final CosIdGeneratorProperties cosIdGeneratorProperties;
+    @Nullable
+    private volatile IdGeneratorProvider registeredIn;
+    @Nullable
+    private volatile CosIdGenerator registered;
 
     /**
      * Constructs a new CosIdGeneratorAutoConfiguration with the required properties.
@@ -110,7 +116,22 @@ public class CosIdGeneratorAutoConfiguration {
             decoratedCosIdGenerator = new LeasedCosIdGenerator(decoratedCosIdGenerator, guardDistribute.getLease(namespace, instanceId));
         }
         idGeneratorProvider.set(CosId.COSID, decoratedCosIdGenerator);
+        registeredIn = idGeneratorProvider;
+        registered = decoratedCosIdGenerator;
         return decoratedCosIdGenerator;
+    }
+    
+    /**
+     * Removes the generator this configuration registered from the provider, unless the provider maps the name to
+     * another generator by then: a shared provider must not keep the generator of a closed context.
+     */
+    @Override
+    public void destroy() {
+        IdGeneratorProvider provider = registeredIn;
+        CosIdGenerator generator = registered;
+        if (provider != null && generator != null && provider.get(CosId.COSID).filter(current -> current == generator).isPresent()) {
+            provider.remove(CosId.COSID);
+        }
     }
 
     /**

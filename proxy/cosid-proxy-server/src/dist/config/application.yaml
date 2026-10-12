@@ -41,5 +41,5 @@ cosid:
       type: redis
 logging:
   level:
-    me.ahoo.cosid: debug
+    me.ahoo.cosid: info
 

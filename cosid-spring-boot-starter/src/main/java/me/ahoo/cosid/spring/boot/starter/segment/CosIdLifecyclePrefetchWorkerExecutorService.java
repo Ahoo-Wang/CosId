@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineIdLifecycle;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.DisposableBean;
@@ -50,5 +51,14 @@ public class CosIdLifecyclePrefetchWorkerExecutorService implements SmartLifecyc
     @Override
     public boolean isRunning() {
         return running;
+    }
+    
+    /**
+     * Stops with the machine ids, after the web server's graceful shutdown: requests that are still draining can keep
+     * prefetching segments.
+     */
+    @Override
+    public int getPhase() {
+        return CosIdMachineIdLifecycle.PHASE;
     }
 }

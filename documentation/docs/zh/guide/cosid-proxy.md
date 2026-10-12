@@ -12,7 +12,7 @@ CosId Proxy 支持远程 ID 分发，允许客户端通过代理服务器分发�
 CosId Proxy 提供客户端-服务器架构：
 
 - **代理服务器**：使用底层存储（Redis、ZooKeeper、JDBC 等）管理机器 ID 和号段 ID 的实际分发
-- **代理客户端**：使用 `ProxyMachineIdDistributor` 和 `ProxyIdSegmentDistributor` 通过 HTTP/REST API 与代理服务器通信
+- **代理客户端**：使用 `ProxyMachineLeaseStore` 和 `ProxyIdSegmentDistributor` 通过 HTTP/REST API 与代理服务器通信
 
 此架构适用于：
 - 直接访问存储基础设施受限的场景
@@ -21,12 +21,14 @@ CosId Proxy 提供客户端-服务器架构：
 
 ## 核心组件
 
-### ProxyMachineIdDistributor
+### ProxyMachineLeaseStore
 
-`ProxyMachineIdDistributor` 是 `MachineIdDistributor` 的远程实现，通过与代理服务器通信来实现：
-- 分发机器 ID
-- 回滚机器 ID
-- 守护机器 ID（心跳）
+`ProxyMachineLeaseStore` 是 `MachineLeaseStore` 的远程实现。客户端与其它后端一样用 `LeaseStoreMachineIdDistributor` 包装它，并通过服务端的租约 API（`/machines/v2`）来：
+- 申领机器 ID（新的，或已释放、已过期的）
+- 续约（心跳）
+- 释放租约
+
+服务端保留 v1 机器 API（`/machines/{namespace}`）供 3.x 客户端使用，该 API 已弃用；3.x 服务端没有 v2 API，因此需先升级服务端再升级客户端。
 
 ### ProxyIdSegmentDistributor
 
@@ -40,7 +42,7 @@ CosId Proxy 提供客户端-服务器架构：
 ┌─────────────────┐         HTTP/REST          ┌─────────────────┐
 │  CosId 客户端   │ ◄──────────────────────► │  代理服务器      │
 │                 │                           │                 │
-│ ProxyMachineId  │                           │ Redis/JDBC/ZK   │
+│ ProxyLeaseStore │                           │ Redis/JDBC/ZK   │
 │ ProxyIdSegment  │                           │                 │
 └─────────────────┘                           └─────────────────┘
 ```
@@ -57,6 +59,7 @@ CosId Proxy 提供客户端-服务器架构：
 
 | 属性 | 默认值 | 说明 |
 |----|-----|----|
+| `cosid.proxy.server.min-safe-guard-duration` | `5m` | 只有租约最后一次续约（以服务端存储时钟为准）距今至少这么久，客户端才能接管该机器 ID。上报更晚截止时间的客户端会收到 `400`；3.x 客户端上报的更短守护时长会被提升到该值并记录警告。不要大于客户端的 `cosid.machine.guarder.safe-guard-duration` |
 | `cosid.proxy.server.max-clock-skew` | `1m` | 客户端（守护、归还时）上报的 `lastTimeStamp` 最多比服务端时钟超前这么多；过于超前的时间戳会让机器号永远无法被回收。`0` 表示不检查 |
 | `cosid.proxy.server.segment.max-step` | `0`（不限制） | 客户端可申请的最大号段 `step`。号段链一次申请 `step × 号段数`，负载高时预取得更多，所以至少要设为所有客户端中最大的 `step × 最大预取距离`。`offset` 必须 `>= 0`，且 `offset + step` 不能溢出 |
 

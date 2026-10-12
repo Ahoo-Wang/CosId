@@ -73,9 +73,7 @@ cosid:
 
 **切勿在生产环境中硬编码机器 ID**。使用自动分发器：
 
-- `RedisMachineIdDistributor`: 适用于 Redis 环境
-- `JdbcMachineIdDistributor`: 适用于 JDBC 环境
-- `ZookeeperMachineIdDistributor`: 适用于 ZooKeeper 环境
+- 租约存储（`cosid.machine.distributor.type`）：`redis`、`jdbc`、`zookeeper`、`mongo` 或 `proxy`，与已有的基础设施保持一致
 
 ```yaml
 cosid:

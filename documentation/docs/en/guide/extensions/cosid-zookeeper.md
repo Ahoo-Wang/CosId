@@ -2,7 +2,7 @@
 
 The [cosid-zookeeper](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-zookeeper) module provides support for *ZooKeeper*. Implements:
 
-- `MachineIdDistributor`: As the machine ID distributor for **Snowflake algorithm** (`SnowflakeId`).
+- `ZookeeperMachineLeaseStore`: The machine ID lease store for the **Snowflake algorithm** (`SnowflakeId`), used through `LeaseStoreMachineIdDistributor`.
 - `IdSegmentDistributor`: As the segment distributor for **segment algorithm** (`SegmentId`).
 
 ## Installation

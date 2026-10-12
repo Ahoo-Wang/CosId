@@ -12,7 +12,7 @@ CosId Proxy enables remote ID distribution, allowing clients to distribute machi
 CosId Proxy provides a client-server architecture where:
 
 - **Proxy Server**: Manages the actual distribution of machine IDs and segment IDs using underlying storage (Redis, ZooKeeper, JDBC, etc.)
-- **Proxy Client**: Uses `ProxyMachineIdDistributor` and `ProxyIdSegmentDistributor` to communicate with the proxy server via HTTP/REST API
+- **Proxy Client**: Uses `ProxyMachineLeaseStore` and `ProxyIdSegmentDistributor` to communicate with the proxy server via HTTP/REST API
 
 This architecture is useful when:
 - Direct access to storage infrastructure is restricted
@@ -21,12 +21,14 @@ This architecture is useful when:
 
 ## Key Components
 
-### ProxyMachineIdDistributor
+### ProxyMachineLeaseStore
 
-`ProxyMachineIdDistributor` is a remote implementation of `MachineIdDistributor` that communicates with the proxy server for:
-- Distributing machine IDs
-- Reverting machine IDs
-- Guarding machine IDs (heartbeat)
+`ProxyMachineLeaseStore` is a remote `MachineLeaseStore`. The client wraps it in a `LeaseStoreMachineIdDistributor`, like any other backend, and it calls the server's lease API (`/machines/v2`) to:
+- Claim machine IDs (a new one, or one released or expired)
+- Renew a lease (heartbeat)
+- Release a lease
+
+The server keeps the v1 machine API (`/machines/{namespace}`) for 3.x clients. It is deprecated, and 3.x servers do not have the v2 API, so upgrade the servers before the clients.
 
 ### ProxyIdSegmentDistributor
 
@@ -40,7 +42,7 @@ This architecture is useful when:
 ┌─────────────────┐         HTTP/REST          ┌─────────────────┐
 │  CosId Client   │ ◄──────────────────────► │  Proxy Server   │
 │                 │                           │                 │
-│ ProxyMachineId  │                           │ Redis/JDBC/ZK   │
+│ ProxyLeaseStore │                           │ Redis/JDBC/ZK   │
 │ ProxyIdSegment  │                           │                 │
 └─────────────────┘                           └─────────────────┘
 ```
@@ -57,6 +59,7 @@ The proxy server checks what clients send:
 
 | Property | Default | Description |
 |----------|---------|-------------|
+| `cosid.proxy.server.min-safe-guard-duration` | `5m` | A client may take over a machine ID only if its lease was last renewed at least this long ago, by the server's store clock. Clients that send a later cut-off get `400`; a shorter guard from a 3.x client is raised to this value with a warning. Keep it at most the clients' `cosid.machine.guarder.safe-guard-duration` |
 | `cosid.proxy.server.max-clock-skew` | `1m` | A client's `lastTimeStamp` (guard, revert) may be at most this far ahead of the server clock; a timestamp far in the future would keep a machine ID from ever being recycled. `0` disables the check |
 | `cosid.proxy.server.segment.max-step` | `0` (no limit) | Largest segment `step` a client may ask for. Segment chains ask for `step × segments` at once and prefetch more under load, so set it to at least the largest `step × max prefetch distance` of all clients. `offset` must be `>= 0` and `offset + step` must not overflow |
 

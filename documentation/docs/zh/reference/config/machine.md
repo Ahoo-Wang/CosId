@@ -41,8 +41,7 @@
 
 | 名称     | 数据类型                 | 说明                                                          | 默认值      |
 |--------|----------------------|-------------------------------------------------------------|----------|
-| type   | `Distributor.Type`   | 机器号分配器类型：`MANUAL`/`STATEFUL_SET`/`JDBC`/`REDIS`/`ZOOKEEPER`/`MONGO`/`PROXY` | `MANUAL` |
-| provider | `String` | 使用该名称的 `CosIdStoreProvider` 替代 `type` 对应的内置实现，用于接入 CosId 未内置的存储（3.4.0 起） | |
+| type | `String` | 机器号分配器类型：`manual`、`stateful_set`、`jdbc`、`redis`、`zookeeper`、`mongo`、`proxy`，或应用自定义 `CosIdStoreProvider` 的类型（其 `getType()`），用于接入 CosId 未内置的存储。只比较字母和数字且忽略大小写，因此 `stateful-set`、`statefulSet` 同样有效 | `manual` |
 | manual | `Distributor.Manual` | 手动分配器配置                                                     |          |
 
 #### Distributor.Manual
@@ -68,16 +67,17 @@
 
 | 属性 | 默认值 | 说明 |
 |----|-----|----|
-| `cosid.machine.distributor.redis.timeout` | `1s` | Redis 机器号守护与归还 |
+| `cosid.machine.distributor.redis.timeout` | `1s` | Redis 机器号守护与归还；必须为正数 |
+| `cosid.machine.distributor.redis.distribute-timeout` | `10s` | 启动时申领机器号的每条 Redis 命令，首条命令还包含建立连接的耗时；必须为正数 |
 | `cosid.machine.distributor.jdbc.query-timeout` | `5s` | 每条 JDBC 语句 |
-| `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper 机器号守护与归还（Curator 没有单次操作超时） |
-| `cosid.machine.distributor.mongo.timeout` | `5s` | 每次 MongoDB 操作（驱动的 `timeoutMS`）；`0` 表示沿用 `MongoClient` 的设置 |
+| `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper 机器号守护与归还（Curator 没有单次操作超时）；必须为正数 |
+| `cosid.machine.distributor.mongo.timeout` | `5s` | 每次 MongoDB 机器号操作（驱动的 `timeoutMS`）；必须为正数 |
 | `cosid.segment.distributor.mongo.timeout` | `5s` | 每次 MongoDB 号段操作 |
 | `cosid.segment.distributor.zookeeper.timeout` | `5s` | 每次 ZooKeeper 号段 `nextMaxId` |
 | `cosid.proxy.connect-timeout` | `2s` | 连接 CosId Proxy 服务端 |
-| `cosid.proxy.read-timeout` | `5s` | 等待 CosId Proxy 服务端响应，也包括启动时的机器号分配 |
+| `cosid.proxy.read-timeout` | `5s` | 等待 CosId Proxy 服务端响应，也包括启动时的机器号分配；必须为正数 |
 
-`0` 表示不设超时。两个 Proxy 超时都为 `0` 时，沿用应用自己的 HTTP 请求工厂。
+必须为正数的超时设为 `0` 时启动失败；其余超时设为 `0` 表示不设超时。
 
 ## ClockBackwards
 

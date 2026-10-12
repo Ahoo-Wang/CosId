@@ -2,7 +2,7 @@
 
 [cosid-spring-redis](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-spring-redis) module provides support for *Redis*. Implements:
 
-- `MachineIdDistributor`: As the machine ID distributor for **Snowflake algorithm** (`SnowflakeId`).
+- `SpringRedisMachineLeaseStore`: The machine ID lease store for the **Snowflake algorithm** (`SnowflakeId`), used through `LeaseStoreMachineIdDistributor`.
 - `IdSegmentDistributor`: As the segment distributor for **segment algorithm** (`SegmentId`).
 
 ## Installation

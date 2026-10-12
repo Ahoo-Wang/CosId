@@ -73,9 +73,7 @@ This reserves more timestamp bits for future use.
 
 **Never hardcode machine IDs** in production. Use automatic distributors:
 
-- `RedisMachineIdDistributor`: Best for Redis environments
-- `JdbcMachineIdDistributor`: Best for JDBC environments
-- `ZookeeperMachineIdDistributor`: Best for ZooKeeper environments
+- Lease stores (`cosid.machine.distributor.type`): `redis`, `jdbc`, `zookeeper`, `mongo`, or `proxy`, matching the infrastructure you already run
 
 ```yaml
 cosid:

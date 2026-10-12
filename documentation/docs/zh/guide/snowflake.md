@@ -50,7 +50,7 @@ _SnowflakeId_ 是*Twitter*开发的一种分布式唯一ID生成算法，被广�
   - `ClockSyncSnowflakeId`是`SnowflakeId`的包装器，当发生时钟回拨时会使用`ClockBackwardsSynchronizer`主动等待时钟同步来重新生成ID，提供更加友好的使用体验。
 - 启动时时钟回拨：即在启动服务实例时获取的当前时钟比上次关闭服务时小。此时的`lastTimestamp`是无法存储在进程内存中的。当获取的外部存储的**机器状态**大于当前时钟时钟时，会使用`ClockBackwardsSynchronizer`主动同步时钟。
   - LocalMachineStateStorage：使用本地文件存储`MachineState`(机器号、最近一次时间戳)。因为使用的是本地文件所以只有当实例的部署环境是稳定的，`LocalMachineStateStorage`才适用。
-  - RedisMachineIdDistributor：将`MachineState`存储在**Redis**分布式缓存中，这样可以保证总是可以获取到上次服务实例停机时**机器状态**。
+  - `MachineLeaseStore`：租约存储（Redis、JDBC、ZooKeeper、MongoDB、Proxy）会记录每个机器号的上一次时间戳，这样可以保证总是可以获取到上次服务实例停机时**机器状态**。
 
 ### 取模分片不均匀
 
@@ -121,20 +121,19 @@ StringSnowflakeId  ..>  SnowflakeId
 
 ## MachineIdDistributor
 
+> **术语说明**：*机器号*（machine id）即雪花 ID 中的 worker-id 位，由*实例*（`InstanceId`，即一个运行中的进程）通过租约持有，与物理机器无关。同一台主机上的多个进程各自持有不同的机器号。
+
 `MachineIdDistributor` 是 `SnowflakeId` 的机器号分配器，它负责分配机器号，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
 
 <p align="center" >
   <img src="../../public/assets/design/MachineIdDistributor.png" alt="MachineIdDistributor"/>
 </p>
 
-目前 *CosId* 提供了以下六种 `MachineId` 分配器。
+目前 *CosId* 提供了以下 `MachineId` 分配器。
 
 - `ManualMachineIdDistributor`: 手动配置`machineId`，一般只有在集群规模非常小的时候才有可能使用，不推荐。
 - `StatefulSetMachineIdDistributor`: 使用`Kubernetes`的`StatefulSet`提供的稳定的标识ID（HOSTNAME=service-01）作为机器号。
-- `RedisMachineIdDistributor`: 使用**Redis**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
-- `JdbcMachineIdDistributor`: 使用**关系型数据库**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
-- `ZookeeperMachineIdDistributor`: 使用**ZooKeeper**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
-- `MongoMachineIdDistributor`: 使用**MongoDB**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
+- `LeaseStoreMachineIdDistributor`: 从 `MachineLeaseStore` 租用机器号，存储同时记录每个机器号的上一次时间戳，用于**启动时时钟回拨**的检查。CosId 提供 **Redis**（`SpringRedisMachineLeaseStore`）、**关系型数据库**（`JdbcMachineLeaseStore`）、**ZooKeeper**（`ZookeeperMachineLeaseStore`）、**MongoDB**（`MongoMachineLeaseStore`）和 **CosId Proxy**（`ProxyMachineLeaseStore`）的存储实现。
 
 ## MachineIdGuarder
 
@@ -163,7 +162,6 @@ cosid:
     epoch: 1577203200000
     share:
       clock-sync: true # 开启始终回拨同步
-      friendly: true 
     provider:
       short_id:
         converter:

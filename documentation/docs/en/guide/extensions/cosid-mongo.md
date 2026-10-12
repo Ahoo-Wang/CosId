@@ -2,7 +2,7 @@
 
 [cosid-mongo](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mongo) provides support for **MongoDB**. Implements:
 
-- `MachineIdDistributor`: As the machine ID distributor for **Snowflake algorithm** (`SnowflakeId`).
+- `MongoMachineLeaseStore`: The machine ID lease store for the **Snowflake algorithm** (`SnowflakeId`), used through `LeaseStoreMachineIdDistributor`.
 - `IdSegmentDistributor`: As the segment distributor for **segment algorithm** (`SegmentId`).
 
 ::: warning Reactive driver support was removed in 4.0

@@ -49,3 +49,15 @@ public class EtcdStoreProvider implements CosIdStoreProvider {
 ```
 
 请以具体类型（`EtcdStoreProvider`，而不是 `CosIdStoreProvider`）声明该 Bean，放在应用自己的配置中，或放在排在 CosId 之前的自动配置中。与内置后端同名的 Provider 会替换内置后端。请用[兼容性测试套件](./test-suite.md)验证你的存储。
+
+## AOT 预处理与原生镜像
+
+| 后端 | Spring AOT 预处理 | GraalVM 原生镜像 |
+|------|------------------|-----------------|
+| Redis | CI 未测试 | 未测试；4.0.1 起附带其 Lua 脚本的运行时提示 |
+| JDBC | CI 未测试 | 未测试 |
+| MongoDB | CI 未测试 | 未测试 |
+| ZooKeeper | CI 未测试 | 未测试 |
+| Proxy | **不支持**：无法生成 Proxy 客户端定义 | **不支持** |
+
+starter 注册号段和 Snowflake 生成器的方式支持 AOT 预处理，CI 使用内存存储验证了这一点。使用 Proxy 的应用请运行在 JVM 上。

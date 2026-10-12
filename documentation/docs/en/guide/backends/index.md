@@ -49,3 +49,15 @@ public class EtcdStoreProvider implements CosIdStoreProvider {
 ```
 
 Declare the bean with its concrete type (`EtcdStoreProvider`, not `CosIdStoreProvider`), in the application's configuration or in an auto-configuration ordered before CosId's. A provider with the type of a built-in backend replaces it. Run the [compatibility test suite](./test-suite.md) against your store.
+
+## Ahead-of-time processing and native images
+
+| Backend | Spring AOT processing | GraalVM native image |
+|---------|-----------------------|----------------------|
+| Redis | Not tested in CI | Not tested; runtime hints for its Lua scripts ship since 4.0.1 |
+| JDBC | Not tested in CI | Not tested |
+| MongoDB | Not tested in CI | Not tested |
+| ZooKeeper | Not tested in CI | Not tested |
+| Proxy | **Not supported**: the proxy client definitions cannot be generated | **Not supported** |
+
+The starter registers segment and Snowflake generators in a way AOT processing supports, and CI checks that with an in-memory store. Use the JVM for applications on the proxy.

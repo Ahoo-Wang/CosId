@@ -6,7 +6,7 @@
 
 | 属性 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `enabled` | `boolean` | 未设置 | `true`：即使没有 `type` 选择 ZooKeeper 也创建 Curator 客户端；`false`：关闭 |
+| `enabled` | `boolean` | `true` | 保持默认时，只有在某个 `type` 选择了 ZooKeeper 时才创建 Curator 客户端；显式设置为 `true` 时，即使没有选择也会创建；`false` 表示关闭 |
 | `connect-string` | `String` | `localhost:2181` | ZooKeeper 服务器地址 |
 | `session-timeout` | `Duration` | `60s` | 会话超时 |
 | `connection-timeout` | `Duration` | `15s` | 连接超时 |

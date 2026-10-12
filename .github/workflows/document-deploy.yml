@@ -12,15 +12,15 @@
 #
 
 name: Documentation Build and Deploy
+# The site documents released versions: it is built from a release tag, and pages show that version.
 on:
-  schedule:
-    - cron: '0 0 * * *'
-  push:
-    branches:
-      - main
-    paths:
-      - 'documentation/**'
+  release:
+    types: [ released ]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Release tag to build the site from, such as v4.0.1'
+        required: true
 
 permissions:
   contents: read
@@ -40,6 +40,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6

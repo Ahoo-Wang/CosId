@@ -5,7 +5,7 @@
 :::
 
 ::: warning CosId 4.x
-`cosid-shardingsphere` 的最后一个版本是 2.0.5，没有 3.x 或 4.x 版本，下面的坐标只能解析到该版本。使用 CosId 4.x 时，请使用 ShardingSphere 自带、基于 CosId 4.0 构建的 CosId 算法，或直接使用 `me.ahoo.cosid:cosid-sharding` 中的算法（`ModCycle`、`IntervalTimeline` 等）。
+`cosid-shardingsphere` 的最后一个版本是 2.0.5，没有 3.x 或 4.x 版本，下面的坐标只能解析到该版本。ShardingSphere 自带的 CosId 算法（`shardingsphere-sharding-cosid`）基于旧版 CosId 编译，在 CosId 4.x 上会抛出 `NoSuchMethodError`：请基于 CosId 4.0 重新编译它们，或直接使用 `me.ahoo.cosid:cosid-sharding` 中的算法（`ModCycle`、`IntervalTimeline` 等）。
 :::
 
 ## 安装

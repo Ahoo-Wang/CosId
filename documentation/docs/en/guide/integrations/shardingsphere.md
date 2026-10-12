@@ -6,8 +6,9 @@
 
 ::: warning CosId 4.x
 The `cosid-shardingsphere` artifact ends at 2.0.5: there is no 3.x or 4.x release, so the coordinates below only resolve
-to that version. With CosId 4.x, use the CosId algorithms that ship with ShardingSphere, built against CosId 4.0, or the
-algorithms themselves (`ModCycle`, `IntervalTimeline`, ...) from `me.ahoo.cosid:cosid-sharding`.
+to that version. The CosId algorithms that ship with ShardingSphere (`shardingsphere-sharding-cosid`) are compiled against an
+older CosId and fail with `NoSuchMethodError` on CosId 4.x: rebuild them against CosId 4.0, or use the algorithms
+themselves (`ModCycle`, `IntervalTimeline`, ...) from `me.ahoo.cosid:cosid-sharding`.
 :::
 
 ## Installation

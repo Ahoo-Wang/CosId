@@ -24,10 +24,10 @@ The server is `cosid-proxy-server`, a Spring Boot application published as the D
 docker run --name cosid-proxy -d -p 8688:8688 --link redis \
   -e SPRING_DATA_REDIS_URL=redis://redis:6379 \
   -e COSID_PROXY_TOKEN=change-me \
-  ahoowang/cosid-proxy:4.0.0-RC2
+  ahoowang/cosid-proxy:__COSID_VERSION__
 ```
 
-Use `--network` (or `--link redis`) so that the container can reach Redis, and a released image tag (4.0.0-RC2 at the time of writing).
+Use `--network` (or `--link redis`) so that the container can reach Redis, and a released image tag, such as `__COSID_VERSION__` (the current release) or `latest`.
 
 The server refuses to start without a token, see [Authentication](#authentication).
 

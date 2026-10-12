@@ -26,10 +26,10 @@ Use it when applications must not reach the store directly, for example across n
 docker run --name cosid-proxy -d -p 8688:8688 --link redis \
   -e SPRING_DATA_REDIS_URL=redis://redis:6379 \
   -e COSID_PROXY_TOKEN=change-me \
-  ahoowang/cosid-proxy:4.0.0-RC2
+  ahoowang/cosid-proxy:__COSID_VERSION__
 ```
 
-请使用 `--network`（或 `--link redis`）让容器能访问 Redis，并使用已发布的镜像标签（撰写本文时为 4.0.0-RC2）。
+请使用 `--network`（或 `--link redis`）让容器能访问 Redis，并使用已发布的镜像标签，例如当前版本 `__COSID_VERSION__` 或 `latest`。
 
 没有令牌时服务端会拒绝启动，见[认证](#认证)。
 

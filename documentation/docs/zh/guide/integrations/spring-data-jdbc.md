@@ -62,19 +62,4 @@
         }
     }
 ```
-```java [named 'id']
-    static class NamedIdEntity {
-        
-        private long id;
-        
-        public long getId() {
-            return id;
-        }
-        
-        public NotFoundEntity setId(int id) {
-            this.id = id;
-            return this;
-        }
-    }
-```
 :::

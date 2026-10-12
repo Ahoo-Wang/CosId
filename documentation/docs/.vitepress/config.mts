@@ -8,6 +8,33 @@ import {navbar as navbarZh} from "./configs/navbar.zh";
 import {sidebar as sidebarEn} from "./configs/sidebar.en";
 import {sidebar as sidebarZh} from "./configs/sidebar.zh";
 import {withMermaid} from "vitepress-plugin-mermaid";
+import {readdirSync, readFileSync, writeFileSync} from "node:fs";
+import {join} from "node:path";
+import {fileURLToPath} from "node:url";
+
+/**
+ * The version in gradle.properties: the site is built from release tags, so this is the released version.
+ * Pages write __COSID_VERSION__ where it belongs, also inside code blocks.
+ */
+const COSID_VERSION = readFileSync(fileURLToPath(new URL('../../../gradle.properties', import.meta.url)), 'utf8')
+    .match(/^version=(.+)$/m)?.[1]?.trim() ?? 'latestVersion';
+
+/**
+ * The Markdown and text copies that vitepress-plugin-llms writes from the sources still hold the placeholder.
+ */
+function injectVersion(dir: string) {
+    for (const entry of readdirSync(dir, {withFileTypes: true})) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) {
+            injectVersion(path);
+        } else if (/\.(md|txt)$/.test(entry.name)) {
+            const content = readFileSync(path, 'utf8');
+            if (content.includes('__COSID_VERSION__')) {
+                writeFileSync(path, content.replaceAll('__COSID_VERSION__', COSID_VERSION));
+            }
+        }
+    }
+}
 
 let hostname = 'https://cosid.ahoo.me/';
 if (SITE_BASE == '/wow/') {
@@ -17,6 +44,9 @@ if (SITE_BASE == '/wow/') {
 // https://vitepress.dev/reference/site-config
 let userConfig = defineConfig({
     ignoreDeadLinks: true,
+    buildEnd(siteConfig) {
+        injectVersion(siteConfig.outDir);
+    },
     head: head,
     base: SITE_BASE,
     rewrites: {
@@ -75,6 +105,9 @@ let userConfig = defineConfig({
     markdown: {
         config(md) {
             md.use(copyOrDownloadAsMarkdownButtons)
+            md.core.ruler.before('normalize', 'cosid-version', (state) => {
+                state.src = state.src.replaceAll('__COSID_VERSION__', COSID_VERSION)
+            })
         }
     },
     locales: {

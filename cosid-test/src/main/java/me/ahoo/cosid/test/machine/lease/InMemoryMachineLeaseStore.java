@@ -52,11 +52,11 @@ public class InMemoryMachineLeaseStore implements MachineLeaseStore {
     }
     
     /**
-     * A new owner never goes back before the previous owner's watermark or last renewal.
+     * A new owner starts no earlier than the previous owner's watermark, its last renewal and the store's current time.
      */
     private Lease take(String namespace, int machineId, Record record, InstanceId instanceId, long now) {
         record.instanceId = instanceId;
-        record.watermark = Math.max(record.watermark, record.renewedAt);
+        record.watermark = Math.max(Math.max(record.watermark, record.renewedAt), now);
         return renewRecord(namespace, machineId, record, now);
     }
     
@@ -97,7 +97,7 @@ public class InMemoryMachineLeaseStore implements MachineLeaseStore {
         if (machineId > maxMachineId) {
             return Optional.empty();
         }
-        Record record = new Record(instanceId, 0, now);
+        Record record = new Record(instanceId, now, now);
         records.put(machineId, record);
         return Optional.of(lease(namespace, machineId, record));
     }

@@ -79,9 +79,14 @@ alter table cosid_machine add column stable tinyint not null default 0;
 4.0 keeps the machine id lease in `renew_time`, `watermark` and `lease_version`. A table created by 3.x needs them before 4.0 instances start (3.x instances keep working with them); startup fails naming the statement when they are missing:
 
 ```sql
-alter table cosid_machine add column renew_time bigint unsigned not null default 0,
-    add column watermark bigint unsigned not null default 0,
-    add column lease_version bigint unsigned not null default 0;
+-- MySQL
+alter table cosid_machine add column renew_time bigint not null default 0,
+    add column watermark bigint not null default 0,
+    add column lease_version bigint not null default 0;
+-- PostgreSQL
+alter table cosid_machine add column if not exists renew_time bigint not null default 0,
+    add column if not exists watermark bigint not null default 0,
+    add column if not exists lease_version bigint not null default 0;
 ```
 
 ::: warning Use a dedicated DataSource

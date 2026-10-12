@@ -60,4 +60,4 @@ Declare the bean with its concrete type (`EtcdStoreProvider`, not `CosIdStorePro
 | ZooKeeper | Not tested in CI | Not tested |
 | Proxy | **Not supported**: the proxy client definitions cannot be generated | **Not supported** |
 
-The starter registers segment and Snowflake generators in a way AOT processing supports, and CI checks that with an in-memory store. Use the JVM for applications on the proxy.
+The starter registers segment and Snowflake generators as bean definitions that AOT processing can handle; CI runs AOT processing for segment generators, with an in-memory store. Use the JVM for applications on the proxy.

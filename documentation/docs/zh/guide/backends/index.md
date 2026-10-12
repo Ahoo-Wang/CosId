@@ -60,4 +60,4 @@ public class EtcdStoreProvider implements CosIdStoreProvider {
 | ZooKeeper | CI 未测试 | 未测试 |
 | Proxy | **不支持**：无法生成 Proxy 客户端定义 | **不支持** |
 
-starter 注册号段和 Snowflake 生成器的方式支持 AOT 预处理，CI 使用内存存储验证了这一点。使用 Proxy 的应用请运行在 JVM 上。
+starter 以 AOT 预处理能够处理的 Bean 定义方式注册号段和 Snowflake 生成器；CI 使用内存存储对号段生成器执行了 AOT 预处理。使用 Proxy 的应用请运行在 JVM 上。

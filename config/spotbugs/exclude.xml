@@ -30,11 +30,6 @@
         <Bug pattern="PI_DO_NOT_REUSE_PUBLIC_IDENTIFIERS_CLASS_NAMES"/>
     </Match>
     <Match>
-        <Class name="me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor"/>
-        <Method name="distribute0"/>
-        <Bug pattern="NP_NULL_ON_SOME_PATH"/>
-    </Match>
-    <Match>
         <Class name="me.ahoo.cosid.accessor.IdDefinition$NotFoundIdDefinition"/>
         <Field name="id"/>
         <Bug pattern="SS_SHOULD_BE_STATIC"/>

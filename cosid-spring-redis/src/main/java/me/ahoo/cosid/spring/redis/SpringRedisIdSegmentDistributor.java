@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.spring.redis;
 
-import static me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor.hashTag;
+import static me.ahoo.cosid.spring.redis.RedisKeys.hashTag;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;

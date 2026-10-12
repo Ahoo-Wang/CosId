@@ -42,6 +42,10 @@ import java.time.Duration;
 import java.util.Objects;
 
 @Slf4j
+/**
+ * Part of the 3.4 MongoDB machine id distributor, kept as a test fixture: it writes the 3.4 documents, so tests can run
+ * 3.4 instances next to 4.0 ones. Removed from the library in 4.0, see {@code MongoMachineLeaseStore}.
+ */
 public class MongoMachineCollection implements MachineCollection {
     private final MongoCollection<Document> machineCollection;
     

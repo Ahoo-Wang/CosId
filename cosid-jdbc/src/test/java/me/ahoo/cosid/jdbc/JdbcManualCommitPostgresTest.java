@@ -36,6 +36,11 @@ class JdbcManualCommitPostgresTest extends ManualCommitSpec {
     }
     
     @Override
+    protected JdbcMachineLeaseStore machineLeaseStore(DataSource manualCommitDataSource) {
+        return new JdbcMachineLeaseStore(manualCommitDataSource, JdbcSupport.DEFAULT_QUERY_TIMEOUT, PostgreSqlDialect.SERVER_TIME_SQL);
+    }
+    
+    @Override
     protected JdbcIdSegmentDistributorFactory segmentDistributorFactory(DataSource manualCommitDataSource) {
         return RealPostgres.segmentDistributorFactory(manualCommitDataSource);
     }

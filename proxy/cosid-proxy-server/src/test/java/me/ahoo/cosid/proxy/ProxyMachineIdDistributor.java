@@ -29,23 +29,14 @@ import me.ahoo.cosid.machine.NotFoundMachineStateException;
 import me.ahoo.cosid.proxy.api.ErrorResponse;
 import me.ahoo.cosid.proxy.api.MachineClient;
 
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.Duration;
 
 /**
- * ProxyMachineIdDistributor .
- *
- * <p><img src="doc-files/CosId-Proxy.png" alt="CosId-Proxy"></p>
- *
- * @author ahoo wang
- * @deprecated since 4.0: the version 1 machine API is deprecated. Use {@link ProxyMachineLeaseStore} with
- *     {@code LeaseStoreMachineIdDistributor}, which the starter wires for {@code cosid.machine.distributor.type=proxy}.
+ * The 3.x proxy client (the version 1 machine API), kept as a test fixture: tests run 3.x clients against a 4.0 server.
+ * Removed from the library in 4.0, see {@code ProxyMachineLeaseStore}.
  */
-@Slf4j
-@Deprecated
 public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
 
     private final MachineClient machineClient;
@@ -55,12 +46,8 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
         this.machineClient = machineClient;
     }
 
-    @SneakyThrows
     @Override
     protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
-        if (log.isInfoEnabled()) {
-            log.info("Distribute Remote instanceId:[{}] - machineBit:[{}] @ namespace:[{}].", instanceId, machineBit, namespace);
-        }
         try {
             return machineClient.distribute(namespace, machineBit, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration.toString());
         } catch (HttpClientErrorException.BadRequest badRequest) {
@@ -72,21 +59,13 @@ public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
         }
     }
 
-    @SneakyThrows
     @Override
     protected void revertRemote(String namespace, InstanceId instanceId, MachineState machineState) {
-        if (log.isInfoEnabled()) {
-            log.info("Revert Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
-        }
         machineClient.revert(namespace, instanceId.getInstanceId(), instanceId.isStable(), machineState.getMachineId(), machineState.getLastTimeStamp());
     }
 
-    @SneakyThrows
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
-        if (log.isInfoEnabled()) {
-            log.info("Guard Remote [{}] instanceId:[{}] @ namespace:[{}].", machineState, instanceId, namespace);
-        }
         try {
             machineClient.guard(namespace, instanceId.getInstanceId(), instanceId.isStable(), safeGuardDuration.toString(), machineState.getMachineId(), machineState.getLastTimeStamp());
         } catch (HttpClientErrorException.BadRequest badRequest) {

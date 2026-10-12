@@ -26,7 +26,6 @@ import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
-import me.ahoo.cosid.mongo.MongoMachineCollection;
 import me.ahoo.cosid.mongo.MongoMachineInitializer;
 import me.ahoo.cosid.mongo.MongoMachineLeaseStore;
 import me.ahoo.cosid.spring.boot.starter.MongoReactiveRemoved;
@@ -57,7 +56,7 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
             .run(context -> assertThat(context)
                 .hasSingleBean(CosIdMongoMachineIdDistributorAutoConfiguration.class)
                 .hasSingleBean(MongoMachineInitializer.class)
-                .hasSingleBean(MongoMachineCollection.class)
+                .hasSingleBean(MongoMachineLeaseStore.class)
                 .hasSingleBean(LeaseStoreMachineIdDistributor.class));
     }
 
@@ -67,7 +66,7 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=mongo")
             .run(context -> {
-                assertThat(context).hasSingleBean(MongoMachineCollection.class);
+                assertThat(context).hasSingleBean(MongoMachineLeaseStore.class);
                 MongoDatabase database = context.getBean(MongoClient.class).getDatabase("cosid_db");
                 verify(database, org.mockito.Mockito.atLeastOnce()).withTimeout(5000L, java.util.concurrent.TimeUnit.MILLISECONDS);
             });

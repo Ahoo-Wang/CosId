@@ -44,6 +44,7 @@ import org.bson.conversions.Bson;
 import java.time.Duration;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -51,7 +52,7 @@ import java.util.concurrent.TimeUnit;
  * {@link MachineLeaseStore} on the {@code cosid_machine} collection: every claim, renewal and release is one atomic
  * {@code findOneAndUpdate} or conditional update.
  *
- * <p>It uses the same documents as {@link MongoMachineIdDistributor} (a released machine id has an empty
+ * <p>It uses the same documents as the 3.4 machine id distributor (a released machine id has an empty
  * {@code instanceId}), so instances running either one can share a namespace during an upgrade. The server clock is
  * the {@code localTime} of the {@code hello} command, and every operation has the driver's client-side timeout
  * ({@code timeoutMS}). Claims use pipeline updates, which need MongoDB 4.2 or later. On a sharded cluster the server clock is the
@@ -94,7 +95,7 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
         Preconditions.checkNotNull(database, "database can not be null!");
         Preconditions.checkArgument(timeout != null && !timeout.isNegative() && !timeout.isZero(), "timeout:[%s] must be positive!", timeout);
         this.database = database.withTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        this.collection = this.database.getCollection(MachineCollection.COLLECTION_NAME);
+        this.collection = this.database.getCollection(MachineOperates.COLLECTION_NAME);
     }
     
     /**
@@ -151,9 +152,8 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
     
     @Override
     public Optional<Lease> claimNew(String namespace, InstanceId instanceId, int maxMachineId, long now) {
-        MongoMachineCollection machines = new MongoMachineCollection(collection);
         for (int attempt = 1; ; attempt++) {
-            int machineId = machines.nextMachineId(namespace);
+            int machineId = nextMachineId(namespace);
             if (machineId > maxMachineId) {
                 return Optional.empty();
             }
@@ -167,6 +167,15 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
                 }
             }
         }
+    }
+    
+    private int nextMachineId(String namespace) {
+        Document maxMachineIdDoc = collection.aggregate(MachineOperates.nextMachineIdPipeline(namespace)).first();
+        if (maxMachineIdDoc == null) {
+            return 0;
+        }
+        Integer maxMachineId = maxMachineIdDoc.getInteger(MachineOperates.MAX_MACHINE_ID_FIELD);
+        return Objects.requireNonNull(maxMachineId) + 1;
     }
     
     private static Bson current(Lease lease) {

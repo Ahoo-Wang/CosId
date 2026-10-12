@@ -44,9 +44,8 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Zookeeper MachineIdDistributor.
- *
- * @author ahoo wang
+ * The 3.4 ZooKeeper machine id distributor, kept as a test fixture: it writes the 3.4 nodes, so tests can run 3.4
+ * instances next to 4.0 ones. Removed from the library in 4.0, see {@code ZookeeperMachineLeaseStore}.
  */
 @Slf4j
 public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor {

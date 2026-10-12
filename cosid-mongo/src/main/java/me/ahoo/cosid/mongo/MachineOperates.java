@@ -31,6 +31,10 @@ import java.util.Arrays;
 import java.util.List;
 
 public interface MachineOperates {
+    /**
+     * The collection of machine id leases.
+     */
+    String COLLECTION_NAME = "cosid_machine";
     String NAMESPACE_FIELD = "namespace";
     String MACHINE_ID_FIELD = "machineId";
     String LAST_TIMESTAMP_FIELD = "lastTimestamp";

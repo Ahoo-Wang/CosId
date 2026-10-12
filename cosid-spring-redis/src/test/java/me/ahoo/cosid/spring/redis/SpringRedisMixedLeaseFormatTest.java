@@ -26,6 +26,7 @@ import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
+import me.ahoo.cosid.spring.redis.v34.SpringRedisMachineIdDistributor;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.AfterAll;

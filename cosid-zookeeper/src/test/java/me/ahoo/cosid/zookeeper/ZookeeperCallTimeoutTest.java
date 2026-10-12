@@ -17,6 +17,7 @@ import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InMemoryMachineStateStorage;
 import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.util.CallTimeout;
@@ -32,15 +33,15 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Guard and revert give up after the call timeout while ZooKeeper does not answer.
+ * Lease renewals, releases and segment fetches give up after the call timeout while ZooKeeper does not answer.
  */
-class ZookeeperMachineIdDistributorTimeoutTest {
+class ZookeeperCallTimeoutTest {
     private static final Duration SAFE_GUARD_DURATION = Duration.ofMinutes(1);
     
     @Test
-    void guardAndRevertGiveUpWhenZookeeperIsDown() throws Exception {
+    void leaseRenewAndReleaseGiveUpWhenZookeeperIsDown() throws Exception {
         TestingServer testingServer = new TestingServer();
-        // Long connection timeout and many retries: without the call timeout, guard would block for minutes.
+        // Long connection timeout and many retries: without the call timeout, a renewal would block for minutes.
         CuratorFramework curatorFramework = CuratorFrameworkFactory.builder()
             .connectString(testingServer.getConnectString())
             .connectionTimeoutMs((int) Duration.ofSeconds(30).toMillis())
@@ -50,8 +51,9 @@ class ZookeeperMachineIdDistributorTimeoutTest {
         curatorFramework.start();
         try {
             Assertions.assertTrue(curatorFramework.blockUntilConnected(10, TimeUnit.SECONDS));
-            ZookeeperMachineIdDistributor distributor = new ZookeeperMachineIdDistributor(curatorFramework, new RetryNTimes(10, 1000),
-                new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT, CallTimeout.of(Duration.ofMillis(500)));
+            LeaseStoreMachineIdDistributor distributor = new LeaseStoreMachineIdDistributor(
+                new ZookeeperMachineLeaseStore(curatorFramework, CallTimeout.of(Duration.ofMillis(500))),
+                new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT);
             String namespace = MockIdGenerator.usePrefix("timeout").generateAsString();
             InstanceId instanceId = InstanceId.of("timeout", false);
             distributor.distribute(namespace, 1, instanceId, SAFE_GUARD_DURATION);

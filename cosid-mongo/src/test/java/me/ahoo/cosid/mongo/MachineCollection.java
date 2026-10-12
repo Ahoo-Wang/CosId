@@ -19,8 +19,12 @@ import me.ahoo.cosid.machine.MachineState;
 
 import java.time.Duration;
 
+/**
+ * Part of the 3.4 MongoDB machine id distributor, kept as a test fixture: it writes the 3.4 documents, so tests can run
+ * 3.4 instances next to 4.0 ones. Removed from the library in 4.0, see {@code MongoMachineLeaseStore}.
+ */
 public interface MachineCollection {
-    String COLLECTION_NAME = "cosid_machine";
+    String COLLECTION_NAME = MachineOperates.COLLECTION_NAME;
     
     int nextMachineId(String namespace);
     

@@ -92,10 +92,13 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
         Lease lease = distributeLeaseManager.acquire(namespace, instanceId, machineBit, safeGuardDuration);
         try {
             final long localBefore = localClock.getAsLong();
-            long storeTime = distributeLeaseManager.getStore().serverTime();
-            checkClockSkew(namespace, instanceId, localBefore, localClock.getAsLong(), storeTime, safeGuardDuration);
+            checkClockSkew(namespace, instanceId, localBefore, distributeLeaseManager.getStore().serverTime(), safeGuardDuration);
         } catch (RuntimeException skewException) {
-            distributeLeaseManager.release(lease, lease.getWatermark());
+            try {
+                distributeLeaseManager.release(lease, lease.getWatermark());
+            } catch (RuntimeException releaseException) {
+                skewException.addSuppressed(releaseException);
+            }
             throw skewException;
         }
         leases.put(new NamespacedInstanceId(namespace, instanceId), lease);
@@ -123,7 +126,7 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
             }
             leases.put(key, renewed.get());
             // A renewal is to the store's time: comparing it with this host's clock gives the offset between them.
-            checkClockSkew(namespace, instanceId, localBefore, localClock.getAsLong(), renewed.get().getRenewedAt(), safeGuardDuration);
+            checkClockSkew(namespace, instanceId, localBefore, renewed.get().getRenewedAt(), safeGuardDuration);
         }
     }
     
@@ -134,12 +137,12 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
      * out and the generators fail fast. A host behind the store is safe. A store without its own clock (ZooKeeper)
      * reports this host's time: no offset can be seen there.
      */
-    private void checkClockSkew(String namespace, InstanceId instanceId, long localBefore, long localAfter, long storeTime,
-                                Duration safeGuardDuration) {
+    private void checkClockSkew(String namespace, InstanceId instanceId, long localBefore, long storeTime, Duration safeGuardDuration) {
         if (MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION.equals(safeGuardDuration)) {
             return;
         }
-        long hostAhead = localBefore + (localAfter - localBefore) / 2 - storeTime;
+        // The local time before the call: the store's time is read during it, so a slow call never looks like a host ahead.
+        long hostAhead = localBefore - storeTime;
         long margin = Math.min(MachineIdLease.MAX_CLOCK_SKEW_MARGIN.toMillis(), safeGuardDuration.toMillis() / 10);
         if (hostAhead > margin) {
             String message = Checks.lenientFormat("The clock of this host is [%s] ms ahead of the machine id store's for [%s] @ namespace:[%s], "

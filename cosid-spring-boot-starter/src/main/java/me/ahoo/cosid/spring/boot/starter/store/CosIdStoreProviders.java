@@ -16,11 +16,11 @@ package me.ahoo.cosid.spring.boot.starter.store;
 import com.google.common.base.Strings;
 import org.jspecify.annotations.Nullable;
 import org.springframework.core.annotation.AnnotationAwareOrderComparator;
+import org.springframework.core.env.PropertyResolver;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -38,11 +38,23 @@ public final class CosIdStoreProviders {
     /**
      * The store type to use: {@code provider} when set, otherwise the lower-case name of {@code type}.
      */
-    public static String storeType(@Nullable String provider, Enum<?> type) {
-        if (provider != null && !provider.isBlank()) {
-            return provider.trim();
+    /**
+     * The store type a distributor setting selects, see {@link StoreTypes}. Fails naming the property that 4.0 removed
+     * when the {@code provider} property is still set.
+     *
+     * @param environment  the application's environment
+     * @param typeKey      {@code cosid.machine.distributor.type} or {@code cosid.segment.distributor.type}
+     * @param providerKey  the removed {@code provider} property next to it
+     * @param type         the bound type
+     * @param defaultType  the type when unset
+     */
+    public static String storeType(PropertyResolver environment, String typeKey, String providerKey, @Nullable String type, String defaultType) {
+        String provider = environment.getProperty(providerKey);
+        if (provider != null) {
+            throw new IllegalStateException("[" + providerKey + "] was removed in 4.0: set [" + typeKey + "=" + provider.trim()
+                + "] instead, the type names any store, also an application's CosIdStoreProvider.");
         }
-        return type.name().toLowerCase(Locale.ROOT);
+        return StoreTypes.normalize(type, defaultType);
     }
     
     /**
@@ -55,7 +67,7 @@ public final class CosIdStoreProviders {
     public static <T> T create(String type, List<CosIdStoreProvider> providers, Function<CosIdStoreProvider, T> create, String what) {
         List<CosIdStoreProvider> candidates = new ArrayList<>();
         for (CosIdStoreProvider provider : providers) {
-            if (type.equalsIgnoreCase(provider.getType())) {
+            if (StoreTypes.same(type, provider.getType())) {
                 candidates.add(provider);
             }
         }

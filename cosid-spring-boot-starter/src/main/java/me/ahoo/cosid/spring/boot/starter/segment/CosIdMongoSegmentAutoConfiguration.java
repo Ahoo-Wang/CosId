@@ -20,6 +20,7 @@ import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.MongoReactiveRemoved;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnSegmentStoreType;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
@@ -29,7 +30,6 @@ import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -47,7 +47,7 @@ import org.springframework.core.annotation.Order;
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
 @ConditionalOnClass(MongoIdSegmentDistributorFactory.class)
-@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "mongo")
+@ConditionalOnSegmentStoreType("mongo")
 @AutoConfigureAfter(MongoAutoConfiguration.class)
 public class CosIdMongoSegmentAutoConfiguration {
     

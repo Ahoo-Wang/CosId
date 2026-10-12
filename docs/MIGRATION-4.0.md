@@ -111,6 +111,8 @@ With the starter, `cosid.machine.distributor.type` `redis`, `jdbc`, `zookeeper` 
 | `cosid.machine.distributor.redis.distribute-timeout` | bounds the distribution at startup, as in 3.4, and must be positive now: `0` fails startup, since a re-claim can run under the guard lock; `redis.timeout` bounds everything else |
 | `cosid.machine.distributor.jdbc.server-time-sql` | new: the query for the database clock, chosen from the database product (PostgreSQL, MySQL or MariaDB) when unset; other databases must set it |
 
-_To be filled in: the configuration property model._
+### Store type properties
+
+`cosid.machine.distributor.type` and `cosid.segment.distributor.type` are strings now, compared without case and with `-` and `_` alike: `stateful-set`, `STATEFUL_SET` and `stateful_set` all select the StatefulSet distributor (in 3.x, `stateful-set` bound the enum but no auto-configuration matched it). The type also names an application's `CosIdStoreProvider`, so `cosid.machine.distributor.provider` and `cosid.segment.distributor.provider` are removed: startup fails naming the `type` setting to use instead. In code, `MachineProperties.Distributor.Type` and `SegmentIdProperties.Distributor.Type` are gone; use the string constants (`MachineProperties.Distributor.REDIS`, ...). `cosid.snowflake.zone-id` binds to a `ZoneId`, so an unknown zone fails at startup instead of when the first friendly id is built.
 
 The API diff against 3.4 is reported on every pull request to `main` (the **API Diff** workflow).

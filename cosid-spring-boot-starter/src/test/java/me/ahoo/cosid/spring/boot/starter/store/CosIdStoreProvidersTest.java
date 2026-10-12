@@ -22,6 +22,7 @@ import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 import java.util.List;
 
@@ -47,10 +48,19 @@ class CosIdStoreProvidersTest {
     }
     
     @Test
-    void storeTypeIsTheProviderWhenSetOtherwiseTheLowerCaseType() {
-        assertThat(CosIdStoreProviders.storeType(null, MachineProperties.Distributor.Type.STATEFUL_SET)).isEqualTo("stateful_set");
-        assertThat(CosIdStoreProviders.storeType(" ", SegmentIdProperties.Distributor.Type.REDIS)).isEqualTo("redis");
-        assertThat(CosIdStoreProviders.storeType(" etcd ", SegmentIdProperties.Distributor.Type.REDIS)).isEqualTo("etcd");
+    void storeTypeIsNormalizedAndTheRemovedProviderPropertyFails() {
+        MockEnvironment environment = new MockEnvironment();
+        String typeKey = MachineProperties.Distributor.TYPE;
+        String providerKey = MachineProperties.Distributor.REMOVED_PROVIDER;
+        assertThat(CosIdStoreProviders.storeType(environment, typeKey, providerKey, "Stateful-Set", "manual")).isEqualTo("stateful_set");
+        assertThat(CosIdStoreProviders.storeType(environment, typeKey, providerKey, " ", "redis")).isEqualTo("redis");
+        assertThat(CosIdStoreProviders.storeType(environment, typeKey, providerKey, " ETCD ", "redis")).isEqualTo("etcd");
+        
+        environment.setProperty(providerKey, "etcd");
+        assertThatThrownBy(() -> CosIdStoreProviders.storeType(environment, typeKey, providerKey, "redis", "manual"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining(providerKey)
+            .hasMessageContaining(typeKey + "=etcd");
     }
     
     @Test

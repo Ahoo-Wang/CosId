@@ -88,10 +88,10 @@ class CosIdStoreProviderOverrideTest {
     }
     
     @Test
-    void applicationProviderOfANewTypeIsSelectedWithTheProviderProperty() {
+    void applicationProviderOfANewTypeIsSelectedWithTheType() {
         contextRunner
             .withBean("etcdProvider", CosIdStoreProvider.class, () -> customProvider("etcd"))
-            .withPropertyValues(SegmentIdProperties.PREFIX + ".distributor.provider=etcd", MachineProperties.PREFIX + ".distributor.provider=etcd")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=ETCD", MachineProperties.Distributor.TYPE + "=etcd")
             .run(context -> {
                 assertThat(context.getBean(IdSegmentDistributorFactory.class)).isSameAs(CUSTOM_FACTORY);
                 assertThat(context.getBean(MachineIdDistributor.class)).isSameAs(CUSTOM_DISTRIBUTOR);
@@ -99,10 +99,18 @@ class CosIdStoreProviderOverrideTest {
     }
     
     @Test
-    void unknownProviderFailsStartupNamingIt() {
+    void unknownTypeFailsStartupNamingIt() {
         contextRunner
-            .withPropertyValues(SegmentIdProperties.PREFIX + ".distributor.provider=etcd")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=etcd")
             .run(context -> assertThat(context).hasFailed()
                 .getFailure().rootCause().hasMessageContaining("[etcd]"));
+    }
+    
+    @Test
+    void removedProviderPropertyFailsStartupWithAHint() {
+        contextRunner
+            .withPropertyValues(MachineProperties.Distributor.REMOVED_PROVIDER + "=etcd")
+            .run(context -> assertThat(context).hasFailed()
+                .getFailure().hasStackTraceContaining(MachineProperties.Distributor.TYPE + "=etcd"));
     }
 }

@@ -13,19 +13,14 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
-import me.ahoo.cosid.provider.IdGeneratorProvider;
-import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
-import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 
 import com.google.common.base.Preconditions;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.lang.Nullable;
 
 /**
  * CosId Segment AutoConfiguration.
@@ -38,11 +33,9 @@ import org.springframework.lang.Nullable;
 @EnableConfigurationProperties(SegmentIdProperties.class)
 public class CosIdSegmentAutoConfiguration {
     
-    private final CosIdProperties cosIdProperties;
     private final SegmentIdProperties segmentIdProperties;
     
-    public CosIdSegmentAutoConfiguration(CosIdProperties cosIdProperties, SegmentIdProperties segmentIdProperties) {
-        this.cosIdProperties = cosIdProperties;
+    public CosIdSegmentAutoConfiguration(SegmentIdProperties segmentIdProperties) {
         this.segmentIdProperties = segmentIdProperties;
     }
     
@@ -60,20 +53,11 @@ public class CosIdSegmentAutoConfiguration {
         return new CosIdLifecyclePrefetchWorkerExecutorService(prefetchWorkerExecutorService);
     }
     
+    /**
+     * The segment id beans, as bean definitions: see {@link SegmentIdBeanDefinitionRegistrar}.
+     */
     @Bean
-    public SegmentIdBeanRegistrar segmentIdBeanRegistrar(IdSegmentDistributorFactory distributorFactory,
-                                                         IdGeneratorProvider idGeneratorProvider,
-                                                         PrefetchWorkerExecutorService prefetchWorkerExecutorService,
-                                                         ConfigurableApplicationContext applicationContext,
-                                                         @Nullable
-                                                         CustomizeSegmentIdProperties customizeSegmentIdProperties
-    ) {
-        
-        return new SegmentIdBeanRegistrar(cosIdProperties,
-            segmentIdProperties,
-            distributorFactory,
-            idGeneratorProvider,
-            prefetchWorkerExecutorService,
-            applicationContext, customizeSegmentIdProperties);
+    public static SegmentIdBeanDefinitionRegistrar segmentIdBeanDefinitionRegistrar() {
+        return new SegmentIdBeanDefinitionRegistrar();
     }
 }

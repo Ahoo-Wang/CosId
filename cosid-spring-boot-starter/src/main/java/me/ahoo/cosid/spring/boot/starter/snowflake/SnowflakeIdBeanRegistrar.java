@@ -28,13 +28,10 @@ import me.ahoo.cosid.spring.boot.starter.Namespaces;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import com.google.common.base.MoreObjects;
-import org.jspecify.annotations.Nullable;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.ConfigurableApplicationContext;
 
 import java.time.ZoneId;
 
-public class SnowflakeIdBeanRegistrar implements InitializingBean {
+public class SnowflakeIdBeanRegistrar {
     private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
     private final SnowflakeIdProperties snowflakeIdProperties;
@@ -42,19 +39,19 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
     private final IdGeneratorProvider idGeneratorProvider;
     private final GuardDistribute guardDistribute;
     private final ClockBackwardsSynchronizer clockBackwardsSynchronizer;
-    private final ConfigurableApplicationContext applicationContext;
-    @Nullable
-    private final CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties;
     
+    /**
+     * Create the factory of the snowflake id beans.
+     *
+     * @param snowflakeIdProperties the snowflake properties, after the {@link CustomizeSnowflakeIdProperties} ran
+     */
     public SnowflakeIdBeanRegistrar(CosIdProperties cosIdProperties,
                                     MachineProperties machineProperties,
                                     SnowflakeIdProperties snowflakeIdProperties,
                                     InstanceId instanceId,
                                     IdGeneratorProvider idGeneratorProvider,
                                     GuardDistribute guardDistribute,
-                                    ClockBackwardsSynchronizer clockBackwardsSynchronizer,
-                                    ConfigurableApplicationContext applicationContext,
-                                    @Nullable CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties) {
+                                    ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         this.cosIdProperties = cosIdProperties;
         this.machineProperties = machineProperties;
         this.snowflakeIdProperties = snowflakeIdProperties;
@@ -62,43 +59,22 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean {
         this.idGeneratorProvider = idGeneratorProvider;
         this.guardDistribute = guardDistribute;
         this.clockBackwardsSynchronizer = clockBackwardsSynchronizer;
-        this.applicationContext = applicationContext;
-        this.customizeSnowflakeIdProperties = customizeSnowflakeIdProperties;
     }
     
-    @Override
-    public void afterPropertiesSet() {
-        register();
-    }
-    
-    public void register() {
-        if (customizeSnowflakeIdProperties != null) {
-            customizeSnowflakeIdProperties.customize(snowflakeIdProperties);
-        }
-        SnowflakeIdProperties.ShardIdDefinition shareIdDefinition = snowflakeIdProperties.getShare();
-        if (shareIdDefinition.isEnabled()) {
-            registerIdDefinition(IdGeneratorProvider.SHARE, shareIdDefinition);
-        }
-        snowflakeIdProperties.getProvider().forEach(this::registerIdDefinition);
-    }
-    
-    private void registerIdDefinition(String name, SnowflakeIdProperties.IdDefinition idDefinition) {
+    /**
+     * Create the snowflake id {@code name} and register it in the {@link IdGeneratorProvider} unless one is there.
+     */
+    public SnowflakeId create(String name, SnowflakeIdProperties.IdDefinition idDefinition) {
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
         if (converterDefinition != null && converterDefinition.getGroupPrefix() != null && converterDefinition.getGroupPrefix().isEnabled()) {
             throw new IllegalStateException("Snowflake id [" + name + "] has converter.group-prefix enabled, but snowflake ids have no group: "
                 + "turn the group prefix off, or use a grouped segment id.");
         }
         SnowflakeId idGenerator = createIdGen(idDefinition, clockBackwardsSynchronizer);
-        registerSnowflakeId(name, idGenerator);
-    }
-    
-    private void registerSnowflakeId(String name, SnowflakeId snowflakeId) {
         if (idGeneratorProvider.get(name).isEmpty()) {
-            idGeneratorProvider.set(name, snowflakeId);
+            idGeneratorProvider.set(name, idGenerator);
         }
-        
-        String beanName = name + "SnowflakeId";
-        applicationContext.getBeanFactory().registerSingleton(beanName, snowflakeId);
+        return idGenerator;
     }
     
     private SnowflakeId createIdGen(SnowflakeIdProperties.IdDefinition idDefinition,

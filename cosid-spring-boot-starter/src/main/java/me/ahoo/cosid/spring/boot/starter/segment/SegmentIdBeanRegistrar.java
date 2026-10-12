@@ -33,54 +33,36 @@ import me.ahoo.cosid.util.CallTimeout;
 
 import com.google.common.base.MoreObjects;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.lang.Nullable;
 
 @Slf4j
-public class SegmentIdBeanRegistrar implements InitializingBean {
+public class SegmentIdBeanRegistrar {
     private final CosIdProperties cosIdProperties;
     private final SegmentIdProperties segmentIdProperties;
     private final IdSegmentDistributorFactory distributorFactory;
     private final IdGeneratorProvider idGeneratorProvider;
     private final PrefetchWorkerExecutorService prefetchWorkerExecutorService;
-    private final ConfigurableApplicationContext applicationContext;
-    @Nullable
-    private final CustomizeSegmentIdProperties customizeSegmentIdProperties;
 
+    /**
+     * Create the factory of the segment id beans.
+     *
+     * @param segmentIdProperties the segment properties, after the {@link CustomizeSegmentIdProperties} ran
+     */
     public SegmentIdBeanRegistrar(CosIdProperties cosIdProperties,
                                   SegmentIdProperties segmentIdProperties,
                                   IdSegmentDistributorFactory distributorFactory,
                                   IdGeneratorProvider idGeneratorProvider,
-                                  PrefetchWorkerExecutorService prefetchWorkerExecutorService,
-                                  ConfigurableApplicationContext applicationContext,
-                                  @Nullable CustomizeSegmentIdProperties customizeSegmentIdProperties) {
+                                  PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
         this.cosIdProperties = cosIdProperties;
         this.segmentIdProperties = segmentIdProperties;
         this.distributorFactory = distributorFactory;
         this.idGeneratorProvider = idGeneratorProvider;
         this.prefetchWorkerExecutorService = prefetchWorkerExecutorService;
-        this.applicationContext = applicationContext;
-        this.customizeSegmentIdProperties = customizeSegmentIdProperties;
     }
 
-    @Override
-    public void afterPropertiesSet() {
-        register();
-    }
-
-    public void register() {
-        if (customizeSegmentIdProperties != null) {
-            customizeSegmentIdProperties.customize(segmentIdProperties);
-        }
-        SegmentIdProperties.ShardIdDefinition shareIdDefinition = segmentIdProperties.getShare();
-        if (shareIdDefinition.isEnabled()) {
-            registerIdDefinition(IdGeneratorProvider.SHARE, shareIdDefinition);
-        }
-        segmentIdProperties.getProvider().forEach(this::registerIdDefinition);
-    }
-
-    private void registerIdDefinition(String name, SegmentIdProperties.IdDefinition idDefinition) {
+    /**
+     * Create the segment id {@code name} and register it in the {@link IdGeneratorProvider} unless one is there.
+     */
+    public SegmentId create(String name, SegmentIdProperties.IdDefinition idDefinition) {
         IdSegmentDistributorDefinition distributorDefinition = asDistributorDefinition(name, idDefinition);
         IdSegmentDistributor idSegmentDistributor;
         SegmentIdProperties.IdDefinition.Group group = idDefinition.getGroup();
@@ -104,16 +86,10 @@ public class SegmentIdBeanRegistrar implements InitializingBean {
         }
 
         SegmentId idGenerator = createSegment(segmentIdProperties, idDefinition, idSegmentDistributor, prefetchWorkerExecutorService);
-        registerSegmentId(name, idGenerator);
-    }
-
-    private void registerSegmentId(String name, SegmentId segmentId) {
-        if (!idGeneratorProvider.get(name).isPresent()) {
-            idGeneratorProvider.set(name, segmentId);
+        if (idGeneratorProvider.get(name).isEmpty()) {
+            idGeneratorProvider.set(name, idGenerator);
         }
-
-        String beanName = name + "SegmentId";
-        applicationContext.getBeanFactory().registerSingleton(beanName, segmentId);
+        return idGenerator;
     }
 
     private IdSegmentDistributorDefinition asDistributorDefinition(String name, SegmentIdProperties.IdDefinition idDefinition) {

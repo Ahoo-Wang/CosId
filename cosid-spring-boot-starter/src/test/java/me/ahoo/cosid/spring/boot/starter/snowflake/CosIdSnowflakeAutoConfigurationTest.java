@@ -44,7 +44,7 @@ class CosIdSnowflakeAutoConfigurationTest {
                 assertThat(context)
                     .hasSingleBean(SnowflakeIdProperties.class)
                     .hasSingleBean(IdGeneratorProvider.class)
-                    .hasSingleBean(SnowflakeIdBeanRegistrar.class);
+                    .hasSingleBean(SnowflakeIdBeanDefinitionRegistrar.class);
                 assertThat(context.getBean(SnowflakeIdProperties.class).getShare().isEnabled()).isFalse();
             });
     }
@@ -64,7 +64,7 @@ class CosIdSnowflakeAutoConfigurationTest {
             .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(SnowflakeIdProperties.class)
-                .doesNotHaveBean(SnowflakeIdBeanRegistrar.class));
+                .doesNotHaveBean(SnowflakeIdBeanDefinitionRegistrar.class));
     }
 
     @Test
@@ -72,7 +72,7 @@ class CosIdSnowflakeAutoConfigurationTest {
         this.contextRunner
             .run(context -> assertThat(context)
                 .doesNotHaveBean(SnowflakeIdProperties.class)
-                .doesNotHaveBean(SnowflakeIdBeanRegistrar.class));
+                .doesNotHaveBean(SnowflakeIdBeanDefinitionRegistrar.class));
     }
 
     @Test

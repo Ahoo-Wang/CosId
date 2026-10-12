@@ -118,6 +118,32 @@ public abstract class MachineLeaseStoreSpec {
         assertThat(released.getMachineId(), equalTo(3));
     }
     
+    /**
+     * A stable instance keeps its machine id on release, but one out of range after the machine bit shrank is given
+     * back, and the instance claims one in range.
+     */
+    @Test
+    public void stableClaimAfterTheMachineBitShrankStaysInRange() {
+        MachineLeaseStore store = getStore();
+        String namespace = newNamespace("stableShrunk");
+        MachineLeaseManager manager = new MachineLeaseManager(store);
+        Duration safeGuard = Duration.ofMinutes(5);
+        final Lease first = manager.acquire(namespace, instance("i0"), 2, safeGuard);
+        for (int i = 1; i <= 2; i++) {
+            manager.acquire(namespace, instance("i" + i), 2, safeGuard);
+        }
+        Lease stable = manager.acquire(namespace, stableInstance("stable"), 2, safeGuard);
+        assertThat(stable.getMachineId(), equalTo(3));
+        assertThat(manager.release(stable, store.serverTime()), equalTo(true));
+        assertThat(manager.release(first, store.serverTime()), equalTo(true));
+        
+        Lease shrunk = manager.acquire(namespace, stableInstance("stable"), 1, safeGuard);
+        
+        assertThat(shrunk.getMachineId(), equalTo(0));
+        Lease released = store.claimReleased(namespace, instance("next"), 3, store.serverTime()).orElseThrow();
+        assertThat(released.getMachineId(), equalTo(3));
+    }
+    
     @Test
     public void claimSelfTakesBackOwnLeaseRenewed() {
         MachineLeaseStore store = getStore();

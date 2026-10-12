@@ -26,6 +26,7 @@ import me.ahoo.cosid.machine.MachineIdGuarder;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.ManualMachineIdDistributor;
 import me.ahoo.cosid.machine.k8s.StatefulSetMachineIdDistributor;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
@@ -94,6 +95,13 @@ public class CosIdMachineAutoConfiguration {
     static final String DEFAULT_INSTANCE_ID_IN_CONTAINER_WARNING = "[" + MachineProperties.PREFIX + ".instance-id] is not set and "
         + "this process runs in a container (process id [{}]): set it to a stable name such as ${HOSTNAME}, with "
         + MachineProperties.PREFIX + ".stable=true to keep one machine id across restarts.";
+    /**
+     * Logged when a lease store runs without the guarder: its lease is never renewed.
+     */
+    static final String GUARDER_DISABLED_WARNING = "[" + MachineProperties.PREFIX + ".guarder.enabled=false] with a lease store: "
+        + "this instance never renews its machine id lease, so any instance of the namespace that runs the guarder takes the "
+        + "machine id over once its safe guard duration has passed, and both then generate the same ids. Disable the guarder "
+        + "on every instance of the namespace, or on none.";
     private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
 
@@ -247,6 +255,9 @@ public class CosIdMachineAutoConfiguration {
     public MachineIdGuarder machineIdGuarder(MachineIdDistributor machineIdDistributor) {
         MachineProperties.Guarder guarder = machineProperties.getGuarder();
         if (!guarder.isEnabled()) {
+            if (machineIdDistributor instanceof LeaseStoreMachineIdDistributor) {
+                log.warn(GUARDER_DISABLED_WARNING);
+            }
             return MachineIdGuarder.NONE;
         }
         return new DefaultMachineIdGuarder(machineIdDistributor, DefaultMachineIdGuarder.executorService(), guarder.getInitialDelay(), guarder.getDelay(), machineProperties.getSafeGuardDuration(),

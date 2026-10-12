@@ -44,7 +44,7 @@ The guarder renews the machine id lease. Prefix `cosid.machine.guarder`.
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `enabled` | `boolean` | `true` | Renew the lease. With `false`, leases never expire, so machine ids are never recycled |
+| `enabled` | `boolean` | `true` | Renew the lease. With `false`, this instance claims without expiry and never renews, so instances that also run without the guarder never recycle its machine id. Any instance of the namespace that runs the guarder takes it over once its safe guard duration has passed, and both then generate the same ids: disable the guarder on every instance of a namespace, or on none. Startup logs a warning when a lease store runs without the guarder |
 | `initial-delay` | `Duration` | `1m` | Delay before the first renewal |
 | `delay` | `Duration` | `1m` | Delay between renewals |
 | `safe-guard-duration` | `Duration` | `5m` | A lease not renewed for this long may be taken over by another instance. **Use the same value on every instance of a namespace** |

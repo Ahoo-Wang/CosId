@@ -226,7 +226,7 @@ public class CosIdMachineAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public GuardDistribute guardDistribute(MachineIdDistributor machineIdDistributor, MachineIdGuarder machineIdGuarder) {
-        return new GuardDistribute(machineIdDistributor, machineIdGuarder);
+        return new CosIdGuardDistribute(machineIdDistributor, machineIdGuarder);
     }
 
 

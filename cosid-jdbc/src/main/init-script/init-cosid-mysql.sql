@@ -38,6 +38,9 @@ create table if not exists cosid_machine
     distribute_time bigint unsigned  not null default 0,
     revert_time     bigint unsigned  not null default 0,
     stable          tinyint          not null default 0 comment 'machine id of a stable instance is never recycled',
+    renew_time      bigint unsigned  not null default 0 comment '4.0 lease: store time of the last claim or renewal',
+    watermark       bigint unsigned  not null default 0 comment '4.0 lease: last timestamp the machine id may have been used for',
+    lease_version   bigint unsigned  not null default 0 comment '4.0 lease: equals last_timestamp when 4.0 wrote the row last',
     constraint cosid_machine_pk
         primary key (name)
 ) engine = InnoDB;

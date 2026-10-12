@@ -262,7 +262,7 @@ jobs:
       - name: Check real Redis tests ran
         run: |
           status=0
-          reports=$(ls cosid-spring-redis/build/test-results/test/TEST-*ContractTest.xml cosid-spring-redis/build/test-results/test/TEST-*RedisTest.xml) || status=1
+          reports=$(ls cosid-spring-redis/build/test-results/test/TEST-*ContractTest.xml cosid-spring-redis/build/test-results/test/TEST-*RedisTest.xml cosid-spring-redis/build/test-results/test/TEST-*MixedLeaseFormatTest.xml) || status=1
           for report in $reports; do
             skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
             if [ "$skipped" -gt 0 ]; then
@@ -296,7 +296,7 @@ jobs:
       - name: Check contract tests ran
         run: |
           status=0
-          reports=$(ls cosid-mongo/build/test-results/test/TEST-*ContractTest.xml) || status=1
+          reports=$(ls cosid-mongo/build/test-results/test/TEST-*ContractTest.xml cosid-mongo/build/test-results/test/TEST-*MixedLeaseFormatTest.xml) || status=1
           for report in $reports; do
             skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
             if [ "$skipped" -gt 0 ]; then
@@ -401,7 +401,7 @@ jobs:
       - name: Check contract tests ran
         run: |
           status=0
-          reports=$(ls cosid-zookeeper/build/test-results/test/TEST-*ContractTest.xml) || status=1
+          reports=$(ls cosid-zookeeper/build/test-results/test/TEST-*ContractTest.xml cosid-zookeeper/build/test-results/test/TEST-*MixedLeaseFormatTest.xml) || status=1
           for report in $reports; do
             skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
             if [ "$skipped" -gt 0 ]; then
@@ -453,7 +453,7 @@ jobs:
       - name: Check real database tests ran
         run: |
           status=0
-          reports=$(ls cosid-jdbc/build/test-results/test/TEST-*ContractTest.xml cosid-jdbc/build/test-results/test/TEST-*JdbcMachineLeaseStoreTest.xml cosid-jdbc/build/test-results/test/TEST-*MySqlTest.xml) || status=1
+          reports=$(ls cosid-jdbc/build/test-results/test/TEST-*ContractTest.xml cosid-jdbc/build/test-results/test/TEST-*JdbcMachineLeaseStoreTest.xml cosid-jdbc/build/test-results/test/TEST-*MySqlTest.xml cosid-jdbc/build/test-results/test/TEST-*Postgres*Test.xml cosid-jdbc/build/test-results/test/TEST-*MixedLeaseFormatTest.xml) || status=1
           for report in $reports; do
             skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
             if [ "$skipped" -gt 0 ]; then
@@ -498,3 +498,17 @@ jobs:
 
       - name: Test CosId-Spring-Boot-Starter
         run: ./gradlew cosid-spring-boot-starter:clean cosid-spring-boot-starter:check
+
+      # No starter test may be skipped, and the run must have produced reports.
+      - name: Check starter tests ran
+        run: |
+          status=0
+          reports=$(ls cosid-spring-boot-starter/build/test-results/test/TEST-*.xml) || status=1
+          for report in $reports; do
+            skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
+            if [ "$skipped" -gt 0 ]; then
+              echo "::error::$report skipped $skipped tests"
+              status=1
+            fi
+          done
+          exit $status

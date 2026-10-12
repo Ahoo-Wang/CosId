@@ -150,7 +150,7 @@ Do not promise annotation support for an ORM or persistence path without verifyi
 ## Operational Rules
 
 - Machine IDs must be unique within a namespace and within the configured machine-bit range.
-- The machine guarder is enabled by default. Keep lease duration longer than heartbeat delay and expose failures through health monitoring when Actuator is used.
+- The machine guarder is enabled by default. Use the same `cosid.machine.guarder.safe-guard-duration` on every instance of a namespace, much larger than `guarder.delay`, and expose failures through health monitoring when Actuator is used.
 - Snowflake definitions default to clock sync. Custom second-based definitions require an epoch in seconds; millisecond definitions require milliseconds.
 - Snowflake timestamp, machine, and sequence bits must total at most 63.
 - Proxy activation uses `proxy-support`, `cosid.proxy.host`, and `distributor.type: proxy`; there is no `cosid.proxy.enabled` property.

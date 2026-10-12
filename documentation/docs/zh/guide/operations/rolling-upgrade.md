@@ -4,8 +4,8 @@
 
 ## 滚动重启
 
-- **机器号。** 停止中的实例在 Web 服务器停止后释放机器号，下一个实例可以立即使用。以相同实例 ID 重启的实例会取回自己的租约。被强制终止的实例，其租约在 `cosid.machine.guarder.safe-guard-duration`（5 分钟）后才会空出；如果在此期间命名空间中空闲的机器号少于启动中的实例数，启动会失败并抛出 `MachineIdOverflowException`。请为一次完整发布预留足够的 `machine-bit`。
-- **时钟。** 机器号的新持有者会等待自己的时钟越过上一个持有者留下的水位线。请保持各主机时钟同步，否则差距超过 `cosid.machine.clock-backwards.broken-threshold`（500 毫秒）时，启动会失败并抛出 `ClockTooManyBackwardsException`。
+- **机器号。** 停止中的实例在 Web 服务器停止后释放机器号，下一个实例可以立即使用。以相同实例 ID 重启的实例会取回自己的租约；默认实例 ID 是 `host:PID`，因此需要固定的 `cosid.machine.instance-id` 或 `port`，或者稳定的 PID。被强制终止、或启动过程中失败的实例，其租约要在 `cosid.machine.guarder.safe-guard-duration`（5 分钟）后才会空出；启动失败目前不会释放租约（计划在 4.0.1 修复），反复启动失败可能耗尽命名空间中的机器号。如果在此期间命名空间中空闲的机器号少于启动中的实例数，启动会失败并抛出 `MachineIdOverflowException`。请为一次完整发布预留足够的 `machine-bit`。
+- **时钟。** 机器号的新持有者会等待自己的时钟越过上一个持有者留下的水位线。请保持各主机时钟彼此同步、并与存储的时钟同步，否则差距超过 `cosid.machine.clock-backwards.broken-threshold`（500 毫秒）时，启动会失败并抛出 `ClockTooManyBackwardsException`。
 - **号段。** 重启后的实例会申请新号段，旧号段中未用完的部分被跳过。无需其他操作。
 - **修改配置。** 只有在命名空间中不再有使用旧值的实例时，才修改 `safe-guard-duration`：新旧值同时存在时，使用较短值的实例可能接管一份持有者仍认为有效的租约。不要修改正在使用的 Snowflake 生成器的 `machine-bit`、`epoch`、时间戳位数或序列号位数：旧布局下生成的 ID 可能与新 ID 冲突。
 
@@ -20,9 +20,9 @@
    | JDBC | 添加租约列（3.3 之前创建的表还需要 `stable` 列），见 [JDBC](../backends/jdbc.md#升级-3-x-创建的表)。缺少这些列时 4.0 会启动失败并打印所需语句 |
    | Redis | 无需操作：4.0 在 3.4 的键旁边新增 `cosid:{namespace}:lease` 哈希 |
    | ZooKeeper、MongoDB | 无需操作：节点和文档保留 3.4 格式 |
-   | Proxy | 先升级 Proxy 服务端并配置令牌，见 [CosId Proxy](../backends/proxy.md#从-3-x-升级) |
+   | Proxy | 先在 3.4.x 客户端上设置 `cosid.proxy.token`（3.4 会发送它，没有令牌的服务端会忽略它）；再把 Proxy 服务端升级到 4.0，并在 `cosid.proxy.server.auth.tokens` 中配置同一个令牌；最后升级客户端。如果先升级服务端，没有令牌的 3.4 客户端会得到 `401`，见 [CosId Proxy](../backends/proxy.md#从-3-x-升级) |
 
-2. **核对 4.0 实例的配置**，对照[迁移到 4.0](../migration/4.0.md)：与 3.4 实例相同的 `safe-guard-duration`，Spring Data JDBC 实体需要 `cosid.jdbc.enabled=true`，租约存储的超时为正数。
+2. **核对 4.0 实例的配置**，对照[迁移到 4.0](../migration/4.0.md)：与 3.4 实例相同的 `safe-guard-duration`，Spring Data JDBC 实体需要 `cosid.jdbc.enabled=true`，租约存储的超时为正数。使用 Proxy 时，服务端的 `cosid.proxy.server.min-safe-guard-duration`（默认 5 分钟）不能大于客户端的 `safe-guard-duration`，否则 4.0 客户端申领已过期的机器号时会得到 `400`。
 3. **逐个替换实例。** 不要同时运行实例 ID 相同的 3.4 实例和 4.0 实例：它们可能（概率很小）写入相同的租约版本。
 4. **完成升级**之后，才能从存储中移除 3.x 相关数据，例如删除 3.4 的 Redis 键。
 

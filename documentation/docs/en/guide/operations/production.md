@@ -21,10 +21,10 @@
 
 - **Lease machine ids from a store**; use `manual` only for a single instance.
 - **Use the same `cosid.machine.guarder.safe-guard-duration`** on every instance of a namespace.
-- **Keep `fail-fast` on** (the default): a failed request is better than a duplicate ID.
+- **Keep `cosid.machine.guarder.fail-fast` on** (the default): a failed request is better than a duplicate ID.
 - **Size `machine-bit`** for the largest number of instances during a rollout, plus those whose leases have not expired yet.
 - **Mark only instances with a fixed identity as `stable`**, together with a fixed `instance-id`.
-- **Keep host clocks in sync** (NTP, slewing rather than stepping). Required for ZooKeeper leases, and it keeps restarts from waiting on a watermark.
+- **Keep host clocks in sync** with each other and with the store's clock (NTP, slewing rather than stepping). Required for ZooKeeper leases, and it keeps restarts from waiting on a watermark.
 
 ## Operations
 

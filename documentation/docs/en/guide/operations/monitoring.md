@@ -2,7 +2,7 @@
 
 ## Health
 
-With Spring Boot Actuator, the `machineId` health indicator reports `DOWN` while a machine id lease could not be renewed, with the error and the time of the failed renewal. Alert on it: if renewals keep failing for the safe guard duration (5 minutes), Snowflake generators and `CosIdGenerator` stop with `MachineIdLostException`.
+With Spring Boot Actuator, the `machineId` health indicator reports `DOWN` while a machine id lease could not be renewed, with the error and the time of the failed renewal. Alert on it: about 4 minutes 50 seconds after the last successful renewal (`safe-guard-duration - min(10s, safe-guard-duration / 10)`), Snowflake generators and `CosIdGenerator` stop with `MachineIdLostException`.
 
 ```yaml
 management:
@@ -32,6 +32,7 @@ management:
 | `Guard Failed` (ERROR) | A lease renewal failed; the health indicator is `DOWN` until the next success |
 | `Detected clock backwards` (WARN) | A generator or a new machine id owner is waiting for the clock |
 | `Prefetch [...] - Hunger, Safety distance expansion` (INFO) | A segment chain ran dry and grows its prefetch distance; frequent messages mean `step` or `safe-distance` is too small for the load |
+| `AppendChain [...] - prefetch failed` (ERROR), then `prefetch still failing` (WARN) | A segment chain cannot take segments from the store; generation continues from the reserved segments until they run out |
 | `Revert machine id of [...] failed` (ERROR) | The machine id was not released on shutdown; it becomes free after the safe guard duration |
 
 Set `logging.level.me.ahoo.cosid=debug` to follow distribution, renewal and prefetch in detail.

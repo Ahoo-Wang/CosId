@@ -148,4 +148,8 @@ The server keeps no client state of its own: leases and counters live in its sto
 
 ## Upgrading from 3.x
 
-Upgrade the servers before the clients. 4.0 servers keep the deprecated v1 machine API (`/machines/{namespace}`) for 3.x clients, and 4.0 clients use the v2 lease API, which 3.x servers do not have. See [Migrating to 4.0](../migration/4.0.md).
+1. Set `cosid.proxy.token` on the 3.4.x clients (3.4 sends it, and a server without tokens ignores it).
+2. Upgrade the servers, with the same token in `cosid.proxy.server.auth.tokens`. Upgrading them before the clients have the token gives those clients `401`.
+3. Upgrade the clients. Keep the server's `min-safe-guard-duration` at most the clients' `cosid.machine.guarder.safe-guard-duration`.
+
+4.0 servers keep the deprecated v1 machine API (`/machines/{namespace}`) for 3.x clients, and 4.0 clients use the v2 lease API, which 3.x servers do not have. See [Migrating to 4.0](../migration/4.0.md).

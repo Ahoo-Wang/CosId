@@ -6,7 +6,7 @@ No. CosId is a library: IDs are generated inside your application, and the store
 
 ## Are the IDs sequential?
 
-Within one instance, yes: each instance hands out increasing IDs. Across instances they are *trend increasing*: a segment ID from one instance can be lower than one issued earlier by another, by up to about `step` times the number of instances, and Snowflake IDs are ordered as far as the host clocks agree. No distributed generator gives strict global order without a single point of coordination; use a database sequence if you need it.
+Within one instance, yes: each instance hands out increasing IDs. Across instances they are *trend increasing*: a segment ID from one instance can be lower than one issued earlier by another, by up to about `step` × the segments each instance holds (the current one and the prefetched ones: at least `safe-distance`, more under load) × the number of instances, and Snowflake IDs are ordered as far as the host clocks agree. No distributed generator gives strict global order without a single point of coordination; use a database sequence if you need it.
 
 ## Why are there gaps?
 
@@ -27,6 +27,6 @@ Yes. Give each its own `cosid.namespace`: counters and machine ids are scoped by
 
 ## What happens when the store is down?
 
-Generation continues from memory: a segment chain uses its reserved segments, and Snowflake generators need the store only at startup and for lease renewal. If renewals fail for the safe guard duration (5 minutes), Snowflake generators stop with `MachineIdLostException` rather than risk duplicates. Instances cannot start while the store is down.
+Generation continues from memory: a segment chain uses its reserved segments, and Snowflake generators need the store only at startup and for lease renewal. About 4 minutes 50 seconds after the last successful renewal (`safe-guard-duration - min(10s, safe-guard-duration / 10)`), Snowflake generators and `CosIdGenerator` stop with `MachineIdLostException` rather than risk duplicates. Instances cannot start while the store is down.
 
 If you have another question, ask in [Issues](https://github.com/Ahoo-Wang/CosId/issues).

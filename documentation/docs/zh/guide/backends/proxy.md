@@ -150,4 +150,8 @@ JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
 
 ## 从 3.x 升级
 
-先升级服务端，再升级客户端。4.0 服务端为 3.x 客户端保留了已弃用的 v1 机器号 API（`/machines/{namespace}`），4.0 客户端使用 3.x 服务端没有的 v2 租约 API。见[迁移到 4.0](../migration/4.0.md)。
+1. 在 3.4.x 客户端上设置 `cosid.proxy.token`（3.4 会发送它，没有令牌的服务端会忽略它）。
+2. 升级服务端，并在 `cosid.proxy.server.auth.tokens` 中配置同一个令牌。如果在客户端配置令牌之前升级服务端，这些客户端会得到 `401`。
+3. 升级客户端。服务端的 `min-safe-guard-duration` 不要大于客户端的 `cosid.machine.guarder.safe-guard-duration`。
+
+4.0 服务端为 3.x 客户端保留了已弃用的 v1 机器号 API（`/machines/{namespace}`），4.0 客户端使用 3.x 服务端没有的 v2 租约 API。见[迁移到 4.0](../migration/4.0.md)。

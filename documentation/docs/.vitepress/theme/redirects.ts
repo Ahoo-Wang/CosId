@@ -19,7 +19,8 @@
 export const redirects: Record<string, string> = {
     '/guide/snowflake': '/guide/concepts/snowflake',
     '/guide/segment': '/guide/concepts/segment',
-    '/guide/segment-chain': '/guide/concepts/segment-chain',
+    '/guide/segment-chain': '/guide/concepts/segment',
+    '/guide/concepts/segment-chain': '/guide/concepts/segment',
     '/guide/cosid-generator': '/guide/concepts/cosid-generator',
     '/guide/id-converter': '/guide/concepts/id-converter',
     '/guide/provider': '/guide/concepts/provider',

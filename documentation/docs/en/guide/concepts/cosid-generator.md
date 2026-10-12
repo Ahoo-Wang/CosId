@@ -1,43 +1,48 @@
 # CosIdGenerator
 
-_CosIdGenerator_ *Single-machine TPS performance: 1557W/s*, three times that of `UUID.randomUUID()`, clock-based globally trend-increasing ID, can support one million instances simultaneously.
+`CosIdGenerator` generates time-ordered string IDs for very large clusters. Its 80-bit layout leaves 20 bits for the machine id, about a million instances in one namespace, where a 63-bit Snowflake ID has room for 1024.
 
 <p align="center">
-  <img src="../../../public/assets/design/CosIdGenerator.png" alt="IdGenerator design diagram"/>
+  <img src="../../../public/assets/design/CosIdGenerator.png" alt="CosIdGenerator design diagram"/>
 </p>
 
-## Feature Introduction
+## Layout
 
-- Globally trend-increasing
-- Locally monotonically increasing
-- High performance: 15,570,085 ops/s (generateAsString), 3 times that of `UUID.randomUUID()`
-- Reverse parse ID state (timestamp, machine ID, sequence number)
-- Easy to extend
-- Smaller storage space: 15 characters
-- Supports one million instances simultaneously
+`timestamp (44 bits) + machine id (20 bits) + sequence (16 bits) = 80 bits`
 
-Based on the above features, _CosIdGenerator_ is particularly suitable for globally unique ID generation in large-scale cluster scenarios.
+- **Timestamp**: milliseconds since the Unix epoch.
+- **Machine id**: leased like a Snowflake machine id, see [Machine ID](./machine-id.md).
+- **Sequence**: 65,536 IDs per millisecond per instance, restarting past half its range like the [Snowflake sequence](./snowflake.md#sequence-reset).
 
-## Radix36CosIdGenerator
+The ID is the three parts encoded as fixed-width strings, so IDs sort as strings in the order they were generated, and the parts can be parsed back (`getStateParser().asState(id)`).
 
-*CosId generator* formatted using base-36
+| Type | Encoding | Length | Characters per part |
+|------|----------|--------|----------------|
+| `RADIX62` (default) | `0-9A-Za-z` | 15 characters | timestamp 8 + machine id 4 + sequence 3 |
+| `RADIX36` | `0-9A-Z` | 17 characters | timestamp 9 + machine id 4 + sequence 4 |
+| `FRIENDLY` | `yyyyMMddHHmmssSSS-machineId-sequence` | variable | readable, in `cosid.generator.zone-id` |
 
-`[timestamp(44)]-[machineId(20)]-[sequence(16)] = 80 BITS = 17 CHARS=[timestamp(8)]-[machineId(4)]-[sequence(3)]`
+Radix-62 IDs are case sensitive: store them in a case-sensitive (binary) column.
 
-- Timestamp reduced from original 44 bits to 8 bits
-- Machine ID reduced from original 20 bits to 4 bits
-- Sequence number reduced from original 16 bits to 3 bits
+## Properties
 
-## Radix62CosIdGenerator
+- Time-ordered: increasing per instance, trend increasing across instances.
+- Fast: about 15.6 million IDs per second on one instance, three times `UUID.randomUUID()`.
+- Short: 15 characters, against 36 for a UUID string.
 
-*CosId generator* formatted using base-62
-
-`[timestamp(44)]-[machineId-(20)]-[sequence-(16)] = 80 BITS = 15 CHARS=[timestamp(9)]-[machineId(4)]-[sequence(4)]`
-
-- Timestamp reduced from original 44 bits to 9 bits
-- Machine ID reduced from original 20 bits to 4 bits
-- Sequence number reduced from original 16 bits to 3 bits
+`CosIdGenerator` is a `StringIdGenerator`: it has no `long` form, so it cannot fill a `long` field or serve as the share generator.
 
 ## Configuration
 
-[CosIdGenerator Configuration](../../reference/config/cosid-generator.md)
+```yaml
+cosid:
+  namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    distributor:
+      type: redis
+  generator:
+    enabled: true
+```
+
+The starter registers a `CosIdGenerator` bean, which is also registered in the `IdGeneratorProvider` as `cosid`. Annotate a `String` field with `@CosId("cosid")` to fill it with this generator. See the [CosIdGenerator configuration](../../reference/config/cosid-generator.md).

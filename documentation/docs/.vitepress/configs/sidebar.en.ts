@@ -30,8 +30,8 @@ const guide: DefaultTheme.SidebarItem[] = [
         items: [
             {text: 'ID Generators', link: 'id-generator'},
             {text: 'SnowflakeId', link: 'snowflake'},
-            {text: 'SegmentId', link: 'segment'},
-            {text: 'SegmentChainId', link: 'segment-chain'},
+            {text: 'Machine ID', link: 'machine-id'},
+            {text: 'SegmentId / SegmentChainId', link: 'segment'},
             {text: 'CosIdGenerator', link: 'cosid-generator'},
             {text: 'ID Converters', link: 'id-converter'},
             {text: 'ID Generator Provider', link: 'provider'},

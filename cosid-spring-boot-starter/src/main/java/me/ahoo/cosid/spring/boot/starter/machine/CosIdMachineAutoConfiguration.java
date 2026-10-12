@@ -164,7 +164,8 @@ public class CosIdMachineAutoConfiguration {
     }
     
     private static boolean isInContainer() {
-        return new File("/.dockerenv").exists() || System.getenv("KUBERNETES_SERVICE_HOST") != null;
+        // Docker creates /.dockerenv at the root of every container.
+        return new File(File.separator, ".dockerenv").exists() || System.getenv("KUBERNETES_SERVICE_HOST") != null;
     }
 
     /**

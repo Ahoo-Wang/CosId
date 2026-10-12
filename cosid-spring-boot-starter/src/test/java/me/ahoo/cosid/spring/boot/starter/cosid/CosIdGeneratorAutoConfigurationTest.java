@@ -26,6 +26,7 @@ import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineState;
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
@@ -33,6 +34,8 @@ import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 class CosIdGeneratorAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
@@ -54,6 +57,34 @@ class CosIdGeneratorAutoConfigurationTest {
             });
     }
 
+    @Test
+    void closingTheContextRemovesTheGeneratorFromTheSharedProvider() {
+        AtomicReference<CosIdGenerator> generator = new AtomicReference<>();
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdGeneratorEnabled.ENABLED_KEY + "=true")
+            .run(context -> {
+                generator.set(context.getBean(CosIdGenerator.class));
+                assertThat(DefaultIdGeneratorProvider.INSTANCE.get(CosId.COSID)).containsSame(generator.get());
+            });
+        assertThat(DefaultIdGeneratorProvider.INSTANCE.get(CosId.COSID)).isEmpty();
+    }
+    
+    @Test
+    void closingTheContextKeepsAGeneratorThatReplacedIt() {
+        CosIdGenerator replacement = mock(CosIdGenerator.class);
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdGeneratorEnabled.ENABLED_KEY + "=true")
+            .run(context -> {
+                context.getBean(CosIdGenerator.class);
+                DefaultIdGeneratorProvider.INSTANCE.set(CosId.COSID, replacement);
+            });
+        try {
+            assertThat(DefaultIdGeneratorProvider.INSTANCE.get(CosId.COSID)).containsSame(replacement);
+        } finally {
+            DefaultIdGeneratorProvider.INSTANCE.remove(CosId.COSID);
+        }
+    }
+    
     @Test
     void bindsGeneratorTypeBeforeCreatingGenerator() {
         this.contextRunner

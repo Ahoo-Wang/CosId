@@ -142,13 +142,11 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 想象一下假设 **MachineId** 是物理上的，那么意味着一台机器拥有只能拥有一个 **MachineId**，那会产生什么问题呢？
 :::
 
-目前 *[CosId](https://github.com/Ahoo-Wang/CosId)* 提供了以下五种 `MachineId` 分配器。
+目前 *[CosId](https://github.com/Ahoo-Wang/CosId)* 提供了以下 `MachineId` 分配器。
 
-- ManualMachineIdDistributor: 手动配置`machineId`，一般只有在集群规模非常小的时候才有可能使用，不推荐。
-- StatefulSetMachineIdDistributor: 使用`Kubernetes`的`StatefulSet`提供的稳定的标识ID（HOSTNAME=service-01）作为机器号。
-- RedisMachineIdDistributor: 使用**Redis**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
-- JdbcMachineIdDistributor: 使用**关系型数据库**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
-- ZookeeperMachineIdDistributor: 使用**ZooKeeper**作为机器号的分发存储，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
+- `ManualMachineIdDistributor`: 手动配置`machineId`，一般只有在集群规模非常小的时候才有可能使用，不推荐。
+- `StatefulSetMachineIdDistributor`: 使用`Kubernetes`的`StatefulSet`提供的稳定的标识ID（HOSTNAME=service-01）作为机器号。
+- `LeaseStoreMachineIdDistributor`: 从 `MachineLeaseStore` 租用机器号，存储同时记录每个机器号的上一次时间戳，用于**启动时时钟回拨**的检查。CosId 提供 **Redis**（`SpringRedisMachineLeaseStore`）、**关系型数据库**（`JdbcMachineLeaseStore`）、**ZooKeeper**（`ZookeeperMachineLeaseStore`）、**MongoDB**（`MongoMachineLeaseStore`）和 **CosId Proxy**（`ProxyMachineLeaseStore`）的存储实现。
 
 <p align="center" >
   <img src="../../public/assets/design/MachineIdDistributor.png" alt="MachineIdDistributor"/>
@@ -170,7 +168,7 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
   - `ClockSyncSnowflakeId`是`SnowflakeId`的包装器，当发生时钟回拨时会使用`ClockBackwardsSynchronizer`主动等待时钟同步来重新生成ID，提供更加友好的使用体验。
 - 启动时时钟回拨：即在启动服务实例时获取的当前时钟比上次关闭服务时小。此时的`lastTimestamp`是无法存储在进程内存中的。当获取的外部存储的**机器状态**大于当前时钟时钟时，会使用`ClockBackwardsSynchronizer`主动同步时钟。
   - LocalMachineStateStorage：使用本地文件存储`MachineState`(机器号、最近一次时间戳)。因为使用的是本地文件所以只有当实例的部署环境是稳定的，`LocalMachineStateStorage`才适用。
-  - RedisMachineIdDistributor：将`MachineState`存储在**Redis**分布式缓存中，这样可以保证总是可以获取到上次服务实例停机时**机器状态**。
+  - `MachineLeaseStore`：租约存储（Redis、JDBC、ZooKeeper、MongoDB、Proxy）会记录每个机器号的上一次时间戳，这样可以保证总是可以获取到上次服务实例停机时**机器状态**。
 
 #### SnowflakeId之JavaScript数值溢出问题
 

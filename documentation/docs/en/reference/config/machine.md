@@ -42,8 +42,7 @@ When upgrading from an earlier version:
 
 | Name     | Data Type                 | Description                                                          | Default Value      |
 |--------|----------------------|-------------------------------------------------------------|----------|
-| type   | `Distributor.Type`   | Machine ID distributor type: `MANUAL`/`STATEFUL_SET`/`JDBC`/`REDIS`/`ZOOKEEPER`/`MONGO`/`PROXY` | `MANUAL` |
-| provider | `String` | Name of a `CosIdStoreProvider` bean to use instead of the one of `type`, for a backend CosId does not ship (since 3.4.0) | |
+| type | `String` | Machine ID distributor type: `manual`, `stateful_set`, `jdbc`, `redis`, `zookeeper`, `mongo`, `proxy`, or the name of a `CosIdStoreProvider` bean for a backend CosId does not ship. Compared by letters and digits, ignoring case, so `stateful-set` and `statefulSet` work too | `manual` |
 | manual | `Distributor.Manual` | Manual distributor configuration                                                     |          |
 
 #### Distributor.Manual

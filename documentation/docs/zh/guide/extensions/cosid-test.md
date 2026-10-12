@@ -27,25 +27,36 @@
 
 ## Redis 扩展案例
 
-### MachineIdDistributor
+### MachineLeaseStore
+
+机器号后端实现 `MachineLeaseStore`，由 `LeaseStoreMachineIdDistributor` 包装为 `MachineIdDistributor`。`MachineLeaseStoreSpec` 校验存储本身，`MachineIdDistributorSpec` 校验基于它的分发器：
 
 ```java
-class SpringRedisMachineIdDistributorTest extends MachineIdDistributorSpec {
+class SpringRedisMachineLeaseStoreTest extends MachineLeaseStoreSpec {
     StringRedisTemplate stringRedisTemplate;
+    SpringRedisMachineLeaseStore store;
     
     @BeforeEach
     void setup() {
-        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
-        LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
+        LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(new RedisStandaloneConfiguration());
         lettuceConnectionFactory.afterPropertiesSet();
         stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
+        store = new SpringRedisMachineLeaseStore(stringRedisTemplate, RedisCommandTimeout.of(Duration.ofSeconds(1)));
     }
     
     @Override
-    protected MachineIdDistributor getDistributor() {
-        return new SpringRedisMachineIdDistributor(stringRedisTemplate, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
+    protected MachineLeaseStore getStore() {
+        return store;
     }
+}
+
+class SpringRedisLeaseStoreMachineIdDistributorTest extends MachineIdDistributorSpec {
+    // setup as above
     
+    @Override
+    protected MachineIdDistributor getDistributor() {
+        return new LeaseStoreMachineIdDistributor(store, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
+    }
 }
 ```
 

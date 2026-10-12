@@ -2,7 +2,7 @@
 
 [cosid-zookeeper](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-zookeeper) 模块提供 *ZooKeeper* 的支持。实现了：
 
-- `MachineIdDistributor`：作为**雪花算法**(`SnowflakeId`)的机器号分配器 (`MachineIdDistributor`)。
+- `ZookeeperMachineLeaseStore`：作为**雪花算法**(`SnowflakeId`)的机器号租约存储，由 `LeaseStoreMachineIdDistributor` 使用。
 - `IdSegmentDistributor`：作为**号段算法**(`SegmentId`)的号段分发器 (`IdSegmentDistributor`)。
 
 ## 安装

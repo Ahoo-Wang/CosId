@@ -142,13 +142,11 @@ One point needs special explanation, **SnowflakeId**'s **MachineId** is a logica
 Imagine if **MachineId** is physical, meaning one machine can only have one **MachineId**, what problems would arise?
 :::
 
-Currently *[CosId](https://github.com/Ahoo-Wang/CosId)* provides the following five `MachineId` distributors.
+Currently *[CosId](https://github.com/Ahoo-Wang/CosId)* provides the following `MachineId` distributors.
 
-- ManualMachineIdDistributor: Manually configure `machineId`, generally only possible when cluster scale is very small, not recommended.
-- StatefulSetMachineIdDistributor: Use `Kubernetes`'s `StatefulSet` provided stable identity ID (HOSTNAME=service-01) as machine ID.
-- RedisMachineIdDistributor: Use **Redis** as machine ID distribution storage, also stores `MachineId`'s last timestamp, for **startup clock rollback** check.
-- JdbcMachineIdDistributor: Use **relational database** as machine ID distribution storage, also stores `MachineId`'s last timestamp, for **startup clock rollback** check.
-- ZookeeperMachineIdDistributor: Use **ZooKeeper** as machine ID distribution storage, also stores `MachineId`'s last timestamp, for **startup clock rollback** check.
+- `ManualMachineIdDistributor`: Manually configure `machineId`, generally only possible when cluster scale is very small, not recommended.
+- `StatefulSetMachineIdDistributor`: Use `Kubernetes`'s `StatefulSet` provided stable identity ID (HOSTNAME=service-01) as machine ID.
+- `LeaseStoreMachineIdDistributor`: Lease the machine ID from a `MachineLeaseStore`, which also keeps the last timestamp of each machine ID, for the **startup clock rollback** check. CosId ships stores for **Redis** (`SpringRedisMachineLeaseStore`), **relational databases** (`JdbcMachineLeaseStore`), **ZooKeeper** (`ZookeeperMachineLeaseStore`), **MongoDB** (`MongoMachineLeaseStore`) and **CosId Proxy** (`ProxyMachineLeaseStore`).
 
 <p align="center" >
   <img src="../../public/assets/design/MachineIdDistributor.png" alt="MachineIdDistributor"/>
@@ -170,7 +168,7 @@ In **SnowflakeId** algorithm, according to **MachineId** partitioning IDs, we ea
   - `ClockSyncSnowflakeId` is `SnowflakeId`'s wrapper, when clock rollback occurs it uses `ClockBackwardsSynchronizer` to actively wait for clock synchronization to regenerate ID, providing more user-friendly experience.
 - Startup clock rollback: That is, when starting service instance the current clock obtained is smaller than when last closed service. At this time `lastTimestamp` cannot be stored in process memory. When obtained external storage **machine state** is greater than current clock, will use `ClockBackwardsSynchronizer` to actively synchronize clock.
   - LocalMachineStateStorage: Use local file to store `MachineState` (machine ID, last timestamp). Because using local file so only applicable when instance deployment environment is stable, `LocalMachineStateStorage` is applicable.
-  - RedisMachineIdDistributor: Store `MachineState` in **Redis** distributed cache, this way can guarantee always can get last service instance shutdown **machine state**.
+  - `MachineLeaseStore`: The lease stores (Redis, JDBC, ZooKeeper, MongoDB, Proxy) keep the last timestamp of each machine ID, this way can guarantee always can get last service instance shutdown **machine state**.
 
 #### SnowflakeId JavaScript Numerical Overflow Problem
 

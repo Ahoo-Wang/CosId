@@ -27,25 +27,36 @@ This standardized verification method not only simplifies extension development,
 
 ## Redis Extension Example
 
-### MachineIdDistributor
+### MachineLeaseStore
+
+A machine id backend implements `MachineLeaseStore`, and `LeaseStoreMachineIdDistributor` turns it into a `MachineIdDistributor`. `MachineLeaseStoreSpec` checks the store, and `MachineIdDistributorSpec` checks the distributor built on it:
 
 ```java
-class SpringRedisMachineIdDistributorTest extends MachineIdDistributorSpec {
+class SpringRedisMachineLeaseStoreTest extends MachineLeaseStoreSpec {
     StringRedisTemplate stringRedisTemplate;
+    SpringRedisMachineLeaseStore store;
     
     @BeforeEach
     void setup() {
-        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
-        LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
+        LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(new RedisStandaloneConfiguration());
         lettuceConnectionFactory.afterPropertiesSet();
         stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
+        store = new SpringRedisMachineLeaseStore(stringRedisTemplate, RedisCommandTimeout.of(Duration.ofSeconds(1)));
     }
     
     @Override
-    protected MachineIdDistributor getDistributor() {
-        return new SpringRedisMachineIdDistributor(stringRedisTemplate, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
+    protected MachineLeaseStore getStore() {
+        return store;
     }
+}
+
+class SpringRedisLeaseStoreMachineIdDistributorTest extends MachineIdDistributorSpec {
+    // setup as above
     
+    @Override
+    protected MachineIdDistributor getDistributor() {
+        return new LeaseStoreMachineIdDistributor(store, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
+    }
 }
 ```
 

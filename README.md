@@ -21,6 +21,8 @@
 > **CosId 2.x** supports Spring Boot 3.x , base Java 17
 > 
 > **CosId 3.x** supports Spring Boot 4.x , base Java 17
+>
+> **CosId 4.x** supports Spring Boot 4.x , base Java 17 ([migrating from 3.x](./docs/MIGRATION-4.0.md))
 
 ## Introduction
 
@@ -84,38 +86,38 @@ provide a more friendly and flexible experience.
 
 ### MachineIdDistributor
 
-> Currently [CosId](https://github.com/Ahoo-Wang/CosId) provides the following three `MachineId` distributors.
+> `MachineIdDistributor` assigns each instance a `machineId`, selected by `cosid.machine.distributor.type`.
 
-#### ManualMachineIdDistributor
-
-```yaml
-cosid:
-  snowflake:
-    machine:
-      distributor:
-        type: manual
-        manual:
-          machine-id: 0
-```
-
-> Manually distribute `MachineId`
-
-#### StatefulSetMachineIdDistributor
+#### Manual
 
 ```yaml
 cosid:
-  snowflake:
-    machine:
-      distributor:
-        type: stateful_set
+  machine:
+    enabled: true
+    distributor:
+      type: manual
+      manual:
+        machine-id: 0
 ```
 
-> Use the stable identification ID provided by the `StatefulSet` of `Kubernetes` as the machine number.
+> Configure the `machineId` by hand. Only practical for very small clusters.
 
-#### RedisMachineIdDistributor
+#### StatefulSet
+
+```yaml
+cosid:
+  machine:
+    enabled: true
+    distributor:
+      type: stateful_set
+```
+
+> Use the stable ordinal in the host name of a `Kubernetes` `StatefulSet` pod (`HOSTNAME=service-01`) as the `machineId`.
+
+#### Lease stores: Redis, JDBC, ZooKeeper, MongoDB and Proxy
 
 <p align="center">
-     <img src="./document/docs/.vuepress/public/assets/design/RedisMachineIdDistributor.png" alt="Redis Machine Id Distributor"/>
+     <img src="./documentation/docs/public/assets/design/MachineIdDistributor.png" alt="Machine Id Distributor"/>
 </p>
 <p align="center">
      <img src="./document/docs/.vuepress/public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
@@ -123,19 +125,23 @@ cosid:
 
 ```yaml
 cosid:
-  snowflake:
-    machine:
-      distributor:
-        type: redis
+  machine:
+    enabled: true
+    distributor:
+      type: redis # or jdbc, zookeeper, mongo, proxy
 ```
 
-> Use *Redis* as the distribution store for the machine number.
+> `LeaseStoreMachineIdDistributor` leases a `machineId` from a `MachineLeaseStore` (`SpringRedisMachineLeaseStore`,
+> `JdbcMachineLeaseStore`, `ZookeeperMachineLeaseStore`, `MongoMachineLeaseStore` or `ProxyMachineLeaseStore`). The
+> guarder renews the lease, and a lease that is not renewed for `cosid.machine.guarder.safe-guard-duration` (default
+> 5 minutes) can be claimed by another instance. A claim never starts before the time the last holder used, which
+> guards against clock moved backwards at startup.
 
 ### ClockBackwardsSynchronizer
 
 ```yaml
 cosid:
-  snowflake:
+  machine:
     clock-backwards:
       spin-threshold: 10
       broken-threshold: 2000
@@ -175,11 +181,10 @@ public class MachineState {
 
 ```yaml
 cosid:
-  snowflake:
-    machine:
-      state-storage:
-        local:
-          state-location: ./cosid-machine-state/
+  machine:
+    state-storage:
+      local:
+        state-location: ./cosid-machine-state/
 ```
 
 The default `LocalMachineStateStorage` local machine state storage uses a local file to store the machine number and the
@@ -210,13 +215,6 @@ allocation is used to shorten the number of bits of `SnowflakeId` so that `ID` d
 the front end.
 
 ### SnowflakeFriendlyId (Can parse `SnowflakeId` into a more readable `SnowflakeIdState`)
-
-```yaml
-cosid:
-  snowflake:
-    share:
-      friendly: true
-```
 
 ```java
 public class SnowflakeIdState {
@@ -356,7 +354,7 @@ cosid:
 ```
 
 ```java
-IdGenerator idGenerator=idGeneratorProvider.get("bizA");
+IdGenerator idGenerator = idGeneratorProvider.getRequired("bizA", IdGenerator.class);
 ```
 
 In actual use, we generally do not use the same `IdGenerator` for all business services, but different businesses use
@@ -525,9 +523,7 @@ spring:
 ```
 
 ## Examples
-> 项目中根据使用的场景（`jdbc`/`proxy`/`redis-cosid`/`redis`/`shardingsphere`/`zookeeper`等）提供了对应的例子，实践过程中可以参照配置快速接入。
-
-[点击查看Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples)
+> The [examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples) cover each backend and integration (`jdbc`, `proxy`, `redis`, `redis-cosid`, `shardingsphere`, `zookeeper`, ...). Copy their configuration to get started.
 
 ## Installation
 
@@ -536,8 +532,10 @@ spring:
 > Kotlin DSL
 
 ``` kotlin
-    val cosidVersion = "1.14.5";
-    implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
+    val cosidVersion = "latestVersion"
+    implementation(platform("me.ahoo.cosid:cosid-bom:${cosidVersion}"))
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("me.ahoo.cosid:cosid-spring-redis") // the backend: or cosid-jdbc, cosid-zookeeper, cosid-mongo, cosid-proxy
 ```
 
 ### Maven
@@ -552,13 +550,19 @@ spring:
     <modelVersion>4.0.0</modelVersion>
     <artifactId>demo</artifactId>
     <properties>
-        <cosid.version>1.14.5</cosid.version>
+        <cosid.version>latestVersion</cosid.version>
     </properties>
 
     <dependencies>
         <dependency>
             <groupId>me.ahoo.cosid</groupId>
             <artifactId>cosid-spring-boot-starter</artifactId>
+            <version>${cosid.version}</version>
+        </dependency>
+        <!-- the backend: or cosid-jdbc, cosid-zookeeper, cosid-mongo, cosid-proxy -->
+        <dependency>
+            <groupId>me.ahoo.cosid</groupId>
+            <artifactId>cosid-spring-redis</artifactId>
             <version>${cosid.version}</version>
         </dependency>
     </dependencies>
@@ -642,15 +646,14 @@ cosid:
       type: redis
     #        manual:
     #          machine-id: 0
-  snowflake:
-    enabled: true
-    #    epoch: 1577203200000
     clock-backwards:
       spin-threshold: 10
       broken-threshold: 2000
+  snowflake:
+    enabled: true
+    #    epoch: 1577203200000
     share:
       clock-sync: true
-      friendly: true
     provider:
       order_item:
         #        timestamp-bit:
@@ -693,7 +696,7 @@ cosid:
 ``` shell
 gradle cosid-core:jmh
 # or
-java -jar cosid-core/build/libs/cosid-core-1.14.5-jmh.jar -bm thrpt -wi 1 -rf json -f 1
+java -jar cosid-core/build/libs/cosid-core-<version>-jmh.jar -bm thrpt -wi 1 -rf json -f 1
 ```
 
 ```

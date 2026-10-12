@@ -1,162 +1,189 @@
 # 快速上手
 
-## 版本兼容性
+本文以 Redis 作为存储，在 Spring Boot 应用中接入 CosId。其他后端的用法完全相同，只是依赖和 `type` 不同，见[后端](./backends/redis.md)。
+
+## 环境要求
 
 | CosId | Spring Boot | Java | 分支 |
 |---|---|---|---|
 | 4.x | 4.x | 17+ | `main` |
-| 3.x | 4.x | 17+ | `3.x`（维护） |
+| 3.x | 4.x | 17+ | `3.x`（维护中） |
 | 2.x | 3.x | 17+ | `2.x` |
 | 1.x | 2.x | 8+ | `1.x` |
 
-从 3.x 升级：见[迁移到 4.0](migration/4.0.md)。
+从 3.x 升级：见[迁移到 4.0](./migration/4.0.md)。
 
-## 安装
+## 1. 添加依赖
 
-:::tip
-开发者可以任选一种的分发器（`Redis`/`JDBC`/`Mongodb`/`Zookeeper`）,并引入对应的依赖。
-:::
-
-接下来以 `Redis` 扩展为例： [CosId-Example-Redis](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-redis)
+导入 CosId BOM，再添加 Starter 和后端模块。最新版本见 [Maven Central](https://central.sonatype.com/artifact/me.ahoo.cosid/cosid-core)。
 
 ::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
+```kotlin [Gradle (Kotlin)]
+val cosidVersion = "4.0.0-RC2" // Maven Central 上的最新版本
+dependencies {
+    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("me.ahoo.cosid:cosid-spring-redis")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    implementation("me.ahoo.cosid:cosid-spring-redis:${cosidVersion}")
-    implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
+}
 ```
 ```xml [Maven]
+<properties>
+    <cosid.version>4.0.0-RC2</cosid.version>
+</properties>
+<dependencyManagement>
     <dependencies>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-            <version>${springboot.version}</version>
-        </dependency>
-        <dependency>
             <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-spring-redis</artifactId>
+            <artifactId>cosid-bom</artifactId>
             <version>${cosid.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-spring-boot-starter</artifactId>
-            <version>${cosid.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
         </dependency>
     </dependencies>
+</dependencyManagement>
+<dependencies>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-spring-redis</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+</dependencies>
 ```
 :::
 
-## 应用配置
+## 2. 配置生成器
+
+号段链是最简单的起点：它只需要号段存储。
 
 ```yaml
 spring:
   data:
     redis:
-      host: localhost # Redis 分发器直接依赖 spring-data-redis，这样可以省去额外的配置。
+      host: localhost # CosId 使用应用自身的 Spring Data Redis 连接
 cosid:
   namespace: ${spring.application.name}
-  machine:
-    enabled: true # 可选，当需要使用雪花算法时，需要设置为 true
-    distributor:
-      type: redis
-  snowflake:
-    enabled: true # 可选，当需要使用雪花算法时，需要设置为 true
   segment:
-    enabled: true # 可选，当需要使用号段算法时，需要设置为 true
-    distributor:
-      type: redis
-```
-
-:::tip
-默认情况下，开启 `snowflake`/`segment` 会生成共享的(`__share__`) `IdGenerator` 注册到 `Spring` 容器以及 `IdGeneratorProvider`（默认即 `DefaultIdGeneratorProvider.INSTANCE`）。
-:::
-
-:::warning
-当同时开启 `snowflake`/`segment` 时，只有其中一个共享的(`__share__`) `IdGenerator` 会注入到 `Spring` 容器(名称冲突)，另一个会被忽略。
-:::
-
-`IdGenerator` `Bean Name` 规则：
-- SegmentId: `[name]SegmentId` , 比如 : `__share__SegmentId`
-- SnowflakeId: `[name]SnowflakeId`， 比如 : `__share__SnowflakeId`
-
-## 使用
-
-> 通过 `@Autowired` 注入 `IdGenerator` 。
-
-```java {1,6}
-    @Qualifier("__share__SegmentId")
-    @Lazy
-    @Autowired
-    private SegmentId segmentId;
-
-    @Qualifier("__share__SnowflakeId")
-    @Lazy
-    @Autowired
-    private SnowflakeId snowflakeId;
-``` 
-
-> 通过注入 `IdGeneratorProvider` 获取共享 `IdGenerator`（推荐）。
-
-```java
-    @Autowired
-    private IdGeneratorProvider provider;
-
-    provider.getShare();
-```
-
-> 也可以通过 `DefaultIdGeneratorProvider.INSTANCE` 获取共享 `IdGenerator`（仅在未开启 `cosid.provider.isolated` 时可用）。
-
-```java
-    DefaultIdGeneratorProvider.INSTANCE.getShare();
-```
-
-:::tip
-默认情况下 `IdGeneratorProvider` Bean 就是 `DefaultIdGeneratorProvider.INSTANCE`。设置 `cosid.provider.isolated=true` 后，每个 `ApplicationContext` 使用自己的 `IdGeneratorProvider`，在 Context 关闭时清空，此时 `DefaultIdGeneratorProvider.INSTANCE` 不再包含 Spring 注册的生成器，请改为注入 `IdGeneratorProvider`。
-:::
-
-### 注册多个 ID 生成器
-
-> 通过配置文件的 `provider` 注册多个 ID 生成器
-
-```yaml
-spring:
-  data:
-    redis:
-      host: localhost # Redis 分发器直接依赖 spring-data-redis，这样可以省去额外的配置。
-cosid:
-  namespace: ${spring.application.name}
-  machine:
-    enabled: false # 可选，当需要使用雪花算法时，需要设置为 true
-    distributor:
-      type: redis
-  segment:
-    enabled: true # 可选，当需要使用号段算法时，需要设置为 true
+    enabled: true
     distributor:
       type: redis
     provider:
-      order: # 命名为 order 的 ID 生成器
-        offset: 10000
-      item: # 命名为 item 的 ID 生成器
-        offset: 10000
+      order:
+        step: 100
 ```
 
-> 通过编码注册多个 ID 生成器
+这会注册两个号段链：共享生成器（`__share__`）和名为 `order` 的生成器。它们的计数器按命名空间保存在 Redis 中，应用的所有实例共用。
+
+如果要使用 Snowflake ID，还需要启用机器号，因为每个实例都需要一个：
+
+```yaml
+cosid:
+  namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    distributor:
+      type: redis
+  snowflake:
+    enabled: true
+```
+
+::: tip 只保留一个共享生成器
+`IdGeneratorProvider.getShare()` 和未指定名称的 `@CosId` 返回的都是共享生成器（`__share__`）。同时启用 `segment` 和 `snowflake` 时，请关闭其中一个的共享生成器（`cosid.snowflake.share.enabled: false` 或 `cosid.segment.share.enabled: false`），否则先注册的那个会成为共享生成器。
+:::
+
+## 3. 生成 ID
+
+注入 `IdGeneratorProvider`，按名称查找生成器：
 
 ```java
-	@Resource
-  	IdGeneratorProvider provider;
-	@Resource
-    IdSegmentDistributorFactory idSegmentDistributorFactory;
+@Service
+public class OrderService {
+    private final IdGeneratorProvider provider;
 
-	public void registerIdGenerator(String idName) {
-        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition("namespace", "idName",0,100);
-        IdSegmentDistributor idSegmentDistributor = idSegmentDistributorFactory.create(definition);
-        SegmentChainId segmentId = new SegmentChainId(idSegmentDistributor);
-        provider.set(idName, segmentId);
+    public OrderService(IdGeneratorProvider provider) {
+        this.provider = provider;
     }
+
+    public long newOrderId() {
+        return provider.getRequired("order", IdGenerator.class).generate();
+    }
+
+    public String newOrderNo() {
+        return provider.getRequired("order").generateAsString();
+    }
+}
 ```
 
-## 示例
+每个生成器同时也是一个 Spring Bean，名称为 `{name}SegmentId` 或 `{name}SnowflakeId`：
 
-开发者可以通过 [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples) 的学习快速开启 `CosId` 之旅。
+```java
+@Service
+public class InvoiceService {
+    private final SegmentId orderId;
+
+    public InvoiceService(@Qualifier("orderSegmentId") SegmentId orderId) {
+        this.orderId = orderId;
+    }
+}
+```
+
+如果希望在插入时自动填充实体字段，请在字段上标注 [`@CosId`](./integrations/annotation.md)，并使用 [MyBatis](./integrations/mybatis.md) 或 [Spring Data JDBC](./integrations/spring-data-jdbc.md) 集成。
+
+## 4. 检查运行状态
+
+classpath 中有 Spring Boot Actuator 时，暴露 `cosid` 端点即可查看所有生成器及其状态：
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: cosid, cosidGenerator, cosidStringGenerator, health
+```
+
+`GET /actuator/cosid` 列出所有生成器，`GET /actuator/cosidGenerator/order` 生成一个 ID；启用机器号（`cosid.machine.enabled`）时，`/actuator/health` 会包含机器号租约的状态。
+
+## 在代码中注册生成器
+
+也可以在运行时通过存储的 `IdSegmentDistributorFactory` 创建生成器。移除号段链时请关闭它，以停止后台预取：
+
+```java
+@Service
+public class TenantIds {
+    private final IdGeneratorProvider provider;
+    private final IdSegmentDistributorFactory distributorFactory;
+    private final String namespace;
+
+    public TenantIds(IdGeneratorProvider provider, IdSegmentDistributorFactory distributorFactory, CosIdProperties cosIdProperties) {
+        this.provider = provider;
+        this.distributorFactory = distributorFactory;
+        this.namespace = cosIdProperties.getNamespace();
+    }
+
+    public void register(String tenant) {
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, tenant, 0, 100);
+        IdSegmentDistributor distributor = distributorFactory.create(definition);
+        provider.set(tenant, new SegmentChainId(distributor));
+    }
+
+    public void unregister(String tenant) {
+        if (provider.remove(tenant) instanceof SegmentChainId segmentChainId) {
+            segmentChainId.close(); // stops its background prefetch
+        }
+    }
+}
+```
+
+## 下一步
+
+- [ID 生成器](./concepts/id-generator.md)：选择哪种生成器。
+- [常用 ID 配方](./recipes.md)：常见 ID 格式的配置。
+- [配置参考](../reference/config/basic.md)：全部属性。
+- [示例](https://github.com/Ahoo-Wang/CosId/tree/main/examples)：可直接运行的 Redis、ZooKeeper 和 Proxy 示例应用。

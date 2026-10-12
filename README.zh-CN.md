@@ -223,7 +223,7 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 
 ## 号段链模式（SegmentChainId）
 
-[分布式ID(CosId)之号段链模式性能(1.2亿/s)解析](https://cosid.ahoo.me/zh/guide/concepts/segment-chain.html)
+[分布式ID(CosId)之号段链模式性能(1.2亿/s)解析](https://cosid.ahoo.me/zh/guide/concepts/segment.html)
 
 <p align="center">
      <img src="./document/docs/.vuepress/public/assets/design/SegmentChainId.png" alt="Segment Chain Id"/>

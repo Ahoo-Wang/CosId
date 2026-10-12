@@ -1,6 +1,8 @@
-# Quick Start
+# Getting Started
 
-## Version Compatibility
+This guide adds CosId to a Spring Boot application, with Redis as the store. Every other backend works the same way with its own dependency and `type`, see [Backends](./backends/redis.md).
+
+## Requirements
 
 | CosId | Spring Boot | Java | Branch |
 |---|---|---|---|
@@ -9,154 +11,179 @@
 | 2.x | 3.x | 17+ | `2.x` |
 | 1.x | 2.x | 8+ | `1.x` |
 
-Upgrading from 3.x: see [Migrating to 4.0](migration/4.0.md).
+Upgrading from 3.x: see [Migrating to 4.0](./migration/4.0.md).
 
-## Installation
+## 1. Add the dependencies
 
-:::tip
-Developers can choose any distributor (`Redis`/`JDBC`/`Mongodb`/`Zookeeper`) and introduce the corresponding dependencies.
-:::
-
-Next, taking `Redis` extension as an example: [CosId-Example-Redis](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-redis)
+Import the CosId BOM, then add the starter and the backend module. The latest version is on [Maven Central](https://central.sonatype.com/artifact/me.ahoo.cosid/cosid-core).
 
 ::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
+```kotlin [Gradle (Kotlin)]
+val cosidVersion = "4.0.0-RC2" // the latest release on Maven Central
+dependencies {
+    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("me.ahoo.cosid:cosid-spring-redis")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    implementation("me.ahoo.cosid:cosid-spring-redis:${cosidVersion}")
-    implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
+}
 ```
 ```xml [Maven]
+<properties>
+    <cosid.version>4.0.0-RC2</cosid.version>
+</properties>
+<dependencyManagement>
     <dependencies>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-            <version>${springboot.version}</version>
-        </dependency>
-        <dependency>
             <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-spring-redis</artifactId>
+            <artifactId>cosid-bom</artifactId>
             <version>${cosid.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-spring-boot-starter</artifactId>
-            <version>${cosid.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
         </dependency>
     </dependencies>
+</dependencyManagement>
+<dependencies>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-spring-redis</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+</dependencies>
 ```
 :::
 
-## Application Configuration
+## 2. Configure a generator
+
+A segment chain is the simplest start: it needs only the segment store.
 
 ```yaml
 spring:
   data:
     redis:
-      host: localhost # Redis distributor directly depends on spring-data-redis, which can save additional configuration.
+      host: localhost # CosId uses the application's Spring Data Redis connection
 cosid:
   namespace: ${spring.application.name}
-  machine:
-    enabled: true # Optional, when using snowflake algorithm, set to true
-    distributor:
-      type: redis
-  snowflake:
-    enabled: true # Optional, when using snowflake algorithm, set to true
   segment:
-    enabled: true # Optional, when using segment algorithm, set to true
-    distributor:
-      type: redis
-```
-
-:::tip
-By default, enabling `snowflake`/`segment` will generate shared (`__share__`) `IdGenerator` registered to `Spring` container and the `IdGeneratorProvider` (by default `DefaultIdGeneratorProvider.INSTANCE`).
-:::
-
-:::warning
-When enabling both `snowflake`/`segment` at the same time, only one shared (`__share__`) `IdGenerator` will be injected into the `Spring` container (name conflict), the other will be ignored.
-:::
-
-`IdGenerator` `Bean Name` rules:
-- SegmentId: `[name]SegmentId` , e.g.: `__share__SegmentId`
-- SnowflakeId: `[name]SnowflakeId`, e.g.: `__share__SnowflakeId`
-
-## Usage
-
-> Inject `IdGenerator` via `@Autowired`.
-
-```java {1,6}
-    @Qualifier("__share__SegmentId")
-    @Lazy
-    @Autowired
-    private SegmentId segmentId;
-
-    @Qualifier("__share__SnowflakeId")
-    @Lazy
-    @Autowired
-    private SnowflakeId snowflakeId;
-```
-
-> Get shared `IdGenerator` by injecting `IdGeneratorProvider` (recommended).
-
-```java
-    @Autowired
-    private IdGeneratorProvider provider;
-
-    provider.getShare();
-```
-
-> Or get shared `IdGenerator` via `DefaultIdGeneratorProvider.INSTANCE` (only when `cosid.provider.isolated` is not enabled).
-
-```java
-    DefaultIdGeneratorProvider.INSTANCE.getShare();
-```
-
-:::tip
-By default the `IdGeneratorProvider` bean is `DefaultIdGeneratorProvider.INSTANCE`. With `cosid.provider.isolated=true`, each `ApplicationContext` gets its own `IdGeneratorProvider`, cleared when the context closes; `DefaultIdGeneratorProvider.INSTANCE` then no longer holds Spring-registered generators, so inject `IdGeneratorProvider` instead.
-:::
-
-### Register Multiple ID Generators
-
-> Register multiple ID generators via configuration file `provider`
-
-```yaml
-spring:
-  data:
-    redis:
-      host: localhost # Redis distributor directly depends on spring-data-redis, which can save additional configuration.
-cosid:
-  namespace: ${spring.application.name}
-  machine:
-    enabled: false # Optional, when using snowflake algorithm, set to true
-    distributor:
-      type: redis
-  segment:
-    enabled: true # Optional, when using segment algorithm, set to true
+    enabled: true
     distributor:
       type: redis
     provider:
-      order: # ID generator named order
-        offset: 10000
-      item: # ID generator named item
-        offset: 10000
+      order:
+        step: 100
 ```
 
-> Register multiple ID generators via code
+This registers two segment chains: the share generator (`__share__`), and one named `order`. Their counters live in Redis under the namespace, so every instance of the application shares them.
+
+To use Snowflake IDs instead, enable the machine id as well, since every instance needs one:
+
+```yaml
+cosid:
+  namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    distributor:
+      type: redis
+  snowflake:
+    enabled: true
+```
+
+::: tip One share generator
+The share generator (`__share__`) is the one `IdGeneratorProvider.getShare()` and `@CosId` without a name return. If you enable both `segment` and `snowflake`, turn one share off (`cosid.snowflake.share.enabled: false` or `cosid.segment.share.enabled: false`); otherwise the first one registered becomes the share generator.
+:::
+
+## 3. Generate IDs
+
+Inject the `IdGeneratorProvider` and look generators up by name:
 
 ```java
-	@Resource
-  	IdGeneratorProvider provider;
-	@Resource
-    IdSegmentDistributorFactory idSegmentDistributorFactory;
+@Service
+public class OrderService {
+    private final IdGeneratorProvider provider;
 
-	public void registerIdGenerator(String idName) {
-        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition("namespace", "idName",0,100);
-        IdSegmentDistributor idSegmentDistributor = idSegmentDistributorFactory.create(definition);
-        SegmentChainId segmentId = new SegmentChainId(idSegmentDistributor);
-        provider.set(idName, segmentId);
+    public OrderService(IdGeneratorProvider provider) {
+        this.provider = provider;
     }
+
+    public long newOrderId() {
+        return provider.getRequired("order", IdGenerator.class).generate();
+    }
+
+    public String newOrderNo() {
+        return provider.getRequired("order").generateAsString();
+    }
+}
 ```
 
-## Examples
+Each generator is also a Spring bean, named `{name}SegmentId` or `{name}SnowflakeId`:
 
-Developers can quickly start the `CosId` journey by learning from [CosId-Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples).
+```java
+@Service
+public class InvoiceService {
+    private final SegmentId orderId;
+
+    public InvoiceService(@Qualifier("orderSegmentId") SegmentId orderId) {
+        this.orderId = orderId;
+    }
+}
+```
+
+To fill entity fields on insert instead, annotate them with [`@CosId`](./integrations/annotation.md) and use the [MyBatis](./integrations/mybatis.md) or [Spring Data JDBC](./integrations/spring-data-jdbc.md) integration.
+
+## 4. Check it
+
+With Spring Boot Actuator on the classpath, expose the `cosid` endpoint to see every generator and its state:
+
+```yaml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: cosid, cosidGenerator, cosidStringGenerator, health
+```
+
+`GET /actuator/cosid` lists the generators, `GET /actuator/cosidGenerator/order` generates an ID, and `/actuator/health` includes the machine id lease when the machine id is enabled (`cosid.machine.enabled`).
+
+## Registering a generator in code
+
+Generators can also be created at runtime from the store's `IdSegmentDistributorFactory`. Close a segment chain you remove, so that its background prefetch stops:
+
+```java
+@Service
+public class TenantIds {
+    private final IdGeneratorProvider provider;
+    private final IdSegmentDistributorFactory distributorFactory;
+    private final String namespace;
+
+    public TenantIds(IdGeneratorProvider provider, IdSegmentDistributorFactory distributorFactory, CosIdProperties cosIdProperties) {
+        this.provider = provider;
+        this.distributorFactory = distributorFactory;
+        this.namespace = cosIdProperties.getNamespace();
+    }
+
+    public void register(String tenant) {
+        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, tenant, 0, 100);
+        IdSegmentDistributor distributor = distributorFactory.create(definition);
+        provider.set(tenant, new SegmentChainId(distributor));
+    }
+
+    public void unregister(String tenant) {
+        if (provider.remove(tenant) instanceof SegmentChainId segmentChainId) {
+            segmentChainId.close(); // stops its background prefetch
+        }
+    }
+}
+```
+
+## Next steps
+
+- [ID Generators](./concepts/id-generator.md): which generator to use.
+- [ID recipes](./recipes.md): configurations for common ID formats.
+- [Configuration reference](../reference/config/basic.md): every property.
+- [Examples](https://github.com/Ahoo-Wang/CosId/tree/main/examples): runnable applications for Redis, ZooKeeper and the proxy.

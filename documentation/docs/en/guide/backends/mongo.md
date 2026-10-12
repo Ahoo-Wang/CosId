@@ -1,53 +1,68 @@
-# CosId-Mongo Module
+# MongoDB
 
-[cosid-mongo](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mongo) provides support for **MongoDB**. Implements:
+[`cosid-mongo`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mongo) stores segment counters and machine id leases in MongoDB, through the application's synchronous `MongoClient`:
 
-- `MongoMachineLeaseStore`: The machine ID lease store for the **Snowflake algorithm** (`SnowflakeId`), used through `LeaseStoreMachineIdDistributor`.
-- `IdSegmentDistributor`: As the segment distributor for **segment algorithm** (`SegmentId`).
+- `MongoIdSegmentDistributor`: segment counters, one document per generator in the `cosid` collection.
+- `MongoMachineLeaseStore`: machine id leases, one document per machine id in the `cosid_machine` collection. Lease times come from the server's `localTime` (`hello` command).
 
-::: warning Reactive driver support was removed in 4.0
-The reactive classes (`me.ahoo.cosid.mongo.reactive`), which only blocked on the reactive driver, were removed in 4.0. Use the synchronous driver (`org.mongodb:mongodb-driver-sync`, included in `spring-boot-starter-data-mongodb`). With only the reactive driver on the classpath, the starter fails at startup.
+The collections are created at startup when missing.
+
+::: warning Synchronous driver only
+The reactive classes (`me.ahoo.cosid.mongo.reactive`) were removed in 4.0. Use the synchronous driver, `org.mongodb:mongodb-driver-sync`, which `spring-boot-starter-data-mongodb` includes. With only the reactive driver on the classpath, the starter fails at startup.
 :::
 
 ## Installation
 
 ::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
+```kotlin [Gradle (Kotlin)]
+dependencies {
+    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("me.ahoo.cosid:cosid-mongo")
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
-    implementation("me.ahoo.cosid:cosid-mongo:${cosidVersion}")
+}
 ```
 ```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-mongodb</artifactId>
-            <version>${springboot.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-mongo</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
+<dependencies>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-mongo</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-mongodb</artifactId>
+    </dependency>
+</dependencies>
 ```
 :::
 
-## Configuration Example
+## Configuration
 
-```yaml {4,10,14}
+```yaml
 spring:
-  data:
-    mongodb:
-      uri:  # Mongo distributor directly depends on spring-data-mongodb, which can omit additional configuration.
+  mongodb:
+    uri: mongodb://localhost:27017
 cosid:
   namespace: ${spring.application.name}
   machine:
-    enabled: true # Optional, needs to be set to true when using Snowflake algorithm
+    enabled: true # for Snowflake IDs and CosIdGenerator
     distributor:
       type: mongo
   segment:
-    enabled: true # Optional, needs to be set to true when using segment algorithm
+    enabled: true # for segment IDs
     distributor:
       type: mongo
 ```
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `cosid.segment.distributor.mongo.database` | `cosid_db` | Database of the `cosid` collection |
+| `cosid.segment.distributor.mongo.timeout` | `5s` | Each segment operation (driver `timeoutMS`); `0` disables it |
+| `cosid.machine.distributor.mongo.database` | `cosid_db` | Database of the `cosid_machine` collection |
+| `cosid.machine.distributor.mongo.timeout` | `5s` | Each machine id operation (driver `timeoutMS`); must be positive |
+
+Run MongoDB with journaling (the default) and write concern `majority` on a replica set, so that an acknowledged counter update survives a failover.

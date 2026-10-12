@@ -1,67 +1,68 @@
-# CosId-ZooKeeper Module
+# ZooKeeper
 
-The [cosid-zookeeper](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-zookeeper) module provides support for *ZooKeeper*. Implements:
+[`cosid-zookeeper`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-zookeeper) stores segment counters and machine id leases in ZooKeeper, through Apache Curator:
 
-- `ZookeeperMachineLeaseStore`: The machine ID lease store for the **Snowflake algorithm** (`SnowflakeId`), used through `LeaseStoreMachineIdDistributor`.
-- `IdSegmentDistributor`: As the segment distributor for **segment algorithm** (`SegmentId`).
+- `ZookeeperIdSegmentDistributor`: segment counters, as Curator distributed atomic longs.
+- `ZookeeperMachineLeaseStore`: machine id leases, claimed and released with versioned transactions.
+
+ZooKeeper has no server clock that clients can read, so lease times come from the host clocks. **Keep the hosts' clocks in sync** (NTP): an instance whose clock runs ahead can see another instance's lease as expired before it is.
+
+The starter creates the Curator client when a `type` selects ZooKeeper, or when `cosid.zookeeper.enabled=true` is set explicitly. Left unset, it is created only when selected; `false` turns it off.
 
 ## Installation
 
 ::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    implementation("me.ahoo.cosid:cosid-zookeeper:${cosidVersion}")
+```kotlin [Gradle (Kotlin)]
+dependencies {
+    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("me.ahoo.cosid:cosid-zookeeper")
+}
 ```
 ```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-zookeeper</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
+<dependencies>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-zookeeper</artifactId>
+    </dependency>
+</dependencies>
 ```
 :::
 
+`cosid-zookeeper` brings `curator-recipes`.
+
 ## Configuration
 
-- Configuration class: [CosIdZookeeperProperties](https://github.com/Ahoo-Wang/CosId/blob/main/cosid-spring-boot-starter/src/main/java/me/ahoo/cosid/spring/boot/starter/zookeeper/CosIdZookeeperProperties.java)
-- Prefix: `cosid.zookeeper.`
-
-| Name                         | Data Type       | Description              | Default Value                      |
-|------------------------------|-----------------|--------------------------|------------------------------------|
-| enabled                      | `boolean`       | Whether to enable *ZooKeeper* | true                               |
-| connect-string               | `String`        | Connection string        | `localhost:2181`                   |
-| block-until-connected-wait   | `Duration`      | Block until client connected wait time | `Duration.ofSeconds(10)`          |
-| session-timeout              | `Duration`      | Session timeout          | `Duration.ofSeconds(60)`           |
-| connection-timeout           | `Duration`      | Connection timeout       | `Duration.ofSeconds(15)`           |
-| retry                        | `Retry`         | Retry policy configuration |                                    |
-
-### Retry (`ExponentialBackoffRetry`) Configuration
-
-| Name              | Data Type  | Description                | Default Value   |
-|-------------------|------------|----------------------------|-----------------|
-| baseSleepTimeMs   | `int`      | Initial amount of time to wait between retries (milliseconds) | `100`           |
-| maxRetries        | `int`      | Maximum number of retries  | `5`             |
-| maxSleepMs        | `int`      | Maximum sleep time per retry (milliseconds) | `500`           |
-
-### Configuration Example
-
-[CosId-Example-Zookeeper](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-zookeeper)
-
-```yaml {2-8,11,14}
+```yaml
 cosid:
+  namespace: ${spring.application.name}
   zookeeper:
     connect-string: localhost:2181
-    retry:
-      base-sleep-time-ms: 100
-      max-retries: 5
-      max-sleep-ms: 500
-    block-until-connected-wait: 10s
-  segment:
+  machine:
+    enabled: true # for Snowflake IDs and CosIdGenerator
     distributor:
       type: zookeeper
-  machine:
+  segment:
+    enabled: true # for segment IDs
     distributor:
       type: zookeeper
 ```
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `cosid.zookeeper.enabled` | not set | `true` creates the Curator client even when no `type` selects ZooKeeper; `false` turns it off; unset, it is created only when selected |
+| `cosid.zookeeper.connect-string` | `localhost:2181` | ZooKeeper servers |
+| `cosid.zookeeper.session-timeout` | `60s` | Session timeout |
+| `cosid.zookeeper.connection-timeout` | `15s` | Connection timeout |
+| `cosid.zookeeper.block-until-connected-wait` | `10s` | How long startup waits for the connection |
+| `cosid.zookeeper.retry.base-sleep-time-ms` | `100` | `ExponentialBackoffRetry`: initial wait between retries, in milliseconds |
+| `cosid.zookeeper.retry.max-retries` | `5` | Maximum retries |
+| `cosid.zookeeper.retry.max-sleep-ms` | `500` | Maximum wait between retries, in milliseconds |
+| `cosid.segment.distributor.zookeeper.timeout` | `5s` | Each segment `nextMaxId`; `0` disables it |
+| `cosid.machine.distributor.zookeeper.timeout` | `5s` | Lease renewal and release (Curator has no per-operation timeout); must be positive |
+
+An application can define its own `CuratorFramework` bean instead. See [CosId-Example-Zookeeper](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-zookeeper) for a runnable application.

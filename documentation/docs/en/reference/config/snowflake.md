@@ -1,39 +1,48 @@
 # SnowflakeId Configuration
 
-> `me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties`
+> `me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties`, prefix `cosid.snowflake`
 
-| Name              | Data Type                        | Description        | Default Value                                             |
-|-----------------|-----------------------------|-----------|-------------------------------------------------|
-| enabled         | `boolean`                   | Whether to enable      | `false`                                         |
-| zone-id         | `String`                    | Time zone        | `ZoneId.systemDefault().getId()`                |
-| epoch           | `long`                      | EPOCH     | `CosId.COSID_EPOCH` <br> (UTC 2019-12-24 16:00) |
-| machine         | `Machine`                   | Machine ID distributor configuration  |                                                 |
-| share           | `IdDefinition`              | Shared ID generator configuration | Yes                                               |
-| provider        | `Map<String, IdDefinition>` | Multi-ID generator configuration  | `null`                                          |
+Snowflake IDs need a machine id: set `cosid.machine.enabled=true` as well, see [machine ID configuration](./machine.md).
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | `boolean` | `false` | Register the Snowflake generators |
+| `zone-id` | `ZoneId` | system default | Time zone of `snowflake_friendly` strings |
+| `epoch` | `long` | `1577203200000` (2019-12-24T16:00:00Z) | Default epoch of every generator, in the unit of its timestamp. Left at this default, `timestamp-unit: second` generators use `1577203200` (the same instant in seconds) |
+| `share` | `IdDefinition` | | The share generator, `__share__SnowflakeId` |
+| `share.enabled` | `boolean` | `true` | Register the share generator |
+| `provider` | `Map<String, IdDefinition>` | empty | Named generators, `{name}SnowflakeId` |
 
 ## IdDefinition
 
-> `me.ahoo.cosid.spring.boot.starter.snowflake.SnowflakeIdProperties.IdDefinition`
+The properties of `share` and of each `provider.{name}`:
 
-| Name             | Data Type                         | Description                               | Default Value                                   |
-|----------------|------------------------------|----------------------------------|---------------------------------------|
-| clock-sync     | `boolean`                    | Whether to enable clock synchronization                         | `true`                                |
-| timestamp-unit | `IdDefinition.TimestampUnit` | Unit of timestamp bits: `SECOND` / `MILLISECOND` | `TimestampUnit.MILLISECOND`           |
-| epoch          | `long`                       | EPOCH, in the id's timestamp unit: milliseconds, or seconds for `timestamp-unit: second`. Unset, `timestamp-unit: second` ids use `CosId.COSID_EPOCH_SECOND`; an epoch after the current time fails startup | `cosid.snowflake.epoch`               |
-| timestamp-bit  | `int`                        | Timestamp bits                            | 41                                    |
-| machine-bit    | `int`                        | Machine bits                             | `cosid.snowflake.machine.machine-bit` |
-| sequence-bit   | `int`                        | Sequence bits                             | 12                                    |
-| converter      | `IdConverterDefinition`      | ID converter configuration                          |                                       |
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `namespace` | `String` | `cosid.namespace` | Namespace of the generator's machine id |
+| `timestamp-unit` | `TimestampUnit` | `millisecond` | `millisecond` or `second` |
+| `epoch` | `long` | `cosid.snowflake.epoch` | Epoch of this generator; `0` uses the default. With `timestamp-unit: second`, give it in seconds. An epoch later than now, in the generator's unit, fails startup |
+| `timestamp-bit` | `int` | `41` | Timestamp bits |
+| `machine-bit` | `Integer` | `cosid.machine.machine-bit` | Machine id bits, at most 31. Give a generator with fewer bits its own `namespace` |
+| `sequence-bit` | `int` | `12` | Sequence bits |
+| `sequence-reset-threshold` | `long` | `2047` | The sequence restarts in the next time unit once it reaches this value. The default is half the 12-bit range and does not follow `sequence-bit`: set it when you change the bits |
+| `clock-sync` | `boolean` | `true` | Wait out a clock that moved backwards (`ClockSyncSnowflakeId`) instead of throwing |
+| `converter` | `IdConverterDefinition` | `radix` | Format of `generateAsString()`, see [ID converter](./basic.md#id-converter). `group-prefix` is not allowed: Snowflake IDs have no group |
 
-**YAML Configuration Example**
+The bits must add up to at most 63. The defaults (`41 + 10 + 12`) are those of a millisecond timestamp; with `timestamp-unit: second`, set the bits as well, for example `31 + 10 + 22`.
+
+## Example
 
 ```yaml
 cosid:
   namespace: ${spring.application.name}
+  machine:
+    enabled: true
+    distributor:
+      type: redis
   snowflake:
     enabled: true
     zone-id: Asia/Shanghai
-    epoch: 1577203200000
     share:
       clock-sync: true
     provider:
@@ -44,7 +53,11 @@ cosid:
           radix:
             char-size: 11
             pad-start: false
-      safe-js:
-        machine-bit: 3
-        sequence-bit: 9
+      friendly_second:
+        timestamp-unit: second
+        epoch: 1577203200
+        timestamp-bit: 31
+        sequence-bit: 22
+        converter:
+          type: snowflake_friendly
 ```

@@ -1,95 +1,66 @@
-# Machine 配置
+# 机器号配置
 
-> `me.ahoo.cosid.spring.boot.starter.machine.MachineProperties`
+> `me.ahoo.cosid.spring.boot.starter.machine.MachineProperties`，前缀 `cosid.machine`
 
-| 名称              | 数据类型             | 说明                   | 默认值       |
-|-----------------|------------------|----------------------|-----------|
-| stable          | `boolean`        | 是否为稳定的实例,稳定实例将不回收机器号 | `false`   |
-| port            | `Integer`        | 端口号                  | 进程ID（PID） |
-| instanceId      | `String`         | 应用实例编号(全局唯一)         | 应用IP:PID  |
-| machineBit      | `int`            | 机器位数                 | `10`      |
-| stateStorage    | `StateStorage`   | 机器状态存储               |           |
-| distributor     | `Distributor`    | 机器号分发器               |           |
-| guarder         | `Guarder`        | 机器号(心跳)守护            |           |
-| clock-backwards | `ClockBackwards` | 时钟回拨配置               |           |
+Snowflake ID 和 `CosIdGenerator` 需要机器号。租约的工作方式见[机器号](../../guide/concepts/machine-id.md)。
 
-::: tip 稳定实例
-即使稳定实例离线超过安全守护时长，其他实例也不会回收它的机器号。从旧版本升级时请注意：
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enabled` | `boolean` | `false` | 分配机器号。使用 `cosid.snowflake` 和 `cosid.generator` 时必须开启 |
+| `instance-id` | `String` | 主机地址加 `port` | 实例在租约存储中的身份。重启后身份不变的实例请同时设置它和 `stable` |
+| `port` | `Integer` | 进程号 | 默认实例 ID（`{host}:{port}`）的第二部分 |
+| `stable` | `Boolean` | 未设置（视为 `false`） | 稳定实例的机器号永远不会被其他实例回收，它也不会接管其他实例已过期的租约，并且会把机器状态保存在本地文件中 |
+| `machine-bit` | `int` | `10` | 机器号位数；生成器可以用自己的 `machine-bit` 覆盖 |
+| `state-storage.local.state-location` | `String` | `~/.cosid-machine-state` | 稳定实例本地机器状态的目录 |
 
-- 只有所有实例都升级到新版本后才完全生效：滚动升级期间，旧版本实例不读取 stable 标记，仍可能回收稳定实例的机器号。
-- 已经离线的稳定实例，在新版本上启动一次（写入标记）之前不受保护。
-- JDBC：启动 4.0 前需要先加上 `stable` 列（见 [CosId-Jdbc](../../guide/backends/jdbc.md)），缺少该列时 4.0 启动失败。
+::: tip 稳定实例与升级
+只有所有实例都运行 3.3 及以上版本时，稳定标记才能保护机器号：旧版本不读取该标记。已经离线的稳定实例，在新版本上启动一次、记录下标记之前不受保护。JDBC 需要 `stable` 列，见 [JDBC](../../guide/backends/jdbc.md#升级-3-x-创建的表)。
 :::
 
-### StateStorage
+## 分配器
 
-> 状态存储配置
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `distributor.type` | `String` | `manual` | `manual`、`stateful_set`、`redis`、`jdbc`、`mongo`、`zookeeper`、`proxy`，或应用中某个 `CosIdStoreProvider` 的 `getType()`。只比较字母和数字、忽略大小写，因此 `stateful-set` 和 `statefulSet` 同样有效 |
+| `distributor.manual.machine-id` | `Integer` | 无 | `manual`：机器号；必填 |
+| `distributor.redis.timeout` | `Duration` | `1s` | `redis`：租约续约和释放；必须为正数 |
+| `distributor.redis.distribute-timeout` | `Duration` | `10s` | `redis`：启动时申领的每条命令，第一条命令还包含建立连接的时间；必须为正数 |
+| `distributor.jdbc.enable-auto-init-cosid-machine-table` | `boolean` | `false` | `jdbc`：启动时创建 `cosid_machine` 表 |
+| `distributor.jdbc.init-cos-id-machine-table-sql` | `String` | MySQL DDL | `jdbc`：建表语句 |
+| `distributor.jdbc.init-namespace-idx-sql`、`init-instance-id-idx-sql` | `String` | 空 | `jdbc`：单独的建索引语句，为空时跳过（MySQL 建表语句已内联声明索引） |
+| `distributor.jdbc.query-timeout` | `Duration` | `5s` | `jdbc`：每条语句；`0` 表示不限制 |
+| `distributor.jdbc.server-time-sql` | `String` | 自动识别 | `jdbc`：查询数据库时钟（epoch 毫秒）的语句。未设置时，Starter 会为 MySQL、MariaDB 和 PostgreSQL 自动选择；其他数据库必须设置 |
+| `distributor.mongo.database` | `String` | `cosid_db` | `mongo`：`cosid_machine` 集合所在的数据库 |
+| `distributor.mongo.timeout` | `Duration` | `5s` | `mongo`：每次操作（驱动的 `timeoutMS`）；必须为正数 |
+| `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`：租约续约和释放（Curator 没有单次操作超时）；必须为正数 |
 
-| 名称      | 数据类型                 | 说明         | 默认值    |
-|---------|----------------------|------------|--------|
-| local   | `StateStorage.Local` | 本地机器状态存储配置 |        |
+Proxy 客户端的超时见 [Proxy 配置](./proxy.md)。必须为正数的超时设置为 `0` 时启动失败。
 
-#### StateStorage.Local
+`cosid.machine.distributor.provider` 已在 4.0 移除：请改为把 `distributor.type` 设置为 Provider 的类型。
 
-| 名称             | 数据类型     | 说明     | 默认值                      |
-|----------------|----------|--------|--------------------------|
-| state-location | `String` | 状态存储位置 | `./cosid-machine-state/` |
+## 守护器
 
-### Distributor
+守护器负责续约机器号租约。前缀 `cosid.machine.guarder`。
 
-> 机器号分配器配置
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `enabled` | `boolean` | `true` | 是否续约。为 `false` 时租约永不过期，机器号也永远不会被回收 |
+| `initial-delay` | `Duration` | `1m` | 第一次续约前的延迟 |
+| `delay` | `Duration` | `1m` | 两次续约之间的间隔 |
+| `safe-guard-duration` | `Duration` | `5m` | 超过这个时长未续约的租约可以被其他实例接管。**同一命名空间的所有实例必须使用相同的值** |
+| `fail-fast` | `boolean` | `true` | 租约丢失，或超过 `safe-guard-duration` 减去 `min(10s, safe-guard-duration / 10)` 未续约时，生成器抛出 `MachineIdLostException` 停止生成 |
+| `local-state-interval` | `Duration` | `1s` | 稳定实例把最后时间戳写入本地状态文件的间隔，用于重启后的时钟回拨检查。进程崩溃后，短于这个间隔的时钟回拨可能无法发现。`0` 表示关闭 |
 
-| 名称     | 数据类型                 | 说明                                                          | 默认值      |
-|--------|----------------------|-------------------------------------------------------------|----------|
-| type | `String` | 机器号分配器类型：`manual`、`stateful_set`、`jdbc`、`redis`、`zookeeper`、`mongo`、`proxy`，或应用自定义 `CosIdStoreProvider` 的类型（其 `getType()`），用于接入 CosId 未内置的存储。只比较字母和数字且忽略大小写，因此 `stateful-set`、`statefulSet` 同样有效 | `manual` |
-| manual | `Distributor.Manual` | 手动分配器配置                                                     |          |
+## 时钟回拨
 
-#### Distributor.Manual
+前缀 `cosid.machine.clock-backwards`。用于 `ClockSyncSnowflakeId`、`CosIdGenerator`，以及启动时与租约水位线的比对。
 
-| 名称        | 数据类型      | 说明  | 默认值    |
-|-----------|-----------|-----|--------|
-| machineId | `Integer` | 机器号 | `null` |
+| 属性 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `spin-threshold` | `int` | `1` | 不超过这么多毫秒的回拨通过自旋等待 |
+| `broken-threshold` | `int` | `500` | 不超过这么多毫秒的回拨通过休眠等待；更长的回拨抛出 `ClockTooManyBackwardsException`。必须大于 `spin-threshold` |
 
-### Guarder
-
-> 机器号（心跳）守护配置
-
-| 名称                 | 数据类型       | 说明 | 默认值 |
-|--------------------|------------|----|-----|
-| enabled            | `boolean`  | 是否开启机器号守护 | `true` |
-| initialDelay       | `Duration` | 首次守护前的延迟 | `PT1M` |
-| delay              | `Duration` | 守护（远端心跳）间隔 | `PT1M` |
-| safeGuardDuration  | `Duration` | 超过该时长未守护的机器号可能被其他实例回收 | `PT5M` |
-| failFast           | `boolean`  | 机器号租约丢失或过期后停止发号 | `true` |
-| localStateInterval | `Duration` | 本地机器状态（重启后用于时钟回拨保护的时间水位）的刷新间隔。崩溃重启时，短于该间隔的时钟回拨可能检测不到。仅在开启守护且使用本地文件状态存储（`stateStorage.local`）时生效。`0` 表示关闭 | `PT1S` |
-
-### 后端调用超时
-
-| 属性 | 默认值 | 说明 |
-|----|-----|----|
-| `cosid.machine.distributor.redis.timeout` | `1s` | Redis 机器号守护与归还；必须为正数 |
-| `cosid.machine.distributor.redis.distribute-timeout` | `10s` | 启动时申领机器号的每条 Redis 命令，首条命令还包含建立连接的耗时；必须为正数 |
-| `cosid.machine.distributor.jdbc.query-timeout` | `5s` | 每条 JDBC 语句 |
-| `cosid.machine.distributor.jdbc.server-time-sql` | 自动识别 | 读取数据库时钟（毫秒时间戳）的查询。未设置时 starter 会为 MySQL、MariaDB 和 PostgreSQL 自动选择；其他数据库必须配置 |
-| `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper 机器号守护与归还（Curator 没有单次操作超时）；必须为正数 |
-| `cosid.machine.distributor.mongo.timeout` | `5s` | 每次 MongoDB 机器号操作（驱动的 `timeoutMS`）；必须为正数 |
-| `cosid.segment.distributor.mongo.timeout` | `5s` | 每次 MongoDB 号段操作 |
-| `cosid.segment.distributor.zookeeper.timeout` | `5s` | 每次 ZooKeeper 号段 `nextMaxId` |
-| `cosid.proxy.connect-timeout` | `2s` | 连接 CosId Proxy 服务端 |
-| `cosid.proxy.read-timeout` | `5s` | 等待 CosId Proxy 服务端响应，也包括启动时的机器号分配；必须为正数 |
-
-必须为正数的超时设为 `0` 时启动失败；其余超时设为 `0` 表示不设超时。
-
-## ClockBackwards
-
-> `me.ahoo.cosid.spring.boot.starter.machine.MachineProperties.ClockBackwards`
-
-| 名称               | 数据类型  | 说明                                           | 默认值    |
-|------------------|-------|----------------------------------------------|--------|
-| spin-threshold   | `int` | 自旋同步阈值（ms）                                   | `10`   |
-| broken-threshold | `int` | 抛出异常（`ClockTooManyBackwardsException`）阈值（ms） | `2000` |
-
-**YAML 配置样例**
+## 示例
 
 ```yaml
 cosid:
@@ -99,5 +70,5 @@ cosid:
     distributor:
       type: jdbc
     guarder:
-      enabled: true
+      safe-guard-duration: 5m
 ```

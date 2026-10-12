@@ -30,8 +30,8 @@ const guide: DefaultTheme.SidebarItem[] = [
         items: [
             {text: 'ID Generators', link: 'id-generator'},
             {text: 'SnowflakeId', link: 'snowflake'},
-            {text: 'SegmentId', link: 'segment'},
-            {text: 'SegmentChainId', link: 'segment-chain'},
+            {text: 'Machine ID', link: 'machine-id'},
+            {text: 'SegmentId / SegmentChainId', link: 'segment'},
             {text: 'CosIdGenerator', link: 'cosid-generator'},
             {text: 'ID Converters', link: 'id-converter'},
             {text: 'ID Generator Provider', link: 'provider'},
@@ -41,6 +41,7 @@ const guide: DefaultTheme.SidebarItem[] = [
         text: 'Backends',
         collapsed: false,
         items: [
+            {text: 'Choosing a Backend', link: 'index'},
             {text: 'Redis', link: 'redis'},
             {text: 'JDBC', link: 'jdbc'},
             {text: 'MongoDB', link: 'mongo'},
@@ -101,6 +102,7 @@ const reference: DefaultTheme.SidebarItem[] = [
             {text: 'SegmentId', link: 'segment'},
             {text: 'CosIdGenerator', link: 'cosid-generator'},
             {text: 'ZooKeeper', link: 'zookeeper'},
+            {text: 'Proxy', link: 'proxy'},
             {text: 'ShardingSphere', link: 'shardingsphere'},
         ],
     }, {

@@ -29,9 +29,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * On a store with its own clock (Redis TIME, a database clock, MongoDB, the proxy), an offset between the holder's host
- * clock and the store's does not matter: the holder counts its validity from its own clock and the store counts expiry
- * from its own, so the offset cancels. The holder stops before anyone can take the machine id over. ZooKeeper has no
- * clock of its own: there, the hosts' clocks must agree within the margin.
+ * clock and the store's cancels out for expiry: the holder counts its validity on its own clock and the store counts
+ * expiry on its own, so the holder stops before the store lets anyone take the machine id over. It does not cancel for
+ * the timestamps inside the ids: a host ahead of the store issues timestamps a taker can repeat, which is why the
+ * distributor refuses a host ahead by more than the margin, see {@link HostClockAheadOfStoreTest}.
  */
 class StoreClockOffsetTest {
     private static final Duration SAFE_GUARD = Duration.ofMinutes(5);

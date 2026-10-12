@@ -25,7 +25,7 @@
 - **Size `machine-bit`** for the largest number of instances during a rollout, plus those whose leases have not expired yet.
 - **Mark only instances with a fixed identity as `stable`**, together with a fixed `instance-id`.
 - **Keep host clocks in sync** with each other and with the store's clock (NTP or chrony, slewing rather than stepping). It keeps restarts from waiting on a watermark.
-  - With Redis, JDBC, MongoDB and the proxy, leases are judged on the store's clock: an offset between a host and the store does not make a machine id expire early.
+  - With Redis, JDBC, MongoDB and the proxy, leases are judged on the store's clock, so an offset does not make a machine id expire early. But a host whose clock runs ahead of the store's issues IDs with timestamps in the store's future, which an instance taking the machine id over could repeat: an instance whose clock is ahead of the store's by more than the margin `min(10s, safe-guard-duration / 10)` fails to get or renew its machine id, and its generators fail fast. Startup and the guarder log a warning above half the margin. A host behind the store is safe.
   - **ZooKeeper has no clock CosId can read**: leases are judged on the hosts' clocks. A host whose clock runs ahead of another's by more than the margin `min(10s, safe-guard-duration / 10)` can take over that host's machine id while it still generates IDs, and both then generate the same IDs. Monitor clock offsets and keep them well under the margin.
 
 ## Operations

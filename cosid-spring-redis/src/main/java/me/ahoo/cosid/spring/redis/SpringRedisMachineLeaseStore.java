@@ -48,32 +48,28 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
     
     private final StringRedisTemplate redisTemplate;
     private final RedisCommandTimeout commandTimeout;
-    private final RedisCommandTimeout claimTimeout;
-    
-    public SpringRedisMachineLeaseStore(StringRedisTemplate redisTemplate, RedisCommandTimeout commandTimeout) {
-        this(redisTemplate, commandTimeout, commandTimeout);
-    }
     
     /**
      * Create a Redis lease store.
      *
-     * @param commandTimeout bounds renew and release, which run under the lease distributor's lock: must be enabled
-     * @param claimTimeout   bounds the claims and {@link #serverTime()}, which run at startup, where the first command
-     *                       also pays for connecting; {@link RedisCommandTimeout#NONE} means no timeout
+     * @param commandTimeout bounds every command, which may run under the lease distributor's lock: must be enabled
      */
-    public SpringRedisMachineLeaseStore(StringRedisTemplate redisTemplate, RedisCommandTimeout commandTimeout, RedisCommandTimeout claimTimeout) {
+    public SpringRedisMachineLeaseStore(StringRedisTemplate redisTemplate, RedisCommandTimeout commandTimeout) {
         this.redisTemplate = Preconditions.checkNotNull(redisTemplate, "redisTemplate can not be null!");
         this.commandTimeout = Preconditions.checkNotNull(commandTimeout, "commandTimeout can not be null!");
-        this.claimTimeout = Preconditions.checkNotNull(claimTimeout, "claimTimeout can not be null!");
         Preconditions.checkArgument(commandTimeout.isEnabled(), "commandTimeout must be enabled: the lease adapter holds a lock during each call!");
+    }
+    
+    /**
+     * The same store with another command timeout, for example a longer one for the distribution at startup, where the
+     * first command also pays for connecting.
+     */
+    public SpringRedisMachineLeaseStore withCommandTimeout(RedisCommandTimeout commandTimeout) {
+        return new SpringRedisMachineLeaseStore(redisTemplate, commandTimeout);
     }
     
     public RedisCommandTimeout getCommandTimeout() {
         return commandTimeout;
-    }
-    
-    public RedisCommandTimeout getClaimTimeout() {
-        return claimTimeout;
     }
     
     private static String stable(InstanceId instanceId) {
@@ -81,7 +77,6 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
     }
     
     private Optional<Lease> execute(String operation, String namespace, InstanceId instanceId, Object... arguments) {
-        final RedisCommandTimeout timeout = operation.startsWith("claim") ? claimTimeout : commandTimeout;
         Object[] args = new Object[3 + arguments.length];
         args[0] = operation;
         args[1] = instanceId.getInstanceId();
@@ -90,7 +85,7 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
             args[3 + i] = String.valueOf(arguments[i]);
         }
         @SuppressWarnings("unchecked")
-        List<Long> result = timeout.call(operation,
+        List<Long> result = commandTimeout.call(operation,
             () -> (List<Long>) redisTemplate.execute(MACHINE_LEASE, Collections.singletonList(hashTag(namespace)), args));
         if (result == null || result.size() < 4) {
             return Optional.empty();
@@ -129,13 +124,11 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
     }
     
     /**
-     * Redis' {@code TIME}, in milliseconds, bounded by the claim timeout: it is the first command of a claim at startup.
-     * Without a claim timeout, the command timeout applies.
+     * Redis' {@code TIME}, in milliseconds.
      */
     @Override
     public long serverTime() {
-        RedisCommandTimeout timeout = claimTimeout.isEnabled() ? claimTimeout : commandTimeout;
-        Long time = timeout.call("serverTime", () -> redisTemplate.execute((RedisCallback<Long>) connection -> connection.serverCommands().time()));
+        Long time = commandTimeout.call("serverTime", () -> redisTemplate.execute((RedisCallback<Long>) connection -> connection.serverCommands().time()));
         return Preconditions.checkNotNull(time, "Redis TIME returned null!");
     }
 }

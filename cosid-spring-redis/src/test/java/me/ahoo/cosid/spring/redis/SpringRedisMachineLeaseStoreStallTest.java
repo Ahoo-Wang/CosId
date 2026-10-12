@@ -16,10 +16,15 @@ package me.ahoo.cosid.spring.redis;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.InMemoryMachineStateStorage;
 import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.lease.Lease;
+import me.ahoo.cosid.machine.MachineState;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
+import me.ahoo.cosid.machine.lease.MachineLeaseManager;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.AfterAll;
@@ -34,11 +39,12 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 
 /**
- * A Redis stall longer than the renewal timeout: claims, bounded by the claim timeout, still go through; renewals do not.
+ * A Redis stall: the distribution at startup, on the long distribute timeout, survives it; a guard, under the lock on the
+ * short timeout, gives up after about that timeout.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SpringRedisMachineLeaseStoreStallTest {
-    private static final long STALL_MILLIS = 1500;
+    private static final Duration SHORT_TIMEOUT = Duration.ofSeconds(1);
     private LettuceConnectionFactory storeConnections;
     private LettuceConnectionFactory adminConnections;
     private SpringRedisMachineLeaseStore store;
@@ -48,8 +54,7 @@ class SpringRedisMachineLeaseStoreStallTest {
     void setup() {
         storeConnections = RealRedis.createConnectionFactory();
         adminConnections = RealRedis.createConnectionFactory();
-        store = new SpringRedisMachineLeaseStore(RealRedis.createRedisTemplate(storeConnections),
-            RedisCommandTimeout.of(Duration.ofSeconds(1)), RedisCommandTimeout.of(Duration.ofSeconds(10)));
+        store = new SpringRedisMachineLeaseStore(RealRedis.createRedisTemplate(storeConnections), RedisCommandTimeout.of(SHORT_TIMEOUT));
         admin = RealRedis.createRedisTemplate(adminConnections);
     }
     
@@ -63,31 +68,42 @@ class SpringRedisMachineLeaseStoreStallTest {
         }
     }
     
-    private void stallRedis() {
+    private LeaseStoreMachineIdDistributor distributor() {
+        SpringRedisMachineLeaseStore distributeStore = store.withCommandTimeout(RedisCommandTimeout.of(Duration.ofSeconds(10)));
+        return new LeaseStoreMachineIdDistributor(new MachineLeaseManager(distributeStore), new MachineLeaseManager(store),
+            new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT);
+    }
+    
+    private void stallRedis(long millis) {
         // DEBUG SLEEP is disabled on Redis 7: CLIENT PAUSE holds every client's commands instead.
         admin.execute((RedisCallback<Object>) connection -> connection.execute("CLIENT",
-            "PAUSE".getBytes(StandardCharsets.UTF_8), String.valueOf(STALL_MILLIS).getBytes(StandardCharsets.UTF_8)));
+            "PAUSE".getBytes(StandardCharsets.UTF_8), String.valueOf(millis).getBytes(StandardCharsets.UTF_8)));
     }
     
     @Test
-    void claimSurvivesAStallLongerThanTheRenewalTimeout() {
+    void startupDistributeSurvivesAStallLongerThanTheShortTimeout() {
         String namespace = "stall_" + MockIdGenerator.INSTANCE.generateAsString();
-        stallRedis();
+        stallRedis(1500);
         long start = System.nanoTime();
         
-        Lease lease = store.claimNew(namespace, InstanceId.of("owner", false), 3, store.serverTime()).orElseThrow();
+        MachineState state = distributor().distribute(namespace, 4, InstanceId.of("owner", false), Duration.ofMinutes(1));
         
-        assertThat(lease.getMachineId(), equalTo(0));
-        assertThat(Duration.ofNanos(System.nanoTime() - start).toMillis(), greaterThanOrEqualTo(STALL_MILLIS - 200));
+        assertThat(state.getMachineId(), equalTo(0));
+        assertThat(Duration.ofNanos(System.nanoTime() - start).toMillis(), greaterThanOrEqualTo(1300L));
     }
     
     @Test
-    void renewalGivesUpOnAStallLongerThanItsTimeout() throws InterruptedException {
+    void guardGivesUpAfterTheShortTimeout() throws InterruptedException {
         String namespace = "stall_" + MockIdGenerator.INSTANCE.generateAsString();
-        Lease lease = store.claimNew(namespace, InstanceId.of("owner", false), 3, store.serverTime()).orElseThrow();
-        stallRedis();
+        LeaseStoreMachineIdDistributor distributor = distributor();
+        InstanceId owner = InstanceId.of("owner", false);
+        distributor.distribute(namespace, 4, owner, Duration.ofMinutes(1));
+        stallRedis(3000);
+        long start = System.nanoTime();
         
-        assertThrows(RuntimeException.class, () -> store.renew(lease, lease.getRenewedAt() + 1));
-        Thread.sleep(STALL_MILLIS);
+        assertThrows(RuntimeException.class, () -> distributor.guard(namespace, owner, Duration.ofMinutes(1)));
+        
+        assertThat(Duration.ofNanos(System.nanoTime() - start).toMillis(), lessThan(2500L));
+        Thread.sleep(3000);
     }
 }

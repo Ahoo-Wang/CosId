@@ -27,6 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
 /**
  * Segment chain algorithm ID generator.
  *
@@ -71,6 +73,8 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
      * traffic burst can burn ({@code maxPrefetchDistance * step}).
      */
     public static final int DEFAULT_MAX_PREFETCH_DISTANCE = 10_000;
+    private static final AtomicReferenceFieldUpdater<SegmentChainId, IdSegmentChain> HEAD_CHAIN =
+        AtomicReferenceFieldUpdater.newUpdater(SegmentChainId.class, IdSegmentChain.class, "headChain");
 
     /**
      * The time-to-live for ID segments in milliseconds.
@@ -269,24 +273,41 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
      * <p>This method updates the head of the chain to point to a newer segment,
      * ensuring that ID generation progresses through the chain in the correct order.
      *
-     * <p>No lock is used because it's not critical for correctness as long as
-     * the head chain is moving forward in the proper direction.
+     * <p>A compare-and-set loop: the head only ever moves to a newer version, also when threads forward it at the
+     * same time.
      *
      * @param forwardChain The new head of the chain
      */
     private void forward(IdSegmentChain forwardChain) {
-        if (headChain.getVersion() >= forwardChain.getVersion()) {
-            return;
+        while (true) {
+            IdSegmentChain current = headChain;
+            if (current.getVersion() >= forwardChain.getVersion()) {
+                return;
+            }
+            if (!maxIdDistributor.allowReset() && forwardChain.compareTo(current) <= 0) {
+                return;
+            }
+            if (HEAD_CHAIN.compareAndSet(this, current, forwardChain)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Forward [{}] - [{}] -> [{}].", maxIdDistributor.getNamespacedName(), current, forwardChain);
+                }
+                return;
+            }
         }
-        if (log.isDebugEnabled()) {
-            log.debug("Forward [{}] - [{}] -> [{}].", maxIdDistributor.getNamespacedName(), headChain, forwardChain);
+    }
+    
+    /**
+     * The last chain node: new segments are appended after it, so that a node that can no longer be used (exhausted or
+     * expired) between the head and the tail never blocks generation.
+     */
+    private static IdSegmentChain tailOf(IdSegmentChain chain) {
+        IdSegmentChain tail = chain;
+        IdSegmentChain next = tail.getNext();
+        while (next != null) {
+            tail = next;
+            next = tail.getNext();
         }
-        if (maxIdDistributor.allowReset()) {
-            headChain = forwardChain;
-        } else if (forwardChain.compareTo(headChain) > 0) {
-            headChain = forwardChain;
-        }
-
+        return tail;
     }
 
     /**
@@ -348,7 +369,8 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             }
 
             try {
-                final IdSegmentChain preIdSegmentChain = headChain;
+                // Fetched here, synchronously, also when the prefetch has stopped.
+                final IdSegmentChain preIdSegmentChain = tailOf(headChain);
 
                 if (preIdSegmentChain.trySetNext((preChain) -> generateNext(preChain, safeDistance))) {
                     IdSegmentChain nextChain = preIdSegmentChain.getNext();

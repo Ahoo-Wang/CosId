@@ -17,9 +17,15 @@ import me.ahoo.cosid.proxy.api.ErrorResponse;
 import me.ahoo.cosid.segment.IdSegmentRollbackException;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.core.MethodParameter;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.support.WebExchangeBindException;
 
 class GlobalRestExceptionHandlerTest {
     
@@ -33,6 +39,25 @@ class GlobalRestExceptionHandlerTest {
         @GetMapping("/illegal-state")
         String illegalState() {
             throw new IllegalStateException("executor has been shut down");
+        }
+        
+        @GetMapping("/illegal-argument")
+        String illegalArgument() {
+            throw new IllegalArgumentException("step:[0] must be greater than 0!");
+        }
+        
+        @PostMapping("/post-only")
+        String postOnly() {
+            return "ok";
+        }
+        
+        @GetMapping("/bind")
+        String bind() throws NoSuchMethodException {
+            BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "request");
+            bindingResult.addError(new FieldError("request", "step", "must be positive"));
+            bindingResult.addError(new ObjectError("request", "offset and step overflow"));
+            MethodParameter parameter = new MethodParameter(Failing.class.getDeclaredMethod("bind"), -1);
+            throw new WebExchangeBindException(parameter, bindingResult);
         }
     }
     
@@ -48,8 +73,37 @@ class GlobalRestExceptionHandlerTest {
     }
     
     @Test
-    void otherIllegalStatesStayServerErrors() {
+    void otherIllegalStatesStayServerErrorsWithoutTheirDetails() {
         client.get().uri("/illegal-state").exchange()
-            .expectStatus().is5xxServerError();
+            .expectStatus().is5xxServerError()
+            .expectBody().jsonPath("$.msg").isEqualTo(GlobalRestExceptionHandler.INTERNAL_ERROR);
+    }
+    
+    @Test
+    void illegalArgumentIsBadRequest() {
+        client.get().uri("/illegal-argument").exchange()
+            .expectStatus().isBadRequest()
+            .expectBody()
+            .jsonPath("$.code").isEqualTo(ErrorResponse.BAD_REQUEST)
+            .jsonPath("$.msg").isEqualTo("step:[0] must be greater than 0!");
+    }
+    
+    @Test
+    void frameworkErrorsKeepTheirStatus() {
+        client.get().uri("/post-only").exchange()
+            .expectStatus().isEqualTo(405)
+            .expectBody().jsonPath("$.code").isEqualTo("405");
+        client.get().uri("/missing").exchange()
+            .expectStatus().isNotFound();
+    }
+    
+    @Test
+    void bindErrorsListTheirFields() {
+        client.get().uri("/bind").exchange()
+            .expectStatus().isBadRequest()
+            .expectBody()
+            .jsonPath("$.code").isEqualTo(ErrorResponse.BAD_REQUEST)
+            .jsonPath("$.errors[0].field").isEqualTo("step")
+            .jsonPath("$.errors[1].field").isEqualTo("request");
     }
 }

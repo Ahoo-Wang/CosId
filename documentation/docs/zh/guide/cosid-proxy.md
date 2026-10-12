@@ -61,7 +61,7 @@ CosId Proxy 提供客户端-服务器架构：
 |----|-----|----|
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | 只有租约最后一次续约（以服务端存储时钟为准）距今至少这么久，客户端才能接管该机器 ID。上报更晚截止时间的客户端会收到 `400`；3.x 客户端上报的更短守护时长会被提升到该值并记录警告。不要大于客户端的 `cosid.machine.guarder.safe-guard-duration` |
 | `cosid.proxy.server.max-clock-skew` | `1m` | 客户端（守护、归还时）上报的 `lastTimeStamp` 最多比服务端时钟超前这么多；过于超前的时间戳会让机器号永远无法被回收。`0` 表示不检查 |
-| `cosid.proxy.server.segment.max-step` | `1000000000` | 客户端可申请的最大号段 `step` 与创建时的 `offset`；`0` 表示不限制。号段链一次申请 `step × 号段数`，负载高时预取得更多，所以至少要设为所有客户端中最大的 `step × 最大预取距离`。`offset` 必须 `>= 0`，且 `offset + step` 不能溢出 |
+| `cosid.proxy.server.segment.max-step` | `1000000000000` | 客户端可申请的最大号段 `step`；`0` 表示不限制。号段链一次申请 `step × 号段数`，负载高时预取得更多，所以至少要设为所有客户端中最大的 `step × 最大预取距离`。`offset` 必须在 `0` 到 `Long.MAX_VALUE / 2` 之间 |
 
 超出这些限制的请求返回 `400`。
 

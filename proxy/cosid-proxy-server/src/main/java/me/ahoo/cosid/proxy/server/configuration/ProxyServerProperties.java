@@ -28,9 +28,10 @@ public class ProxyServerProperties {
     public static final Duration DEFAULT_MAX_CLOCK_SKEW = Duration.ofMinutes(1);
     public static final Duration DEFAULT_MIN_SAFE_GUARD_DURATION = Duration.ofMinutes(5);
     /**
-     * One billion ids per request: far more than any segment chain asks for, and far from overflowing a {@code long}.
+     * One trillion ids per request: more than a segment chain with a large step asks for while prefetching at peak, and
+     * far from overflowing a {@code long}.
      */
-    public static final long DEFAULT_MAX_SEGMENT_STEP = 1_000_000_000L;
+    public static final long DEFAULT_MAX_SEGMENT_STEP = 1_000_000_000_000L;
     
     /**
      * How far ahead of the server's clock a client's {@code lastTimeStamp} (guard, revert) may be. A timestamp far in
@@ -84,8 +85,8 @@ public class ProxyServerProperties {
     
     public static class Segment {
         /**
-         * Largest {@code step} (and creation {@code offset}) a client may ask for, so that one request cannot use up
-         * or overflow the id range. Default is one billion; zero means no limit. Segment chains ask for {@code step × segments} at once and the prefetch distance grows under
+         * Largest {@code step} a client may ask for, so that one request cannot use up or overflow the id range.
+         * Default is one trillion; zero means no limit. Segment chains ask for {@code step × segments} at once and the prefetch distance grows under
          * load, so a limit must be at least the largest {@code step × max prefetch distance} of all clients.
          */
         private long maxStep = DEFAULT_MAX_SEGMENT_STEP;

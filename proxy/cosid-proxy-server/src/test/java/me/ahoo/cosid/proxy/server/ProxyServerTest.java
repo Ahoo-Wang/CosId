@@ -56,11 +56,12 @@ class ProxyServerTest {
     }
 
     @Test
-    void segmentStepAndOffsetAreCappedByDefault() {
-        webTestClient.patch().uri("/segments/test_namespace/large?step=1000000000").exchange().expectStatus().isOk();
-        webTestClient.patch().uri("/segments/test_namespace/large?step=1000000001").exchange().expectStatus().isBadRequest();
+    void segmentStepIsCappedByDefaultAndOffsetOnlyAgainstOverflow() {
+        webTestClient.patch().uri("/segments/test_namespace/large?step=1000000000000").exchange().expectStatus().isOk();
+        webTestClient.patch().uri("/segments/test_namespace/large?step=1000000000001").exchange().expectStatus().isBadRequest();
         webTestClient.patch().uri("/segments/test_namespace/huge?step=9223372036854775000").exchange().expectStatus().isBadRequest();
-        webTestClient.post().uri("/segments/distributor/test_namespace/far?offset=1000000001&step=1").exchange().expectStatus().isBadRequest();
+        webTestClient.post().uri("/segments/distributor/test_namespace/existing?offset=10000000000&step=100").exchange().expectStatus().isOk();
+        webTestClient.post().uri("/segments/distributor/test_namespace/far?offset=4611686018427387904&step=1").exchange().expectStatus().isBadRequest();
         webTestClient.patch().uri("/segments/test_namespace/large?step=5").exchange().expectStatus().isOk();
     }
     
@@ -72,7 +73,7 @@ class ProxyServerTest {
             .bindToController(new SegmentController(segmentDistributorFactory, properties))
             .controllerAdvice(new GlobalRestExceptionHandler())
             .build();
-        unlimited.patch().uri("/segments/test_namespace/unlimited?step=2000000000").exchange().expectStatus().isOk();
+        unlimited.patch().uri("/segments/test_namespace/unlimited?step=2000000000000").exchange().expectStatus().isOk();
     }
     
     @Test

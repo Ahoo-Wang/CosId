@@ -74,7 +74,7 @@ Replaced by `PrefetchWorkerExecutorService.shared()`, which creates the shared e
 | `cosid.jdbc.enabled` | `true` | `false` |
 | `cosid.actuator.delete.enabled` | `true` | `false` |
 | `cosid.proxy.server.auth.allow-anonymous` (new) | open without tokens | `false`: the proxy server fails to start without `cosid.proxy.server.auth.tokens` |
-| `cosid.proxy.server.segment.max-step` | `0` (no limit) | `1000000000`, also the largest creation `offset` |
+| `cosid.proxy.server.segment.max-step` | `0` (no limit) | `1000000000000`; `0` still means no limit |
 
 Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `cosid.jdbc.enabled=true`**: with it off, CosId no longer fills the `@Id` property (or `@CosId` fields) of Spring Data JDBC entities, and an INFO at startup names those entities. With `cosid.actuator.delete.enabled` off, the `cosid` endpoint is read-only (`CosIdReadOnlyEndpoint`), and the 3.4 startup warning is gone.
 

@@ -61,7 +61,7 @@ The proxy server checks what clients send:
 |----------|---------|-------------|
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | A client may take over a machine ID only if its lease was last renewed at least this long ago, by the server's store clock. Clients that send a later cut-off get `400`; a shorter guard from a 3.x client is raised to this value with a warning. Keep it at most the clients' `cosid.machine.guarder.safe-guard-duration` |
 | `cosid.proxy.server.max-clock-skew` | `1m` | A client's `lastTimeStamp` (guard, revert) may be at most this far ahead of the server clock; a timestamp far in the future would keep a machine ID from ever being recycled. `0` disables the check |
-| `cosid.proxy.server.segment.max-step` | `1000000000` | Largest segment `step`, and creation `offset`, a client may ask for; `0` means no limit. Segment chains ask for `step × segments` at once and prefetch more under load, so set it to at least the largest `step × max prefetch distance` of all clients. `offset` must be `>= 0` and `offset + step` must not overflow |
+| `cosid.proxy.server.segment.max-step` | `1000000000000` | Largest segment `step` a client may ask for; `0` means no limit. Segment chains ask for `step × segments` at once and prefetch more under load, so set it to at least the largest `step × max prefetch distance` of all clients. `offset` must be between `0` and `Long.MAX_VALUE / 2` |
 
 Requests outside these limits get `400`.
 

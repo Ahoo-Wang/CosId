@@ -6,7 +6,7 @@ Used when `cosid.machine.distributor.type` or `cosid.segment.distributor.type` i
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `enabled` | `boolean` | not set | `true` creates the Curator client even when no `type` selects ZooKeeper; `false` turns it off |
+| `enabled` | `boolean` | `true` | Left at the default, the Curator client is created only when a `type` selects ZooKeeper. Set to `true` explicitly, it is created even when none does; `false` turns it off |
 | `connect-string` | `String` | `localhost:2181` | ZooKeeper servers |
 | `session-timeout` | `Duration` | `60s` | Session timeout |
 | `connection-timeout` | `Duration` | `15s` | Connection timeout |

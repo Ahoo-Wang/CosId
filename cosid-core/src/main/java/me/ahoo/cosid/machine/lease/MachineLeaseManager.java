@@ -78,6 +78,14 @@ public class MachineLeaseManager {
     private Optional<Lease> claimOnce(String namespace, InstanceId instanceId, int maxMachineId, Duration safeGuardDuration) {
         long now = store.serverTime();
         Optional<Lease> lease = store.claimSelf(namespace, instanceId, now);
+        if (lease.isPresent() && lease.get().getMachineId() > maxMachineId) {
+            // Taken with a larger machine bit: give it back and claim one in range.
+            if (log.isWarnEnabled()) {
+                log.warn("Release [{}]: above the largest machine id [{}] of the machine bit now configured.", lease.get(), maxMachineId);
+            }
+            store.release(asNonStable(lease.get()), lease.get().getWatermark());
+            lease = Optional.empty();
+        }
         if (lease.isEmpty()) {
             lease = store.claimReleased(namespace, instanceId, maxMachineId, now);
         }
@@ -88,6 +96,18 @@ public class MachineLeaseManager {
             lease = store.claimExpired(namespace, instanceId, maxMachineId, now - safeGuardDuration.toMillis(), now);
         }
         return lease;
+    }
+    
+    /**
+     * The same lease held by a non-stable instance: stores keep a stable instance's machine id on release, but one out
+     * of range must really be given back.
+     */
+    private static Lease asNonStable(Lease lease) {
+        if (!lease.getInstanceId().isStable()) {
+            return lease;
+        }
+        InstanceId nonStable = InstanceId.of(lease.getInstanceId().getInstanceId(), false);
+        return new Lease(lease.getNamespace(), nonStable, lease.getMachineId(), lease.getWatermark(), lease.getRenewedAt(), lease.getVersion());
     }
     
     /**

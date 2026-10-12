@@ -147,7 +147,7 @@ public class DefaultIdSegment implements IdSegment {
      * @param group     The group key for this segment
      */
     public DefaultIdSegment(long maxId, long step, long fetchTime, long ttl, GroupedKey group) {
-        Checks.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
+        Checks.checkArgument(ttl >= 0, "ttl:[%s] must not be negative.", ttl);
         this.maxId = maxId;
         this.step = step;
         this.offset = maxId - step;

@@ -111,10 +111,12 @@ public class CosIdGeneratorAutoConfiguration implements DisposableBean {
         int machineId = guardDistribute.distribute(namespace, cosIdGeneratorProperties.getMachineBit(), instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
         CosIdGenerator cosIdGenerator = createCosIdGenerator(machineId);
 
-        CosIdGenerator decoratedCosIdGenerator = new ClockSyncCosIdGenerator(cosIdGenerator, clockBackwardsSynchronizer);
+        // The lease inside the clock sync: a generation retried after waiting for the clock checks the lease again.
+        CosIdGenerator decoratedCosIdGenerator = cosIdGenerator;
         if (machineProperties.getGuarder().isFailFast()) {
             decoratedCosIdGenerator = new LeasedCosIdGenerator(decoratedCosIdGenerator, guardDistribute.getLease(namespace, instanceId));
         }
+        decoratedCosIdGenerator = new ClockSyncCosIdGenerator(decoratedCosIdGenerator, clockBackwardsSynchronizer);
         idGeneratorProvider.set(CosId.COSID, decoratedCosIdGenerator);
         registeredIn = idGeneratorProvider;
         registered = decoratedCosIdGenerator;

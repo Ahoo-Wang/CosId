@@ -22,11 +22,13 @@ import static org.hamcrest.Matchers.not;
 
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.lease.Lease;
+import me.ahoo.cosid.machine.lease.MachineLeaseManager;
 import me.ahoo.cosid.machine.lease.MachineLeaseStore;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -91,6 +93,55 @@ public abstract class MachineLeaseStoreSpec {
             assertThat(lease.getWatermark(), greaterThanOrEqualTo(T0));
         }
         assertThat(store.claimNew(namespace, instance("overflow"), 3, T0).isPresent(), equalTo(false));
+    }
+    
+    /**
+     * After the machine bit shrank, an instance's own lease can be above the largest machine id: it is released, and
+     * the instance claims one in range instead.
+     */
+    @Test
+    public void claimAfterTheMachineBitShrankStaysInRange() {
+        MachineLeaseStore store = getStore();
+        String namespace = newNamespace("shrunk");
+        MachineLeaseManager manager = new MachineLeaseManager(store);
+        Duration safeGuard = Duration.ofMinutes(5);
+        Lease first = manager.acquire(namespace, instance("i0"), 2, safeGuard);
+        for (int i = 1; i <= 3; i++) {
+            manager.acquire(namespace, instance("i" + i), 2, safeGuard);
+        }
+        assertThat(manager.release(first, store.serverTime()), equalTo(true));
+        
+        Lease shrunk = manager.acquire(namespace, instance("i3"), 1, safeGuard);
+        
+        assertThat(shrunk.getMachineId(), equalTo(0));
+        Lease released = store.claimReleased(namespace, instance("next"), 3, store.serverTime()).orElseThrow();
+        assertThat(released.getMachineId(), equalTo(3));
+    }
+    
+    /**
+     * A stable instance keeps its machine id on release, but one out of range after the machine bit shrank is given
+     * back, and the instance claims one in range.
+     */
+    @Test
+    public void stableClaimAfterTheMachineBitShrankStaysInRange() {
+        MachineLeaseStore store = getStore();
+        String namespace = newNamespace("stableShrunk");
+        MachineLeaseManager manager = new MachineLeaseManager(store);
+        Duration safeGuard = Duration.ofMinutes(5);
+        final Lease first = manager.acquire(namespace, instance("i0"), 2, safeGuard);
+        for (int i = 1; i <= 2; i++) {
+            manager.acquire(namespace, instance("i" + i), 2, safeGuard);
+        }
+        Lease stable = manager.acquire(namespace, stableInstance("stable"), 2, safeGuard);
+        assertThat(stable.getMachineId(), equalTo(3));
+        assertThat(manager.release(stable, store.serverTime()), equalTo(true));
+        assertThat(manager.release(first, store.serverTime()), equalTo(true));
+        
+        Lease shrunk = manager.acquire(namespace, stableInstance("stable"), 1, safeGuard);
+        
+        assertThat(shrunk.getMachineId(), equalTo(0));
+        Lease released = store.claimReleased(namespace, instance("next"), 3, store.serverTime()).orElseThrow();
+        assertThat(released.getMachineId(), equalTo(3));
     }
     
     @Test

@@ -19,7 +19,7 @@
 
 ::: code-group
 ```kotlin [Gradle (Kotlin)]
-val cosidVersion = "4.0.0-RC2" // Maven Central 上的最新版本
+val cosidVersion = "__COSID_VERSION__" // Maven Central 上的最新版本
 dependencies {
     implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
@@ -29,7 +29,7 @@ dependencies {
 ```
 ```xml [Maven]
 <properties>
-    <cosid.version>4.0.0-RC2</cosid.version>
+    <cosid.version>__COSID_VERSION__</cosid.version>
 </properties>
 <dependencyManagement>
     <dependencies>

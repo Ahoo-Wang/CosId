@@ -15,6 +15,8 @@ package me.ahoo.cosid.internal;
 
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.LongSupplier;
 
 /**
@@ -33,6 +35,7 @@ public final class TimestampSequencer {
     private final LongSupplier timeSource;
     private final long maxSequence;
     private final long sequenceResetThreshold;
+    private final Runnable waitForNextTick;
     private long sequence = 0L;
     private long lastTimestamp = -1L;
     
@@ -44,9 +47,28 @@ public final class TimestampSequencer {
      * @param sequenceResetThreshold sequences at or above this restart in the next time unit
      */
     public TimestampSequencer(LongSupplier timeSource, long maxSequence, long sequenceResetThreshold) {
+        this(timeSource, maxSequence, sequenceResetThreshold, Thread::onSpinWait);
+    }
+    
+    /**
+     * Create a sequencer.
+     *
+     * @param waitForNextTick called while the sequence of the current tick is used up, until the time source moves on:
+     *                        {@link Thread#onSpinWait()} for milliseconds, {@link #parkUntilNextSecond()} for seconds
+     */
+    public TimestampSequencer(LongSupplier timeSource, long maxSequence, long sequenceResetThreshold, Runnable waitForNextTick) {
         this.timeSource = timeSource;
         this.maxSequence = maxSequence;
         this.sequenceResetThreshold = sequenceResetThreshold;
+        this.waitForNextTick = waitForNextTick;
+    }
+    
+    /**
+     * Parks until the next second of the system clock, at most 10 ms at a time, instead of spinning for up to a second.
+     */
+    public static void parkUntilNextSecond() {
+        long untilNextSecond = 1000 - System.currentTimeMillis() % 1000;
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(Math.min(untilNextSecond, 10)));
     }
     
     /**
@@ -71,9 +93,19 @@ public final class TimestampSequencer {
         return currentTimestamp;
     }
     
+    /**
+     * Waits for the next tick after the sequence of the last one was used up. If the clock moves back while waiting, it
+     * throws instead of waiting for the clock to catch up, and the last tick stays used up.
+     */
     private long nextTime() {
         long time = timeSource.getAsLong();
         while (time <= lastTimestamp) {
+            if (time < lastTimestamp) {
+                // The sequence of the last tick is used up: generating again in it would repeat an id.
+                sequence = maxSequence;
+                throw new ClockBackwardsException(lastTimestamp, time);
+            }
+            waitForNextTick.run();
             time = timeSource.getAsLong();
         }
         return time;

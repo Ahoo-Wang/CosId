@@ -19,7 +19,7 @@ Import the CosId BOM, then add the starter and the backend module. The latest ve
 
 ::: code-group
 ```kotlin [Gradle (Kotlin)]
-val cosidVersion = "4.0.0-RC2" // the latest release on Maven Central
+val cosidVersion = "__COSID_VERSION__" // the latest release on Maven Central
 dependencies {
     implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
@@ -29,7 +29,7 @@ dependencies {
 ```
 ```xml [Maven]
 <properties>
-    <cosid.version>4.0.0-RC2</cosid.version>
+    <cosid.version>__COSID_VERSION__</cosid.version>
 </properties>
 <dependencyManagement>
     <dependencies>

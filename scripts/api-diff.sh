@@ -22,8 +22,14 @@ curl -sSfL -o "$WORK/japicmp.jar" \
 INCOMPATIBLE_MESSAGE="There is at least one incompatibility"
 FAILED="$WORK/failed"
 compare() {
-  local old_jar="$1" new_jar="$2" name="$3"
-  if java -jar "$WORK/japicmp.jar" --old "$old_jar" --new "$new_jar" --only-modified --ignore-missing-classes \
+  local old_jar="$1" new_jar="$2" name="$3" old_cp="${4:-}" new_cp="${5:-}"
+  local classpath=()
+  # With the dependencies on the classpath, japicmp also checks superclasses and interfaces from other jars, which
+  # --ignore-missing-classes would otherwise skip.
+  if [ -n "$old_cp" ] && [ -n "$new_cp" ]; then
+    classpath=(--old-classpath "$old_cp" --new-classpath "$new_cp")
+  fi
+  if java -jar "$WORK/japicmp.jar" --old "$old_jar" --new "$new_jar" "${classpath[@]+"${classpath[@]}"}" --only-modified --ignore-missing-classes \
     --error-on-binary-incompatibility --error-on-source-incompatibility \
     --html-file "$OUT/$name.html" --markdown > "$OUT/$name.md" 2> "$OUT/$name.err"; then
     echo "compatible"
@@ -46,11 +52,38 @@ rm -f "$FAILED" "$OUT"/self-check.*
 git -C "$ROOT" fetch --quiet --tags origin || true
 git -C "$ROOT" worktree add --quiet --detach "$WORK/baseline" "$BASELINE"
 
-build_jars() {
-  (cd "$1" && ./gradlew jar --quiet -x test)
+# Writes the compile classpath of every Java module to <dir>/<module path with / as __>.cp.
+cat > "$WORK/classpath.init.gradle" <<'GRADLE'
+allprojects {
+    plugins.withId('java') {
+        def outDir = new File(System.getProperty('apiDiffClasspathDir'))
+        def compileClasspath = configurations.named('compileClasspath')
+        def key = rootProject.relativePath(projectDir).replace('/', '__')
+        tasks.register('apiDiffClasspath') {
+            doLast {
+                outDir.mkdirs()
+                new File(outDir, key + '.cp').text = compileClasspath.get().files.join(File.pathSeparator)
+            }
+        }
+    }
 }
-build_jars "$WORK/baseline"
-build_jars "$ROOT"
+GRADLE
+
+build_jars() {
+  (cd "$1" && ./gradlew jar apiDiffClasspath --quiet -x test -I "$WORK/classpath.init.gradle" -DapiDiffClasspathDir="$2")
+}
+build_jars "$WORK/baseline" "$WORK/classpath-old"
+build_jars "$ROOT" "$WORK/classpath-new"
+
+# The compile classpath of a module, empty when it was not written.
+classpath_of() {
+  local file="$1/${2//\//__}.cp"
+  if [ -f "$file" ]; then
+    cat "$file"
+  else
+    echo "::warning::No compile classpath for $2 in $1: comparing it without its dependencies." >&2
+  fi
+}
 
 version_of() {
   sed -n 's/^version=//p' "$1/gradle.properties"
@@ -100,12 +133,20 @@ while IFS= read -r libs; do
     echo "| \`$module\` | new module |" >> "$SUMMARY"
     continue
   fi
-  echo "| \`$module\` | $(compare "$old_jar" "$new_jar" "$name") |" >> "$SUMMARY"
+  echo "| \`$module\` | $(compare "$old_jar" "$new_jar" "$name" "$(classpath_of "$WORK/classpath-old" "$module")" "$(classpath_of "$WORK/classpath-new" "$module")") |" >> "$SUMMARY"
 done < <(find "$ROOT" -path "$ROOT/build" -prune -o -path '*/build/libs' -type d -print | grep -v '/examples/\|/cosid-benchmark/\|/code-coverage-report/' | sort)
 
 combined_core_jar "$WORK/baseline" "$OLD_VERSION" "$WORK/core-old.jar"
 combined_core_jar "$ROOT" "$NEW_VERSION" "$WORK/core-new.jar"
-echo "| \`cosid-core\` + \`cosid-sharding\` + \`cosid-accessor\` (combined) | $(compare "$WORK/core-old.jar" "$WORK/core-new.jar" cosid-core-combined) |" >> "$SUMMARY"
+# The dependencies of the three modules together.
+combined_classpath() {
+  local dir="$1" module joined=""
+  for module in cosid-core cosid-sharding cosid-accessor; do
+    joined="$joined:$(classpath_of "$dir" "$module")"
+  done
+  echo "${joined#:}"
+}
+echo "| \`cosid-core\` + \`cosid-sharding\` + \`cosid-accessor\` (combined) | $(compare "$WORK/core-old.jar" "$WORK/core-new.jar" cosid-core-combined "$(combined_classpath "$WORK/classpath-old")" "$(combined_classpath "$WORK/classpath-new")") |" >> "$SUMMARY"
 
 cat "$SUMMARY"
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then

@@ -20,11 +20,15 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.Decorator;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineIdLease;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
+import me.ahoo.cosid.snowflake.LeasedSnowflakeId;
 import me.ahoo.cosid.snowflake.SnowflakeId;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
@@ -32,6 +36,9 @@ import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+
+import java.util.ArrayList;
+import java.util.List;
 
 class CosIdSnowflakeAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
@@ -134,6 +141,30 @@ class CosIdSnowflakeAutoConfigurationTest {
                 SnowflakeId ms = context.getBean(IdGeneratorProvider.class).getRequired("ms", SnowflakeId.class);
                 assertThat(ms.getEpoch()).isEqualTo(CosId.COSID_EPOCH);
                 assertThat(ms.generate()).isPositive();
+            });
+    }
+    
+    /**
+     * The lease is checked inside the clock sync, so a generation retried after waiting for the clock checks it again.
+     */
+    @Test
+    void theLeaseIsCheckedInsideTheClockSync() {
+        GuardDistribute guardDistribute = mock(GuardDistribute.class);
+        when(guardDistribute.distribute(any(), anyInt(), any(), any())).thenReturn(MachineState.of(1, 0));
+        when(guardDistribute.getLease(any(), any())).thenReturn(MachineIdLease.FOREVER);
+        contextRunner
+            .withBean(GuardDistribute.class, () -> guardDistribute)
+            .withAllowBeanDefinitionOverriding(true)
+            .withPropertyValues(ConditionalOnCosIdSnowflakeEnabled.ENABLED_KEY + "=true", SnowflakeIdProperties.PREFIX + ".provider.order.clock-sync=true")
+            .run(context -> {
+                List<Class<?>> chain = new ArrayList<>();
+                Object generator = context.getBean(IdGeneratorProvider.class).getRequired("order");
+                while (generator instanceof Decorator<?> decorator) {
+                    chain.add(generator.getClass());
+                    generator = decorator.getActual();
+                }
+                assertThat(chain).contains(ClockSyncSnowflakeId.class, LeasedSnowflakeId.class);
+                assertThat(chain.indexOf(ClockSyncSnowflakeId.class)).isLessThan(chain.indexOf(LeasedSnowflakeId.class));
             });
     }
 }

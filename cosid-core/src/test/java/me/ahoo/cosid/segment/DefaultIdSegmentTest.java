@@ -48,10 +48,10 @@ class DefaultIdSegmentTest {
     void constructorShouldRejectNonPositiveTtl() {
         IllegalArgumentException error = assertThrows(
             IllegalArgumentException.class,
-            () -> new DefaultIdSegment(10, 5, 100, 0, GroupedKey.NEVER)
+            () -> new DefaultIdSegment(10, 5, 100, -1, GroupedKey.NEVER)
         );
 
-        assertEquals("ttl:[0] must be greater than 0.", error.getMessage());
+        assertEquals("ttl:[-1] must not be negative.", error.getMessage());
     }
 
     @Test

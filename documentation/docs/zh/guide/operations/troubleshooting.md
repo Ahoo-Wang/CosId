@@ -10,7 +10,7 @@
 | `must be positive: the machine id lease store holds a lock during each call` | 把指出的超时（`cosid.machine.distributor.redis.timeout`、`redis.distribute-timeout`、`zookeeper.timeout`、`mongo.timeout`、`cosid.proxy.read-timeout`）设置为正数 |
 | `CosId's MongoDB reactive support was removed in 4.0` | 添加 `org.mongodb:mongodb-driver-sync`，见 [MongoDB](../backends/mongo.md) |
 | `has converter.group-prefix enabled but no group` | 为该号段生成器设置 `group.by`，或关闭 `converter.group-prefix.enabled` |
-| `MachineIdOverflowException` | 命名空间中所有机器号都被存活或稳定实例持有，或租约尚未过期。等待被终止或启动失败实例的安全守护时长过去（启动失败目前不会释放租约，反复失败可能耗尽命名空间）、增大 `cosid.machine.machine-bit`，或检查是否有实例误用了该命名空间 |
+| `MachineIdOverflowException` | 命名空间中所有机器号都被存活或稳定实例持有，或租约尚未过期。等待被终止实例的安全守护时长过去（反复崩溃重启可能耗尽命名空间；4.0.1 起启动失败会释放租约）、增大 `cosid.machine.machine-bit`，或检查是否有实例误用了该命名空间 |
 | `ClockTooManyBackwardsException` | 主机时钟落后于机器号水位线超过 `broken-threshold`（500 毫秒）：上一个持有者的时钟偏快。修复时钟同步；该机器号会被再次释放 |
 | `cosid.machine.distributor.manual.machineId can not be null` | `manual` 需要设置 `cosid.machine.distributor.manual.machine-id`；或者改用租约存储 |
 | 找不到 `InstanceId` 或 `GuardDistribute` 类型的 Bean | 启用了 Snowflake ID 或 `CosIdGenerator`，但没有设置 `cosid.machine.enabled=true` |

@@ -13,7 +13,7 @@
 
 import DefaultTheme from 'vitepress/theme'
 import {onMounted, watch, nextTick} from 'vue'
-import {type Theme, inBrowser, useData, useRoute, useRouter, withBase} from 'vitepress'
+import {type Theme, inBrowser, useData, useRoute, withBase} from 'vitepress'
 import mediumZoom from 'medium-zoom'
 import './global.css'
 import {redirectOf} from './redirects'
@@ -27,7 +27,6 @@ export default {
     },
     setup() {
         const route = useRoute()
-        const router = useRouter()
         const {site} = useData()
         const redirectIfMoved = () => {
             if (!inBrowser) {
@@ -37,7 +36,7 @@ export default {
             const path = route.path.startsWith(base) ? `/${route.path.slice(base.length)}` : route.path
             const target = redirectOf(path)
             if (target) {
-                router.go(withBase(target) + window.location.hash)
+                window.location.replace(withBase(target) + window.location.hash)
             }
         }
         const initZoom = () => {

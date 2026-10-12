@@ -20,6 +20,7 @@ import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InMemoryMachineStateStorage;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineState;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.test.MockIdGenerator;
@@ -45,6 +46,8 @@ abstract class ManualCommitSpec {
     protected abstract DataSource dataSource();
     
     protected abstract JdbcIdSegmentDistributorFactory segmentDistributorFactory(DataSource manualCommitDataSource);
+    
+    protected abstract JdbcMachineLeaseStore machineLeaseStore(DataSource manualCommitDataSource);
     
     private static long queryLong(DataSource dataSource, String sql, String... parameters) throws SQLException {
         try (Connection connection = dataSource.getConnection();
@@ -73,8 +76,8 @@ abstract class ManualCommitSpec {
         String namespace = MockIdGenerator.usePrefix("manual").generateAsString();
         InstanceId instanceId = InstanceId.of("manual", 1, false);
         InMemoryMachineStateStorage storage = new InMemoryMachineStateStorage();
-        JdbcMachineIdDistributor distributor = new JdbcMachineIdDistributor(new ManualCommitDataSource(dataSource()), storage,
-            ClockBackwardsSynchronizer.DEFAULT);
+        LeaseStoreMachineIdDistributor distributor = new LeaseStoreMachineIdDistributor(machineLeaseStore(new ManualCommitDataSource(dataSource())),
+            storage, ClockBackwardsSynchronizer.DEFAULT);
         String instanceSql = "select machine_id from cosid_machine where namespace = ? and instance_id = ?";
         
         MachineState machineState = distributor.distribute(namespace, 4, instanceId, Duration.ofMinutes(1));

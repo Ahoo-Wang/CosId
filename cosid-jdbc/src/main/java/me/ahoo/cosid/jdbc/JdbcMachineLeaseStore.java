@@ -36,7 +36,7 @@ import java.util.Optional;
  * {@link MachineLeaseStore} on the {@code cosid_machine} table, with conditional updates on
  * {@code (instance_id, last_timestamp)} as the compare-and-set.
  *
- * <p>It uses the same rows as {@link JdbcMachineIdDistributor} (a released machine id has an empty {@code instance_id}),
+ * <p>It uses the same rows as the 3.4 machine id distributor (a released machine id has an empty {@code instance_id}),
  * so instances running either one, and 3.4 instances, can share a namespace during an upgrade. The lease keeps its
  * renewal time, watermark and version in the {@code renew_time}, {@code watermark} and {@code lease_version} columns,
  * and {@code last_timestamp} holds a value that is at least all of them and strictly increases, which 3.4 reads as its
@@ -44,7 +44,7 @@ import java.util.Optional;
  * wrote the row last; otherwise a 3.4 instance did, and {@code last_timestamp} stands for the renewal time and the
  * watermark. A 3.4 instance can write back the same {@code last_timestamp} (a host clock behind it), so handing a
  * machine id to someone else never relies on the lease columns alone: expiry is judged on {@code last_timestamp},
- * exactly as 3.4 judges it, and a new owner starts after it. The table needs the {@code stable} column ({@link JdbcMachineIdDistributor#ADD_STABLE_COLUMN_SQL}) and
+ * exactly as 3.4 judges it, and a new owner starts after it. The table needs the {@code stable} column ({@link #ADD_STABLE_COLUMN_SQL}) and
  * the lease columns ({@link #ADD_LEASE_COLUMNS_SQL}, {@link PostgreSqlDialect#ADD_LEASE_COLUMNS_SQL}): the constructor
  * fails naming the statement when they are missing. The server clock is read with {@code serverTimeSql}:
  * {@link #MYSQL_SERVER_TIME_SQL} by default, {@link PostgreSqlDialect#SERVER_TIME_SQL} for PostgreSQL. Every statement
@@ -69,6 +69,11 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
     private static final String PROBE_STABLE_COLUMN = "select stable from cosid_machine where 1=0";
     
     private static final String PROBE_TABLE = "select 1 from cosid_machine where 1=0";
+    
+    /**
+     * Migration of a table created before the {@code stable} column existed (MySQL syntax).
+     */
+    public static final String ADD_STABLE_COLUMN_SQL = "alter table cosid_machine add column stable tinyint not null default 0";
     
     /**
      * Fails on tables created before 4.0.
@@ -152,7 +157,7 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
                 + "(or PostgreSqlDialect.INIT_COSID_MACHINE_TABLE_SQL on PostgreSQL).", sqlException);
         }
         throw new IllegalStateException("Table cosid_machine has no stable column, which JdbcMachineLeaseStore needs. Add it with: ["
-                + JdbcMachineIdDistributor.ADD_STABLE_COLUMN_SQL + "] (MySQL) or [" + PostgreSqlDialect.ADD_STABLE_COLUMN_SQL + "] (PostgreSQL).",
+                + ADD_STABLE_COLUMN_SQL + "] (MySQL) or [" + PostgreSqlDialect.ADD_STABLE_COLUMN_SQL + "] (PostgreSQL).",
             sqlException);
     }
     

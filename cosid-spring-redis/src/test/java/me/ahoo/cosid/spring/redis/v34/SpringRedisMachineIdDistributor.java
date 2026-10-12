@@ -11,18 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.cosid.spring.redis;
+package me.ahoo.cosid.spring.redis.v34;
 
 import static me.ahoo.cosid.machine.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
 
-import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.spring.redis.RedisCommandTimeout;
 
 import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
@@ -36,11 +37,8 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Spring Redis MachineIdDistributor.
- *
- * <p><img src="doc-files/RedisMachineIdDistributor.png" alt="RedisMachineIdDistributor"></p>
- *
- * @author ahoo wang
+ * The 3.4 Redis machine id distributor, kept as a test fixture: it writes the 3.4 key format, so tests can run 3.4
+ * instances next to 4.0 ones. Removed from the library in 4.0, see {@code SpringRedisMachineLeaseStore}.
  */
 @Slf4j
 public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributor {

@@ -13,7 +13,7 @@
 
 package me.ahoo.cosid.spring.redis;
 
-import static me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor.hashTag;
+import static me.ahoo.cosid.spring.redis.RedisKeys.hashTag;
 
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.lease.Lease;
@@ -32,7 +32,7 @@ import java.util.Optional;
 /**
  * {@link MachineLeaseStore} on Redis: one atomic Lua script per primitive ({@code machine_lease.lua}).
  *
- * <p>It uses the same keys as {@link SpringRedisMachineIdDistributor} ({@code cosid:{namespace}:itc_idx}, {@code revert},
+ * <p>It uses the same keys as the 3.4 machine id distributor ({@code cosid:{namespace}:itc_idx}, {@code revert},
  * {@code adder}, {@code stable}), so instances running either one, and 3.4 instances, can share a namespace during an
  * upgrade. The watermark, renewal time and version of each machine id are kept in {@code cosid:{namespace}:lease}; the
  * 3.4 keys hold a timestamp that is at least all of them, which 3.4 reads as its last timestamp. A machine id last

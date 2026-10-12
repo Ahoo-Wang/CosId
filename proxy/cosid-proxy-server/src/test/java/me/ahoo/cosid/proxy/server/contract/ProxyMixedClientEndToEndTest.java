@@ -48,7 +48,6 @@ class ProxyMixedClientEndToEndTest extends MixedLeaseFormatSpec {
         ProxyEndToEnd.serverProperties(registry);
     }
     
-    @SuppressWarnings("deprecation")
     @Override
     protected MachineIdDistributor v34() {
         return new ProxyMachineIdDistributor(ProxyEndToEnd.machineClient(port), new InMemoryMachineStateStorage(), ClockBackwardsSynchronizer.DEFAULT);

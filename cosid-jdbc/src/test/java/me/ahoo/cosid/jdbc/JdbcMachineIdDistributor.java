@@ -35,9 +35,8 @@ import java.sql.SQLException;
 import java.time.Duration;
 
 /**
- * Jdbc MachineId Distributor.
- *
- * @author ahoo wang
+ * The 3.4 JDBC machine id distributor, kept as a test fixture: it writes the 3.4 rows, so tests can run 3.4 instances
+ * next to 4.0 ones. Removed from the library in 4.0, see {@code JdbcMachineLeaseStore}.
  */
 @Slf4j
 public class JdbcMachineIdDistributor extends AbstractMachineIdDistributor {

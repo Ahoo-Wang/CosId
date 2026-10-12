@@ -17,8 +17,6 @@ import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
-import me.ahoo.cosid.mongo.MachineCollection;
-import me.ahoo.cosid.mongo.MongoMachineCollection;
 import me.ahoo.cosid.mongo.MongoMachineInitializer;
 import me.ahoo.cosid.mongo.MongoMachineLeaseStore;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
@@ -111,17 +109,6 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
             return new MongoMachineLeaseStore(mongoClient.getDatabase(mongo.getDatabase()),
                 MachineLeaseStores.positive(mongo.getTimeout(), MachineProperties.PREFIX + ".distributor.mongo.timeout"));
         }
-        
-        @Bean
-        @Primary
-        @ConditionalOnMissingBean
-        public MongoMachineCollection mongoMachineCollection(MongoClient mongoClient) {
-            MongoDatabase mongoDatabase = mongoClient.getDatabase(
-                machineProperties.getDistributor().getMongo().getDatabase()
-            );
-            mongoDatabase = withTimeout(mongoDatabase);
-            return new MongoMachineCollection(mongoDatabase.getCollection(MachineCollection.COLLECTION_NAME));
-        }
     }
     
     /**
@@ -131,11 +118,6 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
     @ConditionalOnClass(name = "com.mongodb.reactivestreams.client.MongoClient")
     @ConditionalOnMissingClass("com.mongodb.client.MongoClient")
     static class ReactiveOnly {
-        @Bean
-        public MachineCollection mongoMachineCollection() {
-            return MongoReactiveRemoved.fail();
-        }
-        
         @Bean
         public MongoMachineLeaseStore mongoMachineLeaseStore() {
             return MongoReactiveRemoved.fail();

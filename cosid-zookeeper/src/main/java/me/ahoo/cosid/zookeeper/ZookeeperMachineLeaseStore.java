@@ -39,7 +39,7 @@ import java.util.concurrent.Callable;
 /**
  * {@link MachineLeaseStore} on ZooKeeper, with versioned writes and multi-operation transactions as the compare-and-set.
  *
- * <p>It uses the same nodes as {@link ZookeeperMachineIdDistributor}, so instances running either one can share a
+ * <p>It uses the same nodes as the 3.4 machine id distributor, so instances running either one can share a
  * namespace during an upgrade:</p>
  * <ul>
  *     <li>{@code /cosid/{namespace}/__itc_idx/{instanceId}}: {@code machineId|lastTimestamp} of the lease the instance holds</li>

@@ -36,6 +36,11 @@ class JdbcManualCommitMySqlTest extends ManualCommitSpec {
     }
     
     @Override
+    protected JdbcMachineLeaseStore machineLeaseStore(DataSource manualCommitDataSource) {
+        return new JdbcMachineLeaseStore(manualCommitDataSource);
+    }
+    
+    @Override
     protected JdbcIdSegmentDistributorFactory segmentDistributorFactory(DataSource manualCommitDataSource) {
         return new JdbcIdSegmentDistributorFactory(manualCommitDataSource, true, new JdbcIdSegmentInitializer(manualCommitDataSource),
             JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);

@@ -36,7 +36,9 @@
 
 `SegmentId.generateGrouped()` has no default implementation any more: a custom `SegmentId` must implement it. A custom converter decorator should override `asString(long, GroupedKey)` and pass the group on. With the starter, `converter.group-prefix.enabled` on a segment id without `group.by` fails at startup.
 
-_Still to be filled in as the changes land: the old machine id distributors._
+### The 3.x machine id distributors
+
+`SpringRedisMachineIdDistributor` (and its four `machine_id_*.lua` scripts), `JdbcMachineIdDistributor`, `ZookeeperMachineIdDistributor`, `MongoMachineIdDistributor` (with `MachineCollection` and `MongoMachineCollection`) and the proxy client `ProxyMachineIdDistributor` are removed. Use `LeaseStoreMachineIdDistributor` on the backend's `MachineLeaseStore` (`SpringRedisMachineLeaseStore`, `JdbcMachineLeaseStore`, `ZookeeperMachineLeaseStore`, `MongoMachineLeaseStore`, `ProxyMachineLeaseStore`), which the starter wires for each `cosid.machine.distributor.type`. They share the 3.x data, see **Rolling upgrade**. `JdbcMachineIdDistributor.ADD_STABLE_COLUMN_SQL` is now `JdbcMachineLeaseStore.ADD_STABLE_COLUMN_SQL`, `SpringRedisMachineIdDistributor.hashTag` is `RedisKeys.hashTag`, and `MachineCollection.COLLECTION_NAME` is `MachineOperates.COLLECTION_NAME`.
 
 ### APIs deprecated for removal in 3.x
 

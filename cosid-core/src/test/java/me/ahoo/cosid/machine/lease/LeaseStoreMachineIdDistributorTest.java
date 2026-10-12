@@ -16,9 +16,9 @@ package me.ahoo.cosid.machine.lease;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InMemoryMachineStateStorage;
 import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
-import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.test.MockIdGenerator;
 import me.ahoo.cosid.test.machine.distributor.MachineIdDistributorSpec;
@@ -39,6 +39,28 @@ class LeaseStoreMachineIdDistributorTest extends MachineIdDistributorSpec {
     @Override
     protected MachineIdDistributor getDistributor() {
         return new LeaseStoreMachineIdDistributor(store, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
+    }
+    
+    /**
+     * The machine id is taken in the store, then writing the local state fails: the lease is given back instead of
+     * staying blocked for the safe guard duration.
+     */
+    @Test
+    void aFailedLocalStateWriteReleasesTheLease() {
+        String namespace = "localStateFails_" + MockIdGenerator.INSTANCE.generateAsString();
+        MachineStateStorage failingStorage = new InMemoryMachineStateStorage() {
+            @Override
+            public void set(String namespace, int machineId, InstanceId instanceId) {
+                throw new IllegalStateException("disk full");
+            }
+        };
+        LeaseStoreMachineIdDistributor distributor = new LeaseStoreMachineIdDistributor(store, failingStorage, ClockBackwardsSynchronizer.DEFAULT);
+        
+        Assertions.assertThrows(IllegalStateException.class,
+            () -> distributor.distribute(namespace, 1, InstanceId.of("owner", false), Duration.ofMinutes(1)));
+        
+        Optional<Lease> released = store.claimReleased(namespace, InstanceId.of("next", false), 1, store.serverTime());
+        Assertions.assertTrue(released.isPresent(), "the machine id must have been released");
     }
     
     @Test

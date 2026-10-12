@@ -21,11 +21,12 @@ import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.lang.Nullable;
 
 /**
  * CosId Snowflake AutoConfiguration.
@@ -37,36 +38,28 @@ import org.springframework.lang.Nullable;
 @ConditionalOnCosIdSnowflakeEnabled
 @EnableConfigurationProperties(SnowflakeIdProperties.class)
 public class CosIdSnowflakeAutoConfiguration {
-    private final CosIdProperties cosIdProperties;
-    private final MachineProperties machineProperties;
-    private final SnowflakeIdProperties snowflakeIdProperties;
-    
-    public CosIdSnowflakeAutoConfiguration(CosIdProperties cosIdProperties,
-                                           MachineProperties machineProperties,
-                                           SnowflakeIdProperties snowflakeIdProperties) {
-        this.cosIdProperties = cosIdProperties;
-        this.machineProperties = machineProperties;
-        this.snowflakeIdProperties = snowflakeIdProperties;
-    }
-    
-    @Bean
-    public SnowflakeIdBeanRegistrar snowflakeIdBeanRegistrar(final InstanceId instanceId,
+    /**
+     * Creates the snowflake ids, after running the {@link CustomizeSnowflakeIdProperties}.
+     */
+    @Bean(SnowflakeIdBeanRegistrar.BEAN_NAME)
+    public SnowflakeIdBeanRegistrar snowflakeIdBeanRegistrar(CosIdProperties cosIdProperties,
+                                                             MachineProperties machineProperties,
+                                                             SnowflakeIdProperties snowflakeIdProperties,
+                                                             InstanceId instanceId,
                                                              IdGeneratorProvider idGeneratorProvider,
                                                              GuardDistribute guardDistribute,
                                                              ClockBackwardsSynchronizer clockBackwardsSynchronizer,
-                                                             ConfigurableApplicationContext applicationContext,
-                                                             @Nullable
-                                                             CustomizeSnowflakeIdProperties customizeSnowflakeIdProperties
-    ) {
-        return new SnowflakeIdBeanRegistrar(cosIdProperties,
-            machineProperties,
-            snowflakeIdProperties,
-            instanceId,
-            idGeneratorProvider,
-            guardDistribute,
-            clockBackwardsSynchronizer,
-            applicationContext,
-            customizeSnowflakeIdProperties);
+                                                             ObjectProvider<CustomizeSnowflakeIdProperties> customizers,
+                                                             ConfigurableListableBeanFactory beanFactory) {
+        return new SnowflakeIdBeanRegistrar(cosIdProperties, machineProperties, snowflakeIdProperties, instanceId, idGeneratorProvider,
+            guardDistribute, clockBackwardsSynchronizer, customizers, (BeanDefinitionRegistry) beanFactory);
     }
     
+    /**
+     * The snowflake id beans, as bean definitions: see {@link SnowflakeIdBeanDefinitionRegistrar}.
+     */
+    @Bean
+    public static SnowflakeIdBeanDefinitionRegistrar snowflakeIdBeanDefinitionRegistrar() {
+        return new SnowflakeIdBeanDefinitionRegistrar();
+    }
 }

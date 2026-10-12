@@ -125,4 +125,10 @@ With the starter, `cosid.machine.distributor.type` `redis`, `jdbc`, `zookeeper` 
 
 `cosid.snowflake.zone-id` binds to a `ZoneId`, so an unknown zone fails at startup instead of when the first friendly id is built.
 
+### Segment and snowflake id beans
+
+The `{name}SegmentId` and `{name}SnowflakeId` beans are bean definitions now, registered by `SegmentIdBeanDefinitionRegistrar` and `SnowflakeIdBeanDefinitionRegistrar` for the ids in the configuration properties. Each definition is a factory method on the `segmentIdBeanRegistrar`/`snowflakeIdBeanRegistrar` bean, so the registration needs no other bean and works with ahead-of-time processing. Other beans can `@DependsOn("orderSegmentId")`, and closing the context closes the segment ids, which stops a segment chain's background prefetch (`StringSegmentId` is `AutoCloseable` and closes the id it decorates). Closing the context also removes its ids from the `IdGeneratorProvider`, unless the provider maps a name to another instance by then. The ids are created with the other singletons, so code that reads them from the `IdGeneratorProvider` while the context starts should depend on their beans.
+
+`CustomizeSegmentIdProperties` and `CustomizeSnowflakeIdProperties` are ordinary beans, applied to the `SegmentIdProperties` and `SnowflakeIdProperties` beans when the registrar beans are created. An id a customizer adds is registered in the `IdGeneratorProvider` only, not as a bean; declare it in the configuration properties to have a bean.
+
 The API diff against 3.4 is reported on every pull request to `main` (the **API Diff** workflow).

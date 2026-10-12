@@ -79,7 +79,7 @@ cosid:
 
 ## 号段存储
 
-`cosid.segment.distributor.type` 选择存储：`redis`（默认）、`jdbc`、`mongo`、`zookeeper` 或 `proxy`，也可以是应用中某个 `CosIdStoreProvider` 的类型。见[后端](../backends/redis.md)。
+`cosid.segment.distributor.type` 选择存储：`redis`（默认）、`jdbc`、`mongo`、`zookeeper` 或 `proxy`，也可以是应用中某个 `CosIdStoreProvider` 的类型。见[选择后端](../backends/index.md)。
 
 ## 配置
 

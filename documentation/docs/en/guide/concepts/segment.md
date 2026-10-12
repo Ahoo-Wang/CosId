@@ -79,7 +79,7 @@ Each group is its own counter in the store, named `{name}@{group}` (for example 
 
 ## Segment stores
 
-`cosid.segment.distributor.type` selects the store: `redis` (default), `jdbc`, `mongo`, `zookeeper` or `proxy`, or the type of an application `CosIdStoreProvider`. See the [backends](../backends/redis.md).
+`cosid.segment.distributor.type` selects the store: `redis` (default), `jdbc`, `mongo`, `zookeeper` or `proxy`, or the type of an application `CosIdStoreProvider`. See [Choosing a backend](../backends/index.md).
 
 ## Configuration
 

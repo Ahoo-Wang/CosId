@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide adds CosId to a Spring Boot application, with Redis as the store. Every other backend works the same way with its own dependency and `type`, see [Backends](./backends/redis.md).
+This guide adds CosId to a Spring Boot application, with Redis as the store. Every other backend works the same way with its own dependency and `type`, see [Choosing a backend](./backends/index.md).
 
 ## Requirements
 

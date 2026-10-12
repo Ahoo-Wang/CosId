@@ -1,111 +1,136 @@
-# CosId Proxy 模块
+# CosId Proxy
 
-<center>
+CosId Proxy 是位于应用与存储之间的一个小型 HTTP 服务。应用向 Proxy 租用机器号、获取号段，只有 Proxy 持有存储的地址和凭据。ID 仍然在每个应用内部生成；只有原本需要访问存储的地方才会调用 Proxy。
 
-![CosId Proxy](../../../public/assets/design/CosId-Proxy.png)
-</center>
-
-CosId Proxy 支持远程 ID 分发，允许客户端通过代理服务器分发机器 ID 和号段 ID，而不是直接连接底层存储。
-
-## 概述
-
-CosId Proxy 提供客户端-服务器架构：
-
-- **代理服务器**：使用底层存储（Redis、ZooKeeper、JDBC 等）管理机器 ID 和号段 ID 的实际分发
-- **代理客户端**：使用 `ProxyMachineLeaseStore` 和 `ProxyIdSegmentDistributor` 通过 HTTP/REST API 与代理服务器通信
-
-此架构适用于：
-- 直接访问存储基础设施受限的场景
-- 需要集中管理 ID 的场景
-- 需要增强安全性和审计的场景
-
-## 核心组件
-
-### ProxyMachineLeaseStore
-
-`ProxyMachineLeaseStore` 是 `MachineLeaseStore` 的远程实现。客户端与其它后端一样用 `LeaseStoreMachineIdDistributor` 包装它，并通过服务端的租约 API（`/machines/v2`）来：
-- 申领机器 ID（新的，或已释放、已过期的）
-- 续约（心跳）
-- 释放租约
-
-服务端保留 v1 机器 API（`/machines/{namespace}`）供 3.x 客户端使用，该 API 已弃用；3.x 服务端没有 v2 API，因此需先升级服务端再升级客户端。
-
-### ProxyIdSegmentDistributor
-
-`ProxyIdSegmentDistributor` 是 `IdSegmentDistributor` 的远程实现，通过与代理服务器通信来实现：
-- 分配号段 ID
-- 管理号段链
-
-## 架构
+<p align="center">
+  <img src="../../../public/assets/design/CosId-Proxy.png" alt="CosId Proxy"/>
+</p>
 
 ```
-┌─────────────────┐         HTTP/REST          ┌─────────────────┐
-│  CosId 客户端   │ ◄──────────────────────► │  代理服务器      │
-│                 │                           │                 │
-│ ProxyLeaseStore │                           │ Redis/JDBC/ZK   │
-│ ProxyIdSegment  │                           │                 │
-└─────────────────┘                           └─────────────────┘
+┌──────────────────────────┐      HTTP       ┌───────────────────┐       ┌────────────────────┐
+│ Application              │ ──────────────► │ cosid-proxy-server│ ────► │ Redis / JDBC / ... │
+│ ProxyMachineLeaseStore   │                 │                   │       │                    │
+│ ProxyIdSegmentDistributor│                 │                   │       │                    │
+└──────────────────────────┘                 └───────────────────┘       └────────────────────┘
 ```
 
-## 使用场景
+Use it when applications must not reach the store directly, for example across network zones, or to keep one set of store credentials. It adds a service to run and secure, and a network hop at startup, at lease renewal and at segment prefetch.
 
-- **安全受限环境**：当客户端应用无法直接访问存储基础设施时
-- **集中管理**：当需要集中控制 ID 生成时
-- **多租户系统**：当希望通过代理隔离每个租户的 ID 生成时
+适用于应用不能直接访问存储的场景，例如跨网络分区，或者希望只维护一套存储凭据。代价是多运行并保护一个服务，并且在启动、租约续约和号段预取时多一次网络往返。
 
-## 服务端限制
+## 运行服务端
 
-代理服务端会校验客户端传来的参数：
+服务端是 `cosid-proxy-server`，一个 Spring Boot 应用，以 Docker 镜像 `ahoowang/cosid-proxy` 发布。它监听 `8688` 端口，默认使用 Redis；配置它的存储与配置应用完全相同，使用 `cosid.machine.distributor.type` 和 `cosid.segment.distributor.type`。
 
-| 属性 | 默认值 | 说明 |
-|----|-----|----|
-| `cosid.proxy.server.min-safe-guard-duration` | `5m` | 只有租约最后一次续约（以服务端存储时钟为准）距今至少这么久，客户端才能接管该机器 ID。上报更晚截止时间的客户端会收到 `400`；3.x 客户端上报的更短守护时长会被提升到该值并记录警告。不要大于客户端的 `cosid.machine.guarder.safe-guard-duration` |
-| `cosid.proxy.server.max-clock-skew` | `1m` | 客户端（守护、归还时）上报的 `lastTimeStamp` 最多比服务端时钟超前这么多；过于超前的时间戳会让机器号永远无法被回收。`0` 表示不检查 |
-| `cosid.proxy.server.segment.max-step` | `1000000000000` | 客户端可申请的最大号段 `step`；`0` 表示不限制。号段链一次申请 `step × 号段数`，负载高时预取得更多，所以至少要设为所有客户端中最大的 `step × 最大预取距离`。`offset` 必须在 `0` 到 `Long.MAX_VALUE / 2` 之间 |
+```shell
+docker run --name cosid-proxy -d -p 8688:8688 --link redis \
+  -e SPRING_DATA_REDIS_URL=redis://redis:6379 \
+  -e COSID_PROXY_TOKEN=change-me \
+  ahoowang/cosid-proxy:4.0.0-RC2
+```
 
-超出这些限制的请求返回 `400`。
+请使用 `--network`（或 `--link redis`）让容器能访问 Redis，并使用已发布的镜像标签（撰写本文时为 4.0.0-RC2）。
 
-## 高可用：服务端重启自愈
+没有令牌时服务端会拒绝启动，见[认证](#认证)。
 
-代理服务器的号段分发器缓存仅存在于内存中。由于客户端只在启动时调用一次 `createDistributor`，服务端重启后缓存未命中时，`nextMaxId` 会基于底层存储自动重建分发器（懒重建使用默认 `offset=0`，仅在后端首次初始化时生效），已分配的号段状态不会丢失。即：**代理服务器重启后，已运行的客户端无需重启即可自动恢复取号**（自 v3.2.1 起）。
+## 客户端
 
-## 鉴权
+### 安装
 
-代理服务端至少需要一个 Bearer token：没有配置时启动失败（4.0 起）。在服务端配置一个或多个 token，并在每个客户端配置相同的 token：
+::: code-group
+```kotlin [Gradle (Kotlin)]
+dependencies {
+    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
+    implementation(platform("me.ahoo.cosid:cosid-dependencies:$cosidVersion")) // 管理 CoApi 的版本
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("me.ahoo.cosid:cosid-proxy")
+    implementation("me.ahoo.coapi:coapi-spring-boot-starter")
+}
+```
+```xml [Maven]
+<dependencies>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-proxy</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>me.ahoo.coapi</groupId>
+        <artifactId>coapi-spring-boot-starter</artifactId>
+    </dependency>
+</dependencies>
+```
+:::
+
+使用 Maven 时，还需要把 `me.ahoo.cosid:cosid-dependencies` 作为 BOM 导入，以管理 CoApi 的版本。
+
+### 配置
 
 ```yaml
-# 代理服务端
+cosid:
+  namespace: ${spring.application.name}
+  proxy:
+    host: http://cosid-proxy:8688
+    token: ${COSID_PROXY_TOKEN}
+  machine:
+    enabled: true
+    distributor:
+      type: proxy
+  segment:
+    enabled: true
+    distributor:
+      type: proxy
+```
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `cosid.proxy.host` | `http://localhost:8688` | Proxy 服务端的基础 URL |
+| `cosid.proxy.token` | 无 | 每个请求携带的 Bearer 令牌 |
+| `cosid.proxy.connect-timeout` | `2s` | 连接服务端的超时；`0` 表示不限制 |
+| `cosid.proxy.read-timeout` | `5s` | 等待响应的超时，包括启动时申领机器号；`0` 表示不限制，但 `cosid.machine.distributor.type=proxy` 时必须为正数 |
+
+客户端与其他后端一样，是一个 `MachineLeaseStore` 和一个 `IdSegmentDistributor`：`ProxyMachineLeaseStore` 调用服务端的租约 API（`/machines/v2`）申领、续约和释放机器号，`ProxyIdSegmentDistributor` 向服务端申请号段。预先编译（AOT）和原生镜像暂不支持 Proxy 客户端；使用 Proxy 的应用请运行在 JVM 上。
+
+## 认证
+
+服务端至少需要一个 Bearer 令牌，没有令牌时启动失败。在服务端配置令牌，并在每个客户端配置相同的令牌：
+
+```yaml
+# Proxy 服务端
 cosid:
   proxy:
     server:
       auth:
         tokens:
-          - ${COSID_PROXY_TOKEN}   # 可以同时配置多个，用于轮换
-        public-paths:              # 无需 token 的路径，默认：management.endpoints.web.base-path 下的健康检查端点
+          - ${COSID_PROXY_TOKEN}   # 可配置多个令牌用于轮换
+        public-paths:              # 无需令牌；默认为健康检查端点
           - /actuator/health
           - /actuator/health/**
 ```
 
-```yaml
-# 客户端应用
-cosid:
-  proxy:
-    host: http://cosid-proxy:8688
-    token: ${COSID_PROXY_TOKEN}
-```
+除公开路径外，所有没有携带有效 `Authorization: Bearer <token>` 的请求都返回 `401`，包括 actuator 端点（其中一些会生成或删除 ID）和 API 文档。公开路径是按解码后路径匹配的路径模式，默认为 `management.endpoints.web.base-path` 下的健康检查端点。如需开放 API 文档，添加 `/v3/api-docs/**`、`/swagger-ui.html` 和 `/webjars/swagger-ui/**`（服务端使用基于 WebFlux 的 springdoc）。
 
-配置 token 后，除公开路径外，所有没有携带有效 `Authorization: Bearer <token>` 的请求都返回 `401`，包括 Actuator 端点（其中有的能发号或删除生成器）和 API 文档。公开路径是按解码后的路径匹配的路径模式。需要公开 API 文档时，加上 `/v3/api-docs/**` 和 `/swagger-ui/**`。
+`cosid.proxy.server.auth.allow-anonymous: true` 让服务端在没有令牌的情况下运行；仅在可信的网络边界之内使用。
+
+## 服务端限制
+
+服务端会校验客户端的请求，超出以下限制的请求返回 `400`：
+
+| 属性 | 默认值 | 说明 |
+|------|--------|------|
+| `cosid.proxy.server.min-safe-guard-duration` | `5m` | 只有租约最后一次续约（按存储时钟）距今至少这么久，客户端才能接管该机器号。4.0 客户端发送更晚的截止时间会得到 `400`；3.x 客户端更短的守护时长会被提升到该值并记录警告。请不要大于客户端的 `cosid.machine.guarder.safe-guard-duration`；不能为负数 |
+| `cosid.proxy.server.max-clock-skew` | `1m` | 客户端上报的最后时间戳最多可以比存储的时钟（v1 API 为服务端时钟）快多少；过于超前的时间戳会让机器号永远无法回收。`0` 表示不检查；不能为负数 |
+| `cosid.proxy.server.segment.max-step` | `1000000000000` | 客户端可申请的最大号段步长；`0` 表示不限制。号段链一次会申请 `step × 号段数`，负载高时更多，因此请至少设置为所有客户端中最大的 `step × max-prefetch-distance`。`offset` 必须在 `0` 到 `Long.MAX_VALUE / 2` 之间 |
 
 ## 部署安全
 
-- 代理服务端只应部署在内网，不要暴露到公网。任何能调用它的人都能释放一个仍被存活实例持有的机器号，导致两个实例生成相同的 ID。
-- token 是 Bearer 凭证：持有者可以调用所有端点、操作所有命名空间。请通过 HTTPS 或带双向 TLS 的服务网格传输，存放在密钥管理系统中；轮换时同时配置新旧两个 token。
-- 保持 `cosid.proxy.server.segment.max-step` 为有限值，避免单个请求耗尽或溢出号段。
-- `cosid.proxy.server.auth.allow-anonymous=true` 可在不配置 token 的情况下运行，只能用于可信网络边界之内。
-
-### JMX
-
-服务端默认不开启 JMX。需要通过 JMX 监控时，在 `JAVA_OPTS` 中传入参数，并开启认证和 TLS：
+- 只在内网运行服务端，绝不暴露到公网。任何能调用它的人都可以释放存活实例持有的机器号，导致两个实例生成相同的 ID。
+- 令牌是 Bearer 凭据：持有者可以对所有命名空间调用所有端点。请通过 HTTPS 或启用双向 TLS 的服务网格传输令牌，保存在密钥管理系统中，轮换时同时配置新旧两个令牌。
+- `cosid.proxy.server.segment.max-step` 保持为有限值，避免单个请求耗尽或溢出计数器。
+- 服务端不开启 JMX。如需通过 JMX 监控，请在 `JAVA_OPTS` 中传入参数，并启用认证和 TLS：
 
 ```shell
 JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
@@ -117,4 +142,12 @@ JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
   -Djavax.net.ssl.keyStorePassword=${JMX_KEYSTORE_PASSWORD}"
 ```
 
-未认证的 JMX 可以完全控制 JVM；堆转储还会暴露 token 和数据库密码。
+未认证的 JMX 等于把 JVM 的完全控制权交出去；堆转储还会泄露令牌和存储密码。
+
+## 可用性
+
+服务端不保存客户端状态：租约和计数器都在它的存储中。可以在负载均衡器后面运行多个服务端以提高可用性。服务端重启后，运行中的客户端无需重启即可继续：服务端会在下一个请求时从存储重建号段分配器。
+
+## 从 3.x 升级
+
+先升级服务端，再升级客户端。4.0 服务端为 3.x 客户端保留了已弃用的 v1 机器号 API（`/machines/{namespace}`），4.0 客户端使用 3.x 服务端没有的 v2 租约 API。见[迁移到 4.0](../migration/4.0.md)。

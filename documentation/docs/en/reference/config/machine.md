@@ -1,96 +1,66 @@
-# Machine Configuration
+# Machine ID Configuration
 
-> `me.ahoo.cosid.spring.boot.starter.machine.MachineProperties`
+> `me.ahoo.cosid.spring.boot.starter.machine.MachineProperties`, prefix `cosid.machine`
 
-| Name              | Data Type             | Description                   | Default Value       |
-|-----------------|------------------|----------------------|-----------|
-| stable          | `boolean`        | Whether it is a stable instance, stable instances will not recycle machine IDs | `false`   |
-| port            | `Integer`        | Port number                  | Process ID (PID) |
-| instanceId      | `String`         | Application instance ID (globally unique)         | Application IP:PID  |
-| machineBit      | `int`            | Machine bits                 | `10`      |
-| stateStorage    | `StateStorage`   | Machine state storage               |           |
-| distributor     | `Distributor`    | Machine ID distributor               |           |
-| guarder         | `Guarder`        | Machine ID (heartbeat) guarder            |           |
-| clock-backwards | `ClockBackwards` | Clock backward configuration               |           |
+The machine id is needed by Snowflake IDs and `CosIdGenerator`. See [Machine ID](../../guide/concepts/machine-id.md) for how leases work.
 
-::: tip Stable instances
-Other instances never recycle the machine ID of a stable instance, even after it has been offline for longer than the safe guard duration.
-When upgrading from an earlier version:
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | `boolean` | `false` | Distribute a machine id. Required for `cosid.snowflake` and `cosid.generator` |
+| `instance-id` | `String` | host address and `port` | The instance's identity in the lease store. Set it, with `stable`, for an instance that keeps its identity across restarts |
+| `port` | `Integer` | process id | Second part of the default instance id (`{host}:{port}`) |
+| `stable` | `Boolean` | not set (`false`) | A stable instance's machine id is never recycled by others, and it never takes over another instance's expired lease. It also keeps its machine state in a local file |
+| `machine-bit` | `int` | `10` | Machine id bits; a generator can override it with its own `machine-bit` |
+| `state-storage.local.state-location` | `String` | `~/.cosid-machine-state` | Directory of the local machine state of a stable instance |
 
-- The protection is effective only once every instance runs the new version: older instances do not read the stable flag and can still recycle a stable machine ID during a rolling upgrade.
-- A stable instance that is already offline is unprotected until it has started once on the new version, which records the flag.
-- JDBC: add the `stable` column (see [CosId-Jdbc](../../guide/backends/jdbc.md)) before starting 4.0, which fails at startup without it.
+::: tip Stable instances and upgrades
+The stable flag protects a machine id only once every instance runs 3.3 or later: older instances do not read it. A stable instance that is already offline is unprotected until it has started once on the new version, which records the flag. JDBC needs the `stable` column, see [JDBC](../../guide/backends/jdbc.md#upgrading-a-3-x-table).
 :::
 
-### StateStorage
+## Distributor
 
-> State Storage Configuration
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `distributor.type` | `String` | `manual` | `manual`, `stateful_set`, `redis`, `jdbc`, `mongo`, `zookeeper`, `proxy`, or the `getType()` of an application `CosIdStoreProvider`. Compared by letters and digits, ignoring case, so `stateful-set` and `statefulSet` work too |
+| `distributor.manual.machine-id` | `Integer` | none | `manual`: the machine id; required |
+| `distributor.redis.timeout` | `Duration` | `1s` | `redis`: lease renewal and release; must be positive |
+| `distributor.redis.distribute-timeout` | `Duration` | `10s` | `redis`: each command of the claim at startup, whose first command also pays for connecting; must be positive |
+| `distributor.jdbc.enable-auto-init-cosid-machine-table` | `boolean` | `false` | `jdbc`: create the `cosid_machine` table at startup |
+| `distributor.jdbc.init-cos-id-machine-table-sql` | `String` | MySQL DDL | `jdbc`: the table DDL |
+| `distributor.jdbc.init-namespace-idx-sql`, `init-instance-id-idx-sql` | `String` | empty | `jdbc`: separate index DDL, skipped when empty (the MySQL DDL declares the indexes inline) |
+| `distributor.jdbc.query-timeout` | `Duration` | `5s` | `jdbc`: each statement; `0` disables it |
+| `distributor.jdbc.server-time-sql` | `String` | detected | `jdbc`: the query for the database clock in epoch milliseconds. Unset, the starter picks it for MySQL, MariaDB and PostgreSQL; other databases must set it |
+| `distributor.mongo.database` | `String` | `cosid_db` | `mongo`: database of the `cosid_machine` collection |
+| `distributor.mongo.timeout` | `Duration` | `5s` | `mongo`: each operation (driver `timeoutMS`); must be positive |
+| `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`: lease renewal and release (Curator has no per-operation timeout); must be positive |
 
-| Name      | Data Type                 | Description         | Default Value    |
-|---------|----------------------|------------|--------|
-| local   | `StateStorage.Local` | Local machine state storage configuration |        |
+The proxy client's timeouts are on the [proxy page](./proxy.md). A timeout that must be positive fails startup when set to `0`.
 
-#### StateStorage.Local
+`cosid.machine.distributor.provider` was removed in 4.0: set `distributor.type` to the type of the provider instead.
 
-| Name             | Data Type     | Description     | Default Value                      |
-|----------------|----------|--------|--------------------------|
-| state-location | `String` | State storage location | `./cosid-machine-state/` |
+## Guarder
 
-### Distributor
+The guarder renews the machine id lease. Prefix `cosid.machine.guarder`.
 
-> Machine ID Distributor Configuration
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `enabled` | `boolean` | `true` | Renew the lease. With `false`, leases never expire, so machine ids are never recycled |
+| `initial-delay` | `Duration` | `1m` | Delay before the first renewal |
+| `delay` | `Duration` | `1m` | Delay between renewals |
+| `safe-guard-duration` | `Duration` | `5m` | A lease not renewed for this long may be taken over by another instance. **Use the same value on every instance of a namespace** |
+| `fail-fast` | `boolean` | `true` | Generators stop with `MachineIdLostException` once the lease is lost, or not renewed for `safe-guard-duration` minus `min(10s, safe-guard-duration / 10)` |
+| `local-state-interval` | `Duration` | `1s` | How often a stable instance writes its last timestamp to the local state file, the clock-backwards check after a restart. After a crash, a clock jump shorter than about this interval may go undetected. `0` disables it |
 
-| Name     | Data Type                 | Description                                                          | Default Value      |
-|--------|----------------------|-------------------------------------------------------------|----------|
-| type | `String` | Machine ID distributor type: `manual`, `stateful_set`, `jdbc`, `redis`, `zookeeper`, `mongo`, `proxy`, or the type of an application `CosIdStoreProvider` (its `getType()`) for a backend CosId does not ship. Compared by letters and digits, ignoring case, so `stateful-set` and `statefulSet` work too | `manual` |
-| manual | `Distributor.Manual` | Manual distributor configuration                                                     |          |
+## Clock backwards
 
-#### Distributor.Manual
+Prefix `cosid.machine.clock-backwards`. Used by `ClockSyncSnowflakeId`, `CosIdGenerator` and the startup check against the lease watermark.
 
-| Name        | Data Type      | Description  | Default Value    |
-|-----------|-----------|-----|--------|
-| machineId | `Integer` | Machine ID | `null` |
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `spin-threshold` | `int` | `1` | Clock jumps up to this many milliseconds are waited out by spinning |
+| `broken-threshold` | `int` | `500` | Jumps up to this many milliseconds are waited out by sleeping; longer ones throw `ClockTooManyBackwardsException`. Must be greater than `spin-threshold` |
 
-### Guarder
-
-> Machine ID (heartbeat) guarder configuration
-
-| Name               | Data Type  | Description | Default Value |
-|--------------------|------------|-------------|---------------|
-| enabled            | `boolean`  | Whether machine ID guarding is enabled | `true` |
-| initialDelay       | `Duration` | Initial delay before the first guard | `PT1M` |
-| delay              | `Duration` | Delay between guards (remote heartbeat) | `PT1M` |
-| safeGuardDuration  | `Duration` | Machine IDs not guarded for this long may be recycled by other instances | `PT5M` |
-| failFast           | `boolean`  | Stop generating IDs once the machine ID lease is lost or expired | `true` |
-| localStateInterval | `Duration` | How often the local machine state (the clock-backwards watermark used after a restart) is refreshed. After a crash, clock backwards shorter than about this interval may go undetected. Applies only with the guarder enabled and local file state storage (`stateStorage.local`). `0` disables it | `PT1S` |
-
-### Backend Call Timeouts
-
-| Property | Default Value | Description |
-|----------|---------------|-------------|
-| `cosid.machine.distributor.redis.timeout` | `1s` | Redis machine ID guard and revert; must be positive |
-| `cosid.machine.distributor.redis.distribute-timeout` | `10s` | Each Redis command of the machine ID claim at startup, whose first command also pays for connecting; must be positive |
-| `cosid.machine.distributor.jdbc.query-timeout` | `5s` | Each JDBC statement |
-| `cosid.machine.distributor.jdbc.server-time-sql` | detected | The query for the database clock in epoch milliseconds. Unset, the starter picks it for MySQL, MariaDB and PostgreSQL; other databases must set it |
-| `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper machine ID guard and revert (Curator has no per-operation timeout); must be positive |
-| `cosid.machine.distributor.mongo.timeout` | `5s` | Each MongoDB machine ID operation (driver `timeoutMS`); must be positive |
-| `cosid.segment.distributor.mongo.timeout` | `5s` | Each MongoDB segment operation |
-| `cosid.segment.distributor.zookeeper.timeout` | `5s` | Each ZooKeeper segment `nextMaxId` |
-| `cosid.proxy.connect-timeout` | `2s` | Connecting to the CosId proxy server |
-| `cosid.proxy.read-timeout` | `5s` | Waiting for the CosId proxy server's response, including machine ID distribution at startup; must be positive |
-
-A timeout that must be positive fails startup when set to `0`. For the others, `0` disables the timeout.
-
-## ClockBackwards
-
-> `me.ahoo.cosid.spring.boot.starter.machine.MachineProperties.ClockBackwards`
-
-| Name               | Data Type  | Description                                           | Default Value    |
-|------------------|-------|----------------------------------------------|--------|
-| spin-threshold   | `int` | Spin synchronization threshold (ms)                                   | `10`   |
-| broken-threshold | `int` | Threshold to throw exception (`ClockTooManyBackwardsException`) (ms) | `2000` |
-
-**YAML Configuration Example**
+## Example
 
 ```yaml
 cosid:
@@ -100,5 +70,5 @@ cosid:
     distributor:
       type: jdbc
     guarder:
-      enabled: true
+      safe-guard-duration: 5m
 ```

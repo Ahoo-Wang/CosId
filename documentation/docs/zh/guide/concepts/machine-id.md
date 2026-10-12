@@ -12,7 +12,7 @@
 
 | 类型 | 方式 | 回收 | 适用场景 |
 |------|------|------|----------|
-| `redis`、`jdbc`、`mongo`、`zookeeper`、`proxy` | 从存储租用（在对应后端的 `MachineLeaseStore` 上使用 `LeaseStoreMachineIdDistributor`） | 租约过期后回收 | 几乎所有场景：选择你已经在运行的存储，见[后端](../backends/redis.md) |
+| `redis`、`jdbc`、`mongo`、`zookeeper`、`proxy` | 从存储租用（在对应后端的 `MachineLeaseStore` 上使用 `LeaseStoreMachineIdDistributor`） | 租约过期后回收 | 几乎所有场景：选择你已经在运行的存储，见[选择后端](../backends/index.md) |
 | `stateful_set` | Kubernetes StatefulSet Pod 的序号，从 `HOSTNAME` 解析（`order-service-3` 得到 3） | 不需要 | StatefulSet 中的 Pod；序号必须在机器号位数范围内 |
 | `manual`（默认） | `cosid.machine.distributor.manual.machine-id` | 不回收 | 单实例或测试。无法阻止两个实例使用同一个值 |
 | 其他值 | `getType()` 与之匹配的 `CosIdStoreProvider` Bean | 取决于实现 | CosId 未内置的存储 |

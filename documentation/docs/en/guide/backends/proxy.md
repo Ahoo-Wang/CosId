@@ -1,77 +1,100 @@
-# CosId Proxy Module
+# CosId Proxy
 
-<center>
+The CosId proxy is a small HTTP server that stands between applications and the store. Applications lease machine ids and take segments from the proxy, and only the proxy holds the store's address and credentials. IDs are still generated inside each application; the proxy is called only for what a store would be called for.
 
-![CosId Proxy](../../../public/assets/design/CosId-Proxy.png)
-</center>
-
-CosId Proxy enables remote ID distribution, allowing clients to distribute machine IDs and segment IDs through a proxy server instead of directly connecting to the underlying storage.
-
-## Overview
-
-CosId Proxy provides a client-server architecture where:
-
-- **Proxy Server**: Manages the actual distribution of machine IDs and segment IDs using underlying storage (Redis, ZooKeeper, JDBC, etc.)
-- **Proxy Client**: Uses `ProxyMachineLeaseStore` and `ProxyIdSegmentDistributor` to communicate with the proxy server via HTTP/REST API
-
-This architecture is useful when:
-- Direct access to storage infrastructure is restricted
-- Centralized ID management is required
-- Enhanced security and auditing are needed
-
-## Key Components
-
-### ProxyMachineLeaseStore
-
-`ProxyMachineLeaseStore` is a remote `MachineLeaseStore`. The client wraps it in a `LeaseStoreMachineIdDistributor`, like any other backend, and it calls the server's lease API (`/machines/v2`) to:
-- Claim machine IDs (a new one, or one released or expired)
-- Renew a lease (heartbeat)
-- Release a lease
-
-The server keeps the v1 machine API (`/machines/{namespace}`) for 3.x clients. It is deprecated, and 3.x servers do not have the v2 API, so upgrade the servers before the clients.
-
-### ProxyIdSegmentDistributor
-
-`ProxyIdSegmentDistributor` is a remote implementation of `IdSegmentDistributor` that communicates with the proxy server for:
-- Allocating ID segments
-- Managing segment chains
-
-## Architecture
+<p align="center">
+  <img src="../../../public/assets/design/CosId-Proxy.png" alt="CosId Proxy"/>
+</p>
 
 ```
-┌─────────────────┐         HTTP/REST          ┌─────────────────┐
-│  CosId Client   │ ◄──────────────────────► │  Proxy Server   │
-│                 │                           │                 │
-│ ProxyLeaseStore │                           │ Redis/JDBC/ZK   │
-│ ProxyIdSegment  │                           │                 │
-└─────────────────┘                           └─────────────────┘
+┌──────────────────────────┐      HTTP       ┌───────────────────┐       ┌────────────────────┐
+│ Application              │ ──────────────► │ cosid-proxy-server│ ────► │ Redis / JDBC / ... │
+│ ProxyMachineLeaseStore   │                 │                   │       │                    │
+│ ProxyIdSegmentDistributor│                 │                   │       │                    │
+└──────────────────────────┘                 └───────────────────┘       └────────────────────┘
 ```
 
-## Use Cases
+Use it when applications must not reach the store directly, for example across network zones, or to keep one set of store credentials. It adds a service to run and secure, and a network hop at startup, at lease renewal and at segment prefetch.
 
-- **Security-restricted environments**: When client applications cannot directly access storage infrastructure
-- **Centralized management**: When you need centralized control over ID generation
-- **Multi-tenant systems**: When you want to isolate ID generation per tenant through the proxy
+## Running the server
 
-## Server Limits
+The server is `cosid-proxy-server`, a Spring Boot application published as the Docker image `ahoowang/cosid-proxy`. It listens on port `8688` and uses Redis by default; configure its store exactly like an application's, with `cosid.machine.distributor.type` and `cosid.segment.distributor.type`.
 
-The proxy server checks what clients send:
+```shell
+docker run --name cosid-proxy -d -p 8688:8688 --link redis \
+  -e SPRING_DATA_REDIS_URL=redis://redis:6379 \
+  -e COSID_PROXY_TOKEN=change-me \
+  ahoowang/cosid-proxy:4.0.0-RC2
+```
+
+Use `--network` (or `--link redis`) so that the container can reach Redis, and a released image tag (4.0.0-RC2 at the time of writing).
+
+The server refuses to start without a token, see [Authentication](#authentication).
+
+## Client
+
+### Installation
+
+::: code-group
+```kotlin [Gradle (Kotlin)]
+dependencies {
+    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
+    implementation(platform("me.ahoo.cosid:cosid-dependencies:$cosidVersion")) // manages the CoApi version
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("me.ahoo.cosid:cosid-proxy")
+    implementation("me.ahoo.coapi:coapi-spring-boot-starter")
+}
+```
+```xml [Maven]
+<dependencies>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-spring-boot-starter</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>me.ahoo.cosid</groupId>
+        <artifactId>cosid-proxy</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>me.ahoo.coapi</groupId>
+        <artifactId>coapi-spring-boot-starter</artifactId>
+    </dependency>
+</dependencies>
+```
+:::
+
+With Maven, import `me.ahoo.cosid:cosid-dependencies` as a BOM as well, for the CoApi version.
+
+### Configuration
+
+```yaml
+cosid:
+  namespace: ${spring.application.name}
+  proxy:
+    host: http://cosid-proxy:8688
+    token: ${COSID_PROXY_TOKEN}
+  machine:
+    enabled: true
+    distributor:
+      type: proxy
+  segment:
+    enabled: true
+    distributor:
+      type: proxy
+```
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `cosid.proxy.server.min-safe-guard-duration` | `5m` | A client may take over a machine ID only if its lease was last renewed at least this long ago, by the server's store clock. Clients that send a later cut-off get `400`; a shorter guard from a 3.x client is raised to this value with a warning. Keep it at most the clients' `cosid.machine.guarder.safe-guard-duration` |
-| `cosid.proxy.server.max-clock-skew` | `1m` | A client's `lastTimeStamp` (guard, revert) may be at most this far ahead of the server clock; a timestamp far in the future would keep a machine ID from ever being recycled. `0` disables the check |
-| `cosid.proxy.server.segment.max-step` | `1000000000000` | Largest segment `step` a client may ask for; `0` means no limit. Segment chains ask for `step × segments` at once and prefetch more under load, so set it to at least the largest `step × max prefetch distance` of all clients. `offset` must be between `0` and `Long.MAX_VALUE / 2` |
+| `cosid.proxy.host` | `http://localhost:8688` | Base URL of the proxy server |
+| `cosid.proxy.token` | none | Bearer token sent with every request |
+| `cosid.proxy.connect-timeout` | `2s` | Connecting to the server; `0` means no timeout |
+| `cosid.proxy.read-timeout` | `5s` | Waiting for a response, including the machine id claim at startup; `0` means no timeout, but with `cosid.machine.distributor.type=proxy` it must be positive |
 
-Requests outside these limits get `400`.
-
-## High Availability: Server-Restart Self-Healing
-
-The proxy server's segment distributor cache lives in memory only. Since clients call `createDistributor` exactly once at startup, a server restart leaves the cache empty; on the next `nextMaxId` call the distributor is rebuilt lazily from the backing store (lazy rebuild uses the default `offset=0`, which only applies on first-ever initialization), so already-allocated segment state is never lost. In short: **after a proxy server restart, running clients recover automatically without a restart** (since v3.2.1).
+The client side is a `MachineLeaseStore` and an `IdSegmentDistributor` like any other: `ProxyMachineLeaseStore` calls the server's lease API (`/machines/v2`) to claim, renew and release machine ids, and `ProxyIdSegmentDistributor` asks it for segments. Ahead-of-time processing and native images do not support the proxy client yet; run applications that use it on the JVM.
 
 ## Authentication
 
-The proxy server needs at least one bearer token: without any, it fails to start (since 4.0). Configure one or more tokens on the server, and the same token on every client:
+The server needs at least one bearer token, and fails to start without one. Configure tokens on the server and the same token on every client:
 
 ```yaml
 # proxy server
@@ -80,32 +103,32 @@ cosid:
     server:
       auth:
         tokens:
-          - ${COSID_PROXY_TOKEN}   # several tokens can be listed to rotate them
-        public-paths:              # need no token; default: the health endpoint under management.endpoints.web.base-path
+          - ${COSID_PROXY_TOKEN}   # list several tokens to rotate them
+        public-paths:              # need no token; default: the health endpoint
           - /actuator/health
           - /actuator/health/**
 ```
 
-```yaml
-# client application
-cosid:
-  proxy:
-    host: http://cosid-proxy:8688
-    token: ${COSID_PROXY_TOKEN}
-```
+Every request without a valid `Authorization: Bearer <token>` gets `401`, including the actuator endpoints (some of them generate or remove IDs) and the API docs, except the public paths. Public paths are path patterns matched on the decoded path; by default they are the health endpoint under `management.endpoints.web.base-path`. To open the API docs, add `/v3/api-docs/**`, `/swagger-ui.html` and `/webjars/swagger-ui/**` (the server uses springdoc on WebFlux).
 
-With tokens configured, every request without a valid `Authorization: Bearer <token>` gets `401`, including the actuator endpoints (some of them generate or remove IDs) and the API docs, except the public paths. Public paths are path patterns matched on the decoded path. To open the API docs, add `/v3/api-docs/**` and `/swagger-ui/**`.
+`cosid.proxy.server.auth.allow-anonymous: true` runs the server without tokens; use it only behind a trusted network boundary.
 
-## Deployment Security
+## Server limits
 
-- Run the proxy server on an internal network only, never exposed to the internet. Anyone who can call it can release a machine ID that a live instance holds, and two instances then generate the same IDs.
+The server checks what clients send, and answers `400` to requests outside these limits:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `cosid.proxy.server.min-safe-guard-duration` | `5m` | A client may take over a machine id only if its lease was last renewed at least this long ago, by the store's clock. 4.0 clients that send a later cut-off get `400`; a shorter guard from a 3.x client is raised to this value with a warning. Keep it at most the clients' `cosid.machine.guarder.safe-guard-duration`; must not be negative |
+| `cosid.proxy.server.max-clock-skew` | `1m` | How far ahead of the store's clock (the server's clock for the v1 API) a client's last timestamp may be; a timestamp far in the future would keep a machine id from ever being recycled. `0` disables the check; must not be negative |
+| `cosid.proxy.server.segment.max-step` | `1000000000000` | Largest segment `step` a client may ask for; `0` means no limit. Segment chains ask for `step × segments` at once and more under load, so set it to at least the largest `step × max-prefetch-distance` of all clients. `offset` must be between `0` and `Long.MAX_VALUE / 2` |
+
+## Deployment security
+
+- Run the server on an internal network only, never exposed to the internet. Anyone who can call it can release a machine id that a live instance holds, and two instances then generate the same IDs.
 - A token is a bearer credential: whoever has it can call every endpoint, for every namespace. Send it over HTTPS or inside a service mesh with mutual TLS, keep it in a secret store, and rotate it by listing the new and the old token together.
-- Keep `cosid.proxy.server.segment.max-step` finite, so that one request cannot use up or overflow a segment.
-- `cosid.proxy.server.auth.allow-anonymous=true` runs the server without tokens; use it only behind a trusted network boundary.
-
-### JMX
-
-The server does not open JMX. To monitor it over JMX, pass the options in `JAVA_OPTS`, with authentication and TLS:
+- Keep `cosid.proxy.server.segment.max-step` finite, so that one request cannot use up or overflow a counter.
+- The server does not open JMX. To monitor it over JMX, pass the options in `JAVA_OPTS`, with authentication and TLS:
 
 ```shell
 JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
@@ -117,4 +140,12 @@ JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
   -Djavax.net.ssl.keyStorePassword=${JMX_KEYSTORE_PASSWORD}"
 ```
 
-Unauthenticated JMX gives full control of the JVM; a heap dump also exposes the tokens and the database passwords.
+Unauthenticated JMX gives full control of the JVM; a heap dump also exposes the tokens and the store passwords.
+
+## Availability
+
+The server keeps no client state of its own: leases and counters live in its store. Run several servers behind a load balancer for availability. After a server restarts, running clients continue without a restart: the server rebuilds its segment distributors from the store on the next request.
+
+## Upgrading from 3.x
+
+Upgrade the servers before the clients. 4.0 servers keep the deprecated v1 machine API (`/machines/{namespace}`) for 3.x clients, and 4.0 clients use the v2 lease API, which 3.x servers do not have. See [Migrating to 4.0](../migration/4.0.md).

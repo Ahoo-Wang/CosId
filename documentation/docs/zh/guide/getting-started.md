@@ -1,6 +1,6 @@
 # 快速上手
 
-本文以 Redis 作为存储，在 Spring Boot 应用中接入 CosId。其他后端的用法完全相同，只是依赖和 `type` 不同，见[后端](./backends/redis.md)。
+本文以 Redis 作为存储，在 Spring Boot 应用中接入 CosId。其他后端的用法完全相同，只是依赖和 `type` 不同，见[选择后端](./backends/index.md)。
 
 ## 环境要求
 

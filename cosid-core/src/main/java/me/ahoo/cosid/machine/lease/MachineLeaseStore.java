@@ -34,10 +34,10 @@ import java.util.Optional;
  * ids. Stores with a server clock (Redis, databases, MongoDB) override {@link #serverTime()}; stores without one
  * (ZooKeeper) fall back to the host clock, so their hosts' clocks must be kept in sync.</p>
  *
- * <p>The {@link Lease#getWatermark() watermark} never decreases. A claim of an existing machine id (self, released or
- * expired) raises it to at least the stored renewed at, so a new owner never goes back before the previous owner's last
- * renewal; release raises it to the generator's last timestamp; renewing does not move it. A new machine id starts at
- * {@code 0}. The {@link Lease#getVersion() version} changes on every write, and renew and release compare against
+ * <p>The {@link Lease#getWatermark() watermark} never decreases. Every claim (self, released, new or expired) raises it
+ * to at least {@code now} and the stored renewed at, so an owner whose host clock is behind the store never reuses
+ * timestamps the previous owner may have issued; release raises it to the generator's last timestamp; renewing does
+ * not move it. The {@link Lease#getVersion() version} changes on every write, and renew and release compare against
  * it.</p>
  *
  * @author ahoo wang
@@ -47,7 +47,7 @@ public interface MachineLeaseStore {
     
     /**
      * Take back the lease this instance already holds, renewing it to {@code now}, whether or not it has expired. The
-     * watermark is raised to at least the stored renewed at.
+     * watermark is raised to at least {@code now} and the stored renewed at.
      *
      * @return the renewed lease, or empty if the instance holds none (it was released or recycled)
      */

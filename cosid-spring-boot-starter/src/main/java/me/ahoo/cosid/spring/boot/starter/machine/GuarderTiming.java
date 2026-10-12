@@ -22,8 +22,8 @@ import java.time.Duration;
 
 /**
  * Checks that the guarder renews a lease well before it expires: the first renewal comes after {@code initial-delay},
- * the next ones every {@code delay}, each may take up to the store's timeout, and the lease must not have expired by
- * then. The holder judges it with a margin for clock skew of {@code min(10s, safe-guard-duration / 10)}.
+ * the next ones every {@code delay}, each makes two store calls (the store's time, then the renewal) that may take up
+ * to the store's timeout each, and the lease must not have expired by then. The holder judges it with a margin for clock skew of {@code min(10s, safe-guard-duration / 10)}.
  */
 final class GuarderTiming {
     private static final String GUARDER = MachineProperties.PREFIX + ".guarder.";
@@ -34,7 +34,7 @@ final class GuarderTiming {
     /**
      * The problem with the guarder timing, or {@code null} when there is none.
      *
-     * @param storeTimeout the longest a renewal may take, {@link Duration#ZERO} when unknown
+     * @param storeTimeout the longest one store call may take, {@link Duration#ZERO} when unknown
      */
     @Nullable
     static String check(MachineProperties.Guarder guarder, Duration storeTimeout) {
@@ -51,13 +51,15 @@ final class GuarderTiming {
             return "[" + GUARDER + "initial-delay] must not be negative, but was [" + initialDelay + "].";
         }
         Duration margin = margin(safeGuard);
-        Duration longestWait = (delay.compareTo(initialDelay) >= 0 ? delay : initialDelay).plus(storeTimeout);
+        // A renewal reads the store's time, then renews: two calls.
+        Duration renewal = storeTimeout.multipliedBy(2);
+        Duration longestWait = (delay.compareTo(initialDelay) >= 0 ? delay : initialDelay).plus(renewal);
         Duration validity = safeGuard.minus(margin);
         if (longestWait.compareTo(validity) >= 0) {
             return "The guarder may renew the machine id lease too late: max([" + GUARDER + "delay]=" + delay + ", [" + GUARDER
-                + "initial-delay]=" + initialDelay + ") + store timeout " + storeTimeout + " must be shorter than ["
+                + "initial-delay]=" + initialDelay + ") + 2 x store timeout " + storeTimeout + " must be shorter than ["
                 + GUARDER + "safe-guard-duration]=" + safeGuard + " - " + margin + " margin. Lower delay and initial-delay "
-                + "below " + validity.minus(storeTimeout) + " (a third of it leaves room for missed renewals), or raise "
+                + "below " + validity.minus(renewal) + " (a third of it leaves room for missed renewals), or raise "
                 + "safe-guard-duration above " + longestWait.plus(MachineIdLease.MAX_CLOCK_SKEW_MARGIN) + ".";
         }
         return null;

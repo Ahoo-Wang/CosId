@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.spring.boot.starter.machine;
 
-import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.DefaultClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
@@ -44,7 +43,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.env.Environment;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -219,12 +217,12 @@ public class CosIdMachineAutoConfiguration {
      */
     @Bean
     @ConditionalOnMissingBean
-    public MachineIdGuarder machineIdGuarder(MachineIdDistributor machineIdDistributor, Environment environment) {
+    public MachineIdGuarder machineIdGuarder(MachineIdDistributor machineIdDistributor) {
         MachineProperties.Guarder guarder = machineProperties.getGuarder();
         if (!guarder.isEnabled()) {
             return MachineIdGuarder.NONE;
         }
-        Duration proxyReadTimeout = environment.getProperty(CosId.COSID_PREFIX + "proxy.read-timeout", Duration.class, Duration.ZERO);
+        Duration proxyReadTimeout = cosIdProperties.getProxy().getReadTimeout();
         String timingProblem = GuarderTiming.check(guarder, GuarderTiming.storeTimeout(machineProperties.getDistributor(), proxyReadTimeout));
         if (timingProblem != null) {
             if (guarder.isFailFast()) {

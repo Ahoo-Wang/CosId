@@ -15,8 +15,12 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.HostAddressSupplier;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdGuarder;
+import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.ManualMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 
 import org.junit.jupiter.api.Test;
@@ -48,9 +52,9 @@ class GuarderTimingTest {
         // The defaults.
         "PT1M, PT1M, PT5M, PT1S, true",
         "PT0S, PT10S, PT1M, PT1S, true",
-        // Boundary: 5m - 10s margin = 4m50s; 4m49s + 1s is not shorter.
-        "PT1M, PT4M49S, PT5M, PT1S, false",
-        "PT1M, PT4M48S, PT5M, PT1S, true",
+        // Boundary: 5m - 10s margin = 4m50s; a renewal is two store calls, so 4m48s + 2 x 1s is not shorter.
+        "PT1M, PT4M48S, PT5M, PT1S, false",
+        "PT1M, PT4M47S, PT5M, PT1S, true",
         // Boundary with a short safe guard: 10s - 1s margin = 9s.
         "PT0S, PT8S, PT10S, PT0S, true",
         "PT0S, PT9S, PT10S, PT0S, false",
@@ -100,5 +104,23 @@ class GuarderTimingTest {
             assertThat(context.getBean(MachineIdGuarder.class)).isNotSameAs(MachineIdGuarder.NONE);
             assertThat(output).contains("The guarder may renew the machine id lease too late");
         });
+    }
+    
+    /**
+     * The proxy read timeout comes from the bound properties: leaving it unset (5s by default) and setting it to 5s
+     * must give the same result.
+     */
+    @Test
+    void theProxyReadTimeoutDefaultCountsLikeAnExplicitValue() {
+        ApplicationContextRunner proxy = new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, CosIdMachineAutoConfiguration.class))
+            .withBean(HostAddressSupplier.class, () -> () -> "10.0.0.10")
+            .withBean(MachineIdDistributor.class, () -> new ManualMachineIdDistributor(1, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT))
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.PREFIX + ".instance-id=worker-a",
+                MachineProperties.PREFIX + ".distributor.type=proxy", MachineProperties.PREFIX + ".guarder.safe-guard-duration=10s",
+                MachineProperties.PREFIX + ".guarder.delay=5s", MachineProperties.PREFIX + ".guarder.initial-delay=5s");
+        proxy.run(context -> assertThat(context).hasFailed());
+        proxy.withPropertyValues("cosid.proxy.read-timeout=5s").run(context -> assertThat(context).hasFailed());
+        proxy.withPropertyValues("cosid.proxy.read-timeout=1s").run(context -> assertThat(context).hasNotFailed());
     }
 }

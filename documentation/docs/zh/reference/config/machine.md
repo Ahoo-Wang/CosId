@@ -7,8 +7,8 @@ Snowflake ID 和 `CosIdGenerator` 需要机器号。租约的工作方式见[机
 | 属性 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `enabled` | `boolean` | `false` | 分配机器号。使用 `cosid.snowflake` 和 `cosid.generator` 时必须开启 |
-| `instance-id` | `String` | 主机地址加 `port` | 实例在租约存储中的身份。重启后身份不变的实例请同时设置它和 `stable` |
-| `port` | `Integer` | 进程号 | 默认实例 ID（`{host}:{port}`）的第二部分 |
+| `instance-id` | `String` | `{host}:{pid}:{random}`（非稳定实例）、`{host}:{pid}`（稳定实例），设置了 `port` 时为 `{host}:{port}` | 实例在租约存储中的身份。重启后身份不变的实例请同时设置它和 `stable` |
+| `port` | `Integer` | 未设置 | 设置后默认实例 ID 为 `{host}:{port}`，不带随机后缀 |
 | `stable` | `Boolean` | 未设置（视为 `false`） | 稳定实例的机器号永远不会被其他实例回收，它也不会接管其他实例已过期的租约，并且会把机器状态保存在本地文件中 |
 | `machine-bit` | `int` | `10` | 机器号位数；生成器可以用自己的 `machine-bit` 覆盖 |
 | `state-storage.local.state-location` | `String` | `~/.cosid-machine-state` | 稳定实例本地机器状态的目录 |

@@ -2,11 +2,11 @@
 
 A *machine id* is the worker-id field of a [Snowflake ID](./snowflake.md) (and of a [CosIdGenerator](./cosid-generator.md) ID). Two instances that generate IDs with the same machine id at the same time can generate the same IDs, so each running instance must hold a distinct one.
 
-Despite the name, a machine id has nothing to do with physical machines. It is held by an *instance*, one running process, identified by an `InstanceId`: `cosid.machine.instance-id` when set; otherwise the host address and the process id (`192.168.1.10:12345`) for a stable instance, and the host address, the process id and a random suffix chosen at startup (`192.168.1.10:12345:3f9a1c2e`) for a non-stable one. Several processes on one host each hold their own machine id.
+Despite the name, a machine id has nothing to do with physical machines. It is held by an *instance*, one running process, identified by an `InstanceId`: `cosid.machine.instance-id` when set; otherwise the host address and the process id (`192.168.1.10:12345`) for a stable instance, and the host address, the process id and a random suffix chosen at startup (`192.168.1.10:12345:3f9a1c2e`) for a non-stable one. Several processes on one host each hold their own machine id. CosId keeps the name "machine id" for compatibility with its configuration and APIs.
 
 ::: warning Containers
 Containers that share a host address can all run as process 1. Since 4.0.2 a non-stable instance adds a random suffix to its default id, so two such containers never share a machine id. The flip side: a non-stable instance that is killed and restarted takes a fresh machine id each time, and the old one is only freed once its safe guard duration has passed, so a crash loop can use up machine ids. To keep one machine id across restarts, set a stable instance with an explicit id, such as `cosid.machine.stable: true` with `cosid.machine.instance-id: ${HOSTNAME}`. Startup logs a warning when the default id is used in a container.
-::: CosId keeps the name "machine id" for compatibility with its configuration and APIs.
+:::
 
 Machine ids are scoped by a *namespace* (`cosid.namespace`, usually the application name): instances of different applications can hold the same machine id, because their IDs never meet.
 

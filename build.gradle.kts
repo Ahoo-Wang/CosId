@@ -41,11 +41,15 @@ val serverProjects = setOf(
 )
 
 val testProjects = setOf(project(":cosid-test"), project(":cosid-mod-test"))
+// Built and tested like a library, but holds only tests and benchmarks: not published, not in the BOM.
+val unpublishedProjects = setOf(project(":cosid-mod-test"))
 val codeCoverageReportProject = project(":code-coverage-report")
-val publishProjects = subprojects - serverProjects - codeCoverageReportProject
-val libraryProjects = publishProjects - bomProjects
+val libraryProjects = subprojects - serverProjects - codeCoverageReportProject - bomProjects
+val publishedLibraryProjects = libraryProjects - unpublishedProjects
+val publishProjects = publishedLibraryProjects + bomProjects
 val isInCI = null != System.getenv("CI")
 ext.set("libraryProjects", libraryProjects)
+ext.set("publishedLibraryProjects", publishedLibraryProjects)
 
 allprojects {
     repositories {
@@ -141,6 +145,20 @@ configure(libraryProjects) {
     // SpringBoot 3.2.0: fix Failed to extract parameter names for CosIdEndpoint
     tasks.withType<JavaCompile> {
         options.compilerArgs.addAll(listOf("-parameters"))
+        options.encoding = "UTF-8"
+    }
+    tasks.withType<Javadoc> {
+        options.encoding = "UTF-8"
+        (options as StandardJavadocDocletOptions).apply {
+            docEncoding = "UTF-8"
+            charSet = "UTF-8"
+        }
+    }
+    // A stable module name for the module path, such as me.ahoo.cosid.core or me.ahoo.cosid.spring.boot.starter.
+    tasks.named<Jar>("jar") {
+        manifest {
+            attributes("Automatic-Module-Name" to "me.ahoo.cosid." + project.name.removePrefix("cosid-").replace('-', '.'))
+        }
     }
 
     dependencies {

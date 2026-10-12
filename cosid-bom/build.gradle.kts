@@ -12,7 +12,7 @@
  */
 
 @Suppress("UNCHECKED_CAST")
-val libraryProjects = rootProject.ext.get("libraryProjects") as Iterable<Project>;
+val libraryProjects = rootProject.ext.get("publishedLibraryProjects") as Iterable<Project>;
 
 dependencies {
     constraints {

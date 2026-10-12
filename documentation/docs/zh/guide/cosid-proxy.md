@@ -61,7 +61,7 @@ CosId Proxy 提供客户端-服务器架构：
 |----|-----|----|
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | 只有租约最后一次续约（以服务端存储时钟为准）距今至少这么久，客户端才能接管该机器 ID。上报更晚截止时间的客户端会收到 `400`；3.x 客户端上报的更短守护时长会被提升到该值并记录警告。不要大于客户端的 `cosid.machine.guarder.safe-guard-duration` |
 | `cosid.proxy.server.max-clock-skew` | `1m` | 客户端（守护、归还时）上报的 `lastTimeStamp` 最多比服务端时钟超前这么多；过于超前的时间戳会让机器号永远无法被回收。`0` 表示不检查 |
-| `cosid.proxy.server.segment.max-step` | `0`（不限制） | 客户端可申请的最大号段 `step`。号段链一次申请 `step × 号段数`，负载高时预取得更多，所以至少要设为所有客户端中最大的 `step × 最大预取距离`。`offset` 必须 `>= 0`，且 `offset + step` 不能溢出 |
+| `cosid.proxy.server.segment.max-step` | `1000000000` | 客户端可申请的最大号段 `step` 与创建时的 `offset`；`0` 表示不限制。号段链一次申请 `step × 号段数`，负载高时预取得更多，所以至少要设为所有客户端中最大的 `step × 最大预取距离`。`offset` 必须 `>= 0`，且 `offset + step` 不能溢出 |
 
 超出这些限制的请求返回 `400`。
 
@@ -71,8 +71,7 @@ CosId Proxy 提供客户端-服务器架构：
 
 ## 鉴权
 
-默认情况下，代理服务端对所有能访问到它的人开放，启动时会打印告警。
-可以在服务端配置一个或多个 Bearer token，并在每个客户端配置相同的 token：
+代理服务端至少需要一个 Bearer token：没有配置时启动失败（4.0 起）。在服务端配置一个或多个 token，并在每个客户端配置相同的 token：
 
 ```yaml
 # 代理服务端
@@ -96,3 +95,26 @@ cosid:
 ```
 
 配置 token 后，除公开路径外，所有没有携带有效 `Authorization: Bearer <token>` 的请求都返回 `401`，包括 Actuator 端点（其中有的能发号或删除生成器）和 API 文档。公开路径是按解码后的路径匹配的路径模式。需要公开 API 文档时，加上 `/v3/api-docs/**` 和 `/swagger-ui/**`。
+
+## 部署安全
+
+- 代理服务端只应部署在内网，不要暴露到公网。任何能调用它的人都能释放一个仍被存活实例持有的机器号，导致两个实例生成相同的 ID。
+- token 是 Bearer 凭证：持有者可以调用所有端点、操作所有命名空间。请通过 HTTPS 或带双向 TLS 的服务网格传输，存放在密钥管理系统中；轮换时同时配置新旧两个 token。
+- 保持 `cosid.proxy.server.segment.max-step` 为有限值，避免单个请求耗尽或溢出号段。
+- `cosid.proxy.server.auth.allow-anonymous=true` 可在不配置 token 的情况下运行，只能用于可信网络边界之内。
+
+### JMX
+
+服务端默认不开启 JMX。需要通过 JMX 监控时，在 `JAVA_OPTS` 中传入参数，并开启认证和 TLS：
+
+```shell
+JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
+  -Dcom.sun.management.jmxremote.authenticate=true \
+  -Dcom.sun.management.jmxremote.password.file=/opt/cosid-proxy-server/config/jmxremote.password \
+  -Dcom.sun.management.jmxremote.access.file=/opt/cosid-proxy-server/config/jmxremote.access \
+  -Dcom.sun.management.jmxremote.ssl=true \
+  -Djavax.net.ssl.keyStore=/opt/cosid-proxy-server/config/jmx.p12 \
+  -Djavax.net.ssl.keyStorePassword=${JMX_KEYSTORE_PASSWORD}"
+```
+
+未认证的 JMX 可以完全控制 JVM；堆转储还会暴露 token 和数据库密码。

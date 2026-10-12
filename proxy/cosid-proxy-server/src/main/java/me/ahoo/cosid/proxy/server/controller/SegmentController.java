@@ -64,6 +64,7 @@ public class SegmentController implements SegmentApi {
     public void createDistributor(@PathVariable String namespace, @PathVariable String name, long offset, long step) {
         checkArguments(namespace, name, step);
         Checks.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        Checks.checkArgument(maxStep <= 0 || offset <= maxStep, "offset:[%s] must not exceed [%s]!", offset, maxStep);
         try {
             Math.addExact(offset, step);
         } catch (ArithmeticException overflow) {

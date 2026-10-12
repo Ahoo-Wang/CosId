@@ -73,8 +73,14 @@ Replaced by `PrefetchWorkerExecutorService.shared()`, which creates the shared e
 |---|---|---|
 | `cosid.jdbc.enabled` | `true` | `false` |
 | `cosid.actuator.delete.enabled` | `true` | `false` |
+| `cosid.proxy.server.auth.allow-anonymous` (new) | open without tokens | `false`: the proxy server fails to start without `cosid.proxy.server.auth.tokens` |
+| `cosid.proxy.server.segment.max-step` | `0` (no limit) | `1000000000`, also the largest creation `offset` |
 
 Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `cosid.jdbc.enabled=true`**: with it off, CosId no longer fills the `@Id` property (or `@CosId` fields) of Spring Data JDBC entities, and an INFO at startup names those entities. With `cosid.actuator.delete.enabled` off, the `cosid` endpoint is read-only (`CosIdReadOnlyEndpoint`), and the 3.4 startup warning is gone.
+
+**The proxy server fails closed**: configure `cosid.proxy.server.auth.tokens` (the distribution reads `COSID_PROXY_TOKEN`) and the same `cosid.proxy.token` on the clients, or set `cosid.proxy.server.auth.allow-anonymous=true` to keep the 3.x open API behind a trusted network. The distribution no longer opens JMX on port 5555 without authentication; see the proxy guide to enable it through `JAVA_OPTS`. `cosid.proxy.server.min-safe-guard-duration` and `max-clock-skew` must not be negative. The client's `cosid.proxy.host` defaults to `http://localhost:8688`.
+
+**Ahead-of-time processing and native images** do not support `cosid.machine.distributor.type=proxy` or `cosid.segment.distributor.type=proxy` yet: the proxy clients' `CoApiDefinition` cannot be generated. Use the JVM for applications on the proxy.
 
 ## API changes
 

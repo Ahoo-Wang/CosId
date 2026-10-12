@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 @CoApi(baseUrl = MachineClient.BASE_URL)
 public interface MachineClient extends MachineApi {
-    String BASE_URL = "${cosid.proxy.host}";
+    String BASE_URL = "${cosid.proxy.host:http://localhost:8688}";
 
     @Override
     MachineStateResponse distribute(@PathVariable String namespace,

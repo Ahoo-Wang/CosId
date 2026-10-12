@@ -61,7 +61,7 @@ The proxy server checks what clients send:
 |----------|---------|-------------|
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | A client may take over a machine ID only if its lease was last renewed at least this long ago, by the server's store clock. Clients that send a later cut-off get `400`; a shorter guard from a 3.x client is raised to this value with a warning. Keep it at most the clients' `cosid.machine.guarder.safe-guard-duration` |
 | `cosid.proxy.server.max-clock-skew` | `1m` | A client's `lastTimeStamp` (guard, revert) may be at most this far ahead of the server clock; a timestamp far in the future would keep a machine ID from ever being recycled. `0` disables the check |
-| `cosid.proxy.server.segment.max-step` | `0` (no limit) | Largest segment `step` a client may ask for. Segment chains ask for `step × segments` at once and prefetch more under load, so set it to at least the largest `step × max prefetch distance` of all clients. `offset` must be `>= 0` and `offset + step` must not overflow |
+| `cosid.proxy.server.segment.max-step` | `1000000000` | Largest segment `step`, and creation `offset`, a client may ask for; `0` means no limit. Segment chains ask for `step × segments` at once and prefetch more under load, so set it to at least the largest `step × max prefetch distance` of all clients. `offset` must be `>= 0` and `offset + step` must not overflow |
 
 Requests outside these limits get `400`.
 
@@ -71,8 +71,7 @@ The proxy server's segment distributor cache lives in memory only. Since clients
 
 ## Authentication
 
-By default the proxy server is open to anyone who can reach it, and it logs a warning at startup.
-Configure one or more bearer tokens on the server, and the same token on every client:
+The proxy server needs at least one bearer token: without any, it fails to start (since 4.0). Configure one or more tokens on the server, and the same token on every client:
 
 ```yaml
 # proxy server
@@ -96,3 +95,26 @@ cosid:
 ```
 
 With tokens configured, every request without a valid `Authorization: Bearer <token>` gets `401`, including the actuator endpoints (some of them generate or remove IDs) and the API docs, except the public paths. Public paths are path patterns matched on the decoded path. To open the API docs, add `/v3/api-docs/**` and `/swagger-ui/**`.
+
+## Deployment Security
+
+- Run the proxy server on an internal network only, never exposed to the internet. Anyone who can call it can release a machine ID that a live instance holds, and two instances then generate the same IDs.
+- A token is a bearer credential: whoever has it can call every endpoint, for every namespace. Send it over HTTPS or inside a service mesh with mutual TLS, keep it in a secret store, and rotate it by listing the new and the old token together.
+- Keep `cosid.proxy.server.segment.max-step` finite, so that one request cannot use up or overflow a segment.
+- `cosid.proxy.server.auth.allow-anonymous=true` runs the server without tokens; use it only behind a trusted network boundary.
+
+### JMX
+
+The server does not open JMX. To monitor it over JMX, pass the options in `JAVA_OPTS`, with authentication and TLS:
+
+```shell
+JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
+  -Dcom.sun.management.jmxremote.authenticate=true \
+  -Dcom.sun.management.jmxremote.password.file=/opt/cosid-proxy-server/config/jmxremote.password \
+  -Dcom.sun.management.jmxremote.access.file=/opt/cosid-proxy-server/config/jmxremote.access \
+  -Dcom.sun.management.jmxremote.ssl=true \
+  -Djavax.net.ssl.keyStore=/opt/cosid-proxy-server/config/jmx.p12 \
+  -Djavax.net.ssl.keyStorePassword=${JMX_KEYSTORE_PASSWORD}"
+```
+
+Unauthenticated JMX gives full control of the JVM; a heap dump also exposes the tokens and the database passwords.

@@ -33,6 +33,23 @@ class ProxyAuthPublicPathsTest {
     }
     
     @Test
+    void failsToStartWithoutTokens() {
+        new ApplicationContextRunner().withUserConfiguration(ProxyAuthConfiguration.class).run(context -> {
+            assertThat(context).hasFailed();
+            assertThat(context.getStartupFailure()).rootCause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(ProxyAuthProperties.PREFIX + ".allow-anonymous=true");
+        });
+    }
+    
+    @Test
+    void allowAnonymousRunsWithoutTokens() {
+        new ApplicationContextRunner().withUserConfiguration(ProxyAuthConfiguration.class)
+            .withPropertyValues(ProxyAuthProperties.PREFIX + ".allow-anonymous=true")
+            .run(context -> assertThat(context.getBean(ProxyAuthWebFilter.class).isEnabled()).isFalse());
+    }
+    
+    @Test
     void defaultsToActuatorHealth() {
         contextRunner.run(context -> {
             ProxyAuthWebFilter filter = context.getBean(ProxyAuthWebFilter.class);

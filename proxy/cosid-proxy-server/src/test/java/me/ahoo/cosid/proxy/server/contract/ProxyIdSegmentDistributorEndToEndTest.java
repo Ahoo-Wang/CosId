@@ -44,6 +44,8 @@ class ProxyIdSegmentDistributorEndToEndTest extends IdSegmentDistributorSpec {
     @DynamicPropertySource
     static void serverProperties(DynamicPropertyRegistry registry) {
         ProxyEndToEnd.serverProperties(registry);
+        // The spec asks for steps beyond the default limit (step × segments with random steps).
+        registry.add("cosid.proxy.server.segment.max-step", () -> "0");
     }
     
     @BeforeEach

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.proxy.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.proxy.api.ErrorResponse;
@@ -55,8 +56,37 @@ class ProxyServerTest {
     }
 
     @Test
-    void segmentStepIsUnlimitedByDefaultAndCanBeCapped() {
-        webTestClient.patch().uri("/segments/test_namespace/large?step=100000000").exchange().expectStatus().isOk();
+    void segmentStepAndOffsetAreCappedByDefault() {
+        webTestClient.patch().uri("/segments/test_namespace/large?step=1000000000").exchange().expectStatus().isOk();
+        webTestClient.patch().uri("/segments/test_namespace/large?step=1000000001").exchange().expectStatus().isBadRequest();
+        webTestClient.patch().uri("/segments/test_namespace/huge?step=9223372036854775000").exchange().expectStatus().isBadRequest();
+        webTestClient.post().uri("/segments/distributor/test_namespace/far?offset=1000000001&step=1").exchange().expectStatus().isBadRequest();
+        webTestClient.patch().uri("/segments/test_namespace/large?step=5").exchange().expectStatus().isOk();
+    }
+    
+    @Test
+    void zeroMaxStepIsUnlimited() {
+        ProxyServerProperties properties = new ProxyServerProperties();
+        properties.getSegment().setMaxStep(0);
+        WebTestClient unlimited = WebTestClient
+            .bindToController(new SegmentController(segmentDistributorFactory, properties))
+            .controllerAdvice(new GlobalRestExceptionHandler())
+            .build();
+        unlimited.patch().uri("/segments/test_namespace/unlimited?step=2000000000").exchange().expectStatus().isOk();
+    }
+    
+    @Test
+    void guardDurationsMustNotBeNegative() {
+        ProxyServerProperties properties = new ProxyServerProperties();
+        assertThatThrownBy(() -> properties.setMinSafeGuardDuration(Duration.ofSeconds(-1))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> properties.setMinSafeGuardDuration(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> properties.setMaxClockSkew(Duration.ofSeconds(-1))).isInstanceOf(IllegalArgumentException.class);
+        properties.setMaxClockSkew(Duration.ZERO);
+        assertThat(properties.getMaxClockSkew()).isZero();
+    }
+    
+    @Test
+    void segmentStepCanBeCapped() {
 
         me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties properties = new me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties();
         properties.getSegment().setMaxStep(1000);

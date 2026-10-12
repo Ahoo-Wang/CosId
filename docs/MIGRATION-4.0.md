@@ -13,6 +13,10 @@
 
 - **JDBC**: run the `ALTER TABLE` for the new lease columns before starting 4.0 instances; 4.0 fails at startup and prints the statement when the columns are missing.
 - **Proxy**: 4.0 servers keep the v1 API for 3.x clients (deprecated).
+- **Redis**: 4.0 adds a `cosid:{namespace}:lease` hash next to the 3.4 keys; nothing to do.
+- **ZooKeeper and MongoDB**: the nodes and documents keep the 3.4 format; nothing to do.
+- Expiry is judged on the timestamp 3.4 reads, and a new owner starts after it, so 4.0 never takes a machine id earlier than 3.4 would. A host whose clock runs ahead of the others delays the reuse of the machine ids it releases (the next owner waits until its clock passes them), as in 3.4.
+- Do not run a 3.4 and a 4.0 instance with the same instance id at the same time: they could, rarely, write the same lease version.
 
 ## Removed
 

@@ -65,7 +65,7 @@ Behavior fixes only, no breaking API changes.
 | P3-10 | `SnowflakeLayout` | M1 |
 | P3-16 | `SegmentChainId` lifecycle: `AutoCloseable`, injected prefetch executor, per-task timeout | M1 |
 | P3-17 | Axon identifier factory warns about multiple providers | M1 |
-| P3-11 | Lease model with watermark, renewal time and version; new store formats that still read the old ones | RC1 |
+| P3-11 | Lease model with watermark, renewal time and version; new store formats that still read the old ones (Redis: a `lease` hash; JDBC: three columns and an `ALTER`; ZooKeeper and MongoDB keep the 3.4 format on purpose, since 3.4 parses ZooKeeper nodes strictly and the 3.4 timestamp already covers the lease) | RC1 |
 | P3-12 | Proxy v2 lease API; v1 delegates to it | RC1 |
 | P3-13 | Starter uses the lease stores; old distributors removed | RC1 |
 | P3-14 | Property model: string distributor type, records, `ZoneId` | RC1 |

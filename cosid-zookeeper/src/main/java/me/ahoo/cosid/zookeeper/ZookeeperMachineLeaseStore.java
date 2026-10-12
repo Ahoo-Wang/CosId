@@ -48,6 +48,11 @@ import java.util.concurrent.Callable;
  *     <li>{@code /cosid/{namespace}/__stable/{instanceId}}: marks a stable instance, whose lease is never taken over</li>
  * </ul>
  *
+ * <p>The nodes keep the 3.4 format, {@code machineId|lastTimestamp}, which 3.4 parses strictly. The last timestamp
+ * stays the expiry check and the version, as in 3.4; it never decreases and is at least every renewal and watermark,
+ * so a claim starts after it. A lease still carries its own watermark and renewal time: renewing leaves the watermark
+ * alone and reports the store time it renewed at, while the node is written with a last timestamp that covers both.</p>
+ *
  * <p>ZooKeeper has no server clock, so {@link #serverTime()} is this host's clock: keep the hosts' clocks in sync. Every
  * call is bounded by the {@link CallTimeout}, since Curator has no per-operation timeout.</p>
  *
@@ -210,8 +215,12 @@ public class ZookeeperMachineLeaseStore implements MachineLeaseStore {
         }
     }
     
-    private Lease lease(String namespace, InstanceId instanceId, int machineId, long lastTimestamp) {
-        return new Lease(namespace, instanceId, machineId, lastTimestamp, lastTimestamp, lastTimestamp);
+    /**
+     * The lease after a claim: the last timestamp just written is the watermark (it is at least the previous one and
+     * {@code now}) and the version.
+     */
+    private static Lease claimed(String namespace, InstanceId instanceId, int machineId, long lastTimestamp, long now) {
+        return new Lease(namespace, instanceId, machineId, lastTimestamp, now, lastTimestamp);
     }
     
     @Override
@@ -226,7 +235,7 @@ public class ZookeeperMachineLeaseStore implements MachineLeaseStore {
                 int machineId = self.get().state.getMachineId();
                 long timestamp = nextTimestamp(self.get().state.getLastTimeStamp(), now);
                 if (setData(self.get(), toBytes(machineId, timestamp))) {
-                    return Optional.of(lease(namespace, instanceId, machineId, timestamp));
+                    return Optional.of(claimed(namespace, instanceId, machineId, timestamp, now));
                 }
             }
             return Optional.empty();
@@ -247,7 +256,7 @@ public class ZookeeperMachineLeaseStore implements MachineLeaseStore {
                     int machineId = node.state.getMachineId();
                     long timestamp = nextTimestamp(node.state.getLastTimeStamp(), now);
                     if (move(node, toPath, toBytes(machineId, timestamp))) {
-                        return Optional.of(lease(namespace, instanceId, machineId, timestamp));
+                        return Optional.of(claimed(namespace, instanceId, machineId, timestamp, now));
                     }
                 }
             }
@@ -286,7 +295,7 @@ public class ZookeeperMachineLeaseStore implements MachineLeaseStore {
                             .forPath(counterPath, ByteBuffer.allocate(Integer.BYTES).putInt(machineId + 1).array()),
                         curatorFramework.transactionOp().create().forPath(toPath, toBytes(machineId, now))
                     );
-                    return Optional.of(lease(namespace, instanceId, machineId, now));
+                    return Optional.of(claimed(namespace, instanceId, machineId, now, now));
                 } catch (KeeperException.BadVersionException | KeeperException.NodeExistsException conflictException) {
                     // Another instance took the machine id first.
                 }
@@ -316,7 +325,7 @@ public class ZookeeperMachineLeaseStore implements MachineLeaseStore {
                     long timestamp = nextTimestamp(node.state.getLastTimeStamp(), now);
                     // The versioned delete fails if the owner renewed after the read, so a live lease is never taken over.
                     if (move(node, toPath, toBytes(machineId, timestamp))) {
-                        return Optional.of(lease(namespace, instanceId, machineId, timestamp));
+                        return Optional.of(claimed(namespace, instanceId, machineId, timestamp, now));
                     }
                 }
             }
@@ -339,22 +348,22 @@ public class ZookeeperMachineLeaseStore implements MachineLeaseStore {
             if (node.isEmpty()) {
                 return Optional.empty();
             }
-            long timestamp = nextTimestamp(lease.getVersion(), now);
+            long timestamp = nextTimestamp(lease.getVersion(), Math.max(now, lease.getWatermark()));
             if (!setData(node.get(), toBytes(lease.getMachineId(), timestamp))) {
                 return Optional.empty();
             }
-            return Optional.of(lease(lease.getNamespace(), lease.getInstanceId(), lease.getMachineId(), timestamp));
+            return Optional.of(new Lease(lease.getNamespace(), lease.getInstanceId(), lease.getMachineId(), lease.getWatermark(), now, timestamp));
         });
     }
     
     @Override
-    public boolean release(Lease lease, long lastTimestamp) {
+    public boolean release(Lease lease, long watermark) {
         return call("release", () -> {
             Optional<Node> node = current(lease);
             if (node.isEmpty()) {
                 return false;
             }
-            byte[] data = toBytes(lease.getMachineId(), nextTimestamp(lease.getVersion(), lastTimestamp));
+            byte[] data = toBytes(lease.getMachineId(), nextTimestamp(lease.getVersion(), Math.max(watermark, lease.getWatermark())));
             if (lease.isStable()) {
                 return setData(node.get(), data);
             }

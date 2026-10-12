@@ -57,6 +57,11 @@ import java.util.concurrent.TimeUnit;
  * ({@code timeoutMS}). Claims use pipeline updates, which need MongoDB 4.2 or later. On a sharded cluster the server clock is the
  * {@code mongos} one, so keep the {@code mongos} clocks in sync.</p>
  *
+ * <p>Documents keep the 3.4 fields. The last timestamp stays the expiry check and the version, as in 3.4; it never
+ * decreases and is at least every renewal and watermark, so a claim starts after it. A lease still carries its own
+ * watermark and renewal time: renewing leaves the watermark alone and reports the store time it renewed at, while the
+ * document is written with a last timestamp that covers both.</p>
+ *
  * @author ahoo wang
  * @since 3.4.0
  */
@@ -105,18 +110,22 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
             .append(DISTRIBUTE_TIME_FIELD, now));
     }
     
-    private static Optional<Lease> toLease(String namespace, InstanceId instanceId, Document document) {
+    /**
+     * The lease after a claim: the last timestamp just written is the watermark (it is at least the previous one and
+     * {@code now}) and the version.
+     */
+    private static Optional<Lease> toLease(String namespace, InstanceId instanceId, Document document, long now) {
         if (document == null) {
             return Optional.empty();
         }
         long lastTimestamp = document.getLong(LAST_TIMESTAMP_FIELD);
-        return Optional.of(new Lease(namespace, instanceId, document.getInteger(MACHINE_ID_FIELD), lastTimestamp, lastTimestamp, lastTimestamp));
+        return Optional.of(new Lease(namespace, instanceId, document.getInteger(MACHINE_ID_FIELD), lastTimestamp, now, lastTimestamp));
     }
     
     private Optional<Lease> claim(String namespace, InstanceId instanceId, long now, Bson filter) {
         Document document = collection.findOneAndUpdate(Filters.and(Filters.eq(NAMESPACE_FIELD, namespace), filter),
             List.of(take(instanceId, now), nextTimestamp(now)), SMALLEST_MACHINE_ID_AFTER);
-        return toLease(namespace, instanceId, document);
+        return toLease(namespace, instanceId, document, now);
     }
     
     @Override
@@ -168,16 +177,16 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
     
     @Override
     public Optional<Lease> renew(Lease lease, long now) {
-        long timestamp = Math.max(lease.getVersion() + 1, now);
+        long timestamp = Math.max(lease.getVersion() + 1, Math.max(now, lease.getWatermark()));
         if (collection.updateOne(current(lease), Updates.set(LAST_TIMESTAMP_FIELD, timestamp)).getMatchedCount() == 0) {
             return Optional.empty();
         }
-        return Optional.of(new Lease(lease.getNamespace(), lease.getInstanceId(), lease.getMachineId(), timestamp, timestamp, timestamp));
+        return Optional.of(new Lease(lease.getNamespace(), lease.getInstanceId(), lease.getMachineId(), lease.getWatermark(), now, timestamp));
     }
     
     @Override
-    public boolean release(Lease lease, long lastTimestamp) {
-        long timestamp = Math.max(lease.getVersion() + 1, lastTimestamp);
+    public boolean release(Lease lease, long watermark) {
+        long timestamp = Math.max(lease.getVersion() + 1, Math.max(watermark, lease.getWatermark()));
         Bson update = lease.isStable()
             ? Updates.set(LAST_TIMESTAMP_FIELD, timestamp)
             : Updates.combine(

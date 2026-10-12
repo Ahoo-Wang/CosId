@@ -1,75 +1,101 @@
-# SegmentId
+# SegmentId 与 SegmentChainId
 
-<p align="center" >
+号段 ID 来自存储中的一个计数器。实例不必每个 ID 都访问存储，而是一次申请 `step` 个 ID，即一个*号段*，再从内存中逐个发放。
+
+<p align="center">
   <img src="../../../public/assets/design/SegmentId.png" alt="SegmentId"/>
 </p>
 
-从上面的设计图中，不难看出**号段模式**基本设计思路是通过每次获取一定长度（Step）的可用ID（Id段/号段），来降低网络IO请求次数，提升性能。
+## 原理
 
-- :thumbsdown:强依赖第三方号段分发器，可用性受到第三方分发器影响。
-- :thumbsdown:每次号段用完时获取`NextMaxId`需要进行网络IO请求，此时的性能会比较低。
-- 单实例ID单调递增，全局趋势递增。
-  - 从设计图中不难看出**Instance 1**每次获取的`NextMaxId`，一定比上一次大，意味着下一次的号段一定比上一次大，所以从单实例上来看是单调递增的。
-  - 多实例各自持有的不同的号段，意味着同一时刻不同实例生成的ID是乱序的，但是整体趋势的递增的，所以全局趋势递增。
-- ID乱序程度受到Step长度以及集群规模影响（从趋势递增图中不难看出）。
-  - 假设集群中只有一个实例时**号段模式**就是单调递增的。
-  - `Step`越小，乱序程度越小。当`Step=1`时，将无限接近单调递增。需要注意的是这里是无限接近而非等于单调递增，具体原因你可以思考一下这样一个场景：
-    - 号段分发器T<sub>1</sub>时刻给**Instance 1**分发了`ID=1`,T<sub>2</sub>时刻给**Instance 2**分发了`ID=2`。因为机器性能、网络等原因，`Instance 2`网络IO写请求先于`Instance 1`到达。那么这个时候对于数据库来说，ID依然是乱序的。
+存储为命名空间中的每个生成器名称维护一个计数器，即*最大 ID*。`IdSegmentDistributor` 原子地给它加上 `step` 并返回新值，于是该实例拥有从 `maxId - step + 1` 到 `maxId` 的 ID，其他实例拿不到这些 ID。
 
-## 具体实现
+- **有序性。** 每个实例发放递增的 ID，下一个号段总比上一个大：ID 在单实例内单调递增。不同实例同时持有不同的号段，因此跨实例的 ID 趋势递增，乱序窗口大约是 `step` 乘以实例数。只有一个实例时，ID 单调递增。
+- **步长。** 步长越小，ID 越接近连续，重启时丢弃的 ID 也越少（号段中未用完的部分会被跳过）；步长越大，访问存储的次数越少。
+- **偏移量。** `offset` 是计数器创建时的初始值，例如用于接续已有表中的 ID。它只对尚不存在的计数器生效。
+- **可用性。** 每当需要新号段时，生成就要依赖存储。号段链会预留号段，以扛过存储短暂的不可用。
 
-```mermaid
-classDiagram
-direction BT
-class DefaultSegmentId
-class IdGenerator {
-<<Interface>>
+## DefaultSegmentId
 
-}
-class SegmentChainId
-class SegmentId {
-<<Interface>>
+`DefaultSegmentId`（`cosid.segment.mode: segment`）在当前号段用完时，由调用线程获取下一个号段。该线程要等待一次存储往返，这会体现在尾延迟上：[基准测试](../../reference/performance/benchmark.md)中 P99.99 为 46.6 µs。
 
-}
-class StringSegmentId
+## SegmentChainId
 
-DefaultSegmentId  ..>  SegmentId 
-SegmentChainId  ..>  SegmentId 
-SegmentId  -->  IdGenerator 
-StringSegmentId  ..>  IdGenerator 
-StringSegmentId  ..>  SegmentId 
+<p align="center">
+  <img src="../../../public/assets/design/SegmentChainId.png" alt="SegmentChainId"/>
+</p>
+
+`SegmentChainId`（`cosid.segment.mode: chain`，默认）在正在使用的号段之后维护一条号段链。后台的*预取任务*（PrefetchWorker）让链的长度至少保持 `safe-distance` 个号段（默认 2），因此调用线程几乎从不等待存储：每秒约 1.27 亿个 ID，P99.99 为 0.208 µs，接近 `AtomicLong`。
+
+号段链会根据需求自适应：
+
+- **定时预取。** 预取任务每隔 `prefetch-worker.prefetch-period`（1 秒）把链补足到安全距离。
+- **饥饿扩容。** 调用线程发现没有可用号段时，会自己获取一个并唤醒预取任务；预取任务把预取距离翻倍（最多 `max-prefetch-distance`，10,000 个号段），并在一次存储调用中申请这么多号段。需求下降后，距离再减半，直到回到安全距离。
+
+因此号段链适合较小的 `step`：流量需要时预取距离会增长，不需要时 ID 仍然接近连续。
+
+`SegmentChainId` 实现了 `AutoCloseable`：`close()` 停止后台预取，之后生成仍可继续，只是不再预取。`prefetch-timeout` 限制每次后台预取的时长（默认不限制）。
+
+### 为什么不同存储都能达到同样的峰值
+
+基准测试中，在 `step=1000` 时 Redis 和 MySQL 的号段链都能达到每秒约 1.2 亿个 ID，尽管 Redis 的响应要快得多。原因在于饥饿扩容：预取任务不断把每次申请的号段数翻倍，只要时间足够，任何存储发放 ID 的速度都会超过线程消耗的速度，峰值就是内存计数器的速度。
+
+`TPS(SegmentChainId) ≈ step × 扩容系数 × TPS(IdSegmentDistributor) × T ≤ TPS(AtomicLong)`
+
+更快的存储只是更早达到峰值（`T` 更小）。
+
+<p align="center">
+  <img src="../../../public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput-Of-SegmentChainId"/>
+</p>
+
+## 号段有效期
+
+`ttl`（单位为秒，默认永不过期）让号段过期：实例不再使用超过有效期的号段，跳过其中剩余的 ID 并申请新号段。分组号段会在分组结束时自动过期。
+
+## 分组号段
+
+分组号段在每个分组（例如每年、每月或每天）重新开始计数，可用于生成 `BIZ-20260101-00000001` 这样的业务编号：
+
+```yaml
+cosid:
+  segment:
+    enabled: true
+    provider:
+      order_no:
+        group:
+          by: year_month_day
+          pattern: yyyyMMdd
+        converter:
+          type: to_string
+          prefix: BIZ-
+          group-prefix:
+            enabled: true
+          to-string:
+            pad-start: true
+            char-size: 8
 ```
 
-## IdSegmentDistributor
+每个分组在存储中是独立的计数器，名称为 `{name}@{group}`（例如 `order_no@20260101`），从 `offset` 开始。`SegmentId.generateGrouped()` 返回同时包含分组和值的 `GroupedId`，`converter.asString(groupedId)` 会把分组作为前缀格式化。更多示例见[常用 ID 配方](../recipes.md)。
 
-`IdSegmentDistributor` 是 CosId 中用于分发 ID 号段的核心接口。它提供了在分布式实例之间分配连续 ID 块的方法。
+## 号段存储
 
-主要职责：
-- 在命名空间内分配唯一的 ID 号段
-- 管理号段大小（step）配置
-- 提供号段链功能用于高级场景
-- 支持号段的有效期
-
-常用实现包括：
-- **RedisIdSegmentDistributor**: 使用 Redis 进行号段分发
-- **JdbcIdSegmentDistributor**: 使用关系数据库进行号段分发
-- **ZookeeperIdSegmentDistributor**: 使用 ZooKeeper 进行号段分发
-
-## GroupedIdSegmentDistributor
-
-`GroupedIdSegmentDistributor` 扩展了 `IdSegmentDistributor`，支持 ID 分组（按分组键进行分区）。
-
-分组分发器允许按分组键对 ID 号段进行分区，例如：
-- **时间桶**: "2024-01" 用于按月分片，"2024-01-15" 用于按天分片
-- **自定义键**: 业务特定的分组条件
-
-这使得以下场景成为可能：
-- 在时间边界（每天、每月、每年）重置序号
-- 为不同租户或业务单元隔离 ID 范围
-- 支持基于时间的分片算法
-
-`GroupedIdSegmentDistributor` 允许 `allowReset()` 返回 `true`，从而在分组键变更时允许号段重置。
+`cosid.segment.distributor.type` 选择存储：`redis`（默认）、`jdbc`、`mongo`、`zookeeper` 或 `proxy`，也可以是应用中某个 `CosIdStoreProvider` 的类型。见[后端](../backends/redis.md)。
 
 ## 配置
 
-[SegmentId 配置](../../reference/config/segment)
+```yaml
+cosid:
+  namespace: ${spring.application.name}
+  segment:
+    enabled: true
+    distributor:
+      type: redis
+    share:
+      step: 100
+    provider:
+      order:
+        offset: 10000
+        step: 100
+```
+
+这会注册共享生成器（`__share__SegmentId`）和名为 `order` 的生成器，两者都是号段链。全部属性见 [SegmentId 配置](../../reference/config/segment.md)。

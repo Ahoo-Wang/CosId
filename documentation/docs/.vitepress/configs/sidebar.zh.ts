@@ -30,8 +30,8 @@ const guide: DefaultTheme.SidebarItem[] = [
         items: [
             {text: 'ID 生成器', link: 'id-generator'},
             {text: 'SnowflakeId', link: 'snowflake'},
-            {text: 'SegmentId', link: 'segment'},
-            {text: 'SegmentChainId', link: 'segment-chain'},
+            {text: '机器号', link: 'machine-id'},
+            {text: 'SegmentId / SegmentChainId', link: 'segment'},
             {text: 'CosIdGenerator', link: 'cosid-generator'},
             {text: 'ID 转换器', link: 'id-converter'},
             {text: 'ID 生成器容器', link: 'provider'},

@@ -1,151 +1,103 @@
 # SnowflakeId
 
-_SnowflakeId_ is a distributed unique ID generation algorithm developed by *Twitter*, widely used in distributed systems. Its design goal is to generate trend-increasing, globally unique IDs to meet the needs of large-scale systems.
+A *SnowflakeId* packs a timestamp, a machine id and a sequence into one 63-bit `long`. Every instance generates IDs on its own, with no call to a store, as long as no two instances use the same machine id at the same time.
 
-<p align="center" >
+<p align="center">
   <img src="../../../public/assets/design/Snowflake-identifier.png" alt="SnowflakeId"/>
 </p>
 
-## Introduction
+## Layout
 
-:::info
-*SnowflakeId* is a distributed ID algorithm that uses `Long` (64-bit) bit partitioning to generate IDs.
+The default layout, `MillisecondSnowflakeId`, is `timestamp (41 bits) + machine id (10 bits) + sequence (12 bits) = 63 bits`:
 
-The general bit allocation scheme is: `timestamp`(41-bit)+`machineId`(10-bit)+`sequence`(12-bit)=63-bit.
-:::
+- **Timestamp**: milliseconds since the `epoch`. 41 bits last about 69 years. CosId's default epoch is `1577203200000` (2019-12-24T16:00:00Z); a later epoch leaves more years.
+- **Machine id**: 10 bits allow 1024 instances in one namespace at the same time. See [Machine ID](./machine-id.md) for how an instance gets one.
+- **Sequence**: 12 bits allow 4096 IDs per millisecond per instance, about 4 million per second. When the sequence runs out, the generator waits for the next millisecond.
 
-- 41-bit `timestamp`=(1L<<41)/(1000/3600/24/365), can store about 69 years of timestamps, that is, the usable absolute time is `EPOCH`+69 years, generally we need to customize `EPOCH` as product development time, additionally can extend timestamp bits by compressing other area allocation bits to prolong available time.
-- 10-bit `machineId`=(1L<<10)=1024, that is, same business can deploy 1024 replicas (in Kubernetes concept there is no master-slave replica distinction, directly using Kubernetes definition here). Generally no need to use so many bits, so will redefine according to deployment scale needs.
-- 12-bit `sequence`=(1L<<12)*1000=4096000, that is, single machine can generate about 409W IDs per second, global same business cluster can produce `4096000*1024=419430W=4.194 billion (TPS)`.
+`SecondSnowflakeId` (`timestamp-unit: second`) counts seconds instead, with a default layout of 31 + 10 + 22 bits. Any layout whose bits add up to at most 63 works; `SnowflakeId.layout()` returns it, and machine id bits are limited to 31.
 
-From *SnowflakeId* design we can see:
+Because the timestamp is in the high bits, IDs of one instance increase monotonically, and IDs across instances are trend increasing, as far apart as the host clocks are.
 
-- :thumbsup: `timestamp` in high bits, single instance *SnowflakeId* guarantees clock always moves forward (checks local clock rollback), so is locally monotonically increasing. Affected by global clock synchronization/clock rollback *SnowflakeId* is globally trend increasing.
-- :thumbsup: *SnowflakeId* has no strong dependency on any third-party middleware, and performance is also very high.
-- :thumbsup: Bit allocation scheme can be flexibly configured according to business system needs to achieve optimal effect.
-- :thumbsdown: Strongly depends on local clock, potential clock rollback problem will cause ID duplication, in short-term unavailability state.
-- :thumbsdown: `machineId` needs manual setting, when cluster scale is large, `machineId` maintenance work is very cumbersome and inefficient.
+## Sequence reset
 
-## Challenges
+At low traffic, every millisecond would start its sequence at `1`, so most IDs would end in the same few values, and sharding by `id % n` would put almost all rows in one shard. CosId continues the sequence across milliseconds and restarts it only once it has passed `sequence-reset-threshold` (by default half the sequence range, 2047 for 12 bits). This spreads the low bits without costing throughput.
 
-### Machine ID Allocation
+## Clock backwards
 
-In **SnowflakeId**, once determined according to business design bit allocation scheme, basically no longer changes, rarely needs maintenance. But `machineId` always needs configuration, and in cluster cannot repeat, otherwise partitioning principle will be broken leading to ID uniqueness principle destruction, when cluster scale is large `machineId` maintenance work is very cumbersome and inefficient.
+A clock that moves backwards could make an instance issue the same timestamp and sequence twice.
 
-:::tip
-One point needs special explanation, **SnowflakeId**'s **MachineId** is a logical concept, not physical concept, so calling it `WorkerId` is more accurate.
+- **While running**, the generator keeps its last timestamp and detects a clock behind it. With `clock-sync: true` (the default), `ClockSyncSnowflakeId` waits until the clock catches up: it spins for a jump of at most `cosid.machine.clock-backwards.spin-threshold` (1 ms), sleeps for a jump up to `broken-threshold` (500 ms), and throws `ClockTooManyBackwardsException` beyond that.
+- **After a restart**, the last timestamp is gone from memory. The machine id lease keeps a *watermark*, the last timestamp issued under that machine id, and a new owner waits until its clock passes it. See [Machine ID](./machine-id.md#clock-backwards-after-a-restart).
 
-Imagine if **MachineId** is physical, meaning one machine can only have one **MachineId**, what problems would arise?
-:::
+## JavaScript-safe IDs
 
-### Clock Rollback
+JavaScript numbers are exact only up to 2<sup>53</sup> - 1, so a 63-bit ID sent as a JSON number loses its low digits in a browser. Either:
 
-Clock rollback's fatal problem is causing ID duplication, conflict (this is not hard to understand), ID duplication obviously cannot be tolerated.
-In **SnowflakeId** algorithm, according to **MachineId** partitioning IDs, we easily understand different **MachineId** cannot produce same ID. So the clock rollback problem we solve refers to current **MachineId**'s clock rollback problem, not all cluster nodes' clock rollback problem.
+- send it as a string: an [ID converter](./id-converter.md) (`radix`, `to_string`, `snowflake_friendly`), or [`cosid-jackson`](../integrations/jackson.md) for selected fields; or
+- use a 53-bit layout. `SafeJavaScriptSnowflakeId.ofMillisecond(machineId)` creates one with 41 timestamp, 3 machine id and 9 sequence bits; with the starter, set the bits on a named generator:
 
-**MachineId** clock rollback problem can be roughly divided into two situations:
+```yaml
+cosid:
+  snowflake:
+    provider:
+      safe-js:
+        namespace: ${spring.application.name}-safe-js
+        machine-bit: 3
+        sequence-bit: 9
+```
 
-- Runtime clock rollback: That is, during runtime the current timestamp obtained is smaller than the last obtained timestamp. This scenario's clock rollback is easy to handle, generally **SnowflakeId** code implementations all store `lastTimestamp` for runtime clock rollback check, and throw clock rollback exception.
-  - Directly throwing exception when clock rollback is not good practice, because downstream users almost have no other handling options (oh, what can I do, wait), clock synchronization is the only choice, when there is only one choice, don't let users choose again.
-  - `ClockSyncSnowflakeId` is `SnowflakeId`'s wrapper, when clock rollback occurs it uses `ClockBackwardsSynchronizer` to actively wait for clock synchronization to regenerate ID, providing more user-friendly experience.
-- Startup clock rollback: That is, when starting service instance the current clock obtained is smaller than when last closed service. At this time `lastTimestamp` cannot be stored in process memory. When obtained external storage **machine state** is greater than current clock, will use `ClockBackwardsSynchronizer` to actively synchronize clock.
-  - LocalMachineStateStorage: Use local file to store `MachineState` (machine ID, last timestamp). Because using local file so only applicable when instance deployment environment is stable, `LocalMachineStateStorage` is applicable.
-  - `MachineLeaseStore`: The lease stores (Redis, JDBC, ZooKeeper, MongoDB, Proxy) keep the last timestamp of each machine ID, this way can guarantee always can get last service instance shutdown **machine state**.
+Fewer machine id bits mean fewer instances: 3 bits allow 8. Give such a generator its own `namespace`: an instance holds one machine id per namespace, and one leased for 10 bits may not fit in 3.
 
-### Uneven Modulo Sharding
+## Friendly IDs
 
-_CosId_ cleverly solves the uneven modulo sharding problem by introducing the `sequenceResetThreshold` property, this design provides users with a better experience without sacrificing performance.
+`SnowflakeFriendlyId` formats an ID as `{timestamp}-{machineId}-{sequence}`, for example `20210623131730192-1-0`, and parses it back. With the starter, use `converter.type: snowflake_friendly`; the timestamp is formatted in `cosid.snowflake.zone-id`.
 
-### JavaScript Numerical Overflow
-
-`JavaScript`'s `Number.MAX_SAFE_INTEGER` is only 53-bit, if directly return 63-bit `SnowflakeId` to frontend, will produce value overflow situation (so here we should know backend passing `long` value overflow problem to frontend, **sooner or later** will appear, only SnowflakeId appears faster).
-Obviously overflow cannot be accepted, generally can use the following two handling schemes:
-- Convert generated 63-bit `SnowflakeId` to `String` type.
-  - Directly convert `long` to `String`.
-  - Use `SnowflakeFriendlyId` to convert `SnowflakeId` to more friendly string representation: `{timestamp}-{machineId}-{sequence} -> 20210623131730192-1-0`
-- Customize `SnowflakeId` bit allocation to shorten `SnowflakeId` bit count (53-bit) so `ID` provided to frontend does not overflow
-  - Use `SafeJavaScriptSnowflakeId` (`JavaScript` safe `SnowflakeId`)
-
-## Specific Implementation
+## Implementations
 
 ```mermaid
 classDiagram
 direction BT
-class AbstractSnowflakeId
-class ClockSyncSnowflakeId
-class DefaultSnowflakeFriendlyId
 class IdGenerator {
 <<Interface>>
-
-}
-class MillisecondSnowflakeId
-class SecondSnowflakeId
-class SnowflakeFriendlyId {
-<<Interface>>
-
 }
 class SnowflakeId {
 <<Interface>>
-
 }
+class SnowflakeFriendlyId {
+<<Interface>>
+}
+class AbstractSnowflakeId
+class MillisecondSnowflakeId
+class SecondSnowflakeId
+class ClockSyncSnowflakeId
+class LeasedSnowflakeId
 class StringSnowflakeId
+class DefaultSnowflakeFriendlyId
 
-AbstractSnowflakeId  ..>  SnowflakeId 
-ClockSyncSnowflakeId  ..>  IdGenerator 
-ClockSyncSnowflakeId  ..>  SnowflakeId 
-DefaultSnowflakeFriendlyId  ..>  SnowflakeFriendlyId 
-DefaultSnowflakeFriendlyId  -->  StringSnowflakeId 
-MillisecondSnowflakeId  -->  AbstractSnowflakeId 
-SecondSnowflakeId  -->  AbstractSnowflakeId 
-SnowflakeFriendlyId  -->  SnowflakeId 
-SnowflakeId  -->  IdGenerator 
-StringSnowflakeId  ..>  IdGenerator 
-StringSnowflakeId  ..>  SnowflakeId 
+SnowflakeId --> IdGenerator
+SnowflakeFriendlyId --> SnowflakeId
+AbstractSnowflakeId ..> SnowflakeId
+MillisecondSnowflakeId --> AbstractSnowflakeId
+SecondSnowflakeId --> AbstractSnowflakeId
+ClockSyncSnowflakeId ..> SnowflakeId
+LeasedSnowflakeId ..> SnowflakeId
+StringSnowflakeId ..> SnowflakeId
+DefaultSnowflakeFriendlyId --> StringSnowflakeId
+DefaultSnowflakeFriendlyId ..> SnowflakeFriendlyId
 ```
 
-### MillisecondSnowflakeId
-
-`MillisecondSnowflakeId` is the default implementation of `SnowflakeId`, it uses `System.currentTimeMillis()` as timestamp, accurate to millisecond level.
-
-### SecondSnowflakeId
-
-`SecondSnowflakeId` is another implementation of `SnowflakeId`, it uses `System.currentTimeMillis() / 1000` as timestamp, accurate to second level.
-
-### DefaultSnowflakeFriendlyId
-
-`DefaultSnowflakeFriendlyId` is `SnowflakeId`'s wrapper, it converts `SnowflakeId` to more friendly string representation: `{timestamp}-{machineId}-{sequence} -> 20210623131730192-1-0`
-
-### ClockSyncSnowflakeId
-
-`ClockSyncSnowflakeId` is `SnowflakeId`'s wrapper, when clock rollback occurs it uses `ClockBackwardsSynchronizer` to actively wait for clock synchronization to regenerate ID, providing more user-friendly experience.
-
-## MachineIdDistributor
-
-> **Terminology**: a *machine id* is the worker-id bits of a Snowflake ID. It is held by an *instance* (`InstanceId`, one running process) through a lease and has nothing to do with physical machines. Several processes on the same host each hold their own machine id.
-
-`MachineIdDistributor` is `SnowflakeId`'s machine ID distributor, it is responsible for allocating machine ID, also stores `MachineId`'s last timestamp, for **startup clock rollback** check.
-
-<p align="center" >
-  <img src="../../../public/assets/design/MachineIdDistributor.png" alt="MachineIdDistributor"/>
-</p>
-
-Currently *CosId* provides the following `MachineId` distributors.
-
-- `ManualMachineIdDistributor`: Manually configure `machineId`, generally only possible when cluster scale is very small, not recommended.
-- `StatefulSetMachineIdDistributor`: Use `Kubernetes`'s `StatefulSet` provided stable identity ID (HOSTNAME=service-01) as machine ID.
-- `LeaseStoreMachineIdDistributor`: Lease the machine ID from a `MachineLeaseStore`, which also keeps the last timestamp of each machine ID, for the **startup clock rollback** check. CosId ships stores for **Redis** (`SpringRedisMachineLeaseStore`), **relational databases** (`JdbcMachineLeaseStore`), **ZooKeeper** (`ZookeeperMachineLeaseStore`), **MongoDB** (`MongoMachineLeaseStore`) and **CosId Proxy** (`ProxyMachineLeaseStore`).
-
-## MachineIdGuarder
-
-<p align="center">
-  <img src="../../../public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
-</p>
+| Class | Role |
+|-------|------|
+| `MillisecondSnowflakeId` | Millisecond timestamps, the default |
+| `SecondSnowflakeId` | Second timestamps |
+| `ClockSyncSnowflakeId` | Waits out a clock that moved backwards (`clock-sync: true`) |
+| `LeasedSnowflakeId` | Throws `MachineIdLostException` once the machine id lease is lost or expired (`cosid.machine.guarder.fail-fast: true`) |
+| `StringSnowflakeId` | Uses a configured converter for `generateAsString()` |
+| `DefaultSnowflakeFriendlyId` | Friendly string format |
 
 ## Configuration
 
-[SnowflakeId Configuration](../../reference/config/snowflake)
-
-### Configuration Example
+Snowflake IDs need a machine id, so enable the machine id as well:
 
 ```yaml
 cosid:
@@ -153,25 +105,13 @@ cosid:
   machine:
     enabled: true
     distributor:
-      type: jdbc # Machine ID distributor
-    guarder:
-      enabled: true # Enable machine ID guarder
+      type: redis
   snowflake:
     enabled: true
-    zone-id: Asia/Shanghai
-    epoch: 1577203200000
-    share:
-      clock-sync: true # Enable clock rollback sync
     provider:
-      short_id:
+      order:
         converter:
-          prefix: cosid_
           type: radix
-          radix:
-            char-size: 11
-            pad-start: false
-      safe-js:
-        machine-bit: 3
-        sequence-bit: 9
 ```
 
+This registers the share generator (`__share__SnowflakeId`) and a generator named `order`. See the [SnowflakeId configuration](../../reference/config/snowflake.md) and the [machine ID configuration](../../reference/config/machine.md) for every property.

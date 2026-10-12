@@ -17,9 +17,9 @@ import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 
+import jakarta.annotation.Nonnull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
-import jakarta.annotation.Nonnull;
 
 import java.time.ZoneId;
 import java.util.HashMap;

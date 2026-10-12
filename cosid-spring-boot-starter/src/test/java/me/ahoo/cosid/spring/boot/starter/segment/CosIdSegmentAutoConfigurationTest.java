@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.mock;
 
+import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
@@ -52,8 +53,9 @@ class CosIdSegmentAutoConfigurationTest {
                     .hasSingleBean(PrefetchWorkerExecutorService.class)
                     .hasSingleBean(CosIdLifecyclePrefetchWorkerExecutorService.class)
                     .hasBean("__share__SegmentId")
-                    .hasBean("testSegmentId")
+                    .doesNotHaveBean("testSegmentId")
                 ;
+                assertThat(context.getBean(IdGeneratorProvider.class).get("test")).isPresent();
             });
     }
 

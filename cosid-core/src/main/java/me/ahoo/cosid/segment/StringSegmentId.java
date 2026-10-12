@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.segment;
 
-import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.Decorator;
+import me.ahoo.cosid.IdConverter;
 import me.ahoo.cosid.StringIdGeneratorDecorator;
 import me.ahoo.cosid.converter.GroupedPrefixIdConverter;
 import me.ahoo.cosid.segment.grouped.GroupedId;
@@ -30,7 +30,7 @@ import org.jspecify.annotations.NonNull;
  *
  * @author ahoo wang
  */
-public class StringSegmentId extends StringIdGeneratorDecorator implements SegmentId {
+public class StringSegmentId extends StringIdGeneratorDecorator implements SegmentId, AutoCloseable {
     private final SegmentId actualSegmentId;
     private final boolean groupAware;
 
@@ -44,6 +44,18 @@ public class StringSegmentId extends StringIdGeneratorDecorator implements Segme
         super(actual, idConverter);
         this.actualSegmentId = actual;
         this.groupAware = isGroupAware(idConverter);
+    }
+    
+    /**
+     * Close the decorated segment id when it is {@link AutoCloseable}, such as a {@link SegmentChainId}.
+     *
+     * @throws Exception if closing it fails
+     */
+    @Override
+    public void close() throws Exception {
+        if (actualSegmentId instanceof AutoCloseable closeable) {
+            closeable.close();
+        }
     }
     
     /**

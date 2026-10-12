@@ -174,4 +174,29 @@ class SpringRedisMixedLeaseFormatTest {
         assertThat(again.getMachineId(), equalTo(oldState.getMachineId()));
         assertThat(again.getLastTimeStamp(), greaterThanOrEqualTo(oldState.getLastTimeStamp()));
     }
+
+    /**
+     * A 3.4 instance with a host clock behind takes a machine id that 4.0 released and writes back the very same
+     * timestamp: 4.0 must not take it from that live 3.4 owner.
+     */
+    @Test
+    void releasedThenTakenBy34WithTheSameTimestampIsNotTakenAgain() throws InterruptedException {
+        String namespace = newNamespace("mixedSameTimestamp");
+        Duration safeGuard = Duration.ofMillis(300);
+        blockOneOfTwoMachineIds(namespace);
+        MachineIdDistributor newDistributor = v40();
+        InstanceId newOwner = InstanceId.of("new-owner", false);
+        int machineId = newDistributor.distribute(namespace, 1, newOwner, safeGuard).getMachineId();
+        // The last renewal is now older than the safe guard; the release itself is fresh.
+        Thread.sleep(600);
+        newDistributor.revert(namespace, newOwner);
+        
+        String prefix = "cosid:{" + namespace + "}:";
+        String legacy = (String) redisTemplate.opsForHash().get(prefix + "revert", String.valueOf(machineId));
+        redisTemplate.opsForHash().delete(prefix + "revert", String.valueOf(machineId));
+        redisTemplate.opsForHash().put(prefix + "itc_idx", "lagging-34", machineId + "|" + legacy);
+        
+        assertThrows(MachineIdOverflowException.class,
+            () -> v40().distribute(namespace, 1, InstanceId.of("new-claimer", false), safeGuard));
+    }
 }

@@ -8,7 +8,9 @@
 -- 3.4 reads the legacy timestamp as both liveness and watermark, so 4.0 writes max(renewedAt, watermark, previous
 -- legacy timestamp) there: it never decreases and never makes a lease look older than it is. A lease entry is only
 -- trusted while its legacy timestamp matches the one in itc_idx or revert; otherwise a 3.4 instance wrote last, and the
--- legacy timestamp is the renewal time, the watermark and the version.
+-- legacy timestamp is the renewal time, the watermark and the version. A 3.4 instance can still write back the same
+-- legacy timestamp (a host clock behind it), so decisions that hand a machine id to someone else never rely on the
+-- entry alone: expiry is judged on the legacy timestamp, exactly as 3.4 judges it, and a new owner starts after it.
 -- Integers are formatted with %d: tostring would turn large numbers into floats ("1.7e+12").
 --
 -- KEYS[1] = namespace (hash tag); ARGV[1] = operation, ARGV[2] = instanceId, ARGV[3] = stable ("1"/"0"), then:
@@ -73,10 +75,11 @@ local function markStable()
     end
 end
 
--- Hand an existing machine id to this instance: the watermark covers the previous owner's last renewal.
+-- Hand an existing machine id to this instance: it starts no earlier than the previous owner's watermark, last renewal
+-- and legacy timestamp, and the store's current time.
 local function take(machineId, legacy)
     local renewedAt, watermark, version = load(machineId, legacy)
-    watermark = math.max(watermark, renewedAt)
+    watermark = math.max(watermark, renewedAt, legacy, now)
     version = version + 1
     local newLegacy = save(machineId, now, watermark, version, legacy)
     redis.call('hset', idxKey, instanceId, fmt(machineId) .. '|' .. fmt(newLegacy))
@@ -122,10 +125,10 @@ if operation == 'claimNew' then
         return {}
     end
     local machineId = redis.call('incr', adderKey)
-    local legacy = save(machineId, now, 0, 1, now)
+    local legacy = save(machineId, now, now, 1, now)
     redis.call('hset', idxKey, instanceId, fmt(machineId) .. '|' .. fmt(legacy))
     markStable()
-    return { machineId, 0, now, 1 }
+    return { machineId, now, now, 1 }
 end
 
 if operation == 'claimExpired' then
@@ -136,12 +139,10 @@ if operation == 'claimExpired' then
     for i = 1, #entries, 2 do
         local owner = entries[i]
         local machineId, legacy = parseState(entries[i + 1])
-        if machineId <= maxMachineId and (bestId == nil or machineId < bestId)
+        -- Expired as 3.4 sees it: the legacy timestamp is at least the renewal time 4.0 wrote.
+        if machineId <= maxMachineId and legacy <= expiredBefore and (bestId == nil or machineId < bestId)
             and redis.call('sismember', stableKey, owner) == 0 then
-            local renewedAt = load(machineId, legacy)
-            if renewedAt <= expiredBefore then
-                bestInstance, bestId, bestLegacy = owner, machineId, legacy
-            end
+            bestInstance, bestId, bestLegacy = owner, machineId, legacy
         end
     end
     if bestId == nil then

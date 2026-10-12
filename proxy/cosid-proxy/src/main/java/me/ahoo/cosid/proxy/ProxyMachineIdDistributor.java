@@ -41,8 +41,11 @@ import java.time.Duration;
  * <p><img src="doc-files/CosId-Proxy.png" alt="CosId-Proxy"></p>
  *
  * @author ahoo wang
+ * @deprecated since 4.0: the version 1 machine API is deprecated. Use {@link ProxyMachineLeaseStore} with
+ *     {@code LeaseStoreMachineIdDistributor}, which the starter wires for {@code cosid.machine.distributor.type=proxy}.
  */
 @Slf4j
+@Deprecated
 public class ProxyMachineIdDistributor extends AbstractMachineIdDistributor {
 
     private final MachineClient machineClient;

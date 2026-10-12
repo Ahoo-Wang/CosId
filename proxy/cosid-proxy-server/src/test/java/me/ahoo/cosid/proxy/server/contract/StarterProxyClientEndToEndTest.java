@@ -18,8 +18,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
-import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
 import me.ahoo.cosid.proxy.server.ProxyServer;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
@@ -88,7 +88,7 @@ class StarterProxyClientEndToEndTest {
             assertThat(context).hasNotFailed();
             String namespace = MockIdGenerator.usePrefix("starter").generateAsString();
             
-            int machineId = context.getBean(ProxyMachineIdDistributor.class)
+            int machineId = context.getBean(MachineIdDistributor.class)
                 .distribute(namespace, 4, InstanceId.of("starter", false), Duration.ofMinutes(1)).getMachineId();
             long maxId = context.getBean(IdSegmentDistributorFactory.class)
                 .create(new IdSegmentDistributorDefinition(namespace, "starter", 0, 10)).nextMaxId();
@@ -102,7 +102,7 @@ class StarterProxyClientEndToEndTest {
     void starterClientsWithWrongTokenGetUnauthorized() {
         client("wrong-token").run(context -> {
             assertThat(context).hasNotFailed();
-            assertThatThrownBy(() -> context.getBean(ProxyMachineIdDistributor.class)
+            assertThatThrownBy(() -> context.getBean(MachineIdDistributor.class)
                 .distribute("starter-wrong", 4, InstanceId.of("starter", false), Duration.ofMinutes(1)))
                 .isInstanceOf(HttpClientErrorException.Unauthorized.class);
         });

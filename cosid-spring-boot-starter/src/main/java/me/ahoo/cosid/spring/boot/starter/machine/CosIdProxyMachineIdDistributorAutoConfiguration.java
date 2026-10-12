@@ -15,9 +15,11 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 
 import me.ahoo.coapi.spring.EnableCoApi;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
-import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
-import me.ahoo.cosid.proxy.api.MachineClient;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
+import me.ahoo.cosid.proxy.ProxyMachineLeaseStore;
+import me.ahoo.cosid.proxy.api.MachineLeaseClient;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientAuthConfiguration;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientTimeoutConfiguration;
@@ -40,28 +42,37 @@ import org.springframework.context.annotation.Import;
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
-@ConditionalOnClass(name = {"me.ahoo.cosid.proxy.ProxyMachineIdDistributor", "me.ahoo.coapi.spring.EnableCoApi"})
+@ConditionalOnClass(name = {"me.ahoo.cosid.proxy.ProxyMachineLeaseStore", "me.ahoo.coapi.spring.EnableCoApi"})
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "proxy")
-@EnableCoApi(clients = MachineClient.class)
+@EnableCoApi(clients = MachineLeaseClient.class)
 @Import({CosIdProxyClientTimeoutConfiguration.class, CosIdProxyClientAuthConfiguration.class})
 public class CosIdProxyMachineIdDistributorAutoConfiguration {
 
+    /**
+     * The machine id lease store through the proxy server's version 2 lease API; calls are bounded by the proxy
+     * client timeouts.
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBuiltInMachineStore
-    public ProxyMachineIdDistributor proxyMachineIdDistributor(MachineClient machineClient, MachineStateStorage localMachineState,
-                                                               ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        return new ProxyMachineIdDistributor(machineClient, localMachineState, clockBackwardsSynchronizer);
+    public ProxyMachineLeaseStore proxyMachineLeaseStore(MachineLeaseClient machineLeaseClient) {
+        return new ProxyMachineLeaseStore(machineLeaseClient);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(MachineIdDistributor.class)
+    @ConditionalOnBuiltInMachineStore
+    public LeaseStoreMachineIdDistributor proxyMachineIdDistributor(ProxyMachineLeaseStore proxyMachineLeaseStore, MachineStateStorage localMachineState,
+                                                                    ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        return new LeaseStoreMachineIdDistributor(proxyMachineLeaseStore, localMachineState, clockBackwardsSynchronizer);
     }
 
     /**
      * The proxy backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
      */
     @Bean
-    public BuiltInStoreProvider cosIdProxyMachineStoreProvider(ObjectProvider<MachineClient> machineClient) {
-        return BuiltInStoreProvider.machine("proxy", context -> proxyMachineIdDistributor(machineClient.getObject(), context.getMachineStateStorage(),
-            context.getClockBackwardsSynchronizer()));
+    public BuiltInStoreProvider cosIdProxyMachineStoreProvider(ObjectProvider<MachineLeaseClient> machineLeaseClient) {
+        return BuiltInStoreProvider.machine("proxy", context -> proxyMachineIdDistributor(proxyMachineLeaseStore(machineLeaseClient.getObject()),
+            context.getMachineStateStorage(), context.getClockBackwardsSynchronizer()));
     }
-
-
 }

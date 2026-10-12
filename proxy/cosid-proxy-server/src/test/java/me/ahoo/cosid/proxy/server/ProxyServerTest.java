@@ -15,12 +15,7 @@ package me.ahoo.cosid.proxy.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import me.ahoo.cosid.machine.InMemoryMachineStateStorage;
 import me.ahoo.cosid.machine.InstanceId;
-import me.ahoo.cosid.machine.MachineIdDistributor;
-import me.ahoo.cosid.machine.MachineIdLostException;
-import me.ahoo.cosid.machine.MachineIdOverflowException;
-import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.proxy.api.ErrorResponse;
 import me.ahoo.cosid.proxy.server.controller.MachineController;
 import me.ahoo.cosid.proxy.server.controller.SegmentController;
@@ -29,6 +24,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
+import me.ahoo.cosid.test.machine.lease.InMemoryMachineLeaseStore;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -45,9 +41,9 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 class ProxyServerTest {
     private final RecordingIdSegmentDistributorFactory segmentDistributorFactory = new RecordingIdSegmentDistributorFactory();
-    private final RecordingMachineIdDistributor machineIdDistributor = new RecordingMachineIdDistributor();
+    private final InMemoryMachineLeaseStore leaseStore = new InMemoryMachineLeaseStore();
     private final WebTestClient webTestClient = WebTestClient
-        .bindToController(new SegmentController(segmentDistributorFactory), new MachineController(machineIdDistributor, new InMemoryMachineStateStorage()))
+        .bindToController(new SegmentController(segmentDistributorFactory), new MachineController(leaseStore))
         .controllerAdvice(new GlobalRestExceptionHandler())
             .build();
 
@@ -167,17 +163,17 @@ class ProxyServerTest {
             .exchange()
             .expectStatus().isOk()
             .expectBody()
-            .jsonPath("$.machineId").isEqualTo(6)
-            .jsonPath("$.lastTimeStamp").isEqualTo(123456);
+            .jsonPath("$.machineId").isEqualTo(0)
+            .jsonPath("$.lastTimeStamp").value(lastTimeStamp -> assertThat(((Number) lastTimeStamp).longValue()).isPositive());
 
-        assertThat(machineIdDistributor.lastNamespace).isEqualTo("test_namespace");
-        assertThat(machineIdDistributor.lastMachineBit).isEqualTo(8);
-        assertThat(machineIdDistributor.lastInstanceId).isEqualTo(new InstanceId("node-1", true));
-        assertThat(machineIdDistributor.lastSafeGuardDuration).isEqualTo(Duration.ofSeconds(30));
+        assertThat(leaseStore.claimSelf("test_namespace", new InstanceId("node-1", true), System.currentTimeMillis()))
+            .hasValueSatisfying(lease -> assertThat(lease.isStable()).isTrue());
     }
 
     @Test
     void machineOverflowMapsToBadRequestErrorBody() {
+        leaseStore.claimNew("overflow", new InstanceId("held-0", true), 1, System.currentTimeMillis());
+        leaseStore.claimNew("overflow", new InstanceId("held-1", true), 1, System.currentTimeMillis());
         webTestClient
             .post()
             .uri("/machines/overflow?machineBit=1&instanceId=node-1&stable=false&safeGuardDuration=PT30S")
@@ -287,36 +283,6 @@ class ProxyServerTest {
         @Override
         public long nextMaxId(long step) {
             return maxId.addAndGet(step);
-        }
-    }
-
-    private static class RecordingMachineIdDistributor implements MachineIdDistributor {
-        private String lastNamespace;
-        private int lastMachineBit;
-        private InstanceId lastInstanceId;
-        private Duration lastSafeGuardDuration;
-
-        @Override
-        public MachineState distribute(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
-            this.lastNamespace = namespace;
-            this.lastMachineBit = machineBit;
-            this.lastInstanceId = instanceId;
-            this.lastSafeGuardDuration = safeGuardDuration;
-            if ("overflow".equals(namespace)) {
-                throw new MachineIdOverflowException(machineBit, instanceId);
-            }
-            return MachineState.of(6, 123456);
-        }
-
-        @Override
-        public void revert(String namespace, InstanceId instanceId) {
-        }
-
-        @Override
-        public void guard(String namespace, InstanceId instanceId, Duration safeGuardDuration) {
-            if ("lost".equals(namespace)) {
-                throw new MachineIdLostException(namespace, instanceId, MachineState.of(6, 123456));
-            }
         }
     }
 }

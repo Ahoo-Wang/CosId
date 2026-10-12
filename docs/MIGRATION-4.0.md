@@ -12,7 +12,7 @@
 3.x and 4.0 instances can share a namespace during the upgrade: 4.0 reads and writes both lease formats. Finish the upgrade before removing 3.x instances, and keep host clocks in sync with the store.
 
 - **JDBC**: run the `ALTER TABLE` for the new lease columns before starting 4.0 instances; 4.0 fails at startup and prints the statement when the columns are missing.
-- **Proxy**: 4.0 servers keep the v1 API for 3.x clients (deprecated).
+- **Proxy**: upgrade the servers first. 4.0 servers keep the v1 machine API for 3.x clients (deprecated, now stateless on the backend lease store), and 4.0 clients use the v2 lease API (`/machines/v2`), which 3.x servers do not have.
 
 ## Removed
 

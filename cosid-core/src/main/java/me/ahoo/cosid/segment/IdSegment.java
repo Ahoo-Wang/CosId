@@ -151,7 +151,14 @@ public interface IdSegment extends Comparable<IdSegment>, Grouped {
             return false;
         }
         
-        return Clock.SYSTEM.secondTime() - getFetchTime() > getTtl();
+        long now = Clock.SYSTEM.secondTime();
+        // A grouped segment also ends with its group, whatever its time to live: it must not issue ids with the
+        // previous period's prefix once the next period has begun.
+        long groupEnd = group().getTtlAt();
+        if (groupEnd != TIME_TO_LIVE_FOREVER && now > groupEnd) {
+            return true;
+        }
+        return now - getFetchTime() > getTtl();
     }
     
     /**

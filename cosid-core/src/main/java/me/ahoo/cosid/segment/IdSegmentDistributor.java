@@ -185,7 +185,8 @@ public interface IdSegmentDistributor extends Grouped {
      */
     @NonNull
     default IdSegment nextIdSegment(long ttl) {
-        Checks.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
+        // 0: valid during the current second only, such as a grouped segment fetched in its group's last second.
+        Checks.checkArgument(ttl >= 0, "ttl:[%s] must not be negative.", ttl);
 
         final long maxId = nextMaxId();
         return new DefaultIdSegment(maxId, getStep(), Clock.SYSTEM.secondTime(), ttl, group());
@@ -204,7 +205,7 @@ public interface IdSegmentDistributor extends Grouped {
     @NonNull
     default IdSegment nextIdSegment(int segments, long ttl) {
         Checks.checkArgument(segments > 0, "segments:[%s] must be greater than 0.", segments);
-        Checks.checkArgument(ttl > 0, "ttl:[%s] must be greater than 0.", ttl);
+        Checks.checkArgument(ttl >= 0, "ttl:[%s] must not be negative.", ttl);
 
         final long totalStep = getStep(segments);
         final long maxId = nextMaxId(totalStep);

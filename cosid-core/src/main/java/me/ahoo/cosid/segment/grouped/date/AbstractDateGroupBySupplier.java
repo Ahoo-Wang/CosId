@@ -16,8 +16,8 @@ package me.ahoo.cosid.segment.grouped.date;
 import me.ahoo.cosid.segment.grouped.GroupBySupplier;
 import me.ahoo.cosid.segment.grouped.GroupedKey;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 
@@ -29,6 +29,10 @@ import java.time.temporal.TemporalAccessor;
  */
 public abstract class AbstractDateGroupBySupplier<D extends TemporalAccessor> implements GroupBySupplier {
     protected final DateTimeFormatter formatter;
+    /**
+     * The clock of the dates and of the group's end, in its zone.
+     */
+    protected final Clock clock;
 
     /**
      * Creates a supplier with the specified formatter.
@@ -36,7 +40,12 @@ public abstract class AbstractDateGroupBySupplier<D extends TemporalAccessor> im
      * @param formatter the date formatter
      */
     public AbstractDateGroupBySupplier(DateTimeFormatter formatter) {
+        this(formatter, Clock.systemDefaultZone());
+    }
+    
+    AbstractDateGroupBySupplier(DateTimeFormatter formatter, Clock clock) {
         this.formatter = formatter;
+        this.clock = clock;
     }
 
     /**
@@ -60,8 +69,7 @@ public abstract class AbstractDateGroupBySupplier<D extends TemporalAccessor> im
         String key = formatter.format(nowDate);
 
         LocalDateTime lastTs = lastTimestamp(nowDate);
-        ZoneId currentZone = ZoneId.systemDefault();
-        long ttlAt = lastTs.atZone(currentZone).toInstant().toEpochMilli() / 1000;
+        long ttlAt = lastTs.atZone(clock.getZone()).toInstant().toEpochMilli() / 1000;
         return new GroupedKey(key, ttlAt);
     }
 }

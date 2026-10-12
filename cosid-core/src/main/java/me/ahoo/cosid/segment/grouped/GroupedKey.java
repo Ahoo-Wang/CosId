@@ -71,7 +71,18 @@ public final class GroupedKey {
      * @return remaining TTL in seconds, or 0 if expired
      */
     public long ttl() {
-        return ttlAt - Clock.CACHE.secondTime();
+        return ttl(Clock.SYSTEM.secondTime());
+    }
+    
+    long ttl(long nowSecond) {
+        return ttlAt - nowSecond;
+    }
+    
+    /**
+     * Whether the group ended before {@code nowSecond}.
+     */
+    boolean isEndedAt(long nowSecond) {
+        return ttlAt != IdSegment.TIME_TO_LIVE_FOREVER && ttl(nowSecond) < 0;
     }
 
     @Override

@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.segment.grouped.date;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -43,10 +44,14 @@ public class YearMonthGroupBySupplier extends AbstractDateGroupBySupplier<YearMo
     public YearMonthGroupBySupplier(String pattern) {
         this(DateTimeFormatter.ofPattern(pattern));
     }
+    
+    YearMonthGroupBySupplier(DateTimeFormatter formatter, Clock clock) {
+        super(formatter, clock);
+    }
 
     @Override
     YearMonth now() {
-        return YearMonth.now();
+        return YearMonth.now(clock);
     }
 
     @Override

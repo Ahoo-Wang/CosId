@@ -18,6 +18,7 @@ import me.ahoo.cosid.segment.IdSegmentChain;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.util.Clock;
 
 import org.jspecify.annotations.NonNull;
 
@@ -54,6 +55,10 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
 
     private GroupedBinding ensureGroupedBinding() {
         GroupedKey groupedKey = groupBySupplier.get();
+        // A key computed just before its group ended: ask again, the supplier now returns the next group.
+        for (int attempt = 0; attempt < 3 && groupedKey.isEndedAt(Clock.SYSTEM.secondTime()); attempt++) {
+            groupedKey = groupBySupplier.get();
+        }
         return groupedBindings.computeIfAbsent(groupedKey, this::createGroupedBinding);
     }
 
@@ -174,8 +179,11 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
             return idSegmentDistributor.nextMaxId(step);
         }
 
+        /**
+         * {@code 0} during the group's last second: the segment then expires when the group does.
+         */
         private long getMinTtl(long ttl) {
-            long groupedTtl = group.ttl();
+            long groupedTtl = Math.max(0, group.ttl());
             return Math.min(groupedTtl, ttl);
         }
 

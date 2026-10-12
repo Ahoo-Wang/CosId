@@ -19,7 +19,7 @@
 |----------------|------------------------------|----------------------------------|---------------------------------------|
 | clock-sync     | `boolean`                    | Whether to enable clock synchronization                         | `true`                                |
 | timestamp-unit | `IdDefinition.TimestampUnit` | Unit of timestamp bits: `SECOND` / `MILLISECOND` | `TimestampUnit.MILLISECOND`           |
-| epoch          | `int`                        | EPOCH                            | `cosid.snowflake.epoch`               |
+| epoch          | `long`                       | EPOCH, in the id's timestamp unit: milliseconds, or seconds for `timestamp-unit: second`. Unset, `timestamp-unit: second` ids use `CosId.COSID_EPOCH_SECOND`; an epoch after the current time fails startup | `cosid.snowflake.epoch`               |
 | timestamp-bit  | `int`                        | Timestamp bits                            | 41                                    |
 | machine-bit    | `int`                        | Machine bits                             | `cosid.snowflake.machine.machine-bit` |
 | sequence-bit   | `int`                        | Sequence bits                             | 12                                    |

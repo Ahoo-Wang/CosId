@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.boot.starter.snowflake;
 
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
@@ -150,7 +151,7 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean, DisposableBea
             throw new IllegalStateException("Snowflake id [" + name + "] has converter.group-prefix enabled, but snowflake ids have no group: "
                 + "turn the group prefix off, or use a grouped segment id.");
         }
-        SnowflakeId idGenerator = createIdGen(idDefinition, clockBackwardsSynchronizer);
+        SnowflakeId idGenerator = createIdGen(name, idDefinition, clockBackwardsSynchronizer);
         if (idGeneratorProvider.get(name).isEmpty()) {
             idGeneratorProvider.set(name, idGenerator);
         }
@@ -158,15 +159,16 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean, DisposableBea
         return idGenerator;
     }
     
-    private SnowflakeId createIdGen(SnowflakeIdProperties.IdDefinition idDefinition,
+    private SnowflakeId createIdGen(String name, SnowflakeIdProperties.IdDefinition idDefinition,
                                     ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
-        long epoch = getEpoch(idDefinition);
+        boolean second = SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit());
+        long epoch = getEpoch(name, idDefinition, second);
         int machineBit = MoreObjects.firstNonNull(idDefinition.getMachineBit(), machineProperties.getMachineBit());
         String namespace = Namespaces.firstNotBlank(idDefinition.getNamespace(), cosIdProperties.getNamespace());
         int machineId = guardDistribute.distribute(namespace, machineBit, instanceId, machineProperties.getSafeGuardDuration()).getMachineId();
         
         SnowflakeId snowflakeId;
-        if (SnowflakeIdProperties.IdDefinition.TimestampUnit.SECOND.equals(idDefinition.getTimestampUnit())) {
+        if (second) {
             snowflakeId = new SecondSnowflakeId(epoch, idDefinition.getTimestampBit(), machineBit, idDefinition.getSequenceBit(), machineId, idDefinition.getSequenceResetThreshold());
         } else {
             snowflakeId =
@@ -183,11 +185,22 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean, DisposableBea
         return new SnowflakeIdConverterDecorator(snowflakeId, converterDefinition, zoneId).decorate();
     }
     
-    private long getEpoch(SnowflakeIdProperties.IdDefinition idDefinition) {
-        if (idDefinition.getEpoch() > 0) {
-            return idDefinition.getEpoch();
+    /**
+     * The epoch in the id's timestamp unit. The default epoch is in milliseconds, so second ids use
+     * {@link CosId#COSID_EPOCH_SECOND} for it; any other epoch must not be after the current time in that unit, which
+     * catches an epoch in milliseconds for second ids (it would make every id negative).
+     */
+    private long getEpoch(String name, SnowflakeIdProperties.IdDefinition idDefinition, boolean second) {
+        long epoch = idDefinition.getEpoch() > 0 ? idDefinition.getEpoch() : snowflakeIdProperties.getEpoch();
+        if (second && epoch == CosId.COSID_EPOCH) {
+            return CosId.COSID_EPOCH_SECOND;
         }
-        return snowflakeIdProperties.getEpoch();
+        long now = second ? System.currentTimeMillis() / 1000 : System.currentTimeMillis();
+        if (epoch > now) {
+            throw new IllegalStateException("Snowflake id [" + name + "] has epoch [" + epoch + "] after the current time [" + now + "] in "
+                + (second ? "seconds: timestamp-unit second needs an epoch in seconds." : "milliseconds."));
+        }
+        return epoch;
     }
     
 }

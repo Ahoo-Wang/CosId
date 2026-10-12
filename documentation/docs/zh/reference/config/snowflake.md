@@ -19,7 +19,7 @@
 |----------------|------------------------------|----------------------------------|---------------------------------------|
 | clock-sync     | `boolean`                    | 是否开启时钟同步                         | `true`                                |
 | timestamp-unit | `IdDefinition.TimestampUnit` | 时间戳位的单位：`SECOND` / `MILLISECOND` | `TimestampUnit.MILLISECOND`           |
-| epoch          | `int`                        | EPOCH                            | `cosid.snowflake.epoch`               |
+| epoch          | `long`                       | EPOCH，单位与 ID 的时间戳单位一致：毫秒，`timestamp-unit: second` 时为秒。未设置时秒级 ID 使用 `CosId.COSID_EPOCH_SECOND`；晚于当前时间的 epoch 会导致启动失败 | `cosid.snowflake.epoch`               |
 | timestamp-bit  | `int`                        | 时间戳位数                            | 41                                    |
 | machine-bit    | `int`                        | 机器位数                             | `cosid.snowflake.machine.machine-bit` |
 | sequence-bit   | `int`                        | 序列位数                             | 12                                    |

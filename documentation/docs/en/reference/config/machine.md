@@ -9,7 +9,7 @@ The machine id is needed by Snowflake IDs and `CosIdGenerator`. See [Machine ID]
 | `enabled` | `boolean` | `false` | Distribute a machine id. Required for `cosid.snowflake` and `cosid.generator` |
 | `instance-id` | `String` | host address and `port` | The instance's identity in the lease store. Set it, with `stable`, for an instance that keeps its identity across restarts |
 | `port` | `Integer` | process id | Second part of the default instance id (`{host}:{port}`) |
-| `stable` | `boolean` | `false` | A stable instance's machine id is never recycled by others, and it never takes over another instance's expired lease. It also keeps its machine state in a local file |
+| `stable` | `Boolean` | not set (`false`) | A stable instance's machine id is never recycled by others, and it never takes over another instance's expired lease. It also keeps its machine state in a local file |
 | `machine-bit` | `int` | `10` | Machine id bits; a generator can override it with its own `machine-bit` |
 | `state-storage.local.state-location` | `String` | `~/.cosid-machine-state` | Directory of the local machine state of a stable instance |
 

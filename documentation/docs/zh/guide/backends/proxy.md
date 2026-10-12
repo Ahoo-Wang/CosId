@@ -23,11 +23,13 @@ Use it when applications must not reach the store directly, for example across n
 服务端是 `cosid-proxy-server`，一个 Spring Boot 应用，以 Docker 镜像 `ahoowang/cosid-proxy` 发布。它监听 `8688` 端口，默认使用 Redis；配置它的存储与配置应用完全相同，使用 `cosid.machine.distributor.type` 和 `cosid.segment.distributor.type`。
 
 ```shell
-docker run --name cosid-proxy -d -p 8688:8688 \
+docker run --name cosid-proxy -d -p 8688:8688 --link redis \
   -e SPRING_DATA_REDIS_URL=redis://redis:6379 \
   -e COSID_PROXY_TOKEN=change-me \
-  ahoowang/cosid-proxy:4.0.0
+  ahoowang/cosid-proxy:4.0.0-RC2
 ```
+
+请使用 `--network`（或 `--link redis`）让容器能访问 Redis，并使用已发布的镜像标签（撰写本文时为 4.0.0-RC2）。
 
 没有令牌时服务端会拒绝启动，见[认证](#认证)。
 
@@ -87,8 +89,8 @@ cosid:
 |------|--------|------|
 | `cosid.proxy.host` | `http://localhost:8688` | Proxy 服务端的基础 URL |
 | `cosid.proxy.token` | 无 | 每个请求携带的 Bearer 令牌 |
-| `cosid.proxy.connect-timeout` | `2s` | 连接服务端的超时 |
-| `cosid.proxy.read-timeout` | `5s` | 等待响应的超时，包括启动时申领机器号；必须为正数 |
+| `cosid.proxy.connect-timeout` | `2s` | 连接服务端的超时；`0` 表示不限制 |
+| `cosid.proxy.read-timeout` | `5s` | 等待响应的超时，包括启动时申领机器号；`0` 表示不限制，但 `cosid.machine.distributor.type=proxy` 时必须为正数 |
 
 客户端与其他后端一样，是一个 `MachineLeaseStore` 和一个 `IdSegmentDistributor`：`ProxyMachineLeaseStore` 调用服务端的租约 API（`/machines/v2`）申领、续约和释放机器号，`ProxyIdSegmentDistributor` 向服务端申请号段。预先编译（AOT）和原生镜像暂不支持 Proxy 客户端；使用 Proxy 的应用请运行在 JVM 上。
 
@@ -109,7 +111,7 @@ cosid:
           - /actuator/health/**
 ```
 
-除公开路径外，所有没有携带有效 `Authorization: Bearer <token>` 的请求都返回 `401`，包括 actuator 端点（其中一些会生成或删除 ID）和 API 文档。公开路径是按解码后路径匹配的路径模式，默认为 `management.endpoints.web.base-path` 下的健康检查端点。如需开放 API 文档，添加 `/v3/api-docs/**` 和 `/swagger-ui/**`。
+除公开路径外，所有没有携带有效 `Authorization: Bearer <token>` 的请求都返回 `401`，包括 actuator 端点（其中一些会生成或删除 ID）和 API 文档。公开路径是按解码后路径匹配的路径模式，默认为 `management.endpoints.web.base-path` 下的健康检查端点。如需开放 API 文档，添加 `/v3/api-docs/**`、`/swagger-ui.html` 和 `/webjars/swagger-ui/**`（服务端使用基于 WebFlux 的 springdoc）。
 
 `cosid.proxy.server.auth.allow-anonymous: true` 让服务端在没有令牌的情况下运行；仅在可信的网络边界之内使用。
 
@@ -120,7 +122,7 @@ cosid:
 | 属性 | 默认值 | 说明 |
 |------|--------|------|
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | 只有租约最后一次续约（按存储时钟）距今至少这么久，客户端才能接管该机器号。4.0 客户端发送更晚的截止时间会得到 `400`；3.x 客户端更短的守护时长会被提升到该值并记录警告。请不要大于客户端的 `cosid.machine.guarder.safe-guard-duration`；不能为负数 |
-| `cosid.proxy.server.max-clock-skew` | `1m` | 客户端上报的最后时间戳最多可以比服务端时钟快多少；过于超前的时间戳会让机器号永远无法回收。`0` 表示不检查；不能为负数 |
+| `cosid.proxy.server.max-clock-skew` | `1m` | 客户端上报的最后时间戳最多可以比存储的时钟（v1 API 为服务端时钟）快多少；过于超前的时间戳会让机器号永远无法回收。`0` 表示不检查；不能为负数 |
 | `cosid.proxy.server.segment.max-step` | `1000000000000` | 客户端可申请的最大号段步长；`0` 表示不限制。号段链一次会申请 `step × 号段数`，负载高时更多，因此请至少设置为所有客户端中最大的 `step × max-prefetch-distance`。`offset` 必须在 `0` 到 `Long.MAX_VALUE / 2` 之间 |
 
 ## 部署安全

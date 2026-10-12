@@ -28,7 +28,7 @@
 | `distributor.jdbc.query-timeout` | `Duration` | `5s` | `jdbc`: each statement; `0` disables it |
 | `distributor.mongo.database` | `String` | `cosid_db` | `mongo`: database of the `cosid` collection |
 | `distributor.mongo.timeout` | `Duration` | `5s` | `mongo`: each operation (driver `timeoutMS`); `0` disables it |
-| `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`: each `nextMaxId` |
+| `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`: each `nextMaxId`; `0` disables it |
 
 The PostgreSQL statements are on the [JDBC page](../../guide/backends/jdbc.md#postgresql). `cosid.segment.distributor.provider` was removed in 4.0: set `distributor.type` to the type of the provider instead.
 

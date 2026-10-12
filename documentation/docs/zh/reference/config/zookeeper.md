@@ -2,11 +2,11 @@
 
 > `me.ahoo.cosid.spring.boot.starter.zookeeper.CosIdZookeeperProperties`，前缀 `cosid.zookeeper`
 
-`cosid.machine.distributor.type` 或 `cosid.segment.distributor.type` 为 `zookeeper` 时生效；否则 Starter 不会连接 ZooKeeper。见 [ZooKeeper](../../guide/backends/zookeeper.md)。
+`cosid.machine.distributor.type` 或 `cosid.segment.distributor.type` 为 `zookeeper`，或者显式设置了 `cosid.zookeeper.enabled=true` 时生效。未设置时只在选择了 ZooKeeper 时创建客户端；`false` 表示关闭。见 [ZooKeeper](../../guide/backends/zookeeper.md)。
 
 | 属性 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `enabled` | `boolean` | `true` | 选择 ZooKeeper 时创建 Curator 客户端 |
+| `enabled` | `boolean` | 未设置 | `true`：即使没有 `type` 选择 ZooKeeper 也创建 Curator 客户端；`false`：关闭 |
 | `connect-string` | `String` | `localhost:2181` | ZooKeeper 服务器地址 |
 | `session-timeout` | `Duration` | `60s` | 会话超时 |
 | `connection-timeout` | `Duration` | `15s` | 连接超时 |
@@ -15,7 +15,7 @@
 | `retry.max-retries` | `int` | `5` | 最大重试次数 |
 | `retry.max-sleep-ms` | `int` | `500` | 两次重试之间的最长等待时间（毫秒） |
 
-单次调用的超时由 `cosid.segment.distributor.zookeeper.timeout` 和 `cosid.machine.distributor.zookeeper.timeout` 控制，默认均为 `5s`。
+单次调用的超时由 `cosid.segment.distributor.zookeeper.timeout` 和 `cosid.machine.distributor.zookeeper.timeout` 控制，默认均为 `5s`；号段的超时设为 `0` 表示不限制，机器号的超时必须为正数。
 
 ```yaml
 cosid:

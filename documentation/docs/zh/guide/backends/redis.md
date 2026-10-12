@@ -3,7 +3,7 @@
 [`cosid-spring-redis`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-spring-redis) 通过应用自身的 Spring Data Redis 连接（`StringRedisTemplate`）把号段计数器和机器号租约保存在 Redis 中：
 
 - `SpringRedisIdSegmentDistributor`：号段计数器，每个生成器一个键，`cosid:{namespace.name}.adder`。
-- `SpringRedisMachineLeaseStore`：机器号租约，保存在 `cosid:{namespace}:lease` 哈希中，与 3.x 使用的键并存。租约时间取自 Redis 的 `TIME` 命令。
+- `SpringRedisMachineLeaseStore`：机器号租约，保存在 `cosid:{namespace}:lease` 哈希中，与 3.4 使用的键并存。租约时间取自 Redis 的 `TIME` 命令。
 
 键带有哈希标签（`{...}`），因此支持 Redis Cluster：同一个计数器或同一个命名空间的键落在同一个槽。
 

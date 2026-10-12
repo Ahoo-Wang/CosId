@@ -19,7 +19,7 @@ CosId needs a store for two things: the counters of [segment IDs](../concepts/se
 
 - **Durability.** A segment counter that goes back, because the store lost a write, hands out IDs a second time. Use a store that persists every write: Redis with AOF, a database, MongoDB with journaling, or ZooKeeper.
 - **Clock.** Machine id leases are judged by the store's clock where it has one (Redis, databases, MongoDB). ZooKeeper has none, so its leases use the host clocks, which must then be in sync.
-- **Availability.** A segment chain keeps IDs in reserve and a Snowflake generator needs the store only at startup and to renew its lease every minute, so a short store outage does not stop generation. A store that is down longer than the safe guard duration (5 minutes) makes Snowflake generators fail fast.
+- **Availability.** A segment chain keeps IDs in reserve and a Snowflake generator needs the store only at startup and to renew its lease every minute, so a short store outage does not stop generation. With `cosid.machine.guarder.fail-fast` (the default), Snowflake generators and `CosIdGenerator` stop about `safe-guard-duration - min(10s, safe-guard-duration / 10)` after their last successful renewal, 4 minutes 50 seconds by default.
 - **Network access.** The proxy keeps store credentials out of applications, at the cost of running and securing one more service. See [Proxy deployment security](./proxy.md#deployment-security).
 
 The sides can use different stores, for example segments in the database and machine ids in Redis.

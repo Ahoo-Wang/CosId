@@ -3,7 +3,7 @@
 [`cosid-spring-redis`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-spring-redis) stores segment counters and machine id leases in Redis, through the application's Spring Data Redis connection (`StringRedisTemplate`):
 
 - `SpringRedisIdSegmentDistributor`: segment counters, one key per generator, `cosid:{namespace.name}.adder`.
-- `SpringRedisMachineLeaseStore`: machine id leases in a `cosid:{namespace}:lease` hash, next to the keys 3.x used. Lease times come from the Redis `TIME` command.
+- `SpringRedisMachineLeaseStore`: machine id leases in a `cosid:{namespace}:lease` hash, next to the keys 3.4 used. Lease times come from the Redis `TIME` command.
 
 Keys carry a hash tag (`{...}`), so Redis Cluster works: all keys of one counter or one namespace land in one slot.
 

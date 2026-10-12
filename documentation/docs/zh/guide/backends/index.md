@@ -19,7 +19,7 @@ CosId 需要存储来做两件事：保存[号段 ID](../concepts/segment.md) �
 
 - **持久性。** 存储丢失写入后计数器回退，就会再次发放同样的 ID。请使用能持久化每次写入的存储：开启 AOF 的 Redis、数据库、开启日志（journaling）的 MongoDB，或 ZooKeeper。
 - **时钟。** 存储有自己的时钟时（Redis、数据库、MongoDB），机器号租约按存储的时钟判断。ZooKeeper 没有可读取的服务器时钟，租约使用主机时钟，因此各主机时钟必须同步。
-- **可用性。** 号段链会预留 ID，Snowflake 生成器只在启动时以及每分钟续约时需要存储，所以存储短暂不可用不会中断生成。存储不可用超过安全守护时长（5 分钟）时，Snowflake 生成器会快速失败。
+- **可用性。** 号段链会预留 ID，Snowflake 生成器只在启动时以及每分钟续约时需要存储，所以存储短暂不可用不会中断生成。开启 `cosid.machine.guarder.fail-fast`（默认）时，Snowflake 生成器和 `CosIdGenerator` 会在最后一次成功续约之后约 `safe-guard-duration - min(10s, safe-guard-duration / 10)`（默认 4 分 50 秒）停止生成。
 - **网络访问。** Proxy 让应用不必持有存储的凭据，代价是多运行并保护一个服务。见 [Proxy 部署安全](./proxy.md#部署安全)。
 
 两部分可以使用不同的存储，例如号段放在数据库，机器号放在 Redis。

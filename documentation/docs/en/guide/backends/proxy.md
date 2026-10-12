@@ -21,11 +21,13 @@ Use it when applications must not reach the store directly, for example across n
 The server is `cosid-proxy-server`, a Spring Boot application published as the Docker image `ahoowang/cosid-proxy`. It listens on port `8688` and uses Redis by default; configure its store exactly like an application's, with `cosid.machine.distributor.type` and `cosid.segment.distributor.type`.
 
 ```shell
-docker run --name cosid-proxy -d -p 8688:8688 \
+docker run --name cosid-proxy -d -p 8688:8688 --link redis \
   -e SPRING_DATA_REDIS_URL=redis://redis:6379 \
   -e COSID_PROXY_TOKEN=change-me \
-  ahoowang/cosid-proxy:4.0.0
+  ahoowang/cosid-proxy:4.0.0-RC2
 ```
+
+Use `--network` (or `--link redis`) so that the container can reach Redis, and a released image tag (4.0.0-RC2 at the time of writing).
 
 The server refuses to start without a token, see [Authentication](#authentication).
 
@@ -85,8 +87,8 @@ cosid:
 |----------|---------|-------------|
 | `cosid.proxy.host` | `http://localhost:8688` | Base URL of the proxy server |
 | `cosid.proxy.token` | none | Bearer token sent with every request |
-| `cosid.proxy.connect-timeout` | `2s` | Connecting to the server |
-| `cosid.proxy.read-timeout` | `5s` | Waiting for a response, including the machine id claim at startup; must be positive |
+| `cosid.proxy.connect-timeout` | `2s` | Connecting to the server; `0` means no timeout |
+| `cosid.proxy.read-timeout` | `5s` | Waiting for a response, including the machine id claim at startup; `0` means no timeout, but with `cosid.machine.distributor.type=proxy` it must be positive |
 
 The client side is a `MachineLeaseStore` and an `IdSegmentDistributor` like any other: `ProxyMachineLeaseStore` calls the server's lease API (`/machines/v2`) to claim, renew and release machine ids, and `ProxyIdSegmentDistributor` asks it for segments. Ahead-of-time processing and native images do not support the proxy client yet; run applications that use it on the JVM.
 
@@ -107,7 +109,7 @@ cosid:
           - /actuator/health/**
 ```
 
-Every request without a valid `Authorization: Bearer <token>` gets `401`, including the actuator endpoints (some of them generate or remove IDs) and the API docs, except the public paths. Public paths are path patterns matched on the decoded path; by default they are the health endpoint under `management.endpoints.web.base-path`. To open the API docs, add `/v3/api-docs/**` and `/swagger-ui/**`.
+Every request without a valid `Authorization: Bearer <token>` gets `401`, including the actuator endpoints (some of them generate or remove IDs) and the API docs, except the public paths. Public paths are path patterns matched on the decoded path; by default they are the health endpoint under `management.endpoints.web.base-path`. To open the API docs, add `/v3/api-docs/**`, `/swagger-ui.html` and `/webjars/swagger-ui/**` (the server uses springdoc on WebFlux).
 
 `cosid.proxy.server.auth.allow-anonymous: true` runs the server without tokens; use it only behind a trusted network boundary.
 
@@ -118,7 +120,7 @@ The server checks what clients send, and answers `400` to requests outside these
 | Property | Default | Description |
 |----------|---------|-------------|
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | A client may take over a machine id only if its lease was last renewed at least this long ago, by the store's clock. 4.0 clients that send a later cut-off get `400`; a shorter guard from a 3.x client is raised to this value with a warning. Keep it at most the clients' `cosid.machine.guarder.safe-guard-duration`; must not be negative |
-| `cosid.proxy.server.max-clock-skew` | `1m` | How far ahead of the server clock a client's last timestamp may be; a timestamp far in the future would keep a machine id from ever being recycled. `0` disables the check; must not be negative |
+| `cosid.proxy.server.max-clock-skew` | `1m` | How far ahead of the store's clock (the server's clock for the v1 API) a client's last timestamp may be; a timestamp far in the future would keep a machine id from ever being recycled. `0` disables the check; must not be negative |
 | `cosid.proxy.server.segment.max-step` | `1000000000000` | Largest segment `step` a client may ask for; `0` means no limit. Segment chains ask for `step × segments` at once and more under load, so set it to at least the largest `step × max-prefetch-distance` of all clients. `offset` must be between `0` and `Long.MAX_VALUE / 2` |
 
 ## Deployment security

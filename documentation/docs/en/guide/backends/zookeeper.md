@@ -7,7 +7,7 @@
 
 ZooKeeper has no server clock that clients can read, so lease times come from the host clocks. **Keep the hosts' clocks in sync** (NTP): an instance whose clock runs ahead can see another instance's lease as expired before it is.
 
-The starter connects to ZooKeeper only when a `type` selects it.
+The starter creates the Curator client when a `type` selects ZooKeeper, or when `cosid.zookeeper.enabled=true` is set explicitly. Left unset, it is created only when selected; `false` turns it off.
 
 ## Installation
 
@@ -54,7 +54,7 @@ cosid:
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `cosid.zookeeper.enabled` | `true` | Create the Curator client when ZooKeeper is selected |
+| `cosid.zookeeper.enabled` | not set | `true` creates the Curator client even when no `type` selects ZooKeeper; `false` turns it off; unset, it is created only when selected |
 | `cosid.zookeeper.connect-string` | `localhost:2181` | ZooKeeper servers |
 | `cosid.zookeeper.session-timeout` | `60s` | Session timeout |
 | `cosid.zookeeper.connection-timeout` | `15s` | Connection timeout |
@@ -62,7 +62,7 @@ cosid:
 | `cosid.zookeeper.retry.base-sleep-time-ms` | `100` | `ExponentialBackoffRetry`: initial wait between retries, in milliseconds |
 | `cosid.zookeeper.retry.max-retries` | `5` | Maximum retries |
 | `cosid.zookeeper.retry.max-sleep-ms` | `500` | Maximum wait between retries, in milliseconds |
-| `cosid.segment.distributor.zookeeper.timeout` | `5s` | Each segment `nextMaxId` |
+| `cosid.segment.distributor.zookeeper.timeout` | `5s` | Each segment `nextMaxId`; `0` disables it |
 | `cosid.machine.distributor.zookeeper.timeout` | `5s` | Lease renewal and release (Curator has no per-operation timeout); must be positive |
 
 An application can define its own `CuratorFramework` bean instead. See [CosId-Example-Zookeeper](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-zookeeper) for a runnable application.

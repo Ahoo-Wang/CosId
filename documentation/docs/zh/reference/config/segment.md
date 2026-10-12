@@ -28,7 +28,7 @@
 | `distributor.jdbc.query-timeout` | `Duration` | `5s` | `jdbc`：每条语句；`0` 表示不限制 |
 | `distributor.mongo.database` | `String` | `cosid_db` | `mongo`：`cosid` 集合所在的数据库 |
 | `distributor.mongo.timeout` | `Duration` | `5s` | `mongo`：每次操作（驱动的 `timeoutMS`）；`0` 表示不限制 |
-| `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`：每次 `nextMaxId` |
+| `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`：每次 `nextMaxId`；`0` 表示不限制 |
 
 PostgreSQL 语句见 [JDBC](../../guide/backends/jdbc.md#postgresql)。`cosid.segment.distributor.provider` 已在 4.0 移除：请改为把 `distributor.type` 设置为 Provider 的类型。
 

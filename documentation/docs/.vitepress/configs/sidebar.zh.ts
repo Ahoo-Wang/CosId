@@ -77,7 +77,11 @@ const guide: DefaultTheme.SidebarItem[] = [
         text: '运维',
         collapsed: false,
         items: [
-            {text: '最佳实践', link: 'best-practices'},
+            {text: '生产环境清单', link: 'operations/production'},
+            {text: '滚动升级', link: 'operations/rolling-upgrade'},
+            {text: 'Proxy 部署安全', link: 'backends/proxy#部署安全'},
+            {text: '监控', link: 'operations/monitoring'},
+            {text: '故障排查', link: 'operations/troubleshooting'},
             {text: '常见问题', link: 'operations/faq'},
         ],
     }, {

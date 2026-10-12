@@ -77,7 +77,11 @@ const guide: DefaultTheme.SidebarItem[] = [
         text: 'Operations',
         collapsed: false,
         items: [
-            {text: 'Best Practices', link: 'best-practices'},
+            {text: 'Production Checklist', link: 'operations/production'},
+            {text: 'Rolling Upgrade', link: 'operations/rolling-upgrade'},
+            {text: 'Proxy Deployment Security', link: 'backends/proxy#deployment-security'},
+            {text: 'Monitoring', link: 'operations/monitoring'},
+            {text: 'Troubleshooting', link: 'operations/troubleshooting'},
             {text: 'FAQ', link: 'operations/faq'},
         ],
     }, {

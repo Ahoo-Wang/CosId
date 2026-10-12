@@ -119,7 +119,7 @@ cosid:
     type: radix62
 ```
 
-Inject it as `CosIdGenerator` and call `generateAsString()`. Its `generate()` method is unsupported.
+Inject it as `CosIdGenerator` and call `generateAsString()`. It is a `StringIdGenerator` with no `generate()`; it is registered in the provider as `cosid`.
 
 ## Consume Generators Safely
 
@@ -150,9 +150,9 @@ Do not promise annotation support for an ORM or persistence path without verifyi
 ## Operational Rules
 
 - Machine IDs must be unique within a namespace and within the configured machine-bit range.
-- The machine guarder is enabled by default. Keep lease duration longer than heartbeat delay and expose failures through health monitoring when Actuator is used.
+- The machine guarder is enabled by default. Use the same `cosid.machine.guarder.safe-guard-duration` on every instance of a namespace, much larger than `guarder.delay`, and expose failures through health monitoring when Actuator is used.
 - Snowflake definitions default to clock sync. Custom second-based definitions require an epoch in seconds; millisecond definitions require milliseconds.
-- Snowflake timestamp, machine, and sequence bits must total 63.
+- Snowflake timestamp, machine, and sequence bits must total at most 63.
 - Proxy activation uses `proxy-support`, `cosid.proxy.host`, and `distributor.type: proxy`; there is no `cosid.proxy.enabled` property.
 - Actuator endpoints require `actuator-support` and explicit endpoint exposure. In 4.x the `cosid` endpoint is read-only unless `cosid.actuator.delete.enabled=true` turns on its delete operation, which removes a registered generator; for status-only access on Spring Boot 4, set `management.endpoint.cosid.access: read-only` and protect the management endpoint with HTTP authorization or network isolation. On Spring Boot versions without endpoint access levels, deny non-read methods or do not expose it.
 - Spring Data JDBC entities get their ids only with `cosid.jdbc.enabled=true` in 4.x (the default is `false`).

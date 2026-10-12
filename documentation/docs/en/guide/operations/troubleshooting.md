@@ -15,6 +15,7 @@
 | `cosid.machine.distributor.manual.machineId can not be null` | `manual` needs `cosid.machine.distributor.manual.machine-id`; or choose a lease store |
 | A bean of type `InstanceId` or `GuardDistribute` could not be found | Snowflake IDs or `CosIdGenerator` are enabled without `cosid.machine.enabled=true` |
 | `No [cosid.proxy.server.auth.tokens] configured` (proxy server) | Set `cosid.proxy.server.auth.tokens` (the distribution reads `COSID_PROXY_TOKEN`), or `allow-anonymous=true` behind a trusted network |
+| `The guarder may renew the machine id lease too late` (or `[cosid.machine.guarder.delay] must be positive`) | The guarder would renew after the lease expired: `max(delay, initial-delay)` plus twice the store timeout (a renewal is two store calls) must be shorter than `safe-guard-duration` minus its margin `min(10s, safe-guard-duration / 10)`. Lower `delay` and `initial-delay` (a third of the safe guard leaves room for missed renewals), or raise `safe-guard-duration`. With `fail-fast: false` this is only a warning |
 
 ## Errors while running
 

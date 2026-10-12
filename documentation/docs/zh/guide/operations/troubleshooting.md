@@ -15,6 +15,7 @@
 | `cosid.machine.distributor.manual.machineId can not be null` | `manual` 需要设置 `cosid.machine.distributor.manual.machine-id`；或者改用租约存储 |
 | 找不到 `InstanceId` 或 `GuardDistribute` 类型的 Bean | 启用了 Snowflake ID 或 `CosIdGenerator`，但没有设置 `cosid.machine.enabled=true` |
 | `No [cosid.proxy.server.auth.tokens] configured`（Proxy 服务端） | 设置 `cosid.proxy.server.auth.tokens`（发行包读取 `COSID_PROXY_TOKEN`），或在可信网络内设置 `allow-anonymous=true` |
+| `The guarder may renew the machine id lease too late`（或 `[cosid.machine.guarder.delay] must be positive`） | 守护会在租约过期之后才续约：`max(delay, initial-delay)` 加上两倍存储超时（一次续约要调用存储两次），必须短于 `safe-guard-duration` 减去余量 `min(10s, safe-guard-duration / 10)`。调小 `delay` 和 `initial-delay`（取安全守护时长的三分之一，可以容忍漏掉的续约），或调大 `safe-guard-duration`。`fail-fast: false` 时只打印告警 |
 
 ## 运行期间的错误
 

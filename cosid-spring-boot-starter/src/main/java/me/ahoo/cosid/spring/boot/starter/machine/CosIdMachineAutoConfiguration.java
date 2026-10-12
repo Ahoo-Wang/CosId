@@ -46,6 +46,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -260,6 +261,14 @@ public class CosIdMachineAutoConfiguration {
                 log.warn(GUARDER_DISABLED_WARNING);
             }
             return MachineIdGuarder.NONE;
+        }
+        Duration proxyReadTimeout = cosIdProperties.getProxy().getReadTimeout();
+        String timingProblem = GuarderTiming.check(guarder, GuarderTiming.storeTimeout(machineProperties.getDistributor(), proxyReadTimeout));
+        if (timingProblem != null) {
+            if (guarder.isFailFast()) {
+                throw new IllegalStateException(timingProblem);
+            }
+            log.warn(timingProblem);
         }
         return new DefaultMachineIdGuarder(machineIdDistributor, DefaultMachineIdGuarder.executorService(), guarder.getInitialDelay(), guarder.getDelay(), machineProperties.getSafeGuardDuration(),
             guarder.getLocalStateInterval());

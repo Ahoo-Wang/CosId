@@ -5,8 +5,8 @@ distributed ID generator for the JVM. Group `me.ahoo.cosid`, current version in 
 
 ## Toolchain
 
-- **Java 17** (toolchain is pinned to 17 in the root `build.gradle.kts`; do not change). JDK 8 is not supported on 2.x/3.x.
-- **Spring Boot alignment:** 3.x aligns with Spring Boot 4.x. 2.x → Spring Boot 3.x. 1.x → Spring Boot 2.x / Java 8.
+- **Java 17** (toolchain is pinned to 17 in the root `build.gradle.kts`; do not change). JDK 8 is supported only on 1.x.
+- **Spring Boot alignment:** 4.x (`main`) and 3.x (`3.x` branch) → Spring Boot 4.x. 2.x → Spring Boot 3.x. 1.x → Spring Boot 2.x / Java 8.
 - **Gradle (Kotlin DSL)** with version catalog at `gradle/libs.versions.toml`. Always use `./gradlew`, never a system `gradle`.
 - **Lombok** is used project-wide (`lombok.config` enables `addLombokGeneratedAnnotation`). Configure annotation processing in your IDE; Lombok-generated code is excluded from coverage.
 - Library modules are published with Javadoc + sources JARs and GPG signing (CI-only via `SIGNING_*` env vars). Publishing is triggered by GitHub release (`package-deploy.yml`).
@@ -91,10 +91,17 @@ depends on backends. Don't introduce core → backend or backend → starter cyc
 - **Tests open JDK internals:** test JVMs pass `--add-opens=java.base/java.util=ALL-UNNAMED` and `...java.lang=...`. If a
   new test touches JDK internals, the existing flags already cover it.
 - **`cosid-skills-workspace/`** is git-ignored agent eval scratch space — don't treat it as product code.
-- Documentation sites: `document/` (VuePress, older) and `documentation/` (VitePress, current at `cosid.ahoo.me`). UI/logo assets live under `documentation/docs/public/`.
+- Documentation sites: `document/` (VuePress, older, 3.x and earlier) and `documentation/` (VitePress, current at `cosid.ahoo.me`). UI/logo assets live under `documentation/docs/public/`.
+- **Site layout** (`documentation/docs/{en,zh}`, kept in sync page for page): `guide/introduction` and `getting-started`, `guide/concepts/`
+  (generators, machine id, converters, provider), `guide/backends/` (one page per store, `index` chooses), `guide/integrations/`,
+  `guide/operations/` (production checklist, rolling upgrade, monitoring, troubleshooting, FAQ), `guide/migration/`, and
+  `reference/config/` (every `cosid.*` property with its default, taken from the `*Properties` classes). When a page moves, add
+  its old path to `documentation/docs/.vitepress/theme/redirects.ts` and update both sidebars in `.vitepress/configs/`.
+  Build with `pnpm install && pnpm docs:build` in `documentation/`; the site deploys on every push to `main` touching `documentation/**`.
 
 ## Further reading before sensitive changes
 
-- `README.md` / `README.zh-CN.md` — design rationale for `SnowflakeId`, `SegmentId`, `SegmentChainId`, MachineId distributors.
+- `documentation/docs/en/guide/concepts/` — design rationale for `SnowflakeId`, `SegmentId`, `SegmentChainId` and machine id leases.
+- `docs/MIGRATION-4.0.md` — every breaking change of 4.0; `docs/ROADMAP.md` — what each phase delivered.
 - Domain-specific skills are available and should be used for matching tasks: `cosid-spring-boot`, `cosid-sharding`,
   `cosid-strategy-guide`, `cosid-manual-integration`.

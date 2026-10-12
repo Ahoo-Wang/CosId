@@ -60,7 +60,8 @@ import java.util.concurrent.TimeUnit;
  * <p>Documents keep the 3.4 fields. The last timestamp stays the expiry check and the version, as in 3.4; it never
  * decreases and is at least every renewal and watermark, so a claim starts after it. A lease still carries its own
  * watermark and renewal time: renewing leaves the watermark alone and reports the store time it renewed at, while the
- * document is written with a last timestamp that covers both.</p>
+ * document is written with a last timestamp that covers both. Do not add fields for them: the last timestamp already
+ * covers both, since expiry and takeover are anchored on it, and the ZooKeeper store keeps the same model.</p>
  *
  * @author ahoo wang
  * @since 3.4.0

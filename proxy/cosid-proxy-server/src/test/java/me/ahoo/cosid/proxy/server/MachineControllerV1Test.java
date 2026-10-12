@@ -159,18 +159,25 @@ class MachineControllerV1Test {
     }
     
     @Test
-    void safeGuardShorterThanTheServerMinimumIsBadRequest() {
+    void safeGuardShorterThanTheServerMinimumIsRaisedToIt() {
         WebTestClient server = WebTestClient.bindToController(new MachineController(store))
             .controllerAdvice(new GlobalRestExceptionHandler()).build();
+        long now = System.currentTimeMillis();
+        // Renewed two minutes ago: expired for a 30s guard, not for the 5 minute minimum.
+        store.claimNew(NAMESPACE, InstanceId.of("old-owner", false), 0, now - Duration.ofMinutes(2).toMillis());
         
         server.post()
-            .uri("/machines/{ns}?machineBit=8&instanceId=node-1&stable=false&safeGuardDuration=PT30S", NAMESPACE)
+            .uri("/machines/{ns}?machineBit=1&instanceId=node-1&stable=false&safeGuardDuration=PT30S", NAMESPACE)
             .exchange()
-            .expectStatus().isBadRequest();
+            .expectStatus().isOk()
+            .expectBody()
+            .jsonPath("$.machineId").isEqualTo(1);
         server.post()
-            .uri("/machines/{ns}?machineBit=8&instanceId=node-1&stable=false&safeGuardDuration=PT5M", NAMESPACE)
+            .uri("/machines/{ns}?machineBit=1&instanceId=node-2&stable=false&safeGuardDuration=PT30S", NAMESPACE)
             .exchange()
-            .expectStatus().isOk();
+            .expectStatus().isBadRequest()
+            .expectBody()
+            .jsonPath("$.code").isEqualTo(ErrorResponse.MACHINE_ID_OVERFLOW);
     }
     
     @Test

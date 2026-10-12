@@ -74,8 +74,14 @@ public class MachineController implements MachineApi {
         checkNamespaceAndInstanceId(namespace, instanceId);
         Checks.checkArgument(machineBit > 0 && machineBit <= MAX_MACHINE_BIT, "machineBit:[%s] must be in [1, %s]!", machineBit, MAX_MACHINE_BIT);
         Duration duration = parseSafeGuardDuration(safeGuardDuration);
-        Checks.checkArgument(duration.compareTo(minSafeGuardDuration) >= 0,
-            "safeGuardDuration:[%s] is shorter than the minimum safe guard duration [%s]!", safeGuardDuration, minSafeGuardDuration);
+        if (duration.compareTo(minSafeGuardDuration) < 0) {
+            // 3.x clients send their own guard: a longer one only makes the take-over more conservative.
+            if (log.isWarnEnabled()) {
+                log.warn("Distribute [{}] @ namespace:[{}] - safeGuardDuration:[{}] is shorter than the minimum [{}], using the minimum.",
+                    instanceId, namespace, duration, minSafeGuardDuration);
+            }
+            duration = minSafeGuardDuration;
+        }
         return leaseManager.acquire(namespace, new InstanceId(instanceId, stable), machineBit, duration).toMachineState();
     }
     

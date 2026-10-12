@@ -5,7 +5,7 @@ description: Design, implement, and validate CosId database sharding with core M
 
 # Design CosId Sharding
 
-Treat core Java sharding APIs and ShardingSphere configuration as separate integration surfaces. Verify the target CosId and ShardingSphere versions before copying property names.
+Treat core Java sharding APIs and ShardingSphere configuration as separate integration surfaces. In CosId 4.x, `ModCycle`, `IntervalTimeline` and `CachedSharding` live in the `me.ahoo.cosid:cosid-sharding` artifact (same packages): add that dependency, since `cosid-core` no longer contains them. Verify the target CosId and ShardingSphere versions before copying property names.
 
 ## Workflow
 

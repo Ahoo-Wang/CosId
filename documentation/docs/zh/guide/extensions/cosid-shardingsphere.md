@@ -4,11 +4,15 @@
 `CosIdKeyGenerateAlgorithm`、`CosIdModShardingAlgorithm`、`CosIdIntervalShardingAlgorithm` 已合并至 [ShardingSphere](https://github.com/apache/shardingsphere/pull/14132) 官方，当前该模块的维护可能会以官方为主。
 :::
 
+::: warning CosId 4.x
+`cosid-shardingsphere` 的最后一个版本是 2.0.5，没有 3.x 或 4.x 版本，下面的坐标只能解析到该版本。使用 CosId 4.x 时，请使用 ShardingSphere 自带、基于 CosId 4.0 构建的 CosId 算法，或直接使用 `me.ahoo.cosid:cosid-sharding` 中的算法（`ModCycle`、`IntervalTimeline` 等）。
+:::
+
 ## 安装
 
 ::: code-group
 ```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
+    val cosidVersion = "2.0.5"
     implementation("me.ahoo.cosid:cosid-shardingsphere:${cosidVersion}")
 ```
 ```xml [Maven]
@@ -16,7 +20,7 @@
         <dependency>
             <groupId>me.ahoo.cosid</groupId>
             <artifactId>cosid-shardingsphere</artifactId>
-            <version>${cosid.version}</version>
+            <version>2.0.5</version>
         </dependency>
     </dependencies>
 ```

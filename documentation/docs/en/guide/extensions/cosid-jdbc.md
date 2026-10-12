@@ -52,14 +52,14 @@ create table if not exists cosid_machine
     name            varchar(100) not null comment '{namespace}.{machine_id}',
     namespace       varchar(100) not null,
     machine_id      integer      not null default 0,
-    last_timestamp  bigint       not null default 0,
+    last_timestamp  bigint unsigned not null default 0,
     instance_id     varchar(100) not null default '',
-    distribute_time bigint       not null default 0,
-    revert_time     bigint       not null default 0,
+    distribute_time bigint unsigned not null default 0,
+    revert_time     bigint unsigned not null default 0,
     stable          tinyint      not null default 0,
-    renew_time      bigint       not null default 0,
-    watermark       bigint       not null default 0,
-    lease_version   bigint       not null default 0,
+    renew_time      bigint unsigned not null default 0,
+    watermark       bigint unsigned not null default 0,
+    lease_version   bigint unsigned not null default 0,
     constraint cosid_machine_pk
         primary key (name)
 ) engine = InnoDB;
@@ -69,8 +69,7 @@ create index if not exists idx_instance_id on cosid_machine (instance_id);
 ```
 
 `stable` marks the machine id of a stable instance (`cosid.machine.stable=true`): other instances never recycle it, even after
-its owner has been offline for longer than the safe guard duration. Tables created by an earlier version lack the column and
-keep the old behavior (a warning is logged at startup); add it with the statement below and restart, since the column is detected once at startup:
+its owner has been offline for longer than the safe guard duration. Tables created before 3.3 lack the column: 4.0 fails at startup and prints the statement to add it (3.4 only logged a warning):
 
 ```sql
 alter table cosid_machine add column stable tinyint not null default 0;
@@ -79,10 +78,10 @@ alter table cosid_machine add column stable tinyint not null default 0;
 4.0 keeps the machine id lease in `renew_time`, `watermark` and `lease_version`. A table created by 3.x needs them before 4.0 instances start (3.x instances keep working with them); startup fails naming the statement when they are missing:
 
 ```sql
--- MySQL
-alter table cosid_machine add column renew_time bigint not null default 0,
-    add column watermark bigint not null default 0,
-    add column lease_version bigint not null default 0;
+-- MySQL / MariaDB
+alter table cosid_machine add column renew_time bigint unsigned not null default 0,
+    add column watermark bigint unsigned not null default 0,
+    add column lease_version bigint unsigned not null default 0;
 -- PostgreSQL
 alter table cosid_machine add column if not exists renew_time bigint not null default 0,
     add column if not exists watermark bigint not null default 0,
@@ -99,7 +98,9 @@ business transactions: a `TransactionAwareDataSourceProxy` or a JTA `DataSource`
 The default DDL and segment statements use MySQL syntax. `me.ahoo.cosid.jdbc.PostgreSqlDialect` holds PostgreSQL versions
 (tested on PostgreSQL 16): pass them to `JdbcIdSegmentInitializer`, `JdbcIdSegmentDistributorFactory` and
 `JdbcMachineIdInitializer`, or set them as the corresponding `cosid.*.distributor.jdbc` SQL properties.
-The machine id distributor's statements are standard SQL and need no change.
+The machine id lease store reads the database clock: the starter picks the query for MySQL, MariaDB and PostgreSQL, and
+other databases must set `cosid.machine.distributor.jdbc.server-time-sql`. Without the starter, PostgreSQL users pass
+`PostgreSqlDialect.SERVER_TIME_SQL` to `JdbcMachineLeaseStore`.
 
 With the Spring Boot starter:
 

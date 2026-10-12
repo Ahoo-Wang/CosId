@@ -28,7 +28,7 @@ long id = share.generate();
 #### Get Named Generator
 
 ```java
-Optional<IdGenerator> orderGenerator = DefaultIdGeneratorProvider.INSTANCE.get("order");
+Optional<IdGenerator> orderGenerator = DefaultIdGeneratorProvider.INSTANCE.get("order", IdGenerator.class);
 orderGenerator.ifPresent(gen -> {
     long id = gen.generate();
 });
@@ -43,7 +43,7 @@ DefaultIdGeneratorProvider.INSTANCE.set("order", segmentChainId);
 #### Remove Generator
 
 ```java
-IdGenerator removed = DefaultIdGeneratorProvider.INSTANCE.remove("order");
+StringIdGenerator removed = DefaultIdGeneratorProvider.INSTANCE.remove("order");
 ```
 
 ## Spring Boot
@@ -56,19 +56,16 @@ In Spring Boot applications, inject the `IdGeneratorProvider` bean instead of us
 
 ## LazyIdGenerator
 
-`LazyIdGenerator` provides lazy loading of ID generators. The generator is only created when first accessed.
+`LazyIdGenerator` looks a generator up by name in the provider on first access, so it can be created before the generator is registered.
 
 ### Usage
 
 ```java
-LazyIdGenerator lazyGenerator = new LazyIdGenerator(() -> {
-    // Create generator on first access
-    return new SegmentChainId(distributor);
-});
+LazyIdGenerator lazyGenerator = new LazyIdGenerator("order");
+long id = lazyGenerator.generate();
 ```
 
 ### Use Cases
 
-- Defer expensive generator initialization
-- Conditional generator creation based on configuration
-- Testing scenarios where generator creation needs to be controlled
+- Fields or adapters created before the generator is registered
+- A generator that may be replaced at runtime: each access looks it up again until it is found

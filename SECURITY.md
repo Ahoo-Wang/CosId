@@ -4,7 +4,8 @@
 
 | Version | Spring Boot | Supported                         |
 |---------|-------------|-----------------------------------|
-| 3.x     | 4.x         | Yes, fixes go to the latest minor |
+| 4.x     | 4.x         | Yes, fixes go to the latest minor |
+| 3.x     | 4.x         | Security and critical fixes only, as 3.4.x patch releases from the `3.x` branch |
 | 2.x     | 3.x         | Critical fixes only               |
 | 1.x     | 2.x         | No                                |
 

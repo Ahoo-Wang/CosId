@@ -28,7 +28,7 @@ long id = share.generate();
 #### 获取命名生成器
 
 ```java
-Optional<IdGenerator> orderGenerator = DefaultIdGeneratorProvider.INSTANCE.get("order");
+Optional<IdGenerator> orderGenerator = DefaultIdGeneratorProvider.INSTANCE.get("order", IdGenerator.class);
 orderGenerator.ifPresent(gen -> {
     long id = gen.generate();
 });
@@ -43,7 +43,7 @@ DefaultIdGeneratorProvider.INSTANCE.set("order", segmentChainId);
 #### 移除生成器
 
 ```java
-IdGenerator removed = DefaultIdGeneratorProvider.INSTANCE.remove("order");
+StringIdGenerator removed = DefaultIdGeneratorProvider.INSTANCE.remove("order");
 ```
 
 ## 在 Spring Boot 中使用
@@ -56,19 +56,16 @@ Spring Boot 应用请注入 `IdGeneratorProvider` Bean，而不是直接使用 `
 
 ## LazyIdGenerator
 
-`LazyIdGenerator` 提供 ID 生成器的懒加载功能。生成器只在首次访问时创建。
+`LazyIdGenerator` 在首次访问时才按名称从提供者中查找生成器，因此可以在生成器注册之前创建。
 
 ### 使用方法
 
 ```java
-LazyIdGenerator lazyGenerator = new LazyIdGenerator(() -> {
-    // 首次访问时创建生成器
-    return new SegmentChainId(distributor);
-});
+LazyIdGenerator lazyGenerator = new LazyIdGenerator("order");
+long id = lazyGenerator.generate();
 ```
 
 ### 使用场景
 
-- 延迟昂贵的生成器初始化
-- 根据配置条件创建生成器
-- 测试场景中需要控制生成器创建的情况
+- 在生成器注册之前就要创建的字段或适配器
+- 运行时可能被替换的生成器：找到之前每次访问都会重新查找

@@ -30,6 +30,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: 'Id生成器容器', link: 'provider'},
                 {text: '特定场景ID配置', link: 'specific-id'},
                 {text: 'CosIdProxy', link: 'cosid-proxy'},
+                {text: '迁移到 4.0', link: 'migration-4.0'},
             ],
         }, {
             base: '/zh/guide/extensions/',

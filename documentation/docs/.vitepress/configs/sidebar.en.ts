@@ -30,6 +30,7 @@ export const sidebar: DefaultTheme.Sidebar = {
                 {text: 'Id Generator Container', link: 'provider'},
                 {text: 'Specific Scenario ID Configuration', link: 'specific-id'},
                 {text: 'CosIdProxy', link: 'cosid-proxy'},
+                {text: 'Migrating to 4.0', link: 'migration-4.0'},
             ],
         }, {
             base: '/guide/extensions/',

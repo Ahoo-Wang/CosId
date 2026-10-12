@@ -3,9 +3,9 @@
 *[CosId](https://github.com/Ahoo-Wang/CosId)* aims to provide universal, flexible, high-performance distributed ID generators.
 
 - `CosIdGenerator` : *Single-machine TPS performance: 1557W/s*, three times that of `UUID.randomUUID()`, clock-based globally trend-increasing ID, can support one million instances simultaneously.
-- `SnowflakeId` : *Single-machine TPS performance: 409W/s* [JMH benchmark test](faq/perf-test.md) , mainly solves problems like *clock rollback*, *machine ID allocation*, *uneven modulo sharding*, etc., and provides a more user-friendly and flexible experience.
+- `SnowflakeId` : *Single-machine TPS performance: 409W/s* [JMH benchmark test](../reference/performance/benchmark.md) , mainly solves problems like *clock rollback*, *machine ID allocation*, *uneven modulo sharding*, etc., and provides a more user-friendly and flexible experience.
 - `SegmentId`: Each time obtains a segment (`Step`) of IDs to reduce the network IO request frequency of the segment distributor and improve performance. And provides multiple segment distributor implementations.
-- `SegmentChainId`:`SegmentChainId` (*lock-free*) is an enhancement to `SegmentId`. Performance can reach TPS performance close to `AtomicLong` *TPS performance:12743W+/s* [JMH benchmark test](faq/perf-test.md) .
+- `SegmentChainId`:`SegmentChainId` (*lock-free*) is an enhancement to `SegmentId`. Performance can reach TPS performance close to `AtomicLong` *TPS performance:12743W+/s* [JMH benchmark test](../reference/performance/benchmark.md) .
   - `PrefetchWorker` maintains safe distance (`safeDistance`), and supports dynamic `safeDistance` expansion/contraction based on starvation state.
   - Adaptability: Compared to `SegmentId`, `SegmentChainId` can dynamically adjust `Step` according to business scenarios to improve performance.
 
@@ -207,7 +207,7 @@ From the design diagram above, not hard to see **segment mode** basic design ide
 **SegmentChainId** is **SegmentId** enhanced version, compared to **SegmentId** has following advantages:
 
 - Stability: **SegmentId** stability problem (P9999=46.624(us/op)) mainly because after segment used up synchronously obtain `NextMaxId` leading to (will produce network IO).
-  - **SegmentChainId** (P9999=0.208(us/op)) introduces new role **PrefetchWorker** to maintain and guarantee **safe distance**, ideally making ID obtaining threads almost completely not need synchronous waiting `NextMaxId` obtaining, performance can reach close to `AtomicLong` *TPS performance:12743W+/s* [JMH benchmark test](faq/perf-test.md) .
+  - **SegmentChainId** (P9999=0.208(us/op)) introduces new role **PrefetchWorker** to maintain and guarantee **safe distance**, ideally making ID obtaining threads almost completely not need synchronous waiting `NextMaxId` obtaining, performance can reach close to `AtomicLong` *TPS performance:12743W+/s* [JMH benchmark test](../reference/performance/benchmark.md) .
 - Adaptability: From **SegmentId** introduction we knew affecting **ID disorder** factors have two: cluster scale, `Step` size. Cluster scale is what we cannot control, but `Step` is adjustable.
   - `Step` should be as small as possible to increase possibility of **ID monotonically increasing**.
   - `Step` too small will affect throughput, then how to reasonably set `Step`? Answer is we cannot accurately estimate all time point throughput demand, so best method is when throughput demand high, Step automatically increases, when throughput low Step automatically contracts.

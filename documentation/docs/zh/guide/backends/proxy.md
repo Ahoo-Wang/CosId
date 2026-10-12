@@ -2,7 +2,7 @@
 
 <center>
 
-![CosId Proxy](../../public/assets/design/CosId-Proxy.png)
+![CosId Proxy](../../../public/assets/design/CosId-Proxy.png)
 </center>
 
 CosId Proxy 支持远程 ID 分发，允许客户端通过代理服务器分发机器 ID 和号段 ID，而不是直接连接底层存储。

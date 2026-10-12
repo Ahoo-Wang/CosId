@@ -1,7 +1,7 @@
 # SegmentId
 
 <p align="center" >
-  <img src="../../public/assets/design/SegmentId.png" alt="SegmentId"/>
+  <img src="../../../public/assets/design/SegmentId.png" alt="SegmentId"/>
 </p>
 
 From the design diagram above, it's not hard to see that the basic design idea of **segment mode** is to reduce network IO requests and improve performance by obtaining a certain length (Step) of available IDs (Id segments/segments) each time.
@@ -73,4 +73,4 @@ The `GroupedIdSegmentDistributor` allows `allowReset()` to return `true`, enabli
 
 ## Configuration
 
-[SegmentId Configuration](../reference/config/segment)
+[SegmentId Configuration](../../reference/config/segment)

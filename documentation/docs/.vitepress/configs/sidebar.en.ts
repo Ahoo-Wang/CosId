@@ -13,90 +13,117 @@
 
 import {DefaultTheme} from "vitepress/types/default-theme";
 
+const guide: DefaultTheme.SidebarItem[] = [
+    {
+        base: '/guide/',
+        text: 'Start Here',
+        collapsed: false,
+        items: [
+            {text: 'Why CosId', link: 'introduction'},
+            {text: 'Getting Started', link: 'getting-started'},
+            {text: 'ID Recipes', link: 'recipes'},
+        ],
+    }, {
+        base: '/guide/concepts/',
+        text: 'Core Concepts',
+        collapsed: false,
+        items: [
+            {text: 'ID Generators', link: 'id-generator'},
+            {text: 'SnowflakeId', link: 'snowflake'},
+            {text: 'SegmentId', link: 'segment'},
+            {text: 'SegmentChainId', link: 'segment-chain'},
+            {text: 'CosIdGenerator', link: 'cosid-generator'},
+            {text: 'ID Converters', link: 'id-converter'},
+            {text: 'ID Generator Provider', link: 'provider'},
+        ],
+    }, {
+        base: '/guide/backends/',
+        text: 'Backends',
+        collapsed: false,
+        items: [
+            {text: 'Redis', link: 'redis'},
+            {text: 'JDBC', link: 'jdbc'},
+            {text: 'MongoDB', link: 'mongo'},
+            {text: 'ZooKeeper', link: 'zookeeper'},
+            {text: 'CosId Proxy', link: 'proxy'},
+            {text: 'Compatibility Test Suite', link: 'test-suite'},
+        ],
+    }, {
+        base: '/guide/integrations/',
+        text: 'Integrations',
+        collapsed: false,
+        items: [
+            {text: 'Spring Boot Starter', link: 'spring-boot-starter'},
+            {text: '@CosId Annotation', link: 'annotation'},
+            {text: 'MyBatis', link: 'mybatis'},
+            {text: 'Spring Data JDBC', link: 'spring-data-jdbc'},
+            {text: 'Jackson', link: 'jackson'},
+            {text: 'ShardingSphere', link: 'shardingsphere'},
+            {text: 'Modulo Sharding', link: 'sharding/mod-cycle'},
+            {text: 'Interval Sharding', link: 'sharding/interval-timeline'},
+            {text: 'Activiti', link: 'activiti'},
+            {text: 'Flowable', link: 'flowable'},
+            {text: 'Axon', link: 'axon'},
+        ],
+    }, {
+        text: 'Configuration',
+        collapsed: false,
+        items: [
+            {text: 'Configuration Reference', link: '/reference/config/basic'},
+        ],
+    }, {
+        base: '/guide/',
+        text: 'Operations',
+        collapsed: false,
+        items: [
+            {text: 'Best Practices', link: 'best-practices'},
+            {text: 'FAQ', link: 'operations/faq'},
+        ],
+    }, {
+        base: '/guide/migration/',
+        text: 'Migration',
+        collapsed: false,
+        items: [
+            {text: 'Migrating to 4.0', link: '4.0'},
+        ],
+    },
+]
+
+const reference: DefaultTheme.SidebarItem[] = [
+    {
+        base: '/reference/config/',
+        text: 'Configuration',
+        collapsed: false,
+        items: [
+            {text: 'Basics', link: 'basic'},
+            {text: 'Machine ID', link: 'machine'},
+            {text: 'SnowflakeId', link: 'snowflake'},
+            {text: 'SegmentId', link: 'segment'},
+            {text: 'CosIdGenerator', link: 'cosid-generator'},
+            {text: 'ZooKeeper', link: 'zookeeper'},
+            {text: 'ShardingSphere', link: 'shardingsphere'},
+        ],
+    }, {
+        base: '/reference/performance/',
+        text: 'Performance',
+        collapsed: false,
+        items: [
+            {text: 'JMH Benchmark', link: 'benchmark'},
+            {text: 'Comparison of ID Schemes', link: 'comparison'},
+            {text: 'CosId VS Leaf', link: 'cosid-vs-leaf'},
+        ],
+    }, {
+        base: '/reference/',
+        text: 'Community',
+        collapsed: false,
+        items: [
+            {text: 'Who is using CosId', link: 'showcase/who-is-using'},
+            {text: 'ShardingSphere Integration CosId', link: 'blog/ShardingSphere-Integration-CosId'},
+        ],
+    },
+]
+
 export const sidebar: DefaultTheme.Sidebar = {
-    '/guide/': [
-        {
-            base: '/guide/',
-            text: 'Guide',
-            collapsed: false,
-            items: [
-                {text: 'Introduction', link: 'introduction'},
-                {text: 'Getting Started', link: 'getting-started'},
-                {text: 'SnowflakeId', link: 'snowflake'},
-                {text: 'SegmentId', link: 'segment'},
-                {text: 'SegmentChainId', link: 'segment-chain'},
-                {text: 'CosIdGenerator', link: 'cosid-generator'},
-                {text: 'IdConverter', link: 'id-converter'},
-                {text: 'Id Generator Container', link: 'provider'},
-                {text: 'Specific Scenario ID Configuration', link: 'specific-id'},
-                {text: 'CosIdProxy', link: 'cosid-proxy'},
-                {text: 'Migrating to 4.0', link: 'migration-4.0'},
-            ],
-        }, {
-            base: '/guide/extensions/',
-            text: 'Extensions',
-            collapsed: false,
-            items: [
-                {text: 'Redis', link: 'cosid-redis'},
-                {text: 'Jdbc', link: 'cosid-jdbc'},
-                {text: 'MongoDB', link: 'cosid-mongo'},
-                {text: 'Zookeeper', link: 'cosid-zookeeper'},
-                {text: 'MyBatis', link: 'cosid-mybatis'},
-                {text: 'Jackson', link: 'cosid-jackson'},
-                {text: 'Spring-Data-Jdbc', link: 'cosid-spring-data-jdbc'},
-                {text: 'Spring-Boot-Starter', link: 'cosid-spring-boot-starter'},
-                {text: 'Activiti', link: 'cosid-activiti'},
-                {text: 'Flowable', link: 'cosid-flowable'},
-                {text: 'Axon', link: 'cosid-axon'},
-                {text: 'ShardingSphere', link: 'cosid-shardingsphere'},
-            ],
-        }, {
-            base: '/guide/faq/',
-            text: 'FAQ',
-            collapsed: false,
-            items: [
-                {text: 'Performance Comparison with Leaf', link: 'Performance-CosId-Leaf'},
-                {text: 'FAQ', link: 'faq'},
-                {text: 'Performance Test', link: 'perf-test'},
-                {text: 'Performance Comparison', link: 'perf-vs'},
-            ],
-        }, {
-            base: '/guide/',
-            text: 'Best Practices',
-            collapsed: false,
-            items: [
-                {text: 'Best Practices', link: 'best-practices'},
-            ],
-        }
-    ],
-    '/reference/': [
-        {
-            base: '/reference/config/',
-            text: 'Configuration',
-            collapsed: false,
-            items: [
-                {text: 'Basic Configuration', link: 'basic'},
-                {text: 'CosIdGenerator Configuration', link: 'cosid-generator'},
-                {text: 'Machine Configuration', link: 'machine'},
-                {text: 'Segment Configuration', link: 'segment'},
-                {text: 'Snowflake Configuration', link: 'snowflake'},
-                {text: 'Zookeeper Configuration', link: 'zookeeper'},
-                {text: 'ShardingSphere Configuration', link: 'shardingsphere'},
-            ],
-        }, {
-            base: '/reference/',
-            text: 'Showcase',
-            collapsed: false,
-            items: [
-                {text: 'Who is using CosId', link: 'showcase/who-is-using'},
-            ],
-        }, {
-            base: '/reference/blog/',
-            text: 'Blog',
-            collapsed: false,
-            items: [
-                {text: 'ShardingSphere Integration CosId', link: 'ShardingSphere-Integration-CosId'},
-            ],
-        }
-    ]
+    '/guide/': guide,
+    '/reference/': reference,
 }

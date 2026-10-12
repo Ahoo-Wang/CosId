@@ -13,9 +13,10 @@
 
 import DefaultTheme from 'vitepress/theme'
 import {onMounted, watch, nextTick} from 'vue'
-import {type Theme, useRoute} from 'vitepress'
+import {type Theme, inBrowser, useData, useRoute, useRouter, withBase} from 'vitepress'
 import mediumZoom from 'medium-zoom'
 import './global.css'
+import {redirectOf} from './redirects'
 import CopyOrDownloadAsMarkdownButtons
     from 'vitepress-plugin-llms/vitepress-components/CopyOrDownloadAsMarkdownButtons.vue'
 
@@ -26,6 +27,19 @@ export default {
     },
     setup() {
         const route = useRoute()
+        const router = useRouter()
+        const {site} = useData()
+        const redirectIfMoved = () => {
+            if (!inBrowser) {
+                return
+            }
+            const base = site.value.base
+            const path = route.path.startsWith(base) ? `/${route.path.slice(base.length)}` : route.path
+            const target = redirectOf(path)
+            if (target) {
+                router.go(withBase(target) + window.location.hash)
+            }
+        }
         const initZoom = () => {
             mediumZoom('.main img', {background: 'var(--vp-c-bg)'})
         }
@@ -70,12 +84,14 @@ export default {
             initMermaidZoom()
         }
         onMounted(() => {
+            redirectIfMoved()
             initZoom()
             initMermaid()
         })
         watch(
             () => route.path,
             () => nextTick(() => {
+                redirectIfMoved()
                 initZoom()
                 initMermaid()
             })

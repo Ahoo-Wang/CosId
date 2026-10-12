@@ -5,7 +5,7 @@
 :::
 
 <p align="center" >
-  <img src="../../../public/assets/design/CosIdModShardingAlgorithm.png" alt="CosIdModShardingAlgorithm"/>
+  <img src="../../../../public/assets/design/CosIdModShardingAlgorithm.png" alt="CosIdModShardingAlgorithm"/>
 </p>
 
 - 算法复杂度：O(1)
@@ -13,7 +13,7 @@
 
 | **PreciseShardingValue**                                                                                      | **RangeShardingValue**                                                                                      |
 |---------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
-| <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
+| <img src="../../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../../public/assets/perf/sharding/Throughput-Of-ModShardingAlgorithm-RangeShardingValue.png"/> |
 
 ## 区间分片语义
 

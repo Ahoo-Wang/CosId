@@ -3,7 +3,7 @@
 > `IdGenerator` container
 
 <p align="center">
-  <img src="../../public/assets/design/IdGeneratorProvider-impl-class.png" alt="IdGeneratorProvider implementation class diagram"/>
+  <img src="../../../public/assets/design/IdGeneratorProvider-impl-class.png" alt="IdGeneratorProvider implementation class diagram"/>
 </p>
 
 ## DefaultIdGeneratorProvider

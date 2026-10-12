@@ -18,7 +18,7 @@
 
 - 只有所有实例都升级到新版本后才完全生效：滚动升级期间，旧版本实例不读取 stable 标记，仍可能回收稳定实例的机器号。
 - 已经离线的稳定实例，在新版本上启动一次（写入标记）之前不受保护。
-- JDBC：启动 4.0 前需要先加上 `stable` 列（见 [CosId-Jdbc](../../guide/extensions/cosid-jdbc.md)），缺少该列时 4.0 启动失败。
+- JDBC：启动 4.0 前需要先加上 `stable` 列（见 [CosId-Jdbc](../../guide/backends/jdbc.md)），缺少该列时 4.0 启动失败。
 :::
 
 ### StateStorage

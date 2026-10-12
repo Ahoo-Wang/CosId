@@ -14,6 +14,7 @@ export const navbar: DefaultTheme.NavItem[] = [
                 text: 'Configuration',
                 link: '/reference/config/basic',
             },
+            {text: 'Performance', link: '/reference/performance/benchmark'},
             {text: 'Who is using CosId', link: '/reference/showcase/who-is-using'},
             {text: 'Blog', link: '/reference/blog/ShardingSphere-Integration-CosId'},
         ]

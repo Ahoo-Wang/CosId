@@ -21,7 +21,7 @@ Report it privately instead:
 Include the affected version and module, the configuration involved, and steps or code to reproduce.
 Areas that are security sensitive in CosId include the `cosid-proxy-server` HTTP API and its authentication,
 and anything that can make two instances hand out the same ID (machine ID leases, clock handling, segment
-distribution). See [Deployment Security](https://cosid.ahoo.me/guide/cosid-proxy.html#deployment-security) for how to run the
+distribution). See [Deployment Security](https://cosid.ahoo.me/guide/backends/proxy.html#deployment-security) for how to run the
 proxy server safely.
 
 ## What happens next

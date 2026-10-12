@@ -9,7 +9,7 @@
 | 2.x | 3.x | 17+ | `2.x` |
 | 1.x | 2.x | 8+ | `1.x` |
 
-Upgrading from 3.x: see [Migrating to 4.0](./migration-4.0.md).
+Upgrading from 3.x: see [Migrating to 4.0](migration/4.0.md).
 
 ## Installation
 

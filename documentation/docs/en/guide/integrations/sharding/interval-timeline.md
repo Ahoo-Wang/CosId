@@ -5,7 +5,7 @@ Since 4.0 the sharding algorithms are in their own artifact, `me.ahoo.cosid:cosi
 :::
 
 <p align="center" >
-  <img src="../../../public/assets/design/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"/>
+  <img src="../../../../public/assets/design/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"/>
 </p>
 
 - Algorithm complexity: O(1)
@@ -14,5 +14,5 @@ Since 4.0 the sharding algorithms are in their own artifact, `me.ahoo.cosid:cosi
 
 | **PreciseShardingValue**                                                                                           | **RangeShardingValue**                                                                                           |
 |--------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
-| <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
+| <img src="../../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
 

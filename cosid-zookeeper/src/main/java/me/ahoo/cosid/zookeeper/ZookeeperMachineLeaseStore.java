@@ -51,8 +51,9 @@ import java.util.concurrent.Callable;
  * <p>The nodes keep the 3.4 format, {@code machineId|lastTimestamp}, which 3.4 parses strictly. The last timestamp
  * stays the expiry check and the version, as in 3.4; it never decreases and is at least every renewal and watermark,
  * so a claim starts after it. A lease still carries its own watermark and renewal time: renewing leaves the watermark
- * alone and reports the store time it renewed at, while the node is written with a last timestamp that covers both. Do not add fields for them: 3.4 parses the stored state strictly ({@code machineId|lastTimestamp} on ZooKeeper),
- * and the last timestamp already covers both, since expiry and takeover are anchored on it.</p>
+ * alone and reports the store time it renewed at, while the node is written with a last timestamp that covers both.
+ * Do not add fields for them: 3.4 parses the node data strictly, and the last timestamp already covers both, since
+ * expiry and takeover are anchored on it.</p>
  *
  * <p>ZooKeeper has no server clock, so {@link #serverTime()} is this host's clock: keep the hosts' clocks in sync. Every
  * call is bounded by the {@link CallTimeout}, since Curator has no per-operation timeout.</p>

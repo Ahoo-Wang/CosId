@@ -45,6 +45,7 @@ export const redirects: Record<string, string> = {
     '/guide/sharding/interval-timeline': '/guide/integrations/sharding/interval-timeline',
     '/guide/migration-4.0': '/guide/migration/4.0',
     '/guide/faq/faq': '/guide/operations/faq',
+    '/guide/best-practices': '/guide/operations/production',
     '/guide/faq/perf-test': '/reference/performance/benchmark',
     '/guide/faq/perf-vs': '/reference/performance/comparison',
     '/guide/faq/Performance-CosId-Leaf': '/reference/performance/cosid-vs-leaf',

@@ -100,7 +100,7 @@ Call `generateAsString()` on the wrapper and test `converter.asLong()` when roun
 
 ## CosIdGenerator
 
-`CosIdGenerator` produces strings; calling `generate()` throws `UnsupportedOperationException`.
+`CosIdGenerator` produces strings only: in 4.x it implements `StringIdGenerator`, which has no `generate()`.
 
 ```java
 CosIdGenerator generator = new ClockSyncCosIdGenerator(

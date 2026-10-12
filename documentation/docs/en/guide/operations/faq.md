@@ -1,22 +1,32 @@
-# Frequently Asked Questions
+# FAQ
 
-## Does CosId require deploying a server?
+## Do I need to deploy a CosId server?
 
-Although there is no mandatory way to use [CosId](https://github.com/Ahoo-Wang/CosId), it is strongly recommended to use it as a local SDK. Users only need to install the **CosId** dependency package and do some simple configuration ([DEMO](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-example)).
+No. CosId is a library: IDs are generated inside your application, and the store you already run (Redis, a database, MongoDB or ZooKeeper) holds the counters and leases. A separate ID service would add a network call to every ID, which is what CosId avoids. The [CosId proxy](../backends/proxy.md) is optional; it stands in for the store when applications must not reach it, and IDs are still generated locally.
 
-:::tip
-Distributed ID is not suitable for server deployment mode (C/S). Using server deployment mode will inevitably introduce network IO (the *Client* calls the *Server* remotely to obtain the ID). Think about why we went to great lengths to eliminate network IO?
-:::
+## Are the IDs sequential?
 
-## How does PrefetchWorker maintain the safety distance?
+Within one instance, yes: each instance hands out increasing IDs. Across instances they are *trend increasing*: a segment ID from one instance can be lower than one issued earlier by another, by up to about `step` times the number of instances, and Snowflake IDs are ordered as far as the host clocks agree. No distributed generator gives strict global order without a single point of coordination; use a database sequence if you need it.
 
-- **Timed maintenance**: Every certain period, **PrefetchWorker** actively detects if the safety distance meets the configuration requirements, and if not, executes `NextMaxId` prefetch to ensure safety distance.
-- **Passive starvation wake-up**: When the thread acquiring ID acquires ID and there is no available segment, it will try to acquire a new segment, and actively wake up **PrefetchWorker** and tell it that you are too slow, the awakened **PrefetchWorker** will detect if the safety distance needs expansion, and then maintain the safety distance.
+## Why are there gaps?
 
-## Why ensure monotonic increment as much as possible, even though it's locally monotonic and globally trend-increasing?
+A segment generator skips the rest of its segments when it restarts or a segment expires, and the chain prefetches segments it may not use. Snowflake IDs leave out the sequences no request used. Gaps are expected; do not use the IDs to count rows.
 
-From the above discussion, it's not difficult to understand local monotonic increment and global trend increment as a trade-off design result.
-However, the downside of global trend increment is ID disorder within the cycle, so optimizing towards monotonic increment as much as possible (reducing ID disorder degree) is the optimization goal. These two points do not conflict.
+## How does the prefetch worker keep the safe distance?
 
-If you have other questions, please submit your questions to [Issues](https://github.com/Ahoo-Wang/CosId/issues).
+- **Periodically**: every `prefetch-period` (1 second), it checks the chain and takes segments until `safe-distance` of them are ready.
+- **On hunger**: a thread that finds no segment takes one itself and wakes the worker, which doubles its prefetch distance (up to `max-prefetch-distance`) and takes that many segments in one store call. The distance halves again when demand drops.
 
+## Why keep IDs as close to monotonic as possible if trend increasing is enough?
+
+Trend increasing is a trade-off: disorder within a window is the price of not coordinating every ID. The smaller the window, the closer inserts stay to the end of the index, so CosId keeps it small (small steps, prefetch instead of large segments).
+
+## Can two applications share a store?
+
+Yes. Give each its own `cosid.namespace`: counters and machine ids are scoped by namespace.
+
+## What happens when the store is down?
+
+Generation continues from memory: a segment chain uses its reserved segments, and Snowflake generators need the store only at startup and for lease renewal. If renewals fail for the safe guard duration (5 minutes), Snowflake generators stop with `MachineIdLostException` rather than risk duplicates. Instances cannot start while the store is down.
+
+If you have another question, ask in [Issues](https://github.com/Ahoo-Wang/CosId/issues).

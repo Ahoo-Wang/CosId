@@ -124,7 +124,7 @@ alter table cosid_machine add column if not exists renew_time bigint not null de
     add column if not exists lease_version bigint not null default 0;
 ```
 
-See [Rolling upgrade](../migration/4.0.md) for the order of the steps.
+See [Rolling upgrade](../operations/rolling-upgrade.md) for the order of the steps.
 
 ## PostgreSQL
 

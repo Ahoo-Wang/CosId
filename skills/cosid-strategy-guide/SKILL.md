@@ -19,7 +19,7 @@ Recommend one strategy from explicit requirements. Do not default to the largest
 
 | Strategy | Output | Ordering | Coordination | Main constraint |
 |---|---|---|---|---|
-| `CosIdGenerator` | `String` only | Locally time-ordered; globally affected by clocks | Unique machine ID | Clock-sensitive; `generate()` is unsupported |
+| `CosIdGenerator` | `String` only | Locally time-ordered; globally affected by clocks | Unique machine ID | Clock-sensitive; a `StringIdGenerator` with no `long` form |
 | `SnowflakeId` | `long` and converted `String` | Locally monotonic; globally trend-ordered | Unique machine ID | Clock-sensitive and bounded by bit allocation |
 | `DefaultSegmentId` | `long` and converted `String` | Locally monotonic; globally trend-ordered by allocated ranges | `IdSegmentDistributor` at segment rollover | Allocation can stall or fail when the current segment is exhausted |
 | `SegmentChainId` | `long` and converted `String` | Locally monotonic; globally trend-ordered by allocated ranges | `IdSegmentDistributor` plus background prefetch | More lifecycle work; gaps can grow with prefetched ranges |
@@ -50,7 +50,7 @@ If the requirement is strict global sequencing by request time, say that CosId's
 
 - Default millisecond Snowflake layout: 41 timestamp bits, 10 machine bits, 12 sequence bits; the sign bit is reserved.
 - Default second Snowflake layout: 31 timestamp bits, 10 machine bits, 22 sequence bits.
-- Snowflake bit allocation must total 63.
+- Snowflake bit allocation must total at most 63.
 - Default epoch: `2019-12-24T16:00:00` UTC (`1577203200000` ms or `1577203200` s).
 - Default CosIdGenerator layout is independent of Snowflake: 44 timestamp bits, 20 machine bits, and 16 sequence bits.
 

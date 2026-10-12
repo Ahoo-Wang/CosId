@@ -30,8 +30,7 @@ import me.ahoo.cosid.machine.k8s.StatefulSetMachineIdDistributor;
 import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.mongo.IdSegmentInitializer;
 import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
-import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
-import me.ahoo.cosid.proxy.api.MachineClient;
+import me.ahoo.cosid.proxy.api.MachineLeaseClient;
 import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
@@ -148,7 +147,7 @@ class BackendBeanCompatibilityTest {
     
     @Test
     void proxy() {
-        assertMachine(machineRunner.withBean(MachineClient.class, () -> mock(MachineClient.class)),
+        assertMachine(machineRunner.withBean(MachineLeaseClient.class, () -> mock(MachineLeaseClient.class)),
             CosIdProxyMachineIdDistributorAutoConfiguration.class, "proxy", ProxyMachineProbe.class);
         assertSegment(segmentRunner.withBean(SegmentClient.class, () -> mock(SegmentClient.class)),
             CosIdProxySegmentAutoConfiguration.class, "proxy", SegmentFactoryProbe.class);
@@ -216,7 +215,7 @@ class BackendBeanCompatibilityTest {
     @Configuration(proxyBeanMethods = false)
     static class ProxyMachineProbe {
         @Bean
-        String probe(@Qualifier("proxyMachineIdDistributor") ProxyMachineIdDistributor distributor) {
+        String probe(@Qualifier("proxyMachineIdDistributor") LeaseStoreMachineIdDistributor distributor) {
             return distributor.toString();
         }
     }

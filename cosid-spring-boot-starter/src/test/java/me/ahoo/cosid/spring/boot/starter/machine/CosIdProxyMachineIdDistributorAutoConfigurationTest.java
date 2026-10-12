@@ -17,20 +17,25 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.mock;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
-import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
-import me.ahoo.cosid.proxy.api.MachineClient;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
+import me.ahoo.cosid.proxy.ProxyMachineLeaseStore;
+import me.ahoo.cosid.proxy.api.MachineLeaseClient;
+import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+
+import java.time.Duration;
 
 class CosIdProxyMachineIdDistributorAutoConfigurationTest {
     private static final String COAP_PROXY_HOST = "cosid.proxy.host=http://localhost:8688";
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CosIdProxyMachineIdDistributorAutoConfiguration.class))
-        .withBean(MachineClient.class, () -> mock(MachineClient.class))
+        .withBean(MachineLeaseClient.class, () -> mock(MachineLeaseClient.class))
         .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
         .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
         .withPropertyValues(COAP_PROXY_HOST);
@@ -43,23 +48,37 @@ class CosIdProxyMachineIdDistributorAutoConfigurationTest {
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(CosIdProxyMachineIdDistributorAutoConfiguration.class)
-                    .hasSingleBean(ProxyMachineIdDistributor.class)
+                    .hasSingleBean(LeaseStoreMachineIdDistributor.class)
                 ;
             });
     }
 
     @Test
     void backsOffWhenUserProvidesProxyMachineIdDistributor() {
-        ProxyMachineIdDistributor userDistributor = mock(ProxyMachineIdDistributor.class);
+        MachineIdDistributor userDistributor = mock(MachineIdDistributor.class);
 
         this.contextRunner
-            .withBean(ProxyMachineIdDistributor.class, () -> userDistributor)
+            .withBean(MachineIdDistributor.class, () -> userDistributor)
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=proxy")
             .run(context -> assertThat(context)
-                .hasSingleBean(ProxyMachineIdDistributor.class)
-                .getBean(ProxyMachineIdDistributor.class)
+                .hasSingleBean(MachineIdDistributor.class)
+                .getBean(MachineIdDistributor.class)
                 .isSameAs(userDistributor));
+    }
+
+    @Test
+    void zeroReadTimeoutFailsStartupNamingTheProperty() {
+        this.contextRunner
+            .withBean(CosIdProperties.class, () -> {
+                CosIdProperties properties = new CosIdProperties();
+                properties.getProxy().setReadTimeout(Duration.ZERO);
+                return properties;
+            })
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=proxy")
+            .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
+                .hasMessageContaining("cosid.proxy.read-timeout"));
     }
 
     @Test
@@ -69,7 +88,7 @@ class CosIdProxyMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=proxy")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdProxyMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(ProxyMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
@@ -79,7 +98,7 @@ class CosIdProxyMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=manual")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdProxyMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(ProxyMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test

@@ -46,6 +46,11 @@ public abstract class MachineLeaseStoreSpec {
     private static final int CONCURRENCY = 16;
     private static final long T0 = 1_000_000L;
     private static final int MAX_MACHINE_ID = 1023;
+    /**
+     * A cut-off long after every write of these tests (they write around {@code T0}), yet in the past of any real
+     * store clock, which a proxy server checks cut-offs against.
+     */
+    private static final long ALL_EXPIRED = T0 + 1_000_000_000L;
     
     protected abstract MachineLeaseStore getStore();
     
@@ -147,7 +152,7 @@ public abstract class MachineLeaseStoreSpec {
         assertThat(claimed.getWatermark(), greaterThanOrEqualTo(T0 + 2000));
         assertThat(store.claimExpired(namespace, instance("another"), MAX_MACHINE_ID, T0 + 10, T0 + 2000).isPresent(), equalTo(false));
         // Long past the stable owner's last renewal: still never recycled.
-        assertThat(store.claimExpired(namespace, instance("another"), MAX_MACHINE_ID, Long.MAX_VALUE - 1, T0 + 2000).map(Lease::getMachineId),
+        assertThat(store.claimExpired(namespace, instance("another"), MAX_MACHINE_ID, ALL_EXPIRED, T0 + 2000).map(Lease::getMachineId),
             not(equalTo(Optional.of(stable.getMachineId()))));
     }
     
@@ -174,7 +179,7 @@ public abstract class MachineLeaseStoreSpec {
         assertThat(store.release(owner, T0 + 10), equalTo(true));
         
         assertThat(store.claimReleased(namespace, instance("other"), MAX_MACHINE_ID, T0 + 20).isPresent(), equalTo(false));
-        assertThat(store.claimExpired(namespace, instance("other"), MAX_MACHINE_ID, Long.MAX_VALUE - 1, T0 + 20).isPresent(), equalTo(false));
+        assertThat(store.claimExpired(namespace, instance("other"), MAX_MACHINE_ID, ALL_EXPIRED, T0 + 20).isPresent(), equalTo(false));
         assertThat(store.claimSelf(namespace, stableInstance("stable"), T0 + 20).orElseThrow().getMachineId(), equalTo(owner.getMachineId()));
     }
     
@@ -327,7 +332,7 @@ public abstract class MachineLeaseStoreSpec {
         Lease stable = store.claimSelf(namespace, stableInstance("node"), T0 + 10).orElseThrow();
         assertThat(stable.getMachineId(), equalTo(temporary.getMachineId()));
         assertThat(stable.isStable(), equalTo(true));
-        assertThat(store.claimExpired(namespace, instance("other"), MAX_MACHINE_ID, Long.MAX_VALUE - 1, T0 + 20).isPresent(), equalTo(false));
+        assertThat(store.claimExpired(namespace, instance("other"), MAX_MACHINE_ID, ALL_EXPIRED, T0 + 20).isPresent(), equalTo(false));
         
         // And back to temporary: released on shutdown again.
         Lease backToTemporary = store.claimSelf(namespace, instance("node"), T0 + 30).orElseThrow();
@@ -356,7 +361,7 @@ public abstract class MachineLeaseStoreSpec {
         Lease inFirst = store.claimNew(first, instance("owner"), 3, T0).orElseThrow();
         
         assertThat(store.claimNew(second, instance("owner"), 3, T0).orElseThrow().getMachineId(), equalTo(inFirst.getMachineId()));
-        assertThat(store.claimExpired(second, instance("thief"), MAX_MACHINE_ID, Long.MAX_VALUE - 1, T0 + 10).map(Lease::getNamespace),
+        assertThat(store.claimExpired(second, instance("thief"), MAX_MACHINE_ID, ALL_EXPIRED, T0 + 10).map(Lease::getNamespace),
             not(equalTo(Optional.of(first))));
         store.release(inFirst, T0 + 10);
         assertThat(store.claimReleased(second, instance("other"), MAX_MACHINE_ID, T0 + 20).isPresent(), equalTo(false));

@@ -33,8 +33,7 @@ import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.mongo.IdSegmentInitializer;
 import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
 import me.ahoo.cosid.proxy.ProxyIdSegmentDistributorFactory;
-import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
-import me.ahoo.cosid.proxy.api.MachineClient;
+import me.ahoo.cosid.proxy.api.MachineLeaseClient;
 import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
@@ -170,8 +169,8 @@ class CosIdStoreProviderWiringTest {
     
     @Test
     void proxy() {
-        assertMachine(machineRunner.withBean(MachineClient.class, () -> mock(MachineClient.class)),
-            CosIdProxyMachineIdDistributorAutoConfiguration.class, "proxy", ProxyMachineIdDistributor.class);
+        assertMachine(machineRunner.withBean(MachineLeaseClient.class, () -> mock(MachineLeaseClient.class)),
+            CosIdProxyMachineIdDistributorAutoConfiguration.class, "proxy", LeaseStoreMachineIdDistributor.class);
         assertSegment(segmentRunner.withBean(SegmentClient.class, () -> mock(SegmentClient.class)),
             CosIdProxySegmentAutoConfiguration.class, "proxy", ProxyIdSegmentDistributorFactory.class);
     }

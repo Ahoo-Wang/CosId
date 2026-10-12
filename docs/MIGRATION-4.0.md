@@ -12,7 +12,7 @@
 3.x and 4.0 instances can share a namespace during the upgrade: 4.0 reads and writes both lease formats. Finish the upgrade before removing 3.x instances, and keep host clocks in sync with the store.
 
 - **JDBC**: run the `ALTER TABLE` for the new lease columns before starting 4.0 instances; 4.0 fails at startup and prints the statement when the columns are missing.
-- **Proxy**: 4.0 servers keep the v1 API for 3.x clients (deprecated).
+- **Proxy**: upgrade the servers first. A server only lets clients take over a lease renewed at least `cosid.proxy.server.min-safe-guard-duration` ago (default 5 minutes, the clients' default safe guard); 4.0 clients sending a later cut-off get a 400; a shorter guard from a 3.x client (v1) is raised to the minimum with a warning. Lower it if your clients use a shorter `cosid.machine.guarder.safe-guard-duration`. With the 4.0 starter, `cosid.proxy.read-timeout` must be positive. 4.0 servers keep the v1 machine API for 3.x clients (deprecated, now stateless on the backend lease store), and 4.0 clients use the v2 lease API (`/machines/v2`), which 3.x servers do not have.
 - **Redis**: 4.0 adds a `cosid:{namespace}:lease` hash next to the 3.4 keys; nothing to do.
 - **ZooKeeper and MongoDB**: the nodes and documents keep the 3.4 format; nothing to do.
 - Expiry is judged on the timestamp 3.4 reads, and a new owner starts after it, so 4.0 never takes a machine id earlier than 3.4 would. A host whose clock runs ahead of the others delays the reuse of the machine ids it releases (the next owner waits until its clock passes them), as in 3.4.

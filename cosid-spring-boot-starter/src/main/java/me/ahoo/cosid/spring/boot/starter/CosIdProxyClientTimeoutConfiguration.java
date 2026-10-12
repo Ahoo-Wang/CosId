@@ -17,6 +17,7 @@ import me.ahoo.coapi.spring.CoApiDefinition;
 import me.ahoo.coapi.spring.client.reactive.WebClientBuilderCustomizer;
 import me.ahoo.coapi.spring.client.sync.RestClientBuilderCustomizer;
 import me.ahoo.cosid.proxy.api.MachineClient;
+import me.ahoo.cosid.proxy.api.MachineLeaseClient;
 import me.ahoo.cosid.proxy.api.SegmentClient;
 
 import org.springframework.beans.factory.ObjectProvider;
@@ -43,7 +44,7 @@ public class CosIdProxyClientTimeoutConfiguration {
     
     static boolean isProxyClient(CoApiDefinition coApiDefinition) {
         Class<?> apiType = coApiDefinition.getApiType();
-        return MachineClient.class.equals(apiType) || SegmentClient.class.equals(apiType);
+        return MachineClient.class.equals(apiType) || MachineLeaseClient.class.equals(apiType) || SegmentClient.class.equals(apiType);
     }
     
     static ProxyProperties proxyProperties(ObjectProvider<CosIdProperties> cosIdProperties) {

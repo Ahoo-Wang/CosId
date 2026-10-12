@@ -14,6 +14,7 @@
 package me.ahoo.cosid.proxy.server.contract;
 
 import me.ahoo.cosid.proxy.api.MachineClient;
+import me.ahoo.cosid.proxy.api.MachineLeaseClient;
 import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.test.container.RedisLauncher;
 
@@ -43,6 +44,8 @@ final class ProxyEndToEnd {
     static void serverProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.data.redis.url", RedisLauncher::getUri);
         registry.add("cosid.proxy.server.auth.tokens[0]", () -> TOKEN);
+        // The specs take over leases after short safe guards.
+        registry.add("cosid.proxy.server.min-safe-guard-duration", () -> "0s");
     }
     
     private static HttpServiceProxyFactory clientFactory(int port, boolean withToken) {
@@ -59,6 +62,10 @@ final class ProxyEndToEnd {
     
     static MachineClient anonymousMachineClient(int port) {
         return clientFactory(port, false).createClient(MachineClient.class);
+    }
+    
+    static MachineLeaseClient machineLeaseClient(int port) {
+        return clientFactory(port, true).createClient(MachineLeaseClient.class);
     }
     
     static SegmentClient segmentClient(int port) {

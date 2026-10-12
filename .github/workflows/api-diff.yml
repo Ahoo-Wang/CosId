@@ -12,7 +12,8 @@
 #
 
 
-# Report-only API diff of the library modules against the latest 3.4 release; never fails the build.
+# Report-only API diff of the library modules against the latest 4.0 release. Incompatible changes do not fail the
+# build; an error running the diff does.
 name: API Diff
 on:
   push:
@@ -26,7 +27,7 @@ on:
       baseline:
         description: 'Baseline git ref'
         required: false
-        default: 'v3.4.0'
+        default: 'v4.0.0'
 jobs:
   api-diff:
     name: API Diff
@@ -47,8 +48,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: API diff
-        continue-on-error: true
-        run: scripts/api-diff.sh "${{ github.event.inputs.baseline || 'v3.4.0' }}" build/api-diff
+        run: scripts/api-diff.sh "${{ github.event.inputs.baseline || 'v4.0.0' }}" build/api-diff
 
       - name: Upload report
         if: always()

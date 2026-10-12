@@ -8,8 +8,11 @@ trap 'rm -f "$LOG"' EXIT
 
 ./gradlew "$@" 2>&1 | tee "$LOG"
 status=${PIPESTATUS[0]}
-if [ "$status" -ne 0 ] && grep -q "Could not resolve all \(files\|dependencies\) for configuration" "$LOG" \
-  && ! grep -q "There were failing tests" "$LOG"; then
+# A build reports each failure in a "* What went wrong:" block, and several when tasks run in parallel: retry only when
+# every one of them is a dependency resolution failure.
+failures=$(grep -c "^\* What went wrong:" "$LOG")
+resolution_failures=$(grep -cE "^> Could not resolve all (files|dependencies|artifacts) for configuration" "$LOG")
+if [ "$status" -ne 0 ] && [ "$failures" -gt 0 ] && [ "$failures" -eq "$resolution_failures" ]; then
   echo "::warning::Dependency resolution failed, retrying once: $(grep -m1 'Could not find\|Could not resolve' "$LOG")"
   sleep 15
   ./gradlew "$@" --refresh-dependencies

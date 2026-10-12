@@ -18,7 +18,7 @@
 
 - 只有所有实例都升级到新版本后才完全生效：滚动升级期间，旧版本实例不读取 stable 标记，仍可能回收稳定实例的机器号。
 - 已经离线的稳定实例，在新版本上启动一次（写入标记）之前不受保护。
-- JDBC：需要先加上 `stable` 列（见 [CosId-Jdbc](../../guide/extensions/cosid-jdbc.md)）并重启，因为该列只在启动时检测一次。
+- JDBC：启动 4.0 前需要先加上 `stable` 列（见 [CosId-Jdbc](../../guide/extensions/cosid-jdbc.md)），缺少该列时 4.0 启动失败。
 :::
 
 ### StateStorage
@@ -70,6 +70,7 @@
 | `cosid.machine.distributor.redis.timeout` | `1s` | Redis 机器号守护与归还；必须为正数 |
 | `cosid.machine.distributor.redis.distribute-timeout` | `10s` | 启动时申领机器号的每条 Redis 命令，首条命令还包含建立连接的耗时；必须为正数 |
 | `cosid.machine.distributor.jdbc.query-timeout` | `5s` | 每条 JDBC 语句 |
+| `cosid.machine.distributor.jdbc.server-time-sql` | 自动识别 | 读取数据库时钟（毫秒时间戳）的查询。未设置时 starter 会为 MySQL、MariaDB 和 PostgreSQL 自动选择；其他数据库必须配置 |
 | `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper 机器号守护与归还（Curator 没有单次操作超时）；必须为正数 |
 | `cosid.machine.distributor.mongo.timeout` | `5s` | 每次 MongoDB 机器号操作（驱动的 `timeoutMS`）；必须为正数 |
 | `cosid.segment.distributor.mongo.timeout` | `5s` | 每次 MongoDB 号段操作 |

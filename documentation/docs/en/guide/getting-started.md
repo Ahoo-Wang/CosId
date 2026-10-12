@@ -1,5 +1,16 @@
 # Quick Start
 
+## Version Compatibility
+
+| CosId | Spring Boot | Java | Branch |
+|---|---|---|---|
+| 4.x | 4.x | 17+ | `main` |
+| 3.x | 4.x | 17+ | `3.x` (maintenance) |
+| 2.x | 3.x | 17+ | `2.x` |
+| 1.x | 2.x | 8+ | `1.x` |
+
+Upgrading from 3.x: see [Migrating to 4.0](./migration-4.0.md).
+
 ## Installation
 
 :::tip

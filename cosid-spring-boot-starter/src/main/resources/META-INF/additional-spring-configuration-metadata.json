@@ -3,10 +3,10 @@
     {
       "name": "cosid.machine.distributor.provider",
       "type": "java.lang.String",
-      "description": "Removed in 4.0: cosid.machine.distributor.type names any store, also an application's CosIdStoreProvider.",
+      "description": "Removed in 4.0: set cosid.machine.distributor.type to the type of an application's CosIdStoreProvider (its getType()) instead.",
       "deprecation": {
         "level": "error",
-        "reason": "The store type names any store, also an application's CosIdStoreProvider.",
+        "reason": "The store type also selects an application's CosIdStoreProvider by its getType().",
         "replacement": "cosid.machine.distributor.type",
         "since": "4.0.0"
       }
@@ -14,13 +14,43 @@
     {
       "name": "cosid.segment.distributor.provider",
       "type": "java.lang.String",
-      "description": "Removed in 4.0: cosid.segment.distributor.type names any store, also an application's CosIdStoreProvider.",
+      "description": "Removed in 4.0: set cosid.segment.distributor.type to the type of an application's CosIdStoreProvider (its getType()) instead.",
       "deprecation": {
         "level": "error",
-        "reason": "The store type names any store, also an application's CosIdStoreProvider.",
+        "reason": "The store type also selects an application's CosIdStoreProvider by its getType().",
         "replacement": "cosid.segment.distributor.type",
         "since": "4.0.0"
       }
+    },
+    {
+      "name": "cosid.jdbc.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether the Spring Data JDBC integration fills @Id properties and @CosId fields of entities. Off by default since 4.0: Spring Data JDBC users must set it to true.",
+      "defaultValue": false
+    },
+    {
+      "name": "cosid.actuator.delete.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether the cosid actuator endpoint has its DELETE operation, which removes an id generator at runtime. Off by default since 4.0: the endpoint is read-only.",
+      "defaultValue": false
+    },
+    {
+      "name": "cosid.mybatis.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether the MyBatis plugin fills id fields.",
+      "defaultValue": true
+    },
+    {
+      "name": "cosid.flowable.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether CosId provides the Flowable id generator.",
+      "defaultValue": true
+    },
+    {
+      "name": "cosid.activiti.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether CosId provides the Activiti id generator.",
+      "defaultValue": true
     }
   ],
   "hints": [

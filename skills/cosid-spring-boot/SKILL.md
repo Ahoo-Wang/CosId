@@ -9,7 +9,7 @@ Produce the smallest configuration for one chosen strategy and backend. Do not e
 
 ## Workflow
 
-1. Confirm compatibility: CosId 3.x aligns with Spring Boot 4.x; CosId 2.x aligns with Spring Boot 3.x; both require Java 17.
+1. Confirm compatibility: CosId 4.x: Spring Boot 4.x, Java 17. CosId 3.x aligns with Spring Boot 4.x; CosId 2.x aligns with Spring Boot 3.x; all require Java 17. Upgrading from 3.x: follow `docs/MIGRATION-4.0.md`.
 2. Confirm the generator strategy. Use `$cosid-strategy-guide` only when it is undecided.
 3. Add the starter capability or Maven backend modules required by that strategy.
 4. Emit minimal YAML and one consumption pattern.
@@ -126,11 +126,11 @@ Inject it as `CosIdGenerator` and call `generateAsString()`. Its `generate()` me
 Named segment and Snowflake generators are registered in `IdGeneratorProvider` and as singleton beans named `<name>SegmentId` or `<name>SnowflakeId`:
 
 ```java
-IdGenerator orderId = idGeneratorProvider.getRequired("order");
+IdGenerator orderId = idGeneratorProvider.getRequired("order", IdGenerator.class);
 long id = orderId.generate();
 ```
 
-`IdGeneratorProvider.get(name)` returns `Optional<IdGenerator>`; use `getRequired(name)` when absence is an error.
+In 4.x, `IdGeneratorProvider.get(name)` returns `Optional<StringIdGenerator>`: use `get(name, IdGenerator.class)` or `getRequired(name, IdGenerator.class)` for a `long` generator, and `getRequired` when absence is an error.
 
 The shared definition is enabled by default under `__share__`. If Snowflake and Segment are both enabled, they compete for the same shared provider entry. Disable one share or use named definitions and qualified concrete beans; do not rely on registration order.
 
@@ -154,7 +154,8 @@ Do not promise annotation support for an ORM or persistence path without verifyi
 - Snowflake definitions default to clock sync. Custom second-based definitions require an epoch in seconds; millisecond definitions require milliseconds.
 - Snowflake timestamp, machine, and sequence bits must total 63.
 - Proxy activation uses `proxy-support`, `cosid.proxy.host`, and `distributor.type: proxy`; there is no `cosid.proxy.enabled` property.
-- Actuator endpoints require `actuator-support` and explicit endpoint exposure. The `cosid` endpoint includes a delete operation that removes a registered generator; for status-only access on Spring Boot 4, set `management.endpoint.cosid.access: read-only` and protect the management endpoint with HTTP authorization or network isolation. On Spring Boot versions without endpoint access levels, deny non-read methods or do not expose it.
+- Actuator endpoints require `actuator-support` and explicit endpoint exposure. In 4.x the `cosid` endpoint is read-only unless `cosid.actuator.delete.enabled=true` turns on its delete operation, which removes a registered generator; for status-only access on Spring Boot 4, set `management.endpoint.cosid.access: read-only` and protect the management endpoint with HTTP authorization or network isolation. On Spring Boot versions without endpoint access levels, deny non-read methods or do not expose it.
+- Spring Data JDBC entities get their ids only with `cosid.jdbc.enabled=true` in 4.x (the default is `false`).
 - Converter output must be tested for prefix, padding, radix, maximum length, and target-column capacity.
 
 For a Spring Boot 4 status-only endpoint, start with:

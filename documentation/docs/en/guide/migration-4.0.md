@@ -1,0 +1,35 @@
+# Migrating to 4.0
+
+CosId 4.0 runs on Java 17 or later and Spring Boot 4.x. The complete list of breaking changes, with the replacement for
+each removed API, is in the [migration guide](https://github.com/Ahoo-Wang/CosId/blob/main/docs/MIGRATION-4.0.md). This
+page lists the steps most applications need.
+
+## Before the upgrade
+
+- Upgrade to the latest 3.4.x first and clear its deprecation warnings. Rolling upgrades are supported from 3.4.x only.
+- Rebuild code and libraries compiled against CosId 3.x, including ShardingSphere's CosId algorithms: some
+  `IdGeneratorProvider` and `LazyIdGenerator` signatures changed.
+- Use the same `cosid.machine.guarder.safe-guard-duration` on every instance of a namespace.
+
+## Rolling upgrade by backend
+
+| Backend | What to do |
+|---|---|
+| JDBC | Run the `ALTER TABLE` for the `renew_time`, `watermark` and `lease_version` columns (and `stable` on tables created before 3.3) before starting 4.0 instances, see [CosId-Jdbc](./extensions/cosid-jdbc.md) |
+| Redis | Nothing: 4.0 adds a lease hash next to the 3.4 keys |
+| ZooKeeper, MongoDB | Nothing: the 3.4 format is kept |
+| Proxy | Upgrade the servers first and configure a token, see [CosId Proxy](./cosid-proxy.md) |
+
+3.4.x and 4.0 instances can share a namespace while the upgrade runs.
+
+## Configuration
+
+- `cosid.jdbc.enabled` and `cosid.actuator.delete.enabled` default to `false`. Spring Data JDBC users must set
+  `cosid.jdbc.enabled=true`.
+- `cosid.machine.distributor.provider` and `cosid.segment.distributor.provider` are removed: the `type` also selects a
+  `CosIdStoreProvider` by its `getType()`.
+- The machine id Redis, ZooKeeper and MongoDB timeouts and `cosid.proxy.read-timeout` must be positive.
+- Typed lookups replace casts: `provider.getRequired("order", IdGenerator.class)`.
+- The sharding algorithms moved to `me.ahoo.cosid:cosid-sharding`, the accessors and `@CosId` to `me.ahoo.cosid:cosid-accessor`.
+
+Startup fails with a message naming the fix for each of these; the migration guide has a table of the common ones.

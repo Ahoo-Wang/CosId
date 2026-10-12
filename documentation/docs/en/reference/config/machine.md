@@ -19,7 +19,7 @@ When upgrading from an earlier version:
 
 - The protection is effective only once every instance runs the new version: older instances do not read the stable flag and can still recycle a stable machine ID during a rolling upgrade.
 - A stable instance that is already offline is unprotected until it has started once on the new version, which records the flag.
-- JDBC: add the `stable` column (see [CosId-Jdbc](../../guide/extensions/cosid-jdbc.md)) and restart, since the column is detected once at startup.
+- JDBC: add the `stable` column (see [CosId-Jdbc](../../guide/extensions/cosid-jdbc.md)) before starting 4.0, which fails at startup without it.
 :::
 
 ### StateStorage
@@ -71,6 +71,7 @@ When upgrading from an earlier version:
 | `cosid.machine.distributor.redis.timeout` | `1s` | Redis machine ID guard and revert; must be positive |
 | `cosid.machine.distributor.redis.distribute-timeout` | `10s` | Each Redis command of the machine ID claim at startup, whose first command also pays for connecting; must be positive |
 | `cosid.machine.distributor.jdbc.query-timeout` | `5s` | Each JDBC statement |
+| `cosid.machine.distributor.jdbc.server-time-sql` | detected | The query for the database clock in epoch milliseconds. Unset, the starter picks it for MySQL, MariaDB and PostgreSQL; other databases must set it |
 | `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper machine ID guard and revert (Curator has no per-operation timeout); must be positive |
 | `cosid.machine.distributor.mongo.timeout` | `5s` | Each MongoDB machine ID operation (driver `timeoutMS`); must be positive |
 | `cosid.segment.distributor.mongo.timeout` | `5s` | Each MongoDB segment operation |

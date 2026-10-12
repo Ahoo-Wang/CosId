@@ -1,0 +1,30 @@
+# 迁移到 4.0
+
+CosId 4.0 需要 Java 17 及以上和 Spring Boot 4.x。完整的破坏性变更列表，以及每个已移除 API 的替代方式，见[迁移指南](https://github.com/Ahoo-Wang/CosId/blob/main/docs/MIGRATION-4.0.md)（英文）。本页列出大多数应用需要的步骤。
+
+## 升级之前
+
+- 先升级到最新的 3.4.x，并清理它的弃用告警。只支持从 3.4.x 滚动升级。
+- 重新编译基于 CosId 3.x 编译的代码和库，包括 ShardingSphere 的 CosId 算法：`IdGeneratorProvider` 和 `LazyIdGenerator` 的部分签名有变化。
+- 同一命名空间的所有实例使用相同的 `cosid.machine.guarder.safe-guard-duration`。
+
+## 各后端的滚动升级
+
+| 后端 | 需要做的事 |
+|---|---|
+| JDBC | 启动 4.0 实例前，执行添加 `renew_time`、`watermark`、`lease_version` 列的 `ALTER TABLE`（3.3 之前创建的表还需要 `stable` 列），见 [CosId-Jdbc](./extensions/cosid-jdbc.md) |
+| Redis | 无需操作：4.0 在 3.4 的键旁边新增租约哈希 |
+| ZooKeeper、MongoDB | 无需操作：保留 3.4 格式 |
+| Proxy | 先升级服务端并配置 token，见 [CosId Proxy](./cosid-proxy.md) |
+
+升级期间，3.4.x 与 4.0 实例可以共享同一命名空间。
+
+## 配置
+
+- `cosid.jdbc.enabled` 和 `cosid.actuator.delete.enabled` 默认为 `false`。Spring Data JDBC 用户必须设置 `cosid.jdbc.enabled=true`。
+- 移除了 `cosid.machine.distributor.provider` 和 `cosid.segment.distributor.provider`：`type` 也会按 `getType()` 选择 `CosIdStoreProvider`。
+- 机器号的 Redis、ZooKeeper、MongoDB 超时以及 `cosid.proxy.read-timeout` 必须为正数。
+- 用类型化查找代替强制转换：`provider.getRequired("order", IdGenerator.class)`。
+- 分片算法移到 `me.ahoo.cosid:cosid-sharding`，访问器和 `@CosId` 移到 `me.ahoo.cosid:cosid-accessor`。
+
+以上情况启动失败时，错误信息都会指明修复方式；迁移指南中有常见错误的对照表。

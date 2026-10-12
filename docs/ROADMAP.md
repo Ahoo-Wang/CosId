@@ -34,9 +34,9 @@ Behavior fixes only, no breaking API changes.
 | P1-4 | Fake JDBC and Redis backends replaced by real ones | #1187 |
 | C5, D3 | ZooKeeper connects only when selected; optional integrations gated and switchable | #1189, #1190 |
 
-## Phase 2: 4.0 — in progress on `main`
+## Phase 2: 4.0 (4.0.0) — done
 
-`main` is the 4.0 line; 3.x gets fixes on the `3.x` maintenance branch. Breaking changes are listed in [MIGRATION-4.0.md](MIGRATION-4.0.md). Releases go 4.0.0-M1, then RC1, then GA.
+`main` is the 4.0 line; 3.x gets fixes on the `3.x` maintenance branch. Breaking changes are listed in [MIGRATION-4.0.md](MIGRATION-4.0.md). Releases: 4.0.0-M1, RC1, RC2, then GA.
 
 ### Decisions
 
@@ -50,24 +50,26 @@ Behavior fixes only, no breaking API changes.
 
 ### Plan
 
-| Item | Change | Milestone |
-|------|--------|-----------|
-| P3-0 | Open the 4.0 line: `4.0.0-SNAPSHOT`, release workflows for both lines, report-only API diff against 3.4, migration guide skeleton | M1 |
-| P3-1 | Remove MongoDB reactive support | M1 |
-| P3-2 | Remove the thread-local grouped path | M1 |
-| P3-3 | Remove the remaining `forRemoval` APIs | M1 |
-| P3-4 | Flip the `cosid.jdbc.enabled` and `cosid.actuator.delete.enabled` defaults | M1 |
-| P3-5 | Move the test-only segment distributors to `cosid-test` | M1 |
-| P3-6 | New `cosid-sharding` module | M1 |
-| P3-7 | New `cosid-accessor` module | M1 |
-| P3-8 | Remove Guava from `cosid-core` | M1 |
-| P3-9 | `StringIdGenerator` and typed `IdGeneratorProvider` lookups | M1 |
-| P3-10 | `SnowflakeLayout` | M1 |
-| P3-16 | `SegmentChainId` lifecycle: `AutoCloseable`, injected prefetch executor, per-task timeout | M1 |
-| P3-17 | Axon identifier factory warns about multiple providers | M1 |
-| P3-11 | Lease model with watermark, renewal time and version; new store formats that still read the old ones (Redis: a `lease` hash; JDBC: three columns and an `ALTER`; ZooKeeper and MongoDB keep the 3.4 format on purpose, since 3.4 parses ZooKeeper nodes strictly and the 3.4 timestamp already covers the lease) | RC1 |
-| P3-12 | Proxy v2 lease API; v1 delegates to it | RC1 |
-| P3-13 | Starter uses the lease stores; old distributors removed | RC1 |
-| P3-14 | Property model: string store type that also names providers, `ZoneId` (the property classes stay mutable beans: `Customize*Properties` callbacks use their setters) | RC1 |
-| P3-15 | Generator registration as a bean definition registry post-processor | RC1 |
-| P3-18 | Migration guide, README, docs and samples | RC1 |
+| Item | Change | Milestone | Pull requests |
+|------|--------|-----------|---------------|
+| P3-0 | Open the 4.0 line: `4.0.0-SNAPSHOT`, release workflows for both lines, report-only API diff against 3.4, migration guide skeleton | M1 | [#1197](https://github.com/Ahoo-Wang/CosId/pull/1197) |
+| P3-1 | Remove MongoDB reactive support | M1 | [#1198](https://github.com/Ahoo-Wang/CosId/pull/1198) |
+| P3-2 | Remove the thread-local grouped path | M1 | [#1199](https://github.com/Ahoo-Wang/CosId/pull/1199) |
+| P3-3 | Remove the remaining `forRemoval` APIs | M1 | [#1200](https://github.com/Ahoo-Wang/CosId/pull/1200) |
+| P3-4 | Flip the `cosid.jdbc.enabled` and `cosid.actuator.delete.enabled` defaults | M1 | [#1201](https://github.com/Ahoo-Wang/CosId/pull/1201) |
+| P3-5 | Move the test-only segment distributors to `cosid-test` | M1 | [#1202](https://github.com/Ahoo-Wang/CosId/pull/1202) |
+| P3-6 | New `cosid-sharding` module | M1 | [#1204](https://github.com/Ahoo-Wang/CosId/pull/1204) |
+| P3-7 | New `cosid-accessor` module | M1 | [#1205](https://github.com/Ahoo-Wang/CosId/pull/1205) |
+| P3-8 | Remove Guava from `cosid-core` | M1 | [#1207](https://github.com/Ahoo-Wang/CosId/pull/1207), [#1208](https://github.com/Ahoo-Wang/CosId/pull/1208) |
+| P3-9 | `StringIdGenerator` and typed `IdGeneratorProvider` lookups | M1 | [#1209](https://github.com/Ahoo-Wang/CosId/pull/1209) |
+| P3-10 | `SnowflakeLayout` | M1 | [#1206](https://github.com/Ahoo-Wang/CosId/pull/1206) |
+| P3-16 | `SegmentChainId` lifecycle: `AutoCloseable`, injected prefetch executor, per-task timeout | M1 | [#1210](https://github.com/Ahoo-Wang/CosId/pull/1210) |
+| P3-17 | Axon identifier factory warns about multiple providers | M1 | [#1203](https://github.com/Ahoo-Wang/CosId/pull/1203) |
+| P3-11 | Lease model with watermark, renewal time and version; new store formats that still read the old ones (Redis: a `lease` hash; JDBC: three columns and an `ALTER`; ZooKeeper and MongoDB keep the 3.4 format on purpose, since 3.4 parses ZooKeeper nodes strictly and the 3.4 timestamp already covers the lease) | RC1 | [#1212](https://github.com/Ahoo-Wang/CosId/pull/1212), [#1213](https://github.com/Ahoo-Wang/CosId/pull/1213), [#1214](https://github.com/Ahoo-Wang/CosId/pull/1214), [#1215](https://github.com/Ahoo-Wang/CosId/pull/1215) |
+| P3-12 | Proxy v2 lease API; v1 delegates to it | RC1 | [#1217](https://github.com/Ahoo-Wang/CosId/pull/1217) |
+| P3-13 | Starter uses the lease stores; old distributors removed | RC1 | [#1216](https://github.com/Ahoo-Wang/CosId/pull/1216), [#1218](https://github.com/Ahoo-Wang/CosId/pull/1218) |
+| P3-14 | Property model: string store type that also names providers, `ZoneId` (the property classes stay mutable beans: `Customize*Properties` callbacks use their setters) | RC1 | [#1219](https://github.com/Ahoo-Wang/CosId/pull/1219) |
+| P3-15 | Generator registration as a bean definition registry post-processor | RC1 | [#1220](https://github.com/Ahoo-Wang/CosId/pull/1220) |
+| P3-18 | Migration guide, README, docs and samples | RC1 | [#1221](https://github.com/Ahoo-Wang/CosId/pull/1221) |
+| P3-19 | Pre-GA review: proxy server secure defaults, migration guide, site docs and IDE metadata, 3.x Docker `latest` | RC2 | [#1223](https://github.com/Ahoo-Wang/CosId/pull/1223), [#1224](https://github.com/Ahoo-Wang/CosId/pull/1224), [#1226](https://github.com/Ahoo-Wang/CosId/pull/1226), [#1225](https://github.com/Ahoo-Wang/CosId/pull/1225) (3.x) |
+| P3-20 | Releases | M1, RC1, RC2, GA | [#1211](https://github.com/Ahoo-Wang/CosId/pull/1211), [#1222](https://github.com/Ahoo-Wang/CosId/pull/1222) |

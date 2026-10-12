@@ -16,8 +16,9 @@ package me.ahoo.cosid.jdbc;
 /**
  * PostgreSQL versions of the SQL that defaults to MySQL syntax.
  *
- * <p>The machine id distributor's statements are standard SQL and need no change; the DDL and the segment statements
- * use MySQL-only syntax ({@code unsigned}, {@code engine}, {@code unix_timestamp()}). Pass these to
+ * <p>The DDL, the migrations, the segment statements and the server clock query use MySQL-only syntax
+ * ({@code unsigned}, {@code engine}, {@code unix_timestamp()}); the machine id lease store reads the database clock with
+ * {@link #SERVER_TIME_SQL} on PostgreSQL (the starter picks it from the database product). Pass these to
  * {@link JdbcIdSegmentInitializer}, {@link JdbcIdSegmentDistributorFactory} and {@link JdbcMachineIdInitializer}, or to the
  * matching {@code cosid.segment.distributor.jdbc.*} and {@code cosid.machine.distributor.jdbc.*} properties.</p>
  *

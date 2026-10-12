@@ -43,15 +43,17 @@ style-clean. Tests run on JUnit 5 (`useJUnitPlatform`); in CI (`CI=true`) flakes
 
 Root `settings.gradle.kts` includes all modules. Note several modules live under non-obvious directories:
 
-- `cosid-core` — core ID algorithms. **No Spring, no DB, no middleware deps.** Contains `snowflake`, `segment` /
-  `SegmentChainId`, `machine` (MachineId allocation), `sharding`, `converter`, `accessor`, `stat`. Everything else depends on this.
+- `cosid-core` — core ID algorithms. **No Spring, no DB, no middleware deps, no Guava.** Contains `snowflake`, `segment` /
+  `SegmentChainId`, `machine` (MachineId leases), `converter`, `provider`, `stat`. Everything else depends on this.
+- `cosid-sharding` — the sharding algorithms (`ModCycle`, `IntervalTimeline`, `CachedSharding`), package `me.ahoo.cosid.sharding`.
+- `cosid-accessor` — id field accessors and the `@CosId` annotation, packages `me.ahoo.cosid.accessor` and `me.ahoo.cosid.annotation`.
 - `cosid-jdbc`, `cosid-spring-redis`, `cosid-zookeeper`, `cosid-mongo`, `cosid-spring-data-jdbc` — `IdSegmentDistributor`
   / machine-state backends. Each typically `api(project(":cosid-core"))` + `testImplementation(project(":cosid-test"))`.
 - `cosid-spring-boot-starter` — Spring Boot autoconfiguration aggregator. Backend deps are wired as **Gradle feature
   variants** (`springRedisSupportImplementation`, `jdbcSupportImplementation`, `proxySupportImplementation`, …). When
   adding a backend, register a `registerFeature(...)` here and a corresponding optional starter dependency.
 - `proxy/` → `cosid-proxy-api`, `cosid-proxy`, `cosid-proxy-server` (paths remapped in `settings.gradle.kts`).
-- `examples/` → `cosid-example-*` (proxy, redis, redis-cosid, zookeeper; also a non-included `cosid-example-jdbc`).
+- `examples/` → `cosid-example-*` (proxy, redis, redis-cosid, zookeeper).
   Examples + `cosid-proxy-server` are excluded from publishing.
 - `cosid-bom`, `cosid-dependencies` — Gradle platform BOMs. `cosid-dependencies` is the central version catalog consumers
   must `api(platform(...))`. **Add/upgrade dependency versions here**, not in individual modules.
@@ -80,10 +82,11 @@ depends on backends. Don't introduce core → backend or backend → starter cyc
 
 ## Gotchas
 
-- **Integration tests need live services:** `cosid-jdbc` and `cosid-spring-boot-starter` tests need MySQL (initialized
-  via `cosid-jdbc/src/main/init-script/init-cosid-mysql.sql`); `cosid-spring-redis` needs Redis on `:6379`;
-  `cosid-zookeeper`/`cosid-mongo` similarly. CI starts these in `integration-test.yml`. Run `:check` for a module only
-  when its backing service is available, or scope to a unit test class with `--tests`.
+- **Integration tests need live services:** the Redis, MySQL, PostgreSQL and MongoDB tests read
+  `COSID_TEST_REDIS_URI`, `COSID_TEST_MYSQL_URL`/`_USERNAME`/`_PASSWORD`, `COSID_TEST_POSTGRES_URL`/`_USERNAME`/`_PASSWORD`
+  and `COSID_TEST_MONGODB_URI`; without them they start the service with Docker, and are skipped when neither is
+  available. CI starts the services in `integration-test.yml` and checks that the contract tests ran. Scope to
+  a unit test class with `--tests` when no backend is at hand.
 - **`-parameters` compiler flag is required** (set root-wide) — Spring Boot needs it for `CosIdEndpoint` parameter names; don't remove it.
 - **Tests open JDK internals:** test JVMs pass `--add-opens=java.base/java.util=ALL-UNNAMED` and `...java.lang=...`. If a
   new test touches JDK internals, the existing flags already cover it.

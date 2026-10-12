@@ -121,6 +121,8 @@ StringSnowflakeId  ..>  SnowflakeId
 
 ## MachineIdDistributor
 
+> **术语说明**：*机器号*（machine id）即雪花 ID 中的 worker-id 位，由*实例*（`InstanceId`，即一个运行中的进程）通过租约持有，与物理机器无关。同一台主机上的多个进程各自持有不同的机器号。
+
 `MachineIdDistributor` 是 `SnowflakeId` 的机器号分配器，它负责分配机器号，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
 
 <p align="center" >

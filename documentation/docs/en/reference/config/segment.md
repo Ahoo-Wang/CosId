@@ -18,7 +18,7 @@
 
 | Name   | Data Type               | Description                                  | Default Value          |
 |------|--------------------|-------------------------------------|--------------|
-| type | `String` | Segment distributor type: `redis`, `jdbc`, `zookeeper`, `mongo`, `proxy`, or the name of a `CosIdStoreProvider` bean for a backend CosId does not ship. Compared by letters and digits, ignoring case, so `stateful-set` and `statefulSet` work too | `redis` |
+| type | `String` | Segment distributor type: `redis`, `jdbc`, `zookeeper`, `mongo`, `proxy`, or the type of an application `CosIdStoreProvider` (its `getType()`) for a backend CosId does not ship. Compared by letters and digits, ignoring case, so `ZooKeeper` works too | `redis` |
 | jdbc | `Distributor.Jdbc` | JDBC segment generator configuration                         |              |
 
 ### Distributor.Jdbc

@@ -18,7 +18,7 @@
 
 | 名称   | 数据类型               | 说明                                  | 默认值          |
 |------|--------------------|-------------------------------------|--------------|
-| type | `String` | 号段分配器类型：`redis`、`jdbc`、`zookeeper`、`mongo`、`proxy`，或用于接入 CosId 未内置存储的 `CosIdStoreProvider` Bean 名称。只比较字母和数字且忽略大小写，因此 `stateful-set`、`statefulSet` 同样有效 | `redis` |
+| type | `String` | 号段分配器类型：`redis`、`jdbc`、`zookeeper`、`mongo`、`proxy`，或应用自定义 `CosIdStoreProvider` 的类型（其 `getType()`），用于接入 CosId 未内置的存储。只比较字母和数字且忽略大小写，因此 `ZooKeeper` 同样有效 | `redis` |
 | jdbc | `Distributor.Jdbc` | Jdbc号段生成器配置                         |              |
 
 ### Distributor.Jdbc

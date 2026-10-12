@@ -86,6 +86,8 @@ provide a more friendly and flexible experience.
 
 ### MachineIdDistributor
 
+> **Terminology**: a *machine id* is the worker-id bits of a Snowflake ID. It is held by an *instance* (`InstanceId`, one running process) through a lease and has nothing to do with physical machines. Several processes on the same host each hold their own machine id.
+
 > `MachineIdDistributor` assigns each instance a `machineId`, selected by `cosid.machine.distributor.type`.
 
 #### Manual

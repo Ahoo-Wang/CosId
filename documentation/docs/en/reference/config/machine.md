@@ -42,7 +42,7 @@ When upgrading from an earlier version:
 
 | Name     | Data Type                 | Description                                                          | Default Value      |
 |--------|----------------------|-------------------------------------------------------------|----------|
-| type | `String` | Machine ID distributor type: `manual`, `stateful_set`, `jdbc`, `redis`, `zookeeper`, `mongo`, `proxy`, or the name of a `CosIdStoreProvider` bean for a backend CosId does not ship. Compared by letters and digits, ignoring case, so `stateful-set` and `statefulSet` work too | `manual` |
+| type | `String` | Machine ID distributor type: `manual`, `stateful_set`, `jdbc`, `redis`, `zookeeper`, `mongo`, `proxy`, or the type of an application `CosIdStoreProvider` (its `getType()`) for a backend CosId does not ship. Compared by letters and digits, ignoring case, so `stateful-set` and `statefulSet` work too | `manual` |
 | manual | `Distributor.Manual` | Manual distributor configuration                                                     |          |
 
 #### Distributor.Manual
@@ -68,16 +68,17 @@ When upgrading from an earlier version:
 
 | Property | Default Value | Description |
 |----------|---------------|-------------|
-| `cosid.machine.distributor.redis.timeout` | `1s` | Redis machine ID guard and revert |
+| `cosid.machine.distributor.redis.timeout` | `1s` | Redis machine ID guard and revert; must be positive |
+| `cosid.machine.distributor.redis.distribute-timeout` | `10s` | Each Redis command of the machine ID claim at startup, whose first command also pays for connecting; must be positive |
 | `cosid.machine.distributor.jdbc.query-timeout` | `5s` | Each JDBC statement |
-| `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper machine ID guard and revert (Curator has no per-operation timeout) |
-| `cosid.machine.distributor.mongo.timeout` | `5s` | Each MongoDB operation (driver `timeoutMS`); `0` keeps the `MongoClient` settings |
+| `cosid.machine.distributor.zookeeper.timeout` | `5s` | ZooKeeper machine ID guard and revert (Curator has no per-operation timeout); must be positive |
+| `cosid.machine.distributor.mongo.timeout` | `5s` | Each MongoDB machine ID operation (driver `timeoutMS`); must be positive |
 | `cosid.segment.distributor.mongo.timeout` | `5s` | Each MongoDB segment operation |
 | `cosid.segment.distributor.zookeeper.timeout` | `5s` | Each ZooKeeper segment `nextMaxId` |
 | `cosid.proxy.connect-timeout` | `2s` | Connecting to the CosId proxy server |
-| `cosid.proxy.read-timeout` | `5s` | Waiting for the CosId proxy server's response, including machine ID distribution at startup |
+| `cosid.proxy.read-timeout` | `5s` | Waiting for the CosId proxy server's response, including machine ID distribution at startup; must be positive |
 
-`0` disables a timeout. With both proxy timeouts `0`, the application's own HTTP request factory is kept.
+A timeout that must be positive fails startup when set to `0`. For the others, `0` disables the timeout.
 
 ## ClockBackwards
 

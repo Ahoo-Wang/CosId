@@ -121,6 +121,8 @@ StringSnowflakeId  ..>  SnowflakeId
 
 ## MachineIdDistributor
 
+> **Terminology**: a *machine id* is the worker-id bits of a Snowflake ID. It is held by an *instance* (`InstanceId`, one running process) through a lease and has nothing to do with physical machines. Several processes on the same host each hold their own machine id.
+
 `MachineIdDistributor` is `SnowflakeId`'s machine ID distributor, it is responsible for allocating machine ID, also stores `MachineId`'s last timestamp, for **startup clock rollback** check.
 
 <p align="center" >

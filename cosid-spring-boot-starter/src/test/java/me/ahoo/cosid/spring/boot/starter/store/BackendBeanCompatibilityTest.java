@@ -20,16 +20,16 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import me.ahoo.cosid.jdbc.JdbcMachineIdDistributor;
+import me.ahoo.cosid.jdbc.JdbcMachineLeaseStore;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.HostAddressSupplier;
 import me.ahoo.cosid.machine.MachineId;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.ManualMachineIdDistributor;
 import me.ahoo.cosid.machine.k8s.StatefulSetMachineIdDistributor;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.mongo.IdSegmentInitializer;
 import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
-import me.ahoo.cosid.mongo.MongoMachineIdDistributor;
 import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
 import me.ahoo.cosid.proxy.api.MachineClient;
 import me.ahoo.cosid.proxy.api.SegmentClient;
@@ -50,8 +50,6 @@ import me.ahoo.cosid.spring.boot.starter.segment.CosIdProxySegmentAutoConfigurat
 import me.ahoo.cosid.spring.boot.starter.segment.CosIdSpringRedisSegmentAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.segment.CosIdZookeeperSegmentAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
-import me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor;
-import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -114,7 +112,8 @@ class BackendBeanCompatibilityTest {
     
     @Test
     void jdbc() {
-        assertMachine(machineRunner.withBean(DataSource.class, () -> mock(DataSource.class)),
+        assertMachine(machineRunner.withBean(DataSource.class, () -> mock(DataSource.class))
+                .withBean(JdbcMachineLeaseStore.class, () -> mock(JdbcMachineLeaseStore.class)),
             CosIdJdbcMachineIdDistributorAutoConfiguration.class, "jdbc", JdbcMachineProbe.class);
         assertSegment(segmentRunner.withBean(DataSource.class, () -> mock(DataSource.class)),
             CosIdJdbcSegmentAutoConfiguration.class, "jdbc", SegmentFactoryProbe.class);
@@ -185,7 +184,7 @@ class BackendBeanCompatibilityTest {
     @Configuration(proxyBeanMethods = false)
     static class JdbcMachineProbe {
         @Bean
-        String probe(@Qualifier("jdbcMachineIdDistributor") JdbcMachineIdDistributor distributor) {
+        String probe(@Qualifier("jdbcMachineIdDistributor") LeaseStoreMachineIdDistributor distributor) {
             return distributor.toString();
         }
     }
@@ -193,7 +192,7 @@ class BackendBeanCompatibilityTest {
     @Configuration(proxyBeanMethods = false)
     static class RedisMachineProbe {
         @Bean
-        String probe(@Qualifier("springRedisMachineIdDistributor") SpringRedisMachineIdDistributor distributor) {
+        String probe(@Qualifier("springRedisMachineIdDistributor") LeaseStoreMachineIdDistributor distributor) {
             return distributor.toString();
         }
     }
@@ -201,7 +200,7 @@ class BackendBeanCompatibilityTest {
     @Configuration(proxyBeanMethods = false)
     static class ZookeeperMachineProbe {
         @Bean
-        String probe(@Qualifier("zookeeperMachineIdDistributor") ZookeeperMachineIdDistributor distributor) {
+        String probe(@Qualifier("zookeeperMachineIdDistributor") LeaseStoreMachineIdDistributor distributor) {
             return distributor.toString();
         }
     }
@@ -209,7 +208,7 @@ class BackendBeanCompatibilityTest {
     @Configuration(proxyBeanMethods = false)
     static class MongoMachineProbe {
         @Bean
-        String probe(@Qualifier("mongoMachineIdDistributor") MongoMachineIdDistributor distributor) {
+        String probe(@Qualifier("mongoMachineIdDistributor") LeaseStoreMachineIdDistributor distributor) {
             return distributor.toString();
         }
     }

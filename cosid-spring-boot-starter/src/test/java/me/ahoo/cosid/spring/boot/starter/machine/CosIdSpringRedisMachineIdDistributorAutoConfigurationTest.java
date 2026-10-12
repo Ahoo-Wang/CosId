@@ -17,8 +17,10 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.mock;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
-import me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
+import me.ahoo.cosid.spring.redis.SpringRedisMachineLeaseStore;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -48,7 +50,7 @@ class CosIdSpringRedisMachineIdDistributorAutoConfigurationTest {
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(CosIdSpringRedisMachineIdDistributorAutoConfiguration.class)
-                    .hasSingleBean(SpringRedisMachineIdDistributor.class)
+                    .hasSingleBean(LeaseStoreMachineIdDistributor.class)
                 ;
             });
     }
@@ -58,41 +60,57 @@ class CosIdSpringRedisMachineIdDistributorAutoConfigurationTest {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
-            .run(context -> assertThat(context.getBean(SpringRedisMachineIdDistributor.class).getCommandTimeout().getTimeout())
+            .run(context -> assertThat(context.getBean(SpringRedisMachineLeaseStore.class).getCommandTimeout().getTimeout())
                 .isEqualTo(Duration.ofSeconds(1)));
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
             .withPropertyValues("cosid.machine.distributor.redis.timeout=3s")
-            .run(context -> assertThat(context.getBean(SpringRedisMachineIdDistributor.class).getCommandTimeout().getTimeout())
+            .run(context -> assertThat(context.getBean(SpringRedisMachineLeaseStore.class).getCommandTimeout().getTimeout())
                 .isEqualTo(Duration.ofSeconds(3)));
     }
     
     @Test
-    void wiresRedisDistributeTimeoutProperty() {
+    void wiresRedisDistributeTimeoutPropertyToTheStartupDistribute() {
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
-            .run(context -> assertThat(context.getBean(SpringRedisMachineIdDistributor.class).getDistributeTimeout().getTimeout())
-                .isEqualTo(SpringRedisMachineIdDistributor.DEFAULT_DISTRIBUTE_TIMEOUT));
+            .run(context -> {
+                LeaseStoreMachineIdDistributor distributor = context.getBean(LeaseStoreMachineIdDistributor.class);
+                assertThat(((SpringRedisMachineLeaseStore) distributor.getDistributeLeaseManager().getStore()).getCommandTimeout().getTimeout())
+                    .isEqualTo(Duration.ofSeconds(10));
+                assertThat(((SpringRedisMachineLeaseStore) distributor.getLeaseManager().getStore()).getCommandTimeout().getTimeout())
+                    .isEqualTo(Duration.ofSeconds(1));
+            });
         this.contextRunner
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
             .withPropertyValues("cosid.machine.distributor.redis.distribute-timeout=0")
-            .run(context -> assertThat(context.getBean(SpringRedisMachineIdDistributor.class).getDistributeTimeout().isEnabled()).isFalse());
+            .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
+                .hasMessageContaining("cosid.machine.distributor.redis.distribute-timeout"));
+    }
+    
+    @Test
+    void zeroRedisTimeoutFailsStartupNamingTheProperty() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
+            .withPropertyValues("cosid.machine.distributor.redis.timeout=0")
+            .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
+                .hasMessageContaining("cosid.machine.distributor.redis.timeout"));
     }
 
     @Test
     void backsOffWhenUserProvidesMachineIdDistributor() {
-        SpringRedisMachineIdDistributor userDistributor = mock(SpringRedisMachineIdDistributor.class);
+        MachineIdDistributor userDistributor = mock(MachineIdDistributor.class);
 
         this.contextRunner
-            .withBean(SpringRedisMachineIdDistributor.class, () -> userDistributor)
+            .withBean(MachineIdDistributor.class, () -> userDistributor)
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
             .run(context -> assertThat(context)
-                .hasSingleBean(SpringRedisMachineIdDistributor.class)
-                .getBean(SpringRedisMachineIdDistributor.class)
+                .hasSingleBean(MachineIdDistributor.class)
+                .getBean(MachineIdDistributor.class)
                 .isSameAs(userDistributor));
     }
 
@@ -103,7 +121,7 @@ class CosIdSpringRedisMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdSpringRedisMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(SpringRedisMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
@@ -113,17 +131,17 @@ class CosIdSpringRedisMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=jdbc")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdSpringRedisMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(SpringRedisMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
     void doesNotCreateDistributorWhenRedisDistributorClassIsMissing() {
         this.contextRunner
-            .withClassLoader(new FilteredClassLoader(SpringRedisMachineIdDistributor.class))
+            .withClassLoader(new FilteredClassLoader(SpringRedisMachineLeaseStore.class))
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdSpringRedisMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(SpringRedisMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 }

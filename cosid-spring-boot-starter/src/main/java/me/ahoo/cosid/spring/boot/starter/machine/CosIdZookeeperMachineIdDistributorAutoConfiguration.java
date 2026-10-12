@@ -14,14 +14,15 @@
 package me.ahoo.cosid.spring.boot.starter.machine;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
 import me.ahoo.cosid.util.CallTimeout;
-import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
+import me.ahoo.cosid.zookeeper.ZookeeperMachineLeaseStore;
 
-import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -39,24 +40,35 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "zookeeper")
-@ConditionalOnClass(ZookeeperMachineIdDistributor.class)
+@ConditionalOnClass(ZookeeperMachineLeaseStore.class)
 public class CosIdZookeeperMachineIdDistributorAutoConfiguration {
     
+    /**
+     * The machine id lease store on ZooKeeper; every call is bounded by {@code cosid.machine.distributor.zookeeper.timeout}.
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBuiltInMachineStore
-    public ZookeeperMachineIdDistributor zookeeperMachineIdDistributor(CuratorFramework curatorFramework, RetryPolicy retryPolicy, MachineStateStorage localMachineState,
-                                                                       ClockBackwardsSynchronizer clockBackwardsSynchronizer, MachineProperties machineProperties) {
-        return new ZookeeperMachineIdDistributor(curatorFramework, retryPolicy, localMachineState, clockBackwardsSynchronizer,
-            CallTimeout.of(machineProperties.getDistributor().getZookeeper().getTimeout()));
+    public ZookeeperMachineLeaseStore zookeeperMachineLeaseStore(CuratorFramework curatorFramework, MachineProperties machineProperties) {
+        return new ZookeeperMachineLeaseStore(curatorFramework, CallTimeout.of(MachineLeaseStores.positive(
+            machineProperties.getDistributor().getZookeeper().getTimeout(), MachineProperties.PREFIX + ".distributor.zookeeper.timeout")));
+    }
+    
+    @Bean
+    @ConditionalOnMissingBean(MachineIdDistributor.class)
+    @ConditionalOnBuiltInMachineStore
+    public LeaseStoreMachineIdDistributor zookeeperMachineIdDistributor(ZookeeperMachineLeaseStore zookeeperMachineLeaseStore, MachineStateStorage localMachineState,
+                                                                        ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        return new LeaseStoreMachineIdDistributor(zookeeperMachineLeaseStore, localMachineState, clockBackwardsSynchronizer);
     }
 
     /**
      * The ZooKeeper backend for {@link me.ahoo.cosid.spring.boot.starter.store.CosIdStoreProvider} selection.
      */
     @Bean
-    public BuiltInStoreProvider cosIdZookeeperMachineStoreProvider(ObjectProvider<CuratorFramework> curatorFramework, ObjectProvider<RetryPolicy> retryPolicy) {
-        return BuiltInStoreProvider.machine("zookeeper", context -> zookeeperMachineIdDistributor(curatorFramework.getObject(), retryPolicy.getObject(),
-            context.getMachineStateStorage(), context.getClockBackwardsSynchronizer(), context.getMachineProperties()));
+    public BuiltInStoreProvider cosIdZookeeperMachineStoreProvider(ObjectProvider<CuratorFramework> curatorFramework) {
+        return BuiltInStoreProvider.machine("zookeeper", context -> zookeeperMachineIdDistributor(
+            zookeeperMachineLeaseStore(curatorFramework.getObject(), context.getMachineProperties()),
+            context.getMachineStateStorage(), context.getClockBackwardsSynchronizer()));
     }
 }

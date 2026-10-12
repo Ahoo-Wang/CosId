@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Slf4j
 public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor {
+    private final MachineLeaseManager distributeLeaseManager;
     private final MachineLeaseManager leaseManager;
     private final ConcurrentHashMap<NamespacedInstanceId, Lease> leases = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<NamespacedInstanceId, Object> locks = new ConcurrentHashMap<>();
@@ -51,8 +52,23 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
     
     public LeaseStoreMachineIdDistributor(MachineLeaseManager leaseManager, MachineStateStorage machineStateStorage,
                                           ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        this(leaseManager, leaseManager, machineStateStorage, clockBackwardsSynchronizer);
+    }
+    
+    /**
+     * Create a distributor whose distribution, usually once at startup, runs on its own lease manager, for example on
+     * a store with a longer timeout: the first call also pays for connecting. Guard, revert and every re-claim after a
+     * lost lease, which run under a lock, use {@code leaseManager}.
+     */
+    public LeaseStoreMachineIdDistributor(MachineLeaseManager distributeLeaseManager, MachineLeaseManager leaseManager,
+                                          MachineStateStorage machineStateStorage, ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
         super(machineStateStorage, clockBackwardsSynchronizer);
+        this.distributeLeaseManager = distributeLeaseManager;
         this.leaseManager = leaseManager;
+    }
+    
+    public MachineLeaseManager getDistributeLeaseManager() {
+        return distributeLeaseManager;
     }
     
     public MachineLeaseManager getLeaseManager() {
@@ -61,7 +77,7 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
     
     @Override
     protected MachineState distributeRemote(String namespace, int machineBit, InstanceId instanceId, Duration safeGuardDuration) {
-        Lease lease = leaseManager.acquire(namespace, instanceId, machineBit, safeGuardDuration);
+        Lease lease = distributeLeaseManager.acquire(namespace, instanceId, machineBit, safeGuardDuration);
         leases.put(new NamespacedInstanceId(namespace, instanceId), lease);
         return lease.toMachineState();
     }

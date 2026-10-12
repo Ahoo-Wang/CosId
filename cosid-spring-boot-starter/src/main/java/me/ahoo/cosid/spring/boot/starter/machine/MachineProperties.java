@@ -21,6 +21,7 @@ import me.ahoo.cosid.machine.LocalMachineStateStorage;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
@@ -641,8 +642,8 @@ public class MachineProperties {
      */
     public static class Zookeeper {
         /**
-         * Timeout of machine ID guard and revert. Curator has no per-operation timeout, so without it a ZooKeeper
-         * that does not answer blocks the guarder for minutes. Default is 5 seconds; zero disables it.
+         * Timeout of each machine id lease call. Curator has no per-operation timeout, so without it a ZooKeeper
+         * that does not answer blocks the guarder for minutes. Default is 5 seconds; it must be positive.
          */
         private Duration timeout = Duration.ofSeconds(5);
 
@@ -664,8 +665,8 @@ public class MachineProperties {
     public static class Redis {
 
         /**
-         * Timeout for Redis operations.
-         * Default is 1 second.
+         * Timeout of the machine id lease renewals and releases, which run under a lock.
+         * Default is 1 second; it must be positive.
          */
         private Duration timeout = Duration.ofSeconds(1);
         
@@ -688,8 +689,8 @@ public class MachineProperties {
         }
         
         /**
-         * Timeout of the machine id distribution at startup, the first Redis command, which also pays for connecting.
-         * Default is 10 seconds, {@code 0} means no timeout.
+         * Timeout of each Redis command of the machine id distribution at startup, whose first command also pays for
+         * connecting. Default is 10 seconds; it must be positive.
          */
         private Duration distributeTimeout = Duration.ofSeconds(10);
         
@@ -717,7 +718,7 @@ public class MachineProperties {
 
         /**
          * Timeout of each MongoDB operation (the driver's client-side operation timeout, {@code timeoutMS}).
-         * Default is 5 seconds; zero keeps the MongoClient's settings.
+         * Default is 5 seconds; it must be positive.
          */
         private Duration timeout = Duration.ofSeconds(5);
 
@@ -788,6 +789,22 @@ public class MachineProperties {
          */
         // Not JdbcSupport.DEFAULT_QUERY_TIMEOUT: a Duration is not inlined, so it would load cosid-jdbc for every starter user.
         private Duration queryTimeout = Duration.ofSeconds(5);
+
+        /**
+         * Query returning the database server's current time in milliseconds, for the machine id lease store.
+         * Default is chosen from the database product (PostgreSQL, MySQL or MariaDB); other databases must set it.
+         */
+        @Nullable
+        private String serverTimeSql;
+
+        @Nullable
+        public String getServerTimeSql() {
+            return serverTimeSql;
+        }
+
+        public void setServerTimeSql(@Nullable String serverTimeSql) {
+            this.serverTimeSql = serverTimeSql;
+        }
 
         public Duration getQueryTimeout() {
             return queryTimeout;

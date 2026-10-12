@@ -14,12 +14,15 @@
 package me.ahoo.cosid.spring.boot.starter.machine;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
+import me.ahoo.cosid.machine.lease.MachineLeaseManager;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
 import me.ahoo.cosid.spring.redis.RedisCommandTimeout;
-import me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor;
+import me.ahoo.cosid.spring.redis.SpringRedisMachineLeaseStore;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -39,7 +42,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "redis")
-@ConditionalOnClass(SpringRedisMachineIdDistributor.class)
+@ConditionalOnClass(SpringRedisMachineLeaseStore.class)
 @EnableConfigurationProperties(MachineProperties.class)
 public class CosIdSpringRedisMachineIdDistributorAutoConfiguration {
     
@@ -49,14 +52,34 @@ public class CosIdSpringRedisMachineIdDistributorAutoConfiguration {
         this.machineProperties = machineProperties;
     }
     
+    /**
+     * The machine id lease store on Redis: every command is bounded by {@code cosid.machine.distributor.redis.timeout}.
+     */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBuiltInMachineStore
-    public SpringRedisMachineIdDistributor springRedisMachineIdDistributor(StringRedisTemplate redisTemplate, MachineStateStorage localMachineState,
-                                                                           ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+    public SpringRedisMachineLeaseStore springRedisMachineLeaseStore(StringRedisTemplate redisTemplate) {
         MachineProperties.Redis redis = machineProperties.getDistributor().getRedis();
-        return new SpringRedisMachineIdDistributor(redisTemplate, localMachineState, clockBackwardsSynchronizer,
-            RedisCommandTimeout.of(redis.getTimeout()), RedisCommandTimeout.of(redis.getDistributeTimeout()));
+        return new SpringRedisMachineLeaseStore(redisTemplate, RedisCommandTimeout.of(MachineLeaseStores.positive(redis.getTimeout(),
+            MachineProperties.PREFIX + ".distributor.redis.timeout")));
+    }
+    
+    /**
+     * The distribution at startup, whose first command also pays for connecting, is bounded by
+     * {@code cosid.machine.distributor.redis.distribute-timeout}; guard, revert and every re-claim, which run under a lock,
+     * by {@code cosid.machine.distributor.redis.timeout}.
+     */
+    @Bean
+    @ConditionalOnMissingBean(MachineIdDistributor.class)
+    @ConditionalOnBuiltInMachineStore
+    public LeaseStoreMachineIdDistributor springRedisMachineIdDistributor(SpringRedisMachineLeaseStore springRedisMachineLeaseStore,
+                                                                          MachineStateStorage localMachineState,
+                                                                          ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
+        MachineProperties.Redis redis = machineProperties.getDistributor().getRedis();
+        SpringRedisMachineLeaseStore distributeStore = springRedisMachineLeaseStore.withCommandTimeout(RedisCommandTimeout.of(
+            MachineLeaseStores.positive(redis.getDistributeTimeout(), MachineProperties.PREFIX + ".distributor.redis.distribute-timeout")));
+        return new LeaseStoreMachineIdDistributor(new MachineLeaseManager(distributeStore), new MachineLeaseManager(springRedisMachineLeaseStore),
+            localMachineState, clockBackwardsSynchronizer);
     }
 
     /**
@@ -64,7 +87,7 @@ public class CosIdSpringRedisMachineIdDistributorAutoConfiguration {
      */
     @Bean
     public BuiltInStoreProvider cosIdRedisMachineStoreProvider(ObjectProvider<StringRedisTemplate> redisTemplate) {
-        return BuiltInStoreProvider.machine("redis", context -> springRedisMachineIdDistributor(redisTemplate.getObject(), context.getMachineStateStorage(),
-            context.getClockBackwardsSynchronizer()));
+        return BuiltInStoreProvider.machine("redis", context -> springRedisMachineIdDistributor(springRedisMachineLeaseStore(redisTemplate.getObject()),
+            context.getMachineStateStorage(), context.getClockBackwardsSynchronizer()));
     }
 }

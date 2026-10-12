@@ -49,10 +49,27 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
     private final StringRedisTemplate redisTemplate;
     private final RedisCommandTimeout commandTimeout;
     
+    /**
+     * Create a Redis lease store.
+     *
+     * @param commandTimeout bounds every command, which may run under the lease distributor's lock: must be enabled
+     */
     public SpringRedisMachineLeaseStore(StringRedisTemplate redisTemplate, RedisCommandTimeout commandTimeout) {
         this.redisTemplate = Preconditions.checkNotNull(redisTemplate, "redisTemplate can not be null!");
         this.commandTimeout = Preconditions.checkNotNull(commandTimeout, "commandTimeout can not be null!");
         Preconditions.checkArgument(commandTimeout.isEnabled(), "commandTimeout must be enabled: the lease adapter holds a lock during each call!");
+    }
+    
+    /**
+     * The same store with another command timeout, for example a longer one for the distribution at startup, where the
+     * first command also pays for connecting.
+     */
+    public SpringRedisMachineLeaseStore withCommandTimeout(RedisCommandTimeout commandTimeout) {
+        return new SpringRedisMachineLeaseStore(redisTemplate, commandTimeout);
+    }
+    
+    public RedisCommandTimeout getCommandTimeout() {
+        return commandTimeout;
     }
     
     private static String stable(InstanceId instanceId) {

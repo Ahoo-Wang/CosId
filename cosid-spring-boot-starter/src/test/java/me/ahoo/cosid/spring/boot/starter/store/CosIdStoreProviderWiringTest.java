@@ -21,7 +21,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributorFactory;
-import me.ahoo.cosid.jdbc.JdbcMachineIdDistributor;
+import me.ahoo.cosid.jdbc.JdbcMachineLeaseStore;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.HostAddressSupplier;
 import me.ahoo.cosid.machine.MachineId;
@@ -29,9 +29,9 @@ import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.ManualMachineIdDistributor;
 import me.ahoo.cosid.machine.k8s.StatefulSetMachineIdDistributor;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.mongo.IdSegmentInitializer;
 import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
-import me.ahoo.cosid.mongo.MongoMachineIdDistributor;
 import me.ahoo.cosid.proxy.ProxyIdSegmentDistributorFactory;
 import me.ahoo.cosid.proxy.ProxyMachineIdDistributor;
 import me.ahoo.cosid.proxy.api.MachineClient;
@@ -54,9 +54,7 @@ import me.ahoo.cosid.spring.boot.starter.segment.CosIdSpringRedisSegmentAutoConf
 import me.ahoo.cosid.spring.boot.starter.segment.CosIdZookeeperSegmentAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributorFactory;
-import me.ahoo.cosid.spring.redis.SpringRedisMachineIdDistributor;
 import me.ahoo.cosid.zookeeper.ZookeeperIdSegmentDistributorFactory;
-import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -134,8 +132,9 @@ class CosIdStoreProviderWiringTest {
     
     @Test
     void jdbc() {
-        assertMachine(machineRunner.withBean(DataSource.class, () -> mock(DataSource.class)),
-            CosIdJdbcMachineIdDistributorAutoConfiguration.class, "jdbc", JdbcMachineIdDistributor.class);
+        assertMachine(machineRunner.withBean(DataSource.class, () -> mock(DataSource.class))
+                .withBean(JdbcMachineLeaseStore.class, () -> mock(JdbcMachineLeaseStore.class)),
+            CosIdJdbcMachineIdDistributorAutoConfiguration.class, "jdbc", LeaseStoreMachineIdDistributor.class);
         assertSegment(segmentRunner.withBean(DataSource.class, () -> mock(DataSource.class)),
             CosIdJdbcSegmentAutoConfiguration.class, "jdbc", JdbcIdSegmentDistributorFactory.class);
     }
@@ -143,7 +142,7 @@ class CosIdStoreProviderWiringTest {
     @Test
     void redis() {
         assertMachine(machineRunner.withBean(StringRedisTemplate.class, () -> mock(StringRedisTemplate.class)),
-            CosIdSpringRedisMachineIdDistributorAutoConfiguration.class, "redis", SpringRedisMachineIdDistributor.class);
+            CosIdSpringRedisMachineIdDistributorAutoConfiguration.class, "redis", LeaseStoreMachineIdDistributor.class);
         assertSegment(segmentRunner.withBean(StringRedisTemplate.class, () -> mock(StringRedisTemplate.class)),
             CosIdSpringRedisSegmentAutoConfiguration.class, "redis", SpringRedisIdSegmentDistributorFactory.class);
     }
@@ -154,7 +153,7 @@ class CosIdStoreProviderWiringTest {
             .withBean(CuratorFramework.class, () -> mock(CuratorFramework.class))
             .withBean(RetryPolicy.class, () -> mock(RetryPolicy.class));
         assertMachine(curator.apply(machineRunner), CosIdZookeeperMachineIdDistributorAutoConfiguration.class, "zookeeper",
-            ZookeeperMachineIdDistributor.class);
+            LeaseStoreMachineIdDistributor.class);
         assertSegment(curator.apply(segmentRunner), CosIdZookeeperSegmentAutoConfiguration.class, "zookeeper",
             ZookeeperIdSegmentDistributorFactory.class);
     }
@@ -164,7 +163,7 @@ class CosIdStoreProviderWiringTest {
         Function<ApplicationContextRunner, ApplicationContextRunner> mongo = runner -> runner
             .withClassLoader(new FilteredClassLoader(com.mongodb.reactivestreams.client.MongoClient.class))
             .withBean(MongoClient.class, CosIdStoreProviderWiringTest::mongoClient);
-        assertMachine(mongo.apply(machineRunner), CosIdMongoMachineIdDistributorAutoConfiguration.class, "mongo", MongoMachineIdDistributor.class);
+        assertMachine(mongo.apply(machineRunner), CosIdMongoMachineIdDistributorAutoConfiguration.class, "mongo", LeaseStoreMachineIdDistributor.class);
         assertSegment(mongo.apply(segmentRunner).withBean(IdSegmentInitializer.class, () -> mock(IdSegmentInitializer.class)),
             CosIdMongoSegmentAutoConfiguration.class, "mongo", MongoIdSegmentDistributorFactory.class);
     }

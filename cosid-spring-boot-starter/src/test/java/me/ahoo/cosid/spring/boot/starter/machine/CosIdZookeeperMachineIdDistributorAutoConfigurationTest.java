@@ -17,8 +17,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
-import me.ahoo.cosid.zookeeper.ZookeeperMachineIdDistributor;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
+import me.ahoo.cosid.zookeeper.ZookeeperMachineLeaseStore;
 
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
@@ -43,18 +45,18 @@ class CosIdZookeeperMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=zookeeper")
             .run(context -> assertThat(context)
                 .hasSingleBean(CosIdZookeeperMachineIdDistributorAutoConfiguration.class)
-                .hasSingleBean(ZookeeperMachineIdDistributor.class));
+                .hasSingleBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
     void backsOffWhenUserProvidesZookeeperMachineDistributor() {
-        ZookeeperMachineIdDistributor distributor = mock(ZookeeperMachineIdDistributor.class);
+        MachineIdDistributor distributor = mock(MachineIdDistributor.class);
 
         this.contextRunner
-            .withBean(ZookeeperMachineIdDistributor.class, () -> distributor)
+            .withBean(MachineIdDistributor.class, () -> distributor)
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=zookeeper")
-            .run(context -> assertThat(context.getBean(ZookeeperMachineIdDistributor.class)).isSameAs(distributor));
+            .run(context -> assertThat(context.getBean(MachineIdDistributor.class)).isSameAs(distributor));
     }
 
     @Test
@@ -64,7 +66,7 @@ class CosIdZookeeperMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=zookeeper")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdZookeeperMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(ZookeeperMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
@@ -74,17 +76,17 @@ class CosIdZookeeperMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=redis")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdZookeeperMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(ZookeeperMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
     void doesNotCreateDistributorWhenZookeeperMachineClassIsMissing() {
         this.contextRunner
-            .withClassLoader(new FilteredClassLoader(ZookeeperMachineIdDistributor.class))
+            .withClassLoader(new FilteredClassLoader(ZookeeperMachineLeaseStore.class))
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=zookeeper")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdZookeeperMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(ZookeeperMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 }

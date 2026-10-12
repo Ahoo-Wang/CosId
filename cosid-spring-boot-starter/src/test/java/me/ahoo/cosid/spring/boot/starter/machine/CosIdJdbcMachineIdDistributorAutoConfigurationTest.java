@@ -18,10 +18,12 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-import me.ahoo.cosid.jdbc.JdbcMachineIdDistributor;
 import me.ahoo.cosid.jdbc.JdbcMachineIdInitializer;
+import me.ahoo.cosid.jdbc.JdbcMachineLeaseStore;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -29,8 +31,8 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
+import javax.sql.DataSource;
 
 /**
  * CosIdJdbcMachineIdDistributorAutoConfigurationTest .
@@ -42,6 +44,8 @@ class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(CosIdJdbcMachineIdDistributorAutoConfiguration.class))
         .withBean(DataSource.class, () -> mock(DataSource.class))
+        // The real store probes the table at construction: see JdbcMachineLeaseStoreTest.
+        .withBean(JdbcMachineLeaseStore.class, () -> mock(JdbcMachineLeaseStore.class))
         .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
         .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
         .withPropertyValues(MachineProperties.PREFIX + ".distributor.jdbc.enable-auto-init-cosid-machine-table=false");
@@ -55,25 +59,25 @@ class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
                 assertThat(context)
                     .hasSingleBean(CosIdJdbcMachineIdDistributorAutoConfiguration.class)
                     .hasSingleBean(JdbcMachineIdInitializer.class)
-                    .hasSingleBean(JdbcMachineIdDistributor.class)
+                    .hasSingleBean(LeaseStoreMachineIdDistributor.class)
                 ;
             });
     }
 
     @Test
     void backsOffWhenUserProvidesMachineIdDistributor() {
-        JdbcMachineIdDistributor userDistributor = mock(JdbcMachineIdDistributor.class);
+        MachineIdDistributor userDistributor = mock(MachineIdDistributor.class);
 
         this.contextRunner
-            .withBean(JdbcMachineIdDistributor.class, () -> userDistributor)
+            .withBean(MachineIdDistributor.class, () -> userDistributor)
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=jdbc")
             .run(context -> assertThat(context)
                 // The initializer bean is still registered even when the distributor backs off,
                 // so auto-init can run independently of the (possibly user-supplied) distributor.
                 .hasSingleBean(JdbcMachineIdInitializer.class)
-                .hasSingleBean(JdbcMachineIdDistributor.class)
-                .getBean(JdbcMachineIdDistributor.class)
+                .hasSingleBean(MachineIdDistributor.class)
+                .getBean(MachineIdDistributor.class)
                 .isSameAs(userDistributor));
     }
 
@@ -84,7 +88,7 @@ class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=jdbc")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdJdbcMachineIdDistributorAutoConfiguration.class)
-                .doesNotHaveBean(JdbcMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
@@ -95,19 +99,19 @@ class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdJdbcMachineIdDistributorAutoConfiguration.class)
                 .doesNotHaveBean(JdbcMachineIdInitializer.class)
-                .doesNotHaveBean(JdbcMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
     void doesNotCreateDistributorWhenJdbcDistributorClassIsMissing() {
         this.contextRunner
-            .withClassLoader(new FilteredClassLoader(JdbcMachineIdDistributor.class))
+            .withClassLoader(new FilteredClassLoader(JdbcMachineLeaseStore.class))
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
             .withPropertyValues(MachineProperties.Distributor.TYPE + "=jdbc")
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdJdbcMachineIdDistributorAutoConfiguration.class)
                 .doesNotHaveBean(JdbcMachineIdInitializer.class)
-                .doesNotHaveBean(JdbcMachineIdDistributor.class));
+                .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
     }
 
     @Test
@@ -116,6 +120,7 @@ class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
         new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(CosIdJdbcMachineIdDistributorAutoConfiguration.class))
             .withBean(DataSource.class, () -> dataSource)
+            .withBean(JdbcMachineLeaseStore.class, () -> mock(JdbcMachineLeaseStore.class))
             .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
             .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
@@ -135,6 +140,7 @@ class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
         new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(CosIdJdbcMachineIdDistributorAutoConfiguration.class))
             .withBean(DataSource.class, () -> dataSource)
+            .withBean(JdbcMachineLeaseStore.class, () -> mock(JdbcMachineLeaseStore.class))
             .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
             .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
@@ -143,7 +149,7 @@ class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
             .run(context -> {
                 assertThat(context)
                     .hasSingleBean(JdbcMachineIdInitializer.class)
-                    .hasSingleBean(JdbcMachineIdDistributor.class);
+                    .hasSingleBean(LeaseStoreMachineIdDistributor.class);
                 verify(dataSource).getConnection();
             });
     }

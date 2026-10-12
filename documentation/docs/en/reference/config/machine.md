@@ -19,7 +19,7 @@ When upgrading from an earlier version:
 
 - The protection is effective only once every instance runs the new version: older instances do not read the stable flag and can still recycle a stable machine ID during a rolling upgrade.
 - A stable instance that is already offline is unprotected until it has started once on the new version, which records the flag.
-- JDBC: add the `stable` column (see [CosId-Jdbc](../../guide/extensions/cosid-jdbc.md)) before starting 4.0, which fails at startup without it.
+- JDBC: add the `stable` column (see [CosId-Jdbc](../../guide/backends/jdbc.md)) before starting 4.0, which fails at startup without it.
 :::
 
 ### StateStorage

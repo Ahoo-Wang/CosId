@@ -5,7 +5,7 @@
 :::
 
 <p align="center" >
-  <img src="../../../public/assets/design/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"/>
+  <img src="../../../../public/assets/design/CosIdIntervalShardingAlgorithm.png" alt="CosIdIntervalShardingAlgorithm"/>
 </p>
 
 - 算法复杂度：O(1)
@@ -14,5 +14,5 @@
 
 | **PreciseShardingValue**                                                                                           | **RangeShardingValue**                                                                                           |
 |--------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
-| <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
+| <img src="../../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-PreciseShardingValue.png"/> | <img src="../../../../public/assets/perf/sharding/Throughput-Of-IntervalShardingAlgorithm-RangeShardingValue.png"/> |
 

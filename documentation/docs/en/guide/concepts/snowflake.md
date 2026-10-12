@@ -3,7 +3,7 @@
 _SnowflakeId_ is a distributed unique ID generation algorithm developed by *Twitter*, widely used in distributed systems. Its design goal is to generate trend-increasing, globally unique IDs to meet the needs of large-scale systems.
 
 <p align="center" >
-  <img src="../../public/assets/design/Snowflake-identifier.png" alt="SnowflakeId"/>
+  <img src="../../../public/assets/design/Snowflake-identifier.png" alt="SnowflakeId"/>
 </p>
 
 ## Introduction
@@ -126,7 +126,7 @@ StringSnowflakeId  ..>  SnowflakeId
 `MachineIdDistributor` is `SnowflakeId`'s machine ID distributor, it is responsible for allocating machine ID, also stores `MachineId`'s last timestamp, for **startup clock rollback** check.
 
 <p align="center" >
-  <img src="../../public/assets/design/MachineIdDistributor.png" alt="MachineIdDistributor"/>
+  <img src="../../../public/assets/design/MachineIdDistributor.png" alt="MachineIdDistributor"/>
 </p>
 
 Currently *CosId* provides the following `MachineId` distributors.
@@ -138,12 +138,12 @@ Currently *CosId* provides the following `MachineId` distributors.
 ## MachineIdGuarder
 
 <p align="center">
-  <img src="../../public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
+  <img src="../../../public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
 </p>
 
 ## Configuration
 
-[SnowflakeId Configuration](../reference/config/snowflake)
+[SnowflakeId Configuration](../../reference/config/snowflake)
 
 ### Configuration Example
 

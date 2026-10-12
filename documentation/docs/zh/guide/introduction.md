@@ -3,9 +3,9 @@
 *[CosId](https://github.com/Ahoo-Wang/CosId)* 旨在提供通用、灵活、高性能的分布式 ID 生成器。 
 
 - `CosIdGenerator` : *单机 TPS 性能：1557W/s*，三倍于 `UUID.randomUUID()`，基于时钟的全局趋势递增ID，可以同时支持一百万个实例。
-- `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](faq/perf-test.md) , 主要解决 *时钟回拨* 、*机器号分配*、*取模分片不均匀* 等问题并提供更加友好、灵活的使用体验。
+- `SnowflakeId` : *单机 TPS 性能：409W/s* [JMH 基准测试](../reference/performance/benchmark.md) , 主要解决 *时钟回拨* 、*机器号分配*、*取模分片不均匀* 等问题并提供更加友好、灵活的使用体验。
 - `SegmentId`: 每次获取一段 (`Step`) ID，来降低号段分发器的网络IO请求频次提升性能。并提供多种号段分发器实现。
-- `SegmentChainId`:`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](faq/perf-test.md) 。
+- `SegmentChainId`:`SegmentChainId` (*lock-free*) 是对 `SegmentId` 的增强。性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](../reference/performance/benchmark.md) 。
   - `PrefetchWorker` 维护安全距离(`safeDistance`), 并且支持基于饥饿状态的动态`safeDistance`扩容/收缩。
   - 适应性：相比于 `SegmentId`，`SegmentChainId` 可以根据业务场景动态调整 `Step` 来提升性能。
 
@@ -207,7 +207,7 @@ UUID最大的缺陷是随机的、无序的，当用于主键时会导致数据�
 **SegmentChainId**是**SegmentId**增强版，相比于**SegmentId**有以下优势：
 
 - 稳定性：**SegmentId**的稳定性问题（P9999=46.624(us/op)）主要是因为号段用完之后同步进行`NextMaxId`的获取导致的（会产生网络IO）。
-  - **SegmentChainId** （P9999=0.208(us/op)）引入了新的角色**PrefetchWorker**用以维护和保证**安全距离**，理想情况下使得获取ID的线程几乎完全不需要进行同步的等待`NextMaxId`获取，性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](faq/perf-test.md) 。
+  - **SegmentChainId** （P9999=0.208(us/op)）引入了新的角色**PrefetchWorker**用以维护和保证**安全距离**，理想情况下使得获取ID的线程几乎完全不需要进行同步的等待`NextMaxId`获取，性能可达到近似 `AtomicLong` 的 *TPS 性能:12743W+/s* [JMH 基准测试](../reference/performance/benchmark.md) 。
 - 适应性：从**SegmentId**介绍中我们知道了影响**ID乱序**的因素有俩个：集群规模、`Step`大小。集群规模是我们不能控制的，但是`Step`是可以调节的。
   - `Step`应该近可能小才能使得**ID单调递增**的可能性增大。
   - `Step`太小会影响吞吐量，那么我们如何合理设置`Step`呢？答案是我们无法准确预估所有时点的吞吐量需求，那么最好的办法是吞吐量需求高时，Step自动增大，吞吐量低时Step自动收缩。

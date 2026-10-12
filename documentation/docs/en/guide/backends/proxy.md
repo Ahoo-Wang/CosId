@@ -2,7 +2,7 @@
 
 <center>
 
-![CosId Proxy](../../public/assets/design/CosId-Proxy.png)
+![CosId Proxy](../../../public/assets/design/CosId-Proxy.png)
 </center>
 
 CosId Proxy enables remote ID distribution, allowing clients to distribute machine IDs and segment IDs through a proxy server instead of directly connecting to the underlying storage.

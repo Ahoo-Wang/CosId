@@ -3,7 +3,7 @@
 _CosIdGenerator_ *单机 TPS 性能：1557W/s*，三倍于 `UUID.randomUUID()`，基于时钟的全局趋势递增ID，可以同时支持一百万个实例。
 
 <p align="center">
-  <img src="../../public/assets/design/CosIdGenerator.png" alt="IdGenerator design diagram"/>
+  <img src="../../../public/assets/design/CosIdGenerator.png" alt="IdGenerator design diagram"/>
 </p>
 
 ## 特性介绍
@@ -40,4 +40,4 @@ _CosIdGenerator_ *单机 TPS 性能：1557W/s*，三倍于 `UUID.randomUUID()`�
 
 ## 配置
 
-[CosIdGenerator 配置](../reference/config/cosid-generator.md)
+[CosIdGenerator 配置](../../reference/config/cosid-generator.md)

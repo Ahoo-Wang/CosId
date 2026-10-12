@@ -3,7 +3,7 @@
 _SnowflakeId_ 是*Twitter*开发的一种分布式唯一ID生成算法，被广泛应用于分布式系统中。它的设计目标是生成趋势递增、全局唯一的ID，以应对大规模系统的需求。
 
 <p align="center" >
-  <img src="../../public/assets/design/Snowflake-identifier.png" alt="SnowflakeId"/>
+  <img src="../../../public/assets/design/Snowflake-identifier.png" alt="SnowflakeId"/>
 </p>
 
 ## 简介
@@ -126,7 +126,7 @@ StringSnowflakeId  ..>  SnowflakeId
 `MachineIdDistributor` 是 `SnowflakeId` 的机器号分配器，它负责分配机器号，同时还会存储`MachineId`的上一次时间戳，用于**启动时时钟回拨**的检查。
 
 <p align="center" >
-  <img src="../../public/assets/design/MachineIdDistributor.png" alt="MachineIdDistributor"/>
+  <img src="../../../public/assets/design/MachineIdDistributor.png" alt="MachineIdDistributor"/>
 </p>
 
 目前 *CosId* 提供了以下 `MachineId` 分配器。
@@ -138,12 +138,12 @@ StringSnowflakeId  ..>  SnowflakeId
 ## MachineIdGuarder
 
 <p align="center">
-  <img src="../../public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
+  <img src="../../../public/assets/design/Machine-Id-Safe-Guard.png" alt="Machine Id Safe Guard"/>
 </p>
 
 ## 配置
 
-[SnowflakeId 配置](../reference/config/snowflake)
+[SnowflakeId 配置](../../reference/config/snowflake)
 
 ### 配置案例
 

@@ -272,4 +272,4 @@ spring:
 
 - ShardingSphere 官方文档：<https://shardingsphere.apache.org/document/current/cn/overview/>
 - IntelliJ IDEA: <https://www.jetbrains.com/help/idea/class-diagram.html>
-- CosId-ShardingSphere: <https://cosid.ahoo.me/guide/cosid-shardingsphere.html>
+- CosId-ShardingSphere: <https://cosid.ahoo.me/guide/integrations/shardingsphere.html>

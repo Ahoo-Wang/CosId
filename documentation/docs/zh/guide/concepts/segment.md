@@ -1,7 +1,7 @@
 # SegmentId
 
 <p align="center" >
-  <img src="../../public/assets/design/SegmentId.png" alt="SegmentId"/>
+  <img src="../../../public/assets/design/SegmentId.png" alt="SegmentId"/>
 </p>
 
 从上面的设计图中，不难看出**号段模式**基本设计思路是通过每次获取一定长度（Step）的可用ID（Id段/号段），来降低网络IO请求次数，提升性能。
@@ -72,4 +72,4 @@ StringSegmentId  ..>  SegmentId
 
 ## 配置
 
-[SegmentId 配置](../reference/config/segment)
+[SegmentId 配置](../../reference/config/segment)

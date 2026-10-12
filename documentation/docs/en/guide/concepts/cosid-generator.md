@@ -3,7 +3,7 @@
 _CosIdGenerator_ *Single-machine TPS performance: 1557W/s*, three times that of `UUID.randomUUID()`, clock-based globally trend-increasing ID, can support one million instances simultaneously.
 
 <p align="center">
-  <img src="../../public/assets/design/CosIdGenerator.png" alt="IdGenerator design diagram"/>
+  <img src="../../../public/assets/design/CosIdGenerator.png" alt="IdGenerator design diagram"/>
 </p>
 
 ## Feature Introduction
@@ -40,4 +40,4 @@ Based on the above features, _CosIdGenerator_ is particularly suitable for globa
 
 ## Configuration
 
-[CosIdGenerator Configuration](../reference/config/cosid-generator.md)
+[CosIdGenerator Configuration](../../reference/config/cosid-generator.md)

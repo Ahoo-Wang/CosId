@@ -92,6 +92,10 @@ public class DefaultSegmentId implements SegmentId {
             // The segment binds the group its id came from: reading the distributor's group separately could see the next
             // group after a rollover and label an id of the old counter with it.
             IdSegment oneStep = maxIdDistributor.nextIdSegment(idSegmentTtl);
+            // Expired already: fetched across the end of its group.
+            while (oneStep.isExpired()) {
+                oneStep = maxIdDistributor.nextIdSegment(idSegmentTtl);
+            }
             return sourced(source, oneStep, oneStep.getMaxId());
         }
         long nextSeq;

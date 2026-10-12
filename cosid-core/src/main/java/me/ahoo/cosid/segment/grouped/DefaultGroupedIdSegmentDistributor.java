@@ -59,6 +59,10 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
         for (int attempt = 0; attempt < 3 && groupedKey.isEndedAt(Clock.SYSTEM.secondTime()); attempt++) {
             groupedKey = groupBySupplier.get();
         }
+        if (groupedKey.isEndedAt(Clock.SYSTEM.secondTime())) {
+            // Its segments would expire at once, and generation would fetch from the store forever.
+            throw new IllegalStateException("The group supplier keeps returning the ended group [" + groupedKey + "]: check its clock.");
+        }
         return groupedBindings.computeIfAbsent(groupedKey, this::createGroupedBinding);
     }
 

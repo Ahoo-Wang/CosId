@@ -16,7 +16,9 @@ package me.ahoo.cosid.segment.grouped;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import me.ahoo.cosid.segment.DefaultIdSegment;
 import me.ahoo.cosid.segment.IdSegment;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor;
@@ -58,5 +60,32 @@ class GroupedPeriodEndTest {
         
         IdSegment segment = distributor.nextIdSegment(IdSegment.TIME_TO_LIVE_FOREVER);
         assertThat(segment.group().getKey(), equalTo("today"));
+    }
+    
+    /**
+     * Review reproduction: a segment whose time left was clamped to 0 after its group had ended was still available,
+     * and issued ids with the previous period's prefix.
+     */
+    @Test
+    void aSegmentOfAnEndedGroupIsExpiredEvenWithTimeToLiveLeft() {
+        long now = Clock.SYSTEM.secondTime();
+        GroupedKey ended = new GroupedKey("yesterday", now - 1);
+        assertThat(new DefaultIdSegment(10, 10, now, 0, ended).isAvailable(), is(false));
+        // Time to live computed before the store call, which crossed into the next second.
+        assertThat(new DefaultIdSegment(10, 10, now, 1, ended).isAvailable(), is(false));
+        assertThat(new DefaultIdSegment(10, 10, now, 1, new GroupedKey("today", now)).isAvailable(), is(true));
+    }
+    
+    @Test
+    void aSupplierThatKeepsReturningAnEndedGroupFails() {
+        long now = Clock.SYSTEM.secondTime();
+        AtomicInteger calls = new AtomicInteger();
+        GroupBySupplier supplier = () -> calls.incrementAndGet() == 1
+            ? new GroupedKey("today", now + 3600)
+            : new GroupedKey("yesterday", now - 1);
+        DefaultGroupedIdSegmentDistributor distributor = new DefaultGroupedIdSegmentDistributor(supplier,
+            new IdSegmentDistributorDefinition("ns", "order", 0, 10), definition -> new AtomicIdSegmentDistributor());
+        
+        assertThrows(IllegalStateException.class, () -> distributor.nextIdSegment(IdSegment.TIME_TO_LIVE_FOREVER));
     }
 }

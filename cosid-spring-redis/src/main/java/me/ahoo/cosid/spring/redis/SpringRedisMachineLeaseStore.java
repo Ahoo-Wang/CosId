@@ -33,8 +33,11 @@ import java.util.Optional;
  * {@link MachineLeaseStore} on Redis: one atomic Lua script per primitive ({@code machine_lease.lua}).
  *
  * <p>It uses the same keys as {@link SpringRedisMachineIdDistributor} ({@code cosid:{namespace}:itc_idx}, {@code revert},
- * {@code adder}, {@code stable}), so instances running either one can share a namespace during an upgrade. The
- * server clock is Redis' {@code TIME}. Every command is bounded by the {@link RedisCommandTimeout}.</p>
+ * {@code adder}, {@code stable}), so instances running either one, and 3.4 instances, can share a namespace during an
+ * upgrade. The watermark, renewal time and version of each machine id are kept in {@code cosid:{namespace}:lease}; the
+ * 3.4 keys hold a timestamp that is at least all of them, which 3.4 reads as its last timestamp. A machine id last
+ * written by a 3.4 instance is read with that timestamp as its watermark, renewal time and version. The server clock is
+ * Redis' {@code TIME}. Every command is bounded by the {@link RedisCommandTimeout}.</p>
  *
  * @author ahoo wang
  * @since 3.4.0
@@ -67,11 +70,10 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
         @SuppressWarnings("unchecked")
         List<Long> result = commandTimeout.call(operation,
             () -> (List<Long>) redisTemplate.execute(MACHINE_LEASE, Collections.singletonList(hashTag(namespace)), args));
-        if (result == null || result.size() < 2) {
+        if (result == null || result.size() < 4) {
             return Optional.empty();
         }
-        long lastTimestamp = result.get(1);
-        return Optional.of(new Lease(namespace, instanceId, result.get(0).intValue(), lastTimestamp, lastTimestamp, lastTimestamp));
+        return Optional.of(new Lease(namespace, instanceId, result.get(0).intValue(), result.get(1), result.get(2), result.get(3)));
     }
     
     @Override
@@ -100,8 +102,8 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
     }
     
     @Override
-    public boolean release(Lease lease, long lastTimestamp) {
-        return execute("release", lease.getNamespace(), lease.getInstanceId(), lastTimestamp, lease.getMachineId(), lease.getVersion()).isPresent();
+    public boolean release(Lease lease, long watermark) {
+        return execute("release", lease.getNamespace(), lease.getInstanceId(), watermark, lease.getMachineId(), lease.getVersion()).isPresent();
     }
     
     /**

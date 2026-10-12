@@ -1,9 +1,16 @@
--- MachineLeaseStore primitives on the same keys as machine_id_distribute.lua, so both can serve one namespace:
---   cosid:{namespace}:itc_idx  [Hash]   instanceId -> "machineId|lastTimestamp"
---   cosid:{namespace}:revert   [Hash]   machineId  -> lastTimestamp (released machine ids)
+-- MachineLeaseStore primitives on the same keys as machine_id_distribute.lua, so 3.4 and 4.0 instances can serve one
+-- namespace:
+--   cosid:{namespace}:itc_idx  [Hash]   instanceId -> "machineId|legacyTimestamp"
+--   cosid:{namespace}:revert   [Hash]   machineId  -> legacyTimestamp (released machine ids)
 --   cosid:{namespace}:adder    [String] last machine id ever handed out (-1 when none)
 --   cosid:{namespace}:stable   [Set]    instance ids of stable instances, never recycled
--- Every write sets the last timestamp to max(stored + 1, now): it strictly increases and is the lease version.
+--   cosid:{namespace}:lease    [Hash]   machineId  -> "renewedAt|watermark|version|legacyTimestamp" (4.0 only)
+-- 3.4 reads the legacy timestamp as both liveness and watermark, so 4.0 writes max(renewedAt, watermark, previous
+-- legacy timestamp) there: it never decreases and never makes a lease look older than it is. A lease entry is only
+-- trusted while its legacy timestamp matches the one in itc_idx or revert; otherwise a 3.4 instance wrote last, and the
+-- legacy timestamp is the renewal time, the watermark and the version. A 3.4 instance can still write back the same
+-- legacy timestamp (a host clock behind it), so decisions that hand a machine id to someone else never rely on the
+-- entry alone: expiry is judged on the legacy timestamp, exactly as 3.4 judges it, and a new owner starts after it.
 -- Integers are formatted with %d: tostring would turn large numbers into floats ("1.7e+12").
 --
 -- KEYS[1] = namespace (hash tag); ARGV[1] = operation, ARGV[2] = instanceId, ARGV[3] = stable ("1"/"0"), then:
@@ -12,42 +19,72 @@
 --   claimNew      ARGV[4] = now, ARGV[5] = maxMachineId
 --   claimExpired  ARGV[4] = now, ARGV[5] = maxMachineId, ARGV[6] = expiredBefore
 --   renew         ARGV[4] = now, ARGV[5] = machineId, ARGV[6] = version
---   release       ARGV[4] = lastTimestamp, ARGV[5] = machineId, ARGV[6] = version
--- Returns {machineId, lastTimestamp} when the operation applied, an empty array otherwise (a nil reply reaches
--- Spring as a one-element list).
+--   release       ARGV[4] = watermark, ARGV[5] = machineId, ARGV[6] = version
+-- Returns {machineId, watermark, renewedAt, version} when the operation applied, an empty array otherwise (a nil reply
+-- reaches Spring as a one-element list).
 
 local prefix = 'cosid:' .. KEYS[1] .. ':'
 local idxKey = prefix .. 'itc_idx'
 local revertKey = prefix .. 'revert'
 local adderKey = prefix .. 'adder'
 local stableKey = prefix .. 'stable'
+local leaseKey = prefix .. 'lease'
 
 local operation = ARGV[1]
 local instanceId = ARGV[2]
 local stable = ARGV[3] == '1'
 local now = tonumber(ARGV[4])
 
-local function parse(state)
+local function parseState(state)
     local sep = string.find(state, '|', 1, true)
     return tonumber(string.sub(state, 1, sep - 1)), tonumber(string.sub(state, sep + 1))
 end
 
-local function nextTimestamp(stored, target)
-    if stored + 1 > target then
-        return stored + 1
-    end
-    return target
+local function fmt(number)
+    return string.format('%d', number)
 end
 
-local function take(machineId, storedTimestamp)
-    local timestamp = nextTimestamp(storedTimestamp, now)
-    redis.call('hset', idxKey, instanceId, string.format('%d|%d', machineId, timestamp))
+-- The lease of a machine id whose legacy timestamp is legacy: renewedAt, watermark, version.
+local function load(machineId, legacy)
+    local entry = redis.call('hget', leaseKey, fmt(machineId))
+    if entry then
+        local values = {}
+        for part in string.gmatch(entry, '[^|]+') do
+            values[#values + 1] = tonumber(part)
+        end
+        if values[4] == legacy then
+            return values[1], values[2], values[3]
+        end
+    end
+    return legacy, legacy, legacy
+end
+
+-- Writes the lease entry and returns the legacy timestamp to store in itc_idx or revert.
+local function save(machineId, renewedAt, watermark, version, previousLegacy)
+    local legacy = math.max(renewedAt, watermark, previousLegacy)
+    redis.call('hset', leaseKey, fmt(machineId),
+        string.format('%d|%d|%d|%d', renewedAt, watermark, version, legacy))
+    return legacy
+end
+
+local function markStable()
     if stable then
         redis.call('sadd', stableKey, instanceId)
     else
         redis.call('srem', stableKey, instanceId)
     end
-    return { machineId, timestamp }
+end
+
+-- Hand an existing machine id to this instance: it starts no earlier than the previous owner's watermark, last renewal
+-- and legacy timestamp, and the store's current time.
+local function take(machineId, legacy)
+    local renewedAt, watermark, version = load(machineId, legacy)
+    watermark = math.max(watermark, renewedAt, legacy, now)
+    version = version + 1
+    local newLegacy = save(machineId, now, watermark, version, legacy)
+    redis.call('hset', idxKey, instanceId, fmt(machineId) .. '|' .. fmt(newLegacy))
+    markStable()
+    return { machineId, watermark, now, version }
 end
 
 if operation == 'claimSelf' then
@@ -55,25 +92,25 @@ if operation == 'claimSelf' then
     if not state then
         return {}
     end
-    local machineId, timestamp = parse(state)
-    return take(machineId, timestamp)
+    local machineId, legacy = parseState(state)
+    return take(machineId, legacy)
 end
 
 if operation == 'claimReleased' then
     local maxMachineId = tonumber(ARGV[5])
     local released = redis.call('hgetall', revertKey)
-    local bestId, bestTimestamp
+    local bestId, bestLegacy
     for i = 1, #released, 2 do
         local machineId = tonumber(released[i])
         if machineId <= maxMachineId and (bestId == nil or machineId < bestId) then
-            bestId, bestTimestamp = machineId, tonumber(released[i + 1])
+            bestId, bestLegacy = machineId, tonumber(released[i + 1])
         end
     end
     if bestId == nil then
         return {}
     end
-    redis.call('hdel', revertKey, string.format('%d', bestId))
-    return take(bestId, bestTimestamp)
+    redis.call('hdel', revertKey, fmt(bestId))
+    return take(bestId, bestLegacy)
 end
 
 if operation == 'claimNew' then
@@ -88,27 +125,31 @@ if operation == 'claimNew' then
         return {}
     end
     local machineId = redis.call('incr', adderKey)
-    return take(machineId, now - 1)
+    local legacy = save(machineId, now, now, 1, now)
+    redis.call('hset', idxKey, instanceId, fmt(machineId) .. '|' .. fmt(legacy))
+    markStable()
+    return { machineId, now, now, 1 }
 end
 
 if operation == 'claimExpired' then
     local maxMachineId = tonumber(ARGV[5])
     local expiredBefore = tonumber(ARGV[6])
     local entries = redis.call('hgetall', idxKey)
-    local bestInstance, bestId, bestTimestamp
+    local bestInstance, bestId, bestLegacy
     for i = 1, #entries, 2 do
         local owner = entries[i]
-        local machineId, timestamp = parse(entries[i + 1])
-        if machineId <= maxMachineId and timestamp <= expiredBefore and redis.call('sismember', stableKey, owner) == 0
-            and (bestId == nil or machineId < bestId) then
-            bestInstance, bestId, bestTimestamp = owner, machineId, timestamp
+        local machineId, legacy = parseState(entries[i + 1])
+        -- Expired as 3.4 sees it: the legacy timestamp is at least the renewal time 4.0 wrote.
+        if machineId <= maxMachineId and legacy <= expiredBefore and (bestId == nil or machineId < bestId)
+            and redis.call('sismember', stableKey, owner) == 0 then
+            bestInstance, bestId, bestLegacy = owner, machineId, legacy
         end
     end
     if bestId == nil then
         return {}
     end
     redis.call('hdel', idxKey, bestInstance)
-    return take(bestId, bestTimestamp)
+    return take(bestId, bestLegacy)
 end
 
 -- renew and release: only with the current version
@@ -118,25 +159,32 @@ local state = redis.call('hget', idxKey, instanceId)
 if not state then
     return {}
 end
-local storedId, storedTimestamp = parse(state)
-if storedId ~= machineId or storedTimestamp ~= version then
+local storedId, legacy = parseState(state)
+if storedId ~= machineId then
+    return {}
+end
+local renewedAt, watermark, storedVersion = load(machineId, legacy)
+if storedVersion ~= version then
     return {}
 end
 
 if operation == 'renew' then
-    return take(machineId, storedTimestamp)
+    local newLegacy = save(machineId, now, watermark, version + 1, legacy)
+    redis.call('hset', idxKey, instanceId, fmt(machineId) .. '|' .. fmt(newLegacy))
+    return { machineId, watermark, now, version + 1 }
 end
 
 if operation == 'release' then
-    local timestamp = nextTimestamp(storedTimestamp, now)
+    watermark = math.max(watermark, now)
+    local newLegacy = save(machineId, renewedAt, watermark, version + 1, legacy)
     if stable then
-        redis.call('hset', idxKey, instanceId, string.format('%d|%d', machineId, timestamp))
+        redis.call('hset', idxKey, instanceId, fmt(machineId) .. '|' .. fmt(newLegacy))
     else
         redis.call('hdel', idxKey, instanceId)
-        redis.call('hset', revertKey, string.format('%d', machineId), string.format('%d', timestamp))
+        redis.call('hset', revertKey, fmt(machineId), fmt(newLegacy))
         redis.call('srem', stableKey, instanceId)
     end
-    return { machineId, timestamp }
+    return { machineId, watermark, renewedAt, version + 1 }
 end
 
 return redis.error_reply('Unknown operation: ' .. tostring(operation))

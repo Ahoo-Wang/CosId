@@ -78,9 +78,14 @@ alter table cosid_machine add column stable tinyint not null default 0;
 4.0 把机器号租约保存在 `renew_time`、`watermark` 和 `lease_version` 三列中。3.x 创建的表需要在启动 4.0 实例前加上它们（3.x 实例加列后照常工作）；缺少这几列时启动会失败，并给出要执行的语句：
 
 ```sql
-alter table cosid_machine add column renew_time bigint unsigned not null default 0,
-    add column watermark bigint unsigned not null default 0,
-    add column lease_version bigint unsigned not null default 0;
+-- MySQL
+alter table cosid_machine add column renew_time bigint not null default 0,
+    add column watermark bigint not null default 0,
+    add column lease_version bigint not null default 0;
+-- PostgreSQL
+alter table cosid_machine add column if not exists renew_time bigint not null default 0,
+    add column if not exists watermark bigint not null default 0,
+    add column if not exists lease_version bigint not null default 0;
 ```
 
 ::: warning 使用独立的 DataSource

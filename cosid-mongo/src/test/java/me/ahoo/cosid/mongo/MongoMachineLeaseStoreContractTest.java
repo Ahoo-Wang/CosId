@@ -61,10 +61,4 @@ class MongoMachineLeaseStoreContractTest extends MachineLeaseStoreSpec {
     protected MachineLeaseStore getStore() {
         return store;
     }
-    
-    @Override
-    protected boolean separatesWatermark() {
-        // Still the 3.4 format: one last timestamp for the watermark and the renewal.
-        return false;
-    }
 }

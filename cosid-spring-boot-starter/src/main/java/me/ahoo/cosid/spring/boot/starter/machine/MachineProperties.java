@@ -689,8 +689,8 @@ public class MachineProperties {
         }
         
         /**
-         * Timeout of each machine id claim (the distribution at startup), whose first Redis command also pays for
-         * connecting. Default is 10 seconds, {@code 0} means no timeout.
+         * Timeout of each Redis command of the machine id distribution at startup, whose first command also pays for
+         * connecting. Default is 10 seconds; it must be positive.
          */
         private Duration distributeTimeout = Duration.ofSeconds(10);
         

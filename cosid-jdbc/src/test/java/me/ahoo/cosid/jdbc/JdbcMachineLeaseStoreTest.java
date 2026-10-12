@@ -70,6 +70,26 @@ class JdbcMachineLeaseStoreTest {
     }
     
     @Test
+    void tableFrom34FailsAtConstructionNamingTheAlterAndWorksAfterIt() throws SQLException {
+        DataSource dataSource = RealPostgres.createDataSource();
+        String schema = "v34_" + MockIdGenerator.INSTANCE.generateAsString().toLowerCase();
+        RealPostgres.execute(dataSource, "create schema " + schema);
+        RealPostgres.execute(dataSource, PostgreSqlDialect.INIT_COSID_MACHINE_TABLE_SQL
+            .replace("create table if not exists cosid_machine", "create table " + schema + ".cosid_machine")
+            .replace("    renew_time      bigint       not null default 0,\n", "")
+            .replace("    watermark       bigint       not null default 0,\n", "")
+            .replace("    lease_version   bigint       not null default 0,\n", ""));
+        DataSource v34 = new ManualCommitDataSource(dataSource, schema);
+        
+        IllegalStateException exception = Assertions.assertThrows(IllegalStateException.class,
+            () -> new JdbcMachineLeaseStore(v34, JdbcSupport.DEFAULT_QUERY_TIMEOUT, PostgreSqlDialect.SERVER_TIME_SQL));
+        Assertions.assertTrue(exception.getMessage().contains(PostgreSqlDialect.ADD_LEASE_COLUMNS_SQL), exception.getMessage());
+        
+        RealPostgres.execute(dataSource, PostgreSqlDialect.ADD_LEASE_COLUMNS_SQL.replace("alter table cosid_machine", "alter table " + schema + ".cosid_machine"));
+        Assertions.assertDoesNotThrow(() -> new JdbcMachineLeaseStore(v34, JdbcSupport.DEFAULT_QUERY_TIMEOUT, PostgreSqlDialect.SERVER_TIME_SQL));
+    }
+    
+    @Test
     void missingTableFailsAtConstructionNamingTheTable() {
         DataSource dataSource = RealPostgres.createDataSource();
         String schema = "empty_" + MockIdGenerator.INSTANCE.generateAsString().toLowerCase();

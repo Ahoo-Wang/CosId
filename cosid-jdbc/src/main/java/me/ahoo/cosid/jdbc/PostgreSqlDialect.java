@@ -55,6 +55,9 @@ public final class PostgreSqlDialect {
             + "    distribute_time bigint       not null default 0,\n"
             + "    revert_time     bigint       not null default 0,\n"
             + "    stable          smallint     not null default 0,\n"
+            + "    renew_time      bigint       not null default 0,\n"
+            + "    watermark       bigint       not null default 0,\n"
+            + "    lease_version   bigint       not null default 0,\n"
             + "    constraint cosid_machine_pk primary key (name)\n"
             + ")";
     
@@ -66,6 +69,12 @@ public final class PostgreSqlDialect {
      * Migration of a {@code cosid_machine} table created before the {@code stable} column existed.
      */
     public static final String ADD_STABLE_COLUMN_SQL = "alter table cosid_machine add column if not exists stable smallint not null default 0";
+    
+    /**
+     * Migration of a {@code cosid_machine} table created before 4.0, for the lease columns of {@link JdbcMachineLeaseStore}.
+     */
+    public static final String ADD_LEASE_COLUMNS_SQL = "alter table cosid_machine add column if not exists renew_time bigint not null default 0, "
+        + "add column if not exists watermark bigint not null default 0, add column if not exists lease_version bigint not null default 0";
     
     /**
      * Current time of the server in milliseconds, for {@link JdbcMachineLeaseStore}.

@@ -57,6 +57,9 @@ create table if not exists cosid_machine
     distribute_time bigint       not null default 0,
     revert_time     bigint       not null default 0,
     stable          tinyint      not null default 0,
+    renew_time      bigint       not null default 0,
+    watermark       bigint       not null default 0,
+    lease_version   bigint       not null default 0,
     constraint cosid_machine_pk
         primary key (name)
 ) engine = InnoDB;
@@ -70,6 +73,14 @@ create index if not exists idx_instance_id on cosid_machine (instance_id);
 
 ```sql
 alter table cosid_machine add column stable tinyint not null default 0;
+```
+
+4.0 把机器号租约保存在 `renew_time`、`watermark` 和 `lease_version` 三列中。3.x 创建的表需要在启动 4.0 实例前加上它们（3.x 实例加列后照常工作）；缺少这几列时启动会失败，并给出要执行的语句：
+
+```sql
+alter table cosid_machine add column renew_time bigint unsigned not null default 0,
+    add column watermark bigint unsigned not null default 0,
+    add column lease_version bigint unsigned not null default 0;
 ```
 
 ::: warning 使用独立的 DataSource
@@ -110,6 +121,7 @@ cosid:
           machine_id integer not null default 0, last_timestamp bigint not null default 0,
           instance_id varchar(100) not null default '', distribute_time bigint not null default 0,
           revert_time bigint not null default 0, stable smallint not null default 0,
+          renew_time bigint not null default 0, watermark bigint not null default 0, lease_version bigint not null default 0,
           constraint cosid_machine_pk primary key (name))
         init-namespace-idx-sql: create index if not exists idx_namespace on cosid_machine (namespace)
         init-instance-id-idx-sql: create index if not exists idx_instance_id on cosid_machine (instance_id)

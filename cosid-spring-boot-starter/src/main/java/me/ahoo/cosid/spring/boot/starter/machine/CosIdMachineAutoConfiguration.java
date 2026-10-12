@@ -35,6 +35,7 @@ import me.ahoo.cosid.util.ProcessId;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -43,7 +44,9 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.io.File;
 import java.util.Objects;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Auto-configuration for CosId machine ID management components.
@@ -83,7 +86,14 @@ import java.util.Objects;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
 @EnableConfigurationProperties(MachineProperties.class)
+@Slf4j
 public class CosIdMachineAutoConfiguration {
+    /**
+     * Logged when the default instance id is used in a container, where the process id says little about the instance.
+     */
+    static final String DEFAULT_INSTANCE_ID_IN_CONTAINER_WARNING = "[" + MachineProperties.PREFIX + ".instance-id] is not set and "
+        + "this process runs in a container (process id [{}]): set it to a stable name such as ${HOSTNAME}, with "
+        + MachineProperties.PREFIX + ".stable=true to keep one machine id across restarts.";
     private final CosIdProperties cosIdProperties;
     private final MachineProperties machineProperties;
 
@@ -121,12 +131,32 @@ public class CosIdMachineAutoConfiguration {
             return InstanceId.of(machineProperties.getInstanceId(), stable);
         }
 
-        int port = ProcessId.CURRENT.getProcessId();
         if (Objects.nonNull(machineProperties.getPort()) && machineProperties.getPort() > 0) {
-            port = machineProperties.getPort();
+            return InstanceId.of(hostAddressSupplier.getHostAddress(), machineProperties.getPort(), stable);
         }
-
-        return InstanceId.of(hostAddressSupplier.getHostAddress(), port, stable);
+        int processId = ProcessId.CURRENT.getProcessId();
+        if (processId <= 1 || isInContainer()) {
+            log.warn(DEFAULT_INSTANCE_ID_IN_CONTAINER_WARNING, processId);
+        }
+        if (stable) {
+            return InstanceId.of(hostAddressSupplier.getHostAddress(), processId, true);
+        }
+        return defaultInstanceId(hostAddressSupplier.getHostAddress(), processId);
+    }
+    
+    /**
+     * The default id of a non-stable instance: {@code host:pid:<random>}. Two processes can share a host and a process
+     * id, such as containers on the host network that all run as PID 1, and would otherwise take back each other's live
+     * machine id. A non-stable instance does not keep its machine id across restarts anyway: after a crash it takes
+     * another one, and the old lease is freed once the safe guard duration has passed.
+     */
+    static InstanceId defaultInstanceId(String hostAddress, int processId) {
+        String suffix = Long.toHexString(ThreadLocalRandom.current().nextLong() & 0xFFFFFFFFL);
+        return InstanceId.of(hostAddress + ":" + processId + ":" + suffix, false);
+    }
+    
+    private static boolean isInContainer() {
+        return new File("/.dockerenv").exists() || System.getenv("KUBERNETES_SERVICE_HOST") != null;
     }
 
     /**

@@ -128,6 +128,8 @@ public class GlobalRestExceptionHandler {
         String reason = ex.getReason() != null ? ex.getReason() : ex.getStatusCode().toString();
         return ResponseEntity
             .status(ex.getStatusCode())
+            // Such as Allow of a 405, and Accept of a 415.
+            .headers(ex.getHeaders())
             .body(ErrorResponse.of(String.valueOf(ex.getStatusCode().value()), reason));
     }
     

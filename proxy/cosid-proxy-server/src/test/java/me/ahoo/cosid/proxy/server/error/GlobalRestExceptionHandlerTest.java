@@ -18,6 +18,7 @@ import me.ahoo.cosid.segment.IdSegmentRollbackException;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.core.MethodParameter;
+import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
@@ -92,6 +93,7 @@ class GlobalRestExceptionHandlerTest {
     void frameworkErrorsKeepTheirStatus() {
         client.get().uri("/post-only").exchange()
             .expectStatus().isEqualTo(405)
+            .expectHeader().valueEquals(HttpHeaders.ALLOW, "POST")
             .expectBody().jsonPath("$.code").isEqualTo("405");
         client.get().uri("/missing").exchange()
             .expectStatus().isNotFound();

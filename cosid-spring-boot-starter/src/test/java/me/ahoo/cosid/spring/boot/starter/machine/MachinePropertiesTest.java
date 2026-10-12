@@ -42,7 +42,7 @@ class MachinePropertiesTest {
         assertThat(properties.getMachineBit()).isEqualTo(MillisecondSnowflakeId.DEFAULT_MACHINE_BIT);
         assertThat(properties.getStateStorage().getLocal().getStateLocation())
             .isEqualTo(LocalMachineStateStorage.DEFAULT_STATE_LOCATION_PATH);
-        assertThat(properties.getDistributor().getType()).isEqualTo(MachineProperties.Distributor.Type.MANUAL);
+        assertThat(properties.getDistributor().getType()).isEqualTo(MachineProperties.Distributor.MANUAL);
         assertThat(properties.getDistributor().getManual()).isNull();
         assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(1));
         assertThat(properties.getDistributor().getJdbc().getQueryTimeout()).isEqualTo(Duration.ofSeconds(5));
@@ -96,7 +96,7 @@ class MachinePropertiesTest {
         assertThat(properties.getInstanceId()).isEqualTo("instance-a");
         assertThat(properties.getMachineBit()).isEqualTo(9);
         assertThat(properties.getStateStorage().getLocal().getStateLocation()).isEqualTo("/tmp/cosid-machine");
-        assertThat(properties.getDistributor().getType()).isEqualTo(MachineProperties.Distributor.Type.REDIS);
+        assertThat(properties.getDistributor().getType()).isEqualTo(MachineProperties.Distributor.REDIS);
         assertThat(properties.getDistributor().getManual().getMachineId()).isEqualTo(7);
         assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(2));
         assertThat(properties.getDistributor().getJdbc().getQueryTimeout()).isEqualTo(Duration.ofSeconds(7));

@@ -111,6 +111,18 @@ With the starter, `cosid.machine.distributor.type` `redis`, `jdbc`, `zookeeper` 
 | `cosid.machine.distributor.redis.distribute-timeout` | bounds the distribution at startup, as in 3.4, and must be positive now: `0` fails startup, since a re-claim can run under the guard lock; `redis.timeout` bounds everything else |
 | `cosid.machine.distributor.jdbc.server-time-sql` | new: the query for the database clock, chosen from the database product (PostgreSQL, MySQL or MariaDB) when unset; other databases must set it |
 
-_To be filled in: the configuration property model._
+### Store type properties
+
+`cosid.machine.distributor.type` and `cosid.segment.distributor.type` are strings now, compared by their letters and digits without case, as Spring binds enums: `stateful_set`, `stateful-set`, `STATEFUL_SET`, `statefulSet` and `statefulset` all select the StatefulSet distributor, as they did in 3.x. The type also names an application's `CosIdStoreProvider`, so `cosid.machine.distributor.provider` and `cosid.segment.distributor.provider` are removed: startup fails naming the `type` setting to use instead. In code:
+
+| 3.x | 4.0 |
+|---|---|
+| `MachineProperties.Distributor.Type` (enum), `getType()`/`setType(Type)` | `String getType()`/`setType(String)`, constants `MachineProperties.Distributor.MANUAL`, `STATEFUL_SET`, `JDBC`, `MONGO`, `REDIS`, `ZOOKEEPER`, `PROXY` |
+| `SegmentIdProperties.Distributor.Type` (enum), `getType()`/`setType(Type)` | `String getType()`/`setType(String)`, constants `SegmentIdProperties.Distributor.REDIS`, `JDBC`, `MONGO`, `ZOOKEEPER`, `PROXY` |
+| `MachineProperties.Distributor.PROVIDER`, `getProvider()`/`setProvider()` (and the segment ones) | removed; `REMOVED_PROVIDER` names the old key |
+| `CosIdStoreProviders.storeType(String, Enum)` | `storeType(PropertyResolver, typeKey, providerKey, type, defaultType)`, see `StoreTypes` |
+| `SnowflakeIdProperties.getZoneId()`/`setZoneId(String)` | `ZoneId getZoneId()`/`setZoneId(ZoneId)` |
+
+`cosid.snowflake.zone-id` binds to a `ZoneId`, so an unknown zone fails at startup instead of when the first friendly id is built.
 
 The API diff against 3.4 is reported on every pull request to `main` (the **API Diff** workflow).

@@ -57,7 +57,7 @@ class IgnoredStoreProviderWarning implements SmartInitializingSingleton {
         String type = storeType.get();
         List<String> ignored = new ArrayList<>();
         for (Map.Entry<String, CosIdStoreProvider> entry : beanFactory.getBeansOfType(CosIdStoreProvider.class).entrySet()) {
-            if (!(entry.getValue() instanceof BuiltInStoreProvider) && type.equalsIgnoreCase(entry.getValue().getType())) {
+            if (!(entry.getValue() instanceof BuiltInStoreProvider) && StoreTypes.same(type, entry.getValue().getType())) {
                 ignored.add(entry.getKey());
             }
         }

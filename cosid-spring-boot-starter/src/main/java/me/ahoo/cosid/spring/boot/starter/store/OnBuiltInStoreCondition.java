@@ -13,9 +13,6 @@
 
 package me.ahoo.cosid.spring.boot.starter.store;
 
-import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
-import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
-
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition;
@@ -24,20 +21,14 @@ import org.springframework.context.annotation.ConfigurationCondition;
 import org.springframework.core.type.AnnotatedTypeMetadata;
 
 /**
- * Matches when the built-in backend beans should be created: no {@code provider} property is set and the application
- * defines no {@link CosIdStoreProvider} of its own. Otherwise the store auto-configuration creates the distributor or
- * factory with the selected provider.
+ * Matches when the built-in backend beans should be created: the application defines no {@link CosIdStoreProvider} of
+ * its own. Otherwise the store auto-configuration creates the distributor or factory with the provider of the selected
+ * type.
  *
  * @author ahoo wang
  * @since 3.4.0
  */
 abstract class OnBuiltInStoreCondition extends SpringBootCondition implements ConfigurationCondition {
-    private final String providerKey;
-    
-    OnBuiltInStoreCondition(String providerKey) {
-        this.providerKey = providerKey;
-    }
-    
     @Override
     public ConfigurationPhase getConfigurationPhase() {
         return ConfigurationPhase.REGISTER_BEAN;
@@ -45,10 +36,6 @@ abstract class OnBuiltInStoreCondition extends SpringBootCondition implements Co
     
     @Override
     public ConditionOutcome getMatchOutcome(ConditionContext context, AnnotatedTypeMetadata metadata) {
-        String provider = context.getEnvironment().getProperty(providerKey);
-        if (provider != null && !provider.isBlank()) {
-            return ConditionOutcome.noMatch(providerKey + " is set to " + provider);
-        }
         ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
         if (beanFactory != null) {
             for (String name : beanFactory.getBeanNamesForType(CosIdStoreProvider.class, true, false)) {
@@ -58,18 +45,12 @@ abstract class OnBuiltInStoreCondition extends SpringBootCondition implements Co
                 }
             }
         }
-        return ConditionOutcome.match("no application CosIdStoreProvider and no " + providerKey);
+        return ConditionOutcome.match("no application CosIdStoreProvider");
     }
     
     static final class Machine extends OnBuiltInStoreCondition {
-        Machine() {
-            super(MachineProperties.Distributor.PROVIDER);
-        }
     }
     
     static final class Segment extends OnBuiltInStoreCondition {
-        Segment() {
-            super(SegmentIdProperties.Distributor.PROVIDER);
-        }
     }
 }

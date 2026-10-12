@@ -23,6 +23,7 @@ import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.MongoReactiveRemoved;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnMachineStoreType;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
@@ -32,7 +33,6 @@ import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -47,7 +47,7 @@ import org.springframework.context.annotation.Primary;
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
 @ConditionalOnClass(MongoMachineLeaseStore.class)
-@ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "mongo")
+@ConditionalOnMachineStoreType("mongo")
 @AutoConfigureAfter(MongoAutoConfiguration.class)
 public class CosIdMongoMachineIdDistributorAutoConfiguration {
     private final MachineProperties machineProperties;

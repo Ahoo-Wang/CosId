@@ -17,6 +17,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnSegmentStoreType;
 import me.ahoo.cosid.spring.redis.RedisCommandTimeout;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributor;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributorFactory;
@@ -25,7 +26,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -40,7 +40,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
 @ConditionalOnClass(SpringRedisIdSegmentDistributor.class)
-@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, matchIfMissing = true, havingValue = "redis")
+@ConditionalOnSegmentStoreType("redis")
 public class CosIdSpringRedisSegmentAutoConfiguration {
 
     private final SegmentIdProperties segmentIdProperties;

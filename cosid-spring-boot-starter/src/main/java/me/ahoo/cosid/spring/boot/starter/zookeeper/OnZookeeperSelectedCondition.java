@@ -15,6 +15,8 @@ package me.ahoo.cosid.spring.boot.starter.zookeeper;
 
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnMachineStoreType;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnSegmentStoreType;
 
 import org.springframework.boot.autoconfigure.condition.AnyNestedCondition;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -33,11 +35,11 @@ class OnZookeeperSelectedCondition extends AnyNestedCondition {
         super(ConfigurationPhase.REGISTER_BEAN);
     }
     
-    @ConditionalOnProperty(value = MachineProperties.Distributor.TYPE, havingValue = "zookeeper")
+    @ConditionalOnMachineStoreType("zookeeper")
     interface MachineDistributor {
     }
     
-    @ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "zookeeper")
+    @ConditionalOnSegmentStoreType("zookeeper")
     interface SegmentDistributor {
     }
     

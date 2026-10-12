@@ -22,12 +22,12 @@ import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientAuthConfiguration;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientTimeoutConfiguration;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
+import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnSegmentStoreType;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -42,7 +42,7 @@ import org.springframework.context.annotation.Import;
 @ConditionalOnCosIdSegmentEnabled
 @EnableConfigurationProperties(SegmentIdProperties.class)
 @ConditionalOnClass(name = {"me.ahoo.cosid.proxy.ProxyIdSegmentDistributorFactory", "me.ahoo.coapi.spring.EnableCoApi"})
-@ConditionalOnProperty(value = SegmentIdProperties.Distributor.TYPE, havingValue = "proxy")
+@ConditionalOnSegmentStoreType("proxy")
 @EnableCoApi(clients = SegmentClient.class)
 @Import({CosIdProxyClientTimeoutConfiguration.class, CosIdProxyClientAuthConfiguration.class})
 public class CosIdProxySegmentAutoConfiguration {

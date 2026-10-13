@@ -39,8 +39,9 @@ application {
     mainClass.set("me.ahoo.cosid.proxy.server.ProxyServer")
 
     applicationDefaultJvmArgs = listOf(
-        // Sized from the container's memory limit (or the host's memory): set JAVA_OPTS="-Xmx..." to pin it.
-        "-XX:MaxRAMPercentage=75.0",
+        // The Docker image replaces these two with -XX:MaxRAMPercentage=75.0, see the Dockerfile.
+        "-Xms1280M",
+        "-Xmx1280M",
         "-XX:MaxMetaspaceSize=256M",
         "-XX:MaxDirectMemorySize=512M",
         "-Xss1m",

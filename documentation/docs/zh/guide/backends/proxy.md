@@ -33,9 +33,22 @@ docker run --name cosid-proxy -d -p 8688:8688 --link redis \
 
 没有令牌时服务端会拒绝启动，见[认证](#认证)。
 
-镜像包含所有存储的驱动：Redis、MySQL、PostgreSQL、MongoDB 和 ZooKeeper。使用 JDBC 时，请从 `spring.autoconfigure.exclude` 中移除 `DataSourceAutoConfiguration` 并配置 `spring.datasource.*`；使用 MongoDB 时，请从中移除 `MongoAutoConfiguration` 并配置 `spring.mongodb.uri`。两者默认被排除，避免未使用的存储出现在健康检查中。
+镜像包含所有存储的驱动：Redis、MySQL、PostgreSQL、MongoDB 和 ZooKeeper。默认配置 Redis；`DataSourceAutoConfiguration` 和 `MongoAutoConfiguration` 在 `spring.autoconfigure.exclude` 中，避免未使用的存储出现在健康检查中。使用其他存储时，请设置排除列表，只保留所选的存储：否则健康检查会把未使用的 Redis 报告为 `DOWN`，整体状态为 `DOWN`，容器会被标记为不健康。以 PostgreSQL 为例：
 
-堆大小为容器内存上限的 75%（`-XX:MaxRAMPercentage=75.0`）；如需固定，请设置 `JAVA_OPTS`，例如 `-e JAVA_OPTS=-Xmx1g`。`GET /ids` 的响应带有 `Cache-Control: no-store`，避免客户端与服务端之间的缓存把同一个 ID 发出两次。
+```shell
+docker run --name cosid-proxy -d -p 8688:8688 \
+  -e COSID_PROXY_TOKEN=change-me \
+  -e SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/cosid_db \
+  -e SPRING_DATASOURCE_USERNAME=cosid -e SPRING_DATASOURCE_PASSWORD=change-me \
+  -e COSID_MACHINE_DISTRIBUTOR_TYPE=jdbc -e COSID_SEGMENT_DISTRIBUTOR_TYPE=jdbc \
+  -e SPRING_APPLICATION_JSON='{"cosid": {...}}' \
+  ahoowang/cosid-proxy:__COSID_VERSION__
+```
+
+JDBC 的默认语句是 MySQL 语句：使用 PostgreSQL 时，请先建表（或者设置 `enable-auto-init-*` 并配置 PostgreSQL 的建表语句），并按照 [JDBC：PostgreSQL](./jdbc.md#postgresql) 覆盖号段语句，例如通过 `SPRING_APPLICATION_JSON` 或挂载的 `config/application.yaml`。使用 MongoDB 时，还需从排除列表中移除 `MongoAutoConfiguration` 并配置 `spring.mongodb.uri`。
+
+在镜像中，堆大小为容器内存上限的 75%（`-XX:MaxRAMPercentage=75.0`）；如需固定，请设置 `JAVA_OPTS`，例如 `-e JAVA_OPTS=-Xmx1g`。镜像之外的发行包启动脚本仍使用固定的 1280M 堆。`GET /ids` 的响应带有 `Cache-Control: no-store`，避免客户端与服务端之间的缓存把同一个 ID 发出两次。
 
 ## 客户端
 

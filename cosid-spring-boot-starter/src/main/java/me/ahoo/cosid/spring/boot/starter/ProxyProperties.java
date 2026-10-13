@@ -52,6 +52,13 @@ public class ProxyProperties {
      * {@code cosid.proxy.server.auth.tokens}. Empty sends none.
      */
     private String token;
+    /**
+     * How the proxy clients are created. {@code coapi} (the default, when CoApi is on the classpath) resolves
+     * {@code lb://} hosts and applies {@code coapi.*} settings and the application's CoApi customizers;
+     * {@code http-interface} creates them as plain beans with Spring's {@code HttpServiceProxyFactory}, which Spring AOT
+     * processing supports. Without CoApi on the classpath, {@code http-interface} is used.
+     */
+    private Client client = Client.COAPI;
 
     /**
      * Gets the proxy server host URL.
@@ -98,5 +105,28 @@ public class ProxyProperties {
     public ProxyProperties setToken(String token) {
         this.token = token;
         return this;
+    }
+    
+    public Client getClient() {
+        return client;
+    }
+    
+    public ProxyProperties setClient(Client client) {
+        this.client = client;
+        return this;
+    }
+    
+    /**
+     * How the proxy clients are created.
+     */
+    public enum Client {
+        /**
+         * Through CoApi ({@code @EnableCoApi}).
+         */
+        COAPI,
+        /**
+         * As plain beans, with Spring's {@code HttpServiceProxyFactory} over a {@code RestClient}.
+         */
+        HTTP_INTERFACE
     }
 }

@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter;
 import me.ahoo.coapi.spring.client.reactive.WebClientBuilderCustomizer;
 import me.ahoo.coapi.spring.client.sync.RestClientBuilderCustomizer;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
@@ -31,16 +32,25 @@ import org.springframework.http.HttpHeaders;
 public class CosIdProxyClientAuthConfiguration {
     
     static String authorization(ObjectProvider<CosIdProperties> cosIdProperties) {
-        String token = CosIdProxyClientTimeoutConfiguration.proxyProperties(cosIdProperties).getToken();
-        if (token == null || token.isBlank()) {
-            return null;
-        }
-        return "Bearer " + token.trim();
+        return CosIdProxyHttpInterfaceClients.authorization(CosIdProxyClientTimeoutConfiguration.proxyProperties(cosIdProperties));
+    }
+    
+    /**
+     * Whether the token would cross the network unencrypted: plain {@code http} to a host other than this machine.
+     *
+     * @param host  {@code cosid.proxy.host}
+     * @param token {@code cosid.proxy.token}
+     * @return true if the token is sent in clear text over the network
+     */
+    static boolean sendsTokenInClearText(@Nullable String host, @Nullable String token) {
+        return CosIdProxyHttpInterfaceClients.sendsTokenInClearText(host, token);
     }
     
     @Bean
     public RestClientBuilderCustomizer cosIdProxyRestClientAuthCustomizer(ObjectProvider<CosIdProperties> cosIdProperties) {
         String authorization = authorization(cosIdProperties);
+        ProxyProperties proxyProperties = CosIdProxyClientTimeoutConfiguration.proxyProperties(cosIdProperties);
+        CosIdProxyHttpInterfaceClients.warnIfTokenInClearText(proxyProperties);
         return (coApiDefinition, builder) -> {
             if (authorization != null && CosIdProxyClientTimeoutConfiguration.isProxyClient(coApiDefinition)) {
                 builder.defaultHeader(HttpHeaders.AUTHORIZATION, authorization);

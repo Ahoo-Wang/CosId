@@ -64,7 +64,7 @@ class StarterProxyClientEndToEndTest {
     static class ClientProperties {
     }
     
-    private ApplicationContextRunner client(String token) {
+    private ApplicationContextRunner client(String token, String... extraProperties) {
         return new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(RestClientAutoConfiguration.class,
                 CosIdProxyMachineIdDistributorAutoConfiguration.class, CosIdProxySegmentAutoConfiguration.class))
@@ -79,7 +79,8 @@ class StarterProxyClientEndToEndTest {
                 "cosid.machine.enabled=true",
                 "cosid.machine.distributor.type=proxy",
                 "cosid.segment.enabled=true",
-                "cosid.segment.distributor.type=proxy");
+                "cosid.segment.distributor.type=proxy")
+            .withPropertyValues(extraProperties);
     }
     
     @Test
@@ -104,6 +105,32 @@ class StarterProxyClientEndToEndTest {
             assertThat(context).hasNotFailed();
             assertThatThrownBy(() -> context.getBean(MachineIdDistributor.class)
                 .distribute("starter-wrong", 4, InstanceId.of("starter", false), Duration.ofMinutes(1)))
+                .isInstanceOf(HttpClientErrorException.Unauthorized.class);
+        });
+    }
+    
+    @Test
+    void httpInterfaceClientsDistributeWithToken() {
+        client(ProxyEndToEnd.TOKEN, "cosid.proxy.client=http-interface").run(context -> {
+            assertThat(context).hasNotFailed().hasBean("cosIdProxyMachineLeaseClient").hasBean("cosIdProxySegmentClient");
+            String namespace = MockIdGenerator.usePrefix("plain").generateAsString();
+            
+            int machineId = context.getBean(MachineIdDistributor.class)
+                .distribute(namespace, 4, InstanceId.of("plain", false), Duration.ofMinutes(1)).getMachineId();
+            long maxId = context.getBean(IdSegmentDistributorFactory.class)
+                .create(new IdSegmentDistributorDefinition(namespace, "plain", 0, 10)).nextMaxId();
+            
+            assertThat(machineId).isZero();
+            assertThat(maxId).isEqualTo(10);
+        });
+    }
+    
+    @Test
+    void httpInterfaceClientsWithWrongTokenGetUnauthorized() {
+        client("wrong-token", "cosid.proxy.client=http-interface").run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThatThrownBy(() -> context.getBean(MachineIdDistributor.class)
+                .distribute("plain-wrong", 4, InstanceId.of("plain", false), Duration.ofMinutes(1)))
                 .isInstanceOf(HttpClientErrorException.Unauthorized.class);
         });
     }

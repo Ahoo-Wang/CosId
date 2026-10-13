@@ -13,12 +13,18 @@
 
 package me.ahoo.cosid.spring.boot.starter.machine;
 
+import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.GuardianState;
 import me.ahoo.cosid.machine.MachineIdGuarder;
+import me.ahoo.cosid.machine.MachineIdLease;
+import me.ahoo.cosid.machine.NamespacedInstanceId;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.boot.health.contributor.HealthIndicator;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -33,51 +39,62 @@ import java.util.Optional;
  */
 public class MachineIdHealthIndicator implements HealthIndicator {
     private final MachineIdGuarder machineIdGuarder;
+    @Nullable
+    private final GuardDistribute guardDistribute;
 
-    /**
-     * Constructs a MachineIdHealthIndicator with the specified MachineIdGuarder.
-     *
-     * <p>
-     * This constructor initializes the health indicator to monitor the provided
-     * MachineIdGuarder instance for any failed guardian states that could indicate
-     * issues with machine ID distribution.
-     * </p>
-     *
-     * @param machineIdGuarder the MachineIdGuarder instance to monitor for health status;
-     *                         must not be null and should contain the guardian states to check
-     * @throws IllegalArgumentException if machineIdGuarder is null
-     */
     public MachineIdHealthIndicator(MachineIdGuarder machineIdGuarder) {
+        this(machineIdGuarder, null);
+    }
+    
+    /**
+     * Create an indicator that also shows the machine id of each lease.
+     */
+    public MachineIdHealthIndicator(MachineIdGuarder machineIdGuarder, @Nullable GuardDistribute guardDistribute) {
         this.machineIdGuarder = machineIdGuarder;
+        this.guardDistribute = guardDistribute;
     }
 
     /**
-     * Performs a health check on the machine ID guarding system.
-     *
-     * <p>This method inspects all guardian states from the MachineIdGuarder to determine
-     * if the machine ID distribution is functioning correctly. It returns a healthy status
-     * if no guardian states are in a failed state, or an unhealthy status with details
-     * about the first encountered failure.</p>
-     *
-     * <p>The health check includes:</p>
-     * <ul>
-     *   <li>Checking if any GuardianState is marked as failed</li>
-     *   <li>If failed, including the error cause and timestamp in the health details</li>
-     * </ul>
-     *
-     * @return a Health object indicating UP if all guardian states are healthy, or DOWN with error details if any guardian state has failed
-     * @throws RuntimeException if an unexpected error occurs during health check processing
+     * {@code DOWN} when a guard failed, or a lease is lost or expired: a lost lease stays lost even after a later renewal
+     * succeeds, and its generators throw. Each lease is listed with its machine id, instance id, remaining validity and
+     * whether it is lost or released.
      */
     @Override
     public Health health() {
-        Optional<GuardianState> firstFailedGuardStateOp = machineIdGuarder.getGuardianStates().values().stream().filter(GuardianState::isFailed).findFirst();
-        if (firstFailedGuardStateOp.isEmpty()) {
-            return Health.up().build();
+        Map<String, Object> leases = new LinkedHashMap<>();
+        boolean leaseDown = false;
+        long now = System.currentTimeMillis();
+        Map<NamespacedInstanceId, Integer> machineIds = guardDistribute == null ? Map.of() : guardDistribute.getMachineIds();
+        for (Map.Entry<NamespacedInstanceId, MachineIdLease> entry : machineIdGuarder.getLeases().entrySet()) {
+            NamespacedInstanceId key = entry.getKey();
+            MachineIdLease lease = entry.getValue();
+            boolean expired = !lease.isReleased() && !lease.isLost() && !lease.isValid(now);
+            leaseDown |= lease.isLost() || expired;
+            Map<String, Object> detail = new LinkedHashMap<>();
+            Integer machineId = machineIds.get(key);
+            if (machineId != null) {
+                detail.put("machineId", machineId);
+            }
+            detail.put("instanceId", key.getInstanceId().getInstanceId());
+            detail.put("remainingMillis", lease.getValidUntil() == Long.MAX_VALUE ? Long.MAX_VALUE : Math.max(0, lease.getValidUntil() - now));
+            detail.put("lost", lease.isLost());
+            detail.put("expired", expired);
+            detail.put("released", lease.isReleased());
+            String name = leases.containsKey(key.getNamespace()) ? key.getNamespace() + "@" + key.getInstanceId().getInstanceId() : key.getNamespace();
+            leases.put(name, detail);
         }
-        GuardianState firstErrorGuardState = firstFailedGuardStateOp.get();
-        Throwable error = firstErrorGuardState.getError();
-        return Health.down(error)
-            .withDetail("guardAt", firstErrorGuardState.getGuardAt())
-            .build();
+        
+        Optional<GuardianState> firstFailedGuardStateOp = machineIdGuarder.getGuardianStates().values().stream().filter(GuardianState::isFailed).findFirst();
+        Health.Builder builder;
+        if (firstFailedGuardStateOp.isPresent()) {
+            GuardianState firstErrorGuardState = firstFailedGuardStateOp.get();
+            builder = Health.down(firstErrorGuardState.getError()).withDetail("guardAt", firstErrorGuardState.getGuardAt());
+        } else {
+            builder = leaseDown ? Health.down() : Health.up();
+        }
+        if (!leases.isEmpty()) {
+            builder.withDetail("leases", leases);
+        }
+        return builder.build();
     }
 }

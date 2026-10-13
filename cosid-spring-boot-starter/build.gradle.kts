@@ -77,6 +77,8 @@ dependencies {
 
     "proxySupportImplementation"(project(":cosid-proxy"))
     "proxySupportImplementation"("me.ahoo.coapi:coapi-spring-boot-starter")
+    // RestClient for cosid.proxy.client=http-interface, also without CoApi.
+    "proxySupportImplementation"("org.springframework:spring-web")
     "mongoSupportImplementation"(project(":cosid-mongo"))
     "mongoSupportImplementation"("org.springframework.boot:spring-boot-starter-data-mongodb")
     "activitiSupportImplementation"(project(":cosid-activiti"))

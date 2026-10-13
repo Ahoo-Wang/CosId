@@ -10,7 +10,7 @@ CosId 需要存储来做两件事：保存[号段 ID](../concepts/segment.md) �
 | [JDBC](./jdbc.md) | `jdbc` | `cosid-jdbc` + `DataSource` | 是 | 是 | 数据库服务器 | 使用 MySQL、MariaDB 或 PostgreSQL，希望计数器保存在数据库中 |
 | [MongoDB](./mongo.md) | `mongo` | `cosid-mongo` + Spring Data MongoDB | 是 | 是 | MongoDB 服务器 | 已在运行 MongoDB |
 | [ZooKeeper](./zookeeper.md) | `zookeeper` | `cosid-zookeeper`（Curator） | 是 | 是 | 主机时钟 | 已在运行 ZooKeeper，并保持各主机时钟同步 |
-| [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy` + CoApi | 是 | 是 | Proxy 所用存储 | 应用不能直接访问存储 |
+| [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy`（CoApi 可选） | 是 | 是 | Proxy 所用存储 | 应用不能直接访问存储 |
 | StatefulSet | `stateful_set` | 无 | 否 | 是 | 无 | Kubernetes StatefulSet 中的 Pod：Pod 序号即机器号 |
 | Manual | `manual` | 无 | 否 | 是 | 无 | 单实例或测试 |
 | 自定义 | 任意 | 你的 `CosIdStoreProvider` Bean | 自行决定 | 自行决定 | 自行决定 | CosId 未内置的存储，例如 etcd |
@@ -58,6 +58,6 @@ public class EtcdStoreProvider implements CosIdStoreProvider {
 | JDBC | CI 未测试 | 未测试 |
 | MongoDB | CI 未测试 | 未测试 |
 | ZooKeeper | CI 未测试 | 未测试 |
-| Proxy | **不支持**：无法生成 Proxy 客户端定义 | **不支持** |
+| Proxy | 设置 `cosid.proxy.client=http-interface` 时支持（CI 已测试）；默认的 CoApi 客户端不支持 | 未测试 |
 
-starter 以 AOT 预处理能够处理的 Bean 定义方式注册号段和 Snowflake 生成器；CI 使用内存存储对号段生成器执行了 AOT 预处理。使用 Proxy 的应用请运行在 JVM 上。
+starter 以 AOT 预处理能够处理的 Bean 定义方式注册号段和 Snowflake 生成器；CI 使用内存存储对号段生成器执行了 AOT 预处理。使用 Proxy 的应用请设置 `cosid.proxy.client=http-interface`，客户端会作为普通 Bean 创建。`lb://` 地址（Spring Cloud LoadBalancer）需要默认的 CoApi 客户端，只能运行在 JVM 上。

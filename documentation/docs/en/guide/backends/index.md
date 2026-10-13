@@ -10,7 +10,7 @@ CosId needs a store for two things: the counters of [segment IDs](../concepts/se
 | [JDBC](./jdbc.md) | `jdbc` | `cosid-jdbc` + a `DataSource` | Yes | Yes | Database server | You have MySQL, MariaDB or PostgreSQL and want the counters in the database |
 | [MongoDB](./mongo.md) | `mongo` | `cosid-mongo` + Spring Data MongoDB | Yes | Yes | MongoDB server | You run MongoDB |
 | [ZooKeeper](./zookeeper.md) | `zookeeper` | `cosid-zookeeper` (Curator) | Yes | Yes | Host clock | You run ZooKeeper and keep host clocks in sync |
-| [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy` + CoApi | Yes | Yes | The proxy's store | Applications must not reach the store directly |
+| [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy` (CoApi optional) | Yes | Yes | The proxy's store | Applications must not reach the store directly |
 | StatefulSet | `stateful_set` | none | No | Yes | none | Kubernetes StatefulSet pods: the pod ordinal is the machine id |
 | Manual | `manual` | none | No | Yes | none | One instance, or tests |
 | Your own | any | your `CosIdStoreProvider` bean | Your choice | Your choice | Your choice | A store CosId does not ship, such as etcd |
@@ -58,6 +58,6 @@ Declare the bean with its concrete type (`EtcdStoreProvider`, not `CosIdStorePro
 | JDBC | Not tested in CI | Not tested |
 | MongoDB | Not tested in CI | Not tested |
 | ZooKeeper | Not tested in CI | Not tested |
-| Proxy | **Not supported**: the proxy client definitions cannot be generated | **Not supported** |
+| Proxy | Supported with `cosid.proxy.client=http-interface` (tested in CI); not with the default CoApi clients | Not tested |
 
-The starter registers segment and Snowflake generators as bean definitions that AOT processing can handle; CI runs AOT processing for segment generators, with an in-memory store. Use the JVM for applications on the proxy.
+The starter registers segment and Snowflake generators as bean definitions that AOT processing can handle; CI runs AOT processing for segment generators, with an in-memory store. For applications on the proxy, set `cosid.proxy.client=http-interface`: the clients are then plain beans. `lb://` hosts (Spring Cloud LoadBalancer) need the default CoApi clients, so they run on the JVM only.

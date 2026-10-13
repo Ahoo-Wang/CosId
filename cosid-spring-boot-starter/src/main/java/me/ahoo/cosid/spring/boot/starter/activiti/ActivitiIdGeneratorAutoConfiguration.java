@@ -52,11 +52,16 @@ public class ActivitiIdGeneratorAutoConfiguration {
      * @since 4.1.0
      */
     public static final String GENERATOR_NAME_KEY = CosId.COSID_PREFIX + "activiti.generator-name";
+    
+    private final Environment environment;
+    
+    public ActivitiIdGeneratorAutoConfiguration(Environment environment) {
+        this.environment = environment;
+    }
 
     
     @Bean
-    public ProcessEngineConfigurationConfigurer cosidActivitiProcessEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider,
-                                                                                    Environment environment) {
+    public ProcessEngineConfigurationConfigurer cosidActivitiProcessEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
         return new ActivitiIdGeneratorAutoConfiguration.CosIdProcessEngineConfigurationConfigurer(idGeneratorProvider, environment.getProperty(GENERATOR_NAME_KEY));
     }
     

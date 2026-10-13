@@ -52,11 +52,16 @@ public class FlowableIdGeneratorAutoConfiguration {
      * @since 4.1.0
      */
     public static final String GENERATOR_NAME_KEY = CosId.COSID_PREFIX + "flowable.generator-name";
+    
+    private final Environment environment;
+    
+    public FlowableIdGeneratorAutoConfiguration(Environment environment) {
+        this.environment = environment;
+    }
 
     
     @Bean
-    public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> cosidFlowableEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider,
-                                                                                    Environment environment) {
+    public EngineConfigurationConfigurer<SpringProcessEngineConfiguration> cosidFlowableEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
         return new CosIdEngineConfigurationConfigurer(idGeneratorProvider, environment.getProperty(GENERATOR_NAME_KEY));
     }
     

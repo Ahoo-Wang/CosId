@@ -44,9 +44,15 @@ public class CosIdAxonAutoConfiguration {
      * @since 4.1.0
      */
     public static final String GENERATOR_NAME_KEY = CosId.COSID_PREFIX + "axon.generator-name";
+    
+    private final Environment environment;
+    
+    public CosIdAxonAutoConfiguration(Environment environment) {
+        this.environment = environment;
+    }
 
     @Bean
-    public CosIdAxonProviderBinding cosIdAxonProviderBinding(IdGeneratorProvider idGeneratorProvider, Environment environment) {
+    public CosIdAxonProviderBinding cosIdAxonProviderBinding(IdGeneratorProvider idGeneratorProvider) {
         String generatorName = environment.getProperty(GENERATOR_NAME_KEY);
         return new CosIdAxonProviderBinding(idGeneratorProvider, generatorName == null || generatorName.isBlank() ? null : generatorName);
     }

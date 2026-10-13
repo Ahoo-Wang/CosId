@@ -170,6 +170,35 @@ JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
 
 Unauthenticated JMX gives full control of the JVM; a heap dump also exposes the tokens and the store passwords.
 
+## Monitoring
+
+The server exposes Prometheus metrics at `/actuator/prometheus`, such as the JVM, the HTTP requests per API path and status, and the [CosId meters](../operations/monitoring.md#metrics) of its own generators and machine id lease. Like every endpoint other than health, it needs a token, one from `cosid.proxy.server.auth.tokens`: a token limited to namespaces (`auth.clients`) gets `403`. That token can call every API, so keep it in the scraper's secret store:
+
+```yaml
+scrape_configs:
+  - job_name: cosid-proxy
+    metrics_path: /actuator/prometheus
+    authorization:
+      credentials: change-me   # the server's token
+    static_configs:
+      - targets: ['cosid-proxy:8688']
+```
+
+On a trusted network, you can instead open the endpoint without a token, keeping the health endpoint public:
+
+```yaml
+cosid:
+  proxy:
+    server:
+      auth:
+        public-paths:
+          - /actuator/health
+          - /actuator/health/**
+          - /actuator/prometheus
+```
+
+The HTTP metrics have no namespace tag: clients choose the namespace in the path, so the tag would have no bound. For each namespace, use the CosId meters of the client applications, such as `cosid.segment.fetch` and `cosid.machine.lease.remaining`, which carry it.
+
 ## Availability
 
 The server keeps no client state of its own: leases and counters live in its store. Run several servers behind a load balancer for availability. After a server restarts, running clients continue without a restart: the server rebuilds its segment distributors from the store on the next request.

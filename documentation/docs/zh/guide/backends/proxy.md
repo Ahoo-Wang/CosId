@@ -172,6 +172,35 @@ JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
 
 未认证的 JMX 等于把 JVM 的完全控制权交出去；堆转储还会泄露令牌和存储密码。
 
+## 监控
+
+服务端在 `/actuator/prometheus` 暴露 Prometheus 指标，例如 JVM、按 API 路径和状态码统计的 HTTP 请求，以及服务端自身生成器和机器号租约的 [CosId 指标](../operations/monitoring.md#指标)。与健康检查以外的所有端点一样，它需要令牌，并且必须是 `cosid.proxy.server.auth.tokens` 中的令牌：限定命名空间的令牌（`auth.clients`）会得到 `403`。这个令牌可以调用所有 API，请保存在采集端的密钥管理中：
+
+```yaml
+scrape_configs:
+  - job_name: cosid-proxy
+    metrics_path: /actuator/prometheus
+    authorization:
+      credentials: change-me   # 服务端的令牌
+    static_configs:
+      - targets: ['cosid-proxy:8688']
+```
+
+在可信网络中，也可以让该端点无需令牌访问，同时保留健康检查为公开路径：
+
+```yaml
+cosid:
+  proxy:
+    server:
+      auth:
+        public-paths:
+          - /actuator/health
+          - /actuator/health/**
+          - /actuator/prometheus
+```
+
+HTTP 指标没有命名空间标签：命名空间由客户端在路径中指定，作为标签没有上限。按命名空间的指标请使用客户端应用的 CosId 指标，例如 `cosid.segment.fetch` 和 `cosid.machine.lease.remaining`，它们带有命名空间。
+
 ## 可用性
 
 服务端不保存客户端状态：租约和计数器都在它的存储中。可以在负载均衡器后面运行多个服务端以提高可用性。服务端重启后，运行中的客户端无需重启即可继续：服务端会在下一个请求时从存储重建号段分配器。

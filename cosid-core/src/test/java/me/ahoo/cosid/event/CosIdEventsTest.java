@@ -156,6 +156,51 @@ class CosIdEventsTest {
         assertThat(recording.events, contains("leaseLost"));
     }
     
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> void sneakyThrow(Throwable throwable) throws T {
+        throw (T) throwable;
+    }
+    
+    @Test
+    void aListenerThrowingAnErrorNeverFailsTheCaller() throws Exception {
+        try (AutoCloseable failing = CosIdEvents.register(new CosIdEventListener() {
+            @Override
+            public void onLeaseLost(String namespace, InstanceId instanceId) {
+                throw new AssertionError("listener assertion");
+            }
+        })) {
+            register();
+            new MachineIdLease("ns", InstanceId.of("i", false), Duration.ofMinutes(1)).markLost();
+        }
+        assertThat(recording.events, contains("leaseLost"));
+    }
+    
+    @Test
+    void aListenerSneakyThrowingACheckedExceptionNeverFailsTheCaller() throws Exception {
+        try (AutoCloseable failing = CosIdEvents.register(new CosIdEventListener() {
+            @Override
+            public void onLeaseLost(String namespace, InstanceId instanceId) {
+                CosIdEventsTest.<RuntimeException>sneakyThrow(new java.io.IOException("checked"));
+            }
+        })) {
+            register();
+            new MachineIdLease("ns", InstanceId.of("i", false), Duration.ofMinutes(1)).markLost();
+        }
+        assertThat(recording.events, contains("leaseLost"));
+    }
+    
+    @Test
+    void aVirtualMachineErrorIsRethrown() throws Exception {
+        try (AutoCloseable failing = CosIdEvents.register(new CosIdEventListener() {
+            @Override
+            public void onCallRejected(String operation) {
+                throw new StackOverflowError("fatal");
+            }
+        })) {
+            assertThrows(StackOverflowError.class, () -> CosIdEvents.listener().onCallRejected("op"));
+        }
+    }
+    
     @Test
     void clockBackwardsAndTheClockSyncWait() {
         long[] times = {CosId.COSID_EPOCH + 1_000, CosId.COSID_EPOCH + 999, CosId.COSID_EPOCH + 1_001};

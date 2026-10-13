@@ -73,7 +73,8 @@ public final class CosIdEvents {
     }
     
     /**
-     * Calls every listener; one that throws is logged and skipped, never fails the caller.
+     * Calls every listener; one that throws (anything but a {@link VirtualMachineError}) is logged and skipped, never
+     * fails the caller.
      */
     private static final class Guarded implements CosIdEventListener {
         private final List<CosIdEventListener> listeners;
@@ -86,9 +87,13 @@ public final class CosIdEvents {
             for (CosIdEventListener listener : listeners) {
                 try {
                     event.accept(listener);
-                } catch (RuntimeException listenerException) {
+                } catch (VirtualMachineError fatal) {
+                    throw fatal;
+                } catch (Throwable listenerFailure) {
+                    // Also errors and sneaky-thrown checked exceptions: an event is raised in finally blocks and under
+                    // locks, where anything escaping would replace the caller's own exception.
                     if (log.isWarnEnabled()) {
-                        log.warn("CosIdEventListener [{}] failed.", listener, listenerException);
+                        log.warn("CosIdEventListener [{}] failed.", listener, listenerFailure);
                     }
                 }
             }

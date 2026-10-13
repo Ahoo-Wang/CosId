@@ -24,8 +24,21 @@ import java.time.Duration;
  * machine id leases and backend call timeouts.
  *
  * <p>Every method does nothing by default, so a listener implements only what it needs. Events fire when something
- * happens, never once per generated id. A listener must be fast and must not throw: it runs on the thread that raised
- * the event, sometimes under a lock. Register one with {@link CosIdEvents#register(CosIdEventListener)}.</p>
+ * happens, never once per generated id. Register one with {@link CosIdEvents#register(CosIdEventListener)}.</p>
+ *
+ * <p><b>Callbacks must be fast and non-blocking.</b> They run on the thread that raised the event, and some run while
+ * that thread holds the generator's lock, so a slow callback stalls every caller of the generator:</p>
+ * <ul>
+ *   <li>{@link #onSequenceExhaustedWait(Duration)} runs inside the synchronized {@code generate()} of Snowflake
+ *   generators and {@code CosIdGenerator};</li>
+ *   <li>{@link #onSegmentFetch(String, Duration, Throwable)} runs under the lock of {@code DefaultSegmentId} and of a
+ *   segment chain's next segment;</li>
+ *   <li>{@link #onClockBackwards(String, long, long)} and {@link #onClockSyncWait(String, Duration)} run on the
+ *   generating thread.</li>
+ * </ul>
+ * <p>Record a counter or a timer, or hand the event to another thread; never call a store, the network or a generator
+ * from a callback. A callback that throws is logged and skipped, it never fails the caller (a
+ * {@link VirtualMachineError} is rethrown).</p>
  *
  * @author ahoo wang
  * @since 4.1.0

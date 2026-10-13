@@ -306,8 +306,8 @@ public class CosIdMachineAutoConfiguration {
          */
         @Bean
         @ConditionalOnMissingBean
-        public MachineIdHealthIndicator machineIdHealthIndicator(MachineIdGuarder machineIdGuarder) {
-            return new MachineIdHealthIndicator(machineIdGuarder);
+        public MachineIdHealthIndicator machineIdHealthIndicator(MachineIdGuarder machineIdGuarder, ObjectProvider<GuardDistribute> guardDistribute) {
+            return new MachineIdHealthIndicator(machineIdGuarder, guardDistribute.getIfAvailable());
         }
     }
 }

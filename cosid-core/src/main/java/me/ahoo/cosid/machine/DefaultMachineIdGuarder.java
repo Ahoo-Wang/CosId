@@ -263,9 +263,15 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         MachineIdLease lease = leases.get(registeredInstance);
         if (lease != null) {
             lease.renew(guardAt);
+            lease.recordClockSkew(machineIdDistributor.getClockSkewMillis(registeredInstance.getNamespace(), registeredInstance.getInstanceId()));
         }
     }
 
+    @Override
+    public Map<NamespacedInstanceId, MachineIdLease> getLeases() {
+        return Map.copyOf(leases);
+    }
+    
     @Override
     public MachineIdLease getLease(String namespace, InstanceId instanceId) {
         MachineIdLease lease = leases.get(new NamespacedInstanceId(namespace, instanceId));

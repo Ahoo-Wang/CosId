@@ -12,8 +12,8 @@
 #
 
 
-# Report-only API diff of the library modules against the latest 4.0 release. Incompatible changes do not fail the
-# build; an error running the diff does.
+# API diff of the library modules against the latest 4.0 release. A binary-incompatible change fails the build, unless
+# the pull request has the api-break-approved label; source-only incompatibilities are reported.
 name: API Diff
 on:
   push:
@@ -22,6 +22,8 @@ on:
   pull_request:
     branches:
       - 'main'
+    # Re-run when the api-break-approved label is added or removed.
+    types: [ opened, synchronize, reopened, labeled, unlabeled ]
   workflow_dispatch:
     inputs:
       baseline:
@@ -48,6 +50,8 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: API diff
+        env:
+          API_DIFF_ENFORCE: ${{ contains(github.event.pull_request.labels.*.name, 'api-break-approved') && 'false' || 'true' }}
         run: scripts/api-diff.sh "${{ github.event.inputs.baseline || 'v4.0.0' }}" build/api-diff
 
       - name: Upload report

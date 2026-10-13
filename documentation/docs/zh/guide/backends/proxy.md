@@ -174,7 +174,7 @@ JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
 
 ## 监控
 
-服务端在 `/actuator/prometheus` 暴露 Prometheus 指标，例如 JVM 以及按 API 路径和状态码统计的 HTTP 请求。与健康检查以外的所有端点一样，它需要令牌：
+服务端在 `/actuator/prometheus` 暴露 Prometheus 指标，例如 JVM、按 API 路径和状态码统计的 HTTP 请求，以及服务端自身生成器和机器号租约的 [CosId 指标](../operations/monitoring.md#指标)。与健康检查以外的所有端点一样，它需要令牌：
 
 ```yaml
 scrape_configs:

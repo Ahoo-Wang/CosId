@@ -62,7 +62,11 @@ class ProxyPrometheusEndToEndTest {
         assertThat(scraped.getBody())
             .contains("jvm_memory_used_bytes")
             .contains("http_server_requests_seconds_count")
-            .contains("uri=\"/segments/{namespace}/{name}\"");
+            .contains("uri=\"/segments/{namespace}/{name}\"")
+            // The CosId meters of the server's own generators and machine id lease.
+            .contains("cosid_segment_remaining")
+            .contains("cosid_machine_lease_remaining_seconds")
+            .contains("cosid_sequence_exhausted_wait_seconds_count");
     }
     
     @Test

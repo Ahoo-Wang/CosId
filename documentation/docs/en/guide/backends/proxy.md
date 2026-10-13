@@ -172,7 +172,7 @@ Unauthenticated JMX gives full control of the JVM; a heap dump also exposes the 
 
 ## Monitoring
 
-The server exposes Prometheus metrics at `/actuator/prometheus`, such as the JVM and the HTTP requests per API path and status. Like every endpoint other than health, it needs the token:
+The server exposes Prometheus metrics at `/actuator/prometheus`, such as the JVM, the HTTP requests per API path and status, and the [CosId meters](../operations/monitoring.md#metrics) of its own generators and machine id lease. Like every endpoint other than health, it needs the token:
 
 ```yaml
 scrape_configs:

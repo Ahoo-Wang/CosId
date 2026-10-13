@@ -12,7 +12,6 @@
  */
 
 dependencies {
-    implementation(libs.guava)
     api(project(":cosid-core"))
     testImplementation(project(":cosid-test"))
     testImplementation("org.testcontainers:testcontainers")

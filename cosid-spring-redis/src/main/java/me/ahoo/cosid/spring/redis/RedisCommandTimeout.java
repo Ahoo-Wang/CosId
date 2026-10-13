@@ -13,9 +13,8 @@
 
 package me.ahoo.cosid.spring.redis;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.util.CallTimeout;
-
-import com.google.common.base.Preconditions;
 
 import java.time.Duration;
 import java.util.function.Supplier;
@@ -68,7 +67,7 @@ public final class RedisCommandTimeout {
         if (timeout == null || timeout.isZero()) {
             return NONE;
         }
-        Preconditions.checkArgument(!timeout.isNegative(), "timeout:[%s] can not be negative!", timeout);
+        Checks.checkArgument(!timeout.isNegative(), "timeout:[%s] can not be negative!", timeout);
         return new RedisCommandTimeout(timeout);
     }
 

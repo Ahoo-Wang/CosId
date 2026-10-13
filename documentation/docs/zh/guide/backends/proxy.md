@@ -115,8 +115,9 @@ cosid:
 | `cosid.proxy.token` | 无 | 每个请求携带的 Bearer 令牌 |
 | `cosid.proxy.connect-timeout` | `2s` | 连接服务端的超时；`0` 表示不限制 |
 | `cosid.proxy.read-timeout` | `5s` | 等待响应的超时，包括启动时申领机器号；`0` 表示不限制，但 `cosid.machine.distributor.type=proxy` 时必须为正数 |
+| `cosid.proxy.client` | `coapi` | `coapi` 或 `http-interface`，见下文；类路径上没有 CoApi 时使用 `http-interface` |
 
-客户端与其他后端一样，是一个 `MachineLeaseStore` 和一个 `IdSegmentDistributor`：`ProxyMachineLeaseStore` 调用服务端的租约 API（`/machines/v2`）申领、续约和释放机器号，`ProxyIdSegmentDistributor` 向服务端申请号段。预先编译（AOT）和原生镜像暂不支持 Proxy 客户端；使用 Proxy 的应用请运行在 JVM 上。
+客户端与其他后端一样，是一个 `MachineLeaseStore` 和一个 `IdSegmentDistributor`：`ProxyMachineLeaseStore` 调用服务端的租约 API（`/machines/v2`）申领、续约和释放机器号，`ProxyIdSegmentDistributor` 向服务端申请号段。默认由 CoApi 创建客户端，它支持 `lb://` 地址，并应用 `coapi.*` 配置和你的 CoApi 定制器。设置 `cosid.proxy.client=http-interface`，或者类路径上没有 CoApi 时，客户端会作为普通 Bean，使用 Spring 的 `HttpServiceProxyFactory` 基于你的 `RestClient.Builder` 创建，并应用上面的地址、超时和令牌；Spring AOT 预处理支持这种方式。
 
 ## 认证
 

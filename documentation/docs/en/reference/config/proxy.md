@@ -14,6 +14,7 @@ Used when `cosid.machine.distributor.type` or `cosid.segment.distributor.type` i
 | `token` | `String` | none | Bearer token sent with every request; must match one of the server's tokens |
 | `connect-timeout` | `Duration` | `2s` | Connecting to the server; `0` means no timeout |
 | `read-timeout` | `Duration` | `5s` | Waiting for a response, including the machine id claim at startup; `0` means no timeout, but with `cosid.machine.distributor.type=proxy` it must be positive |
+| `client` | `Client` | `coapi` | How the clients are created: `coapi` (resolves `lb://` hosts, applies `coapi.*`) or `http-interface` (plain beans, supported by Spring AOT). Without CoApi on the classpath, `http-interface` |
 
 ## Server
 

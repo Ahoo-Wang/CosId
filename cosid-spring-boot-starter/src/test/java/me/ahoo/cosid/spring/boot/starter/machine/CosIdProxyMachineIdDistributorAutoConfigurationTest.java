@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.mock;
 
+import me.ahoo.coapi.spring.client.sync.RestClientBuilderCustomizer;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
@@ -23,12 +24,21 @@ import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
 import me.ahoo.cosid.proxy.ProxyMachineLeaseStore;
 import me.ahoo.cosid.proxy.api.MachineLeaseClient;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
+import me.ahoo.cosid.spring.boot.starter.ProxyClientCondition;
+import me.ahoo.cosid.spring.boot.starter.ProxyProperties;
 
+import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.http.HttpHeaders;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
 
 class CosIdProxyMachineIdDistributorAutoConfigurationTest {
     private static final String COAP_PROXY_HOST = "cosid.proxy.host=http://localhost:8688";
@@ -116,6 +126,70 @@ class CosIdProxyMachineIdDistributorAutoConfigurationTest {
                 .isTrue());
     }
 
+    private static ApplicationContextRunner plainRunner() {
+        return new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdProxyMachineIdDistributorAutoConfiguration.class))
+            .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
+            .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
+            .withPropertyValues(COAP_PROXY_HOST)
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(MachineProperties.Distributor.TYPE + "=proxy");
+    }
+    
+    @Test
+    void httpInterfaceModeCreatesAPlainClientBean() {
+        plainRunner()
+            .withPropertyValues(ProxyClientCondition.CLIENT_KEY + "=http-interface")
+            .run(context -> assertThat(context)
+                .hasNotFailed()
+                .hasBean("cosIdProxyMachineLeaseClient")
+                .hasSingleBean(MachineLeaseClient.class)
+                .doesNotHaveBean(RestClientBuilderCustomizer.class)
+                .hasSingleBean(LeaseStoreMachineIdDistributor.class));
+    }
+    
+    @Test
+    void withoutCoApiTheClientIsAPlainBean() {
+        plainRunner()
+            .withClassLoader(new FilteredClassLoader("me.ahoo.coapi.spring"))
+            .run(context -> assertThat(context)
+                .hasNotFailed()
+                .hasBean("cosIdProxyMachineLeaseClient")
+                .hasSingleBean(LeaseStoreMachineIdDistributor.class));
+    }
+    
+    @Test
+    void thePlainClientSendsTheTokenToTheHost() throws Exception {
+        AtomicReference<String> authorization = new AtomicReference<>();
+        HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        server.createContext("/machines/v2/time", exchange -> {
+            authorization.set(exchange.getRequestHeaders().getFirst(HttpHeaders.AUTHORIZATION));
+            byte[] body = "42".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            String host = "http://127.0.0.1:" + server.getAddress().getPort();
+            plainRunner()
+                .withBean(CosIdProperties.class, () -> {
+                    CosIdProperties properties = new CosIdProperties();
+                    properties.getProxy().setHost(host).setToken("secret").setClient(ProxyProperties.Client.HTTP_INTERFACE);
+                    return properties;
+                })
+                .withPropertyValues(ProxyClientCondition.CLIENT_KEY + "=http-interface")
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(MachineLeaseClient.class).serverTime()).isEqualTo(42L);
+                    assertThat(authorization.get()).isEqualTo("Bearer secret");
+                });
+        } finally {
+            server.stop(0);
+        }
+    }
+    
     private static boolean hasCauseMessage(Throwable throwable, String message) {
         Throwable current = throwable;
         while (current != null) {

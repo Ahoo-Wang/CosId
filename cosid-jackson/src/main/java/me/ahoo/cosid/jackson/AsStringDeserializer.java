@@ -86,7 +86,7 @@ public class AsStringDeserializer extends ValueDeserializer<Long> {
     }
 
     /**
-     * A JSON number is the id itself; a JSON string is converted. An empty string is {@code null}. A string the converter
+     * A JSON number is the id itself, if the converter can write it; a JSON string is converted. An empty string is {@code null}. A string the converter
      * cannot read is reported through {@link DeserializationContext#handleWeirdStringValue}, an
      * {@code InvalidFormatException} (a client error) by default.
      */
@@ -94,7 +94,16 @@ public class AsStringDeserializer extends ValueDeserializer<Long> {
     public Long deserialize(JsonParser p, DeserializationContext ctxt) {
         JsonToken token = p.currentToken();
         if (token == JsonToken.VALUE_NUMBER_INT) {
-            return p.getLongValue();
+            long id = p.getLongValue();
+            try {
+                // The same range as a string id: the converter must be able to write it back (no negative radix id, no
+                // more digits than radixCharSize).
+                converter.asString(id);
+            } catch (RuntimeException outOfRange) {
+                return (Long) ctxt.handleWeirdNumberValue(Long.class, id, "not a valid id for %s: %s", converter.getClass().getSimpleName(),
+                    outOfRange.getMessage());
+            }
+            return id;
         }
         if (token == JsonToken.VALUE_NULL) {
             return null;

@@ -15,6 +15,7 @@ package me.ahoo.cosid.jackson;
 
 import me.ahoo.cosid.converter.Radix62IdConverter;
 import me.ahoo.cosid.jackson.dto.RadixDto;
+import me.ahoo.cosid.jackson.dto.RadixPadSize5Dto;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -68,5 +69,15 @@ class AsStringInputTest {
         Assertions.assertSame(deserializer, deserializer.createContextual(null, null));
         AsStringSerializer serializer = new AsStringSerializer();
         Assertions.assertSame(serializer, serializer.createContextual(null, null));
+    }
+    
+    @Test
+    void aNumberOutOfTheConvertersRangeIsAnInvalidFormat() {
+        InvalidFormatException negative = Assertions.assertThrows(InvalidFormatException.class,
+            () -> objectMapper.readValue("{\"objectLong\":-5}", RadixDto.class));
+        Assertions.assertEquals(-5L, negative.getValue());
+        // radixCharSize = 5: Long.MAX_VALUE has more Radix62 digits.
+        Assertions.assertThrows(InvalidFormatException.class,
+            () -> objectMapper.readValue("{\"objectLong\":" + Long.MAX_VALUE + "}", RadixPadSize5Dto.class));
     }
 }

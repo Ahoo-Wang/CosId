@@ -36,6 +36,11 @@ public class ErrorResponse {
      * {@code IdSegmentRollbackException}.
      */
     public static final String SEGMENT_ROLLBACK = "S-01";
+    /**
+     * The server keeps as many segment distributors as {@code cosid.proxy.server.segment.max-distributors} allows and
+     * cannot create another one.
+     */
+    public static final String TOO_MANY_DISTRIBUTORS = "S-02";
     
     private final String code;
     private final String msg;

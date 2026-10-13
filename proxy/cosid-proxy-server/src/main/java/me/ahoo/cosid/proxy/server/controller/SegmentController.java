@@ -16,6 +16,7 @@ package me.ahoo.cosid.proxy.server.controller;
 import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.proxy.api.SegmentApi;
 import me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties;
+import me.ahoo.cosid.proxy.server.error.TooManyDistributorsException;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
  * Segment Controller .
@@ -41,6 +43,7 @@ public class SegmentController implements SegmentApi {
     private final IdSegmentDistributorFactory distributorFactory;
     private final ConcurrentHashMap<String, IdSegmentDistributor> distributors;
     private final long maxStep;
+    private final int maxDistributors;
 
     public SegmentController(IdSegmentDistributorFactory distributorFactory) {
         this(distributorFactory, new ProxyServerProperties());
@@ -51,6 +54,7 @@ public class SegmentController implements SegmentApi {
         this.distributorFactory = distributorFactory;
         this.distributors = new ConcurrentHashMap<>();
         this.maxStep = proxyServerProperties.getSegment().getMaxStep();
+        this.maxDistributors = proxyServerProperties.getSegment().getMaxDistributors();
     }
 
     private void checkArguments(String namespace, String name, long step) {
@@ -75,8 +79,7 @@ public class SegmentController implements SegmentApi {
             throw new IllegalArgumentException(Checks.lenientFormat("offset:[%s] + step:[%s] overflows!", offset, step), overflow);
         }
         String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);
-        distributors.computeIfAbsent(namespacedName,
-            key -> distributorFactory.create(new IdSegmentDistributorDefinition(namespace, name, offset, step)));
+        distributor(namespacedName, () -> new IdSegmentDistributorDefinition(namespace, name, offset, step));
     }
 
     /**
@@ -93,8 +96,20 @@ public class SegmentController implements SegmentApi {
     public long nextMaxId(@PathVariable String namespace, @PathVariable String name, long step) {
         checkArguments(namespace, name, step);
         String namespacedName = IdSegmentDistributor.getNamespacedName(namespace, name);
-        IdSegmentDistributor distributor = distributors.computeIfAbsent(namespacedName,
-            key -> distributorFactory.create(new IdSegmentDistributorDefinition(namespace, name, IdSegmentDistributor.DEFAULT_OFFSET, step)));
+        IdSegmentDistributor distributor = distributor(namespacedName,
+            () -> new IdSegmentDistributorDefinition(namespace, name, IdSegmentDistributor.DEFAULT_OFFSET, step));
         return distributor.nextMaxId(step);
+    }
+    
+    private IdSegmentDistributor distributor(String namespacedName, Supplier<IdSegmentDistributorDefinition> definition) {
+        IdSegmentDistributor distributor = distributors.get(namespacedName);
+        if (distributor != null) {
+            return distributor;
+        }
+        // Checked before adding, so concurrent first requests may go slightly over the limit.
+        if (maxDistributors > 0 && distributors.size() >= maxDistributors) {
+            throw new TooManyDistributorsException(maxDistributors, namespacedName);
+        }
+        return distributors.computeIfAbsent(namespacedName, key -> distributorFactory.create(definition.get()));
     }
 }

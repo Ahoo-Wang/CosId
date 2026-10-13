@@ -14,9 +14,11 @@
 package me.ahoo.cosid.spring.boot.starter.jdbc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.jdbc.JdbcDialect;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
@@ -27,14 +29,15 @@ import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
-import me.ahoo.cosid.spring.boot.starter.machine.CosIdJdbcMachineIdDistributorAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
+import me.ahoo.cosid.spring.boot.starter.machine.CosIdJdbcMachineIdDistributorAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 import me.ahoo.cosid.spring.boot.starter.segment.ConditionalOnCosIdSegmentEnabled;
 import me.ahoo.cosid.spring.boot.starter.segment.CosIdJdbcSegmentAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
 import me.ahoo.cosid.test.container.PostgresLauncher;
 
+import lombok.SneakyThrows;
 import org.assertj.core.data.Offset;
 import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.Assumptions;
@@ -46,13 +49,16 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import java.sql.SQLException;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.sql.DataSource;
 
 /**
- * The SQL properties left unset on databases other than MySQL: the starter creates the tables, fetches segments and
- * leases machine ids with the database's own statements.
+ * The SQL properties left unset on databases other than MySQL: the tables are created, segments fetched and machine ids
+ * leased with the database's own statements, chosen from the connection when it is first needed.
  */
-class JdbcDialectDetectionTest {
+class JdbcDialectStarterTest {
     
     private static ApplicationContextRunner runner(DataSource dataSource) {
         return new ApplicationContextRunner()
@@ -85,7 +91,7 @@ class JdbcDialectDetectionTest {
     
     @Test
     void h2WorksWithoutSqlProperties() {
-        worksWithoutSqlProperties(h2());
+        worksWithoutSqlProperties(h2(""));
     }
     
     @Test
@@ -100,33 +106,69 @@ class JdbcDialectDetectionTest {
     }
     
     @Test
-    void aConfiguredStatementIsKept() {
-        JdbcDialectDetector detector = new JdbcDialectDetector(h2());
-        
-        assertThat(detector.sql("update my_cosid set last_max_id=(last_max_id + ?) where name = ?", JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL,
-            JdbcDialect::getIncrementMaxIdSql)).isEqualTo("update my_cosid set last_max_id=(last_max_id + ?) where name = ?");
-        assertThat(detector.sql(JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL, JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL,
-            JdbcDialect::getInitCosIdTableSql)).isEqualTo(JdbcDialect.H2.getInitCosIdTableSql());
-        assertThat(detector.dialect()).isEqualTo(JdbcDialect.H2);
-        assertThat(detector.product()).isEqualTo("H2");
+    void h2InMySqlAndMariaDbModeWorksWithoutSqlProperties() {
+        worksWithoutSqlProperties(h2(";MODE=MySQL"));
+        worksWithoutSqlProperties(h2(";MODE=MariaDB"));
+    }
+    
+    /**
+     * Hands out no connection until {@link #up} is set: a database down at startup.
+     */
+    @SneakyThrows
+    private static DataSource downUntil(AtomicBoolean up, DataSource delegate) {
+        DataSource dataSource = mock(DataSource.class);
+        when(dataSource.getConnection()).thenAnswer(invocation -> {
+            if (!up.get()) {
+                throw new SQLException("down", "08001");
+            }
+            return delegate.getConnection();
+        });
+        return dataSource;
     }
     
     @Test
-    void anUnreadableOrUnsupportedDatabaseKeepsTheMySqlDefaults() throws SQLException {
-        DataSource down = mock(DataSource.class);
-        when(down.getConnection()).thenThrow(new SQLException("down", "08001"));
-        JdbcDialectDetector unreadable = new JdbcDialectDetector(down);
-        assertThat(unreadable.sql(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL,
-            JdbcDialect::getIncrementMaxIdSql)).isEqualTo(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL);
-        assertThat(unreadable.product()).isNull();
-        
-        DataSource oracle = mock(DataSource.class, Answers.RETURNS_DEEP_STUBS);
-        when(oracle.getConnection().getMetaData().getDatabaseProductName()).thenReturn("Oracle");
-        JdbcDialectDetector unsupported = new JdbcDialectDetector(oracle);
-        assertThat(unsupported.dialect()).isNull();
-        assertThat(unsupported.product()).isEqualTo("Oracle");
-        assertThat(unsupported.sql(JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL,
-            JdbcDialect::getFetchMaxIdSql)).isEqualTo(JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
+    void aDatabaseDownAtStartupIsUsedWithItsOwnStatementsOnceUp() throws SQLException {
+        AtomicBoolean up = new AtomicBoolean(false);
+        DataSource h2 = h2("");
+        new JdbcIdSegmentInitializer(JdbcDialect.H2.getInitCosIdTableSql(), JdbcDialect.H2.getInitIdSegmentSql(), h2).initCosIdTable();
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdJdbcSegmentAutoConfiguration.class))
+            .withBean(DataSource.class, () -> downUntil(up, h2))
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", SegmentIdProperties.Distributor.TYPE + "=jdbc",
+                SegmentIdProperties.PREFIX + ".distributor.jdbc.enable-auto-init-cosid-table=true")
+            .run(context -> {
+                assertThat(context).hasNotFailed();
+                IdSegmentDistributor distributor = context.getBean(IdSegmentDistributorFactory.class)
+                    .create(new IdSegmentDistributorDefinition("down-" + UUID.randomUUID(), "order", 0, 10));
+                assertThatThrownBy(distributor::nextMaxId).isInstanceOf(CosIdException.class);
+                
+                up.set(true);
+                
+                // The row the factory could not insert while the database was down.
+                new JdbcIdSegmentInitializer(h2).tryInitIdSegment(distributor.getNamespacedName(), 0);
+                assertThat(distributor.nextMaxId()).isEqualTo(10L);
+            });
+    }
+    
+    @Test
+    void aHungDatabaseDoesNotBlockTheStartupOfSegments() throws SQLException {
+        CountDownLatch released = new CountDownLatch(1);
+        DataSource hung = mock(DataSource.class);
+        when(hung.getConnection()).thenAnswer(invocation -> {
+            released.await();
+            throw new SQLException("hung", "08001");
+        });
+        try {
+            long started = System.nanoTime();
+            new ApplicationContextRunner()
+                .withConfiguration(AutoConfigurations.of(CosIdJdbcSegmentAutoConfiguration.class))
+                .withBean(DataSource.class, () -> hung)
+                .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", SegmentIdProperties.Distributor.TYPE + "=jdbc")
+                .run(context -> assertThat(context).hasNotFailed().hasSingleBean(IdSegmentDistributorFactory.class));
+            assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started)).isLessThan(5_000L);
+        } finally {
+            released.countDown();
+        }
     }
     
     @Test
@@ -142,9 +184,9 @@ class JdbcDialectDetectionTest {
             .run(context -> assertThat(context).getFailure().rootCause().hasMessageContaining("No server time query known for database [Oracle]"));
     }
     
-    private static DataSource h2() {
+    private static DataSource h2(String mode) {
         JdbcDataSource dataSource = new JdbcDataSource();
-        dataSource.setURL("jdbc:h2:mem:detector_" + UUID.randomUUID().toString().replace("-", "") + ";DB_CLOSE_DELAY=-1");
+        dataSource.setURL("jdbc:h2:mem:starter_" + UUID.randomUUID().toString().replace("-", "") + ";DB_CLOSE_DELAY=-1" + mode);
         return dataSource;
     }
 }

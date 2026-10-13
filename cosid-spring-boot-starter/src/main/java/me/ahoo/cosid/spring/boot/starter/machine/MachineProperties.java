@@ -707,8 +707,8 @@ public class MachineProperties {
      * <p>This configuration controls the automatic initialization of the
      * {@code cosid_machine} table (and its indexes) at startup, and allows
      * overriding the default DDL statements used by
-     * {@link JdbcMachineIdInitializer}. With auto-initialization on, a DDL statement left at its default (MySQL)
-     * follows the database product: PostgreSQL, H2 and SQL Server get their own ({@code me.ahoo.cosid.jdbc.JdbcDialect}).</p>
+     * {@link JdbcMachineIdInitializer}. A DDL statement left at its default (MySQL)
+     * follows the database the connection reports: PostgreSQL, H2 and SQL Server get their own ({@code me.ahoo.cosid.jdbc.JdbcDialect}).</p>
      */
     public static class Jdbc {
         /**

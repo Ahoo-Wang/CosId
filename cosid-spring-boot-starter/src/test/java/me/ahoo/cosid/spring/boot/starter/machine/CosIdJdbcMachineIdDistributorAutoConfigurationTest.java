@@ -150,7 +150,7 @@ class CosIdJdbcMachineIdDistributorAutoConfigurationTest {
                 assertThat(context)
                     .hasSingleBean(JdbcMachineIdInitializer.class)
                     .hasSingleBean(LeaseStoreMachineIdDistributor.class);
-                verify(dataSource, Mockito.atLeastOnce()).getConnection();
+                verify(dataSource).getConnection();
             });
     }
 

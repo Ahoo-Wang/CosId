@@ -140,6 +140,6 @@ H2 和 SQL Server 的语句是 `JdbcDialect.getAddLeaseColumnsSql()`。步骤顺
 | H2 | 2.x，任意兼容模式 | `H2` |
 | SQL Server | 2022（支持 2016 及以上） | `Microsoft SQL Server` |
 
-Starter 在启动时从 `DataSource` 读取一次数据库产品名。保持默认值（MySQL 语句）的语句属性会使用 `me.ahoo.cosid.jdbc.JdbcDialect` 中该数据库的语句；其他值按配置使用。无法读取产品名，或数据库不在上表中时，仍使用 MySQL 语句，并输出 WARN 日志。不支持 Oracle 等其他数据库：请配置所有语句，包括 `server-time-sql`。
+保持默认值（MySQL 语句，比较时忽略空白和末尾的 `;`）的语句，会按连接所报告的数据库，改用 `me.ahoo.cosid.jdbc.JdbcDialect` 中该数据库的语句；其他值按配置使用。产品名在语句第一次需要时从连接的元数据读取，而不是在启动时：启动时宕机或很慢的数据库，在恢复响应后才被识别。号段获取在读到产品名后保持该选择；MySQL 的 `last_insert_id` 路径只在报告为 MySQL 或 MariaDB 的数据库上使用，其他数据库，或无法读取产品名时，都在事务中获取。不使用 Starter 时行为相同。不支持 Oracle 等其他数据库：请配置所有语句，包括 `server-time-sql`。
 
-不使用 Starter 时，从 `JdbcDialect` 取得语句（`JdbcDialect.of(dataSource)`，或 `JdbcDialect.POSTGRESQL` 这样的常量），传给 `JdbcIdSegmentInitializer`、`JdbcIdSegmentDistributorFactory`、`JdbcMachineIdInitializer` 和 `JdbcMachineLeaseStore`。`PostgreSqlDialect` 仍以常量形式提供 PostgreSQL 语句。
+`JdbcDialect` 也提供各数据库的语句，可显式传入（`JdbcDialect.POSTGRESQL.getIncrementMaxIdSql()` 等）；`PostgreSqlDialect` 仍以常量形式提供 PostgreSQL 语句。

@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.is;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 
+import org.h2.jdbcx.JdbcDataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -28,8 +29,11 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Duration;
 import java.util.Optional;
+import javax.sql.DataSource;
 
 class JdbcDialectTest {
+    private static final java.util.Map<JdbcDialect, String> PRODUCTS = java.util.Map.of(JdbcDialect.MYSQL, "MySQL", JdbcDialect.POSTGRESQL, "PostgreSQL",
+        JdbcDialect.H2, "H2", JdbcDialect.SQL_SERVER, "Microsoft SQL Server");
     
     @ParameterizedTest
     @CsvSource({
@@ -68,6 +72,7 @@ class JdbcDialectTest {
     @EnumSource(value = JdbcDialect.class, names = {"POSTGRESQL", "H2", "SQL_SERVER"})
     void theBuiltInStatementsTakeOneQuery(JdbcDialect dialect) {
         FakeJdbc jdbc = new FakeJdbc(true);
+        jdbc.product = PRODUCTS.get(dialect);
         JdbcIdSegmentDistributor distributor = new JdbcIdSegmentDistributor("ns", "order", 10, dialect.getIncrementMaxIdSql(),
             dialect.getFetchMaxIdSql(), jdbc, Duration.ofSeconds(3));
         assertThat(distributor.getFetchPlan(), is(JdbcIdSegmentDistributor.FetchPlan.RETURNING));
@@ -89,5 +94,79 @@ class JdbcDialectTest {
         assertThat(distributor.nextMaxId(), equalTo(25L));
         
         assertThat(dataSource.getExecutedSql(), contains(JdbcDialect.H2.getIncrementAndFetchMaxIdSql(), JdbcDialect.H2.getIncrementAndFetchMaxIdSql()));
+    }
+    
+    @ParameterizedTest
+    @EnumSource(value = JdbcDialect.class, names = {"POSTGRESQL", "H2", "SQL_SERVER"})
+    void theMySqlDefaultsOnAnotherDatabaseTakeItsOwnStatements(JdbcDialect dialect) {
+        FakeJdbc jdbc = new FakeJdbc(true);
+        jdbc.product = PRODUCTS.get(dialect);
+        JdbcIdSegmentDistributor distributor = new JdbcIdSegmentDistributor("ns", "order", 10, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL,
+            JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL, jdbc, Duration.ofSeconds(3));
+        
+        distributor.nextMaxId(10);
+        jdbc.maxId = 52;
+        distributor.nextMaxId(10);
+        
+        assertThat(jdbc.executed, contains(dialect.getIncrementAndFetchMaxIdSql(), dialect.getIncrementAndFetchMaxIdSql()));
+        // Read once, then kept.
+        assertThat(jdbc.metadataReads, equalTo(1));
+    }
+    
+    @Test
+    void theMySqlFastPathOnlyOnMySql() {
+        FakeJdbc jdbc = new FakeJdbc(true);
+        jdbc.product = "Oracle";
+        JdbcIdSegmentDistributor distributor = new JdbcIdSegmentDistributor("ns", "order", 10, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL,
+            JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL + ";", jdbc, Duration.ofSeconds(3));
+        
+        distributor.nextMaxId(10);
+        
+        assertThat(jdbc.executed, contains(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL + ";"));
+        assertThat(jdbc.events, contains("autoCommit=false", "commit", "autoCommit=true", "close:autoCommit=true"));
+    }
+    
+    @Test
+    void anUnreadableProductFetchesInATransactionAndIsReadAgain() {
+        FakeJdbc jdbc = new FakeJdbc(true);
+        jdbc.product = null;
+        JdbcIdSegmentDistributor distributor = new JdbcIdSegmentDistributor("ns", "order", 10, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL,
+            JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL, jdbc, Duration.ofSeconds(3));
+        
+        distributor.nextMaxId(10);
+        jdbc.product = "MySQL";
+        jdbc.maxId = 52;
+        distributor.nextMaxId(10);
+        
+        assertThat(jdbc.executed, contains(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL,
+            JdbcIdSegmentDistributor.LAST_INSERT_ID_INCREMENT_MAX_ID_SQL));
+        assertThat(jdbc.metadataReads, equalTo(2));
+    }
+    
+    @ParameterizedTest
+    @CsvSource({";MODE=MySQL", ";MODE=MariaDB", "''"})
+    void h2InAnyModeWithTheMySqlDefaults(String mode) throws Exception {
+        DataSource h2 = RealH2.createDataSource(mode);
+        IdSegmentDistributor distributor = new JdbcIdSegmentDistributorFactory(h2, true, new JdbcIdSegmentInitializer(h2),
+            JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL)
+            .create(new IdSegmentDistributorDefinition("ns", "mysql-defaults", 3, 10));
+        
+        assertThat(distributor.nextMaxId(), equalTo(13L));
+        assertThat(distributor.nextMaxId(), equalTo(23L));
+    }
+    
+    @ParameterizedTest
+    @CsvSource({";MODE=MySQL", ";MODE=MariaDB", "''"})
+    void theInitializersAndTheLeaseStoreFollowTheDatabaseWithTheMySqlDefaults(String mode) throws Exception {
+        JdbcDataSource h2 = new JdbcDataSource();
+        h2.setURL("jdbc:h2:mem:defaults_" + java.util.UUID.randomUUID().toString().replace("-", "") + ";DB_CLOSE_DELAY=-1" + mode);
+        new JdbcIdSegmentInitializer(h2).initCosIdTable();
+        new JdbcMachineIdInitializer(h2).initCosIdMachineTable();
+        
+        JdbcMachineLeaseStore store = new JdbcMachineLeaseStore(h2);
+        
+        assertThat(store.getServerTimeSql(), equalTo(JdbcDialect.H2.getServerTimeSql()));
+        assertThat(Math.abs(store.serverTime() - System.currentTimeMillis()) < 60_000, is(true));
+        assertThat(new JdbcMachineLeaseStore(h2, Duration.ofSeconds(3)).getServerTimeSql(), equalTo(JdbcDialect.H2.getServerTimeSql()));
     }
 }

@@ -21,14 +21,18 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.function.Function;
 import javax.sql.DataSource;
 
 /**
  * The SQL of each supported database: the {@code cosid} and {@code cosid_machine} DDL, the segment statements and the
  * server clock query.
  *
- * <p>{@link #of(String)} picks one from the JDBC database product name; the starter does so when the SQL properties are
- * left at their defaults. Oracle and other databases are not supported: configure every statement for them.</p>
+ * <p>{@link #of(String)} picks one from the JDBC database product name. The defaults of {@link JdbcIdSegmentInitializer},
+ * {@link JdbcIdSegmentDistributor}, {@link JdbcMachineIdInitializer} and {@link JdbcMachineLeaseStore} are the MySQL
+ * statements; left as they are, each of them runs the statements of the database its connection reports instead, read
+ * from the connection's metadata when it first needs them. Oracle and other databases are not supported: configure
+ * every statement for them.</p>
  *
  * @author ahoo wang
  * @since 4.1.0
@@ -131,12 +135,56 @@ public enum JdbcDialect {
      */
     static Optional<JdbcDialect> ofSegmentStatements(String incrementMaxIdSql, String fetchMaxIdSql) {
         for (JdbcDialect dialect : values()) {
-            if (JdbcIdSegmentDistributor.FetchPlan.sameSql(incrementMaxIdSql, dialect.incrementMaxIdSql)
-                && JdbcIdSegmentDistributor.FetchPlan.sameSql(fetchMaxIdSql, dialect.fetchMaxIdSql)) {
+            if (isSameStatement(incrementMaxIdSql, dialect.incrementMaxIdSql) && isSameStatement(fetchMaxIdSql, dialect.fetchMaxIdSql)) {
                 return Optional.of(dialect);
             }
         }
         return Optional.empty();
+    }
+    
+    /**
+     * Whether two statements are the same, whatever their whitespace or final semicolon: as configured in YAML or as a
+     * constant. Case matters: {@code update COSID ...} names another table on a case-sensitive MySQL.
+     *
+     * @since 4.1.0
+     */
+    public static boolean isSameStatement(@Nullable String configured, @Nullable String builtIn) {
+        if (configured == null || builtIn == null) {
+            return configured == builtIn;
+        }
+        return normalize(configured).equals(normalize(builtIn));
+    }
+    
+    private static String normalize(String sql) {
+        String normalized = sql.trim().replaceAll("\\s+", " ");
+        while (normalized.endsWith(";")) {
+            normalized = normalized.substring(0, normalized.length() - 1).trim();
+        }
+        return normalized.replace(" ,", ",").replace(", ", ",").replace(" =", "=").replace("= ", "=")
+            .replace("( ", "(").replace(" )", ")");
+    }
+    
+    /**
+     * The dialect of the database a connection is to, from its metadata.
+     */
+    static Optional<JdbcDialect> ofConnection(Connection connection) throws SQLException {
+        return of(connection.getMetaData().getDatabaseProductName());
+    }
+    
+    /**
+     * The statement to run on a connection: a statement left at its MySQL default takes the one of the connection's
+     * database when that is another {@link JdbcDialect}; any other statement, or a database whose product cannot be read,
+     * keeps the configured one.
+     */
+    static String statementFor(Connection connection, String configured, String mysqlDefault, Function<JdbcDialect, String> ofDialect) {
+        if (!isSameStatement(configured, mysqlDefault)) {
+            return configured;
+        }
+        try {
+            return ofConnection(connection).filter(dialect -> dialect != MYSQL).map(ofDialect).orElse(configured);
+        } catch (SQLException | RuntimeException metadataFailure) {
+            return configured;
+        }
     }
     
     /**

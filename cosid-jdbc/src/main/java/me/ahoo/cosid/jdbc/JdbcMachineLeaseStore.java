@@ -21,6 +21,8 @@ import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.lease.Lease;
 import me.ahoo.cosid.machine.lease.MachineLeaseStore;
 
+import org.jspecify.annotations.Nullable;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -132,15 +134,64 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
      * Create a JDBC lease store.
      *
      * @param queryTimeout  timeout applied to each statement, {@code null} or zero means no timeout
-     * @param serverTimeSql a query returning the database server's current time in milliseconds
+     * @param serverTimeSql a query returning the database server's current time in milliseconds;
+     *                      {@link #MYSQL_SERVER_TIME_SQL} on another {@link JdbcDialect} database is replaced by its own
      */
     public JdbcMachineLeaseStore(DataSource dataSource, Duration queryTimeout, String serverTimeSql) {
+        this(Checks.checkNotNull(serverTimeSql, "serverTimeSql can not be blank!"), dataSource, queryTimeout);
+    }
+    
+    /**
+     * Create a JDBC lease store whose server clock query is that of the database product ({@link JdbcDialect}).
+     *
+     * @param queryTimeout timeout applied to each statement, {@code null} or zero means no timeout
+     * @throws IllegalStateException when the product cannot be read, or is not one of {@link JdbcDialect}
+     * @since 4.1.0
+     */
+    public JdbcMachineLeaseStore(DataSource dataSource, Duration queryTimeout) {
+        this(null, dataSource, queryTimeout);
+    }
+    
+    private JdbcMachineLeaseStore(@Nullable String serverTimeSql, DataSource dataSource, Duration queryTimeout) {
         this.dataSource = Checks.checkNotNull(dataSource, "dataSource can not be null!");
         this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
-        Checks.checkArgument(serverTimeSql != null && !serverTimeSql.isBlank(), "serverTimeSql can not be blank!");
-        this.serverTimeSql = serverTimeSql;
+        Checks.checkArgument(serverTimeSql == null || !serverTimeSql.isBlank(), "serverTimeSql can not be blank!");
+        this.serverTimeSql = serverTimeSqlOf(serverTimeSql);
         checkStableColumn();
         checkLeaseColumns();
+    }
+    
+    /**
+     * The configured query, the database's own in place of the MySQL default, or the database's own when none is
+     * configured.
+     */
+    private String serverTimeSqlOf(@Nullable String configured) {
+        if (configured != null && !JdbcDialect.isSameStatement(configured, MYSQL_SERVER_TIME_SQL)) {
+            return configured;
+        }
+        String product;
+        try (Connection connection = dataSource.getConnection()) {
+            product = connection.getMetaData().getDatabaseProductName();
+        } catch (SQLException | RuntimeException metadataFailure) {
+            if (configured != null) {
+                return configured;
+            }
+            throw new IllegalStateException("Can not read the database product to choose the server time query: pass one to "
+                + "JdbcMachineLeaseStore (cosid.machine.distributor.jdbc.server-time-sql).", metadataFailure);
+        }
+        Optional<JdbcDialect> dialect = JdbcDialect.of(product);
+        if (dialect.isPresent()) {
+            return dialect.get().getServerTimeSql();
+        }
+        if (configured != null) {
+            return configured;
+        }
+        throw new IllegalStateException("No server time query known for database [" + product + "]: pass one to JdbcMachineLeaseStore "
+            + "(cosid.machine.distributor.jdbc.server-time-sql), a query returning the server's current time in milliseconds.");
+    }
+    
+    String getServerTimeSql() {
+        return serverTimeSql;
     }
     
     /**

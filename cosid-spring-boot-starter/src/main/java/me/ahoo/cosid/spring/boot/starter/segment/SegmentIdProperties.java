@@ -541,7 +541,7 @@ public class SegmentIdProperties {
         }
 
         /**
-         * The JDBC segment store. A statement left at its default (MySQL) follows the database product: PostgreSQL, H2 and
+         * The JDBC segment store. A statement left at its default (MySQL) follows the database the connection reports: PostgreSQL, H2 and
          * SQL Server get their own ({@code me.ahoo.cosid.jdbc.JdbcDialect}); any other value is used as configured.
          */
         public static class Jdbc {

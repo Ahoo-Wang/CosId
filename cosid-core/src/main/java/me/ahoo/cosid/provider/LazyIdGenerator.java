@@ -44,8 +44,6 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
 
     private final String generatorName;
 
-    private volatile StringIdGenerator lazyIdGen;
-
     private final IdGeneratorProvider idGeneratorProvider;
 
     /**
@@ -85,15 +83,13 @@ public final class LazyIdGenerator implements IdGeneratorDecorator {
      * @throws NotFoundIdGeneratorException if required and not found
      */
     public StringIdGenerator tryGet(boolean required) {
-        if (null != lazyIdGen) {
-            return lazyIdGen;
-        }
+        // Looked up on every call: the provider may replace or remove the generator, for example when a context closes.
         String generatorName = getGeneratorName();
         Optional<StringIdGenerator> idGeneratorOp = idGeneratorProvider.get(generatorName);
         if (idGeneratorOp.isPresent()) {
-            lazyIdGen = idGeneratorOp.get();
-            return lazyIdGen;
-        } else if (required) {
+            return idGeneratorOp.get();
+        }
+        if (required) {
             throw new NotFoundIdGeneratorException(generatorName);
         }
         return null;

@@ -40,7 +40,7 @@ Decorators wrap a base converter and add text around it. The starter applies the
 |-----------|----------|--------|
 | `PrefixIdConverter` | `prefix: BIZ-` | `BIZ-12345` |
 | `SuffixIdConverter` | `suffix: -BIZ` | `12345-BIZ` |
-| `DatePrefixIdConverter` | `date-prefix.enabled: true`, `pattern` (default `yyMMdd`), `delimiter` (default `-`) | `260101-12345`, the date of generation |
+| `DatePrefixIdConverter` | `date-prefix.enabled: true`, `pattern` (default `yyMMdd`), `delimiter` (default `-`) | `260101-12345`, the date of generation. A pattern whose dates vary in length (one-letter fields such as `M` or `d`, text months, which depend on the locale) needs a non-empty `delimiter`: without one, where the id starts is ambiguous, and a warning is logged at startup |
 | `GroupedPrefixIdConverter` | `group-prefix.enabled: true`, `delimiter` (default `-`) | `20260101-12345`, the [group](./segment.md#grouped-segments) of a grouped segment ID |
 
 A group prefix needs a grouped segment ID (`group.by`): the starter fails at startup if it is enabled on a generator without a group, and `asString(long)` without a group throws `UnsupportedOperationException`.

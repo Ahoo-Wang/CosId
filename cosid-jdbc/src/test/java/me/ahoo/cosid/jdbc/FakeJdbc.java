@@ -36,6 +36,10 @@ final class FakeJdbc implements DataSource {
     SQLException failure;
     String failingSqlPrefix = "";
     boolean generatedKeys = true;
+    /**
+     * The generated key, when it differs from what a select returns ({@link #maxId}).
+     */
+    Long generatedKey;
     
     FakeJdbc(boolean autoCommit) {
         this.autoCommit = autoCommit;
@@ -83,9 +87,9 @@ final class FakeJdbc implements DataSource {
                     return 1;
                 case "executeQuery":
                     execute(sql);
-                    return resultSet(true);
+                    return resultSet(true, maxId);
                 case "getGeneratedKeys":
-                    return resultSet(generatedKeys);
+                    return resultSet(generatedKeys, generatedKey != null ? generatedKey : maxId);
                 default:
                     throw new UnsupportedOperationException(method.getName());
             }
@@ -99,7 +103,7 @@ final class FakeJdbc implements DataSource {
         }
     }
     
-    private ResultSet resultSet(boolean hasRow) {
+    private ResultSet resultSet(boolean hasRow, long value) {
         boolean[] read = {!hasRow};
         return (ResultSet) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[] {ResultSet.class}, (proxy, method, args) -> {
             switch (method.getName()) {
@@ -108,7 +112,7 @@ final class FakeJdbc implements DataSource {
                     read[0] = true;
                     return next;
                 case "getLong":
-                    return maxId;
+                    return value;
                 case "close":
                     return null;
                 default:

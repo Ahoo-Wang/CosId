@@ -140,6 +140,22 @@ public final class MachineIdLease {
         this.clockSkewMillis = clockSkewMillis;
     }
     
+    /**
+     * The namespace of the lease, {@code null} for {@link #FOREVER}.
+     */
+    @Nullable
+    public String getNamespace() {
+        return namespace;
+    }
+    
+    /**
+     * The instance holding the lease, {@code null} for {@link #FOREVER}.
+     */
+    @Nullable
+    public InstanceId getInstanceId() {
+        return instanceId;
+    }
+    
     public long getValidUntil() {
         return validUntil;
     }

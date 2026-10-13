@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpHeaders;
@@ -21,8 +22,11 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientAdapter;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
+import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * Creates the CosId proxy clients without CoApi ({@code cosid.proxy.client=http-interface}), with
@@ -31,9 +35,11 @@ import java.time.Duration;
  * @author ahoo wang
  * @since 4.1.0
  */
+@Slf4j
 public final class CosIdProxyHttpInterfaceClients {
     
     static final String LOAD_BALANCED_SCHEME = "lb://";
+    private static final Set<String> LOOPBACK_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]", "::1");
     
     private CosIdProxyHttpInterfaceClients() {
     }
@@ -81,6 +87,42 @@ public final class CosIdProxyHttpInterfaceClients {
     }
     
     /**
+     * Whether the token would cross the network unencrypted: plain {@code http} to a host other than this machine.
+     *
+     * @param host  {@code cosid.proxy.host}
+     * @param token {@code cosid.proxy.token}
+     * @return true if the token is sent in clear text over the network
+     */
+    static boolean sendsTokenInClearText(@Nullable String host, @Nullable String token) {
+        if (host == null || token == null || token.isBlank()) {
+            return false;
+        }
+        URI uri;
+        try {
+            uri = URI.create(host.trim());
+        } catch (IllegalArgumentException invalidHost) {
+            return false;
+        }
+        if (!"http".equalsIgnoreCase(uri.getScheme())) {
+            return false;
+        }
+        String hostName = uri.getHost();
+        return hostName != null && !LOOPBACK_HOSTS.contains(hostName.toLowerCase(Locale.ROOT));
+    }
+    
+    /**
+     * Warn when the proxy token would cross the network unencrypted.
+     *
+     * @param proxy the proxy properties
+     */
+    static void warnIfTokenInClearText(ProxyProperties proxy) {
+        if (sendsTokenInClearText(proxy.getHost(), proxy.getToken()) && log.isWarnEnabled()) {
+            log.warn("[cosid.proxy.host:{}] is plain http: the proxy token crosses the network unencrypted, anyone on the path can read and reuse it. "
+                + "Use https, or keep the proxy on a trusted network.", proxy.getHost());
+        }
+    }
+    
+    /**
      * A load-balanced {@code lb://} host needs CoApi: the plain clients would fail on their first call.
      *
      * @param host {@code cosid.proxy.host}
@@ -104,6 +146,7 @@ public final class CosIdProxyHttpInterfaceClients {
      */
     public static <T> T create(Class<T> clientType, ProxyProperties proxy, RestClient.@Nullable Builder builder) {
         checkHost(proxy.getHost());
+        warnIfTokenInClearText(proxy);
         RestClient.Builder restClient = (builder == null ? RestClient.builder() : builder.clone()).baseUrl(proxy.getHost());
         JdkClientHttpRequestFactory requestFactory = requestFactory(proxy);
         if (requestFactory != null) {

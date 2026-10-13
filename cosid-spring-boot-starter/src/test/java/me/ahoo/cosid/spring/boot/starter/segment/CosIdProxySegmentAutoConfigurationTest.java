@@ -22,9 +22,12 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ProxyClientCondition;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.web.client.RestClient;
 
 class CosIdProxySegmentAutoConfigurationTest {
@@ -177,5 +180,19 @@ class CosIdProxySegmentAutoConfigurationTest {
             .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("CoApi is not on the classpath"));
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void thePlainClientsWarnWhenTheTokenGoesOverPlainHttp(CapturedOutput output) {
+        plainRunner()
+            .withPropertyValues(ProxyClientCondition.CLIENT_KEY + "=http-interface")
+            .withBean(me.ahoo.cosid.spring.boot.starter.CosIdProperties.class, () -> {
+                me.ahoo.cosid.spring.boot.starter.CosIdProperties properties = new me.ahoo.cosid.spring.boot.starter.CosIdProperties();
+                properties.getProxy().setHost("http://cosid-proxy:8688").setToken("secret");
+                return properties;
+            })
+            .run(context -> assertThat(context).hasNotFailed().hasBean("cosIdProxySegmentClient"));
+        assertThat(output.getOut()).contains("[cosid.proxy.host:http://cosid-proxy:8688] is plain http");
     }
 }

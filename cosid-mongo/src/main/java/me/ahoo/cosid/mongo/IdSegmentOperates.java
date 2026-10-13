@@ -17,6 +17,8 @@ import com.mongodb.client.model.Updates;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
+import java.util.List;
+
 public interface IdSegmentOperates {
     String LAST_MAX_ID_FIELD = "lastMaxId";
     String LAST_FETCH_TIME_FIELD = "lastFetchTime";
@@ -33,6 +35,19 @@ public interface IdSegmentOperates {
             Updates.inc(LAST_MAX_ID_FIELD, step),
             Updates.set(LAST_FETCH_TIME_FIELD, System.currentTimeMillis())
         );
+    }
+
+    /**
+     * One update that creates the segment document at {@code offset} when missing and adds {@code step}, with the
+     * server's clock in milliseconds as the fetch time: the same document as {@link #ensureOffsetUpdates} followed by
+     * {@link #incrementAndGetUpdates}, in one write (an update pipeline, MongoDB 4.2+).
+     *
+     * @since 4.1.0
+     */
+    static List<Bson> fetchUpdates(long offset, long step) {
+        Document lastMaxId = new Document("$add", List.of(new Document("$ifNull", List.of("$" + LAST_MAX_ID_FIELD, offset)), step));
+        return List.of(new Document("$set", new Document(LAST_MAX_ID_FIELD, lastMaxId)
+            .append(LAST_FETCH_TIME_FIELD, new Document("$toLong", "$$NOW"))));
     }
 
     static Document ensureIdSegmentDocument(String segmentName, long offset) {

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.jackson;
 
 import me.ahoo.cosid.converter.Radix62IdConverter;
+import me.ahoo.cosid.jackson.dto.FriendlyIdDto;
 import me.ahoo.cosid.jackson.dto.RadixDto;
 import me.ahoo.cosid.jackson.dto.RadixPadSize5Dto;
 
@@ -79,5 +80,10 @@ class AsStringInputTest {
         // radixCharSize = 5: Long.MAX_VALUE has more Radix62 digits.
         Assertions.assertThrows(InvalidFormatException.class,
             () -> objectMapper.readValue("{\"objectLong\":" + Long.MAX_VALUE + "}", RadixPadSize5Dto.class));
+        // A friendly id writes -5 and Long.MIN_VALUE, but they read back as other ids.
+        Assertions.assertThrows(InvalidFormatException.class, () -> objectMapper.readValue("{\"objectLong\":-5}", FriendlyIdDto.class));
+        Assertions.assertThrows(InvalidFormatException.class,
+            () -> objectMapper.readValue("{\"objectLong\":" + Long.MIN_VALUE + "}", FriendlyIdDto.class));
+        Assertions.assertEquals(123L, objectMapper.readValue("{\"objectLong\":123}", FriendlyIdDto.class).getObjectLong());
     }
 }

@@ -95,15 +95,18 @@ public class AsStringDeserializer extends ValueDeserializer<Long> {
         JsonToken token = p.currentToken();
         if (token == JsonToken.VALUE_NUMBER_INT) {
             long id = p.getLongValue();
+            // The same range as a string id: the converter must write it back as a string that reads as the same id (no
+            // negative radix id, no more digits than radixCharSize, no friendly id that wraps around).
+            String message;
             try {
-                // The same range as a string id: the converter must be able to write it back (no negative radix id, no
-                // more digits than radixCharSize).
-                converter.asString(id);
+                if (converter.asLong(converter.asString(id)) == id) {
+                    return id;
+                }
+                message = "it does not read back as the same id";
             } catch (RuntimeException outOfRange) {
-                return (Long) ctxt.handleWeirdNumberValue(Long.class, id, "not a valid id for %s: %s", converter.getClass().getSimpleName(),
-                    outOfRange.getMessage());
+                message = outOfRange.getMessage();
             }
-            return id;
+            return (Long) ctxt.handleWeirdNumberValue(Long.class, id, "not a valid id for %s: %s", converter.getClass().getSimpleName(), message);
         }
         if (token == JsonToken.VALUE_NULL) {
             return null;

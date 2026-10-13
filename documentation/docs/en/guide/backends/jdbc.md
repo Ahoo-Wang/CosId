@@ -64,6 +64,7 @@ cosid:
 | `cosid.segment.distributor.jdbc.enable-auto-init-id-segment` | `true` | Insert the row of a generator at startup when it is missing, with `init-id-segment-sql` |
 | `cosid.segment.distributor.jdbc.init-cosid-table-sql`, `init-id-segment-sql`, `increment-max-id-sql`, `fetch-max-id-sql` | MySQL statements | The segment statements |
 | `cosid.segment.distributor.jdbc.query-timeout` | `5s` | Each segment statement; `0` disables it |
+| `cosid.segment.distributor.jdbc.fetch-plan` | `auto` | `auto`: the built-in MySQL statements as `last_insert_id` under auto-commit, the PostgreSQL ones as one `update ... returning`, others in a transaction. `transaction`: always the update then the select in a transaction. Use `transaction` behind SQL proxies and read/write splitters (ShardingSphere, MyCat, ProxySQL read/write splitting, Vitess), which may not pass the update's generated key through |
 | `cosid.machine.distributor.jdbc.enable-auto-init-cosid-machine-table` | `false` | Create the `cosid_machine` table at startup |
 | `cosid.machine.distributor.jdbc.init-cos-id-machine-table-sql`, `init-namespace-idx-sql`, `init-instance-id-idx-sql` | MySQL statements | The machine table statements; empty index statements are skipped |
 | `cosid.machine.distributor.jdbc.query-timeout` | `5s` | Each machine id statement; `0` disables it |
@@ -125,6 +126,10 @@ alter table cosid_machine add column if not exists renew_time bigint not null de
 ```
 
 See [Rolling upgrade](../operations/rolling-upgrade.md) for the order of the steps.
+
+## How a segment is fetched
+
+With the default MySQL statements, a segment takes one statement under auto-commit and no transaction: `update cosid set last_max_id=last_insert_id(last_max_id + ?), ...`, whose generated key is the new value (MySQL, MariaDB). With the PostgreSQL statements of `PostgreSqlDialect`, it takes one: `update ... returning last_max_id`. Any other configured statements run as before, the update then the select in one transaction, and so does every fetch with `fetch-plan: transaction`. No generated key, or one below the step, means a SQL proxy did not pass the update's value through: the fetch fails, naming `fetch-plan: transaction`, instead of handing out duplicate ids. The statements are compared exactly, apart from whitespace and a final `;`: `update COSID ...` is not the built-in statement. The connection goes back to the pool with the auto-commit mode it came with. The initializers' statements time out after `query-timeout`; a table, index or segment row that already exists is skipped quietly, any other error is logged at WARN with its cause.
 
 ## PostgreSQL
 

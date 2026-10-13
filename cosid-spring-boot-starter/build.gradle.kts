@@ -114,4 +114,8 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-mongodb")
+    // Dialect detection, with no SQL properties set.
+    testImplementation("com.h2database:h2")
+    testImplementation("org.postgresql:postgresql")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
 }

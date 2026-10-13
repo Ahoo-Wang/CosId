@@ -46,7 +46,7 @@ import javax.sql.DataSource;
  * exactly as 3.4 judges it, and a new owner starts after it. The table needs the {@code stable} column ({@link #ADD_STABLE_COLUMN_SQL}) and
  * the lease columns ({@link #ADD_LEASE_COLUMNS_SQL}, {@link PostgreSqlDialect#ADD_LEASE_COLUMNS_SQL}): the constructor
  * fails naming the statement when they are missing. The server clock is read with {@code serverTimeSql}:
- * {@link #MYSQL_SERVER_TIME_SQL} by default, {@link PostgreSqlDialect#SERVER_TIME_SQL} for PostgreSQL. Every statement
+ * {@link #MYSQL_SERVER_TIME_SQL} by default, {@link JdbcDialect#getServerTimeSql()} for the other databases. Every statement
  * has the query timeout, and writes are committed when the connection is not in auto-commit mode.</p>
  *
  * @author ahoo wang
@@ -153,7 +153,7 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         }
         if (probe(PROBE_TABLE) != null) {
             throw new IllegalStateException("Table cosid_machine does not exist: create it with JdbcMachineIdInitializer "
-                + "(or PostgreSqlDialect.INIT_COSID_MACHINE_TABLE_SQL on PostgreSQL).", sqlException);
+                + "(with JdbcDialect.getInitCosIdMachineTableSql() of your database outside MySQL).", sqlException);
         }
         throw new IllegalStateException("Table cosid_machine has no stable column, which JdbcMachineLeaseStore needs. Add it with: ["
                 + ADD_STABLE_COLUMN_SQL + "] (MySQL) or [" + PostgreSqlDialect.ADD_STABLE_COLUMN_SQL + "] (PostgreSQL).",
@@ -170,7 +170,8 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         }
         throw new IllegalStateException("Table cosid_machine has no lease columns (renew_time, watermark, lease_version), which "
                 + "JdbcMachineLeaseStore needs since 4.0. Add them with: [" + ADD_LEASE_COLUMNS_SQL + "] (MySQL) or ["
-                + PostgreSqlDialect.ADD_LEASE_COLUMNS_SQL + "] (PostgreSQL). 3.4 instances keep working with them.",
+                + PostgreSqlDialect.ADD_LEASE_COLUMNS_SQL + "] (PostgreSQL), or JdbcDialect.getAddLeaseColumnsSql() of your database. "
+                + "3.4 instances keep working with them.",
             sqlException);
     }
     

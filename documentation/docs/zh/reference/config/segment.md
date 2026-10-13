@@ -30,7 +30,7 @@
 | `distributor.mongo.timeout` | `Duration` | `5s` | `mongo`：每次操作（驱动的 `timeoutMS`）；`0` 表示不限制 |
 | `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`：每次 `nextMaxId`；`0` 表示不限制 |
 
-PostgreSQL 语句见 [JDBC](../../guide/backends/jdbc.md#postgresql)。`cosid.segment.distributor.provider` 已在 4.0 移除：请改为把 `distributor.type` 设置为 Provider 的类型。
+语句随数据库而定：见 [JDBC：数据库](../../guide/backends/jdbc.md#数据库)。`cosid.segment.distributor.provider` 已在 4.0 移除：请改为把 `distributor.type` 设置为 Provider 的类型。
 
 ## 号段链
 

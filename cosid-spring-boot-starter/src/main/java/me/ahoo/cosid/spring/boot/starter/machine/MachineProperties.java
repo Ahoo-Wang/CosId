@@ -707,7 +707,8 @@ public class MachineProperties {
      * <p>This configuration controls the automatic initialization of the
      * {@code cosid_machine} table (and its indexes) at startup, and allows
      * overriding the default DDL statements used by
-     * {@link JdbcMachineIdInitializer}.</p>
+     * {@link JdbcMachineIdInitializer}. With auto-initialization on, a DDL statement left at its default (MySQL)
+     * follows the database product: PostgreSQL, H2 and SQL Server get their own ({@code me.ahoo.cosid.jdbc.JdbcDialect}).</p>
      */
     public static class Jdbc {
         /**
@@ -744,7 +745,7 @@ public class MachineProperties {
 
         /**
          * Query returning the database server's current time in milliseconds, for the machine id lease store.
-         * Default is chosen from the database product (PostgreSQL, MySQL or MariaDB); other databases must set it.
+         * Default is chosen from the database product (MySQL, MariaDB, PostgreSQL, H2 or SQL Server); other databases must set it.
          */
         @Nullable
         private String serverTimeSql;

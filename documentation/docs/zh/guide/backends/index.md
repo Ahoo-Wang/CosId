@@ -7,7 +7,7 @@ CosId 需要存储来做两件事：保存[号段 ID](../concepts/segment.md) �
 | 后端 | `type` | 模块 | 号段 | 机器号 | 租约时钟 | 适用场景 |
 |------|--------|------|:----:|:------:|----------|----------|
 | [Redis](./redis.md) | `redis` | `cosid-spring-redis` + Spring Data Redis | 是 | 是 | Redis 服务器 | 已在运行开启了持久化的 Redis。号段的默认存储 |
-| [JDBC](./jdbc.md) | `jdbc` | `cosid-jdbc` + `DataSource` | 是 | 是 | 数据库服务器 | 使用 MySQL、MariaDB 或 PostgreSQL，希望计数器保存在数据库中 |
+| [JDBC](./jdbc.md) | `jdbc` | `cosid-jdbc` + `DataSource` | 是 | 是 | 数据库服务器 | 使用 MySQL、MariaDB、PostgreSQL、H2 或 SQL Server，希望计数器保存在数据库中 |
 | [MongoDB](./mongo.md) | `mongo` | `cosid-mongo` + Spring Data MongoDB | 是 | 是 | MongoDB 服务器 | 已在运行 MongoDB |
 | [ZooKeeper](./zookeeper.md) | `zookeeper` | `cosid-zookeeper`（Curator） | 是 | 是 | 主机时钟 | 已在运行 ZooKeeper，并保持各主机时钟同步 |
 | [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy`（CoApi 可选） | 是 | 是 | Proxy 所用存储 | 应用不能直接访问存储 |

@@ -29,7 +29,7 @@ The stable flag protects a machine id only once every instance runs 3.3 or later
 | `distributor.jdbc.init-cos-id-machine-table-sql` | `String` | MySQL DDL | `jdbc`: the table DDL |
 | `distributor.jdbc.init-namespace-idx-sql`, `init-instance-id-idx-sql` | `String` | empty | `jdbc`: separate index DDL, skipped when empty (the MySQL DDL declares the indexes inline) |
 | `distributor.jdbc.query-timeout` | `Duration` | `5s` | `jdbc`: each statement; `0` disables it |
-| `distributor.jdbc.server-time-sql` | `String` | detected | `jdbc`: the query for the database clock in epoch milliseconds. Unset, the starter picks it for MySQL, MariaDB and PostgreSQL; other databases must set it |
+| `distributor.jdbc.server-time-sql` | `String` | detected | `jdbc`: the query for the database clock in epoch milliseconds. Unset, the starter picks it for MySQL, MariaDB, PostgreSQL, H2 and SQL Server; other databases must set it |
 | `distributor.mongo.database` | `String` | `cosid_db` | `mongo`: database of the `cosid_machine` collection |
 | `distributor.mongo.timeout` | `Duration` | `5s` | `mongo`: each operation (driver `timeoutMS`); must be positive |
 | `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`: lease renewal and release (Curator has no per-operation timeout); must be positive |

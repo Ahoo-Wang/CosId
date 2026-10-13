@@ -13,15 +13,18 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
+import me.ahoo.cosid.jdbc.JdbcDialect;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributorFactory;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.jdbc.JdbcDialectDetector;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnSegmentStoreType;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -45,17 +48,25 @@ import javax.sql.DataSource;
 public class CosIdJdbcSegmentAutoConfiguration {
 
     private final SegmentIdProperties segmentIdProperties;
+    private @Nullable JdbcDialectDetector detector;
 
     public CosIdJdbcSegmentAutoConfiguration(SegmentIdProperties segmentIdProperties) {
         this.segmentIdProperties = segmentIdProperties;
     }
 
+    /**
+     * The segment table initializer. Statements left at their (MySQL) defaults follow the database product: see
+     * {@link JdbcDialectDetector}.
+     */
     @Bean
     @ConditionalOnMissingBean
     public JdbcIdSegmentInitializer jdbcIdSegmentInitializer(DataSource dataSource) {
         SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
-        JdbcIdSegmentInitializer segmentInitializer = new JdbcIdSegmentInitializer(jdbc.getInitCosidTableSql(), jdbc.getInitIdSegmentSql(), dataSource,
-            jdbc.getQueryTimeout());
+        JdbcDialectDetector detector = detector(dataSource);
+        JdbcIdSegmentInitializer segmentInitializer = new JdbcIdSegmentInitializer(
+            detector.sql(jdbc.getInitCosidTableSql(), JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL, JdbcDialect::getInitCosIdTableSql),
+            detector.sql(jdbc.getInitIdSegmentSql(), JdbcIdSegmentInitializer.INIT_ID_SEGMENT_SQL, JdbcDialect::getInitIdSegmentSql),
+            dataSource, jdbc.getQueryTimeout());
         if (jdbc.isEnableAutoInitCosidTable()) {
             segmentInitializer.tryInitCosIdTable();
         }
@@ -67,8 +78,21 @@ public class CosIdJdbcSegmentAutoConfiguration {
     @ConditionalOnBuiltInSegmentStore
     public IdSegmentDistributorFactory idSegmentDistributorFactory(DataSource dataSource, JdbcIdSegmentInitializer jdbcIdSegmentInitializer) {
         SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
-        return new JdbcIdSegmentDistributorFactory(dataSource, jdbc.isEnableAutoInitIdSegment(), jdbcIdSegmentInitializer, jdbc.getIncrementMaxIdSql(), jdbc.getFetchMaxIdSql(),
+        JdbcDialectDetector detector = detector(dataSource);
+        return new JdbcIdSegmentDistributorFactory(dataSource, jdbc.isEnableAutoInitIdSegment(), jdbcIdSegmentInitializer,
+            detector.sql(jdbc.getIncrementMaxIdSql(), JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcDialect::getIncrementMaxIdSql),
+            detector.sql(jdbc.getFetchMaxIdSql(), JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL, JdbcDialect::getFetchMaxIdSql),
             jdbc.getQueryTimeout(), JdbcIdSegmentDistributor.FetchMode.valueOf(jdbc.getFetchPlan().name()));
+    }
+    
+    /**
+     * One detection for the initializer and the factory of the same {@link DataSource}.
+     */
+    private synchronized JdbcDialectDetector detector(DataSource dataSource) {
+        if (detector == null || detector.getDataSource() != dataSource) {
+            detector = new JdbcDialectDetector(dataSource);
+        }
+        return detector;
     }
 
     /**

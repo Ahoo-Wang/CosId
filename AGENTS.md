@@ -86,7 +86,8 @@ depends on backends. Don't introduce core → backend or backend → starter cyc
   `COSID_TEST_REDIS_URI`, `COSID_TEST_MYSQL_URL`/`_USERNAME`/`_PASSWORD`, `COSID_TEST_POSTGRES_URL`/`_USERNAME`/`_PASSWORD`
   and `COSID_TEST_MONGODB_URI`; without them they start the service with Docker, and are skipped when neither is
   available. CI starts the services in `integration-test.yml` and checks that the contract tests ran. Scope to
-  a unit test class with `--tests` when no backend is at hand.
+  a unit test class with `--tests` when no backend is at hand. The SQL Server tests (`*SqlServer*` in `cosid-jdbc`) run
+  only with `COSID_TEST_SQLSERVER_URL` or `COSID_TEST_SQLSERVER_ENABLED=true` (Testcontainers), in their own CI job.
 - **`-parameters` compiler flag is required** (set root-wide) — Spring Boot needs it for `CosIdEndpoint` parameter names; don't remove it.
 - **Tests open JDK internals:** test JVMs pass `--add-opens=java.base/java.util=ALL-UNNAMED` and `...java.lang=...`. If a
   new test touches JDK internals, the existing flags already cover it.

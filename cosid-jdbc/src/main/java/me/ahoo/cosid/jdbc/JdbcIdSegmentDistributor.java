@@ -21,6 +21,7 @@ import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -56,6 +57,7 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
     private final String fetchMaxIdSql;
     private final int queryTimeoutSeconds;
     private final FetchPlan fetchPlan;
+    private final @Nullable String incrementAndFetchMaxIdSql;
 
     public JdbcIdSegmentDistributor(String namespace, String name, long step, DataSource dataSource) {
         this(namespace, name, step, INCREMENT_MAX_ID_SQL, FETCH_MAX_ID_SQL, dataSource);
@@ -94,6 +96,9 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
         this.dataSource = dataSource;
         this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
         this.fetchPlan = FetchPlan.of(incrementMaxIdSql, fetchMaxIdSql, fetchMode);
+        this.incrementAndFetchMaxIdSql = fetchPlan == FetchPlan.RETURNING
+            ? JdbcDialect.ofSegmentStatements(incrementMaxIdSql, fetchMaxIdSql).map(JdbcDialect::getIncrementAndFetchMaxIdSql).orElseThrow()
+            : null;
     }
     
     /**
@@ -103,8 +108,9 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
      */
     public enum FetchMode {
         /**
-         * The built-in MySQL statements run as {@code last_insert_id} under auto-commit, the PostgreSQL ones as one
-         * {@code update ... returning}; other statements in a transaction.
+         * The built-in MySQL statements run as {@code last_insert_id} under auto-commit, those of the other
+         * {@link JdbcDialect}s as one query ({@link JdbcDialect#getIncrementAndFetchMaxIdSql()}); other statements in a
+         * transaction.
          */
         AUTO,
         /**
@@ -115,7 +121,7 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
     }
     
     /**
-     * How a segment is fetched: the built-in MySQL and PostgreSQL statements take one round-trip under
+     * How a segment is fetched: the built-in statements of a {@link JdbcDialect} take one round-trip under
      * auto-commit; any other statements run in a transaction, the update then the select.
      */
     enum FetchPlan {
@@ -128,13 +134,9 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
         }
         
         static FetchPlan of(String incrementMaxIdSql, String fetchMaxIdSql) {
-            if (sameSql(incrementMaxIdSql, INCREMENT_MAX_ID_SQL) && sameSql(fetchMaxIdSql, FETCH_MAX_ID_SQL)) {
-                return LAST_INSERT_ID;
-            }
-            if (sameSql(incrementMaxIdSql, PostgreSqlDialect.INCREMENT_MAX_ID_SQL) && sameSql(fetchMaxIdSql, PostgreSqlDialect.FETCH_MAX_ID_SQL)) {
-                return RETURNING;
-            }
-            return TRANSACTION;
+            return JdbcDialect.ofSegmentStatements(incrementMaxIdSql, fetchMaxIdSql)
+                .map(dialect -> dialect == JdbcDialect.MYSQL ? LAST_INSERT_ID : dialect.getIncrementAndFetchMaxIdSql() != null ? RETURNING : TRANSACTION)
+                .orElse(TRANSACTION);
         }
         
         /**
@@ -252,7 +254,7 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
     }
     
     private long returning(Connection connection, long step) throws SQLException {
-        try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, PostgreSqlDialect.INCREMENT_AND_FETCH_MAX_ID_SQL, queryTimeoutSeconds)) {
+        try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, incrementAndFetchMaxIdSql, queryTimeoutSeconds)) {
             statement.setLong(1, step);
             statement.setString(2, getNamespacedName());
             try (ResultSet resultSet = statement.executeQuery()) {

@@ -186,12 +186,10 @@ class CosIdProxySegmentAutoConfigurationTest {
     @ExtendWith(OutputCaptureExtension.class)
     void thePlainClientsWarnWhenTheTokenGoesOverPlainHttp(CapturedOutput output) {
         plainRunner()
-            .withPropertyValues(ProxyClientCondition.CLIENT_KEY + "=http-interface")
-            .withBean(me.ahoo.cosid.spring.boot.starter.CosIdProperties.class, () -> {
-                me.ahoo.cosid.spring.boot.starter.CosIdProperties properties = new me.ahoo.cosid.spring.boot.starter.CosIdProperties();
-                properties.getProxy().setHost("http://cosid-proxy:8688").setToken("secret");
-                return properties;
-            })
+            // The bean is bound to the cosid.* properties, which override what the supplier set.
+            .withPropertyValues(ProxyClientCondition.CLIENT_KEY + "=http-interface", "cosid.proxy.host=http://cosid-proxy:8688",
+                "cosid.proxy.token=secret")
+            .withBean(me.ahoo.cosid.spring.boot.starter.CosIdProperties.class, me.ahoo.cosid.spring.boot.starter.CosIdProperties::new)
             .run(context -> assertThat(context).hasNotFailed().hasBean("cosIdProxySegmentClient"));
         assertThat(output.getOut()).contains("[cosid.proxy.host:http://cosid-proxy:8688] is plain http");
     }

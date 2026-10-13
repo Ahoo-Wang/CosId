@@ -13,16 +13,11 @@
 
 package me.ahoo.cosid.mongo;
 
-import static me.ahoo.cosid.mongo.IdSegmentOperates.ensureOffsetUpdates;
-import static me.ahoo.cosid.mongo.IdSegmentOperates.incrementAndGetUpdates;
-
 import me.ahoo.cosid.internal.Checks;
 
-import com.mongodb.ErrorCategory;
-import com.mongodb.MongoWriteException;
+import com.mongodb.MongoCommandException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.UpdateOptions;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 
@@ -30,38 +25,40 @@ import java.util.Objects;
 
 @Slf4j
 public class MongoIdSegmentCollection implements IdSegmentCollection {
+    private static final int DUPLICATE_KEY = 11000;
     private final MongoCollection<Document> cosidCollection;
 
     public MongoIdSegmentCollection(MongoCollection<Document> cosidCollection) {
         this.cosidCollection = cosidCollection;
     }
 
+    /**
+     * One {@code findOneAndUpdate} with upsert: creates the segment at {@code offset} when missing, adds {@code step} and
+     * stamps the server's time.
+     */
     @Override
     public long incrementAndGet(String namespacedName, long offset, long step) {
-        ensureOffset(namespacedName, offset);
-        Document afterDoc = cosidCollection.findOneAndUpdate(
-            Filters.eq(Documents.ID_FIELD, namespacedName),
-            incrementAndGetUpdates(step),
-            Documents.UPDATE_UPSERT_AFTER_OPTIONS);
+        Document afterDoc;
+        try {
+            afterDoc = fetch(namespacedName, offset, step);
+        } catch (MongoCommandException mongoCommandException) {
+            // Two first fetches at once: the other upsert created the document. The server retries this itself since
+            // 4.2; once more here covers the rest.
+            if (mongoCommandException.getErrorCode() != DUPLICATE_KEY) {
+                throw mongoCommandException;
+            }
+            afterDoc = fetch(namespacedName, offset, step);
+        }
 
-        assert afterDoc != null;
         Checks.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
         Long lastMaxId = afterDoc.getLong(IdSegmentOperates.LAST_MAX_ID_FIELD);
         return Objects.requireNonNull(lastMaxId);
     }
 
-    private void ensureOffset(String namespacedName, long offset) {
-        try {
-            cosidCollection.updateOne(
-                Filters.eq(Documents.ID_FIELD, namespacedName),
-                ensureOffsetUpdates(offset),
-                new UpdateOptions().upsert(true)
-            );
-        } catch (MongoWriteException mongoWriteException) {
-            if (mongoWriteException.getError().getCategory() == ErrorCategory.DUPLICATE_KEY) {
-                return;
-            }
-            throw mongoWriteException;
-        }
+    private Document fetch(String namespacedName, long offset, long step) {
+        return cosidCollection.findOneAndUpdate(
+            Filters.eq(Documents.ID_FIELD, namespacedName),
+            IdSegmentOperates.fetchUpdates(offset, step),
+            Documents.UPDATE_UPSERT_AFTER_OPTIONS);
     }
 }

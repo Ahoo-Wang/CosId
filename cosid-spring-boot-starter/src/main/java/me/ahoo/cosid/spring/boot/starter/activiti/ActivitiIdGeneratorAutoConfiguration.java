@@ -21,10 +21,12 @@ import me.ahoo.cosid.spring.boot.starter.EnabledSuffix;
 
 import org.activiti.spring.SpringProcessEngineConfiguration;
 import org.activiti.spring.boot.ProcessEngineConfigurationConfigurer;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 /**
  * Activiti IdGenerator Auto Configuration.
@@ -44,23 +46,33 @@ public class ActivitiIdGeneratorAutoConfiguration {
      * Turns the Activiti id generator off with {@code false}. Default {@code true}.
      */
     public static final String ENABLED_KEY = CosId.COSID_PREFIX + "activiti" + EnabledSuffix.KEY;
+    /**
+     * The id generator of Activiti's ids. Unset, the {@code ActivitiIdGenerator#ID_KEY} system property's, else the shared one.
+     *
+     * @since 4.1.0
+     */
+    public static final String GENERATOR_NAME_KEY = CosId.COSID_PREFIX + "activiti.generator-name";
 
     
     @Bean
-    public ProcessEngineConfigurationConfigurer cosidActivitiProcessEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
-        return new ActivitiIdGeneratorAutoConfiguration.CosIdProcessEngineConfigurationConfigurer(idGeneratorProvider);
+    public ProcessEngineConfigurationConfigurer cosidActivitiProcessEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider,
+                                                                                    Environment environment) {
+        return new ActivitiIdGeneratorAutoConfiguration.CosIdProcessEngineConfigurationConfigurer(idGeneratorProvider, environment.getProperty(GENERATOR_NAME_KEY));
     }
     
     static class CosIdProcessEngineConfigurationConfigurer implements ProcessEngineConfigurationConfigurer {
         private final IdGeneratorProvider idGeneratorProvider;
+        private final @Nullable String generatorName;
 
-        CosIdProcessEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider) {
+        CosIdProcessEngineConfigurationConfigurer(IdGeneratorProvider idGeneratorProvider, @Nullable String generatorName) {
             this.idGeneratorProvider = idGeneratorProvider;
+            this.generatorName = generatorName;
         }
 
         @Override
         public void configure(SpringProcessEngineConfiguration engineConfiguration) {
-            engineConfiguration.setIdGenerator(new ActivitiIdGenerator(idGeneratorProvider));
+            engineConfiguration.setIdGenerator(generatorName == null || generatorName.isBlank()
+                ? new ActivitiIdGenerator(idGeneratorProvider) : new ActivitiIdGenerator(generatorName, idGeneratorProvider));
         }
     }
 }

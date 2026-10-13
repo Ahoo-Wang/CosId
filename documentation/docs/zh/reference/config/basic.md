@@ -67,6 +67,7 @@ cosid:
 | `cosid.jdbc.enabled` | `false`（3.x 为 `true`） | Spring Data JDBC 集成：`@Id` 字段解析器和转换前回调。`@Id` 解析器会加入全局字段解析器，因此也作用于 MyBatis 等其他路径。关闭时，启动日志会以 INFO 级别列出带 `@Id` 属性或 `@CosId` 字段、CosId 不会填充的 Spring Data JDBC 实体 |
 | `cosid.flowable.enabled` | `true` | Flowable ID 生成器 |
 | `cosid.activiti.enabled` | `true` | Activiti ID 生成器 |
+| `cosid.activiti.generator-name`、`cosid.flowable.generator-name`、`cosid.axon.generator-name` | 系统属性 `cosid.activiti`、`cosid.flowable`、`cosid.axon`，否则为共享生成器 | 各集成使用的 ID 生成器 |
 | `cosid.actuator.delete.enabled` | `false`（3.x 为 `true`） | `cosid` actuator 端点的 `DELETE` 操作，可在运行时删除 ID 生成器 |
 
 ## Actuator 端点

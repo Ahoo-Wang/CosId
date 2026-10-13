@@ -51,6 +51,21 @@
       "type": "java.lang.Boolean",
       "description": "Whether CosId provides the Activiti id generator.",
       "defaultValue": true
+    },
+    {
+      "name": "cosid.activiti.generator-name",
+      "type": "java.lang.String",
+      "description": "The id generator of Activiti's ids. Unset, the cosid.activiti system property's, else the shared generator."
+    },
+    {
+      "name": "cosid.flowable.generator-name",
+      "type": "java.lang.String",
+      "description": "The id generator of Flowable's ids. Unset, the cosid.flowable system property's, else the shared generator."
+    },
+    {
+      "name": "cosid.axon.generator-name",
+      "type": "java.lang.String",
+      "description": "The id generator of Axon's identifiers. Unset, the cosid.axon system property's, else the shared generator."
     }
   ],
   "hints": [

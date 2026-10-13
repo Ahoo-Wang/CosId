@@ -60,4 +60,30 @@ class CosIdAxonAutoConfigurationTest {
             .withClassLoader(new FilteredClassLoader(CosIdIdentifierFactory.class))
             .run(context -> assertThat(context).doesNotHaveBean(CosIdAxonAutoConfiguration.CosIdAxonProviderBinding.class));
     }
+    
+    @Test
+    void usesTheConfiguredGeneratorName() {
+        this.contextRunner
+            .withPropertyValues(CosIdAutoConfiguration.PROVIDER_ISOLATED_KEY + "=true", CosIdAxonAutoConfiguration.GENERATOR_NAME_KEY + "=event")
+            .run(context -> {
+                IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
+                provider.setShare(MockIdGenerator.usePrefix("share_"));
+                provider.set("event", MockIdGenerator.usePrefix("event_"));
+                
+                assertThat(new CosIdIdentifierFactory().generateIdentifier()).startsWith("event_");
+            });
+    }
+    
+    @Test
+    void usesTheSharedGeneratorWhenNoNameIsConfigured() {
+        this.contextRunner
+            .withPropertyValues(CosIdAutoConfiguration.PROVIDER_ISOLATED_KEY + "=true")
+            .run(context -> {
+                IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
+                provider.setShare(MockIdGenerator.usePrefix("share_"));
+                provider.set("event", MockIdGenerator.usePrefix("event_"));
+                
+                assertThat(new CosIdIdentifierFactory().generateIdentifier()).startsWith("share_");
+            });
+    }
 }

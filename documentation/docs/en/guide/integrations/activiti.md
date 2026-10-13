@@ -24,5 +24,13 @@ _Activiti module_ provides `CosId` support for `Activiti`, implementing _Activit
 
 By default `ActivitiIdGenerator` will get the ID generator named `__share__` from the *ID generator container* (`IdGeneratorProvider`).
 
-Developers can also customize the ID generator name through the system property `cosid.activiti`.
+To use another ID generator than the shared one, name it in the configuration (since 4.1):
+
+```yaml
+cosid:
+  activiti:
+    generator-name: bpm
+```
+
+Without the starter, or when `cosid.activiti.generator-name` is unset, the system property `cosid.activiti` names it.
 

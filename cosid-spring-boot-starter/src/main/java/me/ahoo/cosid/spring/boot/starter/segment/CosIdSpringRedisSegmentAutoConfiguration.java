@@ -19,6 +19,7 @@ import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnSegmentStoreType;
 import me.ahoo.cosid.spring.redis.RedisCommandTimeout;
+import me.ahoo.cosid.spring.redis.RedisReplicaWait;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributor;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributorFactory;
 
@@ -29,6 +30,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.StringRedisTemplate;
+
+import java.time.Duration;
 
 /**
  * CosId Spring Redis Segment AutoConfiguration.
@@ -53,8 +56,10 @@ public class CosIdSpringRedisSegmentAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnBuiltInSegmentStore
     public IdSegmentDistributorFactory idSegmentDistributorFactory(StringRedisTemplate stringRedisTemplate) {
-        RedisCommandTimeout commandTimeout = RedisCommandTimeout.of(segmentIdProperties.getDistributor().getRedis().getTimeout());
-        return new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate, commandTimeout);
+        SegmentIdProperties.Distributor.Redis redis = segmentIdProperties.getDistributor().getRedis();
+        RedisCommandTimeout commandTimeout = RedisCommandTimeout.of(redis.getTimeout());
+        return new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate, commandTimeout,
+            replicaWait(redis.getWaitReplicas(), redis.getWaitTimeout(), commandTimeout, SegmentIdProperties.PREFIX + ".distributor.redis"));
     }
 
     /**
@@ -63,5 +68,18 @@ public class CosIdSpringRedisSegmentAutoConfiguration {
     @Bean
     public BuiltInStoreProvider cosIdRedisSegmentStoreProvider(ObjectProvider<StringRedisTemplate> stringRedisTemplate) {
         return BuiltInStoreProvider.segment("redis", context -> idSegmentDistributorFactory(stringRedisTemplate.getObject()));
+    }
+    
+    /**
+     * The replica wait of {@code prefix.wait-replicas} and {@code prefix.wait-timeout}, which must end before the command
+     * timeout that bounds it.
+     */
+    static RedisReplicaWait replicaWait(int replicas, Duration waitTimeout, RedisCommandTimeout commandTimeout, String prefix) {
+        RedisReplicaWait replicaWait = RedisReplicaWait.of(replicas, waitTimeout);
+        if (replicaWait.isEnabled() && commandTimeout.isEnabled() && replicaWait.getTimeout().compareTo(commandTimeout.getTimeout()) >= 0) {
+            throw new IllegalStateException(prefix + ".wait-timeout [" + waitTimeout + "] must be shorter than " + prefix + ".timeout ["
+                + commandTimeout.getTimeout() + "], which bounds the write and its wait.");
+        }
+        return replicaWait;
     }
 }

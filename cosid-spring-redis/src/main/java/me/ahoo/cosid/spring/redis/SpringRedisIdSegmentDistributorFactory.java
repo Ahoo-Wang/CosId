@@ -30,14 +30,35 @@ public class SpringRedisIdSegmentDistributorFactory implements IdSegmentDistribu
     
     private final StringRedisTemplate redisTemplate;
     private final RedisCommandTimeout commandTimeout;
+    private final RedisReplicaWait replicaWait;
     
     public SpringRedisIdSegmentDistributorFactory(StringRedisTemplate redisTemplate) {
         this(redisTemplate, RedisCommandTimeout.NONE);
     }
     
     public SpringRedisIdSegmentDistributorFactory(StringRedisTemplate redisTemplate, RedisCommandTimeout commandTimeout) {
+        this(redisTemplate, commandTimeout, RedisReplicaWait.NONE);
+    }
+    
+    /**
+     * Create the factory.
+     *
+     * @param replicaWait the replicas each increment waits for
+     * @since 4.1.0
+     */
+    public SpringRedisIdSegmentDistributorFactory(StringRedisTemplate redisTemplate, RedisCommandTimeout commandTimeout, RedisReplicaWait replicaWait) {
         this.redisTemplate = redisTemplate;
         this.commandTimeout = commandTimeout;
+        this.replicaWait = replicaWait;
+    }
+    
+    /**
+     * The replicas each increment waits for.
+     *
+     * @since 4.1.0
+     */
+    public RedisReplicaWait getReplicaWait() {
+        return replicaWait;
     }
     
     public RedisCommandTimeout getCommandTimeout() {
@@ -52,7 +73,8 @@ public class SpringRedisIdSegmentDistributorFactory implements IdSegmentDistribu
             definition.getOffset(),
             definition.getStep(),
             redisTemplate,
-            commandTimeout);
+            commandTimeout,
+            replicaWait);
         springRedisIdSegmentDistributor.ensureOffset();
         return springRedisIdSegmentDistributor;
     }

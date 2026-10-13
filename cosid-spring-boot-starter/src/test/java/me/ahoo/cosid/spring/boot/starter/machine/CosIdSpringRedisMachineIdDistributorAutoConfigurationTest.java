@@ -20,6 +20,7 @@ import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.lease.LeaseStoreMachineIdDistributor;
+import me.ahoo.cosid.spring.redis.RedisReplicaWait;
 import me.ahoo.cosid.spring.redis.SpringRedisMachineLeaseStore;
 
 import org.junit.jupiter.api.Test;
@@ -143,5 +144,25 @@ class CosIdSpringRedisMachineIdDistributorAutoConfigurationTest {
             .run(context -> assertThat(context)
                 .doesNotHaveBean(CosIdSpringRedisMachineIdDistributorAutoConfiguration.class)
                 .doesNotHaveBean(LeaseStoreMachineIdDistributor.class));
+    }
+    
+    @Test
+    void wiresTheReplicaWaitToClaimsAndRenewals() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.Distributor.TYPE + "=redis",
+                MachineProperties.PREFIX + ".distributor.redis.wait-replicas=1")
+            .run(context -> {
+                RedisReplicaWait replicaWait = context.getBean(SpringRedisMachineLeaseStore.class).getReplicaWait();
+                assertThat(replicaWait.getReplicas()).isEqualTo(1);
+                assertThat(replicaWait.getTimeout()).isEqualTo(java.time.Duration.ofMillis(500));
+            });
+    }
+    
+    @Test
+    void aWaitTimeoutNotShorterThanTheTimeoutFailsStartup() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.Distributor.TYPE + "=redis",
+                MachineProperties.PREFIX + ".distributor.redis.wait-replicas=1", MachineProperties.PREFIX + ".distributor.redis.wait-timeout=2s")
+            .run(context -> assertThat(context).getFailure().rootCause().hasMessageContaining("cosid.machine.distributor.redis.wait-timeout"));
     }
 }

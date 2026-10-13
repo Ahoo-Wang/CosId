@@ -7,6 +7,7 @@
 | `cosid.enabled` | `boolean` | `true` | 为 `false` 时关闭整个 Starter |
 | `cosid.namespace` | `String` | `cosid` | 在同一个存储中把一个应用的计数器和机器号与其他应用隔离。建议设置为应用名：`${spring.application.name}` |
 | `cosid.provider.isolated` | `boolean` | `false` | `false`：`IdGeneratorProvider` Bean 就是 `DefaultIdGeneratorProvider.INSTANCE`。`true`：每个 `ApplicationContext` 拥有自己的容器，并在上下文关闭时清空，生成器不会在上下文之间共享（devtools 重启、缓存的测试上下文）；此时 `INSTANCE` 不再持有 Spring 注册的生成器 |
+| `cosid.max-concurrent-calls` | `int` | `64` | JVM 内同时进行的带超时存储调用（ZooKeeper、Redis）的上限，所有存储共享。超出时调用立即失败并抛出 `CallRejectedException`，不会在卡住的存储后面堆积线程 |
 
 各生成器有自己的配置页：[机器号](./machine.md)（`cosid.machine`）、[SnowflakeId](./snowflake.md)（`cosid.snowflake`）、[SegmentId](./segment.md)（`cosid.segment`）和 [CosIdGenerator](./cosid-generator.md)（`cosid.generator`）。后端属性见 [ZooKeeper](./zookeeper.md)、[Proxy](./proxy.md) 配置页以及各后端指南。
 

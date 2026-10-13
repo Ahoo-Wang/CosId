@@ -31,6 +31,8 @@ Use `--network` (or `--link redis`) so that the container can reach Redis, and a
 
 The server refuses to start without a token, see [Authentication](#authentication).
 
+Point container and orchestrator health checks at `/actuator/health/liveness`, as the image's `HEALTHCHECK` does: it answers without asking the store. `/actuator/health` includes the store, so it reports `DOWN` while the store is down and can wait as long as the store's health check when the store hangs: use it for alerts. The default `/actuator/health/readiness` group does not include the store either.
+
 The image includes the drivers of every store: Redis, MySQL, PostgreSQL, MongoDB and ZooKeeper. Redis is configured by default; `DataSourceAutoConfiguration` and `MongoAutoConfiguration` are in `spring.autoconfigure.exclude`, so that an unused store does not show up in the health check. To use another store, set the exclusions so that only the chosen store is configured: otherwise the health check reports the unused Redis as `DOWN`, the status is `DOWN` and the container is marked unhealthy. For PostgreSQL:
 
 ```shell

@@ -23,6 +23,7 @@ import me.ahoo.cosid.accessor.registry.DefaultAccessorRegistry;
 import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.util.CallTimeout;
 
 import org.springframework.beans.factory.SmartInitializingSingleton;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -60,6 +61,15 @@ public class CosIdAutoConfiguration {
      * Property that switches the provider bean to one isolated per application context.
      */
     public static final String PROVIDER_ISOLATED_KEY = CosId.COSID_PREFIX + "provider.isolated";
+    
+    /**
+     * Applies {@code cosid.max-concurrent-calls}, a JVM-wide limit shared by every backend.
+     *
+     * @param cosIdProperties the CosId properties
+     */
+    public CosIdAutoConfiguration(CosIdProperties cosIdProperties) {
+        CallTimeout.setMaxConcurrentCalls(cosIdProperties.getMaxConcurrentCalls());
+    }
 
     /**
      * Provides the shared ID generator provider (default).

@@ -28,6 +28,7 @@ import java.util.List;
 public class ErrorResponse {
     
     public static final String BAD_REQUEST = "400";
+    public static final String SERVICE_UNAVAILABLE = "503";
     public static final String MACHINE_ID_OVERFLOW = "M-01";
     public static final String NOT_FOUND_MACHINE_STATE = "M-02";
     public static final String MACHINE_ID_LOST = "M-03";
@@ -72,6 +73,10 @@ public class ErrorResponse {
     
     public static ErrorResponse unknown(String msg) {
         return of("500", msg);
+    }
+    
+    public static ErrorResponse serviceUnavailable(String msg) {
+        return of(SERVICE_UNAVAILABLE, msg);
     }
     
     public static ErrorResponse badRequest(String msg) {

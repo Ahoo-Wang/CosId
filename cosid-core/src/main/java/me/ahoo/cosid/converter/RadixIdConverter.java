@@ -215,6 +215,9 @@ public abstract class RadixIdConverter implements IdConverter {
 
     @Override
     public long asLong(@NonNull String idString) {
+        if (idString.isEmpty()) {
+            throw new NumberFormatException("For input string: [] - an empty string is not an id!");
+        }
         char firstChar = idString.charAt(0);
         if (firstChar < ZERO) {
             throw new NumberFormatException(Checks.lenientFormat("For input string: [%s]!", idString));

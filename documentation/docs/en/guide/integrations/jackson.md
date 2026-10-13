@@ -70,3 +70,15 @@ public class AsStringDto {
 }
 ```
 
+
+## Reading ids
+
+`@AsString` fields accept, by JSON type:
+
+| JSON | Result |
+|------|--------|
+| a string | converted with the field's converter (to-string, radix or friendly id) |
+| a number, such as `123` | the id itself. Before 4.1 it was read as the string `"123"`, which for a radix field is a different id |
+| `null` or `""` | `null` |
+| a string the converter cannot read | `InvalidFormatException`, which Spring MVC and WebFlux answer with `400` |
+| any other type (a decimal, a boolean) | `MismatchedInputException`, also `400` |

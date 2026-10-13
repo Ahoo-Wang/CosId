@@ -69,3 +69,15 @@ public class AsStringDto {
 }
 ```
 
+
+## 读取 ID
+
+`@AsString` 字段按 JSON 类型接受：
+
+| JSON | 结果 |
+|------|------|
+| 字符串 | 用字段的转换器转换（to-string、radix 或 friendly id） |
+| 数字，例如 `123` | 就是 ID 本身。4.1 之前会被当作字符串 `"123"` 读取，对 radix 字段来说是另一个 ID |
+| `null` 或 `""` | `null` |
+| 转换器无法读取的字符串 | `InvalidFormatException`，Spring MVC 和 WebFlux 返回 `400` |
+| 其他类型（小数、布尔值） | `MismatchedInputException`，同样返回 `400` |

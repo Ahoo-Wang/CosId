@@ -40,7 +40,7 @@ public interface IdConverter {
 |--------|------|------|
 | `PrefixIdConverter` | `prefix: BIZ-` | `BIZ-12345` |
 | `SuffixIdConverter` | `suffix: -BIZ` | `12345-BIZ` |
-| `DatePrefixIdConverter` | `date-prefix.enabled: true`、`pattern`（默认 `yyMMdd`）、`delimiter`（默认 `-`） | `260101-12345`，生成时的日期 |
+| `DatePrefixIdConverter` | `date-prefix.enabled: true`、`pattern`（默认 `yyMMdd`）、`delimiter`（默认 `-`） | `260101-12345`，生成时的日期。日期长度会变化的模式（`M`、`d` 等单字母字段，或随语言环境变化的文本月份）需要非空的 `delimiter`：没有分隔符时无法确定 ID 从哪里开始，启动时会打印警告 |
 | `GroupedPrefixIdConverter` | `group-prefix.enabled: true`、`delimiter`（默认 `-`） | `20260101-12345`，分组号段 ID 的[分组](./segment.md#分组号段) |
 
 分组前缀需要分组号段 ID（`group.by`）：在没有分组的生成器上启用它，Starter 会在启动时失败；不带分组调用 `asString(long)` 会抛出 `UnsupportedOperationException`。

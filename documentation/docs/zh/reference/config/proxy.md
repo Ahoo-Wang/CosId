@@ -33,7 +33,7 @@ Proxy 的工作方式和部署方法见 [CosId Proxy](../../guide/backends/proxy
 
 超出限制的请求返回 `400`；没有有效令牌的请求返回 `401`；请求令牌或服务端不允许的命名空间返回 `403`；超出上限的新号段分发器返回 `429`。
 
-命名空间取自机器号 API（v1 和 v2）和号段 API 的路径。`/ids` 使用服务端自己的命名空间，需要 `tokens` 中的令牌。存储以 `namespace.name` 作为号段的键，因此受限令牌（以及设置了 `cosid.proxy.server.namespaces` 时的所有令牌）不能使用包含点号的号段名称：`/segments/a/b.c` 会访问命名空间 `a.b` 的计数器 `c`。同理，如果一个命名空间的名称是另一个命名空间的前缀，请不要在其中使用包含点号的号段名称。
+命名空间取自机器号 API（v1 和 v2）和号段 API 的路径。`/ids` 使用服务端自己的命名空间，需要 `tokens` 中的令牌。存储以 `namespace.name` 作为号段的键，因此受限令牌（以及设置了 `cosid.proxy.server.namespaces` 时的所有令牌）不能使用包含点号的号段名称：`/segments/a/b.c` 会访问命名空间 `a.b` 的计数器 `c`。同理，`auth.clients` 和 `cosid.proxy.server.namespaces` 中的命名空间不能包含点号，否则启动失败。同理，如果一个命名空间的名称是另一个命名空间的前缀，请不要在其中使用包含点号的号段名称。
 
 ```yaml
 cosid:

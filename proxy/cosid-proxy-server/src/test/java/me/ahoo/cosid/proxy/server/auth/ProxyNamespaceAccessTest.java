@@ -13,6 +13,9 @@
 
 package me.ahoo.cosid.proxy.server.auth;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -153,5 +156,15 @@ class ProxyNamespaceAccessTest {
     @Test
     void aWrongTokenIsStillUnauthorized() {
         post(client(List.of()), "wrong", "/machines/order").expectStatus().isUnauthorized();
+    }
+    
+    @Test
+    void dottedNamespacesFailAtStartup() {
+        IllegalArgumentException client = assertThrows(IllegalArgumentException.class, () -> new ProxyAuthWebFilter(List.of(),
+            List.of(new ProxyAuthProperties.Client("a-b-token", List.of("a.b"))), ProxyAuthProperties.DEFAULT_PUBLIC_PATHS, List.of()));
+        assertThat(client.getMessage()).contains("[a.b]").contains("contains '.'");
+        
+        assertThrows(IllegalArgumentException.class, () -> new ProxyAuthWebFilter(List.of("admin-token"), List.of(),
+            ProxyAuthProperties.DEFAULT_PUBLIC_PATHS, List.of("order", "a.b")));
     }
 }

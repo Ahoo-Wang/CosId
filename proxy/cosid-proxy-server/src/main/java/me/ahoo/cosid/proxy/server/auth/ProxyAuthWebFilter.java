@@ -127,15 +127,28 @@ public class ProxyAuthWebFilter implements WebFilter {
         }
     }
     
+    /**
+     * The namespaces of a limit. A dotted namespace is refused: stores key a segment as {@code namespace + "." + name},
+     * so a token limited to {@code a.b} could reach the segment {@code b.y} of namespace {@code a} through
+     * {@code /segments/a.b/y}.
+     */
     private static Set<String> names(@Nullable List<String> namespaces) {
         if (namespaces == null) {
             return Set.of();
         }
-        return namespaces.stream()
+        Set<String> names = namespaces.stream()
             .filter(Objects::nonNull)
             .map(String::trim)
             .filter(namespace -> !namespace.isEmpty())
             .collect(Collectors.toUnmodifiableSet());
+        for (String namespace : names) {
+            if (namespace.indexOf('.') >= 0) {
+                throw new IllegalArgumentException("Namespace [" + namespace + "] in [" + ProxyAuthProperties.PREFIX + ".clients] or ["
+                    + "cosid.proxy.server.namespaces] contains '.': stores key segments as namespace.name, so a dotted namespace "
+                    + "would reach the segments of another namespace. Use a namespace without '.'.");
+            }
+        }
+        return names;
     }
     
     public boolean isEnabled() {

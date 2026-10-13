@@ -33,7 +33,7 @@ Properties of `cosid-proxy-server`, besides the usual `cosid.machine` and `cosid
 
 Requests outside the limits get `400`; requests without a valid token get `401`; requests for a namespace the token or the server does not allow get `403`; a new segment distributor beyond the limit gets `429`.
 
-The namespace is read from the path of the machine API (v1 and v2) and the segment API. `/ids` serves the server's own namespace and needs a token from `tokens`. Stores key a segment as `namespace.name`, so a limited token, and any token when `cosid.proxy.server.namespaces` is set, cannot use segment names containing a dot: `/segments/a/b.c` would reach the counter `c` of namespace `a.b`. For the same reason, avoid dotted segment names in a namespace whose name is a prefix of another namespace.
+The namespace is read from the path of the machine API (v1 and v2) and the segment API. `/ids` serves the server's own namespace and needs a token from `tokens`. Stores key a segment as `namespace.name`, so a limited token, and any token when `cosid.proxy.server.namespaces` is set, cannot use segment names containing a dot: `/segments/a/b.c` would reach the counter `c` of namespace `a.b`. For the same reason, the namespaces of `auth.clients` and `cosid.proxy.server.namespaces` must not contain a dot: startup fails otherwise. For the same reason, avoid dotted segment names in a namespace whose name is a prefix of another namespace.
 
 ```yaml
 cosid:

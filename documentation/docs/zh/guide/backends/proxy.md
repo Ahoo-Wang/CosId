@@ -33,7 +33,7 @@ docker run --name cosid-proxy -d -p 8688:8688 --link redis \
 
 没有令牌时服务端会拒绝启动，见[认证](#认证)。
 
-容器和编排系统的健康检查请使用 `/actuator/health/liveness`（镜像的 `HEALTHCHECK` 就是如此）：它不访问存储即可应答。`/actuator/health` 包含存储，存储故障时为 `DOWN`，存储卡住时会一直等到存储的健康检查返回；它（或 `/actuator/health/readiness`）适合用于告警和负载均衡的就绪检查。
+容器和编排系统的健康检查请使用 `/actuator/health/liveness`（镜像的 `HEALTHCHECK` 就是如此）：它不访问存储即可应答。`/actuator/health` 包含存储，存储故障时为 `DOWN`，存储卡住时会一直等到存储的健康检查返回：适合用于告警。默认的 `/actuator/health/readiness` 分组同样不包含存储。
 
 ## 客户端
 

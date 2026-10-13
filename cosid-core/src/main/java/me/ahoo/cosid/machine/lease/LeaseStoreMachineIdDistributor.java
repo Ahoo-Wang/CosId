@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.machine.lease;
 
+import me.ahoo.cosid.event.CosIdEvents;
 import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
@@ -49,6 +50,7 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
     private final ConcurrentHashMap<NamespacedInstanceId, Lease> leases = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<NamespacedInstanceId, Object> locks = new ConcurrentHashMap<>();
     private final LongSupplier localClock;
+    private final ConcurrentHashMap<NamespacedInstanceId, Long> clockSkews = new ConcurrentHashMap<>();
     
     public LeaseStoreMachineIdDistributor(MachineLeaseStore store, MachineStateStorage machineStateStorage,
                                           ClockBackwardsSynchronizer clockBackwardsSynchronizer) {
@@ -107,6 +109,23 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
     
     @Override
     protected void guardRemote(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
+        try {
+            renewLease(namespace, instanceId, machineState, safeGuardDuration);
+        } catch (RuntimeException renewFailure) {
+            CosIdEvents.listener().onLeaseRenewFailed(namespace, instanceId, renewFailure);
+            throw renewFailure;
+        }
+    }
+    
+    /**
+     * How far this host's clock was ahead of the store's at the last renewal (negative: behind), 0 before any.
+     */
+    @Override
+    public long getClockSkewMillis(String namespace, InstanceId instanceId) {
+        return clockSkews.getOrDefault(new NamespacedInstanceId(namespace, instanceId), 0L);
+    }
+    
+    private void renewLease(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         NamespacedInstanceId key = new NamespacedInstanceId(namespace, instanceId);
         synchronized (lockOf(key)) {
             Lease lease = currentLease(key, machineState).orElseThrow(() -> new MachineIdLostException(namespace, instanceId, machineState));
@@ -126,7 +145,10 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
             }
             leases.put(key, renewed.get());
             // A renewal is to the store's time: comparing it with this host's clock gives the offset between them.
+            long hostAhead = localBefore - renewed.get().getRenewedAt();
+            clockSkews.put(key, hostAhead);
             checkClockSkew(namespace, instanceId, localBefore, renewed.get().getRenewedAt(), safeGuardDuration);
+            CosIdEvents.listener().onLeaseRenewed(namespace, instanceId, renewed.get().getMachineId(), hostAhead);
         }
     }
     

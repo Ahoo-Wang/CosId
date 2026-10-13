@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.machine.lease;
 
+import me.ahoo.cosid.event.CosIdEvents;
+import me.ahoo.cosid.event.LeaseClaim;
 import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
@@ -77,6 +79,7 @@ public class MachineLeaseManager {
     
     private Optional<Lease> claimOnce(String namespace, InstanceId instanceId, int maxMachineId, Duration safeGuardDuration) {
         long now = store.serverTime();
+        LeaseClaim claim = LeaseClaim.SELF;
         Optional<Lease> lease = store.claimSelf(namespace, instanceId, now);
         if (lease.isPresent() && lease.get().getMachineId() > maxMachineId) {
             // Taken with a larger machine bit: give it back and claim one in range.
@@ -87,13 +90,19 @@ public class MachineLeaseManager {
             lease = Optional.empty();
         }
         if (lease.isEmpty()) {
+            claim = LeaseClaim.RELEASED;
             lease = store.claimReleased(namespace, instanceId, maxMachineId, now);
         }
         if (lease.isEmpty()) {
+            claim = LeaseClaim.NEW;
             lease = store.claimNew(namespace, instanceId, maxMachineId, now);
         }
         if (lease.isEmpty() && canTakeOverExpired(instanceId, safeGuardDuration)) {
+            claim = LeaseClaim.EXPIRED;
             lease = store.claimExpired(namespace, instanceId, maxMachineId, now - safeGuardDuration.toMillis(), now);
+        }
+        if (lease.isPresent()) {
+            CosIdEvents.listener().onLeaseAcquired(namespace, instanceId, lease.get().getMachineId(), claim);
         }
         return lease;
     }

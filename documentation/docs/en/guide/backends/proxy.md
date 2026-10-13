@@ -31,7 +31,7 @@ Use `--network` (or `--link redis`) so that the container can reach Redis, and a
 
 The server refuses to start without a token, see [Authentication](#authentication).
 
-Point container and orchestrator health checks at `/actuator/health/liveness`, as the image's `HEALTHCHECK` does: it answers without asking the store. `/actuator/health` includes the store, so it reports `DOWN` while the store is down and can wait as long as the store's health check when the store hangs; use it, or `/actuator/health/readiness`, for alerts and load balancer readiness.
+Point container and orchestrator health checks at `/actuator/health/liveness`, as the image's `HEALTHCHECK` does: it answers without asking the store. `/actuator/health` includes the store, so it reports `DOWN` while the store is down and can wait as long as the store's health check when the store hangs: use it for alerts. The default `/actuator/health/readiness` group does not include the store either.
 
 ## Client
 

@@ -15,6 +15,7 @@ package me.ahoo.cosid.segment;
 
 import static me.ahoo.cosid.segment.IdSegment.TIME_TO_LIVE_FOREVER;
 
+import me.ahoo.cosid.event.CosIdEvents;
 import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.concurrent.AffinityJob;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorker;
@@ -321,7 +322,8 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
      * @return The next segment chain
      */
     private IdSegmentChain generateNext(IdSegmentChain previousChain, int segments) {
-        return maxIdDistributor.nextIdSegmentChain(previousChain, segments, idSegmentTtl);
+        return SegmentFetchEvents.timed(maxIdDistributor.getNamespacedName(),
+            () -> maxIdDistributor.nextIdSegmentChain(previousChain, segments, idSegmentTtl));
     }
 
     /**
@@ -561,6 +563,9 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             final int prePrefetchDistance = this.prefetchDistance;
             if (hunger) {
                 this.prefetchDistance = (int) Math.min(2L * this.prefetchDistance, maxPrefetchDistance);
+                if (prePrefetchDistance != this.prefetchDistance) {
+                    CosIdEvents.listener().onPrefetchExpansion(maxIdDistributor.getNamespacedName(), prePrefetchDistance, this.prefetchDistance);
+                }
                 if (log.isInfoEnabled()) {
                     log.info("Prefetch [{}] - Hunger, Safety distance expansion.[{}->{}]", maxIdDistributor.getNamespacedName(), prePrefetchDistance, this.prefetchDistance);
                 }
@@ -629,6 +634,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
                     log.warn("AppendChain [{}] - gave up this next IdSegmentChain.", maxIdDistributor.getNamespacedName(), nextIdSegmentExpiredException);
                 }
             } catch (RuntimeException prefetchException) {
+                CosIdEvents.listener().onPrefetchFailure(maxIdDistributor.getNamespacedName(), prefetchException);
                 if (!failing) {
                     failing = true;
                     if (log.isErrorEnabled()) {

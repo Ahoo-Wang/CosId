@@ -156,6 +156,16 @@ public interface MachineIdDistributor extends MachineIdDistribute {
      * @throws MachineIdLostException        if the machine ID has been lost or reallocated
      */
     void guard(String namespace, InstanceId instanceId, Duration safeGuardDuration) throws NotFoundMachineStateException, MachineIdLostException;
+    
+    /**
+     * How far this host's clock was ahead of the machine id store's at the last guard (negative: behind).
+     *
+     * @return 0 when unknown, such as for a store without its own clock
+     * @since 4.1.0
+     */
+    default long getClockSkewMillis(String namespace, InstanceId instanceId) {
+        return 0;
+    }
 
     /**
      * Record the current time as the last timestamp of the local machine state, without contacting the remote store.

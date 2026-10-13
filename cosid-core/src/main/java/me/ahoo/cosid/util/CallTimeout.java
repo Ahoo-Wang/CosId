@@ -14,6 +14,7 @@
 package me.ahoo.cosid.util;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.event.CosIdEvents;
 import me.ahoo.cosid.internal.Checks;
 
 import java.time.Duration;
@@ -137,13 +138,19 @@ public final class CallTimeout {
         try {
             future = EXECUTOR.submit(call);
         } catch (RejectedExecutionException rejectedExecutionException) {
+<<<<<<< HEAD
             throw new CallRejectedException("Too many calls in flight (max " + getMaxConcurrentCalls() + "), rejected [" + operation + "].",
+=======
+            CosIdEvents.listener().onCallRejected(operation);
+            throw new CosIdException("Too many calls in flight (max " + MAX_CONCURRENT_CALLS + "), rejected [" + operation + "].",
+>>>>>>> origin/main
                 rejectedExecutionException);
         }
         try {
             return future.get(timeout.toNanos(), TimeUnit.NANOSECONDS);
         } catch (TimeoutException timeoutException) {
             future.cancel(true);
+            CosIdEvents.listener().onCallTimeout(operation, timeout);
             throw timeoutExceptionFactory.apply(operation, timeoutException);
         } catch (InterruptedException interruptedException) {
             future.cancel(true);

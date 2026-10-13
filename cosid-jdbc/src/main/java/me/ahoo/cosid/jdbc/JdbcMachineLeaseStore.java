@@ -16,13 +16,11 @@ package me.ahoo.cosid.jdbc;
 import static me.ahoo.cosid.machine.MachineIdDistributor.namespacedMachineId;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.lease.Lease;
 import me.ahoo.cosid.machine.lease.MachineLeaseStore;
 
-import com.google.common.base.Preconditions;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -31,6 +29,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import javax.sql.DataSource;
 
 /**
  * {@link MachineLeaseStore} on the {@code cosid_machine} table, with conditional updates on
@@ -136,9 +135,9 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
      * @param serverTimeSql a query returning the database server's current time in milliseconds
      */
     public JdbcMachineLeaseStore(DataSource dataSource, Duration queryTimeout, String serverTimeSql) {
-        this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource can not be null!");
+        this.dataSource = Checks.checkNotNull(dataSource, "dataSource can not be null!");
         this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
-        Preconditions.checkArgument(serverTimeSql != null && !serverTimeSql.isBlank(), "serverTimeSql can not be blank!");
+        Checks.checkArgument(serverTimeSql != null && !serverTimeSql.isBlank(), "serverTimeSql can not be blank!");
         this.serverTimeSql = serverTimeSql;
         checkStableColumn();
         checkLeaseColumns();
@@ -432,7 +431,7 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         return execute(connection -> {
             try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, serverTimeSql, queryTimeoutSeconds);
                  ResultSet resultSet = statement.executeQuery()) {
-                Preconditions.checkState(resultSet.next(), "serverTimeSql:[%s] returned no row!", serverTimeSql);
+                Checks.checkState(resultSet.next(), "serverTimeSql:[%s] returned no row!", serverTimeSql);
                 return resultSet.getLong(1);
             }
         });

@@ -38,7 +38,7 @@ public class UncertaintyIdGenerator implements IdGeneratorDecorator {
     private final long maxOriginalId;
     
     public UncertaintyIdGenerator(IdGenerator actual, int uncertaintyBits) {
-        Checks.checkArgument(uncertaintyBits > 0 && uncertaintyBits < SnowflakeId.TOTAL_BIT, "uncertaintyBits[%s] must be greater than 0 and less than 63.");
+        Checks.checkArgument(uncertaintyBits > 0 && uncertaintyBits < SnowflakeId.TOTAL_BIT, "uncertaintyBits[%s] must be greater than 0 and less than 63.", uncertaintyBits);
         this.actual = actual;
         this.uncertaintyBits = uncertaintyBits;
         this.originalIdBits = SnowflakeId.TOTAL_BIT - uncertaintyBits;

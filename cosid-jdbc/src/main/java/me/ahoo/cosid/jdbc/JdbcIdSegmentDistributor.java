@@ -14,21 +14,20 @@
 package me.ahoo.cosid.jdbc;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.jdbc.exception.NotFoundMaxIdException;
 import me.ahoo.cosid.jdbc.exception.SegmentNameMissingException;
 import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
+import javax.sql.DataSource;
 
 /**
  * Jdbc IdSegment Distributor.
@@ -64,9 +63,9 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
     public JdbcIdSegmentDistributor(String namespace, String name, long step, String incrementMaxIdSql, String fetchMaxIdSql, DataSource dataSource,
                                     Duration queryTimeout) {
         super(namespace, name, step);
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(incrementMaxIdSql), "incrementMaxIdSql can not be empty!");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(fetchMaxIdSql), "fetchMaxIdSql can not be empty!");
-        Preconditions.checkNotNull(dataSource, "dataSource can not be null!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(incrementMaxIdSql), "incrementMaxIdSql can not be empty!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(fetchMaxIdSql), "fetchMaxIdSql can not be empty!");
+        Checks.checkNotNull(dataSource, "dataSource can not be null!");
 
         this.incrementMaxIdSql = incrementMaxIdSql;
         this.fetchMaxIdSql = fetchMaxIdSql;

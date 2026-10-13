@@ -33,6 +33,10 @@ import java.util.Collection;
  */
 @Beta
 public class CachedSharding<T extends Comparable<?>> implements Sharding<T> {
+    /**
+     * The most ranges kept by default: query ranges come from user input, so the cache must not grow without bound.
+     */
+    public static final long DEFAULT_MAXIMUM_SIZE = 10_000;
 
     private final Sharding<T> actual;
     private final LoadingCache<Range<T>, Collection<String>> shardingCache;
@@ -43,9 +47,21 @@ public class CachedSharding<T extends Comparable<?>> implements Sharding<T> {
      * @param actual the underlying sharding algorithm
      */
     public CachedSharding(Sharding<T> actual) {
+        this(actual, DEFAULT_MAXIMUM_SIZE);
+    }
+
+    /**
+     * Creates a cached wrapper around the specified sharding algorithm, keeping at most {@code maximumSize} ranges.
+     *
+     * @param actual      the underlying sharding algorithm
+     * @param maximumSize the most ranges kept in the cache
+     * @since 4.1.0
+     */
+    public CachedSharding(Sharding<T> actual, long maximumSize) {
         this.actual = actual;
         shardingCache = CacheBuilder
             .newBuilder()
+            .maximumSize(maximumSize)
             .build(new LoadShardingCache());
     }
 

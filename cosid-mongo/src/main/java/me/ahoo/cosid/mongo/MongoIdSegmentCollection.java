@@ -16,7 +16,8 @@ package me.ahoo.cosid.mongo;
 import static me.ahoo.cosid.mongo.IdSegmentOperates.ensureOffsetUpdates;
 import static me.ahoo.cosid.mongo.IdSegmentOperates.incrementAndGetUpdates;
 
-import com.google.common.base.Preconditions;
+import me.ahoo.cosid.internal.Checks;
+
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoWriteException;
 import com.mongodb.client.MongoCollection;
@@ -44,7 +45,7 @@ public class MongoIdSegmentCollection implements IdSegmentCollection {
             Documents.UPDATE_UPSERT_AFTER_OPTIONS);
 
         assert afterDoc != null;
-        Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
+        Checks.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
         Long lastMaxId = afterDoc.getLong(IdSegmentOperates.LAST_MAX_ID_FIELD);
         return Objects.requireNonNull(lastMaxId);
     }

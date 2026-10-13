@@ -44,7 +44,7 @@ class DatePrefixIdConverterTest {
 
     @Test
     void asLongShouldRejectStringShorterThanPrefix() {
-        org.junit.jupiter.api.Assertions.assertThrows(StringIndexOutOfBoundsException.class, () -> idConverter.asLong("240"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> idConverter.asLong("240"));
     }
 
     @Test

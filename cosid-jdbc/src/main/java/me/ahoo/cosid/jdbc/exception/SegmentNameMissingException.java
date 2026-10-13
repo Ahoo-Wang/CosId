@@ -14,8 +14,8 @@
 package me.ahoo.cosid.jdbc.exception;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 
-import com.google.common.base.Strings;
 
 /**
  * Segment Name Missing Exception.
@@ -34,7 +34,7 @@ public class SegmentNameMissingException extends CosIdException {
      * @param name name of segment
      */
     public SegmentNameMissingException(String name) {
-        super(Strings.lenientFormat("name:[%s] missing.", name));
+        super(Checks.lenientFormat("name:[%s] missing.", name));
         this.name = name;
     }
 

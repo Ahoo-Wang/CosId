@@ -24,11 +24,11 @@ import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
 import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
 import tools.jackson.databind.BeanProperty;
 import tools.jackson.databind.DeserializationContext;
 import tools.jackson.databind.ValueDeserializer;
 
-import java.io.IOException;
 
 
 /**
@@ -56,7 +56,11 @@ public class AsStringDeserializer extends ValueDeserializer<Long> {
 
     @Override
     public ValueDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) {
-        AsString asString = property.getAnnotation(AsString.class);
+        // No property (a root value, a container element) or no annotation: keep this converter.
+        AsString asString = property == null ? null : property.getAnnotation(AsString.class);
+        if (asString == null) {
+            return this;
+        }
         switch (asString.value()) {
             case TO_STRING: {
                 return TO_STRING;
@@ -81,12 +85,44 @@ public class AsStringDeserializer extends ValueDeserializer<Long> {
         }
     }
 
+    /**
+     * A JSON number is the id itself, if the converter can write it; a JSON string is converted. An empty string is {@code null}. A string the converter
+     * cannot read is reported through {@link DeserializationContext#handleWeirdStringValue}, an
+     * {@code InvalidFormatException} (a client error) by default.
+     */
     @Override
     public Long deserialize(JsonParser p, DeserializationContext ctxt) {
-        String valueStr = p.getValueAsString();
+        JsonToken token = p.currentToken();
+        if (token == JsonToken.VALUE_NUMBER_INT) {
+            long id = p.getLongValue();
+            // The same range as a string id: the converter must write it back as a string that reads as the same id (no
+            // negative radix id, no more digits than radixCharSize, no friendly id that wraps around).
+            String message;
+            try {
+                if (converter.asLong(converter.asString(id)) == id) {
+                    return id;
+                }
+                message = "it does not read back as the same id";
+            } catch (RuntimeException outOfRange) {
+                message = outOfRange.getMessage();
+            }
+            return (Long) ctxt.handleWeirdNumberValue(Long.class, id, "not a valid id for %s: %s", converter.getClass().getSimpleName(), message);
+        }
+        if (token == JsonToken.VALUE_NULL) {
+            return null;
+        }
+        if (token != JsonToken.VALUE_STRING) {
+            return (Long) ctxt.handleUnexpectedToken(Long.class, p);
+        }
+        String valueStr = p.getString();
         if (Checks.isNullOrEmpty(valueStr)) {
             return null;
         }
-        return converter.asLong(valueStr);
+        try {
+            return converter.asLong(valueStr);
+        } catch (RuntimeException invalid) {
+            return (Long) ctxt.handleWeirdStringValue(Long.class, valueStr, "not a valid id for %s: %s", converter.getClass().getSimpleName(),
+                invalid.getMessage());
+        }
     }
 }

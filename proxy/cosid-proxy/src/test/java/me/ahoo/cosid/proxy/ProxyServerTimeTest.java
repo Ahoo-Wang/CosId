@@ -18,7 +18,12 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import me.ahoo.cosid.proxy.api.ClaimRequest;
+import me.ahoo.cosid.proxy.api.LeaseResponse;
+import me.ahoo.cosid.proxy.api.MachineLeaseApi;
 import me.ahoo.cosid.proxy.api.MachineLeaseClient;
+import me.ahoo.cosid.proxy.api.ReleaseRequest;
+import me.ahoo.cosid.proxy.api.RenewRequest;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -44,5 +49,38 @@ class ProxyServerTimeTest {
         assertThat(store.serverTime("order"), equalTo(2000L));
         assertThat(store.serverTime(), equalTo(1000L));
         server.verify();
+    }
+    
+    /**
+     * Implemented against 4.0: only {@code serverTime()}.
+     */
+    static final class ApiOf40 implements MachineLeaseApi {
+        @Override
+        public long serverTime() {
+            return 1000;
+        }
+        
+        @Override
+        public LeaseResponse claim(String namespace, String kind, ClaimRequest request) {
+            throw new UnsupportedOperationException();
+        }
+        
+        @Override
+        public LeaseResponse renew(String namespace, RenewRequest request) {
+            throw new UnsupportedOperationException();
+        }
+        
+        @Override
+        public boolean release(String namespace, ReleaseRequest request) {
+            throw new UnsupportedOperationException();
+        }
+    }
+    
+    @Test
+    void anImplementationWithOnlyThePlainTimeAnswersForEveryNamespace() {
+        ProxyMachineLeaseStore store = new ProxyMachineLeaseStore(new ApiOf40());
+        
+        assertThat(store.serverTime("order"), equalTo(1000L));
+        assertThat(store.serverTime(), equalTo(1000L));
     }
 }

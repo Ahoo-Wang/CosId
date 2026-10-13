@@ -27,7 +27,7 @@ import me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties;
 
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.jspecify.annotations.Nullable;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -64,9 +64,19 @@ public class MachineLeaseController implements MachineLeaseApi {
     }
     
     @Override
-    @Operation(summary = "The backend store's clock, in milliseconds; with namespace, the clock that judges its leases.")
-    public long serverTime(@RequestParam(name = "namespace", required = false) @Nullable String namespace) {
-        return namespace == null || namespace.isBlank() ? store.serverTime() : store.serverTime(namespace);
+    @Operation(summary = "The backend store's clock, in milliseconds.")
+    public long serverTime() {
+        return store.serverTime();
+    }
+    
+    /**
+     * {@code GET time?namespace=...}, mapped apart from {@link #serverTime()} by the parameter.
+     */
+    @Override
+    @GetMapping(path = "time", params = "namespace")
+    @Operation(summary = "The backend store's clock that judges the leases of a namespace, in milliseconds.")
+    public long serverTime(@RequestParam(name = "namespace") String namespace) {
+        return namespace.isBlank() ? store.serverTime() : store.serverTime(namespace);
     }
     
     @Override

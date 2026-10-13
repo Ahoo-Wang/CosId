@@ -16,7 +16,6 @@ package me.ahoo.cosid.proxy.api;
 import org.jspecify.annotations.Nullable;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
@@ -40,19 +39,20 @@ public interface MachineLeaseApi {
     /**
      * The backend store's clock, in milliseconds.
      */
-    default long serverTime() {
-        return serverTime(null);
-    }
+    @GetExchange("time")
+    long serverTime();
     
     /**
      * The backend store's clock for the leases of a namespace, in milliseconds: in Redis Cluster, the clock of the node
-     * that holds the namespace. Servers before 4.1 ignore the parameter and answer with {@link #serverTime()}.
+     * that holds the namespace. {@link MachineLeaseClient} sends the namespace; an implementation that does not override
+     * this answers with {@link #serverTime()}, as servers before 4.1 do.
      *
      * @param namespace the namespace, {@code null} for any
      * @since 4.1.0
      */
-    @GetExchange("time")
-    long serverTime(@RequestParam(name = "namespace", required = false) @Nullable String namespace);
+    default long serverTime(@Nullable String namespace) {
+        return serverTime();
+    }
     
     /**
      * Claim a machine id: {@code kind} is {@link #SELF}, {@link #RELEASED}, {@link #NEW} or {@link #EXPIRED}.

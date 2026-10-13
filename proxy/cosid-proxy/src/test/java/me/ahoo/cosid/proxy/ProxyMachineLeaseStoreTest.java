@@ -51,8 +51,8 @@ class ProxyMachineLeaseStoreTest extends MachineLeaseStoreSpec {
         }
         
         @Override
-        public long serverTime(String namespace) {
-            return namespace == null ? backend.serverTime() : backend.serverTime(namespace);
+        public long serverTime() {
+            return backend.serverTime();
         }
         
         @Override

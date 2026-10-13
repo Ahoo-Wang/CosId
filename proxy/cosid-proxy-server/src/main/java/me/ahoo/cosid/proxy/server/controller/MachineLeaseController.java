@@ -72,13 +72,13 @@ public class MachineLeaseController implements MachineLeaseApi {
     public LeaseResponse claim(@PathVariable String namespace, @PathVariable String kind, @RequestBody ClaimRequest request) {
         checkNamespace(namespace);
         Checks.checkArgument(!Checks.isNullOrEmpty(request.instanceId()) && !request.instanceId().isBlank(), "instanceId can not be blank!");
-        checkNotAhead("now", request.now());
+        checkNotAhead(namespace, "now", request.now());
         InstanceId instanceId = InstanceId.of(request.instanceId(), request.stable());
         Optional<Lease> lease = switch (kind) {
             case SELF -> store.claimSelf(namespace, instanceId, request.now());
             case RELEASED -> store.claimReleased(namespace, instanceId, checkMaxMachineId(request), request.now());
             case NEW -> store.claimNew(namespace, instanceId, checkMaxMachineId(request), request.now());
-            case EXPIRED -> store.claimExpired(namespace, instanceId, checkMaxMachineId(request), checkExpiredBefore(request.expiredBefore()),
+            case EXPIRED -> store.claimExpired(namespace, instanceId, checkMaxMachineId(request), checkExpiredBefore(namespace, request.expiredBefore()),
                 request.now());
             default -> throw new IllegalArgumentException("Unknown claim:[" + kind + "], expected self, released, new or expired!");
         };
@@ -88,14 +88,14 @@ public class MachineLeaseController implements MachineLeaseApi {
     @Override
     @Operation(summary = "Renew a lease, if it is still at its version.")
     public LeaseResponse renew(@PathVariable String namespace, @RequestBody RenewRequest request) {
-        checkNotAhead("now", request.now());
+        checkNotAhead(namespace, "now", request.now());
         return response(store.renew(lease(namespace, request.lease()), request.now()));
     }
     
     @Override
     @Operation(summary = "Release a lease on shutdown, if it is still at its version.")
     public boolean release(@PathVariable String namespace, @RequestBody ReleaseRequest request) {
-        checkNotAhead("watermark", request.watermark());
+        checkNotAhead(namespace, "watermark", request.watermark());
         return store.release(lease(namespace, request.lease()), request.watermark());
     }
     
@@ -113,8 +113,8 @@ public class MachineLeaseController implements MachineLeaseApi {
     /**
      * Only leases renewed at least {@code min-safe-guard-duration} ago, by the store's clock, may be taken over.
      */
-    private long checkExpiredBefore(long expiredBefore) {
-        long latest = store.serverTime() - minSafeGuardDuration.toMillis();
+    private long checkExpiredBefore(String namespace, long expiredBefore) {
+        long latest = store.serverTime(namespace) - minSafeGuardDuration.toMillis();
         Checks.checkArgument(expiredBefore <= latest, "expiredBefore:[%s] is later than the store clock minus the minimum safe guard duration [%s]!",
             expiredBefore, minSafeGuardDuration);
         return expiredBefore;
@@ -133,11 +133,11 @@ public class MachineLeaseController implements MachineLeaseApi {
     /**
      * A time far ahead of the store would keep a machine id from ever being recycled, or make its next owner wait.
      */
-    private void checkNotAhead(String name, long time) {
+    private void checkNotAhead(String namespace, String name, long time) {
         if (maxClockSkew == null || maxClockSkew.isZero() || maxClockSkew.isNegative()) {
             return;
         }
-        long latest = store.serverTime() + maxClockSkew.toMillis();
+        long latest = store.serverTime(namespace) + maxClockSkew.toMillis();
         Checks.checkArgument(time <= latest, "%s:[%s] is more than [%s] ahead of the store clock!", name, time, maxClockSkew);
     }
 }

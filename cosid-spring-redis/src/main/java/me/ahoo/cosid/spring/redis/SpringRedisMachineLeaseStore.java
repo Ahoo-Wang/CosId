@@ -21,13 +21,16 @@ import me.ahoo.cosid.machine.lease.MachineLeaseStore;
 
 import com.google.common.base.Preconditions;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.connection.RedisClusterConnection;
+import org.springframework.data.redis.connection.RedisClusterNode;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 
-import java.util.Collections;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * {@link MachineLeaseStore} on Redis: one atomic Lua script per primitive ({@code machine_lease.lua}).
@@ -72,6 +75,19 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
         return commandTimeout;
     }
     
+    /**
+     * The keys of a namespace, as the script reads them: {@code cosid:{namespace}:itc_idx}, {@code revert},
+     * {@code adder}, {@code stable}, {@code lease}. One hash tag, so one Redis Cluster slot.
+     */
+    static List<String> keys(String namespace) {
+        String prefix = keyPrefix(namespace);
+        return List.of(prefix + "itc_idx", prefix + "revert", prefix + "adder", prefix + "stable", prefix + "lease");
+    }
+    
+    private static String keyPrefix(String namespace) {
+        return "cosid:" + hashTag(namespace) + ":";
+    }
+    
     private static String stable(InstanceId instanceId) {
         return instanceId.isStable() ? "1" : "0";
     }
@@ -86,7 +102,7 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
         }
         @SuppressWarnings("unchecked")
         List<Long> result = commandTimeout.call(operation,
-            () -> (List<Long>) redisTemplate.execute(MACHINE_LEASE, Collections.singletonList(hashTag(namespace)), args));
+            () -> (List<Long>) redisTemplate.execute(MACHINE_LEASE, keys(namespace), args));
         if (result == null || result.size() < 4) {
             return Optional.empty();
         }
@@ -129,6 +145,23 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
     @Override
     public long serverTime() {
         Long time = commandTimeout.call("serverTime", () -> redisTemplate.execute((RedisCallback<Long>) connection -> connection.serverCommands().time()));
+        return Preconditions.checkNotNull(time, "Redis TIME returned null!");
+    }
+    
+    /**
+     * Redis' {@code TIME}, in milliseconds, of the node that holds the namespace's keys: in Redis Cluster each node has its
+     * own clock, and the leases of a namespace are judged by the clock of the node that runs their script.
+     */
+    @Override
+    public long serverTime(String namespace) {
+        byte[] slotKey = (keyPrefix(namespace) + "itc_idx").getBytes(StandardCharsets.UTF_8);
+        Long time = commandTimeout.call("serverTime", () -> redisTemplate.execute((RedisCallback<Long>) connection -> {
+            if (connection instanceof RedisClusterConnection clusterConnection) {
+                RedisClusterNode node = clusterConnection.clusterGetNodeForKey(slotKey);
+                return clusterConnection.serverCommands().time(node, TimeUnit.MILLISECONDS);
+            }
+            return connection.serverCommands().time();
+        }));
         return Preconditions.checkNotNull(time, "Redis TIME returned null!");
     }
 }

@@ -94,7 +94,7 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
         Lease lease = distributeLeaseManager.acquire(namespace, instanceId, machineBit, safeGuardDuration);
         try {
             final long localBefore = localClock.getAsLong();
-            checkClockSkew(namespace, instanceId, localBefore, distributeLeaseManager.getStore().serverTime(), safeGuardDuration);
+            checkClockSkew(namespace, instanceId, localBefore, distributeLeaseManager.getStore().serverTime(namespace), safeGuardDuration);
         } catch (RuntimeException skewException) {
             try {
                 distributeLeaseManager.release(lease, lease.getWatermark());

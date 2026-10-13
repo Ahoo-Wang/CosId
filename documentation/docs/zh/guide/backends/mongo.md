@@ -8,6 +8,8 @@
 集合不存在时会在启动时创建。
 
 ::: warning 仅支持同步驱动
+CosId 需要 MongoDB 4.2 或更高版本：获取号段使用一条更新管道，并采用服务端时钟（`$$NOW`）。启动时机器号集合会创建两个复合索引 `{namespace: 1, machineId: 1}` 和 `{namespace: 1, instanceId: 1}`，旧版本创建的集合也会创建，并替换其中的 `machineId`、`instanceId` 哈希索引。
+
 响应式相关类（`me.ahoo.cosid.mongo.reactive`）已在 4.0 移除。请使用同步驱动 `org.mongodb:mongodb-driver-sync`，`spring-boot-starter-data-mongodb` 已包含它。classpath 中只有响应式驱动时，Starter 会在启动时失败。
 :::
 

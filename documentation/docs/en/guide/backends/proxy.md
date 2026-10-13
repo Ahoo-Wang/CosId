@@ -89,9 +89,9 @@ cosid:
 | `cosid.proxy.token` | none | Bearer token sent with every request |
 | `cosid.proxy.connect-timeout` | `2s` | Connecting to the server; `0` means no timeout |
 | `cosid.proxy.read-timeout` | `5s` | Waiting for a response, including the machine id claim at startup; `0` means no timeout, but with `cosid.machine.distributor.type=proxy` it must be positive |
-| `cosid.proxy.client` | `coapi` | `coapi` or `http-interface`, see above; `http-interface` is used without CoApi on the classpath |
+| `cosid.proxy.client` | `coapi` | `coapi` or `http-interface`, see below; `http-interface` is used without CoApi on the classpath |
 
-The client side is a `MachineLeaseStore` and an `IdSegmentDistributor` like any other: `ProxyMachineLeaseStore` calls the server's lease API (`/machines/v2`) to claim, renew and release machine ids, and `ProxyIdSegmentDistributor` asks it for segments. By default the clients are created by CoApi, which resolves `lb://` hosts and applies `coapi.*` settings and your CoApi customizers. With `cosid.proxy.client=http-interface`, or without CoApi on the classpath, they are plain beans built with Spring's `HttpServiceProxyFactory` from your `RestClient.Builder`, with the host, timeouts and token below; Spring AOT processing supports this mode.
+The client side is a `MachineLeaseStore` and an `IdSegmentDistributor` like any other: `ProxyMachineLeaseStore` calls the server's lease API (`/machines/v2`) to claim, renew and release machine ids, and `ProxyIdSegmentDistributor` asks it for segments. By default the clients are created by CoApi, which resolves `lb://` hosts and applies `coapi.*` settings and your CoApi customizers. With `cosid.proxy.client=http-interface`, or without CoApi on the classpath, they are plain beans built with Spring's `HttpServiceProxyFactory` from your `RestClient.Builder`, with the host, timeouts and token above; Spring AOT processing supports this mode.
 
 ## Authentication
 

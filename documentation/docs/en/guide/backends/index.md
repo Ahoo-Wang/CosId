@@ -10,7 +10,7 @@ CosId needs a store for two things: the counters of [segment IDs](../concepts/se
 | [JDBC](./jdbc.md) | `jdbc` | `cosid-jdbc` + a `DataSource` | Yes | Yes | Database server | You have MySQL, MariaDB or PostgreSQL and want the counters in the database |
 | [MongoDB](./mongo.md) | `mongo` | `cosid-mongo` + Spring Data MongoDB | Yes | Yes | MongoDB server | You run MongoDB |
 | [ZooKeeper](./zookeeper.md) | `zookeeper` | `cosid-zookeeper` (Curator) | Yes | Yes | Host clock | You run ZooKeeper and keep host clocks in sync |
-| [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy` + CoApi | Yes | Yes | The proxy's store | Applications must not reach the store directly |
+| [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy` (CoApi optional) | Yes | Yes | The proxy's store | Applications must not reach the store directly |
 | StatefulSet | `stateful_set` | none | No | Yes | none | Kubernetes StatefulSet pods: the pod ordinal is the machine id |
 | Manual | `manual` | none | No | Yes | none | One instance, or tests |
 | Your own | any | your `CosIdStoreProvider` bean | Your choice | Your choice | Your choice | A store CosId does not ship, such as etcd |

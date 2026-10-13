@@ -159,7 +159,7 @@ class CosIdProxyMachineIdDistributorAutoConfigurationTest {
     }
     
     @Test
-    void thePlainClientSendsTheTokenToTheHostWithinTheTimeouts() throws Exception {
+    void thePlainClientSendsTheTokenToTheHost() throws Exception {
         AtomicReference<String> authorization = new AtomicReference<>();
         HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
         server.createContext("/machines/v2/time", exchange -> {

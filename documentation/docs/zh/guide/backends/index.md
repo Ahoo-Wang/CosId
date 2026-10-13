@@ -10,7 +10,7 @@ CosId 需要存储来做两件事：保存[号段 ID](../concepts/segment.md) �
 | [JDBC](./jdbc.md) | `jdbc` | `cosid-jdbc` + `DataSource` | 是 | 是 | 数据库服务器 | 使用 MySQL、MariaDB 或 PostgreSQL，希望计数器保存在数据库中 |
 | [MongoDB](./mongo.md) | `mongo` | `cosid-mongo` + Spring Data MongoDB | 是 | 是 | MongoDB 服务器 | 已在运行 MongoDB |
 | [ZooKeeper](./zookeeper.md) | `zookeeper` | `cosid-zookeeper`（Curator） | 是 | 是 | 主机时钟 | 已在运行 ZooKeeper，并保持各主机时钟同步 |
-| [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy` + CoApi | 是 | 是 | Proxy 所用存储 | 应用不能直接访问存储 |
+| [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy`（CoApi 可选） | 是 | 是 | Proxy 所用存储 | 应用不能直接访问存储 |
 | StatefulSet | `stateful_set` | 无 | 否 | 是 | 无 | Kubernetes StatefulSet 中的 Pod：Pod 序号即机器号 |
 | Manual | `manual` | 无 | 否 | 是 | 无 | 单实例或测试 |
 | 自定义 | 任意 | 你的 `CosIdStoreProvider` Bean | 自行决定 | 自行决定 | 自行决定 | CosId 未内置的存储，例如 etcd |

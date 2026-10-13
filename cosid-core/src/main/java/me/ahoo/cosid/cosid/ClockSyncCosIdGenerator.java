@@ -14,6 +14,8 @@
 package me.ahoo.cosid.cosid;
 
 import me.ahoo.cosid.Decorator;
+import me.ahoo.cosid.event.CosIdEventListener;
+import me.ahoo.cosid.event.CosIdEvents;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.stat.Stat;
@@ -21,6 +23,8 @@ import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+
+import java.time.Duration;
 
 /**
  * ClockSync {@link CosIdGenerator}.
@@ -80,7 +84,11 @@ public class ClockSyncCosIdGenerator implements CosIdGenerator, Decorator<CosIdG
             if (log.isWarnEnabled()) {
                 log.warn(exception.getMessage(), exception);
             }
+            CosIdEventListener events = CosIdEvents.listener();
+            events.onClockBackwards(actual.getClass().getSimpleName(), exception.getLastTimestamp(), exception.getCurrentTimestamp());
+            long syncStarted = System.nanoTime();
             clockBackwardsSynchronizer.syncUninterruptibly(actual.getLastTimestamp());
+            events.onClockSyncWait(actual.getClass().getSimpleName(), Duration.ofNanos(System.nanoTime() - syncStarted));
             return actual.generateAsState();
         }
     }

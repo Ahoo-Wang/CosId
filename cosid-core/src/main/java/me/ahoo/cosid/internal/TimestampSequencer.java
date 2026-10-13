@@ -13,8 +13,10 @@
 
 package me.ahoo.cosid.internal;
 
+import me.ahoo.cosid.event.CosIdEvents;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.LongSupplier;
@@ -98,6 +100,15 @@ public final class TimestampSequencer {
      * throws instead of waiting for the clock to catch up, and the last tick stays used up.
      */
     private long nextTime() {
+        long waitStarted = System.nanoTime();
+        try {
+            return waitForNextTime();
+        } finally {
+            CosIdEvents.listener().onSequenceExhaustedWait(Duration.ofNanos(System.nanoTime() - waitStarted));
+        }
+    }
+    
+    private long waitForNextTime() {
         long time = timeSource.getAsLong();
         while (time <= lastTimestamp) {
             if (time < lastTimestamp) {

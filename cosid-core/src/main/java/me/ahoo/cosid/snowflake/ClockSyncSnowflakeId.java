@@ -14,12 +14,16 @@
 package me.ahoo.cosid.snowflake;
 
 import me.ahoo.cosid.IdGeneratorDecorator;
+import me.ahoo.cosid.event.CosIdEventListener;
+import me.ahoo.cosid.event.CosIdEvents;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.snowflake.exception.ClockBackwardsException;
 import me.ahoo.cosid.stat.generator.IdGeneratorStat;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+
+import java.time.Duration;
 
 /**
  * Clock Sync SnowflakeId.
@@ -54,7 +58,11 @@ public class ClockSyncSnowflakeId implements IdGeneratorDecorator, SnowflakeId {
             if (log.isWarnEnabled()) {
                 log.warn(exception.getMessage(), exception);
             }
+            CosIdEventListener events = CosIdEvents.listener();
+            events.onClockBackwards(actual.getClass().getSimpleName(), exception.getLastTimestamp(), exception.getCurrentTimestamp());
+            long syncStarted = System.nanoTime();
             clockBackwardsSynchronizer.syncUninterruptibly(actual.getLastTimestampAsMilliseconds());
+            events.onClockSyncWait(actual.getClass().getSimpleName(), Duration.ofNanos(System.nanoTime() - syncStarted));
             return actual.generate();
         }
     }

@@ -4,4 +4,4 @@
 # that main stays green after the merge; the api-break-approved label only covers that pull request's own run.
 #
 # Example:
-# me.ahoo.cosid.proxy.api.MachineLeaseApi#serverTime(java.lang.String)  # HTTP client interface, only proxied, never implemented
+# me.ahoo.cosid.example.Widget#resize(int,java.lang.String)  # made-up example: say why the break is acceptable

@@ -1,5 +1,5 @@
 # API breaks accepted on purpose, checked by scripts/api-diff.sh against the baseline release.
-# One japicmp exclude per line (package, class, or Class#method(parameter types) with fully qualified, erased
+# One japicmp exclude per line (class, or Class#method(parameter types) with fully qualified, erased
 # parameter types and no spaces), and a comment saying why. The pull request that makes the break adds its line, so
 # that main stays green after the merge; the api-break-approved label only covers that pull request's own run.
 #

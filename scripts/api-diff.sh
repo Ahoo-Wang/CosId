@@ -12,13 +12,21 @@ set -euo pipefail
 
 BASELINE="${1:-v4.0.0}"
 OUT="$(mkdir -p "${2:-build/api-diff}" && cd "${2:-build/api-diff}" && pwd)"
-JAPICMP_VERSION="0.23.1"
+JAPICMP_VERSION="${JAPICMP_VERSION:-0.23.1}"
+# Where the japicmp jar is kept between runs (CI caches it): Maven Central answers bursts with 429.
+JAPICMP_CACHE="${JAPICMP_CACHE:-$HOME/.cache/japicmp}"
 ROOT="$(git rev-parse --show-toplevel)"
 WORK="$(mktemp -d)"
 trap 'git -C "$ROOT" worktree remove --force "$WORK/baseline" >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
 
-curl -sSfL --retry 5 --retry-all-errors --retry-delay 5 -o "$WORK/japicmp.jar" \
-  "https://repo1.maven.org/maven2/com/github/siom79/japicmp/japicmp/${JAPICMP_VERSION}/japicmp-${JAPICMP_VERSION}-jar-with-dependencies.jar"
+JAPICMP_JAR="$JAPICMP_CACHE/japicmp-${JAPICMP_VERSION}-jar-with-dependencies.jar"
+if [ ! -s "$JAPICMP_JAR" ]; then
+  mkdir -p "$JAPICMP_CACHE"
+  curl -sSfL --retry 5 --retry-all-errors --retry-delay 5 -o "$JAPICMP_JAR.part" \
+    "https://repo1.maven.org/maven2/com/github/siom79/japicmp/japicmp/${JAPICMP_VERSION}/japicmp-${JAPICMP_VERSION}-jar-with-dependencies.jar"
+  mv "$JAPICMP_JAR.part" "$JAPICMP_JAR"
+fi
+cp "$JAPICMP_JAR" "$WORK/japicmp.jar"
 
 # japicmp of two jars into $OUT/<name>.html|.md, printing the summary row's result.
 # japicmp exits with 1 both when it finds an incompatible change and when it fails, for example on a jar it cannot read:
@@ -32,13 +40,19 @@ EXCLUDES="me.ahoo.cosid.internal;me.ahoo.cosid.internal.*"
 # Breaks accepted on purpose, one japicmp exclude per line: the PR that makes the break records it here, so the
 # baseline comparison of main stays green after the merge.
 ACCEPTED_BREAKS="$ROOT/scripts/api-diff-accepted-breaks.txt"
+# A class, or one of its members: Class#method(erased,param,types) or Class#field.
+ACCEPTED_PATTERN='^([a-z_][a-z0-9_]*[.])+[A-Z][A-Za-z0-9_$]*(#[A-Za-z_$][A-Za-z0-9_$]*([(][][A-Za-z0-9_.$,]*[)])?)?$'
 if [ -f "$ACCEPTED_BREAKS" ]; then
-  while IFS= read -r accepted; do
-    accepted="${accepted%%#*}"
-    accepted="$(echo "$accepted" | tr -d '[:space:]')"
-    if [ -n "$accepted" ]; then
-      EXCLUDES="$EXCLUDES;$accepted"
+  while IFS= read -r accepted || [ -n "$accepted" ]; do
+    # A comment starts with a '#' at the line start or after whitespace; the '#' of Class#member is kept.
+    accepted="$(sed -E 's/(^|[[:space:]])#.*$//; s/[[:space:]]+//g' <<< "$accepted")"
+    [ -n "$accepted" ] || continue
+    # Only a member (Class#method(params) or Class#field) or a whole class: never a package, a wildcard or an annotation.
+    if ! [[ "$accepted" =~ $ACCEPTED_PATTERN ]]; then
+      echo "::error::$ACCEPTED_BREAKS: not a class or member exclude: '$accepted'" >&2
+      exit 1
     fi
+    EXCLUDES="$EXCLUDES;$accepted"
   done < "$ACCEPTED_BREAKS"
 fi
 # Source-incompatible changes that break implementations compiled against the baseline: an abstract method added to

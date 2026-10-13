@@ -32,6 +32,9 @@ on:
         description: 'Baseline git ref'
         required: false
         default: 'v4.0.0'
+env:
+  # Also the key of the cached jar; scripts/api-diff.sh defaults to the same version.
+  JAPICMP_VERSION: '0.23.1'
 jobs:
   api-diff:
     name: API Diff
@@ -50,6 +53,12 @@ jobs:
           server-id: github
           cache: gradle
           settings-path: ${{ github.workspace }}
+
+      - name: Cache japicmp
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/japicmp
+          key: japicmp-${{ env.JAPICMP_VERSION }}
 
       - name: API diff
         env:

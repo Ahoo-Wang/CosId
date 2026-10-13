@@ -33,6 +33,10 @@ docker run --name cosid-proxy -d -p 8688:8688 --link redis \
 
 没有令牌时服务端会拒绝启动，见[认证](#认证)。
 
+镜像包含所有存储的驱动：Redis、MySQL、PostgreSQL、MongoDB 和 ZooKeeper。使用 JDBC 时，请从 `spring.autoconfigure.exclude` 中移除 `DataSourceAutoConfiguration` 并配置 `spring.datasource.*`；使用 MongoDB 时，请从中移除 `MongoAutoConfiguration` 并配置 `spring.mongodb.uri`。两者默认被排除，避免未使用的存储出现在健康检查中。
+
+堆大小为容器内存上限的 75%（`-XX:MaxRAMPercentage=75.0`）；如需固定，请设置 `JAVA_OPTS`，例如 `-e JAVA_OPTS=-Xmx1g`。`GET /ids` 的响应带有 `Cache-Control: no-store`，避免客户端与服务端之间的缓存把同一个 ID 发出两次。
+
 ## 客户端
 
 ### 安装

@@ -23,8 +23,9 @@ on:
       - 'documentation/**'
       - 'examples/**'
       - 'wiki/**'
+    # Images are pushed from main and release tags only; pull requests build and smoke-test the image without pushing.
     branches:
-      - '**'
+      - 'main'
     tags:
       - 'v*.*.*'
   pull_request:
@@ -42,8 +43,35 @@ permissions:
   contents: read
 
 jobs:
+  smoke-test:
+    name: Smoke test Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          server-id: github
+          cache: gradle
+          settings-path: ${{ github.workspace }}
+
+      - name: Build Dist
+        run: ./gradlew cosid-proxy-server:installDist
+
+      - name: Build image
+        run: docker build -t cosid-proxy:smoke proxy/cosid-proxy-server
+
+      - name: Smoke test
+        run: proxy/cosid-proxy-server/smoke-test.sh cosid-proxy:smoke
+
   docker-deploy:
     name: Push Docker image
+    needs: [ smoke-test ]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -31,6 +31,10 @@ Use `--network` (or `--link redis`) so that the container can reach Redis, and a
 
 The server refuses to start without a token, see [Authentication](#authentication).
 
+The image includes the drivers of every store: Redis, MySQL, PostgreSQL, MongoDB and ZooKeeper. For JDBC, remove `DataSourceAutoConfiguration` from `spring.autoconfigure.exclude` and set `spring.datasource.*`; for MongoDB, remove `MongoAutoConfiguration` from it and set `spring.mongodb.uri`. Both are excluded by default so that an unused store does not show up in the health check.
+
+The heap is 75% of the container's memory limit (`-XX:MaxRAMPercentage=75.0`); to pin it, set `JAVA_OPTS`, for example `-e JAVA_OPTS=-Xmx1g`. `GET /ids` answers with `Cache-Control: no-store`, so that no cache between a client and the server hands out the same id twice.
+
 ## Client
 
 ### Installation

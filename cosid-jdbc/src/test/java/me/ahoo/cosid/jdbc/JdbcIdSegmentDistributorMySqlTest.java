@@ -74,13 +74,26 @@ class JdbcIdSegmentDistributorMySqlTest {
     }
     
     @Test
-    void nextMaxIdShouldRollbackWhenSegmentNameIsMissing() {
+    void nextMaxIdWhenSegmentNameIsMissing() {
         JdbcIdSegmentDistributor distributor = new JdbcIdSegmentDistributor(namespace, "rollback", 100, dataSource);
         
         SegmentNameMissingException actual = Assertions.assertThrows(SegmentNameMissingException.class, () -> distributor.nextMaxId(1));
         
         assertThat(actual.getMessage(), containsString(distributor.getNamespacedName()));
-        assertThat(dataSource.getRollbackCount(), equalTo(1));
+        // The built-in MySQL statements run under auto-commit: no transaction to roll back.
+        assertThat(dataSource.getRollbackCount(), equalTo(0));
+    }
+    
+    @Test
+    void theBuiltInStatementsUseLastInsertId() {
+        IdSegmentDistributor distributor = factory().create(new IdSegmentDistributorDefinition(namespace, "last-insert-id", 1, 100));
+        dataSource.getExecutedSql().clear();
+        
+        assertThat(distributor.nextMaxId(), equalTo(101L));
+        assertThat(distributor.nextMaxId(), equalTo(201L));
+        
+        assertThat(dataSource.getExecutedSql(), contains(JdbcIdSegmentDistributor.LAST_INSERT_ID_INCREMENT_MAX_ID_SQL,
+            JdbcIdSegmentDistributor.LAST_INSERT_ID_INCREMENT_MAX_ID_SQL));
     }
     
     @Test
@@ -91,7 +104,7 @@ class JdbcIdSegmentDistributorMySqlTest {
         assertThat(distributor.nextMaxId(), equalTo(101L));
         
         assertThat(dataSource.getRollbackCount(), equalTo(0));
-        assertThat(dataSource.getQueryTimeouts(), contains(5, 5));
+        assertThat(dataSource.getQueryTimeouts(), contains(5));
     }
     
     @Test
@@ -113,5 +126,25 @@ class JdbcIdSegmentDistributorMySqlTest {
         
         assertThat(segmentMaxId(definition.getNamespacedName()), equalTo(OptionalLong.of(9)));
         assertThat(distributor.nextMaxId(), equalTo(12L));
+    }
+    
+    @Test
+    void anEarlierInsertOnTheSameConnectionDoesNotLeakIntoTheMaxId() throws SQLException {
+        try (Connection connection = realDataSource.getConnection()) {
+            try (PreparedStatement statement = connection.prepareStatement(
+                "create table if not exists cosid_other_auto_increment (id bigint not null auto_increment primary key, v int)")) {
+                statement.execute();
+            }
+            DataSource sameConnection = SingleConnectionDataSource.of(connection);
+            IdSegmentDistributor distributor = new JdbcIdSegmentDistributorFactory(sameConnection, true, new JdbcIdSegmentInitializer(sameConnection),
+                JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL)
+                .create(new IdSegmentDistributorDefinition(namespace, "other-insert", 0, 10));
+            for (int i = 1; i <= 3; i++) {
+                try (PreparedStatement insert = connection.prepareStatement("insert into cosid_other_auto_increment (v) values (0), (0), (0)")) {
+                    insert.executeUpdate();
+                }
+                assertThat(distributor.nextMaxId(), equalTo(10L * i));
+            }
+        }
     }
 }

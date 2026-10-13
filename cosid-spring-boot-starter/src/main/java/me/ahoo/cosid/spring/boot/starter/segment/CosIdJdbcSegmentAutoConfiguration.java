@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.boot.starter.segment;
 
+import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributorFactory;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
@@ -53,7 +54,8 @@ public class CosIdJdbcSegmentAutoConfiguration {
     @ConditionalOnMissingBean
     public JdbcIdSegmentInitializer jdbcIdSegmentInitializer(DataSource dataSource) {
         SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
-        JdbcIdSegmentInitializer segmentInitializer = new JdbcIdSegmentInitializer(jdbc.getInitCosidTableSql(), jdbc.getInitIdSegmentSql(), dataSource);
+        JdbcIdSegmentInitializer segmentInitializer = new JdbcIdSegmentInitializer(jdbc.getInitCosidTableSql(), jdbc.getInitIdSegmentSql(), dataSource,
+            jdbc.getQueryTimeout());
         if (jdbc.isEnableAutoInitCosidTable()) {
             segmentInitializer.tryInitCosIdTable();
         }
@@ -66,7 +68,7 @@ public class CosIdJdbcSegmentAutoConfiguration {
     public IdSegmentDistributorFactory idSegmentDistributorFactory(DataSource dataSource, JdbcIdSegmentInitializer jdbcIdSegmentInitializer) {
         SegmentIdProperties.Distributor.Jdbc jdbc = segmentIdProperties.getDistributor().getJdbc();
         return new JdbcIdSegmentDistributorFactory(dataSource, jdbc.isEnableAutoInitIdSegment(), jdbcIdSegmentInitializer, jdbc.getIncrementMaxIdSql(), jdbc.getFetchMaxIdSql(),
-            jdbc.getQueryTimeout());
+            jdbc.getQueryTimeout(), JdbcIdSegmentDistributor.FetchMode.valueOf(jdbc.getFetchPlan().name()));
     }
 
     /**

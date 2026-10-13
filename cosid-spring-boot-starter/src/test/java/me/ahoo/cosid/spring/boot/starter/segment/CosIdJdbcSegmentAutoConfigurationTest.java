@@ -16,8 +16,9 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.mock;
 
-import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
+import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributor;
 import me.ahoo.cosid.jdbc.JdbcIdSegmentDistributorFactory;
+import me.ahoo.cosid.jdbc.JdbcIdSegmentInitializer;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 
 import org.junit.jupiter.api.Test;
@@ -115,5 +116,20 @@ class CosIdJdbcSegmentAutoConfigurationTest {
                 .doesNotHaveBean(CosIdJdbcSegmentAutoConfiguration.class)
                 .doesNotHaveBean(JdbcIdSegmentInitializer.class)
                 .doesNotHaveBean(IdSegmentDistributorFactory.class));
+    }
+    
+    @Test
+    void theFetchPlanIsAutoByDefaultAndCanBeTransaction() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", SegmentIdProperties.Distributor.TYPE + "=jdbc",
+                SegmentIdProperties.PREFIX + ".distributor.jdbc.enable-auto-init-cosid-table=false")
+            .run(context -> assertThat(((JdbcIdSegmentDistributorFactory) context.getBean(IdSegmentDistributorFactory.class)).getFetchMode())
+                .isEqualTo(JdbcIdSegmentDistributor.FetchMode.AUTO));
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", SegmentIdProperties.Distributor.TYPE + "=jdbc",
+                SegmentIdProperties.PREFIX + ".distributor.jdbc.enable-auto-init-cosid-table=false",
+                SegmentIdProperties.PREFIX + ".distributor.jdbc.fetch-plan=transaction")
+            .run(context -> assertThat(((JdbcIdSegmentDistributorFactory) context.getBean(IdSegmentDistributorFactory.class)).getFetchMode())
+                .isEqualTo(JdbcIdSegmentDistributor.FetchMode.TRANSACTION));
     }
 }

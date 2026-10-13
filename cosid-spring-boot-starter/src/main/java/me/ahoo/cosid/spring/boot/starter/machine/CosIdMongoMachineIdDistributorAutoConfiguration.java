@@ -28,6 +28,7 @@ import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnMachineStoreType;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoDatabase;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -44,6 +45,7 @@ import org.springframework.context.annotation.Primary;
  *
  * @author ahoo wang
  */
+@Slf4j
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
@@ -111,8 +113,18 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
          */
         @Bean
         @ConditionalOnMissingBean
-        public MongoMachineLeaseStore mongoMachineLeaseStore(MongoClient mongoClient) {
+        public MongoMachineLeaseStore mongoMachineLeaseStore(MongoClient mongoClient, ObjectProvider<MongoMachineInitializer> mongoMachineInitializer) {
             MachineProperties.Mongo mongo = machineProperties.getDistributor().getMongo();
+            // The collection and its indexes, before the first claim; the store still works without the indexes.
+            mongoMachineInitializer.ifAvailable(initializer -> {
+                try {
+                    initializer.ensureMachineCollection();
+                } catch (RuntimeException ensureFailure) {
+                    if (log.isWarnEnabled()) {
+                        log.warn("Ensure the machine collection failed: the lease queries run without their indexes.", ensureFailure);
+                    }
+                }
+            });
             MongoDatabase database = withWriteConcern(mongoClient.getDatabase(mongo.getDatabase()));
             MongoWriteConcerns.warnIfWeakerThanMajority(database, WRITE_CONCERN);
             return new MongoMachineLeaseStore(database,

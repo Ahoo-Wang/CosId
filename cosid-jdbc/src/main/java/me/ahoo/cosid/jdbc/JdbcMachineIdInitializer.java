@@ -19,6 +19,7 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.time.Duration;
 
 /**
  * Jdbc MachineId Initializer.
@@ -74,6 +75,7 @@ public class JdbcMachineIdInitializer {
     public static final String INIT_INSTANCE_ID_IDX_SQL = "";
     
     private final DataSource dataSource;
+    private final int queryTimeoutSeconds;
     
     private final String initCosIdMachineTableSql;
     private final String initNamespaceIdxSql;
@@ -84,10 +86,22 @@ public class JdbcMachineIdInitializer {
     }
     
     public JdbcMachineIdInitializer(DataSource dataSource, String initCosIdMachineTableSql, String initNamespaceIdxSql, String initInstanceIdIdxSql) {
+        this(dataSource, initCosIdMachineTableSql, initNamespaceIdxSql, initInstanceIdIdxSql, JdbcSupport.DEFAULT_QUERY_TIMEOUT);
+    }
+    
+    /**
+     * Create an initializer whose statements time out after {@code queryTimeout}.
+     *
+     * @param queryTimeout timeout of each statement, {@code null} or zero means no timeout
+     * @since 4.1.0
+     */
+    public JdbcMachineIdInitializer(DataSource dataSource, String initCosIdMachineTableSql, String initNamespaceIdxSql, String initInstanceIdIdxSql,
+                                    Duration queryTimeout) {
         this.dataSource = dataSource;
         this.initCosIdMachineTableSql = initCosIdMachineTableSql;
         this.initNamespaceIdxSql = initNamespaceIdxSql;
         this.initInstanceIdIdxSql = initInstanceIdIdxSql;
+        this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
     }
     
     public void initCosIdMachineTable() throws SQLException {
@@ -97,9 +111,7 @@ public class JdbcMachineIdInitializer {
 
         try (Connection connection = dataSource.getConnection()) {
             try {
-                try (PreparedStatement initStatement = connection.prepareStatement(initCosIdMachineTableSql)) {
-                    initStatement.executeUpdate();
-                }
+                executeIfPresent(connection, initCosIdMachineTableSql);
                 executeIfPresent(connection, initNamespaceIdxSql);
                 executeIfPresent(connection, initInstanceIdIdxSql);
                 JdbcSupport.commitIfManual(connection);
@@ -122,8 +134,20 @@ public class JdbcMachineIdInitializer {
         if (sql == null || sql.isEmpty()) {
             return;
         }
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, sql, queryTimeoutSeconds)) {
             statement.executeUpdate();
+        } catch (SQLException sqlException) {
+            // DDL without "if not exists" fails on the second start: the table or index is there, carry on.
+            if (!JdbcSupport.isAlreadyExists(sqlException)) {
+                throw sqlException;
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("Already exists, skipped: [{}].", sql);
+            }
+            if (!connection.getAutoCommit()) {
+                // PostgreSQL aborts the transaction on an error: end it before the next statement.
+                connection.rollback();
+            }
         }
     }
     
@@ -131,9 +155,9 @@ public class JdbcMachineIdInitializer {
         try {
             initCosIdMachineTable();
             return true;
-        } catch (Throwable throwable) {
-            if (log.isInfoEnabled()) {
-                log.info("Try Init CosIdMachineTable failed.[{}]", throwable.getMessage());
+        } catch (SQLException | RuntimeException exception) {
+            if (log.isWarnEnabled()) {
+                log.warn("Init CosIdMachineTable failed.", exception);
             }
             return false;
         }

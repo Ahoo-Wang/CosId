@@ -34,6 +34,7 @@ public class JdbcIdSegmentDistributorFactory implements IdSegmentDistributorFact
     private final String incrementMaxIdSql;
     private final String fetchMaxIdSql;
     private final Duration queryTimeout;
+    private final JdbcIdSegmentDistributor.FetchMode fetchMode;
 
     public JdbcIdSegmentDistributorFactory(DataSource dataSource, boolean enableAutoInitIdSegment, JdbcIdSegmentInitializer jdbcIdSegmentInitializer, String incrementMaxIdSql, String fetchMaxIdSql) {
         this(dataSource, enableAutoInitIdSegment, jdbcIdSegmentInitializer, incrementMaxIdSql, fetchMaxIdSql, JdbcSupport.DEFAULT_QUERY_TIMEOUT);
@@ -41,12 +42,35 @@ public class JdbcIdSegmentDistributorFactory implements IdSegmentDistributorFact
 
     public JdbcIdSegmentDistributorFactory(DataSource dataSource, boolean enableAutoInitIdSegment, JdbcIdSegmentInitializer jdbcIdSegmentInitializer, String incrementMaxIdSql, String fetchMaxIdSql,
                                            Duration queryTimeout) {
+        this(dataSource, enableAutoInitIdSegment, jdbcIdSegmentInitializer, incrementMaxIdSql, fetchMaxIdSql, queryTimeout,
+            JdbcIdSegmentDistributor.FetchMode.AUTO);
+    }
+    
+    /**
+     * Create the factory.
+     *
+     * @param fetchMode {@link JdbcIdSegmentDistributor.FetchMode#TRANSACTION} to always fetch in a transaction
+     * @since 4.1.0
+     */
+    public JdbcIdSegmentDistributorFactory(DataSource dataSource, boolean enableAutoInitIdSegment, JdbcIdSegmentInitializer jdbcIdSegmentInitializer, String incrementMaxIdSql, String fetchMaxIdSql,
+                                           Duration queryTimeout, JdbcIdSegmentDistributor.FetchMode fetchMode) {
         this.dataSource = dataSource;
         this.enableAutoInitIdSegment = enableAutoInitIdSegment;
         this.jdbcIdSegmentInitializer = jdbcIdSegmentInitializer;
         this.incrementMaxIdSql = incrementMaxIdSql;
         this.fetchMaxIdSql = fetchMaxIdSql;
         this.queryTimeout = queryTimeout;
+        this.fetchMode = fetchMode;
+    }
+
+    /**
+     * How the distributors fetch their segments.
+     *
+     * @return the fetch mode
+     * @since 4.1.0
+     */
+    public JdbcIdSegmentDistributor.FetchMode getFetchMode() {
+        return fetchMode;
     }
 
     @Override
@@ -56,7 +80,7 @@ public class JdbcIdSegmentDistributorFactory implements IdSegmentDistributorFact
         }
         return new JdbcIdSegmentDistributor(
             definition.getNamespace(), definition.getName(), definition.getStep(),
-            incrementMaxIdSql, fetchMaxIdSql, dataSource, queryTimeout
+            incrementMaxIdSql, fetchMaxIdSql, dataSource, queryTimeout, fetchMode
         );
     }
 }

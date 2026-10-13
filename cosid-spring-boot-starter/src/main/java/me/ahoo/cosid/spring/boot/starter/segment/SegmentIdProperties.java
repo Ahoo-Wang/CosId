@@ -589,6 +589,33 @@ public class SegmentIdProperties {
             public void setQueryTimeout(Duration queryTimeout) {
                 this.queryTimeout = queryTimeout;
             }
+            
+            /**
+             * How a segment is fetched. {@code auto} (default): the built-in MySQL statements as {@code last_insert_id}
+             * under auto-commit, the PostgreSQL ones as one {@code update ... returning}, others in a transaction.
+             * {@code transaction}: always the update then the select in a transaction, for SQL proxies and read/write
+             * splitters (ShardingSphere, MyCat, ProxySQL, Vitess).
+             */
+            // Its own enum, not JdbcIdSegmentDistributor.FetchMode: that would load cosid-jdbc for every starter user.
+            private FetchPlan fetchPlan = FetchPlan.AUTO;
+            
+            public FetchPlan getFetchPlan() {
+                return fetchPlan;
+            }
+            
+            public void setFetchPlan(FetchPlan fetchPlan) {
+                this.fetchPlan = fetchPlan;
+            }
+            
+            /**
+             * How a JDBC segment is fetched.
+             *
+             * @since 4.1.0
+             */
+            public enum FetchPlan {
+                AUTO,
+                TRANSACTION
+            }
 
             public String getIncrementMaxIdSql() {
                 return incrementMaxIdSql;

@@ -33,6 +33,8 @@ docker run --name cosid-proxy -d -p 8688:8688 --link redis \
 
 没有令牌时服务端会拒绝启动，见[认证](#认证)。
 
+容器和编排系统的健康检查请使用 `/actuator/health/liveness`（镜像的 `HEALTHCHECK` 就是如此）：它不访问存储即可应答。`/actuator/health` 包含存储，存储故障时为 `DOWN`，存储卡住时会一直等到存储的健康检查返回：适合用于告警。默认的 `/actuator/health/readiness` 分组同样不包含存储。
+
 镜像包含所有存储的驱动：Redis、MySQL、PostgreSQL、MongoDB 和 ZooKeeper。默认配置 Redis；`DataSourceAutoConfiguration` 和 `MongoAutoConfiguration` 在 `spring.autoconfigure.exclude` 中，避免未使用的存储出现在健康检查中。使用其他存储时，请设置排除列表，只保留所选的存储：否则健康检查会把未使用的 Redis 报告为 `DOWN`，整体状态为 `DOWN`，容器会被标记为不健康。以 PostgreSQL 为例：
 
 ```shell

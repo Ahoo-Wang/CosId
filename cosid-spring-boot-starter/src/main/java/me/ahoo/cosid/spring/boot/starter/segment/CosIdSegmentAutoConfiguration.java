@@ -18,6 +18,7 @@ import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
+import me.ahoo.cosid.spring.boot.starter.metrics.CosIdMetricsProperties;
 
 import com.google.common.base.Preconditions;
 import org.springframework.beans.factory.ObjectProvider;
@@ -27,6 +28,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 /**
  * CosId Segment AutoConfiguration.
@@ -69,8 +71,10 @@ public class CosIdSegmentAutoConfiguration {
                                                          PrefetchWorkerExecutorService prefetchWorkerExecutorService,
                                                          ObjectProvider<CustomizeSegmentIdProperties> customizers,
                                                          ConfigurableListableBeanFactory beanFactory) {
-        return new SegmentIdBeanRegistrar(cosIdProperties, segmentIdProperties, distributorFactory, idGeneratorProvider,
+        SegmentIdBeanRegistrar registrar = new SegmentIdBeanRegistrar(cosIdProperties, segmentIdProperties, distributorFactory, idGeneratorProvider,
             prefetchWorkerExecutorService, customizers, (BeanDefinitionRegistry) beanFactory);
+        registrar.setCountGenerated(CosIdMetricsProperties.isCountGenerated(beanFactory.getBean(Environment.class)));
+        return registrar;
     }
     
     /**

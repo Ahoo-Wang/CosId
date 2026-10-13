@@ -19,6 +19,7 @@ import me.ahoo.cosid.machine.GuardDistribute;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.snowflake.ClockSyncSnowflakeId;
+import me.ahoo.cosid.snowflake.CountedSnowflakeId;
 import me.ahoo.cosid.snowflake.LeasedSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.snowflake.SecondSnowflakeId;
@@ -43,6 +44,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 public class SnowflakeIdBeanRegistrar implements InitializingBean, DisposableBean {
+    private volatile boolean countGenerated;
+    
     /**
      * The bean name, the factory bean of the {@code {name}SnowflakeId} bean definitions.
      */
@@ -100,6 +103,16 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean, DisposableBea
         }
         definitions.putAll(snowflakeIdProperties.getProvider());
         return definitions;
+    }
+    
+    /**
+     * Wrap the created ids in a {@link CountedSnowflakeId} ({@code cosid.metrics.generated.enabled}).
+     *
+     * @param countGenerated whether to count the generated ids
+     * @since 4.1.0
+     */
+    public void setCountGenerated(boolean countGenerated) {
+        this.countGenerated = countGenerated;
     }
     
     /**
@@ -180,6 +193,10 @@ public class SnowflakeIdBeanRegistrar implements InitializingBean, DisposableBea
         }
         if (idDefinition.isClockSync()) {
             snowflakeId = new ClockSyncSnowflakeId(snowflakeId, clockBackwardsSynchronizer);
+        }
+        // Outermost below the converter: every id counted once, also those retried after a clock sync.
+        if (countGenerated) {
+            snowflakeId = new CountedSnowflakeId(snowflakeId);
         }
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
         final ZoneId zoneId = snowflakeIdProperties.getZoneId();

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.provider.IdGeneratorProvider;
+import me.ahoo.cosid.segment.CountedSegmentId;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
@@ -46,6 +47,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 public class SegmentIdBeanRegistrar implements InitializingBean, DisposableBean {
+    private volatile boolean countGenerated;
+    
     /**
      * The bean name, the factory bean of the {@code {name}SegmentId} bean definitions.
      */
@@ -98,6 +101,16 @@ public class SegmentIdBeanRegistrar implements InitializingBean, DisposableBean 
         }
         definitions.putAll(segmentIdProperties.getProvider());
         return definitions;
+    }
+    
+    /**
+     * Wrap the created ids in a {@link CountedSegmentId} ({@code cosid.metrics.generated.enabled}).
+     *
+     * @param countGenerated whether to count the generated ids
+     * @since 4.1.0
+     */
+    public void setCountGenerated(boolean countGenerated) {
+        this.countGenerated = countGenerated;
     }
     
     /**
@@ -170,7 +183,7 @@ public class SegmentIdBeanRegistrar implements InitializingBean, DisposableBean 
             idSegmentDistributor = distributorFactory.create(distributorDefinition);
         }
 
-        SegmentId idGenerator = createSegment(segmentIdProperties, idDefinition, idSegmentDistributor, prefetchWorkerExecutorService);
+        SegmentId idGenerator = createSegment(segmentIdProperties, idDefinition, idSegmentDistributor, prefetchWorkerExecutorService, countGenerated);
         if (idGeneratorProvider.get(name).isEmpty()) {
             idGeneratorProvider.set(name, idGenerator);
         }
@@ -184,7 +197,7 @@ public class SegmentIdBeanRegistrar implements InitializingBean, DisposableBean 
     }
 
     private static SegmentId createSegment(SegmentIdProperties segmentIdProperties, SegmentIdProperties.IdDefinition idDefinition, IdSegmentDistributor idSegmentDistributor,
-                                           PrefetchWorkerExecutorService prefetchWorkerExecutorService) {
+                                           PrefetchWorkerExecutorService prefetchWorkerExecutorService, boolean countGenerated) {
         long ttl = MoreObjects.firstNonNull(idDefinition.getTtl(), segmentIdProperties.getTtl());
         SegmentIdProperties.Mode mode = MoreObjects.firstNonNull(idDefinition.getMode(), segmentIdProperties.getMode());
 
@@ -197,6 +210,9 @@ public class SegmentIdBeanRegistrar implements InitializingBean, DisposableBean 
                 idSegmentDistributor, prefetchWorkerExecutorService, CallTimeout.of(chain.getPrefetchTimeout()));
         }
 
+        if (countGenerated) {
+            segmentId = new CountedSegmentId(segmentId);
+        }
         IdConverterDefinition converterDefinition = idDefinition.getConverter();
         return new SegmentIdConverterDecorator(segmentId, converterDefinition).decorate();
     }

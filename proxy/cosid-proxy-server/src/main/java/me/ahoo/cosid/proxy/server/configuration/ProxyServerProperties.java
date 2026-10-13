@@ -60,6 +60,8 @@ public class ProxyServerProperties {
     
     private Segment segment = new Segment();
     
+    private Blocking blocking = new Blocking();
+    
     public Duration getMinSafeGuardDuration() {
         return minSafeGuardDuration;
     }
@@ -99,6 +101,14 @@ public class ProxyServerProperties {
         this.segment = segment;
     }
     
+    public Blocking getBlocking() {
+        return blocking;
+    }
+    
+    public void setBlocking(Blocking blocking) {
+        this.blocking = blocking;
+    }
+    
     public static class Segment {
         public static final int DEFAULT_MAX_DISTRIBUTORS = 0;
         
@@ -130,6 +140,40 @@ public class ProxyServerProperties {
         
         public void setMaxDistributors(int maxDistributors) {
             this.maxDistributors = maxDistributors;
+        }
+    }
+    
+    /**
+     * The thread pool that runs the API calls, which block on the machine-id and segment stores, so that a slow store
+     * never stalls the event loop that also answers health checks.
+     */
+    public static class Blocking {
+        public static final int DEFAULT_THREADS = 64;
+        public static final int DEFAULT_QUEUE_CAPACITY = 1024;
+        
+        /**
+         * Threads running API calls.
+         */
+        private int threads = DEFAULT_THREADS;
+        /**
+         * API calls waiting for a thread. Calls beyond it are answered with 503 at once.
+         */
+        private int queueCapacity = DEFAULT_QUEUE_CAPACITY;
+        
+        public int getThreads() {
+            return threads;
+        }
+        
+        public void setThreads(int threads) {
+            this.threads = threads;
+        }
+        
+        public int getQueueCapacity() {
+            return queueCapacity;
+        }
+        
+        public void setQueueCapacity(int queueCapacity) {
+            this.queueCapacity = queueCapacity;
         }
     }
 }

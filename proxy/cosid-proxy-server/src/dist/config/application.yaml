@@ -1,4 +1,9 @@
 management:
+  endpoint:
+    health:
+      # /actuator/health/liveness answers without asking the stores: use it for container health checks.
+      probes:
+        enabled: true
   endpoints:
     web:
       exposure:

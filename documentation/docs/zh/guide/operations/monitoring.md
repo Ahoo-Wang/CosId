@@ -51,7 +51,7 @@ management:
 
 `cosid.metrics.generated.enabled` 默认关闭：开启后号段和 Snowflake 生成器会被计数装饰器（`CountedSegmentId`、`CountedSnowflakeId`）包装，每个 ID 一次原子加法。Bean 仍是 `SegmentId` 和 `SnowflakeId` 类型。这些 Bean 本身就是装饰器（例如包装 `SegmentChainId` 的 `StringSegmentId`），获取原生成器请使用递归的 `Decorator.getActual(bean)`，不要只调用一次 `getActual()` 再用 `instanceof` 判断：开启后会多一层。
 
-设置 `cosid.provider.isolated=true` 时，每个应用上下文只统计自己实例的租约事件，以及自己生成器所用号段存储的号段事件：两个上下文的生成器使用同一个号段存储时，都会统计该存储的事件。时钟、序列号和存储调用指标无法区分上下文，统计的是整个 JVM。启动后才加入容器的生成器，会在下一次 `CosIdMeterBinder.refresh()` 时获得指标。
+设置 `cosid.provider.isolated=true` 时，每个应用上下文只统计自己实例的租约事件（因此每个隔离的上下文需要自己的实例 ID：默认的非稳定 `{host}:{pid}:{random}` 满足，固定的 `cosid.machine.instance-id` 或稳定实例默认的 `{host}:{pid}` 不满足），以及自己生成器所用号段存储的号段事件：两个上下文的生成器使用同一个号段存储时，都会统计该存储的事件。时钟、序列号和存储调用指标无法区分上下文，统计的是整个 JVM。启动后才加入容器的生成器，会在下一次 `CosIdMeterBinder.refresh()` 时获得指标。
 
 ### 告警
 

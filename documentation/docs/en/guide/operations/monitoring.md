@@ -51,7 +51,7 @@ With Micrometer on the classpath and a `MeterRegistry` bean (Spring Boot Actuato
 
 `cosid.metrics.generated.enabled` is off by default: it wraps segment and Snowflake generators in a counting decorator (`CountedSegmentId`, `CountedSnowflakeId`), one atomic add per ID. Beans keep their `SegmentId` and `SnowflakeId` types. The beans are decorators already (for example `StringSegmentId` around a `SegmentChainId`), so to reach the generator use the recursive `Decorator.getActual(bean)`, not one `getActual()` followed by `instanceof`: with the flag on there is one more layer.
 
-With `cosid.provider.isolated=true`, each application context counts only the lease events of its own instances, and the segment events of the segment stores its generators use: two contexts with generators on the same store both count that store's events. Clock, sequence and call meters cannot tell contexts apart and count the whole JVM. Generators added to the provider after startup get their gauges at the next `CosIdMeterBinder.refresh()`.
+With `cosid.provider.isolated=true`, each application context counts only the lease events of its own instances (so each isolated context needs its own instance id: the default non-stable `{host}:{pid}:{random}` is, a fixed `cosid.machine.instance-id` or the stable default `{host}:{pid}` is not), and the segment events of the segment stores its generators use: two contexts with generators on the same store both count that store's events. Clock, sequence and call meters cannot tell contexts apart and count the whole JVM. Generators added to the provider after startup get their gauges at the next `CosIdMeterBinder.refresh()`.
 
 ### Alerts
 
@@ -61,7 +61,7 @@ With `cosid.provider.isolated=true`, each application context counts only the le
 | Lease renewals failing | warning | `increase(cosid_machine_lease_renew_failures_total[5m]) > 0` |
 | Lease lost: the instance's Snowflake generators stop | critical | `increase(cosid_machine_lease_lost_total[5m]) > 0` |
 | Segment prefetch failing: generation runs on the reserved segments | warning | `increase(cosid_segment_prefetch_failures_total[5m]) > 0` |
-| Segment chain running dry | warning | `cosid_segment_remaining < 1000` (pick a value from your `step`) |
+| Segment chain running dry | warning | `cosid_segment_remaining < 1000 and on(name, segment) cosid_segment_prefetch_distance` (segment chains only: a `DefaultSegmentId` holds one segment and runs low before every fetch; pick a value from your `step`) |
 | Store calls rejected | warning | `increase(cosid_call_rejections_total[5m]) > 0` |
 
 The health indicator turns `DOWN` on a lost or expired lease too; alert on whichever your platform already scrapes.

@@ -78,7 +78,7 @@ public class MachineLeaseManager {
     }
     
     private Optional<Lease> claimOnce(String namespace, InstanceId instanceId, int maxMachineId, Duration safeGuardDuration) {
-        long now = store.serverTime();
+        long now = store.serverTime(namespace);
         LeaseClaim claim = LeaseClaim.SELF;
         Optional<Lease> lease = store.claimSelf(namespace, instanceId, now);
         if (lease.isPresent() && lease.get().getMachineId() > maxMachineId) {
@@ -132,7 +132,7 @@ public class MachineLeaseManager {
      * @return empty if the instance holds none: it was released or taken over
      */
     public Optional<Lease> reclaim(String namespace, InstanceId instanceId) {
-        return store.claimSelf(namespace, instanceId, store.serverTime());
+        return store.claimSelf(namespace, instanceId, store.serverTime(namespace));
     }
     
     /**
@@ -141,7 +141,7 @@ public class MachineLeaseManager {
      * @return the renewed lease, or empty if it was taken over in the meantime
      */
     public Optional<Lease> renew(Lease lease) {
-        return store.renew(lease, store.serverTime());
+        return store.renew(lease, store.serverTime(lease.getNamespace()));
     }
     
     /**

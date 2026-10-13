@@ -30,6 +30,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 class CallTimeoutTest {
@@ -99,13 +101,13 @@ class CallTimeoutTest {
     
     @Test
     void rejectsCallsBeyondTheConfiguredLimit() throws Exception {
-        int defaultLimit = CallTimeout.getMaxConcurrentCalls();
-        CallTimeout.setMaxConcurrentCalls(2);
+        // Its own pool: the JVM-wide one may still run calls of other tests, which would take the two places.
+        ThreadPoolExecutor pool = new ThreadPoolExecutor(0, 2, 60L, TimeUnit.SECONDS, new SynchronousQueue<>());
         CountDownLatch release = new CountDownLatch(1);
         CountDownLatch running = new CountDownLatch(2);
         ExecutorService callers = Executors.newFixedThreadPool(2);
         try {
-            CallTimeout timeout = CallTimeout.of(Duration.ofSeconds(30));
+            CallTimeout timeout = new CallTimeout(Duration.ofSeconds(30), pool);
             List<Future<Object>> blocked = new ArrayList<>();
             for (int i = 0; i < 2; i++) {
                 blocked.add(callers.submit(() -> timeout.call("blocked", () -> {
@@ -126,6 +128,17 @@ class CallTimeoutTest {
         } finally {
             release.countDown();
             callers.shutdownNow();
+            pool.shutdownNow();
+        }
+    }
+    
+    @Test
+    void theJvmWideLimitCanBeChanged() {
+        int defaultLimit = CallTimeout.getMaxConcurrentCalls();
+        try {
+            CallTimeout.setMaxConcurrentCalls(3);
+            assertThat(CallTimeout.getMaxConcurrentCalls(), equalTo(3));
+        } finally {
             CallTimeout.setMaxConcurrentCalls(defaultLimit);
         }
     }

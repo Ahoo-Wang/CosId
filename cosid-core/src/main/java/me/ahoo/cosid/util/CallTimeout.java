@@ -54,6 +54,7 @@ public final class CallTimeout {
         Checks.daemonThreadFactory("CosId-Call-%d"));
     
     private final Duration timeout;
+    private final ThreadPoolExecutor executor;
     
     /**
      * Most calls with a timeout that may run at once, across all backends.
@@ -76,7 +77,15 @@ public final class CallTimeout {
     }
     
     private CallTimeout(Duration timeout) {
+        this(timeout, EXECUTOR);
+    }
+    
+    /**
+     * A call timeout on its own pool, for tests that must not share the JVM-wide limit.
+     */
+    CallTimeout(Duration timeout, ThreadPoolExecutor executor) {
         this.timeout = timeout;
+        this.executor = executor;
     }
     
     /**
@@ -136,10 +145,10 @@ public final class CallTimeout {
         }
         Future<T> future;
         try {
-            future = EXECUTOR.submit(call);
+            future = executor.submit(call);
         } catch (RejectedExecutionException rejectedExecutionException) {
             CosIdEvents.listener().onCallRejected(operation);
-            throw new CallRejectedException("Too many calls in flight (max " + getMaxConcurrentCalls() + "), rejected [" + operation + "].",
+            throw new CallRejectedException("Too many calls in flight (max " + executor.getMaximumPoolSize() + "), rejected [" + operation + "].",
                 rejectedExecutionException);
         }
         try {

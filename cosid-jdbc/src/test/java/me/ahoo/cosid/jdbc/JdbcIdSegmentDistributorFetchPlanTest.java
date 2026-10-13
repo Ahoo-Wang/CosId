@@ -37,14 +37,14 @@ class JdbcIdSegmentDistributorFetchPlanTest {
     }
     
     @Test
-    void theDefaultMySqlStatementsTakeTwoStatementsWithoutATransaction() {
+    void theDefaultMySqlStatementsTakeOneStatementWithoutATransaction() {
         FakeJdbc jdbc = new FakeJdbc(true);
         JdbcIdSegmentDistributor distributor = distributor(jdbc, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
         assertThat(distributor.getFetchPlan(), is(JdbcIdSegmentDistributor.FetchPlan.LAST_INSERT_ID));
         
         assertThat(distributor.nextMaxId(10), equalTo(42L));
         
-        assertThat(jdbc.executed, contains(JdbcIdSegmentDistributor.LAST_INSERT_ID_INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.LAST_INSERT_ID_SQL));
+        assertThat(jdbc.executed, contains(JdbcIdSegmentDistributor.LAST_INSERT_ID_INCREMENT_MAX_ID_SQL));
         assertThat(jdbc.events, contains("close:autoCommit=true"));
         assertThat(jdbc.queryTimeouts, everyItem(is(3)));
     }
@@ -106,15 +106,27 @@ class JdbcIdSegmentDistributorFetchPlanTest {
     }
     
     @Test
-    void aLastInsertIdFromAnotherSessionIsRejected() {
+    void aGeneratedKeyBelowTheStepIsRejected() {
         FakeJdbc jdbc = new FakeJdbc(true);
-        // A proxy sent the select to a session that never ran the update: last_insert_id() is 0 there.
+        // Not the update's last_insert_id(expr): a proxy that answered for another session.
         jdbc.maxId = 0;
         JdbcIdSegmentDistributor distributor = distributor(jdbc, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
         
         CosIdException exception = assertThrows(CosIdException.class, () -> distributor.nextMaxId(10));
         
         assertThat(exception.getMessage().contains("fetch-plan=transaction"), is(true));
+    }
+    
+    @Test
+    void noGeneratedKeyIsAFailureNotAFallback() {
+        FakeJdbc jdbc = new FakeJdbc(true);
+        jdbc.generatedKeys = false;
+        JdbcIdSegmentDistributor distributor = distributor(jdbc, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
+        
+        CosIdException exception = assertThrows(CosIdException.class, () -> distributor.nextMaxId(10));
+        
+        assertThat(exception.getMessage().contains("fetch-plan=transaction"), is(true));
+        assertThat(jdbc.executed, contains(JdbcIdSegmentDistributor.LAST_INSERT_ID_INCREMENT_MAX_ID_SQL));
     }
     
     @Test

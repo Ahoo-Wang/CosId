@@ -26,6 +26,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.time.Duration;
 import javax.sql.DataSource;
 
@@ -42,19 +43,13 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
     public static final String FETCH_MAX_ID_SQL
         = "select last_max_id from cosid where name = ?;";
     /**
-     * {@link #INCREMENT_MAX_ID_SQL} that also keeps the new max id as the connection's {@code last_insert_id()}: with
-     * {@link #LAST_INSERT_ID_SQL}, two statements under auto-commit, without a transaction (MySQL, MariaDB).
+     * {@link #INCREMENT_MAX_ID_SQL} that also returns the new max id as the statement's generated key
+     * ({@code last_insert_id(expr)}): one statement under auto-commit, without a transaction (MySQL, MariaDB).
      *
      * @since 4.1.0
      */
     public static final String LAST_INSERT_ID_INCREMENT_MAX_ID_SQL
         = "update cosid set last_max_id=last_insert_id(last_max_id + ?),last_fetch_time=unix_timestamp() where name = ?";
-    /**
-     * Reads the max id {@link #LAST_INSERT_ID_INCREMENT_MAX_ID_SQL} kept on the same connection.
-     *
-     * @since 4.1.0
-     */
-    public static final String LAST_INSERT_ID_SQL = "select last_insert_id()";
 
     private final DataSource dataSource;
     private final String incrementMaxIdSql;
@@ -114,13 +109,13 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
         AUTO,
         /**
          * Always the update then the select in one transaction, as before 4.1: for SQL proxies and read/write splitters
-         * (ShardingSphere, MyCat, ProxySQL, Vitess) that may send the {@code select last_insert_id()} to another session.
+         * (ShardingSphere, MyCat, ProxySQL, Vitess) that may not pass the update's generated key through.
          */
         TRANSACTION
     }
     
     /**
-     * How a segment is fetched: the built-in MySQL and PostgreSQL statements take one or two round-trips under
+     * How a segment is fetched: the built-in MySQL and PostgreSQL statements take one round-trip under
      * auto-commit; any other statements run in a transaction, the update then the select.
      */
     enum FetchPlan {
@@ -229,28 +224,30 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
     }
     
     private long lastInsertId(Connection connection, long step) throws SQLException {
-        try (PreparedStatement accStatement = JdbcSupport.prepareStatement(connection, LAST_INSERT_ID_INCREMENT_MAX_ID_SQL, queryTimeoutSeconds)) {
+        // The generated key is this statement's own last_insert_id(expr), from its OK packet: unlike a later
+        // "select last_insert_id()", nothing else on the connection or behind a proxy can change it.
+        try (PreparedStatement accStatement = JdbcSupport.prepareStatement(connection, LAST_INSERT_ID_INCREMENT_MAX_ID_SQL, queryTimeoutSeconds,
+            Statement.RETURN_GENERATED_KEYS)) {
             accStatement.setLong(1, step);
             accStatement.setString(2, getNamespacedName());
             if (accStatement.executeUpdate() == 0) {
                 throw new SegmentNameMissingException(getNamespacedName());
             }
-        }
-        try (PreparedStatement fetchStatement = JdbcSupport.prepareStatement(connection, LAST_INSERT_ID_SQL, queryTimeoutSeconds);
-             ResultSet resultSet = fetchStatement.executeQuery()) {
-            if (!resultSet.next()) {
-                throw new NotFoundMaxIdException(getNamespacedName());
+            try (ResultSet generatedKeys = accStatement.getGeneratedKeys()) {
+                if (!generatedKeys.next()) {
+                    throw new CosIdException(Checks.lenientFormat("Segment [%s]: the update returned no generated key (a SQL proxy or driver that "
+                        + "drops it?). Set cosid.segment.distributor.jdbc.fetch-plan=transaction.", getNamespacedName()));
+                }
+                long maxId = generatedKeys.getLong(1);
+                // The update set last_max_id >= step (the offset is never negative): less means the key is not this
+                // update's value, and handing (maxId - step, maxId] out would duplicate ids.
+                if (maxId < step) {
+                    throw new CosIdException(Checks.lenientFormat("Segment [%s]: the update returned [%s] after adding [%s], not its new max id "
+                        + "(a SQL proxy or read/write splitter?). Set cosid.segment.distributor.jdbc.fetch-plan=transaction.",
+                        getNamespacedName(), maxId, step));
+                }
+                return maxId;
             }
-            long maxId = resultSet.getLong(1);
-            // The update set last_max_id >= step (the offset is never negative). Less, typically 0, means the select ran
-            // on another session than the update: a proxy or read/write splitter. Handing (maxId - step, maxId] out would
-            // duplicate ids.
-            if (maxId < step) {
-                throw new CosIdException(Checks.lenientFormat("Segment [%s]: last_insert_id() returned [%s] after adding [%s]: the select did not run "
-                    + "on the update's session (a SQL proxy or read/write splitter?). Set cosid.segment.distributor.jdbc.fetch-plan=transaction.",
-                    getNamespacedName(), maxId, step));
-            }
-            return maxId;
         }
     }
     

@@ -64,7 +64,7 @@ cosid:
 | `cosid.segment.distributor.jdbc.enable-auto-init-id-segment` | `true` | 启动时用 `init-id-segment-sql` 插入缺失的生成器行 |
 | `cosid.segment.distributor.jdbc.init-cosid-table-sql`、`init-id-segment-sql`、`increment-max-id-sql`、`fetch-max-id-sql` | MySQL 语句 | 号段相关语句 |
 | `cosid.segment.distributor.jdbc.query-timeout` | `5s` | 每条号段语句；`0` 表示不限制 |
-| `cosid.segment.distributor.jdbc.fetch-plan` | `auto` | `auto`：默认的 MySQL 语句在自动提交模式下以 `last_insert_id` 执行，PostgreSQL 语句以一条 `update ... returning` 执行，其他语句在事务中执行。`transaction`：始终在事务中先更新再查询。在 SQL 代理和读写分离中间件（ShardingSphere、MyCat、ProxySQL 读写分离、Vitess）之后请使用 `transaction`，它们可能把 `select last_insert_id()` 发到另一个会话 |
+| `cosid.segment.distributor.jdbc.fetch-plan` | `auto` | `auto`：默认的 MySQL 语句在自动提交模式下以 `last_insert_id` 执行，PostgreSQL 语句以一条 `update ... returning` 执行，其他语句在事务中执行。`transaction`：始终在事务中先更新再查询。在 SQL 代理和读写分离中间件（ShardingSphere、MyCat、ProxySQL 读写分离、Vitess）之后请使用 `transaction`，它们可能不会传回更新语句的生成键 |
 | `cosid.machine.distributor.jdbc.enable-auto-init-cosid-machine-table` | `false` | 启动时创建 `cosid_machine` 表 |
 | `cosid.machine.distributor.jdbc.init-cos-id-machine-table-sql`、`init-namespace-idx-sql`、`init-instance-id-idx-sql` | MySQL 语句 | 机器号表相关语句；为空的索引语句会被跳过 |
 | `cosid.machine.distributor.jdbc.query-timeout` | `5s` | 每条机器号语句；`0` 表示不限制 |
@@ -129,7 +129,7 @@ alter table cosid_machine add column if not exists renew_time bigint not null de
 
 ## 号段的获取方式
 
-使用默认的 MySQL 语句时，获取一个号段在自动提交模式下执行两条语句，不开事务：`update cosid set last_max_id=last_insert_id(last_max_id + ?), ...` 和 `select last_insert_id()`，后者在同一连接上读取新值（MySQL、MariaDB）。使用 `PostgreSqlDialect` 的 PostgreSQL 语句时只执行一条：`update ... returning last_max_id`。其他自定义语句仍和以前一样，在一个事务中先更新再查询；设置 `fetch-plan: transaction` 时所有获取都如此。`last_insert_id()` 小于步长说明查询到达了另一个会话：此时获取会失败，而不是发出重复的 ID。语句按原样比较，只忽略空白和末尾的 `;`：`update COSID ...` 不是默认语句。连接归还连接池时保持取出时的自动提交模式。初始化语句在 `query-timeout` 后超时；已存在的表、索引或号段行会被静默跳过，其他错误以 WARN 级别连同原因记录。
+使用默认的 MySQL 语句时，获取一个号段在自动提交模式下只执行一条语句，不开事务：`update cosid set last_max_id=last_insert_id(last_max_id + ?), ...`，它返回的生成键就是新值（MySQL、MariaDB）。使用 `PostgreSqlDialect` 的 PostgreSQL 语句时只执行一条：`update ... returning last_max_id`。其他自定义语句仍和以前一样，在一个事务中先更新再查询；设置 `fetch-plan: transaction` 时所有获取都如此。没有返回生成键，或生成键小于步长，说明 SQL 代理没有把更新的值传回：此时获取会失败并提示 `fetch-plan: transaction`，而不是发出重复的 ID。语句按原样比较，只忽略空白和末尾的 `;`：`update COSID ...` 不是默认语句。连接归还连接池时保持取出时的自动提交模式。初始化语句在 `query-timeout` 后超时；已存在的表、索引或号段行会被静默跳过，其他错误以 WARN 级别连同原因记录。
 
 ## PostgreSQL
 

@@ -68,7 +68,8 @@ public class CosIdJdbcMachineIdDistributorAutoConfiguration {
             dataSource,
             jdbc.getInitCosIdMachineTableSql(),
             jdbc.getInitNamespaceIdxSql(),
-            jdbc.getInitInstanceIdIdxSql());
+            jdbc.getInitInstanceIdIdxSql(),
+            jdbc.getQueryTimeout());
         if (jdbc.isEnableAutoInitCosidMachineTable()) {
             machineIdInitializer.tryInitCosIdMachineTable();
         }

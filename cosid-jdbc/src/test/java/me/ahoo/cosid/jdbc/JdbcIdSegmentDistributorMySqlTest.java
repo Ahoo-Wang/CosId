@@ -74,13 +74,26 @@ class JdbcIdSegmentDistributorMySqlTest {
     }
     
     @Test
-    void nextMaxIdShouldRollbackWhenSegmentNameIsMissing() {
+    void nextMaxIdWhenSegmentNameIsMissing() {
         JdbcIdSegmentDistributor distributor = new JdbcIdSegmentDistributor(namespace, "rollback", 100, dataSource);
         
         SegmentNameMissingException actual = Assertions.assertThrows(SegmentNameMissingException.class, () -> distributor.nextMaxId(1));
         
         assertThat(actual.getMessage(), containsString(distributor.getNamespacedName()));
-        assertThat(dataSource.getRollbackCount(), equalTo(1));
+        // The built-in MySQL statements run under auto-commit: no transaction to roll back.
+        assertThat(dataSource.getRollbackCount(), equalTo(0));
+    }
+    
+    @Test
+    void theBuiltInStatementsUseLastInsertId() {
+        IdSegmentDistributor distributor = factory().create(new IdSegmentDistributorDefinition(namespace, "last-insert-id", 1, 100));
+        dataSource.getExecutedSql().clear();
+        
+        assertThat(distributor.nextMaxId(), equalTo(101L));
+        assertThat(distributor.nextMaxId(), equalTo(201L));
+        
+        assertThat(dataSource.getExecutedSql(), contains(JdbcIdSegmentDistributor.LAST_INSERT_ID_INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.LAST_INSERT_ID_SQL,
+            JdbcIdSegmentDistributor.LAST_INSERT_ID_INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.LAST_INSERT_ID_SQL));
     }
     
     @Test

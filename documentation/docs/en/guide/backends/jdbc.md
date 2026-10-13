@@ -126,6 +126,10 @@ alter table cosid_machine add column if not exists renew_time bigint not null de
 
 See [Rolling upgrade](../operations/rolling-upgrade.md) for the order of the steps.
 
+## How a segment is fetched
+
+With the default MySQL statements, a segment takes two statements under auto-commit and no transaction: `update cosid set last_max_id=last_insert_id(last_max_id + ?), ...` and `select last_insert_id()`, which reads the new value on the same connection (MySQL, MariaDB). With the PostgreSQL statements of `PostgreSqlDialect`, it takes one: `update ... returning last_max_id`. Any other configured statements run as before, the update then the select in one transaction. The connection goes back to the pool with the auto-commit mode it came with. The initializers' statements time out after `query-timeout`; a table, index or segment row that already exists is skipped quietly, any other error is logged at WARN with its cause.
+
 ## PostgreSQL
 
 `me.ahoo.cosid.jdbc.PostgreSqlDialect` holds the PostgreSQL statements (tested on PostgreSQL 16). Set them as the properties above, or pass them to `JdbcIdSegmentInitializer`, `JdbcIdSegmentDistributorFactory` and `JdbcMachineIdInitializer` without the starter. The starter detects PostgreSQL for the server time query; without the starter, pass `PostgreSqlDialect.SERVER_TIME_SQL` to `JdbcMachineLeaseStore`.

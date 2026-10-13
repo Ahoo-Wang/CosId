@@ -22,6 +22,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
+import java.time.Duration;
 
 /**
  * Jdbc IdSegment Initializer.
@@ -46,12 +47,23 @@ public class JdbcIdSegmentInitializer {
     private final String initCosIdTableSql;
     private final String initIdSegmentSql;
     private final DataSource dataSource;
+    private final int queryTimeoutSeconds;
     
     public JdbcIdSegmentInitializer(DataSource dataSource) {
         this(INIT_COSID_TABLE_SQL, INIT_ID_SEGMENT_SQL, dataSource);
     }
     
     public JdbcIdSegmentInitializer(String initCosIdTableSql, String initIdSegmentSql, DataSource dataSource) {
+        this(initCosIdTableSql, initIdSegmentSql, dataSource, JdbcSupport.DEFAULT_QUERY_TIMEOUT);
+    }
+    
+    /**
+     * Create an initializer whose statements time out after {@code queryTimeout}.
+     *
+     * @param queryTimeout timeout of each statement, {@code null} or zero means no timeout
+     * @since 4.1.0
+     */
+    public JdbcIdSegmentInitializer(String initCosIdTableSql, String initIdSegmentSql, DataSource dataSource, Duration queryTimeout) {
         Preconditions.checkArgument(!Strings.isNullOrEmpty(initCosIdTableSql), "initCosIdTableSql can not be empty!");
         Preconditions.checkArgument(!Strings.isNullOrEmpty(initIdSegmentSql), "initIdSegmentSql can not be empty!");
         Preconditions.checkNotNull(dataSource, "dataSource can not be null!");
@@ -59,6 +71,7 @@ public class JdbcIdSegmentInitializer {
         this.initCosIdTableSql = initCosIdTableSql;
         this.initIdSegmentSql = initIdSegmentSql;
         this.dataSource = dataSource;
+        this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
     }
     
     public int initCosIdTable() throws SQLException {
@@ -67,7 +80,7 @@ public class JdbcIdSegmentInitializer {
         }
         
         try (Connection connection = dataSource.getConnection()) {
-            try (PreparedStatement initStatement = connection.prepareStatement(initCosIdTableSql)) {
+            try (PreparedStatement initStatement = JdbcSupport.prepareStatement(connection, initCosIdTableSql, queryTimeoutSeconds)) {
                 int affected = initStatement.executeUpdate();
                 JdbcSupport.commitIfManual(connection);
                 return affected;
@@ -78,13 +91,27 @@ public class JdbcIdSegmentInitializer {
         }
     }
     
+    /**
+     * Create the table, quietly when it already exists; any other failure is logged at WARN with its cause.
+     *
+     * @return true if the statement succeeded
+     */
     public boolean tryInitCosIdTable() {
         try {
             initCosIdTable();
             return true;
-        } catch (Throwable throwable) {
-            if (log.isInfoEnabled()) {
-                log.info("Try Init CosIdTable failed.[{}]", throwable.getMessage());
+        } catch (SQLException sqlException) {
+            if (JdbcSupport.isAlreadyExists(sqlException)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("CosIdTable already exists.");
+                }
+            } else if (log.isWarnEnabled()) {
+                log.warn("Init CosIdTable failed.", sqlException);
+            }
+            return false;
+        } catch (RuntimeException runtimeException) {
+            if (log.isWarnEnabled()) {
+                log.warn("Init CosIdTable failed.", runtimeException);
             }
             return false;
         }
@@ -98,7 +125,7 @@ public class JdbcIdSegmentInitializer {
             log.info("Init IdSegment - segmentName:[{}] - offset:[{}]", segmentName, offset);
         }
         try (Connection connection = dataSource.getConnection()) {
-            try (PreparedStatement initStatement = connection.prepareStatement(initIdSegmentSql)) {
+            try (PreparedStatement initStatement = JdbcSupport.prepareStatement(connection, initIdSegmentSql, queryTimeoutSeconds)) {
                 initStatement.setString(1, segmentName);
                 initStatement.setLong(2, offset);
                 int affected = initStatement.executeUpdate();
@@ -111,13 +138,27 @@ public class JdbcIdSegmentInitializer {
         }
     }
     
+    /**
+     * Insert the segment row, quietly when it already exists; any other failure is logged at WARN with its cause.
+     *
+     * @return true if the row was inserted
+     */
     public boolean tryInitIdSegment(String segmentName, long offset) {
         try {
             initIdSegment(segmentName, offset);
             return true;
-        } catch (Throwable throwable) {
-            if (log.isInfoEnabled()) {
-                log.info("Try Init IdSegment failed.[{}]", throwable.getMessage());
+        } catch (SQLException sqlException) {
+            if (JdbcSupport.isDuplicateKey(sqlException)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("IdSegment [{}] already exists.", segmentName);
+                }
+            } else if (log.isWarnEnabled()) {
+                log.warn("Init IdSegment [{}] failed.", segmentName, sqlException);
+            }
+            return false;
+        } catch (RuntimeException runtimeException) {
+            if (log.isWarnEnabled()) {
+                log.warn("Init IdSegment [{}] failed.", segmentName, runtimeException);
             }
             return false;
         }

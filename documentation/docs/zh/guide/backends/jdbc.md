@@ -126,6 +126,10 @@ alter table cosid_machine add column if not exists renew_time bigint not null de
 
 步骤顺序见[滚动升级](../operations/rolling-upgrade.md)。
 
+## 号段的获取方式
+
+使用默认的 MySQL 语句时，获取一个号段在自动提交模式下执行两条语句，不开事务：`update cosid set last_max_id=last_insert_id(last_max_id + ?), ...` 和 `select last_insert_id()`，后者在同一连接上读取新值（MySQL、MariaDB）。使用 `PostgreSqlDialect` 的 PostgreSQL 语句时只执行一条：`update ... returning last_max_id`。其他自定义语句仍和以前一样，在一个事务中先更新再查询。连接归还连接池时保持取出时的自动提交模式。初始化语句在 `query-timeout` 后超时；已存在的表、索引或号段行会被静默跳过，其他错误以 WARN 级别连同原因记录。
+
 ## PostgreSQL
 
 `me.ahoo.cosid.jdbc.PostgreSqlDialect` 提供了 PostgreSQL 版本的语句（在 PostgreSQL 16 上测试）。可以设置为上面的属性，不使用 Starter 时则传给 `JdbcIdSegmentInitializer`、`JdbcIdSegmentDistributorFactory` 和 `JdbcMachineIdInitializer`。Starter 会为 PostgreSQL 自动识别服务器时间查询；不使用 Starter 时，把 `PostgreSqlDialect.SERVER_TIME_SQL` 传给 `JdbcMachineLeaseStore`。

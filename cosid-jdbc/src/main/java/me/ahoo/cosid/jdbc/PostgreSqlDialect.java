@@ -45,6 +45,15 @@ public final class PostgreSqlDialect {
     
     public static final String FETCH_MAX_ID_SQL = "select last_max_id from cosid where name = ?";
     
+    /**
+     * {@link #INCREMENT_MAX_ID_SQL} and {@link #FETCH_MAX_ID_SQL} in one statement: the distributor uses it, in one
+     * round-trip, when it is configured with those two.
+     *
+     * @since 4.1.0
+     */
+    public static final String INCREMENT_AND_FETCH_MAX_ID_SQL =
+        "update cosid set last_max_id=(last_max_id + ?),last_fetch_time=" + NOW_EPOCH_SECONDS + " where name = ? returning last_max_id";
+    
     public static final String INIT_COSID_MACHINE_TABLE_SQL =
         "create table if not exists cosid_machine\n"
             + "(\n"

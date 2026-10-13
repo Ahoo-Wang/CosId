@@ -16,6 +16,7 @@ package me.ahoo.cosid.zookeeper;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.nullValue;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.machine.InstanceId;
@@ -25,6 +26,7 @@ import lombok.SneakyThrows;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.recipes.atomic.AtomicValue;
 import org.apache.curator.framework.recipes.atomic.DistributedAtomicLong;
 import org.apache.curator.framework.recipes.atomic.PromotedToLock;
 import org.apache.curator.retry.ExponentialBackoffRetry;
@@ -32,15 +34,17 @@ import org.apache.curator.retry.RetryNTimes;
 import org.apache.curator.test.TestingServer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -75,7 +79,11 @@ class ZookeeperCompareAndSetTest {
     }
     
     private ZookeeperIdSegmentDistributor distributor(String name, long offset) {
-        ZookeeperIdSegmentDistributor distributor = new ZookeeperIdSegmentDistributor("cas", name, offset, 10, curatorFramework, retryPolicy,
+        return distributor(name, offset, retryPolicy);
+    }
+    
+    private ZookeeperIdSegmentDistributor distributor(String name, long offset, RetryPolicy distributorRetryPolicy) {
+        ZookeeperIdSegmentDistributor distributor = new ZookeeperIdSegmentDistributor("cas", name, offset, 10, curatorFramework, distributorRetryPolicy,
             CallTimeout.of(Duration.ofSeconds(10)));
         distributor.ensureOffset();
         return distributor;
@@ -100,26 +108,79 @@ class ZookeeperCompareAndSetTest {
         assertThat(distributor.nextMaxId(10), equalTo(37L));
     }
     
-    @Test
-    void concurrentFetchesNextToOlderVersionsNeverOverlap() throws Exception {
-        ZookeeperIdSegmentDistributor distributor = distributor("mixed-" + UUID.randomUUID(), 0);
-        DistributedAtomicLong legacy = legacy(distributor);
-        ExecutorService executor = Executors.newFixedThreadPool(8);
+    /**
+     * Fetches from {@code threads} threads at once, behind one start gate, each fetch by {@code fetch}.
+     */
+    private static Set<Long> fetchAtOnce(int fetches, java.util.function.IntFunction<java.util.concurrent.Callable<Long>> fetch) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(16);
         try {
-            Set<Long> maxIds = ConcurrentHashMap.newKeySet();
-            List<Future<Boolean>> fetches = new ArrayList<>();
-            for (int i = 0; i < 64; i++) {
-                boolean old = i % 4 == 0;
-                fetches.add(executor.submit(() -> maxIds.add(old ? legacy.add(10L).postValue() : distributor.nextMaxId(10))));
+            CountDownLatch start = new CountDownLatch(1);
+            List<Future<Long>> results = new ArrayList<>();
+            for (int i = 0; i < fetches; i++) {
+                java.util.concurrent.Callable<Long> call = fetch.apply(i);
+                results.add(executor.submit(() -> {
+                    start.await();
+                    return call.call();
+                }));
             }
-            for (Future<Boolean> fetch : fetches) {
-                assertThat(fetch.get(60, TimeUnit.SECONDS), equalTo(true));
+            start.countDown();
+            Set<Long> maxIds = new HashSet<>();
+            for (Future<Long> result : results) {
+                maxIds.add(result.get(60, TimeUnit.SECONDS));
             }
-            assertThat(maxIds.size(), equalTo(64));
-            assertThat(maxIds.stream().mapToLong(Long::longValue).max().orElseThrow(), equalTo(640L));
+            return maxIds;
         } finally {
             executor.shutdownNow();
         }
+    }
+    
+    /**
+     * 3.x and 4.0 nodes: {@code DistributedAtomicLong} reports a give-up instead of throwing; they fetch again.
+     */
+    private static long legacyFetch(DistributedAtomicLong legacy, long step) throws Exception {
+        while (true) {
+            AtomicValue<Long> added = legacy.add(step);
+            if (added.succeeded()) {
+                return added.postValue();
+            }
+        }
+    }
+    
+    @RepeatedTest(20)
+    void concurrentFetchesNextToOlderVersionsNeverOverlap() throws Exception {
+        // The 4.1 distributor does not use the retry policy for conflicts: none at all.
+        ZookeeperIdSegmentDistributor distributor = distributor("mixed-" + UUID.randomUUID(), 0, new RetryNTimes(0, 0));
+        DistributedAtomicLong legacy = legacy(distributor);
+        
+        Set<Long> maxIds = fetchAtOnce(64, i -> i % 4 == 0 ? () -> legacyFetch(legacy, 10) : () -> distributor.nextMaxId(10));
+        
+        assertThat(maxIds.size(), equalTo(64));
+        assertThat(maxIds.stream().mapToLong(Long::longValue).max().orElseThrow(), equalTo(640L));
+    }
+    
+    @RepeatedTest(20)
+    void conflictsAreRetriedWhateverTheRetryPolicy() throws Exception {
+        ZookeeperIdSegmentDistributor distributor = distributor("contended-" + UUID.randomUUID(), 0, new RetryNTimes(0, 0));
+        
+        Set<Long> maxIds = fetchAtOnce(64, i -> () -> distributor.nextMaxId(10));
+        
+        assertThat(maxIds.size(), equalTo(64));
+        assertThat(maxIds.stream().mapToLong(Long::longValue).max().orElseThrow(), equalTo(640L));
+    }
+    
+    @SneakyThrows
+    @Test
+    void anUncontendedFetchIsOneVersionedWriteWithoutTheLock() {
+        ZookeeperIdSegmentDistributor distributor = distributor("uncontended-" + UUID.randomUUID(), 0, retryPolicy);
+        String counterPath = "/" + CosId.COSID + "/" + distributor.getNamespacedName();
+        int version = curatorFramework.checkExists().forPath(counterPath).getVersion();
+        
+        for (int i = 1; i <= 5; i++) {
+            distributor.nextMaxId(10);
+            assertThat(curatorFramework.checkExists().forPath(counterPath).getVersion(), equalTo(version + i));
+        }
+        
+        assertThat(curatorFramework.checkExists().forPath(distributor.getCounterLockerPath()), nullValue());
     }
     
     @Test

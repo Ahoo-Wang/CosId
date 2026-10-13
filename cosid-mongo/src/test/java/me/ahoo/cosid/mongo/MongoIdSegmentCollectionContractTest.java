@@ -21,13 +21,19 @@ import static org.hamcrest.Matchers.lessThan;
 
 import me.ahoo.cosid.test.container.MongoLauncher;
 
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoCommandException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
+import com.mongodb.event.CommandListener;
+import com.mongodb.event.CommandStartedEvent;
 import org.bson.Document;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -36,6 +42,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -85,6 +92,42 @@ class MongoIdSegmentCollectionContractTest {
         // The server's clock: close to this host's, in milliseconds.
         assertThat(fetchTime, greaterThan(before - TimeUnit.MINUTES.toMillis(1)));
         assertThat(fetchTime, lessThan(System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(1)));
+    }
+    
+    @Test
+    void anOverflowFailsWithoutWriting() {
+        cosidCollection.insertOne(IdSegmentOperates.ensureIdSegmentDocument("ns.overflow", Long.MAX_VALUE - 5));
+        
+        Assertions.assertThrows(MongoCommandException.class, () -> collection.incrementAndGet("ns.overflow", 0, 10));
+        
+        Document document = cosidCollection.find(Filters.eq(Documents.ID_FIELD, "ns.overflow")).first();
+        assertThat(document.get(IdSegmentOperates.LAST_MAX_ID_FIELD), equalTo((Object) (Long.MAX_VALUE - 5)));
+    }
+    
+    @Test
+    void aFetchIsOneCommand() {
+        List<String> commands = new CopyOnWriteArrayList<>();
+        CommandListener listener = new CommandListener() {
+            @Override
+            public void commandStarted(CommandStartedEvent event) {
+                // The writes to the collection; the driver also sends endSessions on close.
+                if (List.of("findAndModify", "update", "insert").contains(event.getCommandName())) {
+                    commands.add(event.getCommandName());
+                }
+            }
+        };
+        MongoClientSettings settings = MongoClientSettings.builder()
+            .applyConnectionString(new ConnectionString(MongoLauncher.getConnectionString()))
+            .addCommandListener(listener)
+            .build();
+        try (MongoClient listened = MongoClients.create(settings)) {
+            MongoIdSegmentCollection listenedCollection = new MongoIdSegmentCollection(listened.getDatabase(mongoDatabase.getName()).getCollection("cosid"));
+            listenedCollection.incrementAndGet("ns.single", 0, 10);
+            commands.clear();
+            listenedCollection.incrementAndGet("ns.single", 0, 10);
+            listenedCollection.incrementAndGet("ns.single-new", 0, 10);
+        }
+        assertThat(commands, equalTo(List.of("findAndModify", "findAndModify")));
     }
     
     @Test

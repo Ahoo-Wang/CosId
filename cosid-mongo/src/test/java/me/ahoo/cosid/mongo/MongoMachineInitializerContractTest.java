@@ -17,7 +17,6 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 
 import me.ahoo.cosid.test.container.MongoLauncher;
 
@@ -72,7 +71,7 @@ class MongoMachineInitializerContractTest {
     }
     
     @Test
-    void replacesTheHashedIndexesOfAnOlderCollection() {
+    void addsTheCompoundIndexesToAnOlderCollectionAndKeepsItsHashedOnes() {
         // As 3.x and 4.0 created it.
         mongoDatabase.createCollection(MachineOperates.COLLECTION_NAME);
         MongoCollection<Document> collection = mongoDatabase.getCollection(MachineOperates.COLLECTION_NAME);
@@ -81,24 +80,40 @@ class MongoMachineInitializerContractTest {
         
         assertThat(new MongoMachineInitializer(mongoDatabase).ensureMachineCollection(), is(true));
         
-        List<String> names = indexNames();
-        assertThat(names, hasItems(MongoMachineInitializer.NAMESPACE_MACHINE_ID_INDEX, MongoMachineInitializer.NAMESPACE_INSTANCE_ID_INDEX));
-        assertThat(names, not(hasItems("machineId_hashed")));
-        assertThat(names, not(hasItems("instanceId_hashed")));
+        // Older nodes would create the hashed indexes again: they stay, for an operator to drop once all nodes run 4.1.
+        assertThat(indexNames(), hasItems(MongoMachineInitializer.NAMESPACE_MACHINE_ID_INDEX, MongoMachineInitializer.NAMESPACE_INSTANCE_ID_INDEX,
+            "machineId_hashed", "instanceId_hashed"));
+    }
+    
+    /**
+     * The plan the server chose, without the rejected ones: queryPlanner.winningPlan, whose queryPlan on servers with the
+     * slot-based engine.
+     */
+    private static String winningPlan(Document explain) {
+        Document winningPlan = explain.get("queryPlanner", Document.class).get("winningPlan", Document.class);
+        Document queryPlan = winningPlan.get("queryPlan", Document.class);
+        return (queryPlan != null ? queryPlan : winningPlan).toJson();
     }
     
     @Test
     void theLeaseQueriesUseTheIndexes() {
         new MongoMachineInitializer(mongoDatabase).ensureMachineCollection();
         MongoCollection<Document> collection = mongoDatabase.getCollection(MachineOperates.COLLECTION_NAME);
+        // Enough machine ids for the planner to tell the indexes apart.
+        List<Document> machines = new ArrayList<>();
+        for (int machineId = 0; machineId < 200; machineId++) {
+            machines.add(new Document(Documents.ID_FIELD, "ns." + machineId).append(MachineOperates.NAMESPACE_FIELD, "ns")
+                .append(MachineOperates.MACHINE_ID_FIELD, machineId).append(MachineOperates.INSTANCE_ID_FIELD, machineId < 100 ? "" : "instance-" + machineId));
+        }
+        collection.insertMany(machines);
         
         Document byMachineId = collection.find(Filters.and(Filters.eq(MachineOperates.NAMESPACE_FIELD, "ns"),
                 Filters.eq(MachineOperates.INSTANCE_ID_FIELD, ""), Filters.lte(MachineOperates.MACHINE_ID_FIELD, 7)))
             .sort(Sorts.ascending(MachineOperates.MACHINE_ID_FIELD)).explain();
-        assertThat(byMachineId.toJson(), containsString("\"indexName\": \"" + MongoMachineInitializer.NAMESPACE_MACHINE_ID_INDEX));
+        assertThat(winningPlan(byMachineId), containsString("\"indexName\": \"" + MongoMachineInitializer.NAMESPACE_MACHINE_ID_INDEX));
         
         Document byInstanceId = collection.find(Filters.and(Filters.eq(MachineOperates.NAMESPACE_FIELD, "ns"),
-            Filters.eq(MachineOperates.INSTANCE_ID_FIELD, "instance"))).explain();
-        assertThat(byInstanceId.toJson(), containsString("\"indexName\": \"" + MongoMachineInitializer.NAMESPACE_INSTANCE_ID_INDEX));
+            Filters.eq(MachineOperates.INSTANCE_ID_FIELD, "instance-150"))).explain();
+        assertThat(winningPlan(byInstanceId), containsString("\"indexName\": \"" + MongoMachineInitializer.NAMESPACE_INSTANCE_ID_INDEX));
     }
 }

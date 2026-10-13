@@ -45,7 +45,9 @@ public interface IdSegmentOperates {
      * @since 4.1.0
      */
     static List<Bson> fetchUpdates(long offset, long step) {
-        Document lastMaxId = new Document("$add", List.of(new Document("$ifNull", List.of("$" + LAST_MAX_ID_FIELD, offset)), step));
+        // $toLong: on overflow $add yields a double, which no node could read back; converting it fails the update
+        // (ConversionFailure, 241) without writing, as $inc did.
+        Document lastMaxId = new Document("$toLong", new Document("$add", List.of(new Document("$ifNull", List.of("$" + LAST_MAX_ID_FIELD, offset)), step)));
         return List.of(new Document("$set", new Document(LAST_MAX_ID_FIELD, lastMaxId)
             .append(LAST_FETCH_TIME_FIELD, new Document("$toLong", "$$NOW"))));
     }

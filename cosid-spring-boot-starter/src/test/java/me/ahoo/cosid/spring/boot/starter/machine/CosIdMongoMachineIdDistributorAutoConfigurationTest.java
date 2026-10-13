@@ -145,6 +145,28 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
     }
 
     @Test
+    void theMachineCollectionAndItsIndexesAreEnsuredBeforeTheLeaseStore() {
+        MongoMachineInitializer initializer = mock(MongoMachineInitializer.class);
+        this.contextRunner
+            .withBean(MongoMachineInitializer.class, () -> initializer)
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.Distributor.TYPE + "=mongo")
+            .run(context -> {
+                assertThat(context).hasNotFailed().hasSingleBean(MongoMachineLeaseStore.class);
+                verify(initializer).ensureMachineCollection();
+            });
+    }
+    
+    @Test
+    void aFailedEnsureOnlyWarns() {
+        MongoMachineInitializer initializer = mock(MongoMachineInitializer.class);
+        when(initializer.ensureMachineCollection()).thenThrow(new IllegalStateException("not authorized to create indexes"));
+        this.contextRunner
+            .withBean(MongoMachineInitializer.class, () -> initializer)
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.Distributor.TYPE + "=mongo")
+            .run(context -> assertThat(context).hasNotFailed().hasSingleBean(MongoMachineLeaseStore.class));
+    }
+    
+    @Test
     void failsAtStartupWithOnlyTheReactiveDriver() {
         new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(CosIdMongoMachineIdDistributorAutoConfiguration.class))

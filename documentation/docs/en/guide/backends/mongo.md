@@ -8,7 +8,7 @@
 The collections are created at startup when missing.
 
 ::: warning Synchronous driver only
-CosId needs MongoDB 4.2 or later: a segment is fetched with one update pipeline that uses the server's clock (`$$NOW`). At startup the machine collection gets two compound indexes, `{namespace: 1, machineId: 1}` and `{namespace: 1, instanceId: 1}`, also on a collection created by an older version, whose hashed `machineId` and `instanceId` indexes they replace.
+CosId needs MongoDB 4.2 or later: a segment is fetched with one update pipeline that uses the server's clock (`$$NOW`). At startup the starter ensures the machine collection and its two compound indexes, `{namespace: 1, machineId: 1}` and `{namespace: 1, instanceId: 1}`, also on a collection created by an older version (a failure is logged at WARN; the store works without them, only slower). The hashed `machineId_hashed` and `instanceId_hashed` indexes of older versions are no longer used but kept, since older nodes create them again: drop them by hand once every node runs 4.1.
 
 The reactive classes (`me.ahoo.cosid.mongo.reactive`) were removed in 4.0. Use the synchronous driver, `org.mongodb:mongodb-driver-sync`, which `spring-boot-starter-data-mongodb` includes. With only the reactive driver on the classpath, the starter fails at startup.
 :::

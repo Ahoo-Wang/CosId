@@ -184,4 +184,13 @@ class ModCycleTest {
         Assertions.assertEquals(expected, actual);
     }
 
+
+    @Test
+    public void negativeValuesMapToANode() {
+        ModCycle<Long> modCycle = createModCycle();
+        Assertions.assertEquals("t_mod_3", modCycle.sharding(-1L));
+        Assertions.assertEquals("t_mod_0", modCycle.sharding(-4L));
+        Collection<String> nodes = modCycle.sharding(Range.closed(-2L, -1L));
+        Assertions.assertEquals(new ExactCollection<>("t_mod_2", "t_mod_3"), nodes);
+    }
 }

@@ -43,7 +43,7 @@ public final class SafeJavaScriptSnowflakeId {
      * @return true if less than MAX_SAFE_NUMBER
      */
     public static boolean isSafeJavaScript(long id) {
-        return id < JAVA_SCRIPT_MAX_SAFE_NUMBER;
+        return id <= JAVA_SCRIPT_MAX_SAFE_NUMBER;
     }
 
     /**

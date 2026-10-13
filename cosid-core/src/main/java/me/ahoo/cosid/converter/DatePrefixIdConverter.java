@@ -21,6 +21,7 @@ import me.ahoo.cosid.stat.converter.DatePrefixConverterStat;
 
 import org.jspecify.annotations.NonNull;
 
+import java.text.ParsePosition;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
@@ -65,9 +66,15 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
 
     @Override
     public long asLong(@NonNull String idString) {
-        int appendedLength = pattern.length() + delimiter.length();
-        String idStr = idString.substring(appendedLength);
-        return actual.asLong(idStr);
+        // The formatted date can be longer or shorter than the pattern (text months, one-letter fields): parse it.
+        ParsePosition position = new ParsePosition(0);
+        formatter.parseUnresolved(idString, position);
+        int dateEnd = position.getIndex();
+        if (position.getErrorIndex() >= 0 || !idString.startsWith(delimiter, dateEnd)) {
+            throw new IllegalArgumentException("Id [" + idString + "] does not start with a date of pattern [" + pattern + "] and the delimiter ["
+                + delimiter + "].");
+        }
+        return actual.asLong(idString.substring(dateEnd + delimiter.length()));
     }
 
     @Override

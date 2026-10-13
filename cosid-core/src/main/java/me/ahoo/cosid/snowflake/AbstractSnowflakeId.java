@@ -153,7 +153,12 @@ public abstract class AbstractSnowflakeId implements SnowflakeId {
         sequence = sequencer.getSequence();
         lastTimestamp = currentTimestamp;
         long diffTimestamp = (currentTimestamp - epoch);
-        if (diffTimestamp > maxTimestamp) {
+        // One unsigned comparison: also catches a negative difference, an epoch after the current time.
+        if (Long.compareUnsigned(diffTimestamp, maxTimestamp) > 0) {
+            if (diffTimestamp < 0) {
+                throw new IllegalStateException("epoch [" + epoch + "] is after the current timestamp [" + currentTimestamp
+                    + "]: the id would be negative.");
+            }
             throw new TimestampOverflowException(epoch, diffTimestamp, maxTimestamp);
         }
         return diffTimestamp << timestampLeft

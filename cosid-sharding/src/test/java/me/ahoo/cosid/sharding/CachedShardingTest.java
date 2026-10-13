@@ -79,4 +79,17 @@ class CachedShardingTest {
             return effectiveNodes;
         }
     }
+
+    @Test
+    void theCacheIsBounded() {
+        RecordingSharding actual = new RecordingSharding();
+        CachedSharding<Integer> cache = new CachedSharding<>(actual, 2);
+        cache.sharding(Range.closed(1, 2));
+        cache.sharding(Range.closed(3, 4));
+        cache.sharding(Range.closed(5, 6));
+        cache.sharding(Range.closed(1, 2));
+        // The first range was evicted: computed again.
+        assertEquals(4, actual.rangeCalls);
+        assertEquals(10_000L, CachedSharding.DEFAULT_MAXIMUM_SIZE);
+    }
 }

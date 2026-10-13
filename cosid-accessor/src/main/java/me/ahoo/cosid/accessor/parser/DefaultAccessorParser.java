@@ -193,7 +193,7 @@ public class DefaultAccessorParser implements CosIdAccessorParser {
             }
         }
         if (genericVarIdx == -1) {
-            throw new IllegalArgumentException(Checks.lenientFormat("Type Parameter:[%s] not found in Class:[%].", typeVariable, superClass));
+            throw new IllegalArgumentException(Checks.lenientFormat("Type Parameter:[%s] not found in Class:[%s].", typeVariable, superClass));
         }
 
         ParameterizedType genericSuperclass = (ParameterizedType) subClass.getGenericSuperclass();

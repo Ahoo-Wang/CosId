@@ -16,7 +16,6 @@ package me.ahoo.cosid.spring.boot.starter;
 import me.ahoo.coapi.spring.client.reactive.WebClientBuilderCustomizer;
 import me.ahoo.coapi.spring.client.sync.RestClientBuilderCustomizer;
 
-import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -24,26 +23,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
 
-import java.net.URI;
-import java.util.Locale;
-import java.util.Set;
-
 /**
  * Sends {@link ProxyProperties#getToken()} as {@code Authorization: Bearer <token>} from the CosId proxy clients.
  *
  * @author ahoo wang
  */
-@Slf4j
 @Configuration(proxyBeanMethods = false)
 public class CosIdProxyClientAuthConfiguration {
-    private static final Set<String> LOOPBACK_HOSTS = Set.of("localhost", "127.0.0.1", "[::1]", "::1");
     
     static String authorization(ObjectProvider<CosIdProperties> cosIdProperties) {
-        String token = CosIdProxyClientTimeoutConfiguration.proxyProperties(cosIdProperties).getToken();
-        if (token == null || token.isBlank()) {
-            return null;
-        }
-        return "Bearer " + token.trim();
+        return CosIdProxyHttpInterfaceClients.authorization(CosIdProxyClientTimeoutConfiguration.proxyProperties(cosIdProperties));
     }
     
     /**
@@ -54,30 +43,14 @@ public class CosIdProxyClientAuthConfiguration {
      * @return true if the token is sent in clear text over the network
      */
     static boolean sendsTokenInClearText(@Nullable String host, @Nullable String token) {
-        if (host == null || token == null || token.isBlank()) {
-            return false;
-        }
-        URI uri;
-        try {
-            uri = URI.create(host.trim());
-        } catch (IllegalArgumentException invalidHost) {
-            return false;
-        }
-        if (!"http".equalsIgnoreCase(uri.getScheme())) {
-            return false;
-        }
-        String hostName = uri.getHost();
-        return hostName != null && !LOOPBACK_HOSTS.contains(hostName.toLowerCase(Locale.ROOT));
+        return CosIdProxyHttpInterfaceClients.sendsTokenInClearText(host, token);
     }
     
     @Bean
     public RestClientBuilderCustomizer cosIdProxyRestClientAuthCustomizer(ObjectProvider<CosIdProperties> cosIdProperties) {
         String authorization = authorization(cosIdProperties);
         ProxyProperties proxyProperties = CosIdProxyClientTimeoutConfiguration.proxyProperties(cosIdProperties);
-        if (sendsTokenInClearText(proxyProperties.getHost(), proxyProperties.getToken()) && log.isWarnEnabled()) {
-            log.warn("[cosid.proxy.host:{}] is plain http: the proxy token crosses the network unencrypted, anyone on the path can read and reuse it. "
-                + "Use https, or keep the proxy on a trusted network.", proxyProperties.getHost());
-        }
+        CosIdProxyHttpInterfaceClients.warnIfTokenInClearText(proxyProperties);
         return (coApiDefinition, builder) -> {
             if (authorization != null && CosIdProxyClientTimeoutConfiguration.isProxyClient(coApiDefinition)) {
                 builder.defaultHeader(HttpHeaders.AUTHORIZATION, authorization);

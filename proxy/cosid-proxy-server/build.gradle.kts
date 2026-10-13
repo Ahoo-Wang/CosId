@@ -39,6 +39,7 @@ application {
     mainClass.set("me.ahoo.cosid.proxy.server.ProxyServer")
 
     applicationDefaultJvmArgs = listOf(
+        // The Docker image replaces these two with -XX:MaxRAMPercentage=75.0, see the Dockerfile.
         "-Xms1280M",
         "-Xmx1280M",
         "-XX:MaxMetaspaceSize=256M",
@@ -69,10 +70,16 @@ dependencies {
     implementation(project(":cosid-jdbc"))
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("com.mysql:mysql-connector-j")
+    implementation("org.postgresql:postgresql")
+    //endregion
+
+    //region cosid-mongo: Spring Boot's MongoAutoConfiguration is excluded in application.yaml until a Mongo store is chosen
+    implementation(project(":cosid-mongo"))
+    implementation("org.springframework.boot:spring-boot-starter-mongodb")
     //endregion
 
     //region cosid-zookeeper
-    //implementation(project(":cosid-zookeeper"))
+    implementation(project(":cosid-zookeeper"))
     //endregion
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")

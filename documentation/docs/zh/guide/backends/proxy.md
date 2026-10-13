@@ -33,6 +33,32 @@ docker run --name cosid-proxy -d -p 8688:8688 --link redis \
 
 没有令牌时服务端会拒绝启动，见[认证](#认证)。
 
+容器和编排系统的健康检查请使用 `/actuator/health/liveness`（镜像的 `HEALTHCHECK` 就是如此）：它不访问存储即可应答。`/actuator/health` 包含存储，存储故障时为 `DOWN`，存储卡住时会一直等到存储的健康检查返回：适合用于告警。默认的 `/actuator/health/readiness` 分组同样不包含存储。
+
+镜像包含所有存储的驱动：Redis、MySQL、PostgreSQL、MongoDB 和 ZooKeeper。默认配置 Redis；`DataSourceAutoConfiguration` 和 `MongoAutoConfiguration` 在 `spring.autoconfigure.exclude` 中，避免未使用的存储出现在健康检查中。使用其他存储时，请设置排除列表，只保留所选的存储：否则健康检查会把未使用的 Redis 报告为 `DOWN`，整体状态为 `DOWN`，容器会被标记为不健康。以 PostgreSQL 为例：
+
+```shell
+docker run --name cosid-proxy -d -p 8688:8688 \
+  -e COSID_PROXY_TOKEN=change-me \
+  -e SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/cosid_db \
+  -e SPRING_DATASOURCE_USERNAME=cosid -e SPRING_DATASOURCE_PASSWORD=change-me \
+  -e COSID_MACHINE_DISTRIBUTOR_TYPE=jdbc -e COSID_SEGMENT_DISTRIBUTOR_TYPE=jdbc \
+  -e SPRING_APPLICATION_JSON='{"cosid": {...}}' \
+  ahoowang/cosid-proxy:__COSID_VERSION__
+```
+
+JDBC 的默认语句是 MySQL 语句：使用 PostgreSQL 时，请先建表（或者设置 `enable-auto-init-*` 并配置 PostgreSQL 的建表语句），并按照 [JDBC：PostgreSQL](./jdbc.md#postgresql) 覆盖号段语句，例如通过 `SPRING_APPLICATION_JSON` 或挂载的 `config/application.yaml`。`SPRING_AUTOCONFIGURE_EXCLUDE` 会替换整个默认列表，因此必须列出所有未使用的存储：
+
+| 存储 | `SPRING_AUTOCONFIGURE_EXCLUDE` |
+|------|--------------------------------|
+| Redis（默认） | `org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+| JDBC（MySQL、PostgreSQL） | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+| MongoDB（还需配置 `spring.mongodb.uri`） | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration` |
+| ZooKeeper | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+
+在镜像中，堆大小为容器内存上限的 75%（`-XX:MaxRAMPercentage=75.0`）；如需固定，请设置 `JAVA_OPTS`，例如 `-e JAVA_OPTS=-Xmx1g`。镜像之外的发行包启动脚本仍使用固定的 1280M 堆。`GET /ids` 的响应带有 `Cache-Control: no-store`，避免客户端与服务端之间的缓存把同一个 ID 发出两次。
+
 ## 客户端
 
 ### 安装
@@ -91,8 +117,9 @@ cosid:
 | `cosid.proxy.token` | 无 | 每个请求携带的 Bearer 令牌 |
 | `cosid.proxy.connect-timeout` | `2s` | 连接服务端的超时；`0` 表示不限制 |
 | `cosid.proxy.read-timeout` | `5s` | 等待响应的超时，包括启动时申领机器号；`0` 表示不限制，但 `cosid.machine.distributor.type=proxy` 时必须为正数 |
+| `cosid.proxy.client` | `coapi` | `coapi` 或 `http-interface`，见下文；类路径上没有 CoApi 时使用 `http-interface` |
 
-客户端与其他后端一样，是一个 `MachineLeaseStore` 和一个 `IdSegmentDistributor`：`ProxyMachineLeaseStore` 调用服务端的租约 API（`/machines/v2`）申领、续约和释放机器号，`ProxyIdSegmentDistributor` 向服务端申请号段。预先编译（AOT）和原生镜像暂不支持 Proxy 客户端；使用 Proxy 的应用请运行在 JVM 上。
+客户端与其他后端一样，是一个 `MachineLeaseStore` 和一个 `IdSegmentDistributor`：`ProxyMachineLeaseStore` 调用服务端的租约 API（`/machines/v2`）申领、续约和释放机器号，`ProxyIdSegmentDistributor` 向服务端申请号段。默认由 CoApi 创建客户端，它支持 `lb://` 地址，并应用 `coapi.*` 配置和你的 CoApi 定制器。设置 `cosid.proxy.client=http-interface`，或者类路径上没有 CoApi 时，客户端会作为普通 Bean，使用 Spring 的 `HttpServiceProxyFactory` 基于你的 `RestClient.Builder` 创建，并应用上面的地址、超时和令牌；Spring AOT 预处理支持这种方式。
 
 ## 认证
 

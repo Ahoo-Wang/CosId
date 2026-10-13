@@ -1,4 +1,9 @@
 management:
+  endpoint:
+    health:
+      # /actuator/health/liveness answers without asking the stores: use it for container health checks.
+      probes:
+        enabled: true
   endpoints:
     web:
       exposure:
@@ -18,6 +23,8 @@ spring:
     exclude:
       #     - org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration
       - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      # Remove to use a Mongo store (cosid.machine.distributor.type=mongo or cosid.segment.distributor.type=mongo).
+      - org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration
 #  datasource:
 #    url: jdbc:mysql://localhost:3306/cosid_db
 #    username: root

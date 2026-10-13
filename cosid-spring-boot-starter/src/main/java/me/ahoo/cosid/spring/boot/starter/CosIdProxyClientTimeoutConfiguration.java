@@ -26,7 +26,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 
-import java.net.http.HttpClient;
 import java.time.Duration;
 
 /**
@@ -53,7 +52,7 @@ public class CosIdProxyClientTimeoutConfiguration {
     }
     
     static boolean isSet(Duration timeout) {
-        return timeout != null && !timeout.isZero() && !timeout.isNegative();
+        return CosIdProxyHttpInterfaceClients.isSet(timeout);
     }
     
     /**
@@ -63,20 +62,14 @@ public class CosIdProxyClientTimeoutConfiguration {
     public RestClientBuilderCustomizer cosIdProxyRestClientTimeoutCustomizer(ObjectProvider<CosIdProperties> cosIdProperties) {
         ProxyProperties proxy = proxyProperties(cosIdProperties);
         return (coApiDefinition, builder) -> {
-            // With both timeouts disabled, the application's own request factory is kept.
-            if (!isProxyClient(coApiDefinition) || (!isSet(proxy.getConnectTimeout()) && !isSet(proxy.getReadTimeout()))) {
+            if (!isProxyClient(coApiDefinition)) {
                 return;
             }
-            // HTTP/1.1 like the other Spring request factories: the JDK client would otherwise try an h2c upgrade.
-            HttpClient.Builder httpClientBuilder = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1);
-            if (isSet(proxy.getConnectTimeout())) {
-                httpClientBuilder.connectTimeout(proxy.getConnectTimeout());
+            // With both timeouts disabled, the application's own request factory is kept.
+            JdkClientHttpRequestFactory requestFactory = CosIdProxyHttpInterfaceClients.requestFactory(proxy);
+            if (requestFactory != null) {
+                builder.requestFactory(requestFactory);
             }
-            JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClientBuilder.build());
-            if (isSet(proxy.getReadTimeout())) {
-                requestFactory.setReadTimeout(proxy.getReadTimeout());
-            }
-            builder.requestFactory(requestFactory);
         };
     }
     

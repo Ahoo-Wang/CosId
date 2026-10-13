@@ -9,6 +9,7 @@
 | `cosid.provider.isolated` | `boolean` | `false` | `false`: the `IdGeneratorProvider` bean is `DefaultIdGeneratorProvider.INSTANCE`. `true`: each `ApplicationContext` gets its own provider, cleared when the context closes, so generators are not shared between contexts (devtools restarts, cached test contexts); `INSTANCE` then no longer holds Spring-registered generators |
 | `cosid.metrics.enabled` | `boolean` | `true` | Registers the CosId Micrometer meters when Micrometer is on the classpath, see [Monitoring](../../guide/operations/monitoring.md#metrics) |
 | `cosid.metrics.generated.enabled` | `boolean` | `false` | Counts the IDs each segment and Snowflake generator generates (`cosid.generator.generated`), by wrapping them in a counting decorator |
+| `cosid.max-concurrent-calls` | `int` | `64` | Most store calls with a timeout (ZooKeeper, Redis) running at once in the JVM, across all stores. Beyond it calls fail fast with `CallRejectedException` instead of piling up threads behind a hung store |
 
 The generators have their own pages: [machine ID](./machine.md) (`cosid.machine`), [SnowflakeId](./snowflake.md) (`cosid.snowflake`), [SegmentId](./segment.md) (`cosid.segment`) and [CosIdGenerator](./cosid-generator.md) (`cosid.generator`). Backend properties are on the [ZooKeeper](./zookeeper.md) and [proxy](./proxy.md) pages and the backend guides.
 

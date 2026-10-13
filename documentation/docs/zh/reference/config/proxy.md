@@ -14,6 +14,7 @@ Proxy 的工作方式和部署方法见 [CosId Proxy](../../guide/backends/proxy
 | `token` | `String` | 无 | 每个请求携带的 Bearer 令牌；必须与服务端的某个令牌一致 |
 | `connect-timeout` | `Duration` | `2s` | 连接服务端的超时；`0` 表示不限制 |
 | `read-timeout` | `Duration` | `5s` | 等待响应的超时，包括启动时申领机器号；`0` 表示不限制，但 `cosid.machine.distributor.type=proxy` 时必须为正数 |
+| `client` | `Client` | `coapi` | 客户端的创建方式：`coapi`（支持 `lb://` 地址，应用 `coapi.*`）或 `http-interface`（普通 Bean，支持 Spring AOT）。类路径上没有 CoApi 时为 `http-interface` |
 
 ## 服务端
 
@@ -29,9 +30,11 @@ Proxy 的工作方式和部署方法见 [CosId Proxy](../../guide/backends/proxy
 | `cosid.proxy.server.max-clock-skew` | `Duration` | `1m` | 客户端上报的最后时间戳最多可以比存储的时钟（v1 API 为服务端时钟）快多少；`0` 表示不检查；不能为负数 |
 | `cosid.proxy.server.namespaces` | `List<String>` | 空 | 服务端提供服务的命名空间；请求其他命名空间时无论令牌如何都返回 `403`。为空表示所有命名空间 |
 | `cosid.proxy.server.segment.max-step` | `long` | `1000000000000` | 客户端可申请的最大号段步长；`0` 表示不限制 |
+| `cosid.proxy.server.blocking.threads` | `int` | `64` | 执行 API 调用（会等待存储）的线程数，存储变慢时不会卡住同时负责健康检查的事件循环。设置 `spring.threads.virtual.enabled=true`（Java 21+）时，API 调用改为在虚拟线程上执行，不使用这个线程池，也不会因它返回 `503` |
+| `cosid.proxy.server.blocking.queue-capacity` | `int` | `1024` | 等待上述线程的 API 调用数；超出时服务端立即返回 `503` 和 `Retry-After: 1` |
 | `cosid.proxy.server.segment.max-distributors` | `int` | `0` | 服务端在内存中保留的号段分发器（命名空间和名称的组合）上限，所有命名空间共享；超出后请求新的分发器返回 `429`。`0` 表示不限制；不可信的客户端能访问服务端时请设置，例如 `10000` |
 
-超出限制的请求返回 `400`；没有有效令牌的请求返回 `401`；请求令牌或服务端不允许的命名空间返回 `403`；超出上限的新号段分发器返回 `429`。
+超出限制的请求返回 `400`；没有有效令牌的请求返回 `401`；请求令牌或服务端不允许的命名空间返回 `403`；超出上限的新号段分发器返回 `429`；超出线程池或超出 `cosid.max-concurrent-calls` 存储调用数的请求返回 `503`，可以稍后重试。
 
 命名空间取自机器号 API（v1 和 v2）和号段 API 的路径。`/ids` 使用服务端自己的命名空间，需要 `tokens` 中的令牌。存储以 `namespace.name` 作为号段的键，因此受限令牌（以及设置了 `cosid.proxy.server.namespaces` 时的所有令牌）不能使用包含点号的号段名称：`/segments/a/b.c` 会访问命名空间 `a.b` 的计数器 `c`。同理，`auth.clients` 和 `cosid.proxy.server.namespaces` 中的命名空间不能包含点号，否则启动失败。同理，如果一个命名空间的名称是另一个命名空间的前缀，请不要在其中使用包含点号的号段名称。
 

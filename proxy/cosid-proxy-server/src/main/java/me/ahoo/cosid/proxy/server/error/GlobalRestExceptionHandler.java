@@ -24,8 +24,10 @@ import me.ahoo.cosid.machine.MachineIdOverflowException;
 import me.ahoo.cosid.machine.NotFoundMachineStateException;
 import me.ahoo.cosid.proxy.api.ErrorResponse;
 import me.ahoo.cosid.segment.IdSegmentRollbackException;
+import me.ahoo.cosid.util.CallRejectedException;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -39,6 +41,7 @@ import org.springframework.web.bind.support.WebExchangeBindException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.stream.Collectors;
 
 /**
@@ -51,6 +54,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GlobalRestExceptionHandler {
     static final String INTERNAL_ERROR = "Internal error";
+    static final String OVERLOADED = "The server is overloaded, retry later.";
     
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleClientException(IllegalArgumentException ex) {
@@ -94,6 +98,20 @@ public class GlobalRestExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.CONFLICT)
             .body(ErrorResponse.of(SEGMENT_ROLLBACK, ex.getMessage()));
+    }
+    
+    /**
+     * The API thread pool, or the store calls behind it, are saturated. Nothing was done, so the client can retry.
+     */
+    @ExceptionHandler({RejectedExecutionException.class, CallRejectedException.class})
+    public ResponseEntity<ErrorResponse> handleOverload(Exception ex) {
+        if (log.isWarnEnabled()) {
+            log.warn("Rejected a request, the server is overloaded: {}", ex.getMessage());
+        }
+        return ResponseEntity
+            .status(HttpStatus.SERVICE_UNAVAILABLE)
+            .header(HttpHeaders.RETRY_AFTER, "1")
+            .body(ErrorResponse.serviceUnavailable(OVERLOADED));
     }
     
     /**

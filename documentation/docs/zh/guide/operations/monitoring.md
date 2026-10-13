@@ -61,7 +61,7 @@ management:
 | 租约续约失败 | warning | `increase(cosid_machine_lease_renew_failures_total[5m]) > 0` |
 | 租约丢失：该实例的 Snowflake 生成器停止 | critical | `increase(cosid_machine_lease_lost_total[5m]) > 0` |
 | 号段预取失败：生成使用预留的号段 | warning | `increase(cosid_segment_prefetch_failures_total[5m]) > 0` |
-| 号段链即将耗尽 | warning | `cosid_segment_remaining < 1000`（按你的 `step` 取值） |
+| 号段链即将耗尽 | warning | `cosid_segment_remaining < 1000 and on(name, segment) cosid_segment_prefetch_distance`（仅号段链：`DefaultSegmentId` 只持有一个号段，每次获取前都会降低；按你的 `step` 取值） |
 | 存储调用被拒绝 | warning | `increase(cosid_call_rejections_total[5m]) > 0` |
 
 租约丢失或过期时健康指示器也会变为 `DOWN`；按你的平台已采集的数据选择其一告警即可。

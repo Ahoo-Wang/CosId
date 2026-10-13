@@ -19,9 +19,7 @@ import me.ahoo.cosid.proxy.server.ProxyServer;
 import me.ahoo.cosid.proxy.server.configuration.ProxyServerConfiguration;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.EnabledIf;
-import org.junit.jupiter.api.condition.JRE;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -30,9 +28,9 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
 /**
- * With virtual threads, the API calls run on Spring Boot's virtual-thread executor: the bounded pool is not created.
+ * With virtual threads (Java 21+), the API calls run on Spring Boot's virtual-thread executor: the bounded pool is not
+ * created. The build runs the tests on Java 17, where the pool stays; run them on Java 21 to check the virtual side.
  */
-@EnabledForJreRange(min = JRE.JAVA_21)
 @EnabledIf("me.ahoo.cosid.proxy.server.contract.ProxyEndToEnd#isAvailable")
 @SpringBootTest(classes = ProxyServer.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ProxyVirtualThreadsEndToEndTest {
@@ -49,8 +47,13 @@ class ProxyVirtualThreadsEndToEndTest {
     
     @Test
     void apiCallsRunOnVirtualThreads() {
-        assertThat(context.getBeansOfType(ProxyServerConfiguration.ProxyBlockingExecution.class)).isEmpty();
         assertThat(context.containsBean("applicationTaskExecutor")).isTrue();
+        if (Runtime.version().feature() >= 21) {
+            assertThat(context.getBeansOfType(ProxyServerConfiguration.ProxyBlockingExecution.class)).isEmpty();
+        } else {
+            // Before Java 21 Spring Boot ignores spring.threads.virtual.enabled: the platform pool stays.
+            assertThat(context.getBeansOfType(ProxyServerConfiguration.ProxyBlockingExecution.class)).hasSize(1);
+        }
         
         long maxId = ProxyEndToEnd.segmentClient(port).nextMaxId("virtual", "order", 10);
         

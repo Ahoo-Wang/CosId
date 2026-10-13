@@ -31,6 +31,30 @@ Use `--network` (or `--link redis`) so that the container can reach Redis, and a
 
 The server refuses to start without a token, see [Authentication](#authentication).
 
+The image includes the drivers of every store: Redis, MySQL, PostgreSQL, MongoDB and ZooKeeper. Redis is configured by default; `DataSourceAutoConfiguration` and `MongoAutoConfiguration` are in `spring.autoconfigure.exclude`, so that an unused store does not show up in the health check. To use another store, set the exclusions so that only the chosen store is configured: otherwise the health check reports the unused Redis as `DOWN`, the status is `DOWN` and the container is marked unhealthy. For PostgreSQL:
+
+```shell
+docker run --name cosid-proxy -d -p 8688:8688 \
+  -e COSID_PROXY_TOKEN=change-me \
+  -e SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/cosid_db \
+  -e SPRING_DATASOURCE_USERNAME=cosid -e SPRING_DATASOURCE_PASSWORD=change-me \
+  -e COSID_MACHINE_DISTRIBUTOR_TYPE=jdbc -e COSID_SEGMENT_DISTRIBUTOR_TYPE=jdbc \
+  -e SPRING_APPLICATION_JSON='{"cosid": {...}}' \
+  ahoowang/cosid-proxy:__COSID_VERSION__
+```
+
+The JDBC defaults are MySQL statements: for PostgreSQL, create the tables (or set `enable-auto-init-*` with the PostgreSQL table statements) and override the segment statements as in [JDBC: PostgreSQL](./jdbc.md#postgresql), for example in `SPRING_APPLICATION_JSON` or a mounted `config/application.yaml`. The `SPRING_AUTOCONFIGURE_EXCLUDE` value replaces the whole default list, so it must name every store not in use:
+
+| Store | `SPRING_AUTOCONFIGURE_EXCLUDE` |
+|-------|--------------------------------|
+| Redis (default) | `org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+| JDBC (MySQL, PostgreSQL) | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+| MongoDB (also set `spring.mongodb.uri`) | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration` |
+| ZooKeeper | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+
+In the image, the heap is 75% of the container's memory limit (`-XX:MaxRAMPercentage=75.0`); to pin it, set `JAVA_OPTS`, for example `-e JAVA_OPTS=-Xmx1g`. The start scripts of the distribution outside the image keep a fixed 1280M heap. `GET /ids` answers with `Cache-Control: no-store`, so that no cache between a client and the server hands out the same id twice.
+
 ## Client
 
 ### Installation

@@ -30,10 +30,14 @@ import org.apache.zookeeper.data.Stat;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * {@link MachineLeaseStore} on ZooKeeper, with versioned writes and multi-operation transactions as the compare-and-set.
@@ -149,15 +153,46 @@ public class ZookeeperMachineLeaseStore implements MachineLeaseStore {
         } catch (KeeperException.NoNodeException noNodeException) {
             return List.of();
         }
-        List<Node> nodes = new ArrayList<>(children.size());
+        // All the children at once, asynchronously: one round-trip of latency instead of one per machine id.
+        List<Node> nodes = Collections.synchronizedList(new ArrayList<>(children.size()));
+        List<Exception> failures = Collections.synchronizedList(new ArrayList<>());
+        CountDownLatch read = new CountDownLatch(children.size());
         for (String child : children) {
-            Optional<Node> node = read(ZKPaths.makePath(parentPath, child));
-            if (node.isPresent() && node.get().state.getMachineId() <= maxMachineId) {
-                nodes.add(node.get());
-            }
+            String path = ZKPaths.makePath(parentPath, child);
+            curatorFramework.getData().inBackground((client, event) -> {
+                try {
+                    KeeperException.Code code = KeeperException.Code.get(event.getResultCode());
+                    if (code == KeeperException.Code.OK) {
+                        MachineState state = MachineState.of(new String(event.getData(), StandardCharsets.UTF_8));
+                        if (state.getMachineId() <= maxMachineId) {
+                            nodes.add(new Node(path, child, state, event.getStat().getVersion()));
+                        }
+                    } else if (code != KeeperException.Code.NONODE) {
+                        // A node deleted since the listing is skipped, as read() does; anything else fails the read.
+                        failures.add(KeeperException.create(code, path));
+                    }
+                } catch (RuntimeException unreadable) {
+                    failures.add(unreadable);
+                } finally {
+                    read.countDown();
+                }
+            }).forPath(path);
         }
-        nodes.sort(Comparator.comparingInt(node -> node.state.getMachineId()));
-        return nodes;
+        read.await();
+        if (!failures.isEmpty()) {
+            throw failures.get(0);
+        }
+        List<Node> sorted = new ArrayList<>(nodes);
+        sorted.sort(Comparator.comparingInt(node -> node.state.getMachineId()));
+        return sorted;
+    }
+    
+    private Set<String> stableInstances(String namespace) throws Exception {
+        try {
+            return new HashSet<>(curatorFramework.getChildren().forPath(namespacePath(namespace, "__stable")));
+        } catch (KeeperException.NoNodeException noNodeException) {
+            return Set.of();
+        }
     }
     
     private void ensureParent(String path) throws Exception {
@@ -312,9 +347,10 @@ public class ZookeeperMachineLeaseStore implements MachineLeaseStore {
             String toPath = instancePath(namespace, instanceId.getInstanceId());
             for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
                 List<Node> expired = new ArrayList<>();
+                // The stable instances once, not one existence check per machine id.
+                Set<String> stable = stableInstances(namespace);
                 for (Node node : readChildren(namespacePath(namespace, "__itc_idx"), maxMachineId)) {
-                    if (node.state.getLastTimeStamp() <= expiredBefore
-                        && curatorFramework.checkExists().forPath(stablePath(namespace, node.name)) == null) {
+                    if (node.state.getLastTimeStamp() <= expiredBefore && !stable.contains(node.name)) {
                         expired.add(node);
                     }
                 }

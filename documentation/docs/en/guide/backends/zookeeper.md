@@ -2,8 +2,8 @@
 
 [`cosid-zookeeper`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-zookeeper) stores segment counters and machine id leases in ZooKeeper, through Apache Curator:
 
-- `ZookeeperIdSegmentDistributor`: segment counters, as Curator distributed atomic longs.
-- `ZookeeperMachineLeaseStore`: machine id leases, claimed and released with versioned transactions.
+- `ZookeeperIdSegmentDistributor`: segment counters, each an 8-byte long node advanced with a versioned `setData` (compare and set). Since 4.1 there is no lock node and one fetch is two round trips when uncontended; the encoding is the one 3.x and 4.0 used (Curator `DistributedAtomicLong`), so mixed versions can share a counter.
+- `ZookeeperMachineLeaseStore`: machine id leases, claimed and released with versioned transactions. Claiming an expired lease reads the lease nodes in parallel, so it stays fast with many machine ids.
 
 ZooKeeper has no server clock that clients can read, so lease times come from the host clocks. **Keep the hosts' clocks in sync** (NTP): an instance whose clock runs ahead can see another instance's lease as expired before it is.
 

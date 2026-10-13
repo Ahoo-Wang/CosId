@@ -2,8 +2,8 @@
 
 [`cosid-zookeeper`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-zookeeper) 通过 Apache Curator 把号段计数器和机器号租约保存在 ZooKeeper 中：
 
-- `ZookeeperIdSegmentDistributor`：号段计数器，使用 Curator 的分布式原子长整型。
-- `ZookeeperMachineLeaseStore`：机器号租约，用带版本的事务申领和释放。
+- `ZookeeperIdSegmentDistributor`：号段计数器，每个计数器是一个 8 字节长整型节点，用带版本的 `setData`（比较并设置）推进。4.1 起不再使用锁节点，无竞争时一次获取只需两次往返；编码与 3.x、4.0（Curator `DistributedAtomicLong`）相同，混合版本可以共用同一个计数器。
+- `ZookeeperMachineLeaseStore`：机器号租约，用带版本的事务申领和释放。申领过期租约时并行读取租约节点，机器号很多时依然很快。
 
 ZooKeeper 没有客户端可读取的服务器时钟，租约时间取自主机时钟。**请保持各主机时钟同步**（NTP）：时钟偏快的实例可能会在另一个实例的租约到期之前就认为它已过期。
 

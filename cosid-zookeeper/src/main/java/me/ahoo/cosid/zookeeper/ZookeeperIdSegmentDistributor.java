@@ -23,12 +23,10 @@ import me.ahoo.cosid.util.CallTimeout;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
-import org.apache.curator.framework.recipes.atomic.AtomicValue;
-import org.apache.curator.framework.recipes.atomic.DistributedAtomicLong;
-import org.apache.curator.framework.recipes.atomic.PromotedToLock;
-import org.jspecify.annotations.NonNull;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.data.Stat;
 
-import java.util.concurrent.TimeUnit;
+import java.nio.ByteBuffer;
 
 /**
  * Zookeeper IdSegment Distributor.
@@ -38,16 +36,21 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class ZookeeperIdSegmentDistributor extends AbstractIdSegmentDistributor {
     
+    /**
+     * Compare-and-set attempts of one fetch before it gives up: a conflict means another instance fetched in between.
+     */
+    static final int MAX_ATTEMPTS = 100;
     private final long offset;
     /**
      * /cosid/{namespace}.{name}
      */
     private final String counterPath;
     /**
-     * {counterPath}-locker.
+     * {counterPath}-locker: the lock of the 3.x and 4.0 distributors, never taken here.
      */
     private final String counterLockerPath;
-    private final DistributedAtomicLong distributedAtomicLong;
+    private final CuratorFramework curatorFramework;
+    private final RetryPolicy retryPolicy;
     private final CallTimeout callTimeout;
     
     public ZookeeperIdSegmentDistributor(String namespace, String name, long offset, long step, CuratorFramework curatorFramework, RetryPolicy retryPolicy) {
@@ -57,6 +60,9 @@ public class ZookeeperIdSegmentDistributor extends AbstractIdSegmentDistributor 
     /**
      * Create a ZooKeeper segment distributor whose {@link #nextMaxId(long)} gives up after {@code callTimeout}.
      * {@link #ensureOffset()} at startup is not bounded.
+     *
+     * <p>The counter is the 8-byte big-endian long that 3.x and 4.0 ({@code DistributedAtomicLong}) read and write, changed
+     * with a versioned {@code setData}: a compare-and-set that works next to them, without their 15 second lock.</p>
      */
     public ZookeeperIdSegmentDistributor(String namespace, String name, long offset, long step, CuratorFramework curatorFramework, RetryPolicy retryPolicy,
                                          CallTimeout callTimeout) {
@@ -65,17 +71,28 @@ public class ZookeeperIdSegmentDistributor extends AbstractIdSegmentDistributor 
         this.offset = offset;
         this.counterPath = Checks.lenientFormat("/%s/%s", CosId.COSID, getNamespacedName());
         this.counterLockerPath = counterPath + "-locker";
-        PromotedToLock promotedToLock = PromotedToLock.builder()
-            .lockPath(counterLockerPath)
-            .timeout(15, TimeUnit.SECONDS)
-            .retryPolicy(retryPolicy)
-            .build();
-        this.distributedAtomicLong = new DistributedAtomicLong(curatorFramework, counterPath, retryPolicy, promotedToLock);
+        this.curatorFramework = curatorFramework;
+        this.retryPolicy = retryPolicy;
         this.callTimeout = callTimeout;
     }
     
+    String getCounterLockerPath() {
+        return counterLockerPath;
+    }
     
+    static byte[] toBytes(long value) {
+        return ByteBuffer.allocate(Long.BYTES).putLong(value).array();
+    }
     
+    /**
+     * The counter as {@code DistributedAtomicLong} reads it: empty is 0.
+     */
+    static long fromBytes(byte[] bytes) {
+        if (bytes == null || bytes.length == 0) {
+            return 0;
+        }
+        return ByteBuffer.wrap(bytes).getLong();
+    }
     
     void ensureOffset() {
         if (log.isDebugEnabled()) {
@@ -83,7 +100,7 @@ public class ZookeeperIdSegmentDistributor extends AbstractIdSegmentDistributor 
         }
         boolean notExists;
         try {
-            notExists = distributedAtomicLong.initialize(offset);
+            notExists = createIfMissing();
         } catch (Exception exception) {
             throw new CosIdException(exception.getMessage(), exception);
         }
@@ -93,21 +110,57 @@ public class ZookeeperIdSegmentDistributor extends AbstractIdSegmentDistributor 
         }
     }
     
+    private boolean createIfMissing() throws Exception {
+        try {
+            curatorFramework.create().creatingParentsIfNeeded().forPath(counterPath, toBytes(offset));
+            return true;
+        } catch (KeeperException.NodeExistsException nodeExistsException) {
+            return false;
+        }
+    }
+    
     @Override
     protected long doNextMaxId(long step) {
         if (log.isDebugEnabled()) {
             log.debug("Next MaxId [{}] step:[{}].", counterPath, step);
         }
         
-        AtomicValue<Long> nextMaxId = callTimeout.call("nextMaxId", () -> distributedAtomicLong.add(step));
+        long nextMaxId = callTimeout.call("nextMaxId", () -> compareAndAdd(step));
         
         if (log.isDebugEnabled()) {
-            log.debug("Next MaxId [{}] step:[{}] - nextMaxId:[{} -> {}].", counterPath, step, nextMaxId.preValue(), nextMaxId.postValue());
+            log.debug("Next MaxId [{}] step:[{}] - nextMaxId:[{}].", counterPath, step, nextMaxId);
         }
-        if (!nextMaxId.succeeded()) {
-            throw new CosIdException(Checks.lenientFormat("nextMaxId - [%s][%s->%s] concurrency conflict!", counterPath, nextMaxId.preValue(), nextMaxId.postValue()));
+        return nextMaxId;
+    }
+    
+    private long compareAndAdd(long step) throws Exception {
+        long started = System.currentTimeMillis();
+        for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+            Stat stat = new Stat();
+            byte[] current;
+            try {
+                current = curatorFramework.getData().storingStatIn(stat).forPath(counterPath);
+            } catch (KeeperException.NoNodeException noNodeException) {
+                createIfMissing();
+                continue;
+            }
+            long previous = fromBytes(current);
+            long next;
+            try {
+                next = Math.addExact(previous, step);
+            } catch (ArithmeticException overflow) {
+                throw new CosIdException(Checks.lenientFormat("nextMaxId - [%s][%s + %s] overflows!", counterPath, previous, step), overflow);
+            }
+            try {
+                curatorFramework.setData().withVersion(stat.getVersion()).forPath(counterPath, toBytes(next));
+                return next;
+            } catch (KeeperException.BadVersionException conflict) {
+                // Another instance fetched in between: read again, after the retry policy's pause.
+                if (!retryPolicy.allowRetry(attempt, System.currentTimeMillis() - started, (time, unit) -> unit.sleep(time))) {
+                    break;
+                }
+            }
         }
-        
-        return nextMaxId.postValue();
+        throw new CosIdException(Checks.lenientFormat("nextMaxId - [%s] concurrency conflict!", counterPath));
     }
 }

@@ -13,7 +13,8 @@
 
 package me.ahoo.cosid.mongo;
 
-import com.google.common.base.Preconditions;
+import me.ahoo.cosid.internal.Checks;
+
 import com.mongodb.MongoCommandException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
@@ -49,7 +50,7 @@ public class MongoIdSegmentCollection implements IdSegmentCollection {
             afterDoc = fetch(namespacedName, offset, step);
         }
 
-        Preconditions.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
+        Checks.checkNotNull(afterDoc, "IdSegment[%s] can not be null!", namespacedName);
         Long lastMaxId = afterDoc.getLong(IdSegmentOperates.LAST_MAX_ID_FIELD);
         return Objects.requireNonNull(lastMaxId);
     }

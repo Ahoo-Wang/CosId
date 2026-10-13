@@ -56,12 +56,6 @@ public class GuardDistribute implements MachineIdDistribute {
     }
 
     /**
-     * Every machine id distributed through this instance, whether or not a guarder is running,
-     * so that they can all be reverted on shutdown.
-     *
-     * @return a snapshot of the distributed instances
-     */
-    /**
      * The machine id distributed to each instance, for monitoring.
      *
      * @return a snapshot
@@ -71,6 +65,12 @@ public class GuardDistribute implements MachineIdDistribute {
         return Map.copyOf(machineIds);
     }
     
+    /**
+     * Every machine id distributed through this instance, whether or not a guarder is running,
+     * so that they can all be reverted on shutdown.
+     *
+     * @return a snapshot of the distributed instances
+     */
     @NonNull
     public Set<NamespacedInstanceId> getDistributed() {
         return Set.copyOf(distributed);

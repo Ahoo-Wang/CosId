@@ -85,13 +85,6 @@ public interface MachineIdGuarder {
     }
 
     /**
-     * The lease of a registered instance, renewed by every successful guard.
-     *
-     * @param namespace namespace
-     * @param instanceId instance id
-     * @return the lease, or {@link MachineIdLease#FOREVER} when this guarder does not track leases
-     */
-    /**
      * The lease of every registered instance, for monitoring.
      *
      * @return a snapshot, empty when this guarder tracks no leases
@@ -100,6 +93,13 @@ public interface MachineIdGuarder {
         return Map.of();
     }
     
+    /**
+     * The lease of a registered instance, renewed by every successful guard.
+     *
+     * @param namespace namespace
+     * @param instanceId instance id
+     * @return the lease, or {@link MachineIdLease#FOREVER} when this guarder does not track leases
+     */
     default MachineIdLease getLease(String namespace, InstanceId instanceId) {
         return MachineIdLease.FOREVER;
     }

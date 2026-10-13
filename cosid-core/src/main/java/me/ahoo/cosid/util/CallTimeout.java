@@ -41,17 +41,19 @@ import java.util.function.BiFunction;
  */
 public final class CallTimeout {
     /**
-     * No timeout: calls run on the caller thread.
-     */
-    public static final CallTimeout NONE = new CallTimeout(Duration.ZERO);
-    /**
      * Default limit of calls running at once.
      */
     public static final int MAX_CONCURRENT_CALLS = 64;
     
+    // Before NONE, which keeps a reference to it.
     private static final ThreadPoolExecutor EXECUTOR = new ThreadPoolExecutor(0, MAX_CONCURRENT_CALLS,
         60L, TimeUnit.SECONDS, new SynchronousQueue<>(),
         Checks.daemonThreadFactory("CosId-Call-%d"));
+    
+    /**
+     * No timeout: calls run on the caller thread.
+     */
+    public static final CallTimeout NONE = new CallTimeout(Duration.ZERO);
     
     private final Duration timeout;
     private final ThreadPoolExecutor executor;

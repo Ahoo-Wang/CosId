@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.redis.v34;
 
 import static me.ahoo.cosid.machine.ClockBackwardsSynchronizer.getBackwardsTimeStamp;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
@@ -25,7 +26,6 @@ import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.spring.redis.RedisCommandTimeout;
 
-import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -93,8 +93,8 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         super(machineStateStorage, clockBackwardsSynchronizer);
         
         this.redisTemplate = redisTemplate;
-        this.commandTimeout = Preconditions.checkNotNull(commandTimeout, "commandTimeout can not be null!");
-        this.distributeTimeout = Preconditions.checkNotNull(distributeTimeout, "distributeTimeout can not be null!");
+        this.commandTimeout = Checks.checkNotNull(commandTimeout, "commandTimeout can not be null!");
+        this.distributeTimeout = Checks.checkNotNull(distributeTimeout, "distributeTimeout can not be null!");
     }
     
     public RedisCommandTimeout getCommandTimeout() {
@@ -118,8 +118,8 @@ public class SpringRedisMachineIdDistributor extends AbstractMachineIdDistributo
         @SuppressWarnings("unchecked")
         List<Long> state = distributeTimeout.call("distributeMachineId", () -> (List<Long>) redisTemplate.execute(MACHINE_ID_DISTRIBUTE, keys, values));
         assert state != null;
-        Preconditions.checkNotNull(state, "state can not be null!");
-        Preconditions.checkState(!state.isEmpty(), "state can not be empty!");
+        Checks.checkNotNull(state, "state can not be null!");
+        Checks.checkState(!state.isEmpty(), "state can not be empty!");
         Long machineId = state.get(0);
         assert null != machineId;
         int realMachineId = machineId.intValue();

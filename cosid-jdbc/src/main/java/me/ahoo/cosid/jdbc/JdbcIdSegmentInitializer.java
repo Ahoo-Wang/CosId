@@ -13,15 +13,15 @@
 
 package me.ahoo.cosid.jdbc;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import me.ahoo.cosid.internal.Checks;
+
 import lombok.extern.slf4j.Slf4j;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
+import javax.sql.DataSource;
 
 /**
  * Jdbc IdSegment Initializer.
@@ -52,9 +52,9 @@ public class JdbcIdSegmentInitializer {
     }
     
     public JdbcIdSegmentInitializer(String initCosIdTableSql, String initIdSegmentSql, DataSource dataSource) {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(initCosIdTableSql), "initCosIdTableSql can not be empty!");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(initIdSegmentSql), "initIdSegmentSql can not be empty!");
-        Preconditions.checkNotNull(dataSource, "dataSource can not be null!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(initCosIdTableSql), "initCosIdTableSql can not be empty!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(initIdSegmentSql), "initIdSegmentSql can not be empty!");
+        Checks.checkNotNull(dataSource, "dataSource can not be null!");
         
         this.initCosIdTableSql = initCosIdTableSql;
         this.initIdSegmentSql = initIdSegmentSql;
@@ -91,8 +91,8 @@ public class JdbcIdSegmentInitializer {
     }
     
     public int initIdSegment(String segmentName, long offset) throws SQLException, SQLIntegrityConstraintViolationException {
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(segmentName), "segmentName can not be empty!");
-        Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        Checks.checkArgument(!Checks.isNullOrEmpty(segmentName), "segmentName can not be empty!");
+        Checks.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
         
         if (log.isInfoEnabled()) {
             log.info("Init IdSegment - segmentName:[{}] - offset:[{}]", segmentName, offset);

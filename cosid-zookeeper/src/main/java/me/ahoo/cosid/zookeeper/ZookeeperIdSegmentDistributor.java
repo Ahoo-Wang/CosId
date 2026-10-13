@@ -15,12 +15,11 @@ package me.ahoo.cosid.zookeeper;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.util.CallTimeout;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
@@ -62,9 +61,9 @@ public class ZookeeperIdSegmentDistributor extends AbstractIdSegmentDistributor 
     public ZookeeperIdSegmentDistributor(String namespace, String name, long offset, long step, CuratorFramework curatorFramework, RetryPolicy retryPolicy,
                                          CallTimeout callTimeout) {
         super(namespace, name, step);
-        Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        Checks.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
         this.offset = offset;
-        this.counterPath = Strings.lenientFormat("/%s/%s", CosId.COSID, getNamespacedName());
+        this.counterPath = Checks.lenientFormat("/%s/%s", CosId.COSID, getNamespacedName());
         this.counterLockerPath = counterPath + "-locker";
         PromotedToLock promotedToLock = PromotedToLock.builder()
             .lockPath(counterLockerPath)
@@ -106,7 +105,7 @@ public class ZookeeperIdSegmentDistributor extends AbstractIdSegmentDistributor 
             log.debug("Next MaxId [{}] step:[{}] - nextMaxId:[{} -> {}].", counterPath, step, nextMaxId.preValue(), nextMaxId.postValue());
         }
         if (!nextMaxId.succeeded()) {
-            throw new CosIdException(Strings.lenientFormat("nextMaxId - [%s][%s->%s] concurrency conflict!", counterPath, nextMaxId.preValue(), nextMaxId.postValue()));
+            throw new CosIdException(Checks.lenientFormat("nextMaxId - [%s][%s->%s] concurrency conflict!", counterPath, nextMaxId.preValue(), nextMaxId.postValue()));
         }
         
         return nextMaxId.postValue();

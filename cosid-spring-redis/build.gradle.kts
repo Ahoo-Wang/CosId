@@ -12,7 +12,6 @@
  */
 
 dependencies {
-    implementation(libs.guava)
     api(project(":cosid-core"))
     api("org.springframework.data:spring-data-redis")
     testImplementation(project(":cosid-test"))

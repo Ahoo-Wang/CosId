@@ -22,12 +22,12 @@ import static me.ahoo.cosid.mongo.MachineOperates.NAMESPACE_FIELD;
 import static me.ahoo.cosid.mongo.MachineOperates.REVERT_TIME_FIELD;
 import static me.ahoo.cosid.mongo.MachineOperates.STABLE_FIELD;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.lease.Lease;
 import me.ahoo.cosid.machine.lease.MachineLeaseStore;
 
-import com.google.common.base.Preconditions;
 import com.mongodb.ErrorCategory;
 import com.mongodb.MongoCommandException;
 import com.mongodb.MongoWriteException;
@@ -92,8 +92,8 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
      *                each call
      */
     public MongoMachineLeaseStore(MongoDatabase database, Duration timeout) {
-        Preconditions.checkNotNull(database, "database can not be null!");
-        Preconditions.checkArgument(timeout != null && !timeout.isNegative() && !timeout.isZero(), "timeout:[%s] must be positive!", timeout);
+        Checks.checkNotNull(database, "database can not be null!");
+        Checks.checkArgument(timeout != null && !timeout.isNegative() && !timeout.isZero(), "timeout:[%s] must be positive!", timeout);
         this.database = database.withTimeout(timeout.toMillis(), TimeUnit.MILLISECONDS);
         this.collection = this.database.getCollection(MachineOperates.COLLECTION_NAME);
     }
@@ -223,6 +223,6 @@ public class MongoMachineLeaseStore implements MachineLeaseStore {
             reply = database.runCommand(new Document("isMaster", 1));
         }
         Date localTime = reply.getDate("localTime");
-        return Preconditions.checkNotNull(localTime, "hello returned no localTime!").getTime();
+        return Checks.checkNotNull(localTime, "hello returned no localTime!").getTime();
     }
 }

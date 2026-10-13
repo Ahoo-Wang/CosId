@@ -125,11 +125,12 @@ cosid:
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | 只有租约最后一次续约（按存储时钟）距今至少这么久，客户端才能接管该机器号。4.0 客户端发送更晚的截止时间会得到 `400`；3.x 客户端更短的守护时长会被提升到该值并记录警告。请不要大于客户端的 `cosid.machine.guarder.safe-guard-duration`；不能为负数 |
 | `cosid.proxy.server.max-clock-skew` | `1m` | 客户端上报的最后时间戳最多可以比存储的时钟（v1 API 为服务端时钟）快多少；过于超前的时间戳会让机器号永远无法回收。`0` 表示不检查；不能为负数 |
 | `cosid.proxy.server.segment.max-step` | `1000000000000` | 客户端可申请的最大号段步长；`0` 表示不限制。号段链一次会申请 `step × 号段数`，负载高时更多，因此请至少设置为所有客户端中最大的 `step × max-prefetch-distance`。`offset` 必须在 `0` 到 `Long.MAX_VALUE / 2` 之间 |
+| `cosid.proxy.server.segment.max-distributors` | `0` | 服务端在内存中保留的号段分发器上限，每个命名空间和名称一个，所有命名空间共享；超出后请求新的分发器返回 `429`（而非 `400`）。`0` 表示不限制；不可信的客户端能访问服务端时请设置，例如 `10000` |
 
 ## 部署安全
 
 - 只在内网运行服务端，绝不暴露到公网。任何能调用它的人都可以释放存活实例持有的机器号，导致两个实例生成相同的 ID。
-- 令牌是 Bearer 凭据：持有者可以对所有命名空间调用所有端点。请通过 HTTPS 或启用双向 TLS 的服务网格传输令牌，保存在密钥管理系统中，轮换时同时配置新旧两个令牌。
+- 令牌是 Bearer 凭据：持有者可以对它能使用的所有命名空间调用所有端点。请用 `cosid.proxy.server.auth.clients` 为每个应用分配只能使用自己命名空间的令牌，并在 `cosid.proxy.server.namespaces` 中列出提供服务的命名空间。请通过 HTTPS 或启用双向 TLS 的服务网格传输令牌（客户端配置了令牌且 host 是 localhost 以外的 `http` 地址时会打印警告），保存在密钥管理系统中，轮换时同时配置新旧两个令牌。
 - `cosid.proxy.server.segment.max-step` 保持为有限值，避免单个请求耗尽或溢出计数器。
 - 服务端不开启 JMX。如需通过 JMX 监控，请在 `JAVA_OPTS` 中传入参数，并启用认证和 TLS：
 

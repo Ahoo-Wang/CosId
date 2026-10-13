@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -24,7 +26,10 @@ import me.ahoo.cosid.proxy.api.MachineClient;
 import me.ahoo.cosid.proxy.api.SegmentClient;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -74,5 +79,53 @@ class CosIdProxyClientAuthConfigurationTest {
             context.getBean(RestClientBuilderCustomizer.class).customize(definition(MachineClient.class), restBuilder);
             verifyNoInteractions(restBuilder);
         });
+    }
+    
+    @Test
+    void detectsATokenSentInClearText() {
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://cosid-proxy:8688", "secret"), is(true));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("HTTP://10.0.0.1", "secret"), is(true));
+        
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("https://cosid-proxy:8688", "secret"), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://localhost:8688", "secret"), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://127.0.0.1:8688", "secret"), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://[::1]:8688", "secret"), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://cosid-proxy:8688", " "), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://cosid-proxy:8688", null), is(false));
+    }
+    
+    @Test
+    void anInvalidOrMissingHostIsNotReported() {
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://bad host:8688", "secret"), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText(null, "secret"), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http:relative", "secret"), is(false));
+    }
+    
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void warnsAtStartupWhenTheTokenGoesOverPlainHttp(CapturedOutput output) {
+        new ApplicationContextRunner()
+            .withUserConfiguration(CosIdProxyClientAuthConfiguration.class)
+            .withBean(CosIdProperties.class, () -> {
+                CosIdProperties properties = new CosIdProperties();
+                properties.getProxy().setHost("http://cosid-proxy:8688").setToken("secret");
+                return properties;
+            })
+            .run(context -> assertThat(context.getBean(RestClientBuilderCustomizer.class), org.hamcrest.Matchers.notNullValue()));
+        assertThat(output.getOut(), org.hamcrest.Matchers.containsString("[cosid.proxy.host:http://cosid-proxy:8688] is plain http"));
+    }
+    
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void doesNotWarnOverHttps(CapturedOutput output) {
+        new ApplicationContextRunner()
+            .withUserConfiguration(CosIdProxyClientAuthConfiguration.class)
+            .withBean(CosIdProperties.class, () -> {
+                CosIdProperties properties = new CosIdProperties();
+                properties.getProxy().setHost("https://cosid-proxy:8688").setToken("secret");
+                return properties;
+            })
+            .run(context -> assertThat(context.getBean(RestClientBuilderCustomizer.class), org.hamcrest.Matchers.notNullValue()));
+        assertThat(output.getOut(), org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("is plain http")));
     }
 }

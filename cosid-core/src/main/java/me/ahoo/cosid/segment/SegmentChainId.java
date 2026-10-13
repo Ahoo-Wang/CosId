@@ -264,6 +264,42 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
         return prefetchJob;
     }
 
+    /**
+     * How many segments ahead the prefetch keeps, grown under load up to {@link #getMaxPrefetchDistance()}.
+     *
+     * @return the current prefetch distance
+     * @since 4.1.0
+     */
+    public int getPrefetchDistance() {
+        return prefetchJob.getPrefetchDistance();
+    }
+
+    /**
+     * The {@code namespace.name} of the segment store this generator takes its segments from.
+     *
+     * @return the namespaced name
+     * @since 4.1.0
+     */
+    public String getNamespacedName() {
+        return maxIdDistributor.getNamespacedName();
+    }
+
+    /**
+     * IDs left in the segments already taken, from the current one to the end of the chain, not counting expired ones.
+     *
+     * @return the remaining IDs
+     * @since 4.1.0
+     */
+    public long getRemaining() {
+        long remaining = 0;
+        for (IdSegmentChain chain = headChain; chain != null; chain = chain.getNext()) {
+            if (!chain.isExpired() && chain.getMaxId() > chain.getSequence()) {
+                remaining += chain.getMaxId() - chain.getSequence();
+            }
+        }
+        return remaining;
+    }
+
     public IdSegmentChain getHead() {
         return headChain;
     }

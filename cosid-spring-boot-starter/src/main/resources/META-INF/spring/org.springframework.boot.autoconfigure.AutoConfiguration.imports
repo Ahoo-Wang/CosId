@@ -24,3 +24,4 @@ me.ahoo.cosid.spring.boot.starter.jdbc.CosIdJdbcDisabledHintAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.flowable.FlowableIdGeneratorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.activiti.ActivitiIdGeneratorAutoConfiguration
 me.ahoo.cosid.spring.boot.starter.axon.CosIdAxonAutoConfiguration
+me.ahoo.cosid.spring.boot.starter.metrics.CosIdMetricsAutoConfiguration

@@ -7,6 +7,8 @@
 | `cosid.enabled` | `boolean` | `true` | Turns the whole starter off when `false` |
 | `cosid.namespace` | `String` | `cosid` | Isolates the counters and machine ids of one application from others in the same store. Set it to the application name: `${spring.application.name}` |
 | `cosid.provider.isolated` | `boolean` | `false` | `false`: the `IdGeneratorProvider` bean is `DefaultIdGeneratorProvider.INSTANCE`. `true`: each `ApplicationContext` gets its own provider, cleared when the context closes, so generators are not shared between contexts (devtools restarts, cached test contexts); `INSTANCE` then no longer holds Spring-registered generators |
+| `cosid.metrics.enabled` | `boolean` | `true` | Registers the CosId Micrometer meters when Micrometer is on the classpath, see [Monitoring](../../guide/operations/monitoring.md#metrics) |
+| `cosid.metrics.generated.enabled` | `boolean` | `false` | Counts the IDs each segment and Snowflake generator generates (`cosid.generator.generated`), by wrapping them in a counting decorator |
 
 The generators have their own pages: [machine ID](./machine.md) (`cosid.machine`), [SnowflakeId](./snowflake.md) (`cosid.snowflake`), [SegmentId](./segment.md) (`cosid.segment`) and [CosIdGenerator](./cosid-generator.md) (`cosid.generator`). Backend properties are on the [ZooKeeper](./zookeeper.md) and [proxy](./proxy.md) pages and the backend guides.
 

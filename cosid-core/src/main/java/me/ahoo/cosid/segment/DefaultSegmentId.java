@@ -64,6 +64,30 @@ public class DefaultSegmentId implements SegmentId {
         this.maxIdDistributor = maxIdDistributor;
     }
 
+    /**
+     * The {@code namespace.name} of the segment store this generator takes its segments from.
+     *
+     * @return the namespaced name
+     * @since 4.1.0
+     */
+    public String getNamespacedName() {
+        return maxIdDistributor.getNamespacedName();
+    }
+
+    /**
+     * IDs left in the current segment, zero once it expired.
+     *
+     * @return the remaining IDs
+     * @since 4.1.0
+     */
+    public long getRemaining() {
+        IdSegment segment = current();
+        if (segment.isExpired() || segment.getMaxId() <= segment.getSequence()) {
+            return 0;
+        }
+        return segment.getMaxId() - segment.getSequence();
+    }
+
     @Override
     public IdSegment current() {
         return segment;

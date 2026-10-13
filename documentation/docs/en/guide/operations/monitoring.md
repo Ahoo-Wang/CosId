@@ -27,6 +27,32 @@ management:
       show-details: when-authorized
 ```
 
+## Metrics
+
+With Micrometer on the classpath (Spring Boot Actuator brings it), the starter registers `CosIdMeterBinder`. Turn it off with `cosid.metrics.enabled=false`.
+
+| Meter | Type | Tags | Meaning |
+|-------|------|------|---------|
+| `cosid.segment.remaining` | gauge | `name`, `segment` | IDs left in the segments a segment generator already holds; alert when it stays near zero |
+| `cosid.segment.prefetch.distance` | gauge | `name`, `segment` | Segments a segment chain prefetches ahead; it grows under load up to `max-prefetch-distance` |
+| `cosid.segment.fetch` | timer | `segment`, `outcome` | Segment fetches from the store, `success` or `failure` |
+| `cosid.segment.prefetch.expansions` | counter | `segment` | Times a chain ran dry and grew its prefetch distance |
+| `cosid.segment.prefetch.failures` | counter | `segment` | Failed prefetches |
+| `cosid.machine.lease.remaining` | time gauge | `namespace` | Time left on the machine id lease; Snowflake generators stop at zero |
+| `cosid.machine.clock.skew` | time gauge | `namespace` | How far this host's clock was ahead of the store's at the last renewal |
+| `cosid.machine.lease.acquired` | counter | `namespace`, `claim` | Leases taken: `self`, `released`, `new` or `expired` |
+| `cosid.machine.lease.renew.failures` | counter | `namespace` | Failed lease renewals |
+| `cosid.machine.lease.lost` | counter | `namespace` | Leases lost to another instance |
+| `cosid.clock.backwards` | counter | `generator` | Times a generator saw the clock move backwards |
+| `cosid.clock.sync.wait` | timer | `generator` | Waits for the clock to catch up |
+| `cosid.sequence.exhausted.wait` | timer | | Waits for the next tick after a generator used up its sequence |
+| `cosid.call.timeouts`, `cosid.call.rejections` | counter | `operation` | Store calls that timed out, or were rejected beyond `cosid.max-concurrent-calls` |
+| `cosid.generator.generated` | function counter | `name` | IDs generated, only with `cosid.metrics.generated.enabled=true` |
+
+`cosid.metrics.generated.enabled` is off by default: it wraps segment and Snowflake generators in a counting decorator (`CountedSegmentId`, `CountedSnowflakeId`), one atomic add per ID. Beans keep their `SegmentId` and `SnowflakeId` types, but code that injects a concrete class such as `SegmentChainId` gets the wrapper; use `Decorator.getActual` to reach the generator.
+
+With `cosid.provider.isolated=true`, each application context counts only the segment events of its own generators and the lease events of its own namespaces. Clock, sequence and call meters cannot tell contexts apart and count the whole JVM.
+
 ## Generator state
 
 The `cosid` endpoint lists every generator with its kind, converter and state: the machine id and last timestamp of Snowflake generators, the current segment of segment generators.

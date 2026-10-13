@@ -95,6 +95,7 @@ dependencies {
     compileOnly("org.mongodb:mongodb-driver-sync")
     // Only for the proxy clients' WebClient timeout, applied when the application uses WebFlux.
     compileOnly("org.springframework:spring-webflux")
+    compileOnly("io.micrometer:micrometer-core")
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
     testImplementation(project(":cosid-test"))
@@ -103,6 +104,7 @@ dependencies {
     testImplementation("org.mongodb:mongodb-driver-reactivestreams")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework:spring-webflux")
+    testImplementation("io.micrometer:micrometer-core")
     testImplementation("com.mysql:mysql-connector-j")
     testImplementation("org.springframework.boot:spring-boot-starter-jdbc")
     testImplementation("org.apache.curator:curator-test")

@@ -19,6 +19,7 @@ import me.ahoo.cosid.segment.grouped.GroupedKey;
 import me.ahoo.cosid.stat.Stat;
 import me.ahoo.cosid.stat.converter.DatePrefixConverterStat;
 
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 
 import java.text.ParsePosition;
@@ -33,15 +34,17 @@ import java.time.format.DateTimeFormatter;
  *
  * @author ahoo wang
  */
+@Slf4j
 public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter> {
     private final String pattern;
     private final DateTimeFormatter formatter;
     private final String delimiter;
     private final IdConverter actual;
     /**
-     * The length of every formatted date, or {@code -1} when it varies (one-letter fields, text months).
+     * The shortest and the longest formatted date: equal for a fixed-length date.
      */
-    private final int fixedDateLength;
+    private final int minDateLength;
+    private final int maxDateLength;
 
     /**
      * Creates a new DatePrefixIdConverter.
@@ -55,28 +58,42 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
         this.formatter = DateTimeFormatter.ofPattern(pattern);
         this.delimiter = delimiter;
         this.actual = actual;
-        this.fixedDateLength = fixedLength(formatter);
+        int[] lengths = dateLengths(formatter);
+        this.minDateLength = lengths[0];
+        this.maxDateLength = lengths[1];
+        if (minDateLength != maxDateLength && delimiter.isEmpty() && log.isWarnEnabled()) {
+            log.warn("Date prefix pattern [{}] formats dates of {} to {} characters and has no delimiter: where the id starts is ambiguous. "
+                + "Set a delimiter, or use a fixed-length pattern (yyyyMMdd).", pattern, minDateLength, maxDateLength);
+        }
     }
     
     /**
-     * The length of the dates the formatter writes when it is always the same: dates that make each field as short or
-     * as long as it gets (single and double digits, every month and day of the week, morning and afternoon).
+     * The shortest and longest dates the formatter writes, over dates that make each field as short or as long as it gets:
+     * single and double digits, every month and day of the week, morning and afternoon, whole and fractional seconds.
      */
-    private static int fixedLength(DateTimeFormatter formatter) {
-        int length = -1;
+    private static int[] dateLengths(DateTimeFormatter formatter) {
+        int min = Integer.MAX_VALUE;
+        int max = 0;
+        int[] days = {1, 9, 10, 28};
+        int[] hours = {0, 9, 13, 23};
+        int[] minutesAndSeconds = {0, 9, 10, 59};
+        int[] nanos = {0, 999_999_999};
         for (int month = 1; month <= 12; month++) {
-            for (int day : new int[] {1, 9, 10, 28}) {
-                for (int hour : new int[] {0, 9, 13, 23}) {
-                    int formatted = formatter.format(LocalDateTime.of(2000 + month, month, day, hour, month % 10, day % 10, 0)).length();
-                    if (length == -1) {
-                        length = formatted;
-                    } else if (length != formatted) {
-                        return -1;
+            for (int day : days) {
+                for (int hour : hours) {
+                    for (int minute : minutesAndSeconds) {
+                        for (int second : minutesAndSeconds) {
+                            for (int nano : nanos) {
+                                int length = formatter.format(LocalDateTime.of(2000 + month, month, day, hour, minute, second, nano)).length();
+                                min = Math.min(min, length);
+                                max = Math.max(max, length);
+                            }
+                        }
                     }
                 }
             }
         }
-        return length;
+        return new int[] {min, max};
     }
 
 
@@ -92,25 +109,33 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
 
     @Override
     public long asLong(@NonNull String idString) {
-        if (fixedDateLength >= 0) {
-            // A fixed-length date is cut off by its length: parsing a date directly followed by digits (yyyyMMdd and an
-            // empty delimiter) would take the id's first digits as part of the year.
-            int idStart = fixedDateLength + delimiter.length();
-            if (idString.length() < idStart || !idString.startsWith(delimiter, fixedDateLength)) {
-                throw new IllegalArgumentException("Id [" + idString + "] does not start with a date of pattern [" + pattern + "] and the delimiter ["
-                    + delimiter + "].");
+        return actual.asLong(idString.substring(idStart(idString)));
+    }
+    
+    /**
+     * Where the id starts after the date and the delimiter. A fixed-length date is cut off by its length: parsing a date
+     * directly followed by digits would take them as part of a 4-digit year. Otherwise the delimiter marks the end of the
+     * date, searched from the shortest date; without one, the date is parsed (ambiguous, warned at construction).
+     */
+    private int idStart(String idString) {
+        if (minDateLength == maxDateLength) {
+            if (idString.length() >= minDateLength + delimiter.length() && idString.startsWith(delimiter, minDateLength)) {
+                return minDateLength + delimiter.length();
             }
-            return actual.asLong(idString.substring(idStart));
+        } else if (!delimiter.isEmpty()) {
+            int delimiterIndex = idString.indexOf(delimiter, minDateLength);
+            if (delimiterIndex >= 0 && delimiterIndex <= maxDateLength) {
+                return delimiterIndex + delimiter.length();
+            }
+        } else {
+            ParsePosition position = new ParsePosition(0);
+            formatter.parseUnresolved(idString, position);
+            if (position.getErrorIndex() < 0) {
+                return position.getIndex();
+            }
         }
-        // A date whose length varies (one-letter fields, text months) is parsed to find where the id starts.
-        ParsePosition position = new ParsePosition(0);
-        formatter.parseUnresolved(idString, position);
-        int dateEnd = position.getIndex();
-        if (position.getErrorIndex() >= 0 || !idString.startsWith(delimiter, dateEnd)) {
-            throw new IllegalArgumentException("Id [" + idString + "] does not start with a date of pattern [" + pattern + "] and the delimiter ["
-                + delimiter + "].");
-        }
-        return actual.asLong(idString.substring(dateEnd + delimiter.length()));
+        throw new IllegalArgumentException("Id [" + idString + "] does not start with a date of pattern [" + pattern + "] and the delimiter ["
+            + delimiter + "].");
     }
 
     @Override

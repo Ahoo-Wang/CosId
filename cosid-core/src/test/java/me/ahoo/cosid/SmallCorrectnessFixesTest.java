@@ -33,6 +33,10 @@ import me.ahoo.cosid.uncertainty.UncertaintyIdGenerator;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+
 /**
  * One regression test per small correctness fix.
  */
@@ -61,7 +65,8 @@ class SmallCorrectnessFixesTest {
         assertThat(converter.asLong("286-" + id), equalTo(12345L));
         assertThat(converter.asLong("7-" + id), equalTo(12345L));
         assertThat(converter.asLong(converter.asString(12345L)), equalTo(12345L));
-        assertThrows(IllegalArgumentException.class, () -> converter.asLong("x-" + id));
+        // No delimiter within the longest date ("D" is at most 3 characters).
+        assertThrows(IllegalArgumentException.class, () -> converter.asLong("2861" + id));
     }
     
     @Test
@@ -73,6 +78,32 @@ class SmallCorrectnessFixesTest {
         DatePrefixIdConverter dashed = new DatePrefixIdConverter("yyyyMMdd", "-", Radix62IdConverter.PAD_START);
         assertThat(dashed.asLong(dashed.asString(250L)), equalTo(250L));
         assertThrows(IllegalArgumentException.class, () -> dashed.asLong("20261013"));
+    }
+    
+    @Test
+    void singleLetterMinutesAndSecondsAreVariableLength() {
+        DatePrefixIdConverter converter = new DatePrefixIdConverter("H:m:s", "-", Radix62IdConverter.PAD_START);
+        String id = Radix62IdConverter.PAD_START.asString(77L);
+        assertThat(converter.asLong("9:5:7-" + id), equalTo(77L));
+        assertThat(converter.asLong("23:59:59-" + id), equalTo(77L));
+    }
+    
+    @Test
+    void aTextMonthUnderChineseLocaleWithADelimiter() {
+        Locale defaultLocale = Locale.getDefault(Locale.Category.FORMAT);
+        Locale.setDefault(Locale.Category.FORMAT, Locale.SIMPLIFIED_CHINESE);
+        try {
+            DatePrefixIdConverter converter = new DatePrefixIdConverter("yyyyMMMdd", "-", Radix62IdConverter.PAD_START);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMMdd", Locale.SIMPLIFIED_CHINESE);
+            String id = Radix62IdConverter.PAD_START.asString(12345L);
+            for (int month = 1; month <= 12; month++) {
+                // "202610月13": October to December have a two-digit month in front of 月.
+                String date = formatter.format(LocalDate.of(2026, month, 13));
+                assertThat(date, converter.asLong(date + "-" + id), equalTo(12345L));
+            }
+        } finally {
+            Locale.setDefault(Locale.Category.FORMAT, defaultLocale);
+        }
     }
     
     @Test

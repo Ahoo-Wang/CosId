@@ -17,6 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineStateStorage;
+import me.ahoo.cosid.proxy.api.MachineLeaseClient;
+import me.ahoo.cosid.proxy.api.SegmentClient;
 import me.ahoo.cosid.spring.boot.starter.machine.ConditionalOnCosIdMachineEnabled;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdProxyMachineIdDistributorAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
@@ -25,10 +27,13 @@ import me.ahoo.cosid.spring.boot.starter.segment.CosIdProxySegmentAutoConfigurat
 import me.ahoo.cosid.spring.boot.starter.segment.SegmentIdProperties;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.aot.generate.ClassNameGenerator;
 import org.springframework.aot.generate.DefaultGenerationContext;
 import org.springframework.aot.generate.GeneratedFiles;
 import org.springframework.aot.generate.InMemoryGeneratedFiles;
+import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
 import org.springframework.boot.test.util.TestPropertyValues;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -73,6 +78,11 @@ class ProxyClientAotTest {
             generationContext.writeGeneratedContent();
             
             assertThat(files.getGeneratedFiles(GeneratedFiles.Kind.SOURCE)).isNotEmpty();
+            RuntimeHints hints = generationContext.getRuntimeHints();
+            for (Class<?> clientType : new Class<?>[] {MachineLeaseClient.class, SegmentClient.class}) {
+                assertThat(RuntimeHintsPredicates.proxies().forInterfaces(AopProxyUtils.completeJdkProxyInterfaces(clientType))).accepts(hints);
+                assertThat(RuntimeHintsPredicates.reflection().onType(clientType)).accepts(hints);
+            }
             assertThat(context.getBeanFactory().containsBeanDefinition("cosIdProxyMachineLeaseClient")).isTrue();
             assertThat(context.getBeanFactory().containsBeanDefinition("cosIdProxySegmentClient")).isTrue();
         }

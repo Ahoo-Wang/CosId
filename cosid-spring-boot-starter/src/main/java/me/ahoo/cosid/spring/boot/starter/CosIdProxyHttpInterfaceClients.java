@@ -33,6 +33,8 @@ import java.time.Duration;
  */
 public final class CosIdProxyHttpInterfaceClients {
     
+    static final String LOAD_BALANCED_SCHEME = "lb://";
+    
     private CosIdProxyHttpInterfaceClients() {
     }
     
@@ -79,6 +81,19 @@ public final class CosIdProxyHttpInterfaceClients {
     }
     
     /**
+     * A load-balanced {@code lb://} host needs CoApi: the plain clients would fail on their first call.
+     *
+     * @param host {@code cosid.proxy.host}
+     */
+    static void checkHost(@Nullable String host) {
+        if (host != null && host.trim().regionMatches(true, 0, LOAD_BALANCED_SCHEME, 0, LOAD_BALANCED_SCHEME.length())) {
+            throw new IllegalStateException("[cosid.proxy.host:" + host + "] is load-balanced, which the plain proxy clients "
+                + "(cosid.proxy.client=http-interface) do not support: set cosid.proxy.client=coapi, with CoApi "
+                + "(me.ahoo.coapi:coapi-spring-boot-starter) on the classpath, or a plain http(s) host.");
+        }
+    }
+    
+    /**
      * Create a proxy client.
      *
      * @param clientType the client interface, such as {@code MachineLeaseClient}
@@ -88,6 +103,7 @@ public final class CosIdProxyHttpInterfaceClients {
      * @return the client
      */
     public static <T> T create(Class<T> clientType, ProxyProperties proxy, RestClient.@Nullable Builder builder) {
+        checkHost(proxy.getHost());
         RestClient.Builder restClient = (builder == null ? RestClient.builder() : builder.clone()).baseUrl(proxy.getHost());
         JdkClientHttpRequestFactory requestFactory = requestFactory(proxy);
         if (requestFactory != null) {

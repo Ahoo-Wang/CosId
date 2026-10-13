@@ -38,10 +38,15 @@ public abstract class ProxyClientCondition extends SpringBootCondition {
     }
     
     static ProxyProperties.Client resolve(ConditionContext context) {
+        ProxyProperties.Client configured = Binder.get(context.getEnvironment()).bind(CLIENT_KEY, ProxyProperties.Client.class).orElse(null);
         if (!ClassUtils.isPresent(CO_API_CLASS, context.getClassLoader())) {
+            if (configured == ProxyProperties.Client.COAPI) {
+                throw new IllegalStateException("[" + CLIENT_KEY + "=coapi] but CoApi is not on the classpath: add "
+                    + "me.ahoo.coapi:coapi-spring-boot-starter, or set [" + CLIENT_KEY + "=http-interface].");
+            }
             return ProxyProperties.Client.HTTP_INTERFACE;
         }
-        return Binder.get(context.getEnvironment()).bind(CLIENT_KEY, ProxyProperties.Client.class).orElse(ProxyProperties.Client.COAPI);
+        return configured == null ? ProxyProperties.Client.COAPI : configured;
     }
     
     @Override

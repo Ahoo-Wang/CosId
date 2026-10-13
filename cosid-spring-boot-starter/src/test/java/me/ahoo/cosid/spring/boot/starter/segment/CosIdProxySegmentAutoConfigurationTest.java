@@ -154,4 +154,28 @@ class CosIdProxySegmentAutoConfigurationTest {
                 .hasSingleBean(SegmentClient.class)
                 .hasBean("cosIdProxyRestClientTimeoutCustomizer"));
     }
+
+    @Test
+    void aLoadBalancedHostFailsStartupWithPlainClients() {
+        plainRunner()
+            .withPropertyValues(ProxyClientCondition.CLIENT_KEY + "=http-interface", "cosid.proxy.host=lb://cosid-proxy")
+            .withBean(me.ahoo.cosid.spring.boot.starter.CosIdProperties.class, () -> {
+                me.ahoo.cosid.spring.boot.starter.CosIdProperties properties = new me.ahoo.cosid.spring.boot.starter.CosIdProperties();
+                properties.getProxy().setHost("lb://cosid-proxy");
+                return properties;
+            })
+            .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("cosid.proxy.client=coapi"));
+    }
+
+    @Test
+    void coApiAskedForButMissingFailsStartup() {
+        plainRunner()
+            .withClassLoader(new FilteredClassLoader("me.ahoo.coapi.spring"))
+            .withPropertyValues(ProxyClientCondition.CLIENT_KEY + "=coapi")
+            .run(context -> assertThat(context).hasFailed().getFailure().rootCause()
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("CoApi is not on the classpath"));
+    }
 }

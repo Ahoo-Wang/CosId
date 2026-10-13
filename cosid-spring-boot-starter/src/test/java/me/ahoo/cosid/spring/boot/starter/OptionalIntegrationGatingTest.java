@@ -66,13 +66,14 @@ class OptionalIntegrationGatingTest {
     }
     
     @Test
-    void proxySegmentDistributorNeedsCoApi() {
+    void proxySegmentDistributorWithoutCoApiUsesPlainClients() {
         new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(CosIdProxySegmentAutoConfiguration.class))
             .withClassLoader(new FilteredClassLoader("me.ahoo.coapi"))
             .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", SegmentIdProperties.Distributor.TYPE + "=proxy")
             .run(context -> assertThat(context)
                 .hasNotFailed()
-                .doesNotHaveBean(CosIdProxySegmentAutoConfiguration.class));
+                .hasSingleBean(CosIdProxySegmentAutoConfiguration.class)
+                .hasBean("cosIdProxySegmentClient"));
     }
 }

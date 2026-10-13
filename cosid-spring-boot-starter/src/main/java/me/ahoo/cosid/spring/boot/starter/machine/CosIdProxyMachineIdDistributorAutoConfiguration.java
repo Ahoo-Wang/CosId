@@ -24,6 +24,7 @@ import me.ahoo.cosid.proxy.api.MachineLeaseClient;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientAuthConfiguration;
+import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientRuntimeHints;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientTimeoutConfiguration;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyHttpInterfaceClients;
 import me.ahoo.cosid.spring.boot.starter.ProxyClientCondition;
@@ -39,6 +40,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -101,6 +103,7 @@ public class CosIdProxyMachineIdDistributorAutoConfiguration {
     @Configuration(proxyBeanMethods = false)
     @Conditional(ProxyClientCondition.OnHttpInterface.class)
     @ConditionalOnClass(name = "org.springframework.web.client.RestClient")
+    @ImportRuntimeHints(CosIdProxyClientRuntimeHints.class)
     static class HttpInterfaceClient {
         @Bean
         @ConditionalOnMissingBean

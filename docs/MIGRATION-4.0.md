@@ -90,7 +90,7 @@ Set them to `true` to keep the 3.x behavior. **Spring Data JDBC users must set `
 
 **The proxy server fails closed**: configure `cosid.proxy.server.auth.tokens` (the distribution reads `COSID_PROXY_TOKEN`) and the same `cosid.proxy.token` on the clients, or set `cosid.proxy.server.auth.allow-anonymous=true` to keep the 3.x open API behind a trusted network. The distribution no longer opens JMX on port 5555 without authentication; see the proxy guide to enable it through `JAVA_OPTS`. `cosid.proxy.server.min-safe-guard-duration` and `max-clock-skew` must not be negative. The client's `cosid.proxy.host` defaults to `http://localhost:8688`.
 
-**Ahead-of-time processing and native images** do not support `cosid.machine.distributor.type=proxy` or `cosid.segment.distributor.type=proxy` yet: the proxy clients' `CoApiDefinition` cannot be generated. Use the JVM for applications on the proxy.
+**Ahead-of-time processing and native images** do not support `cosid.machine.distributor.type=proxy` or `cosid.segment.distributor.type=proxy` with the default CoApi clients: their `CoApiDefinition` cannot be generated. Since 4.1, set `cosid.proxy.client=http-interface` to create the proxy clients as plain beans, which Spring AOT processing supports (`lb://` hosts need CoApi).
 
 ## API changes
 

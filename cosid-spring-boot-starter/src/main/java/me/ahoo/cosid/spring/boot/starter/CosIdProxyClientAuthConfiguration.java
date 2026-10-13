@@ -31,11 +31,7 @@ import org.springframework.http.HttpHeaders;
 public class CosIdProxyClientAuthConfiguration {
     
     static String authorization(ObjectProvider<CosIdProperties> cosIdProperties) {
-        String token = CosIdProxyClientTimeoutConfiguration.proxyProperties(cosIdProperties).getToken();
-        if (token == null || token.isBlank()) {
-            return null;
-        }
-        return "Bearer " + token.trim();
+        return CosIdProxyHttpInterfaceClients.authorization(CosIdProxyClientTimeoutConfiguration.proxyProperties(cosIdProperties));
     }
     
     @Bean

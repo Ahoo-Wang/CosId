@@ -58,6 +58,6 @@ public class EtcdStoreProvider implements CosIdStoreProvider {
 | JDBC | CI 未测试 | 未测试 |
 | MongoDB | CI 未测试 | 未测试 |
 | ZooKeeper | CI 未测试 | 未测试 |
-| Proxy | **不支持**：无法生成 Proxy 客户端定义 | **不支持** |
+| Proxy | 设置 `cosid.proxy.client=http-interface` 时支持（CI 已测试）；默认的 CoApi 客户端不支持 | 未测试 |
 
-starter 以 AOT 预处理能够处理的 Bean 定义方式注册号段和 Snowflake 生成器；CI 使用内存存储对号段生成器执行了 AOT 预处理。使用 Proxy 的应用请运行在 JVM 上。
+starter 以 AOT 预处理能够处理的 Bean 定义方式注册号段和 Snowflake 生成器；CI 使用内存存储对号段生成器执行了 AOT 预处理。使用 Proxy 的应用请设置 `cosid.proxy.client=http-interface`，客户端会作为普通 Bean 创建。`lb://` 地址（Spring Cloud LoadBalancer）需要默认的 CoApi 客户端，只能运行在 JVM 上。

@@ -58,6 +58,6 @@ Declare the bean with its concrete type (`EtcdStoreProvider`, not `CosIdStorePro
 | JDBC | Not tested in CI | Not tested |
 | MongoDB | Not tested in CI | Not tested |
 | ZooKeeper | Not tested in CI | Not tested |
-| Proxy | **Not supported**: the proxy client definitions cannot be generated | **Not supported** |
+| Proxy | Supported with `cosid.proxy.client=http-interface` (tested in CI); not with the default CoApi clients | Not tested |
 
-The starter registers segment and Snowflake generators as bean definitions that AOT processing can handle; CI runs AOT processing for segment generators, with an in-memory store. Use the JVM for applications on the proxy.
+The starter registers segment and Snowflake generators as bean definitions that AOT processing can handle; CI runs AOT processing for segment generators, with an in-memory store. For applications on the proxy, set `cosid.proxy.client=http-interface`: the clients are then plain beans. `lb://` hosts (Spring Cloud LoadBalancer) need the default CoApi clients, so they run on the JVM only.

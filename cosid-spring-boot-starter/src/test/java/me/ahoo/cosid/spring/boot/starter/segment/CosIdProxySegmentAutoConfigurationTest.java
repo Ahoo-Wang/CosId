@@ -16,12 +16,16 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.mock;
 
-import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.coapi.spring.client.sync.RestClientBuilderCustomizer;
 import me.ahoo.cosid.proxy.api.SegmentClient;
+import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.spring.boot.starter.ProxyClientCondition;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.web.client.RestClient;
 
 class CosIdProxySegmentAutoConfigurationTest {
     private static final String COAP_PROXY_HOST = "cosid.proxy.host=http://localhost:8688";
@@ -100,5 +104,54 @@ class CosIdProxySegmentAutoConfigurationTest {
             current = current.getCause();
         }
         return false;
+    }
+
+    private static ApplicationContextRunner plainRunner() {
+        return new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdProxySegmentAutoConfiguration.class))
+            .withPropertyValues(COAP_PROXY_HOST)
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true")
+            .withPropertyValues(SegmentIdProperties.Distributor.TYPE + "=proxy");
+    }
+
+    @Test
+    void httpInterfaceModeCreatesAPlainClientBean() {
+        plainRunner()
+            .withPropertyValues(ProxyClientCondition.CLIENT_KEY + "=http-interface")
+            .run(context -> assertThat(context)
+                .hasNotFailed()
+                .hasBean("cosIdProxySegmentClient")
+                .hasSingleBean(SegmentClient.class)
+                .doesNotHaveBean(RestClientBuilderCustomizer.class)
+                .hasSingleBean(IdSegmentDistributorFactory.class));
+    }
+
+    @Test
+    void theUpperCaseValueSelectsTheHttpInterfaceModeToo() {
+        plainRunner()
+            .withPropertyValues(ProxyClientCondition.CLIENT_KEY + "=HTTP_INTERFACE")
+            .run(context -> assertThat(context).hasNotFailed().hasBean("cosIdProxySegmentClient"));
+    }
+
+    @Test
+    void withoutCoApiTheClientIsAPlainBean() {
+        plainRunner()
+            .withClassLoader(new FilteredClassLoader("me.ahoo.coapi.spring"))
+            .run(context -> assertThat(context)
+                .hasNotFailed()
+                .hasBean("cosIdProxySegmentClient")
+                .hasSingleBean(IdSegmentDistributorFactory.class));
+    }
+
+    @Test
+    void coApiStaysTheDefault() {
+        plainRunner()
+            .withPropertyValues("coapi.mode=SYNC")
+            .withBean(RestClient.Builder.class, RestClient::builder)
+            .run(context -> assertThat(context)
+                .hasNotFailed()
+                .doesNotHaveBean("cosIdProxySegmentClient")
+                .hasSingleBean(SegmentClient.class)
+                .hasBean("cosIdProxyRestClientTimeoutCustomizer"));
     }
 }

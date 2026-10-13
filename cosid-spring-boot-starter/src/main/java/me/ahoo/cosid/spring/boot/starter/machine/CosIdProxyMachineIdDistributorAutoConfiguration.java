@@ -25,6 +25,8 @@ import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientAuthConfiguration;
 import me.ahoo.cosid.spring.boot.starter.CosIdProxyClientTimeoutConfiguration;
+import me.ahoo.cosid.spring.boot.starter.CosIdProxyHttpInterfaceClients;
+import me.ahoo.cosid.spring.boot.starter.ProxyClientCondition;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnMachineStoreType;
@@ -34,7 +36,10 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Conditional;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.web.client.RestClient;
 
 /**
  * CosId Spring Redis MachineIdDistributor AutoConfiguration.
@@ -44,10 +49,8 @@ import org.springframework.context.annotation.Import;
 @AutoConfiguration
 @ConditionalOnCosIdEnabled
 @ConditionalOnCosIdMachineEnabled
-@ConditionalOnClass(name = {"me.ahoo.cosid.proxy.ProxyMachineLeaseStore", "me.ahoo.coapi.spring.EnableCoApi"})
+@ConditionalOnClass(name = "me.ahoo.cosid.proxy.ProxyMachineLeaseStore")
 @ConditionalOnMachineStoreType("proxy")
-@EnableCoApi(clients = MachineLeaseClient.class)
-@Import({CosIdProxyClientTimeoutConfiguration.class, CosIdProxyClientAuthConfiguration.class})
 public class CosIdProxyMachineIdDistributorAutoConfiguration {
 
     /**
@@ -79,5 +82,30 @@ public class CosIdProxyMachineIdDistributorAutoConfiguration {
                                                                ObjectProvider<CosIdProperties> cosIdProperties) {
         return BuiltInStoreProvider.machine("proxy", context -> proxyMachineIdDistributor(proxyMachineLeaseStore(machineLeaseClient.getObject(), cosIdProperties),
             context.getMachineStateStorage(), context.getClockBackwardsSynchronizer()));
+    }
+
+    /**
+     * The client through CoApi: the default when CoApi is on the classpath.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @Conditional(ProxyClientCondition.OnCoApi.class)
+    @EnableCoApi(clients = MachineLeaseClient.class)
+    @Import({CosIdProxyClientTimeoutConfiguration.class, CosIdProxyClientAuthConfiguration.class})
+    static class CoApiClient {
+    }
+
+    /**
+     * The client as a plain bean ({@code cosid.proxy.client=http-interface}, or without CoApi), which Spring AOT
+     * processing supports.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @Conditional(ProxyClientCondition.OnHttpInterface.class)
+    @ConditionalOnClass(name = "org.springframework.web.client.RestClient")
+    static class HttpInterfaceClient {
+        @Bean
+        @ConditionalOnMissingBean
+        public MachineLeaseClient cosIdProxyMachineLeaseClient(ObjectProvider<CosIdProperties> cosIdProperties, ObjectProvider<RestClient.Builder> restClientBuilder) {
+            return CosIdProxyHttpInterfaceClients.create(MachineLeaseClient.class, cosIdProperties, restClientBuilder);
+        }
     }
 }

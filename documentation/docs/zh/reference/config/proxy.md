@@ -14,6 +14,7 @@ Proxy 的工作方式和部署方法见 [CosId Proxy](../../guide/backends/proxy
 | `token` | `String` | 无 | 每个请求携带的 Bearer 令牌；必须与服务端的某个令牌一致 |
 | `connect-timeout` | `Duration` | `2s` | 连接服务端的超时；`0` 表示不限制 |
 | `read-timeout` | `Duration` | `5s` | 等待响应的超时，包括启动时申领机器号；`0` 表示不限制，但 `cosid.machine.distributor.type=proxy` 时必须为正数 |
+| `client` | `Client` | `coapi` | 客户端的创建方式：`coapi`（支持 `lb://` 地址，应用 `coapi.*`）或 `http-interface`（普通 Bean，支持 Spring AOT）。类路径上没有 CoApi 时为 `http-interface` |
 
 ## 服务端
 

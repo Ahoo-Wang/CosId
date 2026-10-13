@@ -118,6 +118,18 @@ class JdbcIdSegmentDistributorFetchPlanTest {
     }
     
     @Test
+    void theMaxIdIsTheUpdatesOwnGeneratedKeyNotALaterSelect() {
+        FakeJdbc jdbc = new FakeJdbc(true);
+        // A middleware that routes a "select last_insert_id()" to another backend connection would answer 99 there.
+        jdbc.maxId = 99;
+        jdbc.generatedKey = 42L;
+        JdbcIdSegmentDistributor distributor = distributor(jdbc, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
+        
+        assertThat(distributor.nextMaxId(10), equalTo(42L));
+        assertThat(jdbc.executed, contains(JdbcIdSegmentDistributor.LAST_INSERT_ID_INCREMENT_MAX_ID_SQL));
+    }
+    
+    @Test
     void noGeneratedKeyIsAFailureNotAFallback() {
         FakeJdbc jdbc = new FakeJdbc(true);
         jdbc.generatedKeys = false;

@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.machine;
 
+import me.ahoo.cosid.event.CosIdEvents;
 import me.ahoo.cosid.internal.Checks;
 
 import org.jspecify.annotations.Nullable;
@@ -47,6 +48,7 @@ public final class MachineIdLease {
     private volatile long validUntil;
     private volatile boolean lost;
     private volatile boolean released;
+    private volatile long clockSkewMillis;
     
     public MachineIdLease(@Nullable String namespace, @Nullable InstanceId instanceId, Duration safeGuardDuration) {
         Checks.checkNotNull(safeGuardDuration, "safeGuardDuration can not be null!");
@@ -93,7 +95,12 @@ public final class MachineIdLease {
             // Shared by every generator without a tracked lease: marking it would stop all of them.
             return;
         }
-        lost = true;
+        if (!lost) {
+            lost = true;
+            if (namespace != null && instanceId != null) {
+                CosIdEvents.listener().onLeaseLost(namespace, instanceId);
+            }
+        }
     }
     
     public boolean isLost() {
@@ -113,6 +120,24 @@ public final class MachineIdLease {
     
     public boolean isReleased() {
         return released;
+    }
+    
+    /**
+     * How far this host's clock was ahead of the machine id store's at the last renewal (negative: behind), 0 when unknown.
+     *
+     * @since 4.1.0
+     */
+    public long getClockSkewMillis() {
+        return clockSkewMillis;
+    }
+    
+    /**
+     * Record the clock skew measured at a renewal.
+     *
+     * @since 4.1.0
+     */
+    public void recordClockSkew(long clockSkewMillis) {
+        this.clockSkewMillis = clockSkewMillis;
     }
     
     public long getValidUntil() {

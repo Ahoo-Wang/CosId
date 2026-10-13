@@ -19,6 +19,7 @@ import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
+import me.ahoo.cosid.spring.boot.starter.metrics.CosIdMetricsProperties;
 import me.ahoo.cosid.spring.boot.starter.machine.MachineProperties;
 
 import org.springframework.beans.factory.ObjectProvider;
@@ -27,6 +28,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 /**
  * CosId Snowflake AutoConfiguration.
@@ -51,8 +53,10 @@ public class CosIdSnowflakeAutoConfiguration {
                                                              ClockBackwardsSynchronizer clockBackwardsSynchronizer,
                                                              ObjectProvider<CustomizeSnowflakeIdProperties> customizers,
                                                              ConfigurableListableBeanFactory beanFactory) {
-        return new SnowflakeIdBeanRegistrar(cosIdProperties, machineProperties, snowflakeIdProperties, instanceId, idGeneratorProvider,
+        SnowflakeIdBeanRegistrar registrar = new SnowflakeIdBeanRegistrar(cosIdProperties, machineProperties, snowflakeIdProperties, instanceId, idGeneratorProvider,
             guardDistribute, clockBackwardsSynchronizer, customizers, (BeanDefinitionRegistry) beanFactory);
+        registrar.setCountGenerated(CosIdMetricsProperties.isCountGenerated(beanFactory.getBean(Environment.class)));
+        return registrar;
     }
     
     /**

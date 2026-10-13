@@ -138,12 +138,13 @@ class ZookeeperCompareAndSetTest {
      * 3.x and 4.0 nodes: {@code DistributedAtomicLong} reports a give-up instead of throwing; they fetch again.
      */
     private static long legacyFetch(DistributedAtomicLong legacy, long step) throws Exception {
-        while (true) {
+        for (int attempt = 0; attempt < 20; attempt++) {
             AtomicValue<Long> added = legacy.add(step);
             if (added.succeeded()) {
                 return added.postValue();
             }
         }
+        throw new AssertionError("The 3.x/4.0 client gave up 20 times in a row.");
     }
     
     @RepeatedTest(20)

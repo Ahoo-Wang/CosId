@@ -149,32 +149,39 @@ public class ZookeeperIdSegmentDistributor extends AbstractIdSegmentDistributor 
     
     private long compareAndAdd(long step) throws Exception {
         long deadline = System.currentTimeMillis() + (callTimeout.isEnabled() ? callTimeout.getTimeout().toMillis() : DEFAULT_DEADLINE_MILLIS);
-        for (int attempt = 0; attempt < OPTIMISTIC_ATTEMPTS; attempt++) {
-            Long next = tryCompareAndAdd(step);
-            if (next != null) {
-                return next;
-            }
-            backoff(attempt);
-        }
-        // Contended: queue on the lock of 3.x and 4.0, so that the instances under it take turns instead of colliding.
-        InterProcessMutex lock = new InterProcessMutex(curatorFramework, counterLockerPath);
-        if (!lock.acquire(Math.max(1, deadline - System.currentTimeMillis()), TimeUnit.MILLISECONDS)) {
-            throw conflict();
-        }
         try {
-            for (int attempt = 0; ; attempt++) {
+            for (int attempt = 0; attempt < OPTIMISTIC_ATTEMPTS; attempt++) {
                 Long next = tryCompareAndAdd(step);
                 if (next != null) {
                     return next;
                 }
-                // An instance outside the lock still in its optimistic attempts.
-                if (System.currentTimeMillis() >= deadline) {
-                    throw conflict();
-                }
                 backoff(attempt);
             }
-        } finally {
-            lock.release();
+            // Contended: queue on the lock of 3.x and 4.0, so that the instances under it take turns instead of colliding.
+            InterProcessMutex lock = new InterProcessMutex(curatorFramework, counterLockerPath);
+            if (!lock.acquire(Math.max(1, deadline - System.currentTimeMillis()), TimeUnit.MILLISECONDS)) {
+                throw new CosIdException(Checks.lenientFormat("nextMaxId - [%s] gave up waiting for the lock [%s] after %s conflicts.",
+                    counterPath, counterLockerPath, OPTIMISTIC_ATTEMPTS));
+            }
+            try {
+                for (int attempt = 0; ; attempt++) {
+                    Long next = tryCompareAndAdd(step);
+                    if (next != null) {
+                        return next;
+                    }
+                    // An instance outside the lock still in its optimistic attempts.
+                    if (System.currentTimeMillis() >= deadline) {
+                        throw new CosIdException(Checks.lenientFormat("nextMaxId - [%s] gave up after %s conflicts, %s of them under the lock.",
+                            counterPath, OPTIMISTIC_ATTEMPTS + attempt + 1, attempt + 1));
+                    }
+                    backoff(attempt);
+                }
+            } finally {
+                lock.release();
+            }
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw new CosIdException(Checks.lenientFormat("nextMaxId - [%s] interrupted.", counterPath), interrupted);
         }
     }
     
@@ -213,9 +220,5 @@ public class ZookeeperIdSegmentDistributor extends AbstractIdSegmentDistributor 
     private static void backoff(int attempt) throws InterruptedException {
         long bound = Math.min(MAX_BACKOFF_MILLIS, 1L << Math.min(attempt, 5));
         Thread.sleep(ThreadLocalRandom.current().nextLong(bound + 1));
-    }
-    
-    private CosIdException conflict() {
-        return new CosIdException(Checks.lenientFormat("nextMaxId - [%s] concurrency conflict!", counterPath));
     }
 }

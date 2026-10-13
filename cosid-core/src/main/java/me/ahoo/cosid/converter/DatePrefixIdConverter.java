@@ -38,6 +38,10 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
     private final DateTimeFormatter formatter;
     private final String delimiter;
     private final IdConverter actual;
+    /**
+     * The length of every formatted date, or {@code -1} when it varies (one-letter fields, text months).
+     */
+    private final int fixedDateLength;
 
     /**
      * Creates a new DatePrefixIdConverter.
@@ -51,6 +55,28 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
         this.formatter = DateTimeFormatter.ofPattern(pattern);
         this.delimiter = delimiter;
         this.actual = actual;
+        this.fixedDateLength = fixedLength(formatter);
+    }
+    
+    /**
+     * The length of the dates the formatter writes when it is always the same: dates that make each field as short or
+     * as long as it gets (single and double digits, every month and day of the week, morning and afternoon).
+     */
+    private static int fixedLength(DateTimeFormatter formatter) {
+        int length = -1;
+        for (int month = 1; month <= 12; month++) {
+            for (int day : new int[] {1, 9, 10, 28}) {
+                for (int hour : new int[] {0, 9, 13, 23}) {
+                    int formatted = formatter.format(LocalDateTime.of(2000 + month, month, day, hour, month % 10, day % 10, 0)).length();
+                    if (length == -1) {
+                        length = formatted;
+                    } else if (length != formatted) {
+                        return -1;
+                    }
+                }
+            }
+        }
+        return length;
     }
 
 
@@ -66,7 +92,17 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
 
     @Override
     public long asLong(@NonNull String idString) {
-        // The formatted date can be longer or shorter than the pattern (text months, one-letter fields): parse it.
+        if (fixedDateLength >= 0) {
+            // A fixed-length date is cut off by its length: parsing a date directly followed by digits (yyyyMMdd and an
+            // empty delimiter) would take the id's first digits as part of the year.
+            int idStart = fixedDateLength + delimiter.length();
+            if (idString.length() < idStart || !idString.startsWith(delimiter, fixedDateLength)) {
+                throw new IllegalArgumentException("Id [" + idString + "] does not start with a date of pattern [" + pattern + "] and the delimiter ["
+                    + delimiter + "].");
+            }
+            return actual.asLong(idString.substring(idStart));
+        }
+        // A date whose length varies (one-letter fields, text months) is parsed to find where the id starts.
         ParsePosition position = new ParsePosition(0);
         formatter.parseUnresolved(idString, position);
         int dateEnd = position.getIndex();

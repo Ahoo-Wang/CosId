@@ -65,6 +65,17 @@ class SmallCorrectnessFixesTest {
     }
     
     @Test
+    void aFixedLengthDatePrefixWithoutDelimiterRoundTrips() {
+        for (String pattern : new String[] {"yyyyMMdd", "uuuuMMddHHmmss", "yyMMdd"}) {
+            DatePrefixIdConverter converter = new DatePrefixIdConverter(pattern, "", Radix62IdConverter.PAD_START);
+            assertThat(pattern, converter.asLong(converter.asString(250L)), equalTo(250L));
+        }
+        DatePrefixIdConverter dashed = new DatePrefixIdConverter("yyyyMMdd", "-", Radix62IdConverter.PAD_START);
+        assertThat(dashed.asLong(dashed.asString(250L)), equalTo(250L));
+        assertThrows(IllegalArgumentException.class, () -> dashed.asLong("20261013"));
+    }
+    
+    @Test
     void anEmptyStringIsNotAnId() {
         assertThrows(NumberFormatException.class, () -> Radix62IdConverter.PAD_START.asLong(""));
     }

@@ -28,15 +28,25 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 
 /**
- * Pauses the writes of the test Redis, as {@code CLIENT PAUSE ... WRITE} does in a failover, so that every store
- * call of the proxy hangs while reads such as the health check's {@code PING} still answer.
+ * Pauses the test Redis with {@code CLIENT PAUSE}, as in a failover: with {@code WRITE} every store call of the proxy
+ * hangs while reads such as the health check's {@code PING} still answer; with {@code ALL} the health check hangs too.
  */
 final class PausedRedis implements AutoCloseable {
     private final RedisClient client = RedisClient.create(RedisLauncher.getUri());
     private final StatefulRedisConnection<String, String> connection = client.connect();
     
     PausedRedis(Duration duration) {
-        clientCommand("PAUSE", String.valueOf(duration.toMillis()), "WRITE");
+        this(duration, "WRITE");
+    }
+    
+    /**
+     * Pause the clients of the test Redis.
+     *
+     * @param duration how long at most
+     * @param mode     {@code WRITE}, or {@code ALL} to pause the health check's {@code PING} too
+     */
+    PausedRedis(Duration duration, String mode) {
+        clientCommand("PAUSE", String.valueOf(duration.toMillis()), mode);
     }
     
     private void clientCommand(String... args) {

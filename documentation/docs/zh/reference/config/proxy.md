@@ -27,7 +27,7 @@ Proxy 的工作方式和部署方法见 [CosId Proxy](../../guide/backends/proxy
 | `cosid.proxy.server.min-safe-guard-duration` | `Duration` | `5m` | 只有租约最后一次续约距今至少这么久，客户端才能接管该机器号。请不要大于客户端的 `cosid.machine.guarder.safe-guard-duration`；不能为负数 |
 | `cosid.proxy.server.max-clock-skew` | `Duration` | `1m` | 客户端上报的最后时间戳最多可以比存储的时钟（v1 API 为服务端时钟）快多少；`0` 表示不检查；不能为负数 |
 | `cosid.proxy.server.segment.max-step` | `long` | `1000000000000` | 客户端可申请的最大号段步长；`0` 表示不限制 |
-| `cosid.proxy.server.blocking.threads` | `int` | `64` | 执行 API 调用（会等待存储）的线程数，存储变慢时不会卡住同时负责健康检查的事件循环 |
+| `cosid.proxy.server.blocking.threads` | `int` | `64` | 执行 API 调用（会等待存储）的线程数，存储变慢时不会卡住同时负责健康检查的事件循环。设置 `spring.threads.virtual.enabled=true`（Java 21+）时，API 调用改为在虚拟线程上执行，不使用这个线程池，也不会因它返回 `503` |
 | `cosid.proxy.server.blocking.queue-capacity` | `int` | `1024` | 等待上述线程的 API 调用数；超出时服务端立即返回 `503` 和 `Retry-After: 1` |
 
 超出限制的请求返回 `400`；没有有效令牌的请求返回 `401`；超出线程池或超出 `cosid.max-concurrent-calls` 存储调用数的请求返回 `503`，可以稍后重试。

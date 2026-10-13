@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import me.ahoo.cosid.proxy.api.ErrorResponse;
 import me.ahoo.cosid.proxy.server.ProxyServer;
+import me.ahoo.cosid.proxy.server.configuration.ProxyServerConfiguration;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -25,7 +26,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -43,7 +43,7 @@ class ProxyOverloadEndToEndTest {
     @LocalServerPort
     int port;
     @Autowired
-    ThreadPoolTaskExecutor cosIdProxyBlockingExecutor;
+    ProxyServerConfiguration.ProxyBlockingExecution cosIdProxyBlockingExecution;
     
     @DynamicPropertySource
     static void serverProperties(DynamicPropertyRegistry registry) {
@@ -59,10 +59,10 @@ class ProxyOverloadEndToEndTest {
         try (PausedRedis ignored = new PausedRedis(Duration.ofSeconds(10))) {
             PausedRedis.sendSegmentRequests(port, 2).subscribe();
             long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
-            while (cosIdProxyBlockingExecutor.getActiveCount() < 2 && System.nanoTime() < deadline) {
+            while (cosIdProxyBlockingExecution.getActiveCount() < 2 && System.nanoTime() < deadline) {
                 Thread.sleep(10);
             }
-            assertThat(cosIdProxyBlockingExecutor.getActiveCount()).isEqualTo(2);
+            assertThat(cosIdProxyBlockingExecution.getActiveCount()).isEqualTo(2);
             
             // Both threads hang on Redis: further requests fill the queue, and the ones beyond it are rejected at once.
             WebClient webClient = WebClient.builder()

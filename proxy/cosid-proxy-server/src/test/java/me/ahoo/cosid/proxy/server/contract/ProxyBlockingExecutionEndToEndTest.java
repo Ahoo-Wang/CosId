@@ -55,9 +55,29 @@ class ProxyBlockingExecutionEndToEndTest {
             Integer health = WebClient.create("http://localhost:" + port)
                 .get().uri("/actuator/health")
                 .exchangeToMono(response -> response.toBodilessEntity().map(entity -> entity.getStatusCode().value()))
-                .block(Duration.ofSeconds(3));
+                .block(Duration.ofSeconds(1));
             
             assertThat(health).isEqualTo(200);
+        }
+    }
+    
+    /**
+     * With Redis paused for every command, {@code /actuator/health} waits on the Redis health check, but the liveness
+     * probe, which container health checks should use, still answers at once.
+     */
+    @Test
+    void livenessAnswersWhileRedisIsPausedForEveryCommand() {
+        ProxyEndToEnd.segmentClient(port).createDistributor("paused", "order", 0, 1);
+        try (PausedRedis ignored = new PausedRedis(Duration.ofSeconds(10), "ALL")) {
+            Flux<Integer> hanging = PausedRedis.sendSegmentRequests(port, 32);
+            hanging.subscribe();
+            
+            Integer liveness = WebClient.create("http://localhost:" + port)
+                .get().uri("/actuator/health/liveness")
+                .exchangeToMono(response -> response.toBodilessEntity().map(entity -> entity.getStatusCode().value()))
+                .block(Duration.ofSeconds(1));
+            
+            assertThat(liveness).isEqualTo(200);
         }
     }
 }

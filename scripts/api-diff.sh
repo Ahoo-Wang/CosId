@@ -27,7 +27,29 @@ FAILED="$WORK/failed"
 BROKEN="$WORK/broken"
 ENFORCE="${API_DIFF_ENFORCE:-true}"
 # Not part of the public API: the internal package, and auto-configuration constructors, which only Spring calls.
-EXCLUDES="me.ahoo.cosid.internal;me.ahoo.cosid.internal.*;me.ahoo.cosid.spring.boot.starter.*AutoConfiguration#*AutoConfiguration(*)"
+EXCLUDES="me.ahoo.cosid.internal;me.ahoo.cosid.internal.*"
+
+# japicmp excludes of the public and protected constructors of the *AutoConfiguration classes in the given jars, by
+# exact (erased) signature: japicmp does not accept a wildcard for the parameters.
+auto_configuration_constructors() {
+  local jar class simple
+  for jar in "$@"; do
+    [ -f "$jar" ] || continue
+    unzip -Z1 "$jar" | grep 'AutoConfiguration\.class$' | sed 's/\.class$//; s#/#.#g' | while IFS= read -r class; do
+      simple="${class##*.}"
+      javap -protected -cp "$jar" "$class" 2>/dev/null | grep -E "^ *(public|protected) ${class//./\\.}\(" | while IFS= read -r line; do
+        local params="${line#*(}"
+        params="${params%)*}"
+        # Erase generics, then drop spaces: japicmp matches java.util.List,int[].
+        while [[ "$params" == *"<"* ]]; do
+          params="$(sed -E 's/<[^<>]*>//g' <<< "$params")"
+        done
+        params="${params//.../[]}"
+        echo "${class}#${simple}(${params// /})"
+      done
+    done
+  done | sort -u | paste -sd ';' -
+}
 EXCLUDED_MODULES='/cosid-test$|/cosid-mod-test$|/cosid-proxy-server$'
 # Classes moved between these three in 4.0: each is reported alone, but only their combined comparison is enforced.
 COMBINED_MODULES='/cosid-core$|/cosid-sharding$|/cosid-accessor$'
@@ -35,10 +57,10 @@ COMBINED_MODULES='/cosid-core$|/cosid-sharding$|/cosid-accessor$'
 # japicmp exit code of a binary-only comparison: 0 compatible, 1 a binary-incompatible change (or a failure, which the
 # full comparison records).
 binary_compatible() {
-  local old_jar="$1" new_jar="$2" name="$3"
-  shift 3
+  local old_jar="$1" new_jar="$2" name="$3" excludes="$4"
+  shift 4
   java -jar "$WORK/japicmp.jar" --old "$old_jar" --new "$new_jar" "$@" --only-modified --ignore-missing-classes \
-    --exclude "$EXCLUDES" --error-on-binary-incompatibility --markdown > "$OUT/$name.binary.md" 2> "$OUT/$name.binary.err"
+    --exclude "$excludes" --error-on-binary-incompatibility --markdown > "$OUT/$name.binary.md" 2> "$OUT/$name.binary.err"
 }
 compare() {
   local old_jar="$1" new_jar="$2" name="$3" old_cp="${4:-}" new_cp="${5:-}" enforced="${6:-true}"
@@ -48,12 +70,17 @@ compare() {
   if [ -n "$old_cp" ] && [ -n "$new_cp" ]; then
     classpath=(--old-classpath "$old_cp" --new-classpath "$new_cp")
   fi
+  local excludes="$EXCLUDES" constructors
+  constructors="$(auto_configuration_constructors "$old_jar" "$new_jar")"
+  if [ -n "$constructors" ]; then
+    excludes="$excludes;$constructors"
+  fi
   if java -jar "$WORK/japicmp.jar" --old "$old_jar" --new "$new_jar" "${classpath[@]+"${classpath[@]}"}" --only-modified --ignore-missing-classes \
-    --exclude "$EXCLUDES" --error-on-binary-incompatibility --error-on-source-incompatibility \
+    --exclude "$excludes" --error-on-binary-incompatibility --error-on-source-incompatibility \
     --html-file "$OUT/$name.html" --markdown > "$OUT/$name.md" 2> "$OUT/$name.err"; then
     echo "compatible"
   elif grep -q "$INCOMPATIBLE_MESSAGE" "$OUT/$name.err"; then
-    if binary_compatible "$old_jar" "$new_jar" "$name" "${classpath[@]+"${classpath[@]}"}"; then
+    if binary_compatible "$old_jar" "$new_jar" "$name" "$excludes" "${classpath[@]+"${classpath[@]}"}"; then
       echo "source-incompatible only (allowed), see \`$name.html\`"
     elif [ "$enforced" != "true" ]; then
       echo "binary-incompatible alone (checked combined below), see \`$name.html\`"

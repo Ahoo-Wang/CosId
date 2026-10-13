@@ -85,6 +85,15 @@ public interface MachineIdGuarder {
     }
 
     /**
+     * The lease of every registered instance, for monitoring.
+     *
+     * @return a snapshot, empty when this guarder tracks no leases
+     */
+    default Map<NamespacedInstanceId, MachineIdLease> getLeases() {
+        return Map.of();
+    }
+    
+    /**
      * The lease of a registered instance, renewed by every successful guard.
      *
      * @param namespace namespace

@@ -91,10 +91,10 @@ public class DefaultSegmentId implements SegmentId {
         if (maxIdDistributor.getStep() == ONE_STEP) {
             // The segment binds the group its id came from: reading the distributor's group separately could see the next
             // group after a rollover and label an id of the old counter with it.
-            IdSegment oneStep = maxIdDistributor.nextIdSegment(idSegmentTtl);
+            IdSegment oneStep = SegmentFetchEvents.timed(maxIdDistributor.getNamespacedName(), () -> maxIdDistributor.nextIdSegment(idSegmentTtl));
             // Expired already: fetched across the end of its group.
             while (oneStep.isExpired()) {
-                oneStep = maxIdDistributor.nextIdSegment(idSegmentTtl);
+                oneStep = SegmentFetchEvents.timed(maxIdDistributor.getNamespacedName(), () -> maxIdDistributor.nextIdSegment(idSegmentTtl));
             }
             return sourced(source, oneStep, oneStep.getMaxId());
         }
@@ -115,7 +115,7 @@ public class DefaultSegmentId implements SegmentId {
                         return sourced(source, segment, nextSeq);
                     }
                 }
-                IdSegment nextIdSegment = maxIdDistributor.nextIdSegment(idSegmentTtl);
+                IdSegment nextIdSegment = SegmentFetchEvents.timed(maxIdDistributor.getNamespacedName(), () -> maxIdDistributor.nextIdSegment(idSegmentTtl));
                 if (!maxIdDistributor.allowReset()) {
                     segment.ensureNextIdSegment(nextIdSegment);
                 }

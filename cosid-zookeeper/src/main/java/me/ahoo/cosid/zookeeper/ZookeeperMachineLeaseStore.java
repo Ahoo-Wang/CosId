@@ -15,14 +15,13 @@ package me.ahoo.cosid.zookeeper;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineState;
 import me.ahoo.cosid.machine.lease.Lease;
 import me.ahoo.cosid.machine.lease.MachineLeaseStore;
 import me.ahoo.cosid.util.CallTimeout;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.KeeperException;
@@ -71,13 +70,13 @@ public class ZookeeperMachineLeaseStore implements MachineLeaseStore {
     private final CallTimeout callTimeout;
     
     public ZookeeperMachineLeaseStore(CuratorFramework curatorFramework, CallTimeout callTimeout) {
-        this.curatorFramework = Preconditions.checkNotNull(curatorFramework, "curatorFramework can not be null!");
-        this.callTimeout = Preconditions.checkNotNull(callTimeout, "callTimeout can not be null!");
-        Preconditions.checkArgument(callTimeout.isEnabled(), "callTimeout must be enabled: the lease adapter holds a lock during each call!");
+        this.curatorFramework = Checks.checkNotNull(curatorFramework, "curatorFramework can not be null!");
+        this.callTimeout = Checks.checkNotNull(callTimeout, "callTimeout can not be null!");
+        Checks.checkArgument(callTimeout.isEnabled(), "callTimeout must be enabled: the lease adapter holds a lock during each call!");
     }
     
     private static String namespacePath(String namespace, String node) {
-        return Strings.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, node);
+        return Checks.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, node);
     }
     
     private static String instancePath(String namespace, String instanceId) {

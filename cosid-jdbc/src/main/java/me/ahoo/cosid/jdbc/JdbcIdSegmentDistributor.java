@@ -14,22 +14,20 @@
 package me.ahoo.cosid.jdbc;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.jdbc.exception.NotFoundMaxIdException;
 import me.ahoo.cosid.jdbc.exception.SegmentNameMissingException;
 import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
-import java.util.Locale;
+import javax.sql.DataSource;
 
 /**
  * Jdbc IdSegment Distributor.
@@ -79,16 +77,46 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
      */
     public JdbcIdSegmentDistributor(String namespace, String name, long step, String incrementMaxIdSql, String fetchMaxIdSql, DataSource dataSource,
                                     Duration queryTimeout) {
+        this(namespace, name, step, incrementMaxIdSql, fetchMaxIdSql, dataSource, queryTimeout, FetchMode.AUTO);
+    }
+    
+    /**
+     * Create a JDBC segment distributor.
+     *
+     * @param queryTimeout timeout applied to each statement, {@code null} or zero means no timeout
+     * @param fetchMode    {@link FetchMode#TRANSACTION} to always fetch in a transaction
+     * @since 4.1.0
+     */
+    public JdbcIdSegmentDistributor(String namespace, String name, long step, String incrementMaxIdSql, String fetchMaxIdSql, DataSource dataSource,
+                                    Duration queryTimeout, FetchMode fetchMode) {
         super(namespace, name, step);
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(incrementMaxIdSql), "incrementMaxIdSql can not be empty!");
-        Preconditions.checkArgument(!Strings.isNullOrEmpty(fetchMaxIdSql), "fetchMaxIdSql can not be empty!");
-        Preconditions.checkNotNull(dataSource, "dataSource can not be null!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(incrementMaxIdSql), "incrementMaxIdSql can not be empty!");
+        Checks.checkArgument(!Checks.isNullOrEmpty(fetchMaxIdSql), "fetchMaxIdSql can not be empty!");
+        Checks.checkNotNull(dataSource, "dataSource can not be null!");
 
         this.incrementMaxIdSql = incrementMaxIdSql;
         this.fetchMaxIdSql = fetchMaxIdSql;
         this.dataSource = dataSource;
         this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
-        this.fetchPlan = FetchPlan.of(incrementMaxIdSql, fetchMaxIdSql);
+        this.fetchPlan = FetchPlan.of(incrementMaxIdSql, fetchMaxIdSql, fetchMode);
+    }
+    
+    /**
+     * Whether the built-in statements may take the shorter paths.
+     *
+     * @since 4.1.0
+     */
+    public enum FetchMode {
+        /**
+         * The built-in MySQL statements run as {@code last_insert_id} under auto-commit, the PostgreSQL ones as one
+         * {@code update ... returning}; other statements in a transaction.
+         */
+        AUTO,
+        /**
+         * Always the update then the select in one transaction, as before 4.1: for SQL proxies and read/write splitters
+         * (ShardingSphere, MyCat, ProxySQL, Vitess) that may send the {@code select last_insert_id()} to another session.
+         */
+        TRANSACTION
     }
     
     /**
@@ -99,6 +127,10 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
         TRANSACTION,
         LAST_INSERT_ID,
         RETURNING;
+        
+        static FetchPlan of(String incrementMaxIdSql, String fetchMaxIdSql, FetchMode fetchMode) {
+            return fetchMode == FetchMode.TRANSACTION ? TRANSACTION : of(incrementMaxIdSql, fetchMaxIdSql);
+        }
         
         static FetchPlan of(String incrementMaxIdSql, String fetchMaxIdSql) {
             if (sameSql(incrementMaxIdSql, INCREMENT_MAX_ID_SQL) && sameSql(fetchMaxIdSql, FETCH_MAX_ID_SQL)) {
@@ -111,14 +143,15 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
         }
         
         /**
-         * The same statement, whatever its whitespace, case or final semicolon: as configured in YAML or as a constant.
+         * The same statement, whatever its whitespace or final semicolon: as configured in YAML or as a constant.
          */
         static boolean sameSql(String configured, String builtIn) {
             return normalize(configured).equals(normalize(builtIn));
         }
         
         private static String normalize(String sql) {
-            String normalized = sql.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+            // Case matters: "update COSID ..." names another table on a case-sensitive MySQL.
+            String normalized = sql.trim().replaceAll("\\s+", " ");
             while (normalized.endsWith(";")) {
                 normalized = normalized.substring(0, normalized.length() - 1).trim();
             }
@@ -208,7 +241,16 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
             if (!resultSet.next()) {
                 throw new NotFoundMaxIdException(getNamespacedName());
             }
-            return resultSet.getLong(1);
+            long maxId = resultSet.getLong(1);
+            // The update set last_max_id >= step (the offset is never negative). Less, typically 0, means the select ran
+            // on another session than the update: a proxy or read/write splitter. Handing (maxId - step, maxId] out would
+            // duplicate ids.
+            if (maxId < step) {
+                throw new CosIdException(Checks.lenientFormat("Segment [%s]: last_insert_id() returned [%s] after adding [%s]: the select did not run "
+                    + "on the update's session (a SQL proxy or read/write splitter?). Set cosid.segment.distributor.jdbc.fetch-plan=transaction.",
+                    getNamespacedName(), maxId, step));
+            }
+            return maxId;
         }
     }
     

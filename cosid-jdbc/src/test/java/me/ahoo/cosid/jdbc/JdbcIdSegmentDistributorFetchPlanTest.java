@@ -104,4 +104,36 @@ class JdbcIdSegmentDistributorFetchPlanTest {
         assertThat(JdbcIdSegmentDistributor.FetchPlan.of(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, "select max_id from other where name = ?"),
             is(JdbcIdSegmentDistributor.FetchPlan.TRANSACTION));
     }
+    
+    @Test
+    void aLastInsertIdFromAnotherSessionIsRejected() {
+        FakeJdbc jdbc = new FakeJdbc(true);
+        // A proxy sent the select to a session that never ran the update: last_insert_id() is 0 there.
+        jdbc.maxId = 0;
+        JdbcIdSegmentDistributor distributor = distributor(jdbc, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
+        
+        CosIdException exception = assertThrows(CosIdException.class, () -> distributor.nextMaxId(10));
+        
+        assertThat(exception.getMessage().contains("fetch-plan=transaction"), is(true));
+    }
+    
+    @Test
+    void theTransactionModeKeepsTheTransactionForTheBuiltInStatements() {
+        FakeJdbc jdbc = new FakeJdbc(true);
+        JdbcIdSegmentDistributor distributor = new JdbcIdSegmentDistributor("ns", "order", 10, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL,
+            JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL, jdbc, Duration.ofSeconds(3), JdbcIdSegmentDistributor.FetchMode.TRANSACTION);
+        assertThat(distributor.getFetchPlan(), is(JdbcIdSegmentDistributor.FetchPlan.TRANSACTION));
+        
+        distributor.nextMaxId(10);
+        
+        assertThat(jdbc.executed, contains(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL));
+        assertThat(jdbc.events, contains("autoCommit=false", "commit", "autoCommit=true", "close:autoCommit=true"));
+    }
+    
+    @Test
+    void anotherCaseIsAnotherStatement() {
+        // On a case-sensitive MySQL COSID is not the cosid table: the user's statements must run as they are.
+        assertThat(JdbcIdSegmentDistributor.FetchPlan.of(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL.replace("cosid", "COSID"),
+            JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL.replace("cosid", "COSID")), is(JdbcIdSegmentDistributor.FetchPlan.TRANSACTION));
+    }
 }

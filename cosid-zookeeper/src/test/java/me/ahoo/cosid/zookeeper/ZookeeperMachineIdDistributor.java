@@ -15,8 +15,9 @@ package me.ahoo.cosid.zookeeper;
 
 import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.CosIdException;
-import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.AbstractMachineIdDistributor;
+import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineIdLostException;
@@ -26,7 +27,6 @@ import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.util.CallTimeout;
 import me.ahoo.cosid.util.Exceptions;
 
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
@@ -102,31 +102,31 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
      * @return path of counter
      */
     private static String getCounterPath(String namespace) {
-        return Strings.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, "__counter");
+        return Checks.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, "__counter");
     }
     
     private static String getCounterLockerPath(String namespace) {
-        return Strings.lenientFormat("%s-locker", getCounterPath(namespace));
+        return Checks.lenientFormat("%s-locker", getCounterPath(namespace));
     }
     
     private static String getInstanceIdxPath(String namespace) {
-        return Strings.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, INSTANCE_IDX_PATH);
+        return Checks.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, INSTANCE_IDX_PATH);
     }
     
     private static String getInstancePath(String namespace, String instanceId) {
-        return Strings.lenientFormat("%s/%s", getInstanceIdxPath(namespace), instanceId);
+        return Checks.lenientFormat("%s/%s", getInstanceIdxPath(namespace), instanceId);
     }
     
     private static String getStablePath(String namespace, String instanceId) {
-        return Strings.lenientFormat("/%s/%s/%s/%s", CosId.COSID, namespace, STABLE_PATH, instanceId);
+        return Checks.lenientFormat("/%s/%s/%s/%s", CosId.COSID, namespace, STABLE_PATH, instanceId);
     }
     
     private static String getRevertPath(String namespace) {
-        return Strings.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, REVERT_PATH);
+        return Checks.lenientFormat("/%s/%s/%s", CosId.COSID, namespace, REVERT_PATH);
     }
     
     private static String getRevertMachinePath(String namespace, int machineId) {
-        return Strings.lenientFormat("%s/%s", getRevertPath(namespace), machineId);
+        return Checks.lenientFormat("%s/%s", getRevertPath(namespace), machineId);
     }
     
     private int nextMachineId(String namespace, int machineBit, InstanceId instanceId) throws MachineIdOverflowException {
@@ -141,7 +141,7 @@ public class ZookeeperMachineIdDistributor extends AbstractMachineIdDistributor 
         DistributedAtomicInteger distributedAtomicInteger = new DistributedAtomicInteger(curatorFramework, counterPath, retryPolicy, promotedToLock);
         AtomicValue<Integer> atomicValue = Exceptions.invokeUnchecked(distributedAtomicInteger::increment);
         if (!atomicValue.succeeded()) {
-            throw new CosIdException(Strings.lenientFormat("nextMachineId - [%s][%s->%s] concurrency conflict!", counterPath, atomicValue.preValue(), atomicValue.postValue()));
+            throw new CosIdException(Checks.lenientFormat("nextMachineId - [%s][%s->%s] concurrency conflict!", counterPath, atomicValue.preValue(), atomicValue.postValue()));
         }
         int machineId = atomicValue.postValue() - 1;
         

@@ -15,11 +15,11 @@ package me.ahoo.cosid.spring.redis;
 
 import static me.ahoo.cosid.spring.redis.RedisKeys.hashTag;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.lease.Lease;
 import me.ahoo.cosid.machine.lease.MachineLeaseStore;
 
-import com.google.common.base.Preconditions;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -55,9 +55,9 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
      * @param commandTimeout bounds every command, which may run under the lease distributor's lock: must be enabled
      */
     public SpringRedisMachineLeaseStore(StringRedisTemplate redisTemplate, RedisCommandTimeout commandTimeout) {
-        this.redisTemplate = Preconditions.checkNotNull(redisTemplate, "redisTemplate can not be null!");
-        this.commandTimeout = Preconditions.checkNotNull(commandTimeout, "commandTimeout can not be null!");
-        Preconditions.checkArgument(commandTimeout.isEnabled(), "commandTimeout must be enabled: the lease adapter holds a lock during each call!");
+        this.redisTemplate = Checks.checkNotNull(redisTemplate, "redisTemplate can not be null!");
+        this.commandTimeout = Checks.checkNotNull(commandTimeout, "commandTimeout can not be null!");
+        Checks.checkArgument(commandTimeout.isEnabled(), "commandTimeout must be enabled: the lease adapter holds a lock during each call!");
     }
     
     /**
@@ -129,6 +129,6 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
     @Override
     public long serverTime() {
         Long time = commandTimeout.call("serverTime", () -> redisTemplate.execute((RedisCallback<Long>) connection -> connection.serverCommands().time()));
-        return Preconditions.checkNotNull(time, "Redis TIME returned null!");
+        return Checks.checkNotNull(time, "Redis TIME returned null!");
     }
 }

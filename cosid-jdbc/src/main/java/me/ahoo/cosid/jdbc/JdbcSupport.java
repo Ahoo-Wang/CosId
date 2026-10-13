@@ -13,7 +13,8 @@
 
 package me.ahoo.cosid.jdbc;
 
-import com.google.common.base.Preconditions;
+import me.ahoo.cosid.internal.Checks;
+
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.Connection;
@@ -63,7 +64,7 @@ public final class JdbcSupport {
         if (queryTimeout == null || queryTimeout.isZero()) {
             return 0;
         }
-        Preconditions.checkArgument(!queryTimeout.isNegative(), "queryTimeout:[%s] can not be negative!", queryTimeout);
+        Checks.checkArgument(!queryTimeout.isNegative(), "queryTimeout:[%s] can not be negative!", queryTimeout);
         long millis = queryTimeout.toMillis();
         long seconds = (millis + 999) / 1000;
         return (int) Math.min(Integer.MAX_VALUE, Math.max(1, seconds));

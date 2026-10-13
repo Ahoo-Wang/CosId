@@ -144,6 +144,20 @@ JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
 
 未认证的 JMX 等于把 JVM 的完全控制权交出去；堆转储还会泄露令牌和存储密码。
 
+## 监控
+
+服务端在 `/actuator/prometheus` 暴露 Prometheus 指标，例如 JVM 以及按 API 路径和状态码统计的 HTTP 请求。与健康检查以外的所有端点一样，它需要令牌：
+
+```yaml
+scrape_configs:
+  - job_name: cosid-proxy
+    metrics_path: /actuator/prometheus
+    authorization:
+      credentials: change-me   # 服务端的令牌
+    static_configs:
+      - targets: ['cosid-proxy:8688']
+```
+
 ## 可用性
 
 服务端不保存客户端状态：租约和计数器都在它的存储中。可以在负载均衡器后面运行多个服务端以提高可用性。服务端重启后，运行中的客户端无需重启即可继续：服务端会在下一个请求时从存储重建号段分配器。

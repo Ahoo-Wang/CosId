@@ -4,6 +4,7 @@ management:
       exposure:
         include:
           - health
+          - prometheus
           - cosid
           - cosidGenerator
           - cosidStringGenerator

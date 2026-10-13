@@ -142,6 +142,20 @@ JAVA_OPTS="-Dcom.sun.management.jmxremote.port=5555 \
 
 Unauthenticated JMX gives full control of the JVM; a heap dump also exposes the tokens and the store passwords.
 
+## Monitoring
+
+The server exposes Prometheus metrics at `/actuator/prometheus`, such as the JVM and the HTTP requests per API path and status. Like every endpoint other than health, it needs the token:
+
+```yaml
+scrape_configs:
+  - job_name: cosid-proxy
+    metrics_path: /actuator/prometheus
+    authorization:
+      credentials: change-me   # the server's token
+    static_configs:
+      - targets: ['cosid-proxy:8688']
+```
+
 ## Availability
 
 The server keeps no client state of its own: leases and counters live in its store. Run several servers behind a load balancer for availability. After a server restarts, running clients continue without a restart: the server rebuilds its segment distributors from the store on the next request.

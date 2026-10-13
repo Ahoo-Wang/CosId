@@ -76,6 +76,8 @@ dependencies {
     //endregion
 
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // /actuator/prometheus, behind the token like every other non-health endpoint.
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
     implementation("com.google.guava:guava")
     implementation("io.netty:netty-all")

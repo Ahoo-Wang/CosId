@@ -24,11 +24,11 @@ import me.ahoo.cosid.snowflake.MillisecondSnowflakeIdStateParser;
 import me.ahoo.cosid.snowflake.SnowflakeIdStateParser;
 
 import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
 import tools.jackson.databind.BeanProperty;
 import tools.jackson.databind.DeserializationContext;
 import tools.jackson.databind.ValueDeserializer;
 
-import java.io.IOException;
 
 
 /**
@@ -56,7 +56,11 @@ public class AsStringDeserializer extends ValueDeserializer<Long> {
 
     @Override
     public ValueDeserializer<?> createContextual(DeserializationContext ctxt, BeanProperty property) {
-        AsString asString = property.getAnnotation(AsString.class);
+        // No property (a root value, a container element) or no annotation: keep this converter.
+        AsString asString = property == null ? null : property.getAnnotation(AsString.class);
+        if (asString == null) {
+            return this;
+        }
         switch (asString.value()) {
             case TO_STRING: {
                 return TO_STRING;
@@ -81,12 +85,32 @@ public class AsStringDeserializer extends ValueDeserializer<Long> {
         }
     }
 
+    /**
+     * A JSON number is the id itself; a JSON string is converted. An empty string is {@code null}. A string the converter
+     * cannot read is reported through {@link DeserializationContext#handleWeirdStringValue}, an
+     * {@code InvalidFormatException} (a client error) by default.
+     */
     @Override
     public Long deserialize(JsonParser p, DeserializationContext ctxt) {
-        String valueStr = p.getValueAsString();
+        JsonToken token = p.currentToken();
+        if (token == JsonToken.VALUE_NUMBER_INT) {
+            return p.getLongValue();
+        }
+        if (token == JsonToken.VALUE_NULL) {
+            return null;
+        }
+        if (token != JsonToken.VALUE_STRING) {
+            return (Long) ctxt.handleUnexpectedToken(Long.class, p);
+        }
+        String valueStr = p.getString();
         if (Checks.isNullOrEmpty(valueStr)) {
             return null;
         }
-        return converter.asLong(valueStr);
+        try {
+            return converter.asLong(valueStr);
+        } catch (RuntimeException invalid) {
+            return (Long) ctxt.handleWeirdStringValue(Long.class, valueStr, "not a valid id for %s: %s", converter.getClass().getSimpleName(),
+                invalid.getMessage());
+        }
     }
 }

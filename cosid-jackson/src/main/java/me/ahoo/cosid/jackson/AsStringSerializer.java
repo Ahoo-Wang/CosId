@@ -54,7 +54,11 @@ public class AsStringSerializer extends ValueSerializer<Long> {
 
     @Override
     public ValueSerializer<?> createContextual(SerializationContext ctxt, BeanProperty property) {
-        AsString asString = property.getAnnotation(AsString.class);
+        // No property (a root value, a container element) or no annotation: keep this converter.
+        AsString asString = property == null ? null : property.getAnnotation(AsString.class);
+        if (asString == null) {
+            return this;
+        }
         switch (asString.value()) {
             case TO_STRING: {
                 return TO_STRING;

@@ -12,8 +12,10 @@
 #
 
 
-# Report-only API diff of the library modules against the latest 4.0 release. Incompatible changes do not fail the
-# build; an error running the diff does.
+# API diff of the library modules against the latest 4.0 release. A binary-incompatible change, or an abstract method
+# added to an interface or a class, fails the build, unless it is recorded in scripts/api-diff-accepted-breaks.txt
+# (which keeps main green) or, for the pull request's own run only, the pull request has the api-break-approved label.
+# Other source-only incompatibilities are reported.
 name: API Diff
 on:
   push:
@@ -22,12 +24,17 @@ on:
   pull_request:
     branches:
       - 'main'
+    # Re-run when the api-break-approved label is added or removed.
+    types: [ opened, synchronize, reopened, labeled, unlabeled ]
   workflow_dispatch:
     inputs:
       baseline:
         description: 'Baseline git ref'
         required: false
         default: 'v4.0.0'
+env:
+  # Also the key of the cached jar; scripts/api-diff.sh defaults to the same version.
+  JAPICMP_VERSION: '0.23.1'
 jobs:
   api-diff:
     name: API Diff
@@ -47,7 +54,15 @@ jobs:
           cache: gradle
           settings-path: ${{ github.workspace }}
 
+      - name: Cache japicmp
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/japicmp
+          key: japicmp-${{ env.JAPICMP_VERSION }}
+
       - name: API diff
+        env:
+          API_DIFF_ENFORCE: ${{ contains(github.event.pull_request.labels.*.name, 'api-break-approved') && 'false' || 'true' }}
         run: scripts/api-diff.sh "${{ github.event.inputs.baseline || 'v4.0.0' }}" build/api-diff
 
       - name: Upload report

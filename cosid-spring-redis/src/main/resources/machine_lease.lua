@@ -13,7 +13,9 @@
 -- entry alone: expiry is judged on the legacy timestamp, exactly as 3.4 judges it, and a new owner starts after it.
 -- Integers are formatted with %d: tostring would turn large numbers into floats ("1.7e+12").
 --
--- KEYS[1] = namespace (hash tag); ARGV[1] = operation, ARGV[2] = instanceId, ARGV[3] = stable ("1"/"0"), then:
+-- KEYS[1..5] = the itc_idx, revert, adder, stable and lease keys above, declared so that Redis Cluster routes the
+-- script to the node of their slot (one hash tag); ARGV[1] = operation, ARGV[2] = instanceId, ARGV[3] = stable
+-- ("1"/"0"), then:
 --   claimSelf     ARGV[4] = now
 --   claimReleased ARGV[4] = now, ARGV[5] = maxMachineId
 --   claimNew      ARGV[4] = now, ARGV[5] = maxMachineId
@@ -23,12 +25,11 @@
 -- Returns {machineId, watermark, renewedAt, version} when the operation applied, an empty array otherwise (a nil reply
 -- reaches Spring as a one-element list).
 
-local prefix = 'cosid:' .. KEYS[1] .. ':'
-local idxKey = prefix .. 'itc_idx'
-local revertKey = prefix .. 'revert'
-local adderKey = prefix .. 'adder'
-local stableKey = prefix .. 'stable'
-local leaseKey = prefix .. 'lease'
+local idxKey = KEYS[1]
+local revertKey = KEYS[2]
+local adderKey = KEYS[3]
+local stableKey = KEYS[4]
+local leaseKey = KEYS[5]
 
 local operation = ARGV[1]
 local instanceId = ARGV[2]

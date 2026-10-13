@@ -18,6 +18,7 @@ dependencies {
     testImplementation(project(":cosid-test"))
     testImplementation("org.springframework:spring-context")
     testImplementation("org.springframework:spring-aop")
+    testImplementation("org.springframework:spring-test")
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
 }

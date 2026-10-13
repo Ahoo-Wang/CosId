@@ -29,7 +29,7 @@ management:
 
 ## 指标
 
-类路径上有 Micrometer 时（Spring Boot Actuator 会引入），starter 会注册 `CosIdMeterBinder`。设置 `cosid.metrics.enabled=false` 可以关闭。
+类路径上有 Micrometer 并且存在 `MeterRegistry` Bean 时（Spring Boot Actuator 会同时提供），starter 会注册 `CosIdMeterBinder`。设置 `cosid.metrics.enabled=false` 可以关闭。
 
 | 指标 | 类型 | 标签 | 含义 |
 |------|------|------|------|
@@ -38,20 +38,33 @@ management:
 | `cosid.segment.fetch` | timer | `segment`、`outcome` | 从存储获取号段，`success` 或 `failure` |
 | `cosid.segment.prefetch.expansions` | counter | `segment` | 号段链耗尽并扩大预取距离的次数 |
 | `cosid.segment.prefetch.failures` | counter | `segment` | 预取失败次数 |
-| `cosid.machine.lease.remaining` | time gauge | `namespace` | 机器号租约的剩余时间；降到零时 Snowflake 生成器停止 |
+| `cosid.machine.lease.remaining` | time gauge | `namespace` | 机器号租约的剩余时间；降到零时 Snowflake 生成器停止。永不过期的租约（未启用守护）为 `+Inf` |
 | `cosid.machine.clock.skew` | time gauge | `namespace` | 最近一次续约时本机时钟比存储时钟快多少 |
 | `cosid.machine.lease.acquired` | counter | `namespace`、`claim` | 申领的租约：`self`、`released`、`new` 或 `expired` |
 | `cosid.machine.lease.renew.failures` | counter | `namespace` | 续约失败次数 |
 | `cosid.machine.lease.lost` | counter | `namespace` | 被其他实例接管的租约数 |
-| `cosid.clock.backwards` | counter | `generator` | 生成器发现时钟回拨的次数 |
-| `cosid.clock.sync.wait` | timer | `generator` | 等待时钟追上的时间 |
+| `cosid.clock.backwards` | counter | `type` | 该类生成器发现时钟回拨的次数 |
+| `cosid.clock.sync.wait` | timer | `type` | 等待时钟追上的时间 |
 | `cosid.sequence.exhausted.wait` | timer | | 序列号用完后等待下一个时间单位的时间 |
 | `cosid.call.timeouts`、`cosid.call.rejections` | counter | `operation` | 超时的存储调用，或超出 `cosid.max-concurrent-calls` 被拒绝的存储调用 |
 | `cosid.generator.generated` | function counter | `name` | 生成的 ID 数，仅在 `cosid.metrics.generated.enabled=true` 时注册 |
 
-`cosid.metrics.generated.enabled` 默认关闭：开启后号段和 Snowflake 生成器会被计数装饰器（`CountedSegmentId`、`CountedSnowflakeId`）包装，每个 ID 一次原子加法。Bean 仍是 `SegmentId` 和 `SnowflakeId` 类型，但注入具体类（例如 `SegmentChainId`）的代码会拿到包装器；可以用 `Decorator.getActual` 获取原生成器。
+`cosid.metrics.generated.enabled` 默认关闭：开启后号段和 Snowflake 生成器会被计数装饰器（`CountedSegmentId`、`CountedSnowflakeId`）包装，每个 ID 一次原子加法。Bean 仍是 `SegmentId` 和 `SnowflakeId` 类型。这些 Bean 本身就是装饰器（例如包装 `SegmentChainId` 的 `StringSegmentId`），获取原生成器请使用递归的 `Decorator.getActual(bean)`，不要只调用一次 `getActual()` 再用 `instanceof` 判断：开启后会多一层。
 
-设置 `cosid.provider.isolated=true` 时，每个应用上下文只统计自己生成器的号段事件和自己命名空间的租约事件。时钟、序列号和存储调用指标无法区分上下文，统计的是整个 JVM。
+设置 `cosid.provider.isolated=true` 时，每个应用上下文只统计自己实例的租约事件，以及自己生成器所用号段存储的号段事件：两个上下文的生成器使用同一个号段存储时，都会统计该存储的事件。时钟、序列号和存储调用指标无法区分上下文，统计的是整个 JVM。启动后才加入容器的生成器，会在下一次 `CosIdMeterBinder.refresh()` 时获得指标。
+
+### 告警
+
+| 告警 | 级别 | PromQL 示例 |
+|------|------|-------------|
+| 租约即将过期：低于 `safe-guard-duration`（默认 5m）的约三分之一 | warning | `cosid_machine_lease_remaining_seconds < 100` |
+| 租约续约失败 | warning | `increase(cosid_machine_lease_renew_failures_total[5m]) > 0` |
+| 租约丢失：该实例的 Snowflake 生成器停止 | critical | `increase(cosid_machine_lease_lost_total[5m]) > 0` |
+| 号段预取失败：生成使用预留的号段 | warning | `increase(cosid_segment_prefetch_failures_total[5m]) > 0` |
+| 号段链即将耗尽 | warning | `cosid_segment_remaining < 1000`（按你的 `step` 取值） |
+| 存储调用被拒绝 | warning | `increase(cosid_call_rejections_total[5m]) > 0` |
+
+租约丢失或过期时健康指示器也会变为 `DOWN`；按你的平台已采集的数据选择其一告警即可。
 
 ## 生成器状态
 

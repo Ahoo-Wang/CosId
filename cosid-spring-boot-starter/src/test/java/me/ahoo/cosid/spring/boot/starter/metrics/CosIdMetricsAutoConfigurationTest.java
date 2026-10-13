@@ -41,6 +41,9 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration;
+import org.springframework.boot.micrometer.metrics.autoconfigure.MetricsAutoConfiguration;
+import org.springframework.boot.micrometer.metrics.autoconfigure.export.simple.SimpleMetricsExportAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
@@ -106,6 +109,30 @@ class CosIdMetricsAutoConfigurationTest {
     void staysOffWithoutMicrometer() {
         contextRunner.withClassLoader(new FilteredClassLoader("io.micrometer"))
             .withPropertyValues(CosIdMetricsProperties.GENERATED_ENABLED_KEY + "=true")
+            .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(CosIdMeterBinder.class));
+    }
+    
+    @Test
+    void springBootMetricsBindsTheBinder() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, CosIdSegmentAutoConfiguration.class,
+                MetricsAutoConfiguration.class, SimpleMetricsExportAutoConfiguration.class, CompositeMeterRegistryAutoConfiguration.class,
+                CosIdMetricsAutoConfiguration.class))
+            .withBean(IdSegmentDistributorFactory.class, () -> definition -> new AtomicIdSegmentDistributor())
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", SegmentIdProperties.PREFIX + ".share.enabled=false",
+                SegmentIdProperties.PREFIX + ".provider.order.step=10", "cosid.provider.isolated=true")
+            .run(context -> {
+                assertThat(context).hasNotFailed().hasSingleBean(CosIdMeterBinder.class);
+                MeterRegistry registry = context.getBean(MeterRegistry.class);
+                assertThat(registry.get("cosid.segment.remaining").tag("name", "order").gauge()).isNotNull();
+                assertThat(registry.get("cosid.sequence.exhausted.wait").timer()).isNotNull();
+            });
+    }
+    
+    @Test
+    void staysOffWithoutAMeterRegistry() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdAutoConfiguration.class, CosIdMetricsAutoConfiguration.class))
             .run(context -> assertThat(context).hasNotFailed().doesNotHaveBean(CosIdMeterBinder.class));
     }
 }

@@ -13,17 +13,18 @@
 
 package me.ahoo.cosid.spring.boot.starter.metrics;
 
+import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.MachineIdGuarder;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
-import me.ahoo.cosid.spring.boot.starter.CosIdProperties;
 import me.ahoo.cosid.spring.boot.starter.machine.CosIdMachineAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.segment.CosIdSegmentAutoConfiguration;
 import me.ahoo.cosid.spring.boot.starter.snowflake.CosIdSnowflakeAutoConfiguration;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -40,9 +41,12 @@ import java.util.Set;
  * @since 4.1.0
  */
 @AutoConfiguration(after = {CosIdAutoConfiguration.class, CosIdMachineAutoConfiguration.class, CosIdSegmentAutoConfiguration.class,
-    CosIdSnowflakeAutoConfiguration.class})
+    CosIdSnowflakeAutoConfiguration.class},
+    afterName = {"org.springframework.boot.micrometer.metrics.autoconfigure.CompositeMeterRegistryAutoConfiguration",
+        "org.springframework.boot.micrometer.metrics.autoconfigure.export.simple.SimpleMetricsExportAutoConfiguration"})
 @ConditionalOnCosIdEnabled
 @ConditionalOnClass(name = CosIdMetricsProperties.METER_REGISTRY_CLASS)
+@ConditionalOnBean(type = CosIdMetricsProperties.METER_REGISTRY_CLASS)
 @ConditionalOnProperty(value = CosIdMetricsProperties.ENABLED_KEY, havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(CosIdMetricsProperties.class)
 public class CosIdMetricsAutoConfiguration {
@@ -50,9 +54,10 @@ public class CosIdMetricsAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public CosIdMeterBinder cosIdMeterBinder(IdGeneratorProvider idGeneratorProvider, ObjectProvider<MachineIdGuarder> machineIdGuarder,
-                                             ObjectProvider<CosIdProperties> cosIdProperties, Environment environment) {
+                                             ObjectProvider<InstanceId> instanceId, Environment environment) {
         boolean isolated = environment.getProperty(CosIdAutoConfiguration.PROVIDER_ISOLATED_KEY, Boolean.class, false);
-        CosIdProperties properties = cosIdProperties.getIfAvailable(CosIdProperties::new);
-        return new CosIdMeterBinder(idGeneratorProvider, machineIdGuarder.getIfAvailable(), isolated, Set.of(properties.getNamespace()));
+        InstanceId ownInstance = instanceId.getIfUnique();
+        Set<String> instanceIds = ownInstance == null ? Set.of() : Set.of(ownInstance.getInstanceId());
+        return new CosIdMeterBinder(idGeneratorProvider, machineIdGuarder.getIfAvailable(), isolated, instanceIds);
     }
 }

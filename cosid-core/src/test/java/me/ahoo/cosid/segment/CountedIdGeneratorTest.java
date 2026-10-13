@@ -43,7 +43,7 @@ class CountedIdGeneratorTest {
             assertThat(counted.getGenerated(), equalTo(3L));
             assertThat(counted.getActual(), sameInstance(chain));
             assertThat(counted.current(), sameInstance(chain.current()));
-            assertThat(counted.stat().getKind(), equalTo(chain.stat().getKind()));
+            assertThat(counted.stat().getKind(), equalTo("CountedSegmentId"));
             counted.close();
             assertThat(chain.isClosed(), is(true));
         } finally {

@@ -20,6 +20,7 @@ import me.ahoo.cosid.event.LeaseClaim;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.DefaultMachineIdGuarder;
 import me.ahoo.cosid.machine.InstanceId;
+import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
 import me.ahoo.cosid.machine.ManualMachineIdDistributor;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
@@ -55,8 +56,7 @@ class CosIdMeterBinderTest {
     }
     
     private CosIdMeterBinder bind(boolean isolated) {
-        binder = new CosIdMeterBinder(provider, null, isolated, Set.of("ns"));
-        binder.afterPropertiesSet();
+        binder = new CosIdMeterBinder(provider, null, isolated, Set.of("mine"));
         binder.bindTo(registry);
         return binder;
     }
@@ -116,8 +116,8 @@ class CosIdMeterBinderTest {
         CosIdEvents.listener().onCallTimeout("nextMaxId", Duration.ofSeconds(1));
         CosIdEvents.listener().onCallRejected("nextMaxId");
         
-        assertThat(registry.get("cosid.clock.backwards").tag("generator", "MillisecondSnowflakeId").counter().count()).isEqualTo(1);
-        assertThat(registry.get("cosid.clock.sync.wait").tag("generator", "MillisecondSnowflakeId").timer().totalTime(TimeUnit.MILLISECONDS)).isEqualTo(3);
+        assertThat(registry.get("cosid.clock.backwards").tag("type", "MillisecondSnowflakeId").counter().count()).isEqualTo(1);
+        assertThat(registry.get("cosid.clock.sync.wait").tag("type", "MillisecondSnowflakeId").timer().totalTime(TimeUnit.MILLISECONDS)).isEqualTo(3);
         assertThat(registry.get("cosid.sequence.exhausted.wait").timer().count()).isEqualTo(1);
         assertThat(registry.get("cosid.segment.fetch").tag("segment", "ns.order").tag("outcome", "success").timer().count()).isEqualTo(1);
         assertThat(registry.get("cosid.segment.fetch").tag("segment", "ns.order").tag("outcome", "failure").timer().count()).isEqualTo(1);
@@ -138,19 +138,56 @@ class CosIdMeterBinderTest {
     }
     
     @Test
-    void anIsolatedContextCountsOnlyItsOwnSegmentsAndNamespaces() {
+    void aForeverLeaseHasNoEnd() {
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(
+            new ManualMachineIdDistributor(7, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT), MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+        guarder.register("forever", InstanceId.of("i", true), System.currentTimeMillis());
+        assertThat(CosIdMeterBinder.remainingMillis(guarder, "forever")).isIn(Double.POSITIVE_INFINITY, (double) Long.MAX_VALUE);
+        assertThat(CosIdMeterBinder.remainingMillis(guarder, "unknown")).isZero();
+    }
+    
+    @Test
+    void anIsolatedContextCountsOnlyItsOwnSegmentsAndInstances() {
         SegmentChainId chain = new SegmentChainId(IdSegment.TIME_TO_LIVE_FOREVER, 2, 8, new AtomicIdSegmentDistributor(10), executor);
         provider.set("order", chain);
         bind(true);
         CosIdEvents.listener().onPrefetchFailure(chain.getNamespacedName(), new IllegalStateException("mine"));
         CosIdEvents.listener().onPrefetchFailure("other.order", new IllegalStateException("another context"));
-        CosIdEvents.listener().onLeaseLost("ns", InstanceId.of("i", false));
-        CosIdEvents.listener().onLeaseLost("other", InstanceId.of("i", false));
+        // Two contexts on the same namespace: only this context's instance counts.
+        CosIdEvents.listener().onLeaseLost("cosid", InstanceId.of("mine", false));
+        CosIdEvents.listener().onLeaseLost("cosid", InstanceId.of("another-context", false));
         
         assertThat(registry.get("cosid.segment.prefetch.failures").counters()).hasSize(1);
         assertThat(registry.get("cosid.segment.prefetch.failures").tag("segment", chain.getNamespacedName()).counter().count()).isEqualTo(1);
-        assertThat(registry.get("cosid.machine.lease.lost").counters()).hasSize(1);
-        assertThat(registry.get("cosid.machine.lease.lost").tag("namespace", "ns").counter().count()).isEqualTo(1);
+        assertThat(registry.get("cosid.machine.lease.lost").tag("namespace", "cosid").counter().count()).isEqualTo(1);
+    }
+    
+    @Test
+    void everyBoundRegistryCountsAndTheMetersAreRemovedOnClose() throws Exception {
+        SimpleMeterRegistry second = new SimpleMeterRegistry();
+        provider.set("user", new DefaultSegmentId(new AtomicIdSegmentDistributor(10)));
+        bind(false);
+        binder.bindTo(second);
+        binder.bindTo(second);
+        CosIdEvents.listener().onLeaseLost("ns", InstanceId.of("i", false));
+        
+        assertThat(registry.get("cosid.machine.lease.lost").counter().count()).isEqualTo(1);
+        assertThat(second.get("cosid.machine.lease.lost").counter().count()).isEqualTo(1);
+        assertThat(second.get("cosid.segment.remaining").gauge()).isNotNull();
+        
+        binder.destroy();
+        assertThat(registry.find("cosid.machine.lease.lost").counter()).isNull();
+        assertThat(second.find("cosid.segment.remaining").gauge()).isNull();
+        assertThat(second.find("cosid.sequence.exhausted.wait").timer()).isNull();
+    }
+    
+    @Test
+    void theListenerIsRegisteredOnTheFirstBinding() {
+        binder = new CosIdMeterBinder(provider, null, false, Set.of());
+        CosIdEvents.listener().onLeaseLost("ns", InstanceId.of("i", false));
+        binder.bindTo(registry);
+        CosIdEvents.listener().onLeaseLost("ns", InstanceId.of("i", false));
+        assertThat(registry.get("cosid.machine.lease.lost").counter().count()).isEqualTo(1);
     }
     
     @Test
@@ -159,7 +196,6 @@ class CosIdMeterBinderTest {
             new ManualMachineIdDistributor(7, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT), Duration.ofMinutes(5));
         guarder.register("orders", InstanceId.of("i", false), System.currentTimeMillis());
         binder = new CosIdMeterBinder(provider, guarder, false, Set.of());
-        binder.afterPropertiesSet();
         binder.bindTo(registry);
         
         assertThat(registry.get("cosid.machine.lease.remaining").tag("namespace", "orders").timeGauge().value(TimeUnit.MILLISECONDS)).isPositive();

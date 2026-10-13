@@ -684,7 +684,7 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
 
         private void appendChainOrFail(int prefetchSegments) {
             final IdSegmentChain preTail = tailChain;
-            tailChain = tailChain.ensureSetNext((preChain) -> prefetchTimeout.call("Prefetch " + maxIdDistributor.getNamespacedName(),
+            tailChain = tailChain.ensureSetNext((preChain) -> prefetchTimeout.call("prefetch",
                 () -> generateNext(preChain, prefetchSegments))).getNext();
             while (tailChain.getNext() != null) {
                 tailChain = tailChain.getNext();

@@ -71,7 +71,7 @@ public class CountedSegmentId implements IdGeneratorDecorator, SegmentId, AutoCl
     
     @Override
     public IdGeneratorStat stat() {
-        return actual.stat();
+        return IdGeneratorDecorator.super.stat();
     }
     
     /**

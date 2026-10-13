@@ -29,7 +29,7 @@ management:
 
 ## Metrics
 
-With Micrometer on the classpath (Spring Boot Actuator brings it), the starter registers `CosIdMeterBinder`. Turn it off with `cosid.metrics.enabled=false`.
+With Micrometer on the classpath and a `MeterRegistry` bean (Spring Boot Actuator brings both), the starter registers `CosIdMeterBinder`. Turn it off with `cosid.metrics.enabled=false`.
 
 | Meter | Type | Tags | Meaning |
 |-------|------|------|---------|
@@ -38,20 +38,33 @@ With Micrometer on the classpath (Spring Boot Actuator brings it), the starter r
 | `cosid.segment.fetch` | timer | `segment`, `outcome` | Segment fetches from the store, `success` or `failure` |
 | `cosid.segment.prefetch.expansions` | counter | `segment` | Times a chain ran dry and grew its prefetch distance |
 | `cosid.segment.prefetch.failures` | counter | `segment` | Failed prefetches |
-| `cosid.machine.lease.remaining` | time gauge | `namespace` | Time left on the machine id lease; Snowflake generators stop at zero |
+| `cosid.machine.lease.remaining` | time gauge | `namespace` | Time left on the machine id lease; Snowflake generators stop at zero. `+Inf` for a lease that never expires (guarder off) |
 | `cosid.machine.clock.skew` | time gauge | `namespace` | How far this host's clock was ahead of the store's at the last renewal |
 | `cosid.machine.lease.acquired` | counter | `namespace`, `claim` | Leases taken: `self`, `released`, `new` or `expired` |
 | `cosid.machine.lease.renew.failures` | counter | `namespace` | Failed lease renewals |
 | `cosid.machine.lease.lost` | counter | `namespace` | Leases lost to another instance |
-| `cosid.clock.backwards` | counter | `generator` | Times a generator saw the clock move backwards |
-| `cosid.clock.sync.wait` | timer | `generator` | Waits for the clock to catch up |
+| `cosid.clock.backwards` | counter | `type` | Times a generator of that class saw the clock move backwards |
+| `cosid.clock.sync.wait` | timer | `type` | Waits for the clock to catch up |
 | `cosid.sequence.exhausted.wait` | timer | | Waits for the next tick after a generator used up its sequence |
 | `cosid.call.timeouts`, `cosid.call.rejections` | counter | `operation` | Store calls that timed out, or were rejected beyond `cosid.max-concurrent-calls` |
 | `cosid.generator.generated` | function counter | `name` | IDs generated, only with `cosid.metrics.generated.enabled=true` |
 
-`cosid.metrics.generated.enabled` is off by default: it wraps segment and Snowflake generators in a counting decorator (`CountedSegmentId`, `CountedSnowflakeId`), one atomic add per ID. Beans keep their `SegmentId` and `SnowflakeId` types, but code that injects a concrete class such as `SegmentChainId` gets the wrapper; use `Decorator.getActual` to reach the generator.
+`cosid.metrics.generated.enabled` is off by default: it wraps segment and Snowflake generators in a counting decorator (`CountedSegmentId`, `CountedSnowflakeId`), one atomic add per ID. Beans keep their `SegmentId` and `SnowflakeId` types. The beans are decorators already (for example `StringSegmentId` around a `SegmentChainId`), so to reach the generator use the recursive `Decorator.getActual(bean)`, not one `getActual()` followed by `instanceof`: with the flag on there is one more layer.
 
-With `cosid.provider.isolated=true`, each application context counts only the segment events of its own generators and the lease events of its own namespaces. Clock, sequence and call meters cannot tell contexts apart and count the whole JVM.
+With `cosid.provider.isolated=true`, each application context counts only the lease events of its own instances, and the segment events of the segment stores its generators use: two contexts with generators on the same store both count that store's events. Clock, sequence and call meters cannot tell contexts apart and count the whole JVM. Generators added to the provider after startup get their gauges at the next `CosIdMeterBinder.refresh()`.
+
+### Alerts
+
+| Alert | Severity | Example PromQL |
+|-------|----------|----------------|
+| Lease close to expiring: below about a third of `safe-guard-duration` (5m by default) | warning | `cosid_machine_lease_remaining_seconds < 100` |
+| Lease renewals failing | warning | `increase(cosid_machine_lease_renew_failures_total[5m]) > 0` |
+| Lease lost: the instance's Snowflake generators stop | critical | `increase(cosid_machine_lease_lost_total[5m]) > 0` |
+| Segment prefetch failing: generation runs on the reserved segments | warning | `increase(cosid_segment_prefetch_failures_total[5m]) > 0` |
+| Segment chain running dry | warning | `cosid_segment_remaining < 1000` (pick a value from your `step`) |
+| Store calls rejected | warning | `increase(cosid_call_rejections_total[5m]) > 0` |
+
+The health indicator turns `DOWN` on a lost or expired lease too; alert on whichever your platform already scrapes.
 
 ## Generator state
 

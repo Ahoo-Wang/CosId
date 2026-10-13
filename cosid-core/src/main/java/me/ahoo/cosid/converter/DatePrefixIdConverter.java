@@ -123,9 +123,20 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
                 return minDateLength + delimiter.length();
             }
         } else if (!delimiter.isEmpty()) {
-            int delimiterIndex = idString.indexOf(delimiter, minDateLength);
-            if (delimiterIndex >= 0 && delimiterIndex <= maxDateLength) {
-                return delimiterIndex + delimiter.length();
+            // The date can contain the delimiter itself (MMMM-d and "-"): of the delimiters within the date's lengths, take
+            // the rightmost one before which the whole text parses as a date. Some dates do not parse back (a 4-digit year
+            // before a text month in Chinese, "202610月13"): then the first delimiter after the shortest date.
+            int last = Math.min(maxDateLength, idString.length() - delimiter.length());
+            int first = -1;
+            for (int delimiterIndex = idString.lastIndexOf(delimiter, last); delimiterIndex >= minDateLength;
+                 delimiterIndex = idString.lastIndexOf(delimiter, delimiterIndex - 1)) {
+                if (isDate(idString, delimiterIndex)) {
+                    return delimiterIndex + delimiter.length();
+                }
+                first = delimiterIndex;
+            }
+            if (first >= 0) {
+                return first + delimiter.length();
             }
         } else {
             ParsePosition position = new ParsePosition(0);
@@ -136,6 +147,12 @@ public class DatePrefixIdConverter implements IdConverter, Decorator<IdConverter
         }
         throw new IllegalArgumentException("Id [" + idString + "] does not start with a date of pattern [" + pattern + "] and the delimiter ["
             + delimiter + "].");
+    }
+
+    private boolean isDate(String idString, int end) {
+        ParsePosition position = new ParsePosition(0);
+        formatter.parseUnresolved(idString.substring(0, end), position);
+        return position.getErrorIndex() < 0 && position.getIndex() == end;
     }
 
     @Override

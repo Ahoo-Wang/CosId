@@ -89,6 +89,21 @@ class SmallCorrectnessFixesTest {
     }
     
     @Test
+    void aDateThatContainsTheDelimiter() {
+        Locale defaultLocale = Locale.getDefault(Locale.Category.FORMAT);
+        Locale.setDefault(Locale.Category.FORMAT, Locale.ENGLISH);
+        try {
+            DatePrefixIdConverter converter = new DatePrefixIdConverter("MMMM-d", "-", Radix62IdConverter.PAD_START);
+            String id = Radix62IdConverter.PAD_START.asString(99L);
+            assertThat(converter.asLong("January-1-" + id), equalTo(99L));
+            assertThat(converter.asLong("September-30-" + id), equalTo(99L));
+            assertThat(converter.asLong(converter.asString(99L)), equalTo(99L));
+        } finally {
+            Locale.setDefault(Locale.Category.FORMAT, defaultLocale);
+        }
+    }
+    
+    @Test
     void aTextMonthUnderChineseLocaleWithADelimiter() {
         Locale defaultLocale = Locale.getDefault(Locale.Category.FORMAT);
         Locale.setDefault(Locale.Category.FORMAT, Locale.SIMPLIFIED_CHINESE);

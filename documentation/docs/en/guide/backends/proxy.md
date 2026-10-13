@@ -33,6 +33,30 @@ The server refuses to start without a token, see [Authentication](#authenticatio
 
 Point container and orchestrator health checks at `/actuator/health/liveness`, as the image's `HEALTHCHECK` does: it answers without asking the store. `/actuator/health` includes the store, so it reports `DOWN` while the store is down and can wait as long as the store's health check when the store hangs: use it for alerts. The default `/actuator/health/readiness` group does not include the store either.
 
+The image includes the drivers of every store: Redis, MySQL, PostgreSQL, MongoDB and ZooKeeper. Redis is configured by default; `DataSourceAutoConfiguration` and `MongoAutoConfiguration` are in `spring.autoconfigure.exclude`, so that an unused store does not show up in the health check. To use another store, set the exclusions so that only the chosen store is configured: otherwise the health check reports the unused Redis as `DOWN`, the status is `DOWN` and the container is marked unhealthy. For PostgreSQL:
+
+```shell
+docker run --name cosid-proxy -d -p 8688:8688 \
+  -e COSID_PROXY_TOKEN=change-me \
+  -e SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/cosid_db \
+  -e SPRING_DATASOURCE_USERNAME=cosid -e SPRING_DATASOURCE_PASSWORD=change-me \
+  -e COSID_MACHINE_DISTRIBUTOR_TYPE=jdbc -e COSID_SEGMENT_DISTRIBUTOR_TYPE=jdbc \
+  -e SPRING_APPLICATION_JSON='{"cosid": {...}}' \
+  ahoowang/cosid-proxy:__COSID_VERSION__
+```
+
+The JDBC defaults are MySQL statements: for PostgreSQL, create the tables (or set `enable-auto-init-*` with the PostgreSQL table statements) and override the segment statements as in [JDBC: PostgreSQL](./jdbc.md#postgresql), for example in `SPRING_APPLICATION_JSON` or a mounted `config/application.yaml`. The `SPRING_AUTOCONFIGURE_EXCLUDE` value replaces the whole default list, so it must name every store not in use:
+
+| Store | `SPRING_AUTOCONFIGURE_EXCLUDE` |
+|-------|--------------------------------|
+| Redis (default) | `org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+| JDBC (MySQL, PostgreSQL) | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+| MongoDB (also set `spring.mongodb.uri`) | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration` |
+| ZooKeeper | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+
+In the image, the heap is 75% of the container's memory limit (`-XX:MaxRAMPercentage=75.0`); to pin it, set `JAVA_OPTS`, for example `-e JAVA_OPTS=-Xmx1g`. The start scripts of the distribution outside the image keep a fixed 1280M heap. `GET /ids` answers with `Cache-Control: no-store`, so that no cache between a client and the server hands out the same id twice.
+
 ## Client
 
 ### Installation
@@ -124,11 +148,12 @@ The server checks what clients send, and answers `400` to requests outside these
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | A client may take over a machine id only if its lease was last renewed at least this long ago, by the store's clock. 4.0 clients that send a later cut-off get `400`; a shorter guard from a 3.x client is raised to this value with a warning. Keep it at most the clients' `cosid.machine.guarder.safe-guard-duration`; must not be negative |
 | `cosid.proxy.server.max-clock-skew` | `1m` | How far ahead of the store's clock (the server's clock for the v1 API) a client's last timestamp may be; a timestamp far in the future would keep a machine id from ever being recycled. `0` disables the check; must not be negative |
 | `cosid.proxy.server.segment.max-step` | `1000000000000` | Largest segment `step` a client may ask for; `0` means no limit. Segment chains ask for `step × segments` at once and more under load, so set it to at least the largest `step × max-prefetch-distance` of all clients. `offset` must be between `0` and `Long.MAX_VALUE / 2` |
+| `cosid.proxy.server.segment.max-distributors` | `0` | Most segment distributors the server keeps in memory, one per namespace and name, shared by all namespaces; a request for a new one beyond it gets `429` instead of `400`. `0` means no limit; set it, for example to `10000`, when untrusted clients can reach the server |
 
 ## Deployment security
 
 - Run the server on an internal network only, never exposed to the internet. Anyone who can call it can release a machine id that a live instance holds, and two instances then generate the same IDs.
-- A token is a bearer credential: whoever has it can call every endpoint, for every namespace. Send it over HTTPS or inside a service mesh with mutual TLS, keep it in a secret store, and rotate it by listing the new and the old token together.
+- A token is a bearer credential: whoever has it can call every endpoint, for every namespace it may use. Give each application its own token limited to its namespace with `cosid.proxy.server.auth.clients`, and list the served namespaces in `cosid.proxy.server.namespaces`. Send tokens over HTTPS or inside a service mesh with mutual TLS (a client with a token and a plain `http` host other than localhost logs a warning), keep them in a secret store, and rotate them by listing the new and the old token together.
 - Keep `cosid.proxy.server.segment.max-step` finite, so that one request cannot use up or overflow a counter.
 - The server does not open JMX. To monitor it over JMX, pass the options in `JAVA_OPTS`, with authentication and TLS:
 

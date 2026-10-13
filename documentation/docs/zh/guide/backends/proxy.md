@@ -35,6 +35,30 @@ docker run --name cosid-proxy -d -p 8688:8688 --link redis \
 
 容器和编排系统的健康检查请使用 `/actuator/health/liveness`（镜像的 `HEALTHCHECK` 就是如此）：它不访问存储即可应答。`/actuator/health` 包含存储，存储故障时为 `DOWN`，存储卡住时会一直等到存储的健康检查返回：适合用于告警。默认的 `/actuator/health/readiness` 分组同样不包含存储。
 
+镜像包含所有存储的驱动：Redis、MySQL、PostgreSQL、MongoDB 和 ZooKeeper。默认配置 Redis；`DataSourceAutoConfiguration` 和 `MongoAutoConfiguration` 在 `spring.autoconfigure.exclude` 中，避免未使用的存储出现在健康检查中。使用其他存储时，请设置排除列表，只保留所选的存储：否则健康检查会把未使用的 Redis 报告为 `DOWN`，整体状态为 `DOWN`，容器会被标记为不健康。以 PostgreSQL 为例：
+
+```shell
+docker run --name cosid-proxy -d -p 8688:8688 \
+  -e COSID_PROXY_TOKEN=change-me \
+  -e SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/cosid_db \
+  -e SPRING_DATASOURCE_USERNAME=cosid -e SPRING_DATASOURCE_PASSWORD=change-me \
+  -e COSID_MACHINE_DISTRIBUTOR_TYPE=jdbc -e COSID_SEGMENT_DISTRIBUTOR_TYPE=jdbc \
+  -e SPRING_APPLICATION_JSON='{"cosid": {...}}' \
+  ahoowang/cosid-proxy:__COSID_VERSION__
+```
+
+JDBC 的默认语句是 MySQL 语句：使用 PostgreSQL 时，请先建表（或者设置 `enable-auto-init-*` 并配置 PostgreSQL 的建表语句），并按照 [JDBC：PostgreSQL](./jdbc.md#postgresql) 覆盖号段语句，例如通过 `SPRING_APPLICATION_JSON` 或挂载的 `config/application.yaml`。`SPRING_AUTOCONFIGURE_EXCLUDE` 会替换整个默认列表，因此必须列出所有未使用的存储：
+
+| 存储 | `SPRING_AUTOCONFIGURE_EXCLUDE` |
+|------|--------------------------------|
+| Redis（默认） | `org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+| JDBC（MySQL、PostgreSQL） | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+| MongoDB（还需配置 `spring.mongodb.uri`） | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration` |
+| ZooKeeper | `org.springframework.boot.data.redis.autoconfigure.DataRedisAutoConfiguration,org.springframework.boot.data.redis.autoconfigure.DataRedisReactiveAutoConfiguration,org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration,org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration` |
+
+在镜像中，堆大小为容器内存上限的 75%（`-XX:MaxRAMPercentage=75.0`）；如需固定，请设置 `JAVA_OPTS`，例如 `-e JAVA_OPTS=-Xmx1g`。镜像之外的发行包启动脚本仍使用固定的 1280M 堆。`GET /ids` 的响应带有 `Cache-Control: no-store`，避免客户端与服务端之间的缓存把同一个 ID 发出两次。
+
 ## 客户端
 
 ### 安装
@@ -126,11 +150,12 @@ cosid:
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | 只有租约最后一次续约（按存储时钟）距今至少这么久，客户端才能接管该机器号。4.0 客户端发送更晚的截止时间会得到 `400`；3.x 客户端更短的守护时长会被提升到该值并记录警告。请不要大于客户端的 `cosid.machine.guarder.safe-guard-duration`；不能为负数 |
 | `cosid.proxy.server.max-clock-skew` | `1m` | 客户端上报的最后时间戳最多可以比存储的时钟（v1 API 为服务端时钟）快多少；过于超前的时间戳会让机器号永远无法回收。`0` 表示不检查；不能为负数 |
 | `cosid.proxy.server.segment.max-step` | `1000000000000` | 客户端可申请的最大号段步长；`0` 表示不限制。号段链一次会申请 `step × 号段数`，负载高时更多，因此请至少设置为所有客户端中最大的 `step × max-prefetch-distance`。`offset` 必须在 `0` 到 `Long.MAX_VALUE / 2` 之间 |
+| `cosid.proxy.server.segment.max-distributors` | `0` | 服务端在内存中保留的号段分发器上限，每个命名空间和名称一个，所有命名空间共享；超出后请求新的分发器返回 `429`（而非 `400`）。`0` 表示不限制；不可信的客户端能访问服务端时请设置，例如 `10000` |
 
 ## 部署安全
 
 - 只在内网运行服务端，绝不暴露到公网。任何能调用它的人都可以释放存活实例持有的机器号，导致两个实例生成相同的 ID。
-- 令牌是 Bearer 凭据：持有者可以对所有命名空间调用所有端点。请通过 HTTPS 或启用双向 TLS 的服务网格传输令牌，保存在密钥管理系统中，轮换时同时配置新旧两个令牌。
+- 令牌是 Bearer 凭据：持有者可以对它能使用的所有命名空间调用所有端点。请用 `cosid.proxy.server.auth.clients` 为每个应用分配只能使用自己命名空间的令牌，并在 `cosid.proxy.server.namespaces` 中列出提供服务的命名空间。请通过 HTTPS 或启用双向 TLS 的服务网格传输令牌（客户端配置了令牌且 host 是 localhost 以外的 `http` 地址时会打印警告），保存在密钥管理系统中，轮换时同时配置新旧两个令牌。
 - `cosid.proxy.server.segment.max-step` 保持为有限值，避免单个请求耗尽或溢出计数器。
 - 服务端不开启 JMX。如需通过 JMX 监控，请在 `JAVA_OPTS` 中传入参数，并启用认证和 TLS：
 

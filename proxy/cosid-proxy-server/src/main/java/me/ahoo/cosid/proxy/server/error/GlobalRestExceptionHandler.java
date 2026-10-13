@@ -17,6 +17,7 @@ import static me.ahoo.cosid.proxy.api.ErrorResponse.MACHINE_ID_LOST;
 import static me.ahoo.cosid.proxy.api.ErrorResponse.MACHINE_ID_OVERFLOW;
 import static me.ahoo.cosid.proxy.api.ErrorResponse.NOT_FOUND_MACHINE_STATE;
 import static me.ahoo.cosid.proxy.api.ErrorResponse.SEGMENT_ROLLBACK;
+import static me.ahoo.cosid.proxy.api.ErrorResponse.TOO_MANY_DISTRIBUTORS;
 
 import me.ahoo.cosid.machine.MachineIdLostException;
 import me.ahoo.cosid.machine.MachineIdOverflowException;
@@ -111,6 +112,19 @@ public class GlobalRestExceptionHandler {
             .status(HttpStatus.SERVICE_UNAVAILABLE)
             .header(HttpHeaders.RETRY_AFTER, "1")
             .body(ErrorResponse.serviceUnavailable(OVERLOADED));
+    }
+    
+    /**
+     * Another segment distributor would exceed {@code cosid.proxy.server.segment.max-distributors}.
+     */
+    @ExceptionHandler(TooManyDistributorsException.class)
+    public ResponseEntity<ErrorResponse> handleTooManyDistributors(TooManyDistributorsException ex) {
+        if (log.isWarnEnabled()) {
+            log.warn(ex.getMessage());
+        }
+        return ResponseEntity
+            .status(HttpStatus.TOO_MANY_REQUESTS)
+            .body(ErrorResponse.of(TOO_MANY_DISTRIBUTORS, ex.getMessage()));
     }
     
     /**

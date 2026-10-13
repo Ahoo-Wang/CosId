@@ -124,7 +124,7 @@ cosid:
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | 只有租约最后一次续约（按存储时钟）距今至少这么久，客户端才能接管该机器号。4.0 客户端发送更晚的截止时间会得到 `400`；3.x 客户端更短的守护时长会被提升到该值并记录警告。请不要大于客户端的 `cosid.machine.guarder.safe-guard-duration`；不能为负数 |
 | `cosid.proxy.server.max-clock-skew` | `1m` | 客户端上报的最后时间戳最多可以比存储的时钟（v1 API 为服务端时钟）快多少；过于超前的时间戳会让机器号永远无法回收。`0` 表示不检查；不能为负数 |
 | `cosid.proxy.server.segment.max-step` | `1000000000000` | 客户端可申请的最大号段步长；`0` 表示不限制。号段链一次会申请 `step × 号段数`，负载高时更多，因此请至少设置为所有客户端中最大的 `step × max-prefetch-distance`。`offset` 必须在 `0` 到 `Long.MAX_VALUE / 2` 之间 |
-| `cosid.proxy.server.segment.max-distributors` | `10000` | 服务端在内存中保留的号段分发器上限，每个命名空间和名称一个；超出后请求新的分发器返回 `429`（而非 `400`）。`0` 表示不限制 |
+| `cosid.proxy.server.segment.max-distributors` | `0` | 服务端在内存中保留的号段分发器上限，每个命名空间和名称一个，所有命名空间共享；超出后请求新的分发器返回 `429`（而非 `400`）。`0` 表示不限制；不可信的客户端能访问服务端时请设置，例如 `10000` |
 
 ## 部署安全
 

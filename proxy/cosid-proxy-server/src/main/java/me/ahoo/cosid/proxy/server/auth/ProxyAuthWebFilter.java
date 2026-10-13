@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -43,8 +44,10 @@ import java.util.stream.Collectors;
  * {@link PathPattern}s matched the way WebFlux routes: on the decoded path without matrix parameters, so
  * {@code /%6Dachines} or {@code /actuator;x=1/health} cannot dodge or fake them.</p>
  *
- * <p>The namespace is read from the path of the machine (v1 and v2) and segment APIs, decoded the same way. Other
- * paths, such as {@code /ids} which serves the server's own namespace, need only a valid token.</p>
+ * <p>The namespace is read from the path of the machine (v1 and v2) and segment APIs, decoded the same way. A token
+ * limited to namespaces (or a server limited to namespaces) fails closed: it reaches only those namespaces and
+ * {@code /machines/v2/time}, never the actuator, the API docs or {@code /ids}, and no segment name containing a dot,
+ * since stores key a segment as {@code namespace + "." + name}.</p>
  *
  * @author ahoo wang
  */
@@ -52,6 +55,7 @@ import java.util.stream.Collectors;
 public class ProxyAuthWebFilter implements WebFilter {
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String NAMESPACE = "namespace";
+    private static final String NAME = "name";
     
     private final List<Grant> grants;
     private final List<PathPattern> publicPaths;
@@ -90,14 +94,23 @@ public class ProxyAuthWebFilter implements WebFilter {
             .toList();
         List<Grant> allGrants = new ArrayList<>();
         tokens.stream()
-            .map(Grant::of)
+            .map(Grant::unrestricted)
             .filter(Objects::nonNull)
             .forEach(allGrants::add);
-        clients.stream()
-            .filter(Objects::nonNull)
-            .map(client -> Grant.of(client.getToken(), client.getNamespaces()))
-            .filter(Objects::nonNull)
-            .forEach(allGrants::add);
+        for (ProxyAuthProperties.Client client : clients) {
+            if (client == null) {
+                continue;
+            }
+            Grant grant = Grant.restricted(client.getToken(), client.getNamespaces());
+            if (grant == null) {
+                continue;
+            }
+            if (grant.namespaces().isEmpty() && log.isWarnEnabled()) {
+                log.warn("A [{}.clients] entry has no namespaces: its token can use none. List its namespaces, or move the token to [{}.tokens].",
+                    ProxyAuthProperties.PREFIX, ProxyAuthProperties.PREFIX);
+            }
+            allGrants.add(grant);
+        }
         this.grants = List.copyOf(allGrants);
         Set<String> namespaces = names(serverNamespaces);
         this.serverNamespaces = namespaces.isEmpty() ? null : namespaces;
@@ -144,15 +157,33 @@ public class ProxyAuthWebFilter implements WebFilter {
                 return exchange.getResponse().setComplete();
             }
         }
-        String namespace = namespaceOf(path);
-        if (namespace != null && !isAllowed(presented, namespace)) {
-            if (log.isInfoEnabled()) {
-                log.info("Rejected a request for namespace:[{}] at [{}]: not allowed for this token or server.", namespace, path.value());
+        Map<String, String> target = targetOf(path);
+        boolean restricted = isEnabled() && presented.stream().noneMatch(Grant::isUnrestricted);
+        if (target == null) {
+            // Actuator, API docs and /ids are not scoped to a namespace: only for tokens that may use every namespace.
+            if (restricted && !isNamespaceFree(path)) {
+                return forbidden(exchange, path, null);
             }
-            exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
-            return exchange.getResponse().setComplete();
+            return chain.filter(exchange);
+        }
+        String namespace = target.get(NAMESPACE);
+        if (namespace == null || !isAllowed(presented, namespace)) {
+            return forbidden(exchange, path, namespace);
+        }
+        // Stores key a segment as namespace + "." + name: /segments/a/b.c would reach the counter c of namespace a.b.
+        String name = target.get(NAME);
+        if (name != null && name.indexOf('.') >= 0 && (restricted || serverNamespaces != null)) {
+            return forbidden(exchange, path, namespace);
         }
         return chain.filter(exchange);
+    }
+    
+    private static Mono<Void> forbidden(ServerWebExchange exchange, PathContainer path, @Nullable String namespace) {
+        if (log.isInfoEnabled()) {
+            log.info("Rejected a request for namespace:[{}] at [{}]: not allowed for this token or server.", namespace, path.value());
+        }
+        exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+        return exchange.getResponse().setComplete();
     }
     
     public boolean isPublic(PathContainer path) {
@@ -164,6 +195,35 @@ public class ProxyAuthWebFilter implements WebFilter {
         return false;
     }
     
+    private boolean isNamespaceFree(PathContainer path) {
+        for (PathPattern namespaceFreePath : namespaceFreePaths) {
+            if (namespaceFreePath.matches(path)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    /**
+     * The path variables of a request for a namespace: {@code namespace}, and {@code name} for segments.
+     *
+     * @param path the path within the application
+     * @return the variables, or {@code null} for a path without a namespace
+     */
+    @Nullable
+    Map<String, String> targetOf(PathContainer path) {
+        if (isNamespaceFree(path)) {
+            return null;
+        }
+        for (PathPattern namespacedPath : namespacedPaths) {
+            PathPattern.PathMatchInfo matchInfo = namespacedPath.matchAndExtract(path);
+            if (matchInfo != null) {
+                return matchInfo.getUriVariables();
+            }
+        }
+        return null;
+    }
+    
     /**
      * The namespace a request is for.
      *
@@ -172,18 +232,8 @@ public class ProxyAuthWebFilter implements WebFilter {
      */
     @Nullable
     String namespaceOf(PathContainer path) {
-        for (PathPattern namespaceFreePath : namespaceFreePaths) {
-            if (namespaceFreePath.matches(path)) {
-                return null;
-            }
-        }
-        for (PathPattern namespacedPath : namespacedPaths) {
-            PathPattern.PathMatchInfo matchInfo = namespacedPath.matchAndExtract(path);
-            if (matchInfo != null) {
-                return matchInfo.getUriVariables().get(NAMESPACE);
-            }
-        }
-        return null;
+        Map<String, String> target = targetOf(path);
+        return target == null ? null : target.get(NAMESPACE);
     }
     
     private boolean isAllowed(List<Grant> presented, String namespace) {
@@ -225,17 +275,26 @@ public class ProxyAuthWebFilter implements WebFilter {
      */
     private record Grant(byte[] token, @Nullable Set<String> namespaces) {
         @Nullable
-        static Grant of(@Nullable String token) {
-            return of(token, null);
-        }
-        
-        @Nullable
-        static Grant of(@Nullable String token, @Nullable List<String> namespaces) {
+        static Grant unrestricted(@Nullable String token) {
             if (token == null || token.isBlank()) {
                 return null;
             }
-            Set<String> names = names(namespaces);
-            return new Grant(token.trim().getBytes(StandardCharsets.UTF_8), names.isEmpty() ? null : names);
+            return new Grant(token.trim().getBytes(StandardCharsets.UTF_8), null);
+        }
+        
+        /**
+         * A token limited to its namespaces: none when the list is empty, failing closed.
+         */
+        @Nullable
+        static Grant restricted(@Nullable String token, @Nullable List<String> namespaces) {
+            if (token == null || token.isBlank()) {
+                return null;
+            }
+            return new Grant(token.trim().getBytes(StandardCharsets.UTF_8), names(namespaces));
+        }
+        
+        boolean isUnrestricted() {
+            return namespaces == null;
         }
         
         boolean allows(String namespace) {

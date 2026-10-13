@@ -34,7 +34,7 @@ class ProxyNamespaceAccessTest {
         @RequestMapping({
             "/machines/{namespace}", "/machines/{namespace}/**",
             "/segments/{namespace}/{name}", "/segments/distributor/{namespace}/{name}",
-            "/ids", "/ids/{name}"
+            "/ids", "/ids/{name}", "/actuator/cosid/{name}", "/v3/api-docs"
         })
         String any() {
             return "ok";
@@ -86,15 +86,48 @@ class ProxyNamespaceAccessTest {
     }
     
     @Test
-    void pathsWithoutANamespaceNeedOnlyAToken() {
-        WebTestClient client = client(List.of("user"));
+    void restrictedTokensReachOnlyTheServerTimeOutsideTheirNamespaces() {
+        WebTestClient client = client(List.of());
         post(client, "order-token", "/machines/v2/time").expectStatus().isOk();
-        post(client, "order-token", "/ids").expectStatus().isOk();
-        post(client, "order-token", "/ids/biz").expectStatus().isOk();
+        post(client, "order-token", "/ids").expectStatus().isForbidden();
+        post(client, "order-token", "/ids/biz").expectStatus().isForbidden();
+        client.delete().uri("/actuator/cosid/biz").header(HttpHeaders.AUTHORIZATION, "Bearer order-token").exchange().expectStatus().isForbidden();
+        client.get().uri("/v3/api-docs").header(HttpHeaders.AUTHORIZATION, "Bearer order-token").exchange().expectStatus().isForbidden();
     }
     
     @Test
-    void tokensWithoutNamespacesMayUseEveryNamespace() {
+    void unrestrictedTokensReachThePathsWithoutANamespace() {
+        WebTestClient client = client(List.of("user"));
+        post(client, "admin-token", "/ids").expectStatus().isOk();
+        client.delete().uri("/actuator/cosid/biz").header(HttpHeaders.AUTHORIZATION, "Bearer admin-token").exchange().expectStatus().isOk();
+    }
+    
+    @ParameterizedTest
+    @ValueSource(strings = {"/segments/order/biz.c", "/segments/distributor/order/biz.c", "/segments/order/%2E%2Ec", "/segments/order/b%2Ec"})
+    void aRestrictedTokenCannotReachAnotherNamespaceThroughADottedSegmentName(String path) {
+        // namespace order + name biz.c is the store key order.biz.c: the counter c of namespace order.biz.
+        post(client(List.of()), "order-token", path).expectStatus().isForbidden();
+    }
+    
+    @Test
+    void dottedSegmentNamesAreRejectedWhenTheServerIsLimitedToNamespaces() {
+        WebTestClient client = client(List.of("order"));
+        post(client, "admin-token", "/segments/order/biz.c").expectStatus().isForbidden();
+        post(client(List.of()), "admin-token", "/segments/order/biz.c").expectStatus().isOk();
+    }
+    
+    @Test
+    void aClientWithoutNamespacesGetsNone() {
+        ProxyAuthWebFilter filter = new ProxyAuthWebFilter(List.of(), List.of(new ProxyAuthProperties.Client("empty-token", List.of())),
+            ProxyAuthProperties.DEFAULT_PUBLIC_PATHS, List.of());
+        WebTestClient client = WebTestClient.bindToController(new Endpoints()).webFilter(filter).build();
+        post(client, "empty-token", "/machines/order").expectStatus().isForbidden();
+        post(client, "empty-token", "/segments/order/biz").expectStatus().isForbidden();
+        post(client, "empty-token", "/ids").expectStatus().isForbidden();
+    }
+    
+    @Test
+    void tokensListedInTokensMayUseEveryNamespace() {
         WebTestClient client = client(List.of());
         post(client, "admin-token", "/machines/order").expectStatus().isOk();
         post(client, "admin-token", "/machines/v2/user/claims/new").expectStatus().isOk();

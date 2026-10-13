@@ -100,7 +100,7 @@ public class ProxyServerProperties {
     }
     
     public static class Segment {
-        public static final int DEFAULT_MAX_DISTRIBUTORS = 10_000;
+        public static final int DEFAULT_MAX_DISTRIBUTORS = 0;
         
         /**
          * Largest {@code step} a client may ask for, so that one request cannot use up or overflow the id range.
@@ -118,8 +118,9 @@ public class ProxyServerProperties {
         }
         
         /**
-         * Most segment distributors (namespace and name pairs) the server keeps; a request for a new one beyond it gets
-         * {@code 429}. Each one holds memory until the server restarts. Zero means no limit.
+         * Most segment distributors (namespace and name pairs) the server keeps, across all namespaces; a request for a
+         * new one beyond it gets {@code 429}. Each one holds memory until the server restarts. Zero (the default) means
+         * no limit; set it, for example to {@code 10000}, when untrusted clients can reach the server.
          */
         private int maxDistributors = DEFAULT_MAX_DISTRIBUTORS;
         

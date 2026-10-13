@@ -66,8 +66,9 @@ public class ProxyAuthProperties {
     private List<String> tokens = new ArrayList<>();
     
     /**
-     * Tokens limited to some namespaces, for example one per application. A request for another namespace gets
-     * {@code 403}. Tokens in {@link #getTokens()} may use every namespace.
+     * Tokens limited to some namespaces, for example one per application. A request for another namespace, or for a
+     * path without a namespace (actuator, API docs, {@code /ids}), gets {@code 403}. Tokens in {@link #getTokens()} may
+     * use every namespace and every path.
      */
     private List<Client> clients = new ArrayList<>();
     
@@ -125,7 +126,8 @@ public class ProxyAuthProperties {
          */
         private String token;
         /**
-         * Namespaces the token may use. Empty means every namespace, as a token in {@code tokens}.
+         * Namespaces the token may use. Empty means none (a warning at startup): list a token that may use every
+         * namespace in {@code tokens} instead.
          */
         private List<String> namespaces = new ArrayList<>();
         

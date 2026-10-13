@@ -103,7 +103,7 @@ class ProxyServerTest {
     @Test
     void segmentDistributorsAreCapped() {
         ProxyServerProperties properties = new ProxyServerProperties();
-        assertThat(properties.getSegment().getMaxDistributors()).isEqualTo(10_000);
+        assertThat(properties.getSegment().getMaxDistributors()).isZero();
         properties.getSegment().setMaxDistributors(2);
         WebTestClient capped = WebTestClient
             .bindToController(new SegmentController(segmentDistributorFactory, properties))

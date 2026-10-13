@@ -122,7 +122,7 @@ The server checks what clients send, and answers `400` to requests outside these
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | A client may take over a machine id only if its lease was last renewed at least this long ago, by the store's clock. 4.0 clients that send a later cut-off get `400`; a shorter guard from a 3.x client is raised to this value with a warning. Keep it at most the clients' `cosid.machine.guarder.safe-guard-duration`; must not be negative |
 | `cosid.proxy.server.max-clock-skew` | `1m` | How far ahead of the store's clock (the server's clock for the v1 API) a client's last timestamp may be; a timestamp far in the future would keep a machine id from ever being recycled. `0` disables the check; must not be negative |
 | `cosid.proxy.server.segment.max-step` | `1000000000000` | Largest segment `step` a client may ask for; `0` means no limit. Segment chains ask for `step × segments` at once and more under load, so set it to at least the largest `step × max-prefetch-distance` of all clients. `offset` must be between `0` and `Long.MAX_VALUE / 2` |
-| `cosid.proxy.server.segment.max-distributors` | `10000` | Most segment distributors the server keeps in memory, one per namespace and name; a request for a new one beyond it gets `429` instead of `400`. `0` means no limit |
+| `cosid.proxy.server.segment.max-distributors` | `0` | Most segment distributors the server keeps in memory, one per namespace and name, shared by all namespaces; a request for a new one beyond it gets `429` instead of `400`. `0` means no limit; set it, for example to `10000`, when untrusted clients can reach the server |
 
 ## Deployment security
 

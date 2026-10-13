@@ -23,11 +23,18 @@ import com.mongodb.client.model.Indexes;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Slf4j
 public class MongoMachineInitializer implements MachineInitializer {
     static final String NAMESPACE_MACHINE_ID_INDEX = "namespace_machineId";
     static final String NAMESPACE_INSTANCE_ID_INDEX = "namespace_instanceId";
     private static final int NAMESPACE_EXISTS = 48;
+    /**
+     * An index with the same keys exists under another name or with other options.
+     */
+    private static final int INDEX_OPTIONS_CONFLICT = 85;
     private final MongoDatabase mongoDatabase;
     
     public MongoMachineInitializer(MongoDatabase mongoDatabase) {
@@ -38,6 +45,11 @@ public class MongoMachineInitializer implements MachineInitializer {
      * Create the collection when missing and its indexes, idempotently: also on a collection created by an older
      * version. Its hashed {@code machineId} and {@code instanceId} indexes are kept, since older nodes create them
      * again: the lease queries no longer use them, and an operator can drop them once every node runs 4.1.
+     *
+     * <p>Each index is created on its own: one that already exists under another name or with other options (an index
+     * managed by a DBA) is logged at INFO and does not stop the other. Any other failure is logged once, at WARN.</p>
+     *
+     * @return true if the collection and both indexes are in place
      */
     @Override
     public boolean ensureMachineCollection() {
@@ -46,18 +58,41 @@ public class MongoMachineInitializer implements MachineInitializer {
         }
         try {
             createCollectionIfMissing();
-            MongoCollection<Document> machineCollection = mongoDatabase.getCollection(COLLECTION_NAME);
-            machineCollection.createIndex(Indexes.ascending(MachineOperates.NAMESPACE_FIELD, MachineOperates.MACHINE_ID_FIELD),
-                new IndexOptions().name(NAMESPACE_MACHINE_ID_INDEX));
-            machineCollection.createIndex(Indexes.ascending(MachineOperates.NAMESPACE_FIELD, MachineOperates.INSTANCE_ID_FIELD),
-                new IndexOptions().name(NAMESPACE_INSTANCE_ID_INDEX));
-            return true;
         } catch (MongoCommandException mongoCommandException) {
             if (log.isWarnEnabled()) {
                 log.warn("Ensure MachineCollection Failed", mongoCommandException);
             }
             return false;
         }
+        MongoCollection<Document> machineCollection = mongoDatabase.getCollection(COLLECTION_NAME);
+        List<String> failed = new ArrayList<>();
+        MongoCommandException firstFailure = null;
+        for (String[] index : new String[][] {
+            {NAMESPACE_MACHINE_ID_INDEX, MachineOperates.MACHINE_ID_FIELD},
+            {NAMESPACE_INSTANCE_ID_INDEX, MachineOperates.INSTANCE_ID_FIELD}}) {
+            try {
+                machineCollection.createIndex(Indexes.ascending(MachineOperates.NAMESPACE_FIELD, index[1]), new IndexOptions().name(index[0]));
+            } catch (MongoCommandException mongoCommandException) {
+                if (mongoCommandException.getErrorCode() == INDEX_OPTIONS_CONFLICT) {
+                    if (log.isInfoEnabled()) {
+                        log.info("Index [{}] of {} already exists under another name or with other options: kept as it is. {}", index[0],
+                            COLLECTION_NAME, mongoCommandException.getErrorMessage());
+                    }
+                    continue;
+                }
+                failed.add(index[0]);
+                if (firstFailure == null) {
+                    firstFailure = mongoCommandException;
+                }
+            }
+        }
+        if (firstFailure != null) {
+            if (log.isWarnEnabled()) {
+                log.warn("Ensure MachineCollection Failed: indexes {} not created; the lease queries run without them.", failed, firstFailure);
+            }
+            return false;
+        }
+        return true;
     }
     
     private void createCollectionIfMissing() {

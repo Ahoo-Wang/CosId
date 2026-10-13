@@ -8,7 +8,14 @@
 集合不存在时会在启动时创建。
 
 ::: warning 仅支持同步驱动
-CosId 需要 MongoDB 4.2 或更高版本：获取号段使用一条更新管道，并采用服务端时钟（`$$NOW`）。启动时 Starter 会确保机器号集合及其两个复合索引 `{namespace: 1, machineId: 1}` 和 `{namespace: 1, instanceId: 1}` 存在，旧版本创建的集合也会补建（失败时以 WARN 记录；没有索引也能工作，只是更慢）。旧版本的哈希索引 `machineId_hashed`、`instanceId_hashed` 不再使用但会保留，因为旧节点会重新创建它们：所有节点都升级到 4.1 后可手动删除。
+CosId 需要 MongoDB 4.2 或更高版本：获取号段使用一条更新管道，并采用服务端时钟（`$$NOW`）。启动时 Starter 会确保机器号集合及其两个复合索引 `{namespace: 1, machineId: 1}` 和 `{namespace: 1, instanceId: 1}` 存在，旧版本创建的集合也会补建。已有相同键但名称不同的索引（例如 DBA 创建的）会保留并以 INFO 记录；其他失败只以 WARN 记录一次，没有索引也能工作，只是更慢。旧版本的哈希索引 `machineId_hashed`、`instanceId_hashed` 不再使用但会保留，因为旧节点会重新创建它们：所有节点都升级到 4.1 后，可在 `cosid.machine.distributor.mongo.database` 所指的数据库中手动删除：
+
+```javascript
+db.cosid_machine.dropIndex("machineId_hashed")
+db.cosid_machine.dropIndex("instanceId_hashed")
+```
+
+租约查询使用复合索引这一点，已在单机和副本集上用 `explain` 验证；分片集群中各分片独立生成执行计划，未做验证。
 
 响应式相关类（`me.ahoo.cosid.mongo.reactive`）已在 4.0 移除。请使用同步驱动 `org.mongodb:mongodb-driver-sync`，`spring-boot-starter-data-mongodb` 已包含它。classpath 中只有响应式驱动时，Starter 会在启动时失败。
 :::

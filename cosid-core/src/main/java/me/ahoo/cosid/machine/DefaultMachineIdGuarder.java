@@ -263,6 +263,7 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         MachineIdLease lease = leases.get(registeredInstance);
         if (lease != null) {
             lease.renew(guardAt);
+            lease.recordClockSkew(machineIdDistributor.getClockSkewMillis(registeredInstance.getNamespace(), registeredInstance.getInstanceId()));
         }
     }
 

@@ -138,12 +138,8 @@ public final class CallTimeout {
         try {
             future = EXECUTOR.submit(call);
         } catch (RejectedExecutionException rejectedExecutionException) {
-<<<<<<< HEAD
-            throw new CallRejectedException("Too many calls in flight (max " + getMaxConcurrentCalls() + "), rejected [" + operation + "].",
-=======
             CosIdEvents.listener().onCallRejected(operation);
-            throw new CosIdException("Too many calls in flight (max " + MAX_CONCURRENT_CALLS + "), rejected [" + operation + "].",
->>>>>>> origin/main
+            throw new CallRejectedException("Too many calls in flight (max " + getMaxConcurrentCalls() + "), rejected [" + operation + "].",
                 rejectedExecutionException);
         }
         try {

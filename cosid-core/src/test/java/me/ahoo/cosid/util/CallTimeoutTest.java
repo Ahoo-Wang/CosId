@@ -24,7 +24,12 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 class CallTimeoutTest {
@@ -90,5 +95,44 @@ class CallTimeoutTest {
             }, (operation, cause) -> new IllegalStateException(operation, cause)));
         
         assertThat(actual.getMessage(), equalTo("custom"));
+    }
+    
+    @Test
+    void rejectsCallsBeyondTheConfiguredLimit() throws Exception {
+        int defaultLimit = CallTimeout.getMaxConcurrentCalls();
+        CallTimeout.setMaxConcurrentCalls(2);
+        CountDownLatch release = new CountDownLatch(1);
+        CountDownLatch running = new CountDownLatch(2);
+        ExecutorService callers = Executors.newFixedThreadPool(2);
+        try {
+            CallTimeout timeout = CallTimeout.of(Duration.ofSeconds(30));
+            List<Future<Object>> blocked = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                blocked.add(callers.submit(() -> timeout.call("blocked", () -> {
+                    running.countDown();
+                    release.await();
+                    return null;
+                })));
+            }
+            assertThat(running.await(10, TimeUnit.SECONDS), equalTo(true));
+            
+            CallRejectedException rejected = Assertions.assertThrows(CallRejectedException.class, () -> timeout.call("third", () -> null));
+            assertThat(rejected.getMessage(), equalTo("Too many calls in flight (max 2), rejected [third]."));
+            
+            release.countDown();
+            for (Future<Object> call : blocked) {
+                call.get(10, TimeUnit.SECONDS);
+            }
+        } finally {
+            release.countDown();
+            callers.shutdownNow();
+            CallTimeout.setMaxConcurrentCalls(defaultLimit);
+        }
+    }
+    
+    @Test
+    void rejectsANonPositiveLimit() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> CallTimeout.setMaxConcurrentCalls(0));
+        assertThat(CallTimeout.getMaxConcurrentCalls(), equalTo(CallTimeout.MAX_CONCURRENT_CALLS));
     }
 }

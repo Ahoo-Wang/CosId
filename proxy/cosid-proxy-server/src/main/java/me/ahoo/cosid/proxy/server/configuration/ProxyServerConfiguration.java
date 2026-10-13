@@ -14,14 +14,46 @@
 package me.ahoo.cosid.proxy.server.configuration;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.web.reactive.config.BlockingExecutionConfigurer;
+import org.springframework.web.reactive.config.WebFluxConfigurer;
 
 /**
- * Binds {@link ProxyServerProperties}.
+ * Binds {@link ProxyServerProperties} and runs the API calls, which block on the stores, on a bounded thread pool
+ * instead of the event loop.
  *
  * @author ahoo wang
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(ProxyServerProperties.class)
 public class ProxyServerConfiguration {
+    
+    /**
+     * The thread pool that runs controller methods with a non-reactive return type: every CosId API call.
+     *
+     * @param proxyServerProperties the server properties
+     * @return the thread pool
+     */
+    @Bean
+    public ThreadPoolTaskExecutor cosIdProxyBlockingExecutor(ProxyServerProperties proxyServerProperties) {
+        ProxyServerProperties.Blocking blocking = proxyServerProperties.getBlocking();
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setThreadNamePrefix("cosid-proxy-blocking-");
+        executor.setCorePoolSize(blocking.getThreads());
+        executor.setMaxPoolSize(blocking.getThreads());
+        executor.setQueueCapacity(blocking.getQueueCapacity());
+        return executor;
+    }
+    
+    @Bean
+    public WebFluxConfigurer cosIdProxyBlockingExecution(ThreadPoolTaskExecutor cosIdProxyBlockingExecutor) {
+        return new WebFluxConfigurer() {
+            @Override
+            public void configureBlockingExecution(BlockingExecutionConfigurer configurer) {
+                configurer.setExecutor(cosIdProxyBlockingExecutor);
+            }
+        };
+    }
 }

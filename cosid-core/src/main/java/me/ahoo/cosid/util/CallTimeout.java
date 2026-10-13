@@ -19,7 +19,6 @@ import me.ahoo.cosid.internal.Checks;
 import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
@@ -33,8 +32,9 @@ import java.util.function.BiFunction;
  *
  * <p>When enabled, the call runs on a daemon worker and the caller gives up after {@link #getTimeout()}, interrupting the
  * worker and throwing {@link CosIdException}. A call that timed out may still have been applied by the backend.
- * At most {@link #MAX_CONCURRENT_CALLS} calls run at once; beyond that, callers fail fast instead of piling up threads
- * behind a hung backend.</p>
+ * At most {@link #getMaxConcurrentCalls()} calls (by default {@link #MAX_CONCURRENT_CALLS}) run at once, shared by
+ * every backend; beyond that, callers fail fast with {@link CallRejectedException} instead of piling up threads behind
+ * a hung backend.</p>
  *
  * @author ahoo wang
  */
@@ -43,13 +43,36 @@ public final class CallTimeout {
      * No timeout: calls run on the caller thread.
      */
     public static final CallTimeout NONE = new CallTimeout(Duration.ZERO);
+    /**
+     * Default limit of calls running at once.
+     */
     public static final int MAX_CONCURRENT_CALLS = 64;
     
-    private static final ExecutorService EXECUTOR = new ThreadPoolExecutor(0, MAX_CONCURRENT_CALLS,
+    private static final ThreadPoolExecutor EXECUTOR = new ThreadPoolExecutor(0, MAX_CONCURRENT_CALLS,
         60L, TimeUnit.SECONDS, new SynchronousQueue<>(),
         Checks.daemonThreadFactory("CosId-Call-%d"));
     
     private final Duration timeout;
+    
+    /**
+     * Most calls with a timeout that may run at once, across all backends.
+     *
+     * @return the limit
+     */
+    public static int getMaxConcurrentCalls() {
+        return EXECUTOR.getMaximumPoolSize();
+    }
+    
+    /**
+     * Change the most calls with a timeout that may run at once, across all backends. Calls already running are not
+     * affected by a lower limit.
+     *
+     * @param maxConcurrentCalls the limit, at least 1
+     */
+    public static void setMaxConcurrentCalls(int maxConcurrentCalls) {
+        Checks.checkArgument(maxConcurrentCalls > 0, "maxConcurrentCalls:[%s] must be greater than 0!", maxConcurrentCalls);
+        EXECUTOR.setMaximumPoolSize(maxConcurrentCalls);
+    }
     
     private CallTimeout(Duration timeout) {
         this.timeout = timeout;
@@ -114,7 +137,7 @@ public final class CallTimeout {
         try {
             future = EXECUTOR.submit(call);
         } catch (RejectedExecutionException rejectedExecutionException) {
-            throw new CosIdException("Too many calls in flight (max " + MAX_CONCURRENT_CALLS + "), rejected [" + operation + "].",
+            throw new CallRejectedException("Too many calls in flight (max " + getMaxConcurrentCalls() + "), rejected [" + operation + "].",
                 rejectedExecutionException);
         }
         try {

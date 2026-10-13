@@ -14,6 +14,7 @@
 package me.ahoo.cosid.spring.boot.starter;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.util.CallTimeout;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
@@ -63,6 +64,20 @@ public class CosIdProperties {
 
     @NestedConfigurationProperty
     private ProviderProperties provider = new ProviderProperties();
+    
+    /**
+     * Most backend calls with a timeout (ZooKeeper, Redis) that may run at once in this JVM, across all backends.
+     * Beyond it, calls fail fast instead of piling up threads behind a hung backend. Default is 64.
+     */
+    private int maxConcurrentCalls = CallTimeout.MAX_CONCURRENT_CALLS;
+    
+    public int getMaxConcurrentCalls() {
+        return maxConcurrentCalls;
+    }
+    
+    public void setMaxConcurrentCalls(int maxConcurrentCalls) {
+        this.maxConcurrentCalls = maxConcurrentCalls;
+    }
     
     /**
      * Checks if CosId is enabled.

@@ -16,6 +16,7 @@ package me.ahoo.cosid.machine;
 import org.jspecify.annotations.NonNull;
 
 import java.time.Duration;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,6 +24,7 @@ public class GuardDistribute implements MachineIdDistribute {
     private final MachineIdDistributor machineIdDistributor;
     private final MachineIdGuarder machineIdGuarder;
     private final Set<NamespacedInstanceId> distributed = ConcurrentHashMap.newKeySet();
+    private final Map<NamespacedInstanceId, Integer> machineIds = new ConcurrentHashMap<>();
 
     public GuardDistribute(MachineIdDistributor machineIdDistributor, MachineIdGuarder machineIdGuarder) {
         this.machineIdDistributor = machineIdDistributor;
@@ -36,6 +38,7 @@ public class GuardDistribute implements MachineIdDistribute {
         long distributeStartedAt = System.currentTimeMillis();
         MachineState machineState = machineIdDistributor.distribute(namespace, machineBit, instanceId, safeGuardDuration);
         distributed.add(new NamespacedInstanceId(namespace, instanceId));
+        machineIds.put(new NamespacedInstanceId(namespace, instanceId), machineState.getMachineId());
         machineIdGuarder.register(namespace, instanceId, distributeStartedAt);
         return machineState;
     }
@@ -58,6 +61,16 @@ public class GuardDistribute implements MachineIdDistribute {
      *
      * @return a snapshot of the distributed instances
      */
+    /**
+     * The machine id distributed to each instance, for monitoring.
+     *
+     * @return a snapshot
+     */
+    @NonNull
+    public Map<NamespacedInstanceId, Integer> getMachineIds() {
+        return Map.copyOf(machineIds);
+    }
+    
     @NonNull
     public Set<NamespacedInstanceId> getDistributed() {
         return Set.copyOf(distributed);

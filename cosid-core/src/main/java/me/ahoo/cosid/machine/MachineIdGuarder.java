@@ -91,6 +91,15 @@ public interface MachineIdGuarder {
      * @param instanceId instance id
      * @return the lease, or {@link MachineIdLease#FOREVER} when this guarder does not track leases
      */
+    /**
+     * The lease of every registered instance, for monitoring.
+     *
+     * @return a snapshot, empty when this guarder tracks no leases
+     */
+    default Map<NamespacedInstanceId, MachineIdLease> getLeases() {
+        return Map.of();
+    }
+    
     default MachineIdLease getLease(String namespace, InstanceId instanceId) {
         return MachineIdLease.FOREVER;
     }

@@ -267,6 +267,11 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     }
 
     @Override
+    public Map<NamespacedInstanceId, MachineIdLease> getLeases() {
+        return Map.copyOf(leases);
+    }
+    
+    @Override
     public MachineIdLease getLease(String namespace, InstanceId instanceId) {
         MachineIdLease lease = leases.get(new NamespacedInstanceId(namespace, instanceId));
         return lease == null ? MachineIdLease.FOREVER : lease;

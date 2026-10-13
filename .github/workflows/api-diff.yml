@@ -12,8 +12,10 @@
 #
 
 
-# API diff of the library modules against the latest 4.0 release. A binary-incompatible change fails the build, unless
-# the pull request has the api-break-approved label; source-only incompatibilities are reported.
+# API diff of the library modules against the latest 4.0 release. A binary-incompatible change, or an abstract method
+# added to an interface or a class, fails the build, unless it is recorded in scripts/api-diff-accepted-breaks.txt
+# (which keeps main green) or, for the pull request's own run only, the pull request has the api-break-approved label.
+# Other source-only incompatibilities are reported.
 name: API Diff
 on:
   push:

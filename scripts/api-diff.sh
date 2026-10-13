@@ -2,8 +2,9 @@
 # API diff of the library modules against a baseline release (default: v4.0.0).
 # Usage: scripts/api-diff.sh [baseline-ref] [output-dir]
 # Writes one japicmp HTML and Markdown report per module, and a summary (also to $GITHUB_STEP_SUMMARY in CI).
-# Fails on a binary-incompatible change, unless API_DIFF_ENFORCE=false (the api-break-approved PR label in CI). Source
-# incompatibilities (such as a method added to an interface) are reported only. Not compared: me.ahoo.cosid.internal,
+# Fails on a binary-incompatible change or an abstract method added to an interface or a class, unless it is listed in
+# scripts/api-diff-accepted-breaks.txt or API_DIFF_ENFORCE=false (the api-break-approved PR label in CI). Other source
+# incompatibilities are reported only. Not compared: me.ahoo.cosid.internal,
 # the constructors of the starter's auto-configurations, and the cosid-test, cosid-mod-test and cosid-proxy-server modules.
 # cosid-core, cosid-sharding and cosid-accessor are also compared together, so that packages that moved between them
 # (sharding and accessor left cosid-core in 4.0) are not reported as removed.
@@ -16,7 +17,7 @@ ROOT="$(git rev-parse --show-toplevel)"
 WORK="$(mktemp -d)"
 trap 'git -C "$ROOT" worktree remove --force "$WORK/baseline" >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
 
-curl -sSfL -o "$WORK/japicmp.jar" \
+curl -sSfL --retry 5 --retry-all-errors --retry-delay 5 -o "$WORK/japicmp.jar" \
   "https://repo1.maven.org/maven2/com/github/siom79/japicmp/japicmp/${JAPICMP_VERSION}/japicmp-${JAPICMP_VERSION}-jar-with-dependencies.jar"
 
 # japicmp of two jars into $OUT/<name>.html|.md, printing the summary row's result.
@@ -28,6 +29,21 @@ BROKEN="$WORK/broken"
 ENFORCE="${API_DIFF_ENFORCE:-true}"
 # Not part of the public API: the internal package, and auto-configuration constructors, which only Spring calls.
 EXCLUDES="me.ahoo.cosid.internal;me.ahoo.cosid.internal.*"
+# Breaks accepted on purpose, one japicmp exclude per line: the PR that makes the break records it here, so the
+# baseline comparison of main stays green after the merge.
+ACCEPTED_BREAKS="$ROOT/scripts/api-diff-accepted-breaks.txt"
+if [ -f "$ACCEPTED_BREAKS" ]; then
+  while IFS= read -r accepted; do
+    accepted="${accepted%%#*}"
+    accepted="$(echo "$accepted" | tr -d '[:space:]')"
+    if [ -n "$accepted" ]; then
+      EXCLUDES="$EXCLUDES;$accepted"
+    fi
+  done < "$ACCEPTED_BREAKS"
+fi
+# Source-incompatible changes that break implementations compiled against the baseline: an abstract method added to
+# an interface or a class fails with AbstractMethodError there. Treated as binary breaks.
+BREAKING_SOURCE_CHANGES='METHOD_ADDED_TO_INTERFACE|METHOD_ABSTRACT_ADDED_TO_CLASS'
 
 # japicmp excludes of the public and protected constructors of the *AutoConfiguration classes in the given jars, by
 # exact (erased) signature: japicmp does not accept a wildcard for the parameters.
@@ -80,7 +96,8 @@ compare() {
     --html-file "$OUT/$name.html" --markdown > "$OUT/$name.md" 2> "$OUT/$name.err"; then
     echo "compatible"
   elif grep -q "$INCOMPATIBLE_MESSAGE" "$OUT/$name.err"; then
-    if binary_compatible "$old_jar" "$new_jar" "$name" "$excludes" "${classpath[@]+"${classpath[@]}"}"; then
+    if binary_compatible "$old_jar" "$new_jar" "$name" "$excludes" "${classpath[@]+"${classpath[@]}"}" \
+      && ! grep -qE "$BREAKING_SOURCE_CHANGES" "$OUT/$name.err"; then
       echo "source-incompatible only (allowed), see \`$name.html\`"
     elif [ "$enforced" != "true" ]; then
       echo "binary-incompatible alone (checked combined below), see \`$name.html\`"

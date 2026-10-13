@@ -41,19 +41,22 @@ import java.util.function.BiFunction;
  */
 public final class CallTimeout {
     /**
-     * No timeout: calls run on the caller thread.
-     */
-    public static final CallTimeout NONE = new CallTimeout(Duration.ZERO);
-    /**
      * Default limit of calls running at once.
      */
     public static final int MAX_CONCURRENT_CALLS = 64;
     
+    // Before NONE, which keeps a reference to it.
     private static final ThreadPoolExecutor EXECUTOR = new ThreadPoolExecutor(0, MAX_CONCURRENT_CALLS,
         60L, TimeUnit.SECONDS, new SynchronousQueue<>(),
         Checks.daemonThreadFactory("CosId-Call-%d"));
     
+    /**
+     * No timeout: calls run on the caller thread.
+     */
+    public static final CallTimeout NONE = new CallTimeout(Duration.ZERO);
+    
     private final Duration timeout;
+    private final ThreadPoolExecutor executor;
     
     /**
      * Most calls with a timeout that may run at once, across all backends.
@@ -76,7 +79,15 @@ public final class CallTimeout {
     }
     
     private CallTimeout(Duration timeout) {
+        this(timeout, EXECUTOR);
+    }
+    
+    /**
+     * A call timeout on its own pool, for tests that must not share the JVM-wide limit.
+     */
+    CallTimeout(Duration timeout, ThreadPoolExecutor executor) {
         this.timeout = timeout;
+        this.executor = executor;
     }
     
     /**
@@ -136,10 +147,10 @@ public final class CallTimeout {
         }
         Future<T> future;
         try {
-            future = EXECUTOR.submit(call);
+            future = executor.submit(call);
         } catch (RejectedExecutionException rejectedExecutionException) {
             CosIdEvents.listener().onCallRejected(operation);
-            throw new CallRejectedException("Too many calls in flight (max " + getMaxConcurrentCalls() + "), rejected [" + operation + "].",
+            throw new CallRejectedException("Too many calls in flight (max " + executor.getMaximumPoolSize() + "), rejected [" + operation + "].",
                 rejectedExecutionException);
         }
         try {

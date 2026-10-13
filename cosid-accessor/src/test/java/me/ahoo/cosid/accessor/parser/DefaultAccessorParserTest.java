@@ -458,4 +458,20 @@ class DefaultAccessorParserTest {
 
     }
 
+    
+    static class Generic<T> {
+    }
+    
+    static class Other<U> {
+    }
+    
+    @org.junit.jupiter.api.Test
+    void aMissingTypeParameterIsNamedWithItsClass() throws Exception {
+        java.lang.reflect.Method method = DefaultAccessorParser.class.getDeclaredMethod("getActualFieldType", java.lang.reflect.Type.class, Class.class, Class.class);
+        method.setAccessible(true);
+        DefaultAccessorParser parser = new DefaultAccessorParser(AnnotationDefinitionParser.INSTANCE);
+        java.lang.reflect.InvocationTargetException failure = org.junit.jupiter.api.Assertions.assertThrows(java.lang.reflect.InvocationTargetException.class,
+            () -> method.invoke(parser, Other.class.getTypeParameters()[0], Generic.class, Generic.class));
+        org.junit.jupiter.api.Assertions.assertEquals("Type Parameter:[U] not found in Class:[" + Generic.class + "].", failure.getCause().getMessage());
+    }
 }

@@ -162,6 +162,6 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
             }
             return connection.serverCommands().time();
         }));
-        return Preconditions.checkNotNull(time, "Redis TIME returned null!");
+        return Checks.checkNotNull(time, "Redis TIME returned null!");
     }
 }

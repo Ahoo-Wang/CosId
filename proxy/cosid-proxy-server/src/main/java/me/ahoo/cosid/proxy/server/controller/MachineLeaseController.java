@@ -27,8 +27,10 @@ import me.ahoo.cosid.proxy.server.configuration.ProxyServerProperties;
 
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.jspecify.annotations.Nullable;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
@@ -38,7 +40,7 @@ import java.util.Optional;
  * Machine id leases, version 2: each call goes straight to the backend {@link MachineLeaseStore}, so the server keeps
  * no state and can run as several nodes behind a load balancer.
  *
- * <p>Times sent by clients must come from {@link #serverTime()}: a time more than {@code cosid.proxy.server.max-clock-skew}
+ * <p>Times sent by clients must come from {@link #serverTime(String)}: a time more than {@code cosid.proxy.server.max-clock-skew}
  * ahead of the store's clock is rejected, since it would keep a machine id from ever expiring, and an expired claim's
  * cut-off must be at least {@code cosid.proxy.server.min-safe-guard-duration} behind it, so no client takes over a live
  * lease.</p>
@@ -62,9 +64,9 @@ public class MachineLeaseController implements MachineLeaseApi {
     }
     
     @Override
-    @Operation(summary = "The backend store's clock, in milliseconds.")
-    public long serverTime() {
-        return store.serverTime();
+    @Operation(summary = "The backend store's clock, in milliseconds; with namespace, the clock that judges its leases.")
+    public long serverTime(@RequestParam(name = "namespace", required = false) @Nullable String namespace) {
+        return namespace == null || namespace.isBlank() ? store.serverTime() : store.serverTime(namespace);
     }
     
     @Override

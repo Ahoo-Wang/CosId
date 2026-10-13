@@ -31,8 +31,11 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -72,6 +75,40 @@ class SpringRedisMachineLeaseStoreRedisClusterTest {
             }
         }
         assertThat(nodes.size(), greaterThan(1));
+    }
+    
+    private static long timeCalls(RedisClusterConnection connection, RedisClusterNode node) {
+        Properties stats = connection.serverCommands().info(node, "commandstats");
+        String time = stats.getProperty("cmdstat_time");
+        if (time == null) {
+            return 0;
+        }
+        // calls=12,usec=34,...
+        return Long.parseLong(time.substring("calls=".length(), time.indexOf(',')));
+    }
+    
+    @Test
+    void theServerTimeOfANamespaceRunsOnTheNodeOfItsSlot() {
+        try (RedisClusterConnection connection = connectionFactory.getClusterConnection()) {
+            for (int i = 0; i < 8; i++) {
+                String namespace = "cluster-stats-" + UUID.randomUUID();
+                RedisClusterNode owner = connection.clusterGetNodeForKey(SpringRedisMachineLeaseStore.keys(namespace).get(0).getBytes(StandardCharsets.UTF_8));
+                Map<RedisClusterNode, Long> before = new HashMap<>();
+                for (RedisClusterNode master : connection.clusterGetNodes()) {
+                    if (master.isMaster()) {
+                        before.put(master, timeCalls(connection, master));
+                    }
+                }
+                
+                store.serverTime(namespace);
+                
+                for (Map.Entry<RedisClusterNode, Long> entry : before.entrySet()) {
+                    long calls = timeCalls(connection, entry.getKey()) - entry.getValue();
+                    // INFO itself is no TIME call; only the owner of the slot answered.
+                    assertThat(entry.getKey() + " for " + namespace, calls, is(entry.getKey().getId().equals(owner.getId()) ? 1L : 0L));
+                }
+            }
+        }
     }
     
     @Test

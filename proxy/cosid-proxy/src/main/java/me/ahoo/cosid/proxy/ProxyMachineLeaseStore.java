@@ -87,4 +87,12 @@ public class ProxyMachineLeaseStore implements MachineLeaseStore {
     public long serverTime() {
         return leaseApi.serverTime();
     }
+    
+    /**
+     * The backend store's clock for the namespace, through the server (a server before 4.1 answers with its one clock).
+     */
+    @Override
+    public long serverTime(String namespace) {
+        return leaseApi.serverTime(namespace);
+    }
 }

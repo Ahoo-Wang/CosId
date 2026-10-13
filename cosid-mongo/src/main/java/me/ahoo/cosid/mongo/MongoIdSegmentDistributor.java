@@ -13,10 +13,10 @@
 
 package me.ahoo.cosid.mongo;
 
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
-import com.google.common.base.Preconditions;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 
@@ -32,7 +32,7 @@ public class MongoIdSegmentDistributor extends AbstractIdSegmentDistributor {
     
     public MongoIdSegmentDistributor(String namespace, String name, long offset, long step, IdSegmentCollection idSegmentCollection) {
         super(namespace, name, step);
-        Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        Checks.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
         this.offset = offset;
         this.idSegmentCollection = idSegmentCollection;
     }

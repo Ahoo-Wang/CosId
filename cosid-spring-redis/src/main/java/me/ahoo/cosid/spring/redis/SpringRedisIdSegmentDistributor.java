@@ -16,11 +16,10 @@ package me.ahoo.cosid.spring.redis;
 import static me.ahoo.cosid.spring.redis.RedisKeys.hashTag;
 
 import me.ahoo.cosid.CosId;
+import me.ahoo.cosid.internal.Checks;
 import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.springframework.core.io.ClassPathResource;
@@ -81,11 +80,11 @@ public class SpringRedisIdSegmentDistributor extends AbstractIdSegmentDistributo
                                            StringRedisTemplate redisTemplate,
                                            RedisCommandTimeout commandTimeout) {
         super(namespace, name, step);
-        Preconditions.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
+        Checks.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
         
         this.offset = offset;
         this.redisTemplate = redisTemplate;
-        this.commandTimeout = Preconditions.checkNotNull(commandTimeout, "commandTimeout can not be null!");
+        this.commandTimeout = Checks.checkNotNull(commandTimeout, "commandTimeout can not be null!");
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
     }
     
@@ -119,7 +118,7 @@ public class SpringRedisIdSegmentDistributor extends AbstractIdSegmentDistributo
         
         String nextMaxIdValue = commandTimeout.call("nextMaxId",
             () -> redisTemplate.execute(REDIS_ID_GENERATE, Collections.singletonList(adderKey), String.valueOf(offset), String.valueOf(step)));
-        Preconditions.checkNotNull(nextMaxIdValue, "nextMaxId can not be null!");
+        Checks.checkNotNull(nextMaxIdValue, "nextMaxId can not be null!");
         long nextMaxId = Long.parseLong(nextMaxIdValue);
         if (log.isDebugEnabled()) {
             log.debug("Next MaxId [{}] step:[{}] - nextMaxId:[{}].", adderKey, step, nextMaxId);

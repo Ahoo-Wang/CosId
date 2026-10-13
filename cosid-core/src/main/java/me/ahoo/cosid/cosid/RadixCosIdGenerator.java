@@ -76,6 +76,10 @@ public class RadixCosIdGenerator implements CosIdGenerator {
                                int machineId,
                                int sequenceResetThreshold,
                                CosIdIdStateParser stateParser) {
+        // The machine id and the sequence are ints: a shift of 32 or more would wrap around.
+        Checks.checkArgument(timestampBit >= 0 && timestampBit < Long.SIZE, "timestampBit:[%s] must be in [0, 63]!", timestampBit);
+        Checks.checkArgument(machineIdBit >= 0 && machineIdBit < Integer.SIZE, "machineIdBit:[%s] must be in [0, 31]!", machineIdBit);
+        Checks.checkArgument(sequenceBit >= 0 && sequenceBit < Integer.SIZE, "sequenceBit:[%s] must be in [0, 31]!", sequenceBit);
         this.maxTimestamp = ~(-1L << timestampBit);
         this.maxMachine = ~(-1 << machineIdBit);
         this.maxSequence = ~(-1 << sequenceBit);

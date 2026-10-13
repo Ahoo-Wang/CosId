@@ -122,11 +122,12 @@ The server checks what clients send, and answers `400` to requests outside these
 | `cosid.proxy.server.min-safe-guard-duration` | `5m` | A client may take over a machine id only if its lease was last renewed at least this long ago, by the store's clock. 4.0 clients that send a later cut-off get `400`; a shorter guard from a 3.x client is raised to this value with a warning. Keep it at most the clients' `cosid.machine.guarder.safe-guard-duration`; must not be negative |
 | `cosid.proxy.server.max-clock-skew` | `1m` | How far ahead of the store's clock (the server's clock for the v1 API) a client's last timestamp may be; a timestamp far in the future would keep a machine id from ever being recycled. `0` disables the check; must not be negative |
 | `cosid.proxy.server.segment.max-step` | `1000000000000` | Largest segment `step` a client may ask for; `0` means no limit. Segment chains ask for `step × segments` at once and more under load, so set it to at least the largest `step × max-prefetch-distance` of all clients. `offset` must be between `0` and `Long.MAX_VALUE / 2` |
+| `cosid.proxy.server.segment.max-distributors` | `10000` | Most segment distributors the server keeps in memory, one per namespace and name; a request for a new one beyond it gets `429` instead of `400`. `0` means no limit |
 
 ## Deployment security
 
 - Run the server on an internal network only, never exposed to the internet. Anyone who can call it can release a machine id that a live instance holds, and two instances then generate the same IDs.
-- A token is a bearer credential: whoever has it can call every endpoint, for every namespace. Send it over HTTPS or inside a service mesh with mutual TLS, keep it in a secret store, and rotate it by listing the new and the old token together.
+- A token is a bearer credential: whoever has it can call every endpoint, for every namespace it may use. Give each application its own token limited to its namespace with `cosid.proxy.server.auth.clients`, and list the served namespaces in `cosid.proxy.server.namespaces`. Send tokens over HTTPS or inside a service mesh with mutual TLS (a client with a token and a plain `http` host other than localhost logs a warning), keep them in a secret store, and rotate them by listing the new and the old token together.
 - Keep `cosid.proxy.server.segment.max-step` finite, so that one request cannot use up or overflow a counter.
 - The server does not open JMX. To monitor it over JMX, pass the options in `JAVA_OPTS`, with authentication and TLS:
 

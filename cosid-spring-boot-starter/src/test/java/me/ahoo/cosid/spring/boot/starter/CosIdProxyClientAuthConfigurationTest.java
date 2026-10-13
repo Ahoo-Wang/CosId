@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.spring.boot.starter;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -74,5 +76,18 @@ class CosIdProxyClientAuthConfigurationTest {
             context.getBean(RestClientBuilderCustomizer.class).customize(definition(MachineClient.class), restBuilder);
             verifyNoInteractions(restBuilder);
         });
+    }
+    
+    @Test
+    void detectsATokenSentInClearText() {
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://cosid-proxy:8688", "secret"), is(true));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("HTTP://10.0.0.1", "secret"), is(true));
+        
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("https://cosid-proxy:8688", "secret"), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://localhost:8688", "secret"), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://127.0.0.1:8688", "secret"), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://[::1]:8688", "secret"), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://cosid-proxy:8688", " "), is(false));
+        assertThat(CosIdProxyClientAuthConfiguration.sendsTokenInClearText("http://cosid-proxy:8688", null), is(false));
     }
 }

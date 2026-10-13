@@ -16,6 +16,8 @@ package me.ahoo.cosid.proxy.server.configuration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Limits the proxy server applies to what clients send.
@@ -50,6 +52,12 @@ public class ProxyServerProperties {
      */
     private Duration minSafeGuardDuration = DEFAULT_MIN_SAFE_GUARD_DURATION;
     
+    /**
+     * Namespaces this server serves; a request for another one gets {@code 403}, whatever its token. Empty (the
+     * default) serves every namespace.
+     */
+    private List<String> namespaces = new ArrayList<>();
+    
     private Segment segment = new Segment();
     
     public Duration getMinSafeGuardDuration() {
@@ -75,6 +83,14 @@ public class ProxyServerProperties {
         return duration;
     }
     
+    public List<String> getNamespaces() {
+        return namespaces;
+    }
+    
+    public void setNamespaces(List<String> namespaces) {
+        this.namespaces = namespaces;
+    }
+    
     public Segment getSegment() {
         return segment;
     }
@@ -84,6 +100,8 @@ public class ProxyServerProperties {
     }
     
     public static class Segment {
+        public static final int DEFAULT_MAX_DISTRIBUTORS = 10_000;
+        
         /**
          * Largest {@code step} a client may ask for, so that one request cannot use up or overflow the id range.
          * Default is one trillion; zero means no limit. Segment chains ask for {@code step × segments} at once and the prefetch distance grows under
@@ -97,6 +115,20 @@ public class ProxyServerProperties {
         
         public void setMaxStep(long maxStep) {
             this.maxStep = maxStep;
+        }
+        
+        /**
+         * Most segment distributors (namespace and name pairs) the server keeps; a request for a new one beyond it gets
+         * {@code 429}. Each one holds memory until the server restarts. Zero means no limit.
+         */
+        private int maxDistributors = DEFAULT_MAX_DISTRIBUTORS;
+        
+        public int getMaxDistributors() {
+            return maxDistributors;
+        }
+        
+        public void setMaxDistributors(int maxDistributors) {
+            this.maxDistributors = maxDistributors;
         }
     }
 }

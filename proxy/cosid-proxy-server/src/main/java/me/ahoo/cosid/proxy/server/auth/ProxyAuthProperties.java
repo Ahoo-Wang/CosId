@@ -66,6 +66,12 @@ public class ProxyAuthProperties {
     private List<String> tokens = new ArrayList<>();
     
     /**
+     * Tokens limited to some namespaces, for example one per application. A request for another namespace gets
+     * {@code 403}. Tokens in {@link #getTokens()} may use every namespace.
+     */
+    private List<Client> clients = new ArrayList<>();
+    
+    /**
      * Path patterns that need no token. Not set: the health endpoint under
      * {@code management.endpoints.web.base-path} ({@code /actuator/health} and {@code /actuator/health/**} by default).
      */
@@ -100,5 +106,51 @@ public class ProxyAuthProperties {
     
     public void setPublicPaths(List<String> publicPaths) {
         this.publicPaths = publicPaths;
+    }
+    
+    public List<Client> getClients() {
+        return clients;
+    }
+    
+    public void setClients(List<Client> clients) {
+        this.clients = clients;
+    }
+    
+    /**
+     * A token and the namespaces it may use.
+     */
+    public static class Client {
+        /**
+         * The bearer token of the client.
+         */
+        private String token;
+        /**
+         * Namespaces the token may use. Empty means every namespace, as a token in {@code tokens}.
+         */
+        private List<String> namespaces = new ArrayList<>();
+        
+        public Client() {
+        }
+        
+        public Client(String token, List<String> namespaces) {
+            this.token = token;
+            this.namespaces = namespaces;
+        }
+        
+        public String getToken() {
+            return token;
+        }
+        
+        public void setToken(String token) {
+            this.token = token;
+        }
+        
+        public List<String> getNamespaces() {
+            return namespaces;
+        }
+        
+        public void setNamespaces(List<String> namespaces) {
+            this.namespaces = namespaces;
+        }
     }
 }

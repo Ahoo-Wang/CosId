@@ -101,6 +101,29 @@ class ProxyServerTest {
     }
 
     @Test
+    void segmentDistributorsAreCapped() {
+        ProxyServerProperties properties = new ProxyServerProperties();
+        assertThat(properties.getSegment().getMaxDistributors()).isEqualTo(10_000);
+        properties.getSegment().setMaxDistributors(2);
+        WebTestClient capped = WebTestClient
+            .bindToController(new SegmentController(segmentDistributorFactory, properties))
+            .controllerAdvice(new GlobalRestExceptionHandler())
+            .build();
+        capped.post().uri("/segments/distributor/test_namespace/first?offset=0&step=10").exchange().expectStatus().isOk();
+        capped.patch().uri("/segments/test_namespace/second?step=10").exchange().expectStatus().isOk();
+        
+        capped.patch().uri("/segments/test_namespace/third?step=10").exchange()
+            .expectStatus().isEqualTo(429)
+            .expectBody(ErrorResponse.class)
+            .value(error -> assertThat(error.getCode()).isEqualTo(ErrorResponse.TOO_MANY_DISTRIBUTORS));
+        capped.post().uri("/segments/distributor/other_namespace/first?offset=0&step=10").exchange().expectStatus().isEqualTo(429);
+        
+        // The distributors it already keeps go on working.
+        capped.patch().uri("/segments/test_namespace/first?step=10").exchange().expectStatus().isOk();
+        capped.post().uri("/segments/distributor/test_namespace/second?offset=0&step=10").exchange().expectStatus().isOk();
+    }
+    
+    @Test
     void segmentArgumentsAreValidated() {
         webTestClient.post().uri("/segments/distributor/test_namespace/order?offset=-1&step=20").exchange().expectStatus().isBadRequest();
         webTestClient.post().uri("/segments/distributor/test_namespace/order?offset=0&step=0").exchange().expectStatus().isBadRequest();

@@ -31,20 +31,23 @@ import java.util.List;
  * @author ahoo wang
  */
 @Configuration(proxyBeanMethods = false)
-@EnableConfigurationProperties(ProxyAuthProperties.class)
+@EnableConfigurationProperties({ProxyAuthProperties.class, ProxyServerProperties.class})
 public class ProxyAuthConfiguration {
     
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
-    public ProxyAuthWebFilter proxyAuthWebFilter(ProxyAuthProperties proxyAuthProperties, Environment environment) {
+    public ProxyAuthWebFilter proxyAuthWebFilter(ProxyAuthProperties proxyAuthProperties, ProxyServerProperties proxyServerProperties,
+                                                 Environment environment) {
         List<String> publicPaths = proxyAuthProperties.getPublicPaths();
         if (publicPaths == null) {
             // Follow a custom actuator base path, so health probes keep working.
             publicPaths = ProxyAuthProperties.healthPaths(environment.getProperty("management.endpoints.web.base-path", "/actuator"));
         }
-        ProxyAuthWebFilter filter = new ProxyAuthWebFilter(proxyAuthProperties.getTokens(), publicPaths);
+        ProxyAuthWebFilter filter = new ProxyAuthWebFilter(proxyAuthProperties.getTokens(), proxyAuthProperties.getClients(), publicPaths,
+            proxyServerProperties.getNamespaces());
         if (!filter.isEnabled() && !proxyAuthProperties.isAllowAnonymous()) {
-            throw new IllegalStateException("No [" + ProxyAuthProperties.PREFIX + ".tokens] configured: set a token, or set ["
+            throw new IllegalStateException("No [" + ProxyAuthProperties.PREFIX + ".tokens] or [" + ProxyAuthProperties.PREFIX
+                + ".clients] configured: set a token, or set ["
                 + ProxyAuthProperties.PREFIX + ".allow-anonymous=true] to run the proxy without authentication (only behind a trusted network boundary).");
         }
         return filter;

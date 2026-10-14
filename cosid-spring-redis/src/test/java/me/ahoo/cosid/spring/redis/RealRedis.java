@@ -15,17 +15,24 @@ package me.ahoo.cosid.spring.redis;
 
 import me.ahoo.cosid.test.container.RedisLauncher;
 
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Assumptions;
+import org.springframework.data.redis.connection.RedisClusterConfiguration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.net.URI;
+import java.util.List;
 
 /**
  * Builds a {@link StringRedisTemplate} connected to the real Redis provided by {@link RedisLauncher}.
  */
 final class RealRedis {
+    /**
+     * {@code host:port,host:port,...} of a Redis Cluster: when set, every Redis test runs against the cluster.
+     */
+    static final String CLUSTER_NODES_ENV = "COSID_TEST_REDIS_CLUSTER_NODES";
 
     private RealRedis() {
     }
@@ -34,14 +41,26 @@ final class RealRedis {
      * Skips the calling test class when neither {@code COSID_TEST_REDIS_URI} nor Docker is available.
      */
     static LettuceConnectionFactory createConnectionFactory() {
-        Assumptions.assumeTrue(RedisLauncher.isAvailable(), "Redis contract tests need Docker or " + RedisLauncher.URI_ENV);
-        URI uri = URI.create(RedisLauncher.getUri());
-        LettuceConnectionFactory connectionFactory = new LettuceConnectionFactory(new RedisStandaloneConfiguration(uri.getHost(), uri.getPort()));
+        String clusterNodes = clusterNodes();
+        LettuceConnectionFactory connectionFactory;
+        if (clusterNodes != null) {
+            connectionFactory = new LettuceConnectionFactory(new RedisClusterConfiguration(List.of(clusterNodes.split(","))));
+        } else {
+            Assumptions.assumeTrue(RedisLauncher.isAvailable(), "Redis contract tests need Docker or " + RedisLauncher.URI_ENV);
+            URI uri = URI.create(RedisLauncher.getUri());
+            connectionFactory = new LettuceConnectionFactory(new RedisStandaloneConfiguration(uri.getHost(), uri.getPort()));
+        }
         connectionFactory.afterPropertiesSet();
         connectionFactory.start();
         return connectionFactory;
     }
 
+    @Nullable
+    static String clusterNodes() {
+        String nodes = System.getenv(CLUSTER_NODES_ENV);
+        return nodes == null || nodes.isBlank() ? null : nodes.trim();
+    }
+    
     static StringRedisTemplate createRedisTemplate(LettuceConnectionFactory connectionFactory) {
         StringRedisTemplate redisTemplate = new StringRedisTemplate(connectionFactory);
         redisTemplate.afterPropertiesSet();

@@ -104,4 +104,42 @@ class MachineLeaseControllerTest {
             .exchange().expectStatus().isOk().expectBody(LeaseResponse.class).returnResult().getResponseBody();
         assertThat(renewed.lease()).isNotNull();
     }
+    
+    /**
+     * A store whose clock depends on the namespace, as Redis Cluster's.
+     */
+    static final class PerNamespaceClock extends InMemoryMachineLeaseStore {
+        @Override
+        public long serverTime() {
+            return 1000;
+        }
+        
+        @Override
+        public long serverTime(String namespace) {
+            return 2000;
+        }
+    }
+    
+    @Test
+    void theTimeOfANamespaceAndTheTimeOfOldClients() {
+        WebTestClient client = WebTestClient.bindToController(new MachineLeaseController(new PerNamespaceClock())).build();
+        // A 4.0 client sends no namespace.
+        client.get().uri("/machines/v2/time").exchange().expectStatus().isOk().expectBody(Long.class).isEqualTo(1000L);
+        client.get().uri("/machines/v2/time?namespace=order").exchange().expectStatus().isOk().expectBody(Long.class).isEqualTo(2000L);
+    }
+    
+    @org.springframework.web.bind.annotation.RestController
+    static class OldTimeController {
+        @org.springframework.web.bind.annotation.GetMapping("/machines/v2/time")
+        long serverTime() {
+            return 1000;
+        }
+    }
+    
+    @Test
+    void aServerBefore41IgnoresTheNamespace() {
+        // A 4.1 client asks a 4.0 server, which maps /time without parameters.
+        WebTestClient.bindToController(new OldTimeController()).build()
+            .get().uri("/machines/v2/time?namespace=order").exchange().expectStatus().isOk().expectBody(Long.class).isEqualTo(1000L);
+    }
 }

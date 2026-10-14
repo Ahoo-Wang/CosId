@@ -272,6 +272,52 @@ jobs:
           done
           exit $status
 
+  cosid-spring-redis-cluster-test:
+    name: CosId Spring Redis Cluster Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          server-id: github
+          cache: gradle
+          settings-path: ${{ github.workspace }}
+
+      # Three masters, one slot range each: the namespaces of the tests land on different nodes.
+      - name: Start Redis Cluster
+        run: |
+          docker run -d --name redis-cluster --network host redis:7.4-alpine sh -c \
+            'for port in 7000 7001 7002; do redis-server --port $port --cluster-enabled yes --cluster-config-file nodes-$port.conf --save "" --appendonly no --daemonize yes; done; sleep infinity'
+          for _ in $(seq 1 30); do docker exec redis-cluster redis-cli -p 7002 ping > /dev/null 2>&1 && break; sleep 1; done
+          docker exec redis-cluster redis-cli --cluster create 127.0.0.1:7000 127.0.0.1:7001 127.0.0.1:7002 --cluster-yes
+          for _ in $(seq 1 30); do docker exec redis-cluster redis-cli -p 7000 cluster info | grep -q 'cluster_state:ok' && break; sleep 1; done
+          docker exec redis-cluster redis-cli -p 7000 cluster info | grep 'cluster_state:ok'
+
+      - name: Test CosId-Spring-Redis on Redis Cluster
+        env:
+          COSID_TEST_REDIS_CLUSTER_NODES: 127.0.0.1:7000,127.0.0.1:7001,127.0.0.1:7002
+        run: scripts/gradle-retry.sh cosid-spring-redis:clean cosid-spring-redis:test --tests '*ContractTest' --tests '*MixedLeaseFormatTest' --tests '*RedisClusterTest'
+
+      # The tests skip themselves without Redis: make sure they really ran, against the cluster.
+      - name: Check the cluster tests ran
+        run: |
+          status=0
+          reports=$(ls cosid-spring-redis/build/test-results/test/TEST-*ContractTest.xml cosid-spring-redis/build/test-results/test/TEST-*MixedLeaseFormatTest.xml cosid-spring-redis/build/test-results/test/TEST-*RedisClusterTest.xml) || status=1
+          for report in $reports; do
+            skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
+            if [ "$skipped" -gt 0 ]; then
+              echo "::error::$report skipped $skipped tests"
+              status=1
+            fi
+          done
+          exit $status
+
   cosid-mongo-test:
     name: CosId Mongo Test
     needs: [ cosid-core-test ]

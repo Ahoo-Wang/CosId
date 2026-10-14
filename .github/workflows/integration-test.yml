@@ -509,6 +509,69 @@ jobs:
           done
           exit $status
 
+  # The supported Spring Boot and Java versions: the starter and the proxy server (with its virtual-thread test) on each.
+  # The docs' compatibility table lists the same matrix.
+  cosid-compatibility-test:
+    name: CosId Compatibility (Boot ${{ matrix.boot }}, Java ${{ matrix.java }})
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        boot: [ '4.0.8', '4.1.1' ]
+        java: [ '17', '21', '25' ]
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    steps:
+      - name: Start Mysql
+        run: sudo /etc/init.d/mysql start
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Java 17 compiles; the matrix Java runs the tests.
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          java-version: |
+            ${{ matrix.java }}
+            17
+          distribution: 'temurin'
+          server-id: github
+          cache: gradle
+          settings-path: ${{ github.workspace }}
+
+      - name: Init CosId-Db
+        run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
+
+      - name: Test the starter and the proxy server
+        env:
+          COSID_TEST_REDIS_URI: redis://localhost:6379
+        run: >-
+          scripts/gradle-retry.sh -PspringBootVersion=${{ matrix.boot }} -PtestJavaVersion=${{ matrix.java }}
+          cosid-spring-boot-starter:test cosid-proxy-server:test
+
+      - name: Check the tests ran
+        run: |
+          status=0
+          reports=$(ls cosid-spring-boot-starter/build/test-results/test/TEST-*.xml proxy/cosid-proxy-server/build/test-results/test/TEST-me.ahoo.cosid.proxy.server.contract.*.xml) || status=1
+          for report in $reports; do
+            skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
+            if [ "$skipped" -gt 0 ]; then
+              echo "::error::$report skipped $skipped tests"
+              status=1
+            fi
+          done
+          exit $status
+
   cosid-spring-boot-starter-test:
     name: CosId Spring Boot Starter Test
     needs: [ cosid-core-test ]

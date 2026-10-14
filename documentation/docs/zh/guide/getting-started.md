@@ -11,6 +11,15 @@
 | 2.x | 3.x | 17+ | `2.x` |
 | 1.x | 2.x | 8+ | `1.x` |
 
+从 4.1 起，每个版本都在以下组合上测试：
+
+| Spring Boot | Java |
+|---|---|
+| 4.0.x | 17、21、25 |
+| 4.1.x | 17、21、25 |
+
+CosId 发布的元数据只要求 Spring Boot 4.0（最低支持版本）的依赖版本，不再带上自己的依赖平台：版本由应用的 Spring Boot（其 BOM 或插件）决定。如需完全使用 CosId 构建时的版本，可将 `me.ahoo.cosid:cosid-dependencies` 作为 platform 引入。
+
 从 3.x 升级：见[迁移到 4.0](./migration/4.0.md)。
 
 ## 1. 添加依赖

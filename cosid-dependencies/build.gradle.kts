@@ -11,8 +11,15 @@
  * limitations under the License.
  */
 
+// -PspringBootVersion=4.0.8 builds and tests against another Spring Boot 4.x, as the CI matrix does.
+val springBootVersion = findProperty("springBootVersion")?.toString()
+
 dependencies {
-    api(platform(libs.spring.boot.dependencies))
+    if (springBootVersion != null) {
+        api(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+    } else {
+        api(platform(libs.spring.boot.dependencies))
+    }
     api(platform(libs.spring.cloud.dependencies))
     api(platform(libs.coapi.bom))
     api(platform(libs.mongodb.driver.bom))

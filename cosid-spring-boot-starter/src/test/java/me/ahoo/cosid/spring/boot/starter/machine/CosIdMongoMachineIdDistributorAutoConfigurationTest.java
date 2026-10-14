@@ -141,6 +141,7 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
         when(client.getDatabase(anyString())).thenReturn(database);
         when(database.getCollection(anyString())).thenReturn(collection);
         when(database.withTimeout(anyLong(), any())).thenReturn(database);
+        when(database.withWriteConcern(any())).thenReturn(database);
         return client;
     }
 
@@ -177,5 +178,37 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.Distributor.TYPE + "=mongo")
             .run(context -> assertThat(context).hasFailed()
                 .getFailure().rootCause().hasMessage(MongoReactiveRemoved.MESSAGE));
+    }
+    
+    @Test
+    void writesWithTheConfiguredWriteConcern() {
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdMongoMachineIdDistributorAutoConfiguration.class))
+            .withClassLoader(new FilteredClassLoader(com.mongodb.reactivestreams.client.MongoClient.class))
+            .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
+            .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
+            .withBean(MongoClient.class, CosIdMongoMachineIdDistributorAutoConfigurationTest::mongoClient)
+            .withBean(MachineProperties.class, () -> {
+                MachineProperties machineProperties = new MachineProperties();
+                machineProperties.getDistributor().getMongo().setWriteConcern("majority");
+                return machineProperties;
+            })
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.Distributor.TYPE + "=mongo")
+            .run(context -> {
+                assertThat(context).hasSingleBean(MongoMachineLeaseStore.class);
+                MongoDatabase database = context.getBean(MongoClient.class).getDatabase("cosid_db");
+                verify(database, org.mockito.Mockito.atLeastOnce()).withWriteConcern(com.mongodb.WriteConcern.MAJORITY);
+            });
+    }
+    
+    @Test
+    void keepsTheConnectionStringsWriteConcernByDefault() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.Distributor.TYPE + "=mongo")
+            .run(context -> {
+                assertThat(context).hasSingleBean(MongoMachineLeaseStore.class);
+                MongoDatabase database = context.getBean(MongoClient.class).getDatabase("cosid_db");
+                verify(database, never()).withWriteConcern(any());
+            });
     }
 }

@@ -17,6 +17,7 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.Mockito.mock;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.spring.redis.RedisReplicaWait;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributor;
 import me.ahoo.cosid.spring.redis.SpringRedisIdSegmentDistributorFactory;
 
@@ -114,5 +115,33 @@ class CosIdSpringRedisSegmentAutoConfigurationTest {
                     .doesNotHaveBean(IdSegmentDistributorFactory.class)
                 ;
             });
+    }
+    
+    @Test
+    void noReplicaWaitByDefault() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", SegmentIdProperties.Distributor.TYPE + "=redis")
+            .run(context -> assertThat(((SpringRedisIdSegmentDistributorFactory) context.getBean(IdSegmentDistributorFactory.class)).getReplicaWait())
+                .isSameAs(RedisReplicaWait.NONE));
+    }
+    
+    @Test
+    void wiresTheReplicaWait() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", SegmentIdProperties.Distributor.TYPE + "=redis",
+                "cosid.segment.distributor.redis.wait-replicas=2", "cosid.segment.distributor.redis.wait-timeout=200ms")
+            .run(context -> {
+                RedisReplicaWait replicaWait = ((SpringRedisIdSegmentDistributorFactory) context.getBean(IdSegmentDistributorFactory.class)).getReplicaWait();
+                assertThat(replicaWait.getReplicas()).isEqualTo(2);
+                assertThat(replicaWait.getTimeout()).isEqualTo(Duration.ofMillis(200));
+            });
+    }
+    
+    @Test
+    void aWaitTimeoutNotShorterThanTheTimeoutFailsStartup() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", SegmentIdProperties.Distributor.TYPE + "=redis",
+                "cosid.segment.distributor.redis.wait-replicas=1", "cosid.segment.distributor.redis.wait-timeout=1s")
+            .run(context -> assertThat(context).getFailure().rootCause().hasMessageContaining("cosid.segment.distributor.redis.wait-timeout"));
     }
 }

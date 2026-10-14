@@ -58,6 +58,7 @@ public class SpringRedisIdSegmentDistributor extends AbstractIdSegmentDistributo
     private final long offset;
     private final StringRedisTemplate redisTemplate;
     private final RedisCommandTimeout commandTimeout;
+    private final RedisReplicaWait replicaWait;
     
     public SpringRedisIdSegmentDistributor(String namespace,
                                            String name,
@@ -79,12 +80,29 @@ public class SpringRedisIdSegmentDistributor extends AbstractIdSegmentDistributo
                                            long step,
                                            StringRedisTemplate redisTemplate,
                                            RedisCommandTimeout commandTimeout) {
+        this(namespace, name, offset, step, redisTemplate, commandTimeout, RedisReplicaWait.NONE);
+    }
+    
+    /**
+     * Create a distributor that waits for replicas after each increment.
+     *
+     * @param replicaWait the replicas each increment waits for, within the command timeout
+     * @since 4.1.0
+     */
+    public SpringRedisIdSegmentDistributor(String namespace,
+                                           String name,
+                                           long offset,
+                                           long step,
+                                           StringRedisTemplate redisTemplate,
+                                           RedisCommandTimeout commandTimeout,
+                                           RedisReplicaWait replicaWait) {
         super(namespace, name, step);
         Checks.checkArgument(offset >= 0, "offset:[%s] must be greater than or equal to 0!", offset);
         
         this.offset = offset;
         this.redisTemplate = redisTemplate;
         this.commandTimeout = Checks.checkNotNull(commandTimeout, "commandTimeout can not be null!");
+        this.replicaWait = Checks.checkNotNull(replicaWait, "replicaWait can not be null!");
         this.adderKey = CosId.COSID + ":" + hashTag(getNamespacedName()) + ".adder";
     }
     
@@ -109,6 +127,15 @@ public class SpringRedisIdSegmentDistributor extends AbstractIdSegmentDistributo
         return offset;
     }
     
+    /**
+     * The replicas each increment waits for.
+     *
+     * @since 4.1.0
+     */
+    public RedisReplicaWait getReplicaWait() {
+        return replicaWait;
+    }
+    
     
     @Override
     protected long doNextMaxId(long step) {
@@ -117,7 +144,8 @@ public class SpringRedisIdSegmentDistributor extends AbstractIdSegmentDistributo
         }
         
         String nextMaxIdValue = commandTimeout.call("nextMaxId",
-            () -> redisTemplate.execute(REDIS_ID_GENERATE, Collections.singletonList(adderKey), String.valueOf(offset), String.valueOf(step)));
+            () -> replicaWait.execute(redisTemplate, adderKey, "nextMaxId",
+                operations -> operations.execute(REDIS_ID_GENERATE, Collections.singletonList(adderKey), String.valueOf(offset), String.valueOf(step))));
         Checks.checkNotNull(nextMaxIdValue, "nextMaxId can not be null!");
         long nextMaxId = Long.parseLong(nextMaxIdValue);
         if (log.isDebugEnabled()) {

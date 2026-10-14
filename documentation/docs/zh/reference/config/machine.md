@@ -29,7 +29,7 @@ Snowflake ID 和 `CosIdGenerator` 需要机器号。租约的工作方式见[机
 | `distributor.jdbc.init-cos-id-machine-table-sql` | `String` | MySQL DDL | `jdbc`：建表语句 |
 | `distributor.jdbc.init-namespace-idx-sql`、`init-instance-id-idx-sql` | `String` | 空 | `jdbc`：单独的建索引语句，为空时跳过（MySQL 建表语句已内联声明索引） |
 | `distributor.jdbc.query-timeout` | `Duration` | `5s` | `jdbc`：每条语句；`0` 表示不限制 |
-| `distributor.jdbc.server-time-sql` | `String` | 自动识别 | `jdbc`：查询数据库时钟（epoch 毫秒）的语句。未设置时，Starter 会为 MySQL、MariaDB 和 PostgreSQL 自动选择；其他数据库必须设置 |
+| `distributor.jdbc.server-time-sql` | `String` | 自动识别 | `jdbc`：查询数据库时钟（epoch 毫秒）的语句。未设置时，Starter 会为 MySQL、MariaDB、PostgreSQL、H2 和 SQL Server 自动选择；其他数据库必须设置 |
 | `distributor.mongo.database` | `String` | `cosid_db` | `mongo`：`cosid_machine` 集合所在的数据库 |
 | `distributor.mongo.timeout` | `Duration` | `5s` | `mongo`：每次操作（驱动的 `timeoutMS`）；必须为正数 |
 | `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`：租约续约和释放（Curator 没有单次操作超时）；必须为正数 |

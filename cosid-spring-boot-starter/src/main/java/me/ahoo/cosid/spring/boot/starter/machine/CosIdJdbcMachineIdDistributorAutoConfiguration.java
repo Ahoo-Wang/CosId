@@ -15,7 +15,6 @@ package me.ahoo.cosid.spring.boot.starter.machine;
 
 import me.ahoo.cosid.jdbc.JdbcMachineIdInitializer;
 import me.ahoo.cosid.jdbc.JdbcMachineLeaseStore;
-import me.ahoo.cosid.jdbc.PostgreSqlDialect;
 import me.ahoo.cosid.machine.ClockBackwardsSynchronizer;
 import me.ahoo.cosid.machine.MachineIdDistributor;
 import me.ahoo.cosid.machine.MachineStateStorage;
@@ -35,9 +34,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Locale;
 import javax.sql.DataSource;
 
 /**
@@ -79,33 +75,16 @@ public class CosIdJdbcMachineIdDistributorAutoConfiguration {
     /**
      * The machine id lease store on the {@code cosid_machine} table. It fails at startup, naming the {@code ALTER
      * TABLE}, when the table lacks the 4.0 lease columns. The server clock query follows
-     * {@code cosid.machine.distributor.jdbc.server-time-sql}, or the database product (PostgreSQL or MySQL).
+     * {@code cosid.machine.distributor.jdbc.server-time-sql}, or the database product ({@link me.ahoo.cosid.jdbc.JdbcDialect}).
      */
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnBuiltInMachineStore
     public JdbcMachineLeaseStore jdbcMachineLeaseStore(JdbcMachineIdInitializer jdbcMachineIdInitializer, DataSource dataSource) {
         MachineProperties.Jdbc jdbc = machineProperties.getDistributor().getJdbc();
-        String serverTimeSql = jdbc.getServerTimeSql() != null ? jdbc.getServerTimeSql() : serverTimeSqlOf(dataSource);
-        return new JdbcMachineLeaseStore(dataSource, jdbc.getQueryTimeout(), serverTimeSql);
-    }
-    
-    private static String serverTimeSqlOf(DataSource dataSource) {
-        try (Connection connection = dataSource.getConnection()) {
-            String product = String.valueOf(connection.getMetaData().getDatabaseProductName());
-            String normalized = product.toLowerCase(Locale.ROOT);
-            if (normalized.contains("postgres")) {
-                return PostgreSqlDialect.SERVER_TIME_SQL;
-            }
-            if (normalized.contains("mysql") || normalized.contains("mariadb")) {
-                return JdbcMachineLeaseStore.MYSQL_SERVER_TIME_SQL;
-            }
-            throw new IllegalStateException("No server time query known for database [" + product + "]: set "
-                + MachineProperties.PREFIX + ".distributor.jdbc.server-time-sql to a query returning the server's current time in milliseconds.");
-        } catch (SQLException sqlException) {
-            throw new IllegalStateException("Can not read the database product to choose the server time query: set "
-                + MachineProperties.PREFIX + ".distributor.jdbc.server-time-sql.", sqlException);
-        }
+        String serverTimeSql = jdbc.getServerTimeSql();
+        return serverTimeSql != null ? new JdbcMachineLeaseStore(dataSource, jdbc.getQueryTimeout(), serverTimeSql)
+            : new JdbcMachineLeaseStore(dataSource, jdbc.getQueryTimeout());
     }
     
     @Bean

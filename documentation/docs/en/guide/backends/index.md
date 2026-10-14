@@ -7,7 +7,7 @@ CosId needs a store for two things: the counters of [segment IDs](../concepts/se
 | Backend | `type` | Module | Segments | Machine ids | Lease clock | Choose it when |
 |---------|--------|--------|:--------:|:-----------:|-------------|----------------|
 | [Redis](./redis.md) | `redis` | `cosid-spring-redis` + Spring Data Redis | Yes | Yes | Redis server | You run Redis with persistence. The default segment store |
-| [JDBC](./jdbc.md) | `jdbc` | `cosid-jdbc` + a `DataSource` | Yes | Yes | Database server | You have MySQL, MariaDB or PostgreSQL and want the counters in the database |
+| [JDBC](./jdbc.md) | `jdbc` | `cosid-jdbc` + a `DataSource` | Yes | Yes | Database server | You have MySQL, MariaDB, PostgreSQL, H2 or SQL Server and want the counters in the database |
 | [MongoDB](./mongo.md) | `mongo` | `cosid-mongo` + Spring Data MongoDB | Yes | Yes | MongoDB server | You run MongoDB |
 | [ZooKeeper](./zookeeper.md) | `zookeeper` | `cosid-zookeeper` (Curator) | Yes | Yes | Host clock | You run ZooKeeper and keep host clocks in sync |
 | [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy` (CoApi optional) | Yes | Yes | The proxy's store | Applications must not reach the store directly |

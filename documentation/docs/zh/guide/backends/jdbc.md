@@ -5,7 +5,7 @@
 - `JdbcIdSegmentDistributor`：号段计数器，每个生成器在 `cosid` 表中占一行。
 - `JdbcMachineLeaseStore`：机器号租约，每个机器号在 `cosid_machine` 表中占一行。租约时间取自数据库时钟。
 
-MySQL 和 MariaDB 使用默认语句即可；PostgreSQL 需要使用 `PostgreSqlDialect` 中的语句，见[下文](#postgresql)。其他数据库可以配置自己的语句。
+MySQL、MariaDB、PostgreSQL、H2 和 SQL Server 无需配置 SQL 属性：Starter 会自动识别数据库，见[数据库](#数据库)。其他数据库可以配置自己的语句；不支持 Oracle。
 
 ## 安装
 
@@ -62,13 +62,13 @@ cosid:
 |------|--------|------|
 | `cosid.segment.distributor.jdbc.enable-auto-init-cosid-table` | `false` | 启动时用 `init-cosid-table-sql` 创建 `cosid` 表 |
 | `cosid.segment.distributor.jdbc.enable-auto-init-id-segment` | `true` | 启动时用 `init-id-segment-sql` 插入缺失的生成器行 |
-| `cosid.segment.distributor.jdbc.init-cosid-table-sql`、`init-id-segment-sql`、`increment-max-id-sql`、`fetch-max-id-sql` | MySQL 语句 | 号段相关语句 |
+| `cosid.segment.distributor.jdbc.init-cosid-table-sql`、`init-id-segment-sql`、`increment-max-id-sql`、`fetch-max-id-sql` | 自动识别 | 号段相关语句。保持默认值（MySQL 语句）时随数据库而定 |
 | `cosid.segment.distributor.jdbc.query-timeout` | `5s` | 每条号段语句；`0` 表示不限制 |
-| `cosid.segment.distributor.jdbc.fetch-plan` | `auto` | `auto`：默认的 MySQL 语句在自动提交模式下以 `last_insert_id` 执行，PostgreSQL 语句以一条 `update ... returning` 执行，其他语句在事务中执行。`transaction`：始终在事务中先更新再查询。在 SQL 代理和读写分离中间件（ShardingSphere、MyCat、ProxySQL 读写分离、Vitess）之后请使用 `transaction`，它们可能不会传回更新语句的生成键 |
+| `cosid.segment.distributor.jdbc.fetch-plan` | `auto` | `auto`：内置语句在自动提交模式下一次往返完成（见[号段的获取方式](#号段的获取方式)），其他语句在事务中执行。`transaction`：始终在事务中先更新再查询。在 SQL 代理和读写分离中间件（ShardingSphere、MyCat、ProxySQL 读写分离、Vitess）之后请使用 `transaction`，它们可能不会传回更新语句的生成键 |
 | `cosid.machine.distributor.jdbc.enable-auto-init-cosid-machine-table` | `false` | 启动时创建 `cosid_machine` 表 |
-| `cosid.machine.distributor.jdbc.init-cos-id-machine-table-sql`、`init-namespace-idx-sql`、`init-instance-id-idx-sql` | MySQL 语句 | 机器号表相关语句；为空的索引语句会被跳过 |
+| `cosid.machine.distributor.jdbc.init-cos-id-machine-table-sql`、`init-namespace-idx-sql`、`init-instance-id-idx-sql` | 自动识别 | 机器号表相关语句；为空的索引语句会被跳过。开启 `enable-auto-init-cosid-machine-table` 且保持默认值时随数据库而定 |
 | `cosid.machine.distributor.jdbc.query-timeout` | `5s` | 每条机器号语句；`0` 表示不限制 |
-| `cosid.machine.distributor.jdbc.server-time-sql` | 自动识别 | 查询数据库时钟（epoch 毫秒）的语句。未设置时，Starter 会为 MySQL、MariaDB 和 PostgreSQL 自动选择；其他数据库必须设置 |
+| `cosid.machine.distributor.jdbc.server-time-sql` | 自动识别 | 查询数据库时钟（epoch 毫秒）的语句。未设置时，Starter 会为 MySQL、MariaDB、PostgreSQL、H2 和 SQL Server 自动选择；其他数据库必须设置 |
 
 ::: warning 使用独立的 DataSource
 CosId 会自行提交它的写入（连接池设置了 `autoCommit=false` 时也一样）。请给它一个不参与业务事务的 `DataSource`：`TransactionAwareDataSourceProxy` 或 JTA `DataSource` 会提前提交调用方的事务。
@@ -125,43 +125,21 @@ alter table cosid_machine add column if not exists renew_time bigint not null de
     add column if not exists lease_version bigint not null default 0;
 ```
 
-步骤顺序见[滚动升级](../operations/rolling-upgrade.md)。
+H2 和 SQL Server 的语句是 `JdbcDialect.getAddLeaseColumnsSql()`。步骤顺序见[滚动升级](../operations/rolling-upgrade.md)。
 
 ## 号段的获取方式
 
-使用默认的 MySQL 语句时，获取一个号段在自动提交模式下只执行一条语句，不开事务：`update cosid set last_max_id=last_insert_id(last_max_id + ?), ...`，它返回的生成键就是新值（MySQL、MariaDB）。使用 `PostgreSqlDialect` 的 PostgreSQL 语句时只执行一条：`update ... returning last_max_id`。其他自定义语句仍和以前一样，在一个事务中先更新再查询；设置 `fetch-plan: transaction` 时所有获取都如此。没有返回生成键，或生成键小于步长，说明 SQL 代理没有把更新的值传回：此时获取会失败并提示 `fetch-plan: transaction`，而不是发出重复的 ID。语句按原样比较，只忽略空白和末尾的 `;`：`update COSID ...` 不是默认语句。连接归还连接池时保持取出时的自动提交模式。初始化语句在 `query-timeout` 后超时；已存在的表、索引或号段行会被静默跳过，其他错误以 WARN 级别连同原因记录。
+使用默认的 MySQL 语句时，获取一个号段在自动提交模式下只执行一条语句，不开事务：`update cosid set last_max_id=last_insert_id(last_max_id + ?), ...`，它返回的生成键就是新值（MySQL、MariaDB）。使用其他数据库的语句时同样只执行一条查询：`update ... returning last_max_id`（PostgreSQL）、`select last_max_id from final table (update ...)`（H2）、`update ... output inserted.last_max_id ...`（SQL Server）。其他自定义语句仍和以前一样，在一个事务中先更新再查询；设置 `fetch-plan: transaction` 时所有获取都如此。没有返回生成键，或生成键小于步长，说明 SQL 代理没有把更新的值传回：此时获取会失败并提示 `fetch-plan: transaction`，而不是发出重复的 ID。语句按原样比较，只忽略空白和末尾的 `;`：`update COSID ...` 不是默认语句。连接归还连接池时保持取出时的自动提交模式。初始化语句在 `query-timeout` 后超时；已存在的表、索引或号段行会被静默跳过，其他错误以 WARN 级别连同原因记录。
 
-## PostgreSQL
+## 数据库
 
-`me.ahoo.cosid.jdbc.PostgreSqlDialect` 提供了 PostgreSQL 版本的语句（在 PostgreSQL 16 上测试）。可以设置为上面的属性，不使用 Starter 时则传给 `JdbcIdSegmentInitializer`、`JdbcIdSegmentDistributorFactory` 和 `JdbcMachineIdInitializer`。Starter 会为 PostgreSQL 自动识别服务器时间查询；不使用 Starter 时，把 `PostgreSqlDialect.SERVER_TIME_SQL` 传给 `JdbcMachineLeaseStore`。
+| 数据库 | 测试版本 | 识别所用的产品名 |
+|--------|----------|------------------|
+| MySQL、MariaDB | MySQL 8.0、8.4；MariaDB 10.11 | `MySQL`、`MariaDB` |
+| PostgreSQL | 16 | `PostgreSQL` |
+| H2 | 2.x，任意兼容模式 | `H2` |
+| SQL Server | 2022（支持 2016 及以上） | `Microsoft SQL Server` |
 
-```yaml
-cosid:
-  segment:
-    distributor:
-      type: jdbc
-      jdbc:
-        enable-auto-init-cosid-table: true
-        init-cosid-table-sql: >-
-          create table if not exists cosid (name varchar(100) not null, last_max_id bigint not null default 0,
-          last_fetch_time bigint not null default 0, constraint cosid_pk primary key (name))
-        init-id-segment-sql: >-
-          insert into cosid (name, last_max_id, last_fetch_time) values (?, ?, cast(extract(epoch from now()) as bigint))
-        increment-max-id-sql: >-
-          update cosid set last_max_id=(last_max_id + ?),last_fetch_time=cast(extract(epoch from now()) as bigint) where name = ?
-        fetch-max-id-sql: select last_max_id from cosid where name = ?
-  machine:
-    distributor:
-      type: jdbc
-      jdbc:
-        enable-auto-init-cosid-machine-table: true
-        init-cos-id-machine-table-sql: >-
-          create table if not exists cosid_machine (name varchar(100) not null, namespace varchar(100) not null,
-          machine_id integer not null default 0, last_timestamp bigint not null default 0,
-          instance_id varchar(100) not null default '', distribute_time bigint not null default 0,
-          revert_time bigint not null default 0, stable smallint not null default 0,
-          renew_time bigint not null default 0, watermark bigint not null default 0, lease_version bigint not null default 0,
-          constraint cosid_machine_pk primary key (name))
-        init-namespace-idx-sql: create index if not exists idx_namespace on cosid_machine (namespace)
-        init-instance-id-idx-sql: create index if not exists idx_instance_id on cosid_machine (instance_id)
-```
+保持默认值（MySQL 语句，比较时忽略空白和末尾的 `;`）的语句，会按连接所报告的数据库，改用 `me.ahoo.cosid.jdbc.JdbcDialect` 中该数据库的语句；其他值按配置使用。产品名在语句第一次需要时从连接的元数据读取，而不是在启动时：启动时宕机或很慢的数据库，在恢复响应后才被识别。号段获取在读到产品名后保持该选择；MySQL 的 `last_insert_id` 路径只在报告为 MySQL 或 MariaDB 的数据库上使用，其他数据库，或无法读取产品名时，都在事务中获取。不使用 Starter 时行为相同。不支持 Oracle 等其他数据库：请配置所有语句，包括 `server-time-sql`。
+
+`JdbcDialect` 也提供各数据库的语句，可显式传入（`JdbcDialect.POSTGRESQL.getIncrementMaxIdSql()` 等）；`PostgreSqlDialect` 仍以常量形式提供 PostgreSQL 语句。

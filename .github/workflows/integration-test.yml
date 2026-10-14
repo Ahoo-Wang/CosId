@@ -509,6 +509,42 @@ jobs:
           done
           exit $status
 
+  # SQL Server is not a required check: its image is large, so its tests only run here, on Testcontainers.
+  cosid-jdbc-sqlserver-test:
+    name: CosId Jdbc SQL Server Test
+    needs: [ cosid-core-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          server-id: github
+          cache: gradle
+          settings-path: ${{ github.workspace }}
+
+      - name: Test CosId-Jdbc on SQL Server
+        env:
+          COSID_TEST_SQLSERVER_ENABLED: 'true'
+        run: scripts/gradle-retry.sh cosid-jdbc:test --tests '*SqlServer*'
+
+      - name: Check SQL Server tests ran
+        run: |
+          status=0
+          reports=$(ls cosid-jdbc/build/test-results/test/TEST-*SqlServer*.xml) || status=1
+          for report in $reports; do
+            skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
+            if [ "$skipped" -gt 0 ]; then
+              echo "::error::$report skipped $skipped tests"
+              status=1
+            fi
+          done
+          exit $status
+
   cosid-spring-boot-starter-test:
     name: CosId Spring Boot Starter Test
     needs: [ cosid-core-test ]

@@ -55,7 +55,7 @@ jobs:
           settings-path: ${{ github.workspace }}
 
       - name: Cache japicmp
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/japicmp
           key: japicmp-${{ env.JAPICMP_VERSION }}

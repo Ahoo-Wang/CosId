@@ -105,4 +105,16 @@ public interface MachineLeaseStore {
     default long serverTime() {
         return System.currentTimeMillis();
     }
+    
+    /**
+     * The server time for the leases of a namespace, in epoch milliseconds. Stores where the namespace decides which server
+     * answers (Redis Cluster) read that server's clock; by default {@link #serverTime()}.
+     *
+     * @param namespace the namespace
+     * @return the server time in milliseconds
+     * @since 4.1.0
+     */
+    default long serverTime(String namespace) {
+        return serverTime();
+    }
 }

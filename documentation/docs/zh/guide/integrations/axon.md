@@ -24,7 +24,15 @@ _Axon 模块_ 为 `Axon-Framework` 提供了 `CosId` 的支持，实现了 _Axon
 
 默认情况下 `CosIdIdentifierFactory` 将从*ID生成器容器*(`IdGeneratorProvider`)中获取以 `__share__` 为名称的ID生成器。
 
-开发者也可以通过配置系统属性 `cosid.axon` 自定义ID生成器的名称。
+如需使用共享生成器以外的 ID 生成器，可在配置中指定其名称（4.1 起）：
+
+```yaml
+cosid:
+  axon:
+    generator-name: event
+```
+
+不使用 Starter，或未设置 `cosid.axon.generator-name` 时，由系统属性 `cosid.axon` 指定。
 
 ### 多个应用上下文
 

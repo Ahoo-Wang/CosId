@@ -24,7 +24,15 @@ The _Axon module_ provides `CosId` support for `Axon-Framework`, implementing th
 
 By default, `CosIdIdentifierFactory` will retrieve the ID generator named `__share__` from the *ID generator container* (`IdGeneratorProvider`).
 
-Developers can also customize the ID generator name by configuring the system property `cosid.axon`.
+To use another ID generator than the shared one, name it in the configuration (since 4.1):
+
+```yaml
+cosid:
+  axon:
+    generator-name: event
+```
+
+Without the starter, or when `cosid.axon.generator-name` is unset, the system property `cosid.axon` names it.
 
 ### Several application contexts
 

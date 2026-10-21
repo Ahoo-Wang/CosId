@@ -73,5 +73,6 @@ cosid:
 | `cosid.segment.distributor.mongo.timeout` | `5s` | Each segment operation (driver `timeoutMS`); `0` disables it |
 | `cosid.machine.distributor.mongo.database` | `cosid_db` | Database of the `cosid_machine` collection |
 | `cosid.machine.distributor.mongo.timeout` | `5s` | Each machine id operation (driver `timeoutMS`); must be positive |
+| `cosid.segment.distributor.mongo.write-concern`, `cosid.machine.distributor.mongo.write-concern` | the connection string's | Write concern of CosId's writes: `majority`, `w1`, `w2`, `w3`, `acknowledged`, `journaled` or a number of members |
 
-Run MongoDB with journaling (the default) and write concern `majority` on a replica set, so that an acknowledged counter update survives a failover.
+Run MongoDB with journaling (the default) and write concern `majority` on a replica set, so that an acknowledged counter update or machine id claim survives a failover: a write acknowledged by fewer members is rolled back when a member without it becomes primary, and its ids are handed out again. `write-concern` sets it for CosId alone; unset, CosId uses the connection string's (`w=majority`), or the server's default, which is `majority` since MongoDB 5.0. At startup on a replica set, a write concern weaker than `majority` is logged at WARN.

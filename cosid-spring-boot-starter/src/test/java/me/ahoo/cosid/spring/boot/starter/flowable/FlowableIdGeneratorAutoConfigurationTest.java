@@ -105,4 +105,19 @@ class FlowableIdGeneratorAutoConfigurationTest {
                 .hasBean("cosidFlowableEngineConfigurationConfigurer")
                 .hasBean("cosidActivitiProcessEngineConfigurationConfigurer"));
     }
+    
+    @Test
+    void usesTheConfiguredGeneratorName() {
+        this.contextRunner
+            .withPropertyValues(CosIdAutoConfiguration.PROVIDER_ISOLATED_KEY + "=true", FlowableIdGeneratorAutoConfiguration.GENERATOR_NAME_KEY + "=bpm")
+            .run(context -> {
+                IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
+                provider.setShare(MockIdGenerator.usePrefix("share_"));
+                provider.set("bpm", MockIdGenerator.usePrefix("bpm_"));
+                SpringProcessEngineConfiguration engineConfiguration = mock(SpringProcessEngineConfiguration.class);
+                context.getBean(EngineConfigurationConfigurer.class).configure(engineConfiguration);
+                
+                verify(engineConfiguration).setIdGenerator(argThat(idGenerator -> idGenerator.getNextId().startsWith("bpm_")));
+            });
+    }
 }

@@ -165,4 +165,30 @@ class CosIdIdentifierFactoryTest {
             .filter(event -> event.getLevel() == Level.WARN && event.getFormattedMessage().contains("different IdGeneratorProviders are bound"))
             .count();
     }
+    
+    @Test
+    @Order(20)
+    void theBoundNameTakesThePlaceOfTheSystemProperty() {
+        System.setProperty(ID_KEY, "property");
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.set("property", MockIdGenerator.usePrefix("property_"));
+        provider.set("bound", MockIdGenerator.usePrefix("bound_"));
+        CosIdIdentifierFactory factory = new CosIdIdentifierFactory();
+        
+        CosIdIdentifierFactory.bind(provider, "bound");
+        try {
+            assertThat(factory.generateIdentifier(), startsWith("bound_"));
+            // An explicit name is kept.
+            assertThat(new CosIdIdentifierFactory("property", null).generateIdentifier(), startsWith("property_"));
+        } finally {
+            CosIdIdentifierFactory.unbind(provider);
+        }
+        
+        CosIdIdentifierFactory.bind(provider, null);
+        try {
+            assertThat(factory.generateIdentifier(), startsWith("property_"));
+        } finally {
+            assertThat(CosIdIdentifierFactory.unbind(provider), is(true));
+        }
+    }
 }

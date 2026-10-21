@@ -29,7 +29,7 @@ import org.springframework.test.context.DynamicPropertySource;
 
 /**
  * With virtual threads (Java 21+), the API calls run on Spring Boot's virtual-thread executor: the bounded pool is not
- * created. The build runs the tests on Java 17, where the pool stays; run them on Java 21 to check the virtual side.
+ * created. On Java 17 the pool stays; the CI matrix runs this on Java 17, 21 and 25.
  */
 @EnabledIf("me.ahoo.cosid.proxy.server.contract.ProxyEndToEnd#isAvailable")
 @SpringBootTest(classes = ProxyServer.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -47,6 +47,11 @@ class ProxyVirtualThreadsEndToEndTest {
     
     @Test
     void apiCallsRunOnVirtualThreads() {
+        // The CI matrix runs this on Java 17, 21 and 25 (-PtestJavaVersion): each leg checks its own side.
+        String expectedJava = System.getenv("COSID_TEST_JAVA_VERSION");
+        if (expectedJava != null) {
+            assertThat(Runtime.version().feature()).isEqualTo(Integer.parseInt(expectedJava));
+        }
         assertThat(context.containsBean("applicationTaskExecutor")).isTrue();
         if (Runtime.version().feature() >= 21) {
             assertThat(context.getBeansOfType(ProxyServerConfiguration.ProxyBlockingExecution.class)).isEmpty();

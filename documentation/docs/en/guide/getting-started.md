@@ -11,6 +11,15 @@ This guide adds CosId to a Spring Boot application, with Redis as the store. Eve
 | 2.x | 3.x | 17+ | `2.x` |
 | 1.x | 2.x | 8+ | `1.x` |
 
+Since 4.1 every release is tested on each of these:
+
+| Spring Boot | Java |
+|---|---|
+| 4.0.x | 17, 21, 25 |
+| 4.1.x | 17, 21, 25 |
+
+CosId's published metadata requires the dependency versions of Spring Boot 4.0, the lowest it supports, and no longer brings a platform of its own: your Spring Boot version, from its BOM or plugin, decides. To use exactly the versions CosId was built with, import `me.ahoo.cosid:cosid-dependencies` as a platform.
+
 Upgrading from 3.x: see [Migrating to 4.0](./migration/4.0.md).
 
 ## 1. Add the dependencies

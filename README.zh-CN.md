@@ -22,7 +22,7 @@
 | `SnowflakeId` | `long`，按时间有序 | 4,096,000 ops/s（理论上限） | ID 需要携带生成时间，启动后不再依赖存储 |
 | `CosIdGenerator` | `String`，15 个字符，按时间有序 | — | 实例数量非常多（最多约一百万个机器号） |
 
-存储：Redis、JDBC（MySQL、MariaDB、PostgreSQL）、MongoDB、ZooKeeper、CosId Proxy，或自定义存储。集成：Spring Boot、MyBatis、Spring Data JDBC、Jackson、ShardingSphere、Activiti、Flowable 和 Axon。
+存储：Redis、JDBC（MySQL、MariaDB、PostgreSQL、H2、SQL Server）、MongoDB、ZooKeeper、CosId Proxy，或自定义存储。集成：Spring Boot、MyBatis、Spring Data JDBC、Jackson、ShardingSphere、Activiti、Flowable 和 Axon。
 
 ## 版本兼容性
 

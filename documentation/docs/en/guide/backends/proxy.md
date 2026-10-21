@@ -46,7 +46,7 @@ docker run --name cosid-proxy -d -p 8688:8688 \
   ahoowang/cosid-proxy:__COSID_VERSION__
 ```
 
-The JDBC defaults are MySQL statements: for PostgreSQL, create the tables (or set `enable-auto-init-*` with the PostgreSQL table statements) and override the segment statements as in [JDBC: PostgreSQL](./jdbc.md#postgresql), for example in `SPRING_APPLICATION_JSON` or a mounted `config/application.yaml`. The `SPRING_AUTOCONFIGURE_EXCLUDE` value replaces the whole default list, so it must name every store not in use:
+The JDBC statements follow the database (MySQL or PostgreSQL in the image, see [JDBC: Databases](./jdbc.md#databases)): create the tables, or set `cosid.segment.distributor.jdbc.enable-auto-init-cosid-table` and `cosid.machine.distributor.jdbc.enable-auto-init-cosid-machine-table`, for example in `SPRING_APPLICATION_JSON` or a mounted `config/application.yaml`. The `SPRING_AUTOCONFIGURE_EXCLUDE` value replaces the whole default list, so it must name every store not in use:
 
 | Store | `SPRING_AUTOCONFIGURE_EXCLUDE` |
 |-------|--------------------------------|

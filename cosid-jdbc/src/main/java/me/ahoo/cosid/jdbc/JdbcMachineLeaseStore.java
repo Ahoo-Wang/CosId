@@ -21,6 +21,8 @@ import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.lease.Lease;
 import me.ahoo.cosid.machine.lease.MachineLeaseStore;
 
+import org.jspecify.annotations.Nullable;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -46,7 +48,7 @@ import javax.sql.DataSource;
  * exactly as 3.4 judges it, and a new owner starts after it. The table needs the {@code stable} column ({@link #ADD_STABLE_COLUMN_SQL}) and
  * the lease columns ({@link #ADD_LEASE_COLUMNS_SQL}, {@link PostgreSqlDialect#ADD_LEASE_COLUMNS_SQL}): the constructor
  * fails naming the statement when they are missing. The server clock is read with {@code serverTimeSql}:
- * {@link #MYSQL_SERVER_TIME_SQL} by default, {@link PostgreSqlDialect#SERVER_TIME_SQL} for PostgreSQL. Every statement
+ * {@link #MYSQL_SERVER_TIME_SQL} by default, {@link JdbcDialect#getServerTimeSql()} for the other databases. Every statement
  * has the query timeout, and writes are committed when the connection is not in auto-commit mode.</p>
  *
  * @author ahoo wang
@@ -132,15 +134,64 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
      * Create a JDBC lease store.
      *
      * @param queryTimeout  timeout applied to each statement, {@code null} or zero means no timeout
-     * @param serverTimeSql a query returning the database server's current time in milliseconds
+     * @param serverTimeSql a query returning the database server's current time in milliseconds;
+     *                      {@link #MYSQL_SERVER_TIME_SQL} on another {@link JdbcDialect} database is replaced by its own
      */
     public JdbcMachineLeaseStore(DataSource dataSource, Duration queryTimeout, String serverTimeSql) {
+        this(Checks.checkNotNull(serverTimeSql, "serverTimeSql can not be blank!"), dataSource, queryTimeout);
+    }
+    
+    /**
+     * Create a JDBC lease store whose server clock query is that of the database product ({@link JdbcDialect}).
+     *
+     * @param queryTimeout timeout applied to each statement, {@code null} or zero means no timeout
+     * @throws IllegalStateException when the product cannot be read, or is not one of {@link JdbcDialect}
+     * @since 4.1.0
+     */
+    public JdbcMachineLeaseStore(DataSource dataSource, Duration queryTimeout) {
+        this(null, dataSource, queryTimeout);
+    }
+    
+    private JdbcMachineLeaseStore(@Nullable String serverTimeSql, DataSource dataSource, Duration queryTimeout) {
         this.dataSource = Checks.checkNotNull(dataSource, "dataSource can not be null!");
         this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
-        Checks.checkArgument(serverTimeSql != null && !serverTimeSql.isBlank(), "serverTimeSql can not be blank!");
-        this.serverTimeSql = serverTimeSql;
+        Checks.checkArgument(serverTimeSql == null || !serverTimeSql.isBlank(), "serverTimeSql can not be blank!");
+        this.serverTimeSql = serverTimeSqlOf(serverTimeSql);
         checkStableColumn();
         checkLeaseColumns();
+    }
+    
+    /**
+     * The configured query, the database's own in place of the MySQL default, or the database's own when none is
+     * configured.
+     */
+    private String serverTimeSqlOf(@Nullable String configured) {
+        if (configured != null && !JdbcDialect.isSameStatement(configured, MYSQL_SERVER_TIME_SQL)) {
+            return configured;
+        }
+        String product;
+        try (Connection connection = dataSource.getConnection()) {
+            product = connection.getMetaData().getDatabaseProductName();
+        } catch (SQLException | RuntimeException metadataFailure) {
+            if (configured != null) {
+                return configured;
+            }
+            throw new IllegalStateException("Can not read the database product to choose the server time query: pass one to "
+                + "JdbcMachineLeaseStore (cosid.machine.distributor.jdbc.server-time-sql).", metadataFailure);
+        }
+        Optional<JdbcDialect> dialect = JdbcDialect.of(product);
+        if (dialect.isPresent()) {
+            return dialect.get().getServerTimeSql();
+        }
+        if (configured != null) {
+            return configured;
+        }
+        throw new IllegalStateException("No server time query known for database [" + product + "]: pass one to JdbcMachineLeaseStore "
+            + "(cosid.machine.distributor.jdbc.server-time-sql), a query returning the server's current time in milliseconds.");
+    }
+    
+    String getServerTimeSql() {
+        return serverTimeSql;
     }
     
     /**
@@ -153,7 +204,7 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         }
         if (probe(PROBE_TABLE) != null) {
             throw new IllegalStateException("Table cosid_machine does not exist: create it with JdbcMachineIdInitializer "
-                + "(or PostgreSqlDialect.INIT_COSID_MACHINE_TABLE_SQL on PostgreSQL).", sqlException);
+                + "(with JdbcDialect.getInitCosIdMachineTableSql() of your database outside MySQL).", sqlException);
         }
         throw new IllegalStateException("Table cosid_machine has no stable column, which JdbcMachineLeaseStore needs. Add it with: ["
                 + ADD_STABLE_COLUMN_SQL + "] (MySQL) or [" + PostgreSqlDialect.ADD_STABLE_COLUMN_SQL + "] (PostgreSQL).",
@@ -170,7 +221,8 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         }
         throw new IllegalStateException("Table cosid_machine has no lease columns (renew_time, watermark, lease_version), which "
                 + "JdbcMachineLeaseStore needs since 4.0. Add them with: [" + ADD_LEASE_COLUMNS_SQL + "] (MySQL) or ["
-                + PostgreSqlDialect.ADD_LEASE_COLUMNS_SQL + "] (PostgreSQL). 3.4 instances keep working with them.",
+                + PostgreSqlDialect.ADD_LEASE_COLUMNS_SQL + "] (PostgreSQL), or JdbcDialect.getAddLeaseColumnsSql() of your database. "
+                + "3.4 instances keep working with them.",
             sqlException);
     }
     

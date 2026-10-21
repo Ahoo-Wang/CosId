@@ -13,16 +13,17 @@
 
 package me.ahoo.cosid.jdbc;
 
-import javax.sql.DataSource;
 import java.io.PrintWriter;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
+import javax.sql.DataSource;
 
 /**
  * A database without a database: records the statements, the auto-commit changes, commits and query timeouts.
@@ -36,6 +37,11 @@ final class FakeJdbc implements DataSource {
     SQLException failure;
     String failingSqlPrefix = "";
     boolean generatedKeys = true;
+    /**
+     * What the connection's metadata reports, {@code null} to fail reading it.
+     */
+    String product = "MySQL";
+    int metadataReads;
     /**
      * The generated key, when it differs from what a select returns ({@link #maxId}).
      */
@@ -66,9 +72,24 @@ final class FakeJdbc implements DataSource {
                     return null;
                 case "isClosed":
                     return false;
+                case "getMetaData":
+                    return metaData();
                 default:
                     throw new UnsupportedOperationException(method.getName());
             }
+        });
+    }
+    
+    private DatabaseMetaData metaData() {
+        return (DatabaseMetaData) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[] {DatabaseMetaData.class}, (proxy, method, args) -> {
+            if (!"getDatabaseProductName".equals(method.getName())) {
+                throw new UnsupportedOperationException(method.getName());
+            }
+            metadataReads++;
+            if (product == null) {
+                throw new SQLException("metadata unavailable", "08003");
+            }
+            return product;
         });
     }
     

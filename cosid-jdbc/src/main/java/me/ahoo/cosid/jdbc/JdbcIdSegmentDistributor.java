@@ -21,6 +21,7 @@ import me.ahoo.cosid.segment.AbstractIdSegmentDistributor;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -55,7 +56,12 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
     private final String incrementMaxIdSql;
     private final String fetchMaxIdSql;
     private final int queryTimeoutSeconds;
+    private final FetchMode fetchMode;
     private final FetchPlan fetchPlan;
+    /**
+     * The statements and plan for the database, once its product was read.
+     */
+    private volatile @Nullable Statements confirmed;
 
     public JdbcIdSegmentDistributor(String namespace, String name, long step, DataSource dataSource) {
         this(namespace, name, step, INCREMENT_MAX_ID_SQL, FETCH_MAX_ID_SQL, dataSource);
@@ -93,6 +99,7 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
         this.fetchMaxIdSql = fetchMaxIdSql;
         this.dataSource = dataSource;
         this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
+        this.fetchMode = fetchMode;
         this.fetchPlan = FetchPlan.of(incrementMaxIdSql, fetchMaxIdSql, fetchMode);
     }
     
@@ -103,8 +110,11 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
      */
     public enum FetchMode {
         /**
-         * The built-in MySQL statements run as {@code last_insert_id} under auto-commit, the PostgreSQL ones as one
-         * {@code update ... returning}; other statements in a transaction.
+         * The built-in statements of the database the connection reports run in one round-trip under auto-commit: the
+         * MySQL ones as {@code last_insert_id}, those of the other {@link JdbcDialect}s as one query
+         * ({@link JdbcDialect#getIncrementAndFetchMaxIdSql()}). The MySQL statements, the defaults, on another
+         * {@link JdbcDialect} database are replaced by its own. Any other statements, or any database not of
+         * {@link JdbcDialect}, run in a transaction.
          */
         AUTO,
         /**
@@ -115,7 +125,7 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
     }
     
     /**
-     * How a segment is fetched: the built-in MySQL and PostgreSQL statements take one round-trip under
+     * How a segment is fetched: the built-in statements of a {@link JdbcDialect} take one round-trip under
      * auto-commit; any other statements run in a transaction, the update then the select.
      */
     enum FetchPlan {
@@ -128,48 +138,86 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
         }
         
         static FetchPlan of(String incrementMaxIdSql, String fetchMaxIdSql) {
-            if (sameSql(incrementMaxIdSql, INCREMENT_MAX_ID_SQL) && sameSql(fetchMaxIdSql, FETCH_MAX_ID_SQL)) {
-                return LAST_INSERT_ID;
-            }
-            if (sameSql(incrementMaxIdSql, PostgreSqlDialect.INCREMENT_MAX_ID_SQL) && sameSql(fetchMaxIdSql, PostgreSqlDialect.FETCH_MAX_ID_SQL)) {
-                return RETURNING;
-            }
-            return TRANSACTION;
+            return JdbcDialect.ofSegmentStatements(incrementMaxIdSql, fetchMaxIdSql)
+                .map(dialect -> dialect == JdbcDialect.MYSQL ? LAST_INSERT_ID : dialect.getIncrementAndFetchMaxIdSql() != null ? RETURNING : TRANSACTION)
+                .orElse(TRANSACTION);
         }
         
         /**
          * The same statement, whatever its whitespace or final semicolon: as configured in YAML or as a constant.
          */
         static boolean sameSql(String configured, String builtIn) {
-            return normalize(configured).equals(normalize(builtIn));
-        }
-        
-        private static String normalize(String sql) {
-            // Case matters: "update COSID ..." names another table on a case-sensitive MySQL.
-            String normalized = sql.trim().replaceAll("\\s+", " ");
-            while (normalized.endsWith(";")) {
-                normalized = normalized.substring(0, normalized.length() - 1).trim();
-            }
-            return normalized.replace(" ,", ",").replace(", ", ",").replace(" =", "=").replace("= ", "=");
+            return JdbcDialect.isSameStatement(configured, builtIn);
         }
     }
     
+    /**
+     * The plan of the statements, taken once the connection's database is that of the statements.
+     */
     FetchPlan getFetchPlan() {
         return fetchPlan;
     }
-
-
-
+    
+    /**
+     * What a fetch runs: the plan and its statements.
+     */
+    record Statements(FetchPlan plan, String incrementMaxIdSql, String fetchMaxIdSql, @Nullable String incrementAndFetchMaxIdSql) {
+    }
+    
+    /**
+     * The statements for the connection's database, read from its metadata on the first fetch and kept once read. Until
+     * then, or when it cannot be read, the configured statements in a transaction.
+     */
+    Statements statements(Connection connection) {
+        Statements current = confirmed;
+        if (current != null) {
+            return current;
+        }
+        String product;
+        try {
+            product = connection.getMetaData().getDatabaseProductName();
+        } catch (SQLException | RuntimeException metadataFailure) {
+            if (log.isDebugEnabled()) {
+                log.debug("Segment [{}]: can not read the database product, fetching in a transaction.", getNamespacedName(), metadataFailure);
+            }
+            return new Statements(FetchPlan.TRANSACTION, incrementMaxIdSql, fetchMaxIdSql, null);
+        }
+        Statements resolved = resolve(JdbcDialect.of(product).orElse(null));
+        if (log.isInfoEnabled()) {
+            log.info("Segment [{}] on [{}]: {} fetches{}.", getNamespacedName(), product, resolved.plan(),
+                resolved.incrementMaxIdSql().equals(incrementMaxIdSql) ? "" : " with the statements of " + JdbcDialect.of(product).orElseThrow());
+        }
+        confirmed = resolved;
+        return resolved;
+    }
+    
+    private Statements resolve(@Nullable JdbcDialect database) {
+        JdbcDialect ofStatements = JdbcDialect.ofSegmentStatements(incrementMaxIdSql, fetchMaxIdSql).orElse(null);
+        if (database == null || ofStatements == null || (ofStatements != database && ofStatements != JdbcDialect.MYSQL)) {
+            return new Statements(FetchPlan.TRANSACTION, incrementMaxIdSql, fetchMaxIdSql, null);
+        }
+        // The statements of the database, or the MySQL defaults left as they are on another one: the database's own.
+        FetchPlan plan;
+        if (fetchMode == FetchMode.TRANSACTION) {
+            plan = FetchPlan.TRANSACTION;
+        } else if (database == JdbcDialect.MYSQL) {
+            plan = FetchPlan.LAST_INSERT_ID;
+        } else {
+            plan = database.getIncrementAndFetchMaxIdSql() != null ? FetchPlan.RETURNING : FetchPlan.TRANSACTION;
+        }
+        return new Statements(plan, database.getIncrementMaxIdSql(), database.getFetchMaxIdSql(), database.getIncrementAndFetchMaxIdSql());
+    }
 
     @Override
     protected long doNextMaxId(long step) {
         try (Connection connection = dataSource.getConnection()) {
             boolean autoCommit = connection.getAutoCommit();
             try {
-                return switch (fetchPlan) {
+                Statements statements = statements(connection);
+                return switch (statements.plan()) {
                     case LAST_INSERT_ID -> withAutoCommit(connection, autoCommit, () -> lastInsertId(connection, step));
-                    case RETURNING -> withAutoCommit(connection, autoCommit, () -> returning(connection, step));
-                    default -> inTransaction(connection, autoCommit, step);
+                    case RETURNING -> withAutoCommit(connection, autoCommit, () -> returning(connection, statements, step));
+                    default -> inTransaction(connection, autoCommit, statements, step);
                 };
             } finally {
                 // A pooled connection goes back with the auto-commit mode it was handed out with.
@@ -208,12 +256,12 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
         }
     }
     
-    private long inTransaction(Connection connection, boolean autoCommit, long step) throws SQLException {
+    private long inTransaction(Connection connection, boolean autoCommit, Statements statements, long step) throws SQLException {
         if (autoCommit) {
             connection.setAutoCommit(false);
         }
         try {
-            long nextMaxId = incrementAndFetch(connection, step);
+            long nextMaxId = incrementAndFetch(connection, statements, step);
             connection.commit();
             return nextMaxId;
         } catch (Throwable throwable) {
@@ -251,8 +299,9 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
         }
     }
     
-    private long returning(Connection connection, long step) throws SQLException {
-        try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, PostgreSqlDialect.INCREMENT_AND_FETCH_MAX_ID_SQL, queryTimeoutSeconds)) {
+    private long returning(Connection connection, Statements statements, long step) throws SQLException {
+        String incrementAndFetchMaxIdSql = Checks.checkNotNull(statements.incrementAndFetchMaxIdSql(), "incrementAndFetchMaxIdSql");
+        try (PreparedStatement statement = JdbcSupport.prepareStatement(connection, incrementAndFetchMaxIdSql, queryTimeoutSeconds)) {
             statement.setLong(1, step);
             statement.setString(2, getNamespacedName());
             try (ResultSet resultSet = statement.executeQuery()) {
@@ -264,8 +313,8 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
         }
     }
     
-    private long incrementAndFetch(Connection connection, long step) throws SQLException {
-        try (PreparedStatement accStatement = JdbcSupport.prepareStatement(connection, incrementMaxIdSql, queryTimeoutSeconds)) {
+    private long incrementAndFetch(Connection connection, Statements statements, long step) throws SQLException {
+        try (PreparedStatement accStatement = JdbcSupport.prepareStatement(connection, statements.incrementMaxIdSql(), queryTimeoutSeconds)) {
             accStatement.setLong(1, step);
             accStatement.setString(2, getNamespacedName());
             int affected = accStatement.executeUpdate();
@@ -274,7 +323,7 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
             }
         }
 
-        try (PreparedStatement fetchStatement = JdbcSupport.prepareStatement(connection, fetchMaxIdSql, queryTimeoutSeconds)) {
+        try (PreparedStatement fetchStatement = JdbcSupport.prepareStatement(connection, statements.fetchMaxIdSql(), queryTimeoutSeconds)) {
             fetchStatement.setString(1, getNamespacedName());
             try (ResultSet resultSet = fetchStatement.executeQuery()) {
                 if (!resultSet.next()) {

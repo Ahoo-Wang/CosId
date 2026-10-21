@@ -111,9 +111,12 @@ public class JdbcMachineIdInitializer {
 
         try (Connection connection = dataSource.getConnection()) {
             try {
-                executeIfPresent(connection, initCosIdMachineTableSql);
-                executeIfPresent(connection, initNamespaceIdxSql);
-                executeIfPresent(connection, initInstanceIdIdxSql);
+                // Statements left at their MySQL defaults follow the connection's database.
+                executeIfPresent(connection, JdbcDialect.statementFor(connection, initCosIdMachineTableSql, INIT_COSID_MACHINE_TABLE_SQL,
+                    JdbcDialect::getInitCosIdMachineTableSql));
+                executeIfPresent(connection, JdbcDialect.statementFor(connection, initNamespaceIdxSql, INIT_NAMESPACE_IDX_SQL, JdbcDialect::getInitNamespaceIdxSql));
+                executeIfPresent(connection, JdbcDialect.statementFor(connection, initInstanceIdIdxSql, INIT_INSTANCE_ID_IDX_SQL,
+                    JdbcDialect::getInitInstanceIdIdxSql));
                 JdbcSupport.commitIfManual(connection);
             } catch (SQLException | RuntimeException exception) {
                 JdbcSupport.rollbackIfManual(connection, exception);

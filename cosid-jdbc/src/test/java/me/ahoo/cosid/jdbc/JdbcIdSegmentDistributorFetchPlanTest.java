@@ -52,6 +52,7 @@ class JdbcIdSegmentDistributorFetchPlanTest {
     @Test
     void thePostgreSqlStatementsTakeOneStatement() {
         FakeJdbc jdbc = new FakeJdbc(true);
+        jdbc.product = "PostgreSQL";
         JdbcIdSegmentDistributor distributor = distributor(jdbc, PostgreSqlDialect.INCREMENT_MAX_ID_SQL, PostgreSqlDialect.FETCH_MAX_ID_SQL);
         assertThat(distributor.getFetchPlan(), is(JdbcIdSegmentDistributor.FetchPlan.RETURNING));
         

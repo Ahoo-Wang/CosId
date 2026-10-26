@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.segment.concurrent;
 
+import me.ahoo.cosid.test.ShutdownHooks;
+
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
@@ -54,6 +56,32 @@ class PrefetchWorkerExecutorServiceTest {
         executorService.shutdown();
     }
     
+    @Test
+    void shutdownRemovesItsShutdownHook() {
+        int hooksBefore = ShutdownHooks.count();
+        PrefetchWorkerExecutorService withHook = new PrefetchWorkerExecutorService(Duration.ofMillis(10), 1, true);
+        Assertions.assertEquals(hooksBefore + 1, ShutdownHooks.count());
+
+        withHook.shutdown();
+
+        Assertions.assertEquals(hooksBefore, ShutdownHooks.count());
+    }
+
+    @SneakyThrows
+    @Test
+    void shutdownStopsAParkedWorker() {
+        PrefetchWorkerExecutorService slow = new PrefetchWorkerExecutorService(Duration.ofMinutes(1), 1, false);
+        TestAffinityJob affinityJob = new TestAffinityJob(nextJobId(), 1);
+        slow.submit(affinityJob);
+        Assertions.assertTrue(affinityJob.awaitRuns(2, TimeUnit.SECONDS), affinityJob::diagnostics);
+        DefaultPrefetchWorker worker = (DefaultPrefetchWorker) affinityJob.getPrefetchWorker();
+
+        slow.shutdown();
+
+        worker.join(TimeUnit.SECONDS.toMillis(2));
+        Assertions.assertFalse(worker.isAlive(), () -> "worker state: " + worker.getState());
+    }
+
     @Test
     void submit() {
         TestAffinityJob affinityJob = new TestAffinityJob(nextJobId(), 1);

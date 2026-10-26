@@ -16,6 +16,7 @@ package me.ahoo.cosid.segment.concurrent;
 import me.ahoo.cosid.internal.Checks;
 
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
@@ -52,18 +53,29 @@ public class PrefetchWorkerExecutorService {
     private final DefaultPrefetchWorker[] workers;
     private boolean initialized = false;
     private final AtomicLong threadIdx = new AtomicLong();
+    @Nullable
+    private final GracefullyCloser shutdownHook;
 
     public PrefetchWorkerExecutorService(Duration prefetchPeriod, int corePoolSize) {
         this(prefetchPeriod, corePoolSize, true);
     }
 
+    /**
+     * Creates the executor.
+     *
+     * @param shutdownHook whether to shut the executor down with the JVM; {@link #shutdown()} removes the hook again. Not
+     *                     needed when the application shuts the executor down itself, as the Spring Boot starter does.
+     */
     public PrefetchWorkerExecutorService(Duration prefetchPeriod, int corePoolSize, boolean shutdownHook) {
         Checks.checkArgument(corePoolSize > 0, "corePoolSize:[%s] must be greater than 0.", corePoolSize);
         this.prefetchPeriod = prefetchPeriod;
         this.corePoolSize = corePoolSize;
         this.workers = new DefaultPrefetchWorker[corePoolSize];
         if (shutdownHook) {
-            Runtime.getRuntime().addShutdownHook(new GracefullyCloser());
+            this.shutdownHook = new GracefullyCloser();
+            Runtime.getRuntime().addShutdownHook(this.shutdownHook);
+        } else {
+            this.shutdownHook = null;
         }
     }
 
@@ -90,11 +102,23 @@ public class PrefetchWorkerExecutorService {
             return;
         }
         shutdown = true;
+        removeShutdownHook();
 
         for (DefaultPrefetchWorker worker : workers) {
             if (worker != null) {
                 worker.shutdown();
             }
+        }
+    }
+
+    private void removeShutdownHook() {
+        if (shutdownHook == null || Thread.currentThread() == shutdownHook) {
+            return;
+        }
+        try {
+            Runtime.getRuntime().removeShutdownHook(shutdownHook);
+        } catch (IllegalStateException jvmShuttingDown) {
+            // The hook is running or about to: nothing to remove.
         }
     }
 

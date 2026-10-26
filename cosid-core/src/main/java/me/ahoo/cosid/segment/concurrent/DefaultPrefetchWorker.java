@@ -57,6 +57,8 @@ public class DefaultPrefetchWorker extends Thread implements PrefetchWorker {
             return;
         }
         shutdown = true;
+        // Wakes the worker up if it is parked, so it exits now rather than after a prefetch period.
+        LockSupport.unpark(this);
     }
 
     @Override

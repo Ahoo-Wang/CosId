@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * DefaultMachineIdGuarderTest .
@@ -72,6 +73,47 @@ class DefaultMachineIdGuarderTest {
         guarder.start();
         guarder.stop();
         assertThat(guarder.isRunning(), equalTo(false));
+    }
+
+    @Test
+    void stopShutsDownTheExecutorItCreated() {
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+        guarder.start();
+        ScheduledExecutorService executorService = guarder.getExecutorService();
+        guarder.stop();
+        assertThat(executorService.isShutdown(), equalTo(true));
+    }
+
+    @Test
+    void startAfterStopRunsOnANewExecutorItCreated() {
+        DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, Duration.ofMillis(10), Duration.ofMillis(10),
+            MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION, Duration.ZERO);
+        guarder.start();
+        guarder.stop();
+        guarder.start();
+        try {
+            assertThat(guarder.isRunning(), equalTo(true));
+            assertThat(guarder.getExecutorService().isShutdown(), equalTo(false));
+        } finally {
+            guarder.stop();
+        }
+    }
+
+    @Test
+    void stopLeavesAnInjectedExecutorRunning() {
+        ScheduledExecutorService executorService = DefaultMachineIdGuarder.executorService();
+        try {
+            DefaultMachineIdGuarder guarder = new DefaultMachineIdGuarder(distributor, executorService, Duration.ofMinutes(1), Duration.ofMinutes(1),
+                MachineIdDistributor.FOREVER_SAFE_GUARD_DURATION);
+            guarder.start();
+            guarder.stop();
+            assertThat(executorService.isShutdown(), equalTo(false));
+            guarder.start();
+            assertThat(guarder.isRunning(), equalTo(true));
+            guarder.stop();
+        } finally {
+            executorService.shutdownNow();
+        }
     }
 
     @Test

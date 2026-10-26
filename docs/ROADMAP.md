@@ -1,5 +1,7 @@
 # CosId Roadmap
 
+> The 5.0 redesign has its own design documents and roadmap: [architecture/README.md](architecture/README.md), [architecture/roadmap.md](architecture/roadmap.md).
+
 This roadmap follows the architecture review of October 2026. Each item links to the pull request that delivered it.
 
 ## Phase 0: correctness and safety fixes (3.3.0) — done

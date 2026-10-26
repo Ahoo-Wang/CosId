@@ -51,11 +51,53 @@ val isInCI = null != System.getenv("CI")
 ext.set("libraryProjects", libraryProjects)
 ext.set("publishedLibraryProjects", publishedLibraryProjects)
 
+// The configurations the build resolves its own classpaths from: compile, runtime, annotation processing and the JMH
+// benchmarks (`jmh`). The build's versions (cosid-dependencies, -PspringBootVersion) manage these, never what is published.
+fun Configuration.isBuildClasspath() = isCanBeResolved
+    && (name.endsWith("Classpath", ignoreCase = true) || name.endsWith("AnnotationProcessor") || name == "annotationProcessor"
+    || name == "jmh")
+
 allprojects {
     repositories {
         mavenLocal()
         maven { url = uri("https://repo.spring.io/milestone") }
         mavenCentral()
+    }
+    // -PtestJavaVersion=21 runs the tests on another JDK than the one that compiles them (17), as the CI matrix does.
+    val testJavaVersion = findProperty("testJavaVersion")?.toString()
+    if (testJavaVersion != null) {
+        plugins.withType<JavaPlugin> {
+            val toolchains = extensions.getByType<JavaToolchainService>()
+            tasks.withType<Test>().configureEach {
+                javaLauncher.set(toolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(testJavaVersion)) })
+                // Tests that depend on the Java version check they really run on it.
+                environment("COSID_TEST_JAVA_VERSION", testJavaVersion)
+            }
+        }
+    }
+    // -PspringBootVersion=4.0.8 builds and tests against another Spring Boot 4.x, as the CI matrix does. A plain
+    // platform would lose to a higher Boot BOM brought by a dependency (coapi's metadata brings its own), so the
+    // build's classpaths enforce it. Not published: minimumVersions, which maps the published versions, is left alone.
+    val springBootVersion = findProperty("springBootVersion")?.toString()
+    if (springBootVersion != null) {
+        plugins.withType<JavaPlugin> {
+            val springBootOverride = configurations.create("springBootOverride") {
+                isCanBeConsumed = false
+                isCanBeResolved = false
+            }
+            dependencies {
+                springBootOverride(enforcedPlatform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+            }
+            configurations.configureEach {
+                if (this != springBootOverride && isBuildClasspath()) {
+                    extendsFrom(springBootOverride)
+                }
+            }
+            tasks.withType<Test>().configureEach {
+                // Tests that depend on the Spring Boot version check they really run on it.
+                environment("COSID_TEST_SPRING_BOOT_VERSION", springBootVersion)
+            }
+        }
     }
 }
 
@@ -161,11 +203,32 @@ configure(libraryProjects) {
         }
     }
 
+    // The versions of cosid-dependencies (the Spring Boot BOM among them) manage the build's classpaths, but are not
+    // published: the published metadata carries each direct dependency's version, so an application on another Spring
+    // Boot 4.x keeps its own versions instead of being moved to those CosId builds with.
+    val managedVersions = configurations.create("managedVersions") {
+        isCanBeConsumed = false
+        isCanBeResolved = false
+    }
+    configurations.configureEach {
+        if (this != managedVersions && isBuildClasspath()) {
+            extendsFrom(managedVersions)
+        }
+    }
+    // What the published metadata requires: the versions of the lowest supported Spring Boot (the CI matrix tests it), so
+    // that an application on any supported Boot resolves its own. It extends what runtimeClasspath extends (the
+    // optional features' configurations among them) but -PspringBootVersion's, which must not reach the published versions.
+    val minimumVersions = configurations.create("minimumVersions") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
+    }
+    afterEvaluate {
+        val runtimeClasspath = configurations.getByName("runtimeClasspath")
+        minimumVersions.setExtendsFrom(runtimeClasspath.extendsFrom.filter { it.name != "springBootOverride" })
+    }
     dependencies {
-        api(platform(dependenciesProject))
-        annotationProcessor(platform(dependenciesProject))
-        testAnnotationProcessor(platform(dependenciesProject))
-        jmh(platform(dependenciesProject))
+        managedVersions(platform(dependenciesProject))
+        minimumVersions(enforcedPlatform("org.springframework.boot:spring-boot-dependencies:${rootProject.libs.versions.spring.boot.minimum.get()}"))
         compileOnly("org.projectlombok:lombok")
         annotationProcessor("org.projectlombok:lombok")
         testCompileOnly("org.projectlombok:lombok")
@@ -217,6 +280,14 @@ configure(publishProjects) {
             val publishComponentName = if (isBom) "javaPlatform" else "java"
             create<MavenPublication>(publishName) {
                 from(components[publishComponentName])
+                if (!isBom) {
+                    // Versions the build resolved, since the managing platform is not published.
+                    versionMapping {
+                        allVariants {
+                            fromResolutionOf("minimumVersions")
+                        }
+                    }
+                }
                 pom {
                     name.set(rootProject.name)
                     description.set(getPropertyOf("description"))
@@ -263,6 +334,51 @@ configure(publishProjects) {
         } else {
             sign(extensions.getByType(PublishingExtension::class).publications.get("mavenLibrary"))
         }
+    }
+}
+
+// The published metadata carries a version for every dependency and none of the build's platforms: run by check.
+configure(publishedLibraryProjects) {
+    val checkPublishedMetadata = tasks.register("checkPublishedMetadata") {
+        val metadata = tasks.named("generateMetadataFileForMavenLibraryPublication")
+        val pom = tasks.named("generatePomFileForMavenLibraryPublication")
+        dependsOn(metadata, pom)
+        val moduleFile = layout.buildDirectory.file("publications/mavenLibrary/module.json")
+        val pomFile = layout.buildDirectory.file("publications/mavenLibrary/pom-default.xml")
+        doLast {
+            @Suppress("UNCHECKED_CAST")
+            val module = groovy.json.JsonSlurper().parse(moduleFile.get().asFile) as Map<String, Any?>
+            val problems = mutableListOf<String>()
+            (module["variants"] as List<Map<String, Any?>>).forEach { variant ->
+                (variant["dependencies"] as List<Map<String, Any?>>? ?: emptyList()).forEach { dependency ->
+                    val coordinates = "${dependency["group"]}:${dependency["module"]}"
+                    if (dependency["version"] == null) {
+                        problems += "${variant["name"]}: $coordinates has no version"
+                    }
+                    val category = (dependency["attributes"] as Map<String, Any?>?)?.get("org.gradle.category")
+                    if (category == "platform" && (dependency["group"] == "me.ahoo.cosid" || dependency["module"] == "spring-boot-dependencies")) {
+                        problems += "${variant["name"]}: the build platform $coordinates is published"
+                    }
+                }
+            }
+            val pomText = pomFile.get().asFile.readText()
+            if (pomText.contains("<artifactId>cosid-dependencies</artifactId>") || pomText.contains("<artifactId>spring-boot-dependencies</artifactId>")) {
+                problems += "pom: imports the build platform"
+            }
+            val pomDocument = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(pomFile.get().asFile)
+            val pomDependencies = pomDocument.getElementsByTagName("dependency")
+            for (index in 0 until pomDependencies.length) {
+                val dependency = pomDependencies.item(index) as org.w3c.dom.Element
+                fun child(name: String) = dependency.getElementsByTagName(name).item(0)?.textContent?.trim()
+                if (child("version").isNullOrEmpty()) {
+                    problems += "pom: ${child("groupId")}:${child("artifactId")} has no version"
+                }
+            }
+            check(problems.isEmpty()) { "Published metadata of ${project.name}:\n" + problems.joinToString("\n") }
+        }
+    }
+    tasks.named("check") {
+        dependsOn(checkPublishedMetadata)
     }
 }
 

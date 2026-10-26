@@ -88,6 +88,13 @@ depends on backends. Don't introduce core → backend or backend → starter cyc
   available. CI starts the services in `integration-test.yml` and checks that the contract tests ran. Scope to
   a unit test class with `--tests` when no backend is at hand. The SQL Server tests (`*SqlServer*` in `cosid-jdbc`) run
   only with `COSID_TEST_SQLSERVER_URL` or `COSID_TEST_SQLSERVER_ENABLED=true` (Testcontainers), in their own CI job.
+- **Other Spring Boot and Java versions:** `-PspringBootVersion=4.0.8` builds against another Boot (an enforced
+  platform on the build's classpaths, so a dependency's own Boot BOM cannot raise it), `-PtestJavaVersion=21`
+  runs the tests on another JDK (compilation stays on 17); the tests see them as `COSID_TEST_SPRING_BOOT_VERSION` and
+  `COSID_TEST_JAVA_VERSION`, and `SpringBootVersionTest` / `ProxyVirtualThreadsEndToEndTest` assert them. The
+  `cosid-compatibility-test` CI job runs the matrix. The
+  published metadata requires the versions of `spring-boot-minimum` (libs.versions.toml), never the build platform:
+  `checkPublishedMetadata` (part of `check`) fails otherwise.
 - **`-parameters` compiler flag is required** (set root-wide) — Spring Boot needs it for `CosIdEndpoint` parameter names; don't remove it.
 - **Tests open JDK internals:** test JVMs pass `--add-opens=java.base/java.util=ALL-UNNAMED` and `...java.lang=...`. If a
   new test touches JDK internals, the existing flags already cover it.

@@ -11,6 +11,19 @@ This guide adds CosId to a Spring Boot application, with Redis as the store. Eve
 | 2.x | 3.x | 17+ | `2.x` |
 | 1.x | 2.x | 8+ | `1.x` |
 
+Since 4.1 every release is tested on each of these:
+
+| Spring Boot | Java |
+|---|---|
+| 4.0.x | 17, 21, 25 |
+| 4.1.x | 17, 21, 25 |
+
+CosId's published metadata requires the dependency versions of Spring Boot 4.0.8, the lowest it supports, and does not bring CosId's build platform (`cosid-dependencies`, with the Spring Boot BOM) along: your Spring Boot version, from its BOM or plugin, decides. To use exactly the versions CosId was built with, import `me.ahoo.cosid:cosid-dependencies` as a platform. A few platforms still come along:
+
+- `cosid-axon`, and the starter's `axon-support` feature, bring the Axon BOM (`org.axonframework:axon-bom`), which manages only Axon's artifacts.
+- `cosid-proxy-api`, `cosid-proxy` and the starter's `proxy-support` feature depend on CoApi 3.1.0, whose Gradle metadata brings the Spring Boot 4.1 BOM. A Gradle application on Spring Boot 4.0.x that uses them is raised to Boot 4.1's versions unless it imports its Boot BOM with `enforcedPlatform(...)` or applies the `io.spring.dependency-management` plugin. Maven builds are not affected: their own `dependencyManagement` wins.
+- With a plain `platform(...)` import, Gradle picks the highest version requested, so an application on Spring Boot 4.0.0 to 4.0.7 is raised to 4.0.8's versions; use `enforcedPlatform(...)` or the `io.spring.dependency-management` plugin to keep yours.
+
 Upgrading from 3.x: see [Migrating to 4.0](./migration/4.0.md).
 
 ## 1. Add the dependencies

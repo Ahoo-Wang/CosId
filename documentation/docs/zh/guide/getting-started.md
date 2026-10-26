@@ -11,6 +11,19 @@
 | 2.x | 3.x | 17+ | `2.x` |
 | 1.x | 2.x | 8+ | `1.x` |
 
+从 4.1 起，每个版本都在以下组合上测试：
+
+| Spring Boot | Java |
+|---|---|
+| 4.0.x | 17、21、25 |
+| 4.1.x | 17、21、25 |
+
+CosId 发布的元数据只要求 Spring Boot 4.0.8（最低支持版本）的依赖版本，不会带上 CosId 构建用的依赖平台（`cosid-dependencies`，含 Spring Boot BOM）：版本由应用的 Spring Boot（其 BOM 或插件）决定。如需完全使用 CosId 构建时的版本，可将 `me.ahoo.cosid:cosid-dependencies` 作为 platform 引入。以下平台仍会被带上：
+
+- `cosid-axon` 及 starter 的 `axon-support` 特性会带上 Axon BOM（`org.axonframework:axon-bom`），它只管理 Axon 自己的构件。
+- `cosid-proxy-api`、`cosid-proxy` 及 starter 的 `proxy-support` 特性依赖 CoApi 3.1.0，其 Gradle 元数据会带上 Spring Boot 4.1 的 BOM。使用它们的 Spring Boot 4.0.x Gradle 应用会被升级到 Boot 4.1 的版本，除非以 `enforcedPlatform(...)` 引入自己的 Boot BOM，或应用 `io.spring.dependency-management` 插件。Maven 构建不受影响：应用自己的 `dependencyManagement` 优先。
+- 以普通的 `platform(...)` 引入时，Gradle 会选择被请求的最高版本，因此 Spring Boot 4.0.0 至 4.0.7 的应用会被升级到 4.0.8 的版本；使用 `enforcedPlatform(...)` 或 `io.spring.dependency-management` 插件可保留自己的版本。
+
 从 3.x 升级：见[迁移到 4.0](./migration/4.0.md)。
 
 ## 1. 添加依赖

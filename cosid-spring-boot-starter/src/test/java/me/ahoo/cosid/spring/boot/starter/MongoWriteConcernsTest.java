@@ -55,4 +55,23 @@ class MongoWriteConcernsTest {
         assertThat(MongoWriteConcerns.isWeakerThanMajority(WriteConcern.W1, replicaSet(1))).isFalse();
         assertThat(MongoWriteConcerns.isWeakerThanMajority(null, null)).isFalse();
     }
+    
+    @Test
+    void passivesCountTowardsTheMajority() {
+        // Two electable members and two priority 0 members: four data-bearing members, a majority of three.
+        Document hello = replicaSet(2).append("passives", List.of("mongo2:27017", "mongo3:27017"));
+        assertThat(MongoWriteConcerns.isWeakerThanMajority(WriteConcern.W2, hello)).isTrue();
+        assertThat(MongoWriteConcerns.isWeakerThanMajority(WriteConcern.W3, hello)).isFalse();
+    }
+    
+    @Test
+    void theServersDefaultIsJudgedApart() {
+        assertThat(MongoWriteConcerns.judge(WriteConcern.ACKNOWLEDGED, replicaSet(3))).isEqualTo(MongoWriteConcerns.Strength.SERVER_DEFAULT);
+        assertThat(MongoWriteConcerns.judge(WriteConcern.ACKNOWLEDGED, replicaSet(2).append("arbiters", List.of("arbiter:27017"))))
+            .isEqualTo(MongoWriteConcerns.Strength.SERVER_DEFAULT_WITH_ARBITERS);
+        assertThat(MongoWriteConcerns.judge(WriteConcern.MAJORITY, replicaSet(2).append("arbiters", List.of("arbiter:27017"))))
+            .isEqualTo(MongoWriteConcerns.Strength.MAJORITY);
+        assertThat(MongoWriteConcerns.judge(WriteConcern.ACKNOWLEDGED, new Document("isWritablePrimary", true)))
+            .isEqualTo(MongoWriteConcerns.Strength.NOT_APPLICABLE);
+    }
 }

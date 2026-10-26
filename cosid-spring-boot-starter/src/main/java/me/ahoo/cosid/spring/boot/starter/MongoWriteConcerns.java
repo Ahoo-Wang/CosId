@@ -66,17 +66,39 @@ public final class MongoWriteConcerns {
     }
     
     /**
-     * WARN when the database is a replica set member and its effective write concern is weaker than {@code majority}.
-     * Nothing is checked when the server cannot be asked.
+     * Log, at startup on a replica set, a write concern that may be weaker than {@code majority}: WARN for a number of
+     * members below the majority, and for the server's default when the set has arbiters; INFO for the server's default
+     * otherwise. Nothing is checked when the server cannot be asked.
      */
     public static void warnIfWeakerThanMajority(MongoDatabase database, String property) {
         try {
             Document hello = database.runCommand(new Document("hello", 1));
             WriteConcern writeConcern = database.getWriteConcern();
-            if (isWeakerThanMajority(writeConcern, hello) && log.isWarnEnabled()) {
-                log.warn("CosId writes to replica set [{}] with write concern [{}], weaker than majority: a failover can roll back a machine id "
-                    + "lease or a segment increment that was already handed out. Set {}=majority.", hello.get("setName"), writeConcern.asDocument(),
-                    property);
+            switch (judge(writeConcern, hello)) {
+                case WEAKER -> {
+                    if (log.isWarnEnabled()) {
+                        log.warn("CosId writes to replica set [{}] with write concern [{}], weaker than majority: a failover can roll back a "
+                            + "machine id lease or a segment increment that was already handed out. Set {}=majority.", hello.get("setName"),
+                            writeConcern.asDocument(), property);
+                    }
+                }
+                case SERVER_DEFAULT_WITH_ARBITERS -> {
+                    if (log.isWarnEnabled()) {
+                        log.warn("CosId writes to replica set [{}] with the server's default write concern, and the set has arbiters: unless "
+                            + "setDefaultRWConcern changed it, that default is w:1 when the arbiters leave no data-bearing majority (PSA), and a "
+                            + "failover can roll back a machine id lease or a segment increment that was already handed out. Set {}=majority.",
+                            hello.get("setName"), property);
+                    }
+                }
+                case SERVER_DEFAULT -> {
+                    if (log.isInfoEnabled()) {
+                        log.info("CosId writes to replica set [{}] with the server's default write concern: majority since MongoDB 5.0, unless "
+                            + "setDefaultRWConcern changed it. Set {}=majority to not depend on it.", hello.get("setName"), property);
+                    }
+                }
+                default -> {
+                    // Majority or stronger, a tag set, or not a replica set.
+                }
             }
         } catch (RuntimeException checkFailure) {
             if (log.isDebugEnabled()) {
@@ -84,21 +106,55 @@ public final class MongoWriteConcerns {
             }
         }
     }
-    
+
     /**
-     * Whether a write concern, on the server that answered {@code hello}, is acknowledged by fewer than a majority of
-     * the replica set. An unset {@code w} is the server's default (majority since MongoDB 5.0), a tag set is not judged.
+     * How a write concern compares with {@code majority}, on the server that answered {@code hello}.
      */
-    static boolean isWeakerThanMajority(@Nullable WriteConcern writeConcern, @Nullable Document hello) {
+    enum Strength {
+        /**
+         * Not a replica set, or nothing known.
+         */
+        NOT_APPLICABLE,
+        /**
+         * {@code majority}, a tag set, or a number of members at least the majority.
+         */
+        MAJORITY,
+        /**
+         * A number of members below the majority.
+         */
+        WEAKER,
+        /**
+         * No {@code w}: the server's default.
+         */
+        SERVER_DEFAULT,
+        /**
+         * No {@code w}, on a replica set with arbiters, where the implicit default can be {@code w:1}.
+         */
+        SERVER_DEFAULT_WITH_ARBITERS
+    }
+
+    static Strength judge(@Nullable WriteConcern writeConcern, @Nullable Document hello) {
         if (writeConcern == null || hello == null || hello.get("setName") == null) {
-            return false;
+            return Strength.NOT_APPLICABLE;
         }
         Object w = writeConcern.getWObject();
-        if (!(w instanceof Integer members)) {
-            return false;
+        if (w == null) {
+            return hello.getList("arbiters", Object.class, List.of()).isEmpty() ? Strength.SERVER_DEFAULT : Strength.SERVER_DEFAULT_WITH_ARBITERS;
         }
-        List<?> hosts = hello.getList("hosts", Object.class, List.of());
-        int majority = Math.max(1, hosts.size()) / 2 + 1;
-        return members < majority;
+        if (!(w instanceof Integer members)) {
+            return Strength.MAJORITY;
+        }
+        // The data-bearing members: electable (hosts) and priority 0 (passives); arbiters hold no data.
+        int dataBearing = hello.getList("hosts", Object.class, List.of()).size() + hello.getList("passives", Object.class, List.of()).size();
+        int majority = Math.max(1, dataBearing) / 2 + 1;
+        return members < majority ? Strength.WEAKER : Strength.MAJORITY;
+    }
+
+    /**
+     * Whether a number of members, on the server that answered {@code hello}, is fewer than a majority of the
+     * replica set's data-bearing members. An unset {@code w} (the server's default) and a tag set are not judged here.
+     */
+    static boolean isWeakerThanMajority(@Nullable WriteConcern writeConcern, @Nullable Document hello) {
+        return judge(writeConcern, hello) == Strength.WEAKER;
     }
 }

@@ -47,6 +47,17 @@ public final class JdbcSupport {
      * Duplicate-key vendor error codes: MySQL/MariaDB 1062, Oracle ORA-00001, SQL Server 2627 and 2601.
      */
     private static final Set<Integer> DUPLICATE_KEY_VENDOR_CODES = Set.of(1062, 1, 2627, 2601);
+    /**
+     * SQLStates of a transaction the database rolled back to break a deadlock or a serialization conflict:
+     * {@code 40001} (MySQL/MariaDB 1213, SQL Server 1205, PostgreSQL serialization failure, H2) and {@code 40P01}
+     * (PostgreSQL deadlock).
+     */
+    private static final Set<String> DEADLOCK_STATES = Set.of("40001", "40P01");
+    /**
+     * SQL Server's deadlock victim error, which mssql-jdbc reports as {@code 42000} with {@code xopenStates=true}.
+     */
+    private static final int SQL_SERVER_DEADLOCK_VICTIM = 1205;
+    private static final String SQL_SERVER_XOPEN_GENERIC_STATE = "42000";
     private static final Set<String> ALREADY_EXISTS_STATES = Set.of("42S01", "42S11", "42P07", "X0Y32");
     private static final Set<Integer> ALREADY_EXISTS_VENDOR_CODES = Set.of(1050, 1061, 2714, 1913, 955, 42101, 42111);
 
@@ -122,6 +133,31 @@ public final class JdbcSupport {
     }
 
     /**
+     * Whether the exception (or one in its chain) reports that the database rolled the transaction back to break a
+     * deadlock or a serialization conflict: nothing it did is kept, so it can run again. SQLStates {@code 40001} and
+     * {@code 40P01}, and SQL Server's error {@code 1205} under {@code xopenStates=true} ({@code 42000}). Not a lock wait
+     * timeout (MySQL {@code 1205}, {@code HY000}): it waits as long again, and keeps the transaction.
+     *
+     * @param sqlException the exception thrown by the driver
+     * @return true if the transaction was chosen as a deadlock victim
+     */
+    static boolean isDeadlock(SQLException sqlException) {
+        for (SQLException current = sqlException; current != null; current = current.getNextException()) {
+            String sqlState = current.getSQLState();
+            if (sqlState == null) {
+                continue;
+            }
+            if (DEADLOCK_STATES.contains(sqlState)) {
+                return true;
+            }
+            if (current.getErrorCode() == SQL_SERVER_DEADLOCK_VICTIM && SQL_SERVER_XOPEN_GENERIC_STATE.equals(sqlState)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Whether the exception (or one in its chain) reports that a table or an index already exists: what DDL without
      * {@code if not exists} reports on the second start. SQLStates {@code 42S01}/{@code 42S11} (MySQL, MariaDB, H2),
      * {@code 42P07} (PostgreSQL), {@code X0Y32} (Derby); vendor codes MySQL {@code 1050}/{@code 1061}, SQL Server
@@ -133,7 +169,9 @@ public final class JdbcSupport {
      */
     public static boolean isAlreadyExists(SQLException sqlException) {
         for (SQLException current = sqlException; current != null; current = current.getNextException()) {
-            if (ALREADY_EXISTS_STATES.contains(current.getSQLState()) || ALREADY_EXISTS_VENDOR_CODES.contains(current.getErrorCode())) {
+            // Set.of(...).contains(null) throws: a driver may report no SQLState.
+            String sqlState = current.getSQLState();
+            if ((sqlState != null && ALREADY_EXISTS_STATES.contains(sqlState)) || ALREADY_EXISTS_VENDOR_CODES.contains(current.getErrorCode())) {
                 return true;
             }
         }

@@ -60,4 +60,26 @@ class JdbcSupportTest {
         batch.setNextException(new SQLException("dup", "23505"));
         assertThat(JdbcSupport.isDuplicateKey(batch), equalTo(true));
     }
+
+    @Test
+    void isDeadlock() {
+        // SQL Server 1205, MySQL/MariaDB 1213, PostgreSQL serialization failure
+        assertThat(JdbcSupport.isDeadlock(new SQLException("victim", "40001", 1205)), equalTo(true));
+        assertThat(JdbcSupport.isDeadlock(new SQLException("deadlock", "40001", 1213)), equalTo(true));
+        assertThat(JdbcSupport.isDeadlock(new SQLException("serialization", "40001")), equalTo(true));
+        // PostgreSQL deadlock_detected
+        assertThat(JdbcSupport.isDeadlock(new SQLException("deadlock", "40P01")), equalTo(true));
+        // SQL Server 1205 with xopenStates=true
+        assertThat(JdbcSupport.isDeadlock(new SQLException("victim", "42000", 1205)), equalTo(true));
+
+        // MySQL lock wait timeout (1205): the statement waited, the transaction is kept
+        assertThat(JdbcSupport.isDeadlock(new SQLException("lock wait", "HY000", 1205)), equalTo(false));
+        assertThat(JdbcSupport.isDeadlock(new SQLException("syntax", "42000", 102)), equalTo(false));
+        assertThat(JdbcSupport.isDeadlock(new SQLException("connection failure", "08006")), equalTo(false));
+        assertThat(JdbcSupport.isDeadlock(new SQLException("no state")), equalTo(false));
+
+        SQLException batch = new SQLException("batch failed", "XX000");
+        batch.setNextException(new SQLException("deadlock", "40P01"));
+        assertThat(JdbcSupport.isDeadlock(batch), equalTo(true));
+    }
 }

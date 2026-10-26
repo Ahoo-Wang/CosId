@@ -397,10 +397,12 @@ public class SegmentIdProperties {
             private int corePoolSize = Runtime.getRuntime().availableProcessors();
 
             /**
-             * Whether to register a shutdown hook for graceful shutdown.
-             * Default is true.
+             * Whether to also register a JVM shutdown hook that shuts the prefetch workers down.
+             * Default is false: the context shuts them down in its lifecycle phase, after the web server has drained
+             * ({@code CosIdLifecyclePrefetchWorkerExecutorService}), whereas a hook runs concurrently with the context's
+             * shutdown and can stop prefetching earlier.
              */
-            private boolean shutdownHook = true;
+            private boolean shutdownHook = false;
 
             /**
              * Gets the prefetch period.

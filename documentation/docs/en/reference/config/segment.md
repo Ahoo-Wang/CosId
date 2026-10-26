@@ -44,7 +44,7 @@ The statements follow the database: see [JDBC: Databases](../../guide/backends/j
 | `chain.prefetch-timeout` | `Duration` | `0` | Bound of each background prefetch; `0` means none |
 | `chain.prefetch-worker.prefetch-period` | `Duration` | `1s` | How often the worker tops up the chain |
 | `chain.prefetch-worker.core-pool-size` | `int` | available processors | Threads of the prefetch workers |
-| `chain.prefetch-worker.shutdown-hook` | `boolean` | `true` | Shut the prefetch workers down with the JVM |
+| `chain.prefetch-worker.shutdown-hook` | `boolean` | `false` | Also shut the prefetch workers down with a JVM shutdown hook. The context already stops them after the web server has drained; a hook runs concurrently with the context shutdown. `true` before 4.1.1 |
 
 ## IdDefinition
 

@@ -44,7 +44,7 @@
 | `chain.prefetch-timeout` | `Duration` | `0` | 每次后台预取的时长上限；`0` 表示不限制 |
 | `chain.prefetch-worker.prefetch-period` | `Duration` | `1s` | 预取任务补足号段链的周期 |
 | `chain.prefetch-worker.core-pool-size` | `int` | 可用处理器数 | 预取线程数 |
-| `chain.prefetch-worker.shutdown-hook` | `boolean` | `true` | 随 JVM 关闭预取线程 |
+| `chain.prefetch-worker.shutdown-hook` | `boolean` | `false` | 额外注册 JVM 关闭钩子来关闭预取线程。上下文已会在 Web 服务器排空请求后关闭它们；钩子与上下文关闭并发执行。4.1.1 之前为 `true` |
 
 ## IdDefinition
 

@@ -270,7 +270,8 @@ public class CosIdMachineAutoConfiguration {
             }
             log.warn(timingProblem);
         }
-        return new DefaultMachineIdGuarder(machineIdDistributor, DefaultMachineIdGuarder.executorService(), guarder.getInitialDelay(), guarder.getDelay(), machineProperties.getSafeGuardDuration(),
+        // The guarder creates its executor on start and shuts it down on stop, with the context.
+        return new DefaultMachineIdGuarder(machineIdDistributor, guarder.getInitialDelay(), guarder.getDelay(), machineProperties.getSafeGuardDuration(),
             guarder.getLocalStateInterval());
     }
 

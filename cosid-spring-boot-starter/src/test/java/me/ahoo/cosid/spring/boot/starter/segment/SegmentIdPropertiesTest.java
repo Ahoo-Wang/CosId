@@ -51,7 +51,7 @@ class SegmentIdPropertiesTest {
             .isEqualTo(PrefetchWorkerExecutorService.DEFAULT_PREFETCH_PERIOD);
         assertThat(properties.getChain().getPrefetchWorker().getCorePoolSize())
             .isEqualTo(Runtime.getRuntime().availableProcessors());
-        assertThat(properties.getChain().getPrefetchWorker().isShutdownHook()).isTrue();
+        assertThat(properties.getChain().getPrefetchWorker().isShutdownHook()).isFalse();
         assertThat(properties.getDistributor().getType()).isEqualTo(SegmentIdProperties.Distributor.REDIS);
         assertThat(properties.getDistributor().getRedis().getTimeout()).isEqualTo(Duration.ofSeconds(1));
         assertThat(properties.getDistributor().getJdbc().getQueryTimeout()).isEqualTo(Duration.ofSeconds(5));
@@ -87,7 +87,7 @@ class SegmentIdPropertiesTest {
             Map.entry("cosid.segment.chain.safe-distance", "12"),
             Map.entry("cosid.segment.chain.prefetch-worker.prefetch-period", "3s"),
             Map.entry("cosid.segment.chain.prefetch-worker.core-pool-size", "2"),
-            Map.entry("cosid.segment.chain.prefetch-worker.shutdown-hook", "false"),
+            Map.entry("cosid.segment.chain.prefetch-worker.shutdown-hook", "true"),
             Map.entry("cosid.segment.share.enabled", "false"),
             Map.entry("cosid.segment.provider.order.namespace", "orders"),
             Map.entry("cosid.segment.provider.order.mode", "chain"),
@@ -117,7 +117,7 @@ class SegmentIdPropertiesTest {
         assertThat(properties.getChain().getSafeDistance()).isEqualTo(12);
         assertThat(properties.getChain().getPrefetchWorker().getPrefetchPeriod()).isEqualTo(Duration.ofSeconds(3));
         assertThat(properties.getChain().getPrefetchWorker().getCorePoolSize()).isEqualTo(2);
-        assertThat(properties.getChain().getPrefetchWorker().isShutdownHook()).isFalse();
+        assertThat(properties.getChain().getPrefetchWorker().isShutdownHook()).isTrue();
         assertThat(properties.getShare().isEnabled()).isFalse();
 
         SegmentIdProperties.IdDefinition order = properties.getProvider().get("order");

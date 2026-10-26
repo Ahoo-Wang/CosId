@@ -25,6 +25,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Default MachineId Guarder implementation.
@@ -63,7 +64,12 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
     private final ConcurrentHashMap<NamespacedInstanceId, GuardianState> guardianStates;
     private final ConcurrentHashMap<NamespacedInstanceId, MachineIdLease> leases = new ConcurrentHashMap<>();
     private final MachineIdDistributor machineIdDistributor;
-    private final ScheduledExecutorService executorService;
+    /**
+     * Created on {@link #start()} and shut down on {@link #stop()} when {@link #ownsExecutor}, else given by the caller and
+     * left running.
+     */
+    private volatile ScheduledExecutorService executorService;
+    private final boolean ownsExecutor;
     private final Duration initialDelay;
     private final Duration delay;
     private final Duration safeGuardDuration;
@@ -74,25 +80,27 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      */
     private volatile ScheduledExecutorService localStateExecutor;
     private final AtomicBoolean running = new AtomicBoolean(false);
+    private final ReentrantLock lifecycleLock = new ReentrantLock();
 
     /**
      * Constructs a DefaultMachineIdGuarder with default scheduling parameters.
      *
-     * <p>This constructor creates a guarder with a default scheduled executor service,
-     * initial delay of 1 minute, and delay of 1 minute between guard operations.
+     * <p>This constructor creates a guarder with a default scheduled executor service, which it shuts down on
+     * {@link #stop()}, initial delay of 1 minute, and delay of 1 minute between guard operations.
      *
      * @param machineIdDistributor the distributor used to guard machine IDs
      * @param safeGuardDuration    the duration for which to guard each machine ID
      */
     public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, Duration safeGuardDuration) {
-        this(machineIdDistributor, executorService(), DEFAULT_INITIAL_DELAY, DEFAULT_DELAY, safeGuardDuration);
+        this(machineIdDistributor, DEFAULT_INITIAL_DELAY, DEFAULT_DELAY, safeGuardDuration, DEFAULT_LOCAL_STATE_INTERVAL);
     }
 
     /**
      * Constructs a DefaultMachineIdGuarder with custom scheduling parameters.
      *
      * <p>This constructor allows full customization of the guarder's behavior,
-     * including the executor service and scheduling intervals.
+     * including the executor service and scheduling intervals. The guarder does not shut the given executor service down:
+     * its owner does.
      *
      * @param machineIdDistributor the distributor used to guard machine IDs
      * @param executorService      the scheduled executor service for periodic guarding
@@ -116,6 +124,24 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      */
     public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, ScheduledExecutorService executorService,
                                    Duration initialDelay, Duration delay, Duration safeGuardDuration, Duration localStateInterval) {
+        this(machineIdDistributor, Checks.checkNotNull(executorService, "executorService can not be null!"), false,
+            initialDelay, delay, safeGuardDuration, localStateInterval);
+    }
+
+    /**
+     * Constructs a DefaultMachineIdGuarder that runs on an executor of its own: created by {@link #start()} with
+     * {@link #executorService()} and shut down by {@link #stop()}.
+     *
+     * @param localStateInterval how often the local machine state is refreshed, zero or negative disables it
+     */
+    public DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor,
+                                   Duration initialDelay, Duration delay, Duration safeGuardDuration, Duration localStateInterval) {
+        this(machineIdDistributor, null, true, initialDelay, delay, safeGuardDuration, localStateInterval);
+    }
+
+    private DefaultMachineIdGuarder(MachineIdDistributor machineIdDistributor, ScheduledExecutorService executorService, boolean ownsExecutor,
+                                    Duration initialDelay, Duration delay, Duration safeGuardDuration, Duration localStateInterval) {
+        this.ownsExecutor = ownsExecutor;
         this.guardianStates = new ConcurrentHashMap<>();
         this.localStateInterval = localStateInterval;
         this.machineIdDistributor = machineIdDistributor;
@@ -123,6 +149,10 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         this.initialDelay = initialDelay;
         this.delay = delay;
         this.safeGuardDuration = safeGuardDuration;
+    }
+
+    ScheduledExecutorService getExecutorService() {
+        return executorService;
     }
 
     /**
@@ -201,14 +231,22 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
         if (log.isDebugEnabled()) {
             log.debug("Start registered Instances:[{}].", guardianStates.size());
         }
-        if (running.compareAndSet(false, true)) {
-            scheduledFuture = executorService.scheduleWithFixedDelay(this::safeGuard, initialDelay.toMillis(), delay.toMillis(), TimeUnit.MILLISECONDS);
-            if (localStateInterval != null && !localStateInterval.isZero() && !localStateInterval.isNegative()) {
-                long intervalMillis = localStateInterval.toMillis();
-                localStateExecutor = new ScheduledThreadPoolExecutor(1,
-                    Checks.daemonThreadFactory("MachineIdGuarder-LocalState"));
-                localStateExecutor.scheduleWithFixedDelay(this::refreshLocalStates, intervalMillis, intervalMillis, TimeUnit.MILLISECONDS);
+        lifecycleLock.lock();
+        try {
+            if (running.compareAndSet(false, true)) {
+                if (ownsExecutor) {
+                    executorService = executorService();
+                }
+                scheduledFuture = executorService.scheduleWithFixedDelay(this::safeGuard, initialDelay.toMillis(), delay.toMillis(), TimeUnit.MILLISECONDS);
+                if (localStateInterval != null && !localStateInterval.isZero() && !localStateInterval.isNegative()) {
+                    long intervalMillis = localStateInterval.toMillis();
+                    localStateExecutor = new ScheduledThreadPoolExecutor(1,
+                        Checks.daemonThreadFactory("MachineIdGuarder-LocalState"));
+                    localStateExecutor.scheduleWithFixedDelay(this::refreshLocalStates, intervalMillis, intervalMillis, TimeUnit.MILLISECONDS);
+                }
             }
+        } finally {
+            lifecycleLock.unlock();
         }
     }
 
@@ -282,19 +320,28 @@ public class DefaultMachineIdGuarder implements MachineIdGuarder {
      * {@inheritDoc}
      *
      * <p>This implementation cancels the scheduled guarding task and marks the guarder as stopped.
-     * The cancellation is forceful, interrupting any ongoing guard operation.
+     * The cancellation is forceful, interrupting any ongoing guard operation. The executors the guarder created itself are
+     * shut down; an executor given to the constructor is left to its owner.
      */
     @Override
     public void stop() {
         if (log.isDebugEnabled()) {
             log.debug("Stop registered Instances:[{}].", guardianStates.size());
         }
-        if (running.compareAndSet(true, false)) {
-            scheduledFuture.cancel(true);
-            if (localStateExecutor != null) {
-                localStateExecutor.shutdown();
-                localStateExecutor = null;
+        lifecycleLock.lock();
+        try {
+            if (running.compareAndSet(true, false)) {
+                scheduledFuture.cancel(true);
+                if (ownsExecutor) {
+                    executorService.shutdown();
+                }
+                if (localStateExecutor != null) {
+                    localStateExecutor.shutdown();
+                    localStateExecutor = null;
+                }
             }
+        } finally {
+            lifecycleLock.unlock();
         }
     }
 

@@ -5,7 +5,3 @@
 #
 # Example:
 # me.ahoo.cosid.example.Widget#resize(int,java.lang.String)  # made-up example: say why the break is acceptable
-
-# A default method overriding an inherited default (the HTTP client sends the namespace): binary compatible, but japicmp
-# reports METHOD_ADDED_TO_INTERFACE for it.
-me.ahoo.cosid.proxy.api.MachineLeaseClient#serverTime(java.lang.String)

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# API diff of the library modules against a baseline release (default: v4.0.0).
+# API diff of the library modules against a baseline release (default: v4.1.0).
 # Usage: scripts/api-diff.sh [baseline-ref] [output-dir]
 # Writes one japicmp HTML and Markdown report per module, and a summary (also to $GITHUB_STEP_SUMMARY in CI).
 # Fails on a binary-incompatible change or an abstract method added to an interface or a class, unless it is listed in
@@ -10,7 +10,7 @@
 # (sharding and accessor left cosid-core in 4.0) are not reported as removed.
 set -euo pipefail
 
-BASELINE="${1:-v4.0.0}"
+BASELINE="${1:-v4.1.0}"
 OUT="$(mkdir -p "${2:-build/api-diff}" && cd "${2:-build/api-diff}" && pwd)"
 JAPICMP_VERSION="${JAPICMP_VERSION:-0.23.1}"
 # Where the japicmp jar is kept between runs (CI caches it): Maven Central answers bursts with 429.

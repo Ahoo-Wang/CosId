@@ -71,6 +71,8 @@ public class DefaultPrefetchWorker extends Thread implements PrefetchWorker {
             throw new IllegalArgumentException("PrefetchWorker is shutdown.");
         }
         affinityJobs.add(affinityJob);
+        // The worker may already be parked for a prefetch period without this job: run it now, not a period later.
+        LockSupport.unpark(this);
     }
 
     @Override

@@ -20,7 +20,7 @@
 | `distributor.type` | `String` | `redis` | `redis`、`jdbc`、`mongo`、`zookeeper`、`proxy`，或应用中某个 `CosIdStoreProvider` 的 `getType()`。只比较字母和数字、忽略大小写 |
 | `distributor.redis.timeout` | `Duration` | `1s` | `redis`：每条命令；`0` 表示不限制 |
 | `distributor.redis.wait-replicas` | `int` | `0` | `redis`：每次递增需要确认的副本数（`WAIT`）；`0` 表示不等待 |
-| `distributor.redis.wait-timeout` | `Duration` | `500ms` | `redis`：递增等待副本确认的时长；必须短于 `timeout` |
+| `distributor.redis.wait-timeout` | `Duration` | `500ms` | `redis`：递增等待副本确认的时长；必须短于 `timeout` 和 `spring.data.redis.timeout`，否则启动失败 |
 | `distributor.jdbc.enable-auto-init-cosid-table` | `boolean` | `false` | `jdbc`：启动时创建 `cosid` 表 |
 | `distributor.jdbc.enable-auto-init-id-segment` | `boolean` | `true` | `jdbc`：启动时插入缺失的生成器行 |
 | `distributor.jdbc.init-cosid-table-sql` | `String` | MySQL DDL | `jdbc`：建表语句 |

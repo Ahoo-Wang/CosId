@@ -26,7 +26,7 @@ The stable flag protects a machine id only once every instance runs 3.3 or later
 | `distributor.redis.timeout` | `Duration` | `1s` | `redis`: lease renewal and release; must be positive |
 | `distributor.redis.distribute-timeout` | `Duration` | `10s` | `redis`: each command of the claim at startup, whose first command also pays for connecting; must be positive |
 | `distributor.redis.wait-replicas` | `int` | `0` | `redis`: replicas that must acknowledge each claim and renewal (`WAIT`); `0` does not wait |
-| `distributor.redis.wait-timeout` | `Duration` | `500ms` | `redis`: how long a claim or renewal waits for them; shorter than `timeout` |
+| `distributor.redis.wait-timeout` | `Duration` | `500ms` | `redis`: how long a claim or renewal waits for them; shorter than `timeout`, `distribute-timeout` and `spring.data.redis.timeout`, or startup fails |
 | `distributor.jdbc.enable-auto-init-cosid-machine-table` | `boolean` | `false` | `jdbc`: create the `cosid_machine` table at startup |
 | `distributor.jdbc.init-cos-id-machine-table-sql` | `String` | MySQL DDL | `jdbc`: the table DDL |
 | `distributor.jdbc.init-namespace-idx-sql`, `init-instance-id-idx-sql` | `String` | empty | `jdbc`: separate index DDL, skipped when empty (the MySQL DDL declares the indexes inline) |

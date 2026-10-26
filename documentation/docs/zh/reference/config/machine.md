@@ -26,7 +26,7 @@ Snowflake ID 和 `CosIdGenerator` 需要机器号。租约的工作方式见[机
 | `distributor.redis.timeout` | `Duration` | `1s` | `redis`：租约续约和释放；必须为正数 |
 | `distributor.redis.distribute-timeout` | `Duration` | `10s` | `redis`：启动时申领的每条命令，第一条命令还包含建立连接的时间；必须为正数 |
 | `distributor.redis.wait-replicas` | `int` | `0` | `redis`：每次申领和续约需要确认的副本数（`WAIT`）；`0` 表示不等待 |
-| `distributor.redis.wait-timeout` | `Duration` | `500ms` | `redis`：申领或续约等待副本确认的时长；必须短于 `timeout` |
+| `distributor.redis.wait-timeout` | `Duration` | `500ms` | `redis`：申领或续约等待副本确认的时长；必须短于 `timeout`、`distribute-timeout` 和 `spring.data.redis.timeout`，否则启动失败 |
 | `distributor.jdbc.enable-auto-init-cosid-machine-table` | `boolean` | `false` | `jdbc`：启动时创建 `cosid_machine` 表 |
 | `distributor.jdbc.init-cos-id-machine-table-sql` | `String` | MySQL DDL | `jdbc`：建表语句 |
 | `distributor.jdbc.init-namespace-idx-sql`、`init-instance-id-idx-sql` | `String` | 空 | `jdbc`：单独的建索引语句，为空时跳过（MySQL 建表语句已内联声明索引） |

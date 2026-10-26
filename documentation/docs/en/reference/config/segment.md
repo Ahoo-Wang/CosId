@@ -20,7 +20,7 @@
 | `distributor.type` | `String` | `redis` | `redis`, `jdbc`, `mongo`, `zookeeper`, `proxy`, or the `getType()` of an application `CosIdStoreProvider`. Compared by letters and digits, ignoring case |
 | `distributor.redis.timeout` | `Duration` | `1s` | `redis`: each command; `0` disables it |
 | `distributor.redis.wait-replicas` | `int` | `0` | `redis`: replicas that must acknowledge each increment (`WAIT`); `0` does not wait |
-| `distributor.redis.wait-timeout` | `Duration` | `500ms` | `redis`: how long an increment waits for them; shorter than `timeout` |
+| `distributor.redis.wait-timeout` | `Duration` | `500ms` | `redis`: how long an increment waits for them; shorter than `timeout` and `spring.data.redis.timeout`, or startup fails |
 | `distributor.jdbc.enable-auto-init-cosid-table` | `boolean` | `false` | `jdbc`: create the `cosid` table at startup |
 | `distributor.jdbc.enable-auto-init-id-segment` | `boolean` | `true` | `jdbc`: insert a generator's row at startup when it is missing |
 | `distributor.jdbc.init-cosid-table-sql` | `String` | MySQL DDL | `jdbc`: the table DDL |

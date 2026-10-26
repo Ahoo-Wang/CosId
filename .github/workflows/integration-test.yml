@@ -588,13 +588,22 @@ jobs:
       - name: Init CosId-Db
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
-      - name: Test the starter, the proxy server and Spring Data Redis
+      - name: Test the starter and Spring Data Redis
         env:
           COSID_TEST_REDIS_URI: redis://localhost:6379
         run: >-
           scripts/gradle-retry.sh -PspringBootVersion=${{ matrix.boot }} -PtestJavaVersion=${{ matrix.java }}
-          cosid-spring-boot-starter:test cosid-proxy-server:test
+          cosid-spring-boot-starter:test
           cosid-spring-redis:test --tests '*ContractTest' --tests '*MixedLeaseFormatTest'
+
+      # On its own: its end-to-end tests pause the shared Redis (CLIENT PAUSE, up to 10 s), which times out the Spring
+      # Data Redis tests when Gradle runs both modules at once.
+      - name: Test the proxy server
+        env:
+          COSID_TEST_REDIS_URI: redis://localhost:6379
+        run: >-
+          scripts/gradle-retry.sh -PspringBootVersion=${{ matrix.boot }} -PtestJavaVersion=${{ matrix.java }}
+          cosid-proxy-server:test
 
       - name: Check the tests ran
         run: |

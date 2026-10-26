@@ -40,7 +40,8 @@ import java.util.concurrent.TimeUnit;
  * upgrade. The watermark, renewal time and version of each machine id are kept in {@code cosid:{namespace}:lease}; the
  * 3.4 keys hold a timestamp that is at least all of them, which 3.4 reads as its last timestamp. A machine id last
  * written by a 3.4 instance is read with that timestamp as its watermark, renewal time and version. The server clock is
- * Redis' {@code TIME}. Every command is bounded by the {@link RedisCommandTimeout}.</p>
+ * Redis' {@code TIME}. Every command is bounded by the {@link RedisCommandTimeout}. With a {@link RedisReplicaWait}, each
+ * claim and renewal waits for the replicas after its script, and fails when too few acknowledged it.</p>
  *
  * @author ahoo wang
  * @since 3.4.0
@@ -51,6 +52,7 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
     
     private final StringRedisTemplate redisTemplate;
     private final RedisCommandTimeout commandTimeout;
+    private final RedisReplicaWait replicaWait;
     
     /**
      * Create a Redis lease store.
@@ -58,9 +60,22 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
      * @param commandTimeout bounds every command, which may run under the lease distributor's lock: must be enabled
      */
     public SpringRedisMachineLeaseStore(StringRedisTemplate redisTemplate, RedisCommandTimeout commandTimeout) {
+        this(redisTemplate, commandTimeout, RedisReplicaWait.NONE);
+    }
+    
+    /**
+     * Create a Redis lease store that waits for replicas after each claim and renewal.
+     *
+     * @param commandTimeout bounds every command, the replica wait included, which may run under the lease
+     *                       distributor's lock: must be enabled
+     * @param replicaWait    the replicas each claim and renewal waits for
+     * @since 4.1.0
+     */
+    public SpringRedisMachineLeaseStore(StringRedisTemplate redisTemplate, RedisCommandTimeout commandTimeout, RedisReplicaWait replicaWait) {
         this.redisTemplate = Checks.checkNotNull(redisTemplate, "redisTemplate can not be null!");
         this.commandTimeout = Checks.checkNotNull(commandTimeout, "commandTimeout can not be null!");
         Checks.checkArgument(commandTimeout.isEnabled(), "commandTimeout must be enabled: the lease adapter holds a lock during each call!");
+        this.replicaWait = Checks.checkNotNull(replicaWait, "replicaWait can not be null!");
     }
     
     /**
@@ -68,11 +83,20 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
      * first command also pays for connecting.
      */
     public SpringRedisMachineLeaseStore withCommandTimeout(RedisCommandTimeout commandTimeout) {
-        return new SpringRedisMachineLeaseStore(redisTemplate, commandTimeout);
+        return new SpringRedisMachineLeaseStore(redisTemplate, commandTimeout, replicaWait);
     }
     
     public RedisCommandTimeout getCommandTimeout() {
         return commandTimeout;
+    }
+    
+    /**
+     * The replicas each claim and renewal waits for.
+     *
+     * @since 4.1.0
+     */
+    public RedisReplicaWait getReplicaWait() {
+        return replicaWait;
     }
     
     /**
@@ -100,9 +124,12 @@ public class SpringRedisMachineLeaseStore implements MachineLeaseStore {
         for (int i = 0; i < arguments.length; i++) {
             args[3 + i] = String.valueOf(arguments[i]);
         }
+        List<String> keys = keys(namespace);
+        // A release only gives a machine id back: losing it in a failover leaves the lease to expire.
+        RedisReplicaWait wait = "release".equals(operation) ? RedisReplicaWait.NONE : replicaWait;
         @SuppressWarnings("unchecked")
         List<Long> result = commandTimeout.call(operation,
-            () -> (List<Long>) redisTemplate.execute(MACHINE_LEASE, keys(namespace), args));
+            () -> wait.execute(redisTemplate, keys.get(0), operation, operations -> (List<Long>) operations.execute(MACHINE_LEASE, keys, args)));
         if (result == null || result.size() < 4) {
             return Optional.empty();
         }

@@ -15,6 +15,7 @@ package me.ahoo.cosid.spring.boot.starter.segment;
 
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
+import me.ahoo.cosid.spring.boot.starter.RedisReplicaWaits;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnSegmentStoreType;
@@ -29,6 +30,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.core.StringRedisTemplate;
+
+import java.util.Map;
 
 /**
  * CosId Spring Redis Segment AutoConfiguration.
@@ -53,8 +56,11 @@ public class CosIdSpringRedisSegmentAutoConfiguration {
     @ConditionalOnMissingBean
     @ConditionalOnBuiltInSegmentStore
     public IdSegmentDistributorFactory idSegmentDistributorFactory(StringRedisTemplate stringRedisTemplate) {
-        RedisCommandTimeout commandTimeout = RedisCommandTimeout.of(segmentIdProperties.getDistributor().getRedis().getTimeout());
-        return new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate, commandTimeout);
+        SegmentIdProperties.Distributor.Redis redis = segmentIdProperties.getDistributor().getRedis();
+        RedisCommandTimeout commandTimeout = RedisCommandTimeout.of(redis.getTimeout());
+        String prefix = SegmentIdProperties.PREFIX + ".distributor.redis";
+        return new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate, commandTimeout, RedisReplicaWaits.of(prefix, redis.getWaitReplicas(),
+            redis.getWaitTimeout(), stringRedisTemplate.getConnectionFactory(), Map.of(prefix + ".timeout", commandTimeout)));
     }
 
     /**

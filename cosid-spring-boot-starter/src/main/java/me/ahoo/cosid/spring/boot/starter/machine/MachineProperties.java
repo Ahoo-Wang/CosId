@@ -653,6 +653,33 @@ public class MachineProperties {
         public void setDistributeTimeout(Duration distributeTimeout) {
             this.distributeTimeout = distributeTimeout;
         }
+
+        /**
+         * Replicas that must acknowledge each machine id claim and renewal (Redis {@code WAIT}) before it counts; too
+         * few within {@code wait-timeout} is a failure. Default 0: no wait.
+         */
+        private int waitReplicas = 0;
+        
+        /**
+         * How long a claim or renewal waits for {@code wait-replicas}; shorter than {@code timeout}. Default 500ms.
+         */
+        private Duration waitTimeout = Duration.ofMillis(500);
+        
+        public int getWaitReplicas() {
+            return waitReplicas;
+        }
+        
+        public void setWaitReplicas(int waitReplicas) {
+            this.waitReplicas = waitReplicas;
+        }
+        
+        public Duration getWaitTimeout() {
+            return waitTimeout;
+        }
+        
+        public void setWaitTimeout(Duration waitTimeout) {
+            this.waitTimeout = waitTimeout;
+        }
     }
     
     /**
@@ -680,6 +707,23 @@ public class MachineProperties {
 
         public void setTimeout(Duration timeout) {
             this.timeout = timeout;
+        }
+
+        /**
+         * Write concern of CosId's writes: {@code majority}, {@code w1}, {@code acknowledged}, {@code journaled} or a
+         * number of members. Unset, the connection string's. On a replica set, startup WARNs when it is weaker than
+         * {@code majority}.
+         */
+        @Nullable
+        private String writeConcern;
+        
+        @Nullable
+        public String getWriteConcern() {
+            return writeConcern;
+        }
+        
+        public void setWriteConcern(@Nullable String writeConcern) {
+            this.writeConcern = writeConcern;
         }
         
         /**

@@ -24,6 +24,7 @@ import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.spring.boot.starter.IdConverterDefinition;
 
 import jakarta.annotation.Nonnull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
@@ -530,6 +531,17 @@ public class SegmentIdProperties {
         public static class Redis {
 
             private Duration timeout = Duration.ofSeconds(1);
+            
+            /**
+             * Replicas that must acknowledge each segment increment (Redis {@code WAIT}) before its ids are handed out;
+             * too few within {@code wait-timeout} is a failure. Default 0: no wait.
+             */
+            private int waitReplicas = 0;
+            
+            /**
+             * How long an increment waits for {@code wait-replicas}; shorter than {@code timeout}. Default 500ms.
+             */
+            private Duration waitTimeout = Duration.ofMillis(500);
 
             public Duration getTimeout() {
                 return timeout;
@@ -537,6 +549,22 @@ public class SegmentIdProperties {
 
             public void setTimeout(Duration timeout) {
                 this.timeout = timeout;
+            }
+            
+            public int getWaitReplicas() {
+                return waitReplicas;
+            }
+            
+            public void setWaitReplicas(int waitReplicas) {
+                this.waitReplicas = waitReplicas;
+            }
+            
+            public Duration getWaitTimeout() {
+                return waitTimeout;
+            }
+            
+            public void setWaitTimeout(Duration waitTimeout) {
+                this.waitTimeout = waitTimeout;
             }
         }
 
@@ -703,6 +731,23 @@ public class SegmentIdProperties {
 
             public void setDatabase(String database) {
                 this.database = database;
+            }
+
+            /**
+             * Write concern of CosId's writes: {@code majority}, {@code w1}, {@code acknowledged}, {@code journaled} or a
+             * number of members. Unset, the connection string's. On a replica set, startup WARNs when it is weaker than
+             * {@code majority}.
+             */
+            @Nullable
+            private String writeConcern;
+            
+            @Nullable
+            public String getWriteConcern() {
+                return writeConcern;
+            }
+            
+            public void setWriteConcern(@Nullable String writeConcern) {
+                this.writeConcern = writeConcern;
             }
         }
     }

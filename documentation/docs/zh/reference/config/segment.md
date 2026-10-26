@@ -19,6 +19,8 @@
 |------|------|--------|------|
 | `distributor.type` | `String` | `redis` | `redis`、`jdbc`、`mongo`、`zookeeper`、`proxy`，或应用中某个 `CosIdStoreProvider` 的 `getType()`。只比较字母和数字、忽略大小写 |
 | `distributor.redis.timeout` | `Duration` | `1s` | `redis`：每条命令；`0` 表示不限制 |
+| `distributor.redis.wait-replicas` | `int` | `0` | `redis`：每次递增需要确认的副本数（`WAIT`）；`0` 表示不等待 |
+| `distributor.redis.wait-timeout` | `Duration` | `500ms` | `redis`：递增等待副本确认的时长；必须短于 `timeout` 和 `spring.data.redis.timeout`，否则启动失败 |
 | `distributor.jdbc.enable-auto-init-cosid-table` | `boolean` | `false` | `jdbc`：启动时创建 `cosid` 表 |
 | `distributor.jdbc.enable-auto-init-id-segment` | `boolean` | `true` | `jdbc`：启动时插入缺失的生成器行 |
 | `distributor.jdbc.init-cosid-table-sql` | `String` | 自动识别（未知数据库时为 MySQL 语句） | `jdbc`：建表语句。保持默认值时随数据库而定（见 [JDBC 数据库](../../guide/backends/jdbc.md#数据库)）；设置的值按配置使用 |
@@ -28,6 +30,7 @@
 | `distributor.jdbc.query-timeout` | `Duration` | `5s` | `jdbc`：每条语句；`0` 表示不限制 |
 | `distributor.mongo.database` | `String` | `cosid_db` | `mongo`：`cosid` 集合所在的数据库 |
 | `distributor.mongo.timeout` | `Duration` | `5s` | `mongo`：每次操作（驱动的 `timeoutMS`）；`0` 表示不限制 |
+| `distributor.mongo.write-concern` | `String` | | `mongo`：写入的写关注；未设置时使用连接串的设置 |
 | `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`：每次 `nextMaxId`；`0` 表示不限制 |
 
 语句随数据库而定：见 [JDBC：数据库](../../guide/backends/jdbc.md#数据库)。`cosid.segment.distributor.provider` 已在 4.0 移除：请改为把 `distributor.type` 设置为 Provider 的类型。

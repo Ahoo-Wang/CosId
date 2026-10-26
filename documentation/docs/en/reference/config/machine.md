@@ -25,6 +25,8 @@ The stable flag protects a machine id only once every instance runs 3.3 or later
 | `distributor.manual.machine-id` | `Integer` | none | `manual`: the machine id; required |
 | `distributor.redis.timeout` | `Duration` | `1s` | `redis`: lease renewal and release; must be positive |
 | `distributor.redis.distribute-timeout` | `Duration` | `10s` | `redis`: each command of the claim at startup, whose first command also pays for connecting; must be positive |
+| `distributor.redis.wait-replicas` | `int` | `0` | `redis`: replicas that must acknowledge each claim and renewal (`WAIT`); `0` does not wait |
+| `distributor.redis.wait-timeout` | `Duration` | `500ms` | `redis`: how long a claim or renewal waits for them; shorter than `timeout`, `distribute-timeout` and `spring.data.redis.timeout`, or startup fails |
 | `distributor.jdbc.enable-auto-init-cosid-machine-table` | `boolean` | `false` | `jdbc`: create the `cosid_machine` table at startup |
 | `distributor.jdbc.init-cos-id-machine-table-sql` | `String` | detected (MySQL statements when unknown) | `jdbc`: the table DDL. Left at the default, it follows the database (see [JDBC databases](../../guide/backends/jdbc.md#databases)); a value you set is used as configured |
 | `distributor.jdbc.init-namespace-idx-sql`, `init-instance-id-idx-sql` | `String` | empty | `jdbc`: separate index DDL, skipped when empty (the MySQL DDL declares the indexes inline). Left empty next to the default table DDL, they take the detected database's `create index`; next to a table DDL of your own they stay empty |
@@ -32,6 +34,7 @@ The stable flag protects a machine id only once every instance runs 3.3 or later
 | `distributor.jdbc.server-time-sql` | `String` | detected | `jdbc`: the query for the database clock in epoch milliseconds. Unset, the starter picks it for MySQL, MariaDB, PostgreSQL, H2 and SQL Server; other databases must set it |
 | `distributor.mongo.database` | `String` | `cosid_db` | `mongo`: database of the `cosid_machine` collection |
 | `distributor.mongo.timeout` | `Duration` | `5s` | `mongo`: each operation (driver `timeoutMS`); must be positive |
+| `distributor.mongo.write-concern` | `String` | | `mongo`: write concern of the writes; unset, the connection string's |
 | `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`: lease renewal and release (Curator has no per-operation timeout); must be positive |
 
 The proxy client's timeouts are on the [proxy page](./proxy.md). A timeout that must be positive fails startup when set to `0`.

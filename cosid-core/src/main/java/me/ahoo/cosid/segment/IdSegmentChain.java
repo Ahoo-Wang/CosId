@@ -17,6 +17,7 @@ import me.ahoo.cosid.segment.grouped.GroupedKey;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
 /**
@@ -40,7 +41,12 @@ public class IdSegmentChain implements IdSegment {
 
     private final long version;
     private final IdSegment idSegment;
-    @GuardedBy("this")
+    /**
+     * Held while the next segment is fetched and set. Not {@code synchronized}: the fetch calls the store, and a virtual
+     * thread that blocks inside {@code synchronized} pins its carrier thread on JDK 21 to 23.
+     */
+    private final ReentrantLock nextLock = new ReentrantLock();
+    @GuardedBy("nextLock")
     private volatile IdSegmentChain next;
     private final boolean allowReset;
 
@@ -82,13 +88,16 @@ public class IdSegmentChain implements IdSegment {
             return false;
         }
 
-        synchronized (this) {
+        nextLock.lock();
+        try {
             if (NOT_SET != next) {
                 return false;
             }
             IdSegmentChain nextIdSegmentChain = idSegmentChainSupplier.apply(this);
             setNext(nextIdSegmentChain);
             return true;
+        } finally {
+            nextLock.unlock();
         }
     }
 

@@ -29,6 +29,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Segment chain algorithm ID generator.
@@ -128,7 +129,11 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
 
     private final PrefetchWorkerExecutorService prefetchWorkerExecutorService;
 
-    private final Object prefetchLock = new Object();
+    /**
+     * Not {@code synchronized}: submitting logs, and a virtual thread that blocks inside {@code synchronized} pins its
+     * carrier thread on JDK 21 to 23.
+     */
+    private final ReentrantLock prefetchLock = new ReentrantLock();
 
     private volatile boolean prefetchSubmitted;
 
@@ -212,7 +217,8 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
         if (prefetchSubmitted) {
             return;
         }
-        synchronized (prefetchLock) {
+        prefetchLock.lock();
+        try {
             if (prefetchSubmitted || closed) {
                 return;
             }
@@ -225,6 +231,8 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
                     log.warn("Prefetch [{}] - not started, segments are fetched on generation: {}", maxIdDistributor.getNamespacedName(), rejected.toString());
                 }
             }
+        } finally {
+            prefetchLock.unlock();
         }
     }
 
@@ -440,7 +448,8 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
      */
     @Override
     public void close() {
-        synchronized (prefetchLock) {
+        prefetchLock.lock();
+        try {
             if (closed) {
                 return;
             }
@@ -449,6 +458,8 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             if (prefetchWorker != null) {
                 prefetchWorker.cancel(prefetchJob);
             }
+        } finally {
+            prefetchLock.unlock();
         }
     }
 

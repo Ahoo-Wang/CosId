@@ -182,12 +182,24 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
     
     @Test
     void writesWithTheConfiguredWriteConcern() {
+        MongoClient client = mock(MongoClient.class);
+        MongoDatabase database = mock(MongoDatabase.class);
+        MongoDatabase majority = mock(MongoDatabase.class);
+        MongoDatabase majorityWithTimeout = mock(MongoDatabase.class);
+        MongoCollection<Document> collection = mock(MongoCollection.class);
+        MongoCollection<Document> majorityCollection = mock(MongoCollection.class);
+        when(client.getDatabase(anyString())).thenReturn(database);
+        when(database.getCollection(anyString())).thenReturn(collection);
+        when(database.withTimeout(anyLong(), any())).thenReturn(database);
+        when(database.withWriteConcern(com.mongodb.WriteConcern.MAJORITY)).thenReturn(majority);
+        when(majority.withTimeout(anyLong(), any())).thenReturn(majorityWithTimeout);
+        when(majorityWithTimeout.getCollection(anyString())).thenReturn(majorityCollection);
         new ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(CosIdMongoMachineIdDistributorAutoConfiguration.class))
             .withClassLoader(new FilteredClassLoader(com.mongodb.reactivestreams.client.MongoClient.class))
             .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
             .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
-            .withBean(MongoClient.class, CosIdMongoMachineIdDistributorAutoConfigurationTest::mongoClient)
+            .withBean(MongoClient.class, () -> client)
             .withBean(MachineProperties.class, () -> {
                 MachineProperties machineProperties = new MachineProperties();
                 machineProperties.getDistributor().getMongo().setWriteConcern("majority");
@@ -195,12 +207,13 @@ class CosIdMongoMachineIdDistributorAutoConfigurationTest {
             })
             .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.Distributor.TYPE + "=mongo")
             .run(context -> {
-                assertThat(context).hasSingleBean(MongoMachineLeaseStore.class);
-                MongoDatabase database = context.getBean(MongoClient.class).getDatabase("cosid_db");
-                verify(database, org.mockito.Mockito.atLeastOnce()).withWriteConcern(com.mongodb.WriteConcern.MAJORITY);
+                assertThat(context).hasNotFailed().hasSingleBean(MongoMachineLeaseStore.class);
+                // The lease store writes to the collection of the database with the majority write concern, and the timeout.
+                assertThat(context.getBean(MongoMachineLeaseStore.class)).extracting("collection").isSameAs(majorityCollection);
+                verify(database, never()).getCollection(me.ahoo.cosid.mongo.MachineOperates.COLLECTION_NAME);
             });
     }
-    
+
     @Test
     void keepsTheConnectionStringsWriteConcernByDefault() {
         this.contextRunner

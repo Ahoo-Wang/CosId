@@ -35,6 +35,15 @@ final class RealSqlServer {
      */
     @SneakyThrows
     static DataSource createDataSource() {
+        return DialectTables.create(createEmptyDataSource(), JdbcDialect.SQL_SERVER);
+    }
+    
+    /**
+     * Like {@link #createDataSource()}, without creating the CosId tables (another test class on the same server may
+     * have created them).
+     */
+    @SneakyThrows
+    static DataSource createEmptyDataSource() {
         Assumptions.assumeTrue(SqlServerLauncher.isAvailable(), "SQL Server tests need " + SqlServerLauncher.URL_ENV + " or "
             + SqlServerLauncher.ENABLED_ENV + "=true");
         SqlServerLauncher.Connection connection = SqlServerLauncher.getConnection();
@@ -42,6 +51,6 @@ final class RealSqlServer {
         dataSource.setURL(connection.jdbcUrl());
         dataSource.setUser(connection.username());
         dataSource.setPassword(connection.password());
-        return DialectTables.create(dataSource, JdbcDialect.SQL_SERVER);
+        return dataSource;
     }
 }

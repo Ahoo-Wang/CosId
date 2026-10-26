@@ -21,16 +21,16 @@
 | `distributor.redis.timeout` | `Duration` | `1s` | `redis`：每条命令；`0` 表示不限制 |
 | `distributor.jdbc.enable-auto-init-cosid-table` | `boolean` | `false` | `jdbc`：启动时创建 `cosid` 表 |
 | `distributor.jdbc.enable-auto-init-id-segment` | `boolean` | `true` | `jdbc`：启动时插入缺失的生成器行 |
-| `distributor.jdbc.init-cosid-table-sql` | `String` | MySQL DDL | `jdbc`：建表语句 |
-| `distributor.jdbc.init-id-segment-sql` | `String` | MySQL | `jdbc`：插入生成器行 |
-| `distributor.jdbc.increment-max-id-sql` | `String` | MySQL | `jdbc`：给计数器加上步长 |
-| `distributor.jdbc.fetch-max-id-sql` | `String` | MySQL | `jdbc`：读取计数器 |
+| `distributor.jdbc.init-cosid-table-sql` | `String` | 自动识别（未知数据库时为 MySQL 语句） | `jdbc`：建表语句。保持默认值时随数据库而定（见 [JDBC 数据库](../../guide/backends/jdbc.md#数据库)）；设置的值按配置使用 |
+| `distributor.jdbc.init-id-segment-sql` | `String` | 自动识别（未知数据库时为 MySQL 语句） | `jdbc`：插入生成器行 |
+| `distributor.jdbc.increment-max-id-sql` | `String` | 自动识别（未知数据库时为 MySQL 语句） | `jdbc`：给计数器加上步长 |
+| `distributor.jdbc.fetch-max-id-sql` | `String` | 自动识别（未知数据库时为 MySQL 语句） | `jdbc`：读取计数器 |
 | `distributor.jdbc.query-timeout` | `Duration` | `5s` | `jdbc`：每条语句；`0` 表示不限制 |
 | `distributor.mongo.database` | `String` | `cosid_db` | `mongo`：`cosid` 集合所在的数据库 |
 | `distributor.mongo.timeout` | `Duration` | `5s` | `mongo`：每次操作（驱动的 `timeoutMS`）；`0` 表示不限制 |
 | `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`：每次 `nextMaxId`；`0` 表示不限制 |
 
-PostgreSQL 语句见 [JDBC](../../guide/backends/jdbc.md#postgresql)。`cosid.segment.distributor.provider` 已在 4.0 移除：请改为把 `distributor.type` 设置为 Provider 的类型。
+语句随数据库而定：见 [JDBC：数据库](../../guide/backends/jdbc.md#数据库)。`cosid.segment.distributor.provider` 已在 4.0 移除：请改为把 `distributor.type` 设置为 Provider 的类型。
 
 ## 号段链
 

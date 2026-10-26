@@ -540,13 +540,34 @@ public class SegmentIdProperties {
             }
         }
 
+        /**
+         * The JDBC segment store. A statement left at its default (MySQL) follows the database the connection reports: PostgreSQL, H2 and
+         * SQL Server get their own ({@code me.ahoo.cosid.jdbc.JdbcDialect}); any other value is used as configured.
+         */
         public static class Jdbc {
 
+            /**
+             * Adds the step to a segment's counter. The default follows the detected database (the MySQL statement,
+             * replaced by that of PostgreSQL, H2 or SQL Server; as it is on any other database); a value set explicitly
+             * is used as configured.
+             */
             private String incrementMaxIdSql = JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL;
+            /**
+             * Reads a segment's counter. The default follows the detected database, like {@code increment-max-id-sql};
+             * a value set explicitly is used as configured.
+             */
             private String fetchMaxIdSql = JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL;
             private boolean enableAutoInitCosidTable = false;
+            /**
+             * Creates the {@code cosid} table. The default follows the detected database (the MySQL DDL, replaced by
+             * that of PostgreSQL, H2 or SQL Server); a value set explicitly is used as configured.
+             */
             private String initCosidTableSql = JdbcIdSegmentInitializer.INIT_COSID_TABLE_SQL;
             private boolean enableAutoInitIdSegment = true;
+            /**
+             * Inserts a segment's row. The default follows the detected database (the MySQL statement, replaced by that
+             * of PostgreSQL, H2 or SQL Server); a value set explicitly is used as configured.
+             */
             private String initIdSegmentSql = JdbcIdSegmentInitializer.INIT_ID_SEGMENT_SQL;
             /**
              * Timeout of each distributor statement, rounded up to seconds. Zero disables it.
@@ -563,10 +584,12 @@ public class SegmentIdProperties {
             }
             
             /**
-             * How a segment is fetched. {@code auto} (default): the built-in MySQL statements as {@code last_insert_id}
-             * under auto-commit, the PostgreSQL ones as one {@code update ... returning}, others in a transaction.
-             * {@code transaction}: always the update then the select in a transaction, for SQL proxies and read/write
-             * splitters (ShardingSphere, MyCat, ProxySQL, Vitess).
+             * How a segment is fetched. {@code auto} (default): the built-in statements of the database the connection
+             * reports in one round-trip under auto-commit: {@code last_insert_id} only when it reports MySQL or MariaDB,
+             * one {@code update ... returning} on PostgreSQL, {@code select ... from final table (update ...)} on H2,
+             * {@code update ... output inserted...} on SQL Server; any other statements, or another database, in a
+             * transaction. {@code transaction}: always the update then the select in a transaction, for SQL proxies and
+             * read/write splitters (ShardingSphere, MyCat, ProxySQL, Vitess).
              */
             // Its own enum, not JdbcIdSegmentDistributor.FetchMode: that would load cosid-jdbc for every starter user.
             private FetchPlan fetchPlan = FetchPlan.AUTO;

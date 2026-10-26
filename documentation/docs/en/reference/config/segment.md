@@ -21,16 +21,16 @@
 | `distributor.redis.timeout` | `Duration` | `1s` | `redis`: each command; `0` disables it |
 | `distributor.jdbc.enable-auto-init-cosid-table` | `boolean` | `false` | `jdbc`: create the `cosid` table at startup |
 | `distributor.jdbc.enable-auto-init-id-segment` | `boolean` | `true` | `jdbc`: insert a generator's row at startup when it is missing |
-| `distributor.jdbc.init-cosid-table-sql` | `String` | MySQL DDL | `jdbc`: the table DDL |
-| `distributor.jdbc.init-id-segment-sql` | `String` | MySQL | `jdbc`: inserts a generator's row |
-| `distributor.jdbc.increment-max-id-sql` | `String` | MySQL | `jdbc`: adds the step to the counter |
-| `distributor.jdbc.fetch-max-id-sql` | `String` | MySQL | `jdbc`: reads the counter |
+| `distributor.jdbc.init-cosid-table-sql` | `String` | detected (MySQL statements when unknown) | `jdbc`: the table DDL. Left at the default, it follows the database (see [JDBC databases](../../guide/backends/jdbc.md#databases)); a value you set is used as configured |
+| `distributor.jdbc.init-id-segment-sql` | `String` | detected (MySQL statements when unknown) | `jdbc`: inserts a generator's row |
+| `distributor.jdbc.increment-max-id-sql` | `String` | detected (MySQL statements when unknown) | `jdbc`: adds the step to the counter |
+| `distributor.jdbc.fetch-max-id-sql` | `String` | detected (MySQL statements when unknown) | `jdbc`: reads the counter |
 | `distributor.jdbc.query-timeout` | `Duration` | `5s` | `jdbc`: each statement; `0` disables it |
 | `distributor.mongo.database` | `String` | `cosid_db` | `mongo`: database of the `cosid` collection |
 | `distributor.mongo.timeout` | `Duration` | `5s` | `mongo`: each operation (driver `timeoutMS`); `0` disables it |
 | `distributor.zookeeper.timeout` | `Duration` | `5s` | `zookeeper`: each `nextMaxId`; `0` disables it |
 
-The PostgreSQL statements are on the [JDBC page](../../guide/backends/jdbc.md#postgresql). `cosid.segment.distributor.provider` was removed in 4.0: set `distributor.type` to the type of the provider instead.
+The statements follow the database: see [JDBC: Databases](../../guide/backends/jdbc.md#databases). `cosid.segment.distributor.provider` was removed in 4.0: set `distributor.type` to the type of the provider instead.
 
 ## Chain
 

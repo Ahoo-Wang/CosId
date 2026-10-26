@@ -48,7 +48,7 @@ docker run --name cosid-proxy -d -p 8688:8688 \
   ahoowang/cosid-proxy:__COSID_VERSION__
 ```
 
-JDBC 的默认语句是 MySQL 语句：使用 PostgreSQL 时，请先建表（或者设置 `enable-auto-init-*` 并配置 PostgreSQL 的建表语句），并按照 [JDBC：PostgreSQL](./jdbc.md#postgresql) 覆盖号段语句，例如通过 `SPRING_APPLICATION_JSON` 或挂载的 `config/application.yaml`。`SPRING_AUTOCONFIGURE_EXCLUDE` 会替换整个默认列表，因此必须列出所有未使用的存储：
+JDBC 语句随数据库而定（镜像包含 MySQL 和 PostgreSQL，见 [JDBC：数据库](./jdbc.md#数据库)）：请先建表，或设置 `cosid.segment.distributor.jdbc.enable-auto-init-cosid-table` 和 `cosid.machine.distributor.jdbc.enable-auto-init-cosid-machine-table`，例如通过 `SPRING_APPLICATION_JSON` 或挂载的 `config/application.yaml`。`SPRING_AUTOCONFIGURE_EXCLUDE` 会替换整个默认列表，因此必须列出所有未使用的存储：
 
 | 存储 | `SPRING_AUTOCONFIGURE_EXCLUDE` |
 |------|--------------------------------|

@@ -33,6 +33,7 @@ dependencies {
     compileOnly("org.testcontainers:testcontainers")
     compileOnly("org.testcontainers:testcontainers-mysql")
     compileOnly("org.testcontainers:testcontainers-postgresql")
+    compileOnly("org.testcontainers:testcontainers-mssqlserver")
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:testcontainers-mysql")
     testImplementation("org.testcontainers:testcontainers-postgresql")

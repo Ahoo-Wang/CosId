@@ -111,9 +111,18 @@ public class JdbcMachineIdInitializer {
 
         try (Connection connection = dataSource.getConnection()) {
             try {
-                executeIfPresent(connection, initCosIdMachineTableSql);
-                executeIfPresent(connection, initNamespaceIdxSql);
-                executeIfPresent(connection, initInstanceIdIdxSql);
+                // Statements left at their MySQL defaults follow the connection's database. The MySQL table DDL
+                // declares its indexes inline, so its index statements are empty: they take the database's own only
+                // with the default table DDL, never next to a table DDL of the user's, which may declare them already.
+                boolean defaultTable = JdbcDialect.isSameStatement(initCosIdMachineTableSql, INIT_COSID_MACHINE_TABLE_SQL);
+                executeIfPresent(connection, JdbcDialect.statementFor(connection, initCosIdMachineTableSql, INIT_COSID_MACHINE_TABLE_SQL,
+                    JdbcDialect::getInitCosIdMachineTableSql));
+                executeIfPresent(connection, defaultTable
+                    ? JdbcDialect.statementFor(connection, initNamespaceIdxSql, INIT_NAMESPACE_IDX_SQL, JdbcDialect::getInitNamespaceIdxSql)
+                    : initNamespaceIdxSql);
+                executeIfPresent(connection, defaultTable
+                    ? JdbcDialect.statementFor(connection, initInstanceIdIdxSql, INIT_INSTANCE_ID_IDX_SQL, JdbcDialect::getInitInstanceIdIdxSql)
+                    : initInstanceIdIdxSql);
                 JdbcSupport.commitIfManual(connection);
             } catch (SQLException | RuntimeException exception) {
                 JdbcSupport.rollbackIfManual(connection, exception);

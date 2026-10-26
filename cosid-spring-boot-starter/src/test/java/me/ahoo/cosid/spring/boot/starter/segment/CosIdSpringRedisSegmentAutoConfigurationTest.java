@@ -144,4 +144,18 @@ class CosIdSpringRedisSegmentAutoConfigurationTest {
                 "cosid.segment.distributor.redis.wait-replicas=1", "cosid.segment.distributor.redis.wait-timeout=1s")
             .run(context -> assertThat(context).getFailure().rootCause().hasMessageContaining("cosid.segment.distributor.redis.wait-timeout"));
     }
+    
+    @Test
+    void aWaitTimeoutNotShorterThanTheLettuceCommandTimeoutFailsStartup() {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        org.mockito.Mockito.when(redisTemplate.getConnectionFactory()).thenReturn(new org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory(
+            new org.springframework.data.redis.connection.RedisStandaloneConfiguration(),
+            org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration.builder().commandTimeout(Duration.ofMillis(300)).build()));
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdSpringRedisSegmentAutoConfiguration.class))
+            .withBean(StringRedisTemplate.class, () -> redisTemplate)
+            .withPropertyValues(ConditionalOnCosIdSegmentEnabled.ENABLED_KEY + "=true", SegmentIdProperties.Distributor.TYPE + "=redis",
+                "cosid.segment.distributor.redis.wait-replicas=1", "cosid.segment.distributor.redis.timeout=0")
+            .run(context -> assertThat(context).getFailure().rootCause().hasMessageContaining("spring.data.redis.timeout"));
+    }
 }

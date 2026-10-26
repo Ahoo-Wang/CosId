@@ -165,4 +165,30 @@ class CosIdSpringRedisMachineIdDistributorAutoConfigurationTest {
                 MachineProperties.PREFIX + ".distributor.redis.wait-replicas=1", MachineProperties.PREFIX + ".distributor.redis.wait-timeout=2s")
             .run(context -> assertThat(context).getFailure().rootCause().hasMessageContaining("cosid.machine.distributor.redis.wait-timeout"));
     }
+    
+    @Test
+    void aWaitTimeoutNotShorterThanTheDistributeTimeoutFailsStartup() {
+        this.contextRunner
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.Distributor.TYPE + "=redis",
+                MachineProperties.PREFIX + ".distributor.redis.wait-replicas=1", MachineProperties.PREFIX + ".distributor.redis.timeout=5s",
+                MachineProperties.PREFIX + ".distributor.redis.distribute-timeout=500ms")
+            .run(context -> assertThat(context).getFailure().rootCause()
+                .hasMessageContaining("cosid.machine.distributor.redis.distribute-timeout"));
+    }
+    
+    @Test
+    void aWaitTimeoutNotShorterThanTheLettuceCommandTimeoutFailsStartup() {
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        org.mockito.Mockito.when(redisTemplate.getConnectionFactory()).thenReturn(new org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory(
+            new org.springframework.data.redis.connection.RedisStandaloneConfiguration(),
+            org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration.builder().commandTimeout(Duration.ofMillis(300)).build()));
+        new ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(CosIdSpringRedisMachineIdDistributorAutoConfiguration.class))
+            .withBean(StringRedisTemplate.class, () -> redisTemplate)
+            .withBean(MachineStateStorage.class, () -> MachineStateStorage.IN_MEMORY)
+            .withBean(ClockBackwardsSynchronizer.class, () -> ClockBackwardsSynchronizer.DEFAULT)
+            .withPropertyValues(ConditionalOnCosIdMachineEnabled.ENABLED_KEY + "=true", MachineProperties.Distributor.TYPE + "=redis",
+                MachineProperties.PREFIX + ".distributor.redis.wait-replicas=1")
+            .run(context -> assertThat(context).getFailure().rootCause().hasMessageContaining("spring.data.redis.timeout"));
+    }
 }

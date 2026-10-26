@@ -137,8 +137,6 @@ class JdbcDialectTest {
         jdbc.product = PRODUCTS.get(dialect);
         JdbcIdSegmentDistributor distributor = new JdbcIdSegmentDistributor("ns", "order", 10, dialect.getIncrementMaxIdSql(),
             dialect.getFetchMaxIdSql(), jdbc, Duration.ofSeconds(3));
-        assertThat(distributor.getFetchPlan(), is(JdbcIdSegmentDistributor.FetchPlan.RETURNING));
-        
         assertThat(distributor.nextMaxId(10), equalTo(42L));
         
         assertThat(jdbc.executed, contains(dialect.getIncrementAndFetchMaxIdSql()));

@@ -57,7 +57,6 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
     private final String fetchMaxIdSql;
     private final int queryTimeoutSeconds;
     private final FetchMode fetchMode;
-    private final FetchPlan fetchPlan;
     /**
      * The statements and plan for the database, once its product was read.
      */
@@ -100,7 +99,6 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
         this.dataSource = dataSource;
         this.queryTimeoutSeconds = JdbcSupport.toQueryTimeoutSeconds(queryTimeout);
         this.fetchMode = fetchMode;
-        this.fetchPlan = FetchPlan.of(incrementMaxIdSql, fetchMaxIdSql, fetchMode);
     }
     
     /**
@@ -131,31 +129,7 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
     enum FetchPlan {
         TRANSACTION,
         LAST_INSERT_ID,
-        RETURNING;
-        
-        static FetchPlan of(String incrementMaxIdSql, String fetchMaxIdSql, FetchMode fetchMode) {
-            return fetchMode == FetchMode.TRANSACTION ? TRANSACTION : of(incrementMaxIdSql, fetchMaxIdSql);
-        }
-        
-        static FetchPlan of(String incrementMaxIdSql, String fetchMaxIdSql) {
-            return JdbcDialect.ofSegmentStatements(incrementMaxIdSql, fetchMaxIdSql)
-                .map(dialect -> dialect == JdbcDialect.MYSQL ? LAST_INSERT_ID : dialect.getIncrementAndFetchMaxIdSql() != null ? RETURNING : TRANSACTION)
-                .orElse(TRANSACTION);
-        }
-        
-        /**
-         * The same statement, whatever its whitespace or final semicolon: as configured in YAML or as a constant.
-         */
-        static boolean sameSql(String configured, String builtIn) {
-            return JdbcDialect.isSameStatement(configured, builtIn);
-        }
-    }
-    
-    /**
-     * The plan of the statements, taken once the connection's database is that of the statements.
-     */
-    FetchPlan getFetchPlan() {
-        return fetchPlan;
+        RETURNING
     }
     
     /**

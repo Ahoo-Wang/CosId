@@ -40,7 +40,6 @@ class JdbcIdSegmentDistributorFetchPlanTest {
     void theDefaultMySqlStatementsTakeOneStatementWithoutATransaction() {
         FakeJdbc jdbc = new FakeJdbc(true);
         JdbcIdSegmentDistributor distributor = distributor(jdbc, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL);
-        assertThat(distributor.getFetchPlan(), is(JdbcIdSegmentDistributor.FetchPlan.LAST_INSERT_ID));
         
         assertThat(distributor.nextMaxId(10), equalTo(42L));
         
@@ -54,7 +53,6 @@ class JdbcIdSegmentDistributorFetchPlanTest {
         FakeJdbc jdbc = new FakeJdbc(true);
         jdbc.product = "PostgreSQL";
         JdbcIdSegmentDistributor distributor = distributor(jdbc, PostgreSqlDialect.INCREMENT_MAX_ID_SQL, PostgreSqlDialect.FETCH_MAX_ID_SQL);
-        assertThat(distributor.getFetchPlan(), is(JdbcIdSegmentDistributor.FetchPlan.RETURNING));
         
         assertThat(distributor.nextMaxId(10), equalTo(42L));
         
@@ -74,7 +72,6 @@ class JdbcIdSegmentDistributorFetchPlanTest {
         String increment = "update my_cosid set last_max_id=(last_max_id + ?) where name = ?";
         String fetch = "select last_max_id from my_cosid where name = ?";
         JdbcIdSegmentDistributor distributor = distributor(jdbc, increment, fetch);
-        assertThat(distributor.getFetchPlan(), is(JdbcIdSegmentDistributor.FetchPlan.TRANSACTION));
         
         assertThat(distributor.nextMaxId(10), equalTo(42L));
         
@@ -97,13 +94,19 @@ class JdbcIdSegmentDistributorFetchPlanTest {
     
     @Test
     void theBuiltInStatementsAreRecognizedAsConfiguredInYaml() {
-        assertThat(JdbcIdSegmentDistributor.FetchPlan.of(
-            "update cosid set last_max_id=(last_max_id + ?), last_fetch_time=cast(extract(epoch from now()) as bigint) where name = ?",
-            "select last_max_id from cosid where name = ?;"), is(JdbcIdSegmentDistributor.FetchPlan.RETURNING));
-        assertThat(JdbcIdSegmentDistributor.FetchPlan.of(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, PostgreSqlDialect.FETCH_MAX_ID_SQL),
-            is(JdbcIdSegmentDistributor.FetchPlan.LAST_INSERT_ID));
-        assertThat(JdbcIdSegmentDistributor.FetchPlan.of(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, "select max_id from other where name = ?"),
-            is(JdbcIdSegmentDistributor.FetchPlan.TRANSACTION));
+        FakeJdbc postgres = new FakeJdbc(true);
+        postgres.product = "PostgreSQL";
+        distributor(postgres, "update cosid set last_max_id=(last_max_id + ?), last_fetch_time=cast(extract(epoch from now()) as bigint) where name = ?",
+            "select last_max_id from cosid where name = ?;").nextMaxId(10);
+        assertThat(postgres.executed, contains(PostgreSqlDialect.INCREMENT_AND_FETCH_MAX_ID_SQL));
+        
+        FakeJdbc mysql = new FakeJdbc(true);
+        distributor(mysql, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, PostgreSqlDialect.FETCH_MAX_ID_SQL).nextMaxId(10);
+        assertThat(mysql.executed, contains(JdbcIdSegmentDistributor.LAST_INSERT_ID_INCREMENT_MAX_ID_SQL));
+        
+        FakeJdbc other = new FakeJdbc(true);
+        distributor(other, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, "select max_id from other where name = ?").nextMaxId(10);
+        assertThat(other.executed, contains(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, "select max_id from other where name = ?"));
     }
     
     @Test
@@ -147,7 +150,6 @@ class JdbcIdSegmentDistributorFetchPlanTest {
         FakeJdbc jdbc = new FakeJdbc(true);
         JdbcIdSegmentDistributor distributor = new JdbcIdSegmentDistributor("ns", "order", 10, JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL,
             JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL, jdbc, Duration.ofSeconds(3), JdbcIdSegmentDistributor.FetchMode.TRANSACTION);
-        assertThat(distributor.getFetchPlan(), is(JdbcIdSegmentDistributor.FetchPlan.TRANSACTION));
         
         distributor.nextMaxId(10);
         
@@ -158,7 +160,11 @@ class JdbcIdSegmentDistributorFetchPlanTest {
     @Test
     void anotherCaseIsAnotherStatement() {
         // On a case-sensitive MySQL COSID is not the cosid table: the user's statements must run as they are.
-        assertThat(JdbcIdSegmentDistributor.FetchPlan.of(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL.replace("cosid", "COSID"),
-            JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL.replace("cosid", "COSID")), is(JdbcIdSegmentDistributor.FetchPlan.TRANSACTION));
+        FakeJdbc jdbc = new FakeJdbc(true);
+        String increment = JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL.replace("cosid", "COSID");
+        String fetch = JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL.replace("cosid", "COSID");
+        distributor(jdbc, increment, fetch).nextMaxId(10);
+        assertThat(jdbc.executed, contains(increment, fetch));
+        assertThat(jdbc.events, contains("autoCommit=false", "commit", "autoCommit=true", "close:autoCommit=true"));
     }
 }

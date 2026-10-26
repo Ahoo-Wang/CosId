@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import me.ahoo.cosid.build.CheckDependencyRules
+import me.ahoo.cosid.gradle.CheckDependencyRules
 import org.gradle.api.artifacts.ProjectDependency
 
 // Applied to the root project: the build-wide checks.

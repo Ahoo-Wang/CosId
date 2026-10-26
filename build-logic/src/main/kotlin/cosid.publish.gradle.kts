@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import me.ahoo.cosid.build.ArtifactIds
+import me.ahoo.cosid.gradle.ArtifactIds
 
 // Maven publishing and signing; the artifactId comes from the project's directory (D11, 02-modules.md §2).
 plugins {

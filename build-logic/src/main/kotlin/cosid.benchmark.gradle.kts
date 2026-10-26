@@ -24,8 +24,9 @@ val libs = the<VersionCatalogsExtension>().named("libs")
 
 jmh {
     jmhVersion.set(libs.findVersion("jmh").get().requiredVersion)
-    findProperty("jmhIncludes")?.toString()?.let { includes.set(it.split(',')) }
-    findProperty("jmhExcludes")?.toString()?.let { excludes.set(it.split(',')) }
+    // The plugin concatenates list entries into one argument, so a comma list becomes one alternation regex.
+    findProperty("jmhIncludes")?.toString()?.let { includes.set(listOf(it.split(',').joinToString("|"))) }
+    findProperty("jmhExcludes")?.toString()?.let { excludes.set(listOf(it.split(',').joinToString("|"))) }
     when (val profile = findProperty("jmhProfile")?.toString() ?: "smoke") {
         "smoke" -> {
             fork.set(1)

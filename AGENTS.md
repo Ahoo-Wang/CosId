@@ -58,7 +58,7 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 
 To add a module: create the directory with a `build.gradle.kts` applying `cosid.library` (or `cosid.benchmark`),
 `include(":path:name")` in `settings.gradle.kts`, add it to `bom/` if published, and make sure a rule in
-`build-logic/src/main/kotlin/me/ahoo/cosid/build/DependencyRules.kt` covers it — a project without a rule fails the build.
+`build-logic/src/main/kotlin/me/ahoo/cosid/gradle/DependencyRules.kt` covers it — a project without a rule fails the build.
 
 ### core packages (02 §4)
 

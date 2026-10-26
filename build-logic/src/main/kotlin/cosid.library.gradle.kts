@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import me.ahoo.cosid.build.ArtifactIds
+import me.ahoo.cosid.gradle.ArtifactIds
 
 // A published library module.
 plugins {

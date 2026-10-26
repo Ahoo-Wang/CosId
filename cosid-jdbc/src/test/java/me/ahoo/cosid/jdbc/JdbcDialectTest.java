@@ -19,6 +19,7 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.ahoo.cosid.segment.IdSegmentDistributor;
@@ -98,6 +99,21 @@ class JdbcDialectTest {
         // The MySQL DDL runs as configured, as on any unsupported database.
         assertThrows(java.sql.SQLException.class, () -> new JdbcMachineIdInitializer(recording).initCosIdMachineTable());
         assertThat(recording.getExecutedSql(), hasItem(JdbcMachineIdInitializer.INIT_COSID_MACHINE_TABLE_SQL));
+    }
+    
+    @Test
+    void theIndexStatementsFollowTheDatabaseWithTheDefaultTableOnly() throws Exception {
+        RecordingDataSource defaults = new RecordingDataSource(h2(""));
+        new JdbcMachineIdInitializer(defaults).initCosIdMachineTable();
+        assertThat(defaults.getExecutedSql(), hasItem(JdbcDialect.H2.getInitNamespaceIdxSql()));
+        assertThat(defaults.getExecutedSql(), hasItem(JdbcDialect.H2.getInitInstanceIdIdxSql()));
+        
+        // A table DDL of the user's with the index statements left empty: no index of ours next to theirs.
+        RecordingDataSource own = new RecordingDataSource(h2(""));
+        new JdbcMachineIdInitializer(own, JdbcDialect.H2.getInitCosIdMachineTableSql(), JdbcMachineIdInitializer.INIT_NAMESPACE_IDX_SQL,
+            JdbcMachineIdInitializer.INIT_INSTANCE_ID_IDX_SQL).initCosIdMachineTable();
+        assertThat(own.getExecutedSql(), hasItem(JdbcDialect.H2.getInitCosIdMachineTableSql()));
+        assertThat(own.getExecutedSql(), not(hasItem(containsString("create index"))));
     }
     
     private static JdbcDataSource h2(String mode) {

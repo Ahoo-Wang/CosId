@@ -23,6 +23,8 @@ plugins {
 val libraryProjects = rootProject.ext.get("libraryProjects") as Iterable<Project>
 
 dependencies {
+    // The libraries no longer publish cosid-dependencies to their consumers: the aggregation resolves with it itself.
+    jacocoAggregation(platform(project(":cosid-dependencies")))
     libraryProjects.forEach {
         jacocoAggregation(it)
     }

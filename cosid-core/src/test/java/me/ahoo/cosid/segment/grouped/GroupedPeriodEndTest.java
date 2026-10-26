@@ -75,7 +75,8 @@ class GroupedPeriodEndTest {
         assertThat(new DefaultIdSegment(10, 10, now, 0, ended).isAvailable(), is(false));
         // Time to live computed before the store call, which crossed into the next second.
         assertThat(new DefaultIdSegment(10, 10, now, 1, ended).isAvailable(), is(false));
-        assertThat(new DefaultIdSegment(10, 10, now, 1, new GroupedKey("today", now)).isAvailable(), is(true));
+        // A group that ends later: one ending this second would end with the next tick of the clock.
+        assertThat(new DefaultIdSegment(10, 10, now, 1, new GroupedKey("today", now + 3600)).isAvailable(), is(true));
     }
     
     @Test

@@ -26,8 +26,8 @@ The stable flag protects a machine id only once every instance runs 3.3 or later
 | `distributor.redis.timeout` | `Duration` | `1s` | `redis`: lease renewal and release; must be positive |
 | `distributor.redis.distribute-timeout` | `Duration` | `10s` | `redis`: each command of the claim at startup, whose first command also pays for connecting; must be positive |
 | `distributor.jdbc.enable-auto-init-cosid-machine-table` | `boolean` | `false` | `jdbc`: create the `cosid_machine` table at startup |
-| `distributor.jdbc.init-cos-id-machine-table-sql` | `String` | MySQL DDL | `jdbc`: the table DDL |
-| `distributor.jdbc.init-namespace-idx-sql`, `init-instance-id-idx-sql` | `String` | empty | `jdbc`: separate index DDL, skipped when empty (the MySQL DDL declares the indexes inline) |
+| `distributor.jdbc.init-cos-id-machine-table-sql` | `String` | detected (MySQL statements when unknown) | `jdbc`: the table DDL. Left at the default, it follows the database (see [JDBC databases](../../guide/backends/jdbc.md#databases)); a value you set is used as configured |
+| `distributor.jdbc.init-namespace-idx-sql`, `init-instance-id-idx-sql` | `String` | empty | `jdbc`: separate index DDL, skipped when empty (the MySQL DDL declares the indexes inline). Left empty next to the default table DDL, they take the detected database's `create index`; next to a table DDL of your own they stay empty |
 | `distributor.jdbc.query-timeout` | `Duration` | `5s` | `jdbc`: each statement; `0` disables it |
 | `distributor.jdbc.server-time-sql` | `String` | detected | `jdbc`: the query for the database clock in epoch milliseconds. Unset, the starter picks it for MySQL, MariaDB, PostgreSQL, H2 and SQL Server; other databases must set it |
 | `distributor.mongo.database` | `String` | `cosid_db` | `mongo`: database of the `cosid_machine` collection |

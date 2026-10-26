@@ -135,11 +135,13 @@ With the default MySQL statements, a segment takes one statement under auto-comm
 
 | Database | Tested on | Detected from the product name |
 |----------|-----------|--------------------------------|
-| MySQL, MariaDB | MySQL 8.0, 8.4; MariaDB 10.11 | `MySQL`, `MariaDB` |
+| MySQL, MariaDB | MySQL 8.0, 8.4 (MariaDB is detected and takes the MySQL statements, not tested in CI) | `MySQL`, `MariaDB` |
 | PostgreSQL | 16 | `PostgreSQL` |
-| H2 | 2.x, in any compatibility mode | `H2` |
+| H2 | 2.x, in Regular, MySQL, MariaDB or PostgreSQL mode; not in Oracle mode | `H2` |
 | SQL Server | 2022 (2016 and later) | `Microsoft SQL Server` |
 
-A statement left at its default (the MySQL statement, compared apart from whitespace and a final `;`) runs as the statement of the database the connection reports, from `me.ahoo.cosid.jdbc.JdbcDialect`; any other value is used as configured. The product is read from the connection's metadata when a statement first needs it, not at startup: a database that is down or slow at startup is detected once it answers. The segment fetch keeps the choice once the product was read; the MySQL `last_insert_id` path runs only on a database that reports MySQL or MariaDB, and anything else, or a product that cannot be read, fetches in a transaction. This works the same without the starter. Oracle and other databases are not supported: set every statement, including `server-time-sql`.
+A statement left at its default (the MySQL statement, compared apart from whitespace and a final `;`) runs as the statement of the database the connection reports, from `me.ahoo.cosid.jdbc.JdbcDialect`; any other value is used as configured. The product is read from the connection's metadata when a statement first needs it, not at startup: a database that is down or slow at startup is detected once it answers. The segment fetch keeps the choice once the product was read; the MySQL `last_insert_id` path runs only on a database that reports MySQL or MariaDB, and anything else, or a product that cannot be read, fetches in a transaction. This works the same without the starter. Oracle and other databases are not supported: set every statement, including `server-time-sql`. H2 in Oracle compatibility mode is treated as an unsupported database: like Oracle it stores `''` as `NULL`, and the machine leases mark a released row with `instance_id=''`.
+
+The index statements (`init-namespace-idx-sql`, `init-instance-id-idx-sql`) are empty for MySQL, whose table statement declares the indexes. Left empty, they take the database's `create index` only when the table statement is left at its default too: next to a table statement of your own they stay empty, so set them if your table statement does not declare the indexes.
 
 `JdbcDialect` also holds each database's statements, to pass explicitly (`JdbcDialect.POSTGRESQL.getIncrementMaxIdSql()`, ...); `PostgreSqlDialect` still holds the PostgreSQL ones as constants.

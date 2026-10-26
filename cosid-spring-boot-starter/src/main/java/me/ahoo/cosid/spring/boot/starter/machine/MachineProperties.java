@@ -708,7 +708,8 @@ public class MachineProperties {
      * {@code cosid_machine} table (and its indexes) at startup, and allows
      * overriding the default DDL statements used by
      * {@link JdbcMachineIdInitializer}. A DDL statement left at its default (MySQL)
-     * follows the database the connection reports: PostgreSQL, H2 and SQL Server get their own ({@code me.ahoo.cosid.jdbc.JdbcDialect}).</p>
+     * follows the database the connection reports: PostgreSQL, H2 and SQL Server get their own ({@code me.ahoo.cosid.jdbc.JdbcDialect}); the empty
+     * index statements do so only with the default table DDL.</p>
      */
     public static class Jdbc {
         /**
@@ -720,19 +721,26 @@ public class MachineProperties {
 
         /**
          * DDL used to create the {@code cosid_machine} table.
-         * Default is {@link JdbcMachineIdInitializer#INIT_COSID_MACHINE_TABLE_SQL}.
+         * The default ({@link JdbcMachineIdInitializer#INIT_COSID_MACHINE_TABLE_SQL}, MySQL) follows the detected
+         * database: PostgreSQL, H2 and SQL Server get their own. A value set explicitly is used as configured.
          */
         private String initCosIdMachineTableSql = JdbcMachineIdInitializer.INIT_COSID_MACHINE_TABLE_SQL;
 
         /**
-         * DDL used to create the {@code idx_namespace} index.
-         * Default is {@link JdbcMachineIdInitializer#INIT_NAMESPACE_IDX_SQL}.
+         * DDL used to create the {@code idx_namespace} index; skipped when empty.
+         * Default is empty ({@link JdbcMachineIdInitializer#INIT_NAMESPACE_IDX_SQL}: the MySQL table DDL declares the
+         * index). Left empty with the default table DDL, it follows the detected database (PostgreSQL, H2 and SQL Server
+         * get a {@code create index}); next to a table DDL set explicitly it stays empty. A value set explicitly is used
+         * as configured.
          */
         private String initNamespaceIdxSql = JdbcMachineIdInitializer.INIT_NAMESPACE_IDX_SQL;
 
         /**
-         * DDL used to create the {@code idx_instance_id} index.
-         * Default is {@link JdbcMachineIdInitializer#INIT_INSTANCE_ID_IDX_SQL}.
+         * DDL used to create the {@code idx_instance_id} index; skipped when empty.
+         * Default is empty ({@link JdbcMachineIdInitializer#INIT_INSTANCE_ID_IDX_SQL}: the MySQL table DDL declares the
+         * index). Left empty with the default table DDL, it follows the detected database (PostgreSQL, H2 and SQL Server
+         * get a {@code create index}); next to a table DDL set explicitly it stays empty. A value set explicitly is used
+         * as configured.
          */
         private String initInstanceIdIdxSql = JdbcMachineIdInitializer.INIT_INSTANCE_ID_IDX_SQL;
 

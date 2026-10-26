@@ -63,7 +63,25 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
             // Its segments would expire at once, and generation would fetch from the store forever.
             throw new IllegalStateException("The group supplier keeps returning the ended group [" + groupedKey + "]: check its clock.");
         }
-        return groupedBindings.computeIfAbsent(groupedKey, this::createGroupedBinding);
+        GroupedBinding groupedBinding = groupedBindings.get(groupedKey);
+        if (groupedBinding != null) {
+            return groupedBinding;
+        }
+        groupedBinding = groupedBindings.computeIfAbsent(groupedKey, this::createGroupedBinding);
+        dropEndedGroups();
+        return groupedBinding;
+    }
+
+    /**
+     * Drops the bindings of the groups that have ended, once a new group is bound: the supplier never returns them again.
+     *
+     * <p>A thread that still holds an ended binding keeps using it (its segments expire at once); one that binds an
+     * ended group again, because it read the key just before the group ended, gets a new binding, dropped with the next
+     * group.
+     */
+    private void dropEndedGroups() {
+        long nowSecond = Clock.SYSTEM.secondTime();
+        groupedBindings.keySet().removeIf(groupedKey -> groupedKey.isEndedAt(nowSecond));
     }
 
     private GroupedBinding createGroupedBinding(GroupedKey groupedKey) {
@@ -73,6 +91,10 @@ public class DefaultGroupedIdSegmentDistributor implements GroupedIdSegmentDistr
             idSegmentDistributorDefinition.getOffset(),
             idSegmentDistributorDefinition.getStep());
         return new GroupedBinding(groupedKey, idSegmentDistributorFactory.create(groupedDef));
+    }
+
+    int groupedBindingCount() {
+        return groupedBindings.size();
     }
 
     /**

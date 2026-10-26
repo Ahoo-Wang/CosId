@@ -361,6 +361,15 @@ configure(publishedLibraryProjects) {
             if (pomText.contains("<artifactId>cosid-dependencies</artifactId>") || pomText.contains("<artifactId>spring-boot-dependencies</artifactId>")) {
                 problems += "pom: imports the build platform"
             }
+            val pomDocument = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(pomFile.get().asFile)
+            val pomDependencies = pomDocument.getElementsByTagName("dependency")
+            for (index in 0 until pomDependencies.length) {
+                val dependency = pomDependencies.item(index) as org.w3c.dom.Element
+                fun child(name: String) = dependency.getElementsByTagName(name).item(0)?.textContent?.trim()
+                if (child("version").isNullOrEmpty()) {
+                    problems += "pom: ${child("groupId")}:${child("artifactId")} has no version"
+                }
+            }
             check(problems.isEmpty()) { "Published metadata of ${project.name}:\n" + problems.joinToString("\n") }
         }
     }

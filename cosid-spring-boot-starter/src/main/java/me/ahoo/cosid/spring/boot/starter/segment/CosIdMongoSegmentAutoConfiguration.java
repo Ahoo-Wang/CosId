@@ -18,6 +18,7 @@ import me.ahoo.cosid.mongo.MongoIdSegmentDistributorFactory;
 import me.ahoo.cosid.mongo.MongoIdSegmentInitializer;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.MongoReactiveRemoved;
+import me.ahoo.cosid.spring.boot.starter.MongoWriteConcerns;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInSegmentStore;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnSegmentStoreType;
@@ -51,6 +52,7 @@ import org.springframework.core.annotation.Order;
 @AutoConfigureAfter(MongoAutoConfiguration.class)
 public class CosIdMongoSegmentAutoConfiguration {
     
+    private static final String WRITE_CONCERN = SegmentIdProperties.PREFIX + ".distributor.mongo.write-concern";
     private final SegmentIdProperties segmentIdProperties;
     
     public CosIdMongoSegmentAutoConfiguration(SegmentIdProperties segmentIdProperties) {
@@ -62,9 +64,10 @@ public class CosIdMongoSegmentAutoConfiguration {
     @ConditionalOnClass(MongoClient.class)
     class Sync {
         /**
-         * Bounds every CosId operation with the driver's client-side operation timeout.
+         * The configured write concern, if any, and the driver's client-side operation timeout on every CosId operation.
          */
         private MongoDatabase withTimeout(MongoDatabase mongoDatabase) {
+            mongoDatabase = MongoWriteConcerns.apply(mongoDatabase, segmentIdProperties.getDistributor().getMongo().getWriteConcern(), WRITE_CONCERN);
             java.time.Duration timeout = segmentIdProperties.getDistributor().getMongo().getTimeout();
             if (timeout == null || timeout.isZero()) {
                 return mongoDatabase;
@@ -92,6 +95,7 @@ public class CosIdMongoSegmentAutoConfiguration {
                 segmentIdProperties.getDistributor().getMongo().getDatabase()
             );
             mongoDatabase = withTimeout(mongoDatabase);
+            MongoWriteConcerns.warnIfWeakerThanMajority(mongoDatabase, WRITE_CONCERN);
             idSegmentInitializer.ensureCosIdCollection();
             return new MongoIdSegmentDistributorFactory(mongoDatabase);
         }

@@ -653,6 +653,33 @@ public class MachineProperties {
         public void setDistributeTimeout(Duration distributeTimeout) {
             this.distributeTimeout = distributeTimeout;
         }
+
+        /**
+         * Replicas that must acknowledge each machine id claim and renewal (Redis {@code WAIT}) before it counts; too
+         * few within {@code wait-timeout} is a failure. Default 0: no wait.
+         */
+        private int waitReplicas = 0;
+        
+        /**
+         * How long a claim or renewal waits for {@code wait-replicas}; shorter than {@code timeout}. Default 500ms.
+         */
+        private Duration waitTimeout = Duration.ofMillis(500);
+        
+        public int getWaitReplicas() {
+            return waitReplicas;
+        }
+        
+        public void setWaitReplicas(int waitReplicas) {
+            this.waitReplicas = waitReplicas;
+        }
+        
+        public Duration getWaitTimeout() {
+            return waitTimeout;
+        }
+        
+        public void setWaitTimeout(Duration waitTimeout) {
+            this.waitTimeout = waitTimeout;
+        }
     }
     
     /**
@@ -681,6 +708,23 @@ public class MachineProperties {
         public void setTimeout(Duration timeout) {
             this.timeout = timeout;
         }
+
+        /**
+         * Write concern of CosId's writes: {@code majority}, {@code w1}, {@code acknowledged}, {@code journaled} or a
+         * number of members. Unset, the connection string's. On a replica set, startup WARNs when it is weaker than
+         * {@code majority}.
+         */
+        @Nullable
+        private String writeConcern;
+        
+        @Nullable
+        public String getWriteConcern() {
+            return writeConcern;
+        }
+        
+        public void setWriteConcern(@Nullable String writeConcern) {
+            this.writeConcern = writeConcern;
+        }
         
         /**
          * Gets the MongoDB database name.
@@ -707,7 +751,9 @@ public class MachineProperties {
      * <p>This configuration controls the automatic initialization of the
      * {@code cosid_machine} table (and its indexes) at startup, and allows
      * overriding the default DDL statements used by
-     * {@link JdbcMachineIdInitializer}.</p>
+     * {@link JdbcMachineIdInitializer}. A DDL statement left at its default (MySQL)
+     * follows the database the connection reports: PostgreSQL, H2 and SQL Server get their own ({@code me.ahoo.cosid.jdbc.JdbcDialect}); the empty
+     * index statements do so only with the default table DDL.</p>
      */
     public static class Jdbc {
         /**
@@ -719,19 +765,26 @@ public class MachineProperties {
 
         /**
          * DDL used to create the {@code cosid_machine} table.
-         * Default is {@link JdbcMachineIdInitializer#INIT_COSID_MACHINE_TABLE_SQL}.
+         * The default ({@link JdbcMachineIdInitializer#INIT_COSID_MACHINE_TABLE_SQL}, MySQL) follows the detected
+         * database: PostgreSQL, H2 and SQL Server get their own. A value set explicitly is used as configured.
          */
         private String initCosIdMachineTableSql = JdbcMachineIdInitializer.INIT_COSID_MACHINE_TABLE_SQL;
 
         /**
-         * DDL used to create the {@code idx_namespace} index.
-         * Default is {@link JdbcMachineIdInitializer#INIT_NAMESPACE_IDX_SQL}.
+         * DDL used to create the {@code idx_namespace} index; skipped when empty.
+         * Default is empty ({@link JdbcMachineIdInitializer#INIT_NAMESPACE_IDX_SQL}: the MySQL table DDL declares the
+         * index). Left empty with the default table DDL, it follows the detected database (PostgreSQL, H2 and SQL Server
+         * get a {@code create index}); next to a table DDL set explicitly it stays empty. A value set explicitly is used
+         * as configured.
          */
         private String initNamespaceIdxSql = JdbcMachineIdInitializer.INIT_NAMESPACE_IDX_SQL;
 
         /**
-         * DDL used to create the {@code idx_instance_id} index.
-         * Default is {@link JdbcMachineIdInitializer#INIT_INSTANCE_ID_IDX_SQL}.
+         * DDL used to create the {@code idx_instance_id} index; skipped when empty.
+         * Default is empty ({@link JdbcMachineIdInitializer#INIT_INSTANCE_ID_IDX_SQL}: the MySQL table DDL declares the
+         * index). Left empty with the default table DDL, it follows the detected database (PostgreSQL, H2 and SQL Server
+         * get a {@code create index}); next to a table DDL set explicitly it stays empty. A value set explicitly is used
+         * as configured.
          */
         private String initInstanceIdIdxSql = JdbcMachineIdInitializer.INIT_INSTANCE_ID_IDX_SQL;
 
@@ -744,7 +797,7 @@ public class MachineProperties {
 
         /**
          * Query returning the database server's current time in milliseconds, for the machine id lease store.
-         * Default is chosen from the database product (PostgreSQL, MySQL or MariaDB); other databases must set it.
+         * Default is chosen from the database product (MySQL, MariaDB, PostgreSQL, H2 or SQL Server); other databases must set it.
          */
         @Nullable
         private String serverTimeSql;

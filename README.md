@@ -22,7 +22,7 @@ Every replica of a service needs IDs (primary keys, order numbers, event ids) th
 | `SnowflakeId` | `long`, time-ordered | 4,096,000 ops/s (theoretical maximum) | IDs should carry their creation time, with no store call after startup |
 | `CosIdGenerator` | `String`, 15 characters, time-ordered | — | You run very many instances (up to a million machine ids) |
 
-Stores: Redis, JDBC (MySQL, MariaDB, PostgreSQL), MongoDB, ZooKeeper, the CosId proxy, or your own. Integrations: Spring Boot, MyBatis, Spring Data JDBC, Jackson, ShardingSphere, Activiti, Flowable and Axon.
+Stores: Redis, JDBC (MySQL, MariaDB, PostgreSQL, H2, SQL Server), MongoDB, ZooKeeper, the CosId proxy, or your own. Integrations: Spring Boot, MyBatis, Spring Data JDBC, Jackson, ShardingSphere, Activiti, Flowable and Axon.
 
 ## Version compatibility
 

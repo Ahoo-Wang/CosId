@@ -14,7 +14,11 @@
 dependencies {
     api(project(":cosid-core"))
     api("org.springframework.data:spring-data-redis")
+    // RedisReplicaWait runs WAIT on Lettuce's own connection to the node of the write.
+    compileOnly("io.lettuce:lettuce-core")
     testImplementation(project(":cosid-test"))
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("io.lettuce:lettuce-core")
+    // The replica wait on pooled, unshared Lettuce connections.
+    testImplementation("org.apache.commons:commons-pool2")
 }

@@ -28,10 +28,12 @@ import me.ahoo.cosid.segment.CountedSegmentId;
 import me.ahoo.cosid.segment.DefaultSegmentId;
 import me.ahoo.cosid.segment.IdSegment;
 import me.ahoo.cosid.segment.SegmentChainId;
+import me.ahoo.cosid.segment.concurrent.AffinityJob;
 import me.ahoo.cosid.segment.concurrent.PrefetchWorkerExecutorService;
 import me.ahoo.cosid.snowflake.CountedSnowflakeId;
 import me.ahoo.cosid.snowflake.MillisecondSnowflakeId;
 import me.ahoo.cosid.test.segment.AtomicIdSegmentDistributor;
+import me.ahoo.cosid.util.Clock;
 
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
@@ -40,6 +42,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 class CosIdMeterBinderTest {
     private final SimpleMeterRegistry registry = new SimpleMeterRegistry();
@@ -63,7 +66,16 @@ class CosIdMeterBinderTest {
     
     @Test
     void gaugesOfSegmentGenerators() {
-        SegmentChainId chain = new SegmentChainId(IdSegment.TIME_TO_LIVE_FOREVER, 2, 8, new AtomicIdSegmentDistributor(10), executor);
+        // The prefetch job is kept, not run by a worker thread: it runs only when the test runs it, so the chain does
+        // not grow between reading a gauge and reading the chain.
+        AtomicReference<AffinityJob> prefetchJob = new AtomicReference<>();
+        PrefetchWorkerExecutorService manualExecutor = new PrefetchWorkerExecutorService(Duration.ofSeconds(1), 1, false) {
+            @Override
+            public void submit(AffinityJob affinityJob) {
+                prefetchJob.set(affinityJob);
+            }
+        };
+        SegmentChainId chain = new SegmentChainId(IdSegment.TIME_TO_LIVE_FOREVER, 2, 8, new AtomicIdSegmentDistributor(10), manualExecutor);
         DefaultSegmentId segment = new DefaultSegmentId(new AtomicIdSegmentDistributor(10));
         provider.set("order", chain);
         provider.set("user", segment);
@@ -74,8 +86,18 @@ class CosIdMeterBinderTest {
         assertThat(registry.get("cosid.segment.remaining").tag("name", "order").tag("segment", chain.getNamespacedName()).gauge().value())
             .isEqualTo(chain.getRemaining()).isPositive();
         assertThat(registry.get("cosid.segment.prefetch.distance").tag("name", "order").gauge().value())
-            .isEqualTo(chain.getPrefetchDistance()).isBetween(2.0, 8.0);
+            .isEqualTo(chain.getPrefetchDistance()).isEqualTo(2);
         assertThat(registry.get("cosid.segment.remaining").tag("name", "user").gauge().value()).isEqualTo(9);
+        
+        // A hungry prefetch grows the distance and the chain: the gauges follow.
+        long remainingBeforePrefetch = chain.getRemaining();
+        assertThat(prefetchJob.get()).isNotNull();
+        prefetchJob.get().setHungerTime(Clock.SYSTEM.secondTime());
+        prefetchJob.get().run();
+        assertThat(registry.get("cosid.segment.prefetch.distance").tag("name", "order").gauge().value())
+            .isEqualTo(chain.getPrefetchDistance()).isEqualTo(4);
+        assertThat(registry.get("cosid.segment.remaining").tag("name", "order").gauge().value())
+            .isEqualTo(chain.getRemaining()).isGreaterThan(remainingBeforePrefetch);
     }
     
     @Test

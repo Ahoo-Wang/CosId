@@ -102,6 +102,8 @@ dependencies {
     annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
     testImplementation(project(":cosid-test"))
     testImplementation("org.mongodb:mongodb-driver-sync")
+    // Only to check that the replica wait fails startup on a Jedis Redis Cluster.
+    testImplementation("redis.clients:jedis")
     // Only to check that a classpath with just the reactive driver fails at startup.
     testImplementation("org.mongodb:mongodb-driver-reactivestreams")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -114,4 +116,8 @@ dependencies {
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("org.testcontainers:testcontainers-junit-jupiter")
     testImplementation("org.testcontainers:testcontainers-mongodb")
+    // Dialect detection, with no SQL properties set.
+    testImplementation("com.h2database:h2")
+    testImplementation("org.postgresql:postgresql")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
 }

@@ -21,6 +21,7 @@ import me.ahoo.cosid.mongo.MongoMachineInitializer;
 import me.ahoo.cosid.mongo.MongoMachineLeaseStore;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 import me.ahoo.cosid.spring.boot.starter.MongoReactiveRemoved;
+import me.ahoo.cosid.spring.boot.starter.MongoWriteConcerns;
 import me.ahoo.cosid.spring.boot.starter.store.BuiltInStoreProvider;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnBuiltInMachineStore;
 import me.ahoo.cosid.spring.boot.starter.store.ConditionalOnMachineStoreType;
@@ -52,6 +53,7 @@ import org.springframework.context.annotation.Primary;
 @ConditionalOnMachineStoreType("mongo")
 @AutoConfigureAfter(MongoAutoConfiguration.class)
 public class CosIdMongoMachineIdDistributorAutoConfiguration {
+    private static final String WRITE_CONCERN = MachineProperties.PREFIX + ".distributor.mongo.write-concern";
     private final MachineProperties machineProperties;
     
     public CosIdMongoMachineIdDistributorAutoConfiguration(MachineProperties machineProperties) {
@@ -79,14 +81,19 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
     @ConditionalOnClass(MongoClient.class)
     class Sync {
         /**
-         * Bounds every CosId operation with the driver's client-side operation timeout.
+         * The configured write concern, if any, and the driver's client-side operation timeout on every CosId operation.
          */
         private MongoDatabase withTimeout(MongoDatabase mongoDatabase) {
+            mongoDatabase = withWriteConcern(mongoDatabase);
             java.time.Duration timeout = machineProperties.getDistributor().getMongo().getTimeout();
             if (timeout == null || timeout.isZero()) {
                 return mongoDatabase;
             }
             return mongoDatabase.withTimeout(timeout.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+        }
+        
+        private MongoDatabase withWriteConcern(MongoDatabase mongoDatabase) {
+            return MongoWriteConcerns.apply(mongoDatabase, machineProperties.getDistributor().getMongo().getWriteConcern(), WRITE_CONCERN);
         }
         
         @Bean
@@ -102,7 +109,7 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
         
         /**
          * The machine id lease store on MongoDB; every operation is bounded by
-         * {@code cosid.machine.distributor.mongo.timeout}.
+         * {@code cosid.machine.distributor.mongo.timeout}, and writes with {@code write-concern}.
          */
         @Bean
         @ConditionalOnMissingBean
@@ -118,7 +125,9 @@ public class CosIdMongoMachineIdDistributorAutoConfiguration {
                     }
                 }
             });
-            return new MongoMachineLeaseStore(mongoClient.getDatabase(mongo.getDatabase()),
+            MongoDatabase database = withWriteConcern(mongoClient.getDatabase(mongo.getDatabase()));
+            MongoWriteConcerns.warnIfWeakerThanMajority(database, WRITE_CONCERN);
+            return new MongoMachineLeaseStore(database,
                 MachineLeaseStores.positive(mongo.getTimeout(), MachineProperties.PREFIX + ".distributor.mongo.timeout"));
         }
     }

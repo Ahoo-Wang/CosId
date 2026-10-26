@@ -80,7 +80,8 @@ public class JdbcIdSegmentInitializer {
         }
         
         try (Connection connection = dataSource.getConnection()) {
-            try (PreparedStatement initStatement = JdbcSupport.prepareStatement(connection, initCosIdTableSql, queryTimeoutSeconds)) {
+            String sql = JdbcDialect.statementFor(connection, initCosIdTableSql, INIT_COSID_TABLE_SQL, JdbcDialect::getInitCosIdTableSql);
+            try (PreparedStatement initStatement = JdbcSupport.prepareStatement(connection, sql, queryTimeoutSeconds)) {
                 int affected = initStatement.executeUpdate();
                 JdbcSupport.commitIfManual(connection);
                 return affected;
@@ -125,7 +126,8 @@ public class JdbcIdSegmentInitializer {
             log.info("Init IdSegment - segmentName:[{}] - offset:[{}]", segmentName, offset);
         }
         try (Connection connection = dataSource.getConnection()) {
-            try (PreparedStatement initStatement = JdbcSupport.prepareStatement(connection, initIdSegmentSql, queryTimeoutSeconds)) {
+            String sql = JdbcDialect.statementFor(connection, initIdSegmentSql, INIT_ID_SEGMENT_SQL, JdbcDialect::getInitIdSegmentSql);
+            try (PreparedStatement initStatement = JdbcSupport.prepareStatement(connection, sql, queryTimeoutSeconds)) {
                 initStatement.setString(1, segmentName);
                 initStatement.setLong(2, offset);
                 int affected = initStatement.executeUpdate();

@@ -86,7 +86,8 @@ depends on backends. Don't introduce core → backend or backend → starter cyc
   `COSID_TEST_REDIS_URI`, `COSID_TEST_MYSQL_URL`/`_USERNAME`/`_PASSWORD`, `COSID_TEST_POSTGRES_URL`/`_USERNAME`/`_PASSWORD`
   and `COSID_TEST_MONGODB_URI`; without them they start the service with Docker, and are skipped when neither is
   available. CI starts the services in `integration-test.yml` and checks that the contract tests ran. Scope to
-  a unit test class with `--tests` when no backend is at hand.
+  a unit test class with `--tests` when no backend is at hand. The SQL Server tests (`*SqlServer*` in `cosid-jdbc`) run
+  only with `COSID_TEST_SQLSERVER_URL` or `COSID_TEST_SQLSERVER_ENABLED=true` (Testcontainers), in their own CI job.
 - **Other Spring Boot and Java versions:** `-PspringBootVersion=4.0.8` builds against another Boot (an enforced
   platform on the build's classpaths, so a dependency's own Boot BOM cannot raise it), `-PtestJavaVersion=21`
   runs the tests on another JDK (compilation stays on 17); the tests see them as `COSID_TEST_SPRING_BOOT_VERSION` and

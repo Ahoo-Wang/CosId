@@ -19,5 +19,8 @@ dependencies {
     testImplementation("com.mysql:mysql-connector-j")
     testImplementation("org.testcontainers:testcontainers-postgresql")
     testImplementation("org.postgresql:postgresql")
+    testImplementation("com.h2database:h2")
+    testImplementation("org.testcontainers:testcontainers-mssqlserver")
+    testImplementation("com.microsoft.sqlserver:mssql-jdbc")
     testImplementation("com.zaxxer:HikariCP")
 }

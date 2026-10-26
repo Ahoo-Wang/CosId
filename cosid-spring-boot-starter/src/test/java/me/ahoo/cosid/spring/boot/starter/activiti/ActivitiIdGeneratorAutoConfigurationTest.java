@@ -122,4 +122,19 @@ class ActivitiIdGeneratorAutoConfigurationTest {
             .withPropertyValues(ActivitiIdGeneratorAutoConfiguration.ENABLED_KEY + "=false")
             .run(context -> assertThat(context).doesNotHaveBean("cosidActivitiProcessEngineConfigurationConfigurer"));
     }
+    
+    @Test
+    void usesTheConfiguredGeneratorName() {
+        this.contextRunner
+            .withPropertyValues(CosIdAutoConfiguration.PROVIDER_ISOLATED_KEY + "=true", ActivitiIdGeneratorAutoConfiguration.GENERATOR_NAME_KEY + "=bpm")
+            .run(context -> {
+                IdGeneratorProvider provider = context.getBean(IdGeneratorProvider.class);
+                provider.setShare(MockIdGenerator.usePrefix("share_"));
+                provider.set("bpm", MockIdGenerator.usePrefix("bpm_"));
+                SpringProcessEngineConfiguration engineConfiguration = new SpringProcessEngineConfiguration();
+                context.getBean(ProcessEngineConfigurationConfigurer.class).configure(engineConfiguration);
+                
+                assertThat(engineConfiguration.getIdGenerator().getNextId()).startsWith("bpm_");
+            });
+    }
 }

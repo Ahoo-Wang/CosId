@@ -16,6 +16,8 @@ package me.ahoo.cosid.spring.redis;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.lessThan;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.ahoo.cosid.machine.InstanceId;
 import me.ahoo.cosid.machine.lease.Lease;
@@ -27,9 +29,13 @@ import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
+import org.springframework.data.redis.connection.lettuce.LettucePoolingClientConfiguration;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
@@ -41,7 +47,9 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The replica wait with a real replica: writes acknowledged by it go through.
+ * The replica wait with a real replica: writes acknowledged by it go through, and writes it did not acknowledge (the
+ * replica container paused) fail. A {@code WAIT} on a connection that wrote nothing returns at once, whatever the
+ * replica did, so the failures also prove that the wait runs on the connection of the write.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class RedisReplicaWaitReplicaTest {
@@ -94,6 +102,79 @@ class RedisReplicaWaitReplicaTest {
         }
     }
     
+    private LettuceConnectionFactory startedFactory(LettuceClientConfiguration clientConfiguration, boolean shareNativeConnection) {
+        LettuceConnectionFactory factory = new LettuceConnectionFactory(new RedisStandaloneConfiguration(primary.getHost(), primary.getMappedPort(6379)),
+            clientConfiguration);
+        factory.setShareNativeConnection(shareNativeConnection);
+        factory.afterPropertiesSet();
+        factory.start();
+        return factory;
+    }
+
+    /**
+     * The connection factory of each variant: Lettuce's shared native connection (the default), a dedicated connection
+     * per call, or one from a pool.
+     */
+    private LettuceConnectionFactory connectionFactory(String variant) {
+        return switch (variant) {
+            case "shared" -> startedFactory(LettuceClientConfiguration.defaultConfiguration(), true);
+            case "dedicated" -> startedFactory(LettuceClientConfiguration.defaultConfiguration(), false);
+            case "pooled" -> startedFactory(LettucePoolingClientConfiguration.defaultConfiguration(), false);
+            default -> throw new IllegalArgumentException(variant);
+        };
+    }
+
+    /**
+     * Freezes the replica, so that it acknowledges nothing, while running the action.
+     */
+    private void withReplicaPaused(Runnable action) {
+        DockerClientFactory.instance().client().pauseContainerCmd(replica.getContainerId()).exec();
+        try {
+            action.run();
+        } finally {
+            DockerClientFactory.instance().client().unpauseContainerCmd(replica.getContainerId()).exec();
+        }
+    }
+
+    /**
+     * {@code WAIT 1} on a connection of a new factory, which wrote nothing.
+     */
+    private static long waitOnAFreshConnection(LettuceConnectionFactory factory) {
+        try (RedisConnection connection = factory.getConnection()) {
+            Long acknowledged = LettuceReplicaWait.waitForReplicas(connection, "fresh", 1, 2000);
+            return acknowledged == null ? -1 : acknowledged;
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"shared", "dedicated", "pooled"})
+    void writesTheReplicaDidNotAcknowledgeFail(String variant) {
+        LettuceConnectionFactory factory = connectionFactory(variant);
+        LettuceConnectionFactory fresh = startedFactory(LettuceClientConfiguration.defaultConfiguration(), true);
+        try {
+            StringRedisTemplate template = RealRedis.createRedisTemplate(factory);
+            RedisReplicaWait replicaWait = RedisReplicaWait.of(1, Duration.ofMillis(300));
+            SpringRedisMachineLeaseStore store = new SpringRedisMachineLeaseStore(template, RedisCommandTimeout.of(Duration.ofSeconds(5)), replicaWait);
+            String namespace = "replica-paused-" + variant + "-" + UUID.randomUUID();
+            long serverTime = store.serverTime(namespace);
+            IdSegmentDistributor distributor = new SpringRedisIdSegmentDistributorFactory(template, RedisCommandTimeout.of(Duration.ofSeconds(5)),
+                replicaWait).create(new IdSegmentDistributorDefinition(namespace, "order", 0, 10));
+
+            withReplicaPaused(() -> {
+                // The control: the primary still counts the paused replica, which acknowledged everything up to the pause.
+                long started = System.nanoTime();
+                assertThat(waitOnAFreshConnection(fresh), equalTo(1L));
+                assertThat(Duration.ofNanos(System.nanoTime() - started).toMillis(), lessThan(1000L));
+
+                assertThrows(RedisReplicaWaitException.class, distributor::nextMaxId);
+                assertThrows(RedisReplicaWaitException.class, () -> store.claimNew(namespace, InstanceId.of("instance", false), 7, serverTime));
+            });
+        } finally {
+            fresh.destroy();
+            factory.destroy();
+        }
+    }
+
     @Test
     void claimsAndRenewalsAcknowledgedByTheReplica() {
         SpringRedisMachineLeaseStore store = new SpringRedisMachineLeaseStore(redisTemplate, RedisCommandTimeout.of(Duration.ofSeconds(5)),

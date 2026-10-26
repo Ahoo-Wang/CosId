@@ -19,4 +19,6 @@ dependencies {
     testImplementation(project(":cosid-test"))
     testImplementation("org.testcontainers:testcontainers")
     testImplementation("io.lettuce:lettuce-core")
+    // The replica wait on pooled, unshared Lettuce connections.
+    testImplementation("org.apache.commons:commons-pool2")
 }

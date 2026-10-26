@@ -22,6 +22,12 @@ CosId 5.0 是一次完全重构:**不考虑兼容性,以理想架构为目标,�
 | [11-feature-parity.md](11-feature-parity.md) | 4.x → 5.0 特性对照表 |
 | [roadmap.md](roadmap.md) | 阶段划分、会话分工、验收标准、里程碑 |
 
+## 文档与代码的关系
+
+R0 冻结接口之后,**公开签名以 `core` 代码为准**,本文档描述语义、不变式与设计理由。
+R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`RuntimeOptions`、`HostResolver`、`LeaseKeeper` / `StaticSlot` 的构造器、
+`NamespaceMismatchException`、各 `DEFAULT` 常量等)见代码及其 Javadoc。
+
 ## 决策记录
 
 | # | 决策 | 状态 |

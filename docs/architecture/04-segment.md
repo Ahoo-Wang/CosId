@@ -103,7 +103,7 @@ public final class PeriodicSegmentGenerator implements AutoCloseable {
 }
 
 public record PeriodicPolicy(Duration prewarm,   // 默认 1min:距期末不足该时长时预热下一期
-                             Duration sealAfter) // 默认 不封存;设置后,期末 + sealAfter 时封存旧期 key(建议 ≥ 1 天)
+                             Optional<Duration> sealAfter) // 默认 empty = 不封存;设置后,期末 + sealAfter 时封存旧期 key(建议 ≥ 1 天)
 {}
 
 public record GroupedId(String period, long value) {}

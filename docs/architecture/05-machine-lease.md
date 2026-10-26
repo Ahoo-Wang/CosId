@@ -103,13 +103,18 @@ public interface SlotHandle {
     SlotBinding current();      // 一次 volatile 读
 }
 
-public final class SlotBinding {           // 不可变外壳 + 本绑定专属的序列器状态
-    int slot(); long floor(); volatile long ceiling(); long generation();
-    // 序列器的 AtomicLong 也在这里:换绑时序列器自然随之重置
+public final class SlotBinding {
+    public SlotBinding(int slot, long floor, long ceiling, long generation);
+    int slot(); long floor(); long ceiling(); long generation(); boolean isValid();
+    void raiseCeiling(long newCeiling);   // 只增不减
+    void invalidate();
 }
 ```
 
-- 生成器每次 `generate` 只读一次 `current()`,槽位、窗口与序列器都取自这一个对象,不会混用两次绑定。
+- 一个运行时的多个时间型生成器共享同一个 `SlotHandle`,而它们的 `Layout`(序列位、时间单位)可以不同,因此**序列器状态由每个生成器自己持有**:
+  生成器内部是一个 `AtomicReference<Bound>`,`Bound = (SlotBinding, AtomicLong state)`。发现 `slot.current()` 换了对象时,用一次 CAS 换上新的 `Bound`,
+  两个线程同时发现换绑也只会有一个成功重置。
+- 生成器每次 `generate` 只取一次 `Bound`,槽位、窗口与序列都来自它,不会混用两次绑定。
 - 续约只提高当前绑定的 `ceiling`(volatile 写);重新获取槽位则创建新绑定(`generation + 1`)。
 
 ### 4.2 LeaseKeeper

@@ -33,7 +33,7 @@ docs/                       设计与路线图
 ## 2. 发布坐标(D11)
 
 groupId 不变:`me.ahoo.cosid`。artifactId 由构建约定从目录路径生成:`"cosid-" + path.replace('/', '-')`,
-例外仅 `spring/*` 映射为 `cosid-spring-boot-*`。目录保持干净,发布的 jar 名仍可辨识来源。
+例外:`spring/*` 映射为 `cosid-spring-boot-*`,`extras/*` 映射为 `cosid-*`(如 `extras/sharding` → `cosid-sharding`)。目录保持干净,发布的 jar 名仍可辨识来源。
 
 ## 3. 依赖规则
 

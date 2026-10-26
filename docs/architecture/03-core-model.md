@@ -23,7 +23,8 @@ public record StringIdGenerator(IdGenerator ids, IdCodec codec) {
   - `Radix.of(radix, width, padStart)`:一个类覆盖 base 10/36/62,取代 `ToStringIdConverter`、`Radix36IdConverter`、`Radix62IdConverter`。
     `maxValue` 用整数运算求得,`decode` 时校验溢出。
   - `Friendly.of(layout, zoneId, padStart)`:基于 `Layout.unpack`,**必须显式给出时区**。格式化使用预计算的字段宽度直接写 `char[]`,不经过 `DateTimeFormatter`。
-  - `DatePrefix.of(pattern, delimiter, source)`:`source = ID_TIME`(取 ID 自身时间,仅时间型)或 `NOW`(取注入的 `TimeSource`,与 4.x 号段行为一致)。
+  - `DatePrefix.of(pattern, delimiter, source)` 只描述前缀;`apply(IdCodec inner, ZoneId zone, TimeSource time, Optional<Layout> layout)` 把它套到一个 codec 上。
+    `source = ID_TIME` 取 ID 自身时间(必须提供 `layout`,仅时间型);`NOW` 取注入的 `TimeSource`(与 4.x 号段行为一致)。时区必须显式给出。
   - 自定义:用户实现 `IdCodec` 并在配置中按类名或 Bean 名引用。
 - 分组 ID 有自己的 `GroupedCodec`(见 [04-segment.md](04-segment.md)),不进入 `IdCodec`。
 
@@ -50,7 +51,9 @@ public record IdParts(long time, int node, long seq) {   // time 为从 epoch �
 }
 ```
 
-- 构造时校验:`totalBits ≤ 63` 才能产出 `long`;`COSID_80` 只能用 `nextParts()`。
+- 构造时按段校验:time 1–63、node 0–31、seq 1–62,`seqResetThreshold` 在序列范围内,`unit` 只能是 `MILLIS` 或 `SECONDS`,`SECONDS` 的 epoch 必须是整秒。
+  总位数不在构造时限制(`COSID_80` 也是 `Layout`):超过 63 位的布局调用 `pack` / `generate` 会抛异常,只能用 `nextParts()`;
+  `withNodeBits` 拒绝把原本 ≤ 63 位的布局扩到 63 位以上。
 - 节点位与机器槽位(D18):运行时只持有一个槽位,`limit = 2^machine.bits`。装配时校验每个时间型生成器 `layout.nodeBits ≥ machine.bits`,不满足即启动失败。
   `withNodeBits` 只改变节点位,不会偷偷缩减时间位或序列位。
   因此 JS 安全布局(3 位节点)要求 `machine.bits ≤ 3`,与 4.x `SafeJavaScriptSnowflakeId` 的约束相同。
@@ -94,15 +97,17 @@ public record ClockRegressionPolicy(Duration borrowUpTo, Duration waitUpTo) {
 
 ### 4.1 发号算法
 
-每次 `generate` 只读一次绑定 `b = slot.current()`(见 [05-machine-lease.md](05-machine-lease.md) §4.1)。
-序列器状态存放在 `b` 中,是一个 `AtomicLong`,打包了 `(timeOffset << seqBits) | seq`;另有一个终止哨兵 `CLOSED`。
+生成器持有 `AtomicReference<Bound>`,`Bound = (SlotBinding b, AtomicLong state)`(见 [05-machine-lease.md](05-machine-lease.md) §4.1)。
+`state` 打包了 `(timeOffset << seqBits) | seq`;另有一个终止哨兵 `CLOSED`。
 
 ```
-b = slot.current()
+bound = this.bound.get()
+if bound.b != slot.current(): CAS 换上 Bound(slot.current(), 新的初始状态); 重新读取 bound
+b = bound.b;  state = bound.state
 loop:
-  s = b.state.get()
+  s = state.get()
   if s == CLOSED:              throw IllegalStateException
-  if b.invalid:                throw SlotLostException
+  if !b.isValid():             throw SlotLostException
   t, q = unpack(s);  now = time.now(unit) − epoch
   tm   = toMillis(max(now, t))                       // 本次将使用的时间单位所覆盖的毫秒区间起点
   if tm ≤ b.floor:             wait(b.floor − tm); continue          // 首次发号与每次换绑都会走到这里
@@ -112,13 +117,13 @@ loop:
       if q < seqMax:           next = s + 1
       else:                    onSequenceExhausted(); waitUntilAfter(t); continue
   else:                        regression.handle(t − now)  → 借用 t / 等待 / 抛出
-  if b.state.compareAndSet(s, next): return pack(t', b.slot, seq')
+  if state.compareAndSet(s, next): return pack(t', b.slot, seq')
 ```
 
 - **不持任何锁**。等待先用 `Thread.onSpinWait()` 自旋,超过阈值后用 `LockSupport.parkNanos`,不阻塞其他线程的 CAS。
 - floor/ceiling 检查是安全条件,在 CAS 之前对本次实际使用的时间戳进行,与 GC 停顿、时钟跳变无关。
 - 换绑后序列器随新绑定一起重置,ID 中的槽位总是取自同一个绑定。
-- `close()`:把当前绑定的状态 CAS 为 `CLOSED`,被替换的状态给出精确的 `lastIssued`。并发中的 CAS 会失败,随后读到 `CLOSED` 并抛出异常。
+- `close()`:把当前 `Bound` 的状态 CAS 为 `CLOSED`(并阻止换上新的 `Bound`),被替换的状态给出精确的 `lastIssued`。并发中的 CAS 会失败,随后读到 `CLOSED` 并抛出异常。
 
 ## 5. 工具与小众能力(D21:特性不回退)
 

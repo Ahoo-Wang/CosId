@@ -51,6 +51,12 @@ val isInCI = null != System.getenv("CI")
 ext.set("libraryProjects", libraryProjects)
 ext.set("publishedLibraryProjects", publishedLibraryProjects)
 
+// The configurations the build resolves its own classpaths from: compile, runtime, annotation processing and the JMH
+// benchmarks (`jmh`). The build's versions (cosid-dependencies, -PspringBootVersion) manage these, never what is published.
+fun Configuration.isBuildClasspath() = isCanBeResolved
+    && (name.endsWith("Classpath", ignoreCase = true) || name.endsWith("AnnotationProcessor") || name == "annotationProcessor"
+    || name == "jmh")
+
 allprojects {
     repositories {
         mavenLocal()
@@ -83,8 +89,7 @@ allprojects {
                 springBootOverride(enforcedPlatform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
             }
             configurations.configureEach {
-                if (this != springBootOverride && isCanBeResolved
-                    && (name.endsWith("Classpath", ignoreCase = true) || name.endsWith("AnnotationProcessor") || name == "annotationProcessor")) {
+                if (this != springBootOverride && isBuildClasspath()) {
                     extendsFrom(springBootOverride)
                 }
             }
@@ -206,8 +211,7 @@ configure(libraryProjects) {
         isCanBeResolved = false
     }
     configurations.configureEach {
-        if (this != managedVersions && isCanBeResolved
-            && (name.endsWith("Classpath", ignoreCase = true) || name.endsWith("AnnotationProcessor") || name == "annotationProcessor")) {
+        if (this != managedVersions && isBuildClasspath()) {
             extendsFrom(managedVersions)
         }
     }

@@ -31,7 +31,7 @@ on:
       baseline:
         description: 'Baseline git ref'
         required: false
-        default: 'v4.0.0'
+        default: 'v4.1.0'
 env:
   # Also the key of the cached jar; scripts/api-diff.sh defaults to the same version.
   JAPICMP_VERSION: '0.23.1'
@@ -63,7 +63,7 @@ jobs:
       - name: API diff
         env:
           API_DIFF_ENFORCE: ${{ contains(github.event.pull_request.labels.*.name, 'api-break-approved') && 'false' || 'true' }}
-        run: scripts/api-diff.sh "${{ github.event.inputs.baseline || 'v4.0.0' }}" build/api-diff
+        run: scripts/api-diff.sh "${{ github.event.inputs.baseline || 'v4.1.0' }}" build/api-diff
 
       - name: Upload report
         if: always()

@@ -30,14 +30,7 @@ A short run for development and PR smoke comparisons, **not** the release gate (
 | P3 | SnowflakeStringBenchmark.radix62_t1 | thrpt | 1 | 4,098.556 | 16.457 | ops/ms |  |  | 96.008 |
 | P4 | CosId80Benchmark.friendly_t1 | thrpt | 1 | 7,745.251 | 2,174.488 | ops/ms |  |  | 523.638 |
 | P4 | CosId80Benchmark.radix62_t1 | thrpt | 1 | 18,993.719 | 4,808.539 | ops/ms |  |  | 208.000 |
-| P5 | SegmentBenchmark.generate_t1 | sample | 1 | 0.019 | 0.001 | us/op | 0.042 | 0.166 | 0.027 |
-| P5 | SegmentBenchmark.generate_t1 | thrpt | 1 | 246.945 | 9.439 | ops/us |  |  | 0.027 |
-| P5 | SegmentBenchmark.generate_t16 | sample | 16 | 2.899 | 0.414 | us/op | 2.124 | 28.864 | 0.349 |
-| P5 | SegmentBenchmark.generate_t16 | thrpt | 16 | 26.131 | 46.792 | ops/us |  |  | 0.028 |
-| P5 | SegmentBenchmark.generate_t4 | sample | 4 | 0.352 | 0.004 | us/op | 1.124 | 6.496 | 0.075 |
-| P5 | SegmentBenchmark.generate_t4 | thrpt | 4 | 31.136 | 12.884 | ops/us |  |  | 0.240 |
-| P5 | SegmentBenchmark.generate_t64 | sample | 64 | 10.129 | 0.833 | us/op | 1.916 | 19.200 | 1.441 |
-| P5 | SegmentBenchmark.generate_t64 | thrpt | 64 | 24.092 | 27.857 | ops/us |  |  | 0.044 |
+| P5 | SegmentBenchmark.generate_t1/t4/t16/t64, `@Param step` = 10, 100 | thrpt, sample | 1/4/16/64 | 待干净重跑 | | | | | |
 | P6 | SegmentNoPrefetchBenchmark.generate_t1 | thrpt | 1 | 20,985.033 | 3,091.064 | ops/ms |  |  | 40.425 |
 | P9 | CodecBenchmark.friendlyDecode_t1 | thrpt | 1 | 2,334.467 | 237.002 | ops/ms |  |  | 2352.003 |
 | P9 | CodecBenchmark.friendlyEncode_t1 | thrpt | 1 | 9,352.368 | 772.316 | ops/ms |  |  | 576.001 |
@@ -45,12 +38,14 @@ A short run for development and PR smoke comparisons, **not** the release gate (
 | P9 | CodecBenchmark.radix36Encode_t1 | thrpt | 1 | 46,001.777 | 8,213.161 | ops/ms |  |  | 104.000 |
 | P9 | CodecBenchmark.radix62Decode_t1 | thrpt | 1 | 76,219.472 | 18,891.864 | ops/ms |  |  | 0.000 |
 | P9 | CodecBenchmark.radix62Encode_t1 | thrpt | 1 | 53,441.080 | 1,405.722 | ops/ms |  |  | 96.000 |
-| P12 | IdFillerBenchmark.fill_t1 | thrpt | 1 | 47,405.078 | 5,163.615 | ops/ms |  |  | 64.019 |
+| P12 | IdFillerBenchmark.fill_t1 (step 100) | thrpt | 1 | 待干净重跑 | | | | | |
 
 Notes:
 
 - P1–P3 are capped at about 4,096 ops/ms: the 12 sequence bits allow 4,096 ids per millisecond, so 4.x waits for the
   next millisecond once a millisecond is used up; P2 likewise at 2^22 ids per second (about 4,194 per ms). 5.x has
   the same bounds for `SNOWFLAKE_MS` and `SNOWFLAKE_S`.
-- The multi-threaded P5 rows have wide errors with 3 short iterations; compare them with the release profile only.
+- P5 and P12 are **待干净重跑** (pending a clean rerun): they now fix the segment step on both sides (P5 `@Param step`
+  = 10, 100; P12 step 100), and the rerun on this shared machine was too noisy to store. PRs compare against a fresh
+  4.x run instead (`benchmark/run-smoke`); the release gate reruns everything on fixed hardware.
 - Paths in the JSON (`jvm`, `jvmArgs`) are shortened to `~/.gradle/jdks` and `<repo>`.

@@ -52,3 +52,12 @@ jmh {
 
 // The generated JMH harness is not ours to lint.
 tasks.matching { it.name == "spotbugsJmh" }.configureEach { enabled = false }
+
+// benchmark/run-smoke runs the JMH jars itself, on the toolchain's java this prints.
+tasks.register("printJmhJava") {
+    description = "Prints the java executable of the Java toolchain, for benchmark/run-smoke."
+    val launcher = javaToolchains.launcherFor(java.toolchain)
+    doLast {
+        println(launcher.get().executablePath.asFile.absolutePath)
+    }
+}

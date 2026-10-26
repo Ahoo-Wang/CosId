@@ -34,16 +34,33 @@ Choices that keep the comparison fair:
   handling.
 - Every scenario reports `gc.alloc.rate.norm` (the JMH `gc` profiler): allocation per operation is a gate of its own.
 
-## Running
+## Reporting performance in a PR (R1 and later)
+
+A PR that touches a scenario reports `benchmark/run-smoke`. It runs 4.x and 5.x **back to back in one invocation,
+interleaved per scenario** (4.x then 5.x for each), and judges them with `compare --smoke`. The result therefore never
+depends on numbers stored from another time or machine, which matters on a shared machine:
+
+```bash
+benchmark/run-smoke                      # the PR smoke set P1 P3 P5 P9 (10 §1.3)
+benchmark/run-smoke P5 P12               # chosen scenarios (P-numbers or class names)
+benchmark/run-smoke --release P5         # release JMH settings and release rules
+```
+
+Paste `build/benchmark-smoke/report.md` into the PR. The script builds both JMH jars, runs them on the Java 21
+toolchain, waits rather than overlapping when another JMH run holds the machine-wide JMH lock, and exits with the status
+of `compare`. A scenario that fails on one side (such as the 5.x skeletons before R1) has its rows reported missing.
+
+## Running by hand
 
 ```bash
 ./gradlew :benchmark:baseline-4x:jmh                 # smoke profile: 1 fork, 2 x 1s warmup, 3 x 1s measurement
 ./gradlew :benchmark:v5:jmh -PjmhProfile=release     # release profile: 3 forks, 5 x 2s warmup, 5 x 2s measurement
 ./gradlew :benchmark:v5:jmh -PjmhIncludes='SegmentBenchmark.generate,IdFillerBenchmark'   # comma = or
-benchmark/compare docs/jmh/4.1.0/<file>.json benchmark/v5/build/results/jmh/results.json [--smoke]
+benchmark/compare BASELINE.json CANDIDATE.json [--smoke]
 python3 -I benchmark/compare_test.py                 # the tests of compare
 ```
 
-Results land in `build/results/jmh/results.json` of each project. The release gate (10 §1.3) runs both sides with
-`-PjmhProfile=release` on one fixed physical machine, one JDK 21 patch release, turbo off, one after the other, and
-stores the JSON and the report under `docs/jmh/5.0/`.
+Results land in `build/results/jmh/results.json` of each project. `docs/jmh/4.1.0/` keeps a reference smoke run of
+4.x (P5 and P12 pending a clean rerun); it is for reading, not for gating. The release gate (10 §1.3) runs both sides
+with `-PjmhProfile=release` on one fixed physical machine, one JDK 21 patch release, turbo off, one after the other,
+and stores the JSON and the report under `docs/jmh/5.0/`.

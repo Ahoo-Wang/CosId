@@ -29,9 +29,11 @@ compatible with 4.x (D1); the offline migration tool (`migration/`, 09-migration
 ./gradlew checkDependencyRules                     # the dependency direction rules alone
 ./gradlew checkDependencyRules '-Pcosid.dependencyRules.probe=:core->:store:jdbc'   # negative check: must FAIL
 
-./gradlew :benchmark:baseline-4x:jmh               # JMH on the released 4.1.0 jars (smoke profile)
-./gradlew :benchmark:v5:jmh -PjmhProfile=release   # JMH on 5.x, release-gate settings; -PjmhIncludes=Regex narrows
-benchmark/compare docs/jmh/4.1.0/smoke-apple-m4-jdk21.json benchmark/v5/build/results/jmh/results.json --smoke
+benchmark/run-smoke [P5 P12 ...]                   # 4.x and 5.x back to back per scenario, then compare --smoke:
+                                                   # how a PR reports performance (paste build/benchmark-smoke/report.md)
+./gradlew :benchmark:baseline-4x:jmh               # JMH on the released 4.1.0 jars alone (smoke profile)
+./gradlew :benchmark:v5:jmh -PjmhProfile=release   # JMH on 5.x, release-gate settings; -PjmhIncludes=A,B narrows
+benchmark/compare BASELINE.json CANDIDATE.json --smoke
 python3 -I benchmark/compare_test.py               # tests of the compare script
 ```
 
@@ -94,8 +96,9 @@ Adding a package means deciding whether `module-info.java` exports it.
 ## Gotchas
 
 - **Benchmarks:** both benchmark projects use the same class and method names (`<Scenario>Benchmark.<op>_t<threads>`)
-  so `benchmark/compare` can match rows. Results land in `benchmark/*/build/results/jmh/results.json`; committed
-  results go to `docs/jmh/<version>/` with the machine and JDK noted. The `v5` scenarios fail at setup until R1.
+  so `benchmark/compare` can match rows. PRs report `benchmark/run-smoke`, never a comparison with stored numbers:
+  smoke numbers from another time or a shared machine are noise. Results land in
+  `benchmark/*/build/results/jmh/results.json`; committed results go to `docs/jmh/<version>/` with the machine and JDK noted. The `v5` scenarios fail at setup until R1.
 - **Store integration tests** (R2) will follow the 4.x convention: `COSID_TEST_REDIS_URI`, `COSID_TEST_MYSQL_URL`/
   `_USERNAME`/`_PASSWORD`, `COSID_TEST_POSTGRES_URL`/…, `COSID_TEST_MONGODB_URI`; Testcontainers otherwise; one CI job
   per `store/*` module running the TCK.

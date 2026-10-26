@@ -46,8 +46,10 @@ jobs:
       - name: Javadoc
         run: ./gradlew javadoc
 
-      - name: Test the benchmark compare script
-        run: python3 -I benchmark/compare_test.py
+      - name: Test the benchmark scripts
+        run: |
+          python3 -I benchmark/compare_test.py
+          bash -n benchmark/run-smoke
 
       - name: Compile the benchmarks
         run: ./gradlew :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar

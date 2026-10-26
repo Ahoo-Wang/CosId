@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# Runs scenarios on benchmark/baseline-4x and benchmark/v5 back to back, interleaved per scenario (4.x then 5.x for
+# each), then judges the two results with `compare --smoke` (10-performance-and-parity.md §1.3). Both sides run in
+# the same invocation on the same machine, so the result does not depend on stored numbers.
+#
+#   benchmark/run-smoke [--release] [--out DIR] [SCENARIO...]
+#
+# SCENARIO is P1..P12 (those with a benchmark class, see benchmark/scenarios.md) or a class name such as
+# SegmentBenchmark; the default is the PR smoke set P1 P3 P5 P9. --release uses the release-gate JMH settings and
+# release compare rules instead of the smoke ones. Results land in DIR (default build/benchmark-smoke): the JSON of
+# each side, the run logs and report.md. Exits with the status of compare (0 PASS, 1 FAIL, 2 bad input).
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+out="$root/build/benchmark-smoke"
+profile=smoke
+scenarios=()
+while (($#)); do
+    case "$1" in
+        --release) profile=release ;;
+        --out) out="$2"; shift ;;
+        -h|--help) sed -n '14,23p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        *) scenarios+=("$1") ;;
+    esac
+    shift
+done
+((${#scenarios[@]})) || scenarios=(P1 P3 P5 P9)
+
+class_of() {
+    case "$1" in
+        P1) echo SnowflakeMillisBenchmark ;;
+        P2) echo SnowflakeSecondsBenchmark ;;
+        P3) echo SnowflakeStringBenchmark ;;
+        P4) echo CosId80Benchmark ;;
+        P5) echo SegmentBenchmark ;;
+        P6) echo SegmentNoPrefetchBenchmark ;;
+        P9) echo CodecBenchmark ;;
+        P12) echo IdFillerBenchmark ;;
+        P7|P8|P10|P11) echo "run-smoke: $1 has no benchmark yet (see benchmark/scenarios.md)" >&2; return 1 ;;
+        P*) echo "run-smoke: unknown scenario $1" >&2; return 1 ;;
+        *) echo "$1" ;;
+    esac
+}
+
+if [[ $profile == smoke ]]; then
+    jmh_args=(-f 1 -wi 2 -w 1s -i 3 -r 1s)
+    compare_args=(--smoke)
+else
+    jmh_args=(-f 3 -wi 5 -w 2s -i 5 -r 2s)
+    compare_args=()
+fi
+
+classes=()
+for scenario in "${scenarios[@]}"; do
+    classes+=("$(class_of "$scenario")")
+done
+
+cd "$root"
+./gradlew -q :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
+java="$(./gradlew -q :benchmark:v5:printJmhJava | tail -n 1)"
+mkdir -p "$out"
+rm -f "$out"/*.json "$out"/*.log "$out"/report.md
+
+# Runs one side; waits for another JMH run on the machine (JMH's machine-wide lock) rather than overlapping it.
+run() {
+    local side="$1" class="$2" jar log
+    jar="$(ls "$root/benchmark/$side/build/libs/"*-jmh.jar)"
+    log="$out/$side-$class.log"
+    for _ in $(seq 1 40); do
+        if "$java" -jar "$jar" "^me\.ahoo\.cosid\.benchmark\.$class\." "${jmh_args[@]}" -prof gc \
+            -rf json -rff "$out/$side-$class.json" -jvmArgs "-Dlogback.configurationFile=$root/config/logback-jmh.xml" \
+            >"$log" 2>&1; then
+            return 0
+        fi
+        grep -q "Unable to acquire the JMH lock" "$log" || break
+        echo "run-smoke: another JMH run holds the lock; waiting" >&2
+        sleep 30
+    done
+    # A failing scenario (such as a 5.x skeleton) leaves its rows out: compare reports them missing.
+    echo "run-smoke: $side $class failed, see $log" >&2
+    [[ -s "$out/$side-$class.json" ]] || echo "[]" >"$out/$side-$class.json"
+}
+
+for class in "${classes[@]}"; do
+    echo "run-smoke: $class on 4.x, then 5.x" >&2
+    run baseline-4x "$class"
+    run v5 "$class"
+done
+
+merge() {
+    python3 -I -c 'import json, sys; print(json.dumps([row for path in sys.argv[1:] for row in json.load(open(path))], indent=2))' \
+        "$out/$1"-*.json >"$out/$1.json.tmp"
+    mv "$out/$1.json.tmp" "$out/$1.all.json"
+}
+merge baseline-4x
+merge v5
+
+status=0
+"$root/benchmark/compare" "$out/baseline-4x.all.json" "$out/v5.all.json" "${compare_args[@]}" --report "$out/report.md" || status=$?
+echo "run-smoke: report in $out/report.md" >&2
+exit "$status"

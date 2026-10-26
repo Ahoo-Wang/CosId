@@ -82,6 +82,32 @@ class PrefetchWorkerExecutorServiceTest {
         Assertions.assertFalse(worker.isAlive(), () -> "worker state: " + worker.getState());
     }
 
+    /**
+     * The executor starts a worker before handing it the job: a worker already parked for its prefetch period runs a
+     * job submitted meanwhile now, not a period later.
+     */
+    @SneakyThrows
+    @Test
+    void aParkedWorkerRunsASubmittedJobNow() {
+        DefaultPrefetchWorker worker = new DefaultPrefetchWorker(Duration.ofMinutes(1));
+        worker.start();
+        try {
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+            while (worker.getState() != Thread.State.TIMED_WAITING && System.nanoTime() < deadline) {
+                Thread.onSpinWait();
+            }
+            Assertions.assertEquals(Thread.State.TIMED_WAITING, worker.getState());
+            TestAffinityJob affinityJob = new TestAffinityJob(nextJobId(), 1);
+
+            worker.submit(affinityJob);
+
+            Assertions.assertTrue(affinityJob.awaitRuns(2, TimeUnit.SECONDS), affinityJob::diagnostics);
+        } finally {
+            worker.shutdown();
+            worker.join(TimeUnit.SECONDS.toMillis(2));
+        }
+    }
+
     @Test
     void submit() {
         TestAffinityJob affinityJob = new TestAffinityJob(nextJobId(), 1);

@@ -409,10 +409,15 @@ public class SegmentChainId implements SegmentId, AutoCloseable {
             try {
                 // Fetched here, synchronously, also when the prefetch has stopped.
                 final IdSegmentChain preIdSegmentChain = tailOf(headChain);
+                if (preIdSegmentChain.isAvailable()) {
+                    // Another thread or the prefetch appended a segment since the scan above: use it, fetch none.
+                    continue;
+                }
 
                 if (preIdSegmentChain.trySetNext((preChain) -> generateNext(preChain, safeDistance))) {
+                    // The head is not moved to the new segment: segments appended since the scan, between the head and
+                    // it, may still have ids, which the next scan issues first. A generated id moves the head.
                     IdSegmentChain nextChain = preIdSegmentChain.getNext();
-                    forward(nextChain);
                     if (log.isDebugEnabled()) {
                         log.debug("Generate [{}] - headChain.version:[{}->{}].", maxIdDistributor.getNamespacedName(), preIdSegmentChain.getVersion(), nextChain.getVersion());
                     }

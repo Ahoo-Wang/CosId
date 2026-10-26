@@ -31,6 +31,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.sql.DataSource;
 
 /**
@@ -94,7 +95,18 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
      * Upper bound of attempts when concurrent instances race for the same rows.
      */
     static final int MAX_ATTEMPTS = 32;
-    
+
+    /**
+     * Upper bound of attempts of a call the database chose as a deadlock victim: concurrent claims scan the candidates
+     * while others update them, which SQL Server in particular breaks by rolling one transaction back.
+     */
+    static final int MAX_DEADLOCK_ATTEMPTS = 8;
+
+    /**
+     * Upper bound of the random pause before a call chosen as a deadlock victim runs again, in milliseconds.
+     */
+    private static final int MAX_DEADLOCK_BACKOFF_MILLIS = 64;
+
     private static final String SELECT_SELF =
         "select " + COLUMNS + " from cosid_machine where namespace=? and instance_id=? order by machine_id";
     
@@ -257,7 +269,40 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
         T apply(Connection connection) throws SQLException;
     }
     
+    /**
+     * Run the callback in one transaction; when the database chooses it as a deadlock victim, run it again, a bounded
+     * number of times. The database rolled the victim back, so nothing of it is kept, and every write is a conditional
+     * update or an insert of a new machine id, which the next attempt reads again.
+     */
     private <T> T execute(ConnectionCallback<T> callback) {
+        for (int attempt = 1; ; attempt++) {
+            try {
+                return executeOnce(callback);
+            } catch (CosIdException exception) {
+                if (attempt >= MAX_DEADLOCK_ATTEMPTS || !(exception.getCause() instanceof SQLException sqlException)
+                    || !JdbcSupport.isDeadlock(sqlException)) {
+                    throw exception;
+                }
+                pauseAfterDeadlock(attempt, exception);
+            }
+        }
+    }
+
+    /**
+     * A random pause, longer with each attempt, so that the transactions that deadlocked do not meet again at once.
+     */
+    private static void pauseAfterDeadlock(int attempt, CosIdException deadlock) {
+        int bound = Math.min(MAX_DEADLOCK_BACKOFF_MILLIS, 1 << attempt);
+        try {
+            Thread.sleep(ThreadLocalRandom.current().nextInt(1, bound + 1));
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            deadlock.addSuppressed(interrupted);
+            throw deadlock;
+        }
+    }
+
+    private <T> T executeOnce(ConnectionCallback<T> callback) {
         try (Connection connection = dataSource.getConnection()) {
             try {
                 T result = callback.apply(connection);

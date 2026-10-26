@@ -16,6 +16,7 @@ package me.ahoo.cosid.spring.boot.starter.axon;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import me.ahoo.cosid.axon.CosIdIdentifierFactory;
+import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration;
 import me.ahoo.cosid.test.MockIdGenerator;
@@ -85,5 +86,23 @@ class CosIdAxonAutoConfigurationTest {
                 
                 assertThat(new CosIdIdentifierFactory().generateIdentifier()).startsWith("share_");
             });
+    }
+    
+    @Test
+    void closingOneContextKeepsTheOtherContextsNameOnTheSameProvider() {
+        // Without cosid.provider.isolated, every context binds the same provider, each with its own name.
+        IdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.set("a", MockIdGenerator.usePrefix("a_"));
+        provider.set("b", MockIdGenerator.usePrefix("b_"));
+        CosIdAxonAutoConfiguration.CosIdAxonProviderBinding first = new CosIdAxonAutoConfiguration.CosIdAxonProviderBinding(provider, "a");
+        CosIdAxonAutoConfiguration.CosIdAxonProviderBinding second = new CosIdAxonAutoConfiguration.CosIdAxonProviderBinding(provider, "b");
+        try {
+            first.destroy();
+            
+            assertThat(new CosIdIdentifierFactory().generateIdentifier()).startsWith("b_");
+        } finally {
+            second.destroy();
+        }
+        assertThat(CosIdIdentifierFactory.unbind(provider)).isFalse();
     }
 }

@@ -61,7 +61,7 @@ public class CosIdAxonAutoConfiguration {
      * Keeps {@link CosIdIdentifierFactory} bound to a provider for the lifetime of the bean.
      */
     public static class CosIdAxonProviderBinding implements DisposableBean {
-        private final IdGeneratorProvider idGeneratorProvider;
+        private final CosIdIdentifierFactory.Binding binding;
 
         public CosIdAxonProviderBinding(IdGeneratorProvider idGeneratorProvider) {
             this(idGeneratorProvider, null);
@@ -74,13 +74,13 @@ public class CosIdAxonAutoConfiguration {
          * @since 4.1.0
          */
         public CosIdAxonProviderBinding(IdGeneratorProvider idGeneratorProvider, @Nullable String generatorName) {
-            this.idGeneratorProvider = idGeneratorProvider;
-            CosIdIdentifierFactory.bind(idGeneratorProvider, generatorName);
+            this.binding = CosIdIdentifierFactory.bind(idGeneratorProvider, generatorName);
         }
 
         @Override
         public void destroy() {
-            CosIdIdentifierFactory.unbind(idGeneratorProvider);
+            // Only this binding: other contexts may have bound the same provider with another name.
+            CosIdIdentifierFactory.unbind(binding);
         }
     }
 }

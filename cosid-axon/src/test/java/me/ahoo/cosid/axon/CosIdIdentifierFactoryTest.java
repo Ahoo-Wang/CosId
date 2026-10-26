@@ -191,4 +191,50 @@ class CosIdIdentifierFactoryTest {
             assertThat(CosIdIdentifierFactory.unbind(provider), is(true));
         }
     }
+
+    @Test
+    @Order(21)
+    void unbindingOneContextKeepsTheOtherContextsNameOnTheSameProvider() {
+        // Without cosid.provider.isolated, every context binds the same provider, each with its own name.
+        DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        provider.set("a", MockIdGenerator.usePrefix("a_"));
+        provider.set("b", MockIdGenerator.usePrefix("b_"));
+        CosIdIdentifierFactory factory = new CosIdIdentifierFactory();
+
+        CosIdIdentifierFactory.Binding first = CosIdIdentifierFactory.bind(provider, "a");
+        CosIdIdentifierFactory.Binding second = CosIdIdentifierFactory.bind(provider, "b");
+        try {
+            assertThat(factory.generateIdentifier(), startsWith("b_"));
+            assertThat(CosIdIdentifierFactory.unbind(first), is(true));
+            assertThat(factory.generateIdentifier(), startsWith("b_"));
+            assertThat(CosIdIdentifierFactory.unbind(first), is(false));
+        } finally {
+            assertThat(CosIdIdentifierFactory.unbind(second), is(true));
+        }
+    }
+
+    @Test
+    void warnsOnceWhenTheSameProviderIsBoundWithDifferentNames() {
+        Logger logger = (Logger) LoggerFactory.getLogger(CosIdIdentifierFactory.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        CosIdIdentifierFactory.resetMultipleProvidersWarning();
+        IdGeneratorProvider provider = new DefaultIdGeneratorProvider();
+        CosIdIdentifierFactory.Binding first = CosIdIdentifierFactory.bind(provider, "a");
+        CosIdIdentifierFactory.Binding same = CosIdIdentifierFactory.bind(provider, "a");
+        CosIdIdentifierFactory.Binding second = CosIdIdentifierFactory.bind(provider, "b");
+        CosIdIdentifierFactory.Binding third = CosIdIdentifierFactory.bind(provider, "c");
+        try {
+            Assertions.assertEquals(1, appender.list.stream()
+                .filter(event -> event.getLevel() == Level.WARN && event.getFormattedMessage().contains("different generator names"))
+                .count());
+        } finally {
+            CosIdIdentifierFactory.unbind(third);
+            CosIdIdentifierFactory.unbind(second);
+            CosIdIdentifierFactory.unbind(same);
+            CosIdIdentifierFactory.unbind(first);
+            logger.detachAppender(appender);
+        }
+    }
 }

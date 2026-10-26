@@ -20,7 +20,6 @@ import me.ahoo.cosid.runtime.GeneratorSpec;
 import me.ahoo.cosid.runtime.RuntimeOptions;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.runtime.StoreSpec;
-import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.StoreProvider;
@@ -49,6 +48,9 @@ import java.util.concurrent.TimeUnit;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class IdFillerBenchmark {
+    /** The reservation step, the same on both sides. */
+    static final long STEP = 100;
+
     CosIdRuntime runtime;
     IdFiller filler;
 
@@ -66,7 +68,7 @@ public class IdFillerBenchmark {
             }
         };
         RuntimeSpec spec = new RuntimeSpec("bench", Map.of("memory", new StoreSpec("memory", Duration.ofSeconds(1), Map.of())),
-            Optional.empty(), Map.of(RuntimeSpec.DEFAULT_GENERATOR, new GeneratorSpec.Segment("memory", BatchPolicy.DEFAULT, List.of())));
+            Optional.empty(), Map.of(RuntimeSpec.DEFAULT_GENERATOR, new GeneratorSpec.Segment("memory", V5.batch(IdFillerBenchmark.STEP), List.of())));
         RuntimeOptions defaults = RuntimeOptions.defaults();
         RuntimeOptions options = new RuntimeOptions(defaults.time(), Optional.of(V5.EXECUTOR), defaults.listener(), List.of(memory),
             defaults.clients(), defaults.hostResolver(), defaults.port(), defaults.codecs());

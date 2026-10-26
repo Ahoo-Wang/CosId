@@ -31,7 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
- * P6: segments with step 1 and no prefetching.
+ * P6: segments with step 1 and no prefetching (the same on both sides).
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.Throughput)

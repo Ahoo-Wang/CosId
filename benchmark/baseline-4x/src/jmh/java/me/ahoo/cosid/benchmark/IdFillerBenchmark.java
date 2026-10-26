@@ -19,7 +19,6 @@ import me.ahoo.cosid.accessor.registry.DefaultAccessorRegistry;
 import me.ahoo.cosid.annotation.AnnotationDefinitionParser;
 import me.ahoo.cosid.annotation.CosId;
 import me.ahoo.cosid.provider.DefaultIdGeneratorProvider;
-import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.SegmentChainId;
 
 import org.openjdk.jmh.annotations.Benchmark;
@@ -41,12 +40,15 @@ import java.util.concurrent.TimeUnit;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
 public class IdFillerBenchmark {
+    /** The reservation step, the same on both sides. */
+    static final long STEP = 100;
+
     SegmentChainId segment;
     CosIdAccessorRegistry registry;
 
     @Setup
     public void setup() {
-        segment = new SegmentChainId(new Baseline4x.MemoryDistributor("p12", IdSegmentDistributor.DEFAULT_STEP));
+        segment = new SegmentChainId(new Baseline4x.MemoryDistributor("p12", STEP));
         DefaultIdGeneratorProvider provider = new DefaultIdGeneratorProvider();
         provider.setShare(segment);
         registry = new DefaultAccessorRegistry(new DefaultAccessorParser(AnnotationDefinitionParser.INSTANCE, provider));

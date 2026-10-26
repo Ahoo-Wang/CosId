@@ -53,6 +53,14 @@ final class V5 {
         return new TimeBasedGenerator(name, layout, slot(), TimeSource.SYSTEM, ClockRegressionPolicy.DEFAULT, GeneratorListener.NOOP);
     }
 
+    /**
+     * {@code BatchPolicy.DEFAULT} with another step: {@code maxBatch = step * 1000}, the rest unchanged.
+     */
+    static BatchPolicy batch(long step) {
+        BatchPolicy defaults = BatchPolicy.DEFAULT;
+        return new BatchPolicy(step, defaults.initialOffset(), defaults.lookahead(), step * 1000, defaults.reserveTimeout(), defaults.rangeTtl());
+    }
+
     static SegmentGenerator segment(String name, BatchPolicy policy) {
         return new SegmentGenerator(name, "bench/" + name, new InMemoryStore(), policy, EXECUTOR, TimeSource.SYSTEM, GeneratorListener.NOOP);
     }

@@ -20,6 +20,7 @@ import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -29,17 +30,22 @@ import org.openjdk.jmh.annotations.Threads;
 import java.util.concurrent.TimeUnit;
 
 /**
- * P5: segments on an in-memory store, 1 / 4 / 16 / 64 threads; throughput and sampled latency (p99 / p999).
+ * P5: segments on an in-memory store, 1 / 4 / 16 / 64 threads, step 10 and 100; throughput and sampled latency
+ * (p99 / p999).
  */
 @State(Scope.Benchmark)
 @BenchmarkMode({Mode.Throughput, Mode.SampleTime})
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 public class SegmentBenchmark {
+    /** The reservation step, the same on both sides. */
+    @Param({"10", "100"})
+    long step;
+
     SegmentGenerator segment;
 
     @Setup
     public void setup() {
-        segment = V5.segment("p5", BatchPolicy.DEFAULT);
+        segment = V5.segment("p5", V5.batch(step));
     }
 
     @TearDown

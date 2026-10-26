@@ -509,8 +509,8 @@ jobs:
           done
           exit $status
 
-  # The supported Spring Boot and Java versions: the starter and the proxy server (with its virtual-thread test) on each.
-  # The docs' compatibility table lists the same matrix.
+  # The supported Spring Boot and Java versions: the starter, the proxy server (with its virtual-thread test) and the
+  # Spring Data Redis contract tests on each. The docs' compatibility table lists the same matrix.
   cosid-compatibility-test:
     name: CosId Compatibility (Boot ${{ matrix.boot }}, Java ${{ matrix.java }})
     needs: [ cosid-core-test ]
@@ -552,17 +552,18 @@ jobs:
       - name: Init CosId-Db
         run: mysql -vvv -h localhost -uroot -proot < cosid-jdbc/src/main/init-script/init-cosid-mysql.sql
 
-      - name: Test the starter and the proxy server
+      - name: Test the starter, the proxy server and Spring Data Redis
         env:
           COSID_TEST_REDIS_URI: redis://localhost:6379
         run: >-
           scripts/gradle-retry.sh -PspringBootVersion=${{ matrix.boot }} -PtestJavaVersion=${{ matrix.java }}
           cosid-spring-boot-starter:test cosid-proxy-server:test
+          cosid-spring-redis:test --tests '*ContractTest' --tests '*MixedLeaseFormatTest'
 
       - name: Check the tests ran
         run: |
           status=0
-          reports=$(ls cosid-spring-boot-starter/build/test-results/test/TEST-*.xml proxy/cosid-proxy-server/build/test-results/test/TEST-me.ahoo.cosid.proxy.server.contract.*.xml) || status=1
+          reports=$(ls cosid-spring-boot-starter/build/test-results/test/TEST-*.xml proxy/cosid-proxy-server/build/test-results/test/TEST-me.ahoo.cosid.proxy.server.contract.*.xml cosid-spring-redis/build/test-results/test/TEST-*ContractTest.xml cosid-spring-redis/build/test-results/test/TEST-*MixedLeaseFormatTest.xml) || status=1
           for report in $reports; do
             skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
             if [ "$skipped" -gt 0 ]; then

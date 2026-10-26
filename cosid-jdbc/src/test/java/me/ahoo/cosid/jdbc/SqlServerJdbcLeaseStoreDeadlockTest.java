@@ -22,8 +22,9 @@ import me.ahoo.cosid.machine.lease.Lease;
 import me.ahoo.cosid.test.MockIdGenerator;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -37,6 +38,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntFunction;
+import java.util.stream.Stream;
+import javax.sql.DataSource;
 
 /**
  * Concurrent claims on a real SQL Server, where the scan of the candidates and the conditional updates of other
@@ -45,19 +48,30 @@ import java.util.function.IntFunction;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class SqlServerJdbcLeaseStoreDeadlockTest {
     private static final int CONCURRENCY = 16;
-    private static final int ROUNDS = 5;
+    private static final int ROUNDS = 10;
     private static final long T0 = 1_000_000L;
     private static final int MAX_MACHINE_ID = 1023;
 
-    JdbcMachineLeaseStore store;
+    /**
+     * A connection per claimer, and claimers sharing a pool of four connections.
+     */
+    List<JdbcMachineLeaseStore> stores;
 
     @BeforeAll
     void setup() {
-        store = DialectTables.leaseStore(PooledDataSource.of(RealSqlServer.createDataSource(), true), JdbcDialect.SQL_SERVER);
+        DataSource dataSource = RealSqlServer.createDataSource();
+        stores = List.of(DialectTables.leaseStore(dataSource, JdbcDialect.SQL_SERVER),
+            DialectTables.leaseStore(PooledDataSource.of(dataSource, true), JdbcDialect.SQL_SERVER));
     }
 
-    @Test
-    void concurrentClaimersOfReleasedIdsAllSucceed() throws Exception {
+    static Stream<Integer> stores() {
+        return Stream.of(0, 1);
+    }
+
+    @ParameterizedTest
+    @MethodSource("stores")
+    void concurrentClaimersOfReleasedIdsAllSucceed(int storeIndex) throws Exception {
+        JdbcMachineLeaseStore store = stores.get(storeIndex);
         for (int round = 0; round < ROUNDS; round++) {
             String namespace = "deadlockReleased_" + MockIdGenerator.INSTANCE.generateAsString();
             for (int i = 0; i < CONCURRENCY; i++) {
@@ -69,8 +83,10 @@ class SqlServerJdbcLeaseStoreDeadlockTest {
         }
     }
 
-    @Test
-    void concurrentClaimersOfExpiredIdsAllSucceed() throws Exception {
+    @ParameterizedTest
+    @MethodSource("stores")
+    void concurrentClaimersOfExpiredIdsAllSucceed(int storeIndex) throws Exception {
+        JdbcMachineLeaseStore store = stores.get(storeIndex);
         for (int round = 0; round < ROUNDS; round++) {
             String namespace = "deadlockExpired_" + MockIdGenerator.INSTANCE.generateAsString();
             for (int i = 0; i < CONCURRENCY; i++) {

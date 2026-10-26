@@ -16,7 +16,10 @@ package me.ahoo.cosid.jdbc;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
@@ -60,6 +63,49 @@ class JdbcDialectTest {
         assertThat(JdbcDialect.of(RealH2.createDataSource(";MODE=MySQL")), equalTo(Optional.of(JdbcDialect.H2)));
     }
     
+    @ParameterizedTest
+    @CsvSource({";MODE=MySQL", ";MODE=MariaDB", ";MODE=PostgreSQL", "''"})
+    void h2IsSupportedOutsideOracleMode(String mode) throws Exception {
+        assertThat(JdbcDialect.of(h2(mode)), equalTo(Optional.of(JdbcDialect.H2)));
+    }
+    
+    @Test
+    void h2InOracleModeIsUnsupported() throws Exception {
+        // Oracle mode stores '' as NULL: a released lease (instance_id='') can not be written nor found.
+        assertThat(JdbcDialect.of(h2(";MODE=Oracle")), equalTo(Optional.empty()));
+        JdbcDataSource h2 = h2("");
+        try (java.sql.Connection connection = h2.getConnection(); java.sql.Statement statement = connection.createStatement()) {
+            statement.execute("set mode oracle");
+            assertThat(JdbcDialect.ofConnection(connection), equalTo(Optional.empty()));
+        }
+    }
+    
+    @Test
+    void anUnreadableH2ModeKeepsH2() throws Exception {
+        // FakeJdbc can not run the mode query.
+        try (java.sql.Connection connection = new FakeJdbc(true).getConnection()) {
+            assertThat(JdbcDialect.ofProduct(connection, "H2"), equalTo(Optional.of(JdbcDialect.H2)));
+        }
+    }
+    
+    @Test
+    void h2InOracleModeTakesNoStatementsOfItsOwn() throws Exception {
+        JdbcDataSource h2 = h2(";MODE=Oracle");
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> new JdbcMachineLeaseStore(h2, Duration.ofSeconds(3)));
+        assertThat(exception.getMessage(), containsString("Oracle compatibility mode"));
+        
+        RecordingDataSource recording = new RecordingDataSource(h2);
+        // The MySQL DDL runs as configured, as on any unsupported database.
+        assertThrows(java.sql.SQLException.class, () -> new JdbcMachineIdInitializer(recording).initCosIdMachineTable());
+        assertThat(recording.getExecutedSql(), hasItem(JdbcMachineIdInitializer.INIT_COSID_MACHINE_TABLE_SQL));
+    }
+    
+    private static JdbcDataSource h2(String mode) {
+        JdbcDataSource h2 = new JdbcDataSource();
+        h2.setURL("jdbc:h2:mem:dialect_" + java.util.UUID.randomUUID().toString().replace("-", "") + ";DB_CLOSE_DELAY=-1" + mode);
+        return h2;
+    }
+    
     @Test
     void mysqlIsTheDefaultOfEveryClass() {
         assertThat(JdbcDialect.MYSQL.getIncrementMaxIdSql(), equalTo(JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL));
@@ -93,7 +139,9 @@ class JdbcDialectTest {
         assertThat(distributor.nextMaxId(), equalTo(15L));
         assertThat(distributor.nextMaxId(), equalTo(25L));
         
-        assertThat(dataSource.getExecutedSql(), contains(JdbcDialect.H2.getIncrementAndFetchMaxIdSql(), JdbcDialect.H2.getIncrementAndFetchMaxIdSql()));
+        // The H2 mode is read once, with the product.
+        assertThat(dataSource.getExecutedSql(), contains(JdbcDialect.H2_MODE_SQL, JdbcDialect.H2.getIncrementAndFetchMaxIdSql(),
+            JdbcDialect.H2.getIncrementAndFetchMaxIdSql()));
     }
     
     @ParameterizedTest
@@ -145,7 +193,7 @@ class JdbcDialectTest {
     
     @ParameterizedTest
     @CsvSource({";MODE=MySQL", ";MODE=MariaDB", "''"})
-    void h2InAnyModeWithTheMySqlDefaults(String mode) throws Exception {
+    void h2InItsSupportedModesWithTheMySqlDefaults(String mode) throws Exception {
         DataSource h2 = RealH2.createDataSource(mode);
         IdSegmentDistributor distributor = new JdbcIdSegmentDistributorFactory(h2, true, new JdbcIdSegmentInitializer(h2),
             JdbcIdSegmentDistributor.INCREMENT_MAX_ID_SQL, JdbcIdSegmentDistributor.FETCH_MAX_ID_SQL)

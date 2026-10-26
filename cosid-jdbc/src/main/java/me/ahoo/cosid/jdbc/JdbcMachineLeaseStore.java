@@ -170,8 +170,10 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
             return configured;
         }
         String product;
+        Optional<JdbcDialect> dialect;
         try (Connection connection = dataSource.getConnection()) {
             product = connection.getMetaData().getDatabaseProductName();
+            dialect = JdbcDialect.ofProduct(connection, product);
         } catch (SQLException | RuntimeException metadataFailure) {
             if (configured != null) {
                 return configured;
@@ -179,14 +181,14 @@ public class JdbcMachineLeaseStore implements MachineLeaseStore {
             throw new IllegalStateException("Can not read the database product to choose the server time query: pass one to "
                 + "JdbcMachineLeaseStore (cosid.machine.distributor.jdbc.server-time-sql).", metadataFailure);
         }
-        Optional<JdbcDialect> dialect = JdbcDialect.of(product);
         if (dialect.isPresent()) {
             return dialect.get().getServerTimeSql();
         }
         if (configured != null) {
             return configured;
         }
-        throw new IllegalStateException("No server time query known for database [" + product + "]: pass one to JdbcMachineLeaseStore "
+        String database = JdbcDialect.of(product).isPresent() ? product + " in Oracle compatibility mode" : product;
+        throw new IllegalStateException("No server time query known for database [" + database + "]: pass one to JdbcMachineLeaseStore "
             + "(cosid.machine.distributor.jdbc.server-time-sql), a query returning the server's current time in milliseconds.");
     }
     

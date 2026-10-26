@@ -18,7 +18,9 @@ import me.ahoo.cosid.internal.Checks;
 import org.jspecify.annotations.Nullable;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.function.Function;
@@ -32,7 +34,8 @@ import javax.sql.DataSource;
  * {@link JdbcIdSegmentDistributor}, {@link JdbcMachineIdInitializer} and {@link JdbcMachineLeaseStore} are the MySQL
  * statements; left as they are, each of them runs the statements of the database its connection reports instead, read
  * from the connection's metadata when it first needs them. Oracle and other databases are not supported: configure
- * every statement for them.</p>
+ * every statement for them. H2 in Oracle compatibility mode is not supported either: it stores {@code ''} as
+ * {@code NULL}, which the lease store's released rows ({@code instance_id=''}) rely on not happening.</p>
  *
  * @author ahoo wang
  * @since 4.1.0
@@ -54,7 +57,8 @@ public enum JdbcDialect {
         PostgreSqlDialect.INIT_COSID_MACHINE_TABLE_SQL, PostgreSqlDialect.INIT_NAMESPACE_IDX_SQL,
         PostgreSqlDialect.INIT_INSTANCE_ID_IDX_SQL, PostgreSqlDialect.ADD_LEASE_COLUMNS_SQL, PostgreSqlDialect.SERVER_TIME_SQL),
     /**
-     * H2 2.x, in any compatibility mode.
+     * H2 2.x, in its regular, MySQL, MariaDB or PostgreSQL compatibility mode; not in Oracle mode, which a connection's
+     * dialect ({@link #of(DataSource)}) reports as unsupported.
      */
     H2(H2Sql.INIT_COSID_TABLE_SQL, H2Sql.INIT_ID_SEGMENT_SQL, H2Sql.INCREMENT_MAX_ID_SQL, PostgreSqlDialect.FETCH_MAX_ID_SQL,
         H2Sql.INCREMENT_AND_FETCH_MAX_ID_SQL, PostgreSqlDialect.INIT_COSID_MACHINE_TABLE_SQL, PostgreSqlDialect.INIT_NAMESPACE_IDX_SQL,
@@ -126,7 +130,7 @@ public enum JdbcDialect {
     public static Optional<JdbcDialect> of(DataSource dataSource) throws SQLException {
         Checks.checkNotNull(dataSource, "dataSource can not be null!");
         try (Connection connection = dataSource.getConnection()) {
-            return of(connection.getMetaData().getDatabaseProductName());
+            return ofConnection(connection);
         }
     }
     
@@ -168,7 +172,41 @@ public enum JdbcDialect {
      * The dialect of the database a connection is to, from its metadata.
      */
     static Optional<JdbcDialect> ofConnection(Connection connection) throws SQLException {
-        return of(connection.getMetaData().getDatabaseProductName());
+        return ofProduct(connection, connection.getMetaData().getDatabaseProductName());
+    }
+    
+    /**
+     * The dialect of {@code databaseProductName}, read from {@code connection}: empty for H2 in Oracle compatibility
+     * mode, which stores {@code ''} as {@code NULL} like Oracle.
+     */
+    static Optional<JdbcDialect> ofProduct(Connection connection, @Nullable String databaseProductName) {
+        Optional<JdbcDialect> dialect = of(databaseProductName);
+        if (dialect.isPresent() && dialect.get() == H2 && isH2OracleMode(connection)) {
+            return Optional.empty();
+        }
+        return dialect;
+    }
+    
+    /**
+     * The H2 compatibility mode, as {@code SET MODE} or the {@code MODE} URL setting chose it.
+     */
+    static final String H2_MODE_SQL = "select setting_value from information_schema.settings where setting_name = 'MODE'";
+    
+    private static final int H2_MODE_QUERY_TIMEOUT_SECONDS = 5;
+    
+    /**
+     * Whether an H2 connection is in Oracle compatibility mode; {@code false} when the mode cannot be read, so that a
+     * failing query never breaks the detection.
+     */
+    static boolean isH2OracleMode(Connection connection) {
+        try (Statement statement = connection.createStatement()) {
+            statement.setQueryTimeout(H2_MODE_QUERY_TIMEOUT_SECONDS);
+            try (ResultSet resultSet = statement.executeQuery(H2_MODE_SQL)) {
+                return resultSet.next() && "oracle".equalsIgnoreCase(String.valueOf(resultSet.getString(1)).trim());
+            }
+        } catch (SQLException | RuntimeException modeFailure) {
+            return false;
+        }
     }
     
     /**

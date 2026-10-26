@@ -182,10 +182,11 @@ public class JdbcIdSegmentDistributor extends AbstractIdSegmentDistributor {
             }
             return new Statements(FetchPlan.TRANSACTION, incrementMaxIdSql, fetchMaxIdSql, null);
         }
-        Statements resolved = resolve(JdbcDialect.of(product).orElse(null));
+        JdbcDialect database = JdbcDialect.ofProduct(connection, product).orElse(null);
+        Statements resolved = resolve(database);
         if (log.isInfoEnabled()) {
             log.info("Segment [{}] on [{}]: {} fetches{}.", getNamespacedName(), product, resolved.plan(),
-                resolved.incrementMaxIdSql().equals(incrementMaxIdSql) ? "" : " with the statements of " + JdbcDialect.of(product).orElseThrow());
+                resolved.incrementMaxIdSql().equals(incrementMaxIdSql) ? "" : " with the statements of " + database);
         }
         confirmed = resolved;
         return resolved;

@@ -69,6 +69,31 @@ allprojects {
             }
         }
     }
+    // -PspringBootVersion=4.0.8 builds and tests against another Spring Boot 4.x, as the CI matrix does. A plain
+    // platform would lose to a higher Boot BOM brought by a dependency (coapi's metadata brings its own), so the
+    // build's classpaths enforce it. Not published: minimumVersions, which maps the published versions, is left alone.
+    val springBootVersion = findProperty("springBootVersion")?.toString()
+    if (springBootVersion != null) {
+        plugins.withType<JavaPlugin> {
+            val springBootOverride = configurations.create("springBootOverride") {
+                isCanBeConsumed = false
+                isCanBeResolved = false
+            }
+            dependencies {
+                springBootOverride(enforcedPlatform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
+            }
+            configurations.configureEach {
+                if (this != springBootOverride && isCanBeResolved
+                    && (name.endsWith("Classpath", ignoreCase = true) || name.endsWith("AnnotationProcessor") || name == "annotationProcessor")) {
+                    extendsFrom(springBootOverride)
+                }
+            }
+            tasks.withType<Test>().configureEach {
+                // Tests that depend on the Spring Boot version check they really run on it.
+                environment("COSID_TEST_SPRING_BOOT_VERSION", springBootVersion)
+            }
+        }
+    }
 }
 
 configure(bomProjects) {
@@ -187,11 +212,15 @@ configure(libraryProjects) {
         }
     }
     // What the published metadata requires: the versions of the lowest supported Spring Boot (the CI matrix tests it), so
-    // that an application on any supported Boot resolves its own.
+    // that an application on any supported Boot resolves its own. It extends what runtimeClasspath extends (the
+    // optional features' configurations among them) but -PspringBootVersion's, which must not reach the published versions.
     val minimumVersions = configurations.create("minimumVersions") {
         isCanBeConsumed = false
         isCanBeResolved = true
-        extendsFrom(configurations.getByName("runtimeClasspath"))
+    }
+    afterEvaluate {
+        val runtimeClasspath = configurations.getByName("runtimeClasspath")
+        minimumVersions.setExtendsFrom(runtimeClasspath.extendsFrom.filter { it.name != "springBootOverride" })
     }
     dependencies {
         managedVersions(platform(dependenciesProject))

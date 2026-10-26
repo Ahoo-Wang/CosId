@@ -1,3 +1,0 @@
-# CosIdAnnotationSupport
-
-TODO

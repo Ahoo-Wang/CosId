@@ -24,6 +24,14 @@ The _Flowable module_ provides `CosId` support for `Flowable`, implementing the 
 
 By default, `FlowableIdGenerator` will retrieve the ID generator named `__share__` from the *ID generator container* (`IdGeneratorProvider`).
 
-Developers can also customize the ID generator name by configuring the system property `cosid.flowable`.
+To use another ID generator than the shared one, name it in the configuration (since 4.1):
+
+```yaml
+cosid:
+  flowable:
+    generator-name: bpm
+```
+
+Without the starter, or when `cosid.flowable.generator-name` is unset, the system property `cosid.flowable` names it.
 
 

@@ -13,14 +13,17 @@
 
 package me.ahoo.cosid.spring.boot.starter.axon;
 
+import me.ahoo.cosid.CosId;
 import me.ahoo.cosid.axon.CosIdIdentifierFactory;
 import me.ahoo.cosid.provider.IdGeneratorProvider;
 import me.ahoo.cosid.spring.boot.starter.ConditionalOnCosIdEnabled;
 
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 
 /**
  * Binds the application context's {@link IdGeneratorProvider} to Axon's {@link CosIdIdentifierFactory}.
@@ -34,26 +37,50 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnCosIdEnabled
 @ConditionalOnClass(CosIdIdentifierFactory.class)
 public class CosIdAxonAutoConfiguration {
+    /**
+     * The id generator of Axon's identifiers. Unset, the {@code CosIdIdentifierFactory#ID_KEY} system property's, else
+     * the shared one.
+     *
+     * @since 4.1.0
+     */
+    public static final String GENERATOR_NAME_KEY = CosId.COSID_PREFIX + "axon.generator-name";
+    
+    private final Environment environment;
+    
+    public CosIdAxonAutoConfiguration(Environment environment) {
+        this.environment = environment;
+    }
 
     @Bean
     public CosIdAxonProviderBinding cosIdAxonProviderBinding(IdGeneratorProvider idGeneratorProvider) {
-        return new CosIdAxonProviderBinding(idGeneratorProvider);
+        String generatorName = environment.getProperty(GENERATOR_NAME_KEY);
+        return new CosIdAxonProviderBinding(idGeneratorProvider, generatorName == null || generatorName.isBlank() ? null : generatorName);
     }
 
     /**
      * Keeps {@link CosIdIdentifierFactory} bound to a provider for the lifetime of the bean.
      */
     public static class CosIdAxonProviderBinding implements DisposableBean {
-        private final IdGeneratorProvider idGeneratorProvider;
+        private final CosIdIdentifierFactory.Binding binding;
 
         public CosIdAxonProviderBinding(IdGeneratorProvider idGeneratorProvider) {
-            this.idGeneratorProvider = idGeneratorProvider;
-            CosIdIdentifierFactory.bind(idGeneratorProvider);
+            this(idGeneratorProvider, null);
+        }
+        
+        /**
+         * Binds the provider, and the generator that Axon's factory uses.
+         *
+         * @param generatorName {@code null} for the system property's
+         * @since 4.1.0
+         */
+        public CosIdAxonProviderBinding(IdGeneratorProvider idGeneratorProvider, @Nullable String generatorName) {
+            this.binding = CosIdIdentifierFactory.bind(idGeneratorProvider, generatorName);
         }
 
         @Override
         public void destroy() {
-            CosIdIdentifierFactory.unbind(idGeneratorProvider);
+            // Only this binding: other contexts may have bound the same provider with another name.
+            CosIdIdentifierFactory.unbind(binding);
         }
     }
 }

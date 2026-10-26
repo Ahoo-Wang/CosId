@@ -19,8 +19,10 @@ import me.ahoo.cosid.provider.NotFoundIdGeneratorException;
 
 import lombok.extern.slf4j.Slf4j;
 import org.axonframework.common.IdentifierFactory;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Deque;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -39,17 +41,23 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class CosIdIdentifierFactory extends IdentifierFactory {
     public static final String ID_KEY = "cosid.axon";
 
-    private static final Deque<IdGeneratorProvider> BOUND_PROVIDERS = new ConcurrentLinkedDeque<>();
+    private static final Deque<Binding> BOUND_PROVIDERS = new ConcurrentLinkedDeque<>();
     private static final AtomicBoolean MULTIPLE_PROVIDERS_WARNED = new AtomicBoolean();
+    private static final AtomicBoolean MULTIPLE_NAMES_WARNED = new AtomicBoolean();
 
     private final String generatorName;
     private final IdGeneratorProvider idGeneratorProvider;
+    /**
+     * Whether a binding's generator name takes the place of {@link #generatorName}, which then is the fallback.
+     */
+    private final boolean boundName;
 
     /**
-     * Creates a factory that resolves from the bound provider, or {@link DefaultIdGeneratorProvider#INSTANCE}.
+     * Creates a factory that resolves from the bound provider, or {@link DefaultIdGeneratorProvider#INSTANCE}: the
+     * generator named by the binding, else by the {@link #ID_KEY} system property, else {@link IdGeneratorProvider#SHARE}.
      */
     public CosIdIdentifierFactory() {
-        this(System.getProperty(ID_KEY, IdGeneratorProvider.SHARE), null);
+        this(System.getProperty(ID_KEY, IdGeneratorProvider.SHARE), null, true);
     }
 
     /**
@@ -68,8 +76,38 @@ public class CosIdIdentifierFactory extends IdentifierFactory {
      * @param idGeneratorProvider the provider to resolve from, or {@code null} to use the bound provider
      */
     public CosIdIdentifierFactory(String generatorName, IdGeneratorProvider idGeneratorProvider) {
+        this(generatorName, idGeneratorProvider, false);
+    }
+    
+    private CosIdIdentifierFactory(String generatorName, IdGeneratorProvider idGeneratorProvider, boolean boundName) {
         this.generatorName = generatorName;
         this.idGeneratorProvider = idGeneratorProvider;
+        this.boundName = boundName;
+    }
+    
+    /**
+     * A binding made by {@link #bind(IdGeneratorProvider, String)}: a provider and the generator name it was bound with,
+     * if any. Pass it to {@link #unbind(Binding)} to remove exactly this binding, even when other bindings share its
+     * provider (without {@code cosid.provider.isolated}, every Spring context binds the same provider).
+     *
+     * @since 4.1.0
+     */
+    public static final class Binding {
+        private final IdGeneratorProvider provider;
+        private final @Nullable String generatorName;
+
+        private Binding(IdGeneratorProvider provider, @Nullable String generatorName) {
+            this.provider = provider;
+            this.generatorName = generatorName;
+        }
+
+        public IdGeneratorProvider provider() {
+            return provider;
+        }
+
+        public @Nullable String generatorName() {
+            return generatorName;
+        }
     }
 
     /**
@@ -78,44 +116,88 @@ public class CosIdIdentifierFactory extends IdentifierFactory {
      * @param idGeneratorProvider the provider to bind
      */
     public static void bind(IdGeneratorProvider idGeneratorProvider) {
-        BOUND_PROVIDERS.addFirst(idGeneratorProvider);
-        long distinct = BOUND_PROVIDERS.stream().distinct().count();
+        bind(idGeneratorProvider, null);
+    }
+
+    /**
+     * Binds a provider and the generator that factories created without arguments use, in place of the {@link #ID_KEY}
+     * system property; the most recent binding wins.
+     *
+     * @param idGeneratorProvider the provider to bind
+     * @param generatorName       the generator name, {@code null} for the system property's
+     * @return the binding, to pass to {@link #unbind(Binding)}
+     * @since 4.1.0
+     */
+    public static Binding bind(IdGeneratorProvider idGeneratorProvider, @Nullable String generatorName) {
+        Binding binding = new Binding(idGeneratorProvider, generatorName);
+        BOUND_PROVIDERS.addFirst(binding);
+        long distinct = BOUND_PROVIDERS.stream().map(Binding::provider).distinct().count();
         if (distinct > 1 && MULTIPLE_PROVIDERS_WARNED.compareAndSet(false, true) && log.isWarnEnabled()) {
             log.warn("{} different IdGeneratorProviders are bound to CosIdIdentifierFactory (for example, several Spring contexts): "
                 + "factories created without a provider use the most recent one. Create the factory with "
                 + "new CosIdIdentifierFactory(provider) to choose.", distinct);
         }
+        long names = BOUND_PROVIDERS.stream().filter(bound -> bound.provider() == idGeneratorProvider)
+            .map(bound -> Objects.toString(bound.generatorName(), "")).distinct().count();
+        if (names > 1 && MULTIPLE_NAMES_WARNED.compareAndSet(false, true) && log.isWarnEnabled()) {
+            log.warn("The same IdGeneratorProvider is bound to CosIdIdentifierFactory with {} different generator names "
+                + "(for example, several Spring contexts without cosid.provider.isolated): factories created without "
+                + "arguments use the most recent one. Create the factory with new CosIdIdentifierFactory(name, provider) "
+                + "to choose.", names);
+        }
+        return binding;
     }
 
     /**
-     * Lets the multiple-providers warning, logged once per process, be logged again. For tests.
+     * Lets the multiple-providers and multiple-names warnings, each logged once per process, be logged again. For tests.
      */
     static void resetMultipleProvidersWarning() {
         MULTIPLE_PROVIDERS_WARNED.set(false);
+        MULTIPLE_NAMES_WARNED.set(false);
     }
-    
+
     /**
-     * Removes one binding of the provider, leaving bindings made by others in place.
+     * Removes the most recent binding of the provider, leaving bindings of other providers in place. When several
+     * bindings share the provider, use {@link #unbind(Binding)} to remove a specific one.
      *
      * @param idGeneratorProvider the provider previously passed to {@link #bind(IdGeneratorProvider)}
      * @return {@code true} if a binding was removed
      */
     public static boolean unbind(IdGeneratorProvider idGeneratorProvider) {
-        return BOUND_PROVIDERS.removeFirstOccurrence(idGeneratorProvider);
+        for (Binding binding : BOUND_PROVIDERS) {
+            if (binding.provider() == idGeneratorProvider && BOUND_PROVIDERS.removeFirstOccurrence(binding)) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    private IdGeneratorProvider currentProvider() {
-        if (idGeneratorProvider != null) {
-            return idGeneratorProvider;
-        }
-        IdGeneratorProvider bound = BOUND_PROVIDERS.peekFirst();
-        return bound != null ? bound : DefaultIdGeneratorProvider.INSTANCE;
+    /**
+     * Removes exactly this binding, leaving all others in place, including those of the same provider.
+     *
+     * @param binding the binding returned by {@link #bind(IdGeneratorProvider, String)}
+     * @return {@code true} if the binding was removed, {@code false} if it was already removed
+     * @since 4.1.0
+     */
+    public static boolean unbind(Binding binding) {
+        // Binding has identity equality, so this removes this instance only.
+        return BOUND_PROVIDERS.removeFirstOccurrence(binding);
     }
 
     @Override
     public String generateIdentifier() {
-        return currentProvider().get(generatorName)
-            .orElseThrow(() -> new NotFoundIdGeneratorException(generatorName))
+        IdGeneratorProvider provider = idGeneratorProvider;
+        String name = generatorName;
+        if (provider == null) {
+            Binding bound = BOUND_PROVIDERS.peekFirst();
+            provider = bound != null ? bound.provider() : DefaultIdGeneratorProvider.INSTANCE;
+            if (boundName && bound != null && bound.generatorName() != null) {
+                name = bound.generatorName();
+            }
+        }
+        String resolvedName = name;
+        return provider.get(resolvedName)
+            .orElseThrow(() -> new NotFoundIdGeneratorException(resolvedName))
             .generateAsString();
     }
 }

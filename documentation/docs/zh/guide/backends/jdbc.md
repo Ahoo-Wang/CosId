@@ -140,6 +140,8 @@ H2 和 SQL Server 的语句是 `JdbcDialect.getAddLeaseColumnsSql()`。步骤顺
 | H2 | 2.x，Regular、MySQL、MariaDB 或 PostgreSQL 模式；不支持 Oracle 模式 | `H2` |
 | SQL Server | 2022（支持 2016 及以上） | `Microsoft SQL Server` |
 
+在 SQL Server 上，多个实例同时申请机器号可能发生死锁：数据库会回滚其中一次申请（错误 1205），CosId 会重新执行这次申请，最多 8 次。SQL Server 每 5 秒检测一次死锁，发现死锁后会更频繁地检测，因此等在死锁上的申请可能先达到默认 5s 的 `query-timeout` 而以超时失败，超时不会重试。在 SQL Server 上有很多实例同时启动时，请把 `cosid.machine.distributor.jdbc.query-timeout` 设为 10s 或更长。
+
 保持默认值（MySQL 语句，比较时忽略空白和末尾的 `;`）的语句，会按连接所报告的数据库，改用 `me.ahoo.cosid.jdbc.JdbcDialect` 中该数据库的语句；其他值按配置使用。产品名在语句第一次需要时从连接的元数据读取，而不是在启动时：启动时宕机或很慢的数据库，在恢复响应后才被识别。号段获取在读到产品名后保持该选择；MySQL 的 `last_insert_id` 路径只在报告为 MySQL 或 MariaDB 的数据库上使用，其他数据库，或无法读取产品名时，都在事务中获取。不使用 Starter 时行为相同。不支持 Oracle 等其他数据库：请配置所有语句，包括 `server-time-sql`。Oracle 兼容模式下的 H2 按不支持的数据库处理：它和 Oracle 一样把 `''` 存为 `NULL`，而机器号租约用 `instance_id=''` 标记已释放的行。
 
 MySQL 的表语句已声明索引，所以索引语句（`init-namespace-idx-sql`、`init-instance-id-idx-sql`）默认为空。保持为空时，只有表语句也保持默认值，才会改用该数据库的 `create index`；配合自定义的表语句时它们仍为空，如果你的表语句没有声明索引，请设置它们。

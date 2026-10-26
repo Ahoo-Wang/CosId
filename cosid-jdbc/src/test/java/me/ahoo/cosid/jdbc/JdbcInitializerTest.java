@@ -51,6 +51,9 @@ class JdbcInitializerTest {
         assertThat(JdbcSupport.isAlreadyExists(new SQLException("relation exists", "42P07")), is(true));
         assertThat(JdbcSupport.isAlreadyExists(new SQLException("There is already an object", "S0001", 2714)), is(true));
         assertThat(JdbcSupport.isAlreadyExists(new SQLException("syntax error", "42000", 1064)), is(false));
+        // A driver that reports no SQLState
+        assertThat(JdbcSupport.isAlreadyExists(new SQLException("no state")), is(false));
+        assertThat(JdbcSupport.isAlreadyExists(new SQLException("Table already exists", null, 1050)), is(true));
     }
     
     @Test

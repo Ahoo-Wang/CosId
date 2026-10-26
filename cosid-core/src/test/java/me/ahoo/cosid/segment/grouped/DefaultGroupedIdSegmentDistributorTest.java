@@ -22,11 +22,13 @@ import me.ahoo.cosid.segment.IdSegmentChain;
 import me.ahoo.cosid.segment.IdSegmentDistributor;
 import me.ahoo.cosid.segment.IdSegmentDistributorDefinition;
 import me.ahoo.cosid.segment.IdSegmentDistributorFactory;
+import me.ahoo.cosid.util.Clock;
 
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 class DefaultGroupedIdSegmentDistributorTest {
@@ -66,6 +68,30 @@ class DefaultGroupedIdSegmentDistributorTest {
         assertEquals(3, distributor.nextMaxId(1));
 
         assertEquals(List.of("order@group-1", "order@group-2"), factory.createdNames);
+    }
+
+    @Test
+    void endedGroupsAreDroppedOnceTheNextGroupIsBound() throws InterruptedException {
+        MutableGroupBySupplier groupBySupplier = new MutableGroupBySupplier(GroupedKey.forever("start"));
+        DefaultGroupedIdSegmentDistributor distributor = new DefaultGroupedIdSegmentDistributor(
+            groupBySupplier,
+            new IdSegmentDistributorDefinition("ns", "period", 0, 1),
+            new RecordingFactory()
+        );
+        for (int period = 0; period < 3; period++) {
+            long endsAt = Clock.SYSTEM.secondTime();
+            groupBySupplier.setGroup(new GroupedKey("period-" + period, endsAt));
+            assertEquals(1, distributor.nextMaxId(1));
+            while (Clock.SYSTEM.secondTime() <= endsAt) {
+                TimeUnit.MILLISECONDS.sleep(20);
+            }
+        }
+        groupBySupplier.setGroup(GroupedKey.forever("current"));
+
+        assertEquals(1, distributor.nextMaxId(1));
+
+        // "start" never ends: only the ended periods are dropped.
+        assertEquals(2, distributor.groupedBindingCount());
     }
 
     @Test

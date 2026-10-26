@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
 
 /**
@@ -48,7 +49,10 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
     private final MachineLeaseManager distributeLeaseManager;
     private final MachineLeaseManager leaseManager;
     private final ConcurrentHashMap<NamespacedInstanceId, Lease> leases = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<NamespacedInstanceId, Object> locks = new ConcurrentHashMap<>();
+    /**
+     * One lock per instance while a guard or revert of it holds or waits for it, see {@link #lock(NamespacedInstanceId)}.
+     */
+    private final ConcurrentHashMap<NamespacedInstanceId, InstanceLock> locks = new ConcurrentHashMap<>();
     private final LongSupplier localClock;
     private final ConcurrentHashMap<NamespacedInstanceId, Long> clockSkews = new ConcurrentHashMap<>();
     
@@ -127,7 +131,8 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
     
     private void renewLease(String namespace, InstanceId instanceId, MachineState machineState, Duration safeGuardDuration) {
         NamespacedInstanceId key = new NamespacedInstanceId(namespace, instanceId);
-        synchronized (lockOf(key)) {
+        InstanceLock lock = lock(key);
+        try {
             Lease lease = currentLease(key, machineState).orElseThrow(() -> new MachineIdLostException(namespace, instanceId, machineState));
             Optional<Lease> renewed;
             final long localBefore = localClock.getAsLong();
@@ -149,6 +154,8 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
             clockSkews.put(key, hostAhead);
             checkClockSkew(namespace, instanceId, localBefore, renewed.get().getRenewedAt(), safeGuardDuration);
             CosIdEvents.listener().onLeaseRenewed(namespace, instanceId, renewed.get().getMachineId(), hostAhead);
+        } finally {
+            unlock(key, lock);
         }
     }
     
@@ -184,7 +191,8 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
         NamespacedInstanceId key = new NamespacedInstanceId(namespace, instanceId);
         // Same lock as guard: a release between a renew and its cache update would fail on the version and keep the
         // machine id blocked until it expires.
-        synchronized (lockOf(key)) {
+        InstanceLock lock = lock(key);
+        try {
             Optional<Lease> lease = currentLease(key, machineState);
             leases.remove(key);
             if (lease.isEmpty()) {
@@ -196,11 +204,44 @@ public class LeaseStoreMachineIdDistributor extends AbstractMachineIdDistributor
             if (!leaseManager.release(lease.get(), machineState.getLastTimeStamp()) && log.isWarnEnabled()) {
                 log.warn("Revert [{}] - taken over in the meantime, skip release.", lease.get());
             }
+        } finally {
+            unlock(key, lock);
         }
     }
     
-    private Object lockOf(NamespacedInstanceId key) {
-        return locks.computeIfAbsent(key, absent -> new Object());
+    int lockCount() {
+        return locks.size();
+    }
+
+    /**
+     * Takes the instance's lock, counting this thread as one of its users until {@link #unlock}. The count only changes
+     * inside {@code compute}, atomically per key: a lock is dropped only when no thread holds or waits for it, so two
+     * threads never hold different locks of one instance.
+     */
+    private InstanceLock lock(NamespacedInstanceId key) {
+        InstanceLock lock = locks.compute(key, (absent, current) -> {
+            InstanceLock used = current == null ? new InstanceLock() : current;
+            used.users++;
+            return used;
+        });
+        lock.lock();
+        return lock;
+    }
+
+    private void unlock(NamespacedInstanceId key, InstanceLock lock) {
+        lock.unlock();
+        locks.computeIfPresent(key, (present, current) -> --current.users == 0 ? null : current);
+    }
+
+    /**
+     * Not {@code synchronized}: guard and revert call the store while holding it, which would pin a virtual thread.
+     */
+    private static final class InstanceLock extends ReentrantLock {
+        private static final long serialVersionUID = 1L;
+        /**
+         * Changed only inside the map's {@code compute} of the key.
+         */
+        private int users;
     }
     
     /**

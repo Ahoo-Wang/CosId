@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Default segment algorithm ID generator.
@@ -39,7 +40,12 @@ public class DefaultSegmentId implements SegmentId {
     private final long idSegmentTtl;
     private final IdSegmentDistributor maxIdDistributor;
 
-    @GuardedBy("this")
+    /**
+     * Held while fetching the next segment. Not {@code synchronized}: the fetch calls the store, and a virtual thread that
+     * blocks inside {@code synchronized} pins its carrier thread on JDK 21 to 23.
+     */
+    private final ReentrantLock fetchLock = new ReentrantLock();
+    @GuardedBy("fetchLock")
     private volatile IdSegment segment = DefaultIdSegment.OVERFLOW;
 
     /**
@@ -131,7 +137,8 @@ public class DefaultSegmentId implements SegmentId {
             }
         }
 
-        synchronized (this) {
+        fetchLock.lock();
+        try {
             while (true) {
                 if (segment.isAvailable()) {
                     nextSeq = segment.incrementAndGet();
@@ -145,6 +152,8 @@ public class DefaultSegmentId implements SegmentId {
                 }
                 segment = nextIdSegment;
             }
+        } finally {
+            fetchLock.unlock();
         }
     }
     

@@ -15,11 +15,13 @@ package me.ahoo.cosid.segment.concurrent;
 
 import me.ahoo.cosid.internal.Checks;
 
+import com.google.errorprone.annotations.concurrent.GuardedBy;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Prefetch Worker Executor Service.
@@ -51,7 +53,13 @@ public class PrefetchWorkerExecutorService {
     private final int corePoolSize;
     private final Duration prefetchPeriod;
     private final DefaultPrefetchWorker[] workers;
+    @GuardedBy("submitLock")
     private boolean initialized = false;
+    /**
+     * Not {@code synchronized}: submitting logs and starts a thread, and a virtual thread that blocks inside
+     * {@code synchronized} pins its carrier thread on JDK 21 to 23.
+     */
+    private final ReentrantLock submitLock = new ReentrantLock();
     private final AtomicLong threadIdx = new AtomicLong();
     @Nullable
     private final GracefullyCloser shutdownHook;
@@ -133,7 +141,8 @@ public class PrefetchWorkerExecutorService {
         if (affinityJob.getPrefetchWorker() != null) {
             return;
         }
-        synchronized (this) {
+        submitLock.lock();
+        try {
             if (affinityJob.getPrefetchWorker() != null) {
                 return;
             }
@@ -151,6 +160,8 @@ public class PrefetchWorkerExecutorService {
             }
             prefetchWorker.submit(affinityJob);
             affinityJob.setPrefetchWorker(prefetchWorker);
+        } finally {
+            submitLock.unlock();
         }
     }
 

@@ -26,6 +26,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -53,6 +54,12 @@ class SqlServerJdbcLeaseStoreDeadlockTest {
     private static final int MAX_MACHINE_ID = 1023;
 
     /**
+     * Longer than SQL Server's deadlock detection interval (5 s at most): with the default 5 s query timeout, a statement
+     * waiting on a deadlock can time out before SQL Server chooses the victim, which this test is not about.
+     */
+    private static final Duration QUERY_TIMEOUT = Duration.ofSeconds(30);
+
+    /**
      * A connection per claimer, and claimers sharing a pool of four connections.
      */
     List<JdbcMachineLeaseStore> stores;
@@ -60,8 +67,9 @@ class SqlServerJdbcLeaseStoreDeadlockTest {
     @BeforeAll
     void setup() {
         DataSource dataSource = RealSqlServer.createDataSource();
-        stores = List.of(DialectTables.leaseStore(dataSource, JdbcDialect.SQL_SERVER),
-            DialectTables.leaseStore(PooledDataSource.of(dataSource, true), JdbcDialect.SQL_SERVER));
+        String serverTimeSql = JdbcDialect.SQL_SERVER.getServerTimeSql();
+        stores = List.of(new JdbcMachineLeaseStore(dataSource, QUERY_TIMEOUT, serverTimeSql),
+            new JdbcMachineLeaseStore(PooledDataSource.of(dataSource, true), QUERY_TIMEOUT, serverTimeSql));
     }
 
     static Stream<Integer> stores() {

@@ -33,4 +33,8 @@ dependencies {
     // P10 (ZooKeeper): the 4.x store and an in-process server.
     jmh(libs.cosid4.zookeeper)
     jmh(libs.curator.test)
+    // P11: Spring context start to first id, both sides on the Spring Boot of spring/* (spring-boot-starter brings the
+    // same logging to both).
+    jmh(libs.cosid4.spring.boot.starter)
+    jmh(libs.spring.boot.starter)
 }

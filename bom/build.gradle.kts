@@ -24,5 +24,7 @@ dependencies {
         api(project(":store:mongo"))
         api(project(":store:redis"))
         api(project(":store:zookeeper"))
+        api(project(":spring:autoconfigure"))
+        api(project(":spring:starter"))
     }
 }

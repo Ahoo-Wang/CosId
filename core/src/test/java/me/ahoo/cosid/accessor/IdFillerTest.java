@@ -82,6 +82,7 @@ class IdFillerTest {
                 "token", new GeneratorSpec.CosId80(ClockRegressionPolicy.DEFAULT, new PartsCodecSpec.Radix(62)),
                 "bill", new GeneratorSpec.PeriodicSegment("db", Period.YEAR, ZoneOffset.UTC, BatchPolicy.DEFAULT, PeriodicPolicy.DEFAULT,
                     new GroupedCodecSpec.DatePrefix("-", List.of(new CodecSpec.Radix(10, 4, true)))),
+                "first", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of()),
                 "off", new GeneratorSpec.Disabled(new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of()))));
         RuntimeOptions defaults = RuntimeOptions.defaults();
         runtime = CosIdRuntime.start(spec, new RuntimeOptions(defaults.time(), defaults.executor(), defaults.listener(), List.of(memory),
@@ -122,6 +123,24 @@ class IdFillerTest {
         entity.id = 0;
         filler.fill(entity);
         assertThat(entity.id, is(first + 1));
+    }
+
+    static class FirstOfANewKey {
+        @CosId("first")
+        private long id;
+    }
+
+    @Test
+    void theFirstIdOfANewKeyIsOneSoItIsFilled() {
+        FirstOfANewKey entity = new FirstOfANewKey();
+        filler.fill(entity);
+        assertThat(entity.id, is(1L));
+        // 0 means unset, so it is filled again; a set id is kept.
+        FirstOfANewKey next = new FirstOfANewKey();
+        filler.fill(next);
+        assertThat(next.id, is(2L));
+        filler.fill(next);
+        assertThat(next.id, is(2L));
     }
 
     static class LongField {

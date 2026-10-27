@@ -199,7 +199,7 @@ class CosIdRuntimeTest {
             assertThat(runtime.slot(), is(Optional.empty()));
             assertThat(db.backing("db").acquire("app", new me.ahoo.cosid.lease.Owner("other", java.util.UUID.randomUUID()), 1024,
                 Duration.ofSeconds(1), Duration.ZERO, OptionalInt.empty()), instanceOf(me.ahoo.cosid.lease.AcquireResult.Acquired.class));
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
         }
     }
 
@@ -257,7 +257,7 @@ class CosIdRuntimeTest {
         RuntimeOptions withClient = new RuntimeOptions(base.time(), base.executor(), base.listener(), base.storeProviders(),
             Map.of("cache", client), base.hostResolver(), base.port(), base.codecs());
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, withClient)) {
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
             assertThat(cache.configs.getFirst().client().orElseThrow(), sameInstance(client));
             assertThat(cache.configs.getFirst().options().get("wait"), is("auto"));
             assertThat(cache.configs.getFirst().timeout(), is(TIMEOUT));
@@ -286,7 +286,7 @@ class CosIdRuntimeTest {
             assertThat(info.store(), is("gone"));
             assertThat(info.details(), is(Map.of("disabled", true)));
             assertThat(runtime.describe().get("default").strategy(), is("snowflake"));
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
         }
         assertThrows(IllegalArgumentException.class, () -> new GeneratorSpec.Disabled(new GeneratorSpec.Disabled(segment("db"))));
     }
@@ -334,8 +334,8 @@ class CosIdRuntimeTest {
             for (int i = 0; i < 10; i++) {
                 runtime.generator("byClass").generate();
             }
-            assertThat(runtime.stringGenerator("byClass").generate(), is("ah"));
-            assertThat(runtime.stringGenerator("byInstance").generate(), is("0"));
+            assertThat(runtime.stringGenerator("byClass").generate(), is("bh"));
+            assertThat(runtime.stringGenerator("byInstance").generate(), is("1"));
         }
     }
 
@@ -344,13 +344,13 @@ class CosIdRuntimeTest {
         RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", store(ServiceLoadedStores.TYPE)), Optional.empty(),
             Map.of("order", segment("db")));
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options())) {
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
             assertThat(ServiceLoadedStores.OPENED.get(), greaterThan(0));
         }
         int loaded = ServiceLoadedStores.OPENED.get();
         TestStores explicit = new TestStores(ServiceLoadedStores.TYPE);
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(explicit))) {
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
         }
         assertThat(explicit.events, contains("open:db", "close:db"));
         assertThat(ServiceLoadedStores.OPENED.get(), is(loaded));
@@ -361,7 +361,7 @@ class CosIdRuntimeTest {
         RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", store(ServiceLoadedStores.TYPE)), Optional.empty(),
             Map.of("order", segment("db")));
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, RuntimeOptions.defaults())) {
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
         }
         assertThat(HostResolver.LOCAL.host(), is(not("")));
     }

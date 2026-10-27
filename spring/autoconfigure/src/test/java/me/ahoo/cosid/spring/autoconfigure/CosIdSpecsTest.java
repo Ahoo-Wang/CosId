@@ -77,7 +77,7 @@ class CosIdSpecsTest {
     }
 
     private static CosIdProperties.Generator generator(String strategy, String store, List<CosIdProperties.Codec> codec) {
-        return new CosIdProperties.Generator(strategy, false, "SNOWFLAKE_MS", null, null, null, null, null, null, store, 100, 0,
+        return new CosIdProperties.Generator(strategy, false, "SNOWFLAKE_MS", null, null, null, null, null, null, store, 100, 1,
             Duration.ofSeconds(1), null, Duration.ofSeconds(3), null, null, null, Duration.ofMinutes(1), null, codec);
     }
 

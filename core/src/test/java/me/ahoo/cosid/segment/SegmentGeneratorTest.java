@@ -491,6 +491,42 @@ class SegmentGeneratorTest {
     }
 
     @Test
+    void largeDefaultMaxBatchKeepsTheRestartSmall() {
+        ManualTime time = new ManualTime(0);
+        BatchPolicy policy = policy(10, Duration.ofSeconds(1), BatchPolicy.defaultMaxBatch(10), Duration.ofSeconds(3), Optional.empty());
+        try (SegmentGenerator generator = generator(policy, Runnable::run, time)) {
+            // The first reservation is one step: nothing is known of the rate yet.
+            assertThat(generator.generate(), is(0L));
+            assertThat(store.reserved().get(0), is(new Range(0, 10)));
+            // 1 value per ms: the batch follows the 1s budget (1000), far below the cap.
+            for (int i = 1; i < 5000; i++) {
+                time.advance(1);
+                generator.generate();
+            }
+            assertThat(generator.batch(), lessThanOrEqualTo(2000L));
+            long reserved = store.reserved().stream().mapToLong(range -> range.end() - range.start()).sum();
+            assertThat(reserved, lessThanOrEqualTo(5000L + 3 * 2000L));
+        }
+    }
+
+    @Test
+    void fastRateGrowsTheBatchPastTheOldStepTimesThousandCap() {
+        ManualTime time = new ManualTime(0);
+        BatchPolicy policy = policy(10, Duration.ofSeconds(1), BatchPolicy.defaultMaxBatch(10), Duration.ofSeconds(3), Optional.empty());
+        try (SegmentGenerator generator = generator(policy, Runnable::run, time)) {
+            // 100 values per ms: a 1s budget of 100_000, ten times the old cap of step * 1000.
+            for (int i = 0; i < 1_000_000; i++) {
+                generator.generate();
+                if (i % 100 == 0) {
+                    time.advance(1);
+                }
+            }
+            assertThat(generator.batch(), greaterThan(10_000L));
+            assertThat(generator.batch(), lessThanOrEqualTo(BatchPolicy.defaultMaxBatch(10)));
+        }
+    }
+
+    @Test
     void batchRoundsUpToTheStep() {
         ManualTime time = new ManualTime(0);
         BatchPolicy policy = policy(100, Duration.ofMillis(150), 100_000, Duration.ofSeconds(3), Optional.empty());

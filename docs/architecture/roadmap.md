@@ -153,11 +153,12 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 | L5 | 主 `check` job 与各存储 job 重复跑容器测试,需要一个跳过容器的开关去重 | R5-A |
 | L6 | 文档站写明 ZK 槽位节点人工重建的前提、Redis 持久化前提、各后端"实测兼容性(不承诺)"汇总 | R5-B |
 | L7 | ~~`config` 子命令对 4.x proxy 配置生成的 `remote` 存储与 R4-A 选项名一致~~ 已在 #1324 中完成 | R4-C ✅ |
-| L8 | 特性验收发现 4 项能力缺口(D21):Mongo `writeConcern` 选项、4.x 分组前缀的两种写法(期间在业务前缀之后 / 文本不含期间)、Spring 侧 `seq-reset-threshold`、`onStoreTimeout` 从未触发(`cosid.store.timeouts` 恒为 0) | R5-A 补齐 |
+| L8 | ✅ [#1336](https://github.com/Ahoo-Wang/CosId/pull/1336) 特性验收发现 4 项能力缺口(D21):Mongo `writeConcern` 选项、4.x 分组前缀的两种写法(期间在业务前缀之后 / 文本不含期间)、Spring 侧 `seq-reset-threshold`、`onStoreTimeout` 从未触发(`cosid.store.timeouts` 恒为 0) | R5-A 补齐 |
 | L9 | 分片 `extras/sharding` 迁入 | ✅ [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330) |
 | L10 | Redis `ReplicaWaitTest`、清扫测试偶发失败修复 | ✅ [#1331](https://github.com/Ahoo-Wang/CosId/pull/1331)、[#1340](https://github.com/Ahoo-Wang/CosId/pull/1340) |
-| L11 | 号段默认 `initialOffset` 改为 1,不发 0(与 4.x 一致;`IdFiller` 把 0 视为未设置) | R1-B 小 PR |
+| L11 | 号段默认 `initialOffset` 改为 1,不发 0(与 4.x 一致;`IdFiller` 把 0 视为未设置) | ✅ [#1339](https://github.com/Ahoo-Wang/CosId/pull/1339) |
 | L12 | 稳定性:实施后期又出现 3 个偶发/可疑测试:`RemoteStoreTest`(已在 #1332 修复)、Mongo `lostUpsertRacesRetryAndNeverOverlap`、Redis `sweepMovesAtMostOneBatchOfExpiredLeases`(待查是否真缺陷) | R2-Mongo、R2-Redis |
+| L13 | `config` 转换:4.x 非零 `offset` 应转换为 `initial-offset = offset + 1`(4.x 新 key / 新周期首个 ID 为 offset+1) | R4-C 后续 PR |
 
 ## 6. 风险与经验
 

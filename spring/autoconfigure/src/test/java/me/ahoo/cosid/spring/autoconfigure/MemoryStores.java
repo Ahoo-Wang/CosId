@@ -18,6 +18,9 @@ import me.ahoo.cosid.segment.RangeStore;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.StoreProvider;
+import me.ahoo.cosid.store.tck.FaultInjector;
+import me.ahoo.cosid.store.tck.FaultyRangeStore;
+import me.ahoo.cosid.store.tck.FaultySlotLeaseStore;
 import me.ahoo.cosid.store.tck.InMemoryStore;
 
 import java.util.List;
@@ -32,6 +35,8 @@ final class MemoryStores implements StoreProvider {
 
     final List<String> events;
     final List<StoreConfig> configs = new CopyOnWriteArrayList<>();
+    /** The TCK's fault injection on every store opened, when set. */
+    volatile FaultInjector faults;
 
     MemoryStores() {
         this(new CopyOnWriteArrayList<>());
@@ -54,12 +59,12 @@ final class MemoryStores implements StoreProvider {
         return new Store() {
             @Override
             public RangeStore ranges() {
-                return store;
+                return faults == null ? store : new FaultyRangeStore(store, faults);
             }
 
             @Override
             public SlotLeaseStore slots() {
-                return store;
+                return faults == null ? store : new FaultySlotLeaseStore(store, faults);
             }
 
             @Override

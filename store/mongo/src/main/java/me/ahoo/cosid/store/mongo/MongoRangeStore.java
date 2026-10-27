@@ -87,6 +87,10 @@ public final class MongoRangeStore implements RangeStore {
 
     @Override
     public Range reserve(String key, long size, long initialOffset) {
+        return MongoStore.timed("reserve", () -> reserveNow(key, size, initialOffset));
+    }
+
+    private Range reserveNow(String key, long size, long initialOffset) {
         Objects.requireNonNull(key, "key");
         if (size <= 0) {
             throw new IllegalArgumentException("size must be positive: " + size);
@@ -141,6 +145,10 @@ public final class MongoRangeStore implements RangeStore {
      */
     @Override
     public boolean seal(String key) {
+        return MongoStore.timed("seal", () -> sealNow(key));
+    }
+
+    private boolean sealNow(String key) {
         Objects.requireNonNull(key, "key");
         for (int attempt = 1; ; attempt++) {
             try {

@@ -18,6 +18,9 @@ import me.ahoo.cosid.segment.RangeStore;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.StoreProvider;
+import me.ahoo.cosid.store.tck.FaultInjector;
+import me.ahoo.cosid.store.tck.FaultyRangeStore;
+import me.ahoo.cosid.store.tck.FaultySlotLeaseStore;
 import me.ahoo.cosid.store.tck.InMemoryStore;
 import me.ahoo.cosid.time.TimeSource;
 
@@ -41,6 +44,8 @@ final class TestStores implements StoreProvider {
     final Set<String> failClose = ConcurrentHashMap.newKeySet();
     final Set<String> noRanges = ConcurrentHashMap.newKeySet();
     final Set<String> noSlots = ConcurrentHashMap.newKeySet();
+    /** The faults of a store's ranges and slots, by store name (06 §3 fault injection). */
+    final Map<String, FaultInjector> faults = new ConcurrentHashMap<>();
 
     TestStores(String type, TimeSource storeClock, List<String> events) {
         this.type = type;
@@ -77,7 +82,8 @@ final class TestStores implements StoreProvider {
                 if (noRanges.contains(name)) {
                     throw new UnsupportedOperationException(name + " has no ranges");
                 }
-                return memory;
+                FaultInjector injector = faults.get(name);
+                return injector == null ? memory : new FaultyRangeStore(memory, injector);
             }
 
             @Override
@@ -85,7 +91,8 @@ final class TestStores implements StoreProvider {
                 if (noSlots.contains(name)) {
                     throw new UnsupportedOperationException(name + " has no slots");
                 }
-                return memory;
+                FaultInjector injector = faults.get(name);
+                return injector == null ? memory : new FaultySlotLeaseStore(memory, injector);
             }
 
             @Override

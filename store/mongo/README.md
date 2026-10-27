@@ -8,7 +8,7 @@ default, writes with `majority` concern.
 - **Supported:** MongoDB **6.0 or later**. CI runs the store TCK on `mongo:6.0` (the minimum) and `mongo:8.0`.
 - **Options:** `uri` (required unless a `MongoClient` is injected through `StoreConfig.client`), `database`
   (default `cosid_db`), `writeConcern` (default `majority`, see below). `StoreConfig.timeout` becomes the driver's
-  `timeoutMS`; zero means none.
+  `timeoutMS`; zero means none. An operation that runs out of it fails with `StoreTimeoutException`.
 
 ## Write concern
 

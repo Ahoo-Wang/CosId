@@ -28,11 +28,15 @@ import me.ahoo.cosid.segment.Range;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.StoreProvider;
+import me.ahoo.cosid.store.StoreTimeoutException;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.mongodb.MongoExecutionTimeoutException;
+import com.mongodb.MongoOperationTimeoutException;
+import com.mongodb.MongoTimeoutException;
 import com.mongodb.ReadConcern;
 import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoCollection;
@@ -181,5 +185,40 @@ class MongoStoreProviderTest {
         } finally {
             logger.detachAppender(appender);
         }
+    }
+
+    @Test
+    void anOperationThatRunsOutOfTheTimeoutFailsWithStoreTimeoutException() {
+        // 1ms: some operations still make it, but none fails otherwise, and the ones that do not are store timeouts.
+        StoreConfig tight = new StoreConfig("ids", MongoStoreProvider.TYPE, Duration.ofMillis(1), Map.of(MongoStoreProvider.DATABASE,
+            MongoTestSupport.DATABASE), Optional.of(MongoTestSupport.client()));
+        int timeouts = 0;
+        try (Store store = new MongoStoreProvider().open(tight)) {
+            for (int i = 0; i < 50 && timeouts == 0; i++) {
+                try {
+                    store.ranges().reserve("provider/" + UUID.randomUUID(), 1, 0);
+                } catch (StoreTimeoutException e) {
+                    assertInstanceOf(MongoTimeoutException.class, e.getCause());
+                    timeouts++;
+                }
+            }
+        }
+        assertTrue(timeouts > 0, "a 1ms timeout runs out");
+    }
+
+    @Test
+    void mapsTheDriverTimeoutsOnly() {
+        MongoOperationTimeoutException client = new MongoOperationTimeoutException("timeoutMS expired");
+        assertThat(assertThrows(StoreTimeoutException.class, () -> MongoStore.timed("reserve", () -> {
+            throw client;
+        })).getMessage(), containsString("MongoDB reserve timed out"));
+        assertThrows(StoreTimeoutException.class, () -> MongoStore.timed("renew", () -> {
+            throw new MongoExecutionTimeoutException(50, "operation exceeded time limit");
+        }));
+        IllegalStateException other = new IllegalStateException("not a timeout");
+        assertEquals(other, assertThrows(IllegalStateException.class, () -> MongoStore.timed("seal", () -> {
+            throw other;
+        })));
+        assertEquals("ok", MongoStore.timed("seal", () -> "ok"));
     }
 }

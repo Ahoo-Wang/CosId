@@ -30,6 +30,7 @@ import me.ahoo.cosid.lease.AcquireResult;
 import me.ahoo.cosid.lease.Owner;
 import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.segment.Range;
+import me.ahoo.cosid.store.StoreTimeoutException;
 
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -216,6 +217,8 @@ class RemoteStoreTest {
         assertEquals(0, timeout.status());
         assertTrue(timeout.transientFailure());
         assertThat(timeout.getMessage(), containsString("timed out"));
+        assertTrue(StoreTimeoutException.isTimeout(timeout), "the runtime reports it as a store timeout");
+        assertFalse(StoreTimeoutException.isTimeout(html));
     }
 
     @Test

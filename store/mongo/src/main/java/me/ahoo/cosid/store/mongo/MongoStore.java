@@ -16,8 +16,11 @@ package me.ahoo.cosid.store.mongo;
 import me.ahoo.cosid.lease.SlotLeaseStore;
 import me.ahoo.cosid.segment.RangeStore;
 import me.ahoo.cosid.store.Store;
+import me.ahoo.cosid.store.StoreTimeoutException;
 
+import com.mongodb.MongoExecutionTimeoutException;
 import com.mongodb.MongoServerException;
+import com.mongodb.MongoTimeoutException;
 import com.mongodb.ReadConcern;
 import com.mongodb.ReadPreference;
 import com.mongodb.WriteConcern;
@@ -27,12 +30,14 @@ import com.mongodb.client.MongoDatabase;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 /**
  * The MongoDB store (06-stores.md §2.3): {@link MongoRangeStore} and {@link MongoSlotLeaseStore} on one database,
  * MongoDB 6.0 or later. Every operation reads with {@code majority} concern on the primary, writes with the configured
  * write concern ({@code majority} by default, {@code options.writeConcern}) and runs under the driver's client-side
- * operation timeout ({@code timeoutMS}).
+ * operation timeout ({@code timeoutMS}); an operation that runs out of it fails with
+ * {@link StoreTimeoutException}.
  */
 public final class MongoStore implements Store {
     /** The database when {@code options.database} is not set. */
@@ -127,6 +132,18 @@ public final class MongoStore implements Store {
     static boolean isWeakerThanMajority(WriteConcern writeConcern) {
         Object w = writeConcern.getWObject();
         return !(w instanceof String name && "majority".equalsIgnoreCase(name));
+    }
+
+    /**
+     * Runs a store operation, turning the driver's timeouts ({@code timeoutMS} on the client, {@code maxTimeMS} on the
+     * server) into {@link StoreTimeoutException}.
+     */
+    static <T> T timed(String operation, Supplier<T> call) {
+        try {
+            return call.get();
+        } catch (MongoTimeoutException | MongoExecutionTimeoutException e) {
+            throw new StoreTimeoutException("MongoDB " + operation + " timed out: " + e.getMessage(), e);
+        }
     }
 
     static boolean isDuplicateKey(MongoServerException e) {

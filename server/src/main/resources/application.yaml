@@ -1,0 +1,45 @@
+# cosid-server (08-remote.md). The backing store is one of cosid.stores (cosid.server.store names it when there are
+# several); every value below can come from the environment, e.g. COSID_SERVER_AUTH_TOKENS_0=change-me.
+server:
+  port: 8688
+spring:
+  application:
+    name: cosid-server
+management:
+  endpoint:
+    health:
+      # /actuator/health/liveness answers without asking the store: use it for container health checks.
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - info
+          - prometheus
+          - cosid
+springdoc:
+  show-actuator: true
+cosid:
+  namespace: ${spring.application.name}
+#  stores:
+#    main:
+#      type: redis
+#      options:
+#        uri: redis://localhost:6379
+#  server:
+#    auth:
+#      tokens:
+#        - ${COSID_SERVER_TOKEN}
+#      clients:
+#        - name: orders
+#          token: ${COSID_ORDERS_TOKEN}
+#          namespaces: [ orders ]
+#          key-prefixes: [ shared/orders- ]
+#    ids:
+#      enabled: true
+#  generators:
+#    default:
+#      strategy: segment
+#      store: main

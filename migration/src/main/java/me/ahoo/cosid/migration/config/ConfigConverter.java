@@ -209,7 +209,7 @@ public final class ConfigConverter {
             });
             if (handled.add("cosid.proxy.*")) {
                 report.add(prefix + ".type = proxy: written as store [remote] (store/remote, 08); its baseUrl must point at a 5.0 cosid-server,"
-                    + " the 4.x proxy server does not speak the /v5 API");
+                    + " the 4.x proxy server does not speak the 5.0 API");
                 if (config.get("cosid.proxy.client") != null) {
                     report.add("cosid.proxy.client = " + config.get("cosid.proxy.client") + ": the 5.0 remote store uses the JDK HttpClient; dropped");
                 }

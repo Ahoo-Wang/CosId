@@ -48,9 +48,12 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
- * How the client maps the answers of the {@code /v5} API to the outcomes of the primitives, against a stub server
+ * How the client maps the answers of the HTTP API to the outcomes of the primitives, against a stub server
  * answering each path with a canned status and body. The full contracts run in server/ against a real server.
  */
 class RemoteStoreTest {
@@ -60,12 +63,16 @@ class RemoteStoreTest {
     private static final String LEASE_JSON = "\"namespace\":\"ns\",\"slot\":3,\"ownerKey\":\"host:8080\",\"incarnation\":\"" + INCARNATION
         + "\",\"fence\":7,\"expiresAt\":2000,\"floor\":1000,\"ceiling\":3000,\"storeNow\":1500";
 
-    private record Answer(int status, String body, long delayMillis) {
+    /** A canned answer; with a {@code hold}, the stub writes it only once the test opens the latch. */
+    private record Answer(int status, String body, CountDownLatch hold) {
     }
 
     private final Map<String, Answer> answers = new ConcurrentHashMap<>();
     private final Map<String, String> requests = new ConcurrentHashMap<>();
     private final Map<String, String> authorizations = new ConcurrentHashMap<>();
+    private final ExecutorService handlers = Executors.newCachedThreadPool();
+    /** Opened after each test, so that no stub handler stays held. */
+    private final CountDownLatch release = new CountDownLatch(1);
     private HttpServer server;
     private RemoteStore store;
 
@@ -76,10 +83,10 @@ class RemoteStoreTest {
             String path = exchange.getRequestURI().getPath();
             requests.put(path, new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
             authorizations.put(path, String.valueOf(exchange.getRequestHeaders().getFirst("Authorization")));
-            Answer answer = answers.getOrDefault(path, new Answer(404, "{\"code\":\"not_found\",\"message\":\"no stub\"}", 0));
-            if (answer.delayMillis() > 0) {
+            Answer answer = answers.getOrDefault(path, new Answer(404, "{\"code\":\"not_found\",\"message\":\"no stub\"}", null));
+            if (answer.hold() != null) {
                 try {
-                    Thread.sleep(answer.delayMillis());
+                    answer.hold().await();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -93,19 +100,23 @@ class RemoteStoreTest {
             }
             exchange.close();
         });
+        // A pool of its own: an answer held for one test never delays the next request.
+        server.setExecutor(handlers);
         server.start();
         store = new RemoteStore(URI.create("http://127.0.0.1:" + server.getAddress().getPort()), Optional.of("secret"),
-            Duration.ofSeconds(2), Duration.ofMillis(500));
+            Duration.ofSeconds(2), Duration.ofSeconds(30));
     }
 
     @AfterEach
     void stop() {
+        release.countDown();
         store.close();
         server.stop(0);
+        handlers.shutdownNow();
     }
 
     private void answer(String path, int status, String body) {
-        answers.put(path, new Answer(status, body, 0));
+        answers.put(path, new Answer(status, body, null));
     }
 
     private static String error(String code) {
@@ -204,16 +215,24 @@ class RemoteStoreTest {
     void failuresWithoutAJsonAnswer() {
         answer(RemoteApi.RESERVE, 502, "<html>bad gateway</html>");
         RemoteStoreException html = assertThrows(RemoteStoreException.class, () -> store.ranges().reserve("ns/a", 1, 0));
-        assertEquals(502, html.status());
+        assertEquals(502, html.status(), html::getMessage);
         assertNull(html.code());
         assertThat(html.getMessage(), containsString("without a JSON body"));
 
         answer(RemoteApi.RESERVE, 500, "");
         assertThat(assertThrows(RemoteStoreException.class, () -> store.ranges().reserve("ns/a", 1, 0)).getMessage(), containsString("HTTP 500"));
 
-        answers.put(RemoteApi.RESERVE, new Answer(200, "{\"start\":0,\"end\":1}", 2_000));
-        RemoteStoreException timeout = assertThrows(RemoteStoreException.class, () -> store.ranges().reserve("ns/a", 1, 0));
-        assertEquals(0, timeout.status());
+    }
+
+    @Test
+    void unansweredCallTimesOut() {
+        answers.put(RemoteApi.RESERVE, new Answer(200, "{\"start\":0,\"end\":1}", release));
+        RemoteStoreException timeout;
+        try (RemoteStore impatient = new RemoteStore(URI.create("http://127.0.0.1:" + server.getAddress().getPort()), Optional.empty(),
+            Duration.ofSeconds(2), Duration.ofMillis(200))) {
+            timeout = assertThrows(RemoteStoreException.class, () -> impatient.ranges().reserve("ns/a", 1, 0));
+        }
+        assertEquals(0, timeout.status(), timeout::getMessage);
         assertTrue(timeout.transientFailure());
         assertThat(timeout.getMessage(), containsString("timed out"));
     }
@@ -235,7 +254,7 @@ class RemoteStoreTest {
     void sendsNoAuthorizationWithoutAToken() {
         answer(RemoteApi.SEAL, 204, "");
         try (RemoteStore anonymous = new RemoteStore(URI.create("http://127.0.0.1:" + server.getAddress().getPort()), Optional.of(" "),
-            Duration.ofSeconds(1), Duration.ofSeconds(1))) {
+            Duration.ofSeconds(2), Duration.ofSeconds(30))) {
             assertTrue(anonymous.ranges().seal("ns/a"));
         }
         assertEquals("null", authorizations.get(RemoteApi.SEAL));
@@ -243,7 +262,7 @@ class RemoteStoreTest {
 
     @Test
     void interruptedCallKeepsTheInterrupt() {
-        answers.put(RemoteApi.RESERVE, new Answer(200, "{\"start\":0,\"end\":1}", 300));
+        answers.put(RemoteApi.RESERVE, new Answer(200, "{\"start\":0,\"end\":1}", release));
         Thread.currentThread().interrupt();
         try {
             RemoteStoreException error = assertThrows(RemoteStoreException.class, () -> store.ranges().reserve("ns/a", 1, 0));

@@ -22,7 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * {@link RangeStore} over {@code POST /v5/ranges:reserve} and {@code /v5/ranges:seal}: the backing store of the
+ * {@link RangeStore} over {@code POST /ranges:reserve} and {@code /ranges:seal}: the backing store of the
  * server reserves, in one round trip.
  */
 final class RemoteRangeStore implements RangeStore {

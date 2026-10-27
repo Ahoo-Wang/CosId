@@ -38,6 +38,12 @@ is strict, prefer the JDBC or ZooKeeper store. For the same reason the keys must
 with a `RedisStoreException` whose cause is a `StoreTimeoutException`. A write that fewer replicas acknowledge fails
 with `RedisStoreException`; its outcome is unknown, and acquire, renew and reserve may be retried (a lost range is a gap).
 
+`WAIT` counts the acknowledgements of the writes made on its own connection, so each script and its `WAIT` run on one
+connection: in a Redis Cluster, the connection to the node serving the keys. That connection does not follow `MOVED`
+redirects: while slots move, a call may fail and the caller retries it (with `wait` resolving to 0 the cluster connection
+routes and redirects as usual). A retried acquire that finds its own lease writes the slot row again, so its `WAIT`
+covers the lease it hands out.
+
 ## Keys
 
 Each group shares one hash tag, so every script runs on one Redis Cluster node. Keys are never deleted (D23).

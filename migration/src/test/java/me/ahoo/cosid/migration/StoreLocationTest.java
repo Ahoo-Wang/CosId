@@ -17,6 +17,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import me.ahoo.cosid.migration.source.MongoSource;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -40,5 +42,27 @@ class StoreLocationTest {
         assertThat(location.withOptions(Map.of()), is(location));
         assertThat(location.withEnvironmentPassword("FROM").option("password"), is("secret"));
         assertThat(location.toString(), is("jdbc jdbc:h2:mem:x"));
+    }
+
+    @Test
+    void urlsLoseTheirSecrets() {
+        assertThat(StoreLocation.redactUrl("mongodb://cosid:s3cret@db1,db2/cosid_db?authSource=admin"), is("mongodb://cosid@db1,db2/cosid_db?authSource=admin"));
+        assertThat(StoreLocation.redactUrl("redis://:s3cret@cache:6379"), is("redis://@cache:6379"));
+        assertThat(StoreLocation.redactUrl("jdbc:mysql://db/cosid?user=root&password=s3cret&useSSL=true"), is("jdbc:mysql://db/cosid?user=root&useSSL=true"));
+        assertThat(StoreLocation.redactUrl("jdbc:mysql://db/cosid?password=s3cret"), is("jdbc:mysql://db/cosid"));
+        assertThat(StoreLocation.redactUrl("jdbc:sqlserver://db;user=sa;password=s3cret;encrypt=false"), is("jdbc:sqlserver://db;user=sa;encrypt=false"));
+        assertThat(StoreLocation.redactUrl("jdbc:h2:mem:x;PWD=s3cret"), is("jdbc:h2:mem:x"));
+        assertThat(StoreLocation.redactUrl("zookeeper://zk:2181/cosid"), is("zookeeper://zk:2181/cosid"));
+        StoreLocation location = StoreLocation.parse("mongodb://cosid:s3cret@db/cosid_db", Map.of("password", "s3cret"));
+        assertThat(location.redacted().url(), is("mongodb://cosid@db/cosid_db"));
+        assertThat(location.redacted().options(), is(Map.of()));
+    }
+
+    @Test
+    void mongoTakesItsCredentialFromOptions() {
+        // MongoClients connect lazily: building the client checks the settings only.
+        MongoSource.client(StoreLocation.parse("mongodb://cosid@localhost:1/cosid_db", Map.of("password", "s3cret"))).close();
+        MongoSource.client(StoreLocation.parse("mongodb://localhost:1/", Map.of("user", "cosid", "password", "s3cret", "authSource", "admin"))).close();
+        assertThrows(IllegalArgumentException.class, () -> MongoSource.client(StoreLocation.parse("mongodb://localhost:1/", Map.of("password", "s3cret"))));
     }
 }

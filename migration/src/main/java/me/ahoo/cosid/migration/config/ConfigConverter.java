@@ -345,7 +345,7 @@ public final class ConfigConverter {
         final Map<String, Object> machine = new LinkedHashMap<>();
         // The slot parameters apply recorded (--slot-bits, --tolerance): 5.0 refuses others (NamespaceMismatchException).
         int bits = result == null ? legacy.machineBit() : result.slots().bits();
-        long tolerance = result == null ? 1000 : result.slots().toleranceMillis();
+        final long tolerance = result == null ? 1000 : result.slots().toleranceMillis();
         if ("manual".equals(type) || "stateful_set".equals(type) || !legacy.machineEnabled()) {
             Map<String, Object> fixed = new LinkedHashMap<>();
             fixed.put("bits", bits);

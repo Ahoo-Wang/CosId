@@ -27,10 +27,13 @@ import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -42,6 +45,8 @@ public final class MongoSource implements SourceReader {
     static final String SEGMENTS = "cosid";
     static final String MACHINES = "cosid_machine";
     private static final String LAST_MAX_ID = "lastMaxId";
+    /** A user without a password in the URL: {@code mongodb://user@host}. */
+    private static final Pattern USERINFO = Pattern.compile("^mongodb(?:\\+srv)?://([^:@/]+)@");
     private static final List<String> TIMESTAMPS = List.of("lastTimestamp", "distributeTime", "revertTime");
     private final MongoClient client;
     private final MongoDatabase database;
@@ -60,20 +65,36 @@ public final class MongoSource implements SourceReader {
      * @return the client; the caller closes it
      */
     public static MongoClient client(StoreLocation location) {
-        ConnectionString connection = new ConnectionString(location.url());
-        MongoClientSettings.Builder settings = MongoClientSettings.builder().applyConnectionString(connection);
         String password = location.option("password");
+        String url = location.url();
+        String urlUser = null;
+        Matcher userinfo = USERINFO.matcher(url);
+        if (password != null && userinfo.find()) {
+            // A user without its password, as plan.json keeps the URL: the password comes from the option.
+            urlUser = URLDecoder.decode(userinfo.group(1), StandardCharsets.UTF_8);
+            url = url.substring(0, userinfo.start(1)) + url.substring(userinfo.end());
+        }
+        ConnectionString connection = new ConnectionString(url);
+        MongoClientSettings.Builder settings = MongoClientSettings.builder().applyConnectionString(connection);
         if (password != null) {
-            String user = location.option("user") != null ? location.option("user") : connection.getUsername();
+            String user = firstOf(location.option("user"), urlUser, connection.getUsername());
             if (user == null) {
                 throw new IllegalArgumentException("Option password needs option user or a user in the URL " + StoreLocation.redactUrl(location.url()));
             }
-            String source = location.option("authSource") != null ? location.option("authSource")
-                : connection.getCredential() != null ? connection.getCredential().getSource()
-                : connection.getDatabase() != null ? connection.getDatabase() : "admin";
-            settings.credential(MongoCredential.createCredential(user, source, password.toCharArray()));
+            MongoCredential given = connection.getCredential();
+            String source = firstOf(location.option("authSource"), given == null ? null : given.getSource(), connection.getDatabase());
+            settings.credential(MongoCredential.createCredential(user, source == null ? "admin" : source, password.toCharArray()));
         }
         return MongoClients.create(settings.build());
+    }
+
+    private static String firstOf(String... values) {
+        for (String value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     /**

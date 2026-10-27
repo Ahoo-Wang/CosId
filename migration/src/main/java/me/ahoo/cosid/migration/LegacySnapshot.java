@@ -1,3 +1,15 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 package me.ahoo.cosid.migration;
 
@@ -5,6 +17,7 @@ import me.ahoo.cosid.migration.source.SourceReader;
 import me.ahoo.cosid.migration.source.SourceSnapshot;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,8 +38,9 @@ import java.util.TreeSet;
  */
 record LegacySnapshot(Map<Key, Long> segments, Map<String, String> machines, long maxTimestamp, List<String> unrecognized, Set<String> unmapped) {
     LegacySnapshot {
-        segments = Map.copyOf(segments);
-        machines = Map.copyOf(machines);
+        // Sorted: plan and apply walk the keys in order.
+        segments = Collections.unmodifiableSortedMap(new TreeMap<>(segments));
+        machines = Collections.unmodifiableSortedMap(new TreeMap<>(machines));
         unrecognized = List.copyOf(unrecognized);
         unmapped = Set.copyOf(unmapped);
     }

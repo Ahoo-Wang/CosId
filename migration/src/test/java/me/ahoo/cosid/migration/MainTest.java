@@ -79,7 +79,10 @@ class MainTest {
         }
         String plan = dir.resolve("plan.json").toString();
         String result = dir.resolve("apply-result.json").toString();
-        String layout = MigrationScenarioTest.resource("scenario-4x.yaml").toString();
+        // The 4.x configuration of this namespace: config names the generators of its namespace.
+        Path layoutFile = dir.resolve("application.yaml");
+        Files.writeString(layoutFile, Files.readString(MigrationScenarioTest.resource("scenario-4x.yaml")).replace("namespace: app", "namespace: " + namespace));
+        String layout = layoutFile.toString();
         assertThat(run("plan", "--from", store.url(), "--to", store.url(), "--to-option", "initSchema=true", "--namespace", namespace,
             "--output", plan, "--layout-config", layout, "--source-skew", "0", "--slot-bits", "8", "--tolerance", "500ms"), is(0));
         assertThat(out(), containsString(namespace + "/order next >= " + (order + 1)));
@@ -94,7 +97,8 @@ class MainTest {
         assertThat(out(), containsString("M1-M3 hold"));
 
         String output = dir.resolve("application-5.yaml").toString();
-        assertThat(run("config", "--input", layout, "--result", result, "--output", output, "--zone", "UTC"), is(0));
+        int config = run("config", "--input", layout, "--result", result, "--output", output, "--zone", "UTC", "--allow-new", "big", "--allow-new", "default");
+        assertThat(err(), config, is(0));
         assertThat(Files.readString(Path.of(output)), containsString("strategy: periodic-segment"));
 
         assertThat(run("purge", "--to", store.url(), "--namespace", namespace, "--before", "20250101", "--dry-run"), is(0));

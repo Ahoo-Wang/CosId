@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.OptionalLong;
 
 /**
- * MySQL 8.0+ and MariaDB 10.6+.
+ * MySQL 8.4+ and MariaDB 10.11+.
  *
  * <p>{@code reserve} is {@code insert … on duplicate key update} where <em>both</em> branches set
  * {@code last_insert_id}: the insert branch through {@code values (?, last_insert_id(? + ?))}, the update branch

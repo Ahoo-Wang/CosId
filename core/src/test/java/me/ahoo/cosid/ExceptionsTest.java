@@ -29,8 +29,8 @@ class ExceptionsTest {
         assertThat(clock.backwardsMillis(), is(7L));
         assertThat(clock.getMessage(), containsString("7 ms"));
 
-        SlotLostException lost = new SlotLostException("app", 3);
-        assertThat(lost.namespace(), is("app"));
+        SlotLostException lost = new SlotLostException("order", 3);
+        assertThat(lost.generator(), is("order"));
         assertThat(lost.slot(), is(3));
 
         SlotWindowExceededException window = new SlotWindowExceededException("order", 11, 10);

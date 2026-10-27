@@ -36,7 +36,7 @@ public interface PartsCodec {
      * @return the codec
      */
     static PartsCodec radix(Layout layout, int radix) {
-        throw new UnsupportedOperationException("R1-A");
+        return new RadixParts(layout, radix);
     }
 
     /**
@@ -47,6 +47,6 @@ public interface PartsCodec {
      * @return the codec
      */
     static PartsCodec friendly(Layout layout, ZoneId zone) {
-        throw new UnsupportedOperationException("R1-A");
+        return new FriendlyParts(layout, zone);
     }
 }

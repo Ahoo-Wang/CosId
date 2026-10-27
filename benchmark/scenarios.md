@@ -18,9 +18,11 @@ Every class is `me.ahoo.cosid.benchmark.<Class>`; a method name ends with `_t<th
 | P5 | `SegmentBenchmark` | `generate_t1/t4/t16/t64`, `@Param step` = 10, 100 | thrpt, sample (p99, p99.9) | `SegmentChainId(distributor)`; in-memory distributor at `step`, no simulated latency; other settings default | `SegmentGenerator` on an in-memory range store, one atomic add per reservation (`V5.MemoryRangeStore`, until R1-C's `InMemoryStore`); `BatchPolicy.DEFAULT` with `step` (and `maxBatch = step × 1000`) |
 | P6 | `SegmentNoPrefetchBenchmark` | `generate_t1` | thrpt | `DefaultSegmentId`, in-memory distributor, step 1, no ttl | `SegmentGenerator`, step 1, `lookahead = 0`, `maxBatch = 1`, no `rangeTtl` |
 | P7 | — | — | thrpt, sample | TODO(R2-JDBC, R2-Redis): `SegmentChainId` on MySQL / Redis | real MySQL / Redis stores |
+| P7 (Redis) | `RedisChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(SpringRedisIdSegmentDistributor)`, offset 0, on a `StringRedisTemplate` (Lettuce) at `COSID_TEST_REDIS_URI` (default `redis://localhost:6379`) | `SegmentGenerator` on the `redis` store opened from the same URI (`wait=auto`), `V5.batch(step)` |
 | P8 | `PeriodicSegmentBenchmark` | `generate_t1/t4` | thrpt, sample (p99, p99.9) | grouped `SegmentChainId` (`DefaultGroupedIdSegmentDistributor`, in-memory distributor), step 100; a `GroupBySupplier` keyed `yyyyMMdd` whose day lasts 2s of real time | `PeriodicSegmentGenerator` on the same accelerated `yyyyMMdd` day, `BatchPolicy.DEFAULT` with step 100, prewarm 1/1440 of the day (the default minute, scaled) |
 | P9 | `CodecBenchmark` | `radix62Encode/Decode_t1`, `radix36Encode/Decode_t1`, `friendlyEncode/Decode_t1` | thrpt | `Radix62IdConverter.PAD_START`, `Radix36IdConverter.PAD_START`, `SnowflakeFriendlyIdConverter` (Asia/Shanghai, padded) | `Radix.of(62, 11, true)`, `Radix.of(36, 13, true)`, `Friendly.of(SNOWFLAKE_MS, Asia/Shanghai, true)` |
 | P10 | — | — | avgt, sample | TODO(R2-*): reserve, acquire, renew per backend | the same on 5.x stores |
+| P10 (Redis) | `RedisStoreBenchmark` | `reserve_t1`, `acquireRelease_t1`, `renew_t1` | avgt, sample | `nextMaxId(100)`; `MachineLeaseManager.acquire` (a new instance, 10 machine bits) then `release`; `renew` of a held lease (`SpringRedisMachineLeaseStore`, command timeout 10s, as the 5.x store timeout) | `reserve(key, 100, 0)`; `acquire` (a new owner, limit 1024) then `release`; `renew` of a held lease |
 | P11 | — | — | ss | TODO(R3-S): Spring context start to first id | the same with the 5.x starter |
 | P12 | `IdFillerBenchmark` | `fill_t1` | thrpt | `DefaultAccessorRegistry.ensureId` on a new entity; `SegmentChainId` share, in-memory distributor, step 100 | `CosIdRuntime.filler().fill`; `default` segment generator on `InMemoryStore`, step 100 |
 
@@ -70,7 +72,7 @@ and stores the JSON and the report under `docs/jmh/5.0/`.
 `MySqlChainIdBenchmark` (P7: `generate_t1/t4/t16`, `@Param step` = 10, 100; thrpt, sample) and `MySqlStoreBenchmark`
 (P10: `reserve_t1`, `acquire_t1`, `renew_t1`; avgt, sample) run on the MySQL of `COSID_TEST_MYSQL_URL` /
 `_USERNAME` / `_PASSWORD` (default `jdbc:mysql://localhost:3306/cosid_db`, root / root) behind a HikariCP pool of 32;
-start one first (`docker run -d -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=cosid_db -p 3306:3306 mysql:8.0`), then
+start one first (`docker run -d -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=cosid_db -p 3306:3306 mysql:8.4`), then
 `benchmark/run-smoke MySqlChainIdBenchmark MySqlStoreBenchmark`.
 
 | # | 4.x | 5.x |

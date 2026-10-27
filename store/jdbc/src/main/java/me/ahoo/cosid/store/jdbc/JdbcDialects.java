@@ -30,11 +30,11 @@ import java.util.ServiceLoader;
  * The built-in {@link JdbcDialect}s (06-stores.md §2.1) and the detection of the dialect of a database.
  */
 public final class JdbcDialects {
-    /** MySQL 8.0 and later. */
+    /** MySQL 8.4 LTS and later. */
     public static final JdbcDialect MYSQL = new MySqlDialect(false);
-    /** MariaDB 10.6 and later. */
+    /** MariaDB 10.11 LTS and later. */
     public static final JdbcDialect MARIADB = new MySqlDialect(true);
-    /** PostgreSQL 12 and later. */
+    /** PostgreSQL 15 and later. */
     public static final JdbcDialect POSTGRESQL = new PostgreSqlDialect();
     /** SQL Server 2019 and later. */
     public static final JdbcDialect SQL_SERVER = new SqlServerDialect();

@@ -30,17 +30,18 @@ import java.util.function.Supplier;
 import javax.sql.DataSource;
 
 /**
- * The databases of the tests, at their minimum supported versions (06-stores.md §2.1). A database comes from
+ * The databases of the tests, at their minimum supported versions (06-stores.md §2.1, D27) unless
+ * {@code COSID_TEST_<NAME>_IMAGE} names another image. A database comes from
  * {@code COSID_TEST_<NAME>_URL} with {@code _USERNAME} / {@code _PASSWORD} (or the system properties
  * {@code cosid.test.<name>.url} …) when set, otherwise from a Testcontainers container shared by the test JVM; a test
  * class skips itself when neither the variable nor Docker is there ({@link #assumeAvailable()}). H2 is in memory.
  */
 enum TestDatabase {
     H2(JdbcDialects.H2, null),
-    MYSQL(JdbcDialects.MYSQL, () -> new MySQLContainer("mysql:8.0")),
-    MARIADB(JdbcDialects.MARIADB, () -> new MariaDBContainer("mariadb:10.6")),
-    POSTGRES(JdbcDialects.POSTGRESQL, () -> new PostgreSQLContainer("postgres:12-alpine")),
-    SQLSERVER(JdbcDialects.SQL_SERVER, () -> new MSSQLServerContainer("mcr.microsoft.com/mssql/server:2019-latest").acceptLicense());
+    MYSQL(JdbcDialects.MYSQL, () -> new MySQLContainer(image("MYSQL", "mysql:8.4"))),
+    MARIADB(JdbcDialects.MARIADB, () -> new MariaDBContainer(image("MARIADB", "mariadb:10.11"))),
+    POSTGRES(JdbcDialects.POSTGRESQL, () -> new PostgreSQLContainer(image("POSTGRES", "postgres:15-alpine"))),
+    SQLSERVER(JdbcDialects.SQL_SERVER, () -> new MSSQLServerContainer(image("SQLSERVER", "mcr.microsoft.com/mssql/server:2019-latest")).acceptLicense());
 
     /** The statement timeout of test stores. */
     static final Duration TIMEOUT = Duration.ofSeconds(10);
@@ -51,6 +52,11 @@ enum TestDatabase {
     TestDatabase(JdbcDialect dialect, Supplier<JdbcDatabaseContainer<?>> container) {
         this.dialect = dialect;
         this.container = container;
+    }
+
+    private static String image(String name, String minimum) {
+        String image = System.getenv("COSID_TEST_" + name + "_IMAGE");
+        return image == null || image.isBlank() ? minimum : image;
     }
 
     JdbcDialect dialect() {

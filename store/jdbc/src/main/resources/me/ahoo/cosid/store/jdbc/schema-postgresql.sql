@@ -1,7 +1,7 @@
 -- The CosId 5 JDBC schema (docs/architecture/06-stores.md §2.1). Keys and slots are never deleted (D23).
 -- Run as is for the default table names; options.initSchema runs it with options.rangeTable / slotTable /
 -- namespaceTable in place of cosid_range / cosid_slot / cosid_namespace.
--- PostgreSQL 12+.
+-- PostgreSQL 15+.
 create table if not exists cosid_range
 (
     range_key  varchar(255) not null primary key,

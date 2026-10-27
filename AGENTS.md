@@ -52,6 +52,7 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `store/tck/` | `cosid-store-tck` | R1-C: the contracts, `InMemoryStore` (passes them), `ManualClock`, fault injection, `ContractsRan` |
 | `store/jdbc/` | `cosid-store-jdbc` | R2-JDBC: `JdbcStore` over a `DataSource`; MySQL, MariaDB, PostgreSQL, SQL Server, H2 dialects and the `JdbcDialect` SPI; `schema-*.sql` |
 | `store/mongo/` | `cosid-store-mongo` | R2-Mongo: `MongoStore` (`RangeStore` + `SlotLeaseStore`, sync driver, MongoDB 4.4+), `StoreProvider` type `mongo` |
+| `store/redis/` | `cosid-store-redis` | R2-Redis: Lua scripts behind `RedisScripts`, Lettuce, `WAIT` auto; see its README (durability precondition) |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
 | `benchmark/v5/` | not published | the same scenarios on 5.x |
@@ -112,8 +113,12 @@ Adding a package means deciding whether `module-info.java` exports it.
 - **Lease tests** drive `LeaseKeeper` / `StaticSlot` without threads: a capturing executor, the package-private
   constructor taking an `internal.Ticker`, and `runDue()` / `extendIfDue()` for each step; `store/tck`'s `ManualClock`
   is the store or client clock. `core` tests may use `store/tck` (test scope).
+- **Redis store tests** (`store/redis`) start a primary with a replica and a three-primary cluster in Testcontainers even
+  when `COSID_TEST_REDIS_URI` is set (it covers standalone only); the cluster's node addresses are mapped to the published
+  ports by a `MappingSocketAddressResolver`. `-Pcosid.test.redis.image=redis:6.2-alpine` runs them on another Redis.
 - `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.
-- **store/jdbc tests** run the TCK on H2 always and on MySQL 8.0, MariaDB 10.6, PostgreSQL 12 and SQL Server 2019 from
-  `COSID_TEST_{MYSQL,MARIADB,POSTGRES,SQLSERVER}_URL` (+ `_USERNAME` / `_PASSWORD`) or Testcontainers; without either
-  the class skips. `checkContractsRan` checks each dialect's reports on its own: H2 by default, every dialect with
+- **store/jdbc tests** run the TCK on H2 always and on MySQL, MariaDB, PostgreSQL and SQL Server from
+  `COSID_TEST_{MYSQL,MARIADB,POSTGRES,SQLSERVER}_URL` (+ `_USERNAME` / `_PASSWORD`) or Testcontainers at the D27 minimum
+  (`mysql:8.4`, `mariadb:10.11`, `postgres:15-alpine`, SQL Server 2019; `COSID_TEST_<NAME>_IMAGE` overrides); without
+  either the class skips. `checkContractsRan` checks each dialect's reports on its own: H2 by default, every dialect with
   `-Pcosid.store.jdbc.dialects=h2,mysql,mariadb,postgresql,sqlserver` (the `Store JDBC` CI job).

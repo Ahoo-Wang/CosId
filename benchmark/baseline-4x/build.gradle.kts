@@ -27,4 +27,7 @@ dependencies {
     // P10 (MongoDB): the 4.x Mongo distributor and lease store, on the same driver as 5.x.
     jmh(libs.cosid4.mongo)
     jmh(libs.mongodb.driver.sync)
+    // R2-Redis: P7 / P10 on the 4.x Redis distributors
+    jmh(libs.cosid4.spring.redis)
+    jmh(libs.cosid4.lettuce)
 }

@@ -22,5 +22,6 @@ dependencies {
         api(project(":store:tck"))
         api(project(":store:jdbc"))
         api(project(":store:mongo"))
+        api(project(":store:redis"))
     }
 }

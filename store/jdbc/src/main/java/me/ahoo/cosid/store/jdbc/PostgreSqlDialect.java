@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.OptionalLong;
 
 /**
- * PostgreSQL 12+: {@code insert … on conflict … do update … where … returning}, one round trip.
+ * PostgreSQL 15+: {@code insert … on conflict … do update … where … returning}, one round trip.
  */
 final class PostgreSqlDialect implements JdbcDialect {
     @Override

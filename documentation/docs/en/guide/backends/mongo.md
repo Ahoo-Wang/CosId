@@ -1,7 +1,7 @@
 # MongoDB
 
 `cosid-store-mongo`: `RangeStore` and `SlotLeaseStore` over `mongodb-driver-sync`. **MongoDB 6.0 or later** (D26),
-on a **replica set or a sharded cluster**: every operation reads and writes with `majority` concern. CI runs the TCK on
+on a **replica set or a sharded cluster**: every operation reads with `majority` concern and, by default, writes with `majority` concern. CI runs the TCK on
 6.0 and 8.0. 4.4 and 5.0 passed the TCK once, which is not a support commitment.
 
 ## Configuration
@@ -21,6 +21,16 @@ cosid:
 |---|---|---|
 | `uri` | | required unless a `MongoClient` is the client (Spring Boot's bean is used when there is one) |
 | `database` | `cosid_db` | |
+| `writeConcern` | `majority` | `majority`, `acknowledged`, `w1`, `w2`, `w3`, `journaled` (any case), or a member count `n ≥ 1`; `unacknowledged`, `0` and anything else fail the store at open. Reads stay `majority` |
+
+An operation that runs out of `timeout` fails with `StoreTimeoutException`.
+
+::: warning Keep `writeConcern: majority`
+Uniqueness rests on "an acknowledged write is never lost". Only `majority` guarantees it across a failover: with a weaker
+write concern, a failover can lose range and lease writes that fewer than a majority acknowledged, and then hand out
+duplicate ids. The provider logs a start-up `WARN` for every store with a weaker setting. `acknowledged` and
+`journaled` leave `w` to the server default, which is not guaranteed to be majority, so they warn too.
+:::
 
 ## Collections
 

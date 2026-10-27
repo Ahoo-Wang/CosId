@@ -3,7 +3,7 @@
 ## 上线前
 
 - [ ] **按所需保证选择存储。** 若唯一性必须经受任何故障切换，选择 JDBC 或 ZooKeeper。
-  Redis 只能在满足[其持久化前提](../backends/redis.md#durability)时使用。
+  Redis 只能在满足[其持久化前提](../backends/redis.md#durability)时使用；MongoDB 须保持 `writeConcern: majority`（默认值）。
 - [ ] **满足存储的最低版本**（MySQL 8.4、MariaDB 10.11、PostgreSQL 15、SQL Server 2019、Redis 7.0、
   副本集上的 MongoDB 6.0、ZooKeeper 3.8）。更早的版本[只是实测过，不受支持](../backends/index.md#supported-versions-and-measured-compatibility)。
 - [ ] **提前创建表结构**（`schema-<dialect>.sql`）。`initSchema` 留给开发环境。

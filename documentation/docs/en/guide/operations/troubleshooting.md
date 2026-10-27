@@ -21,6 +21,7 @@
 | `SlotLostException` | the lease was lost (expired during a long pause or partition, or taken after expiry). The keeper acquires a new slot by itself; health is `DOWN` until then |
 | `ClockBackwardsException` | the clock went back by more than `regression.wait-up-to` (1s) |
 | `RangeUnavailableException` | no ids at hand and the refill failed or took longer than `reserve-timeout`; see `cosid.segment.refill.failures` |
+| `StoreTimeoutException` | a store call ran out of the store `timeout`; counted in `cosid.store.timeouts{operation}` (with `reserve-wait` for refill waits past `reserve-timeout`) |
 | `RangeSealedException` | a periodic segment asked for a sealed past period: the host clock lags by more than `seal-after` |
 | `RangeExhaustedException` | the key reached `Long.MAX_VALUE` |
 | `GeneratorDisabledException` | the generator is `disabled: true` |

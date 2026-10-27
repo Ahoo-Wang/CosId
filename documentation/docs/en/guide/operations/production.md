@@ -3,7 +3,8 @@
 ## Before going live
 
 - [ ] **Pick the store for the guarantee you need.** JDBC or ZooKeeper where uniqueness must survive any failover.
-  Redis only with [its durability precondition](../backends/redis.md#durability).
+  Redis only with [its durability precondition](../backends/redis.md#durability); MongoDB with `writeConcern: majority`
+  (the default).
 - [ ] **Meet the store's minimum version** (MySQL 8.4, MariaDB 10.11, PostgreSQL 15, SQL Server 2019, Redis 7.0,
   MongoDB 6.0 on a replica set, ZooKeeper 3.8). Older versions are [measured, not supported](../backends/index.md#supported-versions-and-measured-compatibility).
 - [ ] **Create the schema** ahead of time (`schema-<dialect>.sql`). Keep `initSchema` for development.

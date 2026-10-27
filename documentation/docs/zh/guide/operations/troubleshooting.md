@@ -21,6 +21,7 @@
 | `SlotLostException` | 租约已丢失（在长时间停顿或网络分区期间过期，或过期后被他人取得）。keeper 会自行取得新槽位；在此之前健康检查为 `DOWN` |
 | `ClockBackwardsException` | 时钟回拨超过 `regression.wait-up-to`（1s） |
 | `RangeUnavailableException` | 手头没有 ID，且补充失败或耗时超过 `reserve-timeout`；见 `cosid.segment.refill.failures` |
+| `StoreTimeoutException` | 存储调用超过了存储的 `timeout`；计入 `cosid.store.timeouts{operation}`（等待补充超过 `reserve-timeout` 时为 `reserve-wait`） |
 | `RangeSealedException` | 周期号段请求了一个已封存的过去周期：主机时钟落后超过 `seal-after` |
 | `RangeExhaustedException` | key 已到达 `Long.MAX_VALUE` |
 | `GeneratorDisabledException` | 该生成器配置了 `disabled: true` |

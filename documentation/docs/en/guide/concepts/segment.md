@@ -78,7 +78,9 @@ public record PeriodicPolicy(Duration prewarm,             // default 1m
   lags and still asks for the old period gets `RangeSealedException`: it fails rather than duplicate (S6).
 - Keys are never deleted at run time (D23). Old periods are removed offline with
   `cosid-migration purge --before <period>`.
-- The text form is the codec list: the first item must be `date-prefix` (the period); the rest encode the value.
+- The text form is the codec list: a first `date-prefix` item puts the period first, and the rest encode the value. A
+  `period` item instead places the period after a business prefix (4.x `before-prefix: true`), or leaves it out of the
+  text, which then cannot be decoded. See [where the period goes](../../reference/config/generators.md).
 
 ```yaml
 cosid:

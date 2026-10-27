@@ -30,7 +30,7 @@ record 绑定。生成器与编解码器：[生成器](generators.md)。cosid-se
 |---|---|
 | `jdbc` | `url`、`username`、`password`；`dialect`（自动探测）；`initSchema`（`false`）；`rangeTable`（`cosid_range`）、`slotTable`（`cosid_slot`）、`namespaceTable`（`cosid_namespace`） |
 | `redis` | `uri`；`cluster`（`false`）；`wait`（`auto` / `off` / 副本数）；`sweepBatch`（`16`） |
-| `mongo` | `uri`；`database`（`cosid_db`） |
+| `mongo` | `uri`；`database`（`cosid_db`）；`writeConcern`（`majority`；更弱的设置会记录 `WARN`） |
 | `zookeeper` | `connectString`（`localhost:2181`）；`sessionTimeout`（`60s`）；`connectionTimeout`（`15s`）；`blockUntilConnectedWait`（`10s`）；`retry.baseSleepTime`（`100ms`）、`retry.maxRetries`（`5`）、`retry.maxSleep`（`500ms`） |
 | `remote` | `baseUrl`（必填）；`token`；`connectTimeout`（`5s`）；`requestTimeout`（存储的 `timeout`） |
 

@@ -51,7 +51,7 @@ public record Layout(Instant epoch, ChronoUnit unit, int timeBits, int nodeBits,
   `machine.leased.bits: 3` or less.
 - `seqResetThreshold` keeps the 4.x low-bit scattering: a new time unit starts its sequence at a value up to the
   threshold (half the range by default), so ids modulo a small number spread evenly.
-- In Spring, `layout` names a preset and `epoch`, `unit`, `time-bits`, `node-bits`, `seq-bits` override its fields.
+- In Spring, `layout` names a preset and `epoch`, `unit`, `time-bits`, `node-bits`, `seq-bits`, `seq-reset-threshold` override its fields.
 
 ### TimeBasedGenerator
 

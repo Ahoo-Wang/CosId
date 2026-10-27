@@ -28,7 +28,7 @@
 | `cosid.machine.window.remaining` | time gauge | `namespace` | |
 | `cosid.machine.clock.skew` | time gauge | `namespace` | `machine.clock.skew` |
 | `cosid.machine.owner.duplicates` | counter | `namespace` | |
-| `cosid.store.timeouts` | counter | `store`、`operation` | `call.timeouts` |
+| `cosid.store.timeouts` | counter | `store`、`operation`（`reserve`、`seal`、`acquire`、`renew`、`release`：存储调用超时；`reserve-wait`：调用方等待补充超过 `reserve-timeout`，每次补充计一次） | `call.timeouts` |
 | `cosid.generator.generated` | function counter | `name` | `generator.generated` |
 
 `cosid.generator.generated` 统计运行时交出的每个视图，包括 `IdFiller`。cosid-server 另外增加

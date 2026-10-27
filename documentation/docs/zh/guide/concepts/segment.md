@@ -69,7 +69,7 @@ public record PeriodicPolicy(Duration prewarm,             // default 1m
 - `seal-after` 在周期结束后经过该时长时封存过去周期的 key（请设为一天或更长）。时钟滞后、仍在请求旧周期的实例会得到
   `RangeSealedException`：宁可失败也不重复（S6）。
 - 运行时从不删除 key（D23）。旧周期通过 `cosid-migration purge --before <period>` 离线移除。
-- 文本形式由编解码器列表决定：第一项必须是 `date-prefix`（周期）；其余各项编码值。
+- 文本形式由编解码器列表决定：第一项为 `date-prefix` 时周期在最前，其余各项编码值。也可以用 `period` 项把周期放在业务前缀之后（4.x 的 `before-prefix: true`），或不放进文本（此时无法解码）。见[周期在文本中的位置](../../reference/config/generators.md)。
 
 ```yaml
 cosid:

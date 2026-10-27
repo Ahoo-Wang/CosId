@@ -28,7 +28,7 @@ Every meter is named `cosid.*` (19 in all). They come from listener events, so t
 | `cosid.machine.window.remaining` | time gauge | `namespace` | |
 | `cosid.machine.clock.skew` | time gauge | `namespace` | `machine.clock.skew` |
 | `cosid.machine.owner.duplicates` | counter | `namespace` | |
-| `cosid.store.timeouts` | counter | `store`, `operation` | `call.timeouts` |
+| `cosid.store.timeouts` | counter | `store`, `operation` (`reserve`, `seal`, `acquire`, `renew`, `release`: a store call hit its timeout; `reserve-wait`: callers waited for a refill past `reserve-timeout`, once per refill) | `call.timeouts` |
 | `cosid.generator.generated` | function counter | `name` | `generator.generated` |
 
 `cosid.generator.generated` counts every view the runtime hands out, `IdFiller` included. cosid-server adds

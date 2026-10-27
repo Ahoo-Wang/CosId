@@ -48,7 +48,7 @@ public record Layout(Instant epoch, ChronoUnit unit, int timeBits, int nodeBits,
   `layout.nodeBits ≥ machine.bits`，否则启动失败。因此 `JS_SAFE_*`（3 个 node 位）需要 `machine.leased.bits: 3` 或更小。
 - `seqResetThreshold` 保留了 4.x 的低位打散：新的时间单位从不超过该阈值的某个值（默认为范围的一半）开始计序列，
   使 ID 对一个小数取模时分布均匀。
-- 在 Spring 中，`layout` 指定一个预设，`epoch`、`unit`、`time-bits`、`node-bits`、`seq-bits` 覆盖其字段。
+- 在 Spring 中，`layout` 指定一个预设，`epoch`、`unit`、`time-bits`、`node-bits`、`seq-bits`、`seq-reset-threshold` 覆盖其字段。
 
 ### TimeBasedGenerator
 

@@ -8,7 +8,7 @@
 |---|---|---|---|---|
 | [JDBC](jdbc.md) | `cosid-store-jdbc` | `jdbc` | MySQL 8.4、MariaDB 10.11、PostgreSQL 15、SQL Server 2019、H2 2.x | 数据库事务 |
 | [Redis](redis.md) | `cosid-store-redis` | `redis` | Redis 7.0 | **已确认的写入不会丢失**：AOF `appendfsync always`，或对每个副本 `WAIT` |
-| [MongoDB](mongo.md) | `cosid-store-mongo` | `mongo` | MongoDB 6.0，副本集或分片集群 | `majority` 读写 |
+| [MongoDB](mongo.md) | `cosid-store-mongo` | `mongo` | MongoDB 6.0，副本集或分片集群 | `majority` 读写（`writeConcern: majority`，默认值） |
 | [ZooKeeper](zookeeper.md) | `cosid-store-zookeeper` | `zookeeper` | ZooKeeper 3.8（主要目标 3.9） | ZooKeeper 的 quorum 写入 |
 | [Remote](../server.md) | `cosid-store-remote` | `remote` | 同版本的 cosid-server | 服务端的后备存储 |
 
@@ -40,7 +40,7 @@
 |---|---|
 | JDBC | 用 `schema-<dialect>.sql` 建表（或 `initSchema: true`）；行永不删除 |
 | Redis | AOF `appendfsync always`，或 `WAIT` 覆盖每个副本；`maxmemory-policy noeviction`（key 绝不能被淘汰） |
-| MongoDB | 副本集；用户有权创建集合与索引 |
+| MongoDB | 副本集；保持 `writeConcern: majority`；用户有权创建集合与索引 |
 | ZooKeeper | 绝不在时钟落后于槽位节点原始 `mtime` 的服务器上恢复该节点，否则在恢复后等待一个 ttl（加上 tolerance）再启动客户端 |
 | Remote | token（默认开启认证）；服务端的后备存储满足其自身的前提 |
 

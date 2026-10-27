@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: segment-jdbc
+  datasource:
+    # Any database of 06-stores.md §2.1 works the same way: MySQL 8.4+, MariaDB 10.11+, PostgreSQL 15+, SQL Server 2019+.
+    url: jdbc:h2:mem:cosid;DB_CLOSE_DELAY=-1
+    username: sa
+cosid:
+  namespace: example
+  stores:
+    db:
+      type: jdbc            # the context's DataSource
+      timeout: 2s
+      options:
+        initSchema: true    # creates cosid_range, cosid_slot, cosid_namespace; in production run schema-*.sql instead
+  generators:
+    order:
+      strategy: segment
+      store: db
+      step: 100
+      lookahead: 1s
+      codec:
+        - radix: { radix: 62 }
+        - prefix: "O"
+    bill:
+      strategy: periodic-segment
+      store: db
+      period: YEAR_MONTH_DAY
+      zone: Asia/Shanghai
+      codec:
+        - date-prefix: { delimiter: "-" }
+        - radix: { radix: 10, width: 6, pad-start: true }

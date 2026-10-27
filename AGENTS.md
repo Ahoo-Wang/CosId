@@ -76,7 +76,7 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `benchmark/` | not published | the same scenarios on 5.x |
 | `migration/` | not published | R4-C: the offline 4.x → 5.0 migration fat jar (`:migration:shadowJar` → `build/libs/cosid-migration.jar`): 4.x readers, a narrow 5.0 admin path per store, `plan` / `apply` / `verify` / `config` / `purge`; see its README |
 | `extras/sharding/` | `cosid-sharding` | R5-B: the 4.x sharding algorithms (`ModCycle`, `IntervalTimeline`, `CachedSharding`, the convertors) on `core` alone: `ShardingRange` replaces Guava's `Range`, the Snowflake convertor reads `Layout` |
-| `examples/` | not published | not created yet (R5-B) |
+| `examples/` | not published | R5-B: `segment-jdbc` (H2), `snowflake-redis` (Testcontainers or `COSID_TEST_REDIS_URI`), `server` (a `remote` client; its smoke test runs the built `cosid-server.jar` as a process on curator-test ZooKeeper); each smoke test is in `check` |
 | `build-logic/` | — | included build: convention plugins and build rules (see below) |
 | `docs/architecture/` | — | the design; `docs/jmh/<version>/` benchmark results |
 | `documentation/` | — | the VitePress site, still 4.x content until R5-B |

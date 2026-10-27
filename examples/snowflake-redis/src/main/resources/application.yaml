@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: snowflake-redis
+server:
+  port: 8080
+management:
+  endpoints:
+    web:
+      exposure:
+        include: [ health, cosid ]
+  endpoint:
+    health:
+      show-details: always
+cosid:
+  namespace: example
+  stores:
+    redis:
+      type: redis
+      timeout: 1s
+      options:
+        uri: ${REDIS_URI:redis://localhost:6379}
+        # auto: WAIT 1 after every write when the server has replicas. Uniqueness needs acknowledged writes to survive:
+        # AOF with appendfsync always, or WAIT covering every replica (see the Redis backend page).
+        wait: auto
+  machine:
+    leased:
+      store: redis
+      bits: 10
+      ttl: 30s
+      tolerance: 1s
+  generators:
+    default:
+      strategy: snowflake
+      layout: SNOWFLAKE_MS
+      codec:
+        - radix: { radix: 62, width: 11, pad-start: true }
+    trace:
+      strategy: snowflake
+      codec:
+        - friendly: { zone: Asia/Shanghai }
+    token:
+      strategy: cosid80
+      codec:
+        - radix: { radix: 62 }

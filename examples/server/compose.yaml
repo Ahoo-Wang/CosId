@@ -1,0 +1,31 @@
+# cosid-server on Redis, and this example as its client. Build the jars and the server image first:
+#   ./gradlew :server:dockerImage :examples:server:bootJar
+#   docker compose -f examples/server/compose.yaml up
+# then: curl localhost:8080/ids/next, curl localhost:8080/orders/next, and the server's own id endpoint:
+#   curl -H 'Authorization: Bearer change-me' localhost:8688/ids/ticket
+services:
+  redis:
+    image: redis:8.10-alpine
+    # The Redis store's precondition: acknowledged writes survive (AOF, fsync on every write).
+    command: [ "redis-server", "--appendonly", "yes", "--appendfsync", "always" ]
+  cosid-server:
+    image: ahoowang/cosid-server:${COSID_VERSION:-5.0.0-SNAPSHOT}
+    depends_on: [ redis ]
+    ports: [ "8688:8688" ]
+    environment:
+      COSID_NAMESPACE: example
+      COSID_STORES_MAIN_TYPE: redis
+      COSID_STORES_MAIN_OPTIONS_URI: redis://redis:6379
+      COSID_SERVER_AUTH_TOKENS_0: change-me
+      COSID_SERVER_IDS_ENABLED: "true"
+      COSID_GENERATORS_TICKET_STRATEGY: segment
+      COSID_GENERATORS_TICKET_STORE: main
+  client:
+    image: eclipse-temurin:21-jre
+    depends_on: [ cosid-server ]
+    ports: [ "8080:8080" ]
+    volumes: [ "./build/libs:/app:ro" ]
+    environment:
+      COSID_SERVER_URL: http://cosid-server:8688
+      COSID_SERVER_TOKEN: change-me
+    command: [ "java", "-jar", "/app/server.jar" ]

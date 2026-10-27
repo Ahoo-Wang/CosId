@@ -140,7 +140,7 @@ else:
         info["frequency scaling"] = "unknown"
 if os.environ.get("GITHUB_ACTIONS") == "true":
     info["frequency scaling"] += " (a shared virtual machine: not controllable)"
-    info["runner"] = (f"GitHub Actions {os.environ.get('RUNNER_NAME', '?')}, image {os.environ.get('ImageOS', '?')} "
+    info["runner"] = (f"{os.environ.get('RUNNER_NAME', 'GitHub Actions')}, image {os.environ.get('ImageOS', '?')} "
                       f"{os.environ.get('ImageVersion', '?')}, run {os.environ.get('GITHUB_RUN_ID', '?')}")
 version = subprocess.run([os.environ["JAVA"], "-XshowSettings:properties", "-version"], capture_output=True, text=True).stderr
 props = dict(re.findall(r"^\s+(java\.vm\.vendor|java\.runtime\.version|java\.vm\.name) = (.+)$", version, re.M))

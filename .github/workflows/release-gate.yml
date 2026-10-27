@@ -155,6 +155,17 @@ jobs:
           path: build/release-gate/${{ matrix.group }}
           retention-days: 90
 
+      # The JMH output of every run and re-run, for investigating a FAIL or a missing row.
+      - name: Upload the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.group }}
+          path: |
+            build/benchmark-release*/*.log
+            build/benchmark-release*/*.json
+          retention-days: 30
+
   report:
     name: Report
     needs: [ resolve, gate ]

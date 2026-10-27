@@ -56,6 +56,7 @@ cosid:
             char-size: 8
       bill:
         step: 20
+        offset: 20000
         group:
           by: year_month_day
           pattern: yyyyMMdd

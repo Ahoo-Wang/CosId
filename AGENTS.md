@@ -51,6 +51,7 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `core/` | `cosid-core` | R0: public API frozen; bodies throw `UnsupportedOperationException("R1-x")` until R1/R3 |
 | `store/tck/` | `cosid-store-tck` | R1-C: the contracts, `InMemoryStore` (passes them), `ManualClock`, fault injection, `ContractsRan` |
 | `store/mongo/` | `cosid-store-mongo` | R2-Mongo: `MongoStore` (`RangeStore` + `SlotLeaseStore`, sync driver, MongoDB 4.4+), `StoreProvider` type `mongo` |
+| `store/redis/` | `cosid-store-redis` | R2-Redis: Lua scripts behind `RedisScripts`, Lettuce, `WAIT` auto; see its README (durability precondition) |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
 | `benchmark/v5/` | not published | the same scenarios on 5.x |
@@ -111,4 +112,7 @@ Adding a package means deciding whether `module-info.java` exports it.
 - **Lease tests** drive `LeaseKeeper` / `StaticSlot` without threads: a capturing executor, the package-private
   constructor taking an `internal.Ticker`, and `runDue()` / `extendIfDue()` for each step; `store/tck`'s `ManualClock`
   is the store or client clock. `core` tests may use `store/tck` (test scope).
+- **Redis store tests** (`store/redis`) start a primary with a replica and a three-primary cluster in Testcontainers even
+  when `COSID_TEST_REDIS_URI` is set (it covers standalone only); the cluster's node addresses are mapped to the published
+  ports by a `MappingSocketAddressResolver`. `-Pcosid.test.redis.image=redis:6.2-alpine` runs them on another Redis.
 - `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.

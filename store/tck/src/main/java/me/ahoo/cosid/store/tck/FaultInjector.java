@@ -13,11 +13,37 @@
 
 package me.ahoo.cosid.store.tck;
 
+import me.ahoo.cosid.CosIdException;
+
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
+
 /**
  * The faults a {@link FaultyRangeStore} or {@link FaultySlotLeaseStore} applies, per operation: one-shot faults in the
  * order they were queued, then the standing fault if any. Thread-safe.
  */
 public final class FaultInjector {
+    private final Map<Operation, Queue<Fault>> onceFaults = new EnumMap<>(Operation.class);
+    private final Map<Operation, AtomicLong> calls = new EnumMap<>(Operation.class);
+    private final Map<Operation, Fault> standing = new ConcurrentHashMap<>();
+
+
+    /**
+     * An injector without faults.
+     */
+    public FaultInjector() {
+        for (Operation operation : Operation.values()) {
+            onceFaults.put(operation, new ConcurrentLinkedQueue<>());
+            calls.put(operation, new AtomicLong());
+        }
+    }
+
     /**
      * A store operation.
      */
@@ -37,7 +63,8 @@ public final class FaultInjector {
      * @return this injector
      */
     public FaultInjector once(Operation operation, Fault fault) {
-        throw new UnsupportedOperationException("R1-C");
+        onceFaults.get(Objects.requireNonNull(operation, "operation")).add(Objects.requireNonNull(fault, "fault"));
+        return this;
     }
 
     /**
@@ -48,14 +75,16 @@ public final class FaultInjector {
      * @return this injector
      */
     public FaultInjector always(Operation operation, Fault fault) {
-        throw new UnsupportedOperationException("R1-C");
+        standing.put(Objects.requireNonNull(operation, "operation"), Objects.requireNonNull(fault, "fault"));
+        return this;
     }
 
     /**
      * Removes every fault.
      */
     public void clear() {
-        throw new UnsupportedOperationException("R1-C");
+        standing.clear();
+        onceFaults.values().forEach(Queue::clear);
     }
 
     /**
@@ -65,6 +94,40 @@ public final class FaultInjector {
      * @return the count
      */
     public long calls(Operation operation) {
-        throw new UnsupportedOperationException("R1-C");
+        return calls.get(Objects.requireNonNull(operation, "operation")).get();
+    }
+
+    /**
+     * Runs {@code call} under the next fault of {@code operation}: the wrappers' single path to the wrapped store.
+     */
+    <T> T apply(Operation operation, Supplier<T> call) {
+        Fault fault = onceFaults.get(operation).poll();
+        if (fault == null) {
+            fault = standing.get(operation);
+        }
+        if (fault == null) {
+            return reach(operation, call);
+        }
+        return switch (fault) {
+            case Fault.Delay delay -> {
+                try {
+                    Thread.sleep(delay.delay());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new CosIdException("Interrupted during an injected delay of " + operation, e);
+                }
+                yield reach(operation, call);
+            }
+            case Fault.Fail fail -> throw fail.error().get();
+            case Fault.LoseResponse lose -> {
+                reach(operation, call);
+                throw lose.error().get();
+            }
+        };
+    }
+
+    private <T> T reach(Operation operation, Supplier<T> call) {
+        calls.get(operation).incrementAndGet();
+        return call.get();
     }
 }

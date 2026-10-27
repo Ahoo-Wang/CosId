@@ -22,3 +22,18 @@ dependencies {
     api(platform(libs.junit.bom))
     api(libs.junit.jupiter.api)
 }
+
+// The contracts really ran against the in-memory store (roadmap R2): each backend registers the same task, with its
+// own test results, so a CI job that skipped its backend fails instead of passing empty.
+val checkContractsRan by tasks.registering(JavaExec::class) {
+    description = "Checks from the JUnit reports that every store contract case ran."
+    group = "verification"
+    val reports = layout.buildDirectory.dir("test-results/test")
+    dependsOn(tasks.test)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("me.ahoo.cosid.store.tck.ContractsRan")
+    argumentProviders.add(CommandLineArgumentProvider { listOf(reports.get().asFile.absolutePath) })
+}
+tasks.check {
+    dependsOn(checkContractsRan)
+}

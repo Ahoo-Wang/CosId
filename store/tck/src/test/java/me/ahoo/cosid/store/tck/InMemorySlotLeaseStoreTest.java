@@ -16,7 +16,7 @@ package me.ahoo.cosid.store.tck;
 import me.ahoo.cosid.lease.SlotLeaseStore;
 
 /**
- * The in-memory store passes the slot lease contract. One store is shared, as the contract opens several instances
+ * The in-memory store passes the slot lease contract on the system clock, waiting for real expiries. One store is shared, as the contract opens several instances
  * on the same data.
  */
 class InMemorySlotLeaseStoreTest extends SlotLeaseStoreContract {

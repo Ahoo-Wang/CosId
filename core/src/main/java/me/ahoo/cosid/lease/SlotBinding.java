@@ -13,6 +13,9 @@
 
 package me.ahoo.cosid.lease;
 
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+
 /**
  * One holding of a slot and its time window (05-machine-lease.md §4.1). A renewal raises {@link #ceiling()} in place;
  * a new acquisition publishes a new binding with the next {@link #generation()}; a lost lease invalidates the binding.
@@ -20,6 +23,16 @@ package me.ahoo.cosid.lease;
  * <p>Generators keep their sequencer state per binding, so it resets with every new binding.
  */
 public final class SlotBinding {
+    private static final VarHandle CEILING;
+
+    static {
+        try {
+            CEILING = MethodHandles.lookup().findVarHandle(SlotBinding.class, "ceiling", long.class);
+        } catch (ReflectiveOperationException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
     private final int slot;
     private final long floor;
     private final long generation;
@@ -73,7 +86,13 @@ public final class SlotBinding {
      * @param newCeiling the renewed ceiling
      */
     public void raiseCeiling(long newCeiling) {
-        throw new UnsupportedOperationException("R1-C");
+        long current;
+        do {
+            current = ceiling;
+            if (newCeiling <= current) {
+                return;
+            }
+        } while (!CEILING.compareAndSet(this, current, newCeiling));
     }
 
     /**

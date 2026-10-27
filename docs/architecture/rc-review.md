@@ -29,7 +29,7 @@
 | 路 | 状态 | 结果 |
 |---|---|---|
 | A core | ✅ 完成 | 无 BLOCKER、无重号路径;1 MAJOR(由 MINOR 上调)、6 MINOR(见 §3.A) |
-| B stores | 进行中 | — |
+| B stores | ✅ 完成 | 1 BLOCKER、1 MAJOR(由 MINOR 上调)、4 MINOR(见 §3.B) |
 | C spring/server/integrations | ✅ 完成,已核实 | 2 BLOCKER(由 MAJOR 上调)、1 MAJOR、5 MINOR(见 §3.C) |
 | D migration | 进行中 | — |
 | E 发布就绪 | ✅ 完成,已核实 | 3 BLOCKER、3 MAJOR、9 MINOR(见 §3.E) |
@@ -52,6 +52,19 @@
 | A-N5 | MINOR | `batch * 64` 在 batch 超过 Long.MAX/64 时溢出,补充永不触发并忙等 | `segment/SegmentGenerator.java:326` | 饱和乘法或在 `BatchPolicy` 限制上界 |
 | A-N6 | MINOR | `Friendly.decode` 在夏令时回拨那一小时无法往返(本地时间文本的固有问题,4.x 同样) | `codec/FriendlyFormat.java:120` | 文档写明,建议 UTC 或固定偏移时区 |
 | A-N7 | MINOR | `DatePrefix`(ID_TIME)不校验 ID 宽度,超宽 ID 得到错误日期 | `codec/DatePrefix.java:117-122` | 与 `Friendly` 一样检查 `id >>> totalBits` |
+
+### 3.B stores(main @ e272cdde)
+
+已核实正确:MySQL/MariaDB `last_insert_id` 两个分支都设置(封存/满时为 0)、PostgreSQL upsert、SQL Server `holdlock` MERGE、H2;JDBC `take` 的 CAS 条件;Redis Lua 超过 2^53 的精确值、free/live/owner/held 记账、清扫、封存标记、hash tag;Mongo 管道更新与 E11000 处理、CSOT 超时映射;ZK 版本化写与 owner 索引 multi、fence 存在数据中、floor 由被替换节点的 mtime 推出;注入的客户端从不被关闭;表名经标识符校验、其余全部参数绑定;各处最低版本一致;运行时代码不可达任何 delete/purge。
+
+| # | 严重度 | 发现 | 位置 | 修复 | 核实 |
+|---|---|---|---|---|---|
+| B-B1 | BLOCKER | Redis Cluster 上 `WAIT` 与脚本不在同一条 TCP 连接:脚本按 slot 路由到 `(host,port)` 连接,`WAIT` 用 `getConnection(nodeId)` 拿到另一条连接,该连接没有写入,`WAIT` 立即返回。failover 时租约/区间写入可丢失 → 窗口重叠、区间重复 | `LettuceRedisScripts.java:86-95,157-162` | 对 key 所在节点取同一个 `StatefulRedisConnection`,`EVALSHA` 与 `WAIT` 都在它上面执行;加带副本的 Cluster 测试证明同一连接(`CLIENT ID` 或暂停副本后期望失败) | 代码结构已核实;Lettuce 连接键差异按审查报告,待修复 PR 的测试证实 |
+| B-M1 | MAJOR(上调) | MySQL/MariaDB/SQL Server 默认排序规则不区分大小写(SQL Server、MariaDB 还忽略尾随空格):`Order` 与 `order` 共用一行,封存互相影响、后者 `initialOffset` 被忽略;换后端时会悄悄合并 key。schema 发布后再改即为破坏性变更,所以放在 RC 前处理 | `schema-mysql.sql:7,14,16`、`schema-sqlserver.sql` | key 列使用二进制排序规则(`utf8mb4_bin`、`Latin1_General_100_BIN2`) | — |
+| B-N1 | MINOR | ZK 在 CAS 冲突中超时抛普通 `CosIdException`,不是 `StoreTimeoutException` | `store/zookeeper/.../Zk.java:164` | 改为 `StoreTimeoutException` | — |
+| B-N2 | MINOR | JDBC 只按语句映射超时:连接池取连接超时、多语句循环没有整体期限 | `store/jdbc/.../Jdbc.java:57-66`、`JdbcSlotLeaseStore` 循环 | 连接池超时视为超时;循环受 `timeout` 约束 | — |
+| B-N3 | MINOR | 远程:后端存储超时被映射为普通 500,客户端无法区分 | `server/.../ApiErrors.java:70-72`、`store/remote/.../RemoteClient.java:49-53` | 增加 `store_timeout`(如 504)并映射为 `StoreTimeoutException` | — |
+| B-N4 | MINOR(存疑) | Redis 幂等 acquire 分支不写入,重连后的重试 `WAIT` 恒成功,可能使用未复制的租约 | `acquire.lua:85-87` | 幂等分支重写一次行(会被复制),让随后的 `WAIT` 覆盖它 | — |
 
 ### 3.C spring / server / integrations / examples(main @ e272cdde)
 

@@ -55,11 +55,12 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `store/redis/` | `cosid-store-redis` | R2-Redis: Lua scripts behind `RedisScripts`, Lettuce, `WAIT` auto; see its README (durability precondition) |
 | `store/zookeeper/` | `cosid-store-zookeeper` | R2-ZK: `ZookeeperStore` (Curator 5.9), provider type `zookeeper`, ZooKeeper 3.8+ (3.9 primary, D27); TCK on `COSID_TEST_ZOOKEEPER_CONNECT` or an in-process curator-test server |
 | `spring/autoconfigure/` | `cosid-spring-boot-autoconfigure` | R3-S: `cosid.*` records → `RuntimeSpec` (`CosIdSpecs`, pure), the `CosIdRuntime` bean, one bean per generator (`CosIdGeneratorRegistrar`), `SpringDataRedisScripts`, Micrometer, the `cosid` endpoint, health, native hints; stores `compileOnly` |
+| `integrations/` | `cosid-integrations` | R4-B: Jackson `@AsString`, MyBatis `CosIdInterceptor`, Spring Data JDBC `CosIdBeforeConvertCallback`, Activiti / Flowable id generators, Axon `CosIdIdentifierFactory`; every library `compileOnly`; see its README (the Axon static binding) |
 | `spring/starter/` | `cosid-spring-boot-starter` | R3-S: dependencies only (core + autoconfigure, D14); applications add the store artifacts |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
 | `benchmark/v5/` | not published | the same scenarios on 5.x |
-| `store/remote`, `server/`, `integrations/`, `extras/sharding/`, `migration/`, `examples/` | | not created yet (R2–R5) |
+| `store/remote`, `server/`, `extras/sharding/`, `migration/`, `examples/` | | not created yet (R2–R5) |
 | `build-logic/` | — | included build: convention plugins and build rules (see below) |
 | `docs/architecture/` | — | the design; `docs/jmh/<version>/` benchmark results |
 | `documentation/` | — | the VitePress site, still 4.x content until R5-B |
@@ -79,7 +80,7 @@ Adding a package means deciding whether `module-info.java` exports it.
 - `cosid.java`: Java 21, `-parameters`, Checkstyle, SpotBugs, JaCoCo (XML reports for Codecov), JUnit 5 + Hamcrest,
   Logback for tests, `-PtestJavaVersion=25` to run tests on another JDK.
 - `cosid.library`: `cosid.java` + sources/javadoc jars + Maven publication (`cosid.publish`).
-- `cosid.spring` (`spring/*`, later `server`, `integrations`): `cosid.library` + the Spring Boot BOM on the build's
+- `cosid.spring` (`spring/*`, `integrations`, later `server`): `cosid.library` + the Spring Boot BOM on the build's
   classpaths only (never published), published versions of `spring-boot-minimum`, `checkPublishedMetadata` (in `check`),
   and the compatibility matrix: `-PspringBootVersion=4.0.8` builds and tests on another Boot (02 §5), with
   `-PtestJavaVersion=25`; CI job `spring-compatibility`.
@@ -128,6 +129,10 @@ Adding a package means deciding whether `module-info.java` exports it.
   `InMemoryStore`), H2 for JDBC, and Redis from `COSID_TEST_REDIS_URI` or Testcontainers (`-Pcosid.test.redis.image`).
   Generator beans are registered in a `BeanDefinitionRegistryPostProcessor`, so `RuntimeSpecCustomizer` beans must be
   dependency-free (`static @Bean`).
+- **integrations** (`integrations/`): tests run each adapter end to end on `TestRuntimes` (every strategy on
+  `InMemoryStore`): MyBatis and Spring Data JDBC on H2, Activiti and Flowable as in-memory engines, Axon through
+  `IdentifierFactory.getInstance()`. `CosIdIdentifierFactory` keeps the only static state of the project (its bindings);
+  a test that binds must unbind. The Spring side is `CosIdIntegrationsConfiguration` in `spring/autoconfigure`.
 - `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.
 - **store/jdbc tests** run the TCK on H2 always and on MySQL, MariaDB, PostgreSQL and SQL Server from
   `COSID_TEST_{MYSQL,MARIADB,POSTGRES,SQLSERVER}_URL` (+ `_USERNAME` / `_PASSWORD`) or Testcontainers at the D27 minimum

@@ -1,3 +1,4 @@
 me.ahoo.cosid.spring.autoconfigure.CosIdAutoConfiguration
 me.ahoo.cosid.spring.autoconfigure.CosIdMetricsConfiguration
 me.ahoo.cosid.spring.autoconfigure.CosIdActuatorConfiguration
+me.ahoo.cosid.spring.autoconfigure.CosIdIntegrationsConfiguration

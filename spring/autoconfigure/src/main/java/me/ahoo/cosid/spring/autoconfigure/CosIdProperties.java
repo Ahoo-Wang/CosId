@@ -133,7 +133,7 @@ public record CosIdProperties(@DefaultValue("true") boolean enabled,
      * @param regression    time-based: the clock regression policy
      * @param store         segment: the store name
      * @param step          segment: the smallest reservation; default 100
-     * @param initialOffset segment: where a new key starts; default 0
+     * @param initialOffset segment: where a new key starts; default 1, so no generator issues 0
      * @param lookahead     segment: how long the ids at hand should last; default 1s, 0 disables prefetching
      * @param maxBatch      segment: the largest reservation; default {@code max(step * 1000, 2^20)} rounded to the step
      * @param reserveTimeout segment: how long a caller waits for a refill; default 3s
@@ -158,7 +158,7 @@ public record CosIdProperties(@DefaultValue("true") boolean enabled,
                             @DefaultValue Regression regression,
                             String store,
                             @DefaultValue("100") long step,
-                            @DefaultValue("0") long initialOffset,
+                            @DefaultValue("1") long initialOffset,
                             @DefaultValue("1s") Duration lookahead,
                             Long maxBatch,
                             @DefaultValue("3s") Duration reserveTimeout,

@@ -22,7 +22,8 @@ import java.util.Optional;
  * {@code min(maxBatch, roundUpToStep(rate * lookahead))}, at least {@code step}.
  *
  * @param step           the smallest reservation, positive; default 100
- * @param initialOffset  where the first range of a new key starts; default 0
+ * @param initialOffset  where the first range of a new key starts; default 1, so a generator never issues 0
+ *                       (4.x started at 1, and {@code IdFiller} and most databases take 0 as unset)
  * @param lookahead      how long the ids at hand should last; default 1s; {@link Duration#ZERO} disables prefetching
  * @param maxBatch       the largest reservation, a multiple of {@code step}; default {@link #defaultMaxBatch(long)}
  * @param reserveTimeout how long a caller waits for a refill; default 3s
@@ -35,9 +36,11 @@ public record BatchPolicy(long step,
                           Duration reserveTimeout,
                           Optional<Duration> rangeTtl) {
     public static final long DEFAULT_STEP = 100;
+    /** The default first value of a new key: 1, never 0. */
+    public static final long DEFAULT_INITIAL_OFFSET = 1;
     /** The default {@code maxBatch} is at least this many values, whatever the step. */
     public static final long DEFAULT_MAX_BATCH_VALUES = 1L << 20;
-    public static final BatchPolicy DEFAULT = new BatchPolicy(DEFAULT_STEP, 0, Duration.ofSeconds(1), defaultMaxBatch(DEFAULT_STEP),
+    public static final BatchPolicy DEFAULT = new BatchPolicy(DEFAULT_STEP, DEFAULT_INITIAL_OFFSET, Duration.ofSeconds(1), defaultMaxBatch(DEFAULT_STEP),
         Duration.ofSeconds(3), Optional.empty());
 
     /**

@@ -404,17 +404,17 @@ class CosIdRuntimeTest {
             StringIdGenerator outside = runtime.stringGenerator("dateOutside");
             String outsideText = outside.generate();
             assertThat(outsideText, matchesPattern("\\d{8}-O\\d{6}"));
-            assertThat(outsideText, is(today + "-O000000"));
-            assertThat(outside.codec().decode(outsideText), is(0L));
+            assertThat(outsideText, is(today + "-O000001"));
+            assertThat(outside.codec().decode(outsideText), is(1L));
             String nextOutside = outside.generate();
-            assertThat(nextOutside, is(today + "-O000001"));
-            assertThat(outside.codec().decode(nextOutside), is(1L));
+            assertThat(nextOutside, is(today + "-O000002"));
+            assertThat(outside.codec().decode(nextOutside), is(2L));
 
             StringIdGenerator inside = runtime.stringGenerator("dateInside");
             String insideText = inside.generate();
             assertThat(insideText, matchesPattern("O\\d{8}-\\d{6}"));
-            assertThat(insideText, is("O" + today + "-000000"));
-            assertThat(inside.codec().decode(insideText), is(0L));
+            assertThat(insideText, is("O" + today + "-000001"));
+            assertThat(inside.codec().decode(insideText), is(1L));
             long id = runtime.generator("dateInside").generate();
             assertThat(inside.codec().decode(inside.codec().encode(id)), is(id));
             // Each codec rejects the other's shape.

@@ -1,0 +1,85 @@
+# Converted from a CosId 4.x configuration by cosid-migration config (09-migration.md §3).
+# Not converted as is - review before starting 5.0:
+#  - apply-result.json is of namespace [legacy], the configuration of [shop]
+#  - cosid.segment.distributor.jdbc.enable-auto-init-cosid-table: custom 4.x SQL and table initialization are gone; 5.0 uses JdbcDialect and options.initSchema (06 §2.1)
+#  - cosid.snowflake.provider.custom: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_MS with overrides, keep it as is (M3)
+#  - cosid.snowflake.provider.custom.clock-sync: replaced by the clock regression policy (borrow 5ms, wait 1s; 03 §4)
+#  - cosid.segment.mode = chain: segment chains are replaced by the 5.0 refill (lookahead, adaptive batch; 04)
+#  - cosid.segment.provider.bill.group: 4.x used the server's default time zone; the 5.0 period zone is Asia/Shanghai, check it (--zone)
+#  - cosid.segment.provider.order.offset = 10000: migrated keys continue from their 4.x values; offset only applied to new 4.x keys
+#  - cosid.machine.guarder.safe-guard-duration = 5m: replaced by the lease window (05); dropped
+#  - cosid.machine.stable: stable leases are gone; the slot an owner key held last is preferred instead (05 §2.1)
+#  - cosid.machine.distributor.redis.wait-replicas: 5.0 waits for the replicas it finds (wait: auto); 4.x wait-timeout is dropped
+#  - cosid.proxy.host = http://localhost:8688: no 5.0 counterpart, dropped
+cosid:
+  namespace: shop
+  stores:
+    jdbc:
+      type: jdbc
+      timeout: 3s
+    redis:
+      type: redis
+      timeout: 2s
+      options:
+        wait: auto
+  machine:
+    leased:
+      store: redis
+      bits: 10
+      owner-key: shop-1
+  generators:
+    default:
+      strategy: snowflake
+      layout: SNOWFLAKE_MS
+      codec:
+      - radix:
+          radix: 62
+          width: 11
+          pad-start: true
+    custom:
+      strategy: snowflake
+      layout: SNOWFLAKE_MS
+      epoch: 2020-09-13T12:26:40Z
+      codec:
+      - radix:
+          radix: 62
+          width: 11
+          pad-start: true
+    second:
+      strategy: snowflake
+      layout: SNOWFLAKE_S
+      codec:
+      - radix:
+          radix: 62
+          width: 11
+          pad-start: true
+    trace:
+      strategy: snowflake
+      layout: SNOWFLAKE_MS
+      codec:
+      - friendly:
+          zone: Asia/Shanghai
+    bill:
+      strategy: periodic-segment
+      store: jdbc
+      step: 20
+      period: YEAR_MONTH_DAY
+      zone: Asia/Shanghai
+      codec:
+      - date-prefix:
+          delimiter: ""
+    order:
+      strategy: segment
+      store: jdbc
+      step: 100
+      codec:
+      - radix:
+          radix: 62
+          width: 8
+          pad-start: true
+      - prefix: O
+    cosid:
+      strategy: cosid80
+      codec:
+      - radix:
+          radix: 36

@@ -1,0 +1,94 @@
+# Converted from a CosId 4.x configuration by cosid-migration config (09-migration.md §3).
+# Not converted as is - review before starting 5.0:
+#  - cosid.segment.distributor.type = proxy: written as store [remote] (store/remote, 08); its baseUrl must point at a 5.0 cosid-server, the 4.x proxy server does not speak the /v5 API
+#  - cosid.proxy.client = coapi: the 5.0 remote store uses the JDK HttpClient; dropped
+#  - cosid.snowflake.share: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_S with overrides, keep it as is (M3)
+#  - cosid.snowflake.share.sequence-reset-threshold = 7: 5.0 configuration keeps the default threshold
+#  - cosid.snowflake.share.converter.date-prefix.before-prefix = false: the 5.0 codec list applies in order; check the order of date-prefix and prefix
+#  - cosid.snowflake.provider.cosid: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_MS with overrides, keep it as is (M3)
+#  - cosid.snowflake.provider.odd: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_MS with overrides, keep it as is (M3)
+#  - cosid.snowflake.provider.odd.converter.type = base58: unknown converter; dropped
+#  - cosid.segment.provider.friendly.mode = segment: segment chains are replaced by the 5.0 refill (lookahead, adaptive batch; 04)
+#  - cosid.segment.provider.friendly.chain.safe-distance = 2: segment chains are replaced by the 5.0 refill (lookahead, adaptive batch; 04)
+#  - cosid.segment.ttl = 60: segment chains are replaced by the 5.0 refill (lookahead, adaptive batch; 04)
+#  - cosid.segment.provider.friendly.converter.type = snowflake_friendly: only snowflake ids have a friendly form; dropped
+#  - cosid.segment.provider.grouped.group: 4.x used the server's default time zone; the 5.0 period zone is Asia/Shanghai, check it (--zone)
+#  - cosid.segment.provider.grouped.converter.group-prefix.before-prefix = false: the 5.0 period prefix always comes first
+#  - cosid.generator: a generator named [cosid] exists already; the CosIdGenerator is written as [cosid80]
+#  - cosid.generator: the 4.x bits differ from the 5.0 COSID_80 layout (44/20/16); the 5.0 ids keep COSID_80 (M3 fails in plan)
+#  - cosid.generator.pad-start = false: 5.0 cosid80 text ids are always padded
+#  - cosid.machine.port = 8080: set owner-key to host:port if the slot should follow it
+#  - cosid.machine.distributor.type = stateful_set: the slot is ${POD_ORDINAL}; set it from the pod ordinal
+#  - cosid.machine.static.not-before: pass --result apply-result.json; without it the static slot does not start after the 4.x timestamps (09 §4.4)
+#  - the 4.x machine state file is not migrated; set cosid.machine.static.state-file to a new file to keep clock-regression protection (05 §4.4)
+cosid:
+  namespace: edge
+  enabled: false
+  stores:
+    remote:
+      type: remote
+      options:
+        baseUrl: https://cosid-server.example:8688
+        token: secret-token
+        connectTimeout: 3s
+        requestTimeout: 4s
+  machine:
+    static:
+      bits: 8
+      slot: "${POD_ORDINAL}"
+  generators:
+    default:
+      strategy: snowflake
+      layout: SNOWFLAKE_S
+      time-bits: 41
+      node-bits: 8
+      seq-bits: 12
+      codec:
+      - radix:
+          radix: 36
+          width: 13
+          pad-start: true
+      - date-prefix:
+          pattern: yyMMdd
+          delimiter: ""
+          source: NOW
+      - prefix: S
+    cosid:
+      strategy: snowflake
+      layout: SNOWFLAKE_MS
+      node-bits: 8
+      codec:
+      - radix:
+          radix: 10
+          width: 20
+          pad-start: true
+    odd:
+      strategy: snowflake
+      layout: SNOWFLAKE_MS
+      node-bits: 8
+      codec: []
+    friendly:
+      strategy: segment
+      store: remote
+      step: 10
+      codec: []
+    grouped:
+      strategy: periodic-segment
+      store: remote
+      step: 10
+      period: YEAR
+      zone: Asia/Shanghai
+      codec:
+      - date-prefix:
+          delimiter: "-"
+      - radix:
+          radix: 62
+          width: 11
+          pad-start: true
+    cosid80:
+      strategy: cosid80
+      codec:
+      - friendly:
+          zone: Asia/Shanghai
+  metrics:
+    generated: true

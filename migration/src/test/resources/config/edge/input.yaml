@@ -1,0 +1,68 @@
+# Edge cases of the conversion, converted without apply-result.json: a stateful-set slot, a proxy segment store,
+# odd converters, a provider named cosid next to the CosIdGenerator, and 4.x settings with no 5.0 counterpart.
+cosid:
+  enabled: false
+  namespace: edge
+  metrics:
+    generated:
+      enabled: true
+  machine:
+    enabled: true
+    port: 8080
+    machine-bit: 8
+    distributor:
+      type: stateful_set
+  snowflake:
+    enabled: true
+    share:
+      timestamp-unit: second
+      sequence-reset-threshold: 7
+      converter:
+        type: radix36
+        prefix: "S"
+        date-prefix:
+          enabled: true
+          before-prefix: false
+          delimiter: ""
+    provider:
+      cosid:
+        converter:
+          type: to_string
+          to-string:
+            pad-start: true
+            char-size: 20
+      odd:
+        converter:
+          type: base58
+  segment:
+    enabled: true
+    ttl: 60
+    distributor:
+      type: proxy
+    share:
+      enabled: false
+    provider:
+      friendly:
+        mode: segment
+        chain:
+          safe-distance: 2
+        converter:
+          type: snowflake_friendly
+      grouped:
+        group:
+          by: year
+        converter:
+          group-prefix:
+            enabled: true
+            before-prefix: false
+  generator:
+    enabled: true
+    type: friendly
+    machine-bit: 19
+    pad-start: false
+  proxy:
+    host: https://cosid-server.example:8688
+    token: secret-token
+    connect-timeout: 3s
+    read-timeout: 4s
+    client: coapi

@@ -1,0 +1,34 @@
+# Converted from a CosId 4.x configuration by cosid-migration config (09-migration.md §3).
+# Not converted as is - review before starting 5.0:
+#  - apply-result.json is of namespace [legacy], the configuration of [billing]
+#  - cosid.segment.distributor.mongo.write-concern: 5.0 always uses majority read and write concerns
+#  - cosid.segment.provider.invoice.converter.custom.type = com.example.InvoiceConverter: a 4.x IdConverter; port it to a 5.0 IdCodec
+#  - cosid.machine: no time-based generator, so 5.0 needs no machine slot; the machine settings are dropped
+cosid:
+  namespace: billing
+  stores:
+    mongo:
+      type: mongo
+      options:
+        database: ids
+  generators:
+    default:
+      strategy: segment
+      store: mongo
+      step: 10
+      codec:
+      - radix:
+          radix: 62
+          width: 11
+          pad-start: true
+    invoice:
+      strategy: segment
+      store: mongo
+      step: 1000
+      codec:
+      - custom: com.example.InvoiceConverter
+      - date-prefix:
+          pattern: yyMMdd
+          delimiter: "-"
+          source: NOW
+      - suffix: -X

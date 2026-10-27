@@ -1,0 +1,25 @@
+# Segments only, on MongoDB: no machine slot in 5.0; the machine settings left over are reported.
+cosid:
+  namespace: billing
+  machine:
+    enabled: true
+    distributor:
+      type: mongo
+  segment:
+    enabled: true
+    distributor:
+      type: mongo
+      mongo:
+        database: ids
+        write-concern: majority
+    provider:
+      invoice:
+        step: 1000
+        converter:
+          type: custom
+          custom:
+            type: com.example.InvoiceConverter
+          suffix: "-X"
+          date-prefix:
+            enabled: true
+            pattern: yyMMdd

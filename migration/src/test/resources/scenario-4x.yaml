@@ -1,0 +1,31 @@
+# The 4.x configuration of the migration scenarios (MigrationScenarioTest): one snowflake, the segment share,
+# plain segments and a segment grouped by day.
+cosid:
+  namespace: app
+  machine:
+    enabled: true
+    machine-bit: 10
+    distributor:
+      type: jdbc
+  snowflake:
+    enabled: true
+    share:
+      enabled: false
+    provider:
+      snow:
+        timestamp-bit: 41
+  segment:
+    enabled: true
+    distributor:
+      type: jdbc
+    provider:
+      order:
+        step: 10
+      big:
+        offset: 1000000
+        step: 100
+      bill:
+        step: 5
+        group:
+          by: year_month_day
+          pattern: yyyyMMdd

@@ -34,6 +34,7 @@ import org.bson.Document;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -63,7 +64,7 @@ public final class MongoTarget implements TargetAdmin {
     public long now() {
         Document now = database.aggregate(List.of(new Document("$documents", List.of(new Document())),
             new Document("$project", new Document("now", new Document("$toLong", "$$NOW"))))).first();
-        return ((Number) now.get("now")).longValue();
+        return ((Number) Objects.requireNonNull(now, "$$NOW").get("now")).longValue();
     }
 
     @Override

@@ -112,7 +112,7 @@ public final class ConfigConverter {
      */
     public Conversion convert(FlatConfig config, ApplyResult result) {
         Legacy4x legacy = new Legacy4x(config);
-        List<String> report = new ArrayList<>();
+        final List<String> report = new ArrayList<>();
         Set<String> handled = new LinkedHashSet<>();
         Map<String, Object> cosid = new LinkedHashMap<>();
         cosid.put("namespace", legacy.namespace());
@@ -142,11 +142,13 @@ public final class ConfigConverter {
                 + "] (plan maps __share__ the same way with --layout-config)");
         }
         handled.add("cosid.snowflake.enabled");
+        handled.add("cosid.snowflake.share.enabled");
         handled.add("cosid.segment.enabled");
+        handled.add("cosid.segment.share.enabled");
         handled.add("cosid.generator.enabled");
 
         boolean timeBased = !legacy.snowflakes().isEmpty() || legacy.cosidEnabled();
-        Map<String, Object> machine = timeBased ? machine(legacy, result, stores, report, handled) : null;
+        final Map<String, Object> machine = timeBased ? machine(legacy, result, stores, report, handled) : null;
         if (!timeBased && legacy.machineEnabled()) {
             report.add("cosid.machine: no time-based generator, so 5.0 needs no machine slot; the machine settings are dropped");
             handled.addAll(config.keys("cosid.machine"));
@@ -267,7 +269,7 @@ public final class ConfigConverter {
 
     private Map<String, Object> machine(Legacy4x legacy, ApplyResult result, Map<String, Map<String, Object>> stores, List<String> report, Set<String> handled) {
         FlatConfig config = legacy.config();
-        String type = config.get("cosid.machine.distributor.type", "manual").toLowerCase(Locale.ROOT).replace('-', '_');
+        final String type = config.get("cosid.machine.distributor.type", "manual").toLowerCase(Locale.ROOT).replace('-', '_');
         handled.add("cosid.machine.distributor.type");
         handled.add("cosid.machine.machine-bit");
         if (!legacy.machineEnabled()) {
@@ -287,7 +289,7 @@ public final class ConfigConverter {
             report.add("cosid.machine.port = " + config.get("cosid.machine.port") + ": set owner-key to host:port if the slot should follow it");
             handled.add("cosid.machine.port");
         }
-        Map<String, Object> machine = new LinkedHashMap<>();
+        final Map<String, Object> machine = new LinkedHashMap<>();
         int bits = legacy.machineBit();
         if ("manual".equals(type) || "stateful_set".equals(type) || !legacy.machineEnabled()) {
             Map<String, Object> fixed = new LinkedHashMap<>();
@@ -303,7 +305,7 @@ public final class ConfigConverter {
             }
             handled.add("cosid.machine.distributor.manual.machine-id");
             if (result != null) {
-                fixed.put("not-before", result.wIso());
+                fixed.put("not-before", result.notBefore());
             } else {
                 report.add("cosid.machine.static.not-before: pass --result apply-result.json; without it the static slot does not start after the 4.x timestamps (09 §4.4)");
             }
@@ -327,7 +329,7 @@ public final class ConfigConverter {
     }
 
     private Map<String, Object> snowflake(Legacy4x legacy, String name, String prefix, List<String> report, Set<String> handled) {
-        FlatConfig config = legacy.config();
+        final FlatConfig config = legacy.config();
         Map<String, Object> generator = new LinkedHashMap<>();
         generator.put("strategy", "snowflake");
         Layout layout = legacy.snowflakeLayout(prefix);
@@ -366,7 +368,7 @@ public final class ConfigConverter {
     }
 
     private Map<String, Object> segment(Legacy4x legacy, String name, String prefix, String store, List<String> report, Set<String> handled) {
-        FlatConfig config = legacy.config();
+        final FlatConfig config = legacy.config();
         Map<String, Object> generator = new LinkedHashMap<>();
         String period = legacy.period(prefix);
         generator.put("strategy", period == null ? "segment" : "periodic-segment");
@@ -417,7 +419,7 @@ public final class ConfigConverter {
             if (!groupPrefix) {
                 report.add(prefix + ".converter.group-prefix is off: 5.0 grouped string ids always start with the period");
             }
-            grouped.add(Map.of("date-prefix", Map.of("delimiter", config.get(prefix + ".converter.group-prefix.delimiter", "-"))));
+            grouped.add(Map.of("date-prefix", Map.of("delimiter", text(config, prefix + ".converter.group-prefix.delimiter", "-"))));
             if (!config.bool(prefix + ".converter.group-prefix.before-prefix", true)) {
                 report.add(prefix + ".converter.group-prefix.before-prefix = false: the 5.0 period prefix always comes first");
             }
@@ -474,7 +476,7 @@ public final class ConfigConverter {
         if (config.bool(prefix + ".date-prefix.enabled", false)) {
             Map<String, Object> datePrefix = new LinkedHashMap<>();
             datePrefix.put("pattern", config.get(prefix + ".date-prefix.pattern", "yyMMdd"));
-            datePrefix.put("delimiter", config.get(prefix + ".date-prefix.delimiter", "-"));
+            datePrefix.put("delimiter", text(config, prefix + ".date-prefix.delimiter", "-"));
             codec.add(Map.of("date-prefix", datePrefix));
         }
         handled.add(prefix + ".date-prefix.*");
@@ -492,6 +494,12 @@ public final class ConfigConverter {
             report.add(prefix + ".date-prefix.before-prefix = false: the 5.0 codec list applies in order; check the order of date-prefix and prefix");
         }
         return codec;
+    }
+
+    /** A text value where the empty text is a value of its own, such as a delimiter. */
+    private static String text(FlatConfig config, String key, String fallback) {
+        String value = config.get(key);
+        return value == null ? fallback : value;
     }
 
     private static Map<String, Object> radix(int radix, long width, boolean padStart) {

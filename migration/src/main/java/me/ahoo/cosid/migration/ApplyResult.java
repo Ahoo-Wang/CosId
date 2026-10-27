@@ -28,7 +28,7 @@ import java.util.List;
  * @param sourceMaxTimestamp T4
  * @param sourceSkewMillis   the source skew
  * @param w                  {@code W = max(T_apply, T4 + 1s) + sourceSkew}, the next floor of every slot
- * @param wIso               W as ISO-8601: {@code cosid.machine.static.not-before}
+ * @param notBefore          W as ISO-8601: {@code cosid.machine.static.not-before}
  * @param gap                the gap added to every segment
  * @param sealed             whether the source was sealed
  * @param sealGap            the seal gap
@@ -38,7 +38,7 @@ import java.util.List;
  * @param warnings           everything else the operator should read
  */
 public record ApplyResult(String format, String planSha256, String namespace, StoreLocation source, StoreLocation target, long appliedAt,
-                          long sourceMaxTimestamp, long sourceSkewMillis, long w, String wIso, long gap, boolean sealed, long sealGap,
+                          long sourceMaxTimestamp, long sourceSkewMillis, long w, String notBefore, long gap, boolean sealed, long sealGap,
                           long observedMillis, Plan.Slots slots, List<SegmentResult> segments, List<String> warnings) {
     public static final String FORMAT = "cosid-migration-result/1";
 

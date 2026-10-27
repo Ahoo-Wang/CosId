@@ -99,7 +99,7 @@ final class Args {
 
     Duration duration(String name, Duration fallback) {
         String value = get(name);
-        return value == null ? fallback : duration(value);
+        return value == null ? fallback : parseDuration(value);
     }
 
     long number(String name, long fallback) {
@@ -126,7 +126,7 @@ final class Args {
      * A duration: ISO-8601 ({@code PT2M}) or a number with {@code ms}, {@code s}, {@code m} or {@code h}; a bare number
      * is milliseconds.
      */
-    static Duration duration(String text) {
+    static Duration parseDuration(String text) {
         String value = text.trim().toLowerCase(Locale.ROOT);
         try {
             if (value.startsWith("pt") || value.startsWith("p")) {

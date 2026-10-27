@@ -14,6 +14,8 @@
 package me.ahoo.cosid.migration;
 
 import me.ahoo.cosid.runtime.StoreSpec;
+import me.ahoo.cosid.store.StoreConfig;
+import me.ahoo.cosid.store.StoreProvider;
 
 import org.apache.curator.test.TestingServer;
 import org.h2.tools.Server;
@@ -27,6 +29,8 @@ import java.net.ServerSocket;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
+import java.util.ServiceLoader;
 import java.util.UUID;
 
 /**
@@ -127,6 +131,17 @@ enum TestBackend {
 
         StoreLocation location() {
             return StoreLocation.parse(url, backend == H2 ? Map.of("initSchema", "true") : Map.of());
+        }
+
+        /** The 5.0 store itself, through its {@code StoreProvider}. */
+        me.ahoo.cosid.store.Store open5() {
+            StoreSpec spec = spec();
+            for (StoreProvider provider : ServiceLoader.load(StoreProvider.class)) {
+                if (provider.type().equals(spec.type())) {
+                    return provider.open(new StoreConfig("main", spec.type(), spec.timeout(), spec.options(), Optional.empty()));
+                }
+            }
+            throw new IllegalStateException("No store provider of type " + spec.type());
         }
 
         StoreSpec spec() {

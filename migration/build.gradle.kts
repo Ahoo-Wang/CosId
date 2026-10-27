@@ -69,6 +69,8 @@ tasks.test {
     val legacyClasspath = legacy4x.runtimeClasspath
     inputs.files(legacyClasspath).withPropertyName("legacy4xClasspath").withNormalizer(ClasspathNormalizer::class.java)
     jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Dcosid.migration.legacy4x=" + legacyClasspath.asPath) })
+    // -Pcosid.migration.updateGoldens=true rewrites the config goldens (ConfigGoldenTest).
+    systemProperty("cosid.migration.updateGoldens", providers.gradleProperty("cosid.migration.updateGoldens").getOrElse("false"))
 }
 
 tasks.shadowJar {

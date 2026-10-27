@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * The 5.0 Redis store (06 §2.2): a range is {@code cosid:{key}} with its seal marker {@code cosid:{key}:sealed}; a
@@ -37,6 +39,7 @@ import java.util.Optional;
 public final class RedisTarget implements TargetAdmin {
     private static final String RAISE = resource(RedisTarget.class, "redis-raise.lua");
     private static final String PREPARE = resource(RedisStore.class, "slot-row.lua") + "\n" + resource(RedisTarget.class, "redis-prepare.lua");
+    private static final String SEALED = "}:sealed";
     private final RedisConnection redis;
 
     public RedisTarget(StoreLocation location) {
@@ -94,11 +97,17 @@ public final class RedisTarget implements TargetAdmin {
     @Override
     public List<RangeState> ranges(String prefix) {
         String keyPrefix = "cosid:{";
+        // A key sealed before it was ever used has its seal marker only.
+        Set<String> keys = new TreeSet<>();
+        for (String redisKey : redis.scan(RedisConnection.globEscape(keyPrefix + prefix) + "*")) {
+            if (redisKey.endsWith(SEALED)) {
+                keys.add(redisKey.substring(keyPrefix.length(), redisKey.length() - SEALED.length()));
+            } else if (redisKey.endsWith("}")) {
+                keys.add(redisKey.substring(keyPrefix.length(), redisKey.length() - 1));
+            }
+        }
         List<RangeState> ranges = new ArrayList<>();
-        List<String> keys = redis.scan(RedisConnection.globEscape(keyPrefix + prefix) + "*}");
-        keys.sort(null);
-        for (String redisKey : keys) {
-            String key = redisKey.substring(keyPrefix.length(), redisKey.length() - 1);
+        for (String key : keys) {
             range(key).ifPresent(ranges::add);
         }
         return ranges;

@@ -155,7 +155,7 @@ public final class Migration {
             });
         }
         long sourceSkew = options.sourceSkew().toMillis();
-        long w = w(targetNow, snapshot.maxMachineTimestamp(), sourceSkew);
+        long w = floorW(targetNow, snapshot.maxMachineTimestamp(), sourceSkew);
         List<LayoutCheck> layouts = layouts(legacy, options.targetConfig(), w);
         if (legacy == null) {
             warnings.add("no --layout-config: layouts are not validated (M3), group patterns default to the 5.0 presets");
@@ -204,7 +204,7 @@ public final class Migration {
      * @param sourceSkew   the source skew
      * @return W
      */
-    public static long w(long targetNow, long maxTimestamp, long sourceSkew) {
+    public static long floorW(long targetNow, long maxTimestamp, long sourceSkew) {
         return Math.max(targetNow, maxTimestamp + STATE_LAG_MILLIS) + sourceSkew;
     }
 
@@ -316,7 +316,7 @@ public final class Migration {
 
             long appliedAt = target.now();
             long sourceSkew = options.sourceSkew().toMillis();
-            long w = w(appliedAt, snapshot.maxMachineTimestamp(), sourceSkew);
+            long w = floorW(appliedAt, snapshot.maxMachineTimestamp(), sourceSkew);
             if (options.layoutConfig() != null) {
                 List<LayoutCheck> checks = layouts(new Legacy4x(FlatConfig.load(options.layoutConfig())), options.targetConfig(), w);
                 if (!checks.stream().allMatch(LayoutCheck::ok)) {
@@ -381,7 +381,7 @@ public final class Migration {
                 observed, plan.slots(), List.copyOf(results.values()), warnings);
             Json.write(options.result(), result);
             out.println("Applied plan for namespace [" + plan.namespace() + "] at " + Instant.ofEpochMilli(appliedAt) + ": " + results.size()
-                + " key(s), " + slots.slots() + " slot(s) with next floor >= W = " + w + " (" + result.wIso() + ")");
+                + " key(s), " + slots.slots() + " slot(s) with next floor >= W = " + w + " (" + result.notBefore() + ")");
             for (ApplyResult.SegmentResult segment : results.values()) {
                 out.println("  " + segment.targetKey() + " next = " + segment.targetNext() + (segment.sealedAt() == null ? "" : "  (4.x sealed at " + segment.sealedAt() + ")"));
             }

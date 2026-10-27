@@ -56,7 +56,7 @@ public final class FlatConfig {
     public static FlatConfig load(Path file) {
         Map<String, String> values = new TreeMap<>();
         try {
-            if (file.getFileName().toString().endsWith(".properties")) {
+            if (file.toString().endsWith(".properties")) {
                 Properties properties = new Properties();
                 try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
                     properties.load(reader);

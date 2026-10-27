@@ -73,7 +73,7 @@ public record LayoutCheck(String generator, String source, String target, boolea
      * @return the text
      */
     public static String describe(Layout layout) {
-        return "epoch=" + layout.epoch().toEpochMilli() + " unit=" + layout.unit() + " bits=" + layout.timeBits() + "/" + layout.nodeBits() + "/" + layout.seqBits();
+        return "epoch=" + layout.epoch().toEpochMilli() + " unit=" + layout.unit().name() + " bits=" + layout.timeBits() + "/" + layout.nodeBits() + "/" + layout.seqBits();
     }
 
     /**

@@ -96,6 +96,9 @@ public final class MongoSource implements SourceReader {
         SourceReader.sealed(id, value.longValue(), increment);
         Document sealed = database.getCollection(SEGMENTS).findOneAndUpdate(Filters.eq("_id", id), Updates.inc(LAST_MAX_ID, increment),
             new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER));
+        if (sealed == null) {
+            throw new IllegalStateException("Segment [" + id + "] disappeared while sealing");
+        }
         return ((Number) sealed.get(LAST_MAX_ID)).longValue();
     }
 

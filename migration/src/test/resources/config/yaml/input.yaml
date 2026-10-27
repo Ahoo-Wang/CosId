@@ -1,0 +1,71 @@
+# A 4.x configuration with most of what cosid-spring-boot-starter 4.1 binds.
+spring:
+  application:
+    name: shop
+cosid:
+  namespace: shop
+  machine:
+    enabled: true
+    machine-bit: 10
+    instance-id: shop-1
+    stable: true
+    distributor:
+      type: redis
+      redis:
+        timeout: 2s
+        wait-replicas: 1
+    guarder:
+      safe-guard-duration: 5m
+  snowflake:
+    enabled: true
+    zone-id: Asia/Shanghai
+    share:
+      converter:
+        type: radix
+        radix:
+          char-size: 11
+          pad-start: true
+    provider:
+      trace:
+        converter:
+          type: snowflake_friendly
+      second:
+        timestamp-unit: second
+        timestamp-bit: 31
+        sequence-bit: 22
+      custom:
+        epoch: 1600000000000
+        clock-sync: false
+  segment:
+    enabled: true
+    mode: chain
+    distributor:
+      type: jdbc
+      jdbc:
+        query-timeout: 3s
+        enable-auto-init-cosid-table: true
+    share:
+      enabled: false
+    provider:
+      order:
+        step: 100
+        offset: 10000
+        converter:
+          prefix: "O"
+          radix:
+            char-size: 8
+      bill:
+        step: 20
+        group:
+          by: year_month_day
+          pattern: yyyyMMdd
+        converter:
+          type: to_string
+          group-prefix:
+            enabled: true
+            delimiter: ""
+  generator:
+    enabled: true
+    type: radix36
+  proxy:
+    host: http://localhost:8688

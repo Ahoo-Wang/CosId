@@ -89,7 +89,7 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         new Document("$lt", List.of("$" + EXPIRES_AT, NOW)))));
     private static final Bson STAMP = new Document("$set", new Document(WRITTEN_AT, NOW));
     /** Attempts of the namespace upsert that lose the first-use race (E11000) before the error is rethrown. */
-    private static final int NAMESPACE_ATTEMPTS = 5;
+    static final int NAMESPACE_ATTEMPTS = 5;
     private static final FindOneAndUpdateOptions AFTER = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
     private static final FindOneAndUpdateOptions LOWEST_AFTER = new FindOneAndUpdateOptions()
         .returnDocument(ReturnDocument.AFTER).sort(Sorts.ascending(SLOT));
@@ -107,9 +107,17 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
      * @param timeout  the operation timeout ({@code timeoutMS}); zero means none
      */
     public MongoSlotLeaseStore(MongoDatabase database, Duration timeout) {
-        MongoDatabase configured = MongoStore.configure(database, timeout);
-        this.slots = configured.getCollection(COLLECTION);
-        this.namespaces = configured.getCollection(NAMESPACE_COLLECTION);
+        this(MongoStore.configure(database, timeout));
+    }
+
+    private MongoSlotLeaseStore(MongoDatabase configured) {
+        this(configured.getCollection(COLLECTION), configured.getCollection(NAMESPACE_COLLECTION));
+    }
+
+    /** On given collections, already configured: tests wrap them to inject server errors. */
+    MongoSlotLeaseStore(MongoCollection<Document> slots, MongoCollection<Document> namespaces) {
+        this.slots = slots;
+        this.namespaces = namespaces;
     }
 
     @Override

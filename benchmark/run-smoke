@@ -46,9 +46,10 @@ class_of() {
         P4) echo CosId80Benchmark ;;
         P5) echo SegmentBenchmark ;;
         P6) echo SegmentNoPrefetchBenchmark ;;
+        P8) echo PeriodicSegmentBenchmark ;;
         P9) echo CodecBenchmark ;;
         P12) echo IdFillerBenchmark ;;
-        P7|P8|P10|P11) echo "run-smoke: $1 has no benchmark yet (see benchmark/scenarios.md)" >&2; return 1 ;;
+        P7|P10|P11) echo "run-smoke: $1 has no benchmark yet (see benchmark/scenarios.md)" >&2; return 1 ;;
         P*) echo "run-smoke: unknown scenario $1" >&2; return 1 ;;
         *) echo "$1" ;;
     esac

@@ -24,8 +24,9 @@ Release rules (default):
   latency (sample)          p99 and p99.9 of 5.x <= those of 4.x + error_4 (JMH gives no per-percentile error, so
                             error_4 is the error of the 4.x mean)
   average / single shot     score_5 <= score_4 + error_4; a single shot (startup) is at most 105% of 4.x
-  allocation                gc.alloc.rate.norm of 5.x <= that of 4.x + its error; the long hot paths
-                            (--zero-alloc) allocate nothing (< 1 B/op)
+  allocation                gc.alloc.rate.norm of 5.x <= that of 4.x + its error, or <= 0.01 B/op (the
+                            amortized cost of refills and other rare bookkeeping, not a hot path allocation);
+                            the long hot paths (--zero-alloc) allocate nothing (< 1 B/op)
 --smoke (PR smoke runs): throughput >= 0.9 x 4.x, latency and time <= 4.x / 0.9, allocation as above.
 A row of the baseline missing from the candidate fails; rows only in the candidate are listed, not judged.
 """
@@ -42,6 +43,7 @@ DEFAULT_ZERO_ALLOC = r"^(SnowflakeMillisBenchmark|SnowflakeSecondsBenchmark|Segm
 SMOKE_RATIO = 0.9
 STARTUP_RATIO = 1.05
 ZERO_ALLOC_BYTES = 1.0
+ALLOC_FLOOR_BYTES = 0.01
 
 
 def error(metric):
@@ -97,7 +99,7 @@ def judge(base, cand, smoke, zero_alloc):
         if mode == "thrpt" and zero_alloc.search(name):
             checks.append(("alloc (B/op)", ba["score"], ca["score"], f"< {ZERO_ALLOC_BYTES}", ca["score"] < ZERO_ALLOC_BYTES))
         else:
-            limit = ba["score"] + error(ba)
+            limit = max(ba["score"] + error(ba), ALLOC_FLOOR_BYTES)
             checks.append(("alloc (B/op)", ba["score"], ca["score"], f"<= {fmt(limit)}", ca["score"] <= limit))
     return checks
 

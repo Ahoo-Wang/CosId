@@ -135,7 +135,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | WP-ZK | B-N1;**E-B1** 即 #1342 | R2-ZK | #1342 | B-N1 已并入 #1342,等 CI |
 | WP-server | **C-B1**、**C-B2**、C-M1、C-N1、C-N2、B-N3 | R4-A | [#1349](https://github.com/Ahoo-Wang/CosId/pull/1349) | 六项已修复,Draft(会话无权限转 ready),等 CI |
 | WP-spring | C-N3 | R3-S | [#1353](https://github.com/Ahoo-Wang/CosId/pull/1353) | 修复完成,等 CI |
-| WP-migration | **D-B1**、**D-B2**、**D-B3**、**D-B4**、D-M1、D-M2、D-M3、D-N1–N4;修正 09 §2 表述 | R4-C | [#1350](https://github.com/Ahoo-Wang/CosId/pull/1350) | 修复完成,Ready,等 CI |
+| WP-migration | **D-B1**、**D-B2**、**D-B3**、**D-B4**、D-M1、D-M2、D-M3、D-N1–N4;修正 09 §2 表述 | R4-C | [#1350](https://github.com/Ahoo-Wang/CosId/pull/1350) | ✅ 已合入 `40d3e13c` |
 | WP-lease | A-M1 | R1-C | [#1351](https://github.com/Ahoo-Wang/CosId/pull/1351) | 修复已推送,Draft(会话无权限转 ready),等 CI |
 | WP-time-codec | A-N1、A-N2、A-N3、A-N6、A-N7 | R1-A | [#1352](https://github.com/Ahoo-Wang/CosId/pull/1352) | 修复完成,等 CI |
 | WP-segment | A-N4、A-N5 | R1-B | [#1347](https://github.com/Ahoo-Wang/CosId/pull/1347) | ✅ 已合入 `3e25d483` |
@@ -149,9 +149,9 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **收尾阶段(用户 2026-10-27 最新指示):** 不开新任务;已 ready 的 PR 等 CI 全绿后合并;最后登记文档。本机代码必须全部推送到 GitHub。
 
-**快照(2026-10-27 深夜):** Ready:#1342、#1348(已审查通过,等 CI)、#1350;Draft:#1349、#1351(修复已完成,会话无权限转 ready,需用户转)、#1352、#1353、#1354(WP-JDBC,CI 已全绿)、#1355、#1356(R2-Mongo 的 range 竞态测试,已解决与 main 的冲突)。CI 仍大量排队,尚无可合入的 PR。
+**快照(2026-10-27 深夜):** Ready:#1342、#1348(已审查通过,等 CI);#1342 的 Mongo 8.0 失败为容器启动失败(基础设施),已重跑;Draft:#1349、#1351(修复已完成,会话无权限转 ready,需用户转)、#1352、#1353、#1354(WP-JDBC,CI 已全绿)、#1355、#1356(R2-Mongo 的 range 竞态测试,已解决与 main 的冲突)。CI 仍大量排队,尚无可合入的 PR。
 
-**已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)。
+**已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)(WP-migration,D-B1–B4 等,`40d3e13c`)。
 
 **本机代码备份:** 12 个只存在于本机的旧分支已推送为 `origin/archive/<原分支名>`(SHA 已核对),包括 4.x 时期的 `feat/replication-window`、`feat/jdbc-dialect`、`feat/generator-name-properties`、`build/unpublished-platform`、`test/deflake-meter-binder-zk-timeout`、`chore/release-4.1.1`、`fix/b5-virtual-thread-pinning`,以及 5.0 时期的 `r3-runtime`、`claude/r0-skeleton-004bc6`、`claude/magical-gould-a7e144`、`feat/r5a-parity-gaps`、`refactor/d29-split-integrations`。本机 `main` 的 4 个提交已包含在 `origin/4.x`。两个曾有未提交改动的工作区已推送:R4-C 的改动在 #1350(`fc17ef84`),R2-Mongo 的在 #1356。
 

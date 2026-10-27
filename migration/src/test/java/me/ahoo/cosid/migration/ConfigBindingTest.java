@@ -25,12 +25,18 @@ import me.ahoo.cosid.runtime.CodecSpec;
 import me.ahoo.cosid.runtime.GeneratorSpec;
 import me.ahoo.cosid.runtime.GroupedCodecSpec;
 import me.ahoo.cosid.runtime.MachineSpec;
+import me.ahoo.cosid.GroupedId;
+import me.ahoo.cosid.observe.GeneratorListener;
+import me.ahoo.cosid.runtime.GeneratorSpec;
 import me.ahoo.cosid.runtime.RuntimeSpec;
+import me.ahoo.cosid.segment.PeriodicSegmentGenerator;
 import me.ahoo.cosid.spring.autoconfigure.CosIdProperties;
 import me.ahoo.cosid.spring.autoconfigure.CosIdSpecs;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.remote.RemoteStoreProvider;
+import me.ahoo.cosid.store.tck.InMemoryStore;
+import me.ahoo.cosid.store.tck.ManualClock;
 import me.ahoo.cosid.time.Layout;
 
 import org.junit.jupiter.api.Test;
@@ -45,6 +51,8 @@ import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.FileSystemResource;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
@@ -126,16 +134,41 @@ class ConfigBindingTest {
         return CosIdSpecs.toSpec(Binder.get(environment).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class)), ZoneId.of("UTC"));
     }
 
-    @Test
-    void aProxyBecomesTheRemoteStoreWithItsOptions() throws IOException {
+    /** Binds a golden as {@link #theGoldenBindsToARuntimeSpec} does. */
+    static RuntimeSpec spec(String golden) throws IOException {
         StandardEnvironment environment = new StandardEnvironment();
-        for (PropertySource<?> source : new YamlPropertySourceLoader().load("edge",
-            new FileSystemResource(MigrationScenarioTest.resource("config/edge/expected.yaml")))) {
+        for (PropertySource<?> source : new YamlPropertySourceLoader().load(golden,
+            new FileSystemResource(MigrationScenarioTest.resource("config/" + golden + "/expected.yaml")))) {
             environment.getPropertySources().addFirst(source);
         }
-        environment.getPropertySources().addLast(new MapPropertySource("slots", Map.of("POD_ORDINAL", "3")));
-        RuntimeSpec spec = CosIdSpecs.toSpec(Binder.get(environment).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class)),
-            ZoneId.of("UTC"));
+        environment.getPropertySources().addLast(new MapPropertySource("slots", Map.of("POD_ORDINAL", "3", "COSID_SLOT", "5")));
+        return CosIdSpecs.toSpec(Binder.get(environment).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class)), ZoneId.of("UTC"));
+    }
+
+    @Test
+    void aNonZero4xOffsetStartsNewKeysAtOffsetPlusOne() throws IOException {
+        RuntimeSpec spec = spec("yaml");
+        assertThat(((GeneratorSpec.Segment) spec.generators().get("order")).batch().initialOffset(), is(10_001L));
+        GeneratorSpec.PeriodicSegment bill = (GeneratorSpec.PeriodicSegment) spec.generators().get("bill");
+        assertThat(bill.batch().initialOffset(), is(20_001L));
+        // Offset 0 writes nothing: the 5.0 default 1 is the 4.x 0 + 1.
+        assertThat(((GeneratorSpec.Segment) spec("segments-only").generators().get("invoice")).batch().initialOffset(), is(1L));
+
+        // A migrated period continues from its 4.x value; the next, new period starts at offset + 1 as in 4.x.
+        InMemoryStore store = new InMemoryStore();
+        ManualClock clock = new ManualClock(LocalDate.of(2026, 10, 26).atTime(12, 0).atZone(bill.zone()).toInstant().toEpochMilli());
+        store.reserve("shop/bill/20261026", 1, 20_500);
+        try (PeriodicSegmentGenerator generator = new PeriodicSegmentGenerator("bill", "shop/bill", bill.period(), bill.zone(), store, bill.batch(),
+            bill.periodic(), Runnable::run, clock, GeneratorListener.NOOP)) {
+            assertThat(generator.generate(), is(new GroupedId("20261026", 20_501)));
+            clock.advance(Duration.ofDays(1));
+            assertThat(generator.generate(), is(new GroupedId("20261027", 20_001)));
+        }
+    }
+
+    @Test
+    void aProxyBecomesTheRemoteStoreWithItsOptions() throws IOException {
+        RuntimeSpec spec = spec("edge");
         assertThat(spec.stores().get("remote").type(), is("remote"));
         assertThat(spec.stores().get("remote").options(), is(Map.of("baseUrl", "https://cosid-server.example:8688", "token", "secret-token",
             "connectTimeout", "3s", "requestTimeout", "4s")));

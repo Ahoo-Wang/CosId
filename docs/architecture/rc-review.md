@@ -136,7 +136,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | WP-server | **C-B1**、**C-B2**、C-M1、C-N1、C-N2、B-N3 | R4-A | [#1349](https://github.com/Ahoo-Wang/CosId/pull/1349) | ✅ 已合入 `2068c48f` |
 | WP-spring | C-N3 | R3-S | [#1353](https://github.com/Ahoo-Wang/CosId/pull/1353) | 修复完成,等 CI |
 | WP-migration | **D-B1**、**D-B2**、**D-B3**、**D-B4**、D-M1、D-M2、D-M3、D-N1–N4;修正 09 §2 表述 | R4-C | [#1350](https://github.com/Ahoo-Wang/CosId/pull/1350) | ✅ 已合入 `40d3e13c` |
-| WP-lease | A-M1 | R1-C | [#1351](https://github.com/Ahoo-Wang/CosId/pull/1351) | 修复已推送,Draft(会话无权限转 ready),等 CI |
+| WP-lease | A-M1 | R1-C | [#1351](https://github.com/Ahoo-Wang/CosId/pull/1351) | ✅ 已合入 `a68a0191` |
 | WP-time-codec | A-N1、A-N2、A-N3、A-N6、A-N7 | R1-A | [#1352](https://github.com/Ahoo-Wang/CosId/pull/1352) | 修复完成,等 CI |
 | WP-segment | A-N4、A-N5 | R1-B | [#1347](https://github.com/Ahoo-Wang/CosId/pull/1347) | ✅ 已合入 `3e25d483` |
 | WP-release | **E-B2**、**E-B3**、E-M2、E-M3、E-N2、E-N3、E-N4、E-N6–N9 | R5-B | [#1348](https://github.com/Ahoo-Wang/CosId/pull/1348) | ✅ 已合入 `9de77578` |
@@ -149,9 +149,9 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **收尾阶段(用户 2026-10-27 最新指示):** 不开新任务;已 ready 的 PR 等 CI 全绿后合并;最后登记文档。本机代码必须全部推送到 GitHub。
 
-**收尾结果(2026-10-27):** 用户授权后 #1349、#1351、#1354 已转 ready。已合入 7 个修复 PR;BLOCKER 已解决 9/10,**仅余 B-B1(#1355,Draft)**。#1351(A-M1)已审查通过,等 CI 重跑(mongo:8.0 偶发)。其余 Draft:#1352、#1353、#1355、#1356。发布门槛 FAIL(见 §4.2 #1357)。RC1 受阻:B-B1 与门槛回退(codec、MySQL store)。
+**收尾结果(2026-10-27):** 用户授权后 #1349、#1351、#1354 已转 ready。已合入 8 个修复 PR;BLOCKER 已解决 9/10,**仅余 B-B1(#1355,Draft)**。其余 Draft:#1352、#1353、#1355、#1356。发布门槛 FAIL(见 §4.2 #1357)。RC1 受阻:B-B1 与门槛回退(codec、MySQL store)。
 
-**已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)(WP-migration,D-B1–B4 等,`40d3e13c`)、[#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)(WP-ZK,E-B1 + B-N1,`a0104227`)、[#1348](https://github.com/Ahoo-Wang/CosId/pull/1348)(WP-release,E-B2/E-B3 等,`9de77578`)、[#1354](https://github.com/Ahoo-Wang/CosId/pull/1354)(WP-JDBC,B-M1、B-N2,`d6264e11`)、[#1349](https://github.com/Ahoo-Wang/CosId/pull/1349)(WP-server,**C-B1**、**C-B2**、C-M1 等,`2068c48f`)。
+**已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)(WP-migration,D-B1–B4 等,`40d3e13c`)、[#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)(WP-ZK,E-B1 + B-N1,`a0104227`)、[#1348](https://github.com/Ahoo-Wang/CosId/pull/1348)(WP-release,E-B2/E-B3 等,`9de77578`)、[#1354](https://github.com/Ahoo-Wang/CosId/pull/1354)(WP-JDBC,B-M1、B-N2,`d6264e11`)、[#1349](https://github.com/Ahoo-Wang/CosId/pull/1349)(WP-server,**C-B1**、**C-B2**、C-M1 等,`2068c48f`)、[#1351](https://github.com/Ahoo-Wang/CosId/pull/1351)(WP-lease,A-M1,`a68a0191`)。
 
 **发布门槛:** run 40534275762 结论 **FAIL**(5/8 组),见 §4.2 #1357;D21 未满足,RC 阻断。
 

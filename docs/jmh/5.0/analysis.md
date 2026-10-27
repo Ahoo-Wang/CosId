@@ -7,14 +7,25 @@ artifacts (`release-gate-*`, `logs-*`) only, never from local benchmark runs.
 
 ## Status
 
-- [ ] Run finished; report PR opened by the workflow
+- [ ] Run finished; report PR opened by the workflow (4 of 8 groups done)
 - [ ] Report PR reviewed
 - [ ] Each still-failing row investigated (suspected cause + owner)
 - [ ] Summary sent to the coordinating session
 
 ## Rows that still fail
 
-_To be filled in once the run completes._
+Groups done so far: spring-start PASS (1 row), snowflake PASS (9 rows), mongo FAIL (1 of 6), codec-filler FAIL (4 of 7).
+Runner of each group: see the report.
+
+| Group | Row | First run | Re-run | Owner | Suspected cause |
+|---|---|---|---|---|---|
+| codec-filler | `CodecBenchmark.radix62Decode_t1` thrpt | 81,604 vs 68,844 ops/ms (-16%) | 80,496 vs 69,614 (-14%) | R1-A | `Radix.readDigits` serves every radix with the radix in a field: each digit is an overflow-checked `multiplyExact(value, radix)` with a non-constant multiplier plus a `VALUES` bounds check; 4.x's `Radix62IdConverter` had the radix as a constant of its subclass. Candidate fix: a constant-radix loop per common radix (as `writeDigits` already does), and skip the overflow check when the width cannot overflow a long. Allocation is equal (0). |
+| codec-filler | `CodecBenchmark.radix36Decode_t1` thrpt | 73,938 vs 64,643 (-13%) | 75,475 vs 64,425 (-15%) | R1-A | Same as radix62Decode. |
+| codec-filler | `CodecBenchmark.radix62Encode_t1` thrpt | 54,303 vs 46,625 (-14%) | 53,023 vs 46,317 (-13%) | R1-A | `Radix.encode` writes a `byte[]`, pads it with `Arrays.fill`, then `new String(buf, …, ISO_8859_1)` copies it again (the decode path of the charset); allocation is lower (88 vs 96 B/op) but the extra pass and the charset path cost throughput. Candidate fix: build the String without the second copy (e.g. a char[]/`String` from a pre-sized LATIN1 path, or only write the significant digits and pad on copy). |
+| codec-filler | `CodecBenchmark.radix36Encode_t1` thrpt | 48,142 vs 44,510 (-8%) | 49,384 vs 46,141 (-7%) | R1-A | Same as radix62Encode. |
+| mongo | `MongoStoreBenchmark.reserve_t1` avgt, allocation | 32,747 vs 33,377 B/op (+1.9%) | 31,715 vs 33,262 (+4.9%) | R2-Mongo | Only the allocation fails, by 0.6–1.5 KB/op of ~33 KB, and latency is much better than 4.x (avgt 2.1 ms vs 2.0–3.7 ms; p99 7 ms vs 62 ms). The 5.x reserve is one `findOneAndUpdate` with an update pipeline (`$$NOW`, the bounds) and majority concerns; its larger BSON command and reply most likely account for the extra bytes, all inside the driver. Options: trim the command (fewer fields in the projection/pipeline), or accept with data — a decision for the coordinator. |
+
+_Pending: segment, mysql, redis, zookeeper._
 
 ## Process notes (to resume on any machine)
 

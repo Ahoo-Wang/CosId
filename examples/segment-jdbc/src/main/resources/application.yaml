@@ -18,9 +18,6 @@ cosid:
       strategy: segment
       store: db
       step: 100
-      # A new key starts here. The default is 0, and 0 is a valid segment id, but IdFiller (and most schemas) read 0
-      # as "no id yet", so an entity id generator starts at 1.
-      initial-offset: 1
       lookahead: 1s
       codec:
         - radix: { radix: 62 }

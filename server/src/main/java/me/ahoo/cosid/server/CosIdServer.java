@@ -34,7 +34,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
 
 /**
- * cosid-server (08-remote.md): the range and slot lease primitives of its backing store under {@code /v5}, and
+ * cosid-server (08-remote.md): the range and slot lease primitives of its backing store at the root (no version prefix, D30), and
  * optionally the generators of its {@code CosIdRuntime}. Stateless; the backing store keeps every invariant, so
  * instances scale out.
  */
@@ -95,7 +95,7 @@ public class CosIdServer {
     @Bean
     OpenAPI cosIdServerOpenApi() {
         return new OpenAPI()
-            .info(new Info().title("CosId Server").description("The /v5 range and slot lease API of CosId, and its optional id endpoints")
+            .info(new Info().title("CosId Server").description("The range and slot lease API of CosId, and its optional id endpoints")
                 .version("5").license(new License().name("Apache 2.0").url("https://www.apache.org/licenses/LICENSE-2.0")))
             .components(new Components().addSecuritySchemes("bearer", new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer")))
             .addSecurityItem(new SecurityRequirement().addList("bearer"));

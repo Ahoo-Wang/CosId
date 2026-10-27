@@ -17,12 +17,21 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
+import me.ahoo.cosid.codec.DatePrefix;
+import me.ahoo.cosid.migration.config.ConfigConverter;
+import me.ahoo.cosid.migration.config.FlatConfig;
+import me.ahoo.cosid.migration.config.Legacy4x;
+import me.ahoo.cosid.runtime.CodecSpec;
+import me.ahoo.cosid.runtime.GeneratorSpec;
+import me.ahoo.cosid.runtime.GroupedCodecSpec;
+import me.ahoo.cosid.runtime.MachineSpec;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.spring.autoconfigure.CosIdProperties;
 import me.ahoo.cosid.spring.autoconfigure.CosIdSpecs;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.remote.RemoteStoreProvider;
+import me.ahoo.cosid.time.Layout;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -37,6 +46,7 @@ import org.springframework.core.io.FileSystemResource;
 
 import java.io.IOException;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -69,6 +79,51 @@ class ConfigBindingTest {
                 }
             }
         });
+    }
+
+    @Test
+    void theGroupPrefixFormsOf4xBindToTheirPeriodItems() throws IOException {
+        RuntimeSpec spec = edgeSpec();
+        // before-prefix = false: the period around the business prefix, inside the suffix.
+        assertThat(codecOf(spec, "grouped"), is(new GroupedCodecSpec.DatePrefix("-",
+            List.of(new CodecSpec.Radix(62, 11, true), new CodecSpec.Prefix("G-")), List.of(new CodecSpec.Suffix("!")))));
+        // before-prefix = true (the default): the period right around the value, inside the date prefix and prefix.
+        assertThat(codecOf(spec, "grouped-inside"), is(new GroupedCodecSpec.DatePrefix("/", List.of(new CodecSpec.Radix(36, 13, true)),
+            List.of(new CodecSpec.DatePrefix("yy", "-", DatePrefix.Source.NOW, ZoneId.of("UTC")), new CodecSpec.Prefix("P")))));
+        // enabled = false: the value alone.
+        assertThat(codecOf(spec, "grouped-plain"), is(new GroupedCodecSpec.ValueOnly(List.of(new CodecSpec.Prefix("N")))));
+    }
+
+    @Test
+    void theSequenceResetThresholdOf4xKeepsItsLayout() throws IOException {
+        // cosid.snowflake.share.sequence-reset-threshold = 7 in the edge input: converted, and bound to the same layout.
+        Legacy4x legacy = new Legacy4x(FlatConfig.load(MigrationScenarioTest.resource("config/edge/input.yaml")));
+        Layout layout = ConfigConverter.targetLayouts(legacy).get(Legacy4x.DEFAULT);
+        assertThat(layout.seqResetThreshold(), is(7L));
+        assertThat(((GeneratorSpec.Snowflake) edgeSpec().generators().get(Legacy4x.DEFAULT)).layout(), is(layout));
+        assertThat(ConfigConverter.layoutsOf5(FlatConfig.load(MigrationScenarioTest.resource("config/edge/expected.yaml"))).get(Legacy4x.DEFAULT),
+            is(layout));
+    }
+
+    @Test
+    void theStatefulSetSlotBindsFromThePodOrdinal() throws IOException {
+        MachineSpec.Static machine = (MachineSpec.Static) edgeSpec().machine().orElseThrow();
+        assertThat(machine.slot(), is(3));
+        assertThat(machine.bits(), is(8));
+    }
+
+    private static GroupedCodecSpec codecOf(RuntimeSpec spec, String generator) {
+        return ((GeneratorSpec.PeriodicSegment) spec.generators().get(generator)).codec();
+    }
+
+    private static RuntimeSpec edgeSpec() throws IOException {
+        StandardEnvironment environment = new StandardEnvironment();
+        for (PropertySource<?> source : new YamlPropertySourceLoader().load("edge",
+            new FileSystemResource(MigrationScenarioTest.resource("config/edge/expected.yaml")))) {
+            environment.getPropertySources().addFirst(source);
+        }
+        environment.getPropertySources().addLast(new MapPropertySource("slots", Map.of("POD_ORDINAL", "3")));
+        return CosIdSpecs.toSpec(Binder.get(environment).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class)), ZoneId.of("UTC"));
     }
 
     @Test

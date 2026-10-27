@@ -2,7 +2,7 @@
 #   ./gradlew :server:dockerImage :examples:server:bootJar
 #   docker compose -f examples/server/compose.yaml up
 # then: curl localhost:8080/ids/next, curl localhost:8080/orders/next, and the server's own id endpoint:
-#   curl -H 'Authorization: Bearer change-me' localhost:8688/v5/ids/ticket
+#   curl -H 'Authorization: Bearer change-me' localhost:8688/ids/ticket
 services:
   redis:
     image: redis:8.10-alpine

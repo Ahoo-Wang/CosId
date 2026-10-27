@@ -91,6 +91,23 @@ class SegmentGeneratorTest {
     }
 
     @Test
+    void defaultsNeverIssueZero() {
+        try (SegmentGenerator generator = generator(BatchPolicy.DEFAULT, Runnable::run, TimeSource.SYSTEM)) {
+            assertThat(generator.generate(), is(1L));
+            assertThat(generator.generate(), is(2L));
+            assertThat(store.reserved().get(0).start(), is(1L));
+        }
+    }
+
+    @Test
+    void anExplicitZeroOffsetStartsAtZero() {
+        BatchPolicy fromZero = new BatchPolicy(10, 0, Duration.ZERO, 10, Duration.ofSeconds(3), Optional.empty());
+        try (SegmentGenerator generator = generator(fromZero, Runnable::run, TimeSource.SYSTEM)) {
+            assertThat(generator.generate(), is(0L));
+        }
+    }
+
+    @Test
     void withoutLookaheadReservesOnlyWhenUsedUp() {
         try (SegmentGenerator generator = generator(noPrefetch(1), Runnable::run, TimeSource.SYSTEM)) {
             for (long expected = 0; expected < 50; expected++) {

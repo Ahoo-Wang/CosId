@@ -17,7 +17,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * An application on cosid-server: its machine slot and its segments come from the server's {@code /v5} API through the
+ * An application on cosid-server: its machine slot and its segments come from the server's HTTP API through the
  * {@code remote} store, so it needs no database driver and no store credentials, only a token.
  */
 @SpringBootApplication

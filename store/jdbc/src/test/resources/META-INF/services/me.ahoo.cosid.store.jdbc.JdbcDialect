@@ -1,1 +1,2 @@
 me.ahoo.cosid.store.jdbc.JdbcDialectsTest$TestDialect
+me.ahoo.cosid.store.jdbc.JdbcStoreProviderTest$FixedClockH2Dialect

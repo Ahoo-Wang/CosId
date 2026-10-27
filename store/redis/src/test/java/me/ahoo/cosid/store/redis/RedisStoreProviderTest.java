@@ -27,6 +27,8 @@ import me.ahoo.cosid.store.StoreProvider;
 
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
 import org.junit.jupiter.api.Test;
+import org.testcontainers.DockerClientFactory;
+import org.testcontainers.containers.GenericContainer;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -114,6 +116,32 @@ class RedisStoreProviderTest {
             throw new IllegalStateException("close");
         });
         assertInstanceOf(IllegalStateException.class, assertThrows(RedisStoreException.class, failing::close).getCause());
+    }
+
+    @Test
+    void storeTimeoutBoundsACommandToAServerThatStoppedAnswering() {
+        // A container of its own: pausing it freezes the server with its socket open, so only the store timeout ends the call.
+        try (GenericContainer<?> redis = new GenericContainer<>(RedisServers.IMAGE).withExposedPorts(6379)) {
+            redis.start();
+            String uri = "redis://" + redis.getHost() + ":" + redis.getMappedPort(6379);
+            StoreConfig config = new StoreConfig("paused", RedisStoreProvider.TYPE, Duration.ofMillis(500), Map.of("uri", uri, "wait", "off"),
+                Optional.empty());
+            try (Store store = new RedisStoreProvider().open(config)) {
+                String key = "timeout-" + UUID.randomUUID();
+                assertEquals(0, store.ranges().reserve(key, 1, 0).start());
+                var docker = DockerClientFactory.instance().client();
+                docker.pauseContainerCmd(redis.getContainerId()).exec();
+                try {
+                    long start = System.nanoTime();
+                    RedisStoreException error = assertThrows(RedisStoreException.class, () -> store.ranges().reserve(key, 1, 0));
+                    long millis = (System.nanoTime() - start) / 1_000_000;
+                    assertTrue(error.getMessage().contains("did not answer within PT0.5S"), error::getMessage);
+                    assertTrue(millis >= 450 && millis < 5_000, "the store timeout bounds the call: " + millis + " ms");
+                } finally {
+                    docker.unpauseContainerCmd(redis.getContainerId()).exec();
+                }
+            }
+        }
     }
 
     @Test

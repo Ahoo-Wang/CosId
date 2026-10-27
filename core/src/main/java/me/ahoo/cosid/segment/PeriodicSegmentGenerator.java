@@ -48,6 +48,7 @@ public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoC
 
     private final String name;
     private final String key;
+    private final String storeName;
     private final Period period;
     private final ZoneId zone;
     private final RangeStore store;
@@ -84,8 +85,31 @@ public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoC
     public PeriodicSegmentGenerator(String name, String key, Period period, ZoneId zone, RangeStore store,
                                     BatchPolicy policy, PeriodicPolicy periodic, Executor refillExecutor,
                                     TimeSource time, GeneratorListener listener) {
+        this(name, key, "", period, zone, store, policy, periodic, refillExecutor, time, listener);
+    }
+
+    /**
+     * A periodic segment generator on a named store. It reserves nothing until the first {@link #generate()}.
+     *
+     * @param name           the generator name, for events and errors
+     * @param key            the range key the period keys are appended to
+     * @param storeName      the store name, for {@link GeneratorListener#onStoreTimeout} when a caller waits for a
+     *                       refill longer than the reserve timeout
+     * @param period         the period
+     * @param zone           the time zone the periods follow
+     * @param store          the range store
+     * @param policy         the batch policy of each period
+     * @param periodic       the periodic policy
+     * @param refillExecutor runs the reservations
+     * @param time           the time source
+     * @param listener       the event listener
+     */
+    public PeriodicSegmentGenerator(String name, String key, String storeName, Period period, ZoneId zone, RangeStore store,
+                                    BatchPolicy policy, PeriodicPolicy periodic, Executor refillExecutor,
+                                    TimeSource time, GeneratorListener listener) {
         this.name = Objects.requireNonNull(name, "name");
         this.key = Objects.requireNonNull(key, "key");
+        this.storeName = Objects.requireNonNull(storeName, "storeName");
         this.period = Objects.requireNonNull(period, "period");
         this.zone = Objects.requireNonNull(zone, "zone");
         this.store = Objects.requireNonNull(store, "store");
@@ -220,7 +244,7 @@ public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoC
     }
 
     private SegmentGenerator newGenerator(String periodKey) {
-        return new SegmentGenerator(name, storeKey(periodKey), store, policy, refillExecutor, time, listener);
+        return new SegmentGenerator(name, storeKey(periodKey), storeName, store, policy, refillExecutor, time, listener);
     }
 
     private String storeKey(String periodKey) {

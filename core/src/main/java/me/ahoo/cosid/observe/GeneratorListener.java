@@ -78,6 +78,15 @@ public interface GeneratorListener {
     default void onDuplicateOwnerKey(String namespace, String ownerKey) {
     }
 
+    /**
+     * A store took too long: a call failed with the store's own timeout ({@link me.ahoo.cosid.store.StoreTimeoutException},
+     * itself or as a cause), operation {@code reserve}, {@code seal}, {@code acquire}, {@code renew} or
+     * {@code release}; or callers waited for a segment refill longer than the reserve timeout, operation
+     * {@code reserve-wait}, once per refill however many callers gave up.
+     *
+     * @param store     the store name
+     * @param operation the operation
+     */
     default void onStoreTimeout(String store, String operation) {
     }
 }

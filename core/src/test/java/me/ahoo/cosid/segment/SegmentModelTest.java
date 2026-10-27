@@ -33,6 +33,7 @@ class SegmentModelTest {
     @Test
     void batchPolicyDefaults() {
         assertThat(BatchPolicy.DEFAULT.step(), is(100L));
+        assertThat(BatchPolicy.DEFAULT.initialOffset(), is(1L));
         assertThat(BatchPolicy.DEFAULT.maxBatch(), is(1_048_600L));
         assertThat(BatchPolicy.DEFAULT.lookahead(), is(Duration.ofSeconds(1)));
         assertThat(BatchPolicy.DEFAULT.reserveTimeout(), is(Duration.ofSeconds(3)));

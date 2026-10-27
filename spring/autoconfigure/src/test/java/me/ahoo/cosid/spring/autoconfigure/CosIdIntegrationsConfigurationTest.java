@@ -20,14 +20,15 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import me.ahoo.cosid.integrations.axon.CosIdIdentifierFactory;
-import me.ahoo.cosid.integrations.jackson.AsString;
-import me.ahoo.cosid.integrations.jackson.CosIdJacksonModule;
-import me.ahoo.cosid.integrations.jdbc.CosIdBeforeConvertCallback;
-import me.ahoo.cosid.integrations.mybatis.CosIdInterceptor;
-import me.ahoo.cosid.integrations.workflow.ActivitiIdGenerator;
-import me.ahoo.cosid.integrations.workflow.FlowableIdGenerator;
+import me.ahoo.cosid.activiti.ActivitiIdGenerator;
+import me.ahoo.cosid.axon.CosIdIdentifierFactory;
+import me.ahoo.cosid.flowable.FlowableIdGenerator;
+import me.ahoo.cosid.jackson.AsString;
+import me.ahoo.cosid.jackson.CosIdJacksonModule;
+import me.ahoo.cosid.mybatis.CosIdInterceptor;
+import me.ahoo.cosid.spring.data.jdbc.CosIdBeforeConvertCallback;
 
 import org.axonframework.common.IdentifierFactory;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,6 @@ import tools.jackson.databind.json.JsonMapper;
 
 /** {@link CosIdIntegrationsConfiguration}: each integration on its classes and properties, the Axon binding lifecycle. */
 class CosIdIntegrationsConfigurationTest {
-    static final String UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
     static final ApplicationContextRunner RUNNER = CosIdAutoConfigurationTest.withStores()
         .withConfiguration(AutoConfigurations.of(CosIdIntegrationsConfiguration.class))
         .withPropertyValues(CosIdAutoConfigurationTest.MIXED);
@@ -111,6 +111,80 @@ class CosIdIntegrationsConfigurationTest {
     }
 
     @Test
+    void flowableIdGeneratorOnTheSpringProperty() {
+        RUNNER.withPropertyValues("cosid.flowable.generator-name=order").run(context -> {
+            assertNull(context.getStartupFailure());
+            FlowableIdGenerator generator = (FlowableIdGenerator) flowableEngine(context).getIdGenerator();
+            assertThat(generator.generator(), is("order"));
+            assertThat(generator.getNextId(), startsWith("O"));
+        });
+    }
+
+    @Test
+    void springPropertyWinsOverTheSystemPropertyForWorkflowEngines() {
+        System.setProperty(ActivitiIdGenerator.ID_KEY, "order");
+        System.setProperty(FlowableIdGenerator.ID_KEY, "order");
+        try {
+            // Without the Spring property, the system property names the generator.
+            RUNNER.run(context -> {
+                assertNull(context.getStartupFailure());
+                ActivitiIdGenerator activiti = (ActivitiIdGenerator) activitiEngine(context).getIdGenerator();
+                assertThat(activiti.generator(), is("order"));
+                assertThat(activiti.getNextId(), startsWith("O"));
+                FlowableIdGenerator flowable = (FlowableIdGenerator) flowableEngine(context).getIdGenerator();
+                assertThat(flowable.generator(), is("order"));
+                assertThat(flowable.getNextId(), startsWith("O"));
+            });
+            // The Spring property wins over it.
+            RUNNER.withPropertyValues("cosid.activiti.generator-name=default", "cosid.flowable.generator-name=default").run(context -> {
+                assertNull(context.getStartupFailure());
+                ActivitiIdGenerator activiti = (ActivitiIdGenerator) activitiEngine(context).getIdGenerator();
+                assertThat(activiti.generator(), is("default"));
+                assertThat(activiti.getNextId(), matchesPattern("\\d+"));
+                FlowableIdGenerator flowable = (FlowableIdGenerator) flowableEngine(context).getIdGenerator();
+                assertThat(flowable.generator(), is("default"));
+                assertThat(flowable.getNextId(), matchesPattern("\\d+"));
+            });
+        } finally {
+            System.clearProperty(ActivitiIdGenerator.ID_KEY);
+            System.clearProperty(FlowableIdGenerator.ID_KEY);
+        }
+    }
+
+    @Test
+    void springPropertyWinsOverTheSystemPropertyForAxon() {
+        IdentifierFactory axon = IdentifierFactory.getInstance();
+        System.setProperty(CosIdIdentifierFactory.ID_KEY, "order");
+        try {
+            RUNNER.run(context -> {
+                assertNull(context.getStartupFailure());
+                assertThat("without the Spring property, the system property names the generator", axon.generateIdentifier(), startsWith("O"));
+            });
+            RUNNER.withPropertyValues("cosid.axon.generator-name=bill").run(context -> {
+                assertNull(context.getStartupFailure());
+                assertThat("the Spring property wins", axon.generateIdentifier(), matchesPattern("\\d{14}"));
+            });
+        } finally {
+            System.clearProperty(CosIdIdentifierFactory.ID_KEY);
+        }
+        // Both contexts closed: nothing is bound.
+        assertThrows(IllegalStateException.class, axon::generateIdentifier);
+    }
+
+    private static org.activiti.spring.SpringProcessEngineConfiguration activitiEngine(org.springframework.context.ApplicationContext context) {
+        org.activiti.spring.SpringProcessEngineConfiguration engine = new org.activiti.spring.SpringProcessEngineConfiguration();
+        context.getBean(org.activiti.spring.boot.ProcessEngineConfigurationConfigurer.class).configure(engine);
+        return engine;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static org.flowable.spring.SpringProcessEngineConfiguration flowableEngine(org.springframework.context.ApplicationContext context) {
+        org.flowable.spring.SpringProcessEngineConfiguration engine = new org.flowable.spring.SpringProcessEngineConfiguration();
+        context.getBean(org.flowable.spring.boot.EngineConfigurationConfigurer.class).configure(engine);
+        return engine;
+    }
+
+    @Test
     void axonFollowsEachContextsRuntime() {
         IdentifierFactory axon = IdentifierFactory.getInstance();
         assertThat(axon, instanceOf(CosIdIdentifierFactory.class));
@@ -122,7 +196,8 @@ class CosIdIntegrationsConfigurationTest {
             // The second context closed: back to the first one's runtime.
             assertThat(axon.generateIdentifier(), startsWith("O"));
         });
-        assertThat(axon.generateIdentifier(), matchesPattern(UUID_PATTERN));
+        // Both contexts closed: nothing is bound.
+        assertThrows(IllegalStateException.class, axon::generateIdentifier);
     }
 
     @Test
@@ -131,9 +206,10 @@ class CosIdIntegrationsConfigurationTest {
             assertThat(context.getBeanNamesForType(CosIdJacksonModule.class).length, is(0));
             assertThat(context.getBeanNamesForType(CosIdInterceptor.class).length, is(0));
         });
-        RUNNER.withClassLoader(new FilteredClassLoader("me.ahoo.cosid.integrations")).run(context -> {
+        RUNNER.withClassLoader(new FilteredClassLoader("me.ahoo.cosid.jackson", "me.ahoo.cosid.axon")).run(context -> {
             assertNull(context.getStartupFailure());
             assertThat(context.getBeanNamesForType(CosIdJacksonModule.class).length, is(0));
+            assertThat(context.getBeanNamesForType(CosIdInterceptor.class).length, is(1));
         });
     }
 }

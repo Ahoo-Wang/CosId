@@ -148,8 +148,8 @@ class ServerClientApplicationTest {
 
     @Test
     void theServerIssuesIdsToATokenOnly() throws Exception {
-        assertEquals(401, send(serverUrl + "/v5/ids/ticket", null).statusCode());
-        JsonNode ids = ok(serverUrl + "/v5/ids/ticket?count=3", TOKEN).get("ids");
+        assertEquals(401, send(serverUrl + "/ids/ticket", null).statusCode());
+        JsonNode ids = ok(serverUrl + "/ids/ticket?count=3", TOKEN).get("ids");
         assertEquals(3, ids.size());
         assertThat(ids.get(2).asLong(), greaterThan(ids.get(0).asLong()));
     }

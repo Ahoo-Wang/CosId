@@ -2,11 +2,25 @@
 
 The MongoDB store of CosId 5 (`docs/architecture/06-stores.md` §2.3): `MongoRangeStore` (`cosid_range`) and
 `MongoSlotLeaseStore` (`cosid_slot`, `cosid_namespace`) over `mongodb-driver-sync`, opened by `MongoStoreProvider`
-(type `mongo`). It needs a replica set (or a sharded cluster): every operation reads and writes with `majority` concern.
+(type `mongo`). It needs a replica set (or a sharded cluster): every operation reads with `majority` concern and, by
+default, writes with `majority` concern.
 
 - **Supported:** MongoDB **6.0 or later**. CI runs the store TCK on `mongo:6.0` (the minimum) and `mongo:8.0`.
 - **Options:** `uri` (required unless a `MongoClient` is injected through `StoreConfig.client`), `database`
-  (default `cosid_db`). `StoreConfig.timeout` becomes the driver's `timeoutMS`; zero means none.
+  (default `cosid_db`), `writeConcern` (default `majority`, see below). `StoreConfig.timeout` becomes the driver's
+  `timeoutMS`; zero means none. An operation that runs out of it fails with `StoreTimeoutException`.
+
+## Write concern
+
+`options.writeConcern` takes `majority` (the default), `acknowledged`, `w1`, `w2`, `w3`, `journaled` (any case), or a
+number of members (`w: n`, at least 1). `unacknowledged`, `0` and anything else fail the store at open. Reads stay
+`majority` on the primary whatever the write concern.
+
+**The uniqueness of the ids rests on "an acknowledged write is never lost"** (已确认的写入不会丢失). Only `majority`
+guarantees it across a failover: with anything weaker, a failover can lose range and lease writes acknowledged by fewer
+than a majority, and so hand out duplicate ids. The provider logs a startup `WARN` for every such store. `acknowledged`
+and `journaled` leave `w` to the server default (majority on most replica sets since 5.0, but not guaranteed), so they
+warn too.
 
 ## 实测兼容性(不承诺)
 

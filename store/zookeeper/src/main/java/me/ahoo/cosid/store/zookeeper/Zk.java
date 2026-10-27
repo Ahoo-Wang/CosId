@@ -14,6 +14,7 @@
 package me.ahoo.cosid.store.zookeeper;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.store.StoreTimeoutException;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.BackgroundCallback;
@@ -97,14 +98,14 @@ final class Zk {
      * @param result   the started operation
      * @param <T>      the result type
      * @return the result
-     * @throws CosIdException on timeout, interruption or a failure
+     * @throws CosIdException on interruption or a failure; {@link StoreTimeoutException} on timeout
      */
     <T> T await(String what, long deadline, CompletableFuture<T> result) {
         try {
             return result.get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
         } catch (TimeoutException e) {
             result.cancel(false);
-            throw new CosIdException("ZooKeeper " + what + " timed out", e);
+            throw new StoreTimeoutException("ZooKeeper " + what + " timed out", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new CosIdException("ZooKeeper " + what + " interrupted", e);

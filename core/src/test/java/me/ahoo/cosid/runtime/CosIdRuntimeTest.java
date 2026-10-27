@@ -14,33 +14,50 @@
 package me.ahoo.cosid.runtime;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.GeneratorDisabledException;
 import me.ahoo.cosid.GroupedId;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.IntIdGenerator;
+import me.ahoo.cosid.SlotLostException;
+import me.ahoo.cosid.SlotWindowExceededException;
 import me.ahoo.cosid.StringIdGenerator;
+import me.ahoo.cosid.codec.DatePrefix;
 import me.ahoo.cosid.codec.GroupedCodec;
 import me.ahoo.cosid.codec.IdCodec;
 import me.ahoo.cosid.codec.PartsCodec;
+import me.ahoo.cosid.lease.AcquireResult;
+import me.ahoo.cosid.lease.Owner;
 import me.ahoo.cosid.lease.SlotLease;
+import me.ahoo.cosid.lease.SlotLeaseStore;
 import me.ahoo.cosid.observe.GeneratorInfo;
 import me.ahoo.cosid.observe.GeneratorListener;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.segment.Period;
 import me.ahoo.cosid.segment.PeriodicPolicy;
 import me.ahoo.cosid.segment.PeriodicSegmentGenerator;
+import me.ahoo.cosid.segment.RangeStore;
 import me.ahoo.cosid.segment.SegmentGenerator;
+import me.ahoo.cosid.store.Store;
+import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.StoreProvider;
+import me.ahoo.cosid.store.tck.Fault;
+import me.ahoo.cosid.store.tck.FaultInjector;
+import me.ahoo.cosid.store.tck.FaultySlotLeaseStore;
+import me.ahoo.cosid.store.tck.InMemoryStore;
+import me.ahoo.cosid.store.tck.ManualClock;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.IdParts;
 import me.ahoo.cosid.time.Layout;
@@ -56,6 +73,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +81,10 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 class CosIdRuntimeTest {
     static final ZoneId SHANGHAI = ZoneId.of("Asia/Shanghai");
@@ -199,7 +220,7 @@ class CosIdRuntimeTest {
             assertThat(runtime.slot(), is(Optional.empty()));
             assertThat(db.backing("db").acquire("app", new me.ahoo.cosid.lease.Owner("other", java.util.UUID.randomUUID()), 1024,
                 Duration.ofSeconds(1), Duration.ZERO, OptionalInt.empty()), instanceOf(me.ahoo.cosid.lease.AcquireResult.Acquired.class));
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
         }
     }
 
@@ -257,7 +278,7 @@ class CosIdRuntimeTest {
         RuntimeOptions withClient = new RuntimeOptions(base.time(), base.executor(), base.listener(), base.storeProviders(),
             Map.of("cache", client), base.hostResolver(), base.port(), base.codecs());
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, withClient)) {
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
             assertThat(cache.configs.getFirst().client().orElseThrow(), sameInstance(client));
             assertThat(cache.configs.getFirst().options().get("wait"), is("auto"));
             assertThat(cache.configs.getFirst().timeout(), is(TIMEOUT));
@@ -286,7 +307,7 @@ class CosIdRuntimeTest {
             assertThat(info.store(), is("gone"));
             assertThat(info.details(), is(Map.of("disabled", true)));
             assertThat(runtime.describe().get("default").strategy(), is("snowflake"));
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
         }
         assertThrows(IllegalArgumentException.class, () -> new GeneratorSpec.Disabled(new GeneratorSpec.Disabled(segment("db"))));
     }
@@ -334,8 +355,8 @@ class CosIdRuntimeTest {
             for (int i = 0; i < 10; i++) {
                 runtime.generator("byClass").generate();
             }
-            assertThat(runtime.stringGenerator("byClass").generate(), is("ah"));
-            assertThat(runtime.stringGenerator("byInstance").generate(), is("0"));
+            assertThat(runtime.stringGenerator("byClass").generate(), is("bh"));
+            assertThat(runtime.stringGenerator("byInstance").generate(), is("1"));
         }
     }
 
@@ -344,13 +365,13 @@ class CosIdRuntimeTest {
         RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", store(ServiceLoadedStores.TYPE)), Optional.empty(),
             Map.of("order", segment("db")));
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options())) {
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
             assertThat(ServiceLoadedStores.OPENED.get(), greaterThan(0));
         }
         int loaded = ServiceLoadedStores.OPENED.get();
         TestStores explicit = new TestStores(ServiceLoadedStores.TYPE);
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(explicit))) {
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
         }
         assertThat(explicit.events, contains("open:db", "close:db"));
         assertThat(ServiceLoadedStores.OPENED.get(), is(loaded));
@@ -361,9 +382,166 @@ class CosIdRuntimeTest {
         RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", store(ServiceLoadedStores.TYPE)), Optional.empty(),
             Map.of("order", segment("db")));
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, RuntimeOptions.defaults())) {
-            assertThat(runtime.generator("order").generate(), is(0L));
+            assertThat(runtime.generator("order").generate(), is(1L));
         }
         assertThat(HostResolver.LOCAL.host(), is(not("")));
+    }
+
+    @Test
+    void theDatePrefixPositionInTheCodecListDecidesWhatItPrecedes() {
+        ManualClock clock = new ManualClock(1_800_000_000_000L);
+        String today = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC).format(Instant.ofEpochMilli(clock.currentMillis()));
+        CodecSpec.DatePrefix date = new CodecSpec.DatePrefix("yyyyMMdd", "-", DatePrefix.Source.NOW, ZoneOffset.UTC);
+        CodecSpec.Radix digits = new CodecSpec.Radix(10, 6, true);
+        TestStores db = new TestStores("memory");
+        RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", store("memory")), Optional.empty(),
+            Map.of(
+                // Each decorator wraps the text built so far: the date prefix last puts the date before the "O".
+                "dateOutside", segment("db", digits, new CodecSpec.Prefix("O"), date),
+                // The date prefix before the "O" prefix puts the "O" before the date.
+                "dateInside", segment("db", digits, date, new CodecSpec.Prefix("O"))));
+        try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(clock, GeneratorListener.NOOP, db))) {
+            StringIdGenerator outside = runtime.stringGenerator("dateOutside");
+            String outsideText = outside.generate();
+            assertThat(outsideText, matchesPattern("\\d{8}-O\\d{6}"));
+            assertThat(outsideText, is(today + "-O000001"));
+            assertThat(outside.codec().decode(outsideText), is(1L));
+            String nextOutside = outside.generate();
+            assertThat(nextOutside, is(today + "-O000002"));
+            assertThat(outside.codec().decode(nextOutside), is(2L));
+
+            StringIdGenerator inside = runtime.stringGenerator("dateInside");
+            String insideText = inside.generate();
+            assertThat(insideText, matchesPattern("O\\d{8}-\\d{6}"));
+            assertThat(insideText, is("O" + today + "-000001"));
+            assertThat(inside.codec().decode(insideText), is(1L));
+            long id = runtime.generator("dateInside").generate();
+            assertThat(inside.codec().decode(inside.codec().encode(id)), is(id));
+            // Each codec rejects the other's shape.
+            assertThrows(IllegalArgumentException.class, () -> inside.codec().decode(outsideText));
+            assertThrows(IllegalArgumentException.class, () -> outside.codec().decode(insideText));
+        }
+    }
+
+    /** A provider of one store over {@code memory} whose slot leases go through {@code slots}. */
+    static StoreProvider wrapping(String type, InMemoryStore memory, SlotLeaseStore slots) {
+        return new StoreProvider() {
+            @Override
+            public String type() {
+                return type;
+            }
+
+            @Override
+            public Store open(StoreConfig config) {
+                return new Store() {
+                    @Override
+                    public RangeStore ranges() {
+                        return memory;
+                    }
+
+                    @Override
+                    public SlotLeaseStore slots() {
+                        return slots;
+                    }
+
+                    @Override
+                    public void close() {
+                    }
+                };
+            }
+        };
+    }
+
+    @Test
+    void theDefaultExecutorRunsRenewalsOnVirtualThreads() throws InterruptedException {
+        InMemoryStore memory = new InMemoryStore();
+        List<Thread> renewers = new CopyOnWriteArrayList<>();
+        CountDownLatch renewed = new CountDownLatch(1);
+        SlotLeaseStore recording = new SlotLeaseStore() {
+            @Override
+            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+                return memory.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot);
+            }
+
+            @Override
+            public Optional<SlotLease> renew(SlotLease lease, Duration ttl, Duration tolerance) {
+                renewers.add(Thread.currentThread());
+                renewed.countDown();
+                return memory.renew(lease, ttl, tolerance);
+            }
+
+            @Override
+            public boolean release(SlotLease lease, long lastIssued) {
+                return memory.release(lease, lastIssued);
+            }
+        };
+        RuntimeOptions defaults = RuntimeOptions.defaults();
+        assertThat(defaults.executor(), is(Optional.empty()));
+        RuntimeOptions withStore = new RuntimeOptions(defaults.time(), defaults.executor(), defaults.listener(),
+            List.of(wrapping("recording", memory, recording)), defaults.clients(), defaults.hostResolver(), defaults.port(), defaults.codecs());
+        // A short ttl: the keeper renews every ttl/3.
+        MachineSpec.Leased machine = new MachineSpec.Leased("lease", 10, Duration.ofMillis(300), Duration.ofMillis(100), OptionalInt.empty(),
+            Optional.empty());
+        RuntimeSpec spec = new RuntimeSpec("app", Map.of("lease", store("recording")), Optional.of(machine),
+            Map.of("default", snowflake(Layout.SNOWFLAKE_MS)));
+        try (CosIdRuntime runtime = CosIdRuntime.start(spec, withStore)) {
+            assertThat(runtime.generator("default").generate(), greaterThan(0L));
+            assertThat(renewed.await(10, TimeUnit.SECONDS), is(true));
+            Thread renewer = renewers.getFirst();
+            assertThat(renewer.isVirtual(), is(true));
+            assertThat(renewer.getName(), startsWith("cosid-app-"));
+            assertThat(renewer, is(not(Thread.currentThread())));
+        }
+    }
+
+    @Test
+    void aLostLeaseStopsTheSnowflakeGeneratorWithoutIssuingAnId() throws InterruptedException {
+        ManualClock clock = new ManualClock(1_800_000_000_000L);
+        InMemoryStore memory = new InMemoryStore(clock);
+        FaultInjector faults = new FaultInjector();
+        CountDownLatch lost = new CountDownLatch(1);
+        GeneratorListener listener = new GeneratorListener() {
+            @Override
+            public void onSlotLost(SlotLease lease) {
+                lost.countDown();
+            }
+        };
+        // One bit: two slots, so two strangers leave none to re-acquire. A short ttl: the keeper renews every 200ms.
+        MachineSpec.Leased machine = new MachineSpec.Leased("lease", 1, Duration.ofMillis(600), Duration.ZERO, OptionalInt.empty(),
+            Optional.empty());
+        RuntimeSpec spec = new RuntimeSpec("app", Map.of("lease", store("faulty")), Optional.of(machine),
+            Map.of("default", snowflake(Layout.SNOWFLAKE_MS)));
+        StoreProvider faulty = wrapping("faulty", memory, new FaultySlotLeaseStore(memory, faults));
+        try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(clock, listener, faulty))) {
+            IdGenerator ids = runtime.generator("default");
+            assertThat(ids.generate(), greaterThan(0L));
+            int slot = runtime.slot().orElseThrow().slot();
+
+            // The renewals fail while the lease expires and strangers take both slots, ours included.
+            faults.always(FaultInjector.Operation.RENEW, new Fault.Fail(() -> new CosIdException("down")));
+            clock.advance(Duration.ofSeconds(10));
+            AcquireResult stolen = memory.acquire("app", new Owner("stranger", UUID.randomUUID()), 2, Duration.ofSeconds(30),
+                Duration.ZERO, OptionalInt.of(slot));
+            assertThat(((AcquireResult.Acquired) stolen).lease().slot(), is(slot));
+            AcquireResult other = memory.acquire("app", new Owner("stranger-2", UUID.randomUUID()), 2, Duration.ofSeconds(30),
+                Duration.ZERO, OptionalInt.of(1 - slot));
+            assertThat(((AcquireResult.Acquired) other).lease().slot(), is(1 - slot));
+
+            // The clock is past the ceiling of the stolen lease: refused by the window check, or as lost if the keeper
+            // already gave the slot up; never an id.
+            RuntimeException refused = assertThrows(RuntimeException.class, ids::generate);
+            assertThat(refused, anyOf(instanceOf(SlotWindowExceededException.class), instanceOf(SlotLostException.class)));
+
+            // The store answers again: the next renewal finds the slot taken, and nothing is left to re-acquire.
+            faults.clear();
+            assertThat(lost.await(10, TimeUnit.SECONDS), is(true));
+            assertThat(runtime.slot(), is(Optional.empty()));
+            for (int i = 0; i < 100; i++) {
+                assertThrows(SlotLostException.class, ids::generate);
+            }
+            clock.advance(Duration.ofSeconds(1));
+            assertThrows(SlotLostException.class, ids::generate);
+        }
     }
 
     /**

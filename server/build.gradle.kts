@@ -12,7 +12,7 @@
  */
 
 // cosid-server (08-remote.md): a Spring Boot application, not a library. It exposes the two store primitives of its
-// backing store (cosid.stores) under /v5 and, optionally, the generators of its CosIdRuntime. Nothing may depend on it
+// backing store (cosid.stores) at the root (no version prefix) and, optionally, the generators of its CosIdRuntime. Nothing may depend on it
 // (DependencyRules); its tests run the store TCK through store/remote against a server started in process.
 plugins {
     id("cosid.java")

@@ -18,11 +18,14 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import me.ahoo.cosid.store.StoreTimeoutException;
+
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.SQLTimeoutException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
@@ -55,6 +58,19 @@ class JdbcSupportTest {
             }
         });
         assertEquals(3, timeout);
+    }
+
+    @Test
+    void aStatementThatRunsOutOfTheTimeoutIsAStoreTimeout() {
+        Jdbc jdbc = new Jdbc(h2(), JdbcDialects.H2, JdbcTables.DEFAULT, Duration.ofSeconds(1));
+        SQLTimeoutException cause = new SQLTimeoutException("Statement was canceled or the session timed out", "57014");
+        StoreTimeoutException timeout = assertThrows(StoreTimeoutException.class, () -> jdbc.run("reserve", session -> {
+            throw cause;
+        }));
+        assertSame(cause, timeout.getCause());
+        assertThrows(JdbcStoreException.class, () -> jdbc.run("reserve", session -> {
+            throw new SQLException("other", "42000");
+        }));
     }
 
     @Test

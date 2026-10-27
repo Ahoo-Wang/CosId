@@ -22,4 +22,3 @@ cosid:
     order:
       strategy: segment
       store: remote
-      initial-offset: 1

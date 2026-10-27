@@ -6,7 +6,8 @@ its backing store in one round trip; that store also runs the slot choice and st
 `HttpClient` and has no third-party dependency. `RemoteStoreProvider` opens it as type `remote`.
 
 - **Options:** `baseUrl` (required), `token` (the bearer token), `connectTimeout` (default 5s), `requestTimeout`
-  (default `StoreConfig.timeout`). Durations are a `Duration`, milliseconds, ISO-8601 or `500ms` / `3s` / `1m` / `1h`.
+  (default `StoreConfig.timeout`; a request that runs out of it fails with a `RemoteStoreException` whose cause is a
+  `StoreTimeoutException`). Durations are a `Duration`, milliseconds, ISO-8601 or `500ms` / `3s` / `1m` / `1h`.
 - **Errors:** the answers a primitive has an outcome for map to that outcome:
   - `410` → `RangeSealedException`
   - `422` → `RangeExhaustedException`

@@ -61,6 +61,7 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
 | D28 | 低于最低版本的若干版本各实测一次 TCK(非阻塞),结果写入"实测兼容性(不承诺)"文档,不加兼容代码 | 已定 |
 | D29 | 集成适配器按第三方依赖拆分为 `integrations/{jackson,mybatis,spring-data-jdbc,activiti,flowable,axon}`,artifactId 为 `cosid-*`(与 4.x 坐标一致);每个模块只依赖自己的第三方库;Axon 未绑定时报错 | 已定 |
 | D30 | `cosid-server` 的 HTTP API 不带版本前缀(`/ranges:reserve`、`/slots:*`、`/ids/*`) | 已定 |
+| D31 | 基准测试不在本地运行;发布门槛在 CI(`release-gate` workflow,同一 runner 上交替运行 4.1.0 与 5.x)上判定 | 已定 |
 | D24 | 不提供租约丢失后继续发号的开关(P1);运行时删除生成器改为启动期的 `disabled` 配置(P2) | 已定 |
 
 ## 术语

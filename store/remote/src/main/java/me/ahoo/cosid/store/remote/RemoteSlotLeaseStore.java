@@ -28,7 +28,7 @@ import java.util.OptionalInt;
 import java.util.UUID;
 
 /**
- * {@link SlotLeaseStore} over {@code POST /v5/slots:*}: the server runs the slot choice (05 §2.1) on its backing store
+ * {@link SlotLeaseStore} over {@code POST /slots:*}: the server runs the slot choice (05 §2.1) on its backing store
  * and the backing store stamps the times, in one round trip. Leases travel flat:
  * {@code {namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow}}.
  */

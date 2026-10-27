@@ -19,4 +19,6 @@ plugins {
 dependencies {
     jmh(project(":core"))
     jmh(project(":store:tck"))
+    // P10 (MongoDB)
+    jmh(project(":store:mongo"))
 }

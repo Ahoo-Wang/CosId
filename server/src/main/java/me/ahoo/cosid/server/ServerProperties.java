@@ -48,7 +48,11 @@ public record ServerProperties(String store,
      * @param maxSlotLimit        the largest slot limit of a namespace; the stores prepare that many slots
      * @param maxReserve          the largest range one reserve takes
      * @param maxCount            the most ids one id request takes
-     * @param maxKeysPerNamespace the most range keys one namespace may use on this server instance; 0 for no cap
+     * @param maxKeysPerNamespace     the most range keys one client may use in one namespace on this server instance; 0 for
+     *                                no cap
+     * @param maxNamespacesPerClient  the most namespaces one client may use range keys in on this server instance; 0 for no
+     *                                cap (a key without {@code /} is a namespace of its own)
+     * @param keyIdleTimeout          a range key unused this long no longer counts; zero to keep every key
      */
     public record Limits(@DefaultValue("100ms") Duration minTtl,
                          @DefaultValue("1h") Duration maxTtl,
@@ -56,7 +60,9 @@ public record ServerProperties(String store,
                          @DefaultValue("65536") int maxSlotLimit,
                          @DefaultValue("1000000000000") long maxReserve,
                          @DefaultValue("1000") int maxCount,
-                         @DefaultValue("10000") int maxKeysPerNamespace) {
+                         @DefaultValue("10000") int maxKeysPerNamespace,
+                         @DefaultValue("1000") int maxNamespacesPerClient,
+                         @DefaultValue("1h") Duration keyIdleTimeout) {
         public Limits {
             Objects.requireNonNull(minTtl, "min-ttl");
             Objects.requireNonNull(maxTtl, "max-ttl");
@@ -72,6 +78,13 @@ public record ServerProperties(String store,
             positive(maxCount, "max-count");
             if (maxKeysPerNamespace < 0) {
                 throw new IllegalArgumentException(PREFIX + ".limits.max-keys-per-namespace must not be negative: " + maxKeysPerNamespace);
+            }
+            if (maxNamespacesPerClient < 0) {
+                throw new IllegalArgumentException(PREFIX + ".limits.max-namespaces-per-client must not be negative: " + maxNamespacesPerClient);
+            }
+            Objects.requireNonNull(keyIdleTimeout, "key-idle-timeout");
+            if (keyIdleTimeout.isNegative()) {
+                throw new IllegalArgumentException(PREFIX + ".limits.key-idle-timeout must not be negative: " + keyIdleTimeout);
             }
         }
     }
@@ -100,15 +113,20 @@ public record ServerProperties(String store,
      * @param tokens         tokens that may use every namespace and key
      * @param clients        tokens limited to namespaces and key prefixes
      * @param publicPaths    path patterns that need no token
+     * @param adminPaths     path patterns, other than the public ones, that need a token of {@code tokens}: a client token
+     *                       gets {@code 403} there (Actuator, springdoc), since its scope does not apply to them
      */
     public record Auth(boolean allowAnonymous,
                        @DefaultValue List<String> tokens,
                        @DefaultValue List<Client> clients,
-                       @DefaultValue({"/actuator/health", "/actuator/health/**"}) List<String> publicPaths) {
+                       @DefaultValue({"/actuator/health", "/actuator/health/**"}) List<String> publicPaths,
+                       @DefaultValue({"/actuator", "/actuator/**", "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui.html", "/swagger-ui/**"})
+                       List<String> adminPaths) {
         public Auth {
             tokens = List.copyOf(Objects.requireNonNull(tokens, "tokens"));
             clients = List.copyOf(Objects.requireNonNull(clients, "clients"));
             publicPaths = List.copyOf(Objects.requireNonNull(publicPaths, "publicPaths"));
+            adminPaths = List.copyOf(Objects.requireNonNull(adminPaths, "adminPaths"));
         }
     }
 

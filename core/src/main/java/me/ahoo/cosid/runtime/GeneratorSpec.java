@@ -91,4 +91,19 @@ public sealed interface GeneratorSpec {
             Objects.requireNonNull(codec, "codec");
         }
     }
+
+    /**
+     * A declared generator that is not created (D24, 07-runtime-and-spring.md §4.1): looking it up throws
+     * {@link me.ahoo.cosid.GeneratorDisabledException}. It is not validated and needs no store or machine slot.
+     *
+     * @param generator the generator it would be
+     */
+    record Disabled(GeneratorSpec generator) implements GeneratorSpec {
+        public Disabled {
+            Objects.requireNonNull(generator, "generator");
+            if (generator instanceof Disabled) {
+                throw new IllegalArgumentException("A disabled generator must not wrap another disabled one");
+            }
+        }
+    }
 }

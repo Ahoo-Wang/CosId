@@ -18,8 +18,12 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.ahoo.cosid.GroupedId;
+import me.ahoo.cosid.segment.Period;
 
 import org.junit.jupiter.api.Test;
+
+import java.time.Instant;
+import java.time.ZoneId;
 
 class GroupedCodecTest {
     /** A padded decimal codec, so this test does not depend on Radix (R1-A). */
@@ -63,5 +67,47 @@ class GroupedCodecTest {
         assertThrows(IllegalArgumentException.class, () -> codec.decode("-000042"));
         assertThrows(NullPointerException.class, () -> GroupedCodec.datePrefix(null, DECIMAL6));
         assertThrows(NullPointerException.class, () -> GroupedCodec.datePrefix("-", null));
+    }
+
+    @Test
+    void aPresetPeriodDecodesWithoutADelimiter() {
+        GroupedCodec codec = GroupedCodec.datePrefix(Period.YEAR_MONTH_DAY, "", DECIMAL6);
+        assertThat(codec.encode(new GroupedId("20261026", 42)), is("20261026000042"));
+        assertThat(codec.decode("20261026000042"), is(new GroupedId("20261026", 42)));
+        assertThat(GroupedCodec.datePrefix(Period.YEAR, "", DECIMAL6).decode("2026000001"), is(new GroupedId("2026", 1)));
+        // Not a key of the period, or too short.
+        assertThrows(IllegalArgumentException.class, () -> codec.decode("20261332000042"));
+        assertThrows(IllegalArgumentException.class, () -> codec.decode("2026102"));
+    }
+
+    @Test
+    void aPresetPeriodWithADelimiter() {
+        GroupedCodec codec = GroupedCodec.datePrefix(Period.YEAR_MONTH, "-", DECIMAL6.withPrefix("ORD-"));
+        assertThat(codec.encode(new GroupedId("202610", 7)), is("202610-ORD-000007"));
+        assertThat(codec.decode("202610-ORD-000007"), is(new GroupedId("202610", 7)));
+        assertThrows(IllegalArgumentException.class, () -> codec.decode("202610_ORD-000007"));
+        assertThrows(NullPointerException.class, () -> GroupedCodec.datePrefix(null, "-", DECIMAL6));
+    }
+
+    @Test
+    void aCustomPeriodSplitsAtTheDelimiter() {
+        Period quarter = new Period() {
+            @Override
+            public String keyOf(Instant instant, ZoneId zone) {
+                return "2026Q4";
+            }
+
+            @Override
+            public Instant endOf(String key, ZoneId zone) {
+                if (!key.matches("\\d{4}Q[1-4]")) {
+                    throw new IllegalArgumentException(key);
+                }
+                return Instant.EPOCH;
+            }
+        };
+        GroupedCodec codec = GroupedCodec.datePrefix(quarter, "-", DECIMAL6);
+        assertThat(codec.decode("2026Q4-000042"), is(new GroupedId("2026Q4", 42)));
+        assertThrows(IllegalArgumentException.class, () -> codec.decode("2026Q5-000042"));
+        assertThrows(UnsupportedOperationException.class, () -> GroupedCodec.datePrefix(quarter, "", DECIMAL6).decode("2026Q4000042"));
     }
 }

@@ -119,8 +119,9 @@ R0 骨架、接口冻结、4.x 基线基准
 | 后续修复 | 全部合入:Mongo [#1316](https://github.com/Ahoo-Wang/CosId/pull/1316)、`maxBatch` [#1317](https://github.com/Ahoo-Wang/CosId/pull/1317)、Redis 7.0 [#1318](https://github.com/Ahoo-Wang/CosId/pull/1318)、ZK 退避 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK 分配 [#1322](https://github.com/Ahoo-Wang/CosId/pull/1322) | |
 | R3 | 已合入 | [#1319](https://github.com/Ahoo-Wang/CosId/pull/1319) |
 | R3-S | 已合入 | [#1323](https://github.com/Ahoo-Wang/CosId/pull/1323) |
-| R4-C | 审查通过,等 R3-S 合入后验证 `config` 输出可绑定 | [#1324](https://github.com/Ahoo-Wang/CosId/pull/1324) |
-| R4-A / R4-B | 待启动 | |
+| R4-C | 审查通过,同步 R4-A 后合入 | [#1324](https://github.com/Ahoo-Wang/CosId/pull/1324) |
+| R4-A | 已合入 | [#1328](https://github.com/Ahoo-Wang/CosId/pull/1328) |
+| R4-B | 已合入 | [#1327](https://github.com/Ahoo-Wang/CosId/pull/1327) |
 | R5-A / R5-B | 未开始 | |
 | R6 | 未开始 | |
 

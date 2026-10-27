@@ -55,7 +55,9 @@ publishing {
             }
             scm {
                 url.set(property("website"))
-                connection.set(property("vcs"))
+                // Maven's SCM format: the scm:git: prefix, read access and write access (E-N4).
+                connection.set("scm:git:" + property("vcs"))
+                developerConnection.set("scm:git:" + property("vcs"))
             }
             licenses {
                 license {

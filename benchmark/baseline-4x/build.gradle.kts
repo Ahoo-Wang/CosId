@@ -20,6 +20,10 @@ plugins {
 dependencies {
     jmh(libs.cosid4.core)
     jmh(libs.cosid4.accessor)
+    // P7 / P10 (R2-JDBC): a real MySQL, COSID_TEST_MYSQL_URL (benchmark/scenarios.md).
+    jmh(libs.cosid4.jdbc)
+    jmh(libs.mysql.connector)
+    jmh(libs.hikari)
     // P10 (MongoDB): the 4.x Mongo distributor and lease store, on the same driver as 5.x.
     jmh(libs.cosid4.mongo)
     jmh(libs.mongodb.driver.sync)

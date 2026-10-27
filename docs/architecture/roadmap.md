@@ -101,11 +101,11 @@ R0 骨架、接口冻结、4.x 基线基准
 | 3 | R2-JDBC、R2-Redis、R2-Mongo、R2-ZK、R3 | R1-C 合入(R3 还需要 R1-A、R1-B) | ✅ |
 | 4 | R3-S、R4-C | R3 合入(R4-C 还需要 R2) | ✅ |
 | 5 | R4-A、R4-B | R3-S 合入 | ✅ |
-| 6 | R5-A、R5-B | 功能冻结 | 进行中 |
+| 6 | R5-A、R5-B | 功能冻结 | R5-B ✅;R5-A 正式门槛运行中 |
 
 ## 5. 进度
 
-> 更新于 2026-10-27。`main`(原 `5.x`)上已合入 19 个 PR;所有提交作者为 Ahoo Wang,提交说明为英文,不带 `Co-authored-by`。
+> 更新于 2026-10-27。`main`(原 `5.x`)上已合入 32 个 PR;所有提交作者为 Ahoo Wang,提交说明为英文,不带 `Co-authored-by`。
 
 ### 5.1 阶段
 
@@ -125,10 +125,11 @@ R0 骨架、接口冻结、4.x 基线基准
 | R4-A 远程服务与客户端 | ✅ 已合入 | [#1328](https://github.com/Ahoo-Wang/CosId/pull/1328) |
 | R4-B 集成适配器 | ✅ 已合入 | [#1327](https://github.com/Ahoo-Wang/CosId/pull/1327) |
 | R4-C 离线迁移工具 | ✅ 已合入 | [#1324](https://github.com/Ahoo-Wang/CosId/pull/1324) |
-| R5-A 发布门槛基准与特性验收 | 🔄 第一部分 ✅ [#1335](https://github.com/Ahoo-Wang/CosId/pull/1335);能力缺口 [#1336](https://github.com/Ahoo-Wang/CosId/pull/1336) 同步中;发布门槛改为 CI 上的 `release-gate` workflow(D31) | |
-| R5-B 文档站、示例、迁移指南 | 🔄 分片 ✅ [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330);README/skills [#1338](https://github.com/Ahoo-Wang/CosId/pull/1338)、示例 [#1333](https://github.com/Ahoo-Wang/CosId/pull/1333)、文档站 [#1337](https://github.com/Ahoo-Wang/CosId/pull/1337) 待合入 | |
+| R5-A 发布门槛基准与特性验收 | 🔄 特性验收、稳定性、能力缺口、CI 发布门槛 workflow 均已合入([#1335](https://github.com/Ahoo-Wang/CosId/pull/1335)、[#1336](https://github.com/Ahoo-Wang/CosId/pull/1336)、[#1343](https://github.com/Ahoo-Wang/CosId/pull/1343));正式门槛运行中:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762) | |
+| R5-B 文档站、示例、迁移指南 | ✅ 分片 [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330)、README/skills [#1338](https://github.com/Ahoo-Wang/CosId/pull/1338)、示例 [#1333](https://github.com/Ahoo-Wang/CosId/pull/1333)、文档站 [#1337](https://github.com/Ahoo-Wang/CosId/pull/1337) | |
 | D29 integrations 按依赖拆分 | ✅ 已合入 | [#1334](https://github.com/Ahoo-Wang/CosId/pull/1334) |
-| D30 server API 去掉 `/v5` 前缀 | 🔄 同步 D29 后合入 | [#1332](https://github.com/Ahoo-Wang/CosId/pull/1332) |
+| D30 server API 去掉 `/v5` 前缀 | ✅ 已合入 | [#1332](https://github.com/Ahoo-Wang/CosId/pull/1332) |
+| RC 前全面审查 | 🔄 进行中:见 [rc-review.md](rc-review.md) | |
 | R6 发布 | ⏳ | |
 
 后续修复(已合入):`maxBatch` 默认值 [#1317](https://github.com/Ahoo-Wang/CosId/pull/1317)、Mongo 并发 upsert 与重复身份误报 [#1316](https://github.com/Ahoo-Wang/CosId/pull/1316)、
@@ -158,9 +159,10 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 | L10 | Redis `ReplicaWaitTest`、清扫测试偶发失败修复 | ✅ [#1331](https://github.com/Ahoo-Wang/CosId/pull/1331)、[#1340](https://github.com/Ahoo-Wang/CosId/pull/1340) |
 | L11 | 号段默认 `initialOffset` 改为 1,不发 0(与 4.x 一致;`IdFiller` 把 0 视为未设置) | ✅ [#1339](https://github.com/Ahoo-Wang/CosId/pull/1339) |
 | L12 | 稳定性:实施后期又出现 3 个偶发/可疑测试:`RemoteStoreTest`(已在 #1332 修复)、Mongo `lostUpsertRacesRetryAndNeverOverlap`、Redis `sweepMovesAtMostOneBatchOfExpiredLeases`(待查是否真缺陷) | R2-Mongo、R2-Redis |
-| L13 | `config` 转换:4.x 非零 `offset` 应转换为 `initial-offset = offset + 1`(4.x 新 key / 新周期首个 ID 为 offset+1) | R4-C 后续 PR |
-| L14 | Linux 上不用 Spring 时 `store/redis` + `store/zookeeper` 共存失败(ZooKeeper 带入 Netty 4.1 epoll,Lettuce 7 需要 Netty 4.2):`store/zookeeper` 排除 ZooKeeper 的 Netty 依赖(客户端默认 NIO),加 Linux 回归测试 | R2-ZK |
+| L13 | `config` 转换:4.x 非零 `offset` → `initial-offset = offset + 1` | ✅ [#1341](https://github.com/Ahoo-Wang/CosId/pull/1341) |
+| L14 | 🔄 [#1342](https://github.com/Ahoo-Wang/CosId/pull/1342) CI 中(含 `examples/plain-stores` 回归示例);Linux 上不用 Spring 时 `store/redis` + `store/zookeeper` 共存失败(ZooKeeper 带入 Netty 4.1 epoll,Lettuce 7 需要 Netty 4.2):`store/zookeeper` 排除 ZooKeeper 的 Netty 依赖(客户端默认 NIO),加 Linux 回归测试 | R2-ZK |
 | L15 | 发布门槛 CI 试跑的早期信号(待正式门槛确认):P6 分配 24→32 B/op、P10 MySQL 分配增加、x86 上编解码 decode 约 −15% | 正式门槛后按归属分派 |
+| L16 | 新偶发测试:Mongo `storeTimeoutBoundsAnOperationOnAServerThatStoppedAnswering` | 待分派 |
 
 ## 6. 风险与经验
 

@@ -77,7 +77,7 @@ class CosIdSpecsTest {
     }
 
     private static CosIdProperties.Generator generator(String strategy, String store, List<CosIdProperties.Codec> codec) {
-        return new CosIdProperties.Generator(strategy, false, "SNOWFLAKE_MS", null, null, null, null, null, null, store, 100, 0,
+        return new CosIdProperties.Generator(strategy, false, "SNOWFLAKE_MS", null, null, null, null, null, null, null, store, 100, 1,
             Duration.ofSeconds(1), null, Duration.ofSeconds(3), null, null, null, Duration.ofMinutes(1), null, codec);
     }
 
@@ -87,7 +87,7 @@ class CosIdSpecsTest {
             Map.of("db", new CosIdProperties.Store("jdbc", Duration.ofSeconds(2), null, Map.of("initSchema", "true"))),
             new CosIdProperties.Machine(null, new CosIdProperties.Static(10, 3, null, Duration.ofSeconds(10), null)),
             Map.of("default", generator("snowflake", null, null),
-                "order", generator("segment", "db", List.of(new CosIdProperties.Codec(null, null, "O", null, null, null)))),
+                "order", generator("segment", "db", List.of(new CosIdProperties.Codec(null, null, "O", null, null, null, null)))),
             null);
         RuntimeSpec spec = CosIdSpecs.toSpec(properties, ZONE);
         assertEquals("app", spec.namespace());
@@ -170,6 +170,7 @@ class CosIdSpecsTest {
             "cosid.generators.custom.time-bits=40",
             "cosid.generators.custom.node-bits=8",
             "cosid.generators.custom.seq-bits=15",
+            "cosid.generators.custom.seq-reset-threshold=7",
             "cosid.generators.custom.regression.borrow-up-to=0ms",
             "cosid.generators.custom.regression.wait-up-to=2s",
             "cosid.generators.custom.codec[0].custom=myCodec",
@@ -194,8 +195,7 @@ class CosIdSpecsTest {
         assertEquals(Optional.of(new MachineSpec.Static(8, 7, Optional.of(Path.of("/var/lib/cosid/state")), Duration.ofSeconds(5),
             Optional.of(Instant.parse("2026-11-01T00:00:00Z")))), spec.machine());
         assertEquals("memory", spec.stores().get("mem").type());
-        assertEquals(new GeneratorSpec.Snowflake(new Layout(Instant.parse("2020-01-01T00:00:00Z"), ChronoUnit.MILLIS, 40, 8, 15,
-                Layout.defaultSeqResetThreshold(15)), new ClockRegressionPolicy(Duration.ZERO, Duration.ofSeconds(2)),
+        assertEquals(new GeneratorSpec.Snowflake(new Layout(Instant.parse("2020-01-01T00:00:00Z"), ChronoUnit.MILLIS, 40, 8, 15, 7), new ClockRegressionPolicy(Duration.ZERO, Duration.ofSeconds(2)),
                 List.of(new CodecSpec.Custom("myCodec"), new CodecSpec.Suffix("Z"), new CodecSpec.DatePrefix("yyMM", "-", DatePrefix.Source.NOW, ZONE))),
             spec.generators().get("custom"));
         assertEquals(new GeneratorSpec.Segment("mem", new BatchPolicy(10, 5, Duration.ZERO, 10, Duration.ofSeconds(5), Optional.of(Duration.ofHours(1))),
@@ -212,6 +212,25 @@ class CosIdSpecsTest {
         Layout layout = ((GeneratorSpec.Snowflake) spec).layout();
         assertEquals(Layout.SNOWFLAKE_MS.seqResetThreshold(), layout.seqResetThreshold());
         assertEquals(9, layout.nodeBits());
+    }
+
+    @Test
+    void passesStoreOptionsThroughAsTheyAreWritten() {
+        // The Mongo write concern (06-stores.md §2.3) is a backend option: it reaches the StoreProvider unchanged.
+        RuntimeSpec spec = spec("cosid.stores.mongo.type=mongo", "cosid.stores.mongo.options.uri=mongodb://db/?replicaSet=rs",
+            "cosid.stores.mongo.options.database=ids", "cosid.stores.mongo.options.writeConcern=w1");
+        assertEquals(new StoreSpec("mongo", Duration.ofSeconds(2), Map.of("uri", "mongodb://db/?replicaSet=rs", "database", "ids",
+            "writeConcern", "w1")), spec.stores().get("mongo"));
+    }
+
+    @Test
+    void overridesTheSeqResetThresholdAlone() {
+        Layout layout = ((GeneratorSpec.Snowflake) spec("cosid.generators.a.strategy=snowflake", "cosid.generators.a.seq-reset-threshold=0")
+            .generators().get("a")).layout();
+        assertEquals(new Layout(Layout.SNOWFLAKE_MS.epoch(), Layout.SNOWFLAKE_MS.unit(), Layout.SNOWFLAKE_MS.timeBits(), Layout.SNOWFLAKE_MS.nodeBits(),
+            Layout.SNOWFLAKE_MS.seqBits(), 0), layout);
+        assertThat(invalid("cosid.generators.b.strategy=snowflake", "cosid.generators.b.seq-bits=4", "cosid.generators.b.seq-reset-threshold=16")
+            .getMessage(), containsString("cosid.generators.b: seqResetThreshold must be in [0, 15]: 16"));
     }
 
     @Test
@@ -286,13 +305,51 @@ class CosIdSpecsTest {
         assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, not [uuid]"));
         assertThat(message, containsString("cosid.generators.b.store: required"));
         assertThat(message, containsString("cosid.generators.c.layout: one of [JS_SAFE_MS, JS_SAFE_S, SNOWFLAKE_MS, SNOWFLAKE_S], not [SNOWFLAKE_US]"));
-        assertThat(message, containsString("cosid.generators.c.codec[0]: set exactly one of radix, friendly, prefix, suffix, date-prefix, custom (2 set)"));
+        assertThat(message, containsString("cosid.generators.c.codec[0]: set exactly one of radix, friendly, prefix, suffix, date-prefix, custom, period (2 set)"));
         assertThat(message, containsString("cosid.generators.c.codec[1].radix.radix: must be in [2, 62]: 1"));
         assertThat(message, containsString("cosid.generators.d.period: one of [YEAR, YEAR_MONTH, YEAR_MONTH_DAY], not [WEEK]"));
-        assertThat(message, containsString("cosid.generators.d.codec[0]: the codec list of a periodic segment starts with date-prefix"));
+        assertThat(message, containsString("cosid.generators.d.codec[0]: the codec list of a periodic segment has a period item or starts with date-prefix"));
         assertThat(message, containsString("cosid.generators.e.codec: a cosid80 generator takes a single radix or friendly item"));
         assertThat(message, containsString("cosid.generators.f: step must be positive: 0"));
         assertThat(message, containsString("cosid.generators.g.strategy: one of"));
+    }
+
+    @Test
+    void mapsThePeriodAfterABusinessPrefix() {
+        // 4.x group-prefix.before-prefix = true: the value codecs, the period, then the decorations of the whole.
+        RuntimeSpec spec = spec("cosid.generators.p.strategy=periodic-segment", "cosid.generators.p.store=s", "cosid.generators.p.period=YEAR",
+            "cosid.generators.p.codec[0].radix.radix=10", "cosid.generators.p.codec[0].radix.width=6", "cosid.generators.p.codec[0].radix.pad-start=true",
+            "cosid.generators.p.codec[1].period.delimiter=/",
+            "cosid.generators.p.codec[2].prefix=BIZ-",
+            "cosid.generators.p.codec[3].suffix=!",
+            "cosid.generators.q.strategy=periodic-segment", "cosid.generators.q.store=s", "cosid.generators.q.period=YEAR",
+            "cosid.generators.q.codec[0].period.delimiter=");
+        assertEquals(new GroupedCodecSpec.DatePrefix("/", List.of(new CodecSpec.Radix(10, 6, true)),
+            List.of(new CodecSpec.Prefix("BIZ-"), new CodecSpec.Suffix("!"))), ((GeneratorSpec.PeriodicSegment) spec.generators().get("p")).codec());
+        assertEquals(new GroupedCodecSpec.DatePrefix("", List.of(), List.of()), ((GeneratorSpec.PeriodicSegment) spec.generators().get("q")).codec());
+    }
+
+    @Test
+    void mapsAPeriodLeftOutOfTheText() {
+        // 4.x group-prefix.enabled = false: the value codecs alone, wherever the period item stands.
+        RuntimeSpec spec = spec("cosid.generators.p.strategy=periodic-segment", "cosid.generators.p.store=s", "cosid.generators.p.period=YEAR",
+            "cosid.generators.p.codec[0].radix.radix=36",
+            "cosid.generators.p.codec[1].period.enabled=false",
+            "cosid.generators.p.codec[2].prefix=O");
+        assertEquals(new GroupedCodecSpec.ValueOnly(List.of(new CodecSpec.Radix(36, Radix.maxWidth(36), false), new CodecSpec.Prefix("O"))),
+            ((GeneratorSpec.PeriodicSegment) spec.generators().get("p")).codec());
+    }
+
+    @Test
+    void reportsMisplacedPeriodItems() {
+        String message = invalid("cosid.generators.a.strategy=segment", "cosid.generators.a.store=s", "cosid.generators.a.codec[0].period.delimiter=-",
+            "cosid.generators.b.strategy=periodic-segment", "cosid.generators.b.store=s", "cosid.generators.b.period=YEAR",
+            "cosid.generators.b.codec[0].period.delimiter=-", "cosid.generators.b.codec[1].period.delimiter=/",
+            "cosid.generators.c.strategy=periodic-segment", "cosid.generators.c.store=s", "cosid.generators.c.period=YEAR",
+            "cosid.generators.c.codec[0].period.delimiter=-", "cosid.generators.c.codec[0].prefix=x").getMessage();
+        assertThat(message, containsString("cosid.generators.a.codec[0].period: only a periodic segment has a period item, and only one"));
+        assertThat(message, containsString("cosid.generators.b.codec[1].period: only a periodic segment has a period item, and only one"));
+        assertThat(message, containsString("cosid.generators.c.codec[0]: set exactly one"));
     }
 
     @Test

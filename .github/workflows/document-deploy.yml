@@ -48,10 +48,10 @@ jobs:
         with:
           version: 12.15.0
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v6
         with:
-          java-version: '17'
+          java-version: '21'
           distribution: 'temurin'
           server-id: github
           cache: gradle
@@ -60,11 +60,27 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
+      # 5.0 has no aggregated Javadoc: each published module (those with a javadocJar) gets its own directory,
+      # named by its artifactId (D11), under one index page.
       - name: Generate JavaDoc
-        run: ./gradlew aggregateJavadoc
+        run: ./gradlew javadocJar
 
       - name: Copy To Documentation
-        run: cp -R build/aggregatedJavadoc documentation/docs/public/javadoc
+        run: |
+          out=documentation/docs/public/javadoc
+          mkdir -p "$out"
+          links=""
+          for dir in $(find . -path '*/build/docs/javadoc' -type d -not -path './build-logic/*' | sort); do
+            module=${dir#./}; module=${module%/build/docs/javadoc}
+            case "$module" in
+              spring/*) artifact="cosid-spring-boot-${module#spring/}" ;;
+              extras/*) artifact="cosid-${module#extras/}" ;;
+              *) artifact="cosid-${module//\//-}" ;;
+            esac
+            cp -R "$dir" "$out/$artifact"
+            links="$links<li><a href=\"$artifact/index.html\">$artifact</a></li>"
+          done
+          printf '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>CosId JavaDoc</title></head><body><h1>CosId JavaDoc</h1><ul>%s</ul></body></html>\n' "$links" > "$out/index.html"
 
       - name: Setup Node.js
         uses: actions/setup-node@v7

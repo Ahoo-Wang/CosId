@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# The release gate (10-performance-and-parity.md §1.3): scenarios of P1..P12 on benchmark/baseline-4x and benchmark/v5
+# with the release JMH settings, interleaved per scenario (run-smoke --release), on one machine. It runs on CI
+# (.github/workflows/release-gate.yml, one job per scenario group), not on a developer machine.
+#
+#   benchmark/run-release [--out DIR] [--max-load N] [--rerun] [--dry-run] [SCENARIO...]
+#
+# Before anything runs it records the machine (on CI the runner) and the JDK, and checks that the stores the chosen
+# scenarios use answer: MySQL at COSID_TEST_MYSQL_URL, Redis at COSID_TEST_REDIS_URI, MongoDB at
+# COSID_BENCHMARK_MONGODB_URI (defaults localhost:3306 / 6379 / 27017), ZooKeeper at COSID_BENCH_ZOOKEEPER_CONNECT when
+# set (in process otherwise). Outside CI it aborts (status 3) when the 1-minute load average is above N (default 1.5)
+# before a scenario. On CI (CI=true) or with --rerun, a row that fails runs again on both sides in fresh forks, and
+# passes only if that re-run passes (compare --rerun); the report keeps both. DIR (default build/benchmark-release/report)
+# receives baseline-4x.json, v5.json (and rerun-*.json), report.md, machine.json and verdict.json; the logs stay in
+# build/benchmark-release. --dry-run proves the pipeline in minutes with smoke JMH settings and tolerates missing
+# stores; it is never a result. Exits with the status of the final compare (0 PASS, 1 FAIL).
+set -euo pipefail
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+out=
+max_load=1.5
+rerun=false
+[[ ${CI:-} == true ]] && rerun=true
+dry_run=false
+scenarios=()
+while (($#)); do
+    case "$1" in
+        --out) out="$2"; shift ;;
+        --max-load) max_load="$2"; shift ;;
+        --rerun) rerun=true ;;
+        --dry-run) dry_run=true ;;
+        -h|--help) sed -n '14,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        *) scenarios+=("$1") ;;
+    esac
+    shift
+done
+((${#scenarios[@]})) || scenarios=(P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12)
+work="$root/build/benchmark-release"
+profile=(--release)
+jmh_args=(-f 3 -wi 5 -w 2s -i 5 -r 2s)
+compare_args=()
+if $dry_run; then
+    work="$root/build/benchmark-release-dry"
+    profile=()
+    jmh_args=(-f 1 -wi 2 -w 1s -i 3 -r 1s)
+    compare_args=(--smoke)
+fi
+[[ -n $out ]] || out="$work/report"
+# The load guard is for a machine of one's own; on a CI runner the load says nothing about its neighbours.
+load_guard=(--max-load "$max_load")
+[[ ${CI:-} == true ]] && load_guard=()
+mkdir -p "$work" "$out"
+cd "$root"
+
+# The stores of the chosen scenarios must answer, or hours of a release run end with missing rows.
+if ! python3 -I - "${scenarios[@]}" <<'PY'
+import os, re, socket, sys
+need = set()
+for scenario in sys.argv[1:]:
+    need |= {"P7": {"MySQL", "Redis"}, "P10": {"MySQL", "Redis", "MongoDB", "ZooKeeper"}}.get(scenario, set())
+    need |= {store for prefix, store in (("MySql", "MySQL"), ("Redis", "Redis"), ("Mongo", "MongoDB"), ("Zookeeper", "ZooKeeper"))
+             if scenario.startswith(prefix)}
+zookeeper = os.environ.get("COSID_BENCH_ZOOKEEPER_CONNECT")
+stores = {
+    "MySQL": (os.environ.get("COSID_TEST_MYSQL_URL") or "jdbc:mysql://localhost:3306/cosid_db", 3306),
+    "Redis": (os.environ.get("COSID_TEST_REDIS_URI") or "redis://localhost:6379", 6379),
+    "MongoDB": (os.environ.get("COSID_BENCHMARK_MONGODB_URI") or "mongodb://localhost:27017", 27017),
+    "ZooKeeper": ("//" + zookeeper if zookeeper else None, 2181),  # in process unless set
+}
+missing = []
+for name in sorted(need):
+    url, port = stores[name]
+    if url is None:
+        continue
+    match = re.search(r"//(?:[^@/]*@)?([^:/,?]+)(?::(\d+))?", url)
+    host, port = match.group(1), int(match.group(2) or port)
+    try:
+        socket.create_connection((host, port), timeout=3).close()
+    except OSError as problem:
+        missing.append(f"{name} at {host}:{port} ({problem})")
+for line in missing:
+    print(f"run-release: {line} does not answer", file=sys.stderr)
+sys.exit(1 if missing else 0)
+PY
+then
+    $dry_run || { echo "run-release: start the stores of P7 / P10 first (benchmark/scenarios.md)" >&2; exit 2; }
+    echo "run-release: dry run, going on without them" >&2
+fi
+
+# The machine and the JDK, recorded before the run.
+./gradlew -q :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
+java="$(./gradlew -q :benchmark:v5:printJmhJava | tail -n 1)"
+JAVA="$java" python3 -I - "$work.machine.json" <<'PY'
+import datetime, json, os, platform, re, subprocess, sys
+
+def run(*command):
+    try:
+        return subprocess.run(command, capture_output=True, text=True, timeout=30).stdout.strip()
+    except OSError:
+        return ""
+
+def sysctl(name):
+    return run("sysctl", "-n", name)
+
+info = {"date": datetime.datetime.now().astimezone().isoformat(timespec="seconds")}
+if platform.system() == "Darwin":
+    info["cpu"] = sysctl("machdep.cpu.brand_string")
+    info["cores"] = (f"{sysctl('hw.physicalcpu')} ({sysctl('hw.perflevel0.physicalcpu') or '?'} performance + "
+                     f"{sysctl('hw.perflevel1.physicalcpu') or '0'} efficiency)")
+    info["memory"] = f"{int(sysctl('hw.memsize') or 0) // 2**30} GB"
+    info["os"] = f"macOS {run('sw_vers', '-productVersion')} ({platform.machine()})"
+    info["frequency scaling"] = "not controllable: Apple Silicon has no turbo switch"
+else:
+    lscpu = run("lscpu")
+    model = re.search(r"Model name:\s*(.+)", lscpu)
+    info["cpu"] = model.group(1).strip() if model else platform.processor()
+    info["cores"] = str(os.cpu_count())
+    with open("/proc/meminfo") as meminfo:
+        info["memory"] = f"{int(meminfo.readline().split()[1]) // 2**20} GB"
+    info["os"] = f"{platform.system()} {platform.release()} ({platform.machine()})"
+    boost = "/sys/devices/system/cpu/cpufreq/boost"
+    no_turbo = "/sys/devices/system/cpu/intel_pstate/no_turbo"
+    if os.path.exists(no_turbo):
+        info["frequency scaling"] = "turbo off" if open(no_turbo).read().strip() == "1" else "turbo ON"
+    elif os.path.exists(boost):
+        info["frequency scaling"] = "boost off" if open(boost).read().strip() == "0" else "boost ON"
+    else:
+        info["frequency scaling"] = "unknown"
+if os.environ.get("GITHUB_ACTIONS") == "true":
+    info["frequency scaling"] += " (a shared virtual machine: not controllable)"
+    info["runner"] = (f"{os.environ.get('RUNNER_NAME', 'GitHub Actions')}, image {os.environ.get('ImageOS', '?')} "
+                      f"{os.environ.get('ImageVersion', '?')}, run {os.environ.get('GITHUB_RUN_ID', '?')}")
+version = subprocess.run([os.environ["JAVA"], "-XshowSettings:properties", "-version"], capture_output=True, text=True).stderr
+props = dict(re.findall(r"^\s+(java\.vm\.vendor|java\.runtime\.version|java\.vm\.name) = (.+)$", version, re.M))
+info["jdk"] = f"{props.get('java.vm.vendor', '?')} {props.get('java.vm.name', '?')} {props.get('java.runtime.version', '?')}"
+with open("gradle/libs.versions.toml") as catalog:
+    text = catalog.read()
+info["jmh"] = re.search(r'^jmh\s*=\s*"([^"]+)"', text, re.M).group(1)
+info["cosid 4.x"] = re.search(r'^cosid4\s*=\s*"([^"]+)"', text, re.M).group(1)
+info["commit"] = run("git", "rev-parse", "HEAD") + (" (dirty)" if run("git", "status", "--porcelain") else "")
+info["load at start"] = " ".join(f"{v:.2f}" for v in os.getloadavg())
+with open(sys.argv[1], "w") as file:
+    json.dump(info, file, indent=2)
+for name, value in info.items():
+    print(f"run-release: {name}: {value}", file=sys.stderr)
+PY
+
+status=0
+"$root/benchmark/run-smoke" ${profile[@]+"${profile[@]}"} ${load_guard[@]+"${load_guard[@]}"} --out "$work" "${scenarios[@]}" \
+    || status=$?
+if ((status == 3)); then
+    echo "run-release: aborted on load; nothing written to $out" >&2
+    exit 3
+fi
+
+# A row that failed runs again, 4.x then 5.x in fresh forks; compare --rerun judges it on that run alone.
+rm -f "$work"/rerun-* "$work"/failed*.json
+"$root/benchmark/compare" "$work/baseline-4x.all.json" "$work/v5.all.json" ${compare_args[@]+"${compare_args[@]}"} \
+    --failed "$work/failed.json" >/dev/null || true
+# COSID_RELEASE_RERUN_ALL=true re-runs every row (the CI check of this script exercises the re-run path with it); only
+# the rows that failed are judged on their re-run.
+if [[ ${COSID_RELEASE_RERUN_ALL:-} == true ]]; then
+    python3 -I -c 'import json, sys; print(json.dumps([{"benchmark": r["benchmark"], "mode": r["mode"], "params": r.get("params") or {}}
+        for r in json.load(open(sys.argv[1]))]))' "$work/baseline-4x.all.json" >"$work/rerun-rows.json"
+else
+    cp "$work/failed.json" "$work/rerun-rows.json"
+fi
+if $rerun && [[ $(python3 -I -c 'import json, sys; print(len(json.load(open(sys.argv[1]))))' "$work/rerun-rows.json") != 0 ]]; then
+    n=0
+    while IFS=$'\t' read -r regex mode params; do
+        n=$((n + 1))
+        read -r -a param_args <<<"$params"
+        for side in baseline-4x v5; do
+            echo "run-release: re-running $regex ($mode${params:+ $params}) on $side" >&2
+            "$java" -jar "$(ls "$root/benchmark/$side/build/libs/"*-jmh.jar)" "$regex" "${jmh_args[@]}" -bm "$mode" \
+                ${param_args[@]+"${param_args[@]}"} -prof gc -rf json -rff "$work/rerun-$side-$n.json" \
+                -jvmArgs "-Dlogback.configurationFile=$root/config/logback-jmh.xml" >"$work/rerun-$side-$n.log" 2>&1 \
+                || echo "run-release: the re-run on $side failed, see $work/rerun-$side-$n.log" >&2
+        done
+    done < <(python3 -I -c '
+import json, re, sys
+for row in json.load(open(sys.argv[1])):
+    params = " ".join(f"-p {k}={v}" for k, v in sorted(row["params"].items()))
+    print("^" + re.escape(row["benchmark"]) + "$", row["mode"], params, sep="\t")' "$work/rerun-rows.json")
+    for side in baseline-4x v5; do
+        python3 -I -c 'import glob, json, sys; print(json.dumps([r for p in sorted(glob.glob(sys.argv[1])) for r in json.load(open(p))]))' \
+            "$work/rerun-$side-*.json" >"$work/rerun-$side.all.json"
+    done
+    compare_args+=(--rerun "$work/rerun-baseline-4x.all.json" "$work/rerun-v5.all.json")
+fi
+status=0
+"$root/benchmark/compare" "$work/baseline-4x.all.json" "$work/v5.all.json" ${compare_args[@]+"${compare_args[@]}"} \
+    --report "$work/report.md" --failed "$work/failed-final.json" >/dev/null || status=$?
+
+# The published files: the results with local paths shortened, the machine, the verdict, and the report.
+python3 -I - "$work" "$out" "$root" "$HOME" "$dry_run" "${scenarios[*]}" "$status" <<'PY'
+import json, os, sys
+work, out, root, home, dry_run, scenarios, status = sys.argv[1:]
+
+def shorten(value):
+    if isinstance(value, str):
+        return value.replace(os.path.join(home, ".gradle", "jdks"), "~/.gradle/jdks").replace(root, "<repo>").replace(home, "~")
+    if isinstance(value, list):
+        return [shorten(item) for item in value]
+    if isinstance(value, dict):
+        return {k: shorten(v) for k, v in value.items()}
+    return value
+
+def load(name):
+    with open(os.path.join(work, name)) as file:
+        return json.load(file)
+
+for source, target in (("baseline-4x.all", "baseline-4x"), ("v5.all", "v5"), ("rerun-baseline-4x.all", "rerun-baseline-4x"),
+                       ("rerun-v5.all", "rerun-v5")):
+    if os.path.exists(os.path.join(work, f"{source}.json")):
+        with open(os.path.join(out, f"{target}.json"), "w") as file:
+            json.dump(shorten(load(f"{source}.json")), file, indent=2)
+            file.write("\n")
+with open(work + ".machine.json") as file:
+    machine = json.load(file)
+machine["settings"] = ("smoke (1 fork, 2 x 1 s warmup, 3 x 1 s measurement): a DRY RUN, not a result" if dry_run == "true"
+                       else "release (3 forks, 5 x 2 s warmup, 5 x 2 s measurement)")
+with open(os.path.join(out, "machine.json"), "w") as file:
+    json.dump(machine, file, indent=2)
+rows = {(r["benchmark"], r["mode"], r["threads"], json.dumps(r.get("params"), sort_keys=True)) for r in load("baseline-4x.all.json")}
+with open(os.path.join(out, "verdict.json"), "w") as file:
+    json.dump({"scenarios": scenarios.split(), "rows": len(rows), "failedFirstRun": load("failed.json"),
+               "failed": load("failed-final.json"), "status": int(status)}, file, indent=2)
+with open(os.path.join(work, "load.tsv")) as file:
+    loads = [line.rstrip("\n").split("\t") for line in file if line.strip()]
+with open(os.path.join(work, "report.md")) as file:
+    comparison = file.read().split("\n", 1)[1]
+lines = ["# CosId 5.0 release gate", "",
+         "4.1.0 (`benchmark/baseline-4x`) and 5.0 (`benchmark/v5`) on the same machine, interleaved per scenario "
+         "(4.x then 5.x), judged by `benchmark/compare` with the rules of "
+         "[10-performance-and-parity.md §1.3](../../architecture/10-performance-and-parity.md).", "",
+         "| | |", "|---|---|",
+         f"| Command | `benchmark/run-release {scenarios}` |",
+         f"| JMH | {machine['jmh']}, {machine['settings']}, `-prof gc` |"]
+lines += [f"| {name[:1].upper() + name[1:]} | {value} |" for name, value in machine.items() if name not in ("jmh", "settings")]
+lines += ["", "Load average (1 minute) before each scenario: " + ", ".join(f"{c} {l}" for c, l in loads), "", comparison]
+with open(os.path.join(out, "report.md"), "w") as file:
+    file.write("\n".join(lines))
+PY
+echo "run-release: report in $out/report.md" >&2
+exit "$status"

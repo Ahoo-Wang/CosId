@@ -46,6 +46,7 @@ dependencies {
     testImplementation(project(":spring:autoconfigure"))
     // ... and a 4.x proxy's remote store opens through the real provider.
     testImplementation(project(":store:remote"))
+    testImplementation(project(":store:tck"))
 }
 
 // ZooKeeper 3.9 brings the Netty 4.1 epoll transport; on Linux Lettuce 7 (Netty 4.2) then picks it up and fails

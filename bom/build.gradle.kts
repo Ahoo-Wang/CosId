@@ -31,6 +31,7 @@ dependencies {
         api(project(":integrations:activiti"))
         api(project(":integrations:flowable"))
         api(project(":integrations:axon"))
+        api(project(":extras:sharding"))
         api(project(":spring:autoconfigure"))
         api(project(":spring:starter"))
     }

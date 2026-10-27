@@ -79,12 +79,28 @@ tasks.withType<Test>().configureEach {
         // Tests that depend on the Java version check they really run on it.
         environment("COSID_TEST_JAVA_VERSION", testJavaVersion)
     }
+    // -Pcosid.test.exclude=*.ReplicaWaitTest,… leaves test classes out (the stability workflow).
+    findProperty("cosid.test.exclude")?.toString()?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.forEach {
+        filter.excludeTestsMatching(it)
+    }
     retry {
+        // -Pcosid.test.retries=0 turns the CI retries off: the stability workflow counts every failure.
         if (isInCI) {
-            maxRetries.set(2)
+            maxRetries.set(findProperty("cosid.test.retries")?.toString()?.toInt() ?: 2)
             maxFailures.set(20)
         }
         failOnPassedAfterRetry.set(true)
+    }
+}
+
+// -Pcosid.test.skipProjects=:store:redis,:server,… (L5): CI's check job leaves these projects' tests, and the contract
+// checks on their reports, to the CI jobs of their own, so their containers start once per CI run. The root project
+// rejects a path that does not exist.
+val skipTests = findProperty("cosid.test.skipProjects")?.toString().orEmpty().split(',').map { it.trim() }
+if (path in skipTests) {
+    tasks.withType<Test>().configureEach { enabled = false }
+    tasks.matching { it.name.startsWith("checkContractsRan") || it.name.startsWith("contractReports-") }.configureEach {
+        enabled = false
     }
 }
 

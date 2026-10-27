@@ -6,8 +6,9 @@ The scenarios of [benchmark/scenarios.md](../../../benchmark/scenarios.md) on th
 
 ## smoke-apple-m4-jdk21.json
 
-A short run for development and PR smoke comparisons, **not** the release gate (that one runs both sides with
-`-PjmhProfile=release` on a fixed physical machine and lands in `docs/jmh/5.0/`).
+A short run for development and PR smoke comparisons, **not** the release gate. The release gate runs on CI (the
+`Release Gate` workflow, see [benchmark/scenarios.md](../../../benchmark/scenarios.md)): its 4.1.0 side lands here as
+`release-ci.json` and `release-ci.md`, the clean baseline with release settings, and the comparison in `docs/jmh/5.0/`.
 
 | | |
 |---|---|
@@ -47,5 +48,5 @@ Notes:
   the same bounds for `SNOWFLAKE_MS` and `SNOWFLAKE_S`.
 - P5 and P12 are **待干净重跑** (pending a clean rerun): they now fix the segment step on both sides (P5 `@Param step`
   = 10, 100; P12 step 100), and the rerun on this shared machine was too noisy to store. PRs compare against a fresh
-  4.x run instead (`benchmark/run-smoke`); the release gate reruns everything on fixed hardware.
+  4.x run instead (`benchmark/run-smoke`); the release gate reruns everything with release settings (`release-ci.*`).
 - Paths in the JSON (`jvm`, `jvmArgs`) are shortened to `~/.gradle/jdks` and `<repo>`.

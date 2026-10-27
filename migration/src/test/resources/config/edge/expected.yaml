@@ -1,9 +1,8 @@
 # Converted from a CosId 4.x configuration by cosid-migration config (09-migration.md §3).
 # Not converted as is - review before starting 5.0:
-#  - cosid.segment.distributor.type = proxy: written as store [remote] (store/remote, 08); its baseUrl must point at a 5.0 cosid-server, the 4.x proxy server does not speak the /v5 API
+#  - cosid.segment.distributor.type = proxy: written as store [remote] (store/remote, 08); its baseUrl must point at a 5.0 cosid-server, the 4.x proxy server does not speak the 5.0 API
 #  - cosid.proxy.client = coapi: the 5.0 remote store uses the JDK HttpClient; dropped
 #  - cosid.snowflake.share: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_S with overrides, keep it as is (M3)
-#  - cosid.snowflake.share.sequence-reset-threshold = 7: 5.0 configuration keeps the default threshold
 #  - cosid.snowflake.share.converter.date-prefix.before-prefix = false: the 5.0 codec list applies in order; check the order of date-prefix and prefix
 #  - cosid.snowflake.provider.cosid: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_MS with overrides, keep it as is (M3)
 #  - cosid.snowflake.provider.odd: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_MS with overrides, keep it as is (M3)
@@ -13,7 +12,8 @@
 #  - cosid.segment.ttl = 60: segment chains are replaced by the 5.0 refill (lookahead, adaptive batch; 04)
 #  - cosid.segment.provider.friendly.converter.type = snowflake_friendly: only snowflake ids have a friendly form; dropped
 #  - cosid.segment.provider.grouped.group: 4.x used the server's default time zone; the 5.0 period zone is Asia/Shanghai, check it (--zone)
-#  - cosid.segment.provider.grouped.converter.group-prefix.before-prefix = false: the 5.0 period prefix always comes first
+#  - cosid.segment.provider.grouped-inside.group: 4.x used the server's default time zone; the 5.0 period zone is Asia/Shanghai, check it (--zone)
+#  - cosid.segment.provider.grouped-plain.group: 4.x used the server's default time zone; the 5.0 period zone is Asia/Shanghai, check it (--zone)
 #  - cosid.generator: a generator named [cosid] exists already; the CosIdGenerator is written as [cosid80]
 #  - cosid.generator: the 4.x bits differ from the 5.0 COSID_80 layout (44/20/16); the 5.0 ids keep COSID_80 (M3 fails in plan)
 #  - cosid.generator.pad-start = false: 5.0 cosid80 text ids are always padded
@@ -43,6 +43,7 @@ cosid:
       time-bits: 41
       node-bits: 8
       seq-bits: 12
+      seq-reset-threshold: 7
       codec:
       - radix:
           radix: 36
@@ -79,12 +80,42 @@ cosid:
       period: YEAR
       zone: Asia/Shanghai
       codec:
-      - date-prefix:
-          delimiter: "-"
       - radix:
           radix: 62
           width: 11
           pad-start: true
+      - prefix: G-
+      - period:
+          delimiter: "-"
+      - suffix: '!'
+    grouped-inside:
+      strategy: periodic-segment
+      store: remote
+      step: 10
+      period: YEAR_MONTH
+      zone: Asia/Shanghai
+      codec:
+      - radix:
+          radix: 36
+          width: 13
+          pad-start: true
+      - period:
+          delimiter: /
+      - date-prefix:
+          pattern: yy
+          delimiter: "-"
+          source: NOW
+      - prefix: P
+    grouped-plain:
+      strategy: periodic-segment
+      store: remote
+      step: 10
+      period: YEAR
+      zone: Asia/Shanghai
+      codec:
+      - period:
+          enabled: false
+      - prefix: "N"
     cosid80:
       strategy: cosid80
       codec:

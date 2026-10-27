@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.store.remote;
 
+import me.ahoo.cosid.store.StoreTimeoutException;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -103,7 +105,8 @@ final class RemoteClient implements AutoCloseable {
         try {
             response = http.send(request.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         } catch (HttpTimeoutException e) {
-            throw new RemoteStoreException("POST " + path + " timed out after " + requestTimeout, e);
+            String message = "POST " + path + " timed out after " + requestTimeout;
+            throw new RemoteStoreException(message, new StoreTimeoutException(message, e));
         } catch (IOException e) {
             throw new RemoteStoreException("POST " + path + " to " + baseUrl + " failed: " + e.getMessage(), e);
         } catch (InterruptedException e) {

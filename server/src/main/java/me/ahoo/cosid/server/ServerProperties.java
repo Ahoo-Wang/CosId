@@ -130,7 +130,7 @@ public record ServerProperties(String store,
     }
 
     /**
-     * The optional id endpoints {@code /v5/ids/**}, served by the generators of the server's {@code CosIdRuntime}.
+     * The optional id endpoints {@code /ids/**}, served by the generators of the server's {@code CosIdRuntime}.
      *
      * @param enabled whether they are on; off by default
      */

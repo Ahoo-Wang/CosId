@@ -1,36 +1,13 @@
-# CosId-Activiti Module
+# Activiti
 
-_Activiti module_ provides `CosId` support for `Activiti`, implementing _Activiti_'s `org.activiti.engine.impl.cfg.IdGenerator` interface.
+`ActivitiIdGenerator` (artifact `cosid-activiti`, package `me.ahoo.cosid.activiti`) makes Activiti's ids CosId text ids, through the named generator's
+codec, whatever its strategy. Tested with Activiti 7.0.0.SR1.
 
-## Installation
+| Property | Default |
+|---|---|
+| `cosid.activiti.enabled` | `true` |
+| `cosid.activiti.generator-name` | `default` |
 
-::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    implementation("me.ahoo.cosid:cosid-activiti:${cosidVersion}")
-```
-```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-activiti</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
-```
-:::
-
-## Configuration
-
-By default `ActivitiIdGenerator` will get the ID generator named `__share__` from the *ID generator container* (`IdGeneratorProvider`).
-
-To use another ID generator than the shared one, name it in the configuration (since 4.1):
-
-```yaml
-cosid:
-  activiti:
-    generator-name: bpm
-```
-
-Without the starter, or when `cosid.activiti.generator-name` is unset, the system property `cosid.activiti` names it.
-
+With Spring Boot a `ProcessEngineConfigurationConfigurer` sets it. Without a Spring property, the generator comes from
+the system property `cosid.activiti`, else `default`. Without Spring:
+`configuration.setIdGenerator(new ActivitiIdGenerator(runtime, "default"))`.

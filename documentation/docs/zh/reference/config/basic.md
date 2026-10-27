@@ -1,83 +1,82 @@
-# 基础配置
+# 配置参考：运行时、存储、机器号
 
-> `me.ahoo.cosid.spring.boot.starter.CosIdProperties`，前缀 `cosid`
+Spring Boot starter 的全部 `cosid.*` 属性及其默认值，由 `cosid-spring-boot-autoconfigure` 的 `CosIdProperties`
+record 绑定。生成器与编解码器：[生成器](generators.md)。cosid-server：
+[`cosid.server.*`](server.md)。时长采用 Spring 的格式（`500ms`、`2s`、`1m`、ISO-8601）。
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `cosid.enabled` | `boolean` | `true` | 为 `false` 时关闭整个 Starter |
-| `cosid.namespace` | `String` | `cosid` | 在同一个存储中把一个应用的计数器和机器号与其他应用隔离。建议设置为应用名：`${spring.application.name}` |
-| `cosid.provider.isolated` | `boolean` | `false` | `false`：`IdGeneratorProvider` Bean 就是 `DefaultIdGeneratorProvider.INSTANCE`。`true`：每个 `ApplicationContext` 拥有自己的容器，并在上下文关闭时清空，生成器不会在上下文之间共享（devtools 重启、缓存的测试上下文）；此时 `INSTANCE` 不再持有 Spring 注册的生成器 |
-| `cosid.metrics.enabled` | `boolean` | `true` | 类路径上有 Micrometer 时注册 CosId 指标，见[监控](../../guide/operations/monitoring.md#指标) |
-| `cosid.metrics.generated.enabled` | `boolean` | `false` | 统计每个号段和 Snowflake 生成器生成的 ID 数（`cosid.generator.generated`），会用计数装饰器包装生成器 |
-| `cosid.max-concurrent-calls` | `int` | `64` | JVM 内同时进行的带超时存储调用（ZooKeeper、Redis）的上限，所有存储共享。超出时调用立即失败并抛出 `CallRejectedException`，不会在卡住的存储后面堆积线程 |
+## 顶层
 
-各生成器有自己的配置页：[机器号](./machine.md)（`cosid.machine`）、[SnowflakeId](./snowflake.md)（`cosid.snowflake`）、[SegmentId](./segment.md)（`cosid.segment`）和 [CosIdGenerator](./cosid-generator.md)（`cosid.generator`）。后端属性见 [ZooKeeper](./zookeeper.md)、[Proxy](./proxy.md) 配置页以及各后端指南。
+| 属性 | 默认值 | 含义 |
+|---|---|---|
+| `cosid.enabled` | `true` | 总开关；没有按功能划分的开关 |
+| `cosid.namespace` | `cosid` | 隔离槽位与 key：同一应用的所有实例使用同一个命名空间 |
+| `cosid.stores.<name>.*` | | 按名称配置的存储（见下文） |
+| `cosid.machine.*` | | 机器号槽位，时间型生成器需要（见下文） |
+| `cosid.generators.<name>.*` | | 按名称配置的生成器（[生成器](generators.md)）；`default` 为主 Bean |
+| `cosid.metrics.generated` | `false` | 把每个生成器发出的 id 计入 `cosid.generator.generated`；会给每次调用增加一个计数器 |
 
-```yaml
-cosid:
-  namespace: ${spring.application.name}
-```
+## 存储：`cosid.stores.<name>`
 
-## ID 转换器
+| 属性 | 默认值 | 含义 |
+|---|---|---|
+| `type` | | `jdbc`、`redis`、`mongo`、`zookeeper`、`remote`，或某个 `StoreProvider` Bean 的类型 |
+| `timeout` | `2s` | 每个存储操作；不超过其上号段的 `reserve-timeout` |
+| `client` | | 用作客户端的 Bean；默认使用上下文中该类型客户端的唯一 Bean（`DataSource`；Lettuce 客户端或 `RedisConnectionFactory`；`MongoClient`；`CuratorFramework`） |
+| `options.*` | | 后端选项，字符串 |
 
-> `me.ahoo.cosid.spring.boot.starter.IdConverterDefinition`
+后端选项：
 
-每个 Snowflake 和号段生成器都有一个 `converter`，决定 `generateAsString()` 的格式。各转换器的输出见 [ID 转换器](../../guide/concepts/id-converter.md)。
+| 类型 | 选项（默认值） |
+|---|---|
+| `jdbc` | `url`、`username`、`password`；`dialect`（自动探测）；`initSchema`（`false`）；`rangeTable`（`cosid_range`）、`slotTable`（`cosid_slot`）、`namespaceTable`（`cosid_namespace`） |
+| `redis` | `uri`；`cluster`（`false`）；`wait`（`auto` / `off` / 副本数）；`sweepBatch`（`16`） |
+| `mongo` | `uri`；`database`（`cosid_db`）；`writeConcern`（`majority`；更弱的设置会记录 `WARN`） |
+| `zookeeper` | `connectString`（`localhost:2181`）；`sessionTimeout`（`60s`）；`connectionTimeout`（`15s`）；`blockUntilConnectedWait`（`10s`）；`retry.baseSleepTime`（`100ms`）、`retry.maxRetries`（`5`）、`retry.maxSleep`（`500ms`） |
+| `remote` | `baseUrl`（必填）；`token`；`connectTimeout`（`5s`）；`requestTimeout`（存储的 `timeout`） |
 
-| 属性 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `type` | `Type` | `radix` | `to_string`、`radix`、`radix36`、`snowflake_friendly`（仅 Snowflake ID）或 `custom` |
-| `prefix` | `String` | 无 | ID 之前的文本 |
-| `suffix` | `String` | 无 | ID 之后的文本 |
-| `radix.char-size` | `int` | `11` | 62 进制字符串的长度，最多 11 |
-| `radix.pad-start` | `boolean` | `true` | 用 `0` 补齐到 `char-size`，使字符串排序与数字一致 |
-| `radix36.char-size` | `int` | `13` | 36 进制字符串的长度，最多 13 |
-| `radix36.pad-start` | `boolean` | `true` | 用 `0` 补齐到 `char-size` |
-| `to-string.char-size` | `int` | `11` | 补齐时的长度 |
-| `to-string.pad-start` | `boolean` | `false` | 用 `0` 补齐到 `char-size` |
-| `friendly.pad-start` | `boolean` | `false` | `snowflake_friendly`：用 `0` 补齐机器号和序列号，使字符串排序与 ID 一致 |
-| `date-prefix.enabled` | `boolean` | `false` | 加上生成时的日期前缀 |
-| `date-prefix.pattern` | `String` | `yyMMdd` | 日期格式 |
-| `date-prefix.delimiter` | `String` | `-` | 日期与 ID 之间的分隔符 |
-| `date-prefix.before-prefix` | `boolean` | `true` | 日期放在 `prefix` 之内（`true`）还是之外 |
-| `group-prefix.enabled` | `boolean` | `false` | 加上分组号段 ID 的分组前缀；需要 `group.by` |
-| `group-prefix.delimiter` | `String` | `-` | 分组与 ID 之间的分隔符 |
-| `group-prefix.before-prefix` | `boolean` | `true` | 分组放在 `prefix` 之内（`true`）还是之外 |
-| `custom.type` | `Class<? extends IdConverter>` | 无 | `custom`：转换器类，需要公共无参构造器 |
+## 机器号槽位：`cosid.machine`
 
-```yaml
-cosid:
-  segment:
-    share:
-      converter:
-        type: radix
-        prefix: cosid_
-        radix:
-          char-size: 8
-          pad-start: true
-```
+`leased` 与 `static` 必须且只能配置一个。带有时间型生成器（`snowflake`、`cosid80`）的运行时需要它。
+没有时间型生成器时不获取槽位。
 
-## 集成开关
+### `cosid.machine.leased`
 
-每个可选集成在其模块位于 classpath 时生效，并且可以关闭：
+| 属性 | 默认值 | 含义 |
+|---|---|---|
+| `store` | | 租用槽位所用的存储名称 |
+| `bits` | `10` | 槽位范围为 `[0, 2^bits)`；不超过每个时间型布局的节点位数 |
+| `ttl` | `30s` | 租约存活时间；每 `ttl/3` 续约一次；启动时 acquire 最多等待 `ttl` |
+| `tolerance` | `1s` | 窗口 ceiling 超出过期时间的量（D20）；每个命名空间一个值 |
+| `preferred-slot` | 无 | 优先尝试的槽位，例如 StatefulSet 序号（`${POD_ORDINAL:}`） |
+| `owner-key` | `host:port`，否则 `host:pid` | 逻辑身份，用于粘性选择与观测 |
 
-| 属性 | 默认值 | 说明 |
-|------|--------|------|
-| `cosid.mybatis.enabled` | `true` | 填充 ID 字段的 MyBatis 插件 |
-| `cosid.jdbc.enabled` | `false`（3.x 为 `true`） | Spring Data JDBC 集成：`@Id` 字段解析器和转换前回调。`@Id` 解析器会加入全局字段解析器，因此也作用于 MyBatis 等其他路径。关闭时，启动日志会以 INFO 级别列出带 `@Id` 属性或 `@CosId` 字段、CosId 不会填充的 Spring Data JDBC 实体 |
-| `cosid.flowable.enabled` | `true` | Flowable ID 生成器 |
-| `cosid.activiti.enabled` | `true` | Activiti ID 生成器 |
-| `cosid.activiti.generator-name`、`cosid.flowable.generator-name`、`cosid.axon.generator-name` | 系统属性 `cosid.activiti`、`cosid.flowable`、`cosid.axon`，否则为共享生成器 | 各集成使用的 ID 生成器 |
-| `cosid.actuator.delete.enabled` | `false`（3.x 为 `true`） | `cosid` actuator 端点的 `DELETE` 操作，可在运行时删除 ID 生成器 |
+### `cosid.machine.static`
 
-## Actuator 端点
+| 属性 | 默认值 | 含义 |
+|---|---|---|
+| `bits` | `10` | 槽位位数 |
+| `slot` | | 槽位，由部署保证唯一 |
+| `state-file` | 无 | 窗口文件；**没有它，就无法防护跨重启的时钟回拨** |
+| `ahead` | `10s` | ceiling 提前写入的量 |
+| `not-before` | 无 | 状态文件尚不存在时的 floor（由迁移工具写入） |
 
-classpath 中有 Spring Boot Actuator 时，Starter 会添加三个端点，只有在可用（启用并通过 `management.endpoints.web.exposure.include` 暴露）时才会创建：
+## 集成
 
-| 端点 | 操作 |
-|------|------|
-| `cosid` | `GET /actuator/cosid`：所有生成器及其状态；`GET /actuator/cosid/{name}`：单个生成器；`DELETE /actuator/cosid/{name}`：删除一个生成器，需开启 `cosid.actuator.delete.enabled` |
-| `cosidGenerator` | `GET /actuator/cosidGenerator`：共享生成器的一个 ID；`GET /actuator/cosidGenerator/{name}`：指定 `long` 生成器的一个 ID |
-| `cosidStringGenerator` | `GET /actuator/cosidStringGenerator`、`GET /actuator/cosidStringGenerator/{name}`：同上，以字符串返回 |
+| 属性 | 默认值 | 含义 |
+|---|---|---|
+| `cosid.mybatis.enabled` | `true` | MyBatis 拦截器，存在 MyBatis 时生效 |
+| `cosid.mybatis.list-key` | `list` | 批量插入的参数 key |
+| `cosid.jdbc.enabled` | `false` | Spring Data JDBC 回调 |
+| `cosid.jdbc.id-generator` | `default` | 为未设置的 `@Id` 生成 id 的生成器 |
+| `cosid.activiti.enabled` | `true` | Activiti id 生成器 |
+| `cosid.activiti.generator-name` | `default`（系统属性 `cosid.activiti`） | |
+| `cosid.flowable.enabled` | `true` | Flowable id 生成器 |
+| `cosid.flowable.generator-name` | `default`（系统属性 `cosid.flowable`） | |
+| `cosid.axon.generator-name` | `default`（系统属性 `cosid.axon`） | Axon 标识符工厂使用的生成器 |
 
-机器号租约续约失败期间，`machineId` 健康指示器报告 `DOWN`。
+## Actuator
+
+| 属性 | 默认值 | 含义 |
+|---|---|---|
+| `management.health.cosid.enabled` | `true` | `cosId` 健康检查 |
+| `management.endpoints.web.exposure.include` | Spring 的默认值 | 加入 `cosid` 以暴露该端点 |

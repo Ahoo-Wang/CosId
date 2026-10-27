@@ -60,10 +60,27 @@ public final class Codecs {
      * @throws IllegalArgumentException if the list is invalid for the generator
      */
     public IdCodec ids(List<CodecSpec> specs, Optional<Layout> layout) {
-        IdCodec codec = DECIMAL;
+        return apply(DECIMAL, specs, true, layout);
+    }
+
+    /**
+     * Decorates the text of a codec with a list of decorations (prefixes, suffixes, date prefixes).
+     *
+     * @param codec  the codec whose text the list decorates
+     * @param specs  the decorations, applied in order
+     * @param layout the generator's layout; empty for segments
+     * @return the decorated codec
+     * @throws IllegalArgumentException if an item turns the id into text instead of decorating it
+     */
+    public IdCodec decorate(IdCodec codec, List<CodecSpec> specs, Optional<Layout> layout) {
+        return apply(codec, specs, false, layout);
+    }
+
+    private IdCodec apply(IdCodec start, List<CodecSpec> specs, boolean fromId, Optional<Layout> layout) {
+        IdCodec codec = start;
         for (int i = 0; i < specs.size(); i++) {
             CodecSpec spec = specs.get(i);
-            boolean first = i == 0;
+            boolean first = fromId && i == 0;
             codec = switch (spec) {
                 case CodecSpec.Radix radix -> {
                     requireFirst(first, spec);
@@ -126,7 +143,15 @@ public final class Codecs {
      */
     public GroupedCodec grouped(GroupedCodecSpec spec, Period period) {
         return switch (spec) {
-            case GroupedCodecSpec.DatePrefix date -> GroupedCodec.datePrefix(period, date.delimiter(), ids(date.value(), Optional.empty()));
+            case GroupedCodecSpec.DatePrefix date when date.outer().isEmpty() ->
+                GroupedCodec.datePrefix(period, date.delimiter(), ids(date.value(), Optional.empty()));
+            case GroupedCodecSpec.DatePrefix date -> {
+                // Fails now rather than on the first id: the decorations compose once per period key.
+                decorate(DECIMAL, date.outer(), Optional.empty());
+                yield GroupedCodec.datePrefix(period, date.delimiter(), ids(date.value(), Optional.empty()),
+                    codec -> decorate(codec, date.outer(), Optional.empty()));
+            }
+            case GroupedCodecSpec.ValueOnly value -> GroupedCodec.valueOnly(ids(value.value(), Optional.empty()));
             case GroupedCodecSpec.Instance instance -> instance.codec();
         };
     }

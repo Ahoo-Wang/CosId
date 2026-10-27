@@ -25,9 +25,13 @@ permissions:
 jobs:
   # 5.x: one job runs every module's check (compile, Checkstyle, SpotBugs, tests, JaCoCo), the dependency rules and the
   # build-logic tests. Each store/* module gets its own TCK job here as it lands (02-modules.md §5).
+  # L5: the tests of the projects in SKIP_TESTS run in their own job below (store-*, server, spring-compatibility on the
+  # build's Boot and Java 21), so check leaves them out and their containers start once per CI run.
   check:
     name: Check
     runs-on: ubuntu-latest
+    env:
+      SKIP_TESTS: ':store:jdbc,:store:mongo,:store:redis,:store:zookeeper,:store:remote,:server,:spring:autoconfigure,:spring:starter,:integrations:jackson,:integrations:mybatis,:integrations:spring-data-jdbc,:integrations:activiti,:integrations:flowable,:integrations:axon'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -39,8 +43,15 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      # Each project left out must be checked by another job of this workflow.
+      - name: Check the left-out tests run elsewhere
+        run: |
+          for project in ${SKIP_TESTS//,/ }; do
+            grep -q -- "$project:check" .github/workflows/integration-test.yml || { echo "::error::no job checks $project"; exit 1; }
+          done
+
       - name: Check
-        run: scripts/gradle-retry.sh check
+        run: scripts/gradle-retry.sh check -Pcosid.test.skipProjects=$SKIP_TESTS
 
       # Publishing builds the javadoc of every module: a broken reference fails the release otherwise.
       - name: Javadoc
@@ -50,6 +61,8 @@ jobs:
         run: |
           python3 -I benchmark/compare_test.py
           bash -n benchmark/run-smoke
+          bash -n benchmark/run-release
+          python3 -I -c 'import ast, sys; ast.parse(open(sys.argv[1]).read())' benchmark/aggregate-release
 
       - name: Compile the benchmarks
         run: ./gradlew :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
@@ -408,11 +421,11 @@ jobs:
             -e COSID_STORES_MAIN_TYPE=redis -e COSID_STORES_MAIN_OPTIONS_URI=redis://localhost:6379 \
             -e COSID_SERVER_AUTH_TOKENS_0=smoke "ahoowang/cosid-server:$(grep '^version=' gradle.properties | cut -d= -f2)"
           for i in $(seq 1 60); do curl -fsS localhost:8688/actuator/health/liveness && break; sleep 1; done
-          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8688/v5/ranges:reserve -H 'Content-Type: application/json' \
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8688/ranges:reserve -H 'Content-Type: application/json' \
             -d '{"key":"smoke/a","size":10,"initialOffset":0}')" = 401
-          curl -fsS -X POST localhost:8688/v5/ranges:reserve -H 'Authorization: Bearer smoke' -H 'Content-Type: application/json' \
+          curl -fsS -X POST localhost:8688/ranges:reserve -H 'Authorization: Bearer smoke' -H 'Content-Type: application/json' \
             -d '{"key":"smoke/a","size":10,"initialOffset":0}' | grep -q '"end":'
-          curl -fsS -H 'Authorization: Bearer smoke' localhost:8688/v3/api-docs | grep -q '/v5/slots:acquire'
+          curl -fsS -H 'Authorization: Bearer smoke' localhost:8688/v3/api-docs | grep -q '/slots:acquire'
 
       - name: Server logs
         if: failure()

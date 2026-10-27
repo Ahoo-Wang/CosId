@@ -20,7 +20,7 @@ import me.ahoo.cosid.segment.Range;
 import java.util.List;
 
 /**
- * The request and response bodies of the {@code /v5} API (08-remote.md §2). Fields are boxed so a missing one is a
+ * The request and response bodies of the HTTP API (08-remote.md §2). Fields are boxed so a missing one is a
  * {@code 400}, not a zero. Leases travel flat: the owner is {@code ownerKey} and {@code incarnation}.
  */
 final class Bodies {
@@ -28,7 +28,7 @@ final class Bodies {
     }
 
     /**
-     * {@code POST /v5/ranges:reserve}.
+     * {@code POST /ranges:reserve}.
      *
      * @param key           the range key
      * @param size          the size of the range
@@ -38,7 +38,7 @@ final class Bodies {
     }
 
     /**
-     * {@code POST /v5/ranges:seal}.
+     * {@code POST /ranges:seal}.
      *
      * @param key the range key
      */
@@ -58,7 +58,7 @@ final class Bodies {
     }
 
     /**
-     * {@code POST /v5/slots:acquire}.
+     * {@code POST /slots:acquire}.
      *
      * @param namespace     the namespace
      * @param ownerKey      the owner key
@@ -73,7 +73,7 @@ final class Bodies {
     }
 
     /**
-     * {@code POST /v5/slots:renew} and {@code /v5/slots:release}: the holding, and the ttl (renew) or the last issued
+     * {@code POST /slots:renew} and {@code /slots:release}: the holding, and the ttl (renew) or the last issued
      * timestamp (release). {@code expiresAt}, {@code floor}, {@code ceiling} and {@code storeNow} of the lease are
      * optional.
      *
@@ -160,7 +160,7 @@ final class Bodies {
     }
 
     /**
-     * {@code GET /v5/ids}.
+     * {@code GET /ids}.
      *
      * @param ids the ids
      */
@@ -168,7 +168,7 @@ final class Bodies {
     }
 
     /**
-     * {@code GET /v5/ids/strings}.
+     * {@code GET /ids/strings}.
      *
      * @param ids the ids, encoded by the generator's codec
      */
@@ -176,7 +176,7 @@ final class Bodies {
     }
 
     /**
-     * {@code GET /v5/ids/{generator}/periodic}.
+     * {@code GET /ids/{generator}/periodic}.
      *
      * @param period the period every value belongs to
      * @param values the values

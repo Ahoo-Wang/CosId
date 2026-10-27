@@ -20,6 +20,11 @@ compatible with 4.x (D1); the offline migration tool (`migration/`, 09-migration
 
 ## Common commands
 
+> **Local machine budget (agents):** the development machine is shared; total CPU load must stay **≤ 90%** (10 cores → load ≤ 9).
+> Verify on CI by default. A local build, when really needed, is one module at a time with
+> `nice -n 15 ./gradlew --no-daemon --max-workers=2 :<module>:test`; never a full local `check`, never two builds at once,
+> no local Testcontainers or JMH (benchmarks run only on CI, D31). Never `./gradlew --stop`: it kills other projects' daemons.
+
 ```bash
 ./gradlew check                                    # everything: compile, Checkstyle, SpotBugs, tests, JaCoCo,
                                                    # dependency rules, build-logic tests
@@ -33,9 +38,16 @@ benchmark/run-smoke [P5 P12 ...]                   # 4.x and 5.x back to back pe
                                                    # how a PR reports performance (paste build/benchmark-smoke/report.md)
 ./gradlew :benchmark:baseline-4x:jmh               # JMH on the released 4.1.0 jars alone (smoke profile)
 ./gradlew :benchmark:v5:jmh -PjmhProfile=release   # JMH on 5.x, release-gate settings; -PjmhIncludes=A,B narrows
+benchmark/run-release --dry-run CodecBenchmark   # check the release-gate script; the gate itself runs only on CI:
+                                                   # the Release Gate workflow (benchmark/scenarios.md), never locally
 benchmark/compare BASELINE.json CANDIDATE.json --smoke
 python3 -I benchmark/compare_test.py               # tests of the compare script
 ```
+
+`scripts/test-stability.sh :store:redis 20 build/stability` runs a project's tests 20 times without retries and prints
+a per-class table (the `Test Stability` workflow, L4). `-Pcosid.test.skipProjects=:a,:b` leaves those projects' tests
+out of a build (the CI `check` job, whose store, server and Spring tests run in their own jobs);
+`-Pcosid.test.exclude=*.SomeTest` leaves classes out.
 
 `check` fails on any Checkstyle (`config/checkstyle/checkstyle.xml`, Checkstyle 10.x) or SpotBugs
 (`config/spotbugs/exclude.xml`) finding. In CI (`CI=true`) flaky tests get up to 2 retries via `test-retry`.
@@ -55,18 +67,19 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `store/redis/` | `cosid-store-redis` | R2-Redis: Lua scripts behind `RedisScripts`, Lettuce, `WAIT` auto; see its README (durability precondition) |
 | `store/zookeeper/` | `cosid-store-zookeeper` | R2-ZK: `ZookeeperStore` (Curator 5.9), provider type `zookeeper`, ZooKeeper 3.8+ (3.9 primary, D27); TCK on `COSID_TEST_ZOOKEEPER_CONNECT` or an in-process curator-test server |
 | `spring/autoconfigure/` | `cosid-spring-boot-autoconfigure` | R3-S: `cosid.*` records → `RuntimeSpec` (`CosIdSpecs`, pure), the `CosIdRuntime` bean, one bean per generator (`CosIdGeneratorRegistrar`), `SpringDataRedisScripts`, Micrometer, the `cosid` endpoint, health, native hints; stores `compileOnly` |
-| `store/remote/` | `cosid-store-remote` | R4-A: `RemoteStore` over the JDK `HttpClient` (no third-party dependency), provider type `remote` (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`); `RemoteApi` holds the `/v5` paths and error codes the server shares |
-| `server/` | not published | R4-A: cosid-server, a Spring Boot app (`CosIdServer`): the two primitives of its backing store (`cosid.stores`, `cosid.server.store`) under `/v5`, optional `/v5/ids/**`, bearer auth on by default, limits, 503 pool, OpenAPI, Actuator; `Dockerfile` + `:server:dockerImage` |
+| `store/remote/` | `cosid-store-remote` | R4-A: `RemoteStore` over the JDK `HttpClient` (no third-party dependency), provider type `remote` (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`); `RemoteApi` holds the paths (no version prefix, D30) and error codes the server shares |
+| `server/` | not published | R4-A: cosid-server, a Spring Boot app (`CosIdServer`): the two primitives of its backing store (`cosid.stores`, `cosid.server.store`) at the root (no version prefix, D30), optional `/ids/**`, bearer auth on by default, limits, 503 pool, OpenAPI, Actuator; `Dockerfile` + `:server:dockerImage` |
 | `integrations/*` | `cosid-jackson`, `cosid-mybatis`, `cosid-spring-data-jdbc`, `cosid-activiti`, `cosid-flowable`, `cosid-axon` | R4-B, split by dependency (D29): one module per library, each on `core` and that library only (no integration depends on another). `@AsString`, `CosIdInterceptor`, `CosIdBeforeConvertCallback`, `ActivitiIdGenerator` / `FlowableIdGenerator`, `CosIdIdentifierFactory`; see `integrations/README.md` (the Axon static binding) |
 | `spring/starter/` | `cosid-spring-boot-starter` | R3-S: dependencies only (core + autoconfigure, D14); applications add the store artifacts |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
-| `benchmark/v5/` | not published | the same scenarios on 5.x |
+| `benchmark/` | not published | the same scenarios on 5.x |
 | `migration/` | not published | R4-C: the offline 4.x → 5.0 migration fat jar (`:migration:shadowJar` → `build/libs/cosid-migration.jar`): 4.x readers, a narrow 5.0 admin path per store, `plan` / `apply` / `verify` / `config` / `purge`; see its README |
-| `extras/sharding/`, `examples/` | | not created yet (R4–R5) |
+| `extras/sharding/` | `cosid-sharding` | R5-B: the 4.x sharding algorithms (`ModCycle`, `IntervalTimeline`, `CachedSharding`, the convertors) on `core` alone: `ShardingRange` replaces Guava's `Range`, the Snowflake convertor reads `Layout` |
+| `examples/` | not published | R5-B: `segment-jdbc` (H2), `snowflake-redis` (Testcontainers or `COSID_TEST_REDIS_URI`), `server` (a `remote` client; its smoke test runs the built `cosid-server.jar` as a process on curator-test ZooKeeper); each smoke test is in `check` |
 | `build-logic/` | — | included build: convention plugins and build rules (see below) |
 | `docs/architecture/` | — | the design; `docs/jmh/<version>/` benchmark results |
-| `documentation/` | — | the VitePress site, still 4.x content until R5-B |
+| `documentation/` | — | the VitePress site of 5.0 (R5-B); see "Site layout" below |
 
 To add a module: create the directory with a `build.gradle.kts` applying `cosid.library` (or `cosid.benchmark`),
 `include(":path:name")` in `settings.gradle.kts`, add it to `bom/` if published, and make sure a rule in
@@ -140,7 +153,15 @@ Adding a package means deciding whether `module-info.java` exports it.
   `IdentifierFactory.getInstance()`. `CosIdIdentifierFactory` keeps the only static state of the project (its bindings);
   a test that binds must unbind; unbound, it throws. `TextIds` (text ids of any strategy) is a package-private copy in
   each module that needs it, since integrations must not depend on each other. The Spring side is `CosIdIntegrationsConfiguration` in `spring/autoconfigure`.
-- `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.
+- **Site layout** (`documentation/docs/{en,zh}`, kept in sync page for page): `guide/introduction`, `getting-started`,
+  `recipes`; `guide/concepts/` (`layout-and-codecs`, `slot-lease`, `segment`, `runtime`); `guide/backends/` (one page per
+  store, `index` chooses and carries the "实测兼容性(不承诺)" summary of the store READMEs, `test-suite`); `guide/server`;
+  `guide/integrations/`; `guide/operations/` (production checklist, metrics and health, troubleshooting, FAQ);
+  `guide/migration/from-4x`; `reference/config/` (`basic`, `generators`, `server`: every `cosid.*` property with its
+  default, taken from the `*Properties` records); `reference/performance/benchmark`. When a page moves or goes, add its
+  old path to `documentation/docs/.vitepress/theme/redirects.ts` (targets are current pages: no chains) and update both
+  sidebars in `.vitepress/configs/`. When a store README's compatibility table changes, update `guide/backends/index`.
+  Build with `pnpm install && pnpm docs:build` in `documentation/`; the site deploys from release tags.
 - **migration tests** write real 4.x data with the 4.1.0 jars: the `legacy4x` source set (`migration/src/test/legacy4x`) is
   compiled against them alone and loaded in its own class loader (path in `-Dcosid.migration.legacy4x`), so run them
   through Gradle. H2 (TCP) and ZooKeeper always run, Redis and MongoDB only with Docker. The admin path writes the 5.0

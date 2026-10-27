@@ -63,6 +63,16 @@ class PeriodicSegmentGeneratorTest {
     }
 
     @Test
+    void defaultsNeverIssueZeroInAnyPeriod() {
+        try (PeriodicSegmentGenerator generator = new PeriodicSegmentGenerator("bill", "app/bill", Period.YEAR_MONTH_DAY, ZoneOffset.UTC,
+            store, BatchPolicy.DEFAULT, PeriodicPolicy.DEFAULT, Runnable::run, time, GeneratorListener.NOOP)) {
+            assertThat(generator.generate(), is(new GroupedId("20261026", 1)));
+            time.set(MIDNIGHT);
+            assertThat(generator.generate(), is(new GroupedId("20261027", 1)));
+        }
+    }
+
+    @Test
     void prewarmsTheNextPeriodSoTheBoundaryNeedsNoStoreCall() {
         try (PeriodicSegmentGenerator generator = generator(PeriodicPolicy.DEFAULT, Runnable::run)) {
             generator.generate();

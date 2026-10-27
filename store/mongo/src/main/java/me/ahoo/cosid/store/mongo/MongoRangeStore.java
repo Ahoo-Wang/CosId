@@ -19,6 +19,7 @@ import me.ahoo.cosid.segment.Range;
 import me.ahoo.cosid.segment.RangeStore;
 
 import com.mongodb.MongoServerException;
+import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
@@ -65,7 +66,18 @@ public final class MongoRangeStore implements RangeStore {
      * @param timeout  the operation timeout ({@code timeoutMS}); zero means none
      */
     public MongoRangeStore(MongoDatabase database, Duration timeout) {
-        this(MongoStore.configure(database, timeout).getCollection(COLLECTION));
+        this(database, timeout, WriteConcern.MAJORITY);
+    }
+
+    /**
+     * A range store on a database whose client the caller owns, writing with the given concern.
+     *
+     * @param database     the database
+     * @param timeout      the operation timeout ({@code timeoutMS}); zero means none
+     * @param writeConcern the write concern, acknowledged ({@code majority} keeps ranges across a failover)
+     */
+    public MongoRangeStore(MongoDatabase database, Duration timeout, WriteConcern writeConcern) {
+        this(MongoStore.configure(database, timeout, writeConcern).getCollection(COLLECTION));
     }
 
     /** On a given collection, already configured: tests wrap it to inject server errors. */
@@ -73,8 +85,17 @@ public final class MongoRangeStore implements RangeStore {
         this.ranges = ranges;
     }
 
+    /** The collection as the store uses it (tests check its concerns). */
+    MongoCollection<Document> collection() {
+        return ranges;
+    }
+
     @Override
     public Range reserve(String key, long size, long initialOffset) {
+        return MongoStore.timed("reserve", () -> reserveNow(key, size, initialOffset));
+    }
+
+    private Range reserveNow(String key, long size, long initialOffset) {
         Objects.requireNonNull(key, "key");
         if (size <= 0) {
             throw new IllegalArgumentException("size must be positive: " + size);
@@ -129,6 +150,10 @@ public final class MongoRangeStore implements RangeStore {
      */
     @Override
     public boolean seal(String key) {
+        return MongoStore.timed("seal", () -> sealNow(key));
+    }
+
+    private boolean sealNow(String key) {
         Objects.requireNonNull(key, "key");
         for (int attempt = 1; ; attempt++) {
             try {

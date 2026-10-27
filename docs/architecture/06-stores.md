@@ -115,7 +115,7 @@ public interface RedisScripts {
 - `cosid_range`:`{_id: key, next, sealed}`。`findOneAndUpdate`,`upsert`,管道更新 `next = ifNull(next, initialOffset) + size`,过滤 `sealed != true`,返回更新后的文档;遇到 `E11000`(并发 upsert)重试一次。
 - `cosid_slot`:`{ns, slot, …}`,在 `(ns, slot)` 上建唯一索引,预建所有槽位。05 §2.1 的每次尝试都是一个 `findOneAndUpdate`:
   过滤条件用 `$expr` 与 `$$NOW` 表达"可取",按 `slot` 升序,条件中带上 `fence`。
-- 写关注默认 `majority`,读关注 `majority`。存储时钟取 `$$NOW`。数据库名通过 `options.database` 配置(默认 `cosid_db`)。
+- 写关注由 `options.writeConcern` 配置,默认 `majority`;设置得比 majority 弱时,启动时告警:failover 时可能丢写并导致重复(#1336)。读关注 `majority`。存储时钟取 `$$NOW`。数据库名通过 `options.database` 配置(默认 `cosid_db`)。
 
 ### 2.4 ZooKeeper(最低 3.8,以 3.9 为主,D27)
 

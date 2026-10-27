@@ -17,11 +17,12 @@ Every class is `me.ahoo.cosid.benchmark.<Class>`; a method name ends with `_t<th
 | P4 | `CosId80Benchmark` | `radix62_t1`, `friendly_t1` | thrpt | `ClockSync(Leased(Radix62CosIdGenerator(1)))`, `ClockSync(Leased(FriendlyCosIdGenerator(1, Asia/Shanghai, true)))` | `TimeBasedGenerator` on `Layout.COSID_80` + `PartsCodec.radix(…, 62)` / `PartsCodec.friendly` |
 | P5 | `SegmentBenchmark` | `generate_t1/t4/t16/t64`, `@Param step` = 10, 100 | thrpt, sample (p99, p99.9) | `SegmentChainId(distributor)`; in-memory distributor at `step`, no simulated latency; other settings default | `SegmentGenerator` on an in-memory range store, one atomic add per reservation (`V5.MemoryRangeStore`, until R1-C's `InMemoryStore`); `BatchPolicy.DEFAULT` with `step` (and `maxBatch = BatchPolicy.defaultMaxBatch(step)`, `max(step × 1000, 2^20)` rounded to `step`) |
 | P6 | `SegmentNoPrefetchBenchmark` | `generate_t1` | thrpt | `DefaultSegmentId`, in-memory distributor, step 1, no ttl | `SegmentGenerator`, step 1, `lookahead = 0`, `maxBatch = 1`, no `rangeTtl` |
-| P7 | — | — | thrpt, sample | TODO(R2-JDBC, R2-Redis): `SegmentChainId` on MySQL / Redis | real MySQL / Redis stores |
+| P7 (MySQL) | `MySqlChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | see [P7 / P10 on JDBC](#p7--p10-on-jdbc-r2-jdbc) | |
 | P7 (Redis) | `RedisChainIdBenchmark` | `generate_t1/t4/t16`, `@Param step` = 10, 100 | thrpt, sample | `SegmentChainId(SpringRedisIdSegmentDistributor)`, offset 0, on a `StringRedisTemplate` (Lettuce) at `COSID_TEST_REDIS_URI` (default `redis://localhost:6379`) | `SegmentGenerator` on the `redis` store opened from the same URI (`wait=auto`), `V5.batch(step)` |
 | P8 | `PeriodicSegmentBenchmark` | `generate_t1/t4` | thrpt, sample (p99, p99.9) | grouped `SegmentChainId` (`DefaultGroupedIdSegmentDistributor`, in-memory distributor), step 100; a `GroupBySupplier` keyed `yyyyMMdd` whose day lasts 2s of real time | `PeriodicSegmentGenerator` on the same accelerated `yyyyMMdd` day, `BatchPolicy.DEFAULT` with step 100, prewarm 1/1440 of the day (the default minute, scaled) |
 | P9 | `CodecBenchmark` | `radix62Encode/Decode_t1`, `radix36Encode/Decode_t1`, `friendlyEncode/Decode_t1` | thrpt | `Radix62IdConverter.PAD_START`, `Radix36IdConverter.PAD_START`, `SnowflakeFriendlyIdConverter` (Asia/Shanghai, padded) | `Radix.of(62, 11, true)`, `Radix.of(36, 13, true)`, `Friendly.of(SNOWFLAKE_MS, Asia/Shanghai, true)` |
-| P10 | — | — | avgt, sample | TODO(R2-*): reserve, acquire, renew per backend | the same on 5.x stores |
+| P10 (MySQL) | `MySqlStoreBenchmark` | `reserve_t1`, `acquire_t1`, `renew_t1` | avgt, sample | see [P7 / P10 on JDBC](#p7--p10-on-jdbc-r2-jdbc) | |
+| P10 (MongoDB) | `MongoStoreBenchmark` | `reserve_t1`, `acquire_t1`, `renew_t1` | avgt, sample | `MongoIdSegmentDistributor.nextMaxId(100)`; `LeaseStoreMachineIdDistributor` on `MongoMachineLeaseStore` (timeout 10s): `distribute` + `revert` of a machine id (10 bits), `guard` of a held one | `MongoStore` (timeout 10s): `reserve(key, 100, 0)`; `acquire` + `release` (limit 1024), `renew` of a held lease; both on the replica set at `COSID_BENCHMARK_MONGODB_URI` (default `mongodb://localhost:27017`) |
 | P10 (Redis) | `RedisStoreBenchmark` | `reserve_t1`, `acquireRelease_t1`, `renew_t1` | avgt, sample | `nextMaxId(100)`; `MachineLeaseManager.acquire` (a new instance, 10 machine bits) then `release`; `renew` of a held lease (`SpringRedisMachineLeaseStore`, command timeout 10s, as the 5.x store timeout) | `reserve(key, 100, 0)`; `acquire` (a new owner, limit 1024) then `release`; `renew` of a held lease |
 | P10 (ZooKeeper) | `ZookeeperStoreBenchmark` | `reserve_t1`, `renew_t1`, `acquire_t1`, `acquire1024_t1` | avgt, sample | `ZookeeperIdSegmentDistributor.nextMaxId(100)` (no call timeout); `MachineLeaseManager` on `ZookeeperMachineLeaseStore` (call timeout 5s): `renew`, `acquire` + `release` at machine bit 10, empty or with 1023 ids held | `ZookeeperStore` (timeout 5s): `reserve(key, 100, 0)`; `renew`, `acquire` + `release` at limit 1024, empty or with 1023 slots held; both on one in-process ZooKeeper 3.9 (curator-test) per trial |
 | P11 | `SpringStartBenchmark` | `startToFirstId_t1` | avgt | a Spring Boot context (`@EnableAutoConfiguration`, no web) started with `cosid-spring-boot-starter:4.1.0`, manual machine id 1 and the share snowflake generator, the first id, the context closed | the same with the 5.x starter: `cosid.machine.static.slot=1` and a `default` snowflake generator; both sides on the Spring Boot of `spring/*` (`spring-boot-starter`, so the same logging); `avgt` over repeated starts rather than `ss`, so one smoke run gives a stable mean |
@@ -47,6 +48,7 @@ depends on numbers stored from another time or machine, which matters on a share
 benchmark/run-smoke                      # the PR smoke set P1 P3 P5 P9 (10 §1.3)
 benchmark/run-smoke P5 P12               # chosen scenarios (P-numbers or class names)
 benchmark/run-smoke --release P5         # release JMH settings and release rules
+benchmark/run-smoke P7 P10               # the store scenarios: every class of each (they need the stores, below)
 ```
 
 Paste `build/benchmark-smoke/report.md` into the PR. The script builds both JMH jars, runs them on the Java 21
@@ -64,9 +66,39 @@ python3 -I benchmark/compare_test.py                 # the tests of compare
 ```
 
 Results land in `build/results/jmh/results.json` of each project. `docs/jmh/4.1.0/` keeps a reference smoke run of
-4.x (P5 and P12 pending a clean rerun); it is for reading, not for gating. The release gate (10 §1.3) runs both sides
-with `-PjmhProfile=release` on one fixed physical machine, one JDK 21 patch release, turbo off, one after the other,
-and stores the JSON and the report under `docs/jmh/5.0/`.
+4.x (P5 and P12 pending a clean rerun); it is for reading, not for gating. The release gate (10 §1.3) runs on CI, never
+on a developer machine: below.
+
+## The release gate (R5-A): the `Release Gate` workflow
+
+The workflow (`.github/workflows/release-gate.yml`, run by hand with a `ref`, default `main`) measures one commit in
+eight jobs, one per scenario group: `snowflake` (P1–P4), `segment` (P5, P6, P8), `codec-filler` (P9, P12),
+`spring-start` (P11), and one per store for P7 / P10 — `mysql` (MySQL 8.4), `redis` (Redis 7), `mongo` (a MongoDB 7.0
+single-node replica set) and `zookeeper` (ZooKeeper 3.9), each starting only its own store, so no other container
+shares the runner. Every job uses the same pinned JDK 21 patch release (Temurin, `JAVA_VERSION` in the workflow; the
+Gradle toolchain may use no other) and runs `benchmark/run-release` on its group, so 4.1.0 and 5.x of a scenario run
+one after the other on the same runner.
+
+`run-release` is `run-smoke --release` (3 forks, 5 x 2 s warmup, 5 x 2 s measurement, `-prof gc`) with these steps:
+
+- It records the runner (CPU model, cores, memory, OS, image), the JDK, JMH and the commit.
+- It refuses to start when a store the group needs does not answer.
+- **Runners are shared virtual machines**, so on CI (`CI=true`, or `--rerun`) a row that fails runs once more, both
+  sides again in fresh forks (`compare --failed` lists the rows, `compare --rerun` judges them on that re-run alone).
+  A row that failed passes only if its re-run passes; the report shows both runs.
+- Outside CI it still aborts (status 3) when the 1-minute load average is above 1.5 before a scenario; on CI the load
+  of a runner says nothing about its neighbours, so that check is off.
+
+The `Report` job joins the groups with `benchmark/aggregate-release` into one `report.md` (a table of the groups and
+their runners, then each group's comparison), `baseline-4x.json`, `v5.json`, the re-run JSON, and `baseline-4x.md`
+(the 4.1.0 side alone), uploaded as the `release-gate-report` artifact. Run with `publish = true`, it opens a PR that
+commits the report to `docs/jmh/5.0/` and the 4.1.0 side to `docs/jmh/4.1.0/release-ci.{json,md}` (the clean 4.1.0
+baseline, L1). A FAIL row is published too, for review: investigate it, fix a real regression, and run the gate again.
+
+A push to a `release-gate-check/**` branch runs the same pipeline with smoke settings and re-runs every row
+(`COSID_RELEASE_RERUN_ALL=true`), to check the workflow and the scripts; it is never a result.
+`benchmark/run-release --dry-run CodecBenchmark` checks the script locally in a minute or two, likewise never a
+result.
 
 ### P7 / P10 on JDBC (R2-JDBC)
 

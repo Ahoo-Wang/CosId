@@ -16,6 +16,7 @@ package me.ahoo.cosid.server;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -117,6 +118,25 @@ class IdEndpointsTest {
         assertEquals(8, body.get("period").asString().length());
         assertEquals(4, body.get("values").size());
         assertThat(body.get("values").get(3).asLong(), greaterThan(body.get("values").get(0).asLong()));
+    }
+
+    /** D30: the API has no version prefix; with every endpoint on, it shadows none of Actuator or springdoc. */
+    @Test
+    void unversionedPathsLeaveActuatorAndSpringdocAlone() {
+        HttpResponse<String> api = server.get("/v3/api-docs", TestServer.TOKEN);
+        assertEquals(200, api.statusCode());
+        for (String path : new String[] {RemoteApi.RESERVE, RemoteApi.SEAL, RemoteApi.ACQUIRE, RemoteApi.RENEW, RemoteApi.RELEASE, RemoteApi.IDS,
+            RemoteApi.IDS + "/strings", RemoteApi.IDS + "/{generator}", RemoteApi.IDS + "/{generator}/strings", RemoteApi.IDS + "/{generator}/periodic"}) {
+            assertThat(api.body(), containsString("\"" + path + "\""));
+        }
+        assertThat(api.body(), not(containsString("/v5")));
+        assertEquals("/ranges:reserve", RemoteApi.RESERVE);
+        assertEquals("/ids", RemoteApi.IDS);
+        assertEquals(200, server.get("/swagger-ui/index.html", TestServer.TOKEN).statusCode());
+        assertEquals(200, server.get("/actuator/health", null).statusCode());
+        assertEquals(200, server.get("/actuator/cosid", TestServer.TOKEN).statusCode());
+        assertEquals(200, server.get("/actuator/prometheus", TestServer.TOKEN).statusCode());
+        assertEquals(404, server.get("/v5/ids", TestServer.TOKEN).statusCode(), "the old prefix is gone");
     }
 
     @Test

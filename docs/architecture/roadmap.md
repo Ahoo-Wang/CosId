@@ -101,11 +101,11 @@ R0 骨架、接口冻结、4.x 基线基准
 | 3 | R2-JDBC、R2-Redis、R2-Mongo、R2-ZK、R3 | R1-C 合入(R3 还需要 R1-A、R1-B) | ✅ |
 | 4 | R3-S、R4-C | R3 合入(R4-C 还需要 R2) | ✅ |
 | 5 | R4-A、R4-B | R3-S 合入 | ✅ |
-| 6 | R5-A、R5-B | 功能冻结 | 进行中 |
+| 6 | R5-A、R5-B | 功能冻结 | R5-B ✅;R5-A 正式门槛运行中 |
 
 ## 5. 进度
 
-> 更新于 2026-10-27。`main`(原 `5.x`)上已合入 19 个 PR;所有提交作者为 Ahoo Wang,提交说明为英文,不带 `Co-authored-by`。
+> 更新于 2026-10-27。`main`(原 `5.x`)上已合入 32 个 PR;所有提交作者为 Ahoo Wang,提交说明为英文,不带 `Co-authored-by`。
 
 ### 5.1 阶段
 
@@ -125,10 +125,11 @@ R0 骨架、接口冻结、4.x 基线基准
 | R4-A 远程服务与客户端 | ✅ 已合入 | [#1328](https://github.com/Ahoo-Wang/CosId/pull/1328) |
 | R4-B 集成适配器 | ✅ 已合入 | [#1327](https://github.com/Ahoo-Wang/CosId/pull/1327) |
 | R4-C 离线迁移工具 | ✅ 已合入 | [#1324](https://github.com/Ahoo-Wang/CosId/pull/1324) |
-| R5-A 发布门槛基准与特性验收 | 🔄 第一部分 [#1335](https://github.com/Ahoo-Wang/CosId/pull/1335)、能力缺口 [#1336](https://github.com/Ahoo-Wang/CosId/pull/1336) 审查中;发布门槛基准等其他会话全部停下后在本机运行 | |
-| R5-B 文档站、示例、迁移指南 | 🔄 审查中:分片 [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330)、示例 [#1333](https://github.com/Ahoo-Wang/CosId/pull/1333)、文档站 [#1337](https://github.com/Ahoo-Wang/CosId/pull/1337)、README/skills [#1338](https://github.com/Ahoo-Wang/CosId/pull/1338) | |
+| R5-A 发布门槛基准与特性验收 | 🔄 特性验收、稳定性、能力缺口、CI 发布门槛 workflow 均已合入([#1335](https://github.com/Ahoo-Wang/CosId/pull/1335)、[#1336](https://github.com/Ahoo-Wang/CosId/pull/1336)、[#1343](https://github.com/Ahoo-Wang/CosId/pull/1343));正式门槛运行中:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762) | |
+| R5-B 文档站、示例、迁移指南 | ✅ 分片 [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330)、README/skills [#1338](https://github.com/Ahoo-Wang/CosId/pull/1338)、示例 [#1333](https://github.com/Ahoo-Wang/CosId/pull/1333)、文档站 [#1337](https://github.com/Ahoo-Wang/CosId/pull/1337) | |
 | D29 integrations 按依赖拆分 | ✅ 已合入 | [#1334](https://github.com/Ahoo-Wang/CosId/pull/1334) |
-| D30 server API 去掉 `/v5` 前缀 | 🔄 同步 D29 后合入 | [#1332](https://github.com/Ahoo-Wang/CosId/pull/1332) |
+| D30 server API 去掉 `/v5` 前缀 | ✅ 已合入 | [#1332](https://github.com/Ahoo-Wang/CosId/pull/1332) |
+| RC 前全面审查 | 🔄 进行中:见 [rc-review.md](rc-review.md) | |
 | R6 发布 | ⏳ | |
 
 后续修复(已合入):`maxBatch` 默认值 [#1317](https://github.com/Ahoo-Wang/CosId/pull/1317)、Mongo 并发 upsert 与重复身份误报 [#1316](https://github.com/Ahoo-Wang/CosId/pull/1316)、
@@ -146,17 +147,22 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 
 | # | 事项 | 归属 |
 |---|---|---|
-| L1 | 4.1.0 基线 P5、P12 在空闲机器上干净重跑(R0 时机器负载过高) | R5-A |
-| L2 | 存储场景 P7、P10 在安静机器上最终判定;已知待复核:ZK renew p99、ZK reserve sample 分配、Mongo P10 | R5-A |
+| L1 | 4.1.0 基线 P5、P12 干净重跑:改由 CI `release-gate` workflow 刷新(D31) | R5-A |
+| L2 | 存储场景 P7、P10 在 CI `release-gate` 中最终判定;已知待复核:ZK renew p99、ZK reserve sample 分配、Mongo P10 | R5-A |
 | L3 | 见 L10 | — |
 | L4 | 集成测试稳定性:每个集成测试类在 CI 上连跑 N 次(建议 20)无失败,作为 R5-A 验收项;实施期间已出现 4 个依赖时序的偶发失败(Mongo 2、ZK 1、Redis 1) | R5-A |
 | L5 | 主 `check` job 与各存储 job 重复跑容器测试,需要一个跳过容器的开关去重 | R5-A |
 | L6 | 文档站写明 ZK 槽位节点人工重建的前提、Redis 持久化前提、各后端"实测兼容性(不承诺)"汇总 | R5-B |
 | L7 | ~~`config` 子命令对 4.x proxy 配置生成的 `remote` 存储与 R4-A 选项名一致~~ 已在 #1324 中完成 | R4-C ✅ |
-| L8 | 特性验收发现 4 项能力缺口(D21):Mongo `writeConcern` 选项、4.x 分组前缀的两种写法(期间在业务前缀之后 / 文本不含期间)、Spring 侧 `seq-reset-threshold`、`onStoreTimeout` 从未触发(`cosid.store.timeouts` 恒为 0) | R5-A 补齐 |
-| L9 | 分片 `extras/sharding` 尚未迁入 | R5-B |
-| L10 | Redis `ReplicaWaitTest` 偶发失败修复 | ✅ [#1331](https://github.com/Ahoo-Wang/CosId/pull/1331) |
-| L11 | 号段默认 `initialOffset` 改为 1,不发 0(与 4.x 一致;`IdFiller` 把 0 视为未设置) | R1-B 小 PR |
+| L8 | ✅ [#1336](https://github.com/Ahoo-Wang/CosId/pull/1336) 特性验收发现 4 项能力缺口(D21):Mongo `writeConcern` 选项、4.x 分组前缀的两种写法(期间在业务前缀之后 / 文本不含期间)、Spring 侧 `seq-reset-threshold`、`onStoreTimeout` 从未触发(`cosid.store.timeouts` 恒为 0) | R5-A 补齐 |
+| L9 | 分片 `extras/sharding` 迁入 | ✅ [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330) |
+| L10 | Redis `ReplicaWaitTest`、清扫测试偶发失败修复 | ✅ [#1331](https://github.com/Ahoo-Wang/CosId/pull/1331)、[#1340](https://github.com/Ahoo-Wang/CosId/pull/1340) |
+| L11 | 号段默认 `initialOffset` 改为 1,不发 0(与 4.x 一致;`IdFiller` 把 0 视为未设置) | ✅ [#1339](https://github.com/Ahoo-Wang/CosId/pull/1339) |
+| L12 | 稳定性:实施后期又出现 3 个偶发/可疑测试:`RemoteStoreTest`(已在 #1332 修复)、Mongo `lostUpsertRacesRetryAndNeverOverlap`、Redis `sweepMovesAtMostOneBatchOfExpiredLeases`(待查是否真缺陷) | R2-Mongo、R2-Redis |
+| L13 | `config` 转换:4.x 非零 `offset` → `initial-offset = offset + 1` | ✅ [#1341](https://github.com/Ahoo-Wang/CosId/pull/1341) |
+| L14 | 🔄 [#1342](https://github.com/Ahoo-Wang/CosId/pull/1342) CI 中(含 `examples/plain-stores` 回归示例);Linux 上不用 Spring 时 `store/redis` + `store/zookeeper` 共存失败(ZooKeeper 带入 Netty 4.1 epoll,Lettuce 7 需要 Netty 4.2):`store/zookeeper` 排除 ZooKeeper 的 Netty 依赖(客户端默认 NIO),加 Linux 回归测试 | R2-ZK |
+| L15 | 发布门槛 CI 试跑的早期信号(待正式门槛确认):P6 分配 24→32 B/op、P10 MySQL 分配增加、x86 上编解码 decode 约 −15% | 正式门槛后按归属分派 |
+| L16 | 新偶发测试:Mongo `storeTimeoutBoundsAnOperationOnAServerThatStoppedAnswering` | 待分派 |
 
 ## 6. 风险与经验
 
@@ -167,7 +173,7 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 | ZooKeeper `mtime` 在 leader 切换时跳变 | 安全性不依赖它(D22);failover 测试已覆盖 |
 | Redis failover 丢写 | 文档声明前提;默认 `WAIT` auto,专用连接 |
 | 迁移遗漏 4.x key 格式或运行中的实例 | 用真实 4.1.0 jar 写入的数据做测试;静止观察 + 先封存再写目标 |
-| 共享机器上的基准噪声 | **已发生**:负载常达 20–30;PR 用 `run-smoke` 同次交替运行,存储场景推迟到 R5-A,发布门槛只在固定物理机上判定 |
+| 共享机器上的基准噪声 | **已发生**:负载常达 20–50;PR 用 `run-smoke` 同次交替运行;发布门槛不在本地运行,改到 CI 同一 runner 上交替运行并对 FAIL 行重跑(D31) |
 | 并行会话改同一批共享文件(settings、bom、CI、AGENTS.md)导致反复冲突 | 只追加自己的行;合入一个后,其余 PR 必须同步目标分支并在合并后的结果上重新跑 CI 才合入 |
 | 子会话 worktree 从 `main` 切出 | 每份任务说明第一步都要求从 5.0 线(现为 `origin/main`)切分支并核对 `settings.gradle.kts`;下发 reset 类指令前先核实对方分支状态 |
 | 提交身份与 `Co-authored-by` | 已统一为 Ahoo Wang,`5.x` 历史已改写;squash 合并始终显式传 `--body` |

@@ -6,41 +6,44 @@ Thanks for helping improve CosId. This guide explains how changes move from an i
 
 - Search [open and closed issues](https://github.com/Ahoo-Wang/CosId/issues?q=is%3Aissue) first.
 - Use the **Bug Report** or **Feature Request** template. For bugs, include the CosId version, the backend
-  (Redis, JDBC, ZooKeeper, MongoDB, proxy), and a minimal reproduction.
+  (JDBC, Redis, MongoDB, ZooKeeper, remote / cosid-server), and a minimal reproduction.
 - Questions about usage go to [Discussions](https://github.com/Ahoo-Wang/CosId/discussions).
 - Security vulnerabilities must **not** be reported in public issues. See [SECURITY.md](./SECURITY.md).
 
 Larger changes (new backends, API changes, behavior changes) should start with an issue so the design can be
-agreed on before code is written. Planned work is tracked in [docs/ROADMAP.md](./docs/ROADMAP.md).
+agreed on before code is written. The 5.0 design and its decisions are in [docs/architecture/](./docs/architecture/README.md), the phases in [its roadmap](./docs/architecture/roadmap.md); public API changes go to the design documents first.
 
 ## Development setup
 
-- **JDK 17** (the Gradle toolchain is pinned to 17).
+- **JDK 21** (the Gradle toolchain is pinned to 21; the daemon may run on 17+).
 - Always use the Gradle wrapper: `./gradlew`.
-- Enable Lombok annotation processing in your IDE.
+- No Lombok: records for values, explicit code otherwise.
 - Your editor should honor [`.editorconfig`](./.editorconfig) (UTF-8, LF, 4-space indent for Java/Kotlin).
 
 ```bash
-# Full verification of one module: compile, Checkstyle, SpotBugs, tests, JaCoCo
-./gradlew cosid-core:check
+# Everything: compile, Checkstyle, SpotBugs, tests, JaCoCo, dependency rules
+./gradlew check
+
+# One module (paths follow directories: :core, :store:jdbc, :spring:autoconfigure, :integrations:mybatis)
+./gradlew :core:check
 
 # A single test class
-./gradlew cosid-core:test --tests "me.ahoo.cosid.segment.DefaultSegmentIdTest"
+./gradlew :core:test --tests "me.ahoo.cosid.time.LayoutTest"
 
-# Aggregated coverage report (build/reports under code-coverage-report/)
-./gradlew codeCoverageReport
+# The documentation site
+cd documentation && pnpm install && pnpm docs:build
 ```
 
-Backend modules need the matching service for their integration tests: MySQL for `cosid-jdbc` and
-`cosid-spring-boot-starter` (initialize it with `cosid-jdbc/src/main/init-script/init-cosid-mysql.sql`),
-Redis on `localhost:6379` for `cosid-spring-redis`. ZooKeeper tests start an in-process server, MongoDB tests use
-Testcontainers (Docker required).
-CI runs all of them, see `.github/workflows/integration-test.yml`.
+Store modules run the store TCK against real servers: from `COSID_TEST_*` environment variables when set, otherwise
+on Testcontainers (Docker required). ZooKeeper tests start an in-process server. [AGENTS.md](./AGENTS.md) lists the
+variables and the minimum versions each CI job covers; CI runs all of them, see `.github/workflows/integration-test.yml`.
 
 ## Branching model
 
-- `main` is the only long-lived development branch and is always releasable.
-- Maintenance lines live on `1.x` (Spring Boot 2 / Java 8) and `2.x` (Spring Boot 3).
+- `main` is the 5.x line (CosId 5.0, Java 21, Spring Boot 4.0+): the default branch, always releasable.
+- `4.x` is the 4.x maintenance branch: bug fixes only, never merged into `main`. Older lines live on `3.x`, `2.x`
+  (Spring Boot 3) and `1.x` (Spring Boot 2 / Java 8).
+- The documentation site is built from release tags, so the 4.x site stays buildable from its own tags.
 - Work on a short-lived topic branch (for example `fix/segment-overflow` or `feat/proxy-auth`) created from
   `main`, or from the maintenance branch you target. Keep it focused on one change.
 - Pull requests are squash-merged, so the pull request title becomes the commit message on `main`.
@@ -63,7 +66,7 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/):
 | `test`     | adding or fixing tests                    | Maintenance           |
 | `build`, `ci`, `chore`, `style`, `revert` | build, CI, tooling | Maintenance           |
 
-- Use the module as the scope where it helps: `fix(jdbc): ...`, `feat(proxy): ...`. Dependency updates use the
+- Use the module as the scope where it helps: `fix(jdbc): ...`, `feat(server): ...`. Dependency updates use the
   `deps` scope: `fix(deps): ...`.
 - Mark breaking changes with `!` (`feat(core)!: ...`) or a `BREAKING CHANGE:` line in the pull request body.
 
@@ -83,7 +86,7 @@ Before you open a pull request:
 Every pull request needs:
 
 - passing CI (integration tests per module, CodeQL, coverage upload);
-- coverage that meets the [Codecov](./codecov.yml) gates: 60% on the patch, 80% for the project;
+- coverage that meets the [Codecov](./codecov.yml) gates: 80% on the patch and for the project;
 - an approving review from a maintainer (see [CODEOWNERS](./.github/CODEOWNERS)).
 
 Reviewers check correctness first (concurrency, clock and lease handling, backend failure modes), then
@@ -91,9 +94,10 @@ compatibility of public APIs and configuration properties, tests, and documentat
 
 ## Architecture rules
 
-- `cosid-core` has no Spring, database or middleware dependencies.
-- Backends depend on core, the Spring Boot starter depends on backends; never the other way round.
-- Dependency versions are managed in `cosid-dependencies` and `gradle/libs.versions.toml`, not in single modules.
+- `core` depends on `slf4j-api` only; stores, integrations and `extras/*` depend on `core`; nothing depends on
+  `server`, `migration`, `examples` or `benchmark`. `checkDependencyRules` (part of `check`) enforces it
+  ([02-modules.md](./docs/architecture/02-modules.md) §3).
+- Versions are managed in `gradle/libs.versions.toml` only; `bom/` lists the project's own artifacts.
 
 See [AGENTS.md](./AGENTS.md) for the module layout and known pitfalls.
 
@@ -112,7 +116,6 @@ A release is cut by a maintainer:
    pull request labels (see `.github/release.yml`).
 3. Publishing the release runs `package-deploy.yml`, which first checks that the tag matches
    `gradle.properties`, then signs and publishes the artifacts to Maven Central and GitHub Packages.
-   `docker-deploy.yml` publishes the `cosid-proxy` image for the tag.
 
 ## License
 

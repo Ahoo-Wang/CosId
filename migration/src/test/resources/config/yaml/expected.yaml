@@ -6,7 +6,6 @@
 #  - cosid.snowflake.provider.custom.clock-sync: replaced by the clock regression policy (borrow 5ms, wait 1s; 03 §4)
 #  - cosid.segment.mode = chain: segment chains are replaced by the 5.0 refill (lookahead, adaptive batch; 04)
 #  - cosid.segment.provider.bill.group: 4.x used the server's default time zone; the 5.0 period zone is Asia/Shanghai, check it (--zone)
-#  - cosid.segment.provider.order.offset = 10000: migrated keys continue from their 4.x values; offset only applied to new 4.x keys
 #  - cosid.machine.guarder.safe-guard-duration = 5m: replaced by the lease window (05); dropped
 #  - cosid.machine.stable: stable leases are gone; the slot an owner key held last is preferred instead (05 §2.1)
 #  - cosid.machine.distributor.redis.wait-replicas: 5.0 waits for the replicas it finds (wait: auto); 4.x wait-timeout is dropped
@@ -63,15 +62,17 @@ cosid:
       strategy: periodic-segment
       store: jdbc
       step: 20
+      initial-offset: 20001
       period: YEAR_MONTH_DAY
       zone: Asia/Shanghai
       codec:
-      - date-prefix:
+      - period:
           delimiter: ""
     order:
       strategy: segment
       store: jdbc
       step: 100
+      initial-offset: 10001
       codec:
       - radix:
           radix: 62

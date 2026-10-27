@@ -4,6 +4,10 @@
 
 # ShardingSphere 集成 CosId 实战
 
+::: warning 4.x 文章
+本文描述的是 CosId 4.x 以及当时 ShardingSphere 中的 CosId 算法。CosId 5 请参阅[分片算法](../../guide/integrations/sharding.md)与[从 4.x 迁移](../../guide/migration/from-4x.md)。
+:::
+
 ## 背景
 
 在软件系统演进过程中，随着业务规模的增长 (TPS/存储容量)，我们需要通过集群化部署来分摊计算、存储压力。

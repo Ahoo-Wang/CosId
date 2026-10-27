@@ -209,7 +209,7 @@ public final class ConfigConverter {
             });
             if (handled.add("cosid.proxy.*")) {
                 report.add(prefix + ".type = proxy: written as store [remote] (store/remote, 08); its baseUrl must point at a 5.0 cosid-server,"
-                    + " the 4.x proxy server does not speak the /v5 API");
+                    + " the 4.x proxy server does not speak the 5.0 API");
                 if (config.get("cosid.proxy.client") != null) {
                     report.add("cosid.proxy.client = " + config.get("cosid.proxy.client") + ": the 5.0 remote store uses the JDK HttpClient; dropped");
                 }
@@ -375,10 +375,12 @@ public final class ConfigConverter {
             if (layout.seqBits() != base.seqBits()) {
                 generator.put("seq-bits", layout.seqBits());
             }
-            report.add(prefix + ": the 4.x layout is no 5.0 preset; it is written as " + generator.get("layout") + " with overrides, keep it as is (M3)");
-            if (layout.seqResetThreshold() != Layout.defaultSeqResetThreshold(layout.seqBits())) {
-                report.add(prefix + ".sequence-reset-threshold = " + layout.seqResetThreshold() + ": 5.0 configuration keeps the default threshold");
+            // The threshold the 5.0 binding derives when seq-reset-threshold is not set.
+            long derived = generator.containsKey("seq-bits") ? Layout.defaultSeqResetThreshold(layout.seqBits()) : base.seqResetThreshold();
+            if (layout.seqResetThreshold() != derived) {
+                generator.put("seq-reset-threshold", layout.seqResetThreshold());
             }
+            report.add(prefix + ": the 4.x layout is no 5.0 preset; it is written as " + generator.get("layout") + " with overrides, keep it as is (M3)");
         }
         for (String part : List.of("epoch", "timestamp-unit", "timestamp-bit", "machine-bit", "sequence-bit", "sequence-reset-threshold", "enabled")) {
             handled.add(prefix + "." + part);
@@ -411,8 +413,11 @@ public final class ConfigConverter {
         generator.put("step", config.number(prefix + ".step", 10));
         handled.add(prefix + ".step");
         handled.add(prefix + ".enabled");
-        if (config.number(prefix + ".offset", 0) != 0) {
-            report.add(prefix + ".offset = " + config.get(prefix + ".offset") + ": migrated keys continue from their 4.x values; offset only applied to new 4.x keys");
+        // 4.x issued offset + 1 first on a new key (a new period too); 5.0 issues initial-offset first, 1 by default (D21).
+        // Migrated keys continue from their 4.x values either way: apply writes lastMaxId + 1.
+        long offset = config.number(prefix + ".offset", 0);
+        if (offset != 0) {
+            generator.put("initial-offset", offset + 1);
         }
         handled.add(prefix + ".offset");
         for (String dropped : List.of(prefix + ".mode", prefix + ".ttl", prefix + ".chain")) {
@@ -442,27 +447,45 @@ public final class ConfigConverter {
                 default -> "yyyyMMdd";
             };
             if (pattern != null && !pattern.equals(presetPattern)) {
-                report.add(prefix + ".group.pattern = " + pattern + ": 5.0 period keys are " + presetPattern
-                    + "; plan reformats the 4.x keys, and grouped string ids now carry the " + presetPattern + " prefix");
+                report.add(prefix + ".group.pattern = " + pattern + ": 5.0 period keys are " + presetPattern + "; plan reformats the 4.x keys"
+                    + (config.bool(prefix + ".converter.group-prefix.enabled", false)
+                        ? ", and grouped string ids now carry the " + presetPattern + " prefix" : ""));
             }
             handled.add(prefix + ".group.by");
             handled.add(prefix + ".group.pattern");
-            List<Object> grouped = new ArrayList<>();
-            boolean groupPrefix = config.bool(prefix + ".converter.group-prefix.enabled", false);
-            if (!groupPrefix) {
-                report.add(prefix + ".converter.group-prefix is off: 5.0 grouped string ids always start with the period");
-            }
-            grouped.add(Map.of("date-prefix", Map.of("delimiter", text(config, prefix + ".converter.group-prefix.delimiter", "-"))));
-            if (!config.bool(prefix + ".converter.group-prefix.before-prefix", true)) {
-                report.add(prefix + ".converter.group-prefix.before-prefix = false: the 5.0 period prefix always comes first");
-            }
+            generator.put("codec", withPeriod(config, prefix + ".converter", codec));
             handled.add(prefix + ".converter.group-prefix.*");
-            grouped.addAll(codec);
-            generator.put("codec", grouped);
         } else {
             generator.put("codec", codec);
         }
         return generator;
+    }
+
+    /**
+     * The codec list of a periodic segment: the 4.x {@code group-prefix} becomes the {@code period} item at the place
+     * the 4.x converter chain gave it (applied inside out: the base converter, the group prefix when
+     * {@code before-prefix} is true, the date prefix, {@code prefix}, the group prefix when {@code before-prefix} is
+     * false, {@code suffix}). Off, the period item leaves the period out of the text.
+     */
+    private static List<Object> withPeriod(FlatConfig config, String converter, List<Object> codec) {
+        List<Object> grouped = new ArrayList<>(codec);
+        Map<String, Object> period = new LinkedHashMap<>();
+        if (config.bool(converter + ".group-prefix.enabled", false)) {
+            period.put("delimiter", text(config, converter + ".group-prefix.delimiter", "-"));
+        } else {
+            period.put("enabled", false);
+        }
+        int at;
+        if (config.bool(converter + ".group-prefix.before-prefix", true)) {
+            // Right around the base converter, the only item that is no decoration.
+            at = !grouped.isEmpty() && grouped.get(0) instanceof Map<?, ?> first
+                && (first.containsKey("radix") || first.containsKey("friendly") || first.containsKey("custom")) ? 1 : 0;
+        } else {
+            // Around prefix: before the suffix, the last item when there is one.
+            at = config.get(converter + ".suffix") != null ? grouped.size() - 1 : grouped.size();
+        }
+        grouped.add(at, Map.of("period", period));
+        return grouped;
     }
 
     private ZoneId zone() {
@@ -605,10 +628,11 @@ public final class ConfigConverter {
                 String epoch = config.get(prefix + ".epoch");
                 String unit = config.get(prefix + ".unit");
                 int seqBits = (int) config.number(prefix + ".seq-bits", base.seqBits());
+                long derived = seqBits == base.seqBits() ? base.seqResetThreshold() : Layout.defaultSeqResetThreshold(seqBits);
                 layouts.put(name, new Layout(epoch == null ? base.epoch() : Instant.parse(epoch),
                     unit == null ? base.unit() : ChronoUnit.valueOf(unit.toUpperCase(Locale.ROOT)),
                     (int) config.number(prefix + ".time-bits", base.timeBits()), (int) config.number(prefix + ".node-bits", base.nodeBits()), seqBits,
-                    seqBits == base.seqBits() ? base.seqResetThreshold() : Layout.defaultSeqResetThreshold(seqBits)));
+                    config.number(prefix + ".seq-reset-threshold", derived)));
             }
         }
         return layouts;

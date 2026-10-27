@@ -138,7 +138,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | WP-migration | **D-B1**、**D-B2**、**D-B3**、**D-B4**、D-M1、D-M2、D-M3、D-N1–N4;修正 09 §2 表述 | R4-C | [#1350](https://github.com/Ahoo-Wang/CosId/pull/1350) | 修复完成,Ready,等 CI |
 | WP-lease | A-M1 | R1-C | [#1351](https://github.com/Ahoo-Wang/CosId/pull/1351) | 修复已推送,Draft(会话无权限转 ready),等 CI |
 | WP-time-codec | A-N1、A-N2、A-N3、A-N6、A-N7 | R1-A | [#1352](https://github.com/Ahoo-Wang/CosId/pull/1352) | 修复完成,等 CI |
-| WP-segment | A-N4、A-N5 | R1-B | [#1347](https://github.com/Ahoo-Wang/CosId/pull/1347) | 修复完成,待审,等 CI |
+| WP-segment | A-N4、A-N5 | R1-B | [#1347](https://github.com/Ahoo-Wang/CosId/pull/1347) | ✅ 已合入 `3e25d483` |
 | WP-release | **E-B2**、**E-B3**、E-M2、E-M3、E-N2、E-N3、E-N4、E-N6–N9 | R5-B | [#1348](https://github.com/Ahoo-Wang/CosId/pull/1348) | Ready,等 CI |
 | WP-docs | E-N1、C-N4、C-N5;09 §2 表述 | 总调度(本 PR) | #1344 | ✅ 已在本 PR 修改 |
 | 需用户决定 | E-M1:改 `4.x` 的 document-deploy(GA 后避免覆盖 5.0 文档站);RC 以 pre-release 发布 | 用户 | | 待决定 |
@@ -149,9 +149,9 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **收尾阶段(用户 2026-10-27 最新指示):** 不开新任务;已 ready 的 PR 等 CI 全绿后合并;最后登记文档。本机代码必须全部推送到 GitHub。
 
-**快照(2026-10-27 深夜):** Ready:#1342、#1347、#1348(已审查通过,等 CI)、#1350;Draft:#1349、#1351(修复已完成,会话无权限转 ready,需用户转)、#1352、#1353、#1354(WP-JDBC)、#1355、#1356(R2-Mongo 的 range 竞态测试,已解决与 main 的冲突)。CI 仍大量排队,尚无可合入的 PR。
+**快照(2026-10-27 深夜):** Ready:#1342、#1348(已审查通过,等 CI)、#1350;Draft:#1349、#1351(修复已完成,会话无权限转 ready,需用户转)、#1352、#1353、#1354(WP-JDBC)、#1355、#1356(R2-Mongo 的 range 竞态测试,已解决与 main 的冲突)。CI 仍大量排队,尚无可合入的 PR。
 
-**已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)。
+**已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)。
 
 **本机代码备份:** 12 个只存在于本机的旧分支已推送为 `origin/archive/<原分支名>`(SHA 已核对),包括 4.x 时期的 `feat/replication-window`、`feat/jdbc-dialect`、`feat/generator-name-properties`、`build/unpublished-platform`、`test/deflake-meter-binder-zk-timeout`、`chore/release-4.1.1`、`fix/b5-virtual-thread-pinning`,以及 5.0 时期的 `r3-runtime`、`claude/r0-skeleton-004bc6`、`claude/magical-gould-a7e144`、`feat/r5a-parity-gaps`、`refactor/d29-split-integrations`。本机 `main` 的 4 个提交已包含在 `origin/4.x`。两个曾有未提交改动的工作区已推送:R4-C 的改动在 #1350(`fc17ef84`),R2-Mongo 的在 #1356。
 

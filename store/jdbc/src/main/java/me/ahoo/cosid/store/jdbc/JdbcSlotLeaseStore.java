@@ -84,8 +84,11 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         Namespace ns = new Namespace(limit, toleranceMillis);
         ensureNamespace(namespace, ns);
         int preferred = preferredSlot.isPresent() && preferredSlot.getAsInt() >= 0 && preferredSlot.getAsInt() < limit ? preferredSlot.getAsInt() : -1;
-        return jdbc.run("acquire in " + namespace, session -> {
+        String operation = "acquire in " + namespace;
+        long deadline = jdbc.deadline();
+        return jdbc.run(operation, session -> {
             while (true) {
+                jdbc.checkDeadline(deadline, operation);
                 AcquireResult result = attempt(session, namespace, owner, ns, ttlMillis, preferred);
                 if (result != null) {
                     return result;
@@ -245,8 +248,11 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         Objects.requireNonNull(lease, "lease");
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
-        return jdbc.run("renew " + lease.namespace() + "/" + lease.slot(), session -> {
+        String operation = "renew " + lease.namespace() + "/" + lease.slot();
+        long deadline = jdbc.deadline();
+        return jdbc.run(operation, session -> {
             while (true) {
+                jdbc.checkDeadline(deadline, operation);
                 Current current = current(session, lease);
                 if (current == null) {
                     return Optional.empty();
@@ -271,8 +277,11 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
     @Override
     public boolean release(SlotLease lease, long lastIssued) {
         Objects.requireNonNull(lease, "lease");
-        return jdbc.run("release " + lease.namespace() + "/" + lease.slot(), session -> {
+        String operation = "release " + lease.namespace() + "/" + lease.slot();
+        long deadline = jdbc.deadline();
+        return jdbc.run(operation, session -> {
             while (true) {
+                jdbc.checkDeadline(deadline, operation);
                 Current current = current(session, lease);
                 if (current == null) {
                     return false;
@@ -354,11 +363,12 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
      * Makes sure the slot rows of a namespace exist. Only the first user, which inserted the namespace row, creates
      * them, so concurrent first uses do not all insert the same rows at once (on SQL Server they queued past the
      * timeout); the others wait for the rows, and create the missing ones themselves only if they do not appear within
-     * {@link #PROVISION_WAIT}, as when the first user died in between.
+     * {@link #PROVISION_WAIT} (or the store timeout, if shorter), as when the first user died in between.
      */
     private void provision(JdbcSession session, String namespace, int limit, boolean first) throws SQLException {
         if (!first) {
-            long deadline = System.nanoTime() + PROVISION_WAIT.toNanos();
+            Duration wait = jdbc.timeout.isZero() || jdbc.timeout.compareTo(PROVISION_WAIT) > 0 ? PROVISION_WAIT : jdbc.timeout;
+            long deadline = System.nanoTime() + wait.toNanos();
             while (slotRows(session, namespace) < limit) {
                 if (System.nanoTime() - deadline > 0) {
                     break;

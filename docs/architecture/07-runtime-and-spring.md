@@ -180,7 +180,7 @@ cosid:
 
 `cosid-spring-boot-starter` 只依赖 `core` 与 `autoconfigure`。用户另加 `cosid-store-jdbc` 等存储依赖,就像 JPA starter 需要另加数据库驱动一样。删除 Gradle feature variants。
 
-## 5. 集成(`integrations`,D15)
+## 5. 集成(`integrations/*`,D29:按依赖拆分,每个模块一个 artifact)
 
 | 集成 | 形式 |
 |---|---|
@@ -188,4 +188,4 @@ cosid:
 | MyBatis | `Interceptor`,INSERT 前对实体或批量列表(`listKey` 可配置)调用 `IdFiller` |
 | Spring Data JDBC | `BeforeConvertCallback`,填充 `@Id` 与 `@CosId` 字段 |
 | Activiti / Flowable | 一个通用的 `IdGenerator` 适配器;生成器名来自 Spring 配置,非 Spring 环境回退到系统属性 `cosid.activiti` / `cosid.flowable` |
-| Axon | `IdentifierFactory`。Axon 通过 ServiceLoader 静态加载它,因此需要一个静态绑定点(全项目唯一的静态状态,只存在于 `integrations`):Spring 中随 `CosIdRuntime` Bean 绑定和解绑,非 Spring 用 `try (var b = CosIdIdentifierFactory.bind(runtime, name))`;未绑定时回退到 Axon 默认的 UUID 并告警一次。生成器名也可以通过系统属性 `cosid.axon` 指定 |
+| Axon | `IdentifierFactory`。Axon 通过 ServiceLoader 静态加载它,因此需要一个静态绑定点(全项目唯一的静态状态,只存在于 `integrations`):Spring 中随 `CosIdRuntime` Bean 绑定和解绑,非 Spring 用 `try (var b = CosIdIdentifierFactory.bind(runtime, name))`;未绑定时抛出异常(独立 jar,引入即表示要用 CosId)。生成器名也可以通过系统属性 `cosid.axon` 指定 |

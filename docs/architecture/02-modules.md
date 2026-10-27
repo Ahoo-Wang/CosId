@@ -15,7 +15,13 @@ server/                     cosid-server                     远程租约/区间
 spring/
   autoconfigure/            cosid-spring-boot-autoconfigure
   starter/                  cosid-spring-boot-starter        纯依赖聚合
-integrations/               cosid-integrations               jackson / mybatis / spring-data-jdbc / activiti / flowable / axon
+integrations/               (D29,每个子目录一个模块)
+  jackson/                  cosid-jackson
+  mybatis/                  cosid-mybatis
+  spring-data-jdbc/         cosid-spring-data-jdbc
+  activiti/                 cosid-activiti
+  flowable/                 cosid-flowable
+  axon/                     cosid-axon
 extras/
   sharding/                 cosid-sharding                   分片算法(仅依赖 core 的 Layout)
 migration/                  cosid-migration                  4.x → 5.0 离线迁移 CLI(fat jar)
@@ -27,13 +33,12 @@ docs/                       设计与路线图
 ```
 
 删除:`document/`(旧站)、`wiki/`、`cosid-test`(由 `store/tck` 取代)、`cosid-mod-test`、`cosid-dependencies`(并入 `bom`)、
-`cosid-accessor`(并入 `core` 的 `accessor` 包)、`cosid-mybatis`、`cosid-jackson`、`cosid-axon`、`cosid-activiti`、`cosid-flowable`、
-`cosid-spring-data-jdbc`(并入 `integrations`)、`proxy/`(拆为 `store/remote` 与 `server`)。
+`cosid-accessor`(并入 `core` 的 `accessor` 包)、`proxy/`(拆为 `store/remote` 与 `server`)。
 
 ## 2. 发布坐标(D11)
 
 groupId 不变:`me.ahoo.cosid`。artifactId 由构建约定从目录路径生成:`"cosid-" + path.replace('/', '-')`,
-例外:`spring/*` 映射为 `cosid-spring-boot-*`,`extras/*` 映射为 `cosid-*`(如 `extras/sharding` → `cosid-sharding`)。目录保持干净,发布的 jar 名仍可辨识来源。
+例外:`spring/*` 映射为 `cosid-spring-boot-*`,`extras/*` 与 `integrations/*` 映射为 `cosid-*`(如 `extras/sharding` → `cosid-sharding`,`integrations/axon` → `cosid-axon`)。目录保持干净,发布的 jar 名仍可辨识来源。
 
 ## 3. 依赖规则
 

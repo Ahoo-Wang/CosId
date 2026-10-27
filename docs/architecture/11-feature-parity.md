@@ -103,8 +103,8 @@
 
 | 4.x 能力 | 5.0 | 状态 |
 |---|---|---|
-| `GET /ids`、`/ids/{name}`、`/ids/as-string[/{name}]` | `/v5/ids[/{name}]`、`/strings`,支持 `count` | 等价(更强) |
-| 远程号段与远程机器号 | `/v5/ranges:*`、`/v5/slots:*` | 等价 |
+| `GET /ids`、`/ids/{name}`、`/ids/as-string[/{name}]` | `/ids[/{name}]`、`/strings`,支持 `count` | 等价(更强) |
+| 远程号段与远程机器号 | `/ranges:*`、`/slots:*` | 等价 |
 | Bearer token、按客户端限定命名空间、公开路径、allow-anonymous | 同上,另增 key 前缀限定 | 保留 |
 | max-step、max-distributors(429)、阻塞池满返回 503 + Retry-After | `maxReserve`、单命名空间 key 上限、同样的 503 | 保留 |
 | max-clock-skew、min-safe-guard-duration | ttl 上下限;时钟偏差不再影响安全 | 等价 |

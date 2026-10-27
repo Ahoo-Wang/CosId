@@ -46,7 +46,7 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
 | D12 | `core` 提供 JPMS `module-info`,只导出 API 包 | 已定 |
 | D13 | 新代码不使用 Lombok(record + 显式代码) | 已定 |
 | D14 | 只有一个 Spring Boot starter;用户自行添加 store 依赖;删除 Gradle feature variants | 已定 |
-| D15 | 集成适配器合并为一个 `integrations` 模块(含 jackson),三方依赖全部 optional | 已定 |
+| D15 | ~~集成适配器合并为一个 `integrations` 模块~~,已被 D29 取代 | 已废止 |
 | D16 | 默认 Snowflake `Layout` 与 epoch 沿用 4.x(41/10/12 位,epoch `1577203200000`),保证迁移后 ID 数值连续 | 已定 |
 | D17 | 运行时不可变:生成器在启动时确定,端点只读 | 已定 |
 | D18 | 每个运行时持有一个机器号槽位,所有时间型生成器共用 | 已定 |
@@ -59,6 +59,8 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
 | D26 | MongoDB 最低版本 6.0(CI 覆盖 6.0 与 8.0) | 已定 |
 | D27 | 其余后端最低版本:Redis 7.0、MySQL 8.4 LTS、MariaDB 10.11 LTS、PostgreSQL 15、ZooKeeper 3.8;SQL Server 2019、H2 2.x 不变 | 已定 |
 | D28 | 低于最低版本的若干版本各实测一次 TCK(非阻塞),结果写入"实测兼容性(不承诺)"文档,不加兼容代码 | 已定 |
+| D29 | 集成适配器按第三方依赖拆分为 `integrations/{jackson,mybatis,spring-data-jdbc,activiti,flowable,axon}`,artifactId 为 `cosid-*`(与 4.x 坐标一致);每个模块只依赖自己的第三方库;Axon 未绑定时报错 | 已定 |
+| D30 | `cosid-server` 的 HTTP API 不带版本前缀(`/ranges:reserve`、`/slots:*`、`/ids/*`) | 已定 |
 | D24 | 不提供租约丢失后继续发号的开关(P1);运行时删除生成器改为启动期的 `disabled` 配置(P2) | 已定 |
 
 ## 术语

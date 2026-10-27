@@ -12,22 +12,22 @@
 
 服务端的底层存储由 `cosid.stores` 配置(jdbc、redis、mongo、zookeeper 任一)。
 
-## 2. HTTP API(前缀 `/v5`)
+## 2. HTTP API(不带版本前缀,D30)
 
 key 与命名空间放在请求体中,不放在路径里,避免 `/` 需要编码的问题。
 
 | 方法 | 路径 | 请求 | 响应 |
 |---|---|---|---|
-| POST | `/v5/ranges:reserve` | `{key, size, initialOffset}` | `{start, end}`;封存为 `410` |
-| POST | `/v5/ranges:seal` | `{key}` | `204` |
-| POST | `/v5/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, preferredSlot?}` | `SlotLease`,或 `409 {earliestExpiresAt}` |
-| POST | `/v5/slots:renew` | `{namespace, slot, incarnation, fence, ttlMs, toleranceMs}` | `SlotLease` 或 `409` |
-| POST | `/v5/slots:release` | `{namespace, slot, incarnation, fence, lastIssued}` | `204` 或 `409` |
-| GET | `/v5/ids/{generator}?count=n` | — | `{ids: [...]}`(可选) |
-| GET | `/v5/ids/{generator}/strings?count=n` | — | `{ids: ["..."]}`(可选,使用生成器的 codec) |
-| GET | `/v5/ids/{generator}/periodic?count=n` | — | `{period, values: [...]}`(可选) |
+| POST | `/ranges:reserve` | `{key, size, initialOffset}` | `{start, end}`;封存为 `410` |
+| POST | `/ranges:seal` | `{key}` | `204` |
+| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, preferredSlot?}` | `SlotLease`,或 `409 {earliestExpiresAt}` |
+| POST | `/slots:renew` | `{namespace, slot, incarnation, fence, ttlMs, toleranceMs}` | `SlotLease` 或 `409` |
+| POST | `/slots:release` | `{namespace, slot, incarnation, fence, lastIssued}` | `204` 或 `409` |
+| GET | `/ids/{generator}?count=n` | — | `{ids: [...]}`(可选) |
+| GET | `/ids/{generator}/strings?count=n` | — | `{ids: ["..."]}`(可选,使用生成器的 codec) |
+| GET | `/ids/{generator}/periodic?count=n` | — | `{period, values: [...]}`(可选) |
 
-- 未指定 `{generator}` 的路径 `/v5/ids`、`/v5/ids/strings` 使用名为 `default` 的生成器(4.x 的 share)。
+- 未指定 `{generator}` 的路径 `/ids`、`/ids/strings` 使用名为 `default` 的生成器(4.x 的 share)。
 - 服务端限制:`ttlMs ∈ [min, max]`、`size ≤ maxReserve`(默认 1e12)、`count ≤ maxCount`、单命名空间 key 数量上限(超出为 `429`);key 与命名空间做长度与字符集校验。
 - 阻塞操作在有界池上执行(默认 64 线程,队列 1024);满时返回 `503` 与 `Retry-After: 1`。
 - 参数错误返回 `400`,统一错误体 `{code, message}`。

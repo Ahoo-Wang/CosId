@@ -10,6 +10,10 @@ hamcrest = "3.0"
 jmh = "1.37"
 # The 4.x release the benchmarks compare against (D21, docs/architecture/10-performance-and-parity.md).
 cosid4 = "4.1.0"
+# R2-Redis: the Redis store and its integration tests
+lettuce = "7.5.2.RELEASE"
+testcontainers = "2.0.5"
+spring-data-redis = "4.1.2"
 # plugins
 test-retry = "1.6.6"
 publish-plugin = "2.0.0"
@@ -28,6 +32,11 @@ jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 cosid4-core = { module = "me.ahoo.cosid:cosid-core", version.ref = "cosid4" }
 cosid4-accessor = { module = "me.ahoo.cosid:cosid-accessor", version.ref = "cosid4" }
+# R2-Redis
+lettuce-core = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
+testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
+cosid4-spring-redis = { module = "me.ahoo.cosid:cosid-spring-redis", version.ref = "cosid4" }
+spring-data-redis = { module = "org.springframework.data:spring-data-redis", version.ref = "spring-data-redis" }
 # Gradle plugins used by the convention plugins in build-logic/
 spotbugs-gradle-plugin = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs" }
 jmh-gradle-plugin = { module = "me.champeau.jmh:jmh-gradle-plugin", version.ref = "jmh-plugin" }

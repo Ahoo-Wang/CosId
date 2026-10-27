@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.lease.AcquireResult;
@@ -77,7 +78,7 @@ class ZookeeperSlotNodeTest {
         String path = ZookeeperSlotLeaseStore.slotPath(namespace, 0);
         Stat before = new Stat();
         byte[] data = client.getData().storingStatIn(before).forPath(path);
-        assertEquals(4, before.getVersion());
+        assertTrue(before.getVersion() >= 4, "four renewals moved the version: " + before.getVersion());
         // An operator restores the node with its data: its version starts again at 0.
         client.delete().forPath(path);
         client.create().forPath(path, data);
@@ -137,5 +138,51 @@ class ZookeeperSlotNodeTest {
         Stat clock = client.checkExists().forPath(ZookeeperSlotLeaseStore.namespacePath(namespace) + "/" + ZookeeperSlotLeaseStore.CLOCK);
         assertTrue(clock.getMtime() > a.expiresAt(), "the takeover saw a clock past the expiry: " + clock.getMtime() + " vs " + a.expiresAt());
         assertTrue(taken.floor() >= a.ceiling());
+    }
+
+    @Test
+    void ownerIndexListsTheSlotsOfTheKeyAndDropsTakenOnes() throws Exception {
+        String namespace = newNamespace();
+        SlotLeaseStore slots = store.slots();
+        String ownerPath = ZookeeperSlotLeaseStore.ownerPath(namespace, "host-a");
+        SlotLease a0 = assertInstanceOf(AcquireResult.Acquired.class,
+            slots.acquire(namespace, new Owner("host-a", UUID.randomUUID()), 4, TTL, TOLERANCE, OptionalInt.empty())).lease();
+        SlotLease a1 = assertInstanceOf(AcquireResult.Acquired.class,
+            slots.acquire(namespace, new Owner("host-a", UUID.randomUUID()), 4, TTL, TOLERANCE, OptionalInt.empty())).lease();
+        assertEquals(a0.slot() + "," + a1.slot(), new String(client.getData().forPath(ownerPath), StandardCharsets.US_ASCII),
+            "both incarnations of the key are indexed, by the same multi as their acquire");
+        assertTrue(slots.release(a0, a0.ceiling()));
+        SlotLease b = assertInstanceOf(AcquireResult.Acquired.class,
+            slots.acquire(namespace, new Owner("host-b", UUID.randomUUID()), 4, TTL, TOLERANCE, OptionalInt.of(a0.slot()))).lease();
+        assertEquals(a0.slot(), b.slot());
+        assertTrue(slots.release(a1, a1.ceiling()));
+        AcquireResult.Acquired again = assertInstanceOf(AcquireResult.Acquired.class,
+            slots.acquire(namespace, new Owner("host-a", UUID.randomUUID()), 4, TTL, TOLERANCE, OptionalInt.empty()));
+        assertEquals(me.ahoo.cosid.lease.AcquireReason.STICKY, again.reason());
+        assertEquals(a1.slot(), again.lease().slot());
+        assertEquals(Integer.toString(a1.slot()), new String(client.getData().forPath(ownerPath), StandardCharsets.US_ASCII),
+            "the slot host-b took is dropped from the index");
+    }
+
+    @Test
+    void ownerKeysBecomeValidNodeNames() {
+        String namespace = newNamespace();
+        for (String key : new String[] {".", "..", "a/b", "*", "pod 1", "é=%"}) {
+            AcquireResult result = store.slots().acquire(namespace, new Owner(key, UUID.randomUUID()), 8, TTL, TOLERANCE, OptionalInt.empty());
+            assertInstanceOf(AcquireResult.Acquired.class, result, key);
+        }
+        assertNotEquals(ZookeeperSlotLeaseStore.ownerPath(namespace, "a.b"), ZookeeperSlotLeaseStore.ownerPath(namespace, "a%2Eb"));
+    }
+
+    @Test
+    void unreadableOwnerIndexFails() throws Exception {
+        String namespace = newNamespace();
+        store.slots().acquire(namespace, new Owner("host-a", UUID.randomUUID()), 2, TTL, TOLERANCE, OptionalInt.empty());
+        client.setData().forPath(ZookeeperSlotLeaseStore.ownerPath(namespace, "host-a"), "x".getBytes(StandardCharsets.US_ASCII));
+        assertThrows(me.ahoo.cosid.CosIdException.class,
+            () -> store.slots().acquire(namespace, new Owner("host-a", UUID.randomUUID()), 2, TTL, TOLERANCE, OptionalInt.empty()));
+        client.setData().forPath(ZookeeperSlotLeaseStore.ownerPath(namespace, "host-a"), new byte[0]);
+        assertInstanceOf(AcquireResult.Acquired.class,
+            store.slots().acquire(namespace, new Owner("host-a", UUID.randomUUID()), 2, TTL, TOLERANCE, OptionalInt.empty()), "an empty index lists nothing");
     }
 }

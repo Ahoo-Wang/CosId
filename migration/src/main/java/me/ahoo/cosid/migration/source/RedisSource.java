@@ -116,6 +116,12 @@ public final class RedisSource implements SourceReader {
     }
 
     @Override
+    public long now() {
+        List<String> time = redis.commands().time();
+        return Long.parseLong(time.get(0)) * 1000 + Long.parseLong(time.get(1)) / 1000;
+    }
+
+    @Override
     public void close() {
         redis.close();
     }

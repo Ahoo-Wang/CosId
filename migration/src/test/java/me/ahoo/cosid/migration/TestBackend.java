@@ -51,6 +51,11 @@ enum TestBackend {
         this.legacyType = legacyType;
     }
 
+    /** The 4.x store type, as {@code cosid.*.distributor.type} names it. */
+    String legacyType() {
+        return legacyType;
+    }
+
     /** The address of the server, started on first use; skips the test when it needs Docker that is not there. */
     synchronized String address() {
         if (address == null) {

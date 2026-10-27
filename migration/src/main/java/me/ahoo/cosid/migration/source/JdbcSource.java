@@ -14,6 +14,7 @@
 package me.ahoo.cosid.migration.source;
 
 import me.ahoo.cosid.migration.StoreLocation;
+import me.ahoo.cosid.store.jdbc.JdbcDialects;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -172,6 +173,20 @@ public final class JdbcSource implements SourceReader {
             }
         } catch (SQLException e) {
             throw new IllegalStateException("Sealing segment [" + key + "] failed: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public long now() {
+        try (Connection connection = connect(location)) {
+            String now = JdbcDialects.detect(connection, JdbcSource.class.getClassLoader()).nowMillis();
+            try (PreparedStatement select = connection.prepareStatement("select " + now); ResultSet rs = select.executeQuery()) {
+                rs.next();
+                return rs.getLong(1);
+            }
+        } catch (SQLException | IllegalArgumentException e) {
+            // A database no 5.0 dialect knows: W rests on the target clock alone.
+            return 0;
         }
     }
 

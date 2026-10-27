@@ -111,15 +111,20 @@ jobs:
           echo "${{ matrix.image }} TCK probe: ${{ steps.tck.outcome }}" | tee -a "$GITHUB_STEP_SUMMARY"
 
   # R2-Redis: the TCK on standalone Redis (the service, COSID_TEST_REDIS_URI), a primary with a replica (WAIT) and a
-  # three-primary Redis Cluster (Testcontainers), on the oldest supported and a current Redis; checkContractsRan fails
+  # three-primary Redis Cluster (Testcontainers), on the minimum (7.0, D27) and the latest 8.x; checkContractsRan fails
   # the job if the contract cases did not run.
   store-redis:
-    name: Store Redis TCK (Redis ${{ matrix.redis }})
+    name: Store Redis TCK (Redis ${{ matrix.redis }}${{ matrix.probe && ', probe' || '' }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        redis: [ '6.2', '7.4' ]
+        redis: [ '7.0', '8.10' ]
+        probe: [ false ]
+        # D28: once below the 7.0 minimum, to document real compatibility (store/redis README); never blocks.
+        include:
+          - redis: '6.2'
+            probe: true
     services:
       redis:
         image: redis:${{ matrix.redis }}-alpine
@@ -139,7 +144,14 @@ jobs:
           cache: gradle
 
       - name: Check store/redis
+        id: tck
+        continue-on-error: ${{ matrix.probe }}
         run: scripts/gradle-retry.sh :store:redis:check -Pcosid.test.redis.image=redis:${{ matrix.redis }}-alpine
+
+      - name: Report the probe
+        if: matrix.probe
+        run: |
+          echo "Redis ${{ matrix.redis }} TCK probe (not supported, D28): ${{ steps.tck.outcome }}" | tee -a "$GITHUB_STEP_SUMMARY"
 
   # R2-ZK: the store TCK against a real ZooKeeper, on the minimum (3.8) and the primary target (3.9) (D27); the failover
   # case runs its own three-server ensemble in process. checkContractsRan (part of check) fails the job if a contract

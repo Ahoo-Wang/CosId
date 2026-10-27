@@ -33,7 +33,7 @@ import java.util.OptionalInt;
 
 /**
  * The Redis store (06-stores.md §2.2): both primitives as Lua scripts run through {@link RedisScripts}, stamped by the
- * Redis clock ({@code TIME}). Redis 6 or later.
+ * Redis clock ({@code TIME}). Redis 7.0 or later (D27).
  *
  * <p>Keys, each group sharing one hash tag so that a script touches one Redis Cluster slot:
  * <ul>

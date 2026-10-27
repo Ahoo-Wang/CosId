@@ -110,6 +110,84 @@ jobs:
       - name: Check store/redis
         run: scripts/gradle-retry.sh :store:redis:check -Pcosid.test.redis.image=redis:${{ matrix.redis }}-alpine
 
+  # R2-ZK: the store TCK against a real ZooKeeper, on the minimum (3.8) and the primary target (3.9) (D27); the failover
+  # case runs its own three-server ensemble in process. checkContractsRan (part of check) fails the job if a contract
+  # case did not run.
+  store-zookeeper:
+    name: Store ZooKeeper (${{ matrix.zookeeper }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        zookeeper: [ '3.8', '3.9' ]
+    services:
+      zookeeper:
+        image: zookeeper:${{ matrix.zookeeper }}
+        ports:
+          - 2181:2181
+        options: >-
+          --health-cmd "zkServer.sh status"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      COSID_TEST_ZOOKEEPER_CONNECT: localhost:2181
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Check
+        run: scripts/gradle-retry.sh :store:zookeeper:check
+
+  # D28: the TCK once on ZooKeeper below the 3.8 minimum, to record real compatibility (store/zookeeper/README.md),
+  # not to support it. The step may fail; the job never does, so this never turns the required checks red.
+  store-zookeeper-probe:
+    name: Store ZooKeeper probe (${{ matrix.zookeeper }}, unsupported)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        zookeeper: [ '3.6', '3.7' ]
+    services:
+      zookeeper:
+        image: zookeeper:${{ matrix.zookeeper }}
+        ports:
+          - 2181:2181
+        options: >-
+          --health-cmd "zkServer.sh status"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      COSID_TEST_ZOOKEEPER_CONNECT: localhost:2181
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Store TCK (probe)
+        id: probe
+        continue-on-error: true
+        run: scripts/gradle-retry.sh :store:zookeeper:check
+
+      - name: Record the outcome
+        if: always()
+        run: |
+          echo "ZooKeeper ${{ matrix.zookeeper }}: TCK ${{ steps.probe.outcome }} (probe, not supported)" >> "$GITHUB_STEP_SUMMARY"
+
   # store/jdbc (R2-JDBC): the TCK on every dialect at its minimum and a current version (06-stores.md §2.1, D27). MySQL,
   # MariaDB and PostgreSQL are services reached through COSID_TEST_*_URL; SQL Server, whose image is large, runs on
   # Testcontainers (COSID_TEST_SQLSERVER_IMAGE). checkContractsRan checks each dialect's reports on their own, so a

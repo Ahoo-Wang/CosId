@@ -23,5 +23,6 @@ dependencies {
         api(project(":store:jdbc"))
         api(project(":store:mongo"))
         api(project(":store:redis"))
+        api(project(":store:zookeeper"))
     }
 }

@@ -26,6 +26,10 @@ public record StoreConfig(String name, String type, Duration timeout, Map<String
 
 ## 2. 各后端实现
 
+**版本策略(D27、D28)**:支持承诺从下文各节写明的最低版本开始,CI 必须覆盖最低版本与最新版本。另外在低于最低版本的若干版本上各跑一次 TCK
+(非阻塞的 probe job),结果写入各模块 README 的"实测兼容性(不承诺)"表,只用于如实说明兼容情况,不为旧版本加任何兼容代码。
+R5-B 把各模块的实测结果汇总到文档站。
+
 ### 2.1 JDBC
 
 支持的数据库与最低版本(D27):MySQL 8.4 LTS、MariaDB 10.11 LTS、PostgreSQL 15、SQL Server 2019、H2 2.x(开发与测试)。CI 对每种方言覆盖最低版本与最新版本。方言自动探测,也可以通过 `JdbcDialect` SPI 扩展,取代 4.x 的自定义 SQL 配置。
@@ -118,6 +122,10 @@ public interface RedisScripts {
 - 区间:znode `/cosid/range/{key}`,数据为 `next`(以及封存标记);用版本化 `setData` 实现 CAS,不存在时 `create`,遇到 `NodeExists` 重试。
 - 槽位:`/cosid/slot/{ns}/{slot}`,数据为 `{ownerKey, incarnation, lastOwnerKey, fence, ttl, floor, ceiling, nextFloor}`。
   - **fence 存在数据里**,版本化 `setData` 只用来实现 CAS,所以节点被重建也不会让 fence 回退(运行时从不删除槽位节点)。
+  - 节点数据实际为 `{ownerKey, incarnation, lastOwnerKey, fence, ttl, tolerance, floor, expiresMin, ceilingMin, nextFloor}`(R2 实现):
+    `expiresAt = max(expiresMin, mtime + ttl)`,`ceiling = max(ceilingMin, expiresAt + tolerance)`;下界取自被替换的那次写入,任期内二者不回退。
+  - 运维前提:人工重建槽位节点时,写入重建的服务端时钟不能落后于原节点的 `mtime`,否则应在恢复后等待一个 ttl 再启动。
+  - 命名空间不能含 `/`,range key 必须是合法的 ZooKeeper 路径。
   - 存储时钟:`storeNow` 与 `expiresAt` 都取自**同一次写入**的 `Stat.mtime`(`expiresAt = mtime + ttl`)。
     判断"是否可取"时,先写 `/cosid/slot/{ns}/.clock` 取得当前 `mtime` 作为 `now`。安全性不依赖它(05 §3)。
   - 选槽:用异步批量 `getData` 读取全部槽位节点后按 05 §2.1 尝试。acquire 是低频操作,1024 个槽位的批量读可以接受;实际耗时由 R2 基准(P10)验证。

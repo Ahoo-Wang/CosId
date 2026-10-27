@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.runtime;
 
+import me.ahoo.cosid.internal.LocalHost;
+
 /**
  * Resolves the host part of a derived owner key (07-runtime-and-spring.md §1.1); Spring Cloud supplies one backed by
  * {@code InetUtils}.
@@ -20,9 +22,7 @@ package me.ahoo.cosid.runtime;
 @FunctionalInterface
 public interface HostResolver {
     /** The local host name, falling back to the loopback address. */
-    HostResolver LOCAL = () -> {
-        throw new UnsupportedOperationException("R3");
-    };
+    HostResolver LOCAL = LocalHost::name;
 
     String host();
 }

@@ -48,7 +48,7 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 
 | Directory | Artifact | State |
 |---|---|---|
-| `core/` | `cosid-core` | R0: public API frozen; bodies throw `UnsupportedOperationException("R1-x")` until R1/R3 |
+| `core/` | `cosid-core` | R1 + R3: generators, codecs, leases, and `CosIdRuntime` (the one assembly path) with `IdFiller`; internals in `me.ahoo.cosid.internal` |
 | `store/tck/` | `cosid-store-tck` | R1-C: the contracts, `InMemoryStore` (passes them), `ManualClock`, fault injection, `ContractsRan` |
 | `store/mongo/` | `cosid-store-mongo` | R2-Mongo: `MongoStore` (`RangeStore` + `SlotLeaseStore`, sync driver, MongoDB 6.0+), `StoreProvider` type `mongo` |
 | `store/redis/` | `cosid-store-redis` | R2-Redis: Lua scripts behind `RedisScripts`, Lettuce, `WAIT` auto; see its README (durability precondition) |

@@ -14,7 +14,10 @@
 package me.ahoo.cosid.codec;
 
 import me.ahoo.cosid.GroupedId;
+import me.ahoo.cosid.internal.PatternPeriod;
+import me.ahoo.cosid.segment.Period;
 
+import java.time.ZoneOffset;
 import java.util.Objects;
 
 /**
@@ -56,6 +59,44 @@ public interface GroupedCodec {
                     throw new IllegalArgumentException("[" + text + "] has no period followed by [" + delimiter + "]");
                 }
                 return new GroupedId(text.substring(0, at), valueCodec.decode(text.substring(at + delimiter.length())));
+            }
+        };
+    }
+
+    /**
+     * {@link #datePrefix(String, IdCodec)} for the keys of {@code period}: with a preset period the key has a known
+     * length, so the text decodes even without a delimiter (such as {@code "20261026000042"}). Decoding checks that the
+     * key is one of {@code period}.
+     *
+     * @param period     the period of the keys
+     * @param delimiter  the text between the period and the value; may be empty for a preset period
+     * @param valueCodec the codec of the value
+     * @return the codec
+     */
+    static GroupedCodec datePrefix(Period period, String delimiter, IdCodec valueCodec) {
+        Objects.requireNonNull(period, "period");
+        GroupedCodec split = datePrefix(delimiter, valueCodec);
+        int keyLength = period instanceof PatternPeriod preset ? preset.pattern().length() : -1;
+        return new GroupedCodec() {
+            @Override
+            public String encode(GroupedId id) {
+                return split.encode(id);
+            }
+
+            @Override
+            public GroupedId decode(String text) {
+                GroupedId id;
+                if (keyLength > 0) {
+                    if (text.length() < keyLength + delimiter.length() || !text.startsWith(delimiter, keyLength)) {
+                        throw new IllegalArgumentException("[" + text + "] has no " + keyLength + "-character period followed by [" + delimiter + "]");
+                    }
+                    id = new GroupedId(text.substring(0, keyLength), valueCodec.decode(text.substring(keyLength + delimiter.length())));
+                } else {
+                    id = split.decode(text);
+                }
+                // Refuses a key that is not one of the period's.
+                period.endOf(id.period(), ZoneOffset.UTC);
+                return id;
             }
         };
     }

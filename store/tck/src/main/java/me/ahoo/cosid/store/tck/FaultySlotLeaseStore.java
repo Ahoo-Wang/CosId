@@ -17,6 +17,7 @@ import me.ahoo.cosid.lease.AcquireResult;
 import me.ahoo.cosid.lease.Owner;
 import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.lease.SlotLeaseStore;
+import me.ahoo.cosid.store.tck.FaultInjector.Operation;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -38,17 +39,17 @@ public final class FaultySlotLeaseStore implements SlotLeaseStore {
 
     @Override
     public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-        throw new UnsupportedOperationException("R1-C");
+        return faults.apply(Operation.ACQUIRE, () -> delegate.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot));
     }
 
     @Override
     public Optional<SlotLease> renew(SlotLease lease, Duration ttl, Duration tolerance) {
-        throw new UnsupportedOperationException("R1-C");
+        return faults.apply(Operation.RENEW, () -> delegate.renew(lease, ttl, tolerance));
     }
 
     @Override
     public boolean release(SlotLease lease, long lastIssued) {
-        throw new UnsupportedOperationException("R1-C");
+        return faults.apply(Operation.RELEASE, () -> delegate.release(lease, lastIssued));
     }
 
     @Override

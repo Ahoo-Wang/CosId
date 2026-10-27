@@ -15,6 +15,7 @@ package me.ahoo.cosid.store.tck;
 
 import me.ahoo.cosid.segment.Range;
 import me.ahoo.cosid.segment.RangeStore;
+import me.ahoo.cosid.store.tck.FaultInjector.Operation;
 
 import java.util.Objects;
 
@@ -33,12 +34,12 @@ public final class FaultyRangeStore implements RangeStore {
 
     @Override
     public Range reserve(String key, long size, long initialOffset) {
-        throw new UnsupportedOperationException("R1-C");
+        return faults.apply(Operation.RESERVE, () -> delegate.reserve(key, size, initialOffset));
     }
 
     @Override
     public boolean seal(String key) {
-        throw new UnsupportedOperationException("R1-C");
+        return faults.apply(Operation.SEAL, () -> delegate.seal(key));
     }
 
     @Override

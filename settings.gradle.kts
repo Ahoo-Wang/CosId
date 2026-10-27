@@ -37,6 +37,7 @@ rootProject.name = "CosId"
 include(":bom")
 include(":core")
 include(":store:tck")
+include(":store:mongo")
 include(":store:redis")
 include(":benchmark:baseline-4x")
 include(":benchmark:v5")

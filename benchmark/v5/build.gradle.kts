@@ -19,6 +19,8 @@ plugins {
 dependencies {
     jmh(project(":core"))
     jmh(project(":store:tck"))
+    // P10 (MongoDB)
+    jmh(project(":store:mongo"))
     // R2-Redis: P7 / P10
     jmh(project(":store:redis"))
 }

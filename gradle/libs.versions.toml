@@ -10,9 +10,11 @@ hamcrest = "3.0"
 jmh = "1.37"
 # The 4.x release the benchmarks compare against (D21, docs/architecture/10-performance-and-parity.md).
 cosid4 = "4.1.0"
-# R2-Redis: the Redis store and its integration tests
-lettuce = "7.5.2.RELEASE"
+# R2-Mongo: the MongoDB store and its integration tests.
+mongodb = "5.13.0"
 testcontainers = "2.0.5"
+# R2-Redis: the Redis store (testcontainers above)
+lettuce = "7.5.2.RELEASE"
 # the Lettuce of spring-data-redis 4.0.7, which cosid-spring-redis 4.1.0 brings, for benchmark/baseline-4x
 lettuce4 = "6.8.2.RELEASE"
 # plugins
@@ -33,6 +35,10 @@ jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 cosid4-core = { module = "me.ahoo.cosid:cosid-core", version.ref = "cosid4" }
 cosid4-accessor = { module = "me.ahoo.cosid:cosid-accessor", version.ref = "cosid4" }
+# R2-Mongo
+mongodb-driver-sync = { module = "org.mongodb:mongodb-driver-sync", version.ref = "mongodb" }
+testcontainers-mongodb = { module = "org.testcontainers:testcontainers-mongodb", version.ref = "testcontainers" }
+cosid4-mongo = { module = "me.ahoo.cosid:cosid-mongo", version.ref = "cosid4" }
 # R2-Redis
 lettuce-core = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }

@@ -24,4 +24,7 @@ dependencies {
     jmh(libs.cosid4.jdbc)
     jmh(libs.mysql.connector)
     jmh(libs.hikari)
+    // P10 (MongoDB): the 4.x Mongo distributor and lease store, on the same driver as 5.x.
+    jmh(libs.cosid4.mongo)
+    jmh(libs.mongodb.driver.sync)
 }

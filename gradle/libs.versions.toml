@@ -11,13 +11,15 @@ jmh = "1.37"
 # The 4.x release the benchmarks compare against (D21, docs/architecture/10-performance-and-parity.md).
 cosid4 = "4.1.0"
 # R2-JDBC: the drivers and containers of store/jdbc tests and the P7 / P10 benchmarks.
-testcontainers = "2.0.5"
 mysql-connector = "9.7.0"
 mariadb-client = "3.5.11"
 postgresql = "42.7.14"
 mssql-jdbc = "13.4.0.jre11"
 h2 = "2.4.240"
 hikari = "7.0.2"
+# R2-Mongo: the MongoDB store and its integration tests.
+mongodb = "5.13.0"
+testcontainers = "2.0.5"
 # plugins
 test-retry = "1.6.6"
 publish-plugin = "2.0.0"
@@ -49,6 +51,10 @@ postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" 
 mssql-jdbc = { module = "com.microsoft.sqlserver:mssql-jdbc", version.ref = "mssql-jdbc" }
 h2 = { module = "com.h2database:h2", version.ref = "h2" }
 hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
+# R2-Mongo
+mongodb-driver-sync = { module = "org.mongodb:mongodb-driver-sync", version.ref = "mongodb" }
+testcontainers-mongodb = { module = "org.testcontainers:testcontainers-mongodb", version.ref = "testcontainers" }
+cosid4-mongo = { module = "me.ahoo.cosid:cosid-mongo", version.ref = "cosid4" }
 # Gradle plugins used by the convention plugins in build-logic/
 spotbugs-gradle-plugin = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs" }
 jmh-gradle-plugin = { module = "me.champeau.jmh:jmh-gradle-plugin", version.ref = "jmh-plugin" }

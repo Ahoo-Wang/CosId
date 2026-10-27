@@ -23,4 +23,6 @@ dependencies {
     jmh(project(":store:jdbc"))
     jmh(libs.mysql.connector)
     jmh(libs.hikari)
+    // P10 (MongoDB)
+    jmh(project(":store:mongo"))
 }

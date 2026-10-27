@@ -51,6 +51,7 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `core/` | `cosid-core` | R0: public API frozen; bodies throw `UnsupportedOperationException("R1-x")` until R1/R3 |
 | `store/tck/` | `cosid-store-tck` | R1-C: the contracts, `InMemoryStore` (passes them), `ManualClock`, fault injection, `ContractsRan` |
 | `store/jdbc/` | `cosid-store-jdbc` | R2-JDBC: `JdbcStore` over a `DataSource`; MySQL, MariaDB, PostgreSQL, SQL Server, H2 dialects and the `JdbcDialect` SPI; `schema-*.sql` |
+| `store/mongo/` | `cosid-store-mongo` | R2-Mongo: `MongoStore` (`RangeStore` + `SlotLeaseStore`, sync driver, MongoDB 4.4+), `StoreProvider` type `mongo` |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
 | `benchmark/v5/` | not published | the same scenarios on 5.x |
@@ -104,6 +105,10 @@ Adding a package means deciding whether `module-info.java` exports it.
   `_USERNAME`/`_PASSWORD`, `COSID_TEST_POSTGRES_URL`/…, `COSID_TEST_MONGODB_URI`; Testcontainers otherwise; one CI job
   per `store/*` module running the TCK. Each backend registers a `checkContractsRan` task like `store/tck/build.gradle.kts`
   (it runs `ContractsRan` on the JUnit XML reports), so a job whose contract cases were skipped fails.
+- **MongoDB tests** (`store/mongo`) need a replica set (`majority` concerns): `COSID_TEST_MONGODB_URI`, otherwise a
+  Testcontainers single-node replica set on `COSID_TEST_MONGODB_IMAGE` (default `mongo:7.0`; CI runs 4.4 and 8.0).
+  P10 for Mongo is `benchmark/run-smoke MongoStoreBenchmark` with `COSID_BENCHMARK_MONGODB_URI` pointing at a replica set
+  (default `mongodb://localhost:27017`).
 - **Lease tests** drive `LeaseKeeper` / `StaticSlot` without threads: a capturing executor, the package-private
   constructor taking an `internal.Ticker`, and `runDue()` / `extendIfDue()` for each step; `store/tck`'s `ManualClock`
   is the store or client clock. `core` tests may use `store/tck` (test scope).

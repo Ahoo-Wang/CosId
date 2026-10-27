@@ -31,7 +31,7 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     env:
-      SKIP_TESTS: ':store:jdbc,:store:mongo,:store:redis,:store:zookeeper,:store:remote,:server,:spring:autoconfigure,:spring:starter,:integrations'
+      SKIP_TESTS: ':store:jdbc,:store:mongo,:store:redis,:store:zookeeper,:store:remote,:server,:spring:autoconfigure,:spring:starter,:integrations:jackson,:integrations:mybatis,:integrations:spring-data-jdbc,:integrations:activiti,:integrations:flowable,:integrations:axon'
     steps:
       - name: Checkout
         uses: actions/checkout@v7

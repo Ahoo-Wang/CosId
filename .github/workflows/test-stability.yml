@@ -47,7 +47,12 @@ jobs:
           - ':store:zookeeper'
           - ':store:remote'
           - ':server'
-          - ':integrations'
+          - ':integrations:jackson'
+          - ':integrations:mybatis'
+          - ':integrations:spring-data-jdbc'
+          - ':integrations:activiti'
+          - ':integrations:flowable'
+          - ':integrations:axon'
           - ':migration'
           - ':spring:autoconfigure'
     # The Redis contracts of server and the standalone cases of store/redis and spring/autoconfigure use this service;
@@ -59,8 +64,6 @@ jobs:
           - 6379:6379
     env:
       COSID_TEST_REDIS_URI: redis://localhost:6379
-      # L3: ReplicaWaitTest has a known race whose fix is not on 5.x yet; leave it out until it is.
-      EXCLUDE: ${{ matrix.project == ':store:redis' && '*.ReplicaWaitTest' || '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -80,7 +83,7 @@ jobs:
         run: |
           out="build/stability/${MATRIX_PROJECT//:/-}"
           echo "out=$out" >> "$GITHUB_OUTPUT"
-          scripts/test-stability.sh "$MATRIX_PROJECT" "${{ inputs.iterations || '20' }}" "$out" "-Pcosid.test.exclude=$EXCLUDE"
+          scripts/test-stability.sh "$MATRIX_PROJECT" "${{ inputs.iterations || '20' }}" "$out"
         env:
           MATRIX_PROJECT: ${{ matrix.project }}
 

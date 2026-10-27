@@ -28,11 +28,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.GeneratorDisabledException;
+import me.ahoo.cosid.GroupedId;
 import me.ahoo.cosid.GroupedIdGenerator;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.PartsIdGenerator;
 import me.ahoo.cosid.accessor.CosId;
 import me.ahoo.cosid.accessor.IdFiller;
+import me.ahoo.cosid.codec.GroupedCodec;
 import me.ahoo.cosid.codec.IdCodec;
 import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.observe.GeneratorListener;
@@ -138,6 +140,31 @@ class CosIdAutoConfigurationTest {
             assertEquals(List.of("open mem", "open other"), stores.events);
             assertTrue(stores.configs.stream().allMatch(config -> config.client().isEmpty()));
         });
+    }
+
+    @Test
+    void encodesAndDecodesThePeriodWhereTheCodecListPutsIt() {
+        withStores().withPropertyValues("cosid.stores.mem.type=memory",
+            "cosid.generators.after.strategy=periodic-segment", "cosid.generators.after.store=mem", "cosid.generators.after.period=YEAR",
+            "cosid.generators.after.codec[0].radix.radix=10", "cosid.generators.after.codec[0].radix.width=4",
+            "cosid.generators.after.codec[0].radix.pad-start=true",
+            "cosid.generators.after.codec[1].period.delimiter=-", "cosid.generators.after.codec[2].prefix=BIZ-",
+            "cosid.generators.none.strategy=periodic-segment", "cosid.generators.none.store=mem", "cosid.generators.none.period=YEAR",
+            "cosid.generators.none.codec[0].period.enabled=false", "cosid.generators.none.codec[1].prefix=N").run(context -> {
+                assertNull(context.getStartupFailure());
+                CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
+                GroupedId after = runtime.periodic("after").generate();
+                GroupedCodec afterCodec = runtime.get("after", GroupedCodec.class);
+                String text = afterCodec.encode(after);
+                assertEquals("BIZ-" + after.period() + "-" + String.format("%04d", after.value()), text);
+                assertEquals(after, afterCodec.decode(text));
+
+                GroupedId none = runtime.periodic("none").generate();
+                GroupedCodec noneCodec = runtime.get("none", GroupedCodec.class);
+                assertEquals("N" + none.value(), noneCodec.encode(none));
+                UnsupportedOperationException e = assertThrows(UnsupportedOperationException.class, () -> noneCodec.decode("N" + none.value()));
+                assertThat(e.getMessage(), containsString("the period is not in the text"));
+            });
     }
 
     @Test

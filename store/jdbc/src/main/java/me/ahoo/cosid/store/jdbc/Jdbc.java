@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.store.jdbc;
 
+import me.ahoo.cosid.store.StoreTimeoutException;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Duration;
@@ -57,6 +59,9 @@ final class Jdbc {
             } catch (SQLException e) {
                 if (attempt < RETRIES && dialect.isRetryable(e)) {
                     continue;
+                }
+                if (dialect.isTimeout(e)) {
+                    throw new StoreTimeoutException(operation + " timed out on " + dialect.name() + " after " + timeout, e);
                 }
                 throw new JdbcStoreException(operation + " failed on " + dialect.name(), e);
             }

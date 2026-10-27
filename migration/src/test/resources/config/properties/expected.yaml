@@ -2,8 +2,7 @@
 # Not converted as is - review before starting 5.0:
 #  - cosid.zookeeper.retry.max-retries = 3: set the store option retry.max-retries by hand (Curator retry, 06 §2.4)
 #  - cosid.segment.provider.biz_order.group: 4.x used the server's default time zone; the 5.0 period zone is Asia/Shanghai, check it (--zone)
-#  - cosid.segment.provider.biz_order.group.pattern = yy: 5.0 period keys are yyyy; plan reformats the 4.x keys, and grouped string ids now carry the yyyy prefix
-#  - cosid.segment.provider.biz_order.converter.group-prefix is off: 5.0 grouped string ids always start with the period
+#  - cosid.segment.provider.biz_order.group.pattern = yy: 5.0 period keys are yyyy; plan reformats the 4.x keys
 #  - both 4.x shares are enabled: the snowflake share is [default], the segment share [segment-share] (plan maps __share__ the same way with --layout-config)
 #  - the 4.x machine state file is not migrated; set cosid.machine.static.state-file to a new file to keep clock-regression protection (05 §4.4)
 #  - cosid.max-concurrent-calls = 64: no 5.0 counterpart, dropped
@@ -46,9 +45,9 @@ cosid:
       period: YEAR
       zone: Asia/Shanghai
       codec:
-      - date-prefix:
-          delimiter: "-"
       - radix:
           radix: 36
           width: 13
           pad-start: true
+      - period:
+          enabled: false

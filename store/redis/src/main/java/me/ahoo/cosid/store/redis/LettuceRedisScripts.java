@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.store.redis;
 
+import io.lettuce.core.RedisCommandTimeoutException;
 import io.lettuce.core.RedisException;
 import io.lettuce.core.RedisFuture;
 import io.lettuce.core.RedisNoScriptException;
@@ -171,13 +172,18 @@ public final class LettuceRedisScripts implements RedisScripts {
             throw new RedisStoreException("Interrupted waiting for Redis", e);
         } catch (TimeoutException e) {
             future.cancel(true);
-            throw new RedisStoreException("Redis did not answer within " + timeout, e);
+            throw RedisStoreException.timeout("Redis did not answer within " + timeout, e);
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             if (cause instanceof RedisNoScriptException noScript) {
                 throw noScript;
             }
+            if (cause instanceof RedisCommandTimeoutException) {
+                throw RedisStoreException.timeout("Redis did not answer in time: " + cause.getMessage(), cause);
+            }
             throw new RedisStoreException("Redis failed: " + cause.getMessage(), cause);
+        } catch (RedisCommandTimeoutException e) {
+            throw RedisStoreException.timeout("Redis did not answer in time: " + e.getMessage(), e);
         } catch (RedisException e) {
             throw new RedisStoreException("Redis failed: " + e.getMessage(), e);
         }

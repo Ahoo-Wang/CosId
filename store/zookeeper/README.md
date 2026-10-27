@@ -53,7 +53,8 @@ Through the `StoreProvider` of type `zookeeper`: either an injected, started `Cu
 | `blockUntilConnectedWait` | 10s |
 | `retry.baseSleepTime` / `retry.maxRetries` / `retry.maxSleep` | 100ms / 5 / 500ms |
 
-`StoreConfig.timeout` bounds every store operation as a whole, compare-and-set retries included. Directly:
+`StoreConfig.timeout` bounds every store operation as a whole, compare-and-set retries included; an operation that
+runs out of it fails with `StoreTimeoutException`. Directly:
 `new ZookeeperStore(curatorFramework, timeout)`.
 
 ## Tests

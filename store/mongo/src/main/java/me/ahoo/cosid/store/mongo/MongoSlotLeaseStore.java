@@ -22,6 +22,7 @@ import me.ahoo.cosid.lease.SlotLeaseStore;
 
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoServerException;
+import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Field;
@@ -107,7 +108,18 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
      * @param timeout  the operation timeout ({@code timeoutMS}); zero means none
      */
     public MongoSlotLeaseStore(MongoDatabase database, Duration timeout) {
-        this(MongoStore.configure(database, timeout));
+        this(database, timeout, WriteConcern.MAJORITY);
+    }
+
+    /**
+     * A slot lease store on a database whose client the caller owns, writing with the given concern.
+     *
+     * @param database     the database
+     * @param timeout      the operation timeout ({@code timeoutMS}); zero means none
+     * @param writeConcern the write concern, acknowledged ({@code majority} keeps leases across a failover)
+     */
+    public MongoSlotLeaseStore(MongoDatabase database, Duration timeout, WriteConcern writeConcern) {
+        this(MongoStore.configure(database, timeout, writeConcern));
     }
 
     private MongoSlotLeaseStore(MongoDatabase configured) {
@@ -120,8 +132,22 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         this.namespaces = namespaces;
     }
 
+    /** The slot collection as the store uses it (tests check its concerns). */
+    MongoCollection<Document> slotCollection() {
+        return slots;
+    }
+
+    /** The namespace collection as the store uses it (tests check its concerns). */
+    MongoCollection<Document> namespaceCollection() {
+        return namespaces;
+    }
+
     @Override
     public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+        return MongoStore.timed("acquire", () -> acquireNow(namespace, owner, limit, ttl, tolerance, preferredSlot));
+    }
+
+    private AcquireResult acquireNow(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
         Objects.requireNonNull(namespace, "namespace");
         Objects.requireNonNull(owner, "owner");
         Objects.requireNonNull(preferredSlot, "preferredSlot");
@@ -221,6 +247,10 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
 
     @Override
     public Optional<SlotLease> renew(SlotLease lease, Duration ttl, Duration tolerance) {
+        return MongoStore.timed("renew", () -> renewNow(lease, ttl, tolerance));
+    }
+
+    private Optional<SlotLease> renewNow(SlotLease lease, Duration ttl, Duration tolerance) {
         Objects.requireNonNull(lease, "lease");
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
@@ -235,6 +265,10 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
 
     @Override
     public boolean release(SlotLease lease, long lastIssued) {
+        return MongoStore.timed("release", () -> releaseNow(lease, lastIssued));
+    }
+
+    private boolean releaseNow(SlotLease lease, long lastIssued) {
         Objects.requireNonNull(lease, "lease");
         // §2.2 release: no owner; expiresAt = now; nextFloor = max(floor, min(lastIssued, ceiling)); fence + 1.
         return slots.updateOne(holding(lease), List.of(

@@ -29,6 +29,7 @@ import me.ahoo.cosid.runtime.RuntimeOptions;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.segment.PeriodicSegmentGenerator;
+import me.ahoo.cosid.segment.RangeStore;
 import me.ahoo.cosid.segment.SegmentGenerator;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
@@ -139,7 +140,7 @@ public final class RuntimeParts {
         switch (machine) {
             case MachineSpec.Leased leased -> {
                 Owner owner = new Owner(plan.ownerKey().orElseThrow(), UUID.randomUUID());
-                keeper = new LeaseKeeper(store(leased.store()).slots(), namespace, owner, leased.bits(), leased.ttl(),
+                keeper = new LeaseKeeper(ObservedStores.slots(leased.store(), store(leased.store()).slots(), listener), namespace, owner, leased.bits(), leased.ttl(),
                     leased.tolerance(), leased.preferredSlot(), leased.ttl(), executor, options.time(), listener);
                 keeper.start();
                 return keeper;
@@ -162,6 +163,11 @@ public final class RuntimeParts {
         throw new IllegalStateException("Store [" + name + "] is not open");
     }
 
+    /** The range store {@code name} as generators use it: its timeouts reach the listener. */
+    private RangeStore ranges(String name, GeneratorListener listener) {
+        return ObservedStores.ranges(name, store(name).ranges(), listener);
+    }
+
     private GeneratorEntry create(RuntimePlan.Generator generator, SlotHandle slot, RuntimeOptions options, Executor executor,
                                   GeneratorListener listener) {
         String name = generator.name();
@@ -175,10 +181,11 @@ public final class RuntimeParts {
                 new TimeBasedGenerator(name, Layout.COSID_80, slot, options.time(), cosId80.regression(), listener),
                 (PartsCodec) generator.codec(), slot, counter);
             case GeneratorSpec.Segment segment -> GeneratorEntry.segment(
-                new SegmentGenerator(name, key, store(segment.store()).ranges(), segment.batch(), executor, options.time(), listener),
+                new SegmentGenerator(name, key, segment.store(), ranges(segment.store(), listener), segment.batch(), executor, options.time(),
+                    listener),
                 (IdCodec) generator.codec(), segment.store(), counter);
             case GeneratorSpec.PeriodicSegment periodic -> GeneratorEntry.periodic(
-                new PeriodicSegmentGenerator(name, key, periodic.period(), periodic.zone(), store(periodic.store()).ranges(),
+                new PeriodicSegmentGenerator(name, key, periodic.store(), periodic.period(), periodic.zone(), ranges(periodic.store(), listener),
                     periodic.batch(), periodic.periodic(), executor, options.time(), listener),
                 (GroupedCodec) generator.codec(), periodic.store(), Map.of(
                     "key", key,

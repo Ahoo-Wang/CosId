@@ -54,11 +54,13 @@ class LeaseModelTest {
         assertThrows(IllegalArgumentException.class, () -> new Owner(" ", UUID.randomUUID()));
         assertThrows(NullPointerException.class, () -> new Owner("host-1", null));
         SlotLease lease = new SlotLease("app", 3, OWNER, 1, 30_000, 0, 31_000, 0);
-        assertThat(new AcquireResult.Acquired(lease).lease(), is(lease));
+        assertThat(new AcquireResult.Acquired(lease, AcquireReason.LOWEST, false).lease(), is(lease));
+        assertThat(AcquireReason.IDEMPOTENT.label(), is("idempotent"));
         assertThat(new AcquireResult.Exhausted(5).earliestExpiresAt(), is(5L));
         assertThrows(IllegalArgumentException.class, () -> new SlotLease("app", -1, OWNER, 1, 0, 0, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> new SlotLease("app", 1, OWNER, 1, 0, 10, 9, 0));
-        assertThrows(NullPointerException.class, () -> new AcquireResult.Acquired(null));
+        assertThrows(NullPointerException.class, () -> new AcquireResult.Acquired(null, AcquireReason.LOWEST, false));
+        assertThrows(NullPointerException.class, () -> new AcquireResult.Acquired(lease, null, false));
         store.close();
     }
 

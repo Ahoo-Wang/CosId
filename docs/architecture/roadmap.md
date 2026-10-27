@@ -108,8 +108,10 @@ R0 骨架、接口冻结、4.x 基线基准
 | 阶段 | 状态 | PR |
 |---|---|---|
 | 设计 | 完成:D1–D24 已定 | — |
-| R0 | 审查中(接受 9 项设计偏差;P5 参数对齐待修) | [#1308](https://github.com/Ahoo-Wang/CosId/pull/1308) |
-| R1-A / R1-B / R1-C | 未开始 | |
+| R0 | 已合入(P5/P12 基线待在空闲机器上干净重跑) | [#1308](https://github.com/Ahoo-Wang/CosId/pull/1308) |
+| R1-C | 已合入 | [#1309](https://github.com/Ahoo-Wang/CosId/pull/1309) |
+| R1-B | 审查通过,待同步 5.x 后合入 | [#1310](https://github.com/Ahoo-Wang/CosId/pull/1310) |
+| R1-A | 已推送分支,PR 待开(GitHub API 超时) | |
 | R2-JDBC / Redis / Mongo / ZK | 未开始 | |
 | R3 / R3-S | 未开始 | |
 | R4-A / R4-B / R4-C | 未开始 | |

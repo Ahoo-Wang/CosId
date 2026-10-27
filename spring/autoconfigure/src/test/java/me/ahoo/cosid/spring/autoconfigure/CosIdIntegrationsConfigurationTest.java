@@ -20,14 +20,15 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import me.ahoo.cosid.integrations.axon.CosIdIdentifierFactory;
-import me.ahoo.cosid.integrations.jackson.AsString;
-import me.ahoo.cosid.integrations.jackson.CosIdJacksonModule;
-import me.ahoo.cosid.integrations.jdbc.CosIdBeforeConvertCallback;
-import me.ahoo.cosid.integrations.mybatis.CosIdInterceptor;
-import me.ahoo.cosid.integrations.workflow.ActivitiIdGenerator;
-import me.ahoo.cosid.integrations.workflow.FlowableIdGenerator;
+import me.ahoo.cosid.activiti.ActivitiIdGenerator;
+import me.ahoo.cosid.axon.CosIdIdentifierFactory;
+import me.ahoo.cosid.flowable.FlowableIdGenerator;
+import me.ahoo.cosid.jackson.AsString;
+import me.ahoo.cosid.jackson.CosIdJacksonModule;
+import me.ahoo.cosid.mybatis.CosIdInterceptor;
+import me.ahoo.cosid.spring.data.jdbc.CosIdBeforeConvertCallback;
 
 import org.axonframework.common.IdentifierFactory;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,6 @@ import tools.jackson.databind.json.JsonMapper;
 
 /** {@link CosIdIntegrationsConfiguration}: each integration on its classes and properties, the Axon binding lifecycle. */
 class CosIdIntegrationsConfigurationTest {
-    static final String UUID_PATTERN = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
     static final ApplicationContextRunner RUNNER = CosIdAutoConfigurationTest.withStores()
         .withConfiguration(AutoConfigurations.of(CosIdIntegrationsConfiguration.class))
         .withPropertyValues(CosIdAutoConfigurationTest.MIXED);
@@ -195,7 +195,8 @@ class CosIdIntegrationsConfigurationTest {
             // The second context closed: back to the first one's runtime.
             assertThat(axon.generateIdentifier(), startsWith("O"));
         });
-        assertThat(axon.generateIdentifier(), matchesPattern(UUID_PATTERN));
+        // Both contexts closed: nothing is bound.
+        assertThrows(IllegalStateException.class, axon::generateIdentifier);
     }
 
     @Test
@@ -204,9 +205,10 @@ class CosIdIntegrationsConfigurationTest {
             assertThat(context.getBeanNamesForType(CosIdJacksonModule.class).length, is(0));
             assertThat(context.getBeanNamesForType(CosIdInterceptor.class).length, is(0));
         });
-        RUNNER.withClassLoader(new FilteredClassLoader("me.ahoo.cosid.integrations")).run(context -> {
+        RUNNER.withClassLoader(new FilteredClassLoader("me.ahoo.cosid.jackson", "me.ahoo.cosid.axon")).run(context -> {
             assertNull(context.getStartupFailure());
             assertThat(context.getBeanNamesForType(CosIdJacksonModule.class).length, is(0));
+            assertThat(context.getBeanNamesForType(CosIdInterceptor.class).length, is(1));
         });
     }
 }

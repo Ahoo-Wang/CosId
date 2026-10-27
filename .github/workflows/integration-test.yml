@@ -463,12 +463,14 @@ jobs:
       - name: Check spring/* and integrations
         run: >-
           scripts/gradle-retry.sh -PspringBootVersion=${{ matrix.boot }} -PtestJavaVersion=${{ matrix.java }}
-          :spring:autoconfigure:check :spring:starter:check :integrations:check
+          :spring:autoconfigure:check :spring:starter:check
+          :integrations:jackson:check :integrations:mybatis:check :integrations:spring-data-jdbc:check
+          :integrations:activiti:check :integrations:flowable:check :integrations:axon:check
 
       - name: Check the tests ran
         run: |
           status=0
-          for report in spring/autoconfigure/build/test-results/test/TEST-*.xml integrations/build/test-results/test/TEST-*.xml; do
+          for report in spring/autoconfigure/build/test-results/test/TEST-*.xml integrations/*/build/test-results/test/TEST-*.xml; do
             skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
             if [ "$skipped" -gt 0 ]; then
               echo "::error::$report skipped $skipped tests"

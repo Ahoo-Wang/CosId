@@ -25,7 +25,12 @@ dependencies {
         api(project(":store:redis"))
         api(project(":store:zookeeper"))
         api(project(":store:remote"))
-        api(project(":integrations"))
+        api(project(":integrations:jackson"))
+        api(project(":integrations:mybatis"))
+        api(project(":integrations:spring-data-jdbc"))
+        api(project(":integrations:activiti"))
+        api(project(":integrations:flowable"))
+        api(project(":integrations:axon"))
         api(project(":spring:autoconfigure"))
         api(project(":spring:starter"))
     }

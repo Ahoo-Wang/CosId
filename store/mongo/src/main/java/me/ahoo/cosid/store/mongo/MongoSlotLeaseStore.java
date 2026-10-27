@@ -21,6 +21,7 @@ import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.lease.SlotLeaseStore;
 
 import com.mongodb.MongoBulkWriteException;
+import com.mongodb.MongoServerException;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Field;
@@ -44,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.OptionalInt;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -87,6 +89,10 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         new Document("$eq", Arrays.asList("$" + INCARNATION, null)),
         new Document("$lt", List.of("$" + EXPIRES_AT, NOW)))));
     private static final Bson STAMP = new Document("$set", new Document(WRITTEN_AT, NOW));
+    /** Attempts of the namespace upsert that lose the first-use race (E11000) before the error is rethrown. */
+    private static final int NAMESPACE_ATTEMPTS = 5;
+    /** NamespaceExists and IndexBuildAlreadyInProgress: concurrent first index creations on MongoDB 4.4. */
+    private static final Set<Integer> INDEX_RACES = Set.of(48, 276);
     private static final FindOneAndUpdateOptions AFTER = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
     private static final FindOneAndUpdateOptions LOWEST_AFTER = new FindOneAndUpdateOptions()
         .returnDocument(ReturnDocument.AFTER).sort(Sorts.ascending(SLOT));
@@ -130,7 +136,7 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
             Aggregates.match(Filters.and(Filters.eq(NS, namespace), Filters.or(Filters.eq(OWNER_KEY, owner.key()), Filters.eq(LAST_OWNER_KEY, owner.key())))),
             Aggregates.addFields(new Field<>(READ_AT, NOW)),
             Aggregates.sort(Sorts.ascending(SLOT)))).into(new ArrayList<>());
-        boolean duplicateOwnerKey = false;
+        List<Integer> liveOfOtherIncarnations = new ArrayList<>();
         Document held = null;
         List<Document> stickyCandidates = new ArrayList<>();
         for (Document slot : ofKey) {
@@ -142,7 +148,7 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
                     held = below && held == null ? slot : held;
                 } else if (!free) {
                     // Another incarnation of the key with a live lease (§2.1): only observed, never taken over.
-                    duplicateOwnerKey = true;
+                    liveOfOtherIncarnations.add(slot.getInteger(SLOT));
                 }
             }
             if (below && free && owner.key().equals(slot.getString(LAST_OWNER_KEY))) {
@@ -151,7 +157,7 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         }
         // 1. A slot this very owner holds: returned as it is, stamped with the read.
         if (held != null) {
-            return new AcquireResult.Acquired(toLease(held, owner, held.getLong(READ_AT)), AcquireReason.IDEMPOTENT, duplicateOwnerKey);
+            return new AcquireResult.Acquired(toLease(held, owner, held.getLong(READ_AT)), AcquireReason.IDEMPOTENT, !liveOfOtherIncarnations.isEmpty());
         }
         List<Bson> take = take(owner, ttlMillis, toleranceMillis);
         // 2. The preferred slot, if free.
@@ -159,7 +165,7 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
             Document preferred = slots.findOneAndUpdate(Filters.and(Filters.eq(NS, namespace), Filters.eq(SLOT, preferredSlot.getAsInt()), FREE),
                 take, AFTER);
             if (preferred != null) {
-                return new AcquireResult.Acquired(toLease(preferred, owner), AcquireReason.PREFERRED, duplicateOwnerKey);
+                return acquired(preferred, owner, AcquireReason.PREFERRED, liveOfOtherIncarnations);
             }
         }
         // 3. A free slot the owner key held last, as read: taken if its fence did not move and it is still free.
@@ -167,17 +173,27 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
             Document sticky = slots.findOneAndUpdate(Filters.and(Filters.eq(NS, namespace), Filters.eq(SLOT, candidate.getInteger(SLOT)),
                 Filters.eq(FENCE, candidate.getLong(FENCE)), FREE), take, AFTER);
             if (sticky != null) {
-                return new AcquireResult.Acquired(toLease(sticky, owner), AcquireReason.STICKY, duplicateOwnerKey);
+                return acquired(sticky, owner, AcquireReason.STICKY, liveOfOtherIncarnations);
             }
         }
         // 4. The lowest free slot.
         Document lowest = slots.findOneAndUpdate(Filters.and(inNamespace, FREE), take, LOWEST_AFTER);
         if (lowest != null) {
-            return new AcquireResult.Acquired(toLease(lowest, owner), AcquireReason.LOWEST, duplicateOwnerKey);
+            return acquired(lowest, owner, AcquireReason.LOWEST, liveOfOtherIncarnations);
         }
         // 5. Every slot is held.
         Document earliest = slots.find(inNamespace).sort(Sorts.ascending(EXPIRES_AT)).projection(Projections.include(EXPIRES_AT)).first();
         return new AcquireResult.Exhausted(earliest == null ? Long.MAX_VALUE : earliest.getLong(EXPIRES_AT));
+    }
+
+    /**
+     * A taken slot, flagged when another incarnation of the key held a live lease at the read. A lease read as live
+     * that expired before the conditional update may be the very slot just taken over: it is no duplicate.
+     */
+    private static AcquireResult acquired(Document slot, Owner owner, AcquireReason reason, List<Integer> liveOfOtherIncarnations) {
+        SlotLease lease = toLease(slot, owner);
+        boolean duplicateOwnerKey = liveOfOtherIncarnations.stream().anyMatch(other -> other != lease.slot());
+        return new AcquireResult.Acquired(lease, reason, duplicateOwnerKey);
     }
 
     /**
@@ -239,18 +255,10 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         NamespaceParams checked = known.get(namespace);
         if (checked == null) {
             if (!indexed) {
-                slots.createIndex(Indexes.ascending(NS, SLOT), new IndexOptions().unique(true).name("ns_slot"));
-                // The acquire read of the slots a key holds or held last.
-                slots.createIndex(Indexes.ascending(NS, OWNER_KEY), new IndexOptions().name("ns_ownerKey"));
-                slots.createIndex(Indexes.ascending(NS, LAST_OWNER_KEY), new IndexOptions().name("ns_lastOwnerKey"));
+                createIndexes();
                 indexed = true;
             }
-            // An upsert on _id alone: the server retries a concurrent insert of the same key itself.
-            Document stored = namespaces.findOneAndUpdate(Filters.eq(MongoRangeStore.ID, namespace),
-                Updates.combine(Updates.setOnInsert(LIMIT, params.limit()), Updates.setOnInsert(TOLERANCE_MS, params.toleranceMillis())),
-                new FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.AFTER));
-            checked = new NamespaceParams(Objects.requireNonNull(stored, "an upsert returns the document").getInteger(LIMIT),
-                stored.getLong(TOLERANCE_MS));
+            checked = recordNamespace(namespace, params);
             if (checked.equals(params)) {
                 provision(namespace, params.limit());
                 known.putIfAbsent(namespace, checked);
@@ -259,6 +267,51 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         if (!checked.equals(params)) {
             throw new NamespaceMismatchException(namespace, "first used with limit " + checked.limit() + " and tolerance "
                 + checked.toleranceMillis() + "ms, now " + params.limit() + " and " + params.toleranceMillis() + "ms");
+        }
+    }
+
+    /**
+     * Creates the slot indexes, idempotently. Instances starting at once race on them and on the implicit creation of
+     * the collection; MongoDB 4.4 may report that race as {@code NamespaceExists} or {@code IndexBuildAlreadyInProgress},
+     * and the next attempt finds the index in place.
+     */
+    private void createIndexes() {
+        for (int attempt = 1; ; attempt++) {
+            try {
+                slots.createIndex(Indexes.ascending(NS, SLOT), new IndexOptions().unique(true).name("ns_slot"));
+                // The acquire read of the slots a key holds or held last.
+                slots.createIndex(Indexes.ascending(NS, OWNER_KEY), new IndexOptions().name("ns_ownerKey"));
+                slots.createIndex(Indexes.ascending(NS, LAST_OWNER_KEY), new IndexOptions().name("ns_lastOwnerKey"));
+                return;
+            } catch (MongoServerException e) {
+                if (!INDEX_RACES.contains(e.getCode()) || attempt >= NAMESPACE_ATTEMPTS) {
+                    throw e;
+                }
+            }
+        }
+    }
+
+    /**
+     * Records the parameters of a new namespace, or reads those it was first used with. Concurrent first uses race on
+     * the {@code _id} insert of the upsert, and MongoDB 4.4 does not retry the loser itself: it gets {@code E11000},
+     * then reads the winner's document back (or upserts again, when that write is not majority-visible yet).
+     */
+    private NamespaceParams recordNamespace(String namespace, NamespaceParams params) {
+        Bson id = Filters.eq(MongoRangeStore.ID, namespace);
+        Bson setOnInsert = Updates.combine(Updates.setOnInsert(LIMIT, params.limit()), Updates.setOnInsert(TOLERANCE_MS, params.toleranceMillis()));
+        for (int attempt = 1; ; attempt++) {
+            Document stored;
+            try {
+                stored = namespaces.findOneAndUpdate(id, setOnInsert, new FindOneAndUpdateOptions().upsert(true).returnDocument(ReturnDocument.AFTER));
+            } catch (MongoServerException e) {
+                if (!MongoStore.isDuplicateKey(e) || attempt >= NAMESPACE_ATTEMPTS) {
+                    throw e;
+                }
+                stored = namespaces.find(id).first();
+            }
+            if (stored != null) {
+                return new NamespaceParams(stored.getInteger(LIMIT), stored.getLong(TOLERANCE_MS));
+            }
         }
     }
 

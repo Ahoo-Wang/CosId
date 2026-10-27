@@ -149,7 +149,9 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **收尾阶段(用户 2026-10-27 最新指示):** 不开新任务;已 ready 的 PR 等 CI 全绿后合并;最后登记文档。本机代码必须全部推送到 GitHub。
 
-**快照(2026-10-27 深夜):** Ready:#1342、#1346、#1347、#1348(已审查通过,等 CI)、#1350;Draft:#1349、#1351(修复已完成,会话无权限转 ready,需用户转)、#1352、#1353、#1354(WP-JDBC)、#1355、#1356(R2-Mongo 的 range 竞态测试,已解决与 main 的冲突)。CI 仍大量排队,尚无可合入的 PR。
+**快照(2026-10-27 深夜):** Ready:#1342、#1347、#1348(已审查通过,等 CI)、#1350;Draft:#1349、#1351(修复已完成,会话无权限转 ready,需用户转)、#1352、#1353、#1354(WP-JDBC)、#1355、#1356(R2-Mongo 的 range 竞态测试,已解决与 main 的冲突)。CI 仍大量排队,尚无可合入的 PR。
+
+**已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)。
 
 **本机代码备份:** 12 个只存在于本机的旧分支已推送为 `origin/archive/<原分支名>`(SHA 已核对),包括 4.x 时期的 `feat/replication-window`、`feat/jdbc-dialect`、`feat/generator-name-properties`、`build/unpublished-platform`、`test/deflake-meter-binder-zk-timeout`、`chore/release-4.1.1`、`fix/b5-virtual-thread-pinning`,以及 5.0 时期的 `r3-runtime`、`claude/r0-skeleton-004bc6`、`claude/magical-gould-a7e144`、`feat/r5a-parity-gaps`、`refactor/d29-split-integrations`。本机 `main` 的 4 个提交已包含在 `origin/4.x`。两个曾有未提交改动的工作区已推送:R4-C 的改动在 #1350(`fc17ef84`),R2-Mongo 的在 #1356。
 

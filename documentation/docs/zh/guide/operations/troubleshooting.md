@@ -1,42 +1,42 @@
 # 故障排查
 
-## 启动错误
+## 启动失败
 
-| 错误信息包含 | 原因与解决方法 |
-|--------------|----------------|
-| `Table cosid_machine has no lease columns` | 3.x 创建的表：添加租约列，见 [JDBC](../backends/jdbc.md#升级-3-x-创建的表) |
-| `Table cosid_machine has no stable column` | 3.3 之前创建的表：添加 `stable` 列，见 [JDBC](../backends/jdbc.md#升级-3-x-创建的表) |
-| `[cosid.machine.distributor.provider] was removed in 4.0`（或 `cosid.segment.distributor.provider`） | 改为设置错误信息中给出的 `type`；它也会按 `getType()` 选择你的 `CosIdStoreProvider` |
-| `must be positive: the machine id lease store holds a lock during each call` | 把指出的超时（`cosid.machine.distributor.redis.timeout`、`redis.distribute-timeout`、`zookeeper.timeout`、`mongo.timeout`、`cosid.proxy.read-timeout`）设置为正数 |
-| `CosId's MongoDB reactive support was removed in 4.0` | 添加 `org.mongodb:mongodb-driver-sync`，见 [MongoDB](../backends/mongo.md) |
-| `has converter.group-prefix enabled but no group` | 为该号段生成器设置 `group.by`，或关闭 `converter.group-prefix.enabled` |
-| `MachineIdOverflowException` | 命名空间中所有机器号都被存活或稳定实例持有，或租约尚未过期。等待被终止实例的安全守护时长过去（反复崩溃重启可能耗尽命名空间；4.0.1 起启动失败会释放租约）、增大 `cosid.machine.machine-bit`，或检查是否有实例误用了该命名空间 |
-| `ClockTooManyBackwardsException` | 主机时钟落后于机器号水位线超过 `broken-threshold`（500 毫秒）：上一个持有者的时钟偏快。修复时钟同步；该机器号会被再次释放 |
-| `cosid.machine.distributor.manual.machineId can not be null` | `manual` 需要设置 `cosid.machine.distributor.manual.machine-id`；或者改用租约存储 |
-| 找不到 `InstanceId` 或 `GuardDistribute` 类型的 Bean | 启用了 Snowflake ID 或 `CosIdGenerator`，但没有设置 `cosid.machine.enabled=true` |
-| `No [cosid.proxy.server.auth.tokens] configured`（Proxy 服务端） | 设置 `cosid.proxy.server.auth.tokens`（发行包读取 `COSID_PROXY_TOKEN`），或在可信网络内设置 `allow-anonymous=true` |
-| `The guarder may renew the machine id lease too late`（或 `[cosid.machine.guarder.delay] must be positive`） | 守护会在租约过期之后才续约：`max(delay, initial-delay)` 加上两倍存储超时（一次续约要调用存储两次），必须短于 `safe-guard-duration` 减去余量 `min(10s, safe-guard-duration / 10)`。调小 `delay` 和 `initial-delay`（取安全守护时长的三分之一，可以容忍漏掉的续约），或调大 `safe-guard-duration`。`fail-fast: false` 时只打印告警 |
+| 消息 | 原因与解决 |
+|---|---|
+| `Invalid cosid.* configuration:` 后跟一个列表 | 一次列出配置中的全部问题，每行一个：未知的存储、缺少 `strategy`、错误的 codec 列表…… |
+| 时间型生成器需要 `machine` | 添加 `cosid.machine.leased`（或 `static`） |
+| `nodeBits` 小于 `machine.bits` | 布局容纳不下槽位：调小 `bits`（`JS_SAFE_*` 最多为 3）或加宽 `node-bits` |
+| 存储超时大于 `reserve-timeout` | 自行执行补充的调用方受存储超时约束：保持 `timeout ≤ reserve-timeout` |
+| `NamespaceMismatchException` | 该命名空间首次使用时的 `{limit, tolerance}` 与当前不同：各处使用相同的 `bits` 与 `tolerance`，或换一个命名空间 |
+| `acquireTimeout` 后槽位耗尽 | `2^bits` 以下的槽位全部被占用：实例数多于槽位数，或崩溃的持有者的租约尚未过期（最多 `ttl`） |
+| Bean 名已被占用 | 生成器名与另一个 Bean 冲突：重命名其中一个 |
+| cosid-server：未配置 token | 设置 `cosid.server.auth.tokens` 或 `clients`，或者（仅限可信网络）`allow-anonymous: true` |
 
-## 运行期间的错误
+## 运行期间
 
-| 异常 | 含义 | 处理方法 |
-|------|------|----------|
-| `MachineIdLostException` | 机器号租约已丢失（已被其他实例持有）、已在关闭时释放，或约一个安全守护时长未续约；生成器停止生成，以免产生重复 ID | 查看 `machineId` 健康指示器和日志中的 `Guard Failed` 错误：通常是存储几分钟内不可达。过期的租约在下一次续约成功后会自动恢复；已丢失的租约不会恢复，需要重启实例重新申领机器号 |
-| `ClockBackwardsException` | 设置了 `clock-sync: false` 的生成器运行期间时钟回拨；它拒绝生成，而不是重复 ID | 修复时钟同步，或保持 `clock-sync: true` |
-| `ClockTooManyBackwardsException` | 运行期间时钟回拨超过 `broken-threshold` | 修复时钟同步（使用渐进调整而不是跳变） |
-| `IdSegmentRollbackException` | 存储返回的号段低于已经发放过的号段：计数器回退了，例如 Redis 丢失了数据 | 停止生成，把计数器恢复到已发放的最大 ID 之上后再继续 |
-| `NotFoundIdGeneratorException` | 该名称下没有注册生成器 | 检查 `@CosId` 或查找时使用的名称，以及生成器是否配置在 `cosid.segment.provider` 或 `cosid.snowflake.provider` 下 |
-| 查找时抛出提及两个类型的 `IllegalArgumentException` | 类型化查找要求 `long` 生成器，但该名称下是只生成字符串的生成器（例如 `cosid`） | 改用 `getRequired(name)` 和 `generateAsString()`，或换成 `long` 生成器 |
-| 提及字段和生成器的 `CosIdException` | `long` 或 `int` 字段绑定了只生成字符串的生成器 | 把字段绑定到号段或 Snowflake 生成器 |
+| 现象 | 原因与解决 |
+|---|---|
+| `SlotWindowExceededException` | 生成器到达时间窗口 ceiling 时仍未续约，原因是存储不可达，或主机时钟领先存储超过 `tolerance`。检查 `cosid.machine.lease.renew.failures` 与 `cosid.machine.clock.skew` |
+| `SlotLostException` | 租约已丢失（在长时间停顿或网络分区期间过期，或过期后被他人取得）。keeper 会自行取得新槽位；在此之前健康检查为 `DOWN` |
+| `ClockBackwardsException` | 时钟回拨超过 `regression.wait-up-to`（1s） |
+| `RangeUnavailableException` | 手头没有 ID，且补充失败或耗时超过 `reserve-timeout`；见 `cosid.segment.refill.failures` |
+| `RangeSealedException` | 周期号段请求了一个已封存的过去周期：主机时钟落后超过 `seal-after` |
+| `RangeExhaustedException` | key 已到达 `Long.MAX_VALUE` |
+| `GeneratorDisabledException` | 该生成器配置了 `disabled: true` |
+| 启动后的第一个 ID 需要等待 | 新持有者要等到自己的时钟越过槽位的 floor：即上一个持有者的 ceiling，或迁移刚完成时的 W（最多约 `source-skew`，10s） |
+| `onDuplicateOwnerKey` / `cosid.machine.owner.duplicates` | 两个存活进程推导出相同的 owner key（同一 host:port 上的两个运行时，或复制出来的 pod）：各自获得独立的槽位，ID 仍然唯一，但应设置 `owner-key` 加以区分 |
+| 号段 ID 出现间隙 | 符合预期（D19）：重启、超时与 `range-ttl` 都会丢弃区间；ID 绝不重复 |
 
-## 怀疑出现重复 ID
+## Redis
 
-重复来自协调问题，而不是生成器本身。按顺序检查：
+- 带 `WAIT` 的写入之后出现 `RedisStoreException`：在超时时间内确认的副本数不足。结果未知，操作会被重试。
+  持续失败说明有副本宕机：要么恢复它，要么在清楚后果的前提下调低 `options.wait`。
+- 带副本时，共享的 `StatefulRedisConnection` 客户端在打开时失败：`WAIT` 不能在共享连接上执行。
+  请改为向存储提供 `RedisClient`。
 
-1. **两个实例使用同一个机器号**：`manual` 或 `stateful_set` 的值被重复分配，或者同一命名空间的实例使用了不同的 `safe-guard-duration`。
-2. **时钟**：使用 ZooKeeper 租约时各主机时钟不同步，或者实例在一次大幅时钟回拨后被强制终止并立即重启。
-3. **布局**：生成器的 `epoch`、`machine-bit` 或其他位数被修改，而表中仍有旧布局的 ID。
-4. **号段计数器**：存储丢失了写入（未开启持久化的 Redis），或者 `offset` 设置得低于已发放的 ID。
-5. **命名空间与名称**：写同一张表的两个应用必须共用同一个计数器，即相同的命名空间和生成器名称；写不同表的应用应使用不同的命名空间或生成器名称。
+## 获取更多细节
 
-`GET /actuator/cosid` 会显示每个生成器的机器号、最后时间戳和号段状态，能区分以上大多数情况。
+- `GET /actuator/cosid` 显示每个生成器的布局、槽位、时间窗口、批量大小与手头持有的 ID。
+- `GET /actuator/health/cosId` 显示租约、剩余时间窗口与最近一次续约错误。
+- 将日志器 `me.ahoo.cosid` 设为 `DEBUG`。

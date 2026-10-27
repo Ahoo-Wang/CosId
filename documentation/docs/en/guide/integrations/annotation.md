@@ -1,92 +1,33 @@
-# CosId Annotation Support
+# @CosId Field Filling
 
-CosId provides annotation support for automatic ID generation and injection in your domain objects.
-
-## @CosId Annotation
-
-The `@CosId` annotation marks fields or classes for CosId ID generation.
-
-```java
-@Target({ElementType.FIELD, ElementType.TYPE})
-@Retention(RetentionPolicy.RUNTIME)
-public @interface CosId {
-    /**
-     * Gets the ID generator name.
-     *
-     * @return the generator name
-     */
-    String value() default IdGeneratorProvider.SHARE;
-
-    /**
-     * Gets the ID field name (for type-level annotation).
-     *
-     * @return the field name
-     */
-    String field() default DEFAULT_FIELD;
-}
-```
-
-## Usage
-
-### Field-Level Annotation
-
-Mark a field directly with `@CosId`:
+`@CosId` marks the id field of an entity; `IdFiller` fills it from a generator. The MyBatis and Spring Data JDBC
+integrations call it before an insert, and you can call it yourself: `runtime.filler().fill(entity)` (in Spring, inject
+`IdFiller`). It is part of `cosid-core` (`me.ahoo.cosid.accessor`).
 
 ```java
 public class Order {
-    @CosId
-    private Long orderId;
-    private Long userId;
+    @CosId                  // the "default" generator
+    private long id;
 }
+
+public class Bill {
+    @CosId("bill")          // a named generator
+    private String id;      // text through the generator's codec
+}
+
+@CosId(value = "order", field = "orderId")   // on the type: names the field
+public class LineItem extends BaseEntity { }
 ```
 
-### Type-Level Annotation
+- Field types: `long` / `Long`, `int` / `Integer` (range checked, `IdOverflowException`), and `String` (through the
+  generator's codec; `cosid80` through its `PartsCodec`, `periodic-segment` through its `GroupedCodec`).
+- **A field is filled only when unset**: `≤ 0`, `null`, or an empty string.
+- Getters and setters are used when present, the field otherwise. Superclasses are searched, and generic field types are
+  resolved. A class has at most one id.
+- The accessor of each class is resolved on first use and cached as method handles. There is no scanning or
+  registration step (4.x's accessor registry and scanner are gone).
 
-Mark a class and specify the field name:
-
-```java
-@CosId(value = "orderId")
-public class Order {
-    private Long orderId;
-    private Long userId;
-}
-```
-
-## CosIdAccessor
-
-`CosIdAccessor` provides automatic ID injection for objects. It combines multiple capabilities:
-
-- **CosIdGetter**: Getting ID values from objects
-- **CosIdSetter**: Setting ID values on objects
-- **IdMetadata**: Providing metadata about ID fields
-- **EnsureId**: Ensuring objects have IDs assigned
-
-### Supported ID Types
-
-CosId supports the following ID types:
-- `String`
-- `Long` / `long`
-- `Integer` / `int`
-
-## Integration with MyBatis
-
-CosId-MyBatis integration automatically injects IDs when inserting entities:
-
-```java
-@Mapper
-public interface OrderRepository {
-    @Insert("insert into t_table (id) value (#{id});")
-    void insert(Order order);
-}
-
-public class Order {
-    @CosId(value = "order")
-    private Long orderId;
-}
-```
-
-When `orderRepository.insert(order)` is called, the ID is automatically generated and set.
-
-## Parser Implementation
-
-CosId uses `CosIdAccessorParser` to parse `@CosId` annotations and create `CosIdAccessor` instances that handle ID generation and injection.
+::: tip Segment ids start at `initial-offset`
+A new segment key starts at `initial-offset` (default `0`), and `0` counts as "unset". Use `initial-offset: 1` for
+entity ids.
+:::

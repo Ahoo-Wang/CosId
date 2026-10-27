@@ -1,32 +1,47 @@
 # FAQ
 
-## Do I need to deploy a CosId server?
+**Is 5.0 compatible with 4.x?**
+No (D1): not the API, the configuration, nor the stored data. The offline [migration tool](../migration/from-4x.md)
+moves data and configuration once; 4.x and 5.0 never run in one namespace.
 
-No. CosId is a library: IDs are generated inside your application, and the store you already run (Redis, a database, MongoDB or ZooKeeper) holds the counters and leases. A separate ID service would add a network call to every ID, which is what CosId avoids. The [CosId proxy](../backends/proxy.md) is optional; it stands in for the store when applications must not reach it, and IDs are still generated locally.
+**Will ids continue after a migration, or jump?**
+They continue. 5.0 keeps the 4.x default layout and epoch (D16), segments continue past the 4.x maximum, and time-based
+ids continue after the migration time W.
 
-## Are the IDs sequential?
+**Do clocks have to be synchronized?**
+Not for uniqueness: it rests on the store-side window invariant alone (D22). Skew costs availability. A host ahead of
+the store by more than `tolerance` pauses near its window ceiling, and a host behind it waits longer to pass a new floor.
+Run NTP anyway.
 
-Within one instance, yes: each instance hands out increasing IDs. Across instances they are *trend increasing*: a segment ID from one instance can be lower than one issued earlier by another, by up to about `step` × the segments each instance holds (the current one and the prefetched ones: at least `safe-distance`, more under load) × the number of instances, and Snowflake IDs are ordered as far as the host clocks agree. No distributed generator gives strict global order without a single point of coordination; use a database sequence if you need it.
+**What happens if my process freezes for a minute?**
+When it resumes, its timestamps lie past its window ceiling: it refuses to issue (`SlotWindowExceededException`) until
+it has renewed or acquired a new slot. Meanwhile another instance may hold the slot, with a window that starts after the
+frozen one's ceiling.
 
-## Why are there gaps?
+**Can I keep issuing when the store is down?**
+Segments: until the ids at hand and the ready ranges run out, which is about `lookahead` (1s) of traffic. A longer
+`lookahead` buys more. Snowflake: until the window ceiling, about `ttl − ttl/3 + tolerance` after the last renewal.
+There is no option to issue past a lost lease (P1).
 
-A segment generator skips the rest of its segments when it restarts or a segment expires, and the chain prefetches segments it may not use. Snowflake IDs leave out the sequences no request used. Gaps are expected; do not use the IDs to count rows.
+**Why are there gaps in my segment ids?**
+Gaps are allowed, duplicates never (D19). A restart drops the rest of a range, and so do a timed-out wait and a
+`range-ttl` expiry.
 
-## How does the prefetch worker keep the safe distance?
+**Why is the first segment id 0?**
+A new key starts at `initial-offset`, which defaults to `0`. Set `initial-offset: 1` for entity ids.
 
-- **Periodically**: every `prefetch-period` (1 second), it checks the chain and takes segments until `safe-distance` of them are ready.
-- **On hunger**: a thread that finds no segment takes one itself and wakes the worker, which doubles its prefetch distance (up to `max-prefetch-distance`) and takes that many segments in one store call. The distance halves again when demand drops.
+**How many instances can share a namespace?**
+`2^bits` with leased slots (1024 by default). Segments need no slot.
 
-## Why keep IDs as close to monotonic as possible if trend increasing is enough?
+**Can I delete a generator at run time?**
+No (D17): generators are fixed at start-up. Mark one `disabled: true`, or change the spec with a
+`RuntimeSpecCustomizer` before start.
 
-Trend increasing is a trade-off: disorder within a window is the price of not coordinating every ID. The smaller the window, the closer inserts stay to the end of the index, so CosId keeps it small (small steps, prefetch instead of large segments).
+**How do I remove old period keys?**
+Offline: `cosid-migration purge --to … --namespace … --before 20250101`, first with `--dry-run`. Run-time code never
+deletes a key (D23).
 
-## Can two applications share a store?
-
-Yes. Give each its own `cosid.namespace`: counters and machine ids are scoped by namespace.
-
-## What happens when the store is down?
-
-Generation continues from memory: a segment chain uses its reserved segments, and Snowflake generators need the store only at startup and for lease renewal. About 4 minutes 50 seconds after the last successful renewal (`safe-guard-duration - min(10s, safe-guard-duration / 10)`), Snowflake generators and `CosIdGenerator` stop with `MachineIdLostException` rather than risk duplicates. Instances cannot start while the store is down.
-
-If you have another question, ask in [Issues](https://github.com/Ahoo-Wang/CosId/issues).
+**Which store should I use?**
+JDBC if you have a database: transactional and simple. ZooKeeper if you run one. Redis for speed, with its durability
+precondition. MongoDB on a replica set. cosid-server when applications should not reach the store directly, or are not
+on the JVM.

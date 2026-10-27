@@ -1,101 +1,101 @@
-# SegmentId and SegmentChainId
+# Segments and Periodic Segments
 
-A segment ID comes from a counter in a store. Instead of asking the store for every ID, an instance asks for a block of `step` IDs at once, a *segment*, and hands them out from memory.
+A segment generator reserves a range `[start, end)` from a store in one atomic step, then hands the values out
+locally, one atomic add each. Ids are dense and strictly increasing within one instance, and the store is touched only
+once per range.
 
-<p align="center">
-  <img src="../../../public/assets/design/SegmentId.png" alt="SegmentId"/>
-</p>
+## The contract
 
-## How it works
+```java
+public record Range(long start, long end) {}
 
-The store keeps one counter, the *max id*, for each generator name in a namespace. An `IdSegmentDistributor` adds `step` to it atomically and returns the new value, so the instance owns the IDs from `maxId - step + 1` to `maxId`. No other instance can get them.
+public interface RangeStore extends AutoCloseable {
+    /** Atomically reserves [start, start + size); a new key starts at initialOffset. */
+    Range reserve(String key, long size, long initialOffset);
+    /** Optional: seal the key; every later reserve fails, the value is kept. */
+    default boolean seal(String key) { return false; }
+}
+```
 
-- **Ordering.** Each instance hands out increasing IDs, and its next segment is above its last one: IDs are monotonic per instance. Different instances hold different segments at the same time, so across instances IDs are trend increasing, with a disorder window of about `step` times the number of instances. With one instance, IDs are monotonic.
-- **Step.** Even `step=1` is not strictly monotonic across instances: two instances can take consecutive IDs and write them in the opposite order. A smaller step keeps IDs closer to sequential and loses fewer of them on restart (the unused rest of a segment is skipped); a larger step means fewer store calls.
-- **Offset.** `offset` is the value the counter starts at when it is created, for example to continue after the IDs of an existing table. It applies only to a counter that does not exist yet.
-- **Availability.** Generation needs the store whenever a new segment is needed. A segment chain keeps segments in reserve to ride out short store outages.
+Every store passes the same contract tests:
 
-## DefaultSegmentId
+| # | Invariant |
+|---|---|
+| S1 | ranges of one key never overlap and grow strictly in completion order |
+| S2 | a new key's first range starts at `initialOffset`; of concurrent first reservations only one creates it |
+| S3 | the returned range is the truth: the client never infers a boundary (4.x inferred `maxId - step`) |
+| S4 | gaps are allowed (a timeout, a crash, a discarded range), duplicates never (D19) |
+| S5 | values lie in `[0, Long.MAX_VALUE)`: past it `RangeExhaustedException`, never a wrap-around |
+| S6 | a sealed key is never recreated; runtime code never deletes a key |
 
-`DefaultSegmentId` (`cosid.segment.mode: segment`) takes the next segment on the calling thread when the current one runs out. That thread waits for a store round trip, which shows in the tail latency: P99.99 of 46.6 µs in the historical CosId 1.x JMH results ([comparison](../../reference/performance/comparison.md), [benchmark](../../reference/performance/benchmark.md)).
+Keys are `{namespace}/{generator}`, and `{namespace}/{generator}/{period}` for periodic segments.
 
-## SegmentChainId
+::: tip The first id is `initialOffset`
+A new key's first range is `[initialOffset, initialOffset + size)`, so with the default `initial-offset: 0` the very
+first id is `0`. `@CosId` filling (and most schemas) treat `0` as "no id yet". Set `initial-offset: 1` for entity ids.
+:::
 
-<p align="center">
-  <img src="../../../public/assets/design/SegmentChainId.png" alt="SegmentChainId"/>
-</p>
+## SegmentGenerator and its batch policy
 
-`SegmentChainId` (`cosid.segment.mode: chain`, the default) keeps a chain of segments ahead of the one in use. A background *prefetch worker* keeps the chain at least `safe-distance` segments long (by default 2), so calling threads almost never wait for the store: about 127 million IDs per second with a P99.99 of 0.208 µs in the same historical results, close to an `AtomicLong`.
+```java
+public record BatchPolicy(long step,                 // default 100: the smallest reservation
+                          long initialOffset,        // default 0
+                          Duration lookahead,        // default 1s: how long the ids at hand should last; 0 = no prefetch
+                          long maxBatch,             // default max(step × 1000, 2^20), rounded to step
+                          Duration reserveTimeout,   // default 3s: how long a caller waits for a refill
+                          Optional<Duration> rangeTtl) {}  // default none: drop a range unused this long
+```
 
-The chain adapts to demand:
+- **Sized by a time budget.** A reservation is `min(maxBatch, roundUp(rate × lookahead, step))`, at least `step`. A busy
+  generator takes bigger ranges and a quiet one small ranges, and a restart never burns a large block. 4.x's
+  `safeDistance` / `maxPrefetchDistance` / prefetch period are replaced by this one number.
+- **The hot path reads one volatile field and does one atomic add.** It takes no lock and allocates nothing. Only
+  switching to the next range takes a lock, and that lock never covers I/O.
+- **One refill in flight.** Reservations run on the refill executor (virtual threads by default). A caller that finds
+  no ids left waits for that one reservation, at most `reserveTimeout`, then gets `RangeUnavailableException`. If the
+  executor has not picked the job up, the caller runs it itself, so the store `timeout` must not exceed
+  `reserveTimeout` (start-up checks it).
+- **Failures back off.** After a failed refill, callers fail fast until a retry time (100ms doubling to 5s). There is
+  no retry storm. Each failure reaches `onRefillFailed`.
+- **A timed-out reservation is not cancelled.** Its range is used when it arrives; only the caller's wait timed out.
+- `lookahead: 0` reserves only when the range runs out. Together with `step: 1` it matches 4.x's `DefaultSegmentId`.
+- `range-ttl` keeps several instances "trend increasing": a range held longer than this is dropped (the 4.x segment
+  ttl). Only then does the hot path check an expiry.
 
-- **Periodic prefetch.** Every `prefetch-worker.prefetch-period` (1 second), the worker tops the chain up to the safe distance.
-- **Hunger.** When a calling thread finds no segment left, it takes one itself and wakes the worker, which doubles its prefetch distance (up to `max-prefetch-distance`, 10,000 segments) and asks the store for that many segments in one call. When demand drops, the distance halves back to the safe distance.
+## Periodic segments
 
-So a small `step` works well with a chain: the prefetch distance grows when traffic needs it, and IDs stay close to sequential when it does not.
+A periodic segment restarts its sequence each year, month or day, for bill numbers like `20261027-000042` (4.x's
+grouped segments).
 
-`SegmentChainId` is `AutoCloseable`: `close()` stops its background prefetch, and generation keeps working without it. `prefetch-timeout` bounds each background prefetch (by default none).
+```java
+public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoCloseable {
+    public GroupedId generate();          // GroupedId(period, value): ("20261027", 42)
+}
+public record PeriodicPolicy(Duration prewarm,             // default 1m
+                             Optional<Duration> sealAfter) {} // default none
+```
 
-### Why every store reaches the same peak
-
-In the benchmark, a Redis and a MySQL segment chain both reach about 120 million IDs per second at `step=1000`, although Redis answers much faster. Hunger is the reason: the worker keeps doubling the number of segments it takes per call, so with enough time any store hands out IDs faster than threads use them, and the peak is the speed of the in-memory counter.
-
-`TPS(SegmentChainId) ≈ step × expansion × TPS(IdSegmentDistributor) × T ≤ TPS(AtomicLong)`
-
-Here `expansion` is the hunger growth factor of the prefetch distance (2: it doubles), and `T` is how long the benchmark has been running. A faster store only reaches the peak sooner (a smaller `T`).
-
-<p align="center">
-  <img src="../../../public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput-Of-SegmentChainId"/>
-</p>
-
-## Segment time to live
-
-`ttl` (in seconds, by default forever) makes a segment expire: an instance stops using a segment that is older, skips its remaining IDs and takes a new one. Grouped segments expire at the end of their group on their own.
-
-## Grouped segments
-
-A grouped segment restarts its counter for every group, for example every year, month or day, which gives business numbers such as `BIZ-20260101-00000001`:
+- `Period.YEAR`, `YEAR_MONTH`, `YEAR_MONTH_DAY` give the keys `2026`, `202610`, `20261027`; the **zone is explicit**
+  (4.x used the server's default zone).
+- It holds at most two segment generators: the current period and, from `prewarm` before the period ends, the next one.
+  Crossing midnight therefore needs no store call on the hot path, so 4.x's stall at the period switch is gone.
+- `seal-after` seals a past period's key that long after the period ended (use a day or more). An instance whose clock
+  lags and still asks for the old period gets `RangeSealedException`: it fails rather than duplicate (S6).
+- Keys are never deleted at run time (D23). Old periods are removed offline with
+  `cosid-migration purge --before <period>`.
+- The text form is the codec list: the first item must be `date-prefix` (the period); the rest encode the value.
 
 ```yaml
 cosid:
-  segment:
-    enabled: true
-    provider:
-      order_no:
-        group:
-          by: year_month_day
-          pattern: yyyyMMdd
-        converter:
-          type: to_string
-          prefix: BIZ-
-          group-prefix:
-            enabled: true
-          to-string:
-            pad-start: true
-            char-size: 8
+  generators:
+    bill:
+      strategy: periodic-segment
+      store: db
+      period: YEAR_MONTH_DAY
+      zone: Asia/Shanghai
+      codec:
+        - date-prefix: { delimiter: "-" }
+        - radix: { radix: 10, width: 6, pad-start: true }   # 20261027-000042
 ```
 
-Each group is its own counter in the store, named `{name}@{group}` (for example `order_no@20260101`), starting at `offset`. `SegmentId.generateGrouped()` returns a `GroupedId` with both the group and the value, and `converter.asString(groupedId)` formats it with the group as prefix. See [ID recipes](../recipes.md) for more examples.
-
-## Segment stores
-
-`cosid.segment.distributor.type` selects the store: `redis` (default), `jdbc`, `mongo`, `zookeeper` or `proxy`, or the type of an application `CosIdStoreProvider`. See [Choosing a backend](../backends/index.md).
-
-## Configuration
-
-```yaml
-cosid:
-  namespace: ${spring.application.name}
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    share:
-      step: 100
-    provider:
-      order:
-        offset: 10000
-        step: 100
-```
-
-This registers the share generator (`__share__SegmentId`) and a generator named `order`, both segment chains. See the [SegmentId configuration](../../reference/config/segment.md) for every property.
+Read the text with `runtime.get("bill", GroupedCodec.class).encode(id)`, or let `@CosId` fill a `String` field.

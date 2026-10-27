@@ -16,7 +16,6 @@ export const navbar: DefaultTheme.NavItem[] = [
             },
             {text: '性能', link: '/zh/reference/performance/benchmark'},
             {text: '谁在使用 CosId', link: '/zh/reference/showcase/who-is-using'},
-            {text: '博客', link: '/zh/reference/blog/ShardingSphere-Integration-CosId'},
         ]
     },
     {

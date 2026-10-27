@@ -1,42 +1,43 @@
 # Troubleshooting
 
-## Startup errors
+## Start-up fails
 
-| Error message contains | Cause and fix |
-|------------------------|---------------|
-| `Table cosid_machine has no lease columns` | A 3.x table: add the lease columns, see [JDBC](../backends/jdbc.md#upgrading-a-3-x-table) |
-| `Table cosid_machine has no stable column` | A table created before 3.3: add the `stable` column, see [JDBC](../backends/jdbc.md#upgrading-a-3-x-table) |
-| `[cosid.machine.distributor.provider] was removed in 4.0` (or `cosid.segment.distributor.provider`) | Set the `type` the message names instead; it also selects your `CosIdStoreProvider` by its `getType()` |
-| `must be positive: the machine id lease store holds a lock during each call` | Set the named timeout (`cosid.machine.distributor.redis.timeout`, `redis.distribute-timeout`, `zookeeper.timeout`, `mongo.timeout`, `cosid.proxy.read-timeout`) to a positive duration |
-| `CosId's MongoDB reactive support was removed in 4.0` | Add `org.mongodb:mongodb-driver-sync`, see [MongoDB](../backends/mongo.md) |
-| `has converter.group-prefix enabled but no group` | Set `group.by` on that segment generator, or turn `converter.group-prefix.enabled` off |
-| `MachineIdOverflowException` | Every machine id of the namespace is held by a live or stable instance, or by a lease not yet expired. Wait for the safe guard duration after killed instances (a crash loop can use up the namespace; failed starts release their lease since 4.0.1), raise `cosid.machine.machine-bit`, or check for instances that use the namespace by mistake |
-| `ClockTooManyBackwardsException` | The host clock is behind the machine id's watermark by more than `broken-threshold` (500 ms): the previous owner's clock ran ahead. Fix clock synchronization; the machine id is released again |
-| `cosid.machine.distributor.manual.machineId can not be null` | `manual` needs `cosid.machine.distributor.manual.machine-id`; or choose a lease store |
-| A bean of type `InstanceId` or `GuardDistribute` could not be found | Snowflake IDs or `CosIdGenerator` are enabled without `cosid.machine.enabled=true` |
-| `No [cosid.proxy.server.auth.tokens] configured` (proxy server) | Set `cosid.proxy.server.auth.tokens` (the distribution reads `COSID_PROXY_TOKEN`), or `allow-anonymous=true` behind a trusted network |
-| `The guarder may renew the machine id lease too late` (or `[cosid.machine.guarder.delay] must be positive`) | The guarder would renew after the lease expired: `max(delay, initial-delay)` plus twice the store timeout (a renewal is two store calls) must be shorter than `safe-guard-duration` minus its margin `min(10s, safe-guard-duration / 10)`. Lower `delay` and `initial-delay` (a third of the safe guard leaves room for missed renewals), or raise `safe-guard-duration`. With `fail-fast: false` this is only a warning |
+| Message | Cause and fix |
+|---|---|
+| `Invalid cosid.* configuration:` followed by a list | every problem of the configuration at once, one per line: an unknown store, a missing `strategy`, a bad codec list, … |
+| a time-based generator needs `machine` | add `cosid.machine.leased` (or `static`) |
+| `nodeBits` smaller than `machine.bits` | the layout cannot hold the slot: lower `bits` (3 at most for `JS_SAFE_*`) or widen `node-bits` |
+| store timeout above `reserve-timeout` | a caller that runs a refill itself is bounded by the store timeout: keep `timeout ≤ reserve-timeout` |
+| `NamespaceMismatchException` | the namespace was first used with another `{limit, tolerance}`: use the same `bits` and `tolerance` everywhere, or another namespace |
+| slots exhausted after `acquireTimeout` | every slot below `2^bits` is held: more instances than slots, or crashed holders whose leases have not expired yet (at most `ttl`) |
+| bean name taken | a generator's name collides with another bean: rename one |
+| cosid-server: no token configured | set `cosid.server.auth.tokens` or `clients`, or (only for trusted networks) `allow-anonymous: true` |
 
-## Errors while running
+## While running
 
-| Exception | Meaning | What to do |
-|-----------|---------|------------|
-| `MachineIdLostException` | The machine id lease is lost (another instance owns it now), was released on shutdown, or has not been renewed for about the safe guard duration; generators stop so that no duplicate is issued | Check the `machineId` health indicator and the `Guard Failed` errors in the log: usually the store was unreachable for minutes. An expired lease recovers by itself after the next successful renewal; a lost one does not, so restart the instance to claim a machine id again |
-| `ClockBackwardsException` | The clock moved back while a generator with `clock-sync: false` was running; it refuses to generate rather than repeat an ID | Fix clock synchronization, or keep `clock-sync: true` |
-| `ClockTooManyBackwardsException` | The clock jumped back by more than `broken-threshold` while running | Fix clock synchronization (slew rather than step the clock) |
-| `IdSegmentRollbackException` | The store returned a segment below one already issued: the counter went back, for example after Redis lost data | Stop and restore the counter above the highest issued ID before generating again |
-| `NotFoundIdGeneratorException` | No generator is registered under the name | Check the name in `@CosId` or the lookup, and that the generator is configured under `cosid.segment.provider` or `cosid.snowflake.provider` |
-| `IllegalArgumentException` naming two types on a lookup | A typed lookup asked for a `long` generator under a name that holds a string-only one (such as `cosid`) | Use `getRequired(name)` and `generateAsString()`, or a `long` generator |
-| `CosIdException` naming a field and a generator | A `long` or `int` field is bound to a string-only generator | Bind the field to a segment or Snowflake generator |
+| Symptom | Cause and fix |
+|---|---|
+| `SlotWindowExceededException` | the generator reached its window ceiling without a renewal, because the store is unreachable or the host clock runs ahead of the store by more than `tolerance`. Check `cosid.machine.lease.renew.failures` and `cosid.machine.clock.skew` |
+| `SlotLostException` | the lease was lost (expired during a long pause or partition, or taken after expiry). The keeper acquires a new slot by itself; health is `DOWN` until then |
+| `ClockBackwardsException` | the clock went back by more than `regression.wait-up-to` (1s) |
+| `RangeUnavailableException` | no ids at hand and the refill failed or took longer than `reserve-timeout`; see `cosid.segment.refill.failures` |
+| `RangeSealedException` | a periodic segment asked for a sealed past period: the host clock lags by more than `seal-after` |
+| `RangeExhaustedException` | the key reached `Long.MAX_VALUE` |
+| `GeneratorDisabledException` | the generator is `disabled: true` |
+| the first id after start waits | a new holder waits until its clock passes the slot's floor: the previous holder's ceiling, or W right after a migration (at most about `source-skew`, 10s) |
+| `onDuplicateOwnerKey` / `cosid.machine.owner.duplicates` | two live processes derive the same owner key (two runtimes on one host:port, or a copied pod): each gets its own slot, so ids stay unique, but set `owner-key` to tell them apart |
+| gaps in segment ids | expected (D19): restarts, timeouts and `range-ttl` discard ranges; ids are never repeated |
 
-## Suspected duplicate IDs
+## Redis
 
-Duplicates come from coordination, not from the generators. Check, in order:
+- `RedisStoreException` after a write with `WAIT`: fewer replicas acknowledged it within the timeout. The outcome is
+  unknown, and the operation is retried. A lasting failure means a replica is down: either restore it, or lower
+  `options.wait` knowingly.
+- A shared `StatefulRedisConnection` client with replicas fails at open: `WAIT` must not run on a shared connection.
+  Give the store a `RedisClient` instead.
 
-1. **Two instances with one machine id**: `manual` or `stateful_set` values assigned twice, or a namespace whose instances use different `safe-guard-duration` values.
-2. **Clocks**: hosts out of sync with ZooKeeper leases, or an instance killed and restarted right after a large clock jump.
-3. **Layouts**: a generator whose `epoch`, `machine-bit` or other bits changed while IDs from the old layout are still in the table.
-4. **Segment counters**: a store that lost writes (Redis without persistence), or an `offset` set below IDs already issued.
-5. **Namespaces and names**: two applications writing the same table must share one counter, so the same namespace and generator name; applications writing different tables should use different namespaces or generator names.
+## Getting more detail
 
-`GET /actuator/cosid` shows each generator's machine id, last timestamp and segment state, which tells most of these apart.
+- `GET /actuator/cosid` shows each generator's layout, slot, window, batch and ids held.
+- `GET /actuator/health/cosId` shows the lease, the window left and the last renewal error.
+- Set the logger `me.ahoo.cosid` to `DEBUG`.

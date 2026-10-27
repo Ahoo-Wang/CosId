@@ -1,37 +1,45 @@
 # Production Checklist
 
-## Generators
+## Before going live
 
-- **Pick the generator from the requirement**, see [ID Generators](../concepts/id-generator.md#choosing-a-generator). A segment chain is the default choice for numeric keys.
-- **Set `cosid.namespace`** to the application name. Applications that share a store must not share a namespace unless they share the IDs.
-- **Keep one share generator.** With both `snowflake` and `segment` enabled, turn one `share` off, and use named generators for anything that matters.
-- **Never change a Snowflake layout in place**: `epoch`, `timestamp-bit`, `machine-bit` and `sequence-bit` of a generator stay fixed for the lifetime of its IDs.
-- **Send Snowflake IDs to browsers as strings**, or use a 53-bit layout, see [JavaScript-safe IDs](../concepts/snowflake.md#javascript-safe-ids).
-- **Test converter output** against the column it goes into: length, padding, prefix and, for radix-62, case sensitivity.
+- [ ] **Pick the store for the guarantee you need.** JDBC or ZooKeeper where uniqueness must survive any failover.
+  Redis only with [its durability precondition](../backends/redis.md#durability).
+- [ ] **Meet the store's minimum version** (MySQL 8.4, MariaDB 10.11, PostgreSQL 15, SQL Server 2019, Redis 7.0,
+  MongoDB 6.0 on a replica set, ZooKeeper 3.8). Older versions are [measured, not supported](../backends/index.md#supported-versions-and-measured-compatibility).
+- [ ] **Create the schema** ahead of time (`schema-<dialect>.sql`). Keep `initSchema` for development.
+- [ ] **One namespace per application**, the same on every instance. Instances that share a namespace share its
+  slots and keys, and must use the same `bits` and `tolerance` (a mismatch is refused).
+- [ ] **Size the machine bits**: at least the number of instances that can run at once, including a rolling update's
+  surge. `bits ≤ layout.nodeBits` (10 for `SNOWFLAKE_*`, 3 for `JS_SAFE_*`).
+- [ ] **Static slots** (`machine.static`): the deployment must keep slots unique, and `state-file` must be on a
+  persistent volume. Without it there is no protection against a clock set back across a restart.
+- [ ] **Entity ids from segments**: `initial-offset: 1`, so that no entity gets id `0`.
+- [ ] **Store timeout ≤ `reserve-timeout`** of each segment (2s and 3s by default; start-up checks it).
+- [ ] **Run NTP** on hosts and store. Skew never breaks uniqueness, but skew beyond `tolerance` pauses issuing near the
+  window ceiling.
+- [ ] **cosid-server**: tokens configured (auth is on by default), per-client namespaces, TLS in front of it, and more
+  than one instance.
+- [ ] **Scrape the metrics and alert** (below). Expose `/actuator/health` to the orchestrator.
+- [ ] **Shut down gracefully** (SIGTERM, not SIGKILL). A clean close releases the slot with the exact last timestamp,
+  and the next holder starts right after it. A kill only delays the slot's reuse by up to `ttl + tolerance`.
 
-## Segments
+## Alerts worth having
 
-- **Choose `step` for ordering and gaps, not throughput**: a segment chain grows its prefetch under load, so a small step (10 to 100) is usually enough. Every restart skips the rest of the instance's segments.
-- **Raise `chain.safe-distance`** only if the logs show frequent `Hunger` expansions.
-- **Use a store that persists every write.** A counter that goes back hands out IDs again.
-- **Set `offset`** above the highest existing ID when a table already has rows.
-- **Bound the proxy's `segment.max-step`** at or above `step × max-prefetch-distance` of every client.
+| Signal | Meaning |
+|---|---|
+| health `cosId` `DOWN` | the slot lease was lost and not acquired again: time-based generators fail fast |
+| `cosid.machine.lease.renew.failures` rising | the store is unreachable or slow; ids continue until the ceiling |
+| `cosid.machine.window.remaining` near 0 | renewals are not getting through; issuing is about to pause |
+| `cosid.machine.clock.skew` beyond `tolerance / 2` | fix NTP |
+| `cosid.segment.refill.failures` rising | a store problem; callers get `RangeUnavailableException` once the ids at hand run out |
+| `cosid.machine.owner.duplicates` > 0 | two live processes report the same owner key; set distinct `owner-key`s |
+| `cosid.clock.backwards{action=fail}` | the clock went back by more than `wait-up-to` |
 
-## Machine ids
+## Upgrades and restarts
 
-- **Lease machine ids from a store**; use `manual` only for a single instance.
-- **Use the same `cosid.machine.guarder.safe-guard-duration`** on every instance of a namespace.
-- **Keep `cosid.machine.guarder.fail-fast` on** (the default): a failed request is better than a duplicate ID.
-- **Size `machine-bit`** for the largest number of instances during a rollout, plus those whose leases have not expired yet.
-- **Mark only instances with a fixed identity as `stable`**, together with a fixed `instance-id`.
-- **Keep host clocks in sync** with each other and with the store's clock (NTP or chrony, slewing rather than stepping). It keeps restarts from waiting on a watermark.
-  - With Redis, JDBC, MongoDB and the proxy, leases are judged on the store's clock, so an offset does not make a machine id expire early. But a host whose clock runs ahead of the store's issues IDs with timestamps in the store's future, which an instance taking the machine id over could repeat: an instance whose clock is ahead of the store's by more than the margin `min(10s, safe-guard-duration / 10)` fails to get or renew its machine id, and its generators fail fast. Startup and the guarder log a warning above half the margin. A host behind the store is safe.
-  - **ZooKeeper has no clock CosId can read**: leases are judged on the hosts' clocks. A host whose clock runs ahead of another's by more than the margin `min(10s, safe-guard-duration / 10)` can take over that host's machine id while it still generates IDs, and both then generate the same IDs. Monitor clock offsets and keep them well under the margin.
+5.x instances are stateless apart from their lease: rolling restarts need no coordination. A restarted instance usually
+gets its previous slot back (sticky choice). With `preferred-slot` (a StatefulSet ordinal) it asks for that slot first.
+During a surge the extra instances take other free slots.
 
-## Operations
-
-- **Alert on the `machineId` health indicator**, see [Monitoring](./monitoring.md).
-- **Expose the actuator endpoints only to trusted callers**; `cosidGenerator` generates IDs, and `cosid.actuator.delete.enabled` stays off.
-- **Run the proxy server on an internal network with tokens**, see [Proxy deployment security](../backends/proxy.md#deployment-security).
-- **Give the JDBC backend a dedicated `DataSource`**, outside business transactions.
-- **Follow [Rolling Upgrade](./rolling-upgrade.md)** for restarts and version upgrades.
+Upgrading from 4.x is not a rolling upgrade: 4.x and 5.0 never share a namespace. Follow the
+[migration guide](../migration/from-4x.md).

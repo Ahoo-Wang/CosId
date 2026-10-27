@@ -1,147 +1,111 @@
 # JDBC
 
-[`cosid-jdbc`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-jdbc) 通过应用的 `DataSource` 把号段计数器和机器号租约保存在关系数据库中：
+`cosid-store-jdbc`：基于 `javax.sql.DataSource` 的 `RangeStore` 与 `SlotLeaseStore`。它只依赖 `cosid-core` 与
+`java.sql`；驱动与连接池由应用自行选择。
 
-- `JdbcIdSegmentDistributor`：号段计数器，每个生成器在 `cosid` 表中占一行。
-- `JdbcMachineLeaseStore`：机器号租约，每个机器号在 `cosid_machine` 表中占一行。租约时间取自数据库时钟。
+## 支持的数据库（D27）
 
-MySQL、MariaDB、PostgreSQL、H2 和 SQL Server 无需配置 SQL 属性：Starter 会自动识别数据库，见[数据库](#数据库)。其他数据库可以配置自己的语句；不支持 Oracle。
+| 数据库 | 最低版本 | 方言 | 存储时钟 |
+|---|---|---|---|
+| MySQL | 8.4 LTS | `mysql` | `utc_timestamp(6)` |
+| MariaDB | 10.11 LTS | `mariadb` | `utc_timestamp(6)` |
+| PostgreSQL | 15 | `postgresql` | `clock_timestamp()` |
+| SQL Server | 2019 | `sqlserver` | `sysutcdatetime()` |
+| H2 | 2.x（开发与测试） | `h2` | `current_timestamp` |
 
-## 安装
+方言根据连接元数据探测（使用 MySQL 驱动时也能识别 MariaDB）。存储时钟是来自数据库的 UTC 纪元毫秒，不受会话时区影响；
+唯一性不依赖它。
 
-::: code-group
-```kotlin [Gradle (Kotlin)]
-dependencies {
-    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
-    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
-    implementation("me.ahoo.cosid:cosid-jdbc")
-    implementation("org.springframework.boot:spring-boot-starter-jdbc")
-}
-```
-```xml [Maven]
-<dependencies>
-    <dependency>
-        <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-spring-boot-starter</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-jdbc</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-jdbc</artifactId>
-    </dependency>
-</dependencies>
-```
-:::
-
-同时添加对应数据库的 JDBC 驱动。
+低于最低版本的实测结果，**不承诺支持**：MySQL 8.0、MariaDB 10.6、PostgreSQL 12–14 与 SQL Server 2017
+通过了 TCK（[全部结果](index.md#supported-versions-and-measured-compatibility)）。
 
 ## 配置
 
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/cosid_db
+    url: jdbc:mysql://db:3306/app
 cosid:
-  namespace: ${spring.application.name}
-  machine:
-    enabled: true # Snowflake ID 和 CosIdGenerator 需要
-    distributor:
-      type: jdbc
-  segment:
-    enabled: true # 号段 ID 需要
-    distributor:
-      type: jdbc
-      jdbc:
-        enable-auto-init-cosid-table: true
+  stores:
+    db:
+      type: jdbc          # 使用上下文中的 DataSource（或 `client: <bean>`）
+      timeout: 2s         # 每条语句的 queryTimeout，向上取整到秒
+      options:
+        initSchema: false
 ```
 
-| 属性 | 默认值 | 说明 |
-|------|--------|------|
-| `cosid.segment.distributor.jdbc.enable-auto-init-cosid-table` | `false` | 启动时用 `init-cosid-table-sql` 创建 `cosid` 表 |
-| `cosid.segment.distributor.jdbc.enable-auto-init-id-segment` | `true` | 启动时用 `init-id-segment-sql` 插入缺失的生成器行 |
-| `cosid.segment.distributor.jdbc.init-cosid-table-sql`、`init-id-segment-sql`、`increment-max-id-sql`、`fetch-max-id-sql` | 自动识别 | 号段相关语句。保持默认值（MySQL 语句）时随数据库而定 |
-| `cosid.segment.distributor.jdbc.query-timeout` | `5s` | 每条号段语句；`0` 表示不限制 |
-| `cosid.segment.distributor.jdbc.fetch-plan` | `auto` | `auto`：内置语句在自动提交模式下一次往返完成（见[号段的获取方式](#号段的获取方式)），其他语句在事务中执行。`transaction`：始终在事务中先更新再查询。在 SQL 代理和读写分离中间件（ShardingSphere、MyCat、ProxySQL 读写分离、Vitess）之后请使用 `transaction`，它们可能不会传回更新语句的生成键 |
-| `cosid.machine.distributor.jdbc.enable-auto-init-cosid-machine-table` | `false` | 启动时创建 `cosid_machine` 表 |
-| `cosid.machine.distributor.jdbc.init-cos-id-machine-table-sql`、`init-namespace-idx-sql`、`init-instance-id-idx-sql` | 自动识别 | 机器号表相关语句；为空的索引语句会被跳过。开启 `enable-auto-init-cosid-machine-table` 且保持默认值时随数据库而定 |
-| `cosid.machine.distributor.jdbc.query-timeout` | `5s` | 每条机器号语句；`0` 表示不限制 |
-| `cosid.machine.distributor.jdbc.server-time-sql` | 自动识别 | 查询数据库时钟（epoch 毫秒）的语句。未设置时，Starter 会为 MySQL、MariaDB、PostgreSQL、H2 和 SQL Server 自动选择；其他数据库必须设置 |
+| 选项 | 默认值 | 含义 |
+|---|---|---|
+| `url`、`username`、`password` | | 没有 `DataSource` 时的连接（通过 `DriverManager`，无连接池） |
+| `dialect` | 自动探测 | `mysql`、`mariadb`、`postgresql`、`sqlserver`、`h2`，或已注册方言的名称 |
+| `initSchema` | `false` | 启动时创建缺失的表 |
+| `rangeTable`、`slotTable`、`namespaceTable` | `cosid_range`、`cosid_slot`、`cosid_namespace` | 表名，可带 schema 限定 |
 
-::: warning 使用独立的 DataSource
-CosId 会自行提交它的写入（连接池设置了 `autoCommit=false` 时也一样）。请给它一个不参与业务事务的 `DataSource`：`TransactionAwareDataSourceProxy` 或 JTA `DataSource` 会提前提交调用方的事务。
-:::
+存储绝不关闭传入的 `DataSource`。代码中：`JdbcStore.of(dataSource, timeout)`。
 
 ## 表结构
 
-可以自己建表，也可以通过 `enable-auto-init-*` 属性让 CosId 建表。
+脚本在 jar 中，位于 `me/ahoo/cosid/store/jdbc/schema-{mysql,postgresql,sqlserver,h2}.sql`（MySQL 与 MariaDB
+共用一个），按默认表名编写：
 
 ```sql
-create table if not exists cosid
-(
-    name            varchar(100) not null comment '{namespace}.{name}',
-    last_max_id     bigint unsigned not null default 0,
-    last_fetch_time bigint unsigned not null default 0,
-    constraint cosid_pk
-        primary key (name)
-) engine = InnoDB;
-
-create table if not exists cosid_machine
-(
-    name            varchar(100)     not null comment '{namespace}.{machine_id}',
-    namespace       varchar(100)     not null,
-    machine_id      integer unsigned not null default 0,
-    last_timestamp  bigint unsigned  not null default 0,
-    instance_id     varchar(100)     not null default '',
-    distribute_time bigint unsigned  not null default 0,
-    revert_time     bigint unsigned  not null default 0,
-    stable          tinyint          not null default 0,
-    renew_time      bigint unsigned  not null default 0,
-    watermark       bigint unsigned  not null default 0,
-    lease_version   bigint unsigned  not null default 0,
-    constraint cosid_machine_pk
-        primary key (name),
-    key idx_namespace (namespace),
-    key idx_instance_id (instance_id)
-) engine = InnoDB;
+create table cosid_range (
+    range_key   varchar(255) not null primary key,
+    next_value  bigint       not null,
+    sealed      boolean      not null default false
+);
+create table cosid_slot (
+    namespace      varchar(100) not null,
+    slot           integer      not null,
+    owner_key      varchar(255),
+    incarnation    char(36),
+    last_owner_key varchar(255),
+    fence          bigint       not null default 0,
+    expires_at     bigint       not null default 0,
+    floor_ms       bigint       not null default 0,
+    ceiling_ms     bigint       not null default 0,
+    next_floor_ms  bigint       not null default 0,
+    primary key (namespace, slot)
+);
+create table cosid_namespace (
+    namespace    varchar(100) not null primary key,
+    slot_limit   integer      not null,
+    tolerance_ms bigint       not null
+);
 ```
 
-### 升级 3.x 创建的表
+行永不删除（D23）：已封存的 key 保留其值。旧周期 key 的物理清理由离线的 `cosid-migration purge` 完成。
 
-4.0 把租约保存在 `renew_time`、`watermark` 和 `lease_version` 中，缺少这些列或 `stable` 列（3.3 新增）时，启动会失败并打印所需语句。请在启动 4.0 实例之前添加；3.x 实例在添加之后仍可正常工作：
+## 工作原理
 
-```sql
--- MySQL / MariaDB
-alter table cosid_machine add column stable tinyint not null default 0; -- 仅限 3.3 之前创建的表
-alter table cosid_machine add column renew_time bigint unsigned not null default 0,
-    add column watermark bigint unsigned not null default 0,
-    add column lease_version bigint unsigned not null default 0;
--- PostgreSQL
-alter table cosid_machine add column if not exists stable smallint not null default 0;
-alter table cosid_machine add column if not exists renew_time bigint not null default 0,
-    add column if not exists watermark bigint not null default 0,
-    add column if not exists lease_version bigint not null default 0;
+- **reserve**：一条返回新值的 upsert，一次往返。MySQL / MariaDB 使用
+  `insert … on duplicate key update next_value = last_insert_id(next_value + ?)`，从该语句自身的结果中读取；
+  两个分支都会设置 `last_insert_id`，因此绝不会读到连接池中连接上残留的值。PostgreSQL 使用
+  `on conflict … returning`，SQL Server 使用 `merge … with (holdlock) … output`，H2 在一个事务内 merge 并读取。
+  区间为 `[next − size, next)`。已封存的 key 不更新任何行（`RangeSealedException`），超过 `Long.MAX_VALUE`
+  时存储抛出 `RangeExhaustedException`。
+- **acquire**：命名空间首次使用时记录 `{limit, tolerance}` 并创建 `limit` 行槽位。随后一次非锁定读取返回候选槽位
+  （该 owner key 的行、preferred 槽位、前几个空闲槽位）及存储时钟。槽位选择的每一步是一次自动提交的比较并交换，
+  `update … where namespace = ? and slot = ? and
+  fence = ? and … (free by the database clock)`；影响 0 行则换下一个候选。新的持有者需要两次往返。
+- **renew / release**：读取租约所在行，然后对 incarnation 与 fence 做比较并交换。
+
+## 方言 SPI
+
+其他数据库或不同的 SQL，通过以 `ServiceLoader` 注册的 `JdbcDialect` 实现
+（`META-INF/services/me.ahoo.cosid.store.jdbc.JdbcDialect`）。已注册的方言先于内置方言尝试，
+并可通过 `options.dialect` 指定名称。这取代了 4.x 的自定义 SQL 配置与 `server-time-sql`。
+
+```java
+public interface JdbcDialect {
+    String name();
+    boolean supports(DatabaseMetaData metaData) throws SQLException;
+    List<String> schema(JdbcTables tables);
+    String nowMillis();                         // 存储时钟，UTC 纪元毫秒，以 SQL 表达式表示
+    OptionalLong reserve(JdbcSession session, String key, long size, long initialOffset) throws SQLException;
+    void provisionSlots(JdbcSession session, String namespace, int limit) throws SQLException;
+    // 默认方法：firstRows、insertNamespaceIfAbsent、isDuplicateKey、isRetryable
+}
 ```
 
-H2 和 SQL Server 的语句是 `JdbcDialect.getAddLeaseColumnsSql()`。步骤顺序见[滚动升级](../operations/rolling-upgrade.md)。
-
-## 号段的获取方式
-
-使用默认的 MySQL 语句时，获取一个号段在自动提交模式下只执行一条语句，不开事务：`update cosid set last_max_id=last_insert_id(last_max_id + ?), ...`，它返回的生成键就是新值（MySQL、MariaDB）。使用其他数据库的语句时同样只执行一条查询：`update ... returning last_max_id`（PostgreSQL）、`select last_max_id from final table (update ...)`（H2）、`update ... output inserted.last_max_id ...`（SQL Server）。其他自定义语句仍和以前一样，在一个事务中先更新再查询；设置 `fetch-plan: transaction` 时所有获取都如此。没有返回生成键，或生成键小于步长，说明 SQL 代理没有把更新的值传回：此时获取会失败并提示 `fetch-plan: transaction`，而不是发出重复的 ID。语句按原样比较，只忽略空白和末尾的 `;`：`update COSID ...` 不是默认语句。连接归还连接池时保持取出时的自动提交模式。初始化语句在 `query-timeout` 后超时；已存在的表、索引或号段行会被静默跳过，其他错误以 WARN 级别连同原因记录。
-
-## 数据库
-
-| 数据库 | 测试版本 | 识别所用的产品名 |
-|--------|----------|------------------|
-| MySQL、MariaDB | MySQL 8.0、8.4（MariaDB 会被识别并使用 MySQL 语句，未在 CI 中测试） | `MySQL`、`MariaDB` |
-| PostgreSQL | 16 | `PostgreSQL` |
-| H2 | 2.x，Regular、MySQL、MariaDB 或 PostgreSQL 模式；不支持 Oracle 模式 | `H2` |
-| SQL Server | 2022（支持 2016 及以上） | `Microsoft SQL Server` |
-
-保持默认值（MySQL 语句，比较时忽略空白和末尾的 `;`）的语句，会按连接所报告的数据库，改用 `me.ahoo.cosid.jdbc.JdbcDialect` 中该数据库的语句；其他值按配置使用。产品名在语句第一次需要时从连接的元数据读取，而不是在启动时：启动时宕机或很慢的数据库，在恢复响应后才被识别。号段获取在读到产品名后保持该选择；MySQL 的 `last_insert_id` 路径只在报告为 MySQL 或 MariaDB 的数据库上使用，其他数据库，或无法读取产品名时，都在事务中获取。不使用 Starter 时行为相同。不支持 Oracle 等其他数据库：请配置所有语句，包括 `server-time-sql`。Oracle 兼容模式下的 H2 按不支持的数据库处理：它和 Oracle 一样把 `''` 存为 `NULL`，而机器号租约用 `instance_id=''` 标记已释放的行。
-
-MySQL 的表语句已声明索引，所以索引语句（`init-namespace-idx-sql`、`init-instance-id-idx-sql`）默认为空。保持为空时，只有表语句也保持默认值，才会改用该数据库的 `create index`；配合自定义的表语句时它们仍为空，如果你的表语句没有声明索引，请设置它们。
-
-`JdbcDialect` 也提供各数据库的语句，可显式传入（`JdbcDialect.POSTGRESQL.getIncrementMaxIdSql()` 等）；`PostgreSqlDialect` 仍以常量形式提供 PostgreSQL 语句。
+方言必须在其数据库上通过[存储 TCK](test-suite.md)。

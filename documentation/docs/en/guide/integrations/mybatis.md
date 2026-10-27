@@ -1,82 +1,20 @@
-# CosId-MyBatis Module
+# MyBatis
 
-[cosid-mybatis](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mybatis) intercepts **MyBatis** insert requests and parses `@CosId` to inject **distributed IDs**.
+`CosIdInterceptor` (artifact `cosid-mybatis`, package `me.ahoo.cosid.mybatis`) fills the `@CosId` field of an entity before an INSERT. It also fills
+each entity of a batch passed under `listKey` (default `list`).
 
-## Installation
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    implementation("me.ahoo.cosid:cosid-mybatis:${cosidVersion}")
-```
-```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-mybatis</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
-```
-:::
-
-
-::: tip `cosid-accessor`
-`@CosId` and the id field accessors are in the `me.ahoo.cosid:cosid-accessor` artifact (since 4.0), which this module brings in. Use it directly only to fill `@CosId` fields without MyBatis, Spring Data JDBC or the starter.
-:::
-
-## Usage
-
-```java
-public class Order {
-
-    @CosId(value = "order")
-    private Long orderId;
-    private Long userId;
-
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(Long orderId) {
-        this.orderId = orderId;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-}
+```xml
+<insert id="insertAll">
+    insert into t_order (id, item) values
+    <foreach collection="list" item="order" separator=",">(#{order.id}, #{order.item})</foreach>
+</insert>
 ```
 
-```java
-@Mapper
-public interface OrderRepository {
-    @Insert("insert into t_table (id) value (#{id});")
-    void insert(LongIdEntity order);
+With Spring Boot the interceptor is a bean, on whenever MyBatis is on the classpath:
 
-    @Insert({
-            "<script>",
-            "insert into t_friendly_table (id)",
-            "VALUES" +
-                    "<foreach item='item' collection='list' open='' separator=',' close=''>" +
-                    "(#{item.id})" +
-                    "</foreach>",
-            "</script>"})
-    void insertList(List<FriendlyIdEntity> list);
-}
-```
+| Property | Default |
+|---|---|
+| `cosid.mybatis.enabled` | `true` |
+| `cosid.mybatis.list-key` | `list` |
 
-```java
-        LongIdEntity entity=new LongIdEntity();
-        entityRepository.insert(entity);
-        /**
-          * {
-          *   "id": 208796080181248
-          * }
-          */
-        return entity;
-```
+Without Spring: `configuration.addInterceptor(new CosIdInterceptor(runtime.filler(), "list"))`.

@@ -1,78 +1,33 @@
 # MongoDB
 
-[`cosid-mongo`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mongo) stores segment counters and machine id leases in MongoDB, through the application's synchronous `MongoClient`:
-
-- `MongoIdSegmentDistributor`: segment counters, one document per generator in the `cosid` collection.
-- `MongoMachineLeaseStore`: machine id leases, one document per machine id in the `cosid_machine` collection. Lease times come from the server's `localTime` (`hello` command).
-
-The collections are created at startup when missing.
-
-::: warning Synchronous driver only
-CosId needs MongoDB 4.2 or later: a segment is fetched with one update pipeline that uses the server's clock (`$$NOW`). At startup the starter ensures the machine collection and its two compound indexes, `{namespace: 1, machineId: 1}` and `{namespace: 1, instanceId: 1}`, also on a collection created by an older version. An index with the same keys under another name (one a DBA created) is kept and logged at INFO; any other failure is logged once at WARN, and the store works without the indexes, only slower. The hashed `machineId_hashed` and `instanceId_hashed` indexes of older versions are no longer used but kept, since older nodes create them again: drop them by hand once every node runs 4.1, in the database of `cosid.machine.distributor.mongo.database`:
-
-```javascript
-db.cosid_machine.dropIndex("machineId_hashed")
-db.cosid_machine.dropIndex("instanceId_hashed")
-```
-
-That the lease queries use the compound indexes is checked with `explain` on a standalone server and a replica set; on a sharded cluster each shard plans on its own, which is not checked.
-
-The reactive classes (`me.ahoo.cosid.mongo.reactive`) were removed in 4.0. Use the synchronous driver, `org.mongodb:mongodb-driver-sync`, which `spring-boot-starter-data-mongodb` includes. With only the reactive driver on the classpath, the starter fails at startup.
-:::
-
-## Installation
-
-::: code-group
-```kotlin [Gradle (Kotlin)]
-dependencies {
-    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
-    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
-    implementation("me.ahoo.cosid:cosid-mongo")
-    implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
-}
-```
-```xml [Maven]
-<dependencies>
-    <dependency>
-        <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-spring-boot-starter</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-mongo</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-mongodb</artifactId>
-    </dependency>
-</dependencies>
-```
-:::
+`cosid-store-mongo`: `RangeStore` and `SlotLeaseStore` over `mongodb-driver-sync`. **MongoDB 6.0 or later** (D26),
+on a **replica set or a sharded cluster**: every operation reads and writes with `majority` concern. CI runs the TCK on
+6.0 and 8.0. 4.4 and 5.0 passed the TCK once, which is not a support commitment.
 
 ## Configuration
 
 ```yaml
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017
 cosid:
-  namespace: ${spring.application.name}
-  machine:
-    enabled: true # for Snowflake IDs and CosIdGenerator
-    distributor:
+  stores:
+    mongo:
       type: mongo
-  segment:
-    enabled: true # for segment IDs
-    distributor:
-      type: mongo
+      timeout: 2s            # the driver's timeoutMS; 0 means none
+      options:
+        uri: mongodb://mongo-1,mongo-2,mongo-3/?replicaSet=rs0
+        database: cosid_db
 ```
 
-| Property | Default | Description |
-|----------|---------|-------------|
-| `cosid.segment.distributor.mongo.database` | `cosid_db` | Database of the `cosid` collection |
-| `cosid.segment.distributor.mongo.timeout` | `5s` | Each segment operation (driver `timeoutMS`); `0` disables it |
-| `cosid.machine.distributor.mongo.database` | `cosid_db` | Database of the `cosid_machine` collection |
-| `cosid.machine.distributor.mongo.timeout` | `5s` | Each machine id operation (driver `timeoutMS`); must be positive |
-| `cosid.segment.distributor.mongo.write-concern`, `cosid.machine.distributor.mongo.write-concern` | the connection string's | Write concern of CosId's writes: `majority`, `w1`, `w2`, `w3`, `acknowledged`, `journaled` or a number of members |
+| Option | Default | Meaning |
+|---|---|---|
+| `uri` | | required unless a `MongoClient` is the client (Spring Boot's bean is used when there is one) |
+| `database` | `cosid_db` | |
 
-Run MongoDB with journaling (the default) and write concern `majority` on a replica set, so that an acknowledged counter update or machine id claim survives a failover: a write acknowledged by fewer members is rolled back when a member without it becomes primary, and its ids are handed out again. `write-concern` sets it for CosId alone. Unset, CosId uses the write concern of the connection string when it sets one (such as `w=majority`), and otherwise the server's default: `majority` since MongoDB 5.0, but `w:1` on a replica set whose arbiters leave no majority of data-bearing members (such as primary-secondary-arbiter), unless `setDefaultRWConcern` changed it. At startup on a replica set, a number of members below the majority is logged at WARN, and so is the server's default on a set with arbiters; the server's default otherwise is logged at INFO.
+## Collections
+
+| Collection | Documents |
+|---|---|
+| `cosid_range` | `{_id: key, next, sealed}`; `findOneAndUpdate` with upsert and a pipeline `next = ifNull(next, initialOffset) + size`, filtered on `sealed != true`; E11000 (a concurrent upsert) is retried once |
+| `cosid_slot` | `{ns, slot, …}` with a unique index on `(ns, slot)`, all slots created up front; each step of the slot choice is a `findOneAndUpdate` whose filter tests "free" with `$expr` and `$$NOW` and carries the fence |
+| `cosid_namespace` | `{limit, toleranceMs}` of each namespace |
+
+The store clock is `$$NOW`.

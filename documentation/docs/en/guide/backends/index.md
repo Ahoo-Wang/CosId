@@ -1,63 +1,64 @@
 # Choosing a Backend
 
-CosId needs a store for two things: the counters of [segment IDs](../concepts/segment.md), and the [machine id](../concepts/machine-id.md) leases of Snowflake IDs and `CosIdGenerator`. Pick a store you already run and operate well; the generators perform the same on any of them, because generation happens in memory.
+A backend implements two primitives: `RangeStore.reserve` (segments) and `SlotLeaseStore` (machine slots). Strategy,
+retries and buffering live in `cosid-core`, so every backend behaves the same, and one [TCK](test-suite.md) proves it.
+Stores are declared once under `cosid.stores` and referenced by name, so one application can keep its segments in a
+database and its slot in Redis.
 
-`cosid.segment.distributor.type` and `cosid.machine.distributor.type` select the store for each side, independently. Values are compared by letters and digits, ignoring case, so `zookeeper`, `ZooKeeper` and `zoo-keeper` are the same.
+| Backend | Artifact | Type | Supported from | Uniqueness rests on |
+|---|---|---|---|---|
+| [JDBC](jdbc.md) | `cosid-store-jdbc` | `jdbc` | MySQL 8.4, MariaDB 10.11, PostgreSQL 15, SQL Server 2019, H2 2.x | the database's transactions |
+| [Redis](redis.md) | `cosid-store-redis` | `redis` | Redis 7.0 | **acknowledged writes never being lost**: AOF `appendfsync always`, or `WAIT` on every replica |
+| [MongoDB](mongo.md) | `cosid-store-mongo` | `mongo` | MongoDB 6.0, replica set or sharded cluster | `majority` reads and writes |
+| [ZooKeeper](zookeeper.md) | `cosid-store-zookeeper` | `zookeeper` | ZooKeeper 3.8 (3.9 primary) | ZooKeeper's quorum writes |
+| [Remote](../server.md) | `cosid-store-remote` | `remote` | the cosid-server of the same version | the server's backing store |
 
-| Backend | `type` | Module | Segments | Machine ids | Lease clock | Choose it when |
-|---------|--------|--------|:--------:|:-----------:|-------------|----------------|
-| [Redis](./redis.md) | `redis` | `cosid-spring-redis` + Spring Data Redis | Yes | Yes | Redis server | You run Redis with persistence. The default segment store |
-| [JDBC](./jdbc.md) | `jdbc` | `cosid-jdbc` + a `DataSource` | Yes | Yes | Database server | You have MySQL, MariaDB, PostgreSQL, H2 or SQL Server and want the counters in the database |
-| [MongoDB](./mongo.md) | `mongo` | `cosid-mongo` + Spring Data MongoDB | Yes | Yes | MongoDB server | You run MongoDB |
-| [ZooKeeper](./zookeeper.md) | `zookeeper` | `cosid-zookeeper` (Curator) | Yes | Yes | Host clock | You run ZooKeeper and keep host clocks in sync |
-| [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy` (CoApi optional) | Yes | Yes | The proxy's store | Applications must not reach the store directly |
-| StatefulSet | `stateful_set` | none | No | Yes | none | Kubernetes StatefulSet pods: the pod ordinal is the machine id |
-| Manual | `manual` | none | No | Yes | none | One instance, or tests |
-| Your own | any | your `CosIdStoreProvider` bean | Your choice | Your choice | Your choice | A store CosId does not ship, such as etcd |
+**Where uniqueness must hold under any failover, prefer JDBC or ZooKeeper.** Redis is fast and simple, but under
+asynchronous replication a failover can lose writes, and with them ranges and lease windows.
 
-## What to look at
+## Supported versions and measured compatibility {#supported-versions-and-measured-compatibility}
 
-- **Durability.** A segment counter that goes back, because the store lost a write, hands out IDs a second time. Use a store that persists every write: Redis with AOF, a database, MongoDB with journaling, or ZooKeeper.
-- **Clock.** Machine id leases are judged by the store's clock where it has one (Redis, databases, MongoDB). ZooKeeper has none, so its leases use the host clocks, which must then be in sync.
-- **Availability.** A segment chain keeps IDs in reserve and a Snowflake generator needs the store only at startup and to renew its lease every minute, so a short store outage does not stop generation. With `cosid.machine.guarder.fail-fast` (the default), Snowflake generators and `CosIdGenerator` stop about `safe-guard-duration - min(10s, safe-guard-duration / 10)` after their last successful renewal, 4 minutes 50 seconds by default.
-- **Network access.** The proxy keeps store credentials out of applications, at the cost of running and securing one more service. See [Proxy deployment security](./proxy.md#deployment-security).
+Support starts at the minimum version of each backend (D26, D27), and CI runs the TCK on the minimum and the latest. Below
+the minimum, each version was run through the TCK once (D28). The result is recorded as a fact, **not a support
+commitment (实测兼容性,不承诺)**: those versions get no fixes and no compatibility code, and a later release may break them.
 
-The sides can use different stores, for example segments in the database and machine ids in Redis.
+| Backend | Version | TCK | Notes |
+|---|---|---|---|
+| MySQL | 8.0 (8.0.46) | pass, 28 / 28 | |
+| MariaDB | 10.6 | pass, 28 / 28 | |
+| PostgreSQL | 12, 13, 14 | pass, 25 / 25 each | |
+| SQL Server | 2017 | pass, 25 / 25 | `2017-latest` |
+| Redis | 6.2.24 | pass, 96 cases | standalone, primary + replica with `WAIT`, 3-primary Cluster; the scripts use no 7.x-only command |
+| MongoDB | 4.4 | pass, 46 / 46 | single-node replica set; concurrent first use of a namespace hits E11000 on 4.4, which the store retries on every version |
+| MongoDB | 5.0 | pass, 46 / 46 | single-node replica set |
+| ZooKeeper | 3.7.2, 3.6.4 | pass, 55 cases each | single server |
+| ZooKeeper | 3.5 and older | not run | expected to fail: acquire reads slots with a read-only `multi` (3.6+) |
 
-## A store CosId does not ship
+Measured on 2026-10-26/27 locally and by the non-blocking `probe` CI jobs. The module READMEs keep these tables
+current.
 
-Define a `CosIdStoreProvider` bean and set the type to its `getType()`. The provider creates the machine id distributor, the segment distributor factory, or both; for machine ids, implement a `MachineLeaseStore` and wrap it in `LeaseStoreMachineIdDistributor`, which brings the claim order, renewal and clock handling of the built-in stores:
+## Operational preconditions
 
-```java
-public class EtcdStoreProvider implements CosIdStoreProvider {
-    private final MachineLeaseStore leaseStore;
+| Backend | Before production |
+|---|---|
+| JDBC | create the tables from `schema-<dialect>.sql` (or `initSchema: true`); rows are never deleted |
+| Redis | AOF `appendfsync always` or `WAIT` covering every replica; `maxmemory-policy noeviction` (keys must never be evicted) |
+| MongoDB | a replica set; the user may create the collections and indexes |
+| ZooKeeper | never restore a slot node on a server whose clock is behind the node's original `mtime`, or wait one ttl (plus tolerance) before starting clients after such a restore |
+| Remote | a token (auth is on by default); the server's backing store meets its own precondition |
 
-    public EtcdStoreProvider(MachineLeaseStore leaseStore) {
-        this.leaseStore = leaseStore;
-    }
+## Store options common to all
 
-    @Override
-    public String getType() {
-        return "etcd";
-    }
-
-    @Override
-    public MachineIdDistributor createMachineIdDistributor(MachineStoreContext context) {
-        return new LeaseStoreMachineIdDistributor(leaseStore, context.getMachineStateStorage(), context.getClockBackwardsSynchronizer());
-    }
-}
+```yaml
+cosid:
+  stores:
+    <name>:
+      type: jdbc            # jdbc | redis | mongo | zookeeper | remote | a StoreProvider bean's type
+      timeout: 2s           # every store operation; at most the segments' reserve-timeout
+      client: myDataSource  # optional: the bean to use as the client
+      options: { ... }      # backend options, below on each page
 ```
 
-Declare the bean with its concrete type (`EtcdStoreProvider`, not `CosIdStoreProvider`), in the application's configuration or in an auto-configuration ordered before CosId's. A provider with the type of a built-in backend replaces it. Run the [compatibility test suite](./test-suite.md) against your store.
-
-## Ahead-of-time processing and native images
-
-| Backend | Spring AOT processing | GraalVM native image |
-|---------|-----------------------|----------------------|
-| Redis | Not tested in CI | Not tested; runtime hints for its Lua scripts ship since 4.0.1 |
-| JDBC | Not tested in CI | Not tested |
-| MongoDB | Not tested in CI | Not tested |
-| ZooKeeper | Not tested in CI | Not tested |
-| Proxy | Supported with `cosid.proxy.client=http-interface` (tested in CI); not with the default CoApi clients | Not tested |
-
-The starter registers segment and Snowflake generators as bean definitions that AOT processing can handle; CI runs AOT processing for segment generators, with an in-memory store. For applications on the proxy, set `cosid.proxy.client=http-interface`: the clients are then plain beans. `lb://` hosts (Spring Cloud LoadBalancer) need the default CoApi clients, so they run on the JVM only.
+Without `client`, Spring Boot uses the single bean of the type's client in the context (`DataSource`, a Lettuce
+client or Spring Data `RedisConnectionFactory`, `MongoClient`, `CuratorFramework`), if there is one. Without a client,
+the store connects from its options.

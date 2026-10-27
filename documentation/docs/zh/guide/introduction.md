@@ -1,56 +1,72 @@
-# 为什么需要 CosId
+# 为什么选择 CosId
 
-服务的每个副本都要生成 ID（主键、订单号、事件 ID），而且不能与其他副本生成的 ID 冲突。表一旦分片，或者需要在插入之前就拿到 ID，数据库自增列就不再适用；随机 UUID 有 128 位且无序，B+ 树索引在每次插入时都可能页分裂。
+CosId 是面向 JVM 的分布式 ID 生成器：它发出的 ID 在服务的所有实例之间唯一，生成速度快到 ID 生成永远不会出现在性能剖析中，
+并且形态符合应用的需要（`long`、短的 base-62 文本、可读的时间型文本、按天编号的单据号）。
 
-*[CosId](https://github.com/Ahoo-Wang/CosId)* 在应用进程内生成这样的 ID，每个 ID 都不需要网络调用，并替你处理保证唯一所需的协调工作：
+本站描述的是 **CosId 5**。5.0 是一次不保留向后兼容的完全重写；离线[迁移工具](migration/from-4x.md)负责把 4.x 部署迁移过来。
 
-- **Snowflake ID** 要求每个运行中的实例持有不同的*机器号*。CosId 从你已有的存储（Redis、关系数据库、MongoDB、ZooKeeper 或 CosId Proxy）租用机器号，持续续约，租约丢失时停止生成，因此两个实例不会共用同一个机器号。
-- **号段 ID** 需要一个中心计数器。CosId 每次从存储取一段 ID（*号段*），并在后台预取后续号段，生成过程始终在内存中完成。
-- **时钟会回拨。** CosId 会等过短暂的时钟回拨，拒绝跨越过长的回拨继续生成，并记住每个机器号最后使用的时间戳，避免重启后的实例重复使用。
+## 两种唯一性来源
 
-## 生成器一览
+任何分布式 ID 的唯一性都来自以下两种原因之一，CosId 两者都提供：
 
-| 生成器 | ID | 有序性 | 依赖 | 适用场景 |
-|--------|----|--------|------|----------|
-| [`SegmentChainId`](./concepts/segment.md) | `long` | 单实例单调递增，跨实例接近连续 | 号段存储 | 需要较短、接近连续的数字，例如主键、订单号。号段的默认模式 |
-| [`SnowflakeId`](./concepts/snowflake.md) | `long`（63 位） | 按时间有序 | 每个实例一个机器号 | ID 需要携带生成时间，或启动后不想再依赖存储 |
-| [`CosIdGenerator`](./concepts/cosid-generator.md) | `String`，15 到 17 个字符 | 按时间有序 | 每个实例一个机器号 | 实例数量非常多（最多约一百万个机器号），并且需要字符串 ID |
-| [`DefaultSegmentId`](./concepts/segment.md) | `long` | 单实例单调递增 | 号段存储 | 很少使用：号段链更快，用法一样简单 |
+| 来源 | 方式 | 协调 | CosId 策略 |
+|---|---|---|---|
+| **空间划分** | 把 `(time, slot, sequence)` 打包进 ID 的各个位 | 对一个槽位上一段**时间窗口**的独占租约 | `snowflake`、`cosid80` |
+| **区间预留** | 从计数器原子地取出 `[start, end)`，然后在本地发放 | 每个区间一次原子自增 | `segment`、`periodic-segment` |
 
-更详细的选择方法见 [ID 生成器](./concepts/id-generator.md)。
+其余一切（编码、缓冲、重试、租约维护）都是 `cosid-core` 中的本地代码。存储只需实现两个原语：`RangeStore.reserve` 和
+`SlotLeaseStore` 的三个操作，并由同一套测试（TCK）以同样的方式验证每个存储。
 
-## 分布式 ID 需要满足什么
+## 可以选择什么
 
-- **唯一性**：同一类 ID 内唯一。`t_order` 的 ID 在各副本之间不能冲突，至于是否与 `t_order_item` 的 ID 重复并不重要。
-- **有序性**：有序的键只会追加写入 B+ 树索引。没有全局时钟时，分布式生成器能做到的是单实例单调递增、跨实例*趋势递增*，CosId 的生成器正是如此。
-- **吞吐量与延迟**：每次插入都要生成 ID。应当关注尾延迟（P99.99）而不是平均值：每个号段阻塞一次网络调用的生成器，问题会体现在尾延迟上。
-- **自治性与可用性**：每个 ID 都调用存储的生成器会随存储一起失败。号段链会预留 ID，Snowflake ID 只在启动和续约时需要存储。
-- **存储空间**：64 位的键在每个二级索引里只占 UUID 的一半空间。
+| 需求 | 使用 |
+|---|---|
+| 可排序的 63 位 ID，每个 ID 无需访问存储 | 基于租用（或静态）机器号槽位的 `snowflake` |
+| JavaScript 客户端能以数字形式持有的 ID | `snowflake` 加 `layout: JS_SAFE_MS`（53 位） |
+| 每个 key 短而稠密、严格递增的 ID | `segment` |
+| 每年、每月或每天重新开始的编号（`20261027-000042`） | `periodic-segment` |
+| 超过 64 位，以文本形式 | `cosid80`（44 位毫秒、20 位节点、16 位序列） |
+| 给不在 JVM 上或无法访问存储的客户端使用的 ID | [cosid-server](server.md) 的可选发号端点 |
 
-| 方案 | 唯一 | 有序性 | 吞吐量（ops/s） | P99.99（µs/op） | 依赖 | 大小 |
-|------|:----:|--------|----------------:|----------------:|------|------|
-| UUID | 是 | 无序 | 3,078,638 | 0.325 | 无 | 128 位 |
-| SnowflakeId | 是 | 单实例单调递增，趋势递增（受各主机时钟影响） | 4,096,000（理论上限，每毫秒 4096 个） | 0.244 | 时钟、机器号 | 64 位 |
-| DefaultSegmentId | 是 | 单实例单调递增，趋势递增（受步长影响） | 29,506,073 | 46.624 | 号段存储 | 64 位 |
-| SegmentChainId | 是 | 单实例单调递增，趋势递增（受步长、安全距离影响） | 127,439,148 | 0.208 | 号段存储，并预留 ID | 64 位 |
+各自的配置见 [ID 配方](recipes.md)。
 
-以上数据是 CosId 1.x 时期在单机上的历史 JMH 结果，出自[分布式 ID 方案对比](../reference/performance/comparison.md)，用于说明各方案的相对开销，并不代表你的硬件能达到的数值。运行方法见 [JMH 基准测试](../reference/performance/benchmark.md)。
+## 5.0 的保证
 
-### 单调递增与趋势递增
+- **唯一性不依赖任何时钟。** 机器号槽位以时间窗口 `(floor, ceiling]` 的形式租用；存储维护
+  `next floor ≥ previous ceiling`，生成器绝不发出窗口之外的时间戳。时钟只决定租约*何时*过期，这只影响可用性。
+  见[槽位租约](concepts/slot-lease.md)。
+- **允许间隙，绝不重复。** 所有失败路径（超时、崩溃、丢弃的区间）都只会丢失 ID。
+- **没有全局状态。** 时间源、执行器、监听器与存储都通过注入提供；一个 JVM 可以运行多个相互独立的运行时。
+- **性能与特性均不低于 4.x**（D21）：每项 4.x 能力在 5.0 中都有对应，每个基准场景都与 4.1.0 对比，作为发布门槛
+  （[基准测试](../reference/performance/benchmark.md)）。
+
+## ID 方案的核心指标
+
+- 业务 key 内的**唯一性**是唯一不能妥协的属性。
+- **有序性**：ID 递增时 B+ 树索引的追加代价很低；随机 ID 会导致页分裂。Snowflake ID 是趋势递增的
+  （跨实例按时间递增）；号段在单个实例内严格递增。
+- **吞吐与稳定性**：每次写入都要生成 ID，因此速率和尾延迟（p99、p99.9）都很重要。CosId 让锁和 I/O 远离热路径。
+- **自治与可用性**：号段需要存储来补充（预取可以掩盖这一点），Snowflake 需要续约槽位租约（每 `ttl/3` 一次写入）
+  以及一个正常的时钟。
 
 <p align="center">
-  <img src="../../public/assets/design/monotonically-increasing.png" alt="单调递增"/>
+  <img src="../../public/assets/design/monotonically-increasing.png" alt="Monotonically increasing"/>
 </p>
-
-*单调递增*：若 T<sub>n+1</sub> > T<sub>n</sub>，则 F(T<sub>n+1</sub>) > F(T<sub>n</sub>)。数据库自增主键是单调递增的，但不连续：可能跳过某些值。
 
 <p align="center">
-  <img src="../../public/assets/design/trend-increasing.png" alt="趋势递增"/>
+  <img src="../../public/assets/design/trend-increasing.png" alt="Trend increasing"/>
 </p>
 
-*趋势递增*：后生成的 ID 总体上更大，但在一个短窗口内可能乱序。Snowflake ID 的窗口来自各主机之间的时钟差异；号段 ID 的窗口来自每个实例持有的号段大小。
+## 模块
 
-## 下一步
-
-- [快速上手](./getting-started.md)：在 Spring Boot 应用中接入 CosId。
-- [核心概念](./concepts/id-generator.md)：生成器、机器号与转换器。
+| Artifact | 内容 |
+|---|---|
+| `cosid-core` | 生成器、编解码器、租约、`CosIdRuntime`、`@CosId` 字段填充；只依赖 `slf4j-api` |
+| `cosid-store-jdbc`、`-redis`、`-mongo`、`-zookeeper`、`-remote` | 各存储 |
+| `cosid-spring-boot-starter` | Spring Boot（core + autoconfigure）；自行添加所用的存储 artifact |
+| `cosid-jackson`、`cosid-mybatis`、`cosid-spring-data-jdbc`、`cosid-activiti`、`cosid-flowable`、`cosid-axon` | 各集成，每个三方库一个 artifact（D29） |
+| `cosid-sharding` | 分片算法（`ModCycle`、`IntervalTimeline`） |
+| `cosid-store-tck` | 存储契约与一个内存存储，用于测试 |
+| `cosid-bom` | 以上所有 artifact 的版本 |
+| cosid-server（Docker 镜像） | 远程存储服务；见 [cosid-server](server.md) |
+| `cosid-migration.jar` | 离线 4.x → 5.0 迁移工具 |

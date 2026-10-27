@@ -1,101 +1,92 @@
-# SegmentId 与 SegmentChainId
+# 号段与周期号段
 
-号段 ID 来自存储中的一个计数器。实例不必每个 ID 都访问存储，而是一次申请 `step` 个 ID，即一个*号段*，再从内存中逐个发放。
+号段生成器一步原子地从存储预留一个区间 `[start, end)`，然后在本地发放其中的值，每个值一次原子加。
+ID 在单个实例内稠密且严格递增，每个区间只访问存储一次。
 
-<p align="center">
-  <img src="../../../public/assets/design/SegmentId.png" alt="SegmentId"/>
-</p>
+## 契约
 
-## 原理
+```java
+public record Range(long start, long end) {}
 
-存储为命名空间中的每个生成器名称维护一个计数器，即*最大 ID*。`IdSegmentDistributor` 原子地给它加上 `step` 并返回新值，于是该实例拥有从 `maxId - step + 1` 到 `maxId` 的 ID，其他实例拿不到这些 ID。
+public interface RangeStore extends AutoCloseable {
+    /** Atomically reserves [start, start + size); a new key starts at initialOffset. */
+    Range reserve(String key, long size, long initialOffset);
+    /** Optional: seal the key; every later reserve fails, the value is kept. */
+    default boolean seal(String key) { return false; }
+}
+```
 
-- **有序性。** 每个实例发放递增的 ID，下一个号段总比上一个大：ID 在单实例内单调递增。不同实例同时持有不同的号段，因此跨实例的 ID 趋势递增，乱序窗口大约是 `step` 乘以实例数。只有一个实例时，ID 单调递增。
-- **步长。** 即使 `step=1`，跨实例也不是严格单调递增：两个实例可能拿到相邻的 ID，却以相反的顺序写入。步长越小，ID 越接近连续，重启时丢弃的 ID 也越少（号段中未用完的部分会被跳过）；步长越大，访问存储的次数越少。
-- **偏移量。** `offset` 是计数器创建时的初始值，例如用于接续已有表中的 ID。它只对尚不存在的计数器生效。
-- **可用性。** 每当需要新号段时，生成就要依赖存储。号段链会预留号段，以扛过存储短暂的不可用。
+每个存储都通过同一套契约测试：
 
-## DefaultSegmentId
+| # | 不变式 |
+|---|---|
+| S1 | 同一 key 的区间互不重叠，并按完成顺序严格递增 |
+| S2 | 新 key 的第一个区间从 `initialOffset` 开始；并发的首次预留中只有一个创建它 |
+| S3 | 返回的区间就是事实：客户端从不推断边界（4.x 推断 `maxId - step`） |
+| S4 | 允许间隙（超时、崩溃、丢弃的区间），绝不重复（D19） |
+| S5 | 值位于 `[0, Long.MAX_VALUE)`：超出后抛出 `RangeExhaustedException`，绝不回绕 |
+| S6 | 已封存的 key 绝不会被重建；运行时代码从不删除 key |
 
-`DefaultSegmentId`（`cosid.segment.mode: segment`）在当前号段用完时，由调用线程获取下一个号段。该线程要等待一次存储往返，这会体现在尾延迟上：CosId 1.x 的历史 JMH 结果中 P99.99 为 46.6 µs（[方案对比](../../reference/performance/comparison.md)、[基准测试](../../reference/performance/benchmark.md)）。
+key 为 `{namespace}/{generator}`，周期号段为 `{namespace}/{generator}/{period}`。
 
-## SegmentChainId
+::: tip 第一个 ID 是 `initialOffset`
+新 key 的第一个区间是 `[initialOffset, initialOffset + size)`，因此在默认的 `initial-offset: 0` 下，第一个 ID 就是 `0`。
+`@CosId` 字段填充（以及大多数表结构）把 `0` 视为"尚无 ID"。实体 ID 请设置 `initial-offset: 1`。
+:::
 
-<p align="center">
-  <img src="../../../public/assets/design/SegmentChainId.png" alt="SegmentChainId"/>
-</p>
+## SegmentGenerator 及其批量策略
 
-`SegmentChainId`（`cosid.segment.mode: chain`，默认）在正在使用的号段之后维护一条号段链。后台的*预取任务*（PrefetchWorker）让链的长度至少保持 `safe-distance` 个号段（默认 2），因此调用线程几乎从不等待存储：在同一批历史结果中每秒约 1.27 亿个 ID，P99.99 为 0.208 µs，接近 `AtomicLong`。
+```java
+public record BatchPolicy(long step,                 // default 100: the smallest reservation
+                          long initialOffset,        // default 0
+                          Duration lookahead,        // default 1s: how long the ids at hand should last; 0 = no prefetch
+                          long maxBatch,             // default max(step × 1000, 2^20), rounded to step
+                          Duration reserveTimeout,   // default 3s: how long a caller waits for a refill
+                          Optional<Duration> rangeTtl) {}  // default none: drop a range unused this long
+```
 
-号段链会根据需求自适应：
+- **按时间预算确定大小。** 一次预留为 `min(maxBatch, roundUp(rate × lookahead, step))`，至少为 `step`。繁忙的生成器取更大的区间，
+  空闲的生成器取较小的区间，重启永远不会浪费一大块。4.x 的 `safeDistance` / `maxPrefetchDistance` / 预取周期都由这一个数取代。
+- **热路径只读一个 volatile 字段并做一次原子加。** 不加锁，也不分配对象。只有切换到下一个区间时才加锁，且该锁从不覆盖 I/O。
+- **同一时刻只有一个补充在进行。** 预留在补充执行器上运行（默认使用虚拟线程）。发现没有可用 ID 的调用方会等待这一次预留，
+  最多 `reserveTimeout`，之后得到 `RangeUnavailableException`。如果执行器尚未取走该任务，调用方会自己执行它，
+  因此存储的 `timeout` 不得超过 `reserveTimeout`（启动时会检查）。
+- **失败时退避。** 补充失败后，在重试时间之前调用方快速失败（100ms 起翻倍，最多 5s）。不会出现重试风暴。每次失败都会触发 `onRefillFailed`。
+- **超时的预留不会被取消。** 它的区间到达后照常使用；超时的只是调用方的等待。
+- `lookahead: 0` 只在区间用完时才预留。再配合 `step: 1` 即与 4.x 的 `DefaultSegmentId` 一致。
+- `range-ttl` 让多个实例保持"趋势递增"：持有超过该时长的区间会被丢弃（即 4.x 的号段 ttl）。只有设置了它，热路径才会检查过期。
 
-- **定时预取。** 预取任务每隔 `prefetch-worker.prefetch-period`（1 秒）把链补足到安全距离。
-- **饥饿扩容。** 调用线程发现没有可用号段时，会自己获取一个并唤醒预取任务；预取任务把预取距离翻倍（最多 `max-prefetch-distance`，10,000 个号段），并在一次存储调用中申请这么多号段。需求下降后，距离再减半，直到回到安全距离。
+## 周期号段
 
-因此号段链适合较小的 `step`：流量需要时预取距离会增长，不需要时 ID 仍然接近连续。
+周期号段每年、每月或每天重新开始序列，用于 `20261027-000042` 这样的单据号（即 4.x 的分组号段）。
 
-`SegmentChainId` 实现了 `AutoCloseable`：`close()` 停止后台预取，之后生成仍可继续，只是不再预取。`prefetch-timeout` 限制每次后台预取的时长（默认不限制）。
+```java
+public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoCloseable {
+    public GroupedId generate();          // GroupedId(period, value): ("20261027", 42)
+}
+public record PeriodicPolicy(Duration prewarm,             // default 1m
+                             Optional<Duration> sealAfter) {} // default none
+```
 
-### 为什么不同存储都能达到同样的峰值
-
-基准测试中，在 `step=1000` 时 Redis 和 MySQL 的号段链都能达到每秒约 1.2 亿个 ID，尽管 Redis 的响应要快得多。原因在于饥饿扩容：预取任务不断把每次申请的号段数翻倍，只要时间足够，任何存储发放 ID 的速度都会超过线程消耗的速度，峰值就是内存计数器的速度。
-
-`TPS(SegmentChainId) ≈ step × 扩容系数 × TPS(IdSegmentDistributor) × T ≤ TPS(AtomicLong)`
-
-其中扩容系数是饥饿时预取距离的增长倍数（2，即翻倍），`T` 是基准测试已运行的时长。更快的存储只是更早达到峰值（`T` 更小）。
-
-<p align="center">
-  <img src="../../../public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput-Of-SegmentChainId"/>
-</p>
-
-## 号段有效期
-
-`ttl`（单位为秒，默认永不过期）让号段过期：实例不再使用超过有效期的号段，跳过其中剩余的 ID 并申请新号段。分组号段会在分组结束时自动过期。
-
-## 分组号段
-
-分组号段在每个分组（例如每年、每月或每天）重新开始计数，可用于生成 `BIZ-20260101-00000001` 这样的业务编号：
+- `Period.YEAR`、`YEAR_MONTH`、`YEAR_MONTH_DAY` 分别给出 key `2026`、`202610`、`20261027`；**时区显式指定**（4.x 使用服务器的默认时区）。
+- 它最多同时持有两个号段生成器：当前周期的，以及从周期结束前 `prewarm` 起的下一周期的。
+  因此跨越午夜时热路径无需访问存储，4.x 在周期切换时的停顿不复存在。
+- `seal-after` 在周期结束后经过该时长时封存过去周期的 key（请设为一天或更长）。时钟滞后、仍在请求旧周期的实例会得到
+  `RangeSealedException`：宁可失败也不重复（S6）。
+- 运行时从不删除 key（D23）。旧周期通过 `cosid-migration purge --before <period>` 离线移除。
+- 文本形式由编解码器列表决定：第一项必须是 `date-prefix`（周期）；其余各项编码值。
 
 ```yaml
 cosid:
-  segment:
-    enabled: true
-    provider:
-      order_no:
-        group:
-          by: year_month_day
-          pattern: yyyyMMdd
-        converter:
-          type: to_string
-          prefix: BIZ-
-          group-prefix:
-            enabled: true
-          to-string:
-            pad-start: true
-            char-size: 8
+  generators:
+    bill:
+      strategy: periodic-segment
+      store: db
+      period: YEAR_MONTH_DAY
+      zone: Asia/Shanghai
+      codec:
+        - date-prefix: { delimiter: "-" }
+        - radix: { radix: 10, width: 6, pad-start: true }   # 20261027-000042
 ```
 
-每个分组在存储中是独立的计数器，名称为 `{name}@{group}`（例如 `order_no@20260101`），从 `offset` 开始。`SegmentId.generateGrouped()` 返回同时包含分组和值的 `GroupedId`，`converter.asString(groupedId)` 会把分组作为前缀格式化。更多示例见[常用 ID 配方](../recipes.md)。
-
-## 号段存储
-
-`cosid.segment.distributor.type` 选择存储：`redis`（默认）、`jdbc`、`mongo`、`zookeeper` 或 `proxy`，也可以是应用中某个 `CosIdStoreProvider` 的类型。见[选择后端](../backends/index.md)。
-
-## 配置
-
-```yaml
-cosid:
-  namespace: ${spring.application.name}
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    share:
-      step: 100
-    provider:
-      order:
-        offset: 10000
-        step: 100
-```
-
-这会注册共享生成器（`__share__SegmentId`）和名为 `order` 的生成器，两者都是号段链。全部属性见 [SegmentId 配置](../../reference/config/segment.md)。
+用 `runtime.get("bill", GroupedCodec.class).encode(id)` 读取文本，或者让 `@CosId` 填充一个 `String` 字段。

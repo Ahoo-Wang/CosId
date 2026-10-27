@@ -1,110 +1,116 @@
-# CosId-Spring-Boot-Starter Module
+# Spring Boot Starter
 
-The _Spring-Boot-Starter_ module integrates all _CosId_ extensions and provides auto-configuration capabilities, making the _CosId_ framework more convenient to use in _Spring Boot_ projects.
+`cosid-spring-boot-starter` is the only starter (D14). It brings `cosid-core` and `cosid-spring-boot-autoconfigure`
+and nothing else; add the store artifacts you use. It supports Spring Boot 4.0 and later on Java 21+.
 
-::: tip
-For the configuration documentation of this module, please refer to [Configuration](../../reference/config/basic).
-:::
-
-## Installation
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    implementation("me.ahoo.cosid:cosid-spring-boot-starter:${cosidVersion}")
+```kotlin
+implementation(platform("me.ahoo.cosid:cosid-bom:__COSID_VERSION__"))
+implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+implementation("me.ahoo.cosid:cosid-store-redis")
 ```
-```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-spring-boot-starter</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
+
+## One configuration model
+
+Stores are declared once and referenced by name, generators of different strategies can use different stores, and
+there are no per-feature `enabled` switches: what is used follows from what is declared. The one master switch is
+`cosid.enabled` (default `true`).
+
+```yaml
+cosid:
+  namespace: shop
+  stores:
+    db:    { type: jdbc, timeout: 2s }
+    cache: { type: redis, timeout: 1s, options: { uri: "redis://redis:6379", wait: auto } }
+  machine:
+    leased:
+      store: cache
+      bits: 10
+      ttl: 30s
+      tolerance: 1s
+      preferred-slot: ${POD_ORDINAL:}
+  generators:
+    default:
+      strategy: snowflake
+      codec: [ { radix: { radix: 62, width: 11, pad-start: true } } ]
+    order:
+      strategy: segment
+      store: db
+      initial-offset: 1
+      codec: [ { radix: { radix: 62 } }, { prefix: "O" } ]
+    trace:
+      strategy: snowflake
+      codec: [ { friendly: { zone: Asia/Shanghai } } ]
+    bill:
+      strategy: periodic-segment
+      store: db
+      period: YEAR_MONTH_DAY
+      zone: Asia/Shanghai
+      codec: [ { date-prefix: { delimiter: "" } }, { radix: { radix: 10, width: 6, pad-start: true } } ]
+    token:
+      strategy: cosid80
+      codec: [ { radix: { radix: 62 } } ]
+    legacy:
+      strategy: segment
+      store: db
+      disabled: true          # declared, not created: its bean throws GeneratorDisabledException
+  metrics:
+    generated: false
 ```
-:::
 
-## Actuator
+Every property and default: [configuration reference](../../reference/config/basic.md).
 
-The CosId-Spring-Boot-Starter module provides actuator support, allowing you to view the CosId status through actuator endpoints.
+## Beans
 
-![CosId actuator](../../../public/assets/spring-boot-starter/swagger-ui.png)
+| Bean | Type |
+|---|---|
+| `cosIdRuntime` | `CosIdRuntime`, closed with the context |
+| one per generator, **named after it** | `IdGenerator` (`snowflake`, `segment`; `default` is `@Primary`), `PartsIdGenerator` (`cosid80`), `GroupedIdGenerator` (`periodic-segment`) |
+| `IdFiller` | `runtime.filler()` |
 
-### CosIdEndpoint
-
-Used to view the status information of all defined ID generators.
-
-:::code-group
-```shell [curl]
-curl -X GET "http://localhost:8080/actuator/cosid" -H  "accept: */*"
+```java
+public OrderService(IdGenerator ids,                                  // "default"
+                    @Qualifier("order") IdGenerator orderIds,
+                    @Qualifier("bill") GroupedIdGenerator billNos,
+                    CosIdRuntime runtime) { ... }
 ```
-```json [Response Content]
-{
-  "cosid": {
-    "kind": "ClockSyncCosIdGenerator",
-    "actual": {
-      "kind": "Radix62CosIdGenerator",
-      "machineId": 252,
-      "lastTimestamp": 1704183358593,
-      "converter": {
-        "kind": "RadixCosIdStateParser",
-        "actual": null
-      }
-    },
-    "converter": {
-      "kind": "RadixCosIdStateParser",
-      "actual": null
-    }
-  },
-  "user": {
-    "kind": "StringSegmentId",
-    "actual": {
-      "kind": "SegmentChainId",
-      "fetchTime": 1703401907,
-      "maxId": 91658,
-      "offset": 91638,
-      "sequence": 91638,
-      "step": 20,
-      "isExpired": false,
-      "isOverflow": false,
-      "isAvailable": true,
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854776000
-      }
-    },
-    "converter": {
-      "kind": "Radix62IdConverter",
-      "radix": 62,
-      "charSize": 6,
-      "padStart": true,
-      "maxId": 56800235584
-    }
-  }
+
+Text views come from the runtime: `runtime.stringGenerator("order")`, `runtime.get("token", PartsCodec.class)`,
+`runtime.get("bill", GroupedCodec.class)`; the concrete generators from `runtime.get(name, TimeBasedGenerator.class)` or
+`SegmentGenerator.class`.
+
+## Store clients
+
+A store uses the bean named by `cosid.stores.<name>.client`; otherwise the single bean of its type's client in the
+context: a `DataSource` for `jdbc`; a Lettuce `RedisClient` / `RedisClusterClient` or Spring Data's
+`RedisConnectionFactory` for `redis` (through `SpringDataRedisScripts`); a `MongoClient` for `mongo`; a
+`CuratorFramework` for `zookeeper`. Without one, the store connects from its options. `StoreProvider` beans add
+store types of your own.
+
+## Changing generators in code
+
+```java
+@Bean
+static RuntimeSpecCustomizer moreGenerators() {          // static: it runs while bean definitions are processed
+    return spec -> {
+        var generators = new HashMap<>(spec.generators());
+        generators.put("audit", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of()));
+        return new RuntimeSpec(spec.namespace(), spec.stores(), spec.machine(), generators);
+    };
 }
 ```
-:::
 
-### CosIdGeneratorEndpoint
+Customizers run in `@Order` before the runtime starts, and the generators they add get beans too. A customizer must
+not depend on other beans (it is a `static @Bean`), as in 4.x.
 
-Provides an API interface for generating `long` type IDs.
+## Actuator, metrics, health
 
-### CosIdStringGeneratorEndpoint
+- Endpoint `cosid`: `GET /actuator/cosid` describes every generator, `/actuator/cosid/{name}` one, and
+  `/actuator/cosid/{name}/long` or `/string` generates one id. It is read-only (D17); the 4.x delete operation became the
+  `disabled` property.
+- Health `cosId` (`/actuator/health/cosId`, switch `management.health.cosid.enabled`): the slot lease.
+- Micrometer: 19 `cosid.*` meters. See [metrics and health](../operations/monitoring.md).
+- The integrations (Jackson, MyBatis, Spring Data JDBC, Activiti, Flowable, Axon) set themselves up when their library
+  and the matching CosId artifact (`cosid-jackson`, `cosid-mybatis`, …) are on the classpath.
+- Native images: `CosIdRuntimeHints` registers the reflection the runtime needs.
 
-Provides an API interface for generating `string` type IDs.
-
-### Configuration
-
-```yaml {6-8}
-management:
-  endpoints:
-    web:
-      exposure:
-        include:
-          - cosid
-          - cosidGenerator
-          - cosidStringGenerator
-```
+Each Spring context gets its own runtime (4.x's `provider.isolated` is the default and only mode).

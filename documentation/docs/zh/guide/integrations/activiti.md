@@ -1,36 +1,13 @@
-# CosId-Activiti 模块
+# Activiti
 
-_Activiti 模块_ 为 `Activiti` 提供了 `CosId` 的支持，实现了 _Activiti_ 的 `org.activiti.engine.impl.cfg.IdGenerator` 接口。
+`ActivitiIdGenerator`（artifact `cosid-activiti`，包 `me.ahoo.cosid.activiti`）使 Activiti 的 ID 成为 CosId 文本 ID，经由指定名称生成器的
+编解码器生成，不论其策略为何。已在 Activiti 7.0.0.SR1 上测试。
 
-## 安装
+| 属性 | 默认值 |
+|---|---|
+| `cosid.activiti.enabled` | `true` |
+| `cosid.activiti.generator-name` | `default` |
 
-::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    implementation("me.ahoo.cosid:cosid-activiti:${cosidVersion}")
-```
-```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-activiti</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
-```
-:::
-
-## 配置
-
-默认情况下 `ActivitiIdGenerator` 将从*ID生成器容器*(`IdGeneratorProvider`)中获取以 `__share__` 为名称的ID生成器。
-
-如需使用共享生成器以外的 ID 生成器，可在配置中指定其名称（4.1 起）：
-
-```yaml
-cosid:
-  activiti:
-    generator-name: bpm
-```
-
-不使用 Starter，或未设置 `cosid.activiti.generator-name` 时，由系统属性 `cosid.activiti` 指定。
-
+使用 Spring Boot 时由一个 `ProcessEngineConfigurationConfigurer` 设置。没有 Spring 属性时，生成器取自系统属性
+`cosid.activiti`，否则为 `default`。不使用 Spring 时：
+`configuration.setIdGenerator(new ActivitiIdGenerator(runtime, "default"))`。

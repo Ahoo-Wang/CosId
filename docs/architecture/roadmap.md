@@ -99,13 +99,13 @@ R0 骨架、接口冻结、4.x 基线基准
 | 1 | R0 | 设计完成 | ✅ |
 | 2 | R1-A、R1-B、R1-C | R0 合入 | ✅ |
 | 3 | R2-JDBC、R2-Redis、R2-Mongo、R2-ZK、R3 | R1-C 合入(R3 还需要 R1-A、R1-B) | ✅ |
-| 4 | R3-S、R4-C | R3 合入(R4-C 还需要 R2) | R3-S ✅;R4-C 收尾 |
+| 4 | R3-S、R4-C | R3 合入(R4-C 还需要 R2) | ✅ |
 | 5 | R4-A、R4-B | R3-S 合入 | ✅ |
 | 6 | R5-A、R5-B | 功能冻结 | 待启动 |
 
 ## 5. 进度
 
-> 更新于 2026-10-27。`5.x` 上已合入 18 个 PR;所有提交作者为 Ahoo Wang,提交说明为英文,不带 `Co-authored-by`。
+> 更新于 2026-10-27。`5.x` 上已合入 19 个 PR;所有提交作者为 Ahoo Wang,提交说明为英文,不带 `Co-authored-by`。
 
 ### 5.1 阶段
 
@@ -124,7 +124,7 @@ R0 骨架、接口冻结、4.x 基线基准
 | R3-S Spring Boot 集成 | ✅ 已合入 | [#1323](https://github.com/Ahoo-Wang/CosId/pull/1323) |
 | R4-A 远程服务与客户端 | ✅ 已合入 | [#1328](https://github.com/Ahoo-Wang/CosId/pull/1328) |
 | R4-B 集成适配器 | ✅ 已合入 | [#1327](https://github.com/Ahoo-Wang/CosId/pull/1327) |
-| R4-C 离线迁移工具 | 🔄 审查通过,同步 R4-A 后合入 | [#1324](https://github.com/Ahoo-Wang/CosId/pull/1324) |
+| R4-C 离线迁移工具 | ✅ 已合入 | [#1324](https://github.com/Ahoo-Wang/CosId/pull/1324) |
 | R5-A 发布门槛基准与特性验收 | ⏳ 待启动 | |
 | R5-B 文档站、示例、迁移指南 | ⏳ 待启动 | |
 | R6 发布 | ⏳ | |
@@ -137,7 +137,7 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 | 里程碑 | 条件 | 状态 |
 |---|---|---|
 | `5.0.0-M1` | R2 + R3 合入,可编程使用 | 条件已满足,待决定是否发布 |
-| `5.0.0-RC1` | R4 全部合入 | R4-C 合入后满足 |
+| `5.0.0-RC1` | R4 全部合入 | 条件已满足,待决定是否发布 |
 | `5.0.0` | R5 全部通过,RC 无阻塞问题;`5.x` 合回 `main` | 未开始 |
 
 ### 5.3 进入 R5 前的遗留事项
@@ -150,7 +150,7 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 | L4 | 集成测试稳定性:每个集成测试类在 CI 上连跑 N 次(建议 20)无失败,作为 R5-A 验收项;实施期间已出现 4 个依赖时序的偶发失败(Mongo 2、ZK 1、Redis 1) | R5-A |
 | L5 | 主 `check` job 与各存储 job 重复跑容器测试,需要一个跳过容器的开关去重 | R5-A |
 | L6 | 文档站写明 ZK 槽位节点人工重建的前提、Redis 持久化前提、各后端"实测兼容性(不承诺)"汇总 | R5-B |
-| L7 | `config` 子命令对 4.x proxy 配置生成的 `remote` 存储与 R4-A 选项名一致(R4-C 正在补测试) | R4-C |
+| L7 | ~~`config` 子命令对 4.x proxy 配置生成的 `remote` 存储与 R4-A 选项名一致~~ 已在 #1324 中完成 | R4-C ✅ |
 
 ## 6. 风险与经验
 

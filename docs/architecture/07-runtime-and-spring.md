@@ -148,7 +148,7 @@ cosid:
       codec: [ { date-prefix: { delimiter: "" } }, { radix: { radix: 10, width: 6, pad-start: true } } ]
     token:
       strategy: cosid80
-      codec: { radix: 62 }
+      codec: [ { radix: { radix: 62 } } ]
   metrics: { generated: false }
 ```
 

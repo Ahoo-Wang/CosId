@@ -31,7 +31,7 @@
 | A core | ✅ 完成 | 无 BLOCKER、无重号路径;1 MAJOR(由 MINOR 上调)、6 MINOR(见 §3.A) |
 | B stores | ✅ 完成 | 1 BLOCKER、1 MAJOR(由 MINOR 上调)、4 MINOR(见 §3.B) |
 | C spring/server/integrations | ✅ 完成,已核实 | 2 BLOCKER(由 MAJOR 上调)、1 MAJOR、5 MINOR(见 §3.C) |
-| D migration | 进行中 | — |
+| D migration | ✅ 完成 | 4 BLOCKER(含 3 个由 MAJOR 上调)、3 MAJOR、4 MINOR(见 §3.D) |
 | E 发布就绪 | ✅ 完成,已核实 | 3 BLOCKER、3 MAJOR、9 MINOR(见 §3.E) |
 | 发布门槛(CI) | 运行中:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762),spring-start 组已通过 | 分析 Draft PR [#1345](https://github.com/Ahoo-Wang/CosId/pull/1345)(`docs/jmh/5.0/analysis.md`) |
 | #1342 ZK 排除 Netty | CI 中 | — |
@@ -80,6 +80,26 @@
 | C-N5 | MINOR | roadmap 残留一处 `/v5` | `docs/architecture/roadmap.md:78` | 改为"不带版本前缀(D30)" | — |
 
 C 路确认通过的:默认鉴权与拒绝启动、常量时间 token 比较、`no-store`、默认公开路径只有 health、输入限制、503 有界池、存储 API 的作用域(key/命名空间只在请求体中,未找到绕过)、每个生成器一个 Bean 且 `default` 为 primary、禁用生成器调用时才抛异常、customizer 顺序、关闭顺序、可选依赖条件装配、`initial-offset` 默认 1、MyBatis 批量、Spring Data JDBC、Axon 绑定生命周期与未绑定报错、Activiti/Flowable 依赖隔离、示例符合 D30。
+
+### 3.D migration(main @ e272cdde)
+
+迁移工具唯一的硬约束是"不与 4.x 重号",因此凡是合理配置下会**悄悄产生重号**的,一律定为 BLOCKER。
+
+已核实正确:`next = lastMaxId + 1 + gap` 与两边语义一致;封存在第二次快照之后且为原子递增;"已封存"判断在 `--seal-gap` 变化时双向安全;只升不降的写入;四种后端的 5.0 管理写路径与存储格式一致(含 ZK owner 索引);T4 覆盖 4.x 全部机器号时间字段;StaticSlot `not-before = W`;`offset → initial-offset X+1`、`before-prefix`、`seq-reset-threshold`、`proxy → remote` 的转换;80 位布局校验;purge 需确认且只删已封存的过期周期 key。
+
+| # | 严重度 | 发现 | 位置 | 修复 |
+|---|---|---|---|---|
+| D-B1 | BLOCKER | 4.x 中有独立 `namespace` 的生成器(key 为 `{ownNs}.{name}`)在 5.0 被放到默认命名空间下,从 1 重新开始 → 重号;按工具提示操作也无法映射 | `config/Legacy4x.java:225-240`、`ConfigConverter.java:399-403`、`source/*Source.java` | plan/apply 从 `--layout-config` 读出额外命名空间,把 `{ownNs}.{name}` 映射为 `{ns}/{name}`;至少报告并让 apply 拒绝;加测试 |
+| D-B2 | BLOCKER(上调) | `config` 生成的生成器名与实际迁移的 key 不一致(两个 share 同时开启时 `__share__` → `default`,而 config 写成 `segment-share`;`--rename` 同理)→ 新 key 从 1 开始 → 重号 | `ConfigConverter.java:113-177`、`KeyMapper.java:52-53` | `config` 校验每个号段/周期生成器都对应 `apply-result.json` 中的 key,否则失败;无 `--layout-config` 时 plan 拒绝映射 `__share__` |
+| D-B3 | BLOCKER(上调) | 存在无法映射的 key 时 `apply` 只告警继续(如分组格式 `yyyy-MM-dd`)→ 当期 key 在 5.0 从初始值开始 → 重号 | `Migration.java:355-359`(`ApplyGuardsTest` 还断言了这种行为) | 有未映射 key 时中止,除非显式 `--allow-unmigrated <key>` |
+| D-B4 | BLOCKER(上调) | 未检测 4.x 存储分离(号段在 Redis、机器号在 JDBC):T4 读成 0、无人观察 `cosid_machine`,槽位准备在错误的目标上,5.0 运行时自建槽位时 `next_floor = 0` → 时钟落后的主机可能重发 4.x 已发的时间戳 | `Migration.plan/apply`、`ConfigConverter.java:339` | 有 `--layout-config` 时比对两种 distributor 类型与 `--from/--to`,不一致时拒绝或要求 `--machine-from/--machine-to` |
+| D-M1 | MAJOR | 第二次快照之后新建的 4.x key(遗漏实例跨期)既不封存也不迁移,`verify` 也看不到;09 §2 的"不会重复"表述过度 | `Migration.java:330,426-447` | `verify` 标出结果中没有的 4.x key;可选:预先封存 4.x 当期与下一期 key;修正 09 §2 表述 |
+| D-M2 | MAJOR(安全) | 凭据写进 `plan.json`/`apply-result.json`:`redacted()` 保留了 url 原文(Mongo 必须把密码写在 url 里,Redis/JDBC 同理),与 README 承诺不符 | `StoreLocation.java:127`、`MongoSource.java:47`、`MongoTarget.java:56` | `redacted()` 去掉 url 中的 userinfo 与密码参数;Mongo 支持 `user`/`password` 选项 |
+| D-M3 | MAJOR | 4.x 秒级 Snowflake 的自定义 epoch 以秒为单位,被当成毫秒转换 → 5.0 布局错误(2038 左右溢出,或启动失败),M3 校验因两边都误读而通过 | `config/Legacy4x.java:154-160` | 秒级单位时 epoch × 1000(默认 epoch 除外) |
+| D-N1 | MINOR | 命名空间前缀 `shop.` 也匹配 `shop.v2`,apply 会误封存别的命名空间 | `source/*Source.java` | 排除属于其他已知命名空间的 key,或要求命名空间不含 `.` |
+| D-N2 | MINOR | `config` 不写 `tolerance`、`bits` 不取自 `result.slots()`,用了 `--slot-bits`/`--tolerance` 时 5.0 启动报 `NamespaceMismatchException` | `ConfigConverter.java:319,345` | 从 apply 结果取值 |
+| D-N3 | MINOR(存疑) | W 只用目标存储时钟,跨存储迁移且目标时钟落后时 W 偏小 | `Migration.java:317-319` | 取源与目标时钟的较大者 |
+| D-N4 | MINOR | `purge` 不检查存活租约 | `Migration.java:500-504` | 与 apply 一样检查 `live()` |
 
 ### 3.E 发布就绪(main @ e272cdde)
 

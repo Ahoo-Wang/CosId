@@ -208,7 +208,9 @@ public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoC
     }
 
     /**
-     * Opens the period of {@code now}: the prewarmed next period if it is that one, otherwise a new generator.
+     * Opens the period of {@code now}: the prewarmed next period if it is that one, otherwise a new generator. The new
+     * period's end is computed and checked before any state changes, so a faulty custom {@link Period} fails every call
+     * the same way and leaves nothing behind (no generator, no pending seal).
      */
     private Active open(Active current, long now, List<SegmentGenerator> ended) {
         String periodKey = period.keyOf(Instant.ofEpochMilli(now), zone);
@@ -216,6 +218,11 @@ public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoC
             // A custom period whose endOf is earlier than the instant keyOf mapped here: keep the period.
             endMillis = Math.max(endMillis, period.endOf(periodKey, zone).toEpochMilli());
             return current;
+        }
+        long end = period.endOf(periodKey, zone).toEpochMilli();
+        if (end <= now) {
+            throw new IllegalStateException("Period [" + period + "] maps " + Instant.ofEpochMilli(now) + " to [" + periodKey + "], which ends at "
+                + Instant.ofEpochMilli(end));
         }
         Active opened;
         if (next != null && next.period().equals(periodKey)) {
@@ -232,11 +239,6 @@ public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoC
             if (sealAfterMillis >= 0) {
                 seals.add(new PendingSeal(storeKey(current.period()), saturatedAdd(endMillis, sealAfterMillis)));
             }
-        }
-        long end = period.endOf(periodKey, zone).toEpochMilli();
-        if (end <= now) {
-            throw new IllegalStateException("Period [" + period + "] maps " + Instant.ofEpochMilli(now) + " to [" + periodKey + "], which ends at "
-                + Instant.ofEpochMilli(end));
         }
         endMillis = end;
         log.debug("Generator [{}] - period [{}] until {}", name, periodKey, Instant.ofEpochMilli(end));

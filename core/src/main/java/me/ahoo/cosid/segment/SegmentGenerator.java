@@ -323,7 +323,9 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
             return 0;
         }
         long batch = sizer.batch();
-        if (prefetching ? readyValues >= Math.min(Math.max(batch, sizer.budget()), batch * MAX_READY_RANGES)
+        // Saturating: a batch near Long.MAX_VALUE must not wrap the target negative, or no refill would ever start.
+        long readyCap = batch > Long.MAX_VALUE / MAX_READY_RANGES ? Long.MAX_VALUE : batch * MAX_READY_RANGES;
+        if (prefetching ? readyValues >= Math.min(Math.max(batch, sizer.budget()), readyCap)
             : current.remaining(now) + readyValues > 0) {
             return 0;
         }

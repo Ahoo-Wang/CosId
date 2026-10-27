@@ -14,26 +14,38 @@
 
 > [中文文档](https://cosid.ahoo.me/zh/) | [English Document](https://cosid.ahoo.me/)
 
-Every replica of a service needs IDs (primary keys, order numbers, event ids) that never collide with those of the other replicas. *CosId* generates them inside your process, without a network call per ID, and does the coordination that keeps them unique: it leases a distinct machine id to every Snowflake instance from a store you already run, takes ranges of segment IDs ahead of time, and handles clocks that move backwards.
+Every replica of a service needs ids (primary keys, order numbers, event ids) that never collide with those of the other
+replicas. *CosId* generates them inside your process, without a network call per id, and does the coordination that
+keeps them unique.
 
-| Generator | ID | Throughput on one instance (historical JMH) | Pick it when |
-|-----------|----|---------------------------:|--------------|
-| `SegmentChainId` | `long`, near-sequential | 127,439,148 ops/s | You want short numeric keys or business numbers. The default segment mode |
-| `SnowflakeId` | `long`, time-ordered | 4,096,000 ops/s (theoretical maximum) | IDs should carry their creation time, with no store call after startup |
-| `CosIdGenerator` | `String`, 15 characters, time-ordered | — | You run very many instances (up to a million machine ids) |
+**CosId 5** is a full rewrite with no backward compatibility. In it, **uniqueness depends on no clock**: a machine slot
+is leased as a time window, successive holders' windows never overlap, and the store itself keeps that rule. Clock
+skew, GC pauses and failovers cost availability, never uniqueness. Every strategy runs on one `CosIdRuntime`, and Spring
+Boot, cosid-server and plain Java start it the same way. The offline [`cosid-migration`](./migration/README.md) tool
+moves a 4.x deployment over.
 
-Stores: Redis, JDBC (MySQL, MariaDB, PostgreSQL, H2, SQL Server), MongoDB, ZooKeeper, the CosId proxy, or your own. Integrations: Spring Boot, MyBatis, Spring Data JDBC, Jackson, ShardingSphere, Activiti, Flowable and Axon.
+| Strategy | Id | Pick it when |
+|---|---|---|
+| `snowflake` | `long`, time-ordered (any `Layout`: ms or s, JS-safe 53 bits) | ids should carry their creation time, with no store call per id |
+| `segment` | `long`, dense, increasing per instance | you want short numeric keys; reservations size themselves to a time budget |
+| `periodic-segment` | per year / month / day (`20261027-000042`) | business numbers that restart each period |
+| `cosid80` | 80-bit text | you need more than 64 bits |
+
+Stores: JDBC (MySQL 8.4+, MariaDB 10.11+, PostgreSQL 15+, SQL Server 2019+, H2), Redis 7.0+, MongoDB 6.0+, ZooKeeper
+3.8+, and cosid-server; declared once, mixed freely.
 
 ## Version compatibility
 
 | CosId | Spring Boot | Java | Branch |
 |-------|-------------|------|--------|
-| 4.x | 4.x | 17+ | `main` |
-| 3.x | 4.x | 17+ | `3.x` (maintenance) |
+| 5.x | 4.0+ | 21+ | `main` |
+| 4.x | 4.x | 17+ | `4.x` (maintenance: bug fixes only) |
+| 3.x | 4.x | 17+ | `3.x` |
 | 2.x | 3.x | 17+ | `2.x` |
 | 1.x | 2.x | 8+ | `1.x` |
 
-Upgrading from 3.x: see [MIGRATION-4.0.md](./docs/MIGRATION-4.0.md).
+Upgrading from 4.x: the [migration guide](https://cosid.ahoo.me/guide/migration/from-4x.html). 4.x and 5.0 never run in
+one namespace.
 
 ## Quick start
 
@@ -41,57 +53,80 @@ Upgrading from 3.x: see [MIGRATION-4.0.md](./docs/MIGRATION-4.0.md).
 dependencies {
     implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
-    implementation("me.ahoo.cosid:cosid-spring-redis") // or cosid-jdbc, cosid-mongo, cosid-zookeeper, cosid-proxy
-    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("me.ahoo.cosid:cosid-store-jdbc")   // or cosid-store-redis, -mongo, -zookeeper, -remote
 }
 ```
 
 ```yaml
 cosid:
   namespace: ${spring.application.name}
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    provider:
-      order:
-        step: 100
+  stores:
+    db:
+      type: jdbc              # the application's DataSource
+  machine:
+    leased:
+      store: db               # the machine slot, leased from the store
+  generators:
+    default:
+      strategy: snowflake
+    order:
+      strategy: segment
+      store: db
+      codec: [ { radix: { radix: 62 } }, { prefix: "O" } ]
 ```
 
 ```java
-long orderId = idGeneratorProvider.getRequired("order", IdGenerator.class).generate();
+public OrderService(IdGenerator ids, @Qualifier("order") IdGenerator orderIds, CosIdRuntime runtime) {
+    long id = ids.generate();                                   // the "default" Snowflake
+    String orderNo = runtime.stringGenerator("order").generate();
+}
 ```
 
-The [Getting Started](https://cosid.ahoo.me/guide/getting-started.html) guide walks through it, including Snowflake IDs and Maven.
+[Getting Started](https://cosid.ahoo.me/guide/getting-started.html) covers Maven and plain Java too.
+
+## Modules
+
+| Artifact | Contents |
+|---|---|
+| `cosid-core` | generators, layouts and codecs, slot leases, `CosIdRuntime`, `@CosId` field filling; depends on `slf4j-api` only |
+| `cosid-store-jdbc` | JDBC store: MySQL, MariaDB, PostgreSQL, SQL Server, H2, and the `JdbcDialect` SPI |
+| `cosid-store-redis` | Redis store (Lettuce); see its [durability precondition](./store/redis/README.md) |
+| `cosid-store-mongo` | MongoDB store (replica set) |
+| `cosid-store-zookeeper` | ZooKeeper store (Curator) |
+| `cosid-store-remote` | the client of cosid-server (JDK `HttpClient`) |
+| `cosid-store-tck` | the store contracts and an in-memory store, for tests |
+| `cosid-spring-boot-starter` | Spring Boot: core + `cosid-spring-boot-autoconfigure`; add the stores you use |
+| `cosid-jackson`, `cosid-mybatis`, `cosid-spring-data-jdbc`, `cosid-activiti`, `cosid-flowable`, `cosid-axon` | integrations, one per library |
+| `cosid-sharding` | sharding algorithms: `ModCycle`, `IntervalTimeline`, `CachedSharding` |
+| `cosid-bom` | the versions of all of the above |
+| cosid-server | the remote store service, a Docker image ([`server/`](./server/README.md)) |
+| `cosid-migration.jar` | the offline 4.x → 5.0 tool ([`migration/`](./migration/README.md)) |
 
 ## Documentation
 
-- [Why CosId](https://cosid.ahoo.me/guide/introduction.html): the problem and the trade-offs between the generators.
-- [Core concepts](https://cosid.ahoo.me/guide/concepts/id-generator.html): generators, [machine ids](https://cosid.ahoo.me/guide/concepts/machine-id.html), segments and converters.
-- [Choosing a backend](https://cosid.ahoo.me/guide/backends/): Redis, JDBC, MongoDB, ZooKeeper and the proxy.
-- [Configuration reference](https://cosid.ahoo.me/reference/config/basic.html): every property and its default.
-- [Operations](https://cosid.ahoo.me/guide/operations/production.html): production checklist, rolling upgrades, monitoring and troubleshooting.
-- [Migrating to 4.0](https://cosid.ahoo.me/guide/migration/4.0.html), and the full [migration guide](./docs/MIGRATION-4.0.md).
+- [Why CosId](https://cosid.ahoo.me/guide/introduction.html) and [ID recipes](https://cosid.ahoo.me/guide/recipes.html).
+- Concepts: [layouts and codecs](https://cosid.ahoo.me/guide/concepts/layout-and-codecs.html),
+  [the machine slot lease](https://cosid.ahoo.me/guide/concepts/slot-lease.html),
+  [segments](https://cosid.ahoo.me/guide/concepts/segment.html), [the runtime](https://cosid.ahoo.me/guide/concepts/runtime.html).
+- [Choosing a backend](https://cosid.ahoo.me/guide/backends/): supported versions, measured compatibility, preconditions.
+- [cosid-server](https://cosid.ahoo.me/guide/server.html): API, authentication, limits, Docker.
+- [Configuration reference](https://cosid.ahoo.me/reference/config/basic.html): every `cosid.*` property and its default.
+- [Operations](https://cosid.ahoo.me/guide/operations/production.html): production checklist, metrics, health, troubleshooting.
+- [Migrating from 4.x](https://cosid.ahoo.me/guide/migration/from-4x.html).
+- The design: [`docs/architecture/`](./docs/architecture/README.md) (decisions D1–D30).
 
-The [examples](./examples) are runnable applications for Redis, ZooKeeper, the proxy and `CosIdGenerator`.
+The [examples](./examples/README.md) are runnable applications: `segment-jdbc`, `snowflake-redis` and `server`.
 
 ## Performance
 
-Historical [JMH benchmarks](https://cosid.ahoo.me/reference/performance/benchmark.html) on one development notebook (MacBook Pro M1, Redis on the same machine):
-
-<p align="center">
-  <img src="./documentation/docs/public/assets/perf/Throughput-Of-SegmentChainId.png" alt="Throughput of SegmentChainId"/>
-</p>
-
-<p align="center">
-  <img src="./documentation/docs/public/assets/perf/Percentile-Sample-Of-SegmentChainId.png" alt="Percentile sample of SegmentChainId"/>
-</p>
-
-`SegmentChainId` is about five times as fast as Meituan Leaf's segment mode, see [CosId VS Leaf](https://cosid.ahoo.me/reference/performance/cosid-vs-leaf.html).
+5.0 must not be slower than 4.x in any scenario: every [benchmark](https://cosid.ahoo.me/reference/performance/benchmark.html)
+runs on the released 4.1.0 and on 5.0, and the comparison is a release gate. Results go to [`docs/jmh/`](./docs/jmh).
+The hot path of a segment id is one atomic add; a Snowflake id is a short critical section that never waits under its
+lock.
 
 ## Contributing
 
-Bug reports, ideas and pull requests are welcome. Read [CONTRIBUTING.md](./CONTRIBUTING.md) for the development setup, commit conventions, review and release process, and [SECURITY.md](./SECURITY.md) to report a vulnerability privately. The planned work is in the [roadmap](./docs/ROADMAP.md).
+Bug reports, ideas and pull requests are welcome. Read [CONTRIBUTING.md](./CONTRIBUTING.md) for the development setup, commit conventions, review and release process, and [SECURITY.md](./SECURITY.md) to report a vulnerability privately. The planned work is in the [roadmap](./docs/architecture/roadmap.md).
 
 ## Community Partners and Sponsors
 

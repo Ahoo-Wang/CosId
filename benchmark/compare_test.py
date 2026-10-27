@@ -56,6 +56,14 @@ class CompareTest(unittest.TestCase):
         self.assertEqual(0, self.failed(base, row("P.a", mode="ss", score=1050.0)))
         self.assertEqual(1, self.failed(base, row("P.a", mode="ss", score=1051.0)))
 
+    def test_spring_start_is_a_startup(self):
+        name = "SpringStartBenchmark.startToFirstId_t1"
+        base = row(name, mode="avgt", score=1000.0, error=100.0)
+        self.assertEqual(0, self.failed(base, row(name, mode="avgt", score=1050.0)))
+        self.assertEqual(1, self.failed(base, row(name, mode="avgt", score=1051.0)))
+        # Any other average time keeps the error rule.
+        self.assertEqual(0, self.failed(row("P.a", mode="avgt", score=1000.0, error=100.0), row("P.a", mode="avgt", score=1100.0)))
+
     def test_allocation_never_grows(self):
         self.assertEqual(0, self.failed(row("P.a", alloc=48.0), row("P.a", alloc=48.0)))
         self.assertEqual(1, self.failed(row("P.a", alloc=48.0), row("P.a", alloc=56.0)))

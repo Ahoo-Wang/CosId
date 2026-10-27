@@ -28,11 +28,13 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.GeneratorDisabledException;
+import me.ahoo.cosid.GroupedId;
 import me.ahoo.cosid.GroupedIdGenerator;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.PartsIdGenerator;
 import me.ahoo.cosid.accessor.CosId;
 import me.ahoo.cosid.accessor.IdFiller;
+import me.ahoo.cosid.codec.GroupedCodec;
 import me.ahoo.cosid.codec.IdCodec;
 import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.observe.GeneratorListener;
@@ -43,6 +45,14 @@ import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.time.TimeBasedGenerator;
 
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.imps.CuratorFrameworkState;
+import org.apache.curator.retry.RetryOneTime;
+import org.apache.curator.test.TestingServer;
+import org.bson.Document;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -53,6 +63,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.annotation.Order;
+import org.testcontainers.mongodb.MongoDBContainer;
 
 import java.util.HashMap;
 import java.util.List;
@@ -129,6 +140,31 @@ class CosIdAutoConfigurationTest {
             assertEquals(List.of("open mem", "open other"), stores.events);
             assertTrue(stores.configs.stream().allMatch(config -> config.client().isEmpty()));
         });
+    }
+
+    @Test
+    void encodesAndDecodesThePeriodWhereTheCodecListPutsIt() {
+        withStores().withPropertyValues("cosid.stores.mem.type=memory",
+            "cosid.generators.after.strategy=periodic-segment", "cosid.generators.after.store=mem", "cosid.generators.after.period=YEAR",
+            "cosid.generators.after.codec[0].radix.radix=10", "cosid.generators.after.codec[0].radix.width=4",
+            "cosid.generators.after.codec[0].radix.pad-start=true",
+            "cosid.generators.after.codec[1].period.delimiter=-", "cosid.generators.after.codec[2].prefix=BIZ-",
+            "cosid.generators.none.strategy=periodic-segment", "cosid.generators.none.store=mem", "cosid.generators.none.period=YEAR",
+            "cosid.generators.none.codec[0].period.enabled=false", "cosid.generators.none.codec[1].prefix=N").run(context -> {
+                assertNull(context.getStartupFailure());
+                CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
+                GroupedId after = runtime.periodic("after").generate();
+                GroupedCodec afterCodec = runtime.get("after", GroupedCodec.class);
+                String text = afterCodec.encode(after);
+                assertEquals("BIZ-" + after.period() + "-" + String.format("%04d", after.value()), text);
+                assertEquals(after, afterCodec.decode(text));
+
+                GroupedId none = runtime.periodic("none").generate();
+                GroupedCodec noneCodec = runtime.get("none", GroupedCodec.class);
+                assertEquals("N" + none.value(), noneCodec.encode(none));
+                UnsupportedOperationException e = assertThrows(UnsupportedOperationException.class, () -> noneCodec.decode("N" + none.value()));
+                assertThat(e.getMessage(), containsString("the period is not in the text"));
+            });
     }
 
     @Test
@@ -216,6 +252,63 @@ class CosIdAutoConfigurationTest {
                 assertThat(DataSources.tables(context.getBean("primary", javax.sql.DataSource.class)), greaterThan(0));
                 assertEquals(0, DataSources.tables(context.getBean("secondary", javax.sql.DataSource.class)));
             });
+    }
+
+    @Test
+    void usesTheCuratorFrameworkBeanOfTheContextForZookeeperStores() throws Exception {
+        try (TestingServer server = new TestingServer(true);
+             CuratorFramework client = CuratorFrameworkFactory.newClient(server.getConnectString(), new RetryOneTime(100))) {
+            client.start();
+            assertTrue(client.blockUntilConnected(30, java.util.concurrent.TimeUnit.SECONDS), "connected to the test server");
+            // A client the application owns: registered without a destroy method, so only CosId could close it.
+            RUNNER.withBean(CuratorFramework.class, () -> client, definition -> definition.setDestroyMethodName(""))
+                .withPropertyValues("cosid.namespace=zk-client", "cosid.stores.zk.type=zookeeper",
+                    "cosid.generators.order.strategy=segment", "cosid.generators.order.store=zk")
+                .run(context -> {
+                    assertNull(context.getStartupFailure());
+                    IdGenerator order = context.getBean("order", IdGenerator.class);
+                    long first = order.generate();
+                    assertThat(order.generate(), greaterThan(first));
+                    assertFalse(client.getChildren().forPath("/cosid/range").isEmpty(), "the store wrote its range through the context's client");
+                });
+            assertEquals(CuratorFrameworkState.STARTED, client.getState(), "the context's CosId beans leave the client open");
+            assertNotNull(client.checkExists().forPath("/cosid/range"), "and it still works");
+        }
+    }
+
+    @Test
+    void usesTheMongoClientBeanOfTheContextForMongoStores() {
+        String external = System.getenv("COSID_TEST_MONGODB_URI");
+        MongoDBContainer container = null;
+        String uri = external;
+        if (external == null || external.isBlank()) {
+            String image = System.getenv("COSID_TEST_MONGODB_IMAGE");
+            container = new MongoDBContainer(image == null || image.isBlank() ? "mongo:7.0" : image).withReplicaSet();
+            container.start();
+            uri = container.getReplicaSetUrl();
+        }
+        String database = "cosid_spring_" + java.util.UUID.randomUUID().toString().replace("-", "");
+        try (MongoClient client = MongoClients.create(uri)) {
+            // A client the application owns: registered without a destroy method, so only CosId could close it.
+            RUNNER.withBean(MongoClient.class, () -> client, definition -> definition.setDestroyMethodName(""))
+                .withPropertyValues("cosid.namespace=mongo-client", "cosid.stores.mongo.type=mongo",
+                    "cosid.stores.mongo.options.database=" + database,
+                    "cosid.generators.order.strategy=segment", "cosid.generators.order.store=mongo")
+                .run(context -> {
+                    assertNull(context.getStartupFailure());
+                    IdGenerator order = context.getBean("order", IdGenerator.class);
+                    long first = order.generate();
+                    assertThat(order.generate(), greaterThan(first));
+                    assertThat(client.getDatabase(database).getCollection("cosid_range").countDocuments(), greaterThan(0L));
+                });
+            assertEquals(1.0, client.getDatabase(database).runCommand(new Document("ping", 1)).get("ok", Number.class).doubleValue(),
+                "the context's CosId beans leave the client open");
+            client.getDatabase(database).drop();
+        } finally {
+            if (container != null) {
+                container.stop();
+            }
+        }
     }
 
     @Test

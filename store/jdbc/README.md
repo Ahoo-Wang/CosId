@@ -31,7 +31,8 @@ the data source.
 | `initSchema` | `false` | create the tables that are missing |
 | `rangeTable`, `slotTable`, `namespaceTable` | `cosid_range`, `cosid_slot`, `cosid_namespace` | table names: identifiers, optionally schema-qualified |
 
-`StoreConfig.timeout` is the `queryTimeout` of every statement, rounded up to seconds (zero: none). In code:
+`StoreConfig.timeout` is the `queryTimeout` of every statement, rounded up to seconds (zero: none); a statement that
+runs out of it fails with `StoreTimeoutException` (`JdbcDialect.isTimeout`). In code:
 `JdbcStore.of(dataSource, timeout)`, or `new JdbcStore(dataSource, dialect, tables, timeout)`.
 
 ## Schema

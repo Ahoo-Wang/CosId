@@ -21,6 +21,7 @@ import io.lettuce.core.AbstractRedisClient;
 import io.lettuce.core.codec.ByteArrayCodec;
 import io.lettuce.core.output.IntegerOutput;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.data.redis.connection.RedisClusterConnection;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -114,6 +115,8 @@ public final class SpringDataRedisScripts implements RedisScripts {
                 }
             }
             return reply;
+        } catch (QueryTimeoutException e) {
+            throw RedisStoreException.timeout("Redis did not answer in time: " + e.getMostSpecificCause(), e);
         } catch (DataAccessException e) {
             throw new RedisStoreException("Redis failed: " + e.getMostSpecificCause(), e);
         }

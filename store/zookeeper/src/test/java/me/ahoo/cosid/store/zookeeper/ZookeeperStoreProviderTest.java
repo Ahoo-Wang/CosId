@@ -19,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.store.StoreTimeoutException;
 import me.ahoo.cosid.lease.AcquireResult;
 import me.ahoo.cosid.lease.Owner;
 import me.ahoo.cosid.store.Store;
@@ -128,7 +129,8 @@ class ZookeeperStoreProviderTest {
             store.ranges().reserve(key, 1, 0);
             server.stop();
             long start = System.nanoTime();
-            assertThrows(CosIdException.class, () -> store.ranges().reserve(key, 1, 0));
+            CosIdException failure = assertThrows(CosIdException.class, () -> store.ranges().reserve(key, 1, 0));
+            assertTrue(StoreTimeoutException.isTimeout(failure), "a store timeout, reported by the runtime: " + failure);
             long millis = (System.nanoTime() - start) / 1_000_000;
             assertTrue(millis < 5_000, "the store timeout bounds the call: " + millis + " ms");
         } finally {

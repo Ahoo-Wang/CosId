@@ -37,7 +37,7 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
 }
 
 public record BatchPolicy(long step,              // 默认 100;单次预留的最小规模
-                          long initialOffset,     // 默认 0
+                          long initialOffset,     // 默认 1(不发 0,与 4.x 一致;IdFiller 把 0 视为未设置)
                           Duration lookahead,     // 默认 1s;手里的余量希望撑多久;ZERO 表示不预取(等价 4.x DefaultSegmentId)
                           long maxBatch,          // 默认 step × 1000;必须是 step 的整数倍
                           Duration reserveTimeout,// 默认 3s;调用方同步等待补充的上限
@@ -123,7 +123,10 @@ public interface GroupedCodec {
 - 期满后关闭旧期生成器。封存旧期 key 只在 `期末 + sealAfter` 之后进行。时钟落后的实例若仍访问已封存的旧期,会得到 `RangeSealedException`,即宁可失败也不重号(S6)。
   物理清理只能通过运维命令 `cosid-migration purge --before <period>` 离线进行。
 - 区间与游标完全不感知时间,周期逻辑只存在于本类。
-- 4.x 的 `group-prefix`(前缀放在业务前缀前或后、分隔符)由 `GroupedCodec` 的组合表达。
+- 4.x 的 `group-prefix` 两种写法都能表达(#1336,沿用 4.x 的真实语义):
+  - `before-prefix=true`(4.x 默认):文本为"业务前缀 + 期间 + 值";`false`:期间在最前。
+  - `enabled=false`:文本不含期间。此时无法从文本反解期间,`decode` 抛 `UnsupportedOperationException`(4.x 同样无法反解)。
+  - 还有 `GroupedCodec.datePrefix(Period, delimiter, value)`:空分隔符时按期间长度反解。
 
 ## 4. 删除项
 

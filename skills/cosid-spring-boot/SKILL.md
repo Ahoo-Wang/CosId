@@ -1,182 +1,188 @@
 ---
 name: cosid-spring-boot
-description: Configure and troubleshoot CosId in Spring Boot with cosid-spring-boot-starter. Use for Gradle feature capabilities or Maven modules, application.yml, Redis/JDBC/MongoDB/ZooKeeper/proxy distributors, SnowflakeId, CosIdGenerator, DefaultSegmentId, SegmentChainId, shared or named generators, converters, @CosId persistence integration, machine guarding, clock rollback, JDBC initialization, or Actuator. Do not use for programmatic non-Spring wiring.
+description: Configure and troubleshoot CosId 5 in Spring Boot with cosid-spring-boot-starter. Use for the starter and store artifacts (cosid-store-jdbc, -redis, -mongo, -zookeeper, -remote), the cosid.stores / cosid.machine / cosid.generators model, snowflake, cosid80, segment and periodic-segment generators, codec lists, generator beans, RuntimeSpecCustomizer, @CosId filling with MyBatis or Spring Data JDBC, Jackson @AsString, health, metrics and the cosid Actuator endpoint, or start-up errors. Do not use for programmatic non-Spring wiring (cosid-manual-integration) or for 4.x applications.
 ---
 
 # Configure CosId for Spring Boot
 
-Produce the smallest configuration for one chosen strategy and backend. Do not enable every generator in a single template.
+Produce the smallest configuration for one chosen strategy and store. Do not enable every generator in one template.
 
 ## Workflow
 
-1. Confirm compatibility: CosId 4.x: Spring Boot 4.x, Java 17. CosId 3.x aligns with Spring Boot 4.x; CosId 2.x aligns with Spring Boot 3.x; all require Java 17. Upgrading from 3.x: follow `docs/MIGRATION-4.0.md`.
-2. Confirm the generator strategy. Use `$cosid-strategy-guide` only when it is undecided.
-3. Add the starter capability or Maven backend modules required by that strategy.
+1. Confirm compatibility: **CosId 5.x needs Java 21+ and Spring Boot 4.0+.** CosId 4.x (Java 17) is a different
+   configuration model on the `4.x` branch; to move a 4.x application, use the offline `cosid-migration` tool (plan,
+   apply, verify, `config`), never a mixed fleet.
+2. Confirm the strategy. Use `$cosid-strategy-guide` only when it is undecided.
+3. Add the starter and the store artifact(s) the configuration uses.
 4. Emit minimal YAML and one consumption pattern.
-5. Verify context startup, generator registration, uniqueness, and the selected backend's state.
+5. Verify: the context starts, the generator beans exist, ids are unique, the `cosId` health is `UP`.
 
-In a CosId checkout, treat these as the source of truth:
+In a CosId checkout, the source of truth is:
 
-- capabilities: `cosid-spring-boot-starter/build.gradle.kts`;
-- property names/defaults: `cosid-spring-boot-starter/src/main/java/.../*Properties.java`;
-- binding examples: corresponding `*PropertiesTest.java` files;
-- bean names and provider behavior: `SegmentIdBeanRegistrar` and `SnowflakeIdBeanRegistrar`.
+- properties: `spring/autoconfigure/src/main/java/me/ahoo/cosid/spring/autoconfigure/CosIdProperties.java` (records with
+  `@DefaultValue`), mapped by `CosIdSpecs`;
+- beans: `CosIdAutoConfiguration`, `CosIdGeneratorRegistrar`, `CosIdIntegrationsConfiguration`;
+- runnable apps: `examples/segment-jdbc`, `examples/snowflake-redis`, `examples/server`;
+- the documentation site: `documentation/docs/en/reference/config/`.
 
 ## Dependencies
 
-Use the BOM and repeat the starter dependency for every required Gradle capability:
+There is one starter (D14). It brings `cosid-core` and `cosid-spring-boot-autoconfigure` only. Add stores like
+database drivers:
 
 ```kotlin
 dependencies {
-    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
-    implementation("me.ahoo.cosid:cosid-spring-boot-starter") {
-        capabilities {
-            requireCapability("me.ahoo.cosid:spring-redis-support")
-        }
-    }
-    implementation("me.ahoo.cosid:cosid-spring-boot-starter") {
-        capabilities {
-            requireCapability("me.ahoo.cosid:mybatis-support")
-        }
-    }
+    implementation(platform("me.ahoo.cosid:cosid-bom:<version>"))
+    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
+    implementation("me.ahoo.cosid:cosid-store-jdbc")        // or -redis, -mongo, -zookeeper, -remote
 }
 ```
 
-Available capabilities include `spring-redis-support`, `jdbc-support`, `mongo-support`, `zookeeper-support`, `proxy-support`, `mybatis-support`, `data-jdbc-support`, and `actuator-support`. Add only those used by the application, with one dependency block per capability.
+Integrations are separate artifacts, one per library: `cosid-jackson`, `cosid-mybatis`, `cosid-spring-data-jdbc`,
+`cosid-activiti`, `cosid-flowable`, `cosid-axon`. There are no Gradle feature variants.
 
-For Maven, import `cosid-bom`, add `cosid-spring-boot-starter`, and add the concrete backend/integration module such as `cosid-spring-redis`, `cosid-jdbc`, `cosid-mongo`, `cosid-zookeeper`, `cosid-mybatis`, or `cosid-spring-data-jdbc`. Also include the application framework/runtime dependency required to create its client, such as the Redis, JDBC, or MongoDB Spring Boot starter.
+## The Model
 
-## Minimal Configurations
-
-### Snowflake with a Fixed Machine ID
-
-Use only when deployment assigns a unique machine ID to every live instance.
+Stores are declared once and referenced by name. The machine slot serves every time-based generator of the runtime.
+Generators are named; `default` is the `@Primary` `IdGenerator`.
 
 ```yaml
 cosid:
-  namespace: ${spring.application.name}
+  namespace: ${spring.application.name}   # the same on every instance of the application
+  stores:
+    db:
+      type: jdbc                          # the context's DataSource; or client: <bean>
+      timeout: 2s                         # ≤ each segment's reserve-timeout (3s)
+      options: { initSchema: true }       # dev only; production runs schema-<dialect>.sql
   machine:
-    enabled: true
-    distributor:
-      type: manual
-      manual:
-        machine-id: ${COSID_MACHINE_ID}
-  snowflake:
-    enabled: true
+    leased:
+      store: db
+      bits: 10                            # ≤ the layout's node bits
+  generators:
+    default:
+      strategy: snowflake
+      codec: [ { radix: { radix: 62, width: 11, pad-start: true } } ]
 ```
 
-For Redis/JDBC/MongoDB/ZooKeeper/proxy allocation, replace the distributor type and add its capability. Keep `machine.enabled: true` for SnowflakeId and CosIdGenerator.
-
-### SegmentChainId with Redis
-
-Segment generators do not require machine-ID configuration.
+### Segment on JDBC
 
 ```yaml
 cosid:
-  namespace: ${spring.application.name}
-  segment:
-    enabled: true
-    mode: chain
-    distributor:
+  stores:
+    db: { type: jdbc }
+  generators:
+    order:
+      strategy: segment
+      store: db
+      codec: [ { radix: { radix: 62 } }, { prefix: "O" } ]
+```
+
+### Snowflake on Redis
+
+```yaml
+cosid:
+  stores:
+    redis:
       type: redis
-    share:
-      enabled: false
-    provider:
-      order:
-        step: 100
-```
-
-Use `mode: segment` for `DefaultSegmentId`. The default mode is `chain`; spelling it out makes intent visible.
-
-### SegmentChainId with JDBC
-
-```yaml
-cosid:
-  namespace: ${spring.application.name}
-  segment:
-    enabled: true
-    mode: chain
-    distributor:
-      type: jdbc
-      jdbc:
-        enable-auto-init-cosid-table: true
-        enable-auto-init-id-segment: true
-```
-
-Automatic DDL is convenient for controlled environments. Prefer migrations when schema ownership matters. Machine allocation through JDBC has a separate property: `cosid.machine.distributor.jdbc.enable-auto-init-cosid-machine-table`. A custom `JdbcMachineIdInitializer` bean disables that auto-initializer through conditional back-off.
-
-### CosIdGenerator
-
-```yaml
-cosid:
-  namespace: ${spring.application.name}
+      timeout: 1s
+      options: { uri: "redis://redis:6379", wait: auto }
   machine:
-    enabled: true
-    distributor:
-      type: redis
-  generator:
-    enabled: true
-    type: radix62
+    leased: { store: redis }
+  generators:
+    default:
+      strategy: snowflake
+    trace:
+      strategy: snowflake
+      codec: [ { friendly: { zone: Asia/Shanghai } } ]
 ```
 
-Inject it as `CosIdGenerator` and call `generateAsString()`. It is a `StringIdGenerator` with no `generate()`; it is registered in the provider as `cosid`.
+State the Redis precondition every time: uniqueness needs acknowledged writes to survive (AOF `appendfsync always`, or
+`WAIT` covering every replica), and `maxmemory-policy noeviction`.
+
+### Static slot (no store)
+
+```yaml
+cosid:
+  machine:
+    static: { slot: "${POD_ORDINAL}", state-file: /var/lib/cosid/state }
+  generators:
+    default: { strategy: snowflake }
+```
+
+Without `state-file` there is no protection against a clock set back across restarts.
+
+### Periodic segment and cosid80
+
+```yaml
+    bill:
+      strategy: periodic-segment
+      store: db
+      period: YEAR_MONTH_DAY               # YEAR | YEAR_MONTH | YEAR_MONTH_DAY
+      zone: Asia/Shanghai                  # always explicit
+      codec: [ { date-prefix: { delimiter: "-" } }, { radix: { radix: 10, width: 6, pad-start: true } } ]
+    token:
+      strategy: cosid80
+      codec: [ { radix: { radix: 62 } } ]  # one radix or friendly item
+```
+
+### Through cosid-server
+
+```yaml
+cosid:
+  stores:
+    remote:
+      type: remote
+      options: { baseUrl: "http://cosid-server:8688", token: "${COSID_SERVER_TOKEN}" }
+  machine:
+    leased: { store: remote }
+```
+
+## Codec Lists
+
+Applied in order. The first item turns the id into text (`radix`, `friendly`, `custom`); without one the text is
+decimal. `prefix`, `suffix` and `date-prefix` wrap it. A periodic segment's first item must be `date-prefix`.
 
 ## Consume Generators Safely
 
-Named segment and Snowflake generators are registered in `IdGeneratorProvider` and as singleton beans named `<name>SegmentId` or `<name>SnowflakeId`:
-
-```java
-IdGenerator orderId = idGeneratorProvider.getRequired("order", IdGenerator.class);
-long id = orderId.generate();
-```
-
-In 4.x, `IdGeneratorProvider.get(name)` returns `Optional<StringIdGenerator>`: use `get(name, IdGenerator.class)` or `getRequired(name, IdGenerator.class)` for a `long` generator, and `getRequired` when absence is an error.
-
-The shared definition is enabled by default under `__share__`. If Snowflake and Segment are both enabled, they compete for the same shared provider entry. Disable one share or use named definitions and qualified concrete beans; do not rely on registration order.
+- Inject by name: `@Qualifier("order") IdGenerator` (`snowflake`, `segment`), `PartsIdGenerator` (`cosid80`),
+  `GroupedIdGenerator` (`periodic-segment`). An unqualified `IdGenerator` is `default`.
+- Text: `runtime.stringGenerator("order").generate()`, `runtime.get("token", PartsCodec.class)`,
+  `runtime.get("bill", GroupedCodec.class)`.
+- Do not create generators yourself next to the runtime: one runtime per context owns the slot and the stores.
+- Add or change generators in code with a `static @Bean RuntimeSpecCustomizer` (no dependencies). Generators are fixed
+  at start-up; `disabled: true` declares one without creating it.
 
 ## `@CosId` Boundary
 
-The annotation alone does not assign IDs. Enable a persistence integration that invokes the accessor registry, such as `mybatis-support` for inserts or `data-jdbc-support` for Spring Data JDBC before-convert callbacks, then register the referenced generator:
-
-```java
-public class Order {
-    @CosId("order")
-    private Long id;
-}
-```
-
-Do not promise annotation support for an ORM or persistence path without verifying that its CosId integration is present.
+`@CosId("name")` on a `long`/`Long`/`int`/`Integer`/`String` field is filled by `IdFiller` when unset (`≤ 0`, null,
+empty). `cosid-mybatis` fills before INSERT (`cosid.mybatis.enabled`, default true; `list-key`, default `list`).
+`cosid-spring-data-jdbc` fills before convert, and is off by default (`cosid.jdbc.enabled`). Elsewhere call the
+`IdFiller` bean.
 
 ## Operational Rules
 
-- Machine IDs must be unique within a namespace and within the configured machine-bit range.
-- The machine guarder is enabled by default. Use the same `cosid.machine.guarder.safe-guard-duration` on every instance of a namespace, much larger than `guarder.delay`, and expose failures through health monitoring when Actuator is used.
-- Snowflake definitions default to clock sync. Custom second-based definitions require an epoch in seconds; millisecond definitions require milliseconds.
-- Snowflake timestamp, machine, and sequence bits must total at most 63.
-- Proxy activation uses `proxy-support`, `cosid.proxy.host`, and `distributor.type: proxy`; there is no `cosid.proxy.enabled` property.
-- Actuator endpoints require `actuator-support` and explicit endpoint exposure. In 4.x the `cosid` endpoint is read-only unless `cosid.actuator.delete.enabled=true` turns on its delete operation, which removes a registered generator; for status-only access on Spring Boot 4, set `management.endpoint.cosid.access: read-only` and protect the management endpoint with HTTP authorization or network isolation. On Spring Boot versions without endpoint access levels, deny non-read methods or do not expose it.
-- Spring Data JDBC entities get their ids only with `cosid.jdbc.enabled=true` in 4.x (the default is `false`).
-- Converter output must be tested for prefix, padding, radix, maximum length, and target-column capacity.
-
-For a Spring Boot 4 status-only endpoint, start with:
-
-```yaml
-management:
-  endpoints:
-    access:
-      default: none
-    web:
-      exposure:
-        include: cosid
-  endpoint:
-    cosid:
-      access: read-only
-```
+- Every instance of an application uses the same `cosid.namespace`, `bits` and `tolerance`; a mismatch is refused
+  (`NamespaceMismatchException`).
+- `bits` must cover the peak instance count, including a rolling update's surge.
+- Store `timeout` ≤ segment `reserve-timeout`.
+- Uniqueness of time-based ids does not depend on clocks (D22); skew beyond `tolerance` only pauses issuing. Run NTP.
+- Shut down with SIGTERM: a clean close releases the slot with the exact last timestamp.
+- There is no option to keep issuing after the lease is lost.
 
 ## Validation
 
-Run one focused Spring Boot context test with the selected capability and properties. Assert the expected bean/provider name, generate concurrent IDs, and inspect the backend row/key/lease or Actuator state. Integration tests require the actual Redis, JDBC, MongoDB, ZooKeeper, or proxy service.
+- `GET /actuator/health/cosId` is `UP` (the health component is named `cosId`; switch `management.health.cosid.enabled`).
+- `GET /actuator/cosid` describes every generator; `/actuator/cosid/{name}/long` or `/string` issues one (expose `cosid`).
+- Metrics: 19 `cosid.*` meters, for example `cosid.machine.lease.renew.failures`, `cosid.machine.window.remaining`,
+  `cosid.segment.refill.failures`.
+- Start-up errors list every configuration problem at once (`Invalid cosid.* configuration:`).
 
 ## Response Contract
 
-Return version alignment, exact dependency capability/modules, minimal YAML for one strategy, one correct consumption example, one operational warning, and one runnable verification.
+Return:
+
+1. the dependencies;
+2. the minimal `cosid.*` YAML;
+3. one consumption snippet;
+4. the store's precondition and one operational warning;
+5. one validation step (health, endpoint, or a test).

@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import me.ahoo.cosid.NamespaceMismatchException;
+import me.ahoo.cosid.lease.AcquireReason;
 import me.ahoo.cosid.lease.AcquireResult;
 import me.ahoo.cosid.lease.Owner;
 import me.ahoo.cosid.lease.SlotLease;
@@ -125,13 +126,26 @@ public abstract class SlotLeaseStoreContract {
         return new Owner(key, UUID.randomUUID());
     }
 
-    private static SlotLease acquired(SlotLeaseStore store, String namespace, Owner owner, int limit, Duration ttl, OptionalInt preferredSlot) {
+    private static AcquireResult.Acquired acquiredResult(SlotLeaseStore store, String namespace, Owner owner, int limit, Duration ttl,
+                                                         OptionalInt preferredSlot) {
         AcquireResult result = store.acquire(namespace, owner, limit, ttl, TOLERANCE, preferredSlot);
-        return assertInstanceOf(AcquireResult.Acquired.class, result, () -> owner + " acquires in " + namespace).lease();
+        return assertInstanceOf(AcquireResult.Acquired.class, result, () -> owner + " acquires in " + namespace);
+    }
+
+    private static SlotLease acquired(SlotLeaseStore store, String namespace, Owner owner, int limit, Duration ttl, OptionalInt preferredSlot) {
+        return acquiredResult(store, namespace, owner, limit, ttl, preferredSlot).lease();
     }
 
     private static SlotLease acquired(SlotLeaseStore store, String namespace, Owner owner, int limit) {
         return acquired(store, namespace, owner, limit, LONG_TTL, OptionalInt.empty());
+    }
+
+    /** Acquires and checks the reason the store reports, and that no other incarnation of the key is live. */
+    private static SlotLease acquiredFor(AcquireReason reason, SlotLeaseStore store, String namespace, Owner owner, int limit, OptionalInt preferredSlot) {
+        AcquireResult.Acquired result = acquiredResult(store, namespace, owner, limit, LONG_TTL, preferredSlot);
+        assertEquals(reason, result.reason(), () -> "reason of " + result);
+        assertFalse(result.duplicateOwnerKey(), () -> "no other incarnation of " + owner.key() + " is live: " + result);
+        return result.lease();
     }
 
     private static SlotLease renewed(SlotLeaseStore store, SlotLease lease, Duration ttl) {
@@ -143,11 +157,15 @@ public abstract class SlotLeaseStoreContract {
      * expiry when the test controls it, otherwise retries until {@link #takeoverTimeout()}.
      */
     private SlotLease awaitAcquired(SlotLeaseStore store, String namespace, Owner owner, int limit, Duration ttl) {
+        return awaitAcquiredResult(store, namespace, owner, limit, ttl).lease();
+    }
+
+    private AcquireResult.Acquired awaitAcquiredResult(SlotLeaseStore store, String namespace, Owner owner, int limit, Duration ttl) {
         long deadline = System.nanoTime() + takeoverTimeout().toNanos();
         while (true) {
             AcquireResult result = store.acquire(namespace, owner, limit, ttl, TOLERANCE, OptionalInt.empty());
             if (result instanceof AcquireResult.Acquired acquired) {
-                return acquired.lease();
+                return acquired;
             }
             long earliestExpiresAt = ((AcquireResult.Exhausted) result).earliestExpiresAt();
             Optional<ManualClock> clock = storeClock();
@@ -174,8 +192,8 @@ public abstract class SlotLeaseStoreContract {
         Owner owner = owner("host-a");
         try (SlotLeaseStore store = newStore(); SlotLeaseStore other = newStore()) {
             acquired(store, namespace, owner("host-0"), 8);
-            SlotLease first = acquired(store, namespace, owner, 8);
-            SlotLease again = acquired(other, namespace, owner, 8, LONG_TTL, OptionalInt.of(5));
+            SlotLease first = acquiredFor(AcquireReason.LOWEST, store, namespace, owner, 8, OptionalInt.empty());
+            SlotLease again = acquiredFor(AcquireReason.IDEMPOTENT, other, namespace, owner, 8, OptionalInt.of(5));
             assertEquals(first.slot(), again.slot(), "the held slot wins over the preferred one");
             assertEquals(first.fence(), again.fence());
             assertEquals(first.owner(), again.owner());
@@ -194,9 +212,9 @@ public abstract class SlotLeaseStoreContract {
             assertTrue(store.release(x, x.ceiling()));
             assertTrue(store.release(k, k.ceiling()));
             // Now slot x.slot() is the lowest free slot and k.slot() the sticky one of host-k.
-            SlotLease preferred = acquired(store, namespace, owner("host-k"), 8, LONG_TTL, OptionalInt.of(5));
+            SlotLease preferred = acquiredFor(AcquireReason.PREFERRED, store, namespace, owner("host-k"), 8, OptionalInt.of(5));
             assertEquals(5, preferred.slot());
-            SlotLease notPreferred = acquired(store, namespace, owner("host-z"), 8, LONG_TTL, OptionalInt.of(5));
+            SlotLease notPreferred = acquiredFor(AcquireReason.LOWEST, store, namespace, owner("host-z"), 8, OptionalInt.of(5));
             assertNotEquals(5, notPreferred.slot(), "a held preferred slot is passed over");
             assertEquals(x.slot(), notPreferred.slot(), "then the lowest free slot is taken");
         }
@@ -212,7 +230,7 @@ public abstract class SlotLeaseStoreContract {
             assertNotEquals(x.slot(), k.slot());
             assertTrue(store.release(x, x.ceiling()));
             assertTrue(store.release(k, k.ceiling()));
-            SlotLease sticky = acquired(store, namespace, owner("host-k"), 8);
+            SlotLease sticky = acquiredFor(AcquireReason.STICKY, store, namespace, owner("host-k"), 8, OptionalInt.empty());
             assertEquals(k.slot(), sticky.slot(), "the slot host-k held last, though slot " + x.slot() + " is lower");
             assertTrue(sticky.fence() > k.fence());
         }
@@ -223,13 +241,39 @@ public abstract class SlotLeaseStoreContract {
     public void acquireTakesTheLowestFreeSlot() {
         String namespace = newNamespace();
         try (SlotLeaseStore store = newStore()) {
-            assertEquals(0, acquired(store, namespace, owner("host-a"), 4).slot());
-            SlotLease b = acquired(store, namespace, owner("host-b"), 4);
+            assertEquals(0, acquiredFor(AcquireReason.LOWEST, store, namespace, owner("host-a"), 4, OptionalInt.empty()).slot());
+            SlotLease b = acquiredFor(AcquireReason.LOWEST, store, namespace, owner("host-b"), 4, OptionalInt.empty());
             assertEquals(1, b.slot());
-            assertEquals(2, acquired(store, namespace, owner("host-c"), 4).slot());
+            assertEquals(2, acquiredFor(AcquireReason.LOWEST, store, namespace, owner("host-c"), 4, OptionalInt.empty()).slot());
             assertTrue(store.release(b, b.ceiling()));
-            assertEquals(1, acquired(store, namespace, owner("host-d"), 4).slot());
-            assertEquals(3, acquired(store, namespace, owner("host-e"), 4).slot());
+            assertEquals(1, acquiredFor(AcquireReason.LOWEST, store, namespace, owner("host-d"), 4, OptionalInt.empty()).slot());
+            assertEquals(3, acquiredFor(AcquireReason.LOWEST, store, namespace, owner("host-e"), 4, OptionalInt.empty()).slot());
+        }
+    }
+
+    /** Basics: acquire flags a live lease of the same owner key under another incarnation, and only a live one. */
+    @Test
+    public void acquireFlagsDuplicateOwnerKeys() {
+        String namespace = newNamespace();
+        try (SlotLeaseStore store = newStore()) {
+            Owner first = owner("host-a");
+            assertFalse(acquiredResult(store, namespace, first, 4, LONG_TTL, OptionalInt.empty()).duplicateOwnerKey());
+            assertFalse(acquiredResult(store, namespace, owner("host-b"), 4, LONG_TTL, OptionalInt.empty()).duplicateOwnerKey(), "another key is no duplicate");
+            AcquireResult.Acquired second = acquiredResult(store, namespace, owner("host-a"), 4, LONG_TTL, OptionalInt.empty());
+            assertTrue(second.duplicateOwnerKey(), "host-a already holds a live lease under another incarnation");
+            AcquireResult.Acquired retry = acquiredResult(store, namespace, first, 4, LONG_TTL, OptionalInt.empty());
+            assertEquals(AcquireReason.IDEMPOTENT, retry.reason());
+            assertTrue(retry.duplicateOwnerKey(), "the retry of the first incarnation sees the second one");
+            assertTrue(store.release(second.lease(), second.lease().ceiling()));
+            assertTrue(store.release(retry.lease(), retry.lease().ceiling()));
+            assertFalse(acquiredResult(store, namespace, owner("host-a"), 4, LONG_TTL, OptionalInt.empty()).duplicateOwnerKey(),
+                "released leases of the key are no duplicates");
+        }
+        String expiring = newNamespace();
+        try (SlotLeaseStore store = newStore()) {
+            acquired(store, expiring, owner("host-a"), 1, shortTtl(), OptionalInt.empty());
+            assertFalse(awaitAcquiredResult(store, expiring, owner("host-a"), 1, LONG_TTL).duplicateOwnerKey(),
+                "an expired lease of the key is no duplicate");
         }
     }
 
@@ -355,7 +399,9 @@ public abstract class SlotLeaseStoreContract {
         String namespace = newNamespace();
         try (SlotLeaseStore store = newStore()) {
             SlotLease first = acquired(store, namespace, owner("host-a"), 2);
-            SlotLease second = acquired(store, namespace, owner("host-a"), 2);
+            AcquireResult.Acquired secondResult = acquiredResult(store, namespace, owner("host-a"), 2, LONG_TTL, OptionalInt.empty());
+            assertTrue(secondResult.duplicateOwnerKey());
+            SlotLease second = secondResult.lease();
             assertNotEquals(first.slot(), second.slot());
             AcquireResult third = store.acquire(namespace, owner("host-a"), 2, LONG_TTL, TOLERANCE, OptionalInt.of(first.slot()));
             assertInstanceOf(AcquireResult.Exhausted.class, third);

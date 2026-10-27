@@ -54,6 +54,11 @@ final class RecordingListener implements GeneratorListener {
         events.add("skew:" + skewMillis);
     }
 
+    @Override
+    public void onDuplicateOwnerKey(String namespace, String ownerKey) {
+        events.add("duplicate:" + ownerKey);
+    }
+
     long count(String prefix) {
         return events.stream().filter(event -> event.startsWith(prefix)).count();
     }

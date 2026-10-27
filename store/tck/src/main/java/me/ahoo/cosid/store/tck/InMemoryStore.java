@@ -16,6 +16,7 @@ package me.ahoo.cosid.store.tck;
 import me.ahoo.cosid.NamespaceMismatchException;
 import me.ahoo.cosid.RangeExhaustedException;
 import me.ahoo.cosid.RangeSealedException;
+import me.ahoo.cosid.lease.AcquireReason;
 import me.ahoo.cosid.lease.AcquireResult;
 import me.ahoo.cosid.lease.Owner;
 import me.ahoo.cosid.lease.SlotLease;
@@ -133,29 +134,33 @@ public final class InMemoryStore implements Store, RangeStore, SlotLeaseStore {
         }
         synchronized (ns) {
             long now = storeClock.currentMillis();
+            boolean duplicate = false;
+            for (SlotRow row : ns.rows) {
+                duplicate |= !row.isFree(now) && row.owner.key().equals(owner.key()) && !row.owner.incarnation().equals(owner.incarnation());
+            }
             // §2.1, each step a conditional update of one slot: held by this very owner, preferred, sticky, lowest.
             for (int slot = 0; slot < limit; slot++) {
                 if (owner.equals(ns.rows[slot].owner)) {
-                    return new AcquireResult.Acquired(ns.rows[slot].toLease(namespace, slot, now));
+                    return new AcquireResult.Acquired(ns.rows[slot].toLease(namespace, slot, now), AcquireReason.IDEMPOTENT, duplicate);
                 }
             }
             if (preferredSlot.isPresent()) {
                 int preferred = preferredSlot.getAsInt();
                 if (preferred >= 0 && preferred < limit && ns.rows[preferred].isFree(now)) {
-                    return take(ns, namespace, preferred, owner, now, ttlMillis);
+                    return take(ns, namespace, preferred, owner, now, ttlMillis, AcquireReason.PREFERRED, duplicate);
                 }
             }
             for (int slot = 0; slot < limit; slot++) {
                 SlotRow row = ns.rows[slot];
                 if (owner.key().equals(row.lastOwnerKey) && row.isFree(now)) {
-                    return take(ns, namespace, slot, owner, now, ttlMillis);
+                    return take(ns, namespace, slot, owner, now, ttlMillis, AcquireReason.STICKY, duplicate);
                 }
             }
             long earliestExpiresAt = Long.MAX_VALUE;
             for (int slot = 0; slot < limit; slot++) {
                 SlotRow row = ns.rows[slot];
                 if (row.isFree(now)) {
-                    return take(ns, namespace, slot, owner, now, ttlMillis);
+                    return take(ns, namespace, slot, owner, now, ttlMillis, AcquireReason.LOWEST, duplicate);
                 }
                 earliestExpiresAt = Math.min(earliestExpiresAt, row.expiresAt);
             }
@@ -163,7 +168,8 @@ public final class InMemoryStore implements Store, RangeStore, SlotLeaseStore {
         }
     }
 
-    private static AcquireResult take(Namespace ns, String namespace, int slot, Owner owner, long now, long ttlMillis) {
+    private static AcquireResult take(Namespace ns, String namespace, int slot, Owner owner, long now, long ttlMillis,
+                                      AcquireReason reason, boolean duplicateOwnerKey) {
         SlotRow row = ns.rows[slot];
         row.fence++;
         row.owner = owner;
@@ -172,7 +178,7 @@ public final class InMemoryStore implements Store, RangeStore, SlotLeaseStore {
         row.expiresAt = now + ttlMillis;
         row.ceiling = Math.max(row.expiresAt + ns.toleranceMillis, row.floor);
         row.nextFloor = row.ceiling;
-        return new AcquireResult.Acquired(row.toLease(namespace, slot, now));
+        return new AcquireResult.Acquired(row.toLease(namespace, slot, now), reason, duplicateOwnerKey);
     }
 
     @Override

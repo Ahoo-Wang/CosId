@@ -74,7 +74,6 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
     /** The store clock minus the local clock, as of the last response; only for waits and the skew event. */
     private volatile long skewMillis;
     private boolean registered;
-    private SlotLease lastHeld;
     private long generation;
     private long nextDueNanos;
     private long backoffNanos;
@@ -169,7 +168,7 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
         } finally {
             lock.unlock();
         }
-        SlotLease acquired;
+        AcquireResult.Acquired acquired;
         try {
             acquired = acquireWithin(acquireTimeout);
         } catch (RuntimeException e) {
@@ -179,7 +178,7 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
         lock.lock();
         try {
             if (state != State.STARTING) {
-                releaseQuietly(acquired, acquired.floor());
+                releaseQuietly(acquired.lease(), acquired.lease().floor());
                 throw new IllegalStateException("LeaseKeeper of namespace [" + namespace + "] was closed while starting");
             }
             publish(acquired);
@@ -264,7 +263,7 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
     }
 
     /** Retries acquire until a slot is free or {@code timeout} passes; a namespace mismatch fails at once. */
-    private SlotLease acquireWithin(Duration timeout) {
+    private AcquireResult.Acquired acquireWithin(Duration timeout) {
         long deadline = ticker.nanoTime() + timeout.toNanos();
         long backoff = 0;
         RuntimeException lastError = null;
@@ -276,7 +275,7 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
             try {
                 AcquireResult result = acquireOnce();
                 if (result instanceof AcquireResult.Acquired acquired) {
-                    return acquired.lease();
+                    return acquired;
                 }
                 waitNanos = untilExpiry((AcquireResult.Exhausted) result);
                 lastError = null;
@@ -334,33 +333,23 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
     }
 
     /** Publishes a new holding as a new binding; called with the lock held. */
-    private void publish(SlotLease acquired) {
-        final String reason = reasonOf(acquired);
+    private void publish(AcquireResult.Acquired result) {
+        SlotLease acquired = result.lease();
+        final String reason = result.reason().label();
         SlotBinding previous = binding;
         if (previous != null) {
             previous.invalidate();
         }
         generation++;
         lease = acquired;
-        lastHeld = acquired;
         binding = new SlotBinding(acquired.slot(), acquired.floor(), acquired.ceiling(), generation);
         log.info("Acquired slot {} of namespace [{}] ({}), window ({}, {}], fence {}", acquired.slot(), namespace, reason,
             acquired.floor(), acquired.ceiling(), acquired.fence());
         notify(l -> l.onSlotAcquired(acquired, reason));
-    }
-
-    /** The store does not say which step of §2.1 matched; this is the client's best guess, for observation only. */
-    private String reasonOf(SlotLease acquired) {
-        if (lastHeld != null && lastHeld.slot() == acquired.slot() && lastHeld.fence() == acquired.fence()) {
-            return "idempotent";
+        if (result.duplicateOwnerKey()) {
+            log.warn("Another runtime with owner key [{}] holds a slot of namespace [{}]: check how the owner key is derived", owner.key(), namespace);
+            notify(l -> l.onDuplicateOwnerKey(namespace, owner.key()));
         }
-        if (preferredSlot.isPresent() && preferredSlot.getAsInt() == acquired.slot()) {
-            return "preferred";
-        }
-        if (lastHeld != null && lastHeld.slot() == acquired.slot()) {
-            return "sticky";
-        }
-        return "lowest";
     }
 
     private void renewLoop() {
@@ -435,7 +424,6 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
             SlotLease fresh = renewed.get();
             observeClock(fresh, sentAt);
             lease = fresh;
-            lastHeld = fresh;
             binding.raiseCeiling(fresh.ceiling());
             nextDueNanos = ticker.nanoTime() + renewIntervalNanos;
             notify(l -> l.onSlotRenewed(fresh));
@@ -454,7 +442,7 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
             AcquireResult result = acquireOnce();
             backoffNanos = 0;
             if (result instanceof AcquireResult.Acquired acquired) {
-                publish(acquired.lease());
+                publish(acquired);
                 nextDueNanos = ticker.nanoTime() + renewIntervalNanos;
             } else {
                 long waitNanos = untilExpiry((AcquireResult.Exhausted) result);

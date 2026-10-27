@@ -346,8 +346,11 @@ class LeaseKeeperTest {
         LeaseKeeper first = keeper(store, owner("host-a"), 2, TTL, tasks::add, clock);
         LeaseKeeper second = keeper(store, owner("host-a"), 2, TTL, tasks::add, clock);
         first.start();
+        assertThat(listener.count("duplicate:"), is(0L));
         second.start();
         assertThat(first.current().slot(), not(second.current().slot()));
+        assertThat("the store reports the other live incarnation of the key", listener.events, contains("acquired:0:lowest", "acquired:1:lowest",
+            "duplicate:host-a"));
         assertThat(first.owner().incarnation(), not(second.owner().incarnation()));
         first.close();
         second.close();
@@ -385,12 +388,18 @@ class LeaseKeeperTest {
     }
 
     @Test
-    void namesThePreferredAndStickyReasons() {
+    void reportsTheReasonTheStoreGives() {
         LeaseKeeper keeper = new LeaseKeeper(store, NS, owner("host-a"), 2, TTL, TOLERANCE, OptionalInt.of(2), TTL, tasks::add, clock, listener, ticker);
         keeper.start();
         assertThat(keeper.current().slot(), is(2));
         assertThat(listener.events, contains("acquired:2:preferred"));
         keeper.close();
+
+        LeaseKeeper sticky = keeper(2);
+        sticky.start();
+        assertThat("host-a held slot 2 last", sticky.current().slot(), is(2));
+        assertThat(listener.events, hasItem("acquired:2:sticky"));
+        sticky.close();
     }
 
     @Test

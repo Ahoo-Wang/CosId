@@ -34,12 +34,13 @@ import java.time.ZoneId;
  */
 class ConfigGoldenTest {
     @ParameterizedTest
-    @ValueSource(strings = {"yaml/input.yaml", "properties/input.properties", "segments-only/input.yaml"})
+    @ValueSource(strings = {"yaml/input.yaml", "properties/input.properties", "segments-only/input.yaml", "edge/input.yaml"})
     void convertsToTheGolden(String input) throws IOException {
         Path dir = Files.createTempDirectory("cosid-config");
         Path output = dir.resolve("application-5.yaml");
         Path inputFile = MigrationScenarioTest.resource("config/" + input);
-        Path result = MigrationScenarioTest.resource("config/apply-result.json");
+        // The edge case runs without apply-result.json: a static slot without not-before is reported.
+        Path result = input.startsWith("edge/") ? null : MigrationScenarioTest.resource("config/apply-result.json");
         new Migration(new PrintStream(new ByteArrayOutputStream(), true, StandardCharsets.UTF_8))
             .config(new Migration.ConfigOptions(inputFile, result, output, ZoneId.of("Asia/Shanghai")));
         String actual = Files.readString(output);

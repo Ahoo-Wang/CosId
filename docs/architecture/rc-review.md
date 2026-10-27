@@ -33,7 +33,7 @@
 | C spring/server/integrations | 进行中 | — |
 | D migration | 进行中 | — |
 | E 发布就绪 | 进行中 | — |
-| 发布门槛(CI) | 运行中:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762) | 报告 PR 待开 |
+| 发布门槛(CI) | 运行中:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762),spring-start 组已通过 | 分析 Draft PR [#1345](https://github.com/Ahoo-Wang/CosId/pull/1345)(`docs/jmh/5.0/analysis.md`) |
 | #1342 ZK 排除 Netty | CI 中 | — |
 
 ## 3. 发现(核实后填写)

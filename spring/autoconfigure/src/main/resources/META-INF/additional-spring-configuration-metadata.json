@@ -65,7 +65,8 @@
         { "value": "jdbc", "description": "cosid-store-jdbc on the context's DataSource." },
         { "value": "redis", "description": "cosid-store-redis on the context's Lettuce client or RedisConnectionFactory." },
         { "value": "mongo", "description": "cosid-store-mongo on the context's MongoClient." },
-        { "value": "zookeeper", "description": "cosid-store-zookeeper on the context's CuratorFramework." }
+        { "value": "zookeeper", "description": "cosid-store-zookeeper on the context's CuratorFramework." },
+        { "value": "remote", "description": "cosid-store-remote: the leases and ranges of a cosid-server." }
       ]
     },
     {

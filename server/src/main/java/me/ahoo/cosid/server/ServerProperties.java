@@ -1,0 +1,145 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.cosid.server;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
+
+import java.time.Duration;
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * {@code cosid.server.*} (08-remote.md): the backing store, the limits, the blocking pool, the authentication and the
+ * optional id endpoints.
+ *
+ * @param store    the name of the backing store among {@code cosid.stores}; may be left out when there is only one
+ * @param limits   what a request may ask for
+ * @param blocking the bounded pool the store calls run on
+ * @param auth     the bearer token authentication, on by default
+ * @param ids      the optional id endpoints
+ */
+@ConfigurationProperties(prefix = ServerProperties.PREFIX)
+public record ServerProperties(String store,
+                               @DefaultValue Limits limits,
+                               @DefaultValue Blocking blocking,
+                               @DefaultValue Auth auth,
+                               @DefaultValue Ids ids) {
+    /** The prefix of the properties. */
+    public static final String PREFIX = "cosid.server";
+
+    /**
+     * What one request may ask for (08 §2). Exceeding a limit is a {@code 400}, except the key cap ({@code 429}).
+     *
+     * @param minTtl              the shortest lease ttl
+     * @param maxTtl              the longest lease ttl
+     * @param maxTolerance        the largest tolerance (D20)
+     * @param maxSlotLimit        the largest slot limit of a namespace; the stores prepare that many slots
+     * @param maxReserve          the largest range one reserve takes
+     * @param maxCount            the most ids one id request takes
+     * @param maxKeysPerNamespace the most range keys one namespace may use on this server instance; 0 for no cap
+     */
+    public record Limits(@DefaultValue("100ms") Duration minTtl,
+                         @DefaultValue("1h") Duration maxTtl,
+                         @DefaultValue("1m") Duration maxTolerance,
+                         @DefaultValue("65536") int maxSlotLimit,
+                         @DefaultValue("1000000000000") long maxReserve,
+                         @DefaultValue("1000") int maxCount,
+                         @DefaultValue("10000") int maxKeysPerNamespace) {
+        public Limits {
+            Objects.requireNonNull(minTtl, "min-ttl");
+            Objects.requireNonNull(maxTtl, "max-ttl");
+            Objects.requireNonNull(maxTolerance, "max-tolerance");
+            if (minTtl.isNegative() || minTtl.isZero() || maxTtl.compareTo(minTtl) < 0) {
+                throw new IllegalArgumentException(PREFIX + ".limits: need 0 < min-ttl <= max-ttl, got " + minTtl + " and " + maxTtl);
+            }
+            if (maxTolerance.isNegative()) {
+                throw new IllegalArgumentException(PREFIX + ".limits.max-tolerance must not be negative: " + maxTolerance);
+            }
+            positive(maxSlotLimit, "max-slot-limit");
+            positive(maxReserve, "max-reserve");
+            positive(maxCount, "max-count");
+            if (maxKeysPerNamespace < 0) {
+                throw new IllegalArgumentException(PREFIX + ".limits.max-keys-per-namespace must not be negative: " + maxKeysPerNamespace);
+            }
+        }
+    }
+
+    /**
+     * The bounded pool the blocking store calls run on (08 §2): when its threads are busy and its queue is full, a call
+     * gets {@code 503} with {@code Retry-After: 1}.
+     *
+     * @param threads       the threads
+     * @param queueCapacity the calls that may wait
+     */
+    public record Blocking(@DefaultValue("64") int threads, @DefaultValue("1024") int queueCapacity) {
+        public Blocking {
+            positive(threads, "blocking.threads");
+            if (queueCapacity < 0) {
+                throw new IllegalArgumentException(PREFIX + ".blocking.queue-capacity must not be negative: " + queueCapacity);
+            }
+        }
+    }
+
+    /**
+     * Bearer token authentication, on by default (08 §3): without a token or a client the server refuses to start,
+     * unless {@code allow-anonymous} is set.
+     *
+     * @param allowAnonymous allow every call without a token, when no token and no client is configured
+     * @param tokens         tokens that may use every namespace and key
+     * @param clients        tokens limited to namespaces and key prefixes
+     * @param publicPaths    path patterns that need no token
+     */
+    public record Auth(boolean allowAnonymous,
+                       @DefaultValue List<String> tokens,
+                       @DefaultValue List<Client> clients,
+                       @DefaultValue({"/actuator/health", "/actuator/health/**"}) List<String> publicPaths) {
+        public Auth {
+            tokens = List.copyOf(Objects.requireNonNull(tokens, "tokens"));
+            clients = List.copyOf(Objects.requireNonNull(clients, "clients"));
+            publicPaths = List.copyOf(Objects.requireNonNull(publicPaths, "publicPaths"));
+        }
+    }
+
+    /**
+     * A client token and what it may use: a slot namespace, a range key whose first segment is the namespace, or a
+     * range key starting with a prefix. {@code *} as a namespace allows every namespace. The id endpoints need the
+     * namespace of the server's runtime ({@code cosid.namespace}).
+     *
+     * @param name        the client, for logs
+     * @param token       the token
+     * @param namespaces  the namespaces
+     * @param keyPrefixes the range key prefixes
+     */
+    public record Client(String name, String token, @DefaultValue List<String> namespaces, @DefaultValue List<String> keyPrefixes) {
+        public Client {
+            namespaces = List.copyOf(Objects.requireNonNull(namespaces, "namespaces"));
+            keyPrefixes = List.copyOf(Objects.requireNonNull(keyPrefixes, "keyPrefixes"));
+        }
+    }
+
+    /**
+     * The optional id endpoints {@code /v5/ids/**}, served by the generators of the server's {@code CosIdRuntime}.
+     *
+     * @param enabled whether they are on; off by default
+     */
+    public record Ids(boolean enabled) {
+    }
+
+    private static void positive(long value, String name) {
+        if (value <= 0) {
+            throw new IllegalArgumentException(PREFIX + "." + name + " must be positive: " + value);
+        }
+    }
+}

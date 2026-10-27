@@ -365,6 +365,58 @@ jobs:
                       print(f"- {suite.get('name').rsplit('.', 1)[-1]}.{case.get('name')}: {(failure.get('message') or '')[:200]}")
           EOF
 
+  # R4-A: store/remote through a real cosid-server, started in process: the store TCK on InMemoryStore, H2 (JDBC) and
+  # the Redis service below (08-remote.md); checkContractsRan fails the job when a contract case was skipped. Then the
+  # Docker image is built and smoke tested on the same Redis: health public, 401 without the token, a reserve with it.
+  server:
+    name: Server (remote TCK, image)
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:8.10-alpine
+        ports:
+          - 6379:6379
+    env:
+      COSID_TEST_REDIS_URI: redis://localhost:6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Remote TCK
+        run: scripts/gradle-retry.sh :store:remote:check :server:check
+
+      - name: Check the Redis contracts ran
+        run: |
+          for report in server/build/test-results/test/TEST-*RemoteRedis*.xml; do
+            grep -q 'skipped="0"' "$report" || { echo "::error::$report skipped its cases"; exit 1; }
+          done
+
+      - name: Build the image
+        run: ./gradlew :server:dockerImage
+
+      - name: Smoke test the image
+        run: |
+          docker run -d --name cosid-server --network host \
+            -e COSID_STORES_MAIN_TYPE=redis -e COSID_STORES_MAIN_OPTIONS_URI=redis://localhost:6379 \
+            -e COSID_SERVER_AUTH_TOKENS_0=smoke "ahoowang/cosid-server:$(grep '^version=' gradle.properties | cut -d= -f2)"
+          for i in $(seq 1 60); do curl -fsS localhost:8688/actuator/health/liveness && break; sleep 1; done
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8688/v5/ranges:reserve -H 'Content-Type: application/json' \
+            -d '{"key":"smoke/a","size":10,"initialOffset":0}')" = 401
+          curl -fsS -X POST localhost:8688/v5/ranges:reserve -H 'Authorization: Bearer smoke' -H 'Content-Type: application/json' \
+            -d '{"key":"smoke/a","size":10,"initialOffset":0}' | grep -q '"end":'
+          curl -fsS -H 'Authorization: Bearer smoke' localhost:8688/v3/api-docs | grep -q '/v5/slots:acquire'
+
+      - name: Server logs
+        if: failure()
+        run: docker logs cosid-server || true
+
   # R3-S: the Spring Boot compatibility matrix of spring/* (02-modules.md §5): the lowest supported and the build's Boot,
   # on Java 21 and 25. Java 21 compiles, the matrix Java runs the tests; a test run with skipped tests fails the job.
   spring-compatibility:

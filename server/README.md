@@ -1,0 +1,79 @@
+# cosid-server
+
+The CosId 5 remote service (`docs/architecture/08-remote.md`, D8). It is a Spring Boot application, not a library. It
+exposes the two store primitives of its **backing store** under `/v5`: one of `cosid.stores`, either JDBC, Redis, Mongo
+or ZooKeeper. Each call is one call of that store. The store runs the slot choice (05 §2.1) and stamps every time with its
+own clock, so the server keeps no state and scales out. `cosid-store-remote` (type `remote`) is the client.
+
+Optionally (`cosid.server.ids.enabled=true`), the server also issues ids from the generators of its own `CosIdRuntime`.
+This is for clients that cannot reach a store or are not on the JVM.
+
+## API
+
+Keys and namespaces travel in the JSON body, never in the path. Errors are `{code, message}`; the codes are in
+`me.ahoo.cosid.store.remote.RemoteApi`.
+
+| Method | Path | Request | Response |
+|---|---|---|---|
+| POST | `/v5/ranges:reserve` | `{key, size, initialOffset}` | `{start, end}`; `410 range_sealed`; `422 range_exhausted` |
+| POST | `/v5/ranges:seal` | `{key}` | `204`; `501 seal_unsupported` |
+| POST | `/v5/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, preferredSlot?}` | lease + `{reason, duplicateOwnerKey}`; `409 slots_exhausted {earliestExpiresAt}`; `409 namespace_mismatch` |
+| POST | `/v5/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | lease; `409 lease_lost` |
+| POST | `/v5/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204`; `409 lease_lost` |
+| GET | `/v5/ids[/{generator}]?count=n` | — | `{ids: [...]}` (optional) |
+| GET | `/v5/ids[/{generator}]/strings?count=n` | — | `{ids: ["..."]}`, through the generator's codec (optional) |
+| GET | `/v5/ids/{generator}/periodic?count=n` | — | `{period, values: [...]}`, all of one period (optional) |
+
+A lease is `{namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow}`. Renew and release
+also accept the lease's `expiresAt`, `floor`, `ceiling` and `storeNow`, and the client sends them. Without a generator in
+the path, the id endpoints use the one named `default` (the 4.x share).
+
+Other statuses: `400 bad_request` (a missing field, a bad character set or length, a value past a limit), `401`, `403`,
+`429 too_many_keys`, `503 busy` with `Retry-After: 1`, `500 store_error`. Every response carries `Cache-Control: no-store`.
+
+## Configuration (`cosid.server.*`)
+
+| Property | Default | Meaning |
+|---|---|---|
+| `store` | the only store | the backing store among `cosid.stores` |
+| `auth.tokens` | — | tokens that may use everything |
+| `auth.clients[i].{name, token, namespaces, key-prefixes}` | — | tokens limited to slot namespaces, range keys whose first segment is one of the namespaces, or range keys with one of the prefixes; `*` allows every namespace; the id endpoints need `cosid.namespace` |
+| `auth.allow-anonymous` | `false` | without any token, the server **refuses to start** unless this is set |
+| `auth.public-paths` | `/actuator/health`, `/actuator/health/**` | path patterns that need no token |
+| `limits.min-ttl` / `max-ttl` | `100ms` / `1h` | the lease ttl range |
+| `limits.max-tolerance` | `1m` | |
+| `limits.max-slot-limit` | `65536` | the stores prepare `limit` slots per namespace |
+| `limits.max-reserve` | `1e12` | the largest `size` |
+| `limits.max-count` | `1000` | the largest `count` of the id endpoints |
+| `limits.max-keys-per-namespace` | `10000` | distinct range keys per namespace, per server instance (`429` past it; `0` = no cap) |
+| `blocking.threads` / `queue-capacity` | `64` / `1024` | the bounded pool of the store calls |
+| `ids.enabled` | `false` | the id endpoints |
+
+A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`.
+
+## Operations
+
+- Actuator: `health` (public; `liveness` and `readiness` probes), `info`, `prometheus`, and `cosid` (the runtime).
+  The meter `cosid.server.call.rejections{reason=busy|too_many_keys}` counts the calls the server turned away.
+- OpenAPI: `/v3/api-docs` and Swagger UI at `/swagger-ui.html`. Both need a token unless you add them to `public-paths`.
+- Image: `./gradlew :server:dockerImage` (the `Dockerfile` on `build/libs/cosid-server.jar`), or `:server:bootBuildImage`.
+
+```bash
+docker run -d -p 8688:8688 \
+  -e COSID_STORES_MAIN_TYPE=redis -e COSID_STORES_MAIN_OPTIONS_URI=redis://redis:6379 \
+  -e COSID_SERVER_AUTH_TOKENS_0=change-me ahoowang/cosid-server:5.0.0-SNAPSHOT
+```
+
+Clients:
+
+```yaml
+cosid:
+  stores:
+    remote:
+      type: remote
+      options:
+        baseUrl: http://cosid-server:8688
+        token: change-me
+        connectTimeout: 5s
+        requestTimeout: 3s   # StoreConfig.timeout by default
+```

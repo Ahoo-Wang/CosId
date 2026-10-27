@@ -13,8 +13,8 @@ old versions is or will be added, and the CI `probe` jobs on 3.6 and 3.7 never b
 
 | Version | TCK result | Notes |
 |---|---|---|
-| 3.9 (primary) | pass | CI `store-zookeeper (3.9)`; the in-process test server is 3.9.3 |
-| 3.8 (minimum) | pass | CI `store-zookeeper (3.8)`; locally on `zookeeper:3.8` |
+| 3.9 (primary) | pass | CI `Store ZooKeeper (3.9)`; the in-process test server is 3.9.3 |
+| 3.8 (minimum) | pass | CI `Store ZooKeeper (3.8)`; locally on `zookeeper:3.8` |
 | 3.7.2 | pass | 2026-10-26, `zookeeper:3.7`, every contract and store case (55); CI probe job |
 | 3.6.4 | pass | 2026-10-26, `zookeeper:3.6`, every contract and store case (55); CI probe job |
 | 3.5 and older | not run | expected to fail: acquire reads the slots with a read-only `multi`, added in 3.6 |

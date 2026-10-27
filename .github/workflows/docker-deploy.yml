@@ -23,9 +23,9 @@ on:
       - 'documentation/**'
       - 'examples/**'
       - 'wiki/**'
-    # Images are pushed from main and release tags only; pull requests build and smoke-test the image without pushing.
+    # Images are pushed from 4.x and release tags only; pull requests build and smoke-test the image without pushing.
     branches:
-      - 'main'
+      - '4.x'
     tags:
       - 'v*.*.*'
   pull_request:
@@ -37,7 +37,7 @@ on:
       - 'examples/**'
       - 'wiki/**'
     branches:
-      - 'main'
+      - '4.x'
   workflow_dispatch:
 permissions:
   contents: read

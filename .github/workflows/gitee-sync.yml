@@ -4,7 +4,7 @@ on:
     - cron: '0 0 * * *'
   push:
     branches:
-      - main
+      - 4.x
       - gh-pages
       - gh-pages-with-site-base
   workflow_dispatch:

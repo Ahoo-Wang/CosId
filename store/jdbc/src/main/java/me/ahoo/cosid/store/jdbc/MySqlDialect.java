@@ -19,11 +19,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalLong;
 
 /**
- * MySQL 8.0+ and MariaDB 10.6+ (both have {@code for update skip locked}).
+ * MySQL 8.0+ and MariaDB 10.6+.
  *
  * <p>{@code reserve} is {@code insert … on duplicate key update} where <em>both</em> branches set
  * {@code last_insert_id}: the insert branch through {@code values (?, last_insert_id(? + ?))}, the update branch
@@ -85,11 +84,6 @@ final class MySqlDialect implements JdbcDialect {
             long next = rs.getLong(1);
             return next == 0 ? OptionalLong.empty() : OptionalLong.of(next);
         }
-    }
-
-    @Override
-    public Optional<String> readCommittedTransaction() {
-        return Optional.of("set transaction isolation level read committed");
     }
 
     @Override

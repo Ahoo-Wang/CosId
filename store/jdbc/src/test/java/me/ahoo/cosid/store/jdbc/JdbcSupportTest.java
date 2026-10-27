@@ -64,7 +64,7 @@ class JdbcSupportTest {
         jdbc.run("schema", session -> session.connection().createStatement().execute("create table t (v int)"));
         try (Connection connection = dataSource.getConnection()) {
             connection.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-            JdbcSession session = new JdbcSession(connection, JdbcTables.DEFAULT, 5, java.util.Optional.empty());
+            JdbcSession session = new JdbcSession(connection, JdbcTables.DEFAULT, 5);
             IllegalStateException failure = new IllegalStateException("boom");
             IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> session.transaction(() -> {
                 assertEquals(Connection.TRANSACTION_READ_COMMITTED, connection.getTransactionIsolation());

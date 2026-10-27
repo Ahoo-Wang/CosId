@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.OptionalLong;
 
 /**
- * SQL Server 2019+: {@code merge … with (holdlock) … output inserted.next_value}, one round trip; the slot choice
- * locks with {@code with (updlock, readpast, rowlock)} and {@code top 1}.
+ * SQL Server 2019+: {@code merge … with (holdlock) … output inserted.next_value}, one round trip; candidate rows
+ * with {@code top}.
  */
 final class SqlServerDialect implements JdbcDialect {
     @Override
@@ -63,8 +63,8 @@ final class SqlServerDialect implements JdbcDialect {
     }
 
     @Override
-    public String lockFirst(String columns, String table, String where, String orderBy) {
-        return "select top 1 " + columns + " from " + table + " with (updlock, readpast, rowlock) where " + where + " order by " + orderBy;
+    public String firstRows(String columns, String table, String where, String orderBy, int rows) {
+        return "select top " + rows + " " + columns + " from " + table + " where " + where + " order by " + orderBy;
     }
 
     @Override
@@ -79,10 +79,14 @@ final class SqlServerDialect implements JdbcDialect {
         }
     }
 
+    /**
+     * Without {@code holdlock}: concurrent first uses of a namespace would queue on its key-range locks; instead the
+     * loser of a race fails with a duplicate key and the store runs it again, inserting only what is still missing.
+     */
     @Override
     public void provisionSlots(JdbcSession session, String namespace, int limit) throws SQLException {
         try (PreparedStatement merge = session.prepare("with n (slot) as (select 0 union all select slot + 1 from n where slot + 1 < ?)"
-            + " merge into " + session.tables().slot() + " with (holdlock) as s using (select ? as namespace, slot from n) as v"
+            + " merge into " + session.tables().slot() + " as s using (select ? as namespace, slot from n) as v"
             + " on s.namespace = v.namespace and s.slot = v.slot"
             + " when not matched then insert (namespace, slot) values (v.namespace, v.slot) option (maxrecursion 0);")) {
             merge.setInt(1, limit);

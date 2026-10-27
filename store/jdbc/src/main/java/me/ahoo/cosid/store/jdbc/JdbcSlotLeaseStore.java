@@ -24,13 +24,16 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Slot leases in {@code cosid_slot} (05-machine-lease.md §2, 06-stores.md §2.1).
@@ -38,10 +41,10 @@ import java.util.concurrent.locks.LockSupport;
  * <ul>
  *     <li>The first {@code acquire} of a namespace records {@code {limit, tolerance}} in {@code cosid_namespace} and
  *     creates its {@code limit} slot rows, idempotently; a store instance remembers the namespaces it checked.</li>
- *     <li>{@code acquire} reads the rows of the owner key once (the idempotent retry, and whether another incarnation
- *     of the key is live), then tries the preferred, the sticky and the lowest free slot in that order, each in a
- *     {@code READ COMMITTED} transaction that locks one candidate with {@link JdbcDialect#lockFirst} (skipping rows
- *     other acquirers hold) and updates it under its fence.</li>
+ *     <li>{@code acquire} reads its candidates once without locking (the rows of the owner key, the preferred slot
+ *     and the first free slots), then takes the first of §2.1's order that a compare-and-set update still finds free:
+ *     the idempotent retry, preferred, sticky, lowest. Uniqueness only needs that per-slot atomic update; there is no
+ *     transaction or row lock, so a fresh acquire is two round trips.</li>
  *     <li>{@code renew} and {@code release} read the row of the lease and write it back with a compare-and-set on
  *     incarnation, fence, expiry and ceiling; a lost race reads again.</li>
  * </ul>
@@ -50,11 +53,8 @@ import java.util.concurrent.locks.LockSupport;
  * write is computed from, so {@code expiresAt − storeNow == ttl}. Uniqueness does not depend on that clock (05 §3).
  */
 final class JdbcSlotLeaseStore implements SlotLeaseStore {
-    /** How long an acquire waits between attempts that found free slots locked by concurrent acquirers. */
-    private static final long BUSY_PAUSE_NANOS = TimeUnit.MILLISECONDS.toNanos(5);
-    /** How long an acquire keeps trying when free slots stay locked and the store has no timeout. */
-    private static final Duration DEFAULT_BUSY_WAIT = Duration.ofSeconds(10);
-    private static final String LEASE_COLUMNS = "slot, fence, expires_at, floor_ms, ceiling_ms, next_floor_ms";
+    /** How many free slots one acquire reads as candidates of the lowest step. */
+    static final int FREE_CANDIDATES = 8;
     private final Jdbc jdbc;
     private final String now;
     private final String free;
@@ -78,140 +78,161 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         long toleranceMillis = toleranceMillis(tolerance);
         Namespace ns = new Namespace(limit, toleranceMillis);
         ensureNamespace(namespace, ns);
-        Duration busyWait = jdbc.timeout.isZero() ? DEFAULT_BUSY_WAIT : jdbc.timeout;
-        long deadline = System.nanoTime() + busyWait.toNanos();
-        while (true) {
-            Attempt attempt = jdbc.run("acquire in " + namespace, session -> attempt(session, namespace, owner, ns, ttlMillis, preferredSlot));
-            if (attempt.result != null) {
-                return attempt.result;
+        int preferred = preferredSlot.isPresent() && preferredSlot.getAsInt() >= 0 && preferredSlot.getAsInt() < limit ? preferredSlot.getAsInt() : -1;
+        return jdbc.run("acquire in " + namespace, session -> {
+            while (true) {
+                AcquireResult result = attempt(session, namespace, owner, ns, ttlMillis, preferred);
+                if (result != null) {
+                    return result;
+                }
+                // Every candidate was taken or renewed by someone else between the read and the update: read again.
             }
-            if (System.nanoTime() - deadline > 0) {
-                // Free slots stayed locked: tell the caller to come back right away.
-                return new AcquireResult.Exhausted(attempt.storeNow);
-            }
-            LockSupport.parkNanos(BUSY_PAUSE_NANOS);
-        }
+        });
     }
 
-    private Attempt attempt(JdbcSession session, String namespace, Owner owner, Namespace ns, long ttlMillis, OptionalInt preferredSlot) throws SQLException {
+    /**
+     * One read of the candidates, then one compare-and-set per candidate in the order of §2.1.
+     *
+     * @return the result, or null when every candidate was lost to a concurrent write
+     */
+    private AcquireResult attempt(JdbcSession session, String namespace, Owner owner, Namespace ns, long ttlMillis, int preferred) throws SQLException {
+        Map<Integer, Candidate> candidates = candidates(session, namespace, owner, ns, preferred);
         String incarnation = owner.incarnation().toString();
-        // §2.1 step 1, duplicateOwnerKey, and whether step 3 has a candidate: the rows of this owner key, in one read.
         boolean duplicate = false;
-        boolean stickyCandidate = false;
-        SlotLease held = null;
-        try (PreparedStatement select = session.prepare("select " + LEASE_COLUMNS + ", owner_key, incarnation, case when " + free + " then 1 else 0 end as free_now, "
-            + now + " as store_now from " + session.tables().slot() + " where namespace = ? and slot < ? and (owner_key = ? or last_owner_key = ?)")) {
+        Candidate held = null;
+        for (Candidate candidate : candidates.values()) {
+            if (owner.key().equals(candidate.ownerKey)) {
+                if (incarnation.equals(candidate.incarnation)) {
+                    held = candidate;
+                } else if (!candidate.free) {
+                    duplicate = true;
+                }
+            }
+        }
+        // §2.1 step 1: the owner, same key and incarnation, already holds a slot.
+        if (held != null) {
+            SlotLease lease = new SlotLease(namespace, held.slot, owner, held.fence, held.expiresAt, held.floor, held.ceiling, held.storeNow);
+            return new AcquireResult.Acquired(lease, AcquireReason.IDEMPOTENT, duplicate);
+        }
+        if (candidates.isEmpty()) {
+            return new AcquireResult.Exhausted(earliestExpiresAt(session, namespace, ns));
+        }
+        // Step 2: the preferred slot.
+        Candidate preferredCandidate = candidates.get(preferred);
+        if (preferredCandidate != null && preferredCandidate.free) {
+            SlotLease lease = take(session, namespace, owner, ns, ttlMillis, preferredCandidate);
+            if (lease != null) {
+                return new AcquireResult.Acquired(lease, AcquireReason.PREFERRED, duplicate);
+            }
+        }
+        // Step 3: a free slot the owner key held last, lowest first.
+        for (Candidate candidate : candidates.values()) {
+            if (candidate.free && owner.key().equals(candidate.lastOwnerKey)) {
+                SlotLease lease = take(session, namespace, owner, ns, ttlMillis, candidate);
+                if (lease != null) {
+                    return new AcquireResult.Acquired(lease, AcquireReason.STICKY, duplicate);
+                }
+            }
+        }
+        // Step 4: the lowest free slot; after losing it to a concurrent acquire, a random one of the next free ones, so
+        // that racing acquirers spread out instead of all retrying the same row ("lowest" is best effort, §2.1).
+        List<Candidate> free = new ArrayList<>();
+        for (Candidate candidate : candidates.values()) {
+            if (candidate.free) {
+                free.add(candidate);
+            }
+        }
+        if (free.isEmpty()) {
+            return new AcquireResult.Exhausted(earliestExpiresAt(session, namespace, ns));
+        }
+        if (free.size() > 2) {
+            Collections.shuffle(free.subList(1, free.size()), ThreadLocalRandom.current());
+        }
+        for (Candidate candidate : free) {
+            SlotLease lease = take(session, namespace, owner, ns, ttlMillis, candidate);
+            if (lease != null) {
+                return new AcquireResult.Acquired(lease, AcquireReason.LOWEST, duplicate);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The candidates of one acquire in one non-locking read, by slot: the rows of the owner key (held or sticky), the
+     * preferred slot, and the first {@link #FREE_CANDIDATES} free slots, each with the store clock of the read.
+     */
+    private Map<Integer, Candidate> candidates(JdbcSession session, String namespace, Owner owner, Namespace ns, int preferred) throws SQLException {
+        String table = session.tables().slot();
+        String columns = "slot, fence, owner_key, incarnation, last_owner_key, expires_at, floor_ms, ceiling_ms, next_floor_ms, case when " + free
+            + " then 1 else 0 end as free_now, " + now + " as store_now";
+        String sql = "select * from (select " + columns + " from " + table
+            + " where namespace = ? and slot < ? and (owner_key = ? or last_owner_key = ? or slot = ?)) o union all select * from ("
+            + jdbc.dialect.firstRows(columns, table, "namespace = ? and slot < ? and " + free, "slot", FREE_CANDIDATES) + ") f";
+        Map<Integer, Candidate> candidates = new TreeMap<>();
+        try (PreparedStatement select = session.prepare(sql)) {
             select.setString(1, namespace);
             select.setInt(2, ns.limit);
             select.setString(3, owner.key());
             select.setString(4, owner.key());
+            select.setInt(5, preferred);
+            select.setString(6, namespace);
+            select.setInt(7, ns.limit);
             try (ResultSet rs = select.executeQuery()) {
                 while (rs.next()) {
-                    long storeNow = rs.getLong("store_now");
-                    boolean freeNow = rs.getInt("free_now") == 1;
-                    stickyCandidate |= freeNow;
-                    if (!owner.key().equals(rs.getString("owner_key"))) {
-                        continue;
-                    }
-                    String rowIncarnation = rs.getString("incarnation");
-                    if (rowIncarnation != null && incarnation.equals(rowIncarnation.strip())) {
-                        held = lease(rs, namespace, owner, storeNow);
-                    } else if (!freeNow) {
-                        duplicate = true;
-                    }
+                    String incarnation = rs.getString("incarnation");
+                    Candidate candidate = new Candidate(rs.getInt("slot"), rs.getLong("fence"), rs.getString("owner_key"),
+                        incarnation == null ? null : incarnation.strip(), rs.getString("last_owner_key"), rs.getLong("expires_at"), rs.getLong("floor_ms"),
+                        rs.getLong("ceiling_ms"), rs.getLong("next_floor_ms"), rs.getInt("free_now") == 1, rs.getLong("store_now"));
+                    candidates.putIfAbsent(candidate.slot, candidate);
                 }
             }
         }
-        if (held != null) {
-            return new Attempt(new AcquireResult.Acquired(held, AcquireReason.IDEMPOTENT, duplicate), held.storeNow());
-        }
-        if (preferredSlot.isPresent() && preferredSlot.getAsInt() >= 0 && preferredSlot.getAsInt() < ns.limit) {
-            int preferred = preferredSlot.getAsInt();
-            SlotLease lease = take(session, namespace, owner, ns, ttlMillis, "namespace = ? and slot = ? and " + free, select -> {
-                select.setString(1, namespace);
-                select.setInt(2, preferred);
-            });
-            if (lease != null) {
-                return new Attempt(new AcquireResult.Acquired(lease, AcquireReason.PREFERRED, duplicate), lease.storeNow());
-            }
-        }
-        SlotLease sticky = !stickyCandidate ? null : take(session, namespace, owner, ns, ttlMillis, "namespace = ? and slot < ? and last_owner_key = ? and " + free,
-            select -> {
-                select.setString(1, namespace);
-                select.setInt(2, ns.limit);
-                select.setString(3, owner.key());
-            });
-        if (sticky != null) {
-            return new Attempt(new AcquireResult.Acquired(sticky, AcquireReason.STICKY, duplicate), sticky.storeNow());
-        }
-        SlotLease lowest = take(session, namespace, owner, ns, ttlMillis, "namespace = ? and slot < ? and " + free, select -> {
-            select.setString(1, namespace);
-            select.setInt(2, ns.limit);
-        });
-        if (lowest != null) {
-            return new Attempt(new AcquireResult.Acquired(lowest, AcquireReason.LOWEST, duplicate), lowest.storeNow());
-        }
-        // Step 5, unless a free slot was only skipped because a concurrent acquire had it locked.
-        try (PreparedStatement select = session.prepare("select min(expires_at), sum(case when " + free + " then 1 else 0 end), " + now
-            + " from " + session.tables().slot() + " where namespace = ? and slot < ?")) {
+        return candidates;
+    }
+
+    private long earliestExpiresAt(JdbcSession session, String namespace, Namespace ns) throws SQLException {
+        try (PreparedStatement select = session.prepare("select min(expires_at) from " + session.tables().slot() + " where namespace = ? and slot < ?")) {
             select.setString(1, namespace);
             select.setInt(2, ns.limit);
             try (ResultSet rs = select.executeQuery()) {
                 rs.next();
-                long earliestExpiresAt = rs.getLong(1);
-                long freeSlots = rs.getLong(2);
-                long storeNow = rs.getLong(3);
-                return freeSlots > 0 ? new Attempt(null, storeNow) : new Attempt(new AcquireResult.Exhausted(earliestExpiresAt), storeNow);
+                return rs.getLong(1);
             }
         }
     }
 
     /**
-     * One step of the slot choice: locks the first free row matching {@code where} and takes it under its fence (05
-     * §2.2: {@code fence + 1}, {@code floor = next_floor}, {@code ceiling = max(expiresAt + tolerance, floor)}).
+     * Takes a free candidate with one compare-and-set (05 §2.2: {@code fence + 1}, {@code floor = next_floor},
+     * {@code ceiling = max(expiresAt + tolerance, floor)}): the update matches only while the row still has the fence
+     * and next floor that were read and is still free by the store clock. A renewal in between makes the row live, a
+     * takeover or release raises the fence, so a matched update always starts from the row as read.
      *
-     * @return the lease, or null if no row matched
+     * @return the lease, or null if the row changed since the read
      */
-    private SlotLease take(JdbcSession session, String namespace, Owner owner, Namespace ns, long ttlMillis, String where, Binder binder) throws SQLException {
-        String table = session.tables().slot();
-        return session.transaction(() -> {
-            int slot;
-            long fence;
-            long floor;
-            long storeNow;
-            try (PreparedStatement select = session.prepare(jdbc.dialect.lockFirst(LEASE_COLUMNS + ", " + now + " as store_now", table, where, "slot"))) {
-                binder.bind(select);
-                try (ResultSet rs = select.executeQuery()) {
-                    if (!rs.next()) {
-                        return null;
-                    }
-                    slot = rs.getInt("slot");
-                    fence = rs.getLong("fence");
-                    floor = rs.getLong("next_floor_ms");
-                    storeNow = rs.getLong("store_now");
-                }
+    private SlotLease take(JdbcSession session, String namespace, Owner owner, Namespace ns, long ttlMillis, Candidate candidate) throws SQLException {
+        long floor = candidate.nextFloor;
+        long expiresAt = candidate.storeNow + ttlMillis;
+        long ceiling = Math.max(expiresAt + ns.toleranceMillis, floor);
+        try (PreparedStatement update = session.prepare("update " + session.tables().slot() + " set owner_key = ?, incarnation = ?, last_owner_key = ?,"
+            + " fence = ?, expires_at = ?, floor_ms = ?, ceiling_ms = ?, next_floor_ms = ?"
+            + " where namespace = ? and slot = ? and fence = ? and next_floor_ms = ? and " + free)) {
+            update.setString(1, owner.key());
+            update.setString(2, owner.incarnation().toString());
+            update.setString(3, owner.key());
+            update.setLong(4, candidate.fence + 1);
+            update.setLong(5, expiresAt);
+            update.setLong(6, floor);
+            update.setLong(7, ceiling);
+            update.setLong(8, ceiling);
+            update.setString(9, namespace);
+            update.setInt(10, candidate.slot);
+            update.setLong(11, candidate.fence);
+            update.setLong(12, floor);
+            if (update.executeUpdate() != 1) {
+                return null;
             }
-            long expiresAt = storeNow + ttlMillis;
-            long ceiling = Math.max(expiresAt + ns.toleranceMillis, floor);
-            try (PreparedStatement update = session.prepare("update " + table + " set owner_key = ?, incarnation = ?, last_owner_key = ?, fence = ?,"
-                + " expires_at = ?, floor_ms = ?, ceiling_ms = ?, next_floor_ms = ? where namespace = ? and slot = ? and fence = ?")) {
-                update.setString(1, owner.key());
-                update.setString(2, owner.incarnation().toString());
-                update.setString(3, owner.key());
-                update.setLong(4, fence + 1);
-                update.setLong(5, expiresAt);
-                update.setLong(6, floor);
-                update.setLong(7, ceiling);
-                update.setLong(8, ceiling);
-                update.setString(9, namespace);
-                update.setInt(10, slot);
-                update.setLong(11, fence);
-                if (update.executeUpdate() != 1) {
-                    return null;
-                }
-            }
-            return new SlotLease(namespace, slot, owner, fence + 1, expiresAt, floor, ceiling, storeNow);
-        });
+        }
+        return new SlotLease(namespace, candidate.slot, owner, candidate.fence + 1, expiresAt, floor, ceiling, candidate.storeNow);
     }
 
     @Override
@@ -292,11 +313,6 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         update.setLong(from + 5, current.ceiling);
     }
 
-    private static SlotLease lease(ResultSet rs, String namespace, Owner owner, long storeNow) throws SQLException {
-        return new SlotLease(namespace, rs.getInt("slot"), owner, rs.getLong("fence"), rs.getLong("expires_at"), rs.getLong("floor_ms"),
-            rs.getLong("ceiling_ms"), storeNow);
-    }
-
     /**
      * Records the namespace parameters on first use, rejects others, and makes sure its slot rows exist.
      */
@@ -368,8 +384,9 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         return tolerance.toMillis();
     }
 
-    /** One attempt of an acquire: its result, or null to try again; the store clock it last read. */
-    private record Attempt(AcquireResult result, long storeNow) {
+    /** A slot row as one acquire read it, with the store clock of the read. */
+    private record Candidate(int slot, long fence, String ownerKey, String incarnation, String lastOwnerKey, long expiresAt, long floor, long ceiling,
+                             long nextFloor, boolean free, long storeNow) {
     }
 
     private record Namespace(int limit, long toleranceMillis) {
@@ -378,8 +395,4 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
     private record Current(long expiresAt, long floor, long ceiling, long storeNow) {
     }
 
-    @FunctionalInterface
-    private interface Binder {
-        void bind(PreparedStatement statement) throws SQLException;
-    }
 }

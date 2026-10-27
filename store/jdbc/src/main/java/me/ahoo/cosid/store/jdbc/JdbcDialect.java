@@ -17,7 +17,6 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalLong;
 
 /**
@@ -25,8 +24,9 @@ import java.util.OptionalLong;
  * dialects are {@link JdbcDialects}; another one is registered with {@link java.util.ServiceLoader} under this
  * interface, is detected before the built-in ones, and can be named by {@code options.dialect}.
  *
- * <p>The store runs everything else itself: the slot choice of 05 §2.1 as {@code READ COMMITTED} transactions over
- * {@link #lockFirst}, renewals and releases as compare-and-set updates, all stamped by {@link #nowMillis()}. The
+ * <p>The store runs everything else itself: the slot choice of 05 §2.1 as one read of the candidates
+ * ({@link #firstRows}) and compare-and-set updates, renewals and releases as compare-and-set updates, all stamped by
+ * {@link #nowMillis()}. The
  * tables are those of {@link #schema}: {@code cosid_range(range_key, next_value, sealed)},
  * {@code cosid_slot(namespace, slot, owner_key, incarnation, last_owner_key, fence, expires_at, floor_ms, ceiling_ms,
  * next_floor_ms)} and {@code cosid_namespace(namespace, slot_limit, tolerance_ms)}, under the names of
@@ -81,30 +81,18 @@ public interface JdbcDialect {
     OptionalLong reserve(JdbcSession session, String key, long size, long initialOffset) throws SQLException;
 
     /**
-     * Selects the first row of {@code orderBy} that matches {@code where} and locks it for update, skipping rows
-     * other transactions have locked (MySQL / PostgreSQL {@code for update skip locked}, SQL Server
-     * {@code with (updlock, readpast, rowlock)} and {@code top 1}).
+     * Selects the first {@code rows} rows of {@code orderBy} that match {@code where}, without locking them
+     * ({@code limit}; SQL Server {@code top}). The statement must be usable as a derived table.
      *
      * @param columns the selected columns
      * @param table   the table
      * @param where   the condition
      * @param orderBy the order
+     * @param rows    how many rows at most
      * @return the select statement
      */
-    default String lockFirst(String columns, String table, String where, String orderBy) {
-        return "select " + columns + " from " + table + " where " + where + " order by " + orderBy + " limit 1 for update skip locked";
-    }
-
-    /**
-     * A statement that makes the current transaction {@code READ COMMITTED} and nothing after it (MySQL, MariaDB and
-     * PostgreSQL {@code set transaction isolation level read committed}), run first in each store transaction. Empty
-     * where such a statement would change the session (SQL Server, H2): the store then sets the isolation through
-     * {@link java.sql.Connection#setTransactionIsolation} and puts it back afterwards, which costs more round trips.
-     *
-     * @return the statement, empty by default
-     */
-    default Optional<String> readCommittedTransaction() {
-        return Optional.empty();
+    default String firstRows(String columns, String table, String where, String orderBy, int rows) {
+        return "select " + columns + " from " + table + " where " + where + " order by " + orderBy + " limit " + rows;
     }
 
     /**

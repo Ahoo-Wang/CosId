@@ -53,7 +53,7 @@ final class Jdbc {
     <T> T run(String operation, SessionWork<T> work) {
         for (int attempt = 1; ; attempt++) {
             try (Connection connection = dataSource.getConnection()) {
-                return work.run(new JdbcSession(connection, tables, queryTimeoutSeconds, dialect.readCommittedTransaction()));
+                return work.run(new JdbcSession(connection, tables, queryTimeoutSeconds));
             } catch (SQLException e) {
                 if (attempt < RETRIES && dialect.isRetryable(e)) {
                     continue;

@@ -13,10 +13,13 @@
 
 package me.ahoo.cosid.store.jdbc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import me.ahoo.cosid.lease.SlotLeaseStore;
 import me.ahoo.cosid.store.tck.SlotLeaseStoreContract;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 /**
  * The slot lease contract on H2 ({@link TestDatabase#H2}), on the store clock of the database.
@@ -30,5 +33,10 @@ class H2SlotLeaseStoreContractTest extends SlotLeaseStoreContract {
     @Override
     protected SlotLeaseStore newStore() {
         return TestDatabase.H2.store().slots();
+    }
+
+    @Test
+    void detectsTheDialectOfTheDatabase() {
+        assertEquals(TestDatabase.H2.dialect(), JdbcStore.of(TestDatabase.H2.dataSource(), TestDatabase.TIMEOUT).dialect());
     }
 }

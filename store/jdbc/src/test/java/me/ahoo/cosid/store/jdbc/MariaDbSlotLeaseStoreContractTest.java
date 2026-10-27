@@ -13,10 +13,13 @@
 
 package me.ahoo.cosid.store.jdbc;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import me.ahoo.cosid.lease.SlotLeaseStore;
 import me.ahoo.cosid.store.tck.SlotLeaseStoreContract;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 /**
  * The slot lease contract on MARIADB ({@link TestDatabase#MARIADB}), on the store clock of the database.
@@ -30,5 +33,10 @@ class MariaDbSlotLeaseStoreContractTest extends SlotLeaseStoreContract {
     @Override
     protected SlotLeaseStore newStore() {
         return TestDatabase.MARIADB.store().slots();
+    }
+
+    @Test
+    void detectsTheDialectOfTheDatabase() {
+        assertEquals(TestDatabase.MARIADB.dialect(), JdbcStore.of(TestDatabase.MARIADB.dataSource(), TestDatabase.TIMEOUT).dialect());
     }
 }

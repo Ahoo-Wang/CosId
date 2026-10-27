@@ -17,7 +17,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * One borrowed connection of a JDBC store, as a {@link JdbcDialect} sees it: the connection in auto-commit mode, the
@@ -27,13 +26,11 @@ public final class JdbcSession {
     private final Connection connection;
     private final JdbcTables tables;
     private final int queryTimeoutSeconds;
-    private final Optional<String> readCommittedTransaction;
 
-    JdbcSession(Connection connection, JdbcTables tables, int queryTimeoutSeconds, Optional<String> readCommittedTransaction) {
+    JdbcSession(Connection connection, JdbcTables tables, int queryTimeoutSeconds) {
         this.connection = connection;
         this.tables = tables;
         this.queryTimeoutSeconds = queryTimeoutSeconds;
-        this.readCommittedTransaction = readCommittedTransaction;
     }
 
     /**
@@ -93,8 +90,7 @@ public final class JdbcSession {
 
     /**
      * Runs {@code work} in one {@code READ COMMITTED} transaction (06 §2.1), then puts the auto-commit mode and the
-     * isolation level of the pooled connection back ({@link JdbcDialect#readCommittedTransaction()}). Rolls back when
-     * {@code work} throws.
+     * isolation level of the pooled connection back. Rolls back when {@code work} throws.
      *
      * @param work the work
      * @param <T>  the result type
@@ -103,17 +99,12 @@ public final class JdbcSession {
      */
     public <T> T transaction(SqlWork<T> work) throws SQLException {
         Objects.requireNonNull(work, "work");
-        int isolation = readCommittedTransaction.isPresent() ? Connection.TRANSACTION_READ_COMMITTED : connection.getTransactionIsolation();
+        int isolation = connection.getTransactionIsolation();
         if (isolation != Connection.TRANSACTION_READ_COMMITTED) {
             connection.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
         }
         connection.setAutoCommit(false);
         try {
-            if (readCommittedTransaction.isPresent()) {
-                try (PreparedStatement statement = prepare(readCommittedTransaction.get())) {
-                    statement.execute();
-                }
-            }
             T result = work.run();
             connection.commit();
             return result;

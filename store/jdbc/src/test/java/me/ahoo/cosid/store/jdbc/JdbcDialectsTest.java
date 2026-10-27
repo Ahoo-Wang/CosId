@@ -70,13 +70,14 @@ class JdbcDialectsTest {
     }
 
     @Test
-    void lockHintsSkipLockedRows() {
-        String mariaDb = JdbcDialects.MARIADB.lockFirst("slot", "cosid_slot", "namespace = ?", "slot");
-        assertEquals("select slot from cosid_slot where namespace = ? order by slot limit 1 for update skip locked", mariaDb);
-        assertEquals(mariaDb, JdbcDialects.MYSQL.lockFirst("slot", "cosid_slot", "namespace = ?", "slot"));
-        assertEquals(mariaDb, JdbcDialects.POSTGRESQL.lockFirst("slot", "cosid_slot", "namespace = ?", "slot"));
-        assertEquals("select top 1 slot from cosid_slot with (updlock, readpast, rowlock) where namespace = ? order by slot",
-            JdbcDialects.SQL_SERVER.lockFirst("slot", "cosid_slot", "namespace = ?", "slot"));
+    void candidateReadsLimitTheirRows() {
+        String limit = JdbcDialects.MARIADB.firstRows("slot", "cosid_slot", "namespace = ?", "slot", 8);
+        assertEquals("select slot from cosid_slot where namespace = ? order by slot limit 8", limit);
+        assertEquals(limit, JdbcDialects.MYSQL.firstRows("slot", "cosid_slot", "namespace = ?", "slot", 8));
+        assertEquals(limit, JdbcDialects.POSTGRESQL.firstRows("slot", "cosid_slot", "namespace = ?", "slot", 8));
+        assertEquals(limit, JdbcDialects.H2.firstRows("slot", "cosid_slot", "namespace = ?", "slot", 8));
+        assertEquals("select top 8 slot from cosid_slot where namespace = ? order by slot",
+            JdbcDialects.SQL_SERVER.firstRows("slot", "cosid_slot", "namespace = ?", "slot", 8));
     }
 
     @Test

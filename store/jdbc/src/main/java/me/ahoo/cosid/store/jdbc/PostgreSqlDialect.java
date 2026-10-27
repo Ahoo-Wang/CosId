@@ -18,7 +18,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.Optional;
 import java.util.OptionalLong;
 
 /**
@@ -60,11 +59,6 @@ final class PostgreSqlDialect implements JdbcDialect {
                 return rs.next() ? OptionalLong.of(rs.getLong(1)) : OptionalLong.empty();
             }
         }
-    }
-
-    @Override
-    public Optional<String> readCommittedTransaction() {
-        return Optional.of("set transaction isolation level read committed");
     }
 
     @Override

@@ -3,7 +3,7 @@
 Workspace instructions for agents working in **CosId** — a universal, flexible, high-performance distributed ID
 generator for the JVM. Group `me.ahoo.cosid`, current version in `gradle.properties`.
 
-**This is the `5.x` branch: the clean-room 5.0 rewrite.** The design lives in [`docs/architecture/`](docs/architecture/README.md)
+**This is the `main` branch: the clean-room 5.0 rewrite** (the former `5.x`; 4.x maintenance lives on `4.x`). The design lives in [`docs/architecture/`](docs/architecture/README.md)
 (decisions D1–D24, one document per area) and the phases in [`docs/architecture/roadmap.md`](docs/architecture/roadmap.md).
 Read the documents of the area you touch before changing it; public API changes go to the design documents first.
 The 4.x code stays on `main` as reference: read it with `git show main:<path>` (e.g.
@@ -103,7 +103,7 @@ Adding a package means deciding whether `module-info.java` exports it.
 - **Skeleton bodies** throw `UnsupportedOperationException("<phase>")` naming the phase that implements them. There is
   no `URF_UNREAD_FIELD` exclusion any more: a skeleton keeps a field only if something reads it.
 - **Coverage** (`codecov.yml`): patch and project targets 80%; `benchmark/`, `store/tck/`, `build-logic/` ignored.
-- **Commits and PR titles** follow Conventional Commits (`feat(core)!:`, `build!:`); PRs of 5.x phases target `5.x`.
+- **Commits and PR titles** follow Conventional Commits (`feat(core)!:`, `build!:`); 5.0 PRs target `main`; 4.x fixes target `4.x`.
   Commit messages are in English, authored by `Ahoo Wang <ahoowang@gmail.com>`, and never carry a `Co-authored-by:` trailer;
   squash merges pass an explicit `--body` so GitHub adds none.
 

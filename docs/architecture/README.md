@@ -41,7 +41,7 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
 | D7 | 分片算法移到 `extras/sharding`,随主版本发布,只依赖 core 的 `Layout` | 已定 |
 | D8 | 远程服务以租约/区间服务为主,发号端点可选;旧 v1/v2 API 全部删除 | 已定 |
 | D9 | 不保留 `IntegerIdGenerator`、`UncertaintyIdGenerator` 等类,能力由 `IdGenerators` 组合函数提供(按 D21 修订);JS 安全改为 `Layout` 预设 | 已定 |
-| D10 | 在长期分支 `5.x` 上清场重建;`main` 保持 4.x 直至 5.0 GA | 已定 |
+| D10 | 在长期分支 `5.x` 上清场重建;RC 前(2026-10-27)分支改名:原 `main` → `4.x`(维护线,与 `1.x`/`2.x`/`3.x` 一致),`5.x` → `main`(默认分支) | 已定 |
 | D11 | 发布 artifactId 保留 `cosid-` 前缀,由构建约定从目录路径生成(`store/jdbc` → `cosid-store-jdbc`) | 已定 |
 | D12 | `core` 提供 JPMS `module-info`,只导出 API 包 | 已定 |
 | D13 | 新代码不使用 Lombok(record + 显式代码) | 已定 |

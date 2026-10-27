@@ -17,13 +17,31 @@
 
 Each GROUP_DIR is the --out directory of one run-release (its name is the group's name). OUT receives the joined
 baseline-4x.json and v5.json (and rerun-*.json), report.md (the groups with their runners, then each group's
-comparison) and baseline-4x.md (the 4.1.0 side alone, the refreshed baseline of docs/jmh/4.1.0). Exits 1 when a
+comparison), a table of the rows that still fail after their re-run with the phase that owns each, and baseline-4x.md (the 4.1.0 side alone, the refreshed baseline of docs/jmh/4.1.0). Exits 1 when a
 group failed or is missing its results, 0 otherwise.
 """
 
 import json
 import os
+import re
 import sys
+
+# The phase that owns each scenario class (roadmap §3): a row that still fails goes to it for a fix.
+OWNERS = [
+    (r"^(SnowflakeMillis|SnowflakeSeconds|SnowflakeString|CosId80|Codec)Benchmark", "R1-A (time-based generators, codecs)"),
+    (r"^(Segment|SegmentNoPrefetch|PeriodicSegment)Benchmark", "R1-B (segments)"),
+    (r"^MySql", "R2-JDBC"),
+    (r"^Redis", "R2-Redis"),
+    (r"^Mongo", "R2-Mongo"),
+    (r"^Zookeeper", "R2-ZK"),
+    (r"^IdFillerBenchmark", "R3 (runtime, IdFiller)"),
+    (r"^SpringStartBenchmark", "R3-S (Spring Boot)"),
+]
+
+
+def owner(benchmark):
+    name = benchmark.removeprefix("me.ahoo.cosid.benchmark.")
+    return next((phase for pattern, phase in OWNERS if re.search(pattern, name)), "?")
 
 
 def load(path, default=None):
@@ -47,7 +65,7 @@ def main(argv):
     out, groups = argv[0], sorted(argv[1:], key=os.path.basename)
     os.makedirs(out, exist_ok=True)
     joined = {"baseline-4x": [], "v5": [], "rerun-baseline-4x": [], "rerun-v5": []}
-    summary, sections, failed = [], [], 0
+    summary, sections, failed, still_failing = [], [], 0, []
     commits = set()
     for group in groups:
         name = os.path.basename(group.rstrip("/"))
@@ -59,6 +77,7 @@ def main(argv):
             summary.append(f"| {name} | - | - | - | - | - | **no result** (the job failed before its report) |")
             continue
         commits.add(machine.get("commit", "?"))
+        still_failing += [(name, row) for row in verdict["failed"]]
         rerun = len(verdict["failedFirstRun"])
         result = "PASS" if verdict["status"] == 0 else f"**FAIL** ({len(verdict['failed'])} rows)"
         failed += verdict["status"] != 0
@@ -83,6 +102,14 @@ def main(argv):
              "| Group | Scenarios | Runner | JDK | Rows | Re-run | Result |", "|---|---|---|---|---|---|---|"]
     lines += summary
     lines += ["", f"**{'FAIL' if failed else 'PASS'}**: {failed} of {len(groups)} groups failed."]
+    if still_failing:
+        lines += ["", "## Rows that still fail after their re-run", "",
+                  "Each goes to the phase that owns it; the suspected cause is filled in when the row is investigated.", "",
+                  "| Group | Benchmark | Mode | Threads | Params | Owner | Suspected cause |", "|---|---|---|---|---|---|---|"]
+        for group, row in still_failing:
+            params = ",".join(f"{k}={v}" for k, v in sorted((row.get("params") or {}).items()))
+            lines.append(f"| {group} | {row['benchmark'].removeprefix('me.ahoo.cosid.benchmark.')} | {row['mode']} | "
+                         f"{row.get('threads', '')} | {params} | {owner(row['benchmark'])} | to investigate |")
     lines += sections
     with open(os.path.join(out, "report.md"), "w", encoding="utf-8") as file:
         file.write("\n".join(lines) + "\n")

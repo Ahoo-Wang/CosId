@@ -544,6 +544,19 @@ class SegmentGeneratorTest {
     }
 
     @Test
+    void aBatchNearLongMaxStillRefills() {
+        // batch * MAX_READY_RANGES would wrap negative: the refill must still start, not busy-loop.
+        long step = Long.MAX_VALUE / 32;
+        BatchPolicy huge = new BatchPolicy(step, 1, Duration.ofSeconds(1), step, Duration.ofSeconds(3), Optional.empty());
+        try (SegmentGenerator generator = generator(huge, Runnable::run, new ManualTime(0))) {
+            assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
+                assertThat(generator.generate(), is(1L));
+                assertThat(generator.generate(), is(2L));
+            });
+        }
+    }
+
+    @Test
     void batchRoundsUpToTheStep() {
         ManualTime time = new ManualTime(0);
         BatchPolicy policy = policy(100, Duration.ofMillis(150), 100_000, Duration.ofSeconds(3), Optional.empty());

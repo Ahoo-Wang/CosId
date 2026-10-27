@@ -18,24 +18,17 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.RangeExhaustedException;
 import me.ahoo.cosid.RangeSealedException;
 import me.ahoo.cosid.segment.Range;
 
-import com.mongodb.ConnectionString;
-import com.mongodb.MongoClientSettings;
-import com.mongodb.MongoCommandException;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
-import com.mongodb.event.CommandFailedEvent;
-import com.mongodb.event.CommandListener;
 import org.bson.Document;
 import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -46,7 +39,6 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * What the range contract does not pin down for MongoDB: the E11000 retry of a lost upsert race, the sealed filter
@@ -65,29 +57,19 @@ class MongoRangeStoreBehaviorTest {
     }
 
     /**
-     * Concurrent first reserves of fresh keys from separate clients: the losers of the upsert race get E11000 from the
-     * server (the filter on sealed and next keeps the server from retrying the upsert itself) and retry. Every key still
-     * hands out gapless, disjoint ranges from the offset.
+     * Concurrent first reserves of fresh keys from separate clients: every key hands out gapless, disjoint ranges from
+     * the offset. Whether a reserve actually loses the upsert race (E11000) depends on timing; {@link MongoRangeRaceTest}
+     * covers that path deterministically.
      */
     @Test
-    void lostUpsertRacesRetryAndNeverOverlap() throws Exception {
+    void concurrentFirstReservesNeverOverlapOrLeaveGaps() throws Exception {
         int threads = 8;
-        AtomicInteger races = new AtomicInteger();
-        CommandListener duplicateKeys = new CommandListener() {
-            @Override
-            public void commandFailed(CommandFailedEvent event) {
-                if (event.getThrowable() instanceof MongoCommandException e && e.getErrorCode() == MongoStore.DUPLICATE_KEY) {
-                    races.incrementAndGet();
-                }
-            }
-        };
         List<MongoClient> clients = new ArrayList<>();
         ExecutorService executor = Executors.newFixedThreadPool(threads);
         try {
             List<MongoRangeStore> stores = new ArrayList<>();
             for (int i = 0; i < threads; i++) {
-                MongoClient client = MongoClients.create(MongoClientSettings.builder()
-                    .applyConnectionString(new ConnectionString(MongoTestSupport.uri())).addCommandListener(duplicateKeys).build());
+                MongoClient client = MongoClients.create(MongoTestSupport.uri());
                 clients.add(client);
                 stores.add(new MongoRangeStore(client.getDatabase(MongoTestSupport.DATABASE), MongoTestSupport.TIMEOUT));
             }
@@ -114,8 +96,6 @@ class MongoRangeStoreBehaviorTest {
             executor.shutdownNow();
             clients.forEach(MongoClient::close);
         }
-        LoggerFactory.getLogger(MongoRangeStoreBehaviorTest.class).info("{} first reserves lost the upsert race and retried", races.get());
-        assertTrue(races.get() > 0, "8 clients racing on 50 new keys exercised the E11000 retry");
     }
 
     @Test

@@ -60,3 +60,9 @@ cosid:
     type: friendly
     machine-bit: 19
     pad-start: false
+  proxy:
+    host: https://cosid-server.example:8688
+    token: secret-token
+    connect-timeout: 3s
+    read-timeout: 4s
+    client: coapi

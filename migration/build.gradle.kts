@@ -44,6 +44,8 @@ dependencies {
     // The config goldens bind through the real Spring binding (ConfigBindingTest); test scope only, so the fat jar
     // carries no Spring (DependencyRules.TEST_EDGES).
     testImplementation(project(":spring:autoconfigure"))
+    // ... and a 4.x proxy's remote store opens through the real provider.
+    testImplementation(project(":store:remote"))
 }
 
 // ZooKeeper 3.9 brings the Netty 4.1 epoll transport; on Linux Lettuce 7 (Netty 4.2) then picks it up and fails

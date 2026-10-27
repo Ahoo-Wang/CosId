@@ -195,16 +195,26 @@ public final class ConfigConverter {
         String type = config.get(prefix + ".type", defaultType).toLowerCase(Locale.ROOT);
         handled.add(prefix + ".type");
         if ("proxy".equals(type)) {
-            // The 4.x proxy becomes the 5.0 remote store (08, R4-A): written so the configuration binds, completed by hand.
+            // The 4.x proxy becomes the 5.0 remote store (08, store/remote): cosid.proxy.* map to its options.
             stores.computeIfAbsent("remote", name -> {
                 Map<String, Object> created = new LinkedHashMap<>();
                 created.put("type", "remote");
+                Map<String, Object> options = new LinkedHashMap<>();
+                options.put("baseUrl", config.get("cosid.proxy.host", "http://localhost:8688"));
+                copy(config, "cosid.proxy.token", "token", options);
+                copy(config, "cosid.proxy.connect-timeout", "connectTimeout", options);
+                copy(config, "cosid.proxy.read-timeout", "requestTimeout", options);
+                created.put("options", options);
                 return created;
             });
-            report.add(prefix + ".type = proxy: written as store [remote] of type remote (08, R4-A); set its options by hand"
-                + (config.get("cosid.proxy.host") == null ? "" : " (4.x cosid.proxy.host = " + config.get("cosid.proxy.host") + ")"));
+            if (handled.add("cosid.proxy.*")) {
+                report.add(prefix + ".type = proxy: written as store [remote] (store/remote, 08); its baseUrl must point at a 5.0 cosid-server,"
+                    + " the 4.x proxy server does not speak the /v5 API");
+                if (config.get("cosid.proxy.client") != null) {
+                    report.add("cosid.proxy.client = " + config.get("cosid.proxy.client") + ": the 5.0 remote store uses the JDK HttpClient; dropped");
+                }
+            }
             handled.add(prefix + ".*");
-            handled.add("cosid.proxy.*");
             return "remote";
         }
         if (!STORE_TYPES.contains(type)) {

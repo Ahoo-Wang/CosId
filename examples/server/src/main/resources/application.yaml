@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: server-client
+server:
+  port: 8080
+cosid:
+  namespace: example
+  stores:
+    remote:
+      type: remote
+      timeout: 2s
+      options:
+        baseUrl: ${COSID_SERVER_URL:http://localhost:8688}
+        token: ${COSID_SERVER_TOKEN:change-me}
+        connectTimeout: 5s
+  machine:
+    leased:
+      store: remote
+  generators:
+    default:
+      strategy: snowflake
+    order:
+      strategy: segment
+      store: remote
+      initial-offset: 1

@@ -50,6 +50,7 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 |---|---|---|
 | `core/` | `cosid-core` | R0: public API frozen; bodies throw `UnsupportedOperationException("R1-x")` until R1/R3 |
 | `store/tck/` | `cosid-store-tck` | R1-C: the contracts, `InMemoryStore` (passes them), `ManualClock`, fault injection, `ContractsRan` |
+| `store/jdbc/` | `cosid-store-jdbc` | R2-JDBC: `JdbcStore` over a `DataSource`; MySQL, MariaDB, PostgreSQL, SQL Server, H2 dialects and the `JdbcDialect` SPI; `schema-*.sql` |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
 | `benchmark/v5/` | not published | the same scenarios on 5.x |
@@ -107,3 +108,7 @@ Adding a package means deciding whether `module-info.java` exports it.
   constructor taking an `internal.Ticker`, and `runDue()` / `extendIfDue()` for each step; `store/tck`'s `ManualClock`
   is the store or client clock. `core` tests may use `store/tck` (test scope).
 - `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.
+- **store/jdbc tests** run the TCK on H2 always and on MySQL 8.0, MariaDB 10.6, PostgreSQL 12 and SQL Server 2019 from
+  `COSID_TEST_{MYSQL,MARIADB,POSTGRES,SQLSERVER}_URL` (+ `_USERNAME` / `_PASSWORD`) or Testcontainers; without either
+  the class skips. `checkContractsRan` checks each dialect's reports on its own: H2 by default, every dialect with
+  `-Pcosid.store.jdbc.dialects=h2,mysql,mariadb,postgresql,sqlserver` (the `Store JDBC` CI job).

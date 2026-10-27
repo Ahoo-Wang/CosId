@@ -17,7 +17,9 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 
 /**
@@ -26,8 +28,9 @@ import java.util.OptionalLong;
  * <p>{@code reserve} is {@code insert … on duplicate key update} where <em>both</em> branches set
  * {@code last_insert_id}: the insert branch through {@code values (?, last_insert_id(? + ?))}, the update branch
  * through {@code last_insert_id(next_value + ?)}, or {@code last_insert_id(0)} when the key is sealed or full. The
- * following {@code select last_insert_id()} on the same connection therefore never reads a value an earlier statement
- * left on a pooled connection; 0 cannot be a new {@code next_value}, so it means "not reserved".
+ * store reads it from the statement's own OK packet ({@code getGeneratedKeys()}, as 4.x does), and only when that
+ * is empty or 0 asks {@code select last_insert_id()} on the same connection: either way it never reads a value an
+ * earlier statement left on a pooled connection. 0 cannot be a new {@code next_value}, so it means "not reserved".
  */
 final class MySqlDialect implements JdbcDialect {
     /** Rows of one provisioning insert: 2 parameters each. */
@@ -62,19 +65,31 @@ final class MySqlDialect implements JdbcDialect {
     @Override
     public OptionalLong reserve(JdbcSession session, String key, long size, long initialOffset) throws SQLException {
         try (PreparedStatement upsert = session.prepare("insert into " + session.tables().range() + " (range_key, next_value) values (?, last_insert_id(? + ?))"
-            + " on duplicate key update next_value = if(sealed or next_value > ?, next_value + last_insert_id(0), last_insert_id(next_value + ?))")) {
+            + " on duplicate key update next_value = if(sealed or next_value > ?, next_value + last_insert_id(0), last_insert_id(next_value + ?))",
+            Statement.RETURN_GENERATED_KEYS)) {
             upsert.setString(1, key);
             upsert.setLong(2, initialOffset);
             upsert.setLong(3, size);
             upsert.setLong(4, Long.MAX_VALUE - size);
             upsert.setLong(5, size);
             upsert.executeUpdate();
+            // The OK packet of the statement carries the last_insert_id it set: no second round trip.
+            try (ResultSet keys = upsert.getGeneratedKeys()) {
+                if (keys.next() && keys.getLong(1) != 0) {
+                    return OptionalLong.of(keys.getLong(1));
+                }
+            }
         }
         try (PreparedStatement select = session.prepare("select last_insert_id()"); ResultSet rs = select.executeQuery()) {
             rs.next();
             long next = rs.getLong(1);
             return next == 0 ? OptionalLong.empty() : OptionalLong.of(next);
         }
+    }
+
+    @Override
+    public Optional<String> readCommittedTransaction() {
+        return Optional.of("set transaction isolation level read committed");
     }
 
     @Override

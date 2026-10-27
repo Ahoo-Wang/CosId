@@ -17,6 +17,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalLong;
 
 /**
@@ -92,6 +93,18 @@ public interface JdbcDialect {
      */
     default String lockFirst(String columns, String table, String where, String orderBy) {
         return "select " + columns + " from " + table + " where " + where + " order by " + orderBy + " limit 1 for update skip locked";
+    }
+
+    /**
+     * A statement that makes the current transaction {@code READ COMMITTED} and nothing after it (MySQL, MariaDB and
+     * PostgreSQL {@code set transaction isolation level read committed}), run first in each store transaction. Empty
+     * where such a statement would change the session (SQL Server, H2): the store then sets the isolation through
+     * {@link java.sql.Connection#setTransactionIsolation} and puts it back afterwards, which costs more round trips.
+     *
+     * @return the statement, empty by default
+     */
+    default Optional<String> readCommittedTransaction() {
+        return Optional.empty();
     }
 
     /**

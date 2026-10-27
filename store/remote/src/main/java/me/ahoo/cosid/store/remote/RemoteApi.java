@@ -14,23 +14,23 @@
 package me.ahoo.cosid.store.remote;
 
 /**
- * The {@code /v5} HTTP API of {@code cosid-server} (08-remote.md §2): the paths, the error codes of the error body
+ * The HTTP API (no version prefix, D30) of {@code cosid-server} (08-remote.md §2): the paths, the error codes of the error body
  * {@code {code, message}} and the field names both sides use. Keys and namespaces travel in request bodies, never in
  * paths.
  */
 public final class RemoteApi {
     /** {@code POST {key, size, initialOffset}} → {@code {start, end}}; sealed: 410. */
-    public static final String RESERVE = "/v5/ranges:reserve";
+    public static final String RESERVE = "/ranges:reserve";
     /** {@code POST {key}} → 204; 501 when the backing store cannot seal. */
-    public static final String SEAL = "/v5/ranges:seal";
+    public static final String SEAL = "/ranges:seal";
     /** {@code POST {namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, preferredSlot?}} → the lease; exhausted: 409. */
-    public static final String ACQUIRE = "/v5/slots:acquire";
+    public static final String ACQUIRE = "/slots:acquire";
     /** {@code POST {namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}} → the lease; lost: 409. */
-    public static final String RENEW = "/v5/slots:renew";
+    public static final String RENEW = "/slots:renew";
     /** {@code POST {namespace, slot, ownerKey, incarnation, fence, lastIssued}} → 204; lost: 409. */
-    public static final String RELEASE = "/v5/slots:release";
+    public static final String RELEASE = "/slots:release";
     /** {@code GET ?count=n} → {@code {ids: [...]}}, from the generator named {@code default}; {@code /{generator}} names another. */
-    public static final String IDS = "/v5/ids";
+    public static final String IDS = "/ids";
 
     /** 400: a parameter is missing or out of its limits. */
     public static final String BAD_REQUEST = "bad_request";

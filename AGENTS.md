@@ -33,9 +33,16 @@ benchmark/run-smoke [P5 P12 ...]                   # 4.x and 5.x back to back pe
                                                    # how a PR reports performance (paste build/benchmark-smoke/report.md)
 ./gradlew :benchmark:baseline-4x:jmh               # JMH on the released 4.1.0 jars alone (smoke profile)
 ./gradlew :benchmark:v5:jmh -PjmhProfile=release   # JMH on 5.x, release-gate settings; -PjmhIncludes=A,B narrows
+benchmark/run-release [--dry-run] [P1 ...]       # the release gate: all of P1..P12, release settings, load guard,
+                                                   # machine info; writes docs/jmh/5.0/ (see benchmark/scenarios.md)
 benchmark/compare BASELINE.json CANDIDATE.json --smoke
 python3 -I benchmark/compare_test.py               # tests of the compare script
 ```
+
+`scripts/test-stability.sh :store:redis 20 build/stability` runs a project's tests 20 times without retries and prints
+a per-class table (the `Test Stability` workflow, L4). `-Pcosid.test.skipProjects=:a,:b` leaves those projects' tests
+out of a build (the CI `check` job, whose store, server and Spring tests run in their own jobs);
+`-Pcosid.test.exclude=*.SomeTest` leaves classes out.
 
 `check` fails on any Checkstyle (`config/checkstyle/checkstyle.xml`, Checkstyle 10.x) or SpotBugs
 (`config/spotbugs/exclude.xml`) finding. In CI (`CI=true`) flaky tests get up to 2 retries via `test-retry`.
@@ -55,15 +62,16 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `store/redis/` | `cosid-store-redis` | R2-Redis: Lua scripts behind `RedisScripts`, Lettuce, `WAIT` auto; see its README (durability precondition) |
 | `store/zookeeper/` | `cosid-store-zookeeper` | R2-ZK: `ZookeeperStore` (Curator 5.9), provider type `zookeeper`, ZooKeeper 3.8+ (3.9 primary, D27); TCK on `COSID_TEST_ZOOKEEPER_CONNECT` or an in-process curator-test server |
 | `spring/autoconfigure/` | `cosid-spring-boot-autoconfigure` | R3-S: `cosid.*` records → `RuntimeSpec` (`CosIdSpecs`, pure), the `CosIdRuntime` bean, one bean per generator (`CosIdGeneratorRegistrar`), `SpringDataRedisScripts`, Micrometer, the `cosid` endpoint, health, native hints; stores `compileOnly` |
-| `store/remote/` | `cosid-store-remote` | R4-A: `RemoteStore` over the JDK `HttpClient` (no third-party dependency), provider type `remote` (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`); `RemoteApi` holds the `/v5` paths and error codes the server shares |
-| `server/` | not published | R4-A: cosid-server, a Spring Boot app (`CosIdServer`): the two primitives of its backing store (`cosid.stores`, `cosid.server.store`) under `/v5`, optional `/v5/ids/**`, bearer auth on by default, limits, 503 pool, OpenAPI, Actuator; `Dockerfile` + `:server:dockerImage` |
+| `store/remote/` | `cosid-store-remote` | R4-A: `RemoteStore` over the JDK `HttpClient` (no third-party dependency), provider type `remote` (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`); `RemoteApi` holds the paths (no version prefix, D30) and error codes the server shares |
+| `server/` | not published | R4-A: cosid-server, a Spring Boot app (`CosIdServer`): the two primitives of its backing store (`cosid.stores`, `cosid.server.store`) at the root (no version prefix, D30), optional `/ids/**`, bearer auth on by default, limits, 503 pool, OpenAPI, Actuator; `Dockerfile` + `:server:dockerImage` |
 | `integrations/*` | `cosid-jackson`, `cosid-mybatis`, `cosid-spring-data-jdbc`, `cosid-activiti`, `cosid-flowable`, `cosid-axon` | R4-B, split by dependency (D29): one module per library, each on `core` and that library only (no integration depends on another). `@AsString`, `CosIdInterceptor`, `CosIdBeforeConvertCallback`, `ActivitiIdGenerator` / `FlowableIdGenerator`, `CosIdIdentifierFactory`; see `integrations/README.md` (the Axon static binding) |
 | `spring/starter/` | `cosid-spring-boot-starter` | R3-S: dependencies only (core + autoconfigure, D14); applications add the store artifacts |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
-| `benchmark/v5/` | not published | the same scenarios on 5.x |
+| `benchmark/` | not published | the same scenarios on 5.x |
 | `migration/` | not published | R4-C: the offline 4.x → 5.0 migration fat jar (`:migration:shadowJar` → `build/libs/cosid-migration.jar`): 4.x readers, a narrow 5.0 admin path per store, `plan` / `apply` / `verify` / `config` / `purge`; see its README |
-| `extras/sharding/`, `examples/` | | not created yet (R4–R5) |
+| `extras/sharding/` | `cosid-sharding` | R5-B: the 4.x sharding algorithms (`ModCycle`, `IntervalTimeline`, `CachedSharding`, the convertors) on `core` alone: `ShardingRange` replaces Guava's `Range`, the Snowflake convertor reads `Layout` |
+| `examples/` | not published | not created yet (R5-B) |
 | `build-logic/` | — | included build: convention plugins and build rules (see below) |
 | `docs/architecture/` | — | the design; `docs/jmh/<version>/` benchmark results |
 | `documentation/` | — | the VitePress site, still 4.x content until R5-B |

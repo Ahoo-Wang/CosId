@@ -23,7 +23,8 @@ Release rules (default):
   throughput (thrpt)        score_5 >= score_4 - error_4
   latency (sample)          p99 and p99.9 of 5.x <= those of 4.x + error_4 (JMH gives no per-percentile error, so
                             error_4 is the error of the 4.x mean)
-  average / single shot     score_5 <= score_4 + error_4; a single shot (startup) is at most 105% of 4.x
+  average / single shot     score_5 <= score_4 + error_4; a single shot or a startup scenario (--startup, P11 by
+                            default) is at most 105% of 4.x
   allocation                gc.alloc.rate.norm of 5.x <= that of 4.x + its error, or <= 0.01 B/op (the
                             amortized cost of refills and other rare bookkeeping, not a hot path allocation);
                             the long hot paths (--zero-alloc) allocate nothing (< 1 B/op)
@@ -40,6 +41,7 @@ import sys
 ALLOC = "gc.alloc.rate.norm"
 PREFIX = "me.ahoo.cosid.benchmark."
 DEFAULT_ZERO_ALLOC = r"^(SnowflakeMillisBenchmark|SnowflakeSecondsBenchmark|SegmentBenchmark)\.generate_"
+DEFAULT_STARTUP = r"^SpringStartBenchmark\."
 SMOKE_RATIO = 0.9
 STARTUP_RATIO = 1.05
 ZERO_ALLOC_BYTES = 1.0
@@ -68,11 +70,12 @@ def fmt(value):
     return f"{value:,.3f}" if abs(value) < 1000 else f"{value:,.0f}"
 
 
-def judge(base, cand, smoke, zero_alloc):
+def judge(base, cand, smoke, zero_alloc, startup=re.compile(DEFAULT_STARTUP)):
     """Returns [(metric, baseline, candidate, limit, passed)] for one row."""
     checks = []
     b, c = base["primaryMetric"], cand["primaryMetric"]
     mode = base["mode"]
+    name = key(base)[0]
     unit = b.get("scoreUnit", "")
     if mode == "thrpt":
         limit = b["score"] * SMOKE_RATIO if smoke else b["score"] - error(b)
@@ -86,7 +89,7 @@ def judge(base, cand, smoke, zero_alloc):
                 continue
             limit = bp / SMOKE_RATIO if smoke else bp + error(b)
             checks.append((f"p{percentile} ({unit})", bp, cp, f"<= {fmt(limit)}", cp <= limit))
-    elif mode == "ss":
+    elif mode == "ss" or startup.search(name):
         limit = b["score"] / SMOKE_RATIO if smoke else b["score"] * STARTUP_RATIO
         checks.append((f"time ({unit})", b["score"], c["score"], f"<= {fmt(limit)}", c["score"] <= limit))
     else:  # avgt
@@ -95,7 +98,6 @@ def judge(base, cand, smoke, zero_alloc):
     ba = base.get("secondaryMetrics", {}).get(ALLOC)
     ca = cand.get("secondaryMetrics", {}).get(ALLOC)
     if ba is not None and ca is not None:
-        name = key(base)[0]
         if mode == "thrpt" and zero_alloc.search(name):
             checks.append(("alloc (B/op)", ba["score"], ca["score"], f"< {ZERO_ALLOC_BYTES}", ca["score"] < ZERO_ALLOC_BYTES))
         else:
@@ -104,9 +106,10 @@ def judge(base, cand, smoke, zero_alloc):
     return checks
 
 
-def compare(baseline, candidate, smoke=False, zero_alloc=DEFAULT_ZERO_ALLOC):
+def compare(baseline, candidate, smoke=False, zero_alloc=DEFAULT_ZERO_ALLOC, startup=DEFAULT_STARTUP):
     """Returns (report lines, number of failed rows)."""
     pattern = re.compile(zero_alloc)
+    startup_pattern = re.compile(startup)
     lines = [
         f"# Benchmark comparison ({'smoke' if smoke else 'release'} rules)",
         "",
@@ -122,7 +125,7 @@ def compare(baseline, candidate, smoke=False, zero_alloc=DEFAULT_ZERO_ALLOC):
             failed += 1
             continue
         row_failed = False
-        for metric, b, c, limit, passed in judge(baseline[row_key], cand, smoke, pattern):
+        for metric, b, c, limit, passed in judge(baseline[row_key], cand, smoke, pattern, startup_pattern):
             row_failed |= not passed
             lines.append(f"| {name} | {mode} | {threads} | {params} | {metric} | {fmt(b)} | {fmt(c)} | {limit} | "
                          f"{'PASS' if passed else 'FAIL'} |")
@@ -141,10 +144,13 @@ def main(argv=None):
     parser.add_argument("--smoke", action="store_true", help="the looser PR smoke rules")
     parser.add_argument("--zero-alloc", default=DEFAULT_ZERO_ALLOC,
                         help="regex of class.method whose throughput rows must allocate nothing")
+    parser.add_argument("--startup", default=DEFAULT_STARTUP,
+                        help="regex of class.method whose average time is a startup (at most 105%% of 4.x)")
     parser.add_argument("--report", help="also write the report to this file")
     args = parser.parse_args(argv)
     try:
-        lines, failed = compare(load(args.baseline), load(args.candidate), args.smoke, args.zero_alloc)
+        lines, failed = compare(load(args.baseline), load(args.candidate), args.smoke, args.zero_alloc,
+                                args.startup)
     except (OSError, ValueError, KeyError) as problem:
         print(f"compare: {problem}", file=sys.stderr)
         return 2

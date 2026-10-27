@@ -132,10 +132,65 @@ public record Layout(Instant epoch, ChronoUnit unit, int timeBits, int nodeBits,
      * @throws IllegalStateException if the layout is wider than {@value #LONG_BITS} bits
      */
     public long pack(long time, int node, long seq) {
-        throw new UnsupportedOperationException("R1-A");
+        checkLong();
+        if (Long.compareUnsigned(time, maxTime()) > 0) {
+            throw new IllegalArgumentException("time must be in [0, " + maxTime() + "]: " + time);
+        }
+        if (Integer.compareUnsigned(node, maxNode()) > 0) {
+            throw new IllegalArgumentException("node must be in [0, " + maxNode() + "]: " + node);
+        }
+        if (Long.compareUnsigned(seq, maxSeq()) > 0) {
+            throw new IllegalArgumentException("seq must be in [0, " + maxSeq() + "]: " + seq);
+        }
+        return time << (nodeBits + seqBits) | (long) node << seqBits | seq;
     }
 
+    /**
+     * Unpacks an id into its parts.
+     *
+     * @param id the id
+     * @return the parts
+     * @throws IllegalStateException    if the layout is wider than {@value #LONG_BITS} bits
+     * @throws IllegalArgumentException if the id has bits beyond {@link #totalBits()}
+     */
     public IdParts unpack(long id) {
-        throw new UnsupportedOperationException("R1-A");
+        checkLong();
+        if (id < 0 || (totalBits() < LONG_BITS && id >>> totalBits() != 0)) {
+            throw new IllegalArgumentException("id " + id + " is not a " + totalBits() + "-bit id");
+        }
+        return new IdParts(id >>> (nodeBits + seqBits), (int) (id >>> seqBits) & maxNode(), id & maxSeq());
+    }
+
+    /**
+     * The largest time part.
+     *
+     * @return {@code 2^timeBits - 1}
+     */
+    private long maxTime() {
+        return ~(-1L << timeBits);
+    }
+
+    /**
+     * The largest node part.
+     *
+     * @return {@code 2^nodeBits - 1}
+     */
+    private int maxNode() {
+        return ~(-1 << nodeBits);
+    }
+
+    /**
+     * The largest sequence part.
+     *
+     * @return {@code 2^seqBits - 1}
+     */
+    private long maxSeq() {
+        return ~(-1L << seqBits);
+    }
+
+    private void checkLong() {
+        if (totalBits() > LONG_BITS) {
+            throw new IllegalStateException("A " + totalBits() + "-bit layout does not fit a long: use parts and a PartsCodec");
+        }
     }
 }

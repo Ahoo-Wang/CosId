@@ -13,6 +13,9 @@
 
 package me.ahoo.cosid;
 
+import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.random.RandomGenerator;
 
@@ -20,6 +23,9 @@ import java.util.random.RandomGenerator;
  * Small combinators that replace the 4.x generator classes of the same purpose (03-core-model.md §5).
  */
 public final class IdGenerators {
+    /** The most random bits {@link #uncertain} appends: one bit at least stays for the id. */
+    private static final int MAX_UNCERTAIN_BITS = 62;
+
     private IdGenerators() {
     }
 
@@ -30,7 +36,14 @@ public final class IdGenerators {
      * @return a generator that throws {@link IdOverflowException} for an id beyond {@code int}
      */
     public static IntIdGenerator toInt(IdGenerator ids) {
-        throw new UnsupportedOperationException("R1-A");
+        Objects.requireNonNull(ids, "ids");
+        return () -> {
+            long id = ids.generate();
+            if (id != (int) id) {
+                throw new IdOverflowException(id);
+            }
+            return (int) id;
+        };
     }
 
     /**
@@ -42,7 +55,20 @@ public final class IdGenerators {
      * @return the generator
      */
     public static IdGenerator uncertain(IdGenerator ids, int bits, RandomGenerator random) {
-        throw new UnsupportedOperationException("R1-A");
+        Objects.requireNonNull(ids, "ids");
+        Objects.requireNonNull(random, "random");
+        if (bits < 1 || bits > MAX_UNCERTAIN_BITS) {
+            throw new IllegalArgumentException("bits must be in [1, " + MAX_UNCERTAIN_BITS + "]: " + bits);
+        }
+        long maxId = Long.MAX_VALUE >>> bits;
+        long bound = 1L << bits;
+        return () -> {
+            long id = ids.generate();
+            if (id < 0 || id > maxId) {
+                throw new IllegalStateException("id " + id + " leaves no room for " + bits + " random bits");
+            }
+            return id << bits | random.nextLong(bound);
+        };
     }
 
     /**
@@ -51,7 +77,8 @@ public final class IdGenerators {
      * @return the generator
      */
     public static IdGenerator local() {
-        throw new UnsupportedOperationException("R1-A");
+        AtomicLong counter = new AtomicLong();
+        return counter::incrementAndGet;
     }
 
     /**
@@ -60,7 +87,7 @@ public final class IdGenerators {
      * @return the supplier
      */
     public static Supplier<String> uuid() {
-        throw new UnsupportedOperationException("R1-A");
+        return () -> UUID.randomUUID().toString();
     }
 
     /**
@@ -70,6 +97,19 @@ public final class IdGenerators {
      * @return the generator
      */
     public static IdGenerator lazy(Supplier<? extends IdGenerator> lookup) {
-        throw new UnsupportedOperationException("R1-A");
+        Objects.requireNonNull(lookup, "lookup");
+        return new IdGenerator() {
+            private volatile IdGenerator ids;
+
+            @Override
+            public long generate() {
+                IdGenerator current = ids;
+                if (current == null) {
+                    current = Objects.requireNonNull(lookup.get(), "lookup returned null");
+                    ids = current;
+                }
+                return current.generate();
+            }
+        };
     }
 }

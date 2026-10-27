@@ -56,6 +56,9 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
 | D22 | 租约即时间窗口:唯一性只依赖存储内 `floor_{k+1} ≥ ceiling_k`,不依赖任何时钟(评审后新增,见 05) | 已定 |
 | D23 | 号段 key 只封存、不物理删除;物理清理只能离线进行(评审后新增,见 04) | 已定 |
 | D25 | Snowflake 发号采用短临界区(锁内不等待),而非无锁 CAS;依据 R1-A 基准(P1 t16) | 已定 |
+| D26 | MongoDB 最低版本 6.0(CI 覆盖 6.0 与 8.0) | 已定 |
+| D27 | 其余后端最低版本:Redis 7.0、MySQL 8.4 LTS、MariaDB 10.11 LTS、PostgreSQL 15、ZooKeeper 3.8;SQL Server 2019、H2 2.x 不变 | 已定 |
+| D28 | 低于最低版本的若干版本各实测一次 TCK(非阻塞),结果写入"实测兼容性(不承诺)"文档,不加兼容代码 | 已定 |
 | D24 | 不提供租约丢失后继续发号的开关(P1);运行时删除生成器改为启动期的 `disabled` 配置(P2) | 已定 |
 
 ## 术语

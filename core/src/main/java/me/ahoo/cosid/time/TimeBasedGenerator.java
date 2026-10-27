@@ -14,22 +14,21 @@
 package me.ahoo.cosid.time;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.internal.TimeSequencer;
 import me.ahoo.cosid.lease.SlotHandle;
 import me.ahoo.cosid.observe.GeneratorListener;
 
 import java.util.Objects;
 
 /**
- * The time-based generator: Snowflake layouts and the 80-bit CosId alike (03-core-model.md §4). Lock-free; reads the
- * slot binding once per id and checks the slot window before every CAS (§4.1).
+ * The time-based generator: Snowflake layouts and the 80-bit CosId alike (03-core-model.md §4). Reads the slot binding
+ * once per id and checks the slot window before publishing the new state (§4.1); issuing is a short critical section and
+ * never waits while holding it.
  */
 public final class TimeBasedGenerator implements IdGenerator, AutoCloseable {
     private final String name;
     private final Layout layout;
-    private final SlotHandle slot;
-    private final TimeSource time;
-    private final ClockRegressionPolicy regression;
-    private final GeneratorListener listener;
+    private final TimeSequencer sequencer;
 
     /**
      * A time-based generator.
@@ -45,10 +44,8 @@ public final class TimeBasedGenerator implements IdGenerator, AutoCloseable {
                               ClockRegressionPolicy regression, GeneratorListener listener) {
         this.name = Objects.requireNonNull(name, "name");
         this.layout = Objects.requireNonNull(layout, "layout");
-        this.slot = Objects.requireNonNull(slot, "slot");
-        this.time = Objects.requireNonNull(time, "time");
-        this.regression = Objects.requireNonNull(regression, "regression");
-        this.listener = Objects.requireNonNull(listener, "listener");
+        this.sequencer = new TimeSequencer(name, layout, Objects.requireNonNull(slot, "slot"), Objects.requireNonNull(time, "time"),
+            Objects.requireNonNull(regression, "regression"), Objects.requireNonNull(listener, "listener"));
     }
 
     public String name() {
@@ -63,11 +60,14 @@ public final class TimeBasedGenerator implements IdGenerator, AutoCloseable {
      */
     @Override
     public long generate() {
-        throw new UnsupportedOperationException("R1-A");
+        if (layout.totalBits() > Layout.LONG_BITS) {
+            throw new IllegalStateException("Generator [" + name + "] has a " + layout.totalBits() + "-bit layout: use nextParts()");
+        }
+        return sequencer.nextId();
     }
 
     public IdParts nextParts() {
-        throw new UnsupportedOperationException("R1-A");
+        return sequencer.nextParts();
     }
 
     public Layout layout() {
@@ -80,16 +80,16 @@ public final class TimeBasedGenerator implements IdGenerator, AutoCloseable {
      * @return the slot
      */
     public int slot() {
-        throw new UnsupportedOperationException("R1-A");
+        return sequencer.slot();
     }
 
     /**
      * The time of the last issued id.
      *
-     * @return milliseconds since the Unix epoch, exact once {@link #close()} returned
+     * @return milliseconds since the Unix epoch, 0 when none was issued; exact once {@link #close()} returned
      */
     public long lastIssuedMillis() {
-        throw new UnsupportedOperationException("R1-A");
+        return sequencer.lastIssuedMillis();
     }
 
     /**
@@ -97,6 +97,6 @@ public final class TimeBasedGenerator implements IdGenerator, AutoCloseable {
      */
     @Override
     public void close() {
-        throw new UnsupportedOperationException("R1-A");
+        sequencer.close();
     }
 }

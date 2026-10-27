@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.codec;
 
+import me.ahoo.cosid.time.IdParts;
 import me.ahoo.cosid.time.Layout;
 
 import java.time.ZoneId;
@@ -27,11 +28,26 @@ public final class Friendly implements IdCodec {
     private final Layout layout;
     private final ZoneId zone;
     private final boolean padStart;
+    private final FriendlyFormat format;
+    private final int seqBits;
+    private final int timeShift;
+    private final long nodeMask;
+    private final long seqMask;
+    private final int totalBits;
 
     private Friendly(Layout layout, ZoneId zone, boolean padStart) {
         this.layout = Objects.requireNonNull(layout, "layout");
         this.zone = Objects.requireNonNull(zone, "zone");
         this.padStart = padStart;
+        if (layout.totalBits() > Layout.LONG_BITS) {
+            throw new IllegalArgumentException("A " + layout.totalBits() + "-bit layout does not fit a long: use PartsCodec.friendly");
+        }
+        this.format = new FriendlyFormat(layout, zone, padStart);
+        this.seqBits = layout.seqBits();
+        this.timeShift = layout.nodeBits() + seqBits;
+        this.nodeMask = ~(-1L << layout.nodeBits());
+        this.seqMask = ~(-1L << seqBits);
+        this.totalBits = layout.totalBits();
     }
 
     /**
@@ -41,6 +57,7 @@ public final class Friendly implements IdCodec {
      * @param zone     the time zone of the time part
      * @param padStart whether the node and sequence parts are padded with leading zeros
      * @return the codec
+     * @throws IllegalArgumentException if the layout is wider than 63 bits: use {@link PartsCodec#friendly}
      */
     public static Friendly of(Layout layout, ZoneId zone, boolean padStart) {
         return new Friendly(layout, zone, padStart);
@@ -60,11 +77,15 @@ public final class Friendly implements IdCodec {
 
     @Override
     public String encode(long id) {
-        throw new UnsupportedOperationException("R1-A");
+        if (id < 0 || id >>> totalBits != 0) {
+            throw new IllegalArgumentException("id " + id + " is not a " + totalBits + "-bit id");
+        }
+        return format.format(id >>> timeShift, id >>> seqBits & nodeMask, id & seqMask);
     }
 
     @Override
     public long decode(String text) {
-        throw new UnsupportedOperationException("R1-A");
+        IdParts parts = format.parse(text);
+        return layout.pack(parts.time(), parts.node(), parts.seq());
     }
 }

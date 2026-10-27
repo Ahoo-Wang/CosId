@@ -25,6 +25,7 @@ import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeSource;
 
 import java.time.Duration;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -51,6 +52,9 @@ public final class TimeSequencer {
     private static final long RETRY = -1L;
     /** {@link #tryNext(Bound, long)}: retry; a wait bounded by {@code waitUpTo} started. */
     private static final long RETRY_BOUNDED = -2L;
+    /** {@link #tryNext(Bound, long)}: retry; the CAS lost to another thread. */
+    private static final long RETRY_CONTENDED = -3L;
+    private static final int MAX_BACKOFF_SHIFT = 6;
     private static final long MAX_PARK_MILLIS = 10;
 
     private static final Bound TERMINATED = new Bound(new SlotBinding(0, 0, 0, -1), new AtomicLong(CLOSED));
@@ -117,13 +121,16 @@ public final class TimeSequencer {
      */
     public long nextId() {
         long waitStarted = 0;
+        int lost = 0;
         for (; ; ) {
             Bound current = bound();
             long next = tryNext(current, waitStarted);
             if (next >= 0) {
                 return (next >>> seqBits) << timeShift | (long) current.binding.slot() << seqBits | next & seqMax;
             }
-            if (next == RETRY_BOUNDED && waitStarted == 0) {
+            if (next == RETRY_CONTENDED) {
+                backOff(++lost);
+            } else if (next == RETRY_BOUNDED && waitStarted == 0) {
                 waitStarted = System.nanoTime() | 1;
             }
         }
@@ -136,15 +143,29 @@ public final class TimeSequencer {
      */
     public IdParts nextParts() {
         long waitStarted = 0;
+        int lost = 0;
         for (; ; ) {
             Bound current = bound();
             long next = tryNext(current, waitStarted);
             if (next >= 0) {
                 return new IdParts(next >>> seqBits, current.binding.slot(), next & seqMax);
             }
-            if (next == RETRY_BOUNDED && waitStarted == 0) {
+            if (next == RETRY_CONTENDED) {
+                backOff(++lost);
+            } else if (next == RETRY_BOUNDED && waitStarted == 0) {
                 waitStarted = System.nanoTime() | 1;
             }
+        }
+    }
+
+    /**
+     * After the {@code lost}-th lost CAS in a row: spins a random count that doubles each time, so contending threads
+     * fall out of step instead of keeping the state's cache line bouncing.
+     */
+    private static void backOff(int lost) {
+        int spins = 1 + ThreadLocalRandom.current().nextInt(1 << Math.min(lost, MAX_BACKOFF_SHIFT));
+        for (int i = 0; i < spins; i++) {
+            Thread.onSpinWait();
         }
     }
 
@@ -224,8 +245,8 @@ public final class TimeSequencer {
     /**
      * One attempt on {@code current}.
      *
-     * @return the new state {@code time << seqBits | seq} once its CAS succeeded, else {@link #RETRY} or
-     *     {@link #RETRY_BOUNDED}
+     * @return the new state {@code time << seqBits | seq} once its CAS succeeded, else {@link #RETRY},
+     *     {@link #RETRY_BOUNDED} or {@link #RETRY_CONTENDED}
      */
     private long tryNext(Bound current, long waitStarted) {
         SlotBinding binding = current.binding;
@@ -293,7 +314,10 @@ public final class TimeSequencer {
             return windowExceeded(useMillis, ceiling, waitStarted);
         }
         long next = use << seqBits | seq;
-        return current.state.compareAndSet(state, next) ? next : RETRY;
+        if (current.state.compareAndSet(state, next)) {
+            return next;
+        }
+        return RETRY_CONTENDED;
     }
 
     private long windowExceeded(long useMillis, long ceiling, long waitStarted) {

@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 
@@ -122,8 +123,22 @@ public final class CosIdRuntime implements AutoCloseable {
     }
 
     /**
-     * The generator of that name as {@code type}: the generator itself ({@code TimeBasedGenerator},
-     * {@code SegmentGenerator}, {@code PeriodicSegmentGenerator}, {@code IdGenerator}), or for {@code long} ids a
+     * The ids the generator of that name issued through the views of this runtime: its {@code generator},
+     * {@code stringGenerator}, {@code get} by an interface type, {@code periodic(name)} excluded, and the
+     * {@link #filler()}.
+     *
+     * @param name the generator name
+     * @return the count; empty unless {@link RuntimeOptions#countGenerated()} is on, or when it is disabled
+     * @throws java.util.NoSuchElementException if there is none
+     */
+    public OptionalLong generated(String name) {
+        return entry(name).generated();
+    }
+
+    /**
+     * The generator of that name as {@code type}: an {@code IdGenerator}, {@code PartsIdGenerator} (time-based) or
+     * {@code GroupedIdGenerator} (periodic segment), the concrete generator ({@code TimeBasedGenerator},
+     * {@code SegmentGenerator}, {@code PeriodicSegmentGenerator}; never counted), or for {@code long} ids a
      * {@code StringIdGenerator}, an {@code IntIdGenerator} (range checked) or its {@code IdCodec}; for the 80-bit CosId
      * its {@code PartsCodec}; for a periodic segment its {@code GroupedCodec}.
      *

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.time;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.PartsIdGenerator;
 import me.ahoo.cosid.internal.TimeSequencer;
 import me.ahoo.cosid.lease.SlotHandle;
 import me.ahoo.cosid.observe.GeneratorListener;
@@ -25,7 +26,7 @@ import java.util.Objects;
  * once per id and checks the slot window before publishing the new state (§4.1); issuing is a short critical section and
  * never waits while holding it.
  */
-public final class TimeBasedGenerator implements IdGenerator, AutoCloseable {
+public final class TimeBasedGenerator implements IdGenerator, PartsIdGenerator, AutoCloseable {
     private final String name;
     private final Layout layout;
     private final TimeSequencer sequencer;
@@ -66,6 +67,7 @@ public final class TimeBasedGenerator implements IdGenerator, AutoCloseable {
         return sequencer.nextId();
     }
 
+    @Override
     public IdParts nextParts() {
         return sequencer.nextParts();
     }

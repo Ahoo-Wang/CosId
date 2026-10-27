@@ -364,3 +364,50 @@ jobs:
                   if failure is not None:
                       print(f"- {suite.get('name').rsplit('.', 1)[-1]}.{case.get('name')}: {(failure.get('message') or '')[:200]}")
           EOF
+
+  # R3-S: the Spring Boot compatibility matrix of spring/* (02-modules.md §5): the lowest supported and the build's Boot,
+  # on Java 21 and 25. Java 21 compiles, the matrix Java runs the tests; a test run with skipped tests fails the job.
+  spring-compatibility:
+    name: Spring Boot ${{ matrix.boot }}, Java ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        boot: [ '4.0.8', '4.1.2' ]
+        java: [ '21', '25' ]
+    services:
+      redis:
+        image: redis:8.10-alpine
+        ports:
+          - 6379:6379
+    env:
+      COSID_TEST_REDIS_URI: redis://localhost:6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK ${{ matrix.java }} and 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: |
+            ${{ matrix.java }}
+            21
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Check spring/*
+        run: >-
+          scripts/gradle-retry.sh -PspringBootVersion=${{ matrix.boot }} -PtestJavaVersion=${{ matrix.java }}
+          :spring:autoconfigure:check :spring:starter:check
+
+      - name: Check the tests ran
+        run: |
+          status=0
+          for report in spring/autoconfigure/build/test-results/test/TEST-*.xml; do
+            skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
+            if [ "$skipped" -gt 0 ]; then
+              echo "::error::$report skipped $skipped tests"
+              status=1
+            fi
+          done
+          exit $status

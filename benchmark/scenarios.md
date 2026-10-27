@@ -67,3 +67,18 @@ Results land in `build/results/jmh/results.json` of each project. `docs/jmh/4.1.
 4.x (P5 and P12 pending a clean rerun); it is for reading, not for gating. The release gate (10 §1.3) runs both sides
 with `-PjmhProfile=release` on one fixed physical machine, one JDK 21 patch release, turbo off, one after the other,
 and stores the JSON and the report under `docs/jmh/5.0/`.
+
+### P7 / P10 on JDBC (R2-JDBC)
+
+`MySqlChainIdBenchmark` (P7: `generate_t1/t4/t16`, `@Param step` = 10, 100; thrpt, sample) and `MySqlStoreBenchmark`
+(P10: `reserve_t1`, `acquire_t1`, `renew_t1`; avgt, sample) run on the MySQL of `COSID_TEST_MYSQL_URL` /
+`_USERNAME` / `_PASSWORD` (default `jdbc:mysql://localhost:3306/cosid_db`, root / root) behind a HikariCP pool of 32;
+start one first (`docker run -d -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=cosid_db -p 3306:3306 mysql:8.4`), then
+`benchmark/run-smoke MySqlChainIdBenchmark MySqlStoreBenchmark`.
+
+| # | 4.x | 5.x |
+|---|---|---|
+| P7 | `SegmentChainId` on `JdbcIdSegmentDistributor` at `step` | `SegmentGenerator` on `JdbcStore` (MySQL dialect), `BatchPolicy.DEFAULT` with `step` |
+| P10 reserve | `JdbcIdSegmentDistributor.nextMaxId(100)` | `JdbcStore.ranges().reserve(key, 100, 0)` |
+| P10 acquire | `MachineLeaseManager.acquire` on `JdbcMachineLeaseStore`, a new instance each call, released after it (not measured) | `acquire` by a new owner in a namespace of 1024 slots, released after it (not measured) |
+| P10 renew | `MachineLeaseManager.renew` of one lease | `renew` of one lease |

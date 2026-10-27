@@ -19,6 +19,10 @@ plugins {
 dependencies {
     jmh(project(":core"))
     jmh(project(":store:tck"))
+    // P7 / P10 (R2-JDBC): a real MySQL, COSID_TEST_MYSQL_URL (benchmark/scenarios.md).
+    jmh(project(":store:jdbc"))
+    jmh(libs.mysql.connector)
+    jmh(libs.hikari)
     // P10 (MongoDB)
     jmh(project(":store:mongo"))
     // R2-Redis: P7 / P10

@@ -218,3 +218,137 @@ jobs:
         if: always()
         run: |
           echo "ZooKeeper ${{ matrix.zookeeper }}: TCK ${{ steps.probe.outcome }} (probe, not supported)" >> "$GITHUB_STEP_SUMMARY"
+
+  # store/jdbc (R2-JDBC): the TCK on every dialect at its minimum and a current version (06-stores.md §2.1, D27). MySQL,
+  # MariaDB and PostgreSQL are services reached through COSID_TEST_*_URL; SQL Server, whose image is large, runs on
+  # Testcontainers (COSID_TEST_SQLSERVER_IMAGE). checkContractsRan checks each dialect's reports on their own, so a
+  # database that was not there fails the job.
+  # The probe entries (D28) run the TCK once below the minimum to document real compatibility (store/jdbc/README.md);
+  # they are no support commitment: their test step may fail without failing the job, and the summary shows the outcome.
+  store-jdbc:
+    name: Store JDBC (${{ matrix.versions }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - versions: minimum
+            mysql: mysql:8.4
+            mariadb: mariadb:10.11
+            postgres: postgres:15-alpine
+            sqlserver: mcr.microsoft.com/mssql/server:2019-latest
+            dialects: h2,mysql,mariadb,postgresql,sqlserver
+            probe: false
+          - versions: current
+            mysql: mysql:9
+            mariadb: mariadb:11
+            postgres: postgres:18-alpine
+            sqlserver: mcr.microsoft.com/mssql/server:2022-latest
+            dialects: h2,mysql,mariadb,postgresql,sqlserver
+            probe: false
+          - versions: probe MySQL 8.0, MariaDB 10.6, PostgreSQL 12, SQL Server 2017
+            mysql: mysql:8.0
+            mariadb: mariadb:10.6
+            postgres: postgres:12-alpine
+            sqlserver: mcr.microsoft.com/mssql/server:2017-latest
+            dialects: mysql,mariadb,postgresql,sqlserver
+            probe: true
+          - versions: probe PostgreSQL 13
+            mysql: mysql:8.4
+            mariadb: mariadb:10.11
+            postgres: postgres:13-alpine
+            sqlserver: mcr.microsoft.com/mssql/server:2019-latest
+            dialects: postgresql
+            tests: me.ahoo.cosid.store.jdbc.Postgres*
+            probe: true
+          - versions: probe PostgreSQL 14
+            mysql: mysql:8.4
+            mariadb: mariadb:10.11
+            postgres: postgres:14-alpine
+            sqlserver: mcr.microsoft.com/mssql/server:2019-latest
+            dialects: postgresql
+            tests: me.ahoo.cosid.store.jdbc.Postgres*
+            probe: true
+    services:
+      mysql:
+        image: ${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: cosid_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+      mariadb:
+        image: ${{ matrix.mariadb }}
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: cosid_db
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -proot || mariadb-admin ping -h localhost -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+      postgres:
+        image: ${{ matrix.postgres }}
+        env:
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: cosid_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Check store/jdbc
+        id: tck
+        continue-on-error: ${{ matrix.probe }}
+        env:
+          COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
+          COSID_TEST_MYSQL_USERNAME: root
+          COSID_TEST_MYSQL_PASSWORD: root
+          COSID_TEST_MARIADB_URL: jdbc:mariadb://localhost:3307/cosid_db
+          COSID_TEST_MARIADB_USERNAME: root
+          COSID_TEST_MARIADB_PASSWORD: root
+          COSID_TEST_POSTGRES_URL: jdbc:postgresql://localhost:5432/cosid_db
+          COSID_TEST_POSTGRES_USERNAME: postgres
+          COSID_TEST_POSTGRES_PASSWORD: root
+          COSID_TEST_SQLSERVER_IMAGE: ${{ matrix.sqlserver }}
+          TESTS: ${{ matrix.tests }}
+        run: |
+          args=()
+          if [ -n "$TESTS" ]; then args=(--tests "$TESTS"); fi
+          scripts/gradle-retry.sh :store:jdbc:check "${args[@]}" -Pcosid.store.jdbc.dialects=${{ matrix.dialects }}
+
+      - name: Probe outcome
+        if: ${{ always() && matrix.probe }}
+        run: |
+          echo "### ${{ matrix.versions }}: ${{ steps.tck.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          python3 -I - store/jdbc/build/test-results/test >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          import glob, sys, xml.etree.ElementTree as ET
+          for report in sorted(glob.glob(sys.argv[1] + "/TEST-*.xml")):
+              suite = ET.parse(report).getroot()
+              for case in suite.iter("testcase"):
+                  failure = case.find("failure")
+                  if failure is None:
+                      failure = case.find("error")
+                  if failure is not None:
+                      print(f"- {suite.get('name').rsplit('.', 1)[-1]}.{case.get('name')}: {(failure.get('message') or '')[:200]}")
+          EOF

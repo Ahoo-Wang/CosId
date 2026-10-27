@@ -131,7 +131,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | 工作包 | 内容 | 归属会话 | PR | 状态 |
 |---|---|---|---|---|
 | WP-Redis | **B-B1**、B-N4 | R2-Redis | [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | Draft,等 CI(含带副本的 Cluster 测试) |
-| WP-JDBC | B-M1、B-N2 | R2-JDBC | [#1354](https://github.com/Ahoo-Wang/CosId/pull/1354) | Draft,等 CI |
+| WP-JDBC | B-M1、B-N2 | R2-JDBC | [#1354](https://github.com/Ahoo-Wang/CosId/pull/1354) | CI 31 项全绿;仍为 Draft(会话无权限转 ready);偏差:SQL Server 无论排序规则都忽略尾随空格,方言改为拒绝以空格结尾的 key(不合并为同一 key,唯一性不受损),总调度认可 |
 | WP-ZK | B-N1;**E-B1** 即 #1342 | R2-ZK | #1342 | B-N1 已并入 #1342,等 CI |
 | WP-server | **C-B1**、**C-B2**、C-M1、C-N1、C-N2、B-N3 | R4-A | [#1349](https://github.com/Ahoo-Wang/CosId/pull/1349) | 六项已修复,Draft(会话无权限转 ready),等 CI |
 | WP-spring | C-N3 | R3-S | [#1353](https://github.com/Ahoo-Wang/CosId/pull/1353) | 修复完成,等 CI |
@@ -149,7 +149,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **收尾阶段(用户 2026-10-27 最新指示):** 不开新任务;已 ready 的 PR 等 CI 全绿后合并;最后登记文档。本机代码必须全部推送到 GitHub。
 
-**快照(2026-10-27 深夜):** Ready:#1342、#1348(已审查通过,等 CI)、#1350;Draft:#1349、#1351(修复已完成,会话无权限转 ready,需用户转)、#1352、#1353、#1354(WP-JDBC)、#1355、#1356(R2-Mongo 的 range 竞态测试,已解决与 main 的冲突)。CI 仍大量排队,尚无可合入的 PR。
+**快照(2026-10-27 深夜):** Ready:#1342、#1348(已审查通过,等 CI)、#1350;Draft:#1349、#1351(修复已完成,会话无权限转 ready,需用户转)、#1352、#1353、#1354(WP-JDBC,CI 已全绿)、#1355、#1356(R2-Mongo 的 range 竞态测试,已解决与 main 的冲突)。CI 仍大量排队,尚无可合入的 PR。
 
 **已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)。
 

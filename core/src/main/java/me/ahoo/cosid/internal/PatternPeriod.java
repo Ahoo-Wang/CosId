@@ -16,10 +16,16 @@ package me.ahoo.cosid.internal;
 import me.ahoo.cosid.segment.Period;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.Year;
+import java.time.YearMonth;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
 
 /**
- * The preset periods.
+ * The preset periods: calendar years, months and days in a time zone, keyed by their {@link #pattern()}.
  */
 public enum PatternPeriod implements Period {
     YEAR("yyyy"),
@@ -27,9 +33,12 @@ public enum PatternPeriod implements Period {
     YEAR_MONTH_DAY("yyyyMMdd");
 
     private final String pattern;
+    private final DateTimeFormatter formatter;
 
     PatternPeriod(String pattern) {
         this.pattern = pattern;
+        // uuuu (proleptic year) with strict resolving: a key such as "20261332" is refused, not adjusted.
+        this.formatter = DateTimeFormatter.ofPattern(pattern.replace('y', 'u')).withResolverStyle(ResolverStyle.STRICT);
     }
 
     public String pattern() {
@@ -38,11 +47,20 @@ public enum PatternPeriod implements Period {
 
     @Override
     public String keyOf(Instant instant, ZoneId zone) {
-        throw new UnsupportedOperationException("R1-B");
+        return formatter.format(LocalDate.ofInstant(instant, zone));
     }
 
     @Override
     public Instant endOf(String key, ZoneId zone) {
-        throw new UnsupportedOperationException("R1-B");
+        try {
+            LocalDate next = switch (this) {
+                case YEAR -> Year.parse(key, formatter).plusYears(1).atDay(1);
+                case YEAR_MONTH -> YearMonth.parse(key, formatter).plusMonths(1).atDay(1);
+                case YEAR_MONTH_DAY -> LocalDate.parse(key, formatter).plusDays(1);
+            };
+            return next.atStartOfDay(zone).toInstant();
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("[" + key + "] is not a " + name() + " period key (" + pattern + ")", e);
+        }
     }
 }

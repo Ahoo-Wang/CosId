@@ -17,8 +17,9 @@ import me.ahoo.cosid.lease.SlotHandle;
 import me.ahoo.cosid.lease.StaticSlot;
 import me.ahoo.cosid.observe.GeneratorListener;
 import me.ahoo.cosid.segment.BatchPolicy;
+import me.ahoo.cosid.segment.Range;
+import me.ahoo.cosid.segment.RangeStore;
 import me.ahoo.cosid.segment.SegmentGenerator;
-import me.ahoo.cosid.store.tck.InMemoryStore;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeBasedGenerator;
@@ -27,8 +28,10 @@ import me.ahoo.cosid.time.TimeSource;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * What a 5.x runtime builds by default, shared by the scenarios (benchmark/scenarios.md).
@@ -62,6 +65,26 @@ final class V5 {
     }
 
     static SegmentGenerator segment(String name, BatchPolicy policy) {
-        return new SegmentGenerator(name, "bench/" + name, new InMemoryStore(), policy, EXECUTOR, TimeSource.SYSTEM, GeneratorListener.NOOP);
+        return new SegmentGenerator(name, "bench/" + name, new MemoryRangeStore(), policy, EXECUTOR, TimeSource.SYSTEM, GeneratorListener.NOOP);
+    }
+
+    /**
+     * An in-memory range store with no simulated latency, like the 4.x {@code Baseline4x.MemoryDistributor}: one
+     * atomic add per reservation.
+     *
+     * <p>TODO(R1-C): use {@code store.tck.InMemoryStore} once it is implemented, if it costs the same.
+     */
+    static final class MemoryRangeStore implements RangeStore {
+        private final ConcurrentHashMap<String, AtomicLong> values = new ConcurrentHashMap<>();
+
+        @Override
+        public Range reserve(String key, long size, long initialOffset) {
+            AtomicLong value = values.get(key);
+            if (value == null) {
+                value = values.computeIfAbsent(key, k -> new AtomicLong(initialOffset));
+            }
+            long end = value.addAndGet(size);
+            return new Range(end - size, end);
+        }
     }
 }

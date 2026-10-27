@@ -1,125 +1,103 @@
 ---
 name: cosid-manual-integration
-description: Integrate CosId programmatically into Java or Kotlin applications without Spring Boot auto-configuration. Use for direct construction of SnowflakeId, CosIdGenerator, DefaultSegmentId, or SegmentChainId; machine-ID allocation and guarding; backend distributor factories; lifecycle ownership; custom IdConverter wiring; tests; or integration into another framework. Do not use for cosid-spring-boot-starter YAML or feature capabilities.
+description: Integrate CosId 5 programmatically into Java or Kotlin applications without Spring Boot. Use for building a RuntimeSpec and starting a CosIdRuntime, StoreSpec / MachineSpec / GeneratorSpec / CodecSpec records, RuntimeOptions (clients, listeners, executor, time source), direct TimeBasedGenerator or SegmentGenerator construction in tests, Layout and IdCodec use, IdFiller, lifecycle and close order, custom StoreProvider or JdbcDialect, and tests with cosid-store-tck's InMemoryStore. Do not use for cosid-spring-boot-starter YAML.
 ---
 
 # Integrate CosId Programmatically
 
-Provide code that compiles against the user's CosId version. Prefer direct constructors for fixed local inputs and backend factories for distributed state.
+Provide code that compiles against the user's CosId version. In CosId 5 **`CosIdRuntime` is the one assembly path**:
+Spring, cosid-server and hand-written code all call `CosIdRuntime.start(spec, options)`. Build a spec; do not wire
+generators, leases and stores by hand in production code.
 
 ## Workflow
 
-1. Confirm the target version and chosen strategy. Use `$cosid-strategy-guide` only when the strategy is undecided.
-2. Identify the uniqueness authority: fixed machine ID, StatefulSet ordinal, distributed machine-ID backend, or segment backend.
-3. Construct the smallest generator that satisfies the requirement.
-4. Own every created client, guarder, executor, and distributor for its full lifecycle.
-5. Add one focused check for uniqueness, local monotonicity, parsing, restart, or clock rollback.
+1. Confirm the target version (5.x needs Java 21) and the chosen strategy. Use `$cosid-strategy-guide` when the strategy
+   is undecided.
+2. Identify the uniqueness authority: a leased slot from a store, a static slot the deployment guarantees, or a
+   segment store.
+3. Build the smallest `RuntimeSpec` that satisfies the requirement.
+4. Own the runtime for its full life (`try`-with-resources, or close it on shutdown).
+5. Add one focused check: uniqueness, monotonicity, decoding, restart, or clock regression.
 
-When a CosId checkout is available, verify signatures in `cosid-core/src/main/java/me/ahoo/cosid/` and use existing backend factories and tests as examples. Do not copy older README snippets without checking the current source.
+In a CosId checkout, verify signatures in `core/src/main/java/me/ahoo/cosid/runtime/` (records) and use
+`core/src/test/java/me/ahoo/cosid/runtime/CosIdRuntimeTest.java` as the example.
 
-## SnowflakeId with a Fixed Machine ID
-
-Use this only when deployment automation guarantees a unique value per live instance.
-
-```java
-int machineId = 1;
-SnowflakeId idGenerator = new ClockSyncSnowflakeId(
-    new MillisecondSnowflakeId(machineId)
-);
-
-long id = idGenerator.generate();
-```
-
-Use `SecondSnowflakeId` only for a deliberate second-based bit layout. Use `SafeJavaScriptSnowflakeId.ofMillisecond(machineId)` when a numeric ID must stay within JavaScript's safe integer range; otherwise serialize ordinary IDs as strings.
-
-## Distributed Machine-ID Allocation
-
-Create the backend-specific `MachineIdDistributor`, then allocate with the exact namespace, machine bits, instance identity, and lease:
+## A Runtime
 
 ```java
-static SnowflakeId createSnowflake(MachineIdDistributor distributor) {
-    String namespace = "order-service";
-    InstanceId instanceId = InstanceId.of("10.0.0.12:8080", false);
-    Duration lease = Duration.ofMinutes(5);
+RuntimeSpec spec = new RuntimeSpec("shop",
+    Map.of("db", new StoreSpec("jdbc", Duration.ofSeconds(2), Map.of("initSchema", "true"))),
+    Optional.of(new MachineSpec.Leased("db", 10, Duration.ofSeconds(30), Duration.ofSeconds(1),
+        OptionalInt.empty(), Optional.empty())),                  // preferred slot, owner key
+    Map.of(
+        "default", new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT,
+            List.of(new CodecSpec.Radix(62, 11, true))),
+        "order", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of(new CodecSpec.Prefix("O")))));
 
-    MachineState state = distributor.distribute(
-        namespace,
-        10,
-        instanceId,
-        lease
-    );
-    return new ClockSyncSnowflakeId(
-        new MillisecondSnowflakeId(state.getMachineId())
-    );
+RuntimeOptions d = RuntimeOptions.defaults();
+RuntimeOptions options = new RuntimeOptions(d.time(), d.executor(), d.listener(), d.storeProviders(),
+    Map.of("db", dataSource), d.hostResolver(), d.port(), d.codecs());   // existing clients by store name
+
+try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
+    long id = runtime.generator("default").generate();
+    String order = runtime.stringGenerator("order").generate();
 }
 ```
 
-The snippet shows allocation, not heartbeat ownership. For expiring distributed leases, wrap allocation with `GuardDistribute`, run a `DefaultMachineIdGuarder`, stop it during shutdown, and call `distributor.revert(namespace, instanceId)` after stopping the guarder. Gate readiness and generation on `guarder.hasFailure()` because the guarder records heartbeat failure but does not stop ID generation. Shut down any `ScheduledExecutorService` created by the application after stopping the guarder. Pass `stable: true` only for a stable deployment identity such as a StatefulSet slot; stable instances retain their machine-ID claim instead of being recycled by the lease cutoff. Use local state storage only when the filesystem follows that stable identity; it helps reclaim the previous machine ID and prevents clock regression after restart.
+- Store types: `jdbc` (`DataSource`, or `options.url`), `redis` (Lettuce client or `options.uri`), `mongo`
+  (`MongoClient` or `options.uri`), `zookeeper` (`CuratorFramework` or `options.connectString`), `remote`
+  (`options.baseUrl`, `token`). Providers come from `ServiceLoader`; `RuntimeOptions.storeProviders` adds more.
+- A store given a client never closes it; one it built itself, it closes.
+- `MachineSpec.Static(bits, slot, Optional.of(stateFile), Duration.ofSeconds(10), Optional.empty())` for a slot the
+  deployment keeps unique; without a state file there is no protection against a clock set back across restarts.
+- `GeneratorSpec.CosId80(regression, new PartsCodecSpec.Radix(62))`,
+  `GeneratorSpec.PeriodicSegment(store, Period.YEAR_MONTH_DAY, zone, BatchPolicy.DEFAULT, PeriodicPolicy.DEFAULT,
+  new GroupedCodecSpec.DatePrefix("-", List.of(new CodecSpec.Radix(10, 6, true))))`.
+- `GeneratorSpec.Disabled(spec)` declares a generator without creating it.
+- A segment's `BatchPolicy(step, initialOffset, lookahead, maxBatch, reserveTimeout, rangeTtl)`; `BatchPolicy.DEFAULT`
+  starts a new key at 1, as 4.x did.
 
-For a fixed manual ID through the distributor API, use the real constructor:
+## Reading Ids
 
-```java
-MachineIdDistributor distributor = new ManualMachineIdDistributor(
-    1,
-    MachineStateStorage.LOCAL,
-    ClockBackwardsSynchronizer.DEFAULT
-);
-```
+- `runtime.generator(name)` returns an `IdGenerator` (`snowflake`, `segment`); `runtime.stringGenerator(name)` returns
+  ids and codec.
+- `runtime.get(name, TimeBasedGenerator.class)` gives `layout()`, `slot()`, `nextParts()`;
+  `runtime.get(name, PartsCodec.class)` for `cosid80`; `runtime.periodic(name)` and `runtime.get(name, GroupedCodec.class)`
+  for periodic segments; `runtime.get(name, IntIdGenerator.class)` is range checked.
+- `layout.unpack(id)` gives `IdParts(time, node, seq)`; `parts.instant(layout)` the time. Every codec has `decode`.
+- `runtime.filler().fill(entity)` fills `@CosId` fields.
+- `IdGenerators.toInt`, `.uncertain`, `.local()`, `.uuid()`, `.lazy(...)` replace the small 4.x generator classes.
 
-## Segment Generators
+## Lifecycle
 
-Obtain the distributor from the selected backend's `IdSegmentDistributorFactory` and keep the namespace/name/offset/step definition explicit:
+- Start validates everything first and reports all problems in one `CosIdException`. It then opens the used stores,
+  acquires the slot, and creates the generators; a failure closes what was opened.
+- `close()`: generators stop and report their exact last timestamp, the slot is released with it, then the stores and the
+  runtime's own executor close. Always close: a released slot is reusable at once, an abandoned one after `ttl` +
+  `tolerance`.
+- A JVM may run several runtimes; each has its own incarnation and slot. There is no global state.
 
-```java
-static SegmentId createSegment(IdSegmentDistributorFactory distributorFactory) {
-    IdSegmentDistributorDefinition definition =
-        new IdSegmentDistributorDefinition("order-service", "order", 0, 100);
-    IdSegmentDistributor distributor = distributorFactory.create(definition);
-    return new SegmentChainId(distributor);
-}
-```
+## Tests
 
-Use `new DefaultSegmentId(distributor)` instead when synchronous rollover is preferred. `SegmentChainId(distributor)` uses `PrefetchWorkerExecutorService.shared()`, created on first use with a JVM shutdown hook; if the application supplies its own executor, shut that executor down explicitly. Call `close()` on a `SegmentChainId` you discard to stop its background prefetch.
-
-Segment IDs are monotonic only within one generator. Distributed ranges provide global uniqueness and trend ordering, not strict global generation-time order.
-
-## String Conversion
-
-Wrap `long` generators with the matching string decorator instead of reimplementing generation:
-
-```java
-IdConverter converter = new PrefixIdConverter(
-    "ORD-",
-    Radix62IdConverter.PAD_START
-);
-SnowflakeId stringSnowflake = new StringSnowflakeId(snowflakeId, converter);
-SegmentId stringSegment = new StringSegmentId(segmentId, converter);
-```
-
-Call `generateAsString()` on the wrapper and test `converter.asLong()` when round-trip parsing is required. `CosIdGenerator` does not support `IdConverter`; select or implement its `CosIdIdStateParser` instead.
-
-## CosIdGenerator
-
-`CosIdGenerator` produces strings only: in 4.x it implements `StringIdGenerator`, which has no `generate()`.
-
-```java
-CosIdGenerator generator = new ClockSyncCosIdGenerator(
-    new Radix62CosIdGenerator(machineId)
-);
-String id = generator.generateAsString();
-```
-
-Allocate `machineId` with the same uniqueness and lifecycle rules as SnowflakeId.
+- `cosid-store-tck`: `InMemoryStore` (passes every contract) for tests without a database, `ManualClock`, fault
+  injection, and the `RangeStoreContract` / `SlotLeaseStoreContract` base classes for a custom store.
+- A custom `JdbcDialect` is registered through `META-INF/services/me.ahoo.cosid.store.jdbc.JdbcDialect` and must pass the
+  contracts on its database.
 
 ## Boundaries and Checks
 
-- Keep one namespace per independent allocation domain and one stable instance identity per deployment slot.
-- Reject machine IDs outside the configured bit range before starting traffic.
-- Do not claim global monotonicity for segment generators or global total order for clock-based generators.
-- Keep custom epoch, timestamp unit, bit layout, parser, and sharding converter aligned.
-- Close backend clients created by the application. Do not close shared framework clients that the application does not own.
-- Test with at least two simulated instances when correctness depends on distributed uniqueness.
+- Do not construct `LeaseKeeper` or `TimeBasedGenerator` directly in application code; it bypasses the start-up checks
+  (node bits vs slot bits, store timeout vs reserve timeout).
+- Uniqueness of time-based ids rests on the store's window invariant (D22), never on clocks; there is no way to keep
+  issuing after a lost lease.
+- 4.x classes (`SnowflakeId`, `SegmentChainId`, `MachineIdDistributor`, `IdGeneratorProvider`, `IdConverter`) do not exist
+  in 5.x.
 
 ## Response Contract
 
-Return the required module dependencies, exact imports and constructors, lifecycle ownership, one runnable check, and no unrelated Spring Boot configuration.
+Return:
+
+1. the dependencies (`cosid-core` + the store artifacts);
+2. the `RuntimeSpec` and `RuntimeOptions`;
+3. the lifecycle owner and close point;
+4. one focused test.

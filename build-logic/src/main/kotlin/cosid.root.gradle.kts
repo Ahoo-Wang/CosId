@@ -35,6 +35,11 @@ val checkDependencyRules = tasks.register<CheckDependencyRules>("checkDependency
     })
 }
 
+// -Pcosid.test.skipProjects (cosid.java): a misspelt path would leave a project untested without a word.
+findProperty("cosid.test.skipProjects")?.toString()?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.forEach {
+    requireNotNull(rootProject.findProject(it)) { "cosid.test.skipProjects: no project $it" }
+}
+
 tasks.register("check") {
     group = "verification"
     description = "Runs every check of the build, the dependency rules and build-logic's own tests among them."

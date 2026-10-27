@@ -15,23 +15,26 @@
 # each), then judges the two results with `compare --smoke` (10-performance-and-parity.md §1.3). Both sides run in
 # the same invocation on the same machine, so the result does not depend on stored numbers.
 #
-#   benchmark/run-smoke [--release] [--out DIR] [SCENARIO...]
+#   benchmark/run-smoke [--release] [--out DIR] [--max-load N] [SCENARIO...]
 #
-# SCENARIO is P1..P12 (those with a benchmark class, see benchmark/scenarios.md) or a class name such as
+# SCENARIO is P1..P12 (P7 and P10 stand for their store classes, see benchmark/scenarios.md) or a class name such as
 # SegmentBenchmark; the default is the PR smoke set P1 P3 P5 P9. --release uses the release-gate JMH settings and
-# release compare rules instead of the smoke ones. Results land in DIR (default build/benchmark-smoke): the JSON of
-# each side, the run logs and report.md. Exits with the status of compare (0 PASS, 1 FAIL, 2 bad input).
+# release compare rules instead of the smoke ones. --max-load aborts (status 3) when the 1-minute load average is above
+# N before a scenario. Results land in DIR (default build/benchmark-smoke): the JSON of each side, the run logs,
+# load.tsv and report.md. Exits with the status of compare (0 PASS, 1 FAIL, 2 bad input).
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 out="$root/build/benchmark-smoke"
 profile=smoke
+max_load=
 scenarios=()
 while (($#)); do
     case "$1" in
         --release) profile=release ;;
         --out) out="$2"; shift ;;
-        -h|--help) sed -n '14,23p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+        --max-load) max_load="$2"; shift ;;
+        -h|--help) sed -n '14,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
         *) scenarios+=("$1") ;;
     esac
     shift
@@ -48,9 +51,10 @@ class_of() {
         P6) echo SegmentNoPrefetchBenchmark ;;
         P8) echo PeriodicSegmentBenchmark ;;
         P9) echo CodecBenchmark ;;
+        P7) echo MySqlChainIdBenchmark RedisChainIdBenchmark ;;
+        P10) echo MySqlStoreBenchmark RedisStoreBenchmark MongoStoreBenchmark ZookeeperStoreBenchmark ;;
         P11) echo SpringStartBenchmark ;;
         P12) echo IdFillerBenchmark ;;
-        P7|P10) echo "run-smoke: $1 has no benchmark yet (see benchmark/scenarios.md)" >&2; return 1 ;;
         P*) echo "run-smoke: unknown scenario $1" >&2; return 1 ;;
         *) echo "$1" ;;
     esac
@@ -66,14 +70,21 @@ fi
 
 classes=()
 for scenario in "${scenarios[@]}"; do
-    classes+=("$(class_of "$scenario")")
+    names="$(class_of "$scenario")"
+    read -r -a names <<<"$names"
+    classes+=("${names[@]}")
 done
 
 cd "$root"
 ./gradlew -q :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
 java="$(./gradlew -q :benchmark:v5:printJmhJava | tail -n 1)"
 mkdir -p "$out"
-rm -f "$out"/*.json "$out"/*.log "$out"/report.md
+rm -f "$out"/*.json "$out"/*.log "$out"/report.md "$out"/load.tsv
+
+# The 1-minute load average.
+load1() {
+    if [[ -r /proc/loadavg ]]; then cut -d' ' -f1 /proc/loadavg; else sysctl -n vm.loadavg | awk '{print $2}'; fi
+}
 
 # Runs one side; waits for another JMH run on the machine (JMH's machine-wide lock) rather than overlapping it.
 run() {
@@ -96,7 +107,13 @@ run() {
 }
 
 for class in "${classes[@]}"; do
-    echo "run-smoke: $class on 4.x, then 5.x" >&2
+    load="$(load1)"
+    printf '%s\t%s\n' "$class" "$load" >>"$out/load.tsv"
+    if [[ -n $max_load ]] && awk -v load="$load" -v max="$max_load" 'BEGIN { exit !(load > max) }'; then
+        echo "run-smoke: the 1-minute load average is $load, above $max_load, before $class: aborting" >&2
+        exit 3
+    fi
+    echo "run-smoke: $class on 4.x, then 5.x (load $load)" >&2
     run baseline-4x "$class"
     run v5 "$class"
 done

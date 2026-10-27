@@ -17,6 +17,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
+import me.ahoo.cosid.runtime.MachineSpec;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.spring.autoconfigure.CosIdProperties;
 import me.ahoo.cosid.spring.autoconfigure.CosIdSpecs;
@@ -69,6 +70,21 @@ class ConfigBindingTest {
                 }
             }
         });
+    }
+
+    @Test
+    void theStatefulSetSlotBindsFromThePodOrdinal() throws IOException {
+        StandardEnvironment environment = new StandardEnvironment();
+        for (PropertySource<?> source : new YamlPropertySourceLoader().load("edge",
+            new FileSystemResource(MigrationScenarioTest.resource("config/edge/expected.yaml")))) {
+            environment.getPropertySources().addFirst(source);
+        }
+        environment.getPropertySources().addLast(new MapPropertySource("slots", Map.of("POD_ORDINAL", "3")));
+        RuntimeSpec spec = CosIdSpecs.toSpec(Binder.get(environment).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class)),
+            ZoneId.of("UTC"));
+        MachineSpec.Static machine = (MachineSpec.Static) spec.machine().orElseThrow();
+        assertThat(machine.slot(), is(3));
+        assertThat(machine.bits(), is(8));
     }
 
     @Test

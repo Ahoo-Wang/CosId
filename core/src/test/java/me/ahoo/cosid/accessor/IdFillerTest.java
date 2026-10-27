@@ -14,6 +14,7 @@
 package me.ahoo.cosid.accessor;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.is;
@@ -25,6 +26,10 @@ import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.GeneratorDisabledException;
 import me.ahoo.cosid.IdOverflowException;
 import me.ahoo.cosid.codec.Radix;
+import me.ahoo.cosid.internal.AnnotatedIdFiller;
+import me.ahoo.cosid.internal.Codecs;
+import me.ahoo.cosid.internal.GeneratorEntry;
+import me.ahoo.cosid.observe.GeneratorListener;
 import me.ahoo.cosid.runtime.CodecSpec;
 import me.ahoo.cosid.runtime.CosIdRuntime;
 import me.ahoo.cosid.runtime.GeneratorSpec;
@@ -37,11 +42,13 @@ import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.segment.Period;
 import me.ahoo.cosid.segment.PeriodicPolicy;
+import me.ahoo.cosid.segment.SegmentGenerator;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.StoreProvider;
 import me.ahoo.cosid.store.tck.InMemoryStore;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
+import me.ahoo.cosid.time.TimeSource;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -54,6 +61,9 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 class IdFillerTest {
     static CosIdRuntime runtime;
@@ -436,5 +446,62 @@ class IdFillerTest {
         assertThat(bill.id, nullValue());
         filler.fill(bill);
         assertThat(Radix.of(10, 4, true).decode(bill.id.substring(5)), greaterThan(-1L));
+    }
+
+    static class OtherLongId {
+        @CosId
+        private long id;
+    }
+
+    static class NoId {
+        long id;
+    }
+
+    @Test
+    void theAccessorOfAClassIsResolvedOnceAndCached() {
+        List<String> lookups = new CopyOnWriteArrayList<>();
+        ExecutorService refills = Executors.newVirtualThreadPerTaskExecutor();
+        try (SegmentGenerator segment = new SegmentGenerator("default", "cached/default", new InMemoryStore(), BatchPolicy.DEFAULT, refills,
+            TimeSource.SYSTEM, GeneratorListener.NOOP)) {
+            GeneratorEntry entry = GeneratorEntry.segment(segment, Codecs.DECIMAL, "db", null);
+            // The generator lookup is part of resolving an accessor: counting it counts the resolutions.
+            AnnotatedIdFiller cached = new AnnotatedIdFiller(name -> {
+                lookups.add(name);
+                return entry;
+            });
+            long previous = -1;
+            for (int i = 0; i < 5; i++) {
+                LongWithAccessors entity = new LongWithAccessors();
+                cached.fill(entity);
+                assertThat(entity.id, greaterThan(previous));
+                previous = entity.id;
+            }
+            assertThat(lookups, contains("default"));
+
+            // Another class resolves its own accessor once.
+            for (int i = 0; i < 3; i++) {
+                OtherLongId other = new OtherLongId();
+                cached.fill(other);
+                assertThat(other.id, greaterThan(previous));
+                previous = other.id;
+            }
+            assertThat(lookups, contains("default", "default"));
+
+            // A class without an id is cached as "nothing to fill" and never looks up a generator.
+            NoId none = new NoId();
+            cached.fill(none);
+            cached.fill(none);
+            assertThat(none.id, is(0L));
+            assertThat(lookups, contains("default", "default"));
+
+            // The cache is per filler: a new one resolves again.
+            new AnnotatedIdFiller(name -> {
+                lookups.add("fresh:" + name);
+                return entry;
+            }).fill(new LongWithAccessors());
+            assertThat(lookups, contains("default", "default", "fresh:default"));
+        } finally {
+            refills.shutdownNow();
+        }
     }
 }

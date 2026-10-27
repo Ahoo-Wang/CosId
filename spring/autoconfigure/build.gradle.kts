@@ -73,6 +73,9 @@ dependencies {
     testImplementation(libs.flowable.spring)
     testImplementation(libs.flowable.spring.boot.autoconfigure) { isTransitive = false }
     testImplementation(libs.testcontainers)
+    // The context's own CuratorFramework and MongoClient beans (CosIdAutoConfigurationTest)
+    testImplementation(libs.curator.test)
+    testImplementation(libs.testcontainers.mongodb)
 }
 
 tasks.test {

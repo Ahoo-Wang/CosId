@@ -7,6 +7,11 @@ short base-62 text, a readable time-based text, a per-day bill number).
 This site describes **CosId 5**. 5.0 is a full rewrite with no backward compatibility; the offline
 [migration tool](migration/from-4x.md) moves a 4.x deployment over.
 
+| Line | Branch | Java / Spring Boot | Documentation |
+|---|---|---|---|
+| 5.x | `main` (the default branch) | 21+ / 4.0+ | this site |
+| 4.x | `4.x` (maintenance: bug fixes only) | 17+ / 4.x | the site of the 4.x release tags |
+
 ## Two ways to be unique
 
 Every distributed id is unique for one of two reasons, and CosId offers both:

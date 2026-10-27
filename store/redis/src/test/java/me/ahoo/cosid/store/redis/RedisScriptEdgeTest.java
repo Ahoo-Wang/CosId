@@ -29,6 +29,7 @@ import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.segment.Range;
 import me.ahoo.cosid.store.Store;
 
+import io.lettuce.core.ZAddArgs;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 import org.junit.jupiter.api.AfterAll;
@@ -71,15 +72,6 @@ class RedisScriptEdgeTest {
 
     private static AcquireResult.Acquired acquired(Store store, String namespace, Owner owner, int limit, Duration ttl, OptionalInt preferred) {
         return assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner, limit, ttl, TOLERANCE, preferred));
-    }
-
-    private static void sleep(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new AssertionError(e);
-        }
     }
 
     @Test
@@ -155,16 +147,34 @@ class RedisScriptEdgeTest {
     void sweepMovesAtMostOneBatchOfExpiredLeases() {
         String namespace = newKey();
         try (Store store = open(Map.of("sweepBatch", 2))) {
-            for (int i = 0; i < 6; i++) {
-                acquired(store, namespace, new Owner("host-" + i, UUID.randomUUID()), 8, Duration.ofMillis(50), OptionalInt.empty());
+            // Every lease is long-lived, so none can expire while the setup runs, however slow the machine.
+            for (int i = 0; i < 7; i++) {
+                acquired(store, namespace, new Owner("host-" + i, UUID.randomUUID()), 8, TTL, OptionalInt.empty());
             }
-            acquired(store, namespace, new Owner("host-6", UUID.randomUUID()), 8, TTL, OptionalInt.empty());
-            sleep(150);
-            assertEquals(1L, redis.zcard(RedisStore.namespaceKey(namespace, "free")));
+            assertEquals(1L, redis.zcard(RedisStore.namespaceKey(namespace, "free")), "only slot 7 is free");
+            // Slots 0..5 expire now, before the store clock, slot 0 first: what the sweep sees is fixed, not timed.
+            expire(namespace, List.of(0, 1, 2, 3, 4, 5));
             SlotLease taken = acquired(store, namespace, new Owner("host-new", UUID.randomUUID()), 8, TTL, OptionalInt.empty()).lease();
             assertEquals(0, taken.slot(), "the sweep made slot 0 free, the lowest one");
             assertEquals(2L, redis.zcard(RedisStore.namespaceKey(namespace, "free")), "two swept, one of them taken, slot 7 still free");
             assertEquals(6L, redis.zcard(RedisStore.namespaceKey(namespace, "live")), "four expired leases wait for later sweeps");
+        }
+    }
+
+    /**
+     * Expires leases as the store would see them once their time is past: the {@code live} score and the row's
+     * {@code expiresAt} move to a second before the store clock ({@code TIME}), the first slot earliest.
+     */
+    private static void expire(String namespace, List<Integer> slots) {
+        long storeNow = Long.parseLong(redis.time().get(0)) * 1000;
+        String slotKey = RedisStore.namespaceKey(namespace, "slot");
+        for (int i = 0; i < slots.size(); i++) {
+            String slot = Integer.toString(slots.get(i));
+            long expiresAt = storeNow - 1000 + i;
+            String[] row = redis.hget(slotKey, slot).split("\\|", -1);
+            row[4] = Long.toString(expiresAt);
+            redis.hset(slotKey, slot, String.join("|", row));
+            assertEquals(0L, redis.zadd(RedisStore.namespaceKey(namespace, "live"), ZAddArgs.Builder.xx(), expiresAt, slot), "slot " + slot + " was live");
         }
     }
 
@@ -173,8 +183,8 @@ class RedisScriptEdgeTest {
         String namespace = newKey();
         Owner owner = new Owner("host-a", UUID.randomUUID());
         try (Store store = open(Map.of())) {
-            SlotLease lease = acquired(store, namespace, owner, 2, Duration.ofMillis(50), OptionalInt.empty()).lease();
-            sleep(150);
+            SlotLease lease = acquired(store, namespace, owner, 2, TTL, OptionalInt.empty()).lease();
+            expire(namespace, List.of(lease.slot()));
             AcquireResult.Acquired other = acquired(store, namespace, new Owner("host-b", UUID.randomUUID()), 2, TTL, OptionalInt.of(1));
             assertEquals(AcquireReason.PREFERRED, other.reason());
             assertEquals(List.of(Integer.toString(lease.slot())), redis.zrange(RedisStore.namespaceKey(namespace, "free"), 0, -1),

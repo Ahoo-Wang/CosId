@@ -74,6 +74,9 @@ dependencies {
     testImplementation(libs.flowable.engine)
     testImplementation(libs.axon.messaging)
     testImplementation(libs.testcontainers)
+    // The context's own CuratorFramework and MongoClient beans (CosIdAutoConfigurationTest)
+    testImplementation(libs.curator.test)
+    testImplementation(libs.testcontainers.mongodb)
 }
 
 tasks.test {

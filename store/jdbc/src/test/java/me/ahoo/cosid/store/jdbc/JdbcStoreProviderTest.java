@@ -29,12 +29,15 @@ import me.ahoo.cosid.store.StoreProvider;
 import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.ServiceLoader;
 import java.util.UUID;
 import javax.sql.DataSource;
@@ -102,5 +105,72 @@ class JdbcStoreProviderTest {
         assertThrows(IllegalArgumentException.class, () -> provider.open(config(Map.of("url", newUrl(), "dialect", "oracle"), Optional.empty())));
         assertThrows(IllegalArgumentException.class, () -> provider.open(config(Map.of("url", newUrl(), "rangeTable", "x; drop table y"), Optional.empty())));
         assertThrows(JdbcStoreException.class, () -> provider.open(config(Map.of("url", "jdbc:nothing:here"), Optional.empty())), "no driver to detect with");
+    }
+
+    @Test
+    void usesACustomDialectNamedInTheOptionsAndItsStoreClock() throws SQLException {
+        DataSource dataSource = new DriverManagerDataSource(newUrl(), "sa", "");
+        Duration ttl = Duration.ofSeconds(30);
+        try (Store store = new JdbcStoreProvider().open(config(Map.of("dialect", "Fixed-Clock-H2", "initSchema", "true"), Optional.of(dataSource)))) {
+            assertInstanceOf(FixedClockH2Dialect.class, ((JdbcStore) store).dialect(), "the dialect registered with ServiceLoader, by name");
+            assertEquals(new Range(7, 12), store.ranges().reserve("custom/gen", 5, 7));
+            AcquireResult.Acquired acquired = assertInstanceOf(AcquireResult.Acquired.class,
+                store.slots().acquire("custom", new Owner("host", UUID.randomUUID()), 2, ttl, Duration.ofSeconds(1), OptionalInt.empty()));
+            assertEquals(FixedClockH2Dialect.NOW, acquired.lease().storeNow(), "the lease is stamped by the dialect's store clock");
+            assertEquals(FixedClockH2Dialect.NOW + ttl.toMillis(), acquired.lease().expiresAt());
+            assertEquals(FixedClockH2Dialect.NOW, store.slots().renew(acquired.lease(), ttl, Duration.ofSeconds(1)).orElseThrow().storeNow(),
+                "renewals are stamped by it too");
+        }
+        try (Connection connection = dataSource.getConnection();
+             ResultSet rs = connection.createStatement().executeQuery("select expires_at from cosid_slot where namespace = 'custom' and owner_key is not null")) {
+            rs.next();
+            assertEquals(FixedClockH2Dialect.NOW + ttl.toMillis(), rs.getLong(1), "the row is written with the dialect's clock");
+        }
+    }
+
+    /**
+     * A custom dialect, registered in {@code META-INF/services}: H2's SQL with a store clock of its own, frozen at
+     * {@link #NOW}. It supports no database, so detection passes it by; only {@code options.dialect} selects it.
+     */
+    public static final class FixedClockH2Dialect implements JdbcDialect {
+        /** The store clock: 2100-01-01T00:00:00Z, far from the H2 clock. */
+        static final long NOW = 4_102_444_800_000L;
+
+        private final JdbcDialect h2 = JdbcDialects.H2;
+
+        @Override
+        public String name() {
+            return "fixed-clock-h2";
+        }
+
+        @Override
+        public boolean supports(DatabaseMetaData metaData) {
+            return false;
+        }
+
+        @Override
+        public List<String> schema(JdbcTables tables) {
+            return h2.schema(tables);
+        }
+
+        @Override
+        public String nowMillis() {
+            return "cast(" + NOW + " as bigint)";
+        }
+
+        @Override
+        public OptionalLong reserve(JdbcSession session, String key, long size, long initialOffset) throws SQLException {
+            return h2.reserve(session, key, size, initialOffset);
+        }
+
+        @Override
+        public String firstRows(String columns, String table, String where, String orderBy, int rows) {
+            return h2.firstRows(columns, table, where, orderBy, rows);
+        }
+
+        @Override
+        public void provisionSlots(JdbcSession session, String namespace, int limit) throws SQLException {
+            h2.provisionSlots(session, namespace, limit);
+        }
     }
 }

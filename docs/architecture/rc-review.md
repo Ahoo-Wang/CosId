@@ -153,6 +153,8 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)(WP-migration,D-B1–B4 等,`40d3e13c`)、[#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)(WP-ZK,E-B1 + B-N1,`a0104227`)。
 
+**发布门槛:** run 40534275762 结论 **FAIL**(5/8 组),见 §4.2 #1357;D21 未满足,RC 阻断。
+
 **本机代码备份:** 12 个只存在于本机的旧分支已推送为 `origin/archive/<原分支名>`(SHA 已核对),包括 4.x 时期的 `feat/replication-window`、`feat/jdbc-dialect`、`feat/generator-name-properties`、`build/unpublished-platform`、`test/deflake-meter-binder-zk-timeout`、`chore/release-4.1.1`、`fix/b5-virtual-thread-pinning`,以及 5.0 时期的 `r3-runtime`、`claude/r0-skeleton-004bc6`、`claude/magical-gould-a7e144`、`feat/r5a-parity-gaps`、`refactor/d29-split-integrations`。本机 `main` 的 4 个提交已包含在 `origin/4.x`。两个曾有未提交改动的工作区已推送:R4-C 的改动在 #1350(`fc17ef84`),R2-Mongo 的在 #1356。
 
 - 各修复 PR(#1347–#1353、#1342、#1346)CI 全绿后:审查 → squash 合入 → 在 §4 标记。合并前必须确认 CI 状态非空且全部 SUCCESS。
@@ -166,7 +168,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 | PR | 问题 | 处理 |
 |---|---|---|
-| — | — | — |
+| [#1357](https://github.com/Ahoo-Wang/CosId/pull/1357) | 发布门槛自动报告(run 40534275762,基于 `614d5df9`,即各修复合入前):**FAIL,8 组中 5 组失败**。重跑后仍失败:codec-filler 4 行(radix36/62 编解码单线程吞吐低约 12–15%);mongo 1 行(reserve 分配多约 4%);mysql 7 行(`MySqlStoreBenchmark.acquire` 耗时约 +70%,acquire/renew/reserve 分配 +25–65%,ChainId p99/p99.9 偏高);segment 1 行;zookeeper 4 行(renew/reserve 小幅超阈值 1–7%)。另外该 PR 由 workflow 的 GITHUB_TOKEN 创建,不触发 CI,处于 BLOCKED,不满足“CI 全绿”规则 | 不合入。D21(性能不回退)未满足,是 **RC 阻断项**;分析在 #1345(R5-A)。收尾阶段不开新任务,RC 前需派发:codec 与 MySQL store 为主要回退;mongo/zookeeper/segment 行接近阈值,需先确认是否为噪声。报告需改为由能触发 CI 的身份创建(或改为直接推到 #1345) |
 
 ## 5. RC1 准入清单
 

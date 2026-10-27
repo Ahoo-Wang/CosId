@@ -27,4 +27,8 @@ cosid:
       step: 1000
       codec:
       - custom: com.example.InvoiceConverter
+      - date-prefix:
+          pattern: yyMMdd
+          delimiter: "-"
+          source: NOW
       - suffix: -X

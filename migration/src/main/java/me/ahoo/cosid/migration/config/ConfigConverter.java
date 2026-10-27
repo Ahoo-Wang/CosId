@@ -337,15 +337,25 @@ public final class ConfigConverter {
         if (preset != null) {
             generator.put("layout", preset);
         } else {
-            Map<String, Object> custom = new LinkedHashMap<>();
-            custom.put("epoch", layout.epoch().toString());
-            custom.put("unit", layout.unit().name());
-            custom.put("time-bits", layout.timeBits());
-            custom.put("node-bits", layout.nodeBits());
-            custom.put("seq-bits", layout.seqBits());
-            custom.put("seq-reset-threshold", layout.seqResetThreshold());
-            generator.put("layout", custom);
-            report.add(prefix + ": the 4.x layout is no 5.0 preset; it is written field by field, keep it as is (M3)");
+            // A preset with field overrides, as the 5.0 binding takes them (epoch, unit, time-bits, node-bits, seq-bits).
+            Layout base = layout.unit() == ChronoUnit.SECONDS ? Layout.SNOWFLAKE_S : Layout.SNOWFLAKE_MS;
+            generator.put("layout", base == Layout.SNOWFLAKE_S ? "SNOWFLAKE_S" : "SNOWFLAKE_MS");
+            if (!layout.epoch().equals(base.epoch())) {
+                generator.put("epoch", layout.epoch().toString());
+            }
+            if (layout.timeBits() != base.timeBits()) {
+                generator.put("time-bits", layout.timeBits());
+            }
+            if (layout.nodeBits() != base.nodeBits()) {
+                generator.put("node-bits", layout.nodeBits());
+            }
+            if (layout.seqBits() != base.seqBits()) {
+                generator.put("seq-bits", layout.seqBits());
+            }
+            report.add(prefix + ": the 4.x layout is no 5.0 preset; it is written as " + generator.get("layout") + " with overrides, keep it as is (M3)");
+            if (layout.seqResetThreshold() != Layout.defaultSeqResetThreshold(layout.seqBits())) {
+                report.add(prefix + ".sequence-reset-threshold = " + layout.seqResetThreshold() + ": 5.0 configuration keeps the default threshold");
+            }
         }
         for (String part : List.of("epoch", "timestamp-unit", "timestamp-bit", "machine-bit", "sequence-bit", "sequence-reset-threshold", "enabled")) {
             handled.add(prefix + "." + part);
@@ -477,6 +487,8 @@ public final class ConfigConverter {
             Map<String, Object> datePrefix = new LinkedHashMap<>();
             datePrefix.put("pattern", config.get(prefix + ".date-prefix.pattern", "yyMMdd"));
             datePrefix.put("delimiter", text(config, prefix + ".date-prefix.delimiter", "-"));
+            // 4.x prefixed the date of the conversion, not the id's.
+            datePrefix.put("source", "NOW");
             codec.add(Map.of("date-prefix", datePrefix));
         }
         handled.add(prefix + ".date-prefix.*");
@@ -515,9 +527,9 @@ public final class ConfigConverter {
         generator.put("strategy", "cosid80");
         String type = config.get("cosid.generator.type", "radix62").toLowerCase(Locale.ROOT);
         switch (type) {
-            case "radix36" -> generator.put("codec", Map.of("radix", 36));
-            case "friendly" -> generator.put("codec", Map.of("friendly", Map.of("zone", config.get("cosid.generator.zone-id", zone().getId()))));
-            default -> generator.put("codec", Map.of("radix", 62));
+            case "radix36" -> generator.put("codec", List.of(Map.of("radix", Map.of("radix", 36))));
+            case "friendly" -> generator.put("codec", List.of(Map.of("friendly", Map.of("zone", config.get("cosid.generator.zone-id", zone().getId())))));
+            default -> generator.put("codec", List.of(Map.of("radix", Map.of("radix", 62))));
         }
         if (!new Legacy4x(config).cosidLayout().equals(Layout.COSID_80)) {
             report.add("cosid.generator: the 4.x bits differ from the 5.0 COSID_80 layout (44/20/16); the 5.0 ids keep COSID_80 (M3 fails in plan)");
@@ -561,21 +573,19 @@ public final class ConfigConverter {
             if ("cosid80".equals(strategy)) {
                 layouts.put(name, Layout.COSID_80);
             } else if ("snowflake".equals(strategy)) {
-                String preset = config.get(prefix + ".layout", "SNOWFLAKE_MS");
-                if (config.get(prefix + ".layout.time-bits") != null) {
-                    int seqBits = (int) config.number(prefix + ".layout.seq-bits", 12);
-                    layouts.put(name, new Layout(Instant.parse(config.get(prefix + ".layout.epoch", "2019-12-24T16:00:00Z")),
-                        ChronoUnit.valueOf(config.get(prefix + ".layout.unit", "MILLIS").toUpperCase(Locale.ROOT)),
-                        (int) config.number(prefix + ".layout.time-bits", 41), (int) config.number(prefix + ".layout.node-bits", 10), seqBits,
-                        config.number(prefix + ".layout.seq-reset-threshold", Layout.defaultSeqResetThreshold(seqBits))));
-                } else {
-                    layouts.put(name, switch (preset.toUpperCase(Locale.ROOT)) {
-                        case "SNOWFLAKE_S" -> Layout.SNOWFLAKE_S;
-                        case "JS_SAFE_MS" -> Layout.JS_SAFE_MS;
-                        case "JS_SAFE_S" -> Layout.JS_SAFE_S;
-                        default -> Layout.SNOWFLAKE_MS;
-                    });
-                }
+                Layout base = switch (config.get(prefix + ".layout", "SNOWFLAKE_MS").toUpperCase(Locale.ROOT)) {
+                    case "SNOWFLAKE_S" -> Layout.SNOWFLAKE_S;
+                    case "JS_SAFE_MS" -> Layout.JS_SAFE_MS;
+                    case "JS_SAFE_S" -> Layout.JS_SAFE_S;
+                    default -> Layout.SNOWFLAKE_MS;
+                };
+                String epoch = config.get(prefix + ".epoch");
+                String unit = config.get(prefix + ".unit");
+                int seqBits = (int) config.number(prefix + ".seq-bits", base.seqBits());
+                layouts.put(name, new Layout(epoch == null ? base.epoch() : Instant.parse(epoch),
+                    unit == null ? base.unit() : ChronoUnit.valueOf(unit.toUpperCase(Locale.ROOT)),
+                    (int) config.number(prefix + ".time-bits", base.timeBits()), (int) config.number(prefix + ".node-bits", base.nodeBits()), seqBits,
+                    seqBits == base.seqBits() ? base.seqResetThreshold() : Layout.defaultSeqResetThreshold(seqBits)));
             }
         }
         return layouts;

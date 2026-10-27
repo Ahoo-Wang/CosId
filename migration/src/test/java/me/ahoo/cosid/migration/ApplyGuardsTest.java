@@ -121,12 +121,8 @@ class ApplyGuardsTest extends MigrationScenarioTest {
               generators:
                 snow:
                   strategy: snowflake
-                  layout:
-                    epoch: 2030-01-01T00:00:00Z
-                    unit: MILLIS
-                    time-bits: 41
-                    node-bits: 10
-                    seq-bits: 12
+                  layout: SNOWFLAKE_MS
+                  epoch: 2030-01-01T00:00:00Z
             """);
         Plan plan = migration().plan(new Migration.PlanOptions(source.location(), target.location(), namespace, resource("scenario-4x.yaml"), target5, null,
             Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), dir.resolve("plan.json")));

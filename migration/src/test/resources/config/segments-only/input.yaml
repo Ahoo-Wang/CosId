@@ -20,3 +20,6 @@ cosid:
           custom:
             type: com.example.InvoiceConverter
           suffix: "-X"
+          date-prefix:
+            enabled: true
+            pattern: yyMMdd

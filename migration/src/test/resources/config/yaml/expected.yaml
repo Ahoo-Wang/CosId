@@ -2,7 +2,7 @@
 # Not converted as is - review before starting 5.0:
 #  - apply-result.json is of namespace [legacy], the configuration of [shop]
 #  - cosid.segment.distributor.jdbc.enable-auto-init-cosid-table: custom 4.x SQL and table initialization are gone; 5.0 uses JdbcDialect and options.initSchema (06 §2.1)
-#  - cosid.snowflake.provider.custom: the 4.x layout is no 5.0 preset; it is written field by field, keep it as is (M3)
+#  - cosid.snowflake.provider.custom: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_MS with overrides, keep it as is (M3)
 #  - cosid.snowflake.provider.custom.clock-sync: replaced by the clock regression policy (borrow 5ms, wait 1s; 03 §4)
 #  - cosid.segment.mode = chain: segment chains are replaced by the 5.0 refill (lookahead, adaptive batch; 04)
 #  - cosid.segment.provider.bill.group: 4.x used the server's default time zone; the 5.0 period zone is Asia/Shanghai, check it (--zone)
@@ -38,13 +38,8 @@ cosid:
           pad-start: true
     custom:
       strategy: snowflake
-      layout:
-        epoch: 2020-09-13T12:26:40Z
-        unit: MILLIS
-        time-bits: 41
-        node-bits: 10
-        seq-bits: 12
-        seq-reset-threshold: 2047
+      layout: SNOWFLAKE_MS
+      epoch: 2020-09-13T12:26:40Z
       codec:
       - radix:
           radix: 62
@@ -86,4 +81,5 @@ cosid:
     cosid:
       strategy: cosid80
       codec:
-        radix: 36
+      - radix:
+          radix: 36

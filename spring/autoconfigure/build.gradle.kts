@@ -32,6 +32,17 @@ dependencies {
     compileOnly("com.fasterxml.jackson.core:jackson-annotations")
     compileOnly("org.springframework.data:spring-data-redis")
     compileOnly(libs.spring.cloud.commons)
+    // CosIdIntegrationsConfiguration: each integration behind @ConditionalOnClass
+    compileOnly(project(":integrations"))
+    compileOnly("tools.jackson.core:jackson-databind")
+    compileOnly(libs.mybatis)
+    compileOnly("org.springframework.data:spring-data-jdbc")
+    compileOnly(libs.activiti.engine) { isTransitive = false }
+    compileOnly(libs.activiti.spring) { isTransitive = false }
+    compileOnly(libs.activiti.spring.boot.starter) { isTransitive = false }
+    compileOnly(libs.flowable.spring)
+    compileOnly(libs.flowable.spring.boot.autoconfigure) { isTransitive = false }
+    compileOnly(libs.axon.messaging) { isTransitive = false }
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
 
@@ -51,6 +62,17 @@ dependencies {
     testImplementation("org.springframework.data:spring-data-redis")
     testImplementation(libs.spring.cloud.commons)
     testImplementation(libs.h2)
+    testImplementation(project(":integrations"))
+    testImplementation("tools.jackson.core:jackson-databind")
+    testImplementation(libs.mybatis)
+    testImplementation("org.springframework.data:spring-data-jdbc")
+    testImplementation(libs.activiti.spring) { isTransitive = false }
+    testImplementation(libs.activiti.spring.boot.starter) { isTransitive = false }
+    testImplementation(libs.activiti.engine)
+    testImplementation(libs.flowable.spring)
+    testImplementation(libs.flowable.spring.boot.autoconfigure) { isTransitive = false }
+    testImplementation(libs.flowable.engine)
+    testImplementation(libs.axon.messaging)
     testImplementation(libs.testcontainers)
 }
 

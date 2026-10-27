@@ -32,6 +32,12 @@ spring-boot = "4.1.2"
 spring-boot-minimum = "4.0.8"
 # compileOnly in spring/autoconfigure: InetUtils for the owner key host (07 §1.1); Spring Cloud 2025.1
 spring-cloud-commons = "5.0.4"
+# R4-B: integrations (all compileOnly in integrations; the application brings them)
+mybatis = "3.5.19"
+activiti = "7.0.0.SR1"
+flowable = "8.0.0"
+# Axon 5 has no IdentifierFactory; 4.x is the line the integration serves.
+axon = "4.13.2"
 # plugins
 test-retry = "1.6.6"
 publish-plugin = "2.0.0"
@@ -83,6 +89,16 @@ spring-boot-autoconfigure = { module = "org.springframework.boot:spring-boot-aut
 # P11 (benchmark/*): the same Spring Boot on both sides.
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "spring-boot" }
 cosid4-spring-boot-starter = { module = "me.ahoo.cosid:cosid-spring-boot-starter", version.ref = "cosid4" }
+# R4-B: integrations
+mybatis = { module = "org.mybatis:mybatis", version.ref = "mybatis" }
+activiti-engine = { module = "org.activiti:activiti-engine", version.ref = "activiti" }
+activiti-spring = { module = "org.activiti:activiti-spring", version.ref = "activiti" }
+activiti-spring-boot-starter = { module = "org.activiti:activiti-spring-boot-starter", version.ref = "activiti" }
+flowable-engine-common = { module = "org.flowable:flowable-engine-common", version.ref = "flowable" }
+flowable-engine = { module = "org.flowable:flowable-engine", version.ref = "flowable" }
+flowable-spring = { module = "org.flowable:flowable-spring", version.ref = "flowable" }
+flowable-spring-boot-autoconfigure = { module = "org.flowable:flowable-spring-boot-autoconfigure", version.ref = "flowable" }
+axon-messaging = { module = "org.axonframework:axon-messaging", version.ref = "axon" }
 # Gradle plugins used by the convention plugins in build-logic/
 spotbugs-gradle-plugin = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs" }
 jmh-gradle-plugin = { module = "me.champeau.jmh:jmh-gradle-plugin", version.ref = "jmh-plugin" }

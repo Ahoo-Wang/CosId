@@ -32,13 +32,34 @@
 | B stores | 进行中 | — |
 | C spring/server/integrations | 进行中 | — |
 | D migration | 进行中 | — |
-| E 发布就绪 | 进行中 | — |
+| E 发布就绪 | ✅ 完成,已核实 | 3 BLOCKER、3 MAJOR、9 MINOR(见 §3.E) |
 | 发布门槛(CI) | 运行中:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762),spring-start 组已通过 | 分析 Draft PR [#1345](https://github.com/Ahoo-Wang/CosId/pull/1345)(`docs/jmh/5.0/analysis.md`) |
 | #1342 ZK 排除 Netty | CI 中 | — |
 
 ## 3. 发现(核实后填写)
 
-_尚无。_
+### 3.E 发布就绪(main @ e272cdde)
+
+| # | 严重度 | 发现 | 位置 | 修复 | 核实 |
+|---|---|---|---|---|---|
+| E-B1 | BLOCKER | L14 未合入:发布的 `cosid-store-zookeeper` POM 会带入 Netty 4.1 epoll(Central 上 POM 不可改) | `store/zookeeper/build.gradle.kts:20-26` | 合入 #1342 | ✅ |
+| E-B2 | BLOCKER | 文档承诺 `cosid-server` Docker 镜像,但 `main` 没有发布镜像的 workflow | `.github/workflows/`(无 docker-deploy);`documentation/docs/*/guide/server.md` | 新增 `docker-deploy.yml`:tag `v*.*.*` 与 `main`,`ahoowang/cosid-server` + ghcr + aliyun,多架构;`latest` 只在主版本 ≥ 5 的 GA tag 上打 | ✅ |
+| E-B3 | BLOCKER | 文档说迁移工具 jar 随 release 附带,但没有任何 workflow 上传 | `package-deploy.yml`;`documentation/docs/*/guide/migration/from-4x.md` | package-deploy 增加 job:`:migration:shadowJar` + `gh release upload`(需 `contents: write`) | ✅ |
+| E-M1 | MAJOR | 4.x 的 document-deploy 在 release 时部署到同一个 Pages 站点,GA 后 4.x 的补丁发布会覆盖 5.0 文档站 | 分支 `4.x`:`document-deploy.yml` | 4.x 去掉 release 触发或部署到子路径(改 4.x 需用户同意);**RC 必须以 pre-release 发布**,否则 5.0 RC 文档会覆盖当前 4.x 站点 | — |
+| E-M2 | MAJOR | 文档站 javadoc 目录名漏了 `integrations/*` 映射,会生成 `cosid-integrations-jackson` | `document-deploy.yml:75-79` | 增加 `integrations/*) artifact="cosid-${module#integrations/}"`,或改由 Gradle 输出名称 | ✅ |
+| E-M3 | MAJOR | 发布到 Central 前没有任何校验 job(发布不可逆) | `package-deploy.yml:66-83` | 部署 job `needs:` 一个跑 `check`(或至少 javadoc + checkPublishedMetadata + 发布到本地仓库)的 job | — |
+| E-N1 | MINOR | AGENTS.md 仍写"4.x 代码在 `main`" | `AGENTS.md:9-10` | 改为 `git show 4.x:<path>` | — |
+| E-N2 | MINOR | `checkPublishedMetadata` 只在 spring 模块上运行,且不拒绝 `enforced-platform` | `build-logic/.../cosid.spring.gradle.kts:82-128` | 挪到 `cosid.library`,并拒绝任何 enforced-platform | — |
+| E-N3 | MINOR | 没有自动检查 BOM 是否列全所有发布模块(目前 16 个一致) | `bom/build.gradle.kts` | 增加根项目检查 | — |
+| E-N4 | MINOR | POM 的 SCM `connection` 缺 `scm:git:` 前缀,没有 `developerConnection` | `cosid.publish.gradle.kts:56-59` | 补齐 | — |
+| E-N5 | MINOR | roadmap 链接的 rc-review.md 尚未在 main 上 | — | 本 PR(#1344)合入后解决 | ✅ |
+| E-N6 | MINOR | 基准代码里残留 `TODO(R1)` | `benchmark/v5/.../V5.java:39,75` | 删除 | — |
+| E-N7 | MINOR | jar 内资源(Lua、JDBC schema SQL)与 `server/Dockerfile` 无许可证头 | — | 补头 | — |
+| E-N8 | MINOR | codeql `paths-ignore` 仍是 4.x 路径 | `codeql-analysis.yml` | 更新 | — |
+| E-N9 | MINOR(存疑) | `release: created` 在保存草稿 release 时也会触发 | `package-deploy.yml:16-17` | 改为 `published` | — |
+
+E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工具不发布、源码与 javadoc jar 与签名与 POM、BOM 当前完整、无 enforced-platform 泄漏、Docker 镜像名不与 4.x `cosid-proxy` 冲突、文档站侧边栏与重定向、README 坐标、renovate 与 CI 分支、无 `@Disabled`、临时排除项已清除。
+发布前手工步骤:`gradle.properties` 的 `version` 改为 `5.0.0-RC1`,`server/README.md:64` 的硬编码版本同步。
 
 ## 4. 修复计划
 

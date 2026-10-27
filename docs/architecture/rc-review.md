@@ -28,7 +28,7 @@
 
 | 路 | 状态 | 结果 |
 |---|---|---|
-| A core | 进行中 | — |
+| A core | ✅ 完成 | 无 BLOCKER、无重号路径;1 MAJOR(由 MINOR 上调)、6 MINOR(见 §3.A) |
 | B stores | 进行中 | — |
 | C spring/server/integrations | ✅ 完成,已核实 | 2 BLOCKER(由 MAJOR 上调)、1 MAJOR、5 MINOR(见 §3.C) |
 | D migration | 进行中 | — |
@@ -37,6 +37,21 @@
 | #1342 ZK 排除 Netty | CI 中 | — |
 
 ## 3. 发现(核实后填写)
+
+### 3.A core(main @ e272cdde)
+
+**唯一性逐项核实通过**:时间型序列器(临界区内不等待、按实际使用的时间戳检查 floor/ceiling、换绑重置、终止状态给出精确 lastIssued、秒级布局)、号段(单次读取 current、highWater 拒绝重叠区间、单飞补充无丢失唤醒、关闭后迟到的完成被丢弃)、周期号段(只前进、不重建已封存 key)、LeaseKeeper/SlotBinding(续约只抬高 ceiling、丢失先失效、释放在锁外)、StaticSlot(预写并 fsync 后再抬高)、运行时关闭顺序、module-info 不泄漏 internal 类型。
+
+| # | 严重度 | 发现 | 位置 | 修复 |
+|---|---|---|---|---|
+| A-M1 | MAJOR(上调) | `LeaseKeeper` 在持锁时做存储 I/O(renew/acquire),`StaticSlot` 在锁内 fsync;网络分区时 `close()` 与续约调度会被阻塞整个存储超时,违反设计原则 7 | `lease/LeaseKeeper.java:360-442`、`lease/StaticSlot.java:260` | 锁内取快照,锁外做 I/O,再加锁复核状态与 generation 后发布 |
+| A-N1 | MINOR | 热路径 listener 风暴:序列耗尽时每次自旋都触发 `onSequenceExhausted`,借用期间每个 ID 触发一次回拨事件;违反 07 §2,且争用监视器(可能影响 P1/P2 基准) | `internal/TimeSequencer.java:149-209,386-389` | 每次 `nextId` 最多触发一次,借用事件合并 |
+| A-N2 | MINOR | `TimeSequencer` 调 listener 无保护;公开构造器不包 `SafeListener`,listener 抛异常会丢号或让 generate 失败 | 同上 | 构造器里包 `SafeListener.of` |
+| A-N3 | MINOR | 秒级布局下 1ms 回拨可能被判为失败(用 `ahead` 而非真实回拨量判定) | `TimeSequencer.java:304,315-318` | 按 `backwards` 判定,按 `ahead` 决定等待时长 |
+| A-N4 | MINOR | `PeriodicSegmentGenerator.open()` 先改状态后校验,自定义 Period 有误时每次调用都累积 PendingSeal 与生成器 | `segment/PeriodicSegmentGenerator.java:225-238` | 先算并校验 end,再修改状态 |
+| A-N5 | MINOR | `batch * 64` 在 batch 超过 Long.MAX/64 时溢出,补充永不触发并忙等 | `segment/SegmentGenerator.java:326` | 饱和乘法或在 `BatchPolicy` 限制上界 |
+| A-N6 | MINOR | `Friendly.decode` 在夏令时回拨那一小时无法往返(本地时间文本的固有问题,4.x 同样) | `codec/FriendlyFormat.java:120` | 文档写明,建议 UTC 或固定偏移时区 |
+| A-N7 | MINOR | `DatePrefix`(ID_TIME)不校验 ID 宽度,超宽 ID 得到错误日期 | `codec/DatePrefix.java:117-122` | 与 `Friendly` 一样检查 `id >>> totalBits` |
 
 ### 3.C spring / server / integrations / examples(main @ e272cdde)
 

@@ -22,6 +22,7 @@ import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.lease.SlotLeaseStore;
 
 import org.apache.curator.framework.api.CuratorEvent;
+import org.apache.curator.framework.api.transaction.CuratorOp;
 import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -31,6 +32,7 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.common.PathUtils;
 import org.apache.zookeeper.data.Stat;
 
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -42,6 +44,8 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntPredicate;
+import java.util.stream.IntStream;
 
 /**
  * {@link SlotLeaseStore} on ZooKeeper (06-stores.md §2.4).
@@ -50,19 +54,24 @@ import java.util.concurrent.ConcurrentHashMap;
  *     <li>{@code /cosid/slot/{ns}}: the namespace metadata {@code limit} and {@code tolerance}, recorded on first use;</li>
  *     <li>{@code /cosid/slot/{ns}/{slot}}: a slot, {@link SlotState}; created by its first acquire, never deleted;</li>
  *     <li>{@code /cosid/slot/{ns}/.clock}: written by every acquire, its {@code mtime} is the {@code now} of the
- *     expiry check.</li>
+ *     expiry check;</li>
+ *     <li>{@code /cosid/owner/{ns}/{ownerKey}}: the owner index, the slots the key held, written in the same
+ *     {@code multi} as each acquire.</li>
  * </ul>
  *
- * <p>Every state change (05 §2.2) is a compare-and-set of one slot node: a {@code setData} at the version read, or
- * the {@code create} of a slot never used. Times are the {@code mtime} of the write, stamped by the ZooKeeper leader;
- * {@code storeNow} and {@code expiresAt} come from the same write. Uniqueness depends on none of them (05 §3): each
- * holder's floor is the ceiling the previous write left in the node it replaces. Acquire reads every slot of the
- * namespace with one batch of asynchronous {@code getData}, then tries the slots in the order of 05 §2.1.
+ * <p>Every state change (05 §2.2) is a compare-and-set of one slot node at the version read (an acquire also writes
+ * the owner index in the same {@code multi}). Times are the {@code mtime} of the write, stamped by the ZooKeeper
+ * leader; {@code storeNow} and {@code expiresAt} come from the same write. Uniqueness depends on none of them, nor on
+ * the index (05 §3): each holder's floor is the ceiling the previous write left in the node it replaces. Acquire reads
+ * the slots of the owner index and the preferred slot, then the lowest slots in growing ascending batches until a free
+ * one (read-only {@code multi}), trying them in the order of 05 §2.1; a release writes the slot node only.
  */
 final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
     static final String ROOT = "/cosid/slot";
     static final String CLOCK = ".clock";
-    static final int READ_BATCH = 256;
+    static final String OWNER_ROOT = "/cosid/owner";
+    static final int FIRST_BATCH = 32;
+    static final int MAX_BATCH = 256;
 
     private final Zk zk;
     /** The namespaces whose metadata this instance checked: the metadata never changes once recorded. */
@@ -90,6 +99,13 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
         return namespacePath(namespace) + "/" + slot;
     }
 
+    /** The owner index of a key: the key as a node name, URL-encoded with {@code .} and {@code *} escaped too. */
+    static String ownerPath(String namespace, String ownerKey) {
+        namespacePath(namespace);
+        String name = URLEncoder.encode(ownerKey, StandardCharsets.UTF_8).replace(".", "%2E").replace("*", "%2A");
+        return OWNER_ROOT + "/" + namespace + "/" + name;
+    }
+
     @Override
     public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
         Objects.requireNonNull(owner, "owner");
@@ -100,21 +116,22 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
         String nsPath = namespacePath(namespace);
+        String ownerPath = ownerPath(namespace, owner.key());
         String what = "acquire " + nsPath;
         long deadline = zk.deadline();
         checkMetadata(namespace, nsPath, new Metadata(limit, toleranceMillis), deadline);
+        Request request = new Request(namespace, nsPath, ownerPath, owner, limit, ttlMillis, toleranceMillis, deadline);
         for (int attempt = 0; ; attempt++) {
-            // The clock write and the reads go out together; ZooKeeper answers them in order, one round trip in all.
+            // The clock write and the index read go out together; ZooKeeper answers them in order, one round trip.
             CompletableFuture<CuratorEvent> clock = touchClock(nsPath);
-            CompletableFuture<CuratorEvent> children = zk.start(callback -> zk.client().getChildren().inBackground(callback).forPath(nsPath));
+            CompletableFuture<CuratorEvent> indexRead = zk.start(callback -> zk.client().getData().inBackground(callback).forPath(ownerPath));
             long now = clockNow(nsPath, clock, deadline);
-            int[] used = usedSlots(what, zk.await(what, deadline, children), limit);
-            Node[] nodes = nodes(what, nsPath, limit, used, readSlots(what, nsPath, used), deadline);
-            if (nodes == null) {
-                Zk.backoff(attempt, deadline, what);
-                continue;
-            }
-            Optional<AcquireResult> result = choose(namespace, owner, nodes, now, ttlMillis, toleranceMillis, preferredSlot, deadline);
+            OwnerIndex index = OwnerIndex.of(what, ownerPath, zk.await(what, deadline, indexRead), limit);
+            Slots slots = new Slots(what, nsPath, limit, deadline);
+            int preferred = preferredSlot.isPresent() && preferredSlot.getAsInt() >= 0 && preferredSlot.getAsInt() < limit
+                ? preferredSlot.getAsInt() : -1;
+            Optional<AcquireResult> result = slots.read(index.withPreferred(preferred))
+                ? choose(request, index, slots, now, preferred) : Optional.empty();
             if (result.isPresent()) {
                 return result.get();
             }
@@ -123,178 +140,123 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
     }
 
     /**
-     * The slots below the limit that have a node, in order; the others were never used.
-     */
-    private static int[] usedSlots(String what, CuratorEvent children, int limit) {
-        if (Zk.code(children) != KeeperException.Code.OK) {
-            throw Zk.unexpected(what, children);
-        }
-        int[] used = new int[Math.min(limit, children.getChildren().size())];
-        int count = 0;
-        for (String child : children.getChildren()) {
-            int slot = slotOf(child);
-            if (slot >= 0 && slot < limit && count < used.length) {
-                used[count++] = slot;
-            }
-        }
-        int[] sorted = Arrays.copyOf(used, count);
-        Arrays.sort(sorted);
-        return sorted;
-    }
-
-    /** The slot a child node names, or -1 for another node such as the clock. */
-    private static int slotOf(String child) {
-        if (child.isEmpty() || child.length() > 9) {
-            return -1;
-        }
-        int slot = 0;
-        for (int i = 0; i < child.length(); i++) {
-            char c = child.charAt(i);
-            if (c < '0' || c > '9') {
-                return -1;
-            }
-            slot = slot * 10 + (c - '0');
-        }
-        return slot;
-    }
-
-    /**
-     * Reads the used slots of the namespace: read-only {@code multi} requests of {@value #READ_BATCH} {@code getData}
-     * each, on the ZooKeeper handle of the client. One request per batch keeps the allocation and the round trips of a
-     * 1024-slot namespace low, where a Curator background call per slot does not.
-     */
-    private List<CompletableFuture<List<OpResult>>> readSlots(String what, String nsPath, int[] used) {
-        ZooKeeper zooKeeper;
-        try {
-            zooKeeper = zk.client().getZookeeperClient().getZooKeeper();
-        } catch (Exception e) {
-            throw new CosIdException("ZooKeeper " + what + ": no connection", e);
-        }
-        String clientNamespace = zk.client().getNamespace();
-        List<CompletableFuture<List<OpResult>>> reads = new ArrayList<>(used.length / READ_BATCH + 1);
-        for (int from = 0; from < used.length; from += READ_BATCH) {
-            List<Op> ops = new ArrayList<>(Math.min(READ_BATCH, used.length - from));
-            for (int i = from; i < Math.min(used.length, from + READ_BATCH); i++) {
-                ops.add(Op.getData(ZKPaths.fixForNamespace(clientNamespace, nsPath + "/" + used[i])));
-            }
-            CompletableFuture<List<OpResult>> read = new CompletableFuture<>();
-            zooKeeper.multi(ops, (rc, path, ctx, results) -> {
-                // A read-only multi is not atomic: it answers every op, the code being that of the first failed one.
-                if (results != null && results.size() == ops.size()) {
-                    read.complete(results);
-                } else {
-                    read.completeExceptionally(KeeperException.create(KeeperException.Code.get(rc)));
-                }
-            }, null);
-            reads.add(read);
-        }
-        return reads;
-    }
-
-    /**
-     * The slots as read; a slot without a node is {@link SlotState#NEW}.
+     * One pass of the slot choice (05 §2.1). The owner index gives the slots the key held: every slot the key holds is
+     * in it, since the index is written in the same {@code multi} as each acquire, so the idempotent, duplicate and
+     * sticky steps read those slots only. The lowest free slot is then searched in ascending batches that grow from
+     * {@value #FIRST_BATCH} to {@value #MAX_BATCH}, stopping at the first free one; only an exhausted namespace reads
+     * every slot.
      *
-     * @return the nodes, or null if the connection was lost and the reads must be tried again
+     * @return the result, or empty if a compare-and-set lost a race (or the connection) and the acquire starts over
      */
-    private Node[] nodes(String what, String nsPath, int limit, int[] used, List<CompletableFuture<List<OpResult>>> reads, long deadline) {
-        Node[] nodes = new Node[limit];
-        int index = 0;
-        for (CompletableFuture<List<OpResult>> read : reads) {
-            List<OpResult> results;
-            try {
-                results = zk.await(what, deadline, read);
-            } catch (CosIdException e) {
-                if (e.getCause() instanceof KeeperException.ConnectionLossException) {
-                    return null;
-                }
-                throw e;
-            }
-            for (OpResult result : results) {
-                int slot = used[index++];
-                String path = nsPath + "/" + slot;
-                if (result instanceof OpResult.GetDataResult data) {
-                    nodes[slot] = new Node(path, SlotState.parse(path, data.getData()), data.getStat(), data.getStat().getMtime());
-                } else if (result instanceof OpResult.ErrorResult error) {
-                    throw new CosIdException("ZooKeeper " + what + " failed reading " + path + ": " + KeeperException.Code.get(error.getErr()));
-                } else {
-                    throw new CosIdException("ZooKeeper " + what + " returned " + result + " for " + path);
-                }
-            }
-        }
-        for (int slot = 0; slot < limit; slot++) {
-            if (nodes[slot] == null) {
-                nodes[slot] = new Node(nsPath + "/" + slot, SlotState.NEW, null, 0);
-            }
-        }
-        return nodes;
-    }
-
-    /**
-     * One pass of the slot choice (05 §2.1) over the nodes as read.
-     *
-     * @return the result, or empty if a compare-and-set lost a race and the nodes must be read again
-     */
-    private Optional<AcquireResult> choose(String namespace, Owner owner, Node[] nodes, long now, long ttlMillis, long toleranceMillis,
-                                           OptionalInt preferredSlot, long deadline) {
+    private Optional<AcquireResult> choose(Request request, OwnerIndex index, Slots slots, long now, int preferred) {
+        Owner owner = request.owner;
         boolean duplicate = false;
-        for (Node node : nodes) {
-            SlotState state = node.state;
-            duplicate |= !node.free(now) && state.ownerKey().equals(owner.key()) && !state.incarnation().equals(owner.incarnation());
+        for (int slot : index.slots) {
+            SlotState state = slots.node(slot).state;
+            duplicate |= !slots.node(slot).free(now) && state.ownerKey().equals(owner.key()) && !state.incarnation().equals(owner.incarnation());
         }
-        for (int slot = 0; slot < nodes.length; slot++) {
-            if (owner.equals(nodes[slot].state.owner())) {
-                return Optional.of(new AcquireResult.Acquired(nodes[slot].state.toLease(namespace, slot, nodes[slot].mtime, now),
-                    AcquireReason.IDEMPOTENT, duplicate));
+        for (int slot : index.slots) {
+            Node node = slots.node(slot);
+            if (owner.equals(node.state.owner())) {
+                return Optional.of(new AcquireResult.Acquired(node.state.toLease(request.namespace, slot, node.mtime, now), AcquireReason.IDEMPOTENT, duplicate));
             }
         }
-        if (preferredSlot.isPresent()) {
-            int preferred = preferredSlot.getAsInt();
-            if (preferred >= 0 && preferred < nodes.length && nodes[preferred].free(now)) {
-                return take(namespace, preferred, nodes[preferred], owner, ttlMillis, toleranceMillis, AcquireReason.PREFERRED, duplicate, deadline);
-            }
+        if (preferred >= 0 && slots.node(preferred).free(now)) {
+            return take(request, preferred, slots.node(preferred), index, slots, AcquireReason.PREFERRED, duplicate);
         }
-        for (int slot = 0; slot < nodes.length; slot++) {
-            if (owner.key().equals(nodes[slot].state.lastOwnerKey()) && nodes[slot].free(now)) {
-                return take(namespace, slot, nodes[slot], owner, ttlMillis, toleranceMillis, AcquireReason.STICKY, duplicate, deadline);
+        for (int slot : index.slots) {
+            Node node = slots.node(slot);
+            if (owner.key().equals(node.state.lastOwnerKey()) && node.free(now)) {
+                return take(request, slot, node, index, slots, AcquireReason.STICKY, duplicate);
             }
         }
         long earliestExpiresAt = Long.MAX_VALUE;
-        for (int slot = 0; slot < nodes.length; slot++) {
-            if (nodes[slot].free(now)) {
-                return take(namespace, slot, nodes[slot], owner, ttlMillis, toleranceMillis, AcquireReason.LOWEST, duplicate, deadline);
+        int batch = FIRST_BATCH;
+        for (int from = 0; from < request.limit; from += batch, batch = Math.min(batch * 2, MAX_BATCH)) {
+            int to = (int) Math.min(request.limit, (long) from + batch);
+            if (!slots.readRange(from, to)) {
+                return Optional.empty();
             }
-            earliestExpiresAt = Math.min(earliestExpiresAt, nodes[slot].state.expiresAt(nodes[slot].mtime));
+            for (int slot = from; slot < to; slot++) {
+                Node node = slots.node(slot);
+                if (node.free(now)) {
+                    return take(request, slot, node, index, slots, AcquireReason.LOWEST, duplicate);
+                }
+                earliestExpiresAt = Math.min(earliestExpiresAt, node.state.expiresAt(node.mtime));
+            }
         }
         return Optional.of(new AcquireResult.Exhausted(earliestExpiresAt));
     }
 
-    private Optional<AcquireResult> take(String namespace, int slot, Node node, Owner owner, long ttlMillis, long toleranceMillis,
-                                         AcquireReason reason, boolean duplicate, long deadline) {
+    /**
+     * Takes a free slot: one {@code multi} writes the slot node at the version read and the owner index at the version
+     * read (or creates it), so the index never misses a slot the key holds. A slot never used gets an empty node
+     * first, so the {@code multi} can answer the stat of the slot write. The index keeps the slots whose last owner
+     * is still the key.
+     */
+    private Optional<AcquireResult> take(Request request, int slot, Node node, OwnerIndex index, Slots slots, AcquireReason reason,
+                                         boolean duplicate) {
         String path = node.path;
         String what = "acquire " + path;
-        SlotState taken = node.state.take(owner, node.mtime, ttlMillis, toleranceMillis);
-        byte[] data = taken.bytes();
-        Stat stat;
+        long deadline = request.deadline;
+        int version;
         if (node.stat == null) {
-            Stat created = new Stat();
-            CuratorEvent create = zk.call(what, deadline, callback -> zk.client().create().storingStatIn(created).withMode(CreateMode.PERSISTENT)
-                .inBackground(callback).forPath(path, data));
+            CuratorEvent create = zk.call(what, deadline,
+                callback -> zk.client().create().withMode(CreateMode.PERSISTENT).inBackground(callback).forPath(path, new byte[0]));
             switch (Zk.code(create)) {
-                case OK -> stat = create.getStat() != null ? create.getStat() : created;
+                case OK -> version = 0;
                 case NODEEXISTS -> {
                     return Optional.empty();
                 }
                 default -> throw Zk.unexpected(what, create);
             }
         } else {
-            Optional<Stat> written = write(what, node, taken, deadline);
-            if (written.isEmpty()) {
+            version = node.stat.getVersion();
+        }
+        SlotState taken = node.state.take(request.owner, node.mtime, request.ttlMillis, request.toleranceMillis);
+        byte[] slotData = taken.bytes();
+        byte[] indexData = index.with(slot, kept -> request.owner.key().equals(slots.node(kept).state.lastOwnerKey()));
+        CuratorOp slotWrite;
+        CuratorOp indexWrite;
+        try {
+            slotWrite = zk.client().transactionOp().setData().withVersion(version).forPath(path, slotData);
+            indexWrite = index.stat == null
+                ? zk.client().transactionOp().create().withMode(CreateMode.PERSISTENT).forPath(request.ownerPath, indexData)
+                : zk.client().transactionOp().setData().withVersion(index.stat.getVersion()).forPath(request.ownerPath, indexData);
+        } catch (Exception e) {
+            throw new CosIdException("ZooKeeper " + what + " failed: " + e, e);
+        }
+        CuratorEvent multi = zk.call(what, deadline, callback -> zk.client().transaction().inBackground(callback).forOperations(slotWrite, indexWrite));
+        switch (Zk.code(multi)) {
+            case OK -> {
+                Stat stat = multi.getOpResults().get(0).getResultStat();
+                if (stat == null) {
+                    throw new CosIdException("ZooKeeper " + what + " returned no stat");
+                }
+                long mtime = stat.getMtime();
+                return Optional.of(new AcquireResult.Acquired(taken.toLease(request.namespace, slot, mtime, mtime), reason, duplicate));
+            }
+            case NONODE -> {
+                // The parent of the owner index is created on first need.
+                ensureOwnerParent(what, request.ownerPath, deadline);
                 return Optional.empty();
             }
-            stat = written.get();
+            case BADVERSION, NODEEXISTS -> {
+                return Optional.empty();
+            }
+            default -> throw Zk.unexpected(what, multi);
         }
-        long mtime = stat.getMtime();
-        return Optional.of(new AcquireResult.Acquired(taken.toLease(namespace, slot, mtime, mtime), reason, duplicate));
+    }
+
+    private void ensureOwnerParent(String what, String ownerPath, long deadline) {
+        String parent = ZKPaths.getPathAndNode(ownerPath).getPath();
+        CuratorEvent create = zk.call(what, deadline, callback -> zk.client().create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT)
+            .inBackground(callback).forPath(parent, new byte[0]));
+        switch (Zk.code(create)) {
+            case OK, NODEEXISTS -> {
+            }
+            default -> throw Zk.unexpected(what, create);
+        }
     }
 
     @Override
@@ -443,6 +405,155 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
                 }
                 default -> throw Zk.unexpected(what, read);
             }
+        }
+    }
+
+    /**
+     * The slot nodes of one acquire attempt, read on demand: read-only {@code multi} requests of at most
+     * {@value #MAX_BATCH} {@code getData} each, on the ZooKeeper handle of the client (a slot never used reads as
+     * {@code NONODE}). One request per batch keeps the allocation and the round trips low, where a Curator background
+     * call per slot does not.
+     */
+    private final class Slots {
+        private final String what;
+        private final String nsPath;
+        private final long deadline;
+        private final Node[] nodes;
+
+        private Slots(String what, String nsPath, int limit, long deadline) {
+            this.what = what;
+            this.nsPath = nsPath;
+            this.deadline = deadline;
+            this.nodes = new Node[limit];
+        }
+
+        Node node(int slot) {
+            return nodes[slot];
+        }
+
+        boolean readRange(int from, int to) {
+            int[] range = new int[to - from];
+            for (int slot = from; slot < to; slot++) {
+                range[slot - from] = slot;
+            }
+            return read(range);
+        }
+
+        /**
+         * Reads the slots not read yet.
+         *
+         * @return false if the connection was lost and the acquire must start over
+         */
+        boolean read(int[] slots) {
+            int[] missing = Arrays.stream(slots).filter(slot -> nodes[slot] == null).distinct().toArray();
+            if (missing.length == 0) {
+                return true;
+            }
+            ZooKeeper zooKeeper;
+            try {
+                zooKeeper = zk.client().getZookeeperClient().getZooKeeper();
+            } catch (Exception e) {
+                throw new CosIdException("ZooKeeper " + what + ": no connection", e);
+            }
+            String clientNamespace = zk.client().getNamespace();
+            List<CompletableFuture<List<OpResult>>> reads = new ArrayList<>(missing.length / MAX_BATCH + 1);
+            for (int from = 0; from < missing.length; from += MAX_BATCH) {
+                List<Op> ops = new ArrayList<>(Math.min(MAX_BATCH, missing.length - from));
+                for (int i = from; i < Math.min(missing.length, from + MAX_BATCH); i++) {
+                    ops.add(Op.getData(ZKPaths.fixForNamespace(clientNamespace, nsPath + "/" + missing[i])));
+                }
+                CompletableFuture<List<OpResult>> read = new CompletableFuture<>();
+                zooKeeper.multi(ops, (rc, path, ctx, results) -> {
+                    // A read-only multi is not atomic: it answers every op, the code being that of the first failed one.
+                    if (results != null && results.size() == ops.size()) {
+                        read.complete(results);
+                    } else {
+                        read.completeExceptionally(KeeperException.create(KeeperException.Code.get(rc)));
+                    }
+                }, null);
+                reads.add(read);
+            }
+            int index = 0;
+            for (CompletableFuture<List<OpResult>> read : reads) {
+                List<OpResult> results;
+                try {
+                    results = zk.await(what, deadline, read);
+                } catch (CosIdException e) {
+                    if (e.getCause() instanceof KeeperException.ConnectionLossException) {
+                        return false;
+                    }
+                    throw e;
+                }
+                for (OpResult result : results) {
+                    int slot = missing[index++];
+                    String path = nsPath + "/" + slot;
+                    if (result instanceof OpResult.GetDataResult data) {
+                        nodes[slot] = new Node(path, SlotState.parse(path, data.getData()), data.getStat(), data.getStat().getMtime());
+                    } else if (result instanceof OpResult.ErrorResult error && error.getErr() == KeeperException.Code.NONODE.intValue()) {
+                        nodes[slot] = new Node(path, SlotState.NEW, null, 0);
+                    } else if (result instanceof OpResult.ErrorResult error) {
+                        throw new CosIdException("ZooKeeper " + what + " failed reading " + path + ": " + KeeperException.Code.get(error.getErr()));
+                    } else {
+                        throw new CosIdException("ZooKeeper " + what + " returned " + result + " for " + path);
+                    }
+                }
+            }
+            return true;
+        }
+    }
+
+    /** The arguments of one acquire. */
+    private record Request(String namespace, String nsPath, String ownerPath, Owner owner, int limit, long ttlMillis, long toleranceMillis,
+                           long deadline) {
+    }
+
+    /**
+     * The owner index {@code /cosid/owner/{ns}/{ownerKey}}: the slots, ascending, whose last owner was the key when
+     * the index was written; a superset of the slots the key holds.
+     *
+     * @param stat  the stat, null if the key never acquired in the namespace
+     * @param slots the slots below the limit
+     */
+    record OwnerIndex(Stat stat, int[] slots) {
+        static OwnerIndex of(String what, String path, CuratorEvent read, int limit) {
+            return switch (Zk.code(read)) {
+                case OK -> new OwnerIndex(read.getStat(), parse(path, read.getData(), limit));
+                case NONODE -> new OwnerIndex(null, new int[0]);
+                default -> throw Zk.unexpected(what, read);
+            };
+        }
+
+        static int[] parse(String path, byte[] data, int limit) {
+            if (data == null || data.length == 0) {
+                return new int[0];
+            }
+            String text = new String(data, StandardCharsets.US_ASCII).trim();
+            try {
+                return Arrays.stream(text.split(",")).filter(part -> !part.isEmpty()).mapToInt(part -> Integer.parseInt(part.trim()))
+                    .filter(slot -> slot >= 0 && slot < limit).sorted().distinct().toArray();
+            } catch (NumberFormatException e) {
+                throw new CosIdException("Owner index " + path + " is unreadable: " + text, e);
+            }
+        }
+
+        int[] withPreferred(int preferred) {
+            if (preferred < 0) {
+                return slots;
+            }
+            int[] all = Arrays.copyOf(slots, slots.length + 1);
+            all[slots.length] = preferred;
+            return all;
+        }
+
+        /** The index after the key takes {@code slot}: that slot and the listed ones whose last owner is still the key. */
+        byte[] with(int slot, IntPredicate keep) {
+            int[] next = IntStream.concat(Arrays.stream(slots).filter(keep), IntStream.of(slot))
+                .sorted().distinct().toArray();
+            StringBuilder text = new StringBuilder(next.length * 5);
+            for (int i = 0; i < next.length; i++) {
+                text.append(i == 0 ? "" : ",").append(next[i]);
+            }
+            return text.toString().getBytes(StandardCharsets.US_ASCII);
         }
     }
 

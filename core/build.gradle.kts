@@ -18,4 +18,6 @@ plugins {
 
 dependencies {
     implementation(libs.slf4j.api)
+    // The in-memory store and fault injection of the TCK (02-modules.md §3: test scopes only).
+    testImplementation(project(":store:tck"))
 }

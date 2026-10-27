@@ -49,7 +49,7 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | Directory | Artifact | State |
 |---|---|---|
 | `core/` | `cosid-core` | R0: public API frozen; bodies throw `UnsupportedOperationException("R1-x")` until R1/R3 |
-| `store/tck/` | `cosid-store-tck` | R0: contract skeletons (`@Disabled`), `InMemoryStore`, fault injection types |
+| `store/tck/` | `cosid-store-tck` | R1-C: the contracts, `InMemoryStore` (passes them), `ManualClock`, fault injection, `ContractsRan` |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
 | `benchmark/v5/` | not published | the same scenarios on 5.x |
@@ -88,8 +88,8 @@ Adding a package means deciding whether `module-info.java` exports it.
 - **Every source file starts with the Apache 2.0 license header** (`config/checkstyle/java.header`); Checkstyle
   enforces it on main, test and JMH sources (tests and JMH skip every other check).
 - **Logging:** SLF4J API only; Logback is test-only (`config/logback.xml`, `config/logback-jmh.xml`).
-- **Skeleton bodies** throw `UnsupportedOperationException("<phase>")` naming the phase that implements them; R0's
-  `URF_UNREAD_FIELD` SpotBugs exclusion goes once the constructors' fields are read.
+- **Skeleton bodies** throw `UnsupportedOperationException("<phase>")` naming the phase that implements them. There is
+  no `URF_UNREAD_FIELD` exclusion any more: a skeleton keeps a field only if something reads it.
 - **Coverage** (`codecov.yml`): patch and project targets 80%; `benchmark/`, `store/tck/`, `build-logic/` ignored.
 - **Commits and PR titles** follow Conventional Commits (`feat(core)!:`, `build!:`); PRs of 5.x phases target `5.x`.
 
@@ -101,5 +101,9 @@ Adding a package means deciding whether `module-info.java` exports it.
   `benchmark/*/build/results/jmh/results.json`; committed results go to `docs/jmh/<version>/` with the machine and JDK noted. The `v5` scenarios fail at setup until R1.
 - **Store integration tests** (R2) will follow the 4.x convention: `COSID_TEST_REDIS_URI`, `COSID_TEST_MYSQL_URL`/
   `_USERNAME`/`_PASSWORD`, `COSID_TEST_POSTGRES_URL`/…, `COSID_TEST_MONGODB_URI`; Testcontainers otherwise; one CI job
-  per `store/*` module running the TCK.
+  per `store/*` module running the TCK. Each backend registers a `checkContractsRan` task like `store/tck/build.gradle.kts`
+  (it runs `ContractsRan` on the JUnit XML reports), so a job whose contract cases were skipped fails.
+- **Lease tests** drive `LeaseKeeper` / `StaticSlot` without threads: a capturing executor, the package-private
+  constructor taking an `internal.Ticker`, and `runDue()` / `extendIfDue()` for each step; `store/tck`'s `ManualClock`
+  is the store or client clock. `core` tests may use `store/tck` (test scope).
 - `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.

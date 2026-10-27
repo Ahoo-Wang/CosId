@@ -20,6 +20,11 @@ compatible with 4.x (D1); the offline migration tool (`migration/`, 09-migration
 
 ## Common commands
 
+> **Local machine budget (agents):** the development machine is shared; total CPU load must stay **≤ 90%** (10 cores → load ≤ 9).
+> Verify on CI by default. A local build, when really needed, is one module at a time with
+> `nice -n 15 ./gradlew --no-daemon --max-workers=2 :<module>:test`; never a full local `check`, never two builds at once,
+> no local Testcontainers or JMH (benchmarks run only on CI, D31). Never `./gradlew --stop`: it kills other projects' daemons.
+
 ```bash
 ./gradlew check                                    # everything: compile, Checkstyle, SpotBugs, tests, JaCoCo,
                                                    # dependency rules, build-logic tests

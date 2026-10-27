@@ -26,6 +26,10 @@ public record StoreConfig(String name, String type, Duration timeout, Map<String
 
 ## 2. 各后端实现
 
+**版本策略(D27、D28)**:支持承诺从下文各节写明的最低版本开始,CI 必须覆盖最低版本与最新版本。另外在低于最低版本的若干版本上各跑一次 TCK
+(非阻塞的 probe job),结果写入各模块 README 的"实测兼容性(不承诺)"表,只用于如实说明兼容情况,不为旧版本加任何兼容代码。
+R5-B 把各模块的实测结果汇总到文档站。
+
 ### 2.1 JDBC
 
 支持的数据库与最低版本(D27):MySQL 8.4 LTS、MariaDB 10.11 LTS、PostgreSQL 15、SQL Server 2019、H2 2.x(开发与测试)。CI 对每种方言覆盖最低版本与最新版本。方言自动探测,也可以通过 `JdbcDialect` SPI 扩展,取代 4.x 的自定义 SQL 配置。

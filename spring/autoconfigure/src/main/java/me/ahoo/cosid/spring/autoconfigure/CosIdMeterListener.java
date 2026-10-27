@@ -27,7 +27,6 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.TimeGauge;
 import io.micrometer.core.instrument.Timer;
-import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.SmartInitializingSingleton;
 
@@ -64,27 +63,25 @@ import java.util.function.ToDoubleFunction;
  *     <tr><td>{@code cosid.generator.generated} (function counter, {@code cosid.metrics.generated})</td><td>name</td><td>{@code generator.generated}</td></tr>
  * </table>
  *
- * <p>The gauges are registered once every singleton exists, the runtime among them.
+ * <p>{@code cosid.generator.generated} counts every view the runtime hands out, the {@code IdFiller} among them. The
+ * gauges are registered once every singleton exists, the runtime among them.
  */
 public class CosIdMeterListener implements GeneratorListener, SmartInitializingSingleton {
     public static final String PREFIX = "cosid.";
 
     private final MeterRegistry registry;
     private final ObjectProvider<CosIdRuntime> runtime;
-    private final ListableBeanFactory beanFactory;
     private final AtomicLong clockSkew = new AtomicLong();
 
     /**
      * The listener.
      *
      * @param registry    the registry
-     * @param runtime     the runtime, for the gauges
-     * @param beanFactory the generator beans, for {@code cosid.generator.generated}
+     * @param runtime  the runtime, for the gauges and {@code cosid.generator.generated}
      */
-    public CosIdMeterListener(MeterRegistry registry, ObjectProvider<CosIdRuntime> runtime, ListableBeanFactory beanFactory) {
+    public CosIdMeterListener(MeterRegistry registry, ObjectProvider<CosIdRuntime> runtime) {
         this.registry = registry;
         this.runtime = runtime;
-        this.beanFactory = beanFactory;
     }
 
     @Override
@@ -105,10 +102,9 @@ public class CosIdMeterListener implements GeneratorListener, SmartInitializingS
                 gauge("segment.held", segment, generator -> Math.max(0, generator.held()), name, "Ids left in the ranges the generator holds");
                 gauge("segment.batch", segment, SegmentGenerator::batch, name, "The size of the generator's next reservation");
             }
-            if ((CosIdSpecs.SNOWFLAKE.equals(info.strategy()) || CosIdSpecs.SEGMENT.equals(info.strategy()))
-                && beanFactory.containsBean(name) && beanFactory.getBean(name) instanceof CosIdGeneratorRegistrar.Counted counted) {
-                FunctionCounter.builder(PREFIX + "generator.generated", counted, CosIdGeneratorRegistrar.Counted::generated)
-                    .tag("name", name).description("Ids the generator bean issued").register(registry);
+            if (current.generated(name).isPresent()) {
+                FunctionCounter.builder(PREFIX + "generator.generated", current, target -> target.generated(name).orElse(0))
+                    .tag("name", name).description("Ids the generator issued").register(registry);
             }
         }
         if (current.slot().isPresent()) {

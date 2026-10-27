@@ -28,7 +28,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.GeneratorDisabledException;
+import me.ahoo.cosid.GroupedIdGenerator;
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.PartsIdGenerator;
 import me.ahoo.cosid.accessor.CosId;
 import me.ahoo.cosid.accessor.IdFiller;
 import me.ahoo.cosid.codec.IdCodec;
@@ -39,14 +41,14 @@ import me.ahoo.cosid.runtime.GeneratorSpec;
 import me.ahoo.cosid.runtime.HostResolver;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.segment.BatchPolicy;
-import me.ahoo.cosid.segment.PeriodicSegmentGenerator;
 import me.ahoo.cosid.time.TimeBasedGenerator;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.cloud.commons.util.InetUtils;
+import org.springframework.cloud.commons.util.UtilAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -106,18 +108,17 @@ class CosIdAutoConfigurationTest {
             assertSame(runtime.generator("default"), context.getBean("default"));
             assertSame(runtime.generator("order"), context.getBean("order", IdGenerator.class));
             assertSame(runtime.generator("trace"), context.getBean("trace", IdGenerator.class));
-            assertSame(runtime.get("token", TimeBasedGenerator.class), context.getBean("token", TimeBasedGenerator.class));
-            assertSame(runtime.periodic("bill"), context.getBean("bill", PeriodicSegmentGenerator.class));
-            assertEquals(List.of("bill"), List.of(context.getBeanNamesForType(PeriodicSegmentGenerator.class)));
-            assertEquals(List.of("token"), List.of(context.getBeanNamesForType(TimeBasedGenerator.class)));
-            // TimeBasedGenerator is an IdGenerator too, though a cosid80 one issues no long ids.
-            assertEquals(List.of("default", "order", "token", "trace"), List.of(context.getBeanNamesForType(IdGenerator.class)).stream().sorted().toList());
+            assertSame(runtime.get("token", TimeBasedGenerator.class), context.getBean("token", PartsIdGenerator.class));
+            assertSame(runtime.periodic("bill"), context.getBean("bill", GroupedIdGenerator.class));
+            assertEquals(List.of("bill"), List.of(context.getBeanNamesForType(GroupedIdGenerator.class)));
+            assertEquals(List.of("token"), List.of(context.getBeanNamesForType(PartsIdGenerator.class)));
+            assertEquals(List.of("default", "order", "trace"), List.of(context.getBeanNamesForType(IdGenerator.class)).stream().sorted().toList());
 
             IdGenerator order = context.getBean("order", IdGenerator.class);
             long first = order.generate();
             assertThat(order.generate(), greaterThan(first));
             assertThat(runtime.stringGenerator("order").generate(), startsWith("O"));
-            assertThat(context.getBean("bill", PeriodicSegmentGenerator.class).generate().period().length(), org.hamcrest.Matchers.is(8));
+            assertThat(context.getBean("bill", GroupedIdGenerator.class).generate().period().length(), org.hamcrest.Matchers.is(8));
             assertTrue(runtime.slot().isPresent());
 
             Entity entity = new Entity();
@@ -169,10 +170,10 @@ class CosIdAutoConfigurationTest {
                 IdGenerator ids = context.getBean("default", IdGenerator.class);
                 assertThrows(GeneratorDisabledException.class, ids::generate);
                 assertThrows(GeneratorDisabledException.class, context.getBean("order", IdGenerator.class)::generate);
-                BeanCreationException token = assertThrows(BeanCreationException.class, () -> context.getBean("token"));
-                assertThat(token.getMostSpecificCause(), instanceOf(GeneratorDisabledException.class));
-                assertEquals(TimeBasedGenerator.class, context.getType("token"));
-                assertEquals(PeriodicSegmentGenerator.class, context.getType("bill"));
+                assertThrows(GeneratorDisabledException.class, context.getBean("token", PartsIdGenerator.class)::nextParts);
+                assertThrows(GeneratorDisabledException.class, context.getBean("bill", GroupedIdGenerator.class)::generate);
+                assertEquals(PartsIdGenerator.class, context.getType("token"));
+                assertEquals(GroupedIdGenerator.class, context.getType("bill"));
                 assertTrue(context.getBean(MemoryStores.class).events.isEmpty(), "the store of a disabled generator is not opened");
             });
     }
@@ -242,6 +243,23 @@ class CosIdAutoConfigurationTest {
                 "cosid.generators.default.strategy=snowflake")
             .run(context -> assertThat(context.getBean(CosIdRuntime.class).slot().orElseThrow().owner().key(),
                 endsWith(":" + ProcessHandle.current().pid())));
+    }
+
+    @Test
+    void takesTheOwnerKeyHostFromSpringCloudInetUtils() {
+        withStores().withConfiguration(AutoConfigurations.of(UtilAutoConfiguration.class))
+            .withPropertyValues("server.port=8081", "cosid.stores.mem.type=memory", "cosid.machine.leased.store=mem",
+                "cosid.generators.default.strategy=snowflake")
+            .run(context -> {
+                assertNull(context.getStartupFailure());
+                String ip = context.getBean(InetUtils.class).findFirstNonLoopbackHostInfo().getIpAddress();
+                assertEquals(ip, context.getBean(HostResolver.class).host());
+                assertEquals(ip + ":8081", context.getBean(CosIdRuntime.class).slot().orElseThrow().owner().key());
+            });
+        withStores().withConfiguration(AutoConfigurations.of(UtilAutoConfiguration.class)).withBean(HostResolver.class, () -> () -> "own")
+            .withPropertyValues("server.port=8081", "cosid.stores.mem.type=memory", "cosid.machine.leased.store=mem",
+                "cosid.generators.default.strategy=snowflake")
+            .run(context -> assertEquals("own:8081", context.getBean(CosIdRuntime.class).slot().orElseThrow().owner().key()));
     }
 
     @Test

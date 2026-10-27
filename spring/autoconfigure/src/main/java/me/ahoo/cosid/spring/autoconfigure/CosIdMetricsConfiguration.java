@@ -16,7 +16,6 @@ package me.ahoo.cosid.spring.autoconfigure;
 import me.ahoo.cosid.runtime.CosIdRuntime;
 
 import io.micrometer.core.instrument.MeterRegistry;
-import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -37,7 +36,7 @@ import org.springframework.context.annotation.Bean;
 @ConditionalOnProperty(prefix = CosIdProperties.PREFIX, name = "enabled", havingValue = "true", matchIfMissing = true)
 public class CosIdMetricsConfiguration {
     @Bean
-    public CosIdMeterListener cosIdMeterListener(MeterRegistry registry, ObjectProvider<CosIdRuntime> runtime, ListableBeanFactory beanFactory) {
-        return new CosIdMeterListener(registry, runtime, beanFactory);
+    public CosIdMeterListener cosIdMeterListener(MeterRegistry registry, ObjectProvider<CosIdRuntime> runtime) {
+        return new CosIdMeterListener(registry, runtime);
     }
 }

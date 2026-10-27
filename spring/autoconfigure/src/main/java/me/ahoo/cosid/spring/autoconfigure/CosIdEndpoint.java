@@ -14,12 +14,12 @@
 package me.ahoo.cosid.spring.autoconfigure;
 
 import me.ahoo.cosid.GeneratorDisabledException;
+import me.ahoo.cosid.GroupedIdGenerator;
+import me.ahoo.cosid.PartsIdGenerator;
 import me.ahoo.cosid.codec.GroupedCodec;
 import me.ahoo.cosid.codec.PartsCodec;
 import me.ahoo.cosid.observe.GeneratorInfo;
 import me.ahoo.cosid.runtime.CosIdRuntime;
-import me.ahoo.cosid.segment.PeriodicSegmentGenerator;
-import me.ahoo.cosid.time.TimeBasedGenerator;
 
 import org.springframework.boot.actuate.endpoint.InvalidEndpointRequestException;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
@@ -84,8 +84,8 @@ public class CosIdEndpoint {
                     yield runtime.generator(name).generate();
                 }
                 case STRING -> switch (info.strategy()) {
-                    case CosIdSpecs.COSID80 -> runtime.get(name, PartsCodec.class).encode(runtime.get(name, TimeBasedGenerator.class).nextParts());
-                    case CosIdSpecs.PERIODIC_SEGMENT -> runtime.get(name, GroupedCodec.class).encode(runtime.get(name, PeriodicSegmentGenerator.class).generate());
+                    case CosIdSpecs.COSID80 -> runtime.get(name, PartsCodec.class).encode(runtime.get(name, PartsIdGenerator.class).nextParts());
+                    case CosIdSpecs.PERIODIC_SEGMENT -> runtime.get(name, GroupedCodec.class).encode(runtime.get(name, GroupedIdGenerator.class).generate());
                     default -> runtime.stringGenerator(name).generate();
                 };
                 default -> throw new InvalidEndpointRequestException("Unknown format [" + format + "]: long or string", "unknown format");

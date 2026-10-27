@@ -31,9 +31,14 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.env.Environment;
 
@@ -47,10 +52,11 @@ import java.util.function.Consumer;
  * Starts the {@link CosIdRuntime} (07-runtime-and-spring.md §4.2): the spec from {@code cosid.*} and the
  * {@link RuntimeSpecCustomizer}s ({@link CosIdGeneratorRegistrar}), the {@link StoreProvider} beans, the clients of the
  * context ({@code DataSource}, Lettuce or {@code RedisConnectionFactory}, {@code MongoClient}, {@code CuratorFramework}),
- * the {@link GeneratorListener} beans and a {@link HostResolver} bean if any. The runtime is fixed once started (D17);
+ * the {@link GeneratorListener} beans and a {@link HostResolver} bean if any (Spring Cloud's {@code InetUtils} gives one,
+ * the first non-loopback address, as in 4.x). The runtime is fixed once started (D17);
  * the context closes it after the beans that use its generators, and before the clients it uses.
  */
-@AutoConfiguration
+@AutoConfiguration(afterName = "org.springframework.cloud.commons.util.UtilAutoConfiguration")
 @ConditionalOnProperty(prefix = CosIdProperties.PREFIX, name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(CosIdProperties.class)
 @ImportRuntimeHints(CosIdRuntimeHints.class)
@@ -78,13 +84,26 @@ public class CosIdAutoConfiguration {
             hostResolver.getIfAvailable(() -> HostResolver.LOCAL),
             port(environment),
             reference -> beanFactory.containsBean(reference) && beanFactory.isTypeMatch(reference, IdCodec.class)
-                ? Optional.of(beanFactory.getBean(reference, IdCodec.class)) : defaults.codecs().apply(reference));
+                ? Optional.of(beanFactory.getBean(reference, IdCodec.class)) : defaults.codecs().apply(reference),
+            properties.metrics().generated());
         return CosIdRuntime.start(spec, options);
     }
 
     @Bean
     public IdFiller cosIdFiller(CosIdRuntime runtime) {
         return runtime.filler();
+    }
+
+    /** The owner key host from Spring Cloud's {@code InetUtils} (07 §1.1). */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.springframework.cloud.commons.util.InetUtils")
+    static class CloudHost {
+        @Bean
+        @ConditionalOnBean(InetUtils.class)
+        @ConditionalOnMissingBean
+        HostResolver cosIdHostResolver(InetUtils inetUtils) {
+            return () -> inetUtils.findFirstNonLoopbackHostInfo().getIpAddress();
+        }
     }
 
     /** {@code server.port} for the owner key {@code host:port} (07 §1.1); none when unset or random. */

@@ -31,6 +31,7 @@ dependencies {
     // Health carries Jackson annotations; without them javac warns.
     compileOnly("com.fasterxml.jackson.core:jackson-annotations")
     compileOnly("org.springframework.data:spring-data-redis")
+    compileOnly(libs.spring.cloud.commons)
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
     annotationProcessor("org.springframework.boot:spring-boot-autoconfigure-processor")
 
@@ -48,6 +49,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-micrometer-metrics")
     testImplementation("io.micrometer:micrometer-core")
     testImplementation("org.springframework.data:spring-data-redis")
+    testImplementation(libs.spring.cloud.commons)
     testImplementation(libs.h2)
     testImplementation(libs.testcontainers)
 }

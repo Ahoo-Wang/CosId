@@ -16,7 +16,6 @@ package me.ahoo.cosid.spring.autoconfigure;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -27,6 +26,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.PartsIdGenerator;
+import me.ahoo.cosid.accessor.IdFiller;
 import me.ahoo.cosid.observe.GeneratorInfo;
 import me.ahoo.cosid.runtime.CosIdRuntime;
 
@@ -157,14 +158,17 @@ class CosIdActuatorTest {
                 assertNull(context.getStartupFailure());
                 MeterRegistry registry = context.getBean(MeterRegistry.class);
                 IdGenerator order = context.getBean("order", IdGenerator.class);
-                assertThat(order, instanceOf(CosIdGeneratorRegistrar.Counted.class));
                 for (int i = 0; i < 5; i++) {
                     order.generate();
                 }
+                context.getBean(IdFiller.class).fill(new CosIdAutoConfigurationTest.Entity());
+                context.getBean(CosIdRuntime.class).stringGenerator("order").generate();
                 context.getBean("default", IdGenerator.class).generate();
-                assertEquals(5.0, registry.get("cosid.generator.generated").tag("name", "order").functionCounter().count());
+                context.getBean("token", PartsIdGenerator.class).nextParts();
+                assertEquals(7.0, registry.get("cosid.generator.generated").tag("name", "order").functionCounter().count());
                 assertEquals(1.0, registry.get("cosid.generator.generated").tag("name", "default").functionCounter().count());
-                assertTrue(registry.find("cosid.generator.generated").tag("name", "token").functionCounters().isEmpty());
+                assertEquals(1.0, registry.get("cosid.generator.generated").tag("name", "token").functionCounter().count());
+                assertTrue(registry.find("cosid.generator.generated").tag("name", "off").functionCounters().isEmpty());
                 assertThat(registry.get("cosid.segment.held").tag("name", "order").gauge().value(), greaterThan(0.0));
                 assertThat(registry.get("cosid.segment.batch").tag("name", "order").gauge().value(), greaterThan(0.0));
                 assertTrue(registry.find("cosid.segment.held").tag("name", "off").gauges().isEmpty());
@@ -199,7 +203,7 @@ class CosIdActuatorTest {
         CosIdAutoConfigurationTest.withStores().withPropertyValues("cosid.machine.static.slot=1", "cosid.generators.default.strategy=snowflake")
             .run(context -> {
                 assertFalse(context.containsBean("cosIdMeterListener"));
-                assertFalse(context.getBean("default") instanceof CosIdGeneratorRegistrar.Counted);
+                assertTrue(context.getBean(CosIdRuntime.class).generated("default").isEmpty());
             });
         runner().withBean(MeterRegistry.class, SimpleMeterRegistry::new)
             .withPropertyValues("cosid.machine.static.slot=1", "cosid.generators.default.strategy=snowflake").run(context -> {

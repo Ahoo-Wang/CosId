@@ -49,6 +49,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Function;
 
 /**
@@ -165,16 +166,17 @@ public final class RuntimeParts {
                                   GeneratorListener listener) {
         String name = generator.name();
         String key = namespace + '/' + name;
+        LongAdder counter = options.countGenerated() ? new LongAdder() : null;
         return switch (generator.spec()) {
             case GeneratorSpec.Snowflake snowflake -> GeneratorEntry.snowflake(
                 new TimeBasedGenerator(name, snowflake.layout(), slot, options.time(), snowflake.regression(), listener),
-                (IdCodec) generator.codec(), slot);
+                (IdCodec) generator.codec(), slot, counter);
             case GeneratorSpec.CosId80 cosId80 -> GeneratorEntry.cosId80(
                 new TimeBasedGenerator(name, Layout.COSID_80, slot, options.time(), cosId80.regression(), listener),
-                (PartsCodec) generator.codec(), slot);
+                (PartsCodec) generator.codec(), slot, counter);
             case GeneratorSpec.Segment segment -> GeneratorEntry.segment(
                 new SegmentGenerator(name, key, store(segment.store()).ranges(), segment.batch(), executor, options.time(), listener),
-                (IdCodec) generator.codec(), segment.store());
+                (IdCodec) generator.codec(), segment.store(), counter);
             case GeneratorSpec.PeriodicSegment periodic -> GeneratorEntry.periodic(
                 new PeriodicSegmentGenerator(name, key, periodic.period(), periodic.zone(), store(periodic.store()).ranges(),
                     periodic.batch(), periodic.periodic(), executor, options.time(), listener),
@@ -183,7 +185,7 @@ public final class RuntimeParts {
                     "zone", periodic.zone().getId(),
                     "step", periodic.batch().step(),
                     "prewarm", periodic.periodic().prewarm().toString(),
-                    "sealAfter", periodic.periodic().sealAfter().map(Object::toString).orElse("")));
+                    "sealAfter", periodic.periodic().sealAfter().map(Object::toString).orElse("")), counter);
             case GeneratorSpec.Disabled disabled -> GeneratorEntry.disabled(name, strategy(disabled.generator()), storeOf(disabled.generator()));
         };
     }

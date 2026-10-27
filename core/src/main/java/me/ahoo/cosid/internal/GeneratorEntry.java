@@ -14,8 +14,11 @@
 package me.ahoo.cosid.internal;
 
 import me.ahoo.cosid.GeneratorDisabledException;
+import me.ahoo.cosid.GroupedId;
+import me.ahoo.cosid.GroupedIdGenerator;
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.IdGenerators;
+import me.ahoo.cosid.PartsIdGenerator;
 import me.ahoo.cosid.StringIdGenerator;
 import me.ahoo.cosid.codec.GroupedCodec;
 import me.ahoo.cosid.codec.IdCodec;
@@ -25,20 +28,26 @@ import me.ahoo.cosid.lease.SlotHandle;
 import me.ahoo.cosid.observe.GeneratorInfo;
 import me.ahoo.cosid.segment.PeriodicSegmentGenerator;
 import me.ahoo.cosid.segment.SegmentGenerator;
+import me.ahoo.cosid.time.IdParts;
 import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeBasedGenerator;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalLong;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.function.Supplier;
 
 /**
- * A generator of a runtime with the views its lookups hand out: the generator itself, its {@code long} and {@code int}
- * ids, its codec and its text ids.
+ * A generator of a runtime with the views its lookups hand out: its {@code long}, {@code int}, parts or grouped ids, its
+ * codec, its text ids and the generator itself. With a counter ({@code RuntimeOptions.countGenerated}) every view but
+ * the concrete generator counts the ids it issues; without one the views are the generator itself, so the hot path is
+ * unchanged.
  */
 public final class GeneratorEntry {
     public static final String SNOWFLAKE = "snowflake";
@@ -55,9 +64,10 @@ public final class GeneratorEntry {
     private final Supplier<String> text;
     private final List<Object> views;
     private final Supplier<Map<String, Object>> details;
+    private final LongAdder counter;
 
     private GeneratorEntry(String name, String strategy, String store, AutoCloseable generator, IdGenerator ids, IdCodec codec,
-                           Supplier<String> text, List<Object> extraViews, Supplier<Map<String, Object>> details) {
+                           Supplier<String> text, List<Object> extraViews, Supplier<Map<String, Object>> details, LongAdder counter) {
         this.name = Objects.requireNonNull(name, "name");
         this.strategy = Objects.requireNonNull(strategy, "strategy");
         this.store = Objects.requireNonNull(store, "store");
@@ -65,23 +75,54 @@ public final class GeneratorEntry {
         this.ids = ids;
         this.strings = ids == null ? null : new StringIdGenerator(ids, codec);
         this.text = text;
-        this.details = details;
-        if (generator == null) {
-            this.views = List.of();
-        } else if (ids == null) {
-            this.views = List.copyOf(prepend(generator, extraViews));
-        } else {
-            this.views = List.copyOf(prepend(generator, List.of(strings, IdGenerators.toInt(ids), codec)));
+        this.counter = counter;
+        this.details = counter == null ? details : () -> {
+            Map<String, Object> all = new LinkedHashMap<>(details.get());
+            all.put("generated", counter.sum());
+            return all;
+        };
+        List<Object> all = new ArrayList<>();
+        if (generator != null) {
+            if (ids != null) {
+                all.addAll(List.of(ids, strings, IdGenerators.toInt(ids), codec));
+            }
+            all.addAll(extraViews);
+            all.add(generator);
         }
+        this.views = List.copyOf(all);
     }
 
-    private static List<Object> prepend(Object first, List<Object> rest) {
-        Object[] all = new Object[rest.size() + 1];
-        all[0] = first;
-        for (int i = 0; i < rest.size(); i++) {
-            all[i + 1] = rest.get(i);
+    private static IdGenerator counted(IdGenerator ids, LongAdder counter) {
+        if (counter == null) {
+            return ids;
         }
-        return List.of(all);
+        return () -> {
+            long id = ids.generate();
+            counter.increment();
+            return id;
+        };
+    }
+
+    private static PartsIdGenerator counted(PartsIdGenerator parts, LongAdder counter) {
+        if (counter == null) {
+            return parts;
+        }
+        return () -> {
+            IdParts id = parts.nextParts();
+            counter.increment();
+            return id;
+        };
+    }
+
+    private static GroupedIdGenerator counted(GroupedIdGenerator grouped, LongAdder counter) {
+        if (counter == null) {
+            return grouped;
+        }
+        return () -> {
+            GroupedId id = grouped.generate();
+            counter.increment();
+            return id;
+        };
     }
 
     /**
@@ -90,25 +131,31 @@ public final class GeneratorEntry {
      * @param generator the generator
      * @param codec     its codec
      * @param slot      the slot it issues on
+     * @param counter   counts the ids issued; null for none
      * @return the entry
      */
-    public static GeneratorEntry snowflake(TimeBasedGenerator generator, IdCodec codec, SlotHandle slot) {
-        return new GeneratorEntry(generator.name(), SNOWFLAKE, "", generator, generator, Objects.requireNonNull(codec, "codec"),
-            () -> codec.encode(generator.generate()), List.of(), () -> timeBasedDetails(generator, slot));
+    public static GeneratorEntry snowflake(TimeBasedGenerator generator, IdCodec codec, SlotHandle slot, LongAdder counter) {
+        Objects.requireNonNull(codec, "codec");
+        IdGenerator ids = counted((IdGenerator) generator, counter);
+        return new GeneratorEntry(generator.name(), SNOWFLAKE, "", generator, ids, codec,
+            () -> codec.encode(ids.generate()), List.of(counted((PartsIdGenerator) generator, counter)),
+            () -> timeBasedDetails(generator, slot), counter);
     }
 
     /**
-     * An 80-bit CosId generator: text ids only.
+     * An 80-bit CosId generator: parts and text ids only.
      *
      * @param generator the generator
      * @param codec     its parts codec
      * @param slot      the slot it issues on
+     * @param counter   counts the ids issued; null for none
      * @return the entry
      */
-    public static GeneratorEntry cosId80(TimeBasedGenerator generator, PartsCodec codec, SlotHandle slot) {
+    public static GeneratorEntry cosId80(TimeBasedGenerator generator, PartsCodec codec, SlotHandle slot, LongAdder counter) {
         Objects.requireNonNull(codec, "codec");
+        PartsIdGenerator parts = counted((PartsIdGenerator) generator, counter);
         return new GeneratorEntry(generator.name(), COSID80, "", generator, null, null,
-            () -> codec.encode(generator.nextParts()), List.of(codec), () -> timeBasedDetails(generator, slot));
+            () -> codec.encode(parts.nextParts()), List.of(parts, codec), () -> timeBasedDetails(generator, slot), counter);
     }
 
     /**
@@ -117,11 +164,14 @@ public final class GeneratorEntry {
      * @param generator the generator
      * @param codec     its codec
      * @param store     the store name
+     * @param counter   counts the ids issued; null for none
      * @return the entry
      */
-    public static GeneratorEntry segment(SegmentGenerator generator, IdCodec codec, String store) {
-        return new GeneratorEntry(generator.name(), SEGMENT, store, generator, generator, Objects.requireNonNull(codec, "codec"),
-            () -> codec.encode(generator.generate()), List.of(), () -> segmentDetails(generator));
+    public static GeneratorEntry segment(SegmentGenerator generator, IdCodec codec, String store, LongAdder counter) {
+        Objects.requireNonNull(codec, "codec");
+        IdGenerator ids = counted(generator, counter);
+        return new GeneratorEntry(generator.name(), SEGMENT, store, generator, ids, codec,
+            () -> codec.encode(ids.generate()), List.of(), () -> segmentDetails(generator), counter);
     }
 
     /**
@@ -131,17 +181,20 @@ public final class GeneratorEntry {
      * @param codec     its grouped codec
      * @param store     the store name
      * @param details   what describe() tells besides the current period
+     * @param counter   counts the ids issued; null for none
      * @return the entry
      */
-    public static GeneratorEntry periodic(PeriodicSegmentGenerator generator, GroupedCodec codec, String store, Map<String, Object> details) {
+    public static GeneratorEntry periodic(PeriodicSegmentGenerator generator, GroupedCodec codec, String store, Map<String, Object> details,
+                                          LongAdder counter) {
         Objects.requireNonNull(codec, "codec");
         Map<String, Object> fixed = Map.copyOf(details);
+        GroupedIdGenerator grouped = counted(generator, counter);
         return new GeneratorEntry(generator.name(), PERIODIC_SEGMENT, store, generator, null, null,
-            () -> codec.encode(generator.generate()), List.of(codec), () -> {
+            () -> codec.encode(grouped.generate()), List.of(grouped, codec), () -> {
                 Map<String, Object> all = new LinkedHashMap<>(fixed);
                 all.put("period", generator.currentPeriod());
                 return all;
-            });
+            }, counter);
     }
 
     /**
@@ -153,7 +206,16 @@ public final class GeneratorEntry {
      * @return the entry
      */
     public static GeneratorEntry disabled(String name, String strategy, String store) {
-        return new GeneratorEntry(name, strategy, store, null, null, null, null, List.of(), () -> Map.of("disabled", true));
+        return new GeneratorEntry(name, strategy, store, null, null, null, null, List.of(), () -> Map.of("disabled", true), null);
+    }
+
+    /**
+     * The ids issued through the views so far.
+     *
+     * @return the count; empty when not counting or disabled
+     */
+    public OptionalLong generated() {
+        return counter == null || generator == null ? OptionalLong.empty() : OptionalLong.of(counter.sum());
     }
 
     public String name() {

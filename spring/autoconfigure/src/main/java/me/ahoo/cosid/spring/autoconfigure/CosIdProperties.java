@@ -231,8 +231,8 @@ public record CosIdProperties(@DefaultValue("true") boolean enabled,
     /**
      * The Micrometer metrics.
      *
-     * @param generated count the generated ids ({@code cosid.generator.generated}) of {@code long} generators; adds a
-     *                  counter to each call, so off by default
+     * @param generated count the ids every generator issues ({@code cosid.generator.generated}), through every view the
+     *                  runtime hands out; adds a counter to each call, so off by default
      */
     public record Metrics(@DefaultValue("false") boolean generated) {
     }

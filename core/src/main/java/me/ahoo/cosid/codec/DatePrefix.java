@@ -105,11 +105,13 @@ public final class DatePrefix {
         long epochMillis = idLayout.epoch().toEpochMilli();
         long unitMillis = idLayout.unit().getDuration().toMillis();
         int timeShift = idLayout.nodeBits() + idLayout.seqBits();
+        int totalBits = idLayout.totalBits();
         return new Prefixed(date, delimiter, inner) {
             @Override
             long epochMillis(long id) {
-                if (id < 0) {
-                    throw new IllegalArgumentException("id must not be negative: " + id);
+                // A wider id would put foreign bits into the time part and print a wrong date, as Friendly rejects.
+                if (id < 0 || id >>> totalBits != 0) {
+                    throw new IllegalArgumentException("id " + id + " is not a " + totalBits + "-bit id");
                 }
                 return epochMillis + (id >>> timeShift) * unitMillis;
             }

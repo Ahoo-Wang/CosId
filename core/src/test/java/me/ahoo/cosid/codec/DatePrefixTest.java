@@ -46,6 +46,11 @@ class DatePrefixTest {
         assertThat(text, is("20261027-" + Radix.of(62, 11, true).encode(id)));
         assertThat(codec.decode(text), is(id));
         assertThrows(IllegalArgumentException.class, () -> codec.encode(-1));
+        // An id wider than the layout would print a wrong date.
+        IdCodec jsSafe = DatePrefix.of("yyyyMMdd", "-", DatePrefix.Source.ID_TIME)
+            .apply(Radix.of(62, 11, true), SHANGHAI, TimeSource.SYSTEM, Optional.of(Layout.JS_SAFE_MS));
+        assertThrows(IllegalArgumentException.class, () -> jsSafe.encode(1L << 53));
+        assertThat(jsSafe.encode((1L << 53) - 1).startsWith("2089"), is(true));
     }
 
     @Test

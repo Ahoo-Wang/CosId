@@ -60,7 +60,9 @@ class ReplicaWaitTest {
 
     @Test
     void failsWhenFewerReplicasAcknowledge() {
-        try (Store store = open(RedisServers.sharedReplicated().primary(), SHORT, Map.of("wait", "2"))) {
+        // WAIT 2 never gets its second acknowledgement, so every call takes the whole timeout: long enough for the one
+        // replica in sync to acknowledge, short enough for the test.
+        try (Store store = open(RedisServers.sharedReplicated().primary(), Duration.ofSeconds(2), Map.of("wait", "2"))) {
             RedisStoreException failure = assertThrows(RedisStoreException.class, () -> store.ranges().reserve("wait-" + UUID.randomUUID(), 10, 0));
             assertThat(failure.getMessage(), containsString("acknowledged by 1 of 2 replicas"));
             assertThrows(RedisStoreException.class, () -> store.slots().acquire("wait-" + UUID.randomUUID(), new Owner("host", UUID.randomUUID()), 4,
@@ -71,14 +73,19 @@ class ReplicaWaitTest {
     @Test
     void failsOnceTheReplicaIsGone() {
         RedisServers.Replicated pair = RedisServers.replicated();
-        try (Store store = open(pair.primary(), SHORT, Map.of())) {
+        try {
             String key = "gone-" + UUID.randomUUID();
-            assertEquals(0, store.ranges().reserve(key, 10, 0).start(), "auto found the replica and it acknowledges");
-            try (StatefulRedisConnection<String, String> replica = pair.replica().connect()) {
-                replica.sync().replicaofNoOne();
+            // The setup write may take as long as a loaded machine needs; only the write after the loss is held to SHORT.
+            try (Store store = open(pair.primary(), RedisServers.TIMEOUT, Map.of())) {
+                assertEquals(0, store.ranges().reserve(key, 10, 0).start(), "auto found the replica and it acknowledges");
             }
-            RedisStoreException failure = assertThrows(RedisStoreException.class, () -> store.ranges().reserve(key, 10, 0));
-            assertThat(failure.getMessage(), containsString("acknowledged by 0 of 1 replicas"));
+            try (Store store = open(pair.primary(), SHORT, Map.of())) {
+                try (StatefulRedisConnection<String, String> replica = pair.replica().connect()) {
+                    replica.sync().replicaofNoOne();
+                }
+                RedisStoreException failure = assertThrows(RedisStoreException.class, () -> store.ranges().reserve(key, 10, 0));
+                assertThat(failure.getMessage(), containsString("acknowledged by 0 of 1 replicas"));
+            }
         } finally {
             pair.primary().shutdown();
             pair.replica().shutdown();

@@ -10,6 +10,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package me.ahoo.cosid.server;
 
 import me.ahoo.cosid.store.remote.RemoteApi;

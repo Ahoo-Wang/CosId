@@ -85,6 +85,65 @@ public final class DatePrefix {
      * @return the prefixed codec
      */
     public IdCodec apply(IdCodec inner, ZoneId zone, TimeSource time, Optional<Layout> layout) {
-        throw new UnsupportedOperationException("R1-A");
+        Objects.requireNonNull(inner, "inner");
+        Objects.requireNonNull(zone, "zone");
+        Objects.requireNonNull(time, "time");
+        Objects.requireNonNull(layout, "layout");
+        DateText date = DateText.of(pattern, zone);
+        if (source == Source.NOW) {
+            return new Prefixed(date, delimiter, inner) {
+                @Override
+                long epochMillis(long id) {
+                    return time.currentMillis();
+                }
+            };
+        }
+        Layout idLayout = layout.orElseThrow(() -> new IllegalArgumentException("A date prefix from the id time needs the layout of the id"));
+        if (idLayout.totalBits() > Layout.LONG_BITS) {
+            throw new IllegalArgumentException("A " + idLayout.totalBits() + "-bit layout does not fit a long id");
+        }
+        long epochMillis = idLayout.epoch().toEpochMilli();
+        long unitMillis = idLayout.unit().getDuration().toMillis();
+        int timeShift = idLayout.nodeBits() + idLayout.seqBits();
+        return new Prefixed(date, delimiter, inner) {
+            @Override
+            long epochMillis(long id) {
+                if (id < 0) {
+                    throw new IllegalArgumentException("id must not be negative: " + id);
+                }
+                return epochMillis + (id >>> timeShift) * unitMillis;
+            }
+        };
+    }
+
+    /**
+     * The date, the delimiter, then the inner text.
+     */
+    private abstract static class Prefixed implements IdCodec {
+        private final DateText date;
+        private final String delimiter;
+        private final IdCodec inner;
+
+        Prefixed(DateText date, String delimiter, IdCodec inner) {
+            this.date = date;
+            this.delimiter = delimiter;
+            this.inner = inner;
+        }
+
+        abstract long epochMillis(long id);
+
+        @Override
+        public String encode(long id) {
+            return date.format(epochMillis(id)) + delimiter + inner.encode(id);
+        }
+
+        @Override
+        public long decode(String text) {
+            int end = date.end(text);
+            if (end < 0 || !text.startsWith(delimiter, end)) {
+                throw new IllegalArgumentException("[" + text + "] does not start with a date and the delimiter [" + delimiter + "]");
+            }
+            return inner.decode(text.substring(end + delimiter.length()));
+        }
     }
 }

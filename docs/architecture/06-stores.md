@@ -26,9 +26,13 @@ public record StoreConfig(String name, String type, Duration timeout, Map<String
 
 ## 2. 各后端实现
 
+**版本策略(D27、D28)**:支持承诺从下文各节写明的最低版本开始,CI 必须覆盖最低版本与最新版本。另外在低于最低版本的若干版本上各跑一次 TCK
+(非阻塞的 probe job),结果写入各模块 README 的"实测兼容性(不承诺)"表,只用于如实说明兼容情况,不为旧版本加任何兼容代码。
+R5-B 把各模块的实测结果汇总到文档站。
+
 ### 2.1 JDBC
 
-支持的数据库与最低版本:MySQL 8.0、MariaDB 10.6、PostgreSQL 12、SQL Server 2019、H2 2.x(开发与测试)。方言自动探测,也可以通过 `JdbcDialect` SPI 扩展,取代 4.x 的自定义 SQL 配置。
+支持的数据库与最低版本(D27):MySQL 8.4 LTS、MariaDB 10.11 LTS、PostgreSQL 15、SQL Server 2019、H2 2.x(开发与测试)。CI 对每种方言覆盖最低版本与最新版本。方言自动探测,也可以通过 `JdbcDialect` SPI 扩展,取代 4.x 的自定义 SQL 配置。
 
 ```sql
 create table cosid_range (
@@ -71,14 +75,16 @@ create table cosid_namespace (
 
 槽位:
 - 命名空间首次使用时幂等预建 `limit` 行(MySQL `insert ignore`;PostgreSQL `on conflict do nothing`;SQL Server `merge`;H2 `merge`)。
-- `acquire` 按 05 §2.1 的顺序逐个尝试。每次尝试是一个 `READ COMMITTED` 事务:
-  先锁定一个候选行(MySQL/PostgreSQL 用 `for update skip locked`;SQL Server 用 `with (updlock, readpast, rowlock)` 加 `top 1`),
-  再执行 `update … where namespace = ? and slot = ? and fence = ?`。
+- `acquire` 按 05 §2.1 的顺序逐个尝试,走 CAS 路径(R2 裁定,往返次数不多于 4.x):
+  一次非锁定读取得到候选槽位(幂等、preferred、粘性、前几个空闲槽位)与存储时钟;每一步是一条自动提交的
+  `update … where namespace = ? and slot = ? and fence = ? and (以数据库时钟判断"可取")`,影响 0 行则换下一个候选。
+  LOWEST 一步在前 k 个空闲槽位中随机选取以分散竞争。PostgreSQL 可用单条 `update … where slot = (select … for update skip locked limit 1) returning`。
+  正确性只依赖单槽位的原子条件更新。
 - 存储时钟(UTC):MySQL `timestampdiff(microsecond, '1970-01-01 00:00:00', utc_timestamp(6)) div 1000`(不受会话时区与夏令时影响);PostgreSQL `(extract(epoch from clock_timestamp()) * 1000)::bigint`;
   SQL Server `datediff_big(ms, '1970-01-01', sysutcdatetime())`;H2 同 PostgreSQL 写法。
 - 是否自动建表由 `options.initSchema` 控制(默认关闭);表名可通过 `options.rangeTable` / `slotTable` / `namespaceTable` 配置。
 
-### 2.2 Redis(最低 Redis 6)
+### 2.2 Redis(最低 7.0,D27)
 
 模块只依赖 `lettuce-core`,并定义最小执行接口;Spring Data 的适配放在 `spring/autoconfigure`(D6):
 
@@ -97,25 +103,29 @@ public interface RedisScripts {
 - `acquire` 在一个 Lua 中完成:`now = TIME`;用 `ZRANGEBYSCORE live -inf now LIMIT 0 k` 把至多 k 个已过期的槽位移入 `free`;
   依次尝试 preferred、粘性槽位;否则 `ZRANGEBYSCORE free 0 (limit−1) LIMIT 0 1` 取编号最小的空闲槽位。复杂度 O(log n)。
 - `release`:从 `live` 移除,加入 `free`(score 为槽位号),`expiresAt = now`。
-- 存储时钟:Lua 内 `redis.call('TIME')`。Redis 6+ 默认使用脚本效果复制,`TIME` 可以安全使用。
+- 存储时钟:Lua 内 `redis.call('TIME')`。Redis 7 只使用脚本效果复制,`TIME` 可以安全使用。
 - `WAIT` 默认 auto:启动时读取 `INFO replication`,有副本时每次写操作后执行 `WAIT 1 timeout`,未确认则操作失败。
   `WAIT` 在 store 自建的专用连接上执行,不会阻塞用户注入的多路复用连接。
 - 文档声明:Redis 后端的唯一性以"已确认的写入不会丢失"为前提,即单节点开启 AOF `appendfsync always`,或者 `WAIT` 覆盖所有副本。
   在异步复制下发生 failover 时,号段与租约的写入都可能丢失,进而产生重复 ID。对唯一性要求严格的场景推荐 JDBC 或 ZooKeeper。
   客户端只在写入被确认后才使用新的区间或 ceiling。
 
-### 2.3 MongoDB(最低 4.4)
+### 2.3 MongoDB(最低 6.0,D26)
 
 - `cosid_range`:`{_id: key, next, sealed}`。`findOneAndUpdate`,`upsert`,管道更新 `next = ifNull(next, initialOffset) + size`,过滤 `sealed != true`,返回更新后的文档;遇到 `E11000`(并发 upsert)重试一次。
 - `cosid_slot`:`{ns, slot, …}`,在 `(ns, slot)` 上建唯一索引,预建所有槽位。05 §2.1 的每次尝试都是一个 `findOneAndUpdate`:
   过滤条件用 `$expr` 与 `$$NOW` 表达"可取",按 `slot` 升序,条件中带上 `fence`。
 - 写关注默认 `majority`,读关注 `majority`。存储时钟取 `$$NOW`。数据库名通过 `options.database` 配置(默认 `cosid_db`)。
 
-### 2.4 ZooKeeper
+### 2.4 ZooKeeper(最低 3.8,以 3.9 为主,D27)
 
 - 区间:znode `/cosid/range/{key}`,数据为 `next`(以及封存标记);用版本化 `setData` 实现 CAS,不存在时 `create`,遇到 `NodeExists` 重试。
 - 槽位:`/cosid/slot/{ns}/{slot}`,数据为 `{ownerKey, incarnation, lastOwnerKey, fence, ttl, floor, ceiling, nextFloor}`。
   - **fence 存在数据里**,版本化 `setData` 只用来实现 CAS,所以节点被重建也不会让 fence 回退(运行时从不删除槽位节点)。
+  - 节点数据实际为 `{ownerKey, incarnation, lastOwnerKey, fence, ttl, tolerance, floor, expiresMin, ceilingMin, nextFloor}`(R2 实现):
+    `expiresAt = max(expiresMin, mtime + ttl)`,`ceiling = max(ceilingMin, expiresAt + tolerance)`;下界取自被替换的那次写入,任期内二者不回退。
+  - 运维前提:人工重建槽位节点时,写入重建的服务端时钟不能落后于原节点的 `mtime`,否则应在恢复后等待一个 ttl 再启动。
+  - 命名空间不能含 `/`,range key 必须是合法的 ZooKeeper 路径。
   - 存储时钟:`storeNow` 与 `expiresAt` 都取自**同一次写入**的 `Stat.mtime`(`expiresAt = mtime + ttl`)。
     判断"是否可取"时,先写 `/cosid/slot/{ns}/.clock` 取得当前 `mtime` 作为 `now`。安全性不依赖它(05 §3)。
   - 选槽:用异步批量 `getData` 读取全部槽位节点后按 05 §2.1 尝试。acquire 是低频操作,1024 个槽位的批量读可以接受;实际耗时由 R2 基准(P10)验证。

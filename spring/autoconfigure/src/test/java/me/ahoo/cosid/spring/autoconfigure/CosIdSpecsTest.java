@@ -215,6 +215,15 @@ class CosIdSpecsTest {
     }
 
     @Test
+    void passesStoreOptionsThroughAsTheyAreWritten() {
+        // The Mongo write concern (06-stores.md §2.3) is a backend option: it reaches the StoreProvider unchanged.
+        RuntimeSpec spec = spec("cosid.stores.mongo.type=mongo", "cosid.stores.mongo.options.uri=mongodb://db/?replicaSet=rs",
+            "cosid.stores.mongo.options.database=ids", "cosid.stores.mongo.options.writeConcern=w1");
+        assertEquals(new StoreSpec("mongo", Duration.ofSeconds(2), Map.of("uri", "mongodb://db/?replicaSet=rs", "database", "ids",
+            "writeConcern", "w1")), spec.stores().get("mongo"));
+    }
+
+    @Test
     void mapsALeasedMachineWithAllItsSettings() {
         RuntimeSpec spec = spec("cosid.machine.leased.store=s", "cosid.machine.leased.bits=6", "cosid.machine.leased.ttl=10s",
             "cosid.machine.leased.tolerance=0s", "cosid.machine.leased.preferred-slot=4", "cosid.machine.leased.owner-key=pod-4");

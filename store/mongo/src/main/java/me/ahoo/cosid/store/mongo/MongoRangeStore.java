@@ -19,6 +19,7 @@ import me.ahoo.cosid.segment.Range;
 import me.ahoo.cosid.segment.RangeStore;
 
 import com.mongodb.MongoServerException;
+import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
@@ -65,7 +66,23 @@ public final class MongoRangeStore implements RangeStore {
      * @param timeout  the operation timeout ({@code timeoutMS}); zero means none
      */
     public MongoRangeStore(MongoDatabase database, Duration timeout) {
-        this.ranges = MongoStore.configure(database, timeout).getCollection(COLLECTION);
+        this(database, timeout, WriteConcern.MAJORITY);
+    }
+
+    /**
+     * A range store on a database whose client the caller owns, writing with the given concern.
+     *
+     * @param database     the database
+     * @param timeout      the operation timeout ({@code timeoutMS}); zero means none
+     * @param writeConcern the write concern, acknowledged ({@code majority} keeps ranges across a failover)
+     */
+    public MongoRangeStore(MongoDatabase database, Duration timeout, WriteConcern writeConcern) {
+        this.ranges = MongoStore.configure(database, timeout, writeConcern).getCollection(COLLECTION);
+    }
+
+    /** The collection as the store uses it (tests check its concerns). */
+    MongoCollection<Document> collection() {
+        return ranges;
     }
 
     @Override

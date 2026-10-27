@@ -22,6 +22,7 @@ import me.ahoo.cosid.lease.SlotLeaseStore;
 
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoServerException;
+import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Field;
@@ -107,7 +108,18 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
      * @param timeout  the operation timeout ({@code timeoutMS}); zero means none
      */
     public MongoSlotLeaseStore(MongoDatabase database, Duration timeout) {
-        this(MongoStore.configure(database, timeout));
+        this(database, timeout, WriteConcern.MAJORITY);
+    }
+
+    /**
+     * A slot lease store on a database whose client the caller owns, writing with the given concern.
+     *
+     * @param database     the database
+     * @param timeout      the operation timeout ({@code timeoutMS}); zero means none
+     * @param writeConcern the write concern, acknowledged ({@code majority} keeps leases across a failover)
+     */
+    public MongoSlotLeaseStore(MongoDatabase database, Duration timeout, WriteConcern writeConcern) {
+        this(MongoStore.configure(database, timeout, writeConcern));
     }
 
     private MongoSlotLeaseStore(MongoDatabase configured) {
@@ -118,6 +130,16 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     MongoSlotLeaseStore(MongoCollection<Document> slots, MongoCollection<Document> namespaces) {
         this.slots = slots;
         this.namespaces = namespaces;
+    }
+
+    /** The slot collection as the store uses it (tests check its concerns). */
+    MongoCollection<Document> slotCollection() {
+        return slots;
+    }
+
+    /** The namespace collection as the store uses it (tests check its concerns). */
+    MongoCollection<Document> namespaceCollection() {
+        return namespaces;
     }
 
     @Override

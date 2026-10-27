@@ -22,6 +22,8 @@ import me.ahoo.cosid.lease.SlotLeaseStore;
 
 import com.mongodb.MongoBulkWriteException;
 import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Aggregates;
+import com.mongodb.client.model.Field;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
@@ -51,9 +53,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * on {@code (ns, slot)}, with every slot of a namespace created on its first use; the namespace parameters live in
  * {@code cosid_namespace}, {@code {_id: ns, limit, toleranceMs}}.
  *
- * <p>Each step of the slot choice (05-machine-lease.md §2.1) is one {@code findOneAndUpdate} on one document, so the
- * condition and the change of §2.2 are atomic: "free" is a {@code $expr} on {@code $$NOW}, renewals and releases match
- * the incarnation and the fence. The pipeline update first stamps {@code writtenAt = $$NOW}, the store clock, and
+ * <p>An acquire first reads the slots the owner key holds or held last (one aggregation, with {@code $$NOW}): that
+ * answers the idempotent step and the duplicate key check and names the sticky candidates. Each step that takes a slot
+ * (05-machine-lease.md §2.1) is then one {@code findOneAndUpdate} on one document, so the condition and the change of
+ * §2.2 are atomic: "free" is a {@code $expr} on {@code $$NOW}, a sticky candidate also matches the fence it was read
+ * with, renewals and releases match the incarnation and the fence. The pipeline update first stamps {@code writtenAt = $$NOW}, the store clock, and
  * derives the expiry from it, so {@code storeNow} and {@code expiresAt} come from the same write.
  */
 public final class MongoSlotLeaseStore implements SlotLeaseStore {
@@ -72,6 +76,8 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     static final String CEILING = "ceiling";
     static final String NEXT_FLOOR = "nextFloor";
     static final String WRITTEN_AT = "writtenAt";
+    /** The store clock of the acquire read, a computed field never stored. */
+    private static final String READ_AT = "readAt";
     static final String LIMIT = "limit";
     static final String TOLERANCE_MS = "toleranceMs";
     /** The store clock: {@code $$NOW} in epoch milliseconds. */
@@ -111,16 +117,41 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         if (limit < 1) {
             throw new IllegalArgumentException("limit must be positive: " + limit);
         }
-        long ttlMillis = positiveMillis(ttl, "ttl");
+        final long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
         ensureNamespace(namespace, new NamespaceParams(limit, toleranceMillis));
-        Bson inNamespace = Filters.and(Filters.eq(NS, namespace), Filters.lt(SLOT, limit));
+        final Bson inNamespace = Filters.and(Filters.eq(NS, namespace), Filters.lt(SLOT, limit));
+        String incarnation = owner.incarnation().toString();
 
-        // 1. A slot this very owner holds: returned as it is, only stamped with the store clock.
-        Document held = slots.findOneAndUpdate(Filters.and(inNamespace, Filters.eq(INCARNATION, owner.incarnation().toString()),
-            Filters.eq(OWNER_KEY, owner.key())), List.of(STAMP), AFTER);
+        // One read of the slots the key holds or held last, stamped with the store clock: it finds this owner's slot,
+        // live leases of other incarnations of the key and the sticky candidates, so the common acquire is one read
+        // and one conditional update.
+        List<Document> ofKey = slots.aggregate(List.of(
+            Aggregates.match(Filters.and(Filters.eq(NS, namespace), Filters.or(Filters.eq(OWNER_KEY, owner.key()), Filters.eq(LAST_OWNER_KEY, owner.key())))),
+            Aggregates.addFields(new Field<>(READ_AT, NOW)),
+            Aggregates.sort(Sorts.ascending(SLOT)))).into(new ArrayList<>());
+        boolean duplicateOwnerKey = false;
+        Document held = null;
+        List<Document> stickyCandidates = new ArrayList<>();
+        for (Document slot : ofKey) {
+            long now = slot.getLong(READ_AT);
+            boolean free = slot.get(INCARNATION) == null || slot.getLong(EXPIRES_AT) < now;
+            boolean below = slot.getInteger(SLOT) < limit;
+            if (owner.key().equals(slot.getString(OWNER_KEY))) {
+                if (incarnation.equals(slot.getString(INCARNATION))) {
+                    held = below && held == null ? slot : held;
+                } else if (!free) {
+                    // Another incarnation of the key with a live lease (§2.1): only observed, never taken over.
+                    duplicateOwnerKey = true;
+                }
+            }
+            if (below && free && owner.key().equals(slot.getString(LAST_OWNER_KEY))) {
+                stickyCandidates.add(slot);
+            }
+        }
+        // 1. A slot this very owner holds: returned as it is, stamped with the read.
         if (held != null) {
-            return acquired(held, owner, AcquireReason.IDEMPOTENT);
+            return new AcquireResult.Acquired(toLease(held, owner, held.getLong(READ_AT)), AcquireReason.IDEMPOTENT, duplicateOwnerKey);
         }
         List<Bson> take = take(owner, ttlMillis, toleranceMillis);
         // 2. The preferred slot, if free.
@@ -128,18 +159,21 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
             Document preferred = slots.findOneAndUpdate(Filters.and(Filters.eq(NS, namespace), Filters.eq(SLOT, preferredSlot.getAsInt()), FREE),
                 take, AFTER);
             if (preferred != null) {
-                return acquired(preferred, owner, AcquireReason.PREFERRED);
+                return new AcquireResult.Acquired(toLease(preferred, owner), AcquireReason.PREFERRED, duplicateOwnerKey);
             }
         }
-        // 3. The lowest free slot the owner key held last.
-        Document sticky = slots.findOneAndUpdate(Filters.and(inNamespace, Filters.eq(LAST_OWNER_KEY, owner.key()), FREE), take, LOWEST_AFTER);
-        if (sticky != null) {
-            return acquired(sticky, owner, AcquireReason.STICKY);
+        // 3. A free slot the owner key held last, as read: taken if its fence did not move and it is still free.
+        for (Document candidate : stickyCandidates) {
+            Document sticky = slots.findOneAndUpdate(Filters.and(Filters.eq(NS, namespace), Filters.eq(SLOT, candidate.getInteger(SLOT)),
+                Filters.eq(FENCE, candidate.getLong(FENCE)), FREE), take, AFTER);
+            if (sticky != null) {
+                return new AcquireResult.Acquired(toLease(sticky, owner), AcquireReason.STICKY, duplicateOwnerKey);
+            }
         }
         // 4. The lowest free slot.
         Document lowest = slots.findOneAndUpdate(Filters.and(inNamespace, FREE), take, LOWEST_AFTER);
         if (lowest != null) {
-            return acquired(lowest, owner, AcquireReason.LOWEST);
+            return new AcquireResult.Acquired(toLease(lowest, owner), AcquireReason.LOWEST, duplicateOwnerKey);
         }
         // 5. Every slot is held.
         Document earliest = slots.find(inNamespace).sort(Sorts.ascending(EXPIRES_AT)).projection(Projections.include(EXPIRES_AT)).first();
@@ -162,16 +196,6 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
                 .append(EXPIRES_AT, add("$" + WRITTEN_AT, ttlMillis))),
             new Document("$set", new Document(CEILING, max(add("$" + EXPIRES_AT, toleranceMillis), "$" + FLOOR))),
             new Document("$set", new Document(NEXT_FLOOR, "$" + CEILING)));
-    }
-
-    private AcquireResult acquired(Document slot, Owner owner, AcquireReason reason) {
-        SlotLease lease = toLease(slot, owner);
-        // Another incarnation of the key with a live lease (§2.1): only observed, never taken over.
-        boolean duplicateOwnerKey = slots.find(Filters.and(Filters.eq(NS, lease.namespace()), Filters.eq(OWNER_KEY, owner.key()),
-                Filters.ne(INCARNATION, owner.incarnation().toString()),
-                Filters.expr(new Document("$gte", List.of("$" + EXPIRES_AT, NOW)))))
-            .projection(Projections.include(SLOT)).first() != null;
-        return new AcquireResult.Acquired(lease, reason, duplicateOwnerKey);
     }
 
     @Override
@@ -216,6 +240,9 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         if (checked == null) {
             if (!indexed) {
                 slots.createIndex(Indexes.ascending(NS, SLOT), new IndexOptions().unique(true).name("ns_slot"));
+                // The acquire read of the slots a key holds or held last.
+                slots.createIndex(Indexes.ascending(NS, OWNER_KEY), new IndexOptions().name("ns_ownerKey"));
+                slots.createIndex(Indexes.ascending(NS, LAST_OWNER_KEY), new IndexOptions().name("ns_lastOwnerKey"));
                 indexed = true;
             }
             // An upsert on _id alone: the server retries a concurrent insert of the same key itself.
@@ -257,8 +284,12 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     }
 
     private static SlotLease toLease(Document slot, Owner owner) {
+        return toLease(slot, owner, slot.getLong(WRITTEN_AT));
+    }
+
+    private static SlotLease toLease(Document slot, Owner owner, long storeNow) {
         return new SlotLease(slot.getString(NS), slot.getInteger(SLOT), owner, slot.getLong(FENCE), slot.getLong(EXPIRES_AT),
-            slot.getLong(FLOOR), slot.getLong(CEILING), slot.getLong(WRITTEN_AT));
+            slot.getLong(FLOOR), slot.getLong(CEILING), storeNow);
     }
 
     /** A constant in a pipeline stage: a key starting with {@code $} stays a string, never a field path. */

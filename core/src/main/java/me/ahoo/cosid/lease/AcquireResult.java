@@ -20,11 +20,15 @@ public sealed interface AcquireResult {
     /**
      * A slot was acquired.
      *
-     * @param lease the lease
+     * @param lease             the lease
+     * @param reason            which step of the slot choice gave the slot (§2.1)
+     * @param duplicateOwnerKey whether another incarnation of the owner key holds a live lease in the namespace, as two
+     *                          runtimes started with one identity would
      */
-    record Acquired(SlotLease lease) implements AcquireResult {
+    record Acquired(SlotLease lease, AcquireReason reason, boolean duplicateOwnerKey) implements AcquireResult {
         public Acquired {
             java.util.Objects.requireNonNull(lease, "lease");
+            java.util.Objects.requireNonNull(reason, "reason");
         }
     }
 

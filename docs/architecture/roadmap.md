@@ -115,8 +115,8 @@ R0 骨架、接口冻结、4.x 基线基准
 | R2-Mongo | 已合入 | [#1311](https://github.com/Ahoo-Wang/CosId/pull/1311) |
 | R2-Redis | 已合入 | [#1313](https://github.com/Ahoo-Wang/CosId/pull/1313) |
 | R2-JDBC | 已合入 | [#1314](https://github.com/Ahoo-Wang/CosId/pull/1314) |
-| R2-ZK | 已合入(后续:降低 acquire 的分配量) | [#1315](https://github.com/Ahoo-Wang/CosId/pull/1315) |
-| 后续修复 | Mongo 并发 upsert 与重复身份误报:已合入 [#1316](https://github.com/Ahoo-Wang/CosId/pull/1316);R1-B `maxBatch`:[#1317](https://github.com/Ahoo-Wang/CosId/pull/1317);Redis 最低 7.0:[#1318](https://github.com/Ahoo-Wang/CosId/pull/1318);ZK acquire 分配量:进行中 | |
+| R2-ZK | 已合入(含分配量优化 [#1322](https://github.com/Ahoo-Wang/CosId/pull/1322)) | [#1315](https://github.com/Ahoo-Wang/CosId/pull/1315) |
+| 后续修复 | 全部合入:Mongo [#1316](https://github.com/Ahoo-Wang/CosId/pull/1316)、`maxBatch` [#1317](https://github.com/Ahoo-Wang/CosId/pull/1317)、Redis 7.0 [#1318](https://github.com/Ahoo-Wang/CosId/pull/1318)、ZK 退避 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK 分配 [#1322](https://github.com/Ahoo-Wang/CosId/pull/1322) | |
 | R3 | 已合入 | [#1319](https://github.com/Ahoo-Wang/CosId/pull/1319) |
 | R3-S | 待启动 | |
 | R4-C | 待启动 | |

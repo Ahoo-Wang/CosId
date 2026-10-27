@@ -22,14 +22,19 @@ import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.lease.SlotLeaseStore;
 
 import org.apache.curator.framework.api.CuratorEvent;
+import org.apache.curator.utils.ZKPaths;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.Op;
+import org.apache.zookeeper.OpResult;
+import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.common.PathUtils;
 import org.apache.zookeeper.data.Stat;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -57,6 +62,7 @@ import java.util.concurrent.ConcurrentHashMap;
 final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
     static final String ROOT = "/cosid/slot";
     static final String CLOCK = ".clock";
+    static final int READ_BATCH = 256;
 
     private final Zk zk;
     /** The namespaces whose metadata this instance checked: the metadata never changes once recorded. */
@@ -100,15 +106,13 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
         for (int attempt = 0; ; attempt++) {
             // The clock write and the reads go out together; ZooKeeper answers them in order, one round trip in all.
             CompletableFuture<CuratorEvent> clock = touchClock(nsPath);
-            List<CompletableFuture<CuratorEvent>> reads = new ArrayList<>(limit);
-            for (int slot = 0; slot < limit; slot++) {
-                String path = nsPath + "/" + slot;
-                reads.add(zk.start(callback -> zk.client().getData().inBackground(callback).forPath(path)));
-            }
+            CompletableFuture<CuratorEvent> children = zk.start(callback -> zk.client().getChildren().inBackground(callback).forPath(nsPath));
             long now = clockNow(nsPath, clock, deadline);
-            Node[] nodes = new Node[limit];
-            for (int slot = 0; slot < limit; slot++) {
-                nodes[slot] = Node.of(what, nsPath + "/" + slot, zk.await(what, deadline, reads.get(slot)));
+            int[] used = usedSlots(what, zk.await(what, deadline, children), limit);
+            Node[] nodes = nodes(what, nsPath, limit, used, readSlots(what, nsPath, used), deadline);
+            if (nodes == null) {
+                Zk.backoff(attempt, deadline, what);
+                continue;
             }
             Optional<AcquireResult> result = choose(namespace, owner, nodes, now, ttlMillis, toleranceMillis, preferredSlot, deadline);
             if (result.isPresent()) {
@@ -116,6 +120,113 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
             }
             Zk.backoff(attempt, deadline, what);
         }
+    }
+
+    /**
+     * The slots below the limit that have a node, in order; the others were never used.
+     */
+    private static int[] usedSlots(String what, CuratorEvent children, int limit) {
+        if (Zk.code(children) != KeeperException.Code.OK) {
+            throw Zk.unexpected(what, children);
+        }
+        int[] used = new int[Math.min(limit, children.getChildren().size())];
+        int count = 0;
+        for (String child : children.getChildren()) {
+            int slot = slotOf(child);
+            if (slot >= 0 && slot < limit && count < used.length) {
+                used[count++] = slot;
+            }
+        }
+        int[] sorted = Arrays.copyOf(used, count);
+        Arrays.sort(sorted);
+        return sorted;
+    }
+
+    /** The slot a child node names, or -1 for another node such as the clock. */
+    private static int slotOf(String child) {
+        if (child.isEmpty() || child.length() > 9) {
+            return -1;
+        }
+        int slot = 0;
+        for (int i = 0; i < child.length(); i++) {
+            char c = child.charAt(i);
+            if (c < '0' || c > '9') {
+                return -1;
+            }
+            slot = slot * 10 + (c - '0');
+        }
+        return slot;
+    }
+
+    /**
+     * Reads the used slots of the namespace: read-only {@code multi} requests of {@value #READ_BATCH} {@code getData}
+     * each, on the ZooKeeper handle of the client. One request per batch keeps the allocation and the round trips of a
+     * 1024-slot namespace low, where a Curator background call per slot does not.
+     */
+    private List<CompletableFuture<List<OpResult>>> readSlots(String what, String nsPath, int[] used) {
+        ZooKeeper zooKeeper;
+        try {
+            zooKeeper = zk.client().getZookeeperClient().getZooKeeper();
+        } catch (Exception e) {
+            throw new CosIdException("ZooKeeper " + what + ": no connection", e);
+        }
+        String clientNamespace = zk.client().getNamespace();
+        List<CompletableFuture<List<OpResult>>> reads = new ArrayList<>(used.length / READ_BATCH + 1);
+        for (int from = 0; from < used.length; from += READ_BATCH) {
+            List<Op> ops = new ArrayList<>(Math.min(READ_BATCH, used.length - from));
+            for (int i = from; i < Math.min(used.length, from + READ_BATCH); i++) {
+                ops.add(Op.getData(ZKPaths.fixForNamespace(clientNamespace, nsPath + "/" + used[i])));
+            }
+            CompletableFuture<List<OpResult>> read = new CompletableFuture<>();
+            zooKeeper.multi(ops, (rc, path, ctx, results) -> {
+                // A read-only multi is not atomic: it answers every op, the code being that of the first failed one.
+                if (results != null && results.size() == ops.size()) {
+                    read.complete(results);
+                } else {
+                    read.completeExceptionally(KeeperException.create(KeeperException.Code.get(rc)));
+                }
+            }, null);
+            reads.add(read);
+        }
+        return reads;
+    }
+
+    /**
+     * The slots as read; a slot without a node is {@link SlotState#NEW}.
+     *
+     * @return the nodes, or null if the connection was lost and the reads must be tried again
+     */
+    private Node[] nodes(String what, String nsPath, int limit, int[] used, List<CompletableFuture<List<OpResult>>> reads, long deadline) {
+        Node[] nodes = new Node[limit];
+        int index = 0;
+        for (CompletableFuture<List<OpResult>> read : reads) {
+            List<OpResult> results;
+            try {
+                results = zk.await(what, deadline, read);
+            } catch (CosIdException e) {
+                if (e.getCause() instanceof KeeperException.ConnectionLossException) {
+                    return null;
+                }
+                throw e;
+            }
+            for (OpResult result : results) {
+                int slot = used[index++];
+                String path = nsPath + "/" + slot;
+                if (result instanceof OpResult.GetDataResult data) {
+                    nodes[slot] = new Node(path, SlotState.parse(path, data.getData()), data.getStat(), data.getStat().getMtime());
+                } else if (result instanceof OpResult.ErrorResult error) {
+                    throw new CosIdException("ZooKeeper " + what + " failed reading " + path + ": " + KeeperException.Code.get(error.getErr()));
+                } else {
+                    throw new CosIdException("ZooKeeper " + what + " returned " + result + " for " + path);
+                }
+            }
+        }
+        for (int slot = 0; slot < limit; slot++) {
+            if (nodes[slot] == null) {
+                nodes[slot] = new Node(nsPath + "/" + slot, SlotState.NEW, null, 0);
+            }
+        }
+        return nodes;
     }
 
     /**

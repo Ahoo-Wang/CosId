@@ -20,8 +20,7 @@ import me.ahoo.cosid.lease.SlotLease;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 import java.util.UUID;
 
 /**
@@ -50,6 +49,8 @@ record SlotState(String ownerKey, UUID incarnation, String lastOwnerKey, long fe
                  long floor, long expiresMin, long ceilingMin, long nextFloor) {
     /** A slot whose node does not exist yet. */
     static final SlotState NEW = new SlotState(null, null, null, 0, 0, 0, 0, 0, 0, 0);
+    /** The numeric fields, in the order of the record. */
+    private static final String[] NUMBERS = {"fence", "ttl", "tolerance", "floor", "expiresMin", "ceilingMin", "nextFloor"};
 
     boolean held() {
         return incarnation != null;
@@ -133,31 +134,43 @@ record SlotState(String ownerKey, UUID incarnation, String lastOwnerKey, long fe
         if (data == null || data.length == 0) {
             return NEW;
         }
-        Map<String, String> fields = new HashMap<>();
-        for (String line : new String(data, StandardCharsets.UTF_8).split("\n")) {
-            int eq = line.indexOf('=');
-            if (eq > 0) {
-                fields.put(line.substring(0, eq), line.substring(eq + 1));
-            }
-        }
+        String text = new String(data, StandardCharsets.UTF_8);
+        String owner = null;
+        String incarnation = null;
+        String lastOwner = null;
+        long[] numbers = new long[NUMBERS.length];
+        int found = 0;
         try {
-            String owner = fields.get("owner");
-            String incarnation = fields.get("incarnation");
-            String lastOwner = fields.get("lastOwner");
-            return new SlotState(owner == null ? null : decode(owner), incarnation == null ? null : UUID.fromString(incarnation),
-                lastOwner == null ? null : decode(lastOwner), number(fields, "fence"), number(fields, "ttl"), number(fields, "tolerance"),
-                number(fields, "floor"), number(fields, "expiresMin"), number(fields, "ceilingMin"), number(fields, "nextFloor"));
+            for (int start = 0; start < text.length(); ) {
+                int end = text.indexOf('\n', start);
+                end = end < 0 ? text.length() : end;
+                int eq = text.indexOf('=', start);
+                if (eq > start && eq < end) {
+                    String name = text.substring(start, eq);
+                    String value = text.substring(eq + 1, end);
+                    switch (name) {
+                        case "owner" -> owner = decode(value);
+                        case "incarnation" -> incarnation = value;
+                        case "lastOwner" -> lastOwner = decode(value);
+                        default -> {
+                            int index = Arrays.asList(NUMBERS).indexOf(name);
+                            if (index >= 0) {
+                                numbers[index] = Long.parseLong(value);
+                                found |= 1 << index;
+                            }
+                        }
+                    }
+                }
+                start = end + 1;
+            }
+            if (found != (1 << NUMBERS.length) - 1) {
+                throw new IllegalArgumentException("missing fields in " + text);
+            }
+            return new SlotState(owner, incarnation == null ? null : UUID.fromString(incarnation), lastOwner,
+                numbers[0], numbers[1], numbers[2], numbers[3], numbers[4], numbers[5], numbers[6]);
         } catch (IllegalArgumentException e) {
             throw new CosIdException("Slot node " + path + " is unreadable: " + e.getMessage(), e);
         }
-    }
-
-    private static long number(Map<String, String> fields, String name) {
-        String value = fields.get(name);
-        if (value == null) {
-            throw new IllegalArgumentException("no " + name);
-        }
-        return Long.parseLong(value);
     }
 
     private static void line(StringBuilder text, String name, String value) {
@@ -169,6 +182,6 @@ record SlotState(String ownerKey, UUID incarnation, String lastOwnerKey, long fe
     }
 
     private static String decode(String value) {
-        return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        return value.indexOf('%') < 0 && value.indexOf('+') < 0 ? value : URLDecoder.decode(value, StandardCharsets.UTF_8);
     }
 }

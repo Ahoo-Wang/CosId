@@ -94,15 +94,16 @@ final class Zk {
      *
      * @param what     the operation and path, for the messages
      * @param deadline the deadline from {@link #deadline()}
-     * @param event    the started operation
-     * @return the event
-     * @throws CosIdException on timeout, interruption or a failure to start
+     * @param result   the started operation
+     * @param <T>      the result type
+     * @return the result
+     * @throws CosIdException on timeout, interruption or a failure
      */
-    CuratorEvent await(String what, long deadline, CompletableFuture<CuratorEvent> event) {
+    <T> T await(String what, long deadline, CompletableFuture<T> result) {
         try {
-            return event.get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
+            return result.get(Math.max(0, deadline - System.nanoTime()), TimeUnit.NANOSECONDS);
         } catch (TimeoutException e) {
-            event.cancel(false);
+            result.cancel(false);
             throw new CosIdException("ZooKeeper " + what + " timed out", e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

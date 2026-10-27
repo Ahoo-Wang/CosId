@@ -63,6 +63,23 @@ class ZookeeperStoreProviderTest {
     }
 
     @Test
+    void namespacedClientKeepsEveryNodeUnderItsNamespace() throws Exception {
+        try (CuratorFramework client = ZookeeperTests.newClient()) {
+            CuratorFramework chrooted = client.usingNamespace("tenant-" + UUID.randomUUID().toString().replace("-", ""));
+            ZookeeperStore store = new ZookeeperStore(chrooted, ZookeeperTests.TIMEOUT);
+            String namespace = "provider-" + UUID.randomUUID();
+            Owner owner = new Owner("host-a", UUID.randomUUID());
+            AcquireResult first = store.slots().acquire(namespace, owner, 4, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty());
+            AcquireResult again = store.slots().acquire(namespace, owner, 4, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty());
+            assertEquals(me.ahoo.cosid.lease.AcquireReason.IDEMPOTENT, assertInstanceOf(AcquireResult.Acquired.class, again).reason(),
+                "the batched reads see the slot written under the client namespace");
+            assertEquals(assertInstanceOf(AcquireResult.Acquired.class, first).lease().slot(), ((AcquireResult.Acquired) again).lease().slot());
+            assertTrue(chrooted.checkExists().forPath(ZookeeperSlotLeaseStore.slotPath(namespace, 0)) != null);
+            assertTrue(client.checkExists().forPath(ZookeeperSlotLeaseStore.slotPath(namespace, 0)) == null);
+        }
+    }
+
+    @Test
     void ownClientFromTheOptionsIsClosedWithTheStore() {
         Map<String, Object> options = Map.of("connectString", ZookeeperTests.connectString(), "sessionTimeout", "30s",
             "connectionTimeout", Duration.ofSeconds(5), "blockUntilConnectedWait", 10_000, "retry.baseSleepTime", "PT0.05S",

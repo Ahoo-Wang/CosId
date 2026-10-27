@@ -19,4 +19,7 @@ plugins {
 dependencies {
     jmh(project(":core"))
     jmh(project(":store:tck"))
+    // P10 (ZooKeeper): the store and an in-process server.
+    jmh(project(":store:zookeeper"))
+    jmh(libs.curator.test)
 }

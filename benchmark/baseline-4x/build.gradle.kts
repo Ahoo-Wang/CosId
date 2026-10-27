@@ -20,4 +20,7 @@ plugins {
 dependencies {
     jmh(libs.cosid4.core)
     jmh(libs.cosid4.accessor)
+    // P10 (ZooKeeper): the 4.x store and an in-process server.
+    jmh(libs.cosid4.zookeeper)
+    jmh(libs.curator.test)
 }

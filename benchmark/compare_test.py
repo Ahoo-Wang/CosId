@@ -60,6 +60,13 @@ class CompareTest(unittest.TestCase):
         self.assertEqual(0, self.failed(row("P.a", alloc=48.0), row("P.a", alloc=48.0)))
         self.assertEqual(1, self.failed(row("P.a", alloc=48.0), row("P.a", alloc=56.0)))
 
+    def test_allocation_up_to_the_floor_passes(self):
+        self.assertEqual(0, self.failed(row("P.a", alloc=0.001), row("P.a", alloc=0.004)))
+        self.assertEqual(0, self.failed(row("P.a", alloc=0.0), row("P.a", alloc=compare.ALLOC_FLOOR_BYTES)))
+        self.assertEqual(1, self.failed(row("P.a", alloc=0.001), row("P.a", alloc=0.011)))
+        # Above the floor the baseline still rules.
+        self.assertEqual(0, self.failed(row("P.a", alloc=0.5), row("P.a", alloc=0.5)))
+
     def test_long_hot_paths_allocate_nothing(self):
         name = "SnowflakeMillisBenchmark.generate_t1"
         self.assertEqual(0, self.failed(row(name, alloc=0.0), row(name, alloc=0.001)))

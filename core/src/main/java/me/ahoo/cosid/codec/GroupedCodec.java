@@ -15,6 +15,8 @@ package me.ahoo.cosid.codec;
 
 import me.ahoo.cosid.GroupedId;
 
+import java.util.Objects;
+
 /**
  * Turns a {@link GroupedId} into text and back; grouped ids have their own codec, apart from {@link IdCodec}
  * (04-segment.md §3).
@@ -28,11 +30,33 @@ public interface GroupedCodec {
      * The period key, {@code delimiter}, then the value through {@code valueCodec}, such as {@code "20261026"} followed
      * by {@code Radix.of(10, 6, true)}.
      *
+     * <p>Decoding splits the text at the first {@code delimiter}, so the period key must not contain it (the preset
+     * keys are digits). Without a delimiter the text cannot be split, so {@link #decode} is not supported.
+     *
      * @param delimiter  the text between the period and the value
      * @param valueCodec the codec of the value
      * @return the codec
      */
     static GroupedCodec datePrefix(String delimiter, IdCodec valueCodec) {
-        throw new UnsupportedOperationException("R1-B");
+        Objects.requireNonNull(delimiter, "delimiter");
+        Objects.requireNonNull(valueCodec, "valueCodec");
+        return new GroupedCodec() {
+            @Override
+            public String encode(GroupedId id) {
+                return id.period() + delimiter + valueCodec.encode(id.value());
+            }
+
+            @Override
+            public GroupedId decode(String text) {
+                if (delimiter.isEmpty()) {
+                    throw new UnsupportedOperationException("A date prefix without a delimiter cannot be decoded: the period key has no known length");
+                }
+                int at = text.indexOf(delimiter);
+                if (at <= 0) {
+                    throw new IllegalArgumentException("[" + text + "] has no period followed by [" + delimiter + "]");
+                }
+                return new GroupedId(text.substring(0, at), valueCodec.decode(text.substring(at + delimiter.length())));
+            }
+        };
     }
 }

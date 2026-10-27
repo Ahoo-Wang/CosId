@@ -30,12 +30,14 @@
         <Bug pattern="PI_DO_NOT_REUSE_PUBLIC_IDENTIFIERS_CLASS_NAMES"/>
     </Match>
     <Match>
-        <!-- R0 skeleton: constructors keep their arguments for the R1/R3 implementations. Remove once they are read. -->
-        <Bug pattern="URF_UNREAD_FIELD"/>
-    </Match>
-    <Match>
         <!-- Period has no default methods, so initializing its preset enum does not initialize Period: no cycle. -->
         <Class name="me.ahoo.cosid.segment.Period"/>
         <Bug pattern="IC_SUPERCLASS_USES_SUBCLASS_DURING_INITIALIZATION"/>
+    </Match>
+    <Match>
+        <!-- Its refill and ready-queue fields are only accessed with switchLock held, which the detector does not
+             follow into the lock-holding callers' helper methods. -->
+        <Class name="me.ahoo.cosid.segment.SegmentGenerator"/>
+        <Bug code="AT"/>
     </Match>
 </FindBugsFilter>

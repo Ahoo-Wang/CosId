@@ -31,7 +31,7 @@ public record SlotLease(String namespace, int slot, Owner owner,
                         long storeNow) {}
 
 public sealed interface AcquireResult {
-    record Acquired(SlotLease lease, AcquireReason reason, boolean duplicateOwnerKey) implements AcquireResult {}   // reason:IDEMPOTENT / PREFERRED / STICKY / LOWEST
+    record Acquired(SlotLease lease) implements AcquireResult {}
     record Exhausted(long earliestExpiresAt) implements AcquireResult {}
 }
 
@@ -68,7 +68,7 @@ public interface SlotLeaseStore extends AutoCloseable {
 
 - `next_floor` 始终等于本任可能用到的最大时间戳:未释放时是 `ceiling`,释放时是精确的 `lastIssued`(可以让下一任更早开始)。
 - 续约不改变 fence 且是幂等的:响应丢失后重试仍会成功,不会出现"续约已生效但客户端以为失败"的假丢失。
-- 任期内 `ceiling` 只增不减;相继任期的 `floor` 只增不减。释放会把 `next_floor` 设为 `lastIssued`(可能低于本任 ceiling),但不会低于本任 floor。
+- `ceiling` 与 `next_floor` 只增不减。
 
 ## 3. 安全性论证
 
@@ -136,7 +136,7 @@ public final class SlotBinding {
 
 `Manual` 与 `StatefulSet`(Pod 序号)场景:槽位由使用者保证唯一,不经过存储。窗口由本地文件提供,机制与租约相同:
 
-- 文件中保存 `ceiling`。启动时 `floor = max(文件中的 ceiling, notBefore)`(都不存在时为 0)。
+- 文件中保存 `ceiling`。启动时 `floor = 文件中的 ceiling`(不存在时取 `notBefore`,或者 0)。
 - 发号前先**预写**:`ceiling = now + ahead`(默认 10s),fsync 后才允许使用;剩余窗口小于 `ahead/2` 时异步续写。
 - 崩溃加时钟回拨也不会重号:重启后的 floor 是崩溃前已预写的 ceiling。
 - 不配置文件时没有回拨保护,文档明确声明。

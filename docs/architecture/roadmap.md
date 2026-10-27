@@ -109,7 +109,7 @@ R0 骨架、接口冻结、4.x 基线基准
 |---|---|---|
 | 设计 | 完成:D1–D24 已定 | — |
 | R0 | 已合入(P5/P12 基线待在空闲机器上干净重跑) | [#1308](https://github.com/Ahoo-Wang/CosId/pull/1308) |
-| R1-A / R1-B / R1-C | 进行中:R1-C 审查中(5 项偏差已裁决);R1-A、R1-B 开发中 | [#1309](https://github.com/Ahoo-Wang/CosId/pull/1309)(R1-C) |
+| R1-A / R1-B / R1-C | 进行中(三个会话并行) | |
 | R2-JDBC / Redis / Mongo / ZK | 未开始 | |
 | R3 / R3-S | 未开始 | |
 | R4-A / R4-B / R4-C | 未开始 | |

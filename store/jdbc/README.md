@@ -79,7 +79,7 @@ versions get no fixes, and a pass here says nothing about future releases. No wo
 | PostgreSQL 12 | PASS (25 / 25) | |
 | PostgreSQL 13 | PASS (25 / 25) | |
 | PostgreSQL 14 | PASS (25 / 25) | |
-| SQL Server 2017 | PASS (25 / 25) | CI probe on GitHub Actions (`2017-latest`, Linux amd64), not run locally |
+| SQL Server 2017 | PASS (25 / 25) | `2017-latest`; locally under emulation and by the CI probe |
 
-Measured on 2026-10-27: MySQL, MariaDB and PostgreSQL locally (Apple M4, Docker, Testcontainers images `mysql:8.0`,
-`mariadb:10.6`, `postgres:{12,13,14}-alpine`) and again by the CI probes; SQL Server 2017 by the CI probe only.
+Measured on 2026-10-27 locally (Apple M4, Docker, Testcontainers images `mysql:8.0`, `mariadb:10.6`,
+`postgres:{12,13,14}-alpine`, `mcr.microsoft.com/mssql/server:2017-latest`) and again by the CI probes.

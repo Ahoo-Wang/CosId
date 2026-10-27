@@ -419,13 +419,13 @@ jobs:
         run: |
           docker run -d --name cosid-server --network host \
             -e COSID_STORES_MAIN_TYPE=redis -e COSID_STORES_MAIN_OPTIONS_URI=redis://localhost:6379 \
-            -e COSID_SERVER_AUTH_TOKENS_0=smoke "ahoowang/cosid-server:$(grep '^version=' gradle.properties | cut -d= -f2)"
+            -e COSID_SERVER_AUTH_TOKENS_0=smoke-token-0123456789 "ahoowang/cosid-server:$(grep '^version=' gradle.properties | cut -d= -f2)"
           for i in $(seq 1 60); do curl -fsS localhost:8688/actuator/health/liveness && break; sleep 1; done
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:8688/ranges:reserve -H 'Content-Type: application/json' \
             -d '{"key":"smoke/a","size":10,"initialOffset":0}')" = 401
-          curl -fsS -X POST localhost:8688/ranges:reserve -H 'Authorization: Bearer smoke' -H 'Content-Type: application/json' \
+          curl -fsS -X POST localhost:8688/ranges:reserve -H 'Authorization: Bearer smoke-token-0123456789' -H 'Content-Type: application/json' \
             -d '{"key":"smoke/a","size":10,"initialOffset":0}' | grep -q '"end":'
-          curl -fsS -H 'Authorization: Bearer smoke' localhost:8688/v3/api-docs | grep -q '/slots:acquire'
+          curl -fsS -H 'Authorization: Bearer smoke-token-0123456789' localhost:8688/v3/api-docs | grep -q '/slots:acquire'
 
       - name: Server logs
         if: failure()

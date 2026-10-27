@@ -73,8 +73,12 @@ final class RemoteClient implements AutoCloseable {
 
         RemoteStoreException error(String call) {
             Object message = body.get("message");
-            return new RemoteStoreException(status, code(),
-                call + " failed: HTTP " + status + (code() == null ? "" : " " + code()) + (message == null ? "" : ": " + message));
+            String text = call + " failed: HTTP " + status + (code() == null ? "" : " " + code()) + (message == null ? "" : ": " + message);
+            if (RemoteApi.STORE_TIMEOUT.equals(code())) {
+                // The server's store timed out: a store timeout here too (StoreTimeoutException.isTimeout).
+                return new RemoteStoreException(status, code(), text, new StoreTimeoutException(text));
+            }
+            return new RemoteStoreException(status, code(), text);
         }
 
         long longField(String name) {

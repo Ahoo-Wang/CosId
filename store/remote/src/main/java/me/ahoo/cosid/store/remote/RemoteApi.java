@@ -54,14 +54,18 @@ public final class RemoteApi {
     public static final String RANGE_SEALED = "range_sealed";
     /** 422: the range would pass {@code Long.MAX_VALUE}. */
     public static final String RANGE_EXHAUSTED = "range_exhausted";
-    /** 429: the namespace already has as many range keys as the server allows. */
+    /** 429: the client already uses as many range keys in the namespace as the server allows. */
     public static final String TOO_MANY_KEYS = "too_many_keys";
+    /** 429: the client already uses range keys in as many namespaces as the server allows. */
+    public static final String TOO_MANY_NAMESPACES = "too_many_namespaces";
     /** 500: the backing store failed. */
     public static final String STORE_ERROR = "store_error";
     /** 501: the backing store cannot seal keys. */
     public static final String SEAL_UNSUPPORTED = "seal_unsupported";
     /** 501: the backing store lacks the primitive. */
     public static final String UNSUPPORTED = "unsupported";
+    /** 504: the backing store timed out; the client reports a {@link me.ahoo.cosid.store.StoreTimeoutException} cause. */
+    public static final String STORE_TIMEOUT = "store_timeout";
     /** 503: the blocking pool is full; the response carries {@code Retry-After: 1}. */
     public static final String BUSY = "busy";
 

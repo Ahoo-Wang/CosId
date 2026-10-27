@@ -17,23 +17,25 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 
+import java.util.Map;
+
 /**
  * The {@value #METER} counter (11-feature-parity.md §7): calls the server turned away to protect itself or the store,
- * tagged {@code reason} = {@value #BUSY} (the blocking pool is full, {@code 503}) or {@value #TOO_MANY_KEYS} (the
- * key cap, {@code 429}).
+ * tagged {@code reason} = {@value #BUSY} (the blocking pool is full, {@code 503}), {@value #TOO_MANY_KEYS} or
+ * {@value #TOO_MANY_NAMESPACES} (the key caps, {@code 429}).
  */
 final class Rejections {
     static final String METER = "cosid.server.call.rejections";
     static final String BUSY = "busy";
     static final String TOO_MANY_KEYS = "too_many_keys";
+    static final String TOO_MANY_NAMESPACES = "too_many_namespaces";
 
-    private final Counter busy;
-    private final Counter tooManyKeys;
+    private final Map<String, Counter> counters;
 
     Rejections(MeterRegistry registry) {
         MeterRegistry meters = registry == null ? Metrics.globalRegistry : registry;
-        this.busy = counter(meters, BUSY);
-        this.tooManyKeys = counter(meters, TOO_MANY_KEYS);
+        this.counters = Map.of(BUSY, counter(meters, BUSY), TOO_MANY_KEYS, counter(meters, TOO_MANY_KEYS),
+            TOO_MANY_NAMESPACES, counter(meters, TOO_MANY_NAMESPACES));
     }
 
     private static Counter counter(MeterRegistry registry, String reason) {
@@ -41,6 +43,6 @@ final class Rejections {
     }
 
     void record(String reason) {
-        (BUSY.equals(reason) ? busy : tooManyKeys).increment();
+        counters.get(reason).increment();
     }
 }

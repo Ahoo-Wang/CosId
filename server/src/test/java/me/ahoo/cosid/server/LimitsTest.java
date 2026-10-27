@@ -15,6 +15,7 @@ package me.ahoo.cosid.server;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -27,6 +28,7 @@ import me.ahoo.cosid.lease.SlotLeaseStore;
 import me.ahoo.cosid.segment.Range;
 import me.ahoo.cosid.segment.RangeStore;
 import me.ahoo.cosid.store.Store;
+import me.ahoo.cosid.store.StoreTimeoutException;
 import me.ahoo.cosid.store.remote.RemoteApi;
 import me.ahoo.cosid.store.remote.RemoteStore;
 import me.ahoo.cosid.store.remote.RemoteStoreException;
@@ -39,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
@@ -134,6 +137,10 @@ class LimitsTest {
             assertEquals(429, error.status());
             assertEquals(RemoteApi.TOO_MANY_KEYS, error.code());
             client.ranges().reserve("other/c", 1, 0);
+            for (String key : List.of("fail/a", "fail/b", "fail/c")) {
+                assertEquals(500, assertThrows(RemoteStoreException.class, () -> client.ranges().reserve(key, 1, 0)).status(),
+                    "C-M1: failed reserves do not count against the cap of 2");
+            }
         }
         assertThat(prometheus(), containsString("reason=\"too_many_keys\""));
     }
@@ -177,13 +184,33 @@ class LimitsTest {
         assertThat(response.body(), containsString(RemoteApi.SEAL_UNSUPPORTED));
     }
 
+    /** B-N3: a store timeout is a 504 store_timeout, which the client reports as a StoreTimeoutException cause. */
+    @Test
+    void storeTimeoutIs504() {
+        HttpResponse<String> response = post(RemoteApi.RESERVE, "{\"key\":\"slow/a\",\"size\":1,\"initialOffset\":0}");
+        assertEquals(504, response.statusCode());
+        assertThat(response.body(), containsString("\"code\":\"" + RemoteApi.STORE_TIMEOUT + "\""));
+        assertThat(response.body(), not(containsString("10.0.0.7")));
+        try (RemoteStore client = server.client()) {
+            RemoteStoreException error = assertThrows(RemoteStoreException.class, () -> client.ranges().reserve("slow/a", 1, 0));
+            assertEquals(504, error.status());
+            assertEquals(RemoteApi.STORE_TIMEOUT, error.code());
+            assertTrue(error.transientFailure());
+            assertTrue(StoreTimeoutException.isTimeout(error));
+        }
+    }
+
     @Test
     void storeFailureIs500() {
         try (RemoteStore client = server.client()) {
             RemoteStoreException error = assertThrows(RemoteStoreException.class, () -> client.ranges().reserve("fail/a", 1, 0));
             assertEquals(500, error.status());
             assertEquals(RemoteApi.STORE_ERROR, error.code());
-            assertThat(error.getMessage(), containsString("backend down"));
+            assertThat(error.getMessage(), containsString("The backing store failed"));
+            assertThat("C-N1: no backend details", error.getMessage(), not(containsString("10.0.0.7")));
+            RemoteStoreException invalid = assertThrows(RemoteStoreException.class, () -> client.ranges().reserve("invalid/a", 1, 0));
+            assertEquals(400, invalid.status());
+            assertThat(invalid.getMessage(), not(containsString("10.0.0.7")));
             RemoteStoreException unsupported = assertThrows(RemoteStoreException.class, () -> client.slots().acquire("unsupported", new Owner("h", UUID.randomUUID()), 1,
                 Duration.ofSeconds(1), Duration.ZERO, OptionalInt.empty()));
             assertEquals(501, unsupported.status());
@@ -248,7 +275,13 @@ class LimitsTest {
                         }
                     }
                     if (key.startsWith("fail/")) {
-                        throw new IllegalStateException("backend down");
+                        throw new IllegalStateException("backend down at redis://10.0.0.7:6379");
+                    }
+                    if (key.startsWith("slow/")) {
+                        throw new StoreTimeoutException("no answer from redis://10.0.0.7:6379 within 3s");
+                    }
+                    if (key.startsWith("invalid/")) {
+                        throw new IllegalArgumentException("rejected by the cluster at 10.0.0.7");
                     }
                     return memory.reserve(key, size, initialOffset);
                 }

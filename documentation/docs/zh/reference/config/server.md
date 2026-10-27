@@ -14,16 +14,19 @@
 | `cosid.server.auth.clients[i].namespaces` | `[]` | 槽位命名空间，以及首段为其中之一的区间 key；`*` 表示全部；id 端点检查 `cosid.namespace` |
 | `cosid.server.auth.clients[i].key-prefixes` | `[]` | 带有这些前缀之一的区间 key |
 | `cosid.server.auth.public-paths` | `/actuator/health`、`/actuator/health/**` | 无需 token 的路径模式 |
+| `cosid.server.auth.admin-paths` | `/actuator`、`/actuator/**`、`/v3/api-docs`、`/v3/api-docs/**`、`/v3/api-docs.yaml`、`/swagger-ui.html`、`/swagger-ui/**` | 只有 `tokens` 可以访问的路径模式（公开路径除外）；client token 得到 `403` |
 | `cosid.server.limits.min-ttl` | `100ms` | 最短的租约 ttl |
 | `cosid.server.limits.max-ttl` | `1h` | 最长的租约 ttl |
 | `cosid.server.limits.max-tolerance` | `1m` | 最大的 tolerance |
 | `cosid.server.limits.max-slot-limit` | `65536` | 命名空间的最大槽位上限 |
 | `cosid.server.limits.max-reserve` | `1000000000000` | 一次 reserve 获取的最大区间 |
 | `cosid.server.limits.max-count` | `1000` | 一次 id 请求获取的最多 id 数 |
-| `cosid.server.limits.max-keys-per-namespace` | `10000` | 单个服务端实例上每个命名空间的区间 key 数；`0` 表示不设上限 |
+| `cosid.server.limits.max-keys-per-namespace` | `10000` | 单个服务端实例上，一个 client 在一个命名空间中使用的区间 key 数；`0` 表示不设上限 |
+| `cosid.server.limits.max-namespaces-per-client` | `1000` | 单个服务端实例上，一个 client 使用区间 key 的命名空间数；`0` 表示不设上限 |
+| `cosid.server.limits.key-idle-timeout` | `1h` | 超过这么久未使用的区间 key 不再计数；`0` 表示一直计数 |
 | `cosid.server.blocking.threads` | `64` | 执行存储调用的有界线程池 |
 | `cosid.server.blocking.queue-capacity` | `1024` | 可以排队等待的调用数；超出时返回 `503` 与 `Retry-After: 1` |
-| `cosid.server.ids.enabled` | `false` | 可选的 `/ids/**` 端点 |
+| `cosid.server.ids.enabled` | `false` | 可选的 `/ids/**` 端点；开启后拒绝名为 `strings` 或 `periodic` 的生成器 |
 
 镜像自身的默认值（`application.yaml`）：`server.port: 8688`，开启健康探针，Actuator 暴露
 `health`、`info`、`prometheus` 与 `cosid`。`cosid.namespace` 默认为 `${spring.application.name}`

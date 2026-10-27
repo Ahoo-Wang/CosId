@@ -2,7 +2,7 @@
 #   ./gradlew :server:dockerImage :examples:server:bootJar
 #   docker compose -f examples/server/compose.yaml up
 # then: curl localhost:8080/ids/next, curl localhost:8080/orders/next, and the server's own id endpoint:
-#   curl -H 'Authorization: Bearer change-me' localhost:8688/ids/ticket
+#   curl -H 'Authorization: Bearer change-me-to-a-long-random-token' localhost:8688/ids/ticket
 services:
   redis:
     image: redis:8.10-alpine
@@ -16,7 +16,7 @@ services:
       COSID_NAMESPACE: example
       COSID_STORES_MAIN_TYPE: redis
       COSID_STORES_MAIN_OPTIONS_URI: redis://redis:6379
-      COSID_SERVER_AUTH_TOKENS_0: change-me
+      COSID_SERVER_AUTH_TOKENS_0: change-me-to-a-long-random-token
       COSID_SERVER_IDS_ENABLED: "true"
       COSID_GENERATORS_TICKET_STRATEGY: segment
       COSID_GENERATORS_TICKET_STORE: main
@@ -27,5 +27,5 @@ services:
     volumes: [ "./build/libs:/app:ro" ]
     environment:
       COSID_SERVER_URL: http://cosid-server:8688
-      COSID_SERVER_TOKEN: change-me
+      COSID_SERVER_TOKEN: change-me-to-a-long-random-token
     command: [ "java", "-jar", "/app/server.jar" ]

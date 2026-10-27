@@ -1,5 +1,5 @@
 # cosid-server (08-remote.md). The backing store is one of cosid.stores (cosid.server.store names it when there are
-# several); every value below can come from the environment, e.g. COSID_SERVER_AUTH_TOKENS_0=change-me.
+# several); every value below can come from the environment, e.g. COSID_SERVER_AUTH_TOKENS_0=change-me-to-a-long-random-token.
 server:
   port: 8688
 spring:

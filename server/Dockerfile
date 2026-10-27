@@ -4,7 +4,7 @@
 # Run it on a backing store, with a token (the server refuses to start without one):
 #   docker run -d -p 8688:8688 \
 #     -e COSID_STORES_MAIN_TYPE=redis -e COSID_STORES_MAIN_OPTIONS_URI=redis://redis:6379 \
-#     -e COSID_SERVER_AUTH_TOKENS_0=change-me ahoowang/cosid-server:TAG
+#     -e COSID_SERVER_AUTH_TOKENS_0=change-me-to-a-long-random-token ahoowang/cosid-server:TAG
 FROM eclipse-temurin:21-jre
 
 LABEL maintainer="ahoowang@qq.com"

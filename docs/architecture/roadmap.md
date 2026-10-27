@@ -84,7 +84,7 @@ R0 骨架、接口冻结、4.x 基线基准
 | 包 | 内容 | 验收 |
 |---|---|---|
 | R5-A | 在固定物理机上运行全部 12 个场景的发布门槛基准;逐行核对特性对照表 | 10 §1.3 全部 PASS,报告存入 `docs/jmh/5.0/`;11 中每一行都有测试链接,没有「待定」 |
-| R5-B | 文档站 `documentation/`(中英文)重写、迁移指南、`examples/`、README、`extras/sharding` 迁入 | 文档站构建通过;示例可运行 |
+| R5-B | 文档站 `documentation/`(中英文)重写、迁移指南、`examples/`、README、`extras/sharding` 迁入、汇总各后端"实测兼容性(不承诺)"表 | 文档站构建通过;示例可运行 |
 
 ### R6 发布
 
@@ -115,9 +115,10 @@ R0 骨架、接口冻结、4.x 基线基准
 | R2-Mongo | 已合入 | [#1311](https://github.com/Ahoo-Wang/CosId/pull/1311) |
 | R2-Redis | 已合入 | [#1313](https://github.com/Ahoo-Wang/CosId/pull/1313) |
 | R2-JDBC | 审查中:acquire 改走 CAS 路径 | [#1314](https://github.com/Ahoo-Wang/CosId/pull/1314) |
-| R2-ZK | 进行中 | |
+| R2-ZK | 审查中 | [#1315](https://github.com/Ahoo-Wang/CosId/pull/1315) |
 | 后续修复 | R2-Mongo:4.4 上命名空间并发 upsert;R1-B:小 step 下 `maxBatch` 默认值 | |
-| R3 / R3-S | 未开始 | |
+| R3 | 进行中 | |
+| R3-S | 未开始 | |
 | R4-A / R4-B / R4-C | 未开始 | |
 | R5-A / R5-B | 未开始 | |
 | R6 | 未开始 | |

@@ -219,6 +219,7 @@ class RemoteStoreTest {
         assertEquals(502, html.status(), html::getMessage);
         assertNull(html.code());
         assertThat(html.getMessage(), containsString("without a JSON body"));
+        assertFalse(StoreTimeoutException.isTimeout(html), "an error answer is no store timeout");
 
         answer(RemoteApi.RESERVE, 500, "");
         assertThat(assertThrows(RemoteStoreException.class, () -> store.ranges().reserve("ns/a", 1, 0)).getMessage(), containsString("HTTP 500"));
@@ -237,7 +238,6 @@ class RemoteStoreTest {
         assertTrue(timeout.transientFailure());
         assertThat(timeout.getMessage(), containsString("timed out"));
         assertTrue(StoreTimeoutException.isTimeout(timeout), "the runtime reports it as a store timeout");
-        assertFalse(StoreTimeoutException.isTimeout(html));
     }
 
     @Test

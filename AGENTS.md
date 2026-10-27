@@ -38,8 +38,8 @@ benchmark/run-smoke [P5 P12 ...]                   # 4.x and 5.x back to back pe
                                                    # how a PR reports performance (paste build/benchmark-smoke/report.md)
 ./gradlew :benchmark:baseline-4x:jmh               # JMH on the released 4.1.0 jars alone (smoke profile)
 ./gradlew :benchmark:v5:jmh -PjmhProfile=release   # JMH on 5.x, release-gate settings; -PjmhIncludes=A,B narrows
-benchmark/run-release [--dry-run] [P1 ...]       # the release gate: all of P1..P12, release settings, load guard,
-                                                   # machine info; writes docs/jmh/5.0/ (see benchmark/scenarios.md)
+benchmark/run-release --dry-run CodecBenchmark   # check the release-gate script; the gate itself runs only on CI:
+                                                   # the Release Gate workflow (benchmark/scenarios.md), never locally
 benchmark/compare BASELINE.json CANDIDATE.json --smoke
 python3 -I benchmark/compare_test.py               # tests of the compare script
 ```
@@ -76,10 +76,10 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `benchmark/` | not published | the same scenarios on 5.x |
 | `migration/` | not published | R4-C: the offline 4.x → 5.0 migration fat jar (`:migration:shadowJar` → `build/libs/cosid-migration.jar`): 4.x readers, a narrow 5.0 admin path per store, `plan` / `apply` / `verify` / `config` / `purge`; see its README |
 | `extras/sharding/` | `cosid-sharding` | R5-B: the 4.x sharding algorithms (`ModCycle`, `IntervalTimeline`, `CachedSharding`, the convertors) on `core` alone: `ShardingRange` replaces Guava's `Range`, the Snowflake convertor reads `Layout` |
-| `examples/` | not published | not created yet (R5-B) |
+| `examples/` | not published | R5-B: `segment-jdbc` (H2), `snowflake-redis` (Testcontainers or `COSID_TEST_REDIS_URI`), `server` (a `remote` client; its smoke test runs the built `cosid-server.jar` as a process on curator-test ZooKeeper); each smoke test is in `check` |
 | `build-logic/` | — | included build: convention plugins and build rules (see below) |
 | `docs/architecture/` | — | the design; `docs/jmh/<version>/` benchmark results |
-| `documentation/` | — | the VitePress site, still 4.x content until R5-B |
+| `documentation/` | — | the VitePress site of 5.0 (R5-B); see "Site layout" below |
 
 To add a module: create the directory with a `build.gradle.kts` applying `cosid.library` (or `cosid.benchmark`),
 `include(":path:name")` in `settings.gradle.kts`, add it to `bom/` if published, and make sure a rule in
@@ -153,7 +153,15 @@ Adding a package means deciding whether `module-info.java` exports it.
   `IdentifierFactory.getInstance()`. `CosIdIdentifierFactory` keeps the only static state of the project (its bindings);
   a test that binds must unbind; unbound, it throws. `TextIds` (text ids of any strategy) is a package-private copy in
   each module that needs it, since integrations must not depend on each other. The Spring side is `CosIdIntegrationsConfiguration` in `spring/autoconfigure`.
-- `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.
+- **Site layout** (`documentation/docs/{en,zh}`, kept in sync page for page): `guide/introduction`, `getting-started`,
+  `recipes`; `guide/concepts/` (`layout-and-codecs`, `slot-lease`, `segment`, `runtime`); `guide/backends/` (one page per
+  store, `index` chooses and carries the "实测兼容性(不承诺)" summary of the store READMEs, `test-suite`); `guide/server`;
+  `guide/integrations/`; `guide/operations/` (production checklist, metrics and health, troubleshooting, FAQ);
+  `guide/migration/from-4x`; `reference/config/` (`basic`, `generators`, `server`: every `cosid.*` property with its
+  default, taken from the `*Properties` records); `reference/performance/benchmark`. When a page moves or goes, add its
+  old path to `documentation/docs/.vitepress/theme/redirects.ts` (targets are current pages: no chains) and update both
+  sidebars in `.vitepress/configs/`. When a store README's compatibility table changes, update `guide/backends/index`.
+  Build with `pnpm install && pnpm docs:build` in `documentation/`; the site deploys from release tags.
 - **migration tests** write real 4.x data with the 4.1.0 jars: the `legacy4x` source set (`migration/src/test/legacy4x`) is
   compiled against them alone and loaded in its own class loader (path in `-Dcosid.migration.legacy4x`), so run them
   through Gradle. H2 (TCP) and ZooKeeper always run, Redis and MongoDB only with Docker. The admin path writes the 5.0

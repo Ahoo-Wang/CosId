@@ -1,93 +1,36 @@
-# 兼容性测试套件
+# 存储 TCK
 
-兼容性测试套件是一组用于验证特定接口实现是否符合规范的测试用例。
+`cosid-store-tck` 包含每个存储都要通过的契约、一个内存存储与测试工具。可以用它测试自定义的
+`StoreProvider`、新的 `JdbcDialect`，或在没有数据库的情况下测试你的应用。
 
-通过 _cosid-test 模块_，为自定义扩展提供了便捷和正确性保障。
-这种标准化验证方式不仅简化了扩展开发，降低了潜在错误风险，还确保了整个生态系统的一致性和稳定性。
-
-
-## 安装
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    testImplementation("me.ahoo.cosid:cosid-test:${cosidVersion}")
+```kotlin
+testImplementation("me.ahoo.cosid:cosid-store-tck")
 ```
-```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-test</artifactId>
-            <version>${cosid.version}</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
-```
-:::
-
-## Redis 扩展案例
-
-### MachineLeaseStore
-
-机器号后端实现 `MachineLeaseStore`，由 `LeaseStoreMachineIdDistributor` 包装为 `MachineIdDistributor`。`MachineLeaseStoreSpec` 校验存储本身，`MachineIdDistributorSpec` 校验基于它的分发器：
 
 ```java
-class SpringRedisMachineLeaseStoreTest extends MachineLeaseStoreSpec {
-    StringRedisTemplate stringRedisTemplate;
-    SpringRedisMachineLeaseStore store;
-    
-    @BeforeEach
-    void setup() {
-        LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(new RedisStandaloneConfiguration());
-        lettuceConnectionFactory.afterPropertiesSet();
-        stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
-        store = new SpringRedisMachineLeaseStore(stringRedisTemplate, RedisCommandTimeout.of(Duration.ofSeconds(1)));
-    }
-    
+class MyRangeStoreTest extends RangeStoreContract {
     @Override
-    protected MachineLeaseStore getStore() {
-        return store;
-    }
+    protected RangeStore newStore() { return new MyStore(...).ranges(); }
 }
-
-class SpringRedisLeaseStoreMachineIdDistributorTest extends MachineIdDistributorSpec {
-    // setup as above
-    
+class MySlotLeaseStoreTest extends SlotLeaseStoreContract {
     @Override
-    protected MachineIdDistributor getDistributor() {
-        return new LeaseStoreMachineIdDistributor(store, MachineStateStorage.IN_MEMORY, ClockBackwardsSynchronizer.DEFAULT);
-    }
+    protected SlotLeaseStore newStore() { return new MyStore(...).slots(); }
 }
 ```
 
-### IdSegmentDistributor
+| 方面 | 用例 |
+|---|---|
+| 区间 | 第一个区间从 `initialOffset` 开始；并发首次创建只有一个胜出；N 个线程 × M 个存储实例永不重叠且严格递增；超过 2^53 的值精确；到达末尾时抛出 `RangeExhaustedException`；已封存的 key 失败并保留其值；同一连接预留不同 key（不会读到过期的 `last_insert_id`） |
+| 租约基础 | 槽位选择顺序（幂等、preferred、粘性、最小）；`Exhausted`；`limit` 边界 |
+| 安全性 | 被接管后 `floor ≥` 前一持有者最终的 `ceiling`；释放后 `floor ≥ lastIssued`；`ceiling` 与 `next_floor` 单调；同一 key 的另一个 incarnation 绝不会被接管；已过期持有者的续约与释放失败；续约是幂等的 |
+| 时钟 | `storeNow` 来自存储；同一次写入中 `expiresAt − storeNow == ttl` |
+| 并发 | N 个客户端在同一命名空间中获取到互不相同的槽位 |
+| 元数据 | 不同的命名空间参数被拒绝 |
 
-```java
-class SpringRedisIdSegmentDistributorTest extends IdSegmentDistributorSpec {
-    StringRedisTemplate stringRedisTemplate;
-    SpringRedisIdSegmentDistributorFactory distributorFactory;
-    protected IdSegmentDistributorDefinition idSegmentDistributorDefinition;
-    
-    @BeforeEach
-    void setup() {
-        RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
-        LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(redisStandaloneConfiguration);
-        lettuceConnectionFactory.afterPropertiesSet();
-        stringRedisTemplate = new StringRedisTemplate(lettuceConnectionFactory);
-        distributorFactory = new SpringRedisIdSegmentDistributorFactory(stringRedisTemplate);
-        idSegmentDistributorDefinition = new IdSegmentDistributorDefinition("SpringRedisIdSegmentDistributorTest", MockIdGenerator.INSTANCE.generateAsString(), 0, 100);
-    }
-    
-    
-    @Override
-    protected IdSegmentDistributorFactory getFactory() {
-        return distributorFactory;
-    }
-    
-    @Override
-    protected <T extends IdSegmentDistributor> void setMaxIdBack(T distributor, long maxId) {
-        String adderKey = ((SpringRedisIdSegmentDistributor) distributor).getAdderKey();
-        stringRedisTemplate.opsForValue().set(adderKey, String.valueOf(maxId - 1));
-    }
-}
-```
+模块中还有：
+
+- `InMemoryStore` 通过所有契约；core 与 Spring 的测试使用它，你的测试也可以使用（`memory` provider）。
+- `ManualClock` 在测试中驱动存储时钟。
+- 故障注入包装器可以添加延迟、超时以及会被重放的丢失响应。
+- `ContractsRan` 读取 JUnit XML 报告，在契约用例被跳过时失败。每个 CosId 后端都在 `check` 中运行它，
+  因此缺少数据库的 CI 任务不会悄无声息地通过。

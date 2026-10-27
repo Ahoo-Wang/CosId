@@ -62,6 +62,7 @@ jobs:
           python3 -I benchmark/compare_test.py
           bash -n benchmark/run-smoke
           bash -n benchmark/run-release
+          python3 -I -c 'import ast, sys; ast.parse(open(sys.argv[1]).read())' benchmark/aggregate-release
 
       - name: Compile the benchmarks
         run: ./gradlew :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar

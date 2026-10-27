@@ -1,78 +1,40 @@
 # MongoDB
 
-[`cosid-mongo`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mongo) 通过应用的同步 `MongoClient` 把号段计数器和机器号租约保存在 MongoDB 中：
-
-- `MongoIdSegmentDistributor`：号段计数器，每个生成器在 `cosid` 集合中占一个文档。
-- `MongoMachineLeaseStore`：机器号租约，每个机器号在 `cosid_machine` 集合中占一个文档。租约时间取自服务器的 `localTime`（`hello` 命令）。
-
-集合不存在时会在启动时创建。
-
-::: warning 仅支持同步驱动
-CosId 需要 MongoDB 4.2 或更高版本：获取号段使用一条更新管道，并采用服务端时钟（`$$NOW`）。启动时 Starter 会确保机器号集合及其两个复合索引 `{namespace: 1, machineId: 1}` 和 `{namespace: 1, instanceId: 1}` 存在，旧版本创建的集合也会补建。已有相同键但名称不同的索引（例如 DBA 创建的）会保留并以 INFO 记录；其他失败只以 WARN 记录一次，没有索引也能工作，只是更慢。旧版本的哈希索引 `machineId_hashed`、`instanceId_hashed` 不再使用但会保留，因为旧节点会重新创建它们：所有节点都升级到 4.1 后，可在 `cosid.machine.distributor.mongo.database` 所指的数据库中手动删除：
-
-```javascript
-db.cosid_machine.dropIndex("machineId_hashed")
-db.cosid_machine.dropIndex("instanceId_hashed")
-```
-
-租约查询使用复合索引这一点，已在单机和副本集上用 `explain` 验证；分片集群中各分片独立生成执行计划，未做验证。
-
-响应式相关类（`me.ahoo.cosid.mongo.reactive`）已在 4.0 移除。请使用同步驱动 `org.mongodb:mongodb-driver-sync`，`spring-boot-starter-data-mongodb` 已包含它。classpath 中只有响应式驱动时，Starter 会在启动时失败。
-:::
-
-## 安装
-
-::: code-group
-```kotlin [Gradle (Kotlin)]
-dependencies {
-    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
-    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
-    implementation("me.ahoo.cosid:cosid-mongo")
-    implementation("org.springframework.boot:spring-boot-starter-data-mongodb")
-}
-```
-```xml [Maven]
-<dependencies>
-    <dependency>
-        <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-spring-boot-starter</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-mongo</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-mongodb</artifactId>
-    </dependency>
-</dependencies>
-```
-:::
+`cosid-store-mongo`：基于 `mongodb-driver-sync` 的 `RangeStore` 与 `SlotLeaseStore`。**要求 MongoDB 6.0 或更高版本**（D26），
+部署为**副本集或分片集群**：每个操作都以 `majority` concern 读取，默认也以 `majority` concern 写入。CI 在 6.0 与 8.0 上运行 TCK。
+4.4 与 5.0 通过过一次 TCK，但不承诺支持。
 
 ## 配置
 
 ```yaml
-spring:
-  mongodb:
-    uri: mongodb://localhost:27017
 cosid:
-  namespace: ${spring.application.name}
-  machine:
-    enabled: true # Snowflake ID 和 CosIdGenerator 需要
-    distributor:
+  stores:
+    mongo:
       type: mongo
-  segment:
-    enabled: true # 号段 ID 需要
-    distributor:
-      type: mongo
+      timeout: 2s            # 驱动的 timeoutMS；0 表示不限
+      options:
+        uri: mongodb://mongo-1,mongo-2,mongo-3/?replicaSet=rs0
+        database: cosid_db
 ```
 
-| 属性 | 默认值 | 说明 |
-|------|--------|------|
-| `cosid.segment.distributor.mongo.database` | `cosid_db` | `cosid` 集合所在的数据库 |
-| `cosid.segment.distributor.mongo.timeout` | `5s` | 每次号段操作（驱动的 `timeoutMS`）；`0` 表示不限制 |
-| `cosid.machine.distributor.mongo.database` | `cosid_db` | `cosid_machine` 集合所在的数据库 |
-| `cosid.machine.distributor.mongo.timeout` | `5s` | 每次机器号操作（驱动的 `timeoutMS`）；必须为正数 |
-| `cosid.segment.distributor.mongo.write-concern`、`cosid.machine.distributor.mongo.write-concern` | 连接串的设置 | CosId 写入的写关注：`majority`、`w1`、`w2`、`w3`、`acknowledged`、`journaled` 或成员数 |
+| 选项 | 默认值 | 含义 |
+|---|---|---|
+| `uri` | | 必填，除非客户端是一个 `MongoClient`（存在 Spring Boot 的 Bean 时使用它） |
+| `database` | `cosid_db` | |
+| `writeConcern` | `majority` | `majority`、`acknowledged`、`w1`、`w2`、`w3`、`journaled`（不区分大小写），或成员数 `n ≥ 1`；`unacknowledged`、`0` 及其他值在打开存储时报错。读取始终为 `majority` |
 
-请开启 MongoDB 日志（journaling，默认开启），并在副本集上使用 `majority` 写关注，确保已确认的计数器更新或机器号申领在故障切换后不会丢失：只被少数成员确认的写入，在没有该写入的成员成为主节点时会被回滚，其中的 ID 会被再次发放。`write-concern` 只为 CosId 设置写关注。未设置时，如果连接串设置了写关注（例如 `w=majority`）就使用它，否则使用服务器的默认值：MongoDB 5.0 起为 `majority`，但如果副本集的仲裁节点使数据节点构不成多数（例如主-从-仲裁架构），默认值为 `w:1`，除非用 `setDefaultRWConcern` 修改过。在副本集上，启动时成员数低于多数的写关注会以 WARN 记录，带仲裁节点的副本集使用服务器默认值时同样以 WARN 记录；其他情况下使用服务器默认值以 INFO 记录。
+操作超过 `timeout` 时以 `StoreTimeoutException` 失败。
+
+::: warning 保持 `writeConcern: majority`
+唯一性以"已确认的写入不会丢失"为前提。只有 `majority` 能在故障切换后保证这一点：写关注更弱时，故障切换可能丢失只被少数成员确认的区间与租约写入，进而发出重复 ID。对每个设置更弱的存储，provider 在启动时记录一条 `WARN`。`acknowledged` 与 `journaled` 把 `w` 交给服务端默认值，而它不保证是 majority，因此同样告警。
+:::
+
+## 集合
+
+| 集合 | 文档 |
+|---|---|
+| `cosid_range` | `{_id: key, next, sealed}`；使用带 upsert 的 `findOneAndUpdate` 与 pipeline `next = ifNull(next, initialOffset) + size`，过滤条件为 `sealed != true`；E11000（并发 upsert）重试一次 |
+| `cosid_slot` | `{ns, slot, …}`，在 `(ns, slot)` 上建唯一索引，所有槽位预先创建；槽位选择的每一步是一次 `findOneAndUpdate`，其过滤条件用 `$expr` 与 `$$NOW` 判断“空闲”，并带上 fence |
+| `cosid_namespace` | 每个命名空间的 `{limit, toleranceMs}` |
+
+存储时钟是 `$$NOW`。

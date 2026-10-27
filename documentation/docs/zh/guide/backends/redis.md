@@ -1,102 +1,69 @@
 # Redis
 
-[`cosid-spring-redis`](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-spring-redis) 通过应用自身的 Spring Data Redis 连接（`StringRedisTemplate`）把号段计数器和机器号租约保存在 Redis 中：
+`cosid-store-redis`：以 Lua 脚本实现的 `RangeStore` 与 `SlotLeaseStore`，由 Lettuce 通过最小的 `RedisScripts`
+接口执行。它不依赖 Spring（D6）；Spring Data 适配器在 autoconfigure 模块中。
+**要求 Redis 7.0 或更高版本**（D27）。6.2.24 通过过一次 TCK，但不承诺支持。
 
-- `SpringRedisIdSegmentDistributor`：号段计数器，每个生成器一个键，`cosid:{namespace.name}.adder`。
-- `SpringRedisMachineLeaseStore`：机器号租约，保存在 `cosid:{namespace}:lease` 哈希中，与 3.4 使用的键并存。租约时间取自 Redis 的 `TIME` 命令。
+## 持久化前提 {#durability}
 
-键带有哈希标签（`{...}`），因此支持 Redis Cluster：同一个计数器或同一个命名空间的键落在同一个槽。
+::: danger 唯一性依赖于“已确认的写入不会丢失”
+以下**二选一**：
 
-## 安装
+- 单节点，开启 AOF 且 `appendfsync always`；或
+- 有副本时，`WAIT` 覆盖**每一个**副本（`options.wait` 设为副本数）。
 
-::: code-group
-```kotlin [Gradle (Kotlin)]
-dependencies {
-    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
-    implementation("me.ahoo.cosid:cosid-spring-boot-starter")
-    implementation("me.ahoo.cosid:cosid-spring-redis")
-    implementation("org.springframework.boot:spring-boot-starter-data-redis")
-}
-```
-```xml [Maven]
-<dependencies>
-    <dependency>
-        <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-spring-boot-starter</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-spring-redis</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-redis</artifactId>
-    </dependency>
-</dependencies>
-```
+在异步复制下，故障切换可能丢失区间与租约的写入，进而发出重复的 id。存储只在写入被确认后才使用区间或 ceiling，
+但它无法让 Redis 保住这些写入。出于同样的原因，key 绝不能被淘汰：保持 `maxmemory-policy noeviction`（默认值）。
+**若对唯一性要求严格，优先选择 [JDBC](jdbc.md) 或 [ZooKeeper](zookeeper.md)。**
 :::
 
 ## 配置
 
 ```yaml
-spring:
-  data:
-    redis:
-      host: localhost # CosId 使用的连接
 cosid:
-  namespace: ${spring.application.name}
-  machine:
-    enabled: true # Snowflake ID 和 CosIdGenerator 需要
-    distributor:
+  stores:
+    redis:
       type: redis
-  segment:
-    enabled: true # 号段 ID 需要
-    distributor:
-      type: redis
+      timeout: 1s           # 每条命令的超时，也是 WAIT 的超时
+      options:
+        uri: redis://redis:6379
+        wait: auto
 ```
 
-| 属性 | 默认值 | 说明 |
-|------|--------|------|
-| `cosid.segment.distributor.redis.timeout` | `1s` | 每条号段命令；`0` 表示不限制 |
-| `cosid.machine.distributor.redis.timeout` | `1s` | 租约续约和释放；必须为正数 |
-| `cosid.machine.distributor.redis.distribute-timeout` | `10s` | 启动时申领机器号的每条命令，第一条命令还包含建立连接的时间；必须为正数 |
-| `cosid.segment.distributor.redis.wait-replicas`、`cosid.machine.distributor.redis.wait-replicas` | `0` | 每次号段递增、每次机器号申领和续约需要多少个副本确认（`WAIT`）；`0` 表示不等待。见[复制与故障切换](#复制与故障切换) |
-| `cosid.segment.distributor.redis.wait-timeout`、`cosid.machine.distributor.redis.wait-timeout` | `500ms` | 写入等待副本确认的时长；必须短于 `timeout`、`distribute-timeout`（机器号）和 `spring.data.redis.timeout`，否则启动失败 |
+| 选项 | 默认值 | 含义 |
+|---|---|---|
+| `uri` | | 未提供客户端时使用的 Redis URI |
+| `cluster` | `false` | `uri` 指向 Redis Cluster |
+| `wait` | `auto` | `auto`：服务端有副本时每次写入后执行 `WAIT 1`（打开时通过 `INFO replication` 判断；在集群中，要求每个主节点都有副本）；`off`；或副本数 |
+| `sweepBatch` | 16 | 一次 acquire 最多把多少个过期租约移回空闲集合 |
 
-::: warning 持久化
-Redis 重启后如果丢失数据，计数器回退，会再次发放同样的 ID。请开启 AOF 持久化（`appendonly yes`），或为号段选择其他存储。
-:::
+存储如何处理传入的客户端（`StoreConfig.client`，或 Spring 中上下文里的 Bean）：
 
-## 复制与故障切换
+| 客户端 | 存储的行为 |
+|---|---|
+| `RedisScripts`（Spring Data 适配器，用于 `RedisConnectionFactory`） | 原样使用，包括 `WAIT` |
+| `RedisClient` / `RedisClusterClient` | 自行打开一个连接，并且只关闭这个连接 |
+| `StatefulRedisConnection` / `StatefulRedisClusterConnection` | 在其上执行且绝不关闭它；`wait` 必须解析为 0，因为 `WAIT` 不能阻塞共享连接 |
+| 无 | 根据 `uri` 创建客户端并负责关闭 |
 
-Redis 采用异步复制：主节点已确认的写入，如果副本还没收到就被提升为新主节点，这次写入会丢失。对号段而言，新主节点会再次发放同样的 ID；对机器号而言，另一个实例可能申领到其所有者仍在使用的机器号。有两种设置可以缩小这个窗口，但都不能让 Redis 变成强一致的存储：
+确认副本数不足的写入以 `RedisStoreException` 失败。其结果未知，因此 acquire、renew 与 reserve 可以重试；
+丢失的区间只是一个间隙。
 
-- `wait-replicas` 和 `wait-timeout`：每次号段递增、每次机器号申领和续约之后，CosId 在执行写入的连接上运行 `WAIT <wait-replicas> <wait-timeout>`。超时内确认的副本不足即视为失败：该号段不会发放（其中的 ID 被跳过），申领或续约按失败处理。在 Redis Cluster 上，等待在命名空间所在的节点上执行，此时需要 Lettuce（Spring Boot 的默认客户端）。
-- 在 Redis 一侧，`min-replicas-to-write` 可以让主节点在已连接的副本不足时拒绝写入。
+## Key
 
-`WAIT` 只说明有 `wait-replicas` 个副本收到了这次写入。如果故障切换提升的副本不在其中，写入仍会丢失；`wait-replicas` 小于副本数时就可能发生。`WAIT` 也不会把写入持久化到磁盘：请继续开启 AOF。
+每组 key 共用一个 hash tag，因此每个脚本都在同一个 Cluster 节点上执行。key 永不删除（D23）。
 
-::: warning 可用性
-设置 `wait-replicas` 后，CosId 的写入需要这么多副本在线并确认。副本不足期间，每次号段获取、每次机器号续约都会失败：号段生成器用完已持有的号段后开始失败；机器号超过安全守护时长未续约即失效，快速失败（默认开启）会让其雪花算法生成器停止生成；新实例无法申领机器号，也就无法启动。请把 `wait-replicas` 设为不超过“副本数减去允许故障的副本数”，例如两个副本时设为 `1`。
-:::
+| Key | 类型 | 内容 |
+|---|---|---|
+| `cosid:{key}` | string | 区间 key 的下一个值，十进制（超过 2^53 仍然精确） |
+| `cosid:{key}:sealed` | string | 封存标记 |
+| `cosid:{ns}:meta` | hash | 命名空间的 `limit`、`tolerance` |
+| `cosid:{ns}:slot` | hash | 槽位 → `ownerKey\|incarnation\|lastOwnerKey\|fence\|expiresAt\|floor\|ceiling\|nextFloor` |
+| `cosid:{ns}:free` | sorted set | 按编号排列的空闲槽位，预填 `0..limit-1` |
+| `cosid:{ns}:live` | sorted set | 按 `expiresAt` 排列的存活租约 |
+| `cosid:{ns}:owner` | hash | owner key → 它上次获取的槽位（粘性选择） |
+| `cosid:{ns}:held` | hash | owner key → 行中记录该 key 的槽位 |
 
-`WAIT` 返回之前会占用所在的连接。Spring Boot 默认的客户端 Lettuce 默认共享一个原生连接，应用的其他 Redis 命令会排在每次 `WAIT` 后面，最长等待 `wait-timeout`；CosId 在启动时发现共享连接会记录一条 WARN。Spring Boot 没有对应的配置项：请在 `LettuceConnectionFactory` 上把 `shareNativeConnection` 设为 `false`，并配置连接池（`spring.data.redis.lettuce.pool.enabled=true` 和 `org.apache.commons:commons-pool2`），例如通过 `BeanPostProcessor`：
-
-```java
-@Bean
-static BeanPostProcessor unsharedLettuceConnection() {
-    return new BeanPostProcessor() {
-        @Override
-        public Object postProcessBeforeInitialization(Object bean, String beanName) {
-            if (bean instanceof LettuceConnectionFactory factory) {
-                factory.setShareNativeConnection(false);
-            }
-            return bean;
-        }
-    };
-}
-```
-
-当 `wait-timeout` 不短于 Lettuce 的命令超时（`spring.data.redis.timeout`，未设置时为 60s）时，启动也会失败；在 Redis Cluster 上使用 Jedis 时同样启动失败，因为 `WAIT` 可能跑在与写入不同的连接上。
-
-可运行的示例见 [CosId-Example-Redis](https://github.com/Ahoo-Wang/CosId/tree/main/examples/cosid-example-redis)。
+一次 acquire 最多把 `sweepBatch` 个过期租约清扫回 `free`，然后依次尝试已持有的、preferred、粘性的以及最小的空闲槽位：
+只是若干次 hash 与 sorted set 操作，O(log n)，绝不扫描（4.x 在 Lua 中扫描）。存储时钟是脚本内的 `TIME`；
+Redis 7 复制脚本的效果，因此这是安全的。

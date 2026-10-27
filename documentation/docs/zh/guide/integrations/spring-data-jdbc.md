@@ -1,65 +1,18 @@
-# CosId-Spring-Data-Jdbc 模块
+# Spring Data JDBC
 
-[cosid-spring-data-jdbc](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-spring-data-jdbc) 模块提供了对 `org.springframework.data.annotation.Id` 注解的支持，支持自动注入**分布式ID**。
+`CosIdBeforeConvertCallback`（artifact `cosid-spring-data-jdbc`，包 `me.ahoo.cosid.spring.data.jdbc`）在聚合为保存而转换之前，先填充其
+`@CosId` 字段，再用生成器（未配置时为 `default`）填充未设置的 `@Id`。
 
-::: warning 4.0 需要设置 `cosid.jdbc.enabled=true`
-自 4.0 起该集成默认关闭。使用 starter 时请设置 `cosid.jdbc.enabled=true`，否则 CosId 不会填充 Spring Data JDBC 实体的 `@Id` 和 `@CosId` 字段（启动时会打印一条 INFO 列出这些实体）。
-:::
-
-## 安装
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    implementation("me.ahoo.cosid:cosid-spring-data-jdbc:${cosidVersion}")
+```java
+public class Order {
+    @Id
+    private Long id;          // 未设置时由 cosid.jdbc.id-generator 填充
+}
 ```
-```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-spring-data-jdbc</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
-```
-:::
 
+它默认关闭，与 4.x 相同：
 
-::: tip `cosid-accessor`
-`@CosId` 注解与 ID 字段访问器位于 `me.ahoo.cosid:cosid-accessor` 构件中（4.0 起），本模块已经引入。只有在不使用 MyBatis、Spring Data JDBC 或 starter 填充 `@CosId` 字段时，才需要直接依赖它。
-:::
-
-## 使用
-
-::: code-group
-```java [@Id]
-    static class IdEntity {
-        @Id
-        private long id;
-        
-        public long getId() {
-            return id;
-        }
-        
-        public IdEntity setId(int id) {
-            this.id = id;
-            return this;
-        }
-    }
-```
-```java [@CosId]
-    static class IdEntity {
-        @CosId
-        private long id;
-        
-        public long getId() {
-            return id;
-        }
-        
-        public IdEntity setId(int id) {
-            this.id = id;
-            return this;
-        }
-    }
-```
-:::
+| 属性 | 默认值 |
+|---|---|
+| `cosid.jdbc.enabled` | `false` |
+| `cosid.jdbc.id-generator` | `default` |

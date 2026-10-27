@@ -1,55 +1,29 @@
-# 快速上手
+# 快速开始
 
-本文以 Redis 作为存储，在 Spring Boot 应用中接入 CosId。其他后端的用法完全相同，只是依赖和 `type` 不同，见[选择后端](./backends/index.md)。
-
-## 环境要求
-
-| CosId | Spring Boot | Java | 分支 |
-|---|---|---|---|
-| 4.x | 4.x | 17+ | `main` |
-| 3.x | 4.x | 17+ | `3.x`（维护中） |
-| 2.x | 3.x | 17+ | `2.x` |
-| 1.x | 2.x | 8+ | `1.x` |
-
-从 4.1 起，每个版本都在以下组合上测试：
-
-| Spring Boot | Java |
-|---|---|
-| 4.0.x | 17、21、25 |
-| 4.1.x | 17、21、25 |
-
-CosId 发布的元数据只要求 Spring Boot 4.0.8（最低支持版本）的依赖版本，不会带上 CosId 构建用的依赖平台（`cosid-dependencies`，含 Spring Boot BOM）：版本由应用的 Spring Boot（其 BOM 或插件）决定。如需完全使用 CosId 构建时的版本，可将 `me.ahoo.cosid:cosid-dependencies` 作为 platform 引入。以下平台仍会被带上：
-
-- `cosid-axon` 及 starter 的 `axon-support` 特性会带上 Axon BOM（`org.axonframework:axon-bom`），它只管理 Axon 自己的构件。
-- `cosid-proxy-api`、`cosid-proxy` 及 starter 的 `proxy-support` 特性依赖 CoApi 3.1.0，其 Gradle 元数据会带上 Spring Boot 4.1 的 BOM。使用它们的 Spring Boot 4.0.x Gradle 应用会被升级到 Boot 4.1 的版本，除非以 `enforcedPlatform(...)` 引入自己的 Boot BOM，或应用 `io.spring.dependency-management` 插件。Maven 构建不受影响：应用自己的 `dependencyManagement` 优先。
-- 以普通的 `platform(...)` 引入时，Gradle 会选择被请求的最高版本，因此 Spring Boot 4.0.0 至 4.0.7 的应用会被升级到 4.0.8 的版本；使用 `enforcedPlatform(...)` 或 `io.spring.dependency-management` 插件可保留自己的版本。
-
-从 3.x 升级：见[迁移到 4.0](./migration/4.0.md)。
+CosId 5 需要 **Java 21** 或更高版本。在 Spring Boot 下支持 Boot 4.0 及更高版本。
 
 ## 1. 添加依赖
 
-导入 CosId BOM，再添加 Starter 和后端模块。最新版本见 [Maven Central](https://central.sonatype.com/artifact/me.ahoo.cosid/cosid-core)。
+所有 artifact 的 group 都是 `me.ahoo.cosid`；`cosid-bom` 统一它们的版本。添加 starter 和所用的存储：
+starter 只有一个，存储是独立的 artifact，就像 JPA starter 需要数据库驱动一样。
 
 ::: code-group
+
 ```kotlin [Gradle (Kotlin)]
-val cosidVersion = "__COSID_VERSION__" // Maven Central 上的最新版本
 dependencies {
-    implementation(platform("me.ahoo.cosid:cosid-bom:$cosidVersion"))
+    implementation(platform("me.ahoo.cosid:cosid-bom:__COSID_VERSION__"))
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
-    implementation("me.ahoo.cosid:cosid-spring-redis")
-    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("me.ahoo.cosid:cosid-store-jdbc")   // 或 -redis、-mongo、-zookeeper、-remote
 }
 ```
+
 ```xml [Maven]
-<properties>
-    <cosid.version>__COSID_VERSION__</cosid.version>
-</properties>
 <dependencyManagement>
     <dependencies>
         <dependency>
             <groupId>me.ahoo.cosid</groupId>
             <artifactId>cosid-bom</artifactId>
-            <version>${cosid.version}</version>
+            <version>__COSID_VERSION__</version>
             <type>pom</type>
             <scope>import</scope>
         </dependency>
@@ -62,141 +36,102 @@ dependencies {
     </dependency>
     <dependency>
         <groupId>me.ahoo.cosid</groupId>
-        <artifactId>cosid-spring-redis</artifactId>
-    </dependency>
-    <dependency>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-data-redis</artifactId>
+        <artifactId>cosid-store-jdbc</artifactId>
     </dependency>
 </dependencies>
 ```
+
 :::
 
-## 2. 配置生成器
+## 2. 配置
 
-号段链是最简单的起点：它只需要号段存储。
-
-```yaml
-spring:
-  data:
-    redis:
-      host: localhost # CosId 使用应用自身的 Spring Data Redis 连接
-cosid:
-  namespace: ${spring.application.name}
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    provider:
-      order:
-        step: 100
-```
-
-这会注册两个号段链：共享生成器（`__share__`）和名为 `order` 的生成器。它们的计数器按命名空间保存在 Redis 中，应用的所有实例共用。
-
-如果要使用 Snowflake ID，还需要启用机器号，因为每个实例都需要一个：
+每个存储只声明一次，然后是机器号槽位（供时间型生成器使用），最后是生成器。下面使用应用的 `DataSource`：
 
 ```yaml
 cosid:
-  namespace: ${spring.application.name}
+  namespace: shop                 # 隔离一个应用的槽位与 key
+  stores:
+    db:
+      type: jdbc                  # 使用上下文中的 DataSource
+      timeout: 2s
+      options:
+        initSchema: true          # 创建三张表；生产环境请改为执行 schema-<dialect>.sql
   machine:
-    enabled: true
-    distributor:
-      type: redis
-  snowflake:
-    enabled: true
+    leased:
+      store: db                   # 机器号槽位从该存储租用，每 ttl/3 续约一次
+  generators:
+    default:                      # "default" 是主 IdGenerator bean
+      strategy: snowflake
+      codec:
+        - radix: { radix: 62, width: 11, pad-start: true }
+    order:
+      strategy: segment
+      store: db
 ```
 
-::: tip 只保留一个共享生成器
-`IdGeneratorProvider.getShare()` 和未指定名称的 `@CosId` 返回的都是共享生成器（`__share__`）。同时启用 `segment` 和 `snowflake` 时，请关闭其中一个的共享生成器（`cosid.snowflake.share.enabled: false` 或 `cosid.segment.share.enabled: false`），否则先注册的那个会成为共享生成器。
-:::
+## 3. 使用
 
-## 3. 生成 ID
-
-注入 `IdGeneratorProvider`，按名称查找生成器：
+每个生成器都是一个以其名字命名的 bean。`long` 生成器（`snowflake`、`segment`）是 `IdGenerator` bean；
+`CosIdRuntime` 提供文本视图：
 
 ```java
 @Service
 public class OrderService {
-    private final IdGeneratorProvider provider;
+    private final IdGenerator ids;          // "default"
+    private final IdGenerator orderIds;
+    private final CosIdRuntime runtime;
 
-    public OrderService(IdGeneratorProvider provider) {
-        this.provider = provider;
+    public OrderService(IdGenerator ids, @Qualifier("order") IdGenerator orderIds, CosIdRuntime runtime) {
+        this.ids = ids;
+        this.orderIds = orderIds;
+        this.runtime = runtime;
     }
 
-    public long newOrderId() {
-        return provider.getRequired("order", IdGenerator.class).generate();
-    }
-
-    public String newOrderNo() {
-        return provider.getRequired("order").generateAsString();
+    public void place() {
+        long id = ids.generate();                                     // 63 位 Snowflake ID
+        String text = runtime.stringGenerator("default").generate();  // 11 位 base-62 字符
+        long orderNo = orderIds.generate();                           // 1, 2, 3, ...
     }
 }
 ```
 
-每个生成器同时也是一个 Spring Bean，名称为 `{name}SegmentId` 或 `{name}SnowflakeId`：
+标注了 `@CosId` 的字段由 `runtime.filler()` 填充，MyBatis 与 Spring Data JDBC 集成也会在插入前填充：
+见 [@CosId 字段填充](integrations/annotation.md)。
+
+## 不使用 Spring
+
+`CosIdRuntime` 是唯一的装配路径；Spring 只是把 `cosid.*` 绑定到 `RuntimeSpec`。同样的配置用代码表示：
 
 ```java
-@Service
-public class InvoiceService {
-    private final SegmentId orderId;
+RuntimeSpec spec = new RuntimeSpec("shop",
+    Map.of("db", new StoreSpec("jdbc", Duration.ofSeconds(2), Map.of("initSchema", "true"))),
+    Optional.of(new MachineSpec.Leased("db", 10, Duration.ofSeconds(30), Duration.ofSeconds(1),
+        OptionalInt.empty(), Optional.empty())),
+    Map.of(
+        "default", new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT,
+            List.of(new CodecSpec.Radix(62, 11, true))),
+        "order", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of())));
 
-    public InvoiceService(@Qualifier("orderSegmentId") SegmentId orderId) {
-        this.orderId = orderId;
-    }
+RuntimeOptions defaults = RuntimeOptions.defaults();
+RuntimeOptions options = new RuntimeOptions(defaults.time(), defaults.executor(), defaults.listener(),
+    defaults.storeProviders(), Map.of("db", dataSource),           // 按存储名提供已有客户端
+    defaults.hostResolver(), defaults.port(), defaults.codecs());
+
+try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
+    long id = runtime.generator("default").generate();
+    String order = runtime.stringGenerator("order").generate();
 }
 ```
 
-如果希望在插入时自动填充实体字段，请在字段上标注 [`@CosId`](./integrations/annotation.md)，并使用 [MyBatis](./integrations/mybatis.md) 或 [Spring Data JDBC](./integrations/spring-data-jdbc.md) 集成。
-
-## 4. 检查运行状态
-
-classpath 中有 Spring Boot Actuator 时，暴露 `cosid` 端点即可查看所有生成器及其状态：
-
-```yaml
-management:
-  endpoints:
-    web:
-      exposure:
-        include: cosid, cosidGenerator, cosidStringGenerator, health
-```
-
-`GET /actuator/cosid` 列出所有生成器，`GET /actuator/cosidGenerator/order` 生成一个 ID；启用机器号（`cosid.machine.enabled`）时，`/actuator/health` 会包含机器号租约的状态。
-
-## 在代码中注册生成器
-
-也可以在运行时通过存储的 `IdSegmentDistributorFactory` 创建生成器。移除号段链时请关闭它，以停止后台预取：
-
-```java
-@Service
-public class TenantIds {
-    private final IdGeneratorProvider provider;
-    private final IdSegmentDistributorFactory distributorFactory;
-    private final String namespace;
-
-    public TenantIds(IdGeneratorProvider provider, IdSegmentDistributorFactory distributorFactory, CosIdProperties cosIdProperties) {
-        this.provider = provider;
-        this.distributorFactory = distributorFactory;
-        this.namespace = cosIdProperties.getNamespace();
-    }
-
-    public void register(String tenant) {
-        IdSegmentDistributorDefinition definition = new IdSegmentDistributorDefinition(namespace, tenant, 0, 100);
-        IdSegmentDistributor distributor = distributorFactory.create(definition);
-        provider.set(tenant, new SegmentChainId(distributor));
-    }
-
-    public void unregister(String tenant) {
-        if (provider.remove(tenant) instanceof SegmentChainId segmentChainId) {
-            segmentChainId.close(); // stops its background prefetch
-        }
-    }
-}
-```
+没有提供客户端时，存储根据自己的 options（`url`、`uri`、`connectString`）自行建立连接。
+`close()` 会停止生成器、释放槽位（使下一任持有者可以从最后发出的时间戳开始），并关闭运行时自己打开的资源。
+见[运行时](concepts/runtime.md)。
 
 ## 下一步
 
-- [ID 生成器](./concepts/id-generator.md)：选择哪种生成器。
-- [常用 ID 配方](./recipes.md)：常见 ID 格式的配置。
-- [配置参考](../reference/config/basic.md)：全部属性。
-- [示例](https://github.com/Ahoo-Wang/CosId/tree/main/examples)：可直接运行的 Redis、ZooKeeper 和 Proxy 示例应用。
+- [布局与编解码器](concepts/layout-and-codecs.md)、[槽位租约](concepts/slot-lease.md)、
+  [号段](concepts/segment.md)：每种策略做什么以及如何调优。
+- [选择后端](backends/index.md)：各存储支持的版本与前提条件。
+- 上线前阅读[生产检查清单](operations/production.md)。
+- [示例](https://github.com/Ahoo-Wang/CosId/tree/main/examples)：`segment-jdbc`、`snowflake-redis` 与 `server`，
+  均可通过 `./gradlew :examples:<name>:bootRun` 运行。

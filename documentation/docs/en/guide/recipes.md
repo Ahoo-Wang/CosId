@@ -1,841 +1,142 @@
-# Specific Scenario ID Configuration
+# ID Recipes
 
-## SnowflakeId
+Ready-made `cosid.*` configurations for common ids. Each assumes the stores and machine slot of
+[Getting Started](getting-started.md); combine as many as you need in one runtime.
 
-### snowflake_friendly
+## Primary keys
 
-Using the _SnowflakeId_ algorithm, the output ID string requires:
+```yaml
+cosid:
+  generators:
+    default:                       # a 63-bit, time-ordered BIGINT
+      strategy: snowflake
+```
 
-- Format: `yyyyMMddHHmmssSSS-<machineId>-<sequence>`
-- For example: `20240103152415876-5-16`
+A dense, strictly increasing `BIGINT` per table, one store write per range:
 
-::: code-group
-```yaml {9-11} [Configuration]
+```yaml
+    order:
+      strategy: segment
+      store: db
+```
+
+## Ids for JavaScript clients
+
+A 53-bit Snowflake fits a JavaScript `number` (at most 8 slots, so `machine.leased.bits: 3`):
+
+```yaml
 cosid:
   machine:
-    enabled: true
-    distributor:
-      type: redis
-  snowflake:
-    enabled: true
-    provider:
-      snowflake_friendly:
-        converter:
-          type: snowflake_friendly
+    leased: { store: db, bits: 3 }
+  generators:
+    default:
+      strategy: snowflake
+      layout: JS_SAFE_MS
 ```
-```json [Configuration Information]
-{
-  "snowflake_friendly": {
-    "kind": "DefaultSnowflakeFriendlyId",
-    "actual": {
-      "kind": "ClockSyncSnowflakeId",
-      "actual": {
-        "kind": "MillisecondSnowflakeId",
-        "epoch": 1577203200000,
-        "timestampBit": 41,
-        "machineBit": 10,
-        "sequenceBit": 12,
-        "isSafeJavascript": false,
-        "machineId": 5,
-        "lastTimestamp": -1,
-        "converter": {
-          "kind": "Radix62IdConverter",
-          "radix": 62,
-          "charSize": 11,
-          "padStart": true,
-          "maxId": 9223372036854775807
-        }
-      },
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854775807
-      }
-    },
-    "converter": {
-      "kind": "SnowflakeFriendlyIdConverter",  // [!code focus]
-      "actual": null
-    }
-  }
-}
+
+Or keep 63 bits and send them as text with Jackson's [`@AsString`](integrations/jackson.md).
+
+## Short text ids
+
+```yaml
+    short-link:
+      strategy: snowflake
+      codec: [ { radix: { radix: 62, width: 11, pad-start: true } } ]     # 11 characters, sortable
+    coupon:
+      strategy: segment
+      store: db
+      codec: [ { radix: { radix: 36 } }, { prefix: "C" } ]                # C1, C2, … CA, …
 ```
-:::
 
-### snowflake_orderly_friendly
+## Readable trace ids
 
-Using the _SnowflakeId_ algorithm, the output ordered ID string requires:
+```yaml
+    trace:
+      strategy: snowflake
+      codec: [ { friendly: { zone: Asia/Shanghai } } ]                    # 20261027153012123-0003-0017
+```
 
-- Format: `yyyyMMddHHmmssSSS-[0]<machineId>-[0]<sequence>`
-- For example: `20250215122059820-0000-0001`
+`Friendly.decode` (and `codec.decode`) reads them back; `Layout.unpack(id)` gives the parts of a numeric id.
 
-::: code-group
-```yaml {9-14} [Configuration]
+## Business numbers with a date
+
+Order numbers that carry the day they were issued, with no reset:
+
+```yaml
+    order-no:
+      strategy: segment
+      store: db
+      codec:
+        - radix: { radix: 10, width: 8, pad-start: true }
+        - date-prefix: { pattern: yyyyMMdd, delimiter: "", source: NOW, zone: Asia/Shanghai }   # 2026102700000042
+```
+
+Bill numbers that restart every day:
+
+```yaml
+    bill:
+      strategy: periodic-segment
+      store: db
+      period: YEAR_MONTH_DAY
+      zone: Asia/Shanghai
+      seal-after: 2d
+      codec:
+        - date-prefix: { delimiter: "-" }
+        - radix: { radix: 10, width: 6, pad-start: true }                # 20261027-000042
+```
+
+## More than 64 bits
+
+```yaml
+    token:
+      strategy: cosid80                                                   # 44-bit ms, 20-bit node, 16-bit sequence
+      codec: [ { radix: { radix: 62 } } ]
+```
+
+## Second-precision ids
+
+```yaml
+    event:
+      strategy: snowflake
+      layout: SNOWFLAKE_S                                                 # 31-bit seconds, 22-bit sequence
+```
+
+## `int` ids
+
+```java
+IntIdGenerator small = IdGenerators.toInt(runtime.generator("order"));   // IdOverflowException past Integer.MAX_VALUE
+```
+
+An `int` (or `Integer`) field annotated `@CosId` is range checked the same way.
+
+## Trend-increasing segments across instances
+
+Several instances each hold their own range, so ids from different instances interleave. `range-ttl` bounds how stale a
+held range may get:
+
+```yaml
+    order:
+      strategy: segment
+      store: db
+      range-ttl: 1m
+```
+
+## No database at all
+
+A slot the deployment keeps unique, and no store:
+
+```yaml
 cosid:
   machine:
-    enabled: true
-    distributor:
-      type: redis
-  snowflake:
-    enabled: true
-    provider:
-      snowflake_orderly_friendly:
-        converter:
-          type: snowflake_friendly
-          friendly:
-            pad-start: true
+    static:
+      slot: ${POD_ORDINAL}
+      state-file: /var/lib/cosid/state
+  generators:
+    default:
+      strategy: snowflake
 ```
-```json [Configuration Information]
-{
-  "snowflake_orderly_friendly": {
-    "kind": "StringSnowflakeId",
-    "actual": {
-      "kind": "ClockSyncSnowflakeId",
-      "actual": {
-        "kind": "MillisecondSnowflakeId",
-        "epoch": 1577203200000,
-        "timestampBit": 41,
-        "machineBit": 10,
-        "sequenceBit": 12,
-        "machineId": 0,
-        "lastTimestamp": -1,
-        "converter": {
-          "kind": "Radix62IdConverter",
-          "radix": 62,
-          "charSize": 11,
-          "padStart": true,
-          "maxId": 9223372036854776000,
-          "actual": null
-        },
-        "safeJavascript": false,
-        "actual": null
-      },
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854776000,
-        "actual": null
-      }
-    },
-    "converter": {
-      "kind": "SnowflakeFriendlyIdConverter",
-      "padStart": true,
-      "machineCharSize": 4,
-      "sequenceCharSize": 4,
-      "actual": null
-    }
-  }
-}
-```
-:::
 
-### snowflake_short_id
+## Ids for other languages
 
-Using the _SnowflakeId_ algorithm, the output ID string requires:
-
-- Format: As short as possible
-- For example: `0dMszf3Ht1l`
-
-::: code-group
-```yaml {9-14} [Configuration]
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: redis
-  snowflake:
-    enabled: true
-    provider:
-      snowflake_short_id:
-        converter:
-          type: radix
-          radix:
-            char-size: 11
-            pad-start: true
-```
-```json [Configuration Information]
-{
-  "snowflake_short_id": {
-    "kind": "DefaultSnowflakeFriendlyId",
-    "actual": {
-      "kind": "ClockSyncSnowflakeId",
-      "actual": {
-        "kind": "MillisecondSnowflakeId",
-        "epoch": 1577203200000,
-        "timestampBit": 41,
-        "machineBit": 10,
-        "sequenceBit": 12,
-        "isSafeJavascript": false,
-        "machineId": 5,
-        "lastTimestamp": -1,
-        "converter": {
-          "kind": "Radix62IdConverter",
-          "radix": 62,
-          "charSize": 11,
-          "padStart": true,
-          "maxId": 9223372036854775807
-        }
-      },
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854775807
-      }
-    },
-    "converter": {
-      "kind": "Radix62IdConverter",
-      "radix": 62,
-      "charSize": 11,
-      "padStart": true,
-      "maxId": 9223372036854775807
-    }
-  }
-}
-```
-:::
-
-### snowflake_friendly_second
-
-Using the _SnowflakeId_ algorithm, the output ID string requires:
-
-- Format: `yyyyMMddHHmmss-<machineId>-<sequence>`
-- For example: `20240103153900-5-4`
-
-::: code-group
-```yaml {9-16} [Configuration]
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: redis
-  snowflake:
-    enabled: true
-    provider:
-      snowflake_friendly_second:
-        timestamp-unit: second
-        epoch: 1577203200
-        timestamp-bit: 31
-        machine-bit: 10
-        sequence-bit: 22
-        converter:
-          type: snowflake_friendly
-```
-```json [Configuration Information]
-{
-  "snowflake_friendly_second": {
-    "kind": "DefaultSnowflakeFriendlyId",
-    "actual": {
-      "kind": "ClockSyncSnowflakeId",
-      "actual": {
-        "kind": "SecondSnowflakeId",
-        "epoch": 1577203200,
-        "timestampBit": 31,
-        "machineBit": 10,
-        "sequenceBit": 22,
-        "isSafeJavascript": false,
-        "machineId": 5,
-        "lastTimestamp": 1704265875,
-        "converter": {
-          "kind": "Radix62IdConverter",
-          "radix": 62,
-          "charSize": 11,
-          "padStart": true,
-          "maxId": 9223372036854775807
-        }
-      },
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854775807
-      }
-    },
-    "converter": {
-      "kind": "SnowflakeFriendlyIdConverter",
-      "actual": null
-    }
-  }
-}
-```
-:::
-
-## SegmentId
-
-### biz_prefix_no
-
-Using the _SegmentId_ algorithm, the output ID string requires:
-- Starting sequence: `2000000000`
-- Format: `<prefix><sequence>`
-- Sequence digits: 10-digit number, padded with 0 if less than 10 digits
-- For example: `BIZ2000000219`
-
-::: code-group
-```yaml {7-14} [Configuration]
-cosid:
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    provider:
-      biz_prefix_no:
-        offset: 2000000000
-        converter:
-          type: to_string
-          prefix: BIZ
-          to-string:
-            char-size: 10
-            pad-start: true
-```
-```json [Configuration Information]
-{
-  "biz_prefix_no": {
-    "kind": "StringSegmentId",
-    "actual": {
-      "kind": "SegmentChainId",
-      "fetchTime": 1704265844,
-      "maxId": 2000000220,
-      "offset": 2000000200,
-      "sequence": 2000000218,
-      "step": 20,
-      "isExpired": false,
-      "isOverflow": false,
-      "isAvailable": true,
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854775807
-      }
-    },
-    "converter": {
-      "kind": "PrefixIdConverter",
-      "prefix": "BIZ",
-      "actual": {
-        "kind": "ToStringIdConverter",
-        "padStart": true,
-        "charSize": 10
-      }
-    }
-  }
-}
-```
-:::
-
-### date_prefix_no
-
-Using the _SegmentId_ algorithm, the output ID string requires:
-- Format: `<prefix><date><sequence>`
-- Date digits: 6-digit date string, format `yyMMdd`
-- For example: `BIZ-240618-25`
-
-::: code-group
-```yaml {7-14} [Configuration]
-cosid:
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    provider:
-      date_prefix_no:
-        converter:
-          type: to_string
-          prefix: BIZ-
-          date-prefix:
-            enabled: true
-            pattern: yyMMdd
-```
-```json [Configuration Information]
-{
-  "date_prefix_no": {
-    "kind": "StringSegmentId",
-    "actual": {
-      "kind": "SegmentChainId",
-      "fetchTime": 1718704101,
-      "maxId": 20,
-      "offset": 0,
-      "sequence": 0,
-      "step": 20,
-      "isExpired": false,
-      "isOverflow": false,
-      "isAvailable": true,
-      "groupedKey": {
-        "key": "",
-        "ttlAt": 9223372036854776000
-      },
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854776000
-      }
-    },
-    "converter": {
-      "kind": "PrefixIdConverter",
-      "prefix": "BIZ-",
-      "actual": {
-        "kind": "DatePrefixIdConverter",
-        "pattern": "yyMMdd",
-        "actual": {
-          "kind": "ToStringIdConverter",
-          "padStart": false,
-          "charSize": 10
-        }
-      }
-    }
-  }
-}
-```
-:::
-
-### no_suffix_biz
-
-Using the _SegmentId_ algorithm, the output ID string requires:
-- Starting sequence: `2000000000`
-- Format: `<sequence><suffix>`
-- Sequence digits: 10-digit number, padded with 0 if less than 10 digits
-- For example: `2000000201BIZ`
-
-::: code-group
-```yaml {7-14} [Configuration]
-cosid:
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    provider:
-      no_suffix_biz:
-        offset: 2000000000
-        converter:
-          type: to_string
-          suffix: BIZ
-          to-string:
-            char-size: 10
-            pad-start: true
-```
-```json [Configuration Information]
-{
-  "no_suffix_biz": {
-    "kind": "StringSegmentId",
-    "actual": {
-      "kind": "SegmentChainId",
-      "fetchTime": 1704265915,
-      "maxId": 2000000210,
-      "offset": 2000000200,
-      "sequence": 2000000200,
-      "step": 10,
-      "isExpired": false,
-      "isOverflow": false,
-      "isAvailable": true,
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854775807
-      }
-    },
-    "converter": {
-      "kind": "SuffixIdConverter",
-      "suffix": "BIZ",
-      "actual": {
-        "kind": "ToStringIdConverter",
-        "padStart": true,
-        "charSize": 10
-      }
-    }
-  }
-}
-```
-:::
-
-### biz_prefix_radix
-
-Using the _SegmentId_ algorithm, the output ID string requires:
-- Starting sequence: `2000000000`
-- Format: `<prefix><sequence>`
-- Sequence digits: 6-digit base62 string, padded with 0 if less than 6 digits
-- For example: `BIZ2BLnPb`
-
-::: code-group
-```yaml {7-14} [Configuration]
-cosid:
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    provider:
-      biz_prefix_radix:
-        offset: 2000000000
-        converter:
-          type: radix
-          prefix: BIZ
-          radix:
-            char-size: 6
-            pad-start: true
-```
-```json [Configuration Information]
-{
-  "biz_prefix_radix": {
-    "kind": "StringSegmentId",
-    "actual": {
-      "kind": "SegmentChainId",
-      "fetchTime": 1704265844,
-      "maxId": 2000000200,
-      "offset": 2000000180,
-      "sequence": 2000000190,
-      "step": 20,
-      "isExpired": false,
-      "isOverflow": false,
-      "isAvailable": true,
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854775807
-      }
-    },
-    "converter": {
-      "kind": "PrefixIdConverter",
-      "prefix": "BIZ",
-      "actual": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 6,
-        "padStart": true,
-        "maxId": 56800235584
-      }
-    }
-  }
-}
-```
-:::
-
-### biz_prefix_radix36
-
-Using the _SegmentId_ algorithm, the output ID string requires:
-- Starting sequence: `2000000000`
-- Format: `<prefix><sequence>`
-- Sequence digits: 8-digit base36 string, padded with 0 if less than 8 digits
-- For example: `BIZ00000044`
-
-::: code-group
-```yaml {7-14} [Configuration]
-cosid:
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    provider:
-      biz_prefix_radix36:
-        offset: 2000000000
-        converter:
-          type: radix36
-          prefix: BIZ
-          radix:
-            char-size: 6
-            pad-start: true
-```
-```json [Configuration Information]
-{
-  "biz_prefix_radix36": {
-    "kind": "StringSegmentId",
-    "actual": {
-      "kind": "SegmentChainId",
-      "fetchTime": 1704265844,
-      "maxId": 150,
-      "offset": 130,
-      "sequence": 147,
-      "step": 20,
-      "isExpired": false,
-      "isOverflow": false,
-      "isAvailable": true,
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854775807
-      }
-    },
-    "converter": {
-      "kind": "PrefixIdConverter",
-      "prefix": "BIZ",
-      "actual": {
-        "kind": "Radix36IdConverter",
-        "radix": 36,
-        "charSize": 8,
-        "padStart": true,
-        "maxId": 2821109907456
-      }
-    }
-  }
-}
-```
-:::
-
-### group_year_biz
-
-Using the _SegmentId_ algorithm, the output ID string requires:
-- Starting sequence: `0`
-- Format: `<prefix><year><sequence>`
-- Grouping: Grouped by year, sequence starts from 0 each year. That is, the sequence needs to reset to 0 every year.
-- Sequence digits: 8-digit number, padded with 0 if less than 8 digits
-- For example: `BIZ-2024-00000231`
-
-::: code-group
-```yaml {7-18} [Configuration]
-cosid:
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    provider:
-      group_year_biz:
-        group:
-          by: year
-          pattern: yyyy
-        converter:
-          type: to_string
-          to-string:
-            pad-start: true
-            char-size: 8
-          prefix: BIZ-
-          group-prefix:
-            enabled: true
-```
-```json {14-17} [Configuration Information]
-{
-  "group_year_biz": {
-    "kind": "StringSegmentId",
-    "actual": {
-      "kind": "SegmentChainId",
-      "fetchTime": 1715911764,
-      "maxId": 570,
-      "offset": 550,
-      "sequence": 550,
-      "step": 20,
-      "isExpired": false,
-      "isOverflow": false,
-      "isAvailable": true,
-      "groupedKey": {
-        "key": "2024",
-        "ttlAt": 1735660799
-      },
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854776000
-      }
-    },
-    "converter": {
-      "kind": "PrefixIdConverter",
-      "prefix": "BIZ-",
-      "actual": {
-        "kind": "GroupedPrefixIdConverter",
-        "delimiter": "-",
-        "actual": {
-          "kind": "ToStringIdConverter",
-          "padStart": true,
-          "charSize": 8
-        }
-      }
-    }
-  }
-}
-```
-:::
-
-### group_year_month_biz
-
-Using the _SegmentId_ algorithm, the output ID string requires:
-- Starting sequence: `0`
-- Format: `<prefix><year_month><sequence>`
-- Grouping: Grouped by year and month, sequence starts from 0. That is, the sequence needs to reset to 0 across months.
-- Sequence digits: 8-digit number, padded with 0 if less than 8 digits
-- For example: `BIZ-240516-00000061`
-
-::: code-group
-```yaml {7-18} [Configuration]
-cosid:
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    provider:
-      group_year_month_biz:
-        group:
-          by: year_month
-          pattern: yyyyMM
-        converter:
-          type: to_string
-          to-string:
-            pad-start: true
-            char-size: 8
-          prefix: BIZ-
-          group-prefix:
-            enabled: true
-```
-```json {14-17} [Configuration Information]
-{
-  "group_year_month_biz": {
-    "kind": "StringSegmentId",
-    "actual": {
-      "kind": "SegmentChainId",
-      "fetchTime": 1715911765,
-      "maxId": 310,
-      "offset": 290,
-      "sequence": 290,
-      "step": 20,
-      "isExpired": false,
-      "isOverflow": false,
-      "isAvailable": true,
-      "groupedKey": {
-        "key": "202405",
-        "ttlAt": 1717171199
-      },
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854776000
-      }
-    },
-    "converter": {
-      "kind": "PrefixIdConverter",
-      "prefix": "BIZ-",
-      "actual": {
-        "kind": "GroupedPrefixIdConverter",
-        "delimiter": "-",
-        "actual": {
-          "kind": "ToStringIdConverter",
-          "padStart": true,
-          "charSize": 8
-        }
-      }
-    }
-  }
-}
-```
-:::
-
-### group_year_month_day_biz
-
-Using the _SegmentId_ algorithm, the output ID string requires:
-- Starting sequence: `0`
-- Format: `<prefix><year_month_day><sequence>`
-- Grouping: Grouped by date, sequence starts from 0. That is, the sequence needs to reset to 0 tomorrow.
-- Sequence digits: 8-digit number, padded with 0 if less than 8 digits
-- For example: `BIZ-240516-00000001`
-
-::: code-group
-```yaml {7-18} [Configuration]
-cosid:
-  segment:
-    enabled: true
-    distributor:
-      type: redis
-    provider:
-      group_year_month_day_biz:
-        group:
-          by: year_month_day
-          pattern: yyMMdd
-        converter:
-          type: to_string
-          to-string:
-            pad-start: true
-            char-size: 8
-          prefix: BIZ-
-          group-prefix:
-            enabled: true
-```
-```json {14-17} [Configuration Information]
-{
-  "group_year_month_day_biz": {
-    "kind": "StringSegmentId",
-    "actual": {
-      "kind": "SegmentChainId",
-      "fetchTime": 1715911765,
-      "maxId": 280,
-      "offset": 260,
-      "sequence": 260,
-      "step": 20,
-      "isExpired": false,
-      "isOverflow": false,
-      "isAvailable": true,
-      "groupedKey": {
-        "key": "240517",
-        "ttlAt": 1715961599
-      },
-      "converter": {
-        "kind": "Radix62IdConverter",
-        "radix": 62,
-        "charSize": 11,
-        "padStart": true,
-        "maxId": 9223372036854776000
-      }
-    },
-    "converter": {
-      "kind": "PrefixIdConverter",
-      "prefix": "BIZ-",
-      "actual": {
-        "kind": "GroupedPrefixIdConverter",
-        "delimiter": "-",
-        "actual": {
-          "kind": "ToStringIdConverter",
-          "padStart": true,
-          "charSize": 8
-        }
-      }
-    }
-  }
-}
-```
-:::
-
-## Global ID for Million-Scale Cluster Instances
-
-Using the _CosIdGenerator_ algorithm, it requires supporting global ID generators for million-scale cluster instances.
-
-::: code-group
-```yaml {6-7} [Configuration]
-cosid:
-  machine:
-    enabled: true
-    distributor:
-      type: redis
-  generator:
-    enabled: true
-```
-```json [Configuration Information]
-{
-  "cosid": {
-    "kind": "ClockSyncCosIdGenerator",
-    "actual": {
-      "kind": "Radix62CosIdGenerator",
-      "machineId": 5,
-      "lastTimestamp": 1704265904677,
-      "converter": {
-        "kind": "RadixCosIdStateParser",
-        "actual": null
-      }
-    },
-    "converter": {
-      "kind": "RadixCosIdStateParser",
-      "actual": null
-    }
-  }
-}
-```
-:::
+Run [cosid-server](server.md) with `cosid.server.ids.enabled: true`, and call
+`GET /ids/{generator}?count=100` with a token.

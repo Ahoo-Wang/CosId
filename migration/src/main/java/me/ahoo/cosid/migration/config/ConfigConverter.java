@@ -413,8 +413,11 @@ public final class ConfigConverter {
         generator.put("step", config.number(prefix + ".step", 10));
         handled.add(prefix + ".step");
         handled.add(prefix + ".enabled");
-        if (config.number(prefix + ".offset", 0) != 0) {
-            report.add(prefix + ".offset = " + config.get(prefix + ".offset") + ": migrated keys continue from their 4.x values; offset only applied to new 4.x keys");
+        // 4.x issued offset + 1 first on a new key (a new period too); 5.0 issues initial-offset first, 1 by default (D21).
+        // Migrated keys continue from their 4.x values either way: apply writes lastMaxId + 1.
+        long offset = config.number(prefix + ".offset", 0);
+        if (offset != 0) {
+            generator.put("initial-offset", offset + 1);
         }
         handled.add(prefix + ".offset");
         for (String dropped : List.of(prefix + ".mode", prefix + ".ttl", prefix + ".chain")) {

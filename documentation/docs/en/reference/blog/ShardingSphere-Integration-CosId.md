@@ -4,6 +4,10 @@
 
 # ShardingSphere Integration with CosId
 
+::: warning A 4.x article
+This article describes CosId 4.x and ShardingSphere's CosId algorithms of that time. For CosId 5, see [Sharding Algorithms](../../guide/integrations/sharding.md) and [migrating from 4.x](../../guide/migration/from-4x.md).
+:::
+
 ## Background
 
 In the evolution of software systems, as business scale grows (TPS/storage capacity), we need to deploy applications in clusters to share computing and storage pressure.

@@ -1,63 +1,60 @@
 # 选择后端
 
-CosId 需要存储来做两件事：保存[号段 ID](../concepts/segment.md) 的计数器，以及保存 Snowflake ID 和 `CosIdGenerator` 的[机器号](../concepts/machine-id.md)租约。请选择你已经在运行、并且运维得好的存储；生成过程在内存中完成，所以无论用哪种存储，生成器的性能都一样。
+后端实现两个原语：`RangeStore.reserve`（号段）与 `SlotLeaseStore`（机器号槽位）。策略、重试与缓冲都在 `cosid-core` 中，
+因此每个后端的行为一致，由同一套 [TCK](test-suite.md) 验证。存储在 `cosid.stores` 下声明一次、按名称引用，
+所以一个应用可以把号段放在数据库、把槽位放在 Redis。
 
-`cosid.segment.distributor.type` 和 `cosid.machine.distributor.type` 分别为两部分选择存储，互不影响。取值只比较字母和数字、忽略大小写，因此 `zookeeper`、`ZooKeeper` 和 `zoo-keeper` 是同一个值。
+| 后端 | Artifact | 类型 | 支持起始版本 | 唯一性依赖于 |
+|---|---|---|---|---|
+| [JDBC](jdbc.md) | `cosid-store-jdbc` | `jdbc` | MySQL 8.4、MariaDB 10.11、PostgreSQL 15、SQL Server 2019、H2 2.x | 数据库事务 |
+| [Redis](redis.md) | `cosid-store-redis` | `redis` | Redis 7.0 | **已确认的写入不会丢失**：AOF `appendfsync always`，或对每个副本 `WAIT` |
+| [MongoDB](mongo.md) | `cosid-store-mongo` | `mongo` | MongoDB 6.0，副本集或分片集群 | `majority` 读写（`writeConcern: majority`，默认值） |
+| [ZooKeeper](zookeeper.md) | `cosid-store-zookeeper` | `zookeeper` | ZooKeeper 3.8（主要目标 3.9） | ZooKeeper 的 quorum 写入 |
+| [Remote](../server.md) | `cosid-store-remote` | `remote` | 同版本的 cosid-server | 服务端的后备存储 |
 
-| 后端 | `type` | 模块 | 号段 | 机器号 | 租约时钟 | 适用场景 |
-|------|--------|------|:----:|:------:|----------|----------|
-| [Redis](./redis.md) | `redis` | `cosid-spring-redis` + Spring Data Redis | 是 | 是 | Redis 服务器 | 已在运行开启了持久化的 Redis。号段的默认存储 |
-| [JDBC](./jdbc.md) | `jdbc` | `cosid-jdbc` + `DataSource` | 是 | 是 | 数据库服务器 | 使用 MySQL、MariaDB、PostgreSQL、H2 或 SQL Server，希望计数器保存在数据库中 |
-| [MongoDB](./mongo.md) | `mongo` | `cosid-mongo` + Spring Data MongoDB | 是 | 是 | MongoDB 服务器 | 已在运行 MongoDB |
-| [ZooKeeper](./zookeeper.md) | `zookeeper` | `cosid-zookeeper`（Curator） | 是 | 是 | 主机时钟 | 已在运行 ZooKeeper，并保持各主机时钟同步 |
-| [CosId Proxy](./proxy.md) | `proxy` | `cosid-proxy`（CoApi 可选） | 是 | 是 | Proxy 所用存储 | 应用不能直接访问存储 |
-| StatefulSet | `stateful_set` | 无 | 否 | 是 | 无 | Kubernetes StatefulSet 中的 Pod：Pod 序号即机器号 |
-| Manual | `manual` | 无 | 否 | 是 | 无 | 单实例或测试 |
-| 自定义 | 任意 | 你的 `CosIdStoreProvider` Bean | 自行决定 | 自行决定 | 自行决定 | CosId 未内置的存储，例如 etcd |
+**若唯一性必须在任何故障切换下成立，优先选择 JDBC 或 ZooKeeper。** Redis 快速且简单，但在异步复制下，
+故障切换可能丢失写入，连同其中的区间与租约窗口。
 
-## 需要考虑什么
+## 支持版本与实测兼容性 {#supported-versions-and-measured-compatibility}
 
-- **持久性。** 存储丢失写入后计数器回退，就会再次发放同样的 ID。请使用能持久化每次写入的存储：开启 AOF 的 Redis、数据库、开启日志（journaling）的 MongoDB，或 ZooKeeper。
-- **时钟。** 存储有自己的时钟时（Redis、数据库、MongoDB），机器号租约按存储的时钟判断。ZooKeeper 没有可读取的服务器时钟，租约使用主机时钟，因此各主机时钟必须同步。
-- **可用性。** 号段链会预留 ID，Snowflake 生成器只在启动时以及每分钟续约时需要存储，所以存储短暂不可用不会中断生成。开启 `cosid.machine.guarder.fail-fast`（默认）时，Snowflake 生成器和 `CosIdGenerator` 会在最后一次成功续约之后约 `safe-guard-duration - min(10s, safe-guard-duration / 10)`（默认 4 分 50 秒）停止生成。
-- **网络访问。** Proxy 让应用不必持有存储的凭据，代价是多运行并保护一个服务。见 [Proxy 部署安全](./proxy.md#部署安全)。
+支持从各后端的最低版本开始（D26、D27），CI 在最低版本与最新版本上运行 TCK。低于最低版本的各版本各运行过一次 TCK（D28）。
+结果作为事实记录，**实测兼容性，不承诺**：这些版本不会得到修复，也不会有兼容代码，后续版本可能使其失效。
 
-两部分可以使用不同的存储，例如号段放在数据库，机器号放在 Redis。
+| 后端 | 版本 | TCK | 说明 |
+|---|---|---|---|
+| MySQL | 8.0（8.0.46） | 通过，28 / 28 | |
+| MariaDB | 10.6 | 通过，28 / 28 | |
+| PostgreSQL | 12、13、14 | 各通过 25 / 25 | |
+| SQL Server | 2017 | 通过，25 / 25 | `2017-latest` |
+| Redis | 6.2.24 | 通过，96 个用例 | 单机、主节点 + 副本加 `WAIT`、3 主节点 Cluster；脚本未使用 7.x 独有的命令 |
+| MongoDB | 4.4 | 通过，46 / 46 | 单节点副本集；4.4 上并发首次使用同一命名空间会触发 E11000，存储在所有版本上都会重试 |
+| MongoDB | 5.0 | 通过，46 / 46 | 单节点副本集 |
+| ZooKeeper | 3.7.2、3.6.4 | 各通过 55 个用例 | 单服务器 |
+| ZooKeeper | 3.5 及更早 | 未运行 | 预计失败：acquire 用只读 `multi`（3.6+）读取槽位 |
 
-## CosId 未内置的存储
+于 2026-10-26/27 在本地及非阻塞的 `probe` CI 任务中实测。各模块 README 维护这些表格的最新状态。
 
-定义一个 `CosIdStoreProvider` Bean，并把 `type` 设置为它的 `getType()`。Provider 可以创建机器号分配器、号段分配器工厂或两者；对于机器号，实现一个 `MachineLeaseStore` 并用 `LeaseStoreMachineIdDistributor` 包装，即可获得内置存储同样的申领顺序、续约和时钟处理：
+## 运维前提
 
-```java
-public class EtcdStoreProvider implements CosIdStoreProvider {
-    private final MachineLeaseStore leaseStore;
+| 后端 | 上线前 |
+|---|---|
+| JDBC | 用 `schema-<dialect>.sql` 建表（或 `initSchema: true`）；行永不删除 |
+| Redis | AOF `appendfsync always`，或 `WAIT` 覆盖每个副本；`maxmemory-policy noeviction`（key 绝不能被淘汰） |
+| MongoDB | 副本集；保持 `writeConcern: majority`；用户有权创建集合与索引 |
+| ZooKeeper | 绝不在时钟落后于槽位节点原始 `mtime` 的服务器上恢复该节点，否则在恢复后等待一个 ttl（加上 tolerance）再启动客户端 |
+| Remote | token（默认开启认证）；服务端的后备存储满足其自身的前提 |
 
-    public EtcdStoreProvider(MachineLeaseStore leaseStore) {
-        this.leaseStore = leaseStore;
-    }
+## 所有存储通用的选项
 
-    @Override
-    public String getType() {
-        return "etcd";
-    }
-
-    @Override
-    public MachineIdDistributor createMachineIdDistributor(MachineStoreContext context) {
-        return new LeaseStoreMachineIdDistributor(leaseStore, context.getMachineStateStorage(), context.getClockBackwardsSynchronizer());
-    }
-}
+```yaml
+cosid:
+  stores:
+    <name>:
+      type: jdbc            # jdbc | redis | mongo | zookeeper | remote | 某个 StoreProvider Bean 的类型
+      timeout: 2s           # 每个存储操作；不超过其上号段的 reserve-timeout
+      client: myDataSource  # 可选：用作客户端的 Bean
+      options: { ... }      # 后端选项，见各后端页面
 ```
 
-请以具体类型（`EtcdStoreProvider`，而不是 `CosIdStoreProvider`）声明该 Bean，放在应用自己的配置中，或放在排在 CosId 之前的自动配置中。与内置后端同名的 Provider 会替换内置后端。请用[兼容性测试套件](./test-suite.md)验证你的存储。
-
-## AOT 预处理与原生镜像
-
-| 后端 | Spring AOT 预处理 | GraalVM 原生镜像 |
-|------|------------------|-----------------|
-| Redis | CI 未测试 | 未测试；4.0.1 起附带其 Lua 脚本的运行时提示 |
-| JDBC | CI 未测试 | 未测试 |
-| MongoDB | CI 未测试 | 未测试 |
-| ZooKeeper | CI 未测试 | 未测试 |
-| Proxy | 设置 `cosid.proxy.client=http-interface` 时支持（CI 已测试）；默认的 CoApi 客户端不支持 | 未测试 |
-
-starter 以 AOT 预处理能够处理的 Bean 定义方式注册号段和 Snowflake 生成器；CI 使用内存存储对号段生成器执行了 AOT 预处理。使用 Proxy 的应用请设置 `cosid.proxy.client=http-interface`，客户端会作为普通 Bean 创建。`lb://` 地址（Spring Cloud LoadBalancer）需要默认的 CoApi 客户端，只能运行在 JVM 上。
+未配置 `client` 时，Spring Boot 使用上下文中该类型客户端的唯一 Bean（`DataSource`、Lettuce 客户端或 Spring Data
+`RedisConnectionFactory`、`MongoClient`、`CuratorFramework`），如果存在的话。没有客户端时，存储根据其选项自行连接。

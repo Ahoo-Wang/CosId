@@ -1,83 +1,18 @@
-# CosId-Jackson 模块
+# Jackson
 
-**Jackson** 序列化/反序列化注解插件，相当于隔离了应用API边界内外的 *ID* 使用方式，应用内部使用 `long`、外部使用 `String`，做到了应用无侵入，无感知。
-
-::: danger JavaScript Number 溢出问题
-
-`JavaScript` 的 `Number.MAX_SAFE_INTEGER` 只有**53-bit**，如果直接将63位的 `SnowflakeId` 返回给前端，那么会产生值溢出的情况（所以这里我们应该知道后端传给前端的 `long` 值溢出问题，迟早会出现，只不过`SnowflakeId`出现得更快而已）。 
-很显然溢出是不能被接受的，一般可以使用以下处理方案：
-
-- 直接将 `long` 转换成 `String` (`@AsString(AsString.Type.TO_STRING)`)
-- 使用 `SnowflakeFriendlyId` 将 `SnowflakeId` 转换成比较友好的字符串表示：`{timestamp}-{machineId}-{sequence} -> 20210623131730192-1-0` (`@AsString(AsString.Type.FRIENDLY_ID)`)
-- 自定义 `SnowflakeId` 位分配来缩短 `SnowflakeId` 的位数（**53-bit**）使 **ID** 提供给前端时不溢出(`SafeJavaScriptSnowflakeId`)
-- 使用 `Radix62IdConverter` 转换 `long` 类型的 **ID**，并且压缩字符串。(`@AsString(AsString.Type.RADIX)`)
-
-[cosid-jackson](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-jackson) 模块为提供上述方案提供了最小的侵入性。
-:::
-
-## 安装
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    implementation("me.ahoo.cosid:cosid-jackson:${cosidVersion}")
-```
-```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-jackson</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
-```
-:::
-
-## 使用
+`cosid-jackson`（包 `me.ahoo.cosid.jackson`）为 **Jackson 3**（`tools.jackson`）提供 `@AsString`：`long` ID 以文本写出，并从文本读回，
+供无法容纳 63 位数字的 JavaScript 客户端使用。
 
 ```java
-public class AsStringDto {
-
-    @AsString
-    private Long id;
-
-    @AsString(AsString.Type.RADIX)
-    private Long radixId;
-
-    @AsString(value = AsString.Type.RADIX, radixPadStart = true)
-    private Long radixPadStartId;
-
-    @AsString(value = AsString.Type.RADIX, radixPadStart = true, radixCharSize = 10)
-    private Long radixPadStartCharSize10Id;
-
-    @AsString(AsString.Type.FRIENDLY_ID)
-    private long friendlyId;
-
-   // getter / setter
-}
+@AsString long id;                                                    // radix 62, 11 digits, padded (as in 4.x)
+@AsString(generator = "order") long orderId;                          // the codec of generator "order"
+@AsString(codec = Codec.TO_STRING) long a;                            // decimal text
+@AsString(radix = 36, width = 13, padStart = false) long b;
+@AsString(codec = Codec.FRIENDLY, layout = Preset.SNOWFLAKE_S, zone = "Asia/Shanghai") long c;
+@AsString(codec = Codec.FRIENDLY, timeBits = 41, nodeBits = 5, seqBits = 17, epoch = 1700000000000L) long d;
 ```
 
-**序列化结果**
-
-```json
-{
-  "id": "266300479548424192",
-  "radixId": "JferHIEYZk",
-  "radixPadStartId": "0JferHIEYZk",
-  "radixPadStartCharSize10Id": "JferHIEYZk",
-  "friendlyId": "20211228202301948-0-0"
-}
-```
-
-
-## 读取 ID
-
-`@AsString` 字段按 JSON 类型接受：
-
-| JSON | 结果 |
-|------|------|
-| 字符串 | 用字段的转换器转换（to-string、radix 或 friendly id） |
-| 数字，例如 `123` | 就是 ID 本身。4.1 之前会被当作字符串 `"123"` 读取，对 radix 字段来说是另一个 ID |
-| `null` 或 `""` | `null` |
-| 转换器无法读取的字符串 | `InvalidFormatException`，Spring MVC 和 WebFlux 返回 `400` |
-| 其他类型（小数、布尔值） | `MismatchedInputException`，同样返回 `400` |
+- `generator = …` 与内联属性互斥。
+- 内联编解码器不需要注册 module。`generator = …` 需要在 `JsonMapper` 上注册 `new CosIdJacksonModule(runtime)`；
+  Spring Boot 会注册一个 `CosIdJacksonModule` Bean。
+- 读取时接受文本、该编解码器可能写出的 JSON 数字，空字符串视为 `null`。

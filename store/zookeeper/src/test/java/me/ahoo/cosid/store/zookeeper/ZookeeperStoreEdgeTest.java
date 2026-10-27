@@ -201,11 +201,16 @@ class ZookeeperStoreEdgeTest {
             Zk.backoff(attempt, deadline, "contended");
         }
         assertThrows(CosIdException.class, () -> Zk.backoff(3, System.nanoTime() - 1, "contended"));
-        Thread.currentThread().interrupt();
-        try {
-            assertThrows(CosIdException.class, () -> Zk.backoff(6, System.nanoTime() + Duration.ofSeconds(5).toNanos(), "interrupted"));
-        } finally {
-            Thread.interrupted();
+        // An interrupted thread stops retrying at every attempt, whatever random pause it would have drawn (0 included).
+        for (int attempt = 0; attempt < 8; attempt++) {
+            int interruptedAttempt = attempt;
+            Thread.currentThread().interrupt();
+            try {
+                assertThrows(CosIdException.class,
+                    () -> Zk.backoff(interruptedAttempt, System.nanoTime() + Duration.ofSeconds(5).toNanos(), "interrupted"));
+            } finally {
+                Thread.interrupted();
+            }
         }
     }
 

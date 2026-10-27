@@ -101,7 +101,7 @@ R0 骨架、接口冻结、4.x 基线基准
 | 3 | R2-JDBC、R2-Redis、R2-Mongo、R2-ZK、R3 | R1-C 合入(R3 还需要 R1-A、R1-B) | ✅ |
 | 4 | R3-S、R4-C | R3 合入(R4-C 还需要 R2) | ✅ |
 | 5 | R4-A、R4-B | R3-S 合入 | ✅ |
-| 6 | R5-A、R5-B | 功能冻结 | 待启动 |
+| 6 | R5-A、R5-B | 功能冻结 | 进行中 |
 
 ## 5. 进度
 
@@ -125,8 +125,8 @@ R0 骨架、接口冻结、4.x 基线基准
 | R4-A 远程服务与客户端 | ✅ 已合入 | [#1328](https://github.com/Ahoo-Wang/CosId/pull/1328) |
 | R4-B 集成适配器 | ✅ 已合入 | [#1327](https://github.com/Ahoo-Wang/CosId/pull/1327) |
 | R4-C 离线迁移工具 | ✅ 已合入 | [#1324](https://github.com/Ahoo-Wang/CosId/pull/1324) |
-| R5-A 发布门槛基准与特性验收 | ⏳ 待启动 | |
-| R5-B 文档站、示例、迁移指南 | ⏳ 待启动 | |
+| R5-A 发布门槛基准与特性验收 | 🔄 进行中:先做特性验收、稳定性、CI 去重;发布门槛基准等其他会话全部停下后在本机运行 | |
+| R5-B 文档站、示例、迁移指南 | 🔄 进行中 | |
 | R6 发布 | ⏳ | |
 
 后续修复(已合入):`maxBatch` 默认值 [#1317](https://github.com/Ahoo-Wang/CosId/pull/1317)、Mongo 并发 upsert 与重复身份误报 [#1316](https://github.com/Ahoo-Wang/CosId/pull/1316)、

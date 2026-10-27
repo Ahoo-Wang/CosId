@@ -139,7 +139,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | WP-lease | A-M1 | R1-C | [#1351](https://github.com/Ahoo-Wang/CosId/pull/1351) | 修复已推送,Draft(会话无权限转 ready),等 CI |
 | WP-time-codec | A-N1、A-N2、A-N3、A-N6、A-N7 | R1-A | [#1352](https://github.com/Ahoo-Wang/CosId/pull/1352) | 修复完成,等 CI |
 | WP-segment | A-N4、A-N5 | R1-B | [#1347](https://github.com/Ahoo-Wang/CosId/pull/1347) | ✅ 已合入 `3e25d483` |
-| WP-release | **E-B2**、**E-B3**、E-M2、E-M3、E-N2、E-N3、E-N4、E-N6–N9 | R5-B | [#1348](https://github.com/Ahoo-Wang/CosId/pull/1348) | Ready,等 CI |
+| WP-release | **E-B2**、**E-B3**、E-M2、E-M3、E-N2、E-N3、E-N4、E-N6–N9 | R5-B | [#1348](https://github.com/Ahoo-Wang/CosId/pull/1348) | ✅ 已合入 `9de77578` |
 | WP-docs | E-N1、C-N4、C-N5;09 §2 表述 | 总调度(本 PR) | #1344 | ✅ 已在本 PR 修改 |
 | 需用户决定 | E-M1:改 `4.x` 的 document-deploy(GA 后避免覆盖 5.0 文档站);RC 以 pre-release 发布 | 用户 | | 待决定 |
 
@@ -149,9 +149,9 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **收尾阶段(用户 2026-10-27 最新指示):** 不开新任务;已 ready 的 PR 等 CI 全绿后合并;最后登记文档。本机代码必须全部推送到 GitHub。
 
-**快照(2026-10-27 深夜):** Ready:#1348(已审查通过,等 CI);#1342 的 Mongo 8.0 失败为容器启动失败(基础设施),已重跑;Draft:#1349、#1351(修复已完成,会话无权限转 ready,需用户转)、#1352、#1353、#1354(WP-JDBC,CI 已全绿)、#1355、#1356(R2-Mongo 的 range 竞态测试,已解决与 main 的冲突)。CI 仍大量排队,尚无可合入的 PR。
+**收尾结果(2026-10-27):** 所有已 ready 且 CI 全绿的修复 PR 均已审查并合入(5 个)。BLOCKER 已解决 7/10;**尚余 B-B1(#1355)、C-B1、C-B2(#1349)**,均为 Draft。修复已完成但仍为 Draft(会话无权限转 ready):#1349、#1351、#1354(CI 全绿)。其余 Draft:#1352、#1353、#1355、#1356。发布门槛 FAIL(见 §4.2 #1357)。RC1 受阻,下一步:把 Draft 转 ready 后按规则审查合入;派发门槛回退(codec、MySQL store)。
 
-**已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)(WP-migration,D-B1–B4 等,`40d3e13c`)、[#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)(WP-ZK,E-B1 + B-N1,`a0104227`)。
+**已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)(WP-migration,D-B1–B4 等,`40d3e13c`)、[#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)(WP-ZK,E-B1 + B-N1,`a0104227`)、[#1348](https://github.com/Ahoo-Wang/CosId/pull/1348)(WP-release,E-B2/E-B3 等,`9de77578`)。
 
 **发布门槛:** run 40534275762 结论 **FAIL**(5/8 组),见 §4.2 #1357;D21 未满足,RC 阻断。
 

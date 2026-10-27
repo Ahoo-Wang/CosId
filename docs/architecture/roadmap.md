@@ -105,7 +105,7 @@ R0 骨架、接口冻结、4.x 基线基准
 
 ## 5. 进度
 
-> 更新于 2026-10-27。`main`(原 `5.x`)上已合入 32 个 PR;所有提交作者为 Ahoo Wang,提交说明为英文,不带 `Co-authored-by`。
+> 更新于 2026-10-27。`main`(原 `5.x`)上已合入 37 个 PR;所有提交作者为 Ahoo Wang,提交说明为英文,不带 `Co-authored-by`。
 
 ### 5.1 阶段
 
@@ -125,11 +125,11 @@ R0 骨架、接口冻结、4.x 基线基准
 | R4-A 远程服务与客户端 | ✅ 已合入 | [#1328](https://github.com/Ahoo-Wang/CosId/pull/1328) |
 | R4-B 集成适配器 | ✅ 已合入 | [#1327](https://github.com/Ahoo-Wang/CosId/pull/1327) |
 | R4-C 离线迁移工具 | ✅ 已合入 | [#1324](https://github.com/Ahoo-Wang/CosId/pull/1324) |
-| R5-A 发布门槛基准与特性验收 | 🔄 特性验收、稳定性、能力缺口、CI 发布门槛 workflow 均已合入([#1335](https://github.com/Ahoo-Wang/CosId/pull/1335)、[#1336](https://github.com/Ahoo-Wang/CosId/pull/1336)、[#1343](https://github.com/Ahoo-Wang/CosId/pull/1343));正式门槛运行中:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762) | |
+| R5-A 发布门槛基准与特性验收 | 🔄 特性验收、稳定性、能力缺口、CI 发布门槛 workflow 均已合入([#1335](https://github.com/Ahoo-Wang/CosId/pull/1335)、[#1336](https://github.com/Ahoo-Wang/CosId/pull/1336)、[#1343](https://github.com/Ahoo-Wang/CosId/pull/1343));正式门槛 [run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762)(修复合入前的 `614d5df9`)结论 **FAIL**:8 组中 5 组回退(主要是 codec、MySQL store),D21 未满足;分析在 [#1345](https://github.com/Ahoo-Wang/CosId/pull/1345) | |
 | R5-B 文档站、示例、迁移指南 | ✅ 分片 [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330)、README/skills [#1338](https://github.com/Ahoo-Wang/CosId/pull/1338)、示例 [#1333](https://github.com/Ahoo-Wang/CosId/pull/1333)、文档站 [#1337](https://github.com/Ahoo-Wang/CosId/pull/1337) | |
 | D29 integrations 按依赖拆分 | ✅ 已合入 | [#1334](https://github.com/Ahoo-Wang/CosId/pull/1334) |
 | D30 server API 去掉 `/v5` 前缀 | ✅ 已合入 | [#1332](https://github.com/Ahoo-Wang/CosId/pull/1332) |
-| RC 前全面审查 | ✅ 审查完成(10 个 BLOCKER),修复 PR #1347–#1353 等进行中:见 [rc-review.md](rc-review.md) | |
+| RC 前全面审查 | 🔄 审查完成(10 个 BLOCKER);已合入 [#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)、[#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)、[#1348](https://github.com/Ahoo-Wang/CosId/pull/1348)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)(BLOCKER 已解决 7 个:D-B1–B4、E-B1–B3);尚余 B-B1(#1355)、C-B1/C-B2(#1349),仍为 Draft。见 [rc-review.md](rc-review.md) | |
 | R6 发布 | ⏳ | |
 
 后续修复(已合入):`maxBatch` 默认值 [#1317](https://github.com/Ahoo-Wang/CosId/pull/1317)、Mongo 并发 upsert 与重复身份误报 [#1316](https://github.com/Ahoo-Wang/CosId/pull/1316)、
@@ -140,7 +140,7 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 | 里程碑 | 条件 | 状态 |
 |---|---|---|
 | `5.0.0-M1` | R2 + R3 合入,可编程使用 | 条件已满足,待决定是否发布 |
-| `5.0.0-RC1` | R4 全部合入 | 条件已满足,待决定是否发布 |
+| `5.0.0-RC1` | R4 全部合入;RC 审查的 BLOCKER 清零;发布门槛通过 | **受阻**:BLOCKER 余 3 个(B-B1、C-B1、C-B2),发布门槛 FAIL |
 | `5.0.0` | R5 全部通过,RC 无阻塞问题;分支改名已在 RC 前完成 | 未开始 |
 
 ### 5.3 进入 R5 前的遗留事项

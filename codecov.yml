@@ -5,14 +5,14 @@ coverage:
   status:
     patch:
       default:
-        target: 60%
+        target: 80%
         threshold: 1%
     project:
       default:
         target: 80%
         threshold: 1%
 ignore:
-  - "cosid-test/.*"
+  - "benchmark/.*"
   - "examples/.*"
-  - "cosid-benchmark/.*"
-  - "cosid-proxy-server/.*"
+  - "store/tck/.*"
+  - "build-logic/.*"

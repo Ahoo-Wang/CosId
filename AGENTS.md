@@ -1,115 +1,105 @@
 # AGENTS.md
 
-Workspace instructions for ZCode agents working in **CosId** — a universal, flexible, high-performance
-distributed ID generator for the JVM. Group `me.ahoo.cosid`, current version in `gradle.properties`.
+Workspace instructions for agents working in **CosId** — a universal, flexible, high-performance distributed ID
+generator for the JVM. Group `me.ahoo.cosid`, current version in `gradle.properties`.
+
+**This is the `5.x` branch: the clean-room 5.0 rewrite.** The design lives in [`docs/architecture/`](docs/architecture/README.md)
+(decisions D1–D24, one document per area) and the phases in [`docs/architecture/roadmap.md`](docs/architecture/roadmap.md).
+Read the documents of the area you touch before changing it; public API changes go to the design documents first.
+The 4.x code stays on `main` as reference: read it with `git show main:<path>` (e.g.
+`git show main:cosid-core/src/main/java/me/ahoo/cosid/snowflake/MillisecondSnowflakeId.java`). Nothing here is
+compatible with 4.x (D1); the offline migration tool (`migration/`, 09-migration.md) is the only bridge.
 
 ## Toolchain
 
-- **Java 17** (toolchain is pinned to 17 in the root `build.gradle.kts`; do not change). JDK 8 is supported only on 1.x.
-- **Spring Boot alignment:** 4.x (`main`) and 3.x (`3.x` branch) → Spring Boot 4.x. 2.x → Spring Boot 3.x. 1.x → Spring Boot 2.x / Java 8.
-- **Gradle (Kotlin DSL)** with version catalog at `gradle/libs.versions.toml`. Always use `./gradlew`, never a system `gradle`.
-- **Lombok** is used project-wide (`lombok.config` enables `addLombokGeneratedAnnotation`). Configure annotation processing in your IDE; Lombok-generated code is excluded from coverage.
-- Library modules are published with Javadoc + sources JARs and GPG signing (CI-only via `SIGNING_*` env vars). Publishing is triggered by GitHub release (`package-deploy.yml`).
+- **Java 21** toolchain (D3), set by the `cosid.java` convention plugin. Gradle finds an installed JDK 21 or provisions
+  one (foojay resolver in `settings.gradle.kts`); the Gradle daemon itself may run on 17+.
+- **Gradle (Kotlin DSL)**; always `./gradlew`. Versions live in `gradle/libs.versions.toml` only.
+- **No Lombok** (D13): `record` for values, explicit code otherwise, `LoggerFactory.getLogger` for logging.
+- `-parameters` is on for every module (Spring endpoints read parameter names): keep it.
 
 ## Common commands
 
 ```bash
-# Build + full verification (compile, checkstyle, spotbugs, test, jacoco) for one module
-./gradlew cosid-core:check
-./gradlew cosid-jdbc:check
+./gradlew check                                    # everything: compile, Checkstyle, SpotBugs, tests, JaCoCo,
+                                                   # dependency rules, build-logic tests
+./gradlew :core:check                              # one module (paths follow directories: :store:tck, :spring:starter)
+./gradlew :core:test --tests "me.ahoo.cosid.time.LayoutTest"
+./gradlew javadoc                                  # what publishing builds; doclint is on (missing comments allowed)
+./gradlew checkDependencyRules                     # the dependency direction rules alone
+./gradlew checkDependencyRules '-Pcosid.dependencyRules.probe=:core->:store:jdbc'   # negative check: must FAIL
 
-# Clean check (what CI runs per module)
-./gradlew cosid-core:clean cosid-core:check
-
-# Single test class / method
-./gradlew cosid-core:test --tests "me.ahoo.cosid.segment.DefaultSegmentIdTest"
-./gradlew cosid-core:test --tests "me.ahoo.cosid.segment.DefaultSegmentIdTest.shouldGenerate"
-
-# JMH benchmark (JMH plugin applied to every library project)
-./gradlew cosid-core:jmh
-./gradlew cosid-spring-redis:jmh                    # needs Redis on localhost:6379
-./gradlew cosid-jdbc:jmh                            # needs MySQL initialized
-
-# Aggregate coverage report
-./gradlew code-coverage-report:check
+benchmark/run-smoke [P5 P12 ...]                   # 4.x and 5.x back to back per scenario, then compare --smoke:
+                                                   # how a PR reports performance (paste build/benchmark-smoke/report.md)
+./gradlew :benchmark:baseline-4x:jmh               # JMH on the released 4.1.0 jars alone (smoke profile)
+./gradlew :benchmark:v5:jmh -PjmhProfile=release   # JMH on 5.x, release-gate settings; -PjmhIncludes=A,B narrows
+benchmark/compare BASELINE.json CANDIDATE.json --smoke
+python3 -I benchmark/compare_test.py               # tests of the compare script
 ```
 
-`check` runs **Checkstyle 9.2.1** (`config/checkstyle/checkstyle.xml`) and **SpotBugs**
-(`config/spotbugs/exclude.xml`) on every library project — failing these fails the build, so keep edits
-style-clean. Tests run on JUnit 5 (`useJUnitPlatform`); in CI (`CI=true`) flakes get up to 2 retries /
-20 failures via the `test-retry` plugin.
+`check` fails on any Checkstyle (`config/checkstyle/checkstyle.xml`, Checkstyle 10.x) or SpotBugs
+(`config/spotbugs/exclude.xml`) finding. In CI (`CI=true`) flaky tests get up to 2 retries via `test-retry`.
 
-## Module layout & architecture boundaries
+## Layout (02-modules.md §1)
 
-Root `settings.gradle.kts` includes all modules. Note several modules live under non-obvious directories:
+Directories carry no `cosid-` prefix (D2). The published artifactId is derived from the path by
+`build-logic/.../ArtifactIds.kt` (D11): `"cosid-" + path.replace('/', '-')`, `spring/*` → `cosid-spring-boot-*`,
+`extras/*` → `cosid-*` (so `extras/sharding` stays `cosid-sharding`).
 
-- `cosid-core` — core ID algorithms. **No Spring, no DB, no middleware deps, no Guava.** Contains `snowflake`, `segment` /
-  `SegmentChainId`, `machine` (MachineId leases), `converter`, `provider`, `stat`. Everything else depends on this.
-- `cosid-sharding` — the sharding algorithms (`ModCycle`, `IntervalTimeline`, `CachedSharding`), package `me.ahoo.cosid.sharding`.
-- `cosid-accessor` — id field accessors and the `@CosId` annotation, packages `me.ahoo.cosid.accessor` and `me.ahoo.cosid.annotation`.
-- `cosid-jdbc`, `cosid-spring-redis`, `cosid-zookeeper`, `cosid-mongo`, `cosid-spring-data-jdbc` — `IdSegmentDistributor`
-  / machine-state backends. Each typically `api(project(":cosid-core"))` + `testImplementation(project(":cosid-test"))`.
-- `cosid-spring-boot-starter` — Spring Boot autoconfiguration aggregator. Backend deps are wired as **Gradle feature
-  variants** (`springRedisSupportImplementation`, `jdbcSupportImplementation`, `proxySupportImplementation`, …). When
-  adding a backend, register a `registerFeature(...)` here and a corresponding optional starter dependency.
-- `proxy/` → `cosid-proxy-api`, `cosid-proxy`, `cosid-proxy-server` (paths remapped in `settings.gradle.kts`).
-- `examples/` → `cosid-example-*` (proxy, redis, redis-cosid, zookeeper).
-  Examples + `cosid-proxy-server` are excluded from publishing.
-- `cosid-bom`, `cosid-dependencies` — Gradle platform BOMs. `cosid-dependencies` is the central version catalog consumers
-  must `api(platform(...))`. **Add/upgrade dependency versions here**, not in individual modules.
-- `cosid-test`, `cosid-mod-test` — shared test infrastructure (excluded from coverage, see `codecov.yml`).
-- `cosid-jackson`, `cosid-mybatis`, `cosid-axon`, `cosid-activiti`, `cosid-flowable` — integration/adapter layers.
-- `cosid-benchmark` — JMH benchmarks (excluded from coverage).
+| Directory | Artifact | State |
+|---|---|---|
+| `core/` | `cosid-core` | R0: public API frozen; bodies throw `UnsupportedOperationException("R1-x")` until R1/R3 |
+| `store/tck/` | `cosid-store-tck` | R0: contract skeletons (`@Disabled`), `InMemoryStore`, fault injection types |
+| `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
+| `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
+| `benchmark/v5/` | not published | the same scenarios on 5.x |
+| `store/{jdbc,redis,mongo,zookeeper,remote}`, `server/`, `spring/{autoconfigure,starter}`, `integrations/`, `extras/sharding/`, `migration/`, `examples/` | | not created yet (R2–R5) |
+| `build-logic/` | — | included build: convention plugins and build rules (see below) |
+| `docs/architecture/` | — | the design; `docs/jmh/<version>/` benchmark results |
+| `documentation/` | — | the VitePress site, still 4.x content until R5-B |
 
-**Layer rule:** `cosid-core` must stay dependency-free of Spring and middleware. Backends depend on core; the starter
-depends on backends. Don't introduce core → backend or backend → starter cycles.
+To add a module: create the directory with a `build.gradle.kts` applying `cosid.library` (or `cosid.benchmark`),
+`include(":path:name")` in `settings.gradle.kts`, add it to `bom/` if published, and make sure a rule in
+`build-logic/src/main/kotlin/me/ahoo/cosid/gradle/DependencyRules.kt` covers it — a project without a rule fails the build.
+
+### core packages (02 §4)
+
+`me.ahoo.cosid` (generators, `GroupedId`, exceptions), `.codec`, `.time`, `.segment`, `.lease`, `.store`, `.runtime`,
+`.observe`, `.accessor` are exported by `core/src/main/java/module-info.java` (D12); `me.ahoo.cosid.internal.*` is not.
+Adding a package means deciding whether `module-info.java` exports it.
+
+## Build logic (`build-logic/`)
+
+- `cosid.java`: Java 21, `-parameters`, Checkstyle, SpotBugs, JaCoCo (XML reports for Codecov), JUnit 5 + Hamcrest,
+  Logback for tests, `-PtestJavaVersion=25` to run tests on another JDK.
+- `cosid.library`: `cosid.java` + sources/javadoc jars + Maven publication (`cosid.publish`).
+- `cosid.platform`: the BOM. `cosid.benchmark`: `cosid.java` + JMH (`me.champeau.jmh`) — JMH is applied nowhere else.
+- `cosid.root` (root project): `checkDependencyRules`, wired into `check` with build-logic's own tests.
+- **Dependency rules (02 §3)** are data in `DependencyRules.kt`, unit tested in `DependencyRulesTest.kt`: `core` depends
+  on `slf4j-api` only; `store/*`, `integrations`, `extras/*` on `core`; `store/tck` is a test-scope dependency for
+  everyone; nothing depends on `server`, `migration`, `examples` or `benchmark`; `benchmark/baseline-4x` depends on no
+  project at all (it shares the package `me.ahoo.cosid` with 5.x). Changing a rule means changing 02-modules.md first.
+- The Spring Boot compatibility matrix (`-PspringBootVersion`) returns with `spring/*` in R3-S, scoped to `spring/*`,
+  `server` and `integrations` (02 §5).
 
 ## Conventions
 
-- **Base package:** `me.ahoo.cosid.*`, mirrored under `src/main/java`/`src/test/java` per module.
-- **Every source file starts with the Apache 2.0 license header** (`config/checkstyle/java.header`). Checkstyle's `Header`
-  check enforces it on main, test and JMH Java sources, so add it to every new file.
-- **Logging:** SLF4J API only in library code (`org.slf4j:slf4j-api`); Logback is a test-only dependency. Use Lombok
-  `@Slf4j`. Test JVMs are launched with `-Dlogback.configurationFile=.../config/logback.xml`.
-- **Testing:** JUnit Jupiter + `junit-pioneer` + Hamcrest; shared helpers live in `cosid-test`. Prefer adding tests under
-  the same package in the module's `src/test/java`.
-- **Coverage gates** (`codecov.yml`): patch target 60%, project target 80%. `cosid-test`, `examples`, `cosid-benchmark`,
-  and `cosid-proxy-server` are ignored.
-- **Commit messages and PR titles** follow Conventional Commits (`feat(scope):`, `fix(deps):`, `chore(release): bump version ...`).
-  The `Pull Request Title` workflow enforces it; the `Pull Request Labeler` workflow labels PRs from the title type and changed files.
-  See `CONTRIBUTING.md`.
-  Releases are tagged `v<x.y.z>` and bump `version=` in `gradle.properties`.
+- **Base package** `me.ahoo.cosid.*`; tests in the same package under `src/test/java`.
+- **Every source file starts with the Apache 2.0 license header** (`config/checkstyle/java.header`); Checkstyle
+  enforces it on main, test and JMH sources (tests and JMH skip every other check).
+- **Logging:** SLF4J API only; Logback is test-only (`config/logback.xml`, `config/logback-jmh.xml`).
+- **Skeleton bodies** throw `UnsupportedOperationException("<phase>")` naming the phase that implements them; R0's
+  `URF_UNREAD_FIELD` SpotBugs exclusion goes once the constructors' fields are read.
+- **Coverage** (`codecov.yml`): patch and project targets 80%; `benchmark/`, `store/tck/`, `build-logic/` ignored.
+- **Commits and PR titles** follow Conventional Commits (`feat(core)!:`, `build!:`); PRs of 5.x phases target `5.x`.
 
 ## Gotchas
 
-- **Integration tests need live services:** the Redis, MySQL, PostgreSQL and MongoDB tests read
-  `COSID_TEST_REDIS_URI`, `COSID_TEST_MYSQL_URL`/`_USERNAME`/`_PASSWORD`, `COSID_TEST_POSTGRES_URL`/`_USERNAME`/`_PASSWORD`
-  and `COSID_TEST_MONGODB_URI`; without them they start the service with Docker, and are skipped when neither is
-  available. CI starts the services in `integration-test.yml` and checks that the contract tests ran. Scope to
-  a unit test class with `--tests` when no backend is at hand. The SQL Server tests (`*SqlServer*` in `cosid-jdbc`) run
-  only with `COSID_TEST_SQLSERVER_URL` or `COSID_TEST_SQLSERVER_ENABLED=true` (Testcontainers), in their own CI job.
-- **Other Spring Boot and Java versions:** `-PspringBootVersion=4.0.8` builds against another Boot (an enforced
-  platform on the build's classpaths, so a dependency's own Boot BOM cannot raise it), `-PtestJavaVersion=21`
-  runs the tests on another JDK (compilation stays on 17); the tests see them as `COSID_TEST_SPRING_BOOT_VERSION` and
-  `COSID_TEST_JAVA_VERSION`, and `SpringBootVersionTest` / `ProxyVirtualThreadsEndToEndTest` assert them. The
-  `cosid-compatibility-test` CI job runs the matrix. The
-  published metadata requires the versions of `spring-boot-minimum` (libs.versions.toml), never the build platform:
-  `checkPublishedMetadata` (part of `check`) fails otherwise.
-- **`-parameters` compiler flag is required** (set root-wide) — Spring Boot needs it for `CosIdEndpoint` parameter names; don't remove it.
-- **Tests open JDK internals:** test JVMs pass `--add-opens=java.base/java.util=ALL-UNNAMED` and `...java.lang=...`. If a
-  new test touches JDK internals, the existing flags already cover it.
-- **`cosid-skills-workspace/`** is git-ignored agent eval scratch space — don't treat it as product code.
-- Documentation sites: `document/` (VuePress, older, 3.x and earlier) and `documentation/` (VitePress, current at `cosid.ahoo.me`). UI/logo assets live under `documentation/docs/public/`.
-- **Site layout** (`documentation/docs/{en,zh}`, kept in sync page for page): `guide/introduction` and `getting-started`, `guide/concepts/`
-  (generators, machine id, converters, provider), `guide/backends/` (one page per store, `index` chooses), `guide/integrations/`,
-  `guide/operations/` (production checklist, rolling upgrade, monitoring, troubleshooting, FAQ), `guide/migration/`, and
-  `reference/config/` (every `cosid.*` property with its default, taken from the `*Properties` classes). When a page moves, add
-  its old path to `documentation/docs/.vitepress/theme/redirects.ts` and update both sidebars in `.vitepress/configs/`.
-  Build with `pnpm install && pnpm docs:build` in `documentation/`; the site deploys on every push to `main` touching `documentation/**`.
-
-## Further reading before sensitive changes
-
-- `documentation/docs/en/guide/concepts/` — design rationale for `SnowflakeId`, `SegmentId`, `SegmentChainId` and machine id leases.
-- `docs/MIGRATION-4.0.md` — every breaking change of 4.0; `docs/ROADMAP.md` — what each phase delivered.
-- Domain-specific skills are available and should be used for matching tasks: `cosid-spring-boot`, `cosid-sharding`,
-  `cosid-strategy-guide`, `cosid-manual-integration`.
+- **Benchmarks:** both benchmark projects use the same class and method names (`<Scenario>Benchmark.<op>_t<threads>`)
+  so `benchmark/compare` can match rows. PRs report `benchmark/run-smoke`, never a comparison with stored numbers:
+  smoke numbers from another time or a shared machine are noise. Results land in
+  `benchmark/*/build/results/jmh/results.json`; committed results go to `docs/jmh/<version>/` with the machine and JDK noted. The `v5` scenarios fail at setup until R1.
+- **Store integration tests** (R2) will follow the 4.x convention: `COSID_TEST_REDIS_URI`, `COSID_TEST_MYSQL_URL`/
+  `_USERNAME`/`_PASSWORD`, `COSID_TEST_POSTGRES_URL`/…, `COSID_TEST_MONGODB_URI`; Testcontainers otherwise; one CI job
+  per `store/*` module running the TCK.
+- `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.

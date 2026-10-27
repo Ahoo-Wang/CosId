@@ -24,16 +24,12 @@ gradle-app.setting
 # vscode
 .vscode
 
-# Node/VuePress dependencies and generated output
+# Node/VitePress dependencies and generated output
 node_modules/
-document/docs/.vuepress/dist/
 documentation/docs/public/javadoc/
 
 # Local runtime state
 **/cosid-machine-state/
-
-# Benchmark output
-cosid-benchmark/jmh-result.json
 
 # Local agent evaluation workspace
 cosid-skills-workspace/

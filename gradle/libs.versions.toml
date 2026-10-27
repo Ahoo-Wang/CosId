@@ -1,25 +1,15 @@
 [versions]
+# toolchain and code quality
+java = "21"
+checkstyle = "10.26.1"
 # libraries
-spring-boot = "4.1.2"
-# The lowest Spring Boot CosId supports and tests: the published metadata requires its versions, not the build's.
-spring-boot-minimum = "4.0.8"
-spring-cloud = "2025.1.4"
-jspecify = "1.0.1"
-coapi = "3.1.0"
-testcontainers = "2.0.5"
-guava = "33.7.2-jre"
-error-prone-annotations = "2.50.0"
-archunit = "1.5.1"
-mybatis = "3.5.19"
-mybatis-spring-boot = "4.1.0"
-mongodb = "5.13.0"
-junit-pioneer = "2.3.0"
-axon = "4.13.3"
-flowable = "8.0.0"
-activiti = "7.0.0.SR1"
-springdoc = "3.1.1"
+slf4j = "2.0.18"
+logback = "1.5.38"
+junit = "6.1.3"
 hamcrest = "3.0"
 jmh = "1.37"
+# The 4.x release the benchmarks compare against (D21, docs/architecture/10-performance-and-parity.md).
+cosid4 = "4.1.0"
 # plugins
 test-retry = "1.6.6"
 publish-plugin = "2.0.0"
@@ -27,30 +17,21 @@ jmh-plugin = "0.7.3"
 spotbugs = "6.5.13"
 
 [libraries]
-spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
-spring-cloud-dependencies = { module = "org.springframework.cloud:spring-cloud-dependencies", version.ref = "spring-cloud" }
-jspecify = { module = "org.jspecify:jspecify", version.ref = "jspecify" }
-coapi-bom = { module = "me.ahoo.coapi:coapi-bom", version.ref = "coapi" }
-axon-bom = { module = "org.axonframework:axon-bom", version.ref = "axon" }
-testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
-guava = { module = "com.google.guava:guava", version.ref = "guava" }
-archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
-error-prone-annotations = { module = "com.google.errorprone:error_prone_annotations", version.ref = "error-prone-annotations" }
-mybatis = { module = "org.mybatis:mybatis", version.ref = "mybatis" }
-mybatis-spring-boot-starter = { module = "org.mybatis.spring.boot:mybatis-spring-boot-starter", version.ref = "mybatis-spring-boot" }
-mongodb-driver-bom = { module = "org.mongodb:mongodb-driver-bom", version.ref = "mongodb" }
-springdoc-openapi-starter-webflux-ui = { module = "org.springdoc:springdoc-openapi-starter-webflux-ui", version.ref = "springdoc" }
-activiti-engine = { module = "org.activiti:activiti-engine", version.ref = "activiti" }
-activiti-spring-boot-starter = { module = "org.activiti:activiti-spring-boot-starter", version.ref = "activiti" }
-flowable-engine-common = { module = "org.flowable:flowable-engine-common", version.ref = "flowable" }
-flowable-spring = { module = "org.flowable:flowable-spring", version.ref = "flowable" }
-flowable-spring-boot-autoconfigure = { module = "org.flowable:flowable-spring-boot-autoconfigure", version.ref = "flowable" }
-junit-pioneer = { module = "org.junit-pioneer:junit-pioneer", version.ref = "junit-pioneer" }
+slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-jupiter-api = { module = "org.junit.jupiter:junit-jupiter-api" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
 hamcrest = { module = "org.hamcrest:hamcrest", version.ref = "hamcrest" }
-jmhCore = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
+jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
+cosid4-core = { module = "me.ahoo.cosid:cosid-core", version.ref = "cosid4" }
+cosid4-accessor = { module = "me.ahoo.cosid:cosid-accessor", version.ref = "cosid4" }
+# Gradle plugins used by the convention plugins in build-logic/
+spotbugs-gradle-plugin = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs" }
+jmh-gradle-plugin = { module = "me.champeau.jmh:jmh-gradle-plugin", version.ref = "jmh-plugin" }
+test-retry-gradle-plugin = { module = "org.gradle:test-retry-gradle-plugin", version.ref = "test-retry" }
+
 [plugins]
-test-retry = { id = "org.gradle.test-retry", version.ref = "test-retry" }
 publish = { id = "io.github.gradle-nexus.publish-plugin", version.ref = "publish-plugin" }
-jmh = { id = "me.champeau.jmh", version.ref = "jmh-plugin" }
-spotbugs = { id = "com.github.spotbugs", version.ref = "spotbugs" }

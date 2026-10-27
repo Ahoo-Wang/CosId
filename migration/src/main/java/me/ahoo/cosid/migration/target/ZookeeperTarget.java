@@ -17,8 +17,12 @@ import me.ahoo.cosid.migration.StoreLocation;
 import me.ahoo.cosid.migration.Zookeeper;
 
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.api.transaction.CuratorOp;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.Op;
+import org.apache.zookeeper.OpResult;
+import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.Stat;
 
 import java.nio.charset.StandardCharsets;
@@ -28,6 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * The 5.0 ZooKeeper store (06 §2.4): a range is the node {@code /cosid/range/{key}}, its data the decimal next value
@@ -40,6 +46,8 @@ public final class ZookeeperTarget implements TargetAdmin {
     static final String RANGES = "/cosid/range";
     static final String SLOTS = "/cosid/slot";
     private static final String SEALED = ":sealed";
+    /** Ops per read-only multi and per transaction. */
+    private static final int BATCH = 256;
     private final CuratorFramework client;
     private final boolean owned;
 
@@ -188,18 +196,14 @@ public final class ZookeeperTarget implements TargetAdmin {
             int count = 0;
             int live = 0;
             long minNextFloor = Long.MAX_VALUE;
-            for (int slot = 0; slot < limit; slot++) {
-                Stat stat = new Stat();
-                byte[] data;
-                try {
-                    data = client.getData().storingStatIn(stat).forPath(SLOTS + "/" + namespace + "/" + slot);
-                } catch (KeeperException.NoNodeException e) {
+            for (Node node : readAll(slotPaths(namespace, limit))) {
+                if (node.data() == null) {
                     continue;
                 }
                 count++;
-                Slot state = Slot.parse(data);
-                minNextFloor = Math.min(minNextFloor, state.nextFloor(stat.getMtime()));
-                if (state.held() && state.expiresAt(stat.getMtime()) >= now) {
+                Slot state = Slot.parse(node.data());
+                minNextFloor = Math.min(minNextFloor, state.nextFloor(node.stat().getMtime()));
+                if (state.held() && state.expiresAt(node.stat().getMtime()) >= now) {
                     live++;
                 }
             }
@@ -246,38 +250,84 @@ public final class ZookeeperTarget implements TargetAdmin {
             if (before.live() > 0) {
                 throw TargetAdmin.live(namespace, before.live());
             }
-            for (int slot = 0; slot < limit; slot++) {
-                raiseSlot(nsPath + "/" + slot, nextFloor);
-            }
+            raiseSlots(slotPaths(namespace, limit), nextFloor);
             return namespace(namespace).orElseThrow();
         });
     }
 
-    private void raiseSlot(String path, long nextFloor) throws Exception {
-        while (true) {
-            Stat stat = new Stat();
-            byte[] data;
-            try {
-                data = client.getData().storingStatIn(stat).forPath(path);
-            } catch (KeeperException.NoNodeException e) {
-                try {
-                    client.create().creatingParentsIfNeeded().forPath(path, Slot.free(nextFloor));
-                    return;
-                } catch (KeeperException.NodeExistsException exists) {
+    private static List<String> slotPaths(String namespace, int limit) {
+        List<String> paths = new ArrayList<>(limit);
+        for (int slot = 0; slot < limit; slot++) {
+            paths.add(SLOTS + "/" + namespace + "/" + slot);
+        }
+        return paths;
+    }
+
+    /**
+     * Creates the missing slot nodes and raises the others: one batched read, then transactions of versioned writes,
+     * read again when one lost a race.
+     */
+    private void raiseSlots(List<String> paths, long nextFloor) throws Exception {
+        for (int attempt = 1; ; attempt++) {
+            List<CuratorOp> writes = new ArrayList<>();
+            for (Node node : readAll(paths)) {
+                if (node.data() == null) {
+                    writes.add(client.transactionOp().create().forPath(node.path(), Slot.free(nextFloor)));
                     continue;
                 }
-            }
-            Slot slot = Slot.parse(data);
-            if (slot.nextFloor(stat.getMtime()) >= nextFloor && slot.number("nextFloor") >= nextFloor) {
-                return;
+                Slot slot = Slot.parse(node.data());
+                long mtime = node.stat().getMtime();
+                if (slot.nextFloor(mtime) < nextFloor || slot.number("nextFloor") < nextFloor) {
+                    writes.add(client.transactionOp().setData().withVersion(node.stat().getVersion()).forPath(node.path(), slot.raised(mtime, nextFloor)));
+                }
             }
             try {
-                client.setData().withVersion(stat.getVersion()).forPath(path, slot.raised(stat.getMtime(), nextFloor));
+                for (int from = 0; from < writes.size(); from += BATCH) {
+                    client.transaction().forOperations(writes.subList(from, Math.min(writes.size(), from + BATCH)));
+                }
                 return;
-            } catch (KeeperException.BadVersionException e) {
-                // changed meanwhile: read again
+            } catch (KeeperException.BadVersionException | KeeperException.NodeExistsException e) {
+                if (attempt >= 5) {
+                    throw e;
+                }
             }
         }
+    }
+
+    /** Reads nodes with read-only {@code multi} requests of {@value #BATCH} at most; a missing node has null data. */
+    private List<Node> readAll(List<String> paths) throws Exception {
+        ZooKeeper zooKeeper = client.getZookeeperClient().getZooKeeper();
+        List<Node> nodes = new ArrayList<>(paths.size());
+        for (int from = 0; from < paths.size(); from += BATCH) {
+            List<String> batch = paths.subList(from, Math.min(paths.size(), from + BATCH));
+            List<Op> ops = new ArrayList<>(batch.size());
+            batch.forEach(path -> ops.add(Op.getData(path)));
+            CompletableFuture<List<OpResult>> read = new CompletableFuture<>();
+            // A read-only multi is not atomic: it answers every op, a missing node with its own error.
+            zooKeeper.multi(ops, (rc, path, ctx, results) -> {
+                if (results != null && results.size() == ops.size()) {
+                    read.complete(results);
+                } else {
+                    read.completeExceptionally(KeeperException.create(KeeperException.Code.get(rc)));
+                }
+            }, null);
+            List<OpResult> results = read.get(30, TimeUnit.SECONDS);
+            for (int i = 0; i < batch.size(); i++) {
+                OpResult result = results.get(i);
+                if (result instanceof OpResult.GetDataResult data) {
+                    nodes.add(new Node(batch.get(i), data.getData(), data.getStat()));
+                } else if (result instanceof OpResult.ErrorResult error && error.getErr() == KeeperException.Code.NONODE.intValue()) {
+                    nodes.add(new Node(batch.get(i), null, null));
+                } else {
+                    throw new IllegalStateException("Reading " + batch.get(i) + " failed: " + result);
+                }
+            }
+        }
+        return nodes;
+    }
+
+    /** A node as read: null data and stat when it does not exist. */
+    private record Node(String path, byte[] data, Stat stat) {
     }
 
     private <T> T call(String operation, Work<T> work) {

@@ -31,6 +31,9 @@ key 与命名空间放在请求体中,不放在路径里,避免 `/` 需要编码
 - 服务端限制:`ttlMs ∈ [min, max]`、`size ≤ maxReserve`(默认 1e12)、`count ≤ maxCount`、单命名空间 key 数量上限(超出为 `429`);key 与命名空间做长度与字符集校验。
 - 阻塞操作在有界池上执行(默认 64 线程,队列 1024);满时返回 `503` 与 `Retry-After: 1`。
 - 参数错误返回 `400`,统一错误体 `{code, message}`。
+- R4-A 补充:renew / release 请求体带 `ownerKey`(ZooKeeper 的 release 需要比对);acquire 的 200 响应是扁平的租约加 `reason` 与 `duplicateOwnerKey`;
+  状态码 `422 range_exhausted`、`409 namespace_mismatch` / `slots_exhausted`(以 `code` 区分)、`501 seal_unsupported`(客户端返回 false)、`409 generator_disabled`;
+  `periodic` 端点只返回同一期的值,跨期时截断;新增 `limits.max-slot-limit`(默认 65536)与 `limits.max-tolerance`(默认 1m);限流指标 `cosid.server.call.rejections{reason}`。
 
 ## 3. 安全
 

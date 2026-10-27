@@ -184,8 +184,8 @@ cosid:
 
 | 集成 | 形式 |
 |---|---|
-| Jackson | `@AsString(codec = …)`:可以引用生成器名(使用其 codec),也可以内联 `radix` / `friendly`(含布局预设或位宽)/ `to-string`;同时提供序列化与反序列化 |
+| Jackson(仅 Jackson 3) | `@AsString(generator = "…")` 引用生成器的 codec,或 `@AsString(codec = Codec.X, …)` 内联 `radix` / `friendly` / `to-string`,二者互斥;同时提供序列化与反序列化 |
 | MyBatis | `Interceptor`,INSERT 前对实体或批量列表(`listKey` 可配置)调用 `IdFiller` |
 | Spring Data JDBC | `BeforeConvertCallback`,填充 `@Id` 与 `@CosId` 字段 |
 | Activiti / Flowable | 一个通用的 `IdGenerator` 适配器;生成器名来自 Spring 配置,非 Spring 环境回退到系统属性 `cosid.activiti` / `cosid.flowable` |
-| Axon | `IdentifierFactory`。Axon 通过 ServiceLoader 静态加载它,因此需要一个静态绑定点:由 `CosIdRuntime` 在启动时绑定、关闭时解绑。这是全项目唯一的静态状态,只存在于 `integrations` 中,文档写明;生成器名也可以通过系统属性 `cosid.axon` 指定 |
+| Axon | `IdentifierFactory`。Axon 通过 ServiceLoader 静态加载它,因此需要一个静态绑定点(全项目唯一的静态状态,只存在于 `integrations`):Spring 中随 `CosIdRuntime` Bean 绑定和解绑,非 Spring 用 `try (var b = CosIdIdentifierFactory.bind(runtime, name))`;未绑定时回退到 Axon 默认的 UUID 并告警一次。生成器名也可以通过系统属性 `cosid.axon` 指定 |

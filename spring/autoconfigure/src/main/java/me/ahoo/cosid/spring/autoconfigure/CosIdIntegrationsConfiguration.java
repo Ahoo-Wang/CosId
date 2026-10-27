@@ -15,13 +15,13 @@
 package me.ahoo.cosid.spring.autoconfigure;
 
 import me.ahoo.cosid.accessor.IdFiller;
-import me.ahoo.cosid.integrations.axon.CosIdIdentifierFactory;
-import me.ahoo.cosid.integrations.jackson.CosIdJacksonModule;
-import me.ahoo.cosid.integrations.jdbc.CosIdBeforeConvertCallback;
-import me.ahoo.cosid.integrations.mybatis.CosIdInterceptor;
-import me.ahoo.cosid.integrations.workflow.ActivitiIdGenerator;
-import me.ahoo.cosid.integrations.workflow.FlowableIdGenerator;
+import me.ahoo.cosid.activiti.ActivitiIdGenerator;
+import me.ahoo.cosid.axon.CosIdIdentifierFactory;
+import me.ahoo.cosid.flowable.FlowableIdGenerator;
+import me.ahoo.cosid.jackson.CosIdJacksonModule;
+import me.ahoo.cosid.mybatis.CosIdInterceptor;
 import me.ahoo.cosid.runtime.CosIdRuntime;
+import me.ahoo.cosid.spring.data.jdbc.CosIdBeforeConvertCallback;
 
 import org.springframework.beans.factory.config.DestructionAwareBeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -38,8 +38,9 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * The integrations of {@code cosid-integrations} (07-runtime-and-spring.md §5), each when its library and the module are
- * on the classpath:
+ * The integrations (07-runtime-and-spring.md §5, D29), each when its module ({@code cosid-jackson}, {@code cosid-mybatis},
+ * {@code cosid-spring-data-jdbc}, {@code cosid-activiti}, {@code cosid-flowable}, {@code cosid-axon}) and the classes it
+ * plugs into are on the classpath:
  * <ul>
  *   <li>Jackson: a {@link CosIdJacksonModule} of the runtime, so {@code @AsString(generator = ...)} works.</li>
  *   <li>MyBatis ({@code cosid.mybatis.enabled}, default on): the {@link CosIdInterceptor}, batch inserts under
@@ -54,7 +55,6 @@ import java.util.Map;
  * </ul>
  */
 @AutoConfiguration(after = CosIdAutoConfiguration.class)
-@ConditionalOnClass(name = "me.ahoo.cosid.integrations.TextIds")
 @ConditionalOnProperty(prefix = CosIdProperties.PREFIX, name = "enabled", havingValue = "true", matchIfMissing = true)
 public class CosIdIntegrationsConfiguration {
     static final String MYBATIS_ENABLED = "cosid.mybatis.enabled";
@@ -68,7 +68,7 @@ public class CosIdIntegrationsConfiguration {
     static final String AXON_GENERATOR = "cosid.axon.generator-name";
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = "tools.jackson.databind.JacksonModule")
+    @ConditionalOnClass(name = {"me.ahoo.cosid.jackson.CosIdJacksonModule", "tools.jackson.databind.JacksonModule"})
     static class Jackson {
         @Bean
         @ConditionalOnMissingBean
@@ -78,7 +78,7 @@ public class CosIdIntegrationsConfiguration {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = "org.apache.ibatis.plugin.Interceptor")
+    @ConditionalOnClass(name = {"me.ahoo.cosid.mybatis.CosIdInterceptor", "org.apache.ibatis.plugin.Interceptor"})
     @ConditionalOnProperty(name = MYBATIS_ENABLED, havingValue = "true", matchIfMissing = true)
     static class Mybatis {
         @Bean
@@ -89,7 +89,8 @@ public class CosIdIntegrationsConfiguration {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = "org.springframework.data.relational.core.mapping.event.BeforeConvertCallback")
+    @ConditionalOnClass(name = {"me.ahoo.cosid.spring.data.jdbc.CosIdBeforeConvertCallback",
+        "org.springframework.data.relational.core.mapping.event.BeforeConvertCallback"})
     @ConditionalOnProperty(name = JDBC_ENABLED, havingValue = "true")
     static class DataJdbc {
         @Bean
@@ -102,7 +103,7 @@ public class CosIdIntegrationsConfiguration {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = {"org.activiti.spring.boot.ProcessEngineConfigurationConfigurer", "org.activiti.engine.impl.cfg.IdGenerator"})
+    @ConditionalOnClass(name = {"me.ahoo.cosid.activiti.ActivitiIdGenerator", "org.activiti.spring.boot.ProcessEngineConfigurationConfigurer"})
     @ConditionalOnProperty(name = ACTIVITI_ENABLED, havingValue = "true", matchIfMissing = true)
     static class Activiti {
         @Bean
@@ -113,7 +114,7 @@ public class CosIdIntegrationsConfiguration {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = {"org.flowable.spring.boot.EngineConfigurationConfigurer", "org.flowable.spring.SpringProcessEngineConfiguration"})
+    @ConditionalOnClass(name = {"me.ahoo.cosid.flowable.FlowableIdGenerator", "org.flowable.spring.boot.EngineConfigurationConfigurer"})
     @ConditionalOnProperty(name = FLOWABLE_ENABLED, havingValue = "true", matchIfMissing = true)
     static class Flowable {
         @Bean
@@ -125,7 +126,7 @@ public class CosIdIntegrationsConfiguration {
     }
 
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = "org.axonframework.common.IdentifierFactory")
+    @ConditionalOnClass(name = {"me.ahoo.cosid.axon.CosIdIdentifierFactory", "org.axonframework.common.IdentifierFactory"})
     static class Axon {
         @Bean
         static AxonBinder cosIdAxonBinder() {

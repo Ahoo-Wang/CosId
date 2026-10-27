@@ -39,7 +39,7 @@ import java.util.Optional;
  * ({@code COSID_TEST_REDIS_URI} when set, AGENTS.md), a primary with one replica, and a three-primary Redis Cluster.
  */
 final class RedisServers {
-    static final DockerImageName IMAGE = DockerImageName.parse(System.getProperty("cosid.test.redis.image", "redis:7.4-alpine"));
+    static final DockerImageName IMAGE = DockerImageName.parse(System.getProperty("cosid.test.redis.image", "redis:8.10-alpine"));
     static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final int PORT = 6379;
     private static final List<Integer> CLUSTER_PORTS = List.of(7000, 7001, 7002);

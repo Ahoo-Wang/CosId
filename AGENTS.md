@@ -114,5 +114,5 @@ Adding a package means deciding whether `module-info.java` exports it.
   is the store or client clock. `core` tests may use `store/tck` (test scope).
 - **Redis store tests** (`store/redis`) start a primary with a replica and a three-primary cluster in Testcontainers even
   when `COSID_TEST_REDIS_URI` is set (it covers standalone only); the cluster's node addresses are mapped to the published
-  ports by a `MappingSocketAddressResolver`. `-Pcosid.test.redis.image=redis:6.2-alpine` runs them on another Redis.
+  ports by a `MappingSocketAddressResolver`. `-Pcosid.test.redis.image=redis:7.0-alpine` runs them on another Redis (minimum 7.0, D27; default the latest 8.x).
 - `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.

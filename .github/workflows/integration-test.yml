@@ -80,7 +80,7 @@ jobs:
         run: scripts/gradle-retry.sh :store:mongo:check
 
   # R2-Redis: the TCK on standalone Redis (the service, COSID_TEST_REDIS_URI), a primary with a replica (WAIT) and a
-  # three-primary Redis Cluster (Testcontainers), on the oldest supported and a current Redis; checkContractsRan fails
+  # three-primary Redis Cluster (Testcontainers), on the minimum (7.0, D27) and the latest 8.x; checkContractsRan fails
   # the job if the contract cases did not run.
   store-redis:
     name: Store Redis TCK (Redis ${{ matrix.redis }})
@@ -88,7 +88,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        redis: [ '6.2', '7.4' ]
+        redis: [ '7.0', '8.10' ]
     services:
       redis:
         image: redis:${{ matrix.redis }}-alpine

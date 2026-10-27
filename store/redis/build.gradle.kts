@@ -27,7 +27,7 @@ dependencies {
 tasks.test {
     // Standalone tests use COSID_TEST_REDIS_URI when set (AGENTS.md), Testcontainers otherwise; the replica and
     // cluster tests always use Testcontainers.
-    systemProperty("cosid.test.redis.image", providers.gradleProperty("cosid.test.redis.image").getOrElse("redis:7.4-alpine"))
+    systemProperty("cosid.test.redis.image", providers.gradleProperty("cosid.test.redis.image").getOrElse("redis:8.10-alpine"))
 }
 
 // The contracts really ran against Redis (roadmap R2): a run that skipped them fails, as in store/tck.

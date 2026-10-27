@@ -2,7 +2,7 @@
 
 The Redis store of CosId 5 ([06-stores.md §2.2](../../docs/architecture/06-stores.md)): `RangeStore` and
 `SlotLeaseStore` as Lua scripts, run through the minimal `RedisScripts` interface. It depends on `cosid-core` and
-`lettuce-core` only; the Spring Data adapter lives in `spring/autoconfigure`. Redis 6 or later.
+`lettuce-core` only; the Spring Data adapter lives in `spring/autoconfigure`. Redis 7.0 or later (D27).
 
 ## Durability precondition
 
@@ -60,4 +60,4 @@ and sorted set operations, O(log n), never a scan. The store clock is `TIME` ins
 
 `./gradlew :store:redis:check` runs the TCK on standalone Redis (`COSID_TEST_REDIS_URI` when set, Testcontainers
 otherwise), on a primary with one replica (`WAIT`) and on a three-primary Redis Cluster (Testcontainers), then
-`checkContractsRan`. `-Pcosid.test.redis.image=redis:6.2-alpine` picks another image.
+`checkContractsRan`. `-Pcosid.test.redis.image=redis:7.0-alpine` picks another image (default: the latest 8.x).

@@ -36,7 +36,7 @@ local function encode(row)
                          num(row.ceiling), num(row.nextFloor)}, '|')
 end
 
--- The store clock (05 §3): Redis 6+ replicates script effects, so TIME is safe in a writing script.
+-- The store clock (05 §3): Redis 7 replicates script effects only, so TIME is safe in a writing script.
 local function nowMillis()
     local time = redis.call('TIME')
     return tonumber(time[1]) * 1000 + math.floor(tonumber(time[2]) / 1000)

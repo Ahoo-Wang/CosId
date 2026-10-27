@@ -66,32 +66,39 @@ python3 -I benchmark/compare_test.py                 # the tests of compare
 ```
 
 Results land in `build/results/jmh/results.json` of each project. `docs/jmh/4.1.0/` keeps a reference smoke run of
-4.x (P5 and P12 pending a clean rerun); it is for reading, not for gating. The release gate (10 §1.3) runs both sides
-with `-PjmhProfile=release` on one fixed physical machine, one JDK 21 patch release, turbo off, one after the other,
-and stores the JSON and the report under `docs/jmh/5.0/`: that is `benchmark/run-release`, below.
+4.x (P5 and P12 pending a clean rerun); it is for reading, not for gating. The release gate (10 §1.3) runs on CI, never
+on a developer machine: below.
 
-## The release gate (R5-A)
+## The release gate (R5-A): the `Release Gate` workflow
 
-```bash
-benchmark/run-release                    # every scenario P1..P12, release settings, into docs/jmh/5.0/
-benchmark/run-release --dry-run P5 P12   # the pipeline in minutes with smoke settings, into build/benchmark-release-dry
-```
+The workflow (`.github/workflows/release-gate.yml`, run by hand with a `ref`, default `main`) measures one commit in
+eight jobs, one per scenario group: `snowflake` (P1–P4), `segment` (P5, P6, P8), `codec-filler` (P9, P12),
+`spring-start` (P11), and one per store for P7 / P10 — `mysql` (MySQL 8.4), `redis` (Redis 7), `mongo` (a MongoDB 7.0
+single-node replica set) and `zookeeper` (ZooKeeper 3.9), each starting only its own store, so no other container
+shares the runner. Every job uses the same pinned JDK 21 patch release (Temurin, `JAVA_VERSION` in the workflow; the
+Gradle toolchain may use no other) and runs `benchmark/run-release` on its group, so 4.1.0 and 5.x of a scenario run
+one after the other on the same runner.
 
-`run-release` is `run-smoke --release` over all twelve scenarios (4.x then 5.x per scenario class) with three guards:
-it records the machine (CPU, cores, memory, OS, frequency scaling), the JDK, JMH and the commit before anything runs;
-it refuses to start when the stores of P7 / P10 do not answer (MySQL, Redis, MongoDB as above; ZooKeeper runs in
-process); and it aborts (status 3) when the 1-minute load average is above 1.5 (`--max-load`) before any scenario
-class, so a result never comes from a loaded machine. It writes `baseline-4x.json`, `v5.json` (local paths shortened)
-and `report.md` (the machine, the load before each scenario, then the `compare` table) to `docs/jmh/5.0/`; the run
-logs stay in `build/benchmark-release/`. The whole set takes about three hours. Stop everything else on the machine
-first, and start only the stores the scenarios need:
+`run-release` is `run-smoke --release` (3 forks, 5 x 2 s warmup, 5 x 2 s measurement, `-prof gc`) with these steps:
 
-```bash
-docker run -d --name cosid-bench-mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=cosid_db -p 3306:3306 mysql:8.4
-docker run -d --name cosid-bench-redis -p 6379:6379 redis:8.10-alpine
-docker run -d --name cosid-bench-mongo -p 27017:27017 mongo:7.0 --replSet rs0 && sleep 5 && \
-  docker exec cosid-bench-mongo mongosh --quiet --eval 'rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]})'
-```
+- It records the runner (CPU model, cores, memory, OS, image), the JDK, JMH and the commit.
+- It refuses to start when a store the group needs does not answer.
+- **Runners are shared virtual machines**, so on CI (`CI=true`, or `--rerun`) a row that fails runs once more, both
+  sides again in fresh forks (`compare --failed` lists the rows, `compare --rerun` judges them on that re-run alone).
+  A row that failed passes only if its re-run passes; the report shows both runs.
+- Outside CI it still aborts (status 3) when the 1-minute load average is above 1.5 before a scenario; on CI the load
+  of a runner says nothing about its neighbours, so that check is off.
+
+The `Report` job joins the groups with `benchmark/aggregate-release` into one `report.md` (a table of the groups and
+their runners, then each group's comparison), `baseline-4x.json`, `v5.json`, the re-run JSON, and `baseline-4x.md`
+(the 4.1.0 side alone), uploaded as the `release-gate-report` artifact. Run with `publish = true`, it opens a PR that
+commits the report to `docs/jmh/5.0/` and the 4.1.0 side to `docs/jmh/4.1.0/release-ci.{json,md}` (the clean 4.1.0
+baseline, L1). A FAIL row is published too, for review: investigate it, fix a real regression, and run the gate again.
+
+A push to a `release-gate-check/**` branch runs the same pipeline with smoke settings and re-runs every row
+(`COSID_RELEASE_RERUN_ALL=true`), to check the workflow and the scripts; it is never a result.
+`benchmark/run-release --dry-run CodecBenchmark` checks the script locally in a minute or two, likewise never a
+result.
 
 ### P7 / P10 on JDBC (R2-JDBC)
 

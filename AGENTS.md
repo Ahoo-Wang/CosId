@@ -33,8 +33,8 @@ benchmark/run-smoke [P5 P12 ...]                   # 4.x and 5.x back to back pe
                                                    # how a PR reports performance (paste build/benchmark-smoke/report.md)
 ./gradlew :benchmark:baseline-4x:jmh               # JMH on the released 4.1.0 jars alone (smoke profile)
 ./gradlew :benchmark:v5:jmh -PjmhProfile=release   # JMH on 5.x, release-gate settings; -PjmhIncludes=A,B narrows
-benchmark/run-release [--dry-run] [P1 ...]       # the release gate: all of P1..P12, release settings, load guard,
-                                                   # machine info; writes docs/jmh/5.0/ (see benchmark/scenarios.md)
+benchmark/run-release --dry-run CodecBenchmark   # check the release-gate script; the gate itself runs only on CI:
+                                                   # the Release Gate workflow (benchmark/scenarios.md), never locally
 benchmark/compare BASELINE.json CANDIDATE.json --smoke
 python3 -I benchmark/compare_test.py               # tests of the compare script
 ```

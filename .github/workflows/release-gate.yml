@@ -1,0 +1,227 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The release gate of D21 (10-performance-and-parity.md §1.3): every scenario P1..P12, 4.1.0 against 5.x. Each scenario
+# group is a job of its own; within a job benchmark/run-release runs both sides on the same runner, interleaved per
+# scenario, and re-runs a failed row once in fresh forks (runners are shared machines). The report job joins the groups;
+# with publish = true it opens a PR that commits the report to docs/jmh/5.0/ and the 4.1.0 side to docs/jmh/4.1.0/.
+# A push to a release-gate-check/** branch runs the whole pipeline with smoke settings, re-running every row, to check
+# the workflow itself; that is never a result.
+name: Release Gate
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or commit to measure'
+        default: 'main'
+      publish:
+        description: 'Open a PR with the report under docs/jmh/'
+        type: boolean
+        default: false
+  push:
+    branches:
+      - 'release-gate-check/**'
+permissions:
+  contents: read
+env:
+  # One JDK 21 patch release for every group (10 §1.3).
+  JAVA_VERSION: '21.0.13'
+  DRY_RUN: ${{ github.event_name == 'push' }}
+
+jobs:
+  # Every group measures the same commit, even when the ref moves during the run.
+  resolve:
+    name: Resolve the commit
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+      - id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  gate:
+    name: Gate ${{ matrix.group }}
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      # The scenario groups; the store groups start only the store they measure, so no other container shares the runner.
+      matrix:
+        include:
+          - group: snowflake
+            scenarios: P1 P2 P3 P4
+          - group: segment
+            scenarios: P5 P6 P8
+          - group: codec-filler
+            scenarios: P9 P12
+          - group: spring-start
+            scenarios: P11
+          - group: mysql
+            scenarios: MySqlChainIdBenchmark MySqlStoreBenchmark
+            store: mysql
+          - group: redis
+            scenarios: RedisChainIdBenchmark RedisStoreBenchmark
+            store: redis
+          - group: mongo
+            scenarios: MongoStoreBenchmark
+            store: mongo
+          - group: zookeeper
+            scenarios: ZookeeperStoreBenchmark
+            store: zookeeper
+    env:
+      COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
+      COSID_TEST_MYSQL_USERNAME: root
+      COSID_TEST_MYSQL_PASSWORD: root
+      COSID_TEST_REDIS_URI: redis://localhost:6379
+      COSID_BENCHMARK_MONGODB_URI: mongodb://localhost:27017/?replicaSet=rs0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v6
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: gradle
+
+      # The runner image has other JDK 21 builds: the toolchain may use only the pinned one, and never download one.
+      - name: Pin the toolchain
+        run: |
+          mkdir -p ~/.gradle
+          printf '%s\n' 'org.gradle.java.installations.auto-detect=false' 'org.gradle.java.installations.auto-download=false' \
+            "org.gradle.java.installations.paths=$JAVA_HOME" >> ~/.gradle/gradle.properties
+
+      - name: Start MySQL 8.4
+        if: matrix.store == 'mysql'
+        run: |
+          docker run -d --name mysql -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=cosid_db -p 3306:3306 mysql:8.4
+          for i in $(seq 1 90); do docker exec mysql mysqladmin ping -h 127.0.0.1 -proot --silent && break; sleep 2; done
+
+      - name: Start Redis 7
+        if: matrix.store == 'redis'
+        run: |
+          docker run -d --name redis -p 6379:6379 redis:7.4-alpine
+          for i in $(seq 1 30); do docker exec redis redis-cli ping | grep -q PONG && break; sleep 1; done
+
+      - name: Start a MongoDB single-node replica set
+        if: matrix.store == 'mongo'
+        run: |
+          docker run -d --name mongo -p 27017:27017 mongo:7.0 --replSet rs0 --bind_ip_all
+          for i in $(seq 1 60); do docker exec mongo mongosh --quiet --eval 'db.runCommand({ping: 1}).ok' && break; sleep 2; done
+          docker exec mongo mongosh --quiet --eval 'rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]})'
+          for i in $(seq 1 60); do docker exec mongo mongosh --quiet --eval 'db.hello().isWritablePrimary' | grep -q true && break; sleep 2; done
+
+      - name: Start ZooKeeper 3.9
+        if: matrix.store == 'zookeeper'
+        run: |
+          docker run -d --name zookeeper -p 2181:2181 zookeeper:3.9
+          for i in $(seq 1 60); do docker exec zookeeper zkServer.sh status && break; sleep 2; done
+          echo "COSID_BENCH_ZOOKEEPER_CONNECT=localhost:2181" >> "$GITHUB_ENV"
+
+      - name: Run ${{ matrix.scenarios }}
+        id: run
+        run: |
+          args=(--out "build/release-gate/${{ matrix.group }}")
+          if [ "$DRY_RUN" = true ]; then args+=(--dry-run); export COSID_RELEASE_RERUN_ALL=true; fi
+          status=0
+          benchmark/run-release "${args[@]}" ${{ matrix.scenarios }} || status=$?
+          cat "build/release-gate/${{ matrix.group }}/report.md" >> "$GITHUB_STEP_SUMMARY" || true
+          # The verdict is the report job's: a FAIL row is a result, not a broken job.
+          [ "$status" -le 1 ]
+
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-gate-${{ matrix.group }}
+          path: build/release-gate/${{ matrix.group }}
+          retention-days: 90
+
+  report:
+    name: Report
+    needs: [ resolve, gate ]
+    if: always() && needs.resolve.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+
+      - name: Download the groups
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-gate-*
+          path: build/release-gate
+
+      - name: Join the groups
+        id: join
+        run: |
+          groups=()
+          for dir in build/release-gate/release-gate-*; do
+            group="build/release-gate/groups/${dir##*/release-gate-}"
+            mkdir -p "$(dirname "$group")" && mv "$dir" "$group"
+            groups+=("$group")
+          done
+          status=0
+          benchmark/aggregate-release build/release-gate/report "${groups[@]}" || status=$?
+          cat build/release-gate/report/report.md >> "$GITHUB_STEP_SUMMARY"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the report
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-gate-report
+          path: build/release-gate/report
+          retention-days: 90
+
+      # The report goes in as a PR, never straight onto a branch; a FAIL is published too, for review.
+      - name: Open a PR with the report
+        if: inputs.publish && github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.resolve.outputs.sha }}
+          STATUS: ${{ steps.join.outputs.status }}
+        run: |
+          report=build/release-gate/report
+          mkdir -p docs/jmh/5.0 docs/jmh/4.1.0
+          cp "$report"/report.md "$report"/baseline-4x.json "$report"/v5.json docs/jmh/5.0/
+          cp "$report"/rerun-*.json docs/jmh/5.0/ 2>/dev/null || true
+          cp "$report"/baseline-4x.json docs/jmh/4.1.0/release-ci.json
+          cp "$report"/baseline-4x.md docs/jmh/4.1.0/release-ci.md
+          branch="release-gate/run-${GITHUB_RUN_ID}"
+          git switch -c "$branch"
+          git config user.name 'Ahoo Wang'
+          git config user.email 'ahoowang@gmail.com'
+          git add docs/jmh
+          verdict=$([ "$STATUS" = 0 ] && echo PASS || echo FAIL)
+          git commit -m "docs(jmh): release gate report for ${SHA:0:8} (${verdict})" \
+            -m "Run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} of the Release Gate workflow: the 5.0 report under docs/jmh/5.0/ and the 4.1.0 side as the refreshed baseline under docs/jmh/4.1.0/."
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title "docs(jmh): release gate report for ${SHA:0:8} (${verdict})" \
+            --body "Release gate run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} on ${SHA}: **${verdict}**. See docs/jmh/5.0/report.md."
+
+      - name: Fail on a FAIL row
+        if: steps.join.outputs.status != '0'
+        run: exit 1

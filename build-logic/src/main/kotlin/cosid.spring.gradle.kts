@@ -15,8 +15,8 @@
 //
 // - The Spring Boot BOM manages this project's build classpaths only: it is never published, so an application keeps
 //   the versions of its own Boot. Dependencies other projects of this build see carry explicit versions instead.
-// - The published metadata requires the versions of the lowest supported Boot (spring-boot-minimum), and
-//   checkPublishedMetadata (run by check) fails when a dependency has no version or the BOM leaks into it.
+// - The published metadata requires the versions of the lowest supported Boot (spring-boot-minimum);
+//   checkPublishedMetadata (cosid.library, run by check) fails when a dependency has no version or the BOM leaks into it.
 // - The compatibility matrix: -PspringBootVersion=4.0.8 builds and tests on another Boot (an enforced platform, so a
 //   higher BOM a dependency brings loses); -PtestJavaVersion (cosid.java) runs the tests on another JDK.
 plugins {
@@ -76,53 +76,4 @@ publishing {
             }
         }
     }
-}
-
-// The published metadata carries a version for every dependency and none of the build's platforms.
-val checkPublishedMetadata = tasks.register("checkPublishedMetadata") {
-    group = "verification"
-    description = "Fails when the published metadata has a dependency without a version or imports the build's Spring Boot BOM."
-    val metadata = tasks.named("generateMetadataFileForMavenLibraryPublication")
-    val pom = tasks.named("generatePomFileForMavenLibraryPublication")
-    dependsOn(metadata, pom)
-    val moduleFile = layout.buildDirectory.file("publications/mavenLibrary/module.json")
-    val pomFile = layout.buildDirectory.file("publications/mavenLibrary/pom-default.xml")
-    val projectName = project.path
-    doLast {
-        @Suppress("UNCHECKED_CAST")
-        val module = groovy.json.JsonSlurper().parse(moduleFile.get().asFile) as Map<String, Any?>
-        val problems = mutableListOf<String>()
-        @Suppress("UNCHECKED_CAST")
-        (module["variants"] as List<Map<String, Any?>>).forEach { variant ->
-            @Suppress("UNCHECKED_CAST")
-            (variant["dependencies"] as List<Map<String, Any?>>? ?: emptyList()).forEach { dependency ->
-                val coordinates = "${dependency["group"]}:${dependency["module"]}"
-                if (dependency["version"] == null) {
-                    problems += "${variant["name"]}: $coordinates has no version"
-                }
-                @Suppress("UNCHECKED_CAST")
-                val category = (dependency["attributes"] as Map<String, Any?>?)?.get("org.gradle.category")
-                if (category == "platform" && dependency["module"] == "spring-boot-dependencies") {
-                    problems += "${variant["name"]}: the build platform $coordinates is published"
-                }
-            }
-        }
-        val pomText = pomFile.get().asFile.readText()
-        if (pomText.contains("<artifactId>spring-boot-dependencies</artifactId>")) {
-            problems += "pom: imports the build platform"
-        }
-        val document = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(pomFile.get().asFile)
-        val dependencies = document.getElementsByTagName("dependency")
-        for (index in 0 until dependencies.length) {
-            val dependency = dependencies.item(index) as org.w3c.dom.Element
-            fun child(name: String) = dependency.getElementsByTagName(name).item(0)?.textContent?.trim()
-            if (child("version").isNullOrEmpty()) {
-                problems += "pom: ${child("groupId")}:${child("artifactId")} has no version"
-            }
-        }
-        check(problems.isEmpty()) { "Published metadata of $projectName:\n" + problems.joinToString("\n") }
-    }
-}
-tasks.named("check") {
-    dependsOn(checkPublishedMetadata)
 }

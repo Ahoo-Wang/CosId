@@ -18,6 +18,7 @@ import me.ahoo.cosid.store.StoreConfig;
 
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
+import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.internal.HostAndPort;
 import io.lettuce.core.resource.ClientResources;
@@ -33,6 +34,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * The Redis servers of the tests, started once per test JVM and left to Testcontainers to remove: standalone
@@ -43,6 +47,9 @@ final class RedisServers {
     static final Duration TIMEOUT = Duration.ofSeconds(10);
     private static final int PORT = 6379;
     private static final List<Integer> CLUSTER_PORTS = List.of(7000, 7001, 7002);
+    /** {@code slave0:ip=…,port=…,state=online,offset=…,lag=…} of {@code INFO replication} on the primary. */
+    private static final Pattern REPLICA = Pattern.compile("slave0:.*?state=(\\w+),offset=(\\d+)");
+    private static final Pattern PRIMARY_OFFSET = Pattern.compile("master_repl_offset:(\\d+)");
 
     private static String standaloneUri;
     private static RedisClient standalone;
@@ -135,13 +142,16 @@ final class RedisServers {
 
     /** A primary with one replica. */
     record Replicated(GenericContainer<?> primaryContainer, GenericContainer<?> replicaContainer, RedisClient primary, RedisClient replica) {
-        /** Waits until the replica is online: connected and through its first sync, so it acknowledges writes. */
+        /**
+         * Waits until the replica acknowledges writes: it is {@code state=online} (through its first sync), its offset
+         * has caught up with the primary's, and a probe write on the primary is acknowledged by {@code WAIT 1}.
+         */
         void awaitInSync() {
             long deadline = System.nanoTime() + Duration.ofMinutes(1).toNanos();
-            try (var connection = primary.connect()) {
-                while (!connection.sync().info("replication").contains("state=online")) {
+            try (StatefulRedisConnection<String, String> connection = primary.connect()) {
+                while (!acknowledges(connection)) {
                     if (System.nanoTime() > deadline) {
-                        throw new AssertionError("The replica did not connect");
+                        throw new AssertionError("The replica did not get in sync: " + connection.sync().info("replication"));
                     }
                     Thread.sleep(100);
                 }
@@ -149,6 +159,18 @@ final class RedisServers {
                 Thread.currentThread().interrupt();
                 throw new AssertionError(e);
             }
+        }
+
+        private static boolean acknowledges(StatefulRedisConnection<String, String> connection) {
+            String info = connection.sync().info("replication");
+            Matcher replica = REPLICA.matcher(info);
+            Matcher primaryOffset = PRIMARY_OFFSET.matcher(info);
+            if (!replica.find() || !"online".equals(replica.group(1)) || !primaryOffset.find()
+                || Long.parseLong(replica.group(2)) < Long.parseLong(primaryOffset.group(1))) {
+                return false;
+            }
+            connection.sync().set("cosid-test:sync", UUID.randomUUID().toString());
+            return connection.sync().waitForReplication(1, 1000) >= 1;
         }
     }
 }

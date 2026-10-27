@@ -14,6 +14,7 @@
 package me.ahoo.cosid.runtime;
 
 import me.ahoo.cosid.codec.IdCodec;
+import me.ahoo.cosid.internal.ClassNameCodecs;
 import me.ahoo.cosid.observe.GeneratorListener;
 import me.ahoo.cosid.store.StoreProvider;
 import me.ahoo.cosid.time.TimeSource;
@@ -66,6 +67,6 @@ public record RuntimeOptions(TimeSource time,
      */
     public static RuntimeOptions defaults() {
         return new RuntimeOptions(TimeSource.SYSTEM, Optional.empty(), GeneratorListener.NOOP, List.of(), Map.of(),
-            HostResolver.LOCAL, OptionalInt.empty(), reference -> Optional.empty());
+            HostResolver.LOCAL, OptionalInt.empty(), ClassNameCodecs::resolve);
     }
 }

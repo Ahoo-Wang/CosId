@@ -246,9 +246,11 @@ public final class PeriodicSegmentGenerator implements AutoCloseable {
     }
 
     /**
-     * The period being issued, for tests and {@code describe()}.
+     * The period being issued, for {@code describe()}.
+     *
+     * @return the period key, empty before the first id
      */
-    String currentPeriod() {
+    public String currentPeriod() {
         return active.period();
     }
 

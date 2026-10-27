@@ -43,6 +43,13 @@ public final class CosIdRuntime implements AutoCloseable {
 - 机器槽位按需启用:存在时间型生成器但未配置 `machine` 时启动失败,并给出明确的错误信息;没有时间型生成器时不建立租约。
 - 启动顺序:打开存储 → 取得槽位 → 创建生成器 → 返回。任何一步失败都会回滚已创建的部分。
 - 生成器集合在启动时确定(D17),没有全局单例,一个 JVM 中可以有多个互不影响的运行时,每个运行时有自己的 incarnation。
+- R3 确定的细节:
+  - 禁用生成器表示为 `GeneratorSpec.Disabled(spec)`,保留原 spec 以便 Spring 知道其 Bean 类型;被禁用的生成器不校验,也不需要 machine 或存储。
+  - 只打开被启用的生成器与 machine 实际引用的存储。
+  - 生成器名不能含 `/`,避免与周期号段的 key 冲突。
+  - 校验错误汇总为一个 `CosIdException`,逐行列出;启动步骤中的其他异常保留 cause 后包装。
+  - codec 列表为空时使用十进制;转成文本的项(Radix / Friendly / Custom / Instance)只能放在第一位,修饰项放在第一位时作用于十进制。
+  - cosid80 与周期号段不提供 `generator` / `stringGenerator` 视图,文本 ID 经 `PartsCodec` / `GroupedCodec` 获得;`IdFiller` 的 `String` 字段自动使用它们。
 
 ### 1.1 ownerKey 推导(沿用 4.x 的 instance-id 规则)
 

@@ -122,6 +122,10 @@ public interface RedisScripts {
 - 区间:znode `/cosid/range/{key}`,数据为 `next`(以及封存标记);用版本化 `setData` 实现 CAS,不存在时 `create`,遇到 `NodeExists` 重试。
 - 槽位:`/cosid/slot/{ns}/{slot}`,数据为 `{ownerKey, incarnation, lastOwnerKey, fence, ttl, floor, ceiling, nextFloor}`。
   - **fence 存在数据里**,版本化 `setData` 只用来实现 CAS,所以节点被重建也不会让 fence 回退(运行时从不删除槽位节点)。
+  - 节点数据实际为 `{ownerKey, incarnation, lastOwnerKey, fence, ttl, tolerance, floor, expiresMin, ceilingMin, nextFloor}`(R2 实现):
+    `expiresAt = max(expiresMin, mtime + ttl)`,`ceiling = max(ceilingMin, expiresAt + tolerance)`;下界取自被替换的那次写入,任期内二者不回退。
+  - 运维前提:人工重建槽位节点时,写入重建的服务端时钟不能落后于原节点的 `mtime`,否则应在恢复后等待一个 ttl 再启动。
+  - 命名空间不能含 `/`,range key 必须是合法的 ZooKeeper 路径。
   - 存储时钟:`storeNow` 与 `expiresAt` 都取自**同一次写入**的 `Stat.mtime`(`expiresAt = mtime + ttl`)。
     判断"是否可取"时,先写 `/cosid/slot/{ns}/.clock` 取得当前 `mtime` 作为 `now`。安全性不依赖它(05 §3)。
   - 选槽:用异步批量 `getData` 读取全部槽位节点后按 05 §2.1 尝试。acquire 是低频操作,1024 个槽位的批量读可以接受;实际耗时由 R2 基准(P10)验证。

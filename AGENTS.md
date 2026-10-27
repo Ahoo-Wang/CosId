@@ -48,10 +48,11 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 
 | Directory | Artifact | State |
 |---|---|---|
-| `core/` | `cosid-core` | R0: public API frozen; bodies throw `UnsupportedOperationException("R1-x")` until R1/R3 |
+| `core/` | `cosid-core` | R1 + R3: generators, codecs, leases, and `CosIdRuntime` (the one assembly path) with `IdFiller`; internals in `me.ahoo.cosid.internal` |
 | `store/tck/` | `cosid-store-tck` | R1-C: the contracts, `InMemoryStore` (passes them), `ManualClock`, fault injection, `ContractsRan` |
-| `store/mongo/` | `cosid-store-mongo` | R2-Mongo: `MongoStore` (`RangeStore` + `SlotLeaseStore`, sync driver, MongoDB 4.4+), `StoreProvider` type `mongo` |
+| `store/mongo/` | `cosid-store-mongo` | R2-Mongo: `MongoStore` (`RangeStore` + `SlotLeaseStore`, sync driver, MongoDB 6.0+), `StoreProvider` type `mongo` |
 | `store/redis/` | `cosid-store-redis` | R2-Redis: Lua scripts behind `RedisScripts`, Lettuce, `WAIT` auto; see its README (durability precondition) |
+| `store/zookeeper/` | `cosid-store-zookeeper` | R2-ZK: `ZookeeperStore` (Curator 5.9), provider type `zookeeper`, ZooKeeper 3.8+ (3.9 primary, D27); TCK on `COSID_TEST_ZOOKEEPER_CONNECT` or an in-process curator-test server |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
 | `benchmark/v5/` | not published | the same scenarios on 5.x |
@@ -106,9 +107,12 @@ Adding a package means deciding whether `module-info.java` exports it.
   per `store/*` module running the TCK. Each backend registers a `checkContractsRan` task like `store/tck/build.gradle.kts`
   (it runs `ContractsRan` on the JUnit XML reports), so a job whose contract cases were skipped fails.
 - **MongoDB tests** (`store/mongo`) need a replica set (`majority` concerns): `COSID_TEST_MONGODB_URI`, otherwise a
-  Testcontainers single-node replica set on `COSID_TEST_MONGODB_IMAGE` (default `mongo:7.0`; CI runs 4.4 and 8.0).
+  Testcontainers single-node replica set on `COSID_TEST_MONGODB_IMAGE` (default `mongo:7.0`; CI runs 6.0 and 8.0).
   P10 for Mongo is `benchmark/run-smoke MongoStoreBenchmark` with `COSID_BENCHMARK_MONGODB_URI` pointing at a replica set
   (default `mongodb://localhost:27017`).
+- **ZooKeeper tests** (`store/zookeeper`) need no Docker: without `COSID_TEST_ZOOKEEPER_CONNECT` they start a curator-test
+  server in process (ZooKeeper 3.9, the Curator one; CI also runs the TCK on 3.8), and the failover case always runs its own three-server `TestingCluster`. P10 on ZooKeeper
+  (`benchmark/run-smoke ZookeeperStoreBenchmark`) likewise starts one per trial unless `COSID_BENCH_ZOOKEEPER_CONNECT` is set.
 - **Lease tests** drive `LeaseKeeper` / `StaticSlot` without threads: a capturing executor, the package-private
   constructor taking an `internal.Ticker`, and `runDue()` / `extendIfDue()` for each step; `store/tck`'s `ManualClock`
   is the store or client clock. `core` tests may use `store/tck` (test scope).

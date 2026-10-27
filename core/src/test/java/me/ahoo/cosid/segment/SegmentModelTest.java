@@ -33,11 +33,21 @@ class SegmentModelTest {
     @Test
     void batchPolicyDefaults() {
         assertThat(BatchPolicy.DEFAULT.step(), is(100L));
-        assertThat(BatchPolicy.DEFAULT.maxBatch(), is(100_000L));
+        assertThat(BatchPolicy.DEFAULT.maxBatch(), is(1_048_600L));
         assertThat(BatchPolicy.DEFAULT.lookahead(), is(Duration.ofSeconds(1)));
         assertThat(BatchPolicy.DEFAULT.reserveTimeout(), is(Duration.ofSeconds(3)));
         assertThat(BatchPolicy.DEFAULT.rangeTtl(), is(Optional.empty()));
         assertThat(PeriodicPolicy.DEFAULT.prewarm(), is(Duration.ofMinutes(1)));
+    }
+
+    @Test
+    void defaultMaxBatchIsLargeAndAMultipleOfTheStep() {
+        assertThat(BatchPolicy.defaultMaxBatch(1), is(1L << 20));
+        assertThat(BatchPolicy.defaultMaxBatch(10), is(1_048_580L));
+        assertThat(BatchPolicy.defaultMaxBatch(100), is(1_048_600L));
+        assertThat(BatchPolicy.defaultMaxBatch(2000), is(2_000_000L));
+        assertThat(BatchPolicy.defaultMaxBatch(Long.MAX_VALUE / 100), is(Long.MAX_VALUE / 100));
+        assertThrows(IllegalArgumentException.class, () -> BatchPolicy.defaultMaxBatch(0));
     }
 
     @Test

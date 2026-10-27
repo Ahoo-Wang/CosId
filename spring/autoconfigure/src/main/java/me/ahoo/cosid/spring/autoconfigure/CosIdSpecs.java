@@ -214,12 +214,12 @@ public final class CosIdSpecs {
     }
 
     private static List<CodecSpec> codecs(String at, List<CosIdProperties.Codec> items, ZoneId zone, List<String> problems) {
-        return codecs(at, items, 0, zone, problems);
+        return codecs(at, items, 0, items.size(), zone, problems);
     }
 
-    private static List<CodecSpec> codecs(String at, List<CosIdProperties.Codec> items, int from, ZoneId zone, List<String> problems) {
+    private static List<CodecSpec> codecs(String at, List<CosIdProperties.Codec> items, int from, int to, ZoneId zone, List<String> problems) {
         List<CodecSpec> codecs = new ArrayList<>();
-        for (int i = from; i < items.size(); i++) {
+        for (int i = from; i < to; i++) {
             CodecSpec codec = codec(at + ".codec[" + i + "]", items.get(i), zone, problems);
             if (codec != null) {
                 codecs.add(codec);
@@ -230,6 +230,10 @@ public final class CosIdSpecs {
 
     private static CodecSpec codec(String at, CosIdProperties.Codec item, ZoneId zone, List<String> problems) {
         if (!single(at, item, problems)) {
+            return null;
+        }
+        if (item.period() != null) {
+            problems.add(at + ".period: only a periodic segment has a period item, and only one");
             return null;
         }
         if (item.radix() != null) {
@@ -258,13 +262,13 @@ public final class CosIdSpecs {
 
     private static boolean single(String at, CosIdProperties.Codec item, List<String> problems) {
         int set = 0;
-        for (Object field : new Object[] {item.radix(), item.friendly(), item.prefix(), item.suffix(), item.datePrefix(), item.custom()}) {
+        for (Object field : new Object[] {item.radix(), item.friendly(), item.prefix(), item.suffix(), item.datePrefix(), item.custom(), item.period()}) {
             if (field != null) {
                 set++;
             }
         }
         if (set != 1) {
-            problems.add(at + ": set exactly one of radix, friendly, prefix, suffix, date-prefix, custom (" + set + " set)");
+            problems.add(at + ": set exactly one of radix, friendly, prefix, suffix, date-prefix, custom, period (" + set + " set)");
             return false;
         }
         return true;
@@ -287,19 +291,45 @@ public final class CosIdSpecs {
         return new PartsCodecSpec.Friendly(item.friendly().zone() == null ? zone : item.friendly().zone());
     }
 
+    /**
+     * The codec of a periodic segment: a {@code period} item puts the period key where it stands (4.x
+     * {@code group-prefix}, before or after the business prefix) or, disabled, leaves it out; without one the list
+     * starts with {@code date-prefix}, the period first.
+     */
     private static GroupedCodecSpec groupedCodec(String at, List<CosIdProperties.Codec> items, ZoneId zone, List<String> problems) {
+        GroupedCodecSpec fallback = new GroupedCodecSpec.DatePrefix("-", List.of());
         if (items.isEmpty()) {
-            return new GroupedCodecSpec.DatePrefix("-", List.of());
+            return fallback;
+        }
+        int periodAt = -1;
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i).period() != null && periodAt < 0) {
+                periodAt = i;
+            }
+        }
+        if (periodAt >= 0) {
+            if (!single(at + ".codec[" + periodAt + "]", items.get(periodAt), problems)) {
+                return fallback;
+            }
+            CosIdProperties.PeriodText period = items.get(periodAt).period();
+            List<CodecSpec> value = codecs(at, items, 0, periodAt, zone, problems);
+            List<CodecSpec> outer = codecs(at, items, periodAt + 1, items.size(), zone, problems);
+            if (!period.enabled()) {
+                List<CodecSpec> all = new ArrayList<>(value);
+                all.addAll(outer);
+                return new GroupedCodecSpec.ValueOnly(all);
+            }
+            return new GroupedCodecSpec.DatePrefix(period.delimiter() == null ? "" : period.delimiter(), value, outer);
         }
         String first = at + ".codec[0]";
         if (!single(first, items.get(0), problems)) {
-            return new GroupedCodecSpec.DatePrefix("-", List.of());
+            return fallback;
         }
         if (items.get(0).datePrefix() == null) {
-            problems.add(first + ": the codec list of a periodic segment starts with date-prefix");
-            return new GroupedCodecSpec.DatePrefix("-", List.of());
+            problems.add(first + ": the codec list of a periodic segment has a period item or starts with date-prefix");
+            return fallback;
         }
-        List<CodecSpec> value = codecs(at, items, 1, zone, problems);
+        List<CodecSpec> value = codecs(at, items, 1, items.size(), zone, problems);
         return new GroupedCodecSpec.DatePrefix(items.get(0).datePrefix().delimiter(), value);
     }
 }

@@ -87,7 +87,7 @@ class CosIdSpecsTest {
             Map.of("db", new CosIdProperties.Store("jdbc", Duration.ofSeconds(2), null, Map.of("initSchema", "true"))),
             new CosIdProperties.Machine(null, new CosIdProperties.Static(10, 3, null, Duration.ofSeconds(10), null)),
             Map.of("default", generator("snowflake", null, null),
-                "order", generator("segment", "db", List.of(new CosIdProperties.Codec(null, null, "O", null, null, null)))),
+                "order", generator("segment", "db", List.of(new CosIdProperties.Codec(null, null, "O", null, null, null, null)))),
             null);
         RuntimeSpec spec = CosIdSpecs.toSpec(properties, ZONE);
         assertEquals("app", spec.namespace());
@@ -295,13 +295,51 @@ class CosIdSpecsTest {
         assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, not [uuid]"));
         assertThat(message, containsString("cosid.generators.b.store: required"));
         assertThat(message, containsString("cosid.generators.c.layout: one of [JS_SAFE_MS, JS_SAFE_S, SNOWFLAKE_MS, SNOWFLAKE_S], not [SNOWFLAKE_US]"));
-        assertThat(message, containsString("cosid.generators.c.codec[0]: set exactly one of radix, friendly, prefix, suffix, date-prefix, custom (2 set)"));
+        assertThat(message, containsString("cosid.generators.c.codec[0]: set exactly one of radix, friendly, prefix, suffix, date-prefix, custom, period (2 set)"));
         assertThat(message, containsString("cosid.generators.c.codec[1].radix.radix: must be in [2, 62]: 1"));
         assertThat(message, containsString("cosid.generators.d.period: one of [YEAR, YEAR_MONTH, YEAR_MONTH_DAY], not [WEEK]"));
-        assertThat(message, containsString("cosid.generators.d.codec[0]: the codec list of a periodic segment starts with date-prefix"));
+        assertThat(message, containsString("cosid.generators.d.codec[0]: the codec list of a periodic segment has a period item or starts with date-prefix"));
         assertThat(message, containsString("cosid.generators.e.codec: a cosid80 generator takes a single radix or friendly item"));
         assertThat(message, containsString("cosid.generators.f: step must be positive: 0"));
         assertThat(message, containsString("cosid.generators.g.strategy: one of"));
+    }
+
+    @Test
+    void mapsThePeriodAfterABusinessPrefix() {
+        // 4.x group-prefix.before-prefix = true: the value codecs, the period, then the decorations of the whole.
+        RuntimeSpec spec = spec("cosid.generators.p.strategy=periodic-segment", "cosid.generators.p.store=s", "cosid.generators.p.period=YEAR",
+            "cosid.generators.p.codec[0].radix.radix=10", "cosid.generators.p.codec[0].radix.width=6", "cosid.generators.p.codec[0].radix.pad-start=true",
+            "cosid.generators.p.codec[1].period.delimiter=/",
+            "cosid.generators.p.codec[2].prefix=BIZ-",
+            "cosid.generators.p.codec[3].suffix=!",
+            "cosid.generators.q.strategy=periodic-segment", "cosid.generators.q.store=s", "cosid.generators.q.period=YEAR",
+            "cosid.generators.q.codec[0].period.delimiter=");
+        assertEquals(new GroupedCodecSpec.DatePrefix("/", List.of(new CodecSpec.Radix(10, 6, true)),
+            List.of(new CodecSpec.Prefix("BIZ-"), new CodecSpec.Suffix("!"))), ((GeneratorSpec.PeriodicSegment) spec.generators().get("p")).codec());
+        assertEquals(new GroupedCodecSpec.DatePrefix("", List.of(), List.of()), ((GeneratorSpec.PeriodicSegment) spec.generators().get("q")).codec());
+    }
+
+    @Test
+    void mapsAPeriodLeftOutOfTheText() {
+        // 4.x group-prefix.enabled = false: the value codecs alone, wherever the period item stands.
+        RuntimeSpec spec = spec("cosid.generators.p.strategy=periodic-segment", "cosid.generators.p.store=s", "cosid.generators.p.period=YEAR",
+            "cosid.generators.p.codec[0].radix.radix=36",
+            "cosid.generators.p.codec[1].period.enabled=false",
+            "cosid.generators.p.codec[2].prefix=O");
+        assertEquals(new GroupedCodecSpec.ValueOnly(List.of(new CodecSpec.Radix(36, Radix.maxWidth(36), false), new CodecSpec.Prefix("O"))),
+            ((GeneratorSpec.PeriodicSegment) spec.generators().get("p")).codec());
+    }
+
+    @Test
+    void reportsMisplacedPeriodItems() {
+        String message = invalid("cosid.generators.a.strategy=segment", "cosid.generators.a.store=s", "cosid.generators.a.codec[0].period.delimiter=-",
+            "cosid.generators.b.strategy=periodic-segment", "cosid.generators.b.store=s", "cosid.generators.b.period=YEAR",
+            "cosid.generators.b.codec[0].period.delimiter=-", "cosid.generators.b.codec[1].period.delimiter=/",
+            "cosid.generators.c.strategy=periodic-segment", "cosid.generators.c.store=s", "cosid.generators.c.period=YEAR",
+            "cosid.generators.c.codec[0].period.delimiter=-", "cosid.generators.c.codec[0].prefix=x").getMessage();
+        assertThat(message, containsString("cosid.generators.a.codec[0].period: only a periodic segment has a period item, and only one"));
+        assertThat(message, containsString("cosid.generators.b.codec[1].period: only a periodic segment has a period item, and only one"));
+        assertThat(message, containsString("cosid.generators.c.codec[0]: set exactly one"));
     }
 
     @Test

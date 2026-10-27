@@ -442,27 +442,45 @@ public final class ConfigConverter {
                 default -> "yyyyMMdd";
             };
             if (pattern != null && !pattern.equals(presetPattern)) {
-                report.add(prefix + ".group.pattern = " + pattern + ": 5.0 period keys are " + presetPattern
-                    + "; plan reformats the 4.x keys, and grouped string ids now carry the " + presetPattern + " prefix");
+                report.add(prefix + ".group.pattern = " + pattern + ": 5.0 period keys are " + presetPattern + "; plan reformats the 4.x keys"
+                    + (config.bool(prefix + ".converter.group-prefix.enabled", false)
+                        ? ", and grouped string ids now carry the " + presetPattern + " prefix" : ""));
             }
             handled.add(prefix + ".group.by");
             handled.add(prefix + ".group.pattern");
-            List<Object> grouped = new ArrayList<>();
-            boolean groupPrefix = config.bool(prefix + ".converter.group-prefix.enabled", false);
-            if (!groupPrefix) {
-                report.add(prefix + ".converter.group-prefix is off: 5.0 grouped string ids always start with the period");
-            }
-            grouped.add(Map.of("date-prefix", Map.of("delimiter", text(config, prefix + ".converter.group-prefix.delimiter", "-"))));
-            if (!config.bool(prefix + ".converter.group-prefix.before-prefix", true)) {
-                report.add(prefix + ".converter.group-prefix.before-prefix = false: the 5.0 period prefix always comes first");
-            }
+            generator.put("codec", withPeriod(config, prefix + ".converter", codec));
             handled.add(prefix + ".converter.group-prefix.*");
-            grouped.addAll(codec);
-            generator.put("codec", grouped);
         } else {
             generator.put("codec", codec);
         }
         return generator;
+    }
+
+    /**
+     * The codec list of a periodic segment: the 4.x {@code group-prefix} becomes the {@code period} item at the place
+     * the 4.x converter chain gave it (applied inside out: the base converter, the group prefix when
+     * {@code before-prefix} is true, the date prefix, {@code prefix}, the group prefix when {@code before-prefix} is
+     * false, {@code suffix}). Off, the period item leaves the period out of the text.
+     */
+    private static List<Object> withPeriod(FlatConfig config, String converter, List<Object> codec) {
+        List<Object> grouped = new ArrayList<>(codec);
+        Map<String, Object> period = new LinkedHashMap<>();
+        if (config.bool(converter + ".group-prefix.enabled", false)) {
+            period.put("delimiter", text(config, converter + ".group-prefix.delimiter", "-"));
+        } else {
+            period.put("enabled", false);
+        }
+        int at;
+        if (config.bool(converter + ".group-prefix.before-prefix", true)) {
+            // Right around the base converter, the only item that is no decoration.
+            at = !grouped.isEmpty() && grouped.get(0) instanceof Map<?, ?> first
+                && (first.containsKey("radix") || first.containsKey("friendly") || first.containsKey("custom")) ? 1 : 0;
+        } else {
+            // Around prefix: before the suffix, the last item when there is one.
+            at = config.get(converter + ".suffix") != null ? grouped.size() - 1 : grouped.size();
+        }
+        grouped.add(at, Map.of("period", period));
+        return grouped;
     }
 
     private ZoneId zone() {

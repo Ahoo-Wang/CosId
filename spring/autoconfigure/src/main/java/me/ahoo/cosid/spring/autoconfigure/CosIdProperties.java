@@ -139,8 +139,9 @@ public record CosIdProperties(@DefaultValue("true") boolean enabled,
      * @param zone          periodic-segment: the time zone of the periods; default the system zone
      * @param prewarm       periodic-segment: the next period is warmed up this long before; default 1m
      * @param sealAfter     periodic-segment: a period's key is sealed this long after it ends; default never
-     * @param codec         the codec list, applied in order; for periodic-segment the first item is {@code date-prefix},
-     *                      for cosid80 a single {@code radix} or {@code friendly} item
+     * @param codec         the codec list, applied in order; for periodic-segment a {@code period} item where the period
+     *                      key goes (or a first {@code date-prefix} item: the period first), for cosid80 a single
+     *                      {@code radix} or {@code friendly} item
      */
     public record Generator(String strategy,
                             boolean disabled,
@@ -184,15 +185,29 @@ public record CosIdProperties(@DefaultValue("true") boolean enabled,
      * @param friendly   turns a time-based id into readable text
      * @param prefix     a text prefix
      * @param suffix     a text suffix
-     * @param datePrefix a date prefix; in a periodic segment the period prefix
+     * @param datePrefix a date prefix; as the first item of a periodic segment without a {@code period} item, the period
+     *                   prefix
      * @param custom     a codec bean name or class name
+     * @param period     periodic segment only: where the period key goes; the items before it apply to the value, the
+     *                   items after it decorate the text that starts with the key
      */
     public record Codec(Radix radix,
                         Friendly friendly,
                         String prefix,
                         String suffix,
                         DatePrefix datePrefix,
-                        String custom) {
+                        String custom,
+                        PeriodText period) {
+    }
+
+    /**
+     * The period key of a periodic segment in its text ids (the 4.x {@code group-prefix}).
+     *
+     * @param enabled   whether the text holds the period key at all; false leaves it out, and such text cannot be
+     *                  decoded (4.x {@code group-prefix.enabled = false}); default true
+     * @param delimiter the text between the period key and what follows; default {@code -}
+     */
+    public record PeriodText(@DefaultValue("true") boolean enabled, @DefaultValue("-") String delimiter) {
     }
 
     /**

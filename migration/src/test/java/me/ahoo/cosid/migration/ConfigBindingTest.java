@@ -17,6 +17,10 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
+import me.ahoo.cosid.codec.DatePrefix;
+import me.ahoo.cosid.runtime.CodecSpec;
+import me.ahoo.cosid.runtime.GeneratorSpec;
+import me.ahoo.cosid.runtime.GroupedCodecSpec;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.spring.autoconfigure.CosIdProperties;
 import me.ahoo.cosid.spring.autoconfigure.CosIdSpecs;
@@ -37,6 +41,7 @@ import org.springframework.core.io.FileSystemResource;
 
 import java.io.IOException;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -69,6 +74,33 @@ class ConfigBindingTest {
                 }
             }
         });
+    }
+
+    @Test
+    void theGroupPrefixFormsOf4xBindToTheirPeriodItems() throws IOException {
+        RuntimeSpec spec = edgeSpec();
+        // before-prefix = false: the period around the business prefix, inside the suffix.
+        assertThat(codecOf(spec, "grouped"), is(new GroupedCodecSpec.DatePrefix("-",
+            List.of(new CodecSpec.Radix(62, 11, true), new CodecSpec.Prefix("G-")), List.of(new CodecSpec.Suffix("!")))));
+        // before-prefix = true (the default): the period right around the value, inside the date prefix and prefix.
+        assertThat(codecOf(spec, "grouped-inside"), is(new GroupedCodecSpec.DatePrefix("/", List.of(new CodecSpec.Radix(36, 13, true)),
+            List.of(new CodecSpec.DatePrefix("yy", "-", DatePrefix.Source.NOW, ZoneId.of("UTC")), new CodecSpec.Prefix("P")))));
+        // enabled = false: the value alone.
+        assertThat(codecOf(spec, "grouped-plain"), is(new GroupedCodecSpec.ValueOnly(List.of(new CodecSpec.Prefix("N")))));
+    }
+
+    private static GroupedCodecSpec codecOf(RuntimeSpec spec, String generator) {
+        return ((GeneratorSpec.PeriodicSegment) spec.generators().get(generator)).codec();
+    }
+
+    private static RuntimeSpec edgeSpec() throws IOException {
+        StandardEnvironment environment = new StandardEnvironment();
+        for (PropertySource<?> source : new YamlPropertySourceLoader().load("edge",
+            new FileSystemResource(MigrationScenarioTest.resource("config/edge/expected.yaml")))) {
+            environment.getPropertySources().addFirst(source);
+        }
+        environment.getPropertySources().addLast(new MapPropertySource("slots", Map.of("POD_ORDINAL", "3")));
+        return CosIdSpecs.toSpec(Binder.get(environment).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class)), ZoneId.of("UTC"));
     }
 
     @Test

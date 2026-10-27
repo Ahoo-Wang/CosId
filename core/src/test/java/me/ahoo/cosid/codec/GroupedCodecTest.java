@@ -14,6 +14,7 @@
 package me.ahoo.cosid.codec;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -109,5 +110,67 @@ class GroupedCodecTest {
         assertThat(codec.decode("2026Q4-000042"), is(new GroupedId("2026Q4", 42)));
         assertThrows(IllegalArgumentException.class, () -> codec.decode("2026Q5-000042"));
         assertThrows(UnsupportedOperationException.class, () -> GroupedCodec.datePrefix(quarter, "", DECIMAL6).decode("2026Q4000042"));
+    }
+
+    @Test
+    void thePeriodAfterABusinessPrefix() {
+        // 4.x group-prefix.before-prefix = true (its default): prefix + period + delimiter + value.
+        GroupedCodec codec = GroupedCodec.datePrefix(Period.YEAR_MONTH_DAY, "-", DECIMAL6, outer -> outer.withPrefix("BIZ-").withSuffix("!"));
+        assertThat(codec.encode(new GroupedId("20261026", 42)), is("BIZ-20261026-000042!"));
+        assertThat(codec.encode(new GroupedId("20261026", 43)), is("BIZ-20261026-000043!"));
+        assertThat(codec.encode(new GroupedId("20261027", 1)), is("BIZ-20261027-000001!"));
+        assertThat(codec.decode("BIZ-20261026-000042!"), is(new GroupedId("20261026", 42)));
+        assertThat(codec.decode("BIZ-20261027-000001!"), is(new GroupedId("20261027", 1)));
+        assertThrows(IllegalArgumentException.class, () -> codec.decode("20261026-000042!"), "no business prefix");
+        assertThrows(IllegalArgumentException.class, () -> codec.decode("BIZ-20261332-000042!"), "not a key of the period");
+        assertThrows(IllegalArgumentException.class, () -> codec.decode("BIZ-2026102!"), "too short");
+    }
+
+    @Test
+    void thePeriodAfterABusinessPrefixWithoutDelimiter() {
+        GroupedCodec codec = GroupedCodec.datePrefix(Period.YEAR, "", DECIMAL6, outer -> outer.withPrefix("O"));
+        assertThat(codec.encode(new GroupedId("2026", 7)), is("O2026000007"));
+        assertThat(codec.decode("O2026000007"), is(new GroupedId("2026", 7)));
+    }
+
+    @Test
+    void thePeriodWithinACustomPeriodSplitsAtTheDelimiter() {
+        Period custom = new Period() {
+            @Override
+            public String keyOf(Instant instant, ZoneId zone) {
+                return "Q4";
+            }
+
+            @Override
+            public Instant endOf(String key, ZoneId zone) {
+                return Instant.EPOCH;
+            }
+        };
+        GroupedCodec codec = GroupedCodec.datePrefix(custom, "_", DECIMAL6, outer -> outer.withPrefix("X-"));
+        assertThat(codec.encode(new GroupedId("Q4", 3)), is("X-Q4_000003"));
+        assertThat(codec.decode("X-Q4_000003"), is(new GroupedId("Q4", 3)));
+        assertThrows(IllegalArgumentException.class, () -> codec.decode("X-_000003"));
+        assertThrows(UnsupportedOperationException.class, () -> GroupedCodec.datePrefix(custom, "", DECIMAL6, outer -> outer).decode("X-Q4000003"));
+    }
+
+    @Test
+    void theIdentityDecorationIsThePeriodFirst() {
+        GroupedCodec within = GroupedCodec.datePrefix(Period.YEAR_MONTH, "-", DECIMAL6, outer -> outer);
+        GroupedCodec first = GroupedCodec.datePrefix(Period.YEAR_MONTH, "-", DECIMAL6);
+        GroupedId id = new GroupedId("202610", 9);
+        assertThat(within.encode(id), is(first.encode(id)));
+        assertThat(within.decode(first.encode(id)), is(id));
+        assertThrows(NullPointerException.class, () -> GroupedCodec.datePrefix(Period.YEAR, "-", DECIMAL6, null));
+        assertThrows(NullPointerException.class, () -> GroupedCodec.datePrefix(Period.YEAR, "-", DECIMAL6, outer -> null).encode(id));
+    }
+
+    @Test
+    void theValueAloneHasNoPeriodToDecode() {
+        // 4.x group-prefix.enabled = false: the text is the value's alone.
+        GroupedCodec codec = GroupedCodec.valueOnly(DECIMAL6.withPrefix("O-"));
+        assertThat(codec.encode(new GroupedId("20261026", 42)), is("O-000042"));
+        UnsupportedOperationException e = assertThrows(UnsupportedOperationException.class, () -> codec.decode("O-000042"));
+        assertThat(e.getMessage(), containsString("the period is not in the text"));
+        assertThrows(NullPointerException.class, () -> GroupedCodec.valueOnly(null));
     }
 }

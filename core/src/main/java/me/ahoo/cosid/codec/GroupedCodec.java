@@ -19,6 +19,7 @@ import me.ahoo.cosid.segment.Period;
 
 import java.time.ZoneOffset;
 import java.util.Objects;
+import java.util.function.UnaryOperator;
 
 /**
  * Turns a {@link GroupedId} into text and back; grouped ids have their own codec, apart from {@link IdCodec}
@@ -97,6 +98,51 @@ public interface GroupedCodec {
                 // Refuses a key that is not one of the period's.
                 period.endOf(id.period(), ZoneOffset.UTC);
                 return id;
+            }
+        };
+    }
+
+    /**
+     * The period key inside a decorated text: {@code inner} turns the value into text, the period key and
+     * {@code delimiter} are prepended to it, and {@code outer} decorates the result. With
+     * {@code outer = codec -> codec.withPrefix("BIZ-")} the id {@code (20261026, 42)} becomes
+     * {@code "BIZ-20261026-000042"}: the period after a business prefix, as the 4.x {@code group-prefix} with
+     * {@code before-prefix = true} (its default). {@code outer} may only decorate the text it is given (prefixes,
+     * suffixes, date prefixes); the identity gives {@link #datePrefix(Period, String, IdCodec)}.
+     *
+     * @param period    the period of the keys
+     * @param delimiter the text between the period and the value; may be empty for a preset period
+     * @param inner     the codec of the value
+     * @param outer     decorates the text that starts with the period key
+     * @return the codec
+     */
+    static GroupedCodec datePrefix(Period period, String delimiter, IdCodec inner, UnaryOperator<IdCodec> outer) {
+        return new PeriodWithin(period, delimiter, inner, outer);
+    }
+
+    /**
+     * The value alone, without its period: the 4.x {@code group-prefix} with {@code enabled = false}. The text does not
+     * tell the period, so {@link #decode} is not supported.
+     *
+     * @param valueCodec the codec of the value
+     * @return the codec
+     */
+    static GroupedCodec valueOnly(IdCodec valueCodec) {
+        Objects.requireNonNull(valueCodec, "valueCodec");
+        return new GroupedCodec() {
+            @Override
+            public String encode(GroupedId id) {
+                return valueCodec.encode(id.value());
+            }
+
+            /**
+             * Not supported: the period is not in the text.
+             *
+             * @throws UnsupportedOperationException always
+             */
+            @Override
+            public GroupedId decode(String text) {
+                throw new UnsupportedOperationException("[" + text + "] cannot be decoded: the period is not in the text of this generator's ids");
             }
         };
     }

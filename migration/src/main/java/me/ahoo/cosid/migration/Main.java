@@ -30,14 +30,17 @@ public final class Main {
         Usage: java -jar cosid-migration.jar <command> [options]
 
           plan    --from <4.x store> --to <5.0 store> --namespace <ns> [--output plan.json] [--layout-config <4.x yaml>]
+                  [--machine-from <4.x machine store>] [--machine-to <5.0 slot store>]
                   [--target-config <5.0 yaml>] [--slot-bits 10] [--tolerance 1s] [--source-skew 10s]
                   [--rename <4.x name>=<5.0 name>]... [--group-pattern <generator>=<4.x pattern>]...
                   [--from-option k=v]... [--to-option k=v]...
           apply   --plan plan.json --confirm-stopped [--observe 2m] [--gap 0] [--source-skew 10s] [--no-seal-source]
                   [--seal-gap 1099511627776] [--result apply-result.json] [--layout-config ..] [--target-config ..]
+                  [--allow-unmigrated <4.x key>]...
                   [--from-option k=v]... [--to-option k=v]...
           verify  --plan plan.json --result apply-result.json [--from-option k=v]... [--to-option k=v]...
-          config  --input application.yaml [--result apply-result.json] --output application-5.yaml [--zone Asia/Shanghai]
+          config  --input application.yaml --result apply-result.json --output application-5.yaml [--zone Asia/Shanghai]
+                  [--allow-new <generator>]...
           purge   --to <5.0 store> --namespace <ns> --before <period> (--confirm-stopped | --dry-run) [--to-option k=v]...
 
         Stores: jdbc:<url> (options user, password), redis://host:port (option cluster=true), mongodb://host/
@@ -70,12 +73,17 @@ public final class Main {
         try {
             switch (args[0]) {
                 case "plan" -> {
-                    Args options = Args.parse(rest, Set.of(), Set.of("from", "to", "namespace", "output", "layout-config", "target-config", "slot-bits",
-                        "tolerance", "source-skew", "rename", "group-pattern", "from-option", "to-option"));
+                    Args options = Args.parse(rest, Set.of(), Set.of("from", "to", "machine-from", "machine-to", "namespace", "output", "layout-config",
+                        "target-config", "slot-bits", "tolerance", "source-skew", "rename", "group-pattern", "from-option", "to-option",
+                        "machine-from-option", "machine-to-option"));
                     String bits = options.get("slot-bits");
+                    String machineFrom = options.get("machine-from");
+                    String machineTo = options.get("machine-to");
                     migration.plan(new Migration.PlanOptions(
                         StoreLocation.parse(options.required("from"), options.pairs("from-option")).withEnvironmentPassword("FROM"),
                         StoreLocation.parse(options.required("to"), options.pairs("to-option")).withEnvironmentPassword("TO"),
+                        machineFrom == null ? null : StoreLocation.parse(machineFrom, options.pairs("machine-from-option")).withEnvironmentPassword("MACHINE_FROM"),
+                        machineTo == null ? null : StoreLocation.parse(machineTo, options.pairs("machine-to-option")).withEnvironmentPassword("MACHINE_TO"),
                         options.required("namespace"), options.path("layout-config"), options.path("target-config"),
                         bits == null ? null : Integer.parseInt(bits), options.duration("tolerance", Duration.ofSeconds(1)),
                         options.duration("source-skew", Migration.DEFAULT_SOURCE_SKEW), options.pairs("rename"), options.pairs("group-pattern"),
@@ -84,25 +92,28 @@ public final class Main {
                 }
                 case "apply" -> {
                     Args options = Args.parse(rest, Set.of("confirm-stopped", "no-seal-source"), Set.of("plan", "confirm-stopped", "observe", "gap",
-                        "source-skew", "no-seal-source", "seal-gap", "result", "from-option", "to-option", "layout-config", "target-config"));
+                        "source-skew", "no-seal-source", "seal-gap", "result", "from-option", "to-option", "layout-config", "target-config", "allow-unmigrated",
+                        "machine-from-option", "machine-to-option"));
                     migration.apply(new Migration.ApplyOptions(options.path("plan", "plan.json"), options.flag("confirm-stopped"),
                         options.duration("observe", Migration.DEFAULT_OBSERVE), options.number("gap", 0),
                         options.duration("source-skew", Migration.DEFAULT_SOURCE_SKEW), !options.flag("no-seal-source"),
                         options.number("seal-gap", Migration.DEFAULT_SEAL_GAP), options.path("result", "apply-result.json"),
-                        options.pairs("from-option"), options.pairs("to-option"), options.path("layout-config"), options.path("target-config")));
+                        options.pairs("from-option"), options.pairs("to-option"), options.path("layout-config"), options.path("target-config"),
+                        Set.copyOf(options.all("allow-unmigrated")), options.pairs("machine-from-option"), options.pairs("machine-to-option")));
                     return 0;
                 }
                 case "verify" -> {
-                    Args options = Args.parse(rest, Set.of(), Set.of("plan", "result", "from-option", "to-option"));
+                    Args options = Args.parse(rest, Set.of(), Set.of("plan", "result", "from-option", "to-option", "machine-from-option", "machine-to-option"));
                     List<String> problems = migration.verify(new Migration.VerifyOptions(options.path("plan", "plan.json"),
-                        options.path("result", "apply-result.json"), options.pairs("from-option"), options.pairs("to-option")));
+                        options.path("result", "apply-result.json"), options.pairs("from-option"), options.pairs("to-option"),
+                        options.pairs("machine-from-option"), options.pairs("machine-to-option")));
                     return problems.isEmpty() ? 0 : 1;
                 }
                 case "config" -> {
-                    Args options = Args.parse(rest, Set.of(), Set.of("input", "result", "output", "zone"));
+                    Args options = Args.parse(rest, Set.of(), Set.of("input", "result", "output", "zone", "allow-new"));
                     String zone = options.get("zone");
                     migration.config(new Migration.ConfigOptions(Path.of(options.required("input")), options.path("result"),
-                        Path.of(options.required("output")), zone == null ? null : ZoneId.of(zone)));
+                        Path.of(options.required("output")), zone == null ? null : ZoneId.of(zone), Set.copyOf(options.all("allow-new"))));
                     return 0;
                 }
                 case "purge" -> {

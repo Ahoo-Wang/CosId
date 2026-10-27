@@ -143,6 +143,19 @@ public final class ZookeeperSource implements SourceReader {
     }
 
     @Override
+    public long now() {
+        String path = ROOT + "/.migration-clock-" + java.util.UUID.randomUUID();
+        try {
+            client.create().creatingParentsIfNeeded().withMode(org.apache.zookeeper.CreateMode.EPHEMERAL).forPath(path);
+            Stat stat = client.checkExists().forPath(path);
+            client.delete().forPath(path);
+            return stat == null ? 0 : stat.getCtime();
+        } catch (Exception e) {
+            throw new IllegalStateException("Reading the ZooKeeper clock failed: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public void close() {
         client.close();
     }

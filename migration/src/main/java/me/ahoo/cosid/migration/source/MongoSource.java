@@ -15,6 +15,9 @@ package me.ahoo.cosid.migration.source;
 
 import me.ahoo.cosid.migration.StoreLocation;
 
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoCredential;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
@@ -44,8 +47,33 @@ public final class MongoSource implements SourceReader {
     private final MongoDatabase database;
 
     public MongoSource(StoreLocation location) {
-        this.client = MongoClients.create(location.url());
+        this.client = client(location);
         this.database = client.getDatabase(database(location));
+    }
+
+    /**
+     * A client of a location: its connection string, with the credential of options {@code user} / {@code password}
+     * (and {@code authSource}, the database of the URL or {@code admin} by default) when a password option is given, so
+     * the password never needs to be in the URL that {@code plan.json} keeps.
+     *
+     * @param location the location
+     * @return the client; the caller closes it
+     */
+    public static MongoClient client(StoreLocation location) {
+        ConnectionString connection = new ConnectionString(location.url());
+        MongoClientSettings.Builder settings = MongoClientSettings.builder().applyConnectionString(connection);
+        String password = location.option("password");
+        if (password != null) {
+            String user = location.option("user") != null ? location.option("user") : connection.getUsername();
+            if (user == null) {
+                throw new IllegalArgumentException("Option password needs option user or a user in the URL " + StoreLocation.redactUrl(location.url()));
+            }
+            String source = location.option("authSource") != null ? location.option("authSource")
+                : connection.getCredential() != null ? connection.getCredential().getSource()
+                : connection.getDatabase() != null ? connection.getDatabase() : "admin";
+            settings.credential(MongoCredential.createCredential(user, source, password.toCharArray()));
+        }
+        return MongoClients.create(settings.build());
     }
 
     /**
@@ -100,6 +128,13 @@ public final class MongoSource implements SourceReader {
             throw new IllegalStateException("Segment [" + id + "] disappeared while sealing");
         }
         return ((Number) sealed.get(LAST_MAX_ID)).longValue();
+    }
+
+    @Override
+    public long now() {
+        Document now = database.aggregate(List.of(new Document("$documents", List.of(new Document())),
+            new Document("$project", new Document("now", new Document("$toLong", "$$NOW"))))).first();
+        return now == null ? 0 : ((Number) now.get("now")).longValue();
     }
 
     @Override

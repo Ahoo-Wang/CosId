@@ -19,6 +19,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Where a store is: its type, the URL the operator gave and options (09 §3 {@code --from} / {@code --to}).
@@ -127,7 +129,27 @@ public record StoreLocation(String type, String url, Map<String, String> options
     public StoreLocation redacted() {
         Map<String, String> kept = new TreeMap<>(options);
         kept.keySet().removeIf(name -> name.toLowerCase(Locale.ROOT).contains("password"));
-        return new StoreLocation(type, url, kept);
+        return new StoreLocation(type, redactUrl(url), kept);
+    }
+
+    private static final Pattern USERINFO_PASSWORD = Pattern.compile("(//[^/@:?#]*):[^/@?#]*@");
+    private static final Pattern PASSWORD_PARAMETER = Pattern.compile("([?&;])(?:password|pwd)=[^&;]*([&;]?)", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * A URL without its secrets: the password of the userinfo ({@code //user:secret@host} becomes {@code //user@host})
+     * and {@code password=} / {@code pwd=} parameters ({@code ?password=}, {@code &password=}, {@code ;password=}).
+     *
+     * @param url the URL
+     * @return the URL without them
+     */
+    public static String redactUrl(String url) {
+        String redacted = USERINFO_PASSWORD.matcher(url).replaceFirst("$1@");
+        for (Matcher parameter = PASSWORD_PARAMETER.matcher(redacted); parameter.find(); parameter = PASSWORD_PARAMETER.matcher(redacted)) {
+            // "?password=x&a=b" keeps "?a=b"; a parameter at the end goes with its separator.
+            String keep = parameter.group(2).isEmpty() ? "" : parameter.group(1);
+            redacted = redacted.substring(0, parameter.start()) + keep + redacted.substring(parameter.end());
+        }
+        return redacted;
     }
 
     @Override

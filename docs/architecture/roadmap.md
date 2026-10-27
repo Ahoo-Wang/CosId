@@ -75,7 +75,7 @@ R0 骨架、接口冻结、4.x 基线基准
 
 | 包 | 依赖 | 内容 | 验收 |
 |---|---|---|---|
-| R4-A | R2 任一后端 + R3-S | `server`(`/v5` API、可选发号端点、鉴权默认开启、限流与 503)、`store/remote` 客户端 | `store/remote` 对真实 server 跑 TCK 全绿;鉴权、限制测试;Docker 镜像构建 |
+| R4-A | R2 任一后端 + R3-S | `server`(API,D30 后不带版本前缀、可选发号端点、鉴权默认开启、限流与 503)、`store/remote` 客户端 | `store/remote` 对真实 server 跑 TCK 全绿;鉴权、限制测试;Docker 镜像构建 |
 | R4-B | R3-S | `integrations`(Jackson、MyBatis、Spring Data JDBC、Activiti/Flowable、Axon) | 每个集成一个最小端到端测试 |
 | R4-C | R2 + R3 | `migration`(plan / apply / verify / config / purge) | 09 §5 的全部用例,包括用 4.1.x jar 写入真实数据、遗漏实例模拟 |
 

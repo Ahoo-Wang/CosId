@@ -30,13 +30,28 @@
 |---|---|---|
 | A core | 进行中 | — |
 | B stores | 进行中 | — |
-| C spring/server/integrations | 进行中 | — |
+| C spring/server/integrations | ✅ 完成,已核实 | 2 BLOCKER(由 MAJOR 上调)、1 MAJOR、5 MINOR(见 §3.C) |
 | D migration | 进行中 | — |
 | E 发布就绪 | ✅ 完成,已核实 | 3 BLOCKER、3 MAJOR、9 MINOR(见 §3.E) |
 | 发布门槛(CI) | 运行中:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762),spring-start 组已通过 | 分析 Draft PR [#1345](https://github.com/Ahoo-Wang/CosId/pull/1345)(`docs/jmh/5.0/analysis.md`) |
 | #1342 ZK 排除 Netty | CI 中 | — |
 
 ## 3. 发现(核实后填写)
+
+### 3.C spring / server / integrations / examples(main @ e272cdde)
+
+| # | 严重度 | 发现 | 位置 | 修复 | 核实 |
+|---|---|---|---|---|---|
+| C-B1 | BLOCKER(安全,上调) | actuator `cosid` 端点绕过客户端作用域与 `cosid.server.ids.enabled`:只限 `orders` 命名空间的 token 也能 `GET /actuator/cosid/{generator}/long` 发号,并能读 prometheus、describe、`/v3/api-docs` | `server/src/main/resources/application.yaml:17-21`;`AuthFilter.java`(只认证不鉴权) | `/actuator/**` 与 springdoc 路径要求不受限的 grant,或默认不暴露 `cosid`;加"受限 token 访问得 403"的测试 | ✅ |
+| C-B2 | BLOCKER(安全,上调) | 未解析的 `${…}` 占位符会成为真实 token:忘记设环境变量时,服务以文档里公开的字面量 `${COSID_SERVER_TOKEN}` 作 token 启动,"无 token 拒绝启动"被绕过 | `Grants.java` `requireToken`;`application.yaml`、`documentation/docs/*/guide/server.md` | `requireToken` 拒绝含 `${` 的 token,并设最小长度 | 部分(代码中无该检查) |
+| C-M1 | MAJOR | `max-keys-per-namespace` 可绕过(不含 `/` 的 key 各自成为命名空间)、可被一个租户用满而锁死共享命名空间的其他租户(永不淘汰)、503/存储失败也计数 | `KeyCap.java:40-57`、`Requests.java:43-46` | 同时限制命名空间数量或按 grant 计数;预留成功后才计数;LRU/TTL 淘汰 | — |
+| C-N1 | MINOR | 500/400 错误体泄漏后端细节(Redis 地址、Mongo 集群描述) | `ApiErrors.java:67-72` | 返回通用消息,细节只记日志 | — |
+| C-N2 | MINOR | `/ids/strings` 遮蔽名为 `strings` 的生成器 | `IdController.java:64,70` | `ids.enabled` 时拒绝保留名 `strings`、`periodic` | — |
+| C-N3 | MINOR | `remote` 存储缺少原生镜像提示与配置元数据提示 | `CosIdRuntimeHints.java:30-34`;`additional-spring-configuration-metadata.json` | 补上 | — |
+| C-N4 | MINOR | 07 §4.1 示例 `codec: { radix: 62 }` 无法绑定 | `docs/architecture/07-runtime-and-spring.md` | 改为列表形式 | — |
+| C-N5 | MINOR | roadmap 残留一处 `/v5` | `docs/architecture/roadmap.md:78` | 改为"不带版本前缀(D30)" | — |
+
+C 路确认通过的:默认鉴权与拒绝启动、常量时间 token 比较、`no-store`、默认公开路径只有 health、输入限制、503 有界池、存储 API 的作用域(key/命名空间只在请求体中,未找到绕过)、每个生成器一个 Bean 且 `default` 为 primary、禁用生成器调用时才抛异常、customizer 顺序、关闭顺序、可选依赖条件装配、`initial-offset` 默认 1、MyBatis 批量、Spring Data JDBC、Axon 绑定生命周期与未绑定报错、Activiti/Flowable 依赖隔离、示例符合 D30。
 
 ### 3.E 发布就绪(main @ e272cdde)
 

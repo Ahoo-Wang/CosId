@@ -1,1 +1,0 @@
-org.springframework.aot.hint.RuntimeHintsRegistrar=me.ahoo.cosid.spring.redis.SpringRedisRuntimeHints

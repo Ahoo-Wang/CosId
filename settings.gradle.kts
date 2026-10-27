@@ -11,45 +11,31 @@
  * limitations under the License.
  */
 
+pluginManagement {
+    includeBuild("build-logic")
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+plugins {
+    // Provisions the Java 21 toolchain where none is installed.
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+    }
+}
+
 rootProject.name = "CosId"
 
-include(":cosid-bom")
-include(":cosid-dependencies")
-include(":cosid-core")
-include(":cosid-sharding")
-include(":cosid-accessor")
-include(":cosid-spring-boot-starter")
-include(":cosid-spring-redis")
-include(":cosid-jdbc")
-include(":cosid-mybatis")
-include(":cosid-jackson")
-include(":cosid-zookeeper")
-include(":cosid-test")
-
-include("cosid-proxy-api")
-project(":cosid-proxy-api").projectDir = file("proxy/cosid-proxy-api")
-include(":cosid-proxy")
-project(":cosid-proxy").projectDir = file("proxy/cosid-proxy")
-include(":cosid-proxy-server")
-project(":cosid-proxy-server").projectDir = file("proxy/cosid-proxy-server")
-
-include(":cosid-axon")
-include(":cosid-flowable")
-include(":cosid-activiti")
-include(":cosid-mongo")
-include(":cosid-spring-data-jdbc")
-include(":cosid-mod-test")
-include(":code-coverage-report")
-
-include("cosid-example-proxy")
-project(":cosid-example-proxy").projectDir = file("examples/cosid-example-proxy")
-
-include("cosid-example-redis")
-project(":cosid-example-redis").projectDir = file("examples/cosid-example-redis")
-
-include("cosid-example-redis-cosid")
-project(":cosid-example-redis-cosid").projectDir = file("examples/cosid-example-redis-cosid")
-
-include("cosid-example-zookeeper")
-project(":cosid-example-zookeeper").projectDir = file("examples/cosid-example-zookeeper")
-
+// The layout of docs/architecture/02-modules.md §1: directories carry no cosid- prefix (D2); the build derives the
+// artifactId from the path (build-logic ArtifactIds). Add a module here and a rule to build-logic DependencyRules.
+include(":bom")
+include(":core")
+include(":store:tck")
+include(":benchmark:baseline-4x")
+include(":benchmark:v5")

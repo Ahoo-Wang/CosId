@@ -13,7 +13,8 @@ The Redis store of CosId 5 ([06-stores.md §2.2](../../docs/architecture/06-stor
 
 Under asynchronous replication, a failover can lose range and lease writes and so hand out duplicate ids. The store
 only hands out a range or a ceiling once its write is acknowledged, but it cannot make Redis keep it. Where uniqueness
-is strict, prefer the JDBC or ZooKeeper store.
+is strict, prefer the JDBC or ZooKeeper store. For the same reason the keys must never be evicted: run Redis with
+`maxmemory-policy noeviction` (the default), or keep the CosId keys out of reach of eviction.
 
 ## Opening a store
 
@@ -48,7 +49,7 @@ Each group shares one hash tag, so every script runs on one Redis Cluster node. 
 | `cosid:{ns}:slot` | hash | slot → `ownerKey\|incarnation\|lastOwnerKey\|fence\|expiresAt\|floor\|ceiling\|nextFloor` (owner keys escaped: `\` as `\\`, `\|` as `\p`) |
 | `cosid:{ns}:free` | sorted set | free slots, scored by slot number; prefilled with `0..limit-1` by `ZADD NX` |
 | `cosid:{ns}:live` | sorted set | live leases, scored by `expiresAt` |
-| `cosid:{ns}:owner` | hash | owner key → the slot it took last (sticky choice) |
+| `cosid:{ns}:owner` | hash | owner key → the slot it took last (sticky choice); an entry goes once another key takes that slot, so at most `limit` entries |
 | `cosid:{ns}:held` | hash | owner key → the slots whose row names it (idempotent retries and duplicate owner keys) |
 
 Every slot below the limit is in exactly one of `free` and `live`. An acquire sweeps at most `sweepBatch` expired

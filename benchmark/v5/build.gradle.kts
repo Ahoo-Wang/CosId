@@ -19,4 +19,6 @@ plugins {
 dependencies {
     jmh(project(":core"))
     jmh(project(":store:tck"))
+    // R2-Redis: P7 / P10
+    jmh(project(":store:redis"))
 }

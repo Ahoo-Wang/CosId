@@ -208,6 +208,20 @@ class RedisScriptEdgeTest {
     }
 
     @Test
+    void stickyEntriesStayBoundedByTheLimit() {
+        String namespace = newKey();
+        try (Store store = open(Map.of())) {
+            for (int i = 0; i < 10; i++) {
+                SlotLease lease = acquired(store, namespace, new Owner("pod-" + i, UUID.randomUUID()), 2, TTL, OptionalInt.empty()).lease();
+                assertTrue(store.slots().release(lease, lease.ceiling()));
+            }
+            assertEquals(Map.of("pod-9", "0"), redis.hgetall(RedisStore.namespaceKey(namespace, "owner")),
+                "a key whose slot another key took has no sticky entry left");
+            assertEquals(0L, redis.hlen(RedisStore.namespaceKey(namespace, "held")));
+        }
+    }
+
+    @Test
     void releaseClampsLastIssuedOfAnyLong() {
         String namespace = newKey();
         try (Store store = open(Map.of())) {

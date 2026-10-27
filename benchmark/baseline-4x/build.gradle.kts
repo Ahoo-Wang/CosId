@@ -20,4 +20,7 @@ plugins {
 dependencies {
     jmh(libs.cosid4.core)
     jmh(libs.cosid4.accessor)
+    // R2-Redis: P7 / P10 on the 4.x Redis distributors
+    jmh(libs.cosid4.spring.redis)
+    jmh(libs.cosid4.lettuce)
 }

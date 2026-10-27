@@ -60,6 +60,11 @@ local function take(slot, reason)
     if row.inc ~= '' then
         heldRemove(heldKey, row.key, slot)
     end
+    -- The sticky entry of the key that had the slot last points nowhere once another key takes it: dropping it keeps
+    -- the owner hash at most limit entries, however many owner keys (pod names) come and go.
+    if row.last ~= '' and row.last ~= key and redis.call('HGET', ownerKey, row.last) == slot then
+        redis.call('HDEL', ownerKey, row.last)
+    end
     row.fence = row.fence + 1
     row.key = key
     row.inc = inc

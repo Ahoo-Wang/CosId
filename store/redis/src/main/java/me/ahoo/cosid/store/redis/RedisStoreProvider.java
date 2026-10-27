@@ -19,6 +19,7 @@ import me.ahoo.cosid.store.StoreProvider;
 
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
+import io.lettuce.core.api.StatefulConnection;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
@@ -26,7 +27,10 @@ import io.lettuce.core.codec.StringCodec;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.function.IntSupplier;
+import java.util.function.Supplier;
+import java.util.function.ToIntFunction;
 
 /**
  * Opens {@link RedisStore}s, type {@code redis} (06-stores.md §2.2); registered with {@link java.util.ServiceLoader}.
@@ -84,10 +88,12 @@ public final class RedisStoreProvider implements StoreProvider {
             });
         }
         if (client instanceof RedisClient redisClient) {
-            return standalone(redisClient, config, wait, sweepBatch, false);
+            return standalone(redisClient, config, wait, sweepBatch, () -> {
+            });
         }
         if (client instanceof RedisClusterClient clusterClient) {
-            return cluster(clusterClient, config, wait, sweepBatch, false);
+            return cluster(clusterClient, config, wait, sweepBatch, () -> {
+            });
         }
         if (client != null) {
             throw new IllegalArgumentException("Store [" + config.name() + "]: unsupported Redis client " + client.getClass().getName());
@@ -98,61 +104,42 @@ public final class RedisStoreProvider implements StoreProvider {
         }
         RedisURI redisUri = RedisURI.create(uri.toString());
         if (Boolean.parseBoolean(String.valueOf(options.getOrDefault("cluster", "false")))) {
-            return cluster(RedisClusterClient.create(redisUri), config, wait, sweepBatch, true);
+            RedisClusterClient own = RedisClusterClient.create(redisUri);
+            return cluster(own, config, wait, sweepBatch, own::shutdown);
         }
-        return standalone(RedisClient.create(redisUri), config, wait, sweepBatch, true);
+        RedisClient own = RedisClient.create(redisUri);
+        return standalone(own, config, wait, sweepBatch, own::shutdown);
     }
 
-    private static Store standalone(RedisClient client, StoreConfig config, String wait, int sweepBatch, boolean ownClient) {
-        StatefulRedisConnection<String, String> connection;
+    private static Store standalone(RedisClient client, StoreConfig config, String wait, int sweepBatch, Runnable shutdown) {
+        return opened(() -> client.connect(StringCodec.UTF8), shutdown, connection -> LettuceRedisScripts.connectedReplicas(connection, config.timeout()),
+            (connection, replicas) -> LettuceRedisScripts.of(connection, config.timeout(), replicas), wait, sweepBatch);
+    }
+
+    private static Store cluster(RedisClusterClient client, StoreConfig config, String wait, int sweepBatch, Runnable shutdown) {
+        return opened(() -> client.connect(StringCodec.UTF8), shutdown, LettuceRedisScripts::connectedReplicas,
+            (connection, replicas) -> LettuceRedisScripts.of(connection, config.timeout(), replicas), wait, sweepBatch);
+    }
+
+    /** A store on a connection of its own: closing the store closes it, then runs {@code shutdown} (of a client of its own). */
+    private static <C extends StatefulConnection<String, String>> Store opened(Supplier<C> connect, Runnable shutdown, ToIntFunction<C> connectedReplicas,
+                                                                               BiFunction<C, Integer, RedisScripts> scripts, String wait, int sweepBatch) {
+        C connection;
         try {
-            connection = client.connect(StringCodec.UTF8);
+            connection = connect.get();
         } catch (RuntimeException e) {
-            if (ownClient) {
-                client.shutdown();
-            }
+            shutdown.run();
             throw e;
         }
         try {
-            int replicas = replicas(wait, () -> LettuceRedisScripts.connectedReplicas(connection, config.timeout()));
-            return new RedisStore(LettuceRedisScripts.of(connection, config.timeout(), replicas), sweepBatch, () -> {
+            int replicas = replicas(wait, () -> connectedReplicas.applyAsInt(connection));
+            return new RedisStore(scripts.apply(connection, replicas), sweepBatch, () -> {
                 connection.close();
-                if (ownClient) {
-                    client.shutdown();
-                }
+                shutdown.run();
             });
         } catch (RuntimeException e) {
             connection.close();
-            if (ownClient) {
-                client.shutdown();
-            }
-            throw e;
-        }
-    }
-
-    private static Store cluster(RedisClusterClient client, StoreConfig config, String wait, int sweepBatch, boolean ownClient) {
-        StatefulRedisClusterConnection<String, String> connection;
-        try {
-            connection = client.connect(StringCodec.UTF8);
-        } catch (RuntimeException e) {
-            if (ownClient) {
-                client.shutdown();
-            }
-            throw e;
-        }
-        try {
-            int replicas = replicas(wait, () -> LettuceRedisScripts.connectedReplicas(connection));
-            return new RedisStore(LettuceRedisScripts.of(connection, config.timeout(), replicas), sweepBatch, () -> {
-                connection.close();
-                if (ownClient) {
-                    client.shutdown();
-                }
-            });
-        } catch (RuntimeException e) {
-            connection.close();
-            if (ownClient) {
-                client.shutdown();
-            }
+            shutdown.run();
             throw e;
         }
     }

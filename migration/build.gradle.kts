@@ -43,6 +43,15 @@ dependencies {
     testImplementation(libs.h2)
 }
 
+// ZooKeeper 3.9 brings the Netty 4.1 epoll transport; on Linux Lettuce 7 (Netty 4.2) then picks it up and fails
+// (NoClassDefFoundError: EpollIoHandler). Nothing here needs native epoll: keep it off the jar and the tests.
+for (name in listOf("runtimeClasspath", "testRuntimeClasspath")) {
+    configurations.named(name) {
+        exclude(group = "io.netty", module = "netty-transport-native-epoll")
+        exclude(group = "io.netty", module = "netty-transport-classes-epoll")
+    }
+}
+
 // The 4.x writers of the tests (09 §5): compiled against the released 4.1.0 jars only, and loaded at test time in a
 // class loader of their own, since 4.x and 5.0 share the package me.ahoo.cosid. The sources live under src/test, so
 // Checkstyle checks their license header only.

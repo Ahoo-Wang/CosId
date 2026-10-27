@@ -85,6 +85,10 @@ if f != null: 在锁外等待 f,最多 reserveTimeout
   每次失败都会通知 `listener.onRefillFailed`。
 - 超时的 `reserve` 不取消已提交的区间:它的结果到达后照常放入 `ready`;只有调用方的等待会超时。
 - `refillExecutor` 默认是虚拟线程执行器,由 `CosIdRuntime` 创建并关闭。
+- 等待者接手:没有余量的调用方若发现在途预留尚未被执行器取走,会在锁外亲自执行它(仍是单飞)。亲自执行的调用方只受存储超时约束,
+  因此装配时要求存储 `timeout ≤ reserveTimeout`;执行器拒绝任务时调用方仍可自行预留。
+- 慢路径先 `tryLock`,拿不到时短暂自旋等待其他线程完成切换;切换本身只在 `switchLock` 内进行。
+- 就绪队列按 lookahead 预算补充,至少一批、至多 64 批。
 - `close()`:`current = CLOSED`,取消在途补充,丢弃 `ready`(S4 允许)。此后热路径必然进入慢路径并抛出 `IllegalStateException`,热路径不需要额外检查。
 
 ## 3. 周期号段(D5)

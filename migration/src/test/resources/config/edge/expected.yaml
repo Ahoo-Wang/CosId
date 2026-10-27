@@ -1,6 +1,6 @@
 # Converted from a CosId 4.x configuration by cosid-migration config (09-migration.md §3).
 # Not converted as is - review before starting 5.0:
-#  - cosid.segment.distributor.type = proxy: written as store [remote] (store/remote, 08); its baseUrl must point at a 5.0 cosid-server, the 4.x proxy server does not speak the /v5 API
+#  - cosid.segment.distributor.type = proxy: written as store [remote] (store/remote, 08); its baseUrl must point at a 5.0 cosid-server, the 4.x proxy server does not speak the 5.0 API
 #  - cosid.proxy.client = coapi: the 5.0 remote store uses the JDK HttpClient; dropped
 #  - cosid.snowflake.share: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_S with overrides, keep it as is (M3)
 #  - cosid.snowflake.share.converter.date-prefix.before-prefix = false: the 5.0 codec list applies in order; check the order of date-prefix and prefix

@@ -1,7 +1,7 @@
 # cosid-server
 
 The CosId 5 remote service (`docs/architecture/08-remote.md`, D8). It is a Spring Boot application, not a library. It
-exposes the two store primitives of its **backing store** under `/v5`: one of `cosid.stores`, either JDBC, Redis, Mongo
+exposes the two store primitives of its **backing store** at the root of the server (no version prefix, D30): one of `cosid.stores`, either JDBC, Redis, Mongo
 or ZooKeeper. Each call is one call of that store. The store runs the slot choice (05 §2.1) and stamps every time with its
 own clock, so the server keeps no state and scales out. `cosid-store-remote` (type `remote`) is the client.
 
@@ -15,14 +15,14 @@ Keys and namespaces travel in the JSON body, never in the path. Errors are `{cod
 
 | Method | Path | Request | Response |
 |---|---|---|---|
-| POST | `/v5/ranges:reserve` | `{key, size, initialOffset}` | `{start, end}`; `410 range_sealed`; `422 range_exhausted` |
-| POST | `/v5/ranges:seal` | `{key}` | `204`; `501 seal_unsupported` |
-| POST | `/v5/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, preferredSlot?}` | lease + `{reason, duplicateOwnerKey}`; `409 slots_exhausted {earliestExpiresAt}`; `409 namespace_mismatch` |
-| POST | `/v5/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | lease; `409 lease_lost` |
-| POST | `/v5/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204`; `409 lease_lost` |
-| GET | `/v5/ids[/{generator}]?count=n` | — | `{ids: [...]}` (optional) |
-| GET | `/v5/ids[/{generator}]/strings?count=n` | — | `{ids: ["..."]}`, through the generator's codec (optional) |
-| GET | `/v5/ids/{generator}/periodic?count=n` | — | `{period, values: [...]}`, all of one period (optional) |
+| POST | `/ranges:reserve` | `{key, size, initialOffset}` | `{start, end}`; `410 range_sealed`; `422 range_exhausted` |
+| POST | `/ranges:seal` | `{key}` | `204`; `501 seal_unsupported` |
+| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, preferredSlot?}` | lease + `{reason, duplicateOwnerKey}`; `409 slots_exhausted {earliestExpiresAt}`; `409 namespace_mismatch` |
+| POST | `/slots:renew` | `{namespace, slot, ownerKey, incarnation, fence, ttlMs, toleranceMs}` | lease; `409 lease_lost` |
+| POST | `/slots:release` | `{namespace, slot, ownerKey, incarnation, fence, lastIssued}` | `204`; `409 lease_lost` |
+| GET | `/ids[/{generator}]?count=n` | — | `{ids: [...]}` (optional) |
+| GET | `/ids[/{generator}]/strings?count=n` | — | `{ids: ["..."]}`, through the generator's codec (optional) |
+| GET | `/ids/{generator}/periodic?count=n` | — | `{period, values: [...]}`, all of one period (optional) |
 
 A lease is `{namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow}`. Renew and release
 also accept the lease's `expiresAt`, `floor`, `ceiling` and `storeNow`, and the client sends them. Without a generator in

@@ -123,7 +123,10 @@ public interface GroupedCodec {
 - 期满后关闭旧期生成器。封存旧期 key 只在 `期末 + sealAfter` 之后进行。时钟落后的实例若仍访问已封存的旧期,会得到 `RangeSealedException`,即宁可失败也不重号(S6)。
   物理清理只能通过运维命令 `cosid-migration purge --before <period>` 离线进行。
 - 区间与游标完全不感知时间,周期逻辑只存在于本类。
-- 4.x 的 `group-prefix`(前缀放在业务前缀前或后、分隔符)由 `GroupedCodec` 的组合表达。
+- 4.x 的 `group-prefix` 两种写法都能表达(#1336,沿用 4.x 的真实语义):
+  - `before-prefix=true`(4.x 默认):文本为"业务前缀 + 期间 + 值";`false`:期间在最前。
+  - `enabled=false`:文本不含期间。此时无法从文本反解期间,`decode` 抛 `UnsupportedOperationException`(4.x 同样无法反解)。
+  - 还有 `GroupedCodec.datePrefix(Period, delimiter, value)`:空分隔符时按期间长度反解。
 
 ## 4. 删除项
 

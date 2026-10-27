@@ -81,7 +81,7 @@ public interface GeneratorListener {
     default void onSlotReleased(SlotLease lease) {}
     default void onClockSkew(String namespace, long skewMillis) {}
     default void onDuplicateOwnerKey(String namespace, String ownerKey) {}
-    default void onStoreTimeout(String store, String operation) {}
+    default void onStoreTimeout(String store, String operation) {}   // 补充等待超时、存储调用超时(StoreTimeoutException)时触发(#1336)
 }
 public record GeneratorInfo(String name, String strategy, String store, Map<String, Object> details) {}
 ```
@@ -153,6 +153,7 @@ cosid:
 ```
 
 - 存储只声明一次,生成器各自引用,可以混用不同存储。
+- Snowflake 布局可在预设上覆盖 `epoch`、`unit`、`time-bits`、`node-bits`、`seq-bits`、`seq-reset-threshold`(#1336)。号段默认 `initial-offset` 为 1。
 - 不再需要各特性的 `enabled` 开关,依赖关系从声明中推导;只保留总开关 `cosid.enabled`(默认 true)。
   单个生成器可以用 `cosid.generators.<name>.disabled: true` 禁用(D24):不创建实例,其 Bean 调用时抛出 `GeneratorDisabledException`。
 - codec 一律是有序列表,写的顺序就是应用顺序。周期号段的列表第一项必须是分组前缀(`date-prefix`),其余项作用于值部分。

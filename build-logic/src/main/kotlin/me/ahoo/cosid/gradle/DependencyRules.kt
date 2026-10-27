@@ -62,6 +62,14 @@ object DependencyRules {
         ":examples:*" to listOf(CORE, STORES, SPRING, INTEGRATIONS, EXTRAS),
     )
 
+    /**
+     * Test-scope-only edges beyond [TEST_ONLY], by project. `:migration` binds its `config` output through the real
+     * Spring binding in its tests (R4-C); its main scopes, and so its fat jar, stay free of Spring.
+     */
+    val TEST_EDGES: Map<String, List<String>> = mapOf(
+        ":migration" to listOf(":spring:autoconfigure"),
+    )
+
     /** Projects that only group others and hold no code, such as `:store`. */
     private val CONTAINERS = setOf(":store", ":spring", ":extras", ":benchmark", ":examples")
 
@@ -72,7 +80,8 @@ object DependencyRules {
         for (edge in edges) {
             val allowed = ruleOf(edge.from) ?: continue
             val ok = allowed.any { matches(it, edge.to) && !(it == STORES && edge.to == TCK) } ||
-                (edge.test && edge.from != ":benchmark:baseline-4x" && TEST_ONLY.contains(edge.to))
+                (edge.test && edge.from != ":benchmark:baseline-4x" && TEST_ONLY.contains(edge.to)) ||
+                (edge.test && TEST_EDGES[edge.from].orEmpty().contains(edge.to))
             if (!ok) {
                 problems += "$edge: not allowed by the dependency rules (02-modules.md §3)"
             }

@@ -194,8 +194,21 @@ public final class ConfigConverter {
                                 Set<String> handled) {
         String type = config.get(prefix + ".type", defaultType).toLowerCase(Locale.ROOT);
         handled.add(prefix + ".type");
+        if ("proxy".equals(type)) {
+            // The 4.x proxy becomes the 5.0 remote store (08, R4-A): written so the configuration binds, completed by hand.
+            stores.computeIfAbsent("remote", name -> {
+                Map<String, Object> created = new LinkedHashMap<>();
+                created.put("type", "remote");
+                return created;
+            });
+            report.add(prefix + ".type = proxy: written as store [remote] of type remote (08, R4-A); set its options by hand"
+                + (config.get("cosid.proxy.host") == null ? "" : " (4.x cosid.proxy.host = " + config.get("cosid.proxy.host") + ")"));
+            handled.add(prefix + ".*");
+            handled.add("cosid.proxy.*");
+            return "remote";
+        }
         if (!STORE_TYPES.contains(type)) {
-            report.add(prefix + ".type = " + type + ": no 5.0 store converts from it (proxy: the remote store of R4-A); configure cosid.stores by hand");
+            report.add(prefix + ".type = " + type + ": no 5.0 store converts from it; configure cosid.stores by hand");
             handled.add(prefix + ".*");
             return null;
         }

@@ -1,6 +1,6 @@
 # Converted from a CosId 4.x configuration by cosid-migration config (09-migration.md §3).
 # Not converted as is - review before starting 5.0:
-#  - cosid.segment.distributor.type = proxy: no 5.0 store converts from it (proxy: the remote store of R4-A); configure cosid.stores by hand
+#  - cosid.segment.distributor.type = proxy: written as store [remote] of type remote (08, R4-A); set its options by hand
 #  - cosid.snowflake.share: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_S with overrides, keep it as is (M3)
 #  - cosid.snowflake.share.sequence-reset-threshold = 7: 5.0 configuration keeps the default threshold
 #  - cosid.snowflake.share.converter.date-prefix.before-prefix = false: the 5.0 codec list applies in order; check the order of date-prefix and prefix
@@ -23,6 +23,9 @@
 cosid:
   namespace: edge
   enabled: false
+  stores:
+    remote:
+      type: remote
   machine:
     static:
       bits: 8
@@ -60,10 +63,12 @@ cosid:
       codec: []
     friendly:
       strategy: segment
+      store: remote
       step: 10
       codec: []
     grouped:
       strategy: periodic-segment
+      store: remote
       step: 10
       period: YEAR
       zone: Asia/Shanghai

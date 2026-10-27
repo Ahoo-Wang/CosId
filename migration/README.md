@@ -139,4 +139,6 @@ ids with a 5.0 `CosIdRuntime` and asserts M1–M3; leaves a 4.x instance running
 the check off, the seal keeps its ranges away); and interrupts `apply` before and after the seal. H2 (over TCP) and
 ZooKeeper (curator-test) always run, Redis and MongoDB in Testcontainers when Docker is available; the cross-type cases
 are ZooKeeper → H2, Redis → H2 and MongoDB → ZooKeeper. `config` has goldens under `src/test/resources/config`
-(`-Pcosid.migration.updateGoldens=true` rewrites them).
+(`-Pcosid.migration.updateGoldens=true` rewrites them), and `ConfigBindingTest` binds each golden through Spring Boot's
+YAML loader and `Binder` into the `CosIdProperties` of `spring/autoconfigure` and maps it with `CosIdSpecs.toSpec`. That
+edge is test scope only (`DependencyRules.TEST_EDGES`); `checkNoSpring` fails the build if the fat jar carries Spring.

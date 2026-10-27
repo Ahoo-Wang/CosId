@@ -41,6 +41,9 @@ dependencies {
     testImplementation(libs.testcontainers.mongodb)
     testImplementation(libs.curator.test)
     testImplementation(libs.h2)
+    // The config goldens bind through the real Spring binding (ConfigBindingTest); test scope only, so the fat jar
+    // carries no Spring (DependencyRules.TEST_EDGES).
+    testImplementation(project(":spring:autoconfigure"))
 }
 
 // ZooKeeper 3.9 brings the Netty 4.1 epoll transport; on Linux Lettuce 7 (Netty 4.2) then picks it up and fails
@@ -94,4 +97,19 @@ tasks.shadowJar {
 }
 tasks.assemble {
     dependsOn(tasks.shadowJar)
+}
+
+// The fat jar ships no Spring: the :spring:autoconfigure edge is test scope only (DependencyRules.TEST_EDGES).
+val checkNoSpring by tasks.registering {
+    description = "Checks that the migration fat jar contains no Spring classes."
+    group = "verification"
+    val jar = tasks.shadowJar.flatMap { it.archiveFile }
+    inputs.file(jar)
+    doLast {
+        val spring = zipTree(jar.get().asFile).matching { include("org/springframework/**", "me/ahoo/cosid/spring/**") }.files
+        check(spring.isEmpty()) { "cosid-migration.jar must not contain Spring classes, found " + spring.take(5) }
+    }
+}
+tasks.check {
+    dependsOn(checkNoSpring)
 }

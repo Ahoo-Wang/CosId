@@ -115,7 +115,7 @@ R0 骨架、接口冻结、4.x 基线基准
 | R2-Mongo | 已合入 | [#1311](https://github.com/Ahoo-Wang/CosId/pull/1311) |
 | R2-Redis | 已合入 | [#1313](https://github.com/Ahoo-Wang/CosId/pull/1313) |
 | R2-JDBC | 审查中:acquire 改走 CAS 路径 | [#1314](https://github.com/Ahoo-Wang/CosId/pull/1314) |
-| R2-ZK | 审查中 | [#1315](https://github.com/Ahoo-Wang/CosId/pull/1315) |
+| R2-ZK | 已合入(后续:降低 acquire 的分配量) | [#1315](https://github.com/Ahoo-Wang/CosId/pull/1315) |
 | 后续修复 | R2-Mongo:4.4 上命名空间并发 upsert;R1-B:小 step 下 `maxBatch` 默认值 | |
 | R3 | 审查通过,等 Mongo 不稳定测试修复后合入 | [#1319](https://github.com/Ahoo-Wang/CosId/pull/1319) |
 | R3-S | 未开始 | |

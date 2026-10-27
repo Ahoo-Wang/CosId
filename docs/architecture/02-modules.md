@@ -52,6 +52,7 @@ groupId 不变:`me.ahoo.cosid`。artifactId 由构建约定从目录路径生成
 - `store/*` 只依赖 `core` 与各自驱动(JDBC 用 `javax.sql.DataSource`,Redis 用 `lettuce-core`,Mongo 用 `mongodb-driver-sync`,ZooKeeper 用 `curator-framework`)。**不依赖 Spring。**
 - `spring/autoconfigure` 依赖 `core`,对 `store/*`、`integrations` 均为 `compileOnly` + `@ConditionalOnClass`。
 - 任何模块不得依赖 `server`、`migration`、`examples`、`benchmark`。
+- 唯一的测试作用域例外:`migration` 的测试可依赖 `spring/autoconfigure`(用于验证 `config` 子命令的输出能被真实配置绑定),运行时依赖仍然禁止。
 - 规则由构建脚本中的依赖校验任务强制(ArchUnit 或自定义 Gradle 校验),违规即构建失败。
 
 ## 4. core 的包结构

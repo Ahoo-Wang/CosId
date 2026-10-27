@@ -51,6 +51,11 @@ public final class CosIdRuntime implements AutoCloseable {
   - codec 列表为空时使用十进制;转成文本的项(Radix / Friendly / Custom / Instance)只能放在第一位,修饰项放在第一位时作用于十进制。
   - cosid80 与周期号段不提供 `generator` / `stringGenerator` 视图,文本 ID 经 `PartsCodec` / `GroupedCodec` 获得;`IdFiller` 的 `String` 字段自动使用它们。
 
+### 1.0 生成器视图接口(R3-S 补充)
+
+`PartsIdGenerator { IdParts nextParts(); }`(`TimeBasedGenerator` 实现)与 `GroupedIdGenerator { GroupedId generate(); }`(`PeriodicSegmentGenerator` 实现):
+cosid80 与周期号段的 Bean 按接口注册,被禁用时可以是调用即抛 `GeneratorDisabledException` 的代理(D24)。生成计数由 `RuntimeOptions` 的计数开关在运行时统一挂上,关闭时热路径不受影响。
+
 ### 1.1 ownerKey 推导(沿用 4.x 的 instance-id 规则)
 
 1. 显式配置的 `ownerKey`;

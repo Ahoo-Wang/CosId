@@ -22,6 +22,8 @@ mongodb = "5.13.0"
 testcontainers = "2.0.5"
 # R2-Redis: the Redis store (testcontainers above)
 lettuce = "7.5.2.RELEASE"
+# benchmark/v5 only: one Netty for Lettuce and ZooKeeper, as the Spring Boot BOM gives applications.
+netty = "4.2.13.Final"
 # the Lettuce of spring-data-redis 4.0.7, which cosid-spring-redis 4.1.0 brings, for benchmark/baseline-4x
 lettuce4 = "6.8.2.RELEASE"
 # store/zookeeper (R2-ZK)
@@ -80,6 +82,7 @@ testcontainers-mongodb = { module = "org.testcontainers:testcontainers-mongodb",
 cosid4-mongo = { module = "me.ahoo.cosid:cosid-mongo", version.ref = "cosid4" }
 # R2-Redis
 lettuce-core = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
+netty-bom = { module = "io.netty:netty-bom", version.ref = "netty" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 cosid4-spring-redis = { module = "me.ahoo.cosid:cosid-spring-redis", version.ref = "cosid4" }
 cosid4-lettuce = { module = "io.lettuce:lettuce-core", version.ref = "lettuce4" }

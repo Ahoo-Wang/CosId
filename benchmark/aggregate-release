@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+"""Joins the results of the release gate's scenario groups (benchmark/run-release, one CI job each) into one report.
+
+    benchmark/aggregate-release OUT GROUP_DIR...
+
+Each GROUP_DIR is the --out directory of one run-release (its name is the group's name). OUT receives the joined
+baseline-4x.json and v5.json (and rerun-*.json), report.md (the groups with their runners, then each group's
+comparison), a table of the rows that still fail after their re-run with the phase that owns each, and baseline-4x.md (the 4.1.0 side alone, the refreshed baseline of docs/jmh/4.1.0). Exits 1 when a
+group failed or is missing its results, 0 otherwise.
+"""
+
+import json
+import os
+import re
+import sys
+
+# The phase that owns each scenario class (roadmap §3): a row that still fails goes to it for a fix.
+OWNERS = [
+    (r"^(SnowflakeMillis|SnowflakeSeconds|SnowflakeString|CosId80|Codec)Benchmark", "R1-A (time-based generators, codecs)"),
+    (r"^(Segment|SegmentNoPrefetch|PeriodicSegment)Benchmark", "R1-B (segments)"),
+    (r"^MySql", "R2-JDBC"),
+    (r"^Redis", "R2-Redis"),
+    (r"^Mongo", "R2-Mongo"),
+    (r"^Zookeeper", "R2-ZK"),
+    (r"^IdFillerBenchmark", "R3 (runtime, IdFiller)"),
+    (r"^SpringStartBenchmark", "R3-S (Spring Boot)"),
+]
+
+
+def owner(benchmark):
+    name = benchmark.removeprefix("me.ahoo.cosid.benchmark.")
+    return next((phase for pattern, phase in OWNERS if re.search(pattern, name)), "?")
+
+
+def load(path, default=None):
+    if not os.path.exists(path):
+        return default
+    with open(path, encoding="utf-8") as file:
+        return json.load(file)
+
+
+def fmt(value):
+    try:
+        return f"{float(value):,.3f}"
+    except (TypeError, ValueError):
+        return ""
+
+
+def main(argv):
+    if len(argv) < 2:
+        print(__doc__, file=sys.stderr)
+        return 2
+    out, groups = argv[0], sorted(argv[1:], key=os.path.basename)
+    os.makedirs(out, exist_ok=True)
+    joined = {"baseline-4x": [], "v5": [], "rerun-baseline-4x": [], "rerun-v5": []}
+    summary, sections, failed, still_failing = [], [], 0, []
+    commits = set()
+    for group in groups:
+        name = os.path.basename(group.rstrip("/"))
+        verdict, machine = load(os.path.join(group, "verdict.json")), load(os.path.join(group, "machine.json"), {})
+        for side in joined:
+            joined[side] += load(os.path.join(group, f"{side}.json"), [])
+        if verdict is None:
+            failed += 1
+            summary.append(f"| {name} | - | - | - | - | - | **no result** (the job failed before its report) |")
+            continue
+        commits.add(machine.get("commit", "?"))
+        still_failing += [(name, row) for row in verdict["failed"]]
+        rerun = len(verdict["failedFirstRun"])
+        result = "PASS" if verdict["status"] == 0 else f"**FAIL** ({len(verdict['failed'])} rows)"
+        failed += verdict["status"] != 0
+        summary.append(f"| {name} | {' '.join(verdict['scenarios'])} | {machine.get('cpu', '?')}, {machine.get('cores', '?')} cores "
+                       f"| {machine.get('jdk', '?')} | {verdict['rows']} | {rerun} | {result} |")
+        with open(os.path.join(group, "report.md"), encoding="utf-8") as file:
+            body = file.read().split("\n", 1)[1].strip()
+        sections += ["", f"## {name}", "", body.replace("\n# ", "\n### ").replace("\n## ", "\n### ")]
+    for side, rows in joined.items():
+        if rows:
+            with open(os.path.join(out, f"{side}.json"), "w", encoding="utf-8") as file:
+                json.dump(rows, file, indent=2)
+                file.write("\n")
+    first = load(os.path.join(groups[0], "machine.json"), {})
+    lines = ["# CosId 5.0 release gate", "",
+             "4.1.0 (`benchmark/baseline-4x`) and 5.0 (`benchmark/v5`), each scenario group in its own CI job and both sides "
+             "of a group on the same runner, interleaved per scenario, judged by `benchmark/compare` with the rules of "
+             "[10-performance-and-parity.md §1.3](../../architecture/10-performance-and-parity.md). A row that failed "
+             "was run again on both sides in fresh forks and passes only if that re-run passes; both runs are shown.", "",
+             f"Commit {', '.join(sorted(commits))}; {first.get('settings', '?')}; JMH {first.get('jmh', '?')}, `-prof gc`; "
+             f"{first.get('os', '?')}; {first.get('frequency scaling', '?')}.", "",
+             "| Group | Scenarios | Runner | JDK | Rows | Re-run | Result |", "|---|---|---|---|---|---|---|"]
+    lines += summary
+    lines += ["", f"**{'FAIL' if failed else 'PASS'}**: {failed} of {len(groups)} groups failed."]
+    if still_failing:
+        lines += ["", "## Rows that still fail after their re-run", "",
+                  "Each goes to the phase that owns it; the suspected cause is filled in when the row is investigated.", "",
+                  "| Group | Benchmark | Mode | Threads | Params | Owner | Suspected cause |", "|---|---|---|---|---|---|---|"]
+        for group, row in still_failing:
+            params = ",".join(f"{k}={v}" for k, v in sorted((row.get("params") or {}).items()))
+            lines.append(f"| {group} | {row['benchmark'].removeprefix('me.ahoo.cosid.benchmark.')} | {row['mode']} | "
+                         f"{row.get('threads', '')} | {params} | {owner(row['benchmark'])} | to investigate |")
+    lines += sections
+    with open(os.path.join(out, "report.md"), "w", encoding="utf-8") as file:
+        file.write("\n".join(lines) + "\n")
+
+    # The 4.1.0 side alone: the clean baseline (L1).
+    table = ["# CosId 4.1.0 baseline (release gate)", "",
+             f"The 4.x side of the release gate ({first.get('settings', '?')}, GitHub Actions runners; see "
+             "[../5.0/report.md](../5.0/report.md) for each group's runner). Commit "
+             f"{', '.join(sorted(commits))}.", "",
+             "| Benchmark | Mode | Threads | Params | Score | Error | Unit | p99 | p99.9 | Alloc (B/op) |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
+    for row in sorted(joined["baseline-4x"], key=lambda r: (r["benchmark"], r["mode"], r["threads"], str(r.get("params")))):
+        metric = row["primaryMetric"]
+        percentiles = metric.get("scorePercentiles", {}) if row["mode"] == "sample" else {}
+        alloc = row.get("secondaryMetrics", {}).get("gc.alloc.rate.norm", {}).get("score")
+        params = ",".join(f"{k}={v}" for k, v in sorted((row.get("params") or {}).items()))
+        table.append(f"| {row['benchmark'].removeprefix('me.ahoo.cosid.benchmark.')} | {row['mode']} | {row['threads']} | {params} "
+                     f"| {fmt(metric['score'])} | {fmt(metric.get('scoreError'))} | {metric.get('scoreUnit', '')} "
+                     f"| {fmt(percentiles.get('99.0'))} | {fmt(percentiles.get('99.9'))} | {fmt(alloc)} |")
+    with open(os.path.join(out, "baseline-4x.md"), "w", encoding="utf-8") as file:
+        file.write("\n".join(table) + "\n")
+    print(f"aggregate-release: {len(groups)} groups, {failed} failed; report in {out}/report.md", file=sys.stderr)
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

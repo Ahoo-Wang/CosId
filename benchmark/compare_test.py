@@ -83,6 +83,21 @@ class CompareTest(unittest.TestCase):
     def test_a_missing_candidate_row_fails(self):
         self.assertEqual(1, self.failed(row("P.a"), row("P.b")))
 
+    def test_a_failed_row_passes_only_if_its_rerun_passes(self):
+        base, slow = row("P.a", score=100, error=0), row("P.a", score=80)
+        other = row("P.b", score=100, error=0)
+        lines, failed, keys = compare.compare({**base, **other}, {**slow, **other}, rerun=(base, row("P.a", score=100)))
+        self.assertEqual(0, failed)
+        self.assertIn("## Re-run of the failed rows", lines)
+        self.assertEqual(1, compare.compare(base, slow, rerun=(base, slow))[1])
+        # A row the re-run did not produce fails.
+        self.assertEqual(1, compare.compare(base, slow, rerun=({}, {}))[1])
+
+    def test_failed_rows_are_listed_for_a_rerun(self):
+        base = row("P.a", score=100, error=0)
+        self.assertEqual([("P.a", "thrpt", 1, "")], compare.compare(base, row("P.a", score=80))[2])
+        self.assertEqual([], compare.compare(base, base)[2])
+
     def test_rows_match_by_threads(self):
         self.assertEqual(1, self.failed(row("P.a", threads=4), row("P.a", threads=1)))
 

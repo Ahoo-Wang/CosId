@@ -21,8 +21,9 @@ import me.ahoo.cosid.observe.GeneratorListener;
 import java.util.Objects;
 
 /**
- * The time-based generator: Snowflake layouts and the 80-bit CosId alike (03-core-model.md §4). Lock-free; reads the
- * slot binding once per id and checks the slot window before every CAS (§4.1).
+ * The time-based generator: Snowflake layouts and the 80-bit CosId alike (03-core-model.md §4). Reads the slot binding
+ * once per id and checks the slot window before publishing the new state (§4.1); issuing is a short critical section and
+ * never waits while holding it.
  */
 public final class TimeBasedGenerator implements IdGenerator, AutoCloseable {
     private final String name;

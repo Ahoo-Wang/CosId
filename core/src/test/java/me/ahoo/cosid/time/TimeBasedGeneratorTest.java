@@ -347,6 +347,7 @@ class TimeBasedGeneratorTest {
         slot.invalidate();
         SlotLostException error = assertThrows(SlotLostException.class, generator::generate);
         assertThat(error.slot(), is(1));
+        assertThat(error.generator(), is("test"));
         slot.rebind(4, Long.MIN_VALUE, Long.MAX_VALUE);
         assertThat(Layout.SNOWFLAKE_MS.unpack(generator.generate()).node(), is(4));
     }
@@ -468,5 +469,60 @@ class TimeBasedGeneratorTest {
         for (int i = 1; i < all.length; i++) {
             assertThat("duplicate " + all[i], all[i] != all[i - 1], is(true));
         }
+    }
+
+    @Test
+    void aWaitingThreadHoldsNoLock() throws Exception {
+        // A floor wait, an exhausted sequence, a clock regression and a wait for a renewal at the ceiling.
+        assertWaitsWithoutLock(generator(Layout.SNOWFLAKE_MS, new FakeSlot(1, T0 + 50, Long.MAX_VALUE), ClockRegressionPolicy.DEFAULT),
+            () -> { });
+        // Seconds, so the exhausted thread parks instead of spinning on sub-millisecond retries.
+        TimeBasedGenerator tiny = generator(new Layout(Layout.COSID_EPOCH, ChronoUnit.SECONDS, 31, 10, 3, 3));
+        assertWaitsWithoutLock(tiny, () -> {
+            for (int seq = 0; seq <= 7; seq++) {
+                tiny.generate();
+            }
+        });
+        TimeBasedGenerator regressed = generator(Layout.SNOWFLAKE_MS);
+        assertWaitsWithoutLock(regressed, () -> {
+            regressed.generate();
+            time.set(T0 - 100);
+        });
+        time.set(T0);
+        TimeBasedGenerator renewal = generator(Layout.SNOWFLAKE_MS, new FakeSlot(1, Long.MIN_VALUE, T0 - 1),
+            new ClockRegressionPolicy(Duration.ZERO, Duration.ofSeconds(30)));
+        assertWaitsWithoutLock(renewal, () -> { });
+    }
+
+    /**
+     * Makes {@code generator} wait on another thread, checks that the thread holds no monitor or lock while waiting,
+     * and that {@code close()} on this thread neither blocks nor lets the waiting thread issue.
+     */
+    private void assertWaitsWithoutLock(TimeBasedGenerator generator, Runnable prepare) throws Exception {
+        prepare.run();
+        java.util.concurrent.FutureTask<Long> task = new java.util.concurrent.FutureTask<>(generator::generate);
+        Thread waiting = new Thread(task, "waiting");
+        waiting.start();
+        java.lang.management.ThreadMXBean threads = java.lang.management.ManagementFactory.getThreadMXBean();
+        for (int i = 0; i < 100 && waiting.getState() == Thread.State.RUNNABLE; i++) {
+            Thread.sleep(5);
+        }
+        Thread.sleep(50);
+        assertThat("still waiting", task.isDone(), is(false));
+        // Between waits the thread retries, taking the lock for one short attempt: most samples find it holding nothing.
+        int free = 0;
+        for (int i = 0; i < 20; i++) {
+            java.lang.management.ThreadInfo info = threads.getThreadInfo(new long[] {waiting.threadId()}, true, true)[0];
+            if (info.getLockedMonitors().length == 0 && info.getLockedSynchronizers().length == 0) {
+                free++;
+            }
+            Thread.sleep(2);
+        }
+        assertThat(free, greaterThanOrEqualTo(18));
+        long started = System.nanoTime();
+        generator.close();
+        assertThat(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(500), is(true));
+        ExecutionException error = assertThrows(ExecutionException.class, () -> task.get(5, TimeUnit.SECONDS));
+        assertThat(error.getCause() instanceof IllegalStateException, is(true));
     }
 }

@@ -17,17 +17,17 @@ package me.ahoo.cosid;
  * The machine slot binding a generator read was invalidated: its lease was lost (05-machine-lease.md §4.2).
  */
 public class SlotLostException extends CosIdException {
-    private final String namespace;
+    private final String generator;
     private final int slot;
 
-    public SlotLostException(String namespace, int slot) {
-        super("Lost the lease of slot " + slot + " in namespace [" + namespace + "]");
-        this.namespace = namespace;
+    public SlotLostException(String generator, int slot) {
+        super("Lost the lease of slot " + slot + " in generator [" + generator + "]");
+        this.generator = generator;
         this.slot = slot;
     }
 
-    public String namespace() {
-        return namespace;
+    public String generator() {
+        return generator;
     }
 
     public int slot() {

@@ -26,4 +26,7 @@ dependencies {
     // R2-Redis: P7 / P10 on the 4.x Redis distributors
     jmh(libs.cosid4.spring.redis)
     jmh(libs.cosid4.lettuce)
+    // P10 (ZooKeeper): the 4.x store and an in-process server.
+    jmh(libs.cosid4.zookeeper)
+    jmh(libs.curator.test)
 }

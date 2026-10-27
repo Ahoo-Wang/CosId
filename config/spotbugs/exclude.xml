@@ -40,4 +40,9 @@
         <Class name="me.ahoo.cosid.segment.SegmentGenerator"/>
         <Bug code="AT"/>
     </Match>
+    <Match>
+        <!-- store/jdbc writes table names into its SQL: JdbcTables accepts identifiers only, every value is bound. -->
+        <Package name="me.ahoo.cosid.store.jdbc"/>
+        <Bug pattern="SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING,SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"/>
+    </Match>
 </FindBugsFilter>

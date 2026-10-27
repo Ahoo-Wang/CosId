@@ -1,0 +1,108 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.cosid.store.jdbc;
+
+import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.OptionalLong;
+
+/**
+ * MySQL 8.0+ and MariaDB 10.6+ (both have {@code for update skip locked}).
+ *
+ * <p>{@code reserve} is {@code insert … on duplicate key update} where <em>both</em> branches set
+ * {@code last_insert_id}: the insert branch through {@code values (?, last_insert_id(? + ?))}, the update branch
+ * through {@code last_insert_id(next_value + ?)}, or {@code last_insert_id(0)} when the key is sealed or full. The
+ * following {@code select last_insert_id()} on the same connection therefore never reads a value an earlier statement
+ * left on a pooled connection; 0 cannot be a new {@code next_value}, so it means "not reserved".
+ */
+final class MySqlDialect implements JdbcDialect {
+    /** Rows of one provisioning insert: 2 parameters each. */
+    private static final int PROVISION_CHUNK = 256;
+    private final boolean mariaDb;
+
+    MySqlDialect(boolean mariaDb) {
+        this.mariaDb = mariaDb;
+    }
+
+    @Override
+    public String name() {
+        return mariaDb ? "mariadb" : "mysql";
+    }
+
+    @Override
+    public boolean supports(DatabaseMetaData metaData) throws SQLException {
+        boolean isMariaDb = JdbcDialects.isMariaDb(metaData);
+        return mariaDb ? isMariaDb : !isMariaDb && JdbcDialects.productIs(metaData, "mysql");
+    }
+
+    @Override
+    public List<String> schema(JdbcTables tables) {
+        return JdbcDialects.schema("schema-mysql.sql", tables);
+    }
+
+    @Override
+    public String nowMillis() {
+        return "(timestampdiff(microsecond, '1970-01-01 00:00:00', utc_timestamp(6)) div 1000)";
+    }
+
+    @Override
+    public OptionalLong reserve(JdbcSession session, String key, long size, long initialOffset) throws SQLException {
+        try (PreparedStatement upsert = session.prepare("insert into " + session.tables().range() + " (range_key, next_value) values (?, last_insert_id(? + ?))"
+            + " on duplicate key update next_value = if(sealed or next_value > ?, next_value + last_insert_id(0), last_insert_id(next_value + ?))")) {
+            upsert.setString(1, key);
+            upsert.setLong(2, initialOffset);
+            upsert.setLong(3, size);
+            upsert.setLong(4, Long.MAX_VALUE - size);
+            upsert.setLong(5, size);
+            upsert.executeUpdate();
+        }
+        try (PreparedStatement select = session.prepare("select last_insert_id()"); ResultSet rs = select.executeQuery()) {
+            rs.next();
+            long next = rs.getLong(1);
+            return next == 0 ? OptionalLong.empty() : OptionalLong.of(next);
+        }
+    }
+
+    @Override
+    public void insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
+        try (PreparedStatement insert = session.prepare("insert ignore into " + session.tables().namespace()
+            + " (namespace, slot_limit, tolerance_ms) values (?, ?, ?)")) {
+            insert.setString(1, namespace);
+            insert.setInt(2, limit);
+            insert.setLong(3, toleranceMillis);
+            insert.executeUpdate();
+        }
+    }
+
+    @Override
+    public void provisionSlots(JdbcSession session, String namespace, int limit) throws SQLException {
+        for (int from = 0; from < limit; from += PROVISION_CHUNK) {
+            int rows = Math.min(PROVISION_CHUNK, limit - from);
+            StringBuilder sql = new StringBuilder("insert ignore into ").append(session.tables().slot()).append(" (namespace, slot) values ");
+            for (int i = 0; i < rows; i++) {
+                sql.append(i == 0 ? "(?, ?)" : ", (?, ?)");
+            }
+            try (PreparedStatement insert = session.prepare(sql.toString())) {
+                for (int i = 0; i < rows; i++) {
+                    insert.setString(2 * i + 1, namespace);
+                    insert.setInt(2 * i + 2, from + i);
+                }
+                insert.executeUpdate();
+            }
+        }
+    }
+}

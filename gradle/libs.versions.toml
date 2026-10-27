@@ -10,6 +10,14 @@ hamcrest = "3.0"
 jmh = "1.37"
 # The 4.x release the benchmarks compare against (D21, docs/architecture/10-performance-and-parity.md).
 cosid4 = "4.1.0"
+# R2-JDBC: the drivers and containers of store/jdbc tests and the P7 / P10 benchmarks.
+testcontainers = "2.0.5"
+mysql-connector = "9.7.0"
+mariadb-client = "3.5.11"
+postgresql = "42.7.14"
+mssql-jdbc = "13.4.0.jre11"
+h2 = "2.4.240"
+hikari = "7.0.2"
 # plugins
 test-retry = "1.6.6"
 publish-plugin = "2.0.0"
@@ -28,6 +36,19 @@ jmh-core = { module = "org.openjdk.jmh:jmh-core", version.ref = "jmh" }
 jmh-generator-annprocess = { module = "org.openjdk.jmh:jmh-generator-annprocess", version.ref = "jmh" }
 cosid4-core = { module = "me.ahoo.cosid:cosid-core", version.ref = "cosid4" }
 cosid4-accessor = { module = "me.ahoo.cosid:cosid-accessor", version.ref = "cosid4" }
+cosid4-jdbc = { module = "me.ahoo.cosid:cosid-jdbc", version.ref = "cosid4" }
+testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
+testcontainers-core = { module = "org.testcontainers:testcontainers" }
+testcontainers-mysql = { module = "org.testcontainers:testcontainers-mysql" }
+testcontainers-mariadb = { module = "org.testcontainers:testcontainers-mariadb" }
+testcontainers-postgresql = { module = "org.testcontainers:testcontainers-postgresql" }
+testcontainers-mssqlserver = { module = "org.testcontainers:testcontainers-mssqlserver" }
+mysql-connector = { module = "com.mysql:mysql-connector-j", version.ref = "mysql-connector" }
+mariadb-client = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "mariadb-client" }
+postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+mssql-jdbc = { module = "com.microsoft.sqlserver:mssql-jdbc", version.ref = "mssql-jdbc" }
+h2 = { module = "com.h2database:h2", version.ref = "h2" }
+hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
 # Gradle plugins used by the convention plugins in build-logic/
 spotbugs-gradle-plugin = { module = "com.github.spotbugs.snom:spotbugs-gradle-plugin", version.ref = "spotbugs" }
 jmh-gradle-plugin = { module = "me.champeau.jmh:jmh-gradle-plugin", version.ref = "jmh-plugin" }

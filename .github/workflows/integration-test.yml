@@ -53,3 +53,70 @@ jobs:
 
       - name: Compile the benchmarks
         run: ./gradlew :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
+
+  # store/jdbc (R2-JDBC): the TCK on every dialect at its minimum version (06-stores.md §2.1). MySQL, MariaDB and
+  # PostgreSQL are services reached through COSID_TEST_*_URL; SQL Server, whose image is large, runs on Testcontainers.
+  # checkContractsRan checks each dialect's reports on their own, so a database that was not there fails the job.
+  store-jdbc:
+    name: Store JDBC
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: cosid_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+      mariadb:
+        image: mariadb:10.6
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: cosid_db
+        ports:
+          - 3307:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h localhost -proot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+      postgres:
+        image: postgres:12-alpine
+        env:
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: cosid_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Check store/jdbc on every dialect
+        env:
+          COSID_TEST_MYSQL_URL: jdbc:mysql://localhost:3306/cosid_db
+          COSID_TEST_MYSQL_USERNAME: root
+          COSID_TEST_MYSQL_PASSWORD: root
+          COSID_TEST_MARIADB_URL: jdbc:mariadb://localhost:3307/cosid_db
+          COSID_TEST_MARIADB_USERNAME: root
+          COSID_TEST_MARIADB_PASSWORD: root
+          COSID_TEST_POSTGRES_URL: jdbc:postgresql://localhost:5432/cosid_db
+          COSID_TEST_POSTGRES_USERNAME: postgres
+          COSID_TEST_POSTGRES_PASSWORD: root
+        run: scripts/gradle-retry.sh :store:jdbc:check -Pcosid.store.jdbc.dialects=h2,mysql,mariadb,postgresql,sqlserver

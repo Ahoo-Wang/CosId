@@ -33,7 +33,7 @@ Every runtime has one slot shared by all its time-based generators (D18). Segmen
 
 - `snowflake` (`SNOWFLAKE_MS`, the 4.x default layout) for a numeric primary key that encodes its creation time and
   needs no store call per id.
-- `segment` with `initial-offset: 1` for dense numeric keys or business numbers; its batch size adapts to a time
+- `segment` for dense numeric keys or business numbers; its batch size adapts to a time
   budget (`lookahead`, default 1s), so there is no step tuning in most cases.
 - `periodic-segment` for numbers that restart every year, month or day (`20261027-000042`).
 - `cosid80` only when more than 64 bits are needed.

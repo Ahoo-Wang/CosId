@@ -54,8 +54,8 @@ try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
   `GeneratorSpec.PeriodicSegment(store, Period.YEAR_MONTH_DAY, zone, BatchPolicy.DEFAULT, PeriodicPolicy.DEFAULT,
   new GroupedCodecSpec.DatePrefix("-", List.of(new CodecSpec.Radix(10, 6, true))))`.
 - `GeneratorSpec.Disabled(spec)` declares a generator without creating it.
-- A segment's `BatchPolicy(step, initialOffset, lookahead, maxBatch, reserveTimeout, rangeTtl)`: use an initial offset of
-  1 for entity ids (0 counts as unset for `IdFiller`).
+- A segment's `BatchPolicy(step, initialOffset, lookahead, maxBatch, reserveTimeout, rangeTtl)`; `BatchPolicy.DEFAULT`
+  starts a new key at 1, as 4.x did.
 
 ## Reading Ids
 

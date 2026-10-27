@@ -22,7 +22,7 @@ import org.junit.jupiter.params.provider.ValueSource
 
 class DependencyRulesTest {
     private val projects = listOf(
-        ":", ":core", ":bom", ":store", ":store:tck", ":store:jdbc", ":store:redis", ":spring", ":spring:autoconfigure",
+        ":", ":core", ":bom", ":store", ":store:tck", ":store:jdbc", ":store:redis", ":store:remote", ":spring", ":spring:autoconfigure",
         ":spring:starter", ":server", ":integrations", ":extras", ":extras:sharding", ":migration", ":benchmark",
         ":benchmark:baseline-4x", ":benchmark:v5", ":examples", ":examples:segment-jdbc",
     )
@@ -45,6 +45,8 @@ class DependencyRulesTest {
             ":spring:starter->:spring:autoconfigure",
             ":server->:spring:autoconfigure",
             ":server->:store:jdbc",
+            ":server->:store:remote",
+            ":server->:store:tck(test)",
             ":benchmark:v5->:core",
             ":benchmark:v5->:store:tck",
             ":examples:segment-jdbc->:spring:starter",
@@ -68,6 +70,10 @@ class DependencyRulesTest {
             ":spring:starter->:store:jdbc",
             ":extras:sharding->:store:jdbc",
             ":core->:server(test)",
+            // R4-A: the remote TCK runs in server/, never the other way round: nothing depends on server.
+            ":store:remote->:server",
+            ":store:remote->:server(test)",
+            ":benchmark:v5->:server",
             ":store:jdbc->:migration",
             ":migration->:spring:autoconfigure",
             ":migration->:spring:starter(test)",

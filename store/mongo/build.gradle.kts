@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-// The MongoDB store (06-stores.md §2.3): ranges and slot leases over the sync driver, MongoDB 4.4 or later.
+// The MongoDB store (06-stores.md §2.3): ranges and slot leases over the sync driver, MongoDB 6.0 or later.
 plugins {
     id("cosid.library")
 }

@@ -54,7 +54,7 @@ jobs:
       - name: Compile the benchmarks
         run: ./gradlew :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
 
-  # R2-Mongo: the store TCK on a single-node replica set (Testcontainers), on the minimum (4.4) and a current MongoDB;
+  # R2-Mongo: the store TCK on a single-node replica set (Testcontainers), on the minimum (6.0) and a current MongoDB;
   # checkContractsRan fails the job when the contract cases were skipped.
   store-mongo:
     name: Store MongoDB (${{ matrix.image }})
@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ 'mongo:4.4', 'mongo:8.0' ]
+        image: [ 'mongo:6.0', 'mongo:8.0' ]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -78,6 +78,37 @@ jobs:
         env:
           COSID_TEST_MONGODB_IMAGE: ${{ matrix.image }}
         run: scripts/gradle-retry.sh :store:mongo:check
+
+  # D28: one TCK run on MongoDB versions below the 6.0 minimum, to document real compatibility in store/mongo/README.md.
+  # Not a support commitment and never blocking: the step may fail, the job stays green and reports the outcome.
+  store-mongo-probe:
+    name: Store MongoDB probe (${{ matrix.image }}, not supported)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [ 'mongo:4.4', 'mongo:5.0' ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Store TCK (probe)
+        id: tck
+        continue-on-error: true
+        env:
+          COSID_TEST_MONGODB_IMAGE: ${{ matrix.image }}
+        run: scripts/gradle-retry.sh :store:mongo:check
+
+      - name: Report
+        run: |
+          echo "${{ matrix.image }} TCK probe: ${{ steps.tck.outcome }}" | tee -a "$GITHUB_STEP_SUMMARY"
 
   # R2-Redis: the TCK on standalone Redis (the service, COSID_TEST_REDIS_URI), a primary with a replica (WAIT) and a
   # three-primary Redis Cluster (Testcontainers), on the oldest supported and a current Redis; checkContractsRan fails

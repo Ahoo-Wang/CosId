@@ -26,9 +26,13 @@ public record StoreConfig(String name, String type, Duration timeout, Map<String
 
 ## 2. 各后端实现
 
+**版本策略(D27、D28)**:支持承诺从下文各节写明的最低版本开始,CI 必须覆盖最低版本与最新版本。另外在低于最低版本的若干版本上各跑一次 TCK
+(非阻塞的 probe job),结果写入各模块 README 的"实测兼容性(不承诺)"表,只用于如实说明兼容情况,不为旧版本加任何兼容代码。
+R5-B 把各模块的实测结果汇总到文档站。
+
 ### 2.1 JDBC
 
-支持的数据库与最低版本:MySQL 8.0、MariaDB 10.6、PostgreSQL 12、SQL Server 2019、H2 2.x(开发与测试)。方言自动探测,也可以通过 `JdbcDialect` SPI 扩展,取代 4.x 的自定义 SQL 配置。
+支持的数据库与最低版本(D27):MySQL 8.4 LTS、MariaDB 10.11 LTS、PostgreSQL 15、SQL Server 2019、H2 2.x(开发与测试)。CI 对每种方言覆盖最低版本与最新版本。方言自动探测,也可以通过 `JdbcDialect` SPI 扩展,取代 4.x 的自定义 SQL 配置。
 
 ```sql
 create table cosid_range (
@@ -80,7 +84,7 @@ create table cosid_namespace (
   SQL Server `datediff_big(ms, '1970-01-01', sysutcdatetime())`;H2 同 PostgreSQL 写法。
 - 是否自动建表由 `options.initSchema` 控制(默认关闭);表名可通过 `options.rangeTable` / `slotTable` / `namespaceTable` 配置。
 
-### 2.2 Redis(最低 Redis 6)
+### 2.2 Redis(最低 7.0,D27)
 
 模块只依赖 `lettuce-core`,并定义最小执行接口;Spring Data 的适配放在 `spring/autoconfigure`(D6):
 
@@ -99,7 +103,7 @@ public interface RedisScripts {
 - `acquire` 在一个 Lua 中完成:`now = TIME`;用 `ZRANGEBYSCORE live -inf now LIMIT 0 k` 把至多 k 个已过期的槽位移入 `free`;
   依次尝试 preferred、粘性槽位;否则 `ZRANGEBYSCORE free 0 (limit−1) LIMIT 0 1` 取编号最小的空闲槽位。复杂度 O(log n)。
 - `release`:从 `live` 移除,加入 `free`(score 为槽位号),`expiresAt = now`。
-- 存储时钟:Lua 内 `redis.call('TIME')`。Redis 6+ 默认使用脚本效果复制,`TIME` 可以安全使用。
+- 存储时钟:Lua 内 `redis.call('TIME')`。Redis 7 只使用脚本效果复制,`TIME` 可以安全使用。
 - `WAIT` 默认 auto:启动时读取 `INFO replication`,有副本时每次写操作后执行 `WAIT 1 timeout`,未确认则操作失败。
   `WAIT` 在 store 自建的专用连接上执行,不会阻塞用户注入的多路复用连接。
 - 文档声明:Redis 后端的唯一性以"已确认的写入不会丢失"为前提,即单节点开启 AOF `appendfsync always`,或者 `WAIT` 覆盖所有副本。
@@ -113,7 +117,7 @@ public interface RedisScripts {
   过滤条件用 `$expr` 与 `$$NOW` 表达"可取",按 `slot` 升序,条件中带上 `fence`。
 - 写关注默认 `majority`,读关注 `majority`。存储时钟取 `$$NOW`。数据库名通过 `options.database` 配置(默认 `cosid_db`)。
 
-### 2.4 ZooKeeper
+### 2.4 ZooKeeper(最低 3.8,以 3.9 为主,D27)
 
 - 区间:znode `/cosid/range/{key}`,数据为 `next`(以及封存标记);用版本化 `setData` 实现 CAS,不存在时 `create`,遇到 `NodeExists` 重试。
 - 槽位:`/cosid/slot/{ns}/{slot}`,数据为 `{ownerKey, incarnation, lastOwnerKey, fence, ttl, floor, ceiling, nextFloor}`。

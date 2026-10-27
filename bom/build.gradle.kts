@@ -25,6 +25,7 @@ dependencies {
         api(project(":store:redis"))
         api(project(":store:zookeeper"))
         api(project(":store:remote"))
+        api(project(":integrations"))
         api(project(":spring:autoconfigure"))
         api(project(":spring:starter"))
     }

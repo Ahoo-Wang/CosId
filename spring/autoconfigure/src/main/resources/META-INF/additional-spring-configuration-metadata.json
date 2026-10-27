@@ -5,6 +5,57 @@
       "type": "java.lang.Boolean",
       "description": "Whether to enable the CosId machine slot health check.",
       "defaultValue": true
+    },
+    {
+      "name": "cosid.mybatis.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to register the MyBatis interceptor that fills @CosId ids before an INSERT.",
+      "defaultValue": true
+    },
+    {
+      "name": "cosid.mybatis.list-key",
+      "type": "java.lang.String",
+      "description": "The parameter name of a batch insert's entities.",
+      "defaultValue": "list"
+    },
+    {
+      "name": "cosid.jdbc.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to register the Spring Data JDBC callback that fills @CosId and @Id ids before an insert. Off by default, as in 4.x: an @Id the database generates must not be filled.",
+      "defaultValue": false
+    },
+    {
+      "name": "cosid.jdbc.id-generator",
+      "type": "java.lang.String",
+      "description": "The generator of Spring Data JDBC @Id properties without @CosId.",
+      "defaultValue": "default"
+    },
+    {
+      "name": "cosid.activiti.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether Activiti's ids come from a CosId generator.",
+      "defaultValue": true
+    },
+    {
+      "name": "cosid.activiti.generator-name",
+      "type": "java.lang.String",
+      "description": "The generator of Activiti's ids. Unset, the cosid.activiti system property's, else default."
+    },
+    {
+      "name": "cosid.flowable.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether Flowable's ids come from a CosId generator.",
+      "defaultValue": true
+    },
+    {
+      "name": "cosid.flowable.generator-name",
+      "type": "java.lang.String",
+      "description": "The generator of Flowable's ids. Unset, the cosid.flowable system property's, else default."
+    },
+    {
+      "name": "cosid.axon.generator-name",
+      "type": "java.lang.String",
+      "description": "The generator of Axon's identifiers. Unset, the cosid.axon system property's, else default."
     }
   ],
   "hints": [

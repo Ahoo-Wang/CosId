@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-// A published library built on Spring Boot (spring/*, later server and integrations; 02-modules.md §5).
+// A published library built on Spring Boot (spring/*, integrations, later server; 02-modules.md §5).
 //
 // - The Spring Boot BOM manages this project's build classpaths only: it is never published, so an application keeps
 //   the versions of its own Boot. Dependencies other projects of this build see carry explicit versions instead.

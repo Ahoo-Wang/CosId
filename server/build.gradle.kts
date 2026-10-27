@@ -50,6 +50,11 @@ dependencies {
     testImplementation(libs.h2)
 }
 
+tasks.test {
+    // The Redis contracts run only with it: an input, so a cached run without Redis is not reused with it (and back).
+    inputs.property("redisUri", providers.environmentVariable("COSID_TEST_REDIS_URI").orElse(""))
+}
+
 tasks.bootJar {
     archiveFileName.set("cosid-server.jar")
 }

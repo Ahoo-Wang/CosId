@@ -394,8 +394,9 @@ jobs:
 
       - name: Check the Redis contracts ran
         run: |
+          ls server/build/test-results/test/
           for report in server/build/test-results/test/TEST-*RemoteRedis*.xml; do
-            grep -q 'skipped="0"' "$report" || { echo "::error::$report skipped its cases"; exit 1; }
+            grep -q 'skipped="0"' "$report" || { head -c 2000 "$report"; echo "::error::$report skipped its cases"; exit 1; }
           done
 
       - name: Build the image

@@ -36,6 +36,7 @@ import java.util.Objects;
 final class ZookeeperRangeStore implements RangeStore {
     static final String ROOT = "/cosid/range";
     static final String SEALED = ":sealed";
+    private static final byte[] SEALED_BYTES = Ascii.bytes(SEALED);
 
     private final Zk zk;
 
@@ -166,7 +167,8 @@ final class ZookeeperRangeStore implements RangeStore {
      */
     record Value(long next, boolean sealed) {
         byte[] bytes() {
-            return (sealed ? next + SEALED : Long.toString(next)).getBytes(StandardCharsets.US_ASCII);
+            Ascii.Writer data = new Ascii.Writer(32).number(next);
+            return (sealed ? data.raw(SEALED_BYTES) : data).toBytes();
         }
 
         /**
@@ -178,13 +180,12 @@ final class ZookeeperRangeStore implements RangeStore {
             if (data == null || data.length == 0) {
                 return null;
             }
-            String text = new String(data, StandardCharsets.US_ASCII);
-            boolean sealed = text.endsWith(SEALED);
-            String next = sealed ? text.substring(0, text.length() - SEALED.length()) : text;
+            boolean sealed = data.length > SEALED_BYTES.length
+                && Ascii.is(data, data.length - SEALED_BYTES.length, data.length, SEALED_BYTES);
             try {
-                return new Value(Long.parseLong(next), sealed);
-            } catch (NumberFormatException e) {
-                throw new CosIdException("Range node " + path + " holds no range value: " + text, e);
+                return new Value(Ascii.number(data, 0, sealed ? data.length - SEALED_BYTES.length : data.length), sealed);
+            } catch (NumberFormatException | ArithmeticException e) {
+                throw new CosIdException("Range node " + path + " holds no range value: " + new String(data, StandardCharsets.US_ASCII), e);
             }
         }
     }

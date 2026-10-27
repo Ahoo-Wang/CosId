@@ -120,7 +120,8 @@ loop:
   if state.compareAndSet(s, next): return pack(t', b.slot, seq')
 ```
 
-- **不持任何锁**。等待先用 `Thread.onSpinWait()` 自旋,超过阈值后用 `LockSupport.parkNanos`,不阻塞其他线程的 CAS。
+- **发号本身是一个很短的临界区**(D25):读时间、检查 floor/ceiling、计算、发布新状态。**所有等待都在锁外**:floor 等待、序列耗尽、回拨等待、在 ceiling 处等待续约时,先释放锁再等待,然后重试。
+  R1-A 的基准表明,无锁 CAS 在 16 线程下只有 4.x 的 92–97%(缓存行在核间搬运),而短临界区与 4.x 持平;要保住的性质是"不在锁内等待",而不是"无锁"。
 - floor/ceiling 检查是安全条件,在 CAS 之前对本次实际使用的时间戳进行,与 GC 停顿、时钟跳变无关。
 - 换绑后序列器随新绑定一起重置,ID 中的槽位总是取自同一个绑定。
 - `close()`:把当前 `Bound` 的状态 CAS 为 `CLOSED`(并阻止换上新的 `Bound`),被替换的状态给出精确的 `lastIssued`。并发中的 CAS 会失败,随后读到 `CLOSED` 并抛出异常。

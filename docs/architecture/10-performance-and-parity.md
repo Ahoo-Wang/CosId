@@ -45,12 +45,13 @@ benchmark/
 执行环境:
 - **发布门槛**:固定物理机、固定 JDK 21 小版本、关闭 Turbo,两边在同一台机器上依次运行,报告存入 `docs/jmh/5.0/`。
 - **PR 冒烟**:CI 上运行 P1、P3、P5、P9 的短版本,容差放宽到 `score_5 ≥ 0.9 × score_4`,只用来尽早发现量级上的回退。
+- **存储场景(P7、P10)**:延迟由外部服务决定,在共享机器上波动过大(同一代码三次运行相差数倍)。PR 中只要求两侧往返次数相同、冒烟无量级回退,最终判定放在 R5-A 的安静机器上。
 
 ### 1.4 设计上的性能保障
 
 | 4.x 热路径 | 5.0 做法 |
 |---|---|
-| Snowflake `synchronized generate`,序列耗尽时持锁 park | 打包状态的 `AtomicLong` CAS,等待时不持锁 |
+| Snowflake `synchronized generate`,序列耗尽时持锁 park | 短临界区发号(D25),所有等待都在锁外 |
 | 每次生成都经过装饰链(Leased → ClockSync → Counted → String) | 单个 final 类;租约检查是一次 volatile 读 |
 | 热路径调用全局 `CosIdEvents` | 热路径不调用 listener |
 | Friendly 编码每次构造 `LocalDateTime` + `DateTimeFormatter` | 预计算字段宽度,直接写 `char[]` |

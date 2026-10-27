@@ -20,6 +20,12 @@ plugins {
 dependencies {
     jmh(libs.cosid4.core)
     jmh(libs.cosid4.accessor)
+    // P10 (MongoDB): the 4.x Mongo distributor and lease store, on the same driver as 5.x.
+    jmh(libs.cosid4.mongo)
+    jmh(libs.mongodb.driver.sync)
+    // R2-Redis: P7 / P10 on the 4.x Redis distributors
+    jmh(libs.cosid4.spring.redis)
+    jmh(libs.cosid4.lettuce)
     // P10 (ZooKeeper): the 4.x store and an in-process server.
     jmh(libs.cosid4.zookeeper)
     jmh(libs.curator.test)

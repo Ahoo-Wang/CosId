@@ -106,7 +106,7 @@ public interface RedisScripts {
   在异步复制下发生 failover 时,号段与租约的写入都可能丢失,进而产生重复 ID。对唯一性要求严格的场景推荐 JDBC 或 ZooKeeper。
   客户端只在写入被确认后才使用新的区间或 ceiling。
 
-### 2.3 MongoDB(最低 4.4)
+### 2.3 MongoDB(最低 6.0,D26)
 
 - `cosid_range`:`{_id: key, next, sealed}`。`findOneAndUpdate`,`upsert`,管道更新 `next = ifNull(next, initialOffset) + size`,过滤 `sealed != true`,返回更新后的文档;遇到 `E11000`(并发 upsert)重试一次。
 - `cosid_slot`:`{ns, slot, …}`,在 `(ns, slot)` 上建唯一索引,预建所有槽位。05 §2.1 的每次尝试都是一个 `findOneAndUpdate`:

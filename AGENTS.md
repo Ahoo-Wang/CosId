@@ -103,6 +103,8 @@ Adding a package means deciding whether `module-info.java` exports it.
   no `URF_UNREAD_FIELD` exclusion any more: a skeleton keeps a field only if something reads it.
 - **Coverage** (`codecov.yml`): patch and project targets 80%; `benchmark/`, `store/tck/`, `build-logic/` ignored.
 - **Commits and PR titles** follow Conventional Commits (`feat(core)!:`, `build!:`); PRs of 5.x phases target `5.x`.
+  Commit messages are in English, authored by `Ahoo Wang <ahoowang@gmail.com>`, and never carry a `Co-authored-by:` trailer;
+  squash merges pass an explicit `--body` so GitHub adds none.
 
 ## Gotchas
 

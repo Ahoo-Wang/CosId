@@ -365,7 +365,7 @@ jobs:
                       print(f"- {suite.get('name').rsplit('.', 1)[-1]}.{case.get('name')}: {(failure.get('message') or '')[:200]}")
           EOF
 
-  # R3-S: the Spring Boot compatibility matrix of spring/* (02-modules.md §5): the lowest supported and the build's Boot,
+  # R3-S: the Spring Boot compatibility matrix of spring/* and integrations (02-modules.md §5): the lowest supported and the build's Boot,
   # on Java 21 and 25. Java 21 compiles, the matrix Java runs the tests; a test run with skipped tests fails the job.
   spring-compatibility:
     name: Spring Boot ${{ matrix.boot }}, Java ${{ matrix.java }}
@@ -395,15 +395,15 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Check spring/*
+      - name: Check spring/* and integrations
         run: >-
           scripts/gradle-retry.sh -PspringBootVersion=${{ matrix.boot }} -PtestJavaVersion=${{ matrix.java }}
-          :spring:autoconfigure:check :spring:starter:check
+          :spring:autoconfigure:check :spring:starter:check :integrations:check
 
       - name: Check the tests ran
         run: |
           status=0
-          for report in spring/autoconfigure/build/test-results/test/TEST-*.xml; do
+          for report in spring/autoconfigure/build/test-results/test/TEST-*.xml integrations/build/test-results/test/TEST-*.xml; do
             skipped=$(grep -o -m1 'skipped="[0-9]*"' "$report" | grep -o '[0-9]*')
             if [ "$skipped" -gt 0 ]; then
               echo "::error::$report skipped $skipped tests"

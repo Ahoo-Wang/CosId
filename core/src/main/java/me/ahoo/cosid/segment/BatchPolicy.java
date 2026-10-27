@@ -24,7 +24,7 @@ import java.util.Optional;
  * @param step           the smallest reservation, positive; default 100
  * @param initialOffset  where the first range of a new key starts; default 0
  * @param lookahead      how long the ids at hand should last; default 1s; {@link Duration#ZERO} disables prefetching
- * @param maxBatch       the largest reservation, a multiple of {@code step}; default {@code step * 1000}
+ * @param maxBatch       the largest reservation, a multiple of {@code step}; default {@link #defaultMaxBatch(long)}
  * @param reserveTimeout how long a caller waits for a refill; default 3s
  * @param rangeTtl       a range unused for this long is dropped (4.x segment ttl); default none
  */
@@ -35,8 +35,29 @@ public record BatchPolicy(long step,
                           Duration reserveTimeout,
                           Optional<Duration> rangeTtl) {
     public static final long DEFAULT_STEP = 100;
-    public static final BatchPolicy DEFAULT = new BatchPolicy(DEFAULT_STEP, 0, Duration.ofSeconds(1), DEFAULT_STEP * 1000,
+    /** The default {@code maxBatch} is at least this many values, whatever the step. */
+    public static final long DEFAULT_MAX_BATCH_VALUES = 1L << 20;
+    public static final BatchPolicy DEFAULT = new BatchPolicy(DEFAULT_STEP, 0, Duration.ofSeconds(1), defaultMaxBatch(DEFAULT_STEP),
         Duration.ofSeconds(3), Optional.empty());
+
+    /**
+     * The default {@code maxBatch} of a step: {@code max(step * 1000, 2^20)} rounded up to the step. The batch follows
+     * the rate within the lookahead budget, so the cap only bounds what one reservation may burn; it does not depend
+     * on a small step, so a fast generator with a small step is not held to many small serial reservations.
+     *
+     * @param step the step, positive
+     * @return the default largest reservation, a multiple of {@code step}
+     */
+    public static long defaultMaxBatch(long step) {
+        if (step <= 0) {
+            throw new IllegalArgumentException("step must be positive: " + step);
+        }
+        if (step >= Long.MAX_VALUE / 1000) {
+            return step;
+        }
+        long values = Math.max(step * 1000, DEFAULT_MAX_BATCH_VALUES);
+        return Math.ceilDiv(values, step) * step;
+    }
 
     public BatchPolicy {
         Objects.requireNonNull(lookahead, "lookahead");

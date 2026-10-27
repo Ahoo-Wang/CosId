@@ -155,4 +155,44 @@ class JdbcSupportTest {
         assertEquals("select * from r join s on n.x = cosid_rangex",
             new JdbcTables("r", "s", "n").rename("select * from cosid_range join cosid_slot on cosid_namespace.x = cosid_rangex"));
     }
+
+    /** A data source whose pool hands out no connection: it fails with {@code failure}. */
+    private static javax.sql.DataSource failing(SQLException failure) {
+        return (javax.sql.DataSource) java.lang.reflect.Proxy.newProxyInstance(JdbcSupportTest.class.getClassLoader(),
+            new Class<?>[] {javax.sql.DataSource.class}, (proxy, method, args) -> {
+                if ("getConnection".equals(method.getName())) {
+                    throw failure;
+                }
+                throw new UnsupportedOperationException(method.getName());
+            });
+    }
+
+    @Test
+    void poolTimeoutsAreStoreTimeouts() {
+        for (SQLException timeout : new SQLException[] {
+            new java.sql.SQLTransientConnectionException("HikariPool-1 - Connection is not available, request timed out after 3000ms."),
+            new SQLException("Communications link failure", "08S01"),
+            new SQLTimeoutException("login timeout")}) {
+            Jdbc jdbc = new Jdbc(failing(timeout), JdbcDialects.H2, JdbcTables.DEFAULT, Duration.ofSeconds(3));
+            StoreTimeoutException thrown = assertThrows(StoreTimeoutException.class, () -> jdbc.run("probe", session -> 1), timeout.toString());
+            assertSame(timeout, thrown.getCause());
+        }
+        Jdbc denied = new Jdbc(failing(new SQLException("Access denied", "28000")), JdbcDialects.H2, JdbcTables.DEFAULT, Duration.ofSeconds(3));
+        assertThrows(JdbcStoreException.class, () -> denied.run("probe", session -> 1), "a refused login is no timeout");
+    }
+
+    @Test
+    void multiStatementOperationsEndAtTheTimeout() throws InterruptedException {
+        Jdbc unbounded = new Jdbc(h2(), JdbcDialects.H2, JdbcTables.DEFAULT, Duration.ZERO);
+        long never = unbounded.deadline();
+        assertEquals(Long.MAX_VALUE, never, "no timeout, no deadline");
+        unbounded.checkDeadline(never, "probe");
+
+        Jdbc bounded = new Jdbc(h2(), JdbcDialects.H2, JdbcTables.DEFAULT, Duration.ofMillis(20));
+        long deadline = bounded.deadline();
+        bounded.checkDeadline(deadline, "probe");
+        Thread.sleep(40);
+        StoreTimeoutException thrown = assertThrows(StoreTimeoutException.class, () -> bounded.checkDeadline(deadline, "acquire in ns"));
+        assertTrue(thrown.getMessage().startsWith("acquire in ns did not complete on h2 within"), thrown.getMessage());
+    }
 }

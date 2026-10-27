@@ -79,6 +79,8 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         if (limit < 1) {
             throw new IllegalArgumentException("limit must be positive: " + limit);
         }
+        jdbc.dialect.checkKey("namespace", namespace);
+        jdbc.dialect.checkKey("owner key", owner.key());
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
         Namespace ns = new Namespace(limit, toleranceMillis);

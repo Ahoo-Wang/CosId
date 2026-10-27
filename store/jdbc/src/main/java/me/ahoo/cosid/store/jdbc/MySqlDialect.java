@@ -87,13 +87,13 @@ final class MySqlDialect implements JdbcDialect {
     }
 
     @Override
-    public void insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
+    public boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
         try (PreparedStatement insert = session.prepare("insert ignore into " + session.tables().namespace()
             + " (namespace, slot_limit, tolerance_ms) values (?, ?, ?)")) {
             insert.setString(1, namespace);
             insert.setInt(2, limit);
             insert.setLong(3, toleranceMillis);
-            insert.executeUpdate();
+            return insert.executeUpdate() > 0;
         }
     }
 

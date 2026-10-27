@@ -68,14 +68,14 @@ final class SqlServerDialect implements JdbcDialect {
     }
 
     @Override
-    public void insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
+    public boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
         try (PreparedStatement merge = session.prepare("merge into " + session.tables().namespace() + " with (holdlock) as n"
             + " using (select ? as namespace, ? as slot_limit, ? as tolerance_ms) as v on n.namespace = v.namespace"
             + " when not matched then insert (namespace, slot_limit, tolerance_ms) values (v.namespace, v.slot_limit, v.tolerance_ms);")) {
             merge.setString(1, namespace);
             merge.setInt(2, limit);
             merge.setLong(3, toleranceMillis);
-            merge.executeUpdate();
+            return merge.executeUpdate() > 0;
         }
     }
 

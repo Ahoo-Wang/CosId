@@ -34,6 +34,8 @@ import java.util.OptionalInt;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * Slot leases in {@code cosid_slot} (05-machine-lease.md §2, 06-stores.md §2.1).
@@ -53,6 +55,9 @@ import java.util.concurrent.ThreadLocalRandom;
  * write is computed from, so {@code expiresAt − storeNow == ttl}. Uniqueness does not depend on that clock (05 §3).
  */
 final class JdbcSlotLeaseStore implements SlotLeaseStore {
+    /** How long a concurrent first use waits for the slot rows the first user creates. */
+    private static final Duration PROVISION_WAIT = Duration.ofSeconds(3);
+    private static final long PROVISION_POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(20);
     /** How many free slots one acquire reads as candidates of the lowest step. */
     static final int FREE_CANDIDATES = 8;
     private final Jdbc jdbc;
@@ -320,19 +325,18 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         Namespace known = namespaces.get(namespace);
         if (known == null) {
             known = jdbc.run("prepare namespace " + namespace, session -> {
+                boolean inserted;
                 try {
-                    jdbc.dialect.insertNamespaceIfAbsent(session, namespace, requested.limit, requested.toleranceMillis);
+                    inserted = jdbc.dialect.insertNamespaceIfAbsent(session, namespace, requested.limit, requested.toleranceMillis);
                 } catch (SQLException e) {
                     if (!jdbc.dialect.isDuplicateKey(e)) {
                         throw e;
                     }
+                    inserted = false;
                 }
                 Namespace stored = stored(session, namespace);
-                if (stored.equals(requested) && slotRows(session, namespace) < stored.limit) {
-                    jdbc.retryingDuplicates(() -> {
-                        jdbc.dialect.provisionSlots(session, namespace, stored.limit);
-                        return null;
-                    });
+                if (stored.equals(requested)) {
+                    provision(session, namespace, stored.limit, inserted);
                 }
                 return stored;
             });
@@ -343,6 +347,30 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         if (!known.equals(requested)) {
             throw new NamespaceMismatchException(namespace, "first used with limit " + known.limit + " and tolerance " + known.toleranceMillis
                 + "ms, now " + requested.limit + " and " + requested.toleranceMillis + "ms");
+        }
+    }
+
+    /**
+     * Makes sure the slot rows of a namespace exist. Only the first user, which inserted the namespace row, creates
+     * them, so concurrent first uses do not all insert the same rows at once (on SQL Server they queued past the
+     * timeout); the others wait for the rows, and create the missing ones themselves only if they do not appear within
+     * {@link #PROVISION_WAIT}, as when the first user died in between.
+     */
+    private void provision(JdbcSession session, String namespace, int limit, boolean first) throws SQLException {
+        if (!first) {
+            long deadline = System.nanoTime() + PROVISION_WAIT.toNanos();
+            while (slotRows(session, namespace) < limit) {
+                if (System.nanoTime() - deadline > 0) {
+                    break;
+                }
+                LockSupport.parkNanos(PROVISION_POLL_NANOS);
+            }
+        }
+        if (slotRows(session, namespace) < limit) {
+            jdbc.retryingDuplicates(() -> {
+                jdbc.dialect.provisionSlots(session, namespace, limit);
+                return null;
+            });
         }
     }
 

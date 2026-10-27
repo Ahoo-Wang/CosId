@@ -102,15 +102,16 @@ public interface JdbcDialect {
      * @param namespace       the namespace
      * @param limit           the slot limit
      * @param toleranceMillis the tolerance
-     * @throws SQLException if the database fails; a duplicate key is ignored by the caller
+     * @return whether this call inserted the row: the one first use that creates the slot rows
+     * @throws SQLException if the database fails; a duplicate key counts as "not inserted"
      */
-    default void insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
+    default boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
         try (PreparedStatement insert = session.prepare("insert into " + session.tables().namespace()
             + " (namespace, slot_limit, tolerance_ms) values (?, ?, ?)")) {
             insert.setString(1, namespace);
             insert.setInt(2, limit);
             insert.setLong(3, toleranceMillis);
-            insert.executeUpdate();
+            return insert.executeUpdate() > 0;
         }
     }
 

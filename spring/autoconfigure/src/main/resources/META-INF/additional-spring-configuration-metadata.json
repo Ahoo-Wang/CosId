@@ -1,0 +1,30 @@
+{
+  "properties": [
+    {
+      "name": "management.health.cosid.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable the CosId machine slot health check.",
+      "defaultValue": true
+    }
+  ],
+  "hints": [
+    {
+      "name": "cosid.stores.values.type",
+      "values": [
+        { "value": "jdbc", "description": "cosid-store-jdbc on the context's DataSource." },
+        { "value": "redis", "description": "cosid-store-redis on the context's Lettuce client or RedisConnectionFactory." },
+        { "value": "mongo", "description": "cosid-store-mongo on the context's MongoClient." },
+        { "value": "zookeeper", "description": "cosid-store-zookeeper on the context's CuratorFramework." }
+      ]
+    },
+    {
+      "name": "cosid.generators.values.strategy",
+      "values": [
+        { "value": "snowflake" },
+        { "value": "cosid80" },
+        { "value": "segment" },
+        { "value": "periodic-segment" }
+      ]
+    }
+  ]
+}

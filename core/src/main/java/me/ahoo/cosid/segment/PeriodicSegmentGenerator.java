@@ -14,6 +14,7 @@
 package me.ahoo.cosid.segment;
 
 import me.ahoo.cosid.GroupedId;
+import me.ahoo.cosid.GroupedIdGenerator;
 import me.ahoo.cosid.observe.GeneratorListener;
 import me.ahoo.cosid.time.TimeSource;
 
@@ -41,7 +42,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * period ended, on the refill executor. Periods only move forward: a generator never returns to a period it left, and a
  * sealed key fails with {@link me.ahoo.cosid.RangeSealedException} rather than being recreated (S6).
  */
-public final class PeriodicSegmentGenerator implements AutoCloseable {
+public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(PeriodicSegmentGenerator.class);
     private static final Active CLOSED = new Active("", null, Long.MIN_VALUE);
 
@@ -111,6 +112,7 @@ public final class PeriodicSegmentGenerator implements AutoCloseable {
      * @throws me.ahoo.cosid.RangeUnavailableException if the period's generator has no range in time
      * @throws IllegalStateException                   if the generator is closed
      */
+    @Override
     public GroupedId generate() {
         while (true) {
             long now = time.currentMillis();

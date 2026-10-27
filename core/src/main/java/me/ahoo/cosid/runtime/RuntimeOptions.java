@@ -39,6 +39,8 @@ import java.util.function.Function;
  * @param hostResolver   the host of a derived owner key
  * @param port           the port of a derived owner key, {@code host:port}; {@code host:pid} when empty
  * @param codecs         resolves {@link CodecSpec.Custom} references; empty for an unknown one
+ * @param countGenerated count the ids each generator issues through the views the runtime hands out
+ *                       ({@link CosIdRuntime#generated(String)}); off by default, which leaves the hot path unchanged
  */
 public record RuntimeOptions(TimeSource time,
                              Optional<Executor> executor,
@@ -47,7 +49,8 @@ public record RuntimeOptions(TimeSource time,
                              Map<String, Object> clients,
                              HostResolver hostResolver,
                              OptionalInt port,
-                             Function<String, Optional<IdCodec>> codecs) {
+                             Function<String, Optional<IdCodec>> codecs,
+                             boolean countGenerated) {
     public RuntimeOptions {
         Objects.requireNonNull(time, "time");
         Objects.requireNonNull(executor, "executor");
@@ -60,8 +63,36 @@ public record RuntimeOptions(TimeSource time,
     }
 
     /**
+     * Options without counting.
+     *
+     * @param time           the time source
+     * @param executor       the executor, or empty for an own one
+     * @param listener       the event listener
+     * @param storeProviders providers besides those {@link java.util.ServiceLoader} finds
+     * @param clients        existing client objects by store name
+     * @param hostResolver   the host of a derived owner key
+     * @param port           the port of a derived owner key
+     * @param codecs         resolves {@link CodecSpec.Custom} references
+     */
+    public RuntimeOptions(TimeSource time, Optional<Executor> executor, GeneratorListener listener, List<StoreProvider> storeProviders,
+                          Map<String, Object> clients, HostResolver hostResolver, OptionalInt port,
+                          Function<String, Optional<IdCodec>> codecs) {
+        this(time, executor, listener, storeProviders, clients, hostResolver, port, codecs, false);
+    }
+
+    /**
+     * These options, counting the generated ids or not.
+     *
+     * @param count whether to count
+     * @return the options
+     */
+    public RuntimeOptions withCountGenerated(boolean count) {
+        return new RuntimeOptions(time, executor, listener, storeProviders, clients, hostResolver, port, codecs, count);
+    }
+
+    /**
      * The system clock, an own executor, no listener, providers from {@link java.util.ServiceLoader} only, no
-     * clients, the local host, no port, custom codecs by class name.
+     * clients, the local host, no port, custom codecs by class name, no counting.
      *
      * @return the default options
      */

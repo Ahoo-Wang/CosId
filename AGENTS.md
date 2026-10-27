@@ -54,11 +54,13 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `store/mongo/` | `cosid-store-mongo` | R2-Mongo: `MongoStore` (`RangeStore` + `SlotLeaseStore`, sync driver, MongoDB 6.0+), `StoreProvider` type `mongo` |
 | `store/redis/` | `cosid-store-redis` | R2-Redis: Lua scripts behind `RedisScripts`, Lettuce, `WAIT` auto; see its README (durability precondition) |
 | `store/zookeeper/` | `cosid-store-zookeeper` | R2-ZK: `ZookeeperStore` (Curator 5.9), provider type `zookeeper`, ZooKeeper 3.8+ (3.9 primary, D27); TCK on `COSID_TEST_ZOOKEEPER_CONNECT` or an in-process curator-test server |
+| `spring/autoconfigure/` | `cosid-spring-boot-autoconfigure` | R3-S: `cosid.*` records → `RuntimeSpec` (`CosIdSpecs`, pure), the `CosIdRuntime` bean, one bean per generator (`CosIdGeneratorRegistrar`), `SpringDataRedisScripts`, Micrometer, the `cosid` endpoint, health, native hints; stores `compileOnly` |
+| `spring/starter/` | `cosid-spring-boot-starter` | R3-S: dependencies only (core + autoconfigure, D14); applications add the store artifacts |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
 | `benchmark/v5/` | not published | the same scenarios on 5.x |
 | `migration/` | not published | R4-C: the offline 4.x → 5.0 migration fat jar (`:migration:shadowJar` → `build/libs/cosid-migration.jar`): 4.x readers, a narrow 5.0 admin path per store, `plan` / `apply` / `verify` / `config` / `purge`; see its README |
-| `store/{jdbc,redis,mongo,zookeeper,remote}`, `server/`, `spring/{autoconfigure,starter}`, `integrations/`, `extras/sharding/`, `examples/` | | not created yet (R2–R5) |
+| `store/remote`, `server/`, `integrations/`, `extras/sharding/`, `examples/` | | not created yet (R2–R5) |
 | `build-logic/` | — | included build: convention plugins and build rules (see below) |
 | `docs/architecture/` | — | the design; `docs/jmh/<version>/` benchmark results |
 | `documentation/` | — | the VitePress site, still 4.x content until R5-B |
@@ -78,14 +80,16 @@ Adding a package means deciding whether `module-info.java` exports it.
 - `cosid.java`: Java 21, `-parameters`, Checkstyle, SpotBugs, JaCoCo (XML reports for Codecov), JUnit 5 + Hamcrest,
   Logback for tests, `-PtestJavaVersion=25` to run tests on another JDK.
 - `cosid.library`: `cosid.java` + sources/javadoc jars + Maven publication (`cosid.publish`).
+- `cosid.spring` (`spring/*`, later `server`, `integrations`): `cosid.library` + the Spring Boot BOM on the build's
+  classpaths only (never published), published versions of `spring-boot-minimum`, `checkPublishedMetadata` (in `check`),
+  and the compatibility matrix: `-PspringBootVersion=4.0.8` builds and tests on another Boot (02 §5), with
+  `-PtestJavaVersion=25`; CI job `spring-compatibility`.
 - `cosid.platform`: the BOM. `cosid.benchmark`: `cosid.java` + JMH (`me.champeau.jmh`) — JMH is applied nowhere else.
 - `cosid.root` (root project): `checkDependencyRules`, wired into `check` with build-logic's own tests.
 - **Dependency rules (02 §3)** are data in `DependencyRules.kt`, unit tested in `DependencyRulesTest.kt`: `core` depends
   on `slf4j-api` only; `store/*`, `integrations`, `extras/*` on `core`; `store/tck` is a test-scope dependency for
   everyone; nothing depends on `server`, `migration`, `examples` or `benchmark`; `benchmark/baseline-4x` depends on no
   project at all (it shares the package `me.ahoo.cosid` with 5.x). Changing a rule means changing 02-modules.md first.
-- The Spring Boot compatibility matrix (`-PspringBootVersion`) returns with `spring/*` in R3-S, scoped to `spring/*`,
-  `server` and `integrations` (02 §5).
 
 ## Conventions
 
@@ -121,6 +125,10 @@ Adding a package means deciding whether `module-info.java` exports it.
 - **Redis store tests** (`store/redis`) start a primary with a replica and a three-primary cluster in Testcontainers even
   when `COSID_TEST_REDIS_URI` is set (it covers standalone only); the cluster's node addresses are mapped to the published
   ports by a `MappingSocketAddressResolver`. `-Pcosid.test.redis.image=redis:7.0-alpine` runs them on another Redis (minimum 7.0, D27; default the latest 8.x).
+- **spring/autoconfigure tests** use `ApplicationContextRunner` with a `memory` `StoreProvider` bean (`MemoryStores`, on
+  `InMemoryStore`), H2 for JDBC, and Redis from `COSID_TEST_REDIS_URI` or Testcontainers (`-Pcosid.test.redis.image`).
+  Generator beans are registered in a `BeanDefinitionRegistryPostProcessor`, so `RuntimeSpecCustomizer` beans must be
+  dependency-free (`static @Bean`).
 - `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.
 - **migration tests** write real 4.x data with the 4.1.0 jars: the `legacy4x` source set (`migration/src/test/legacy4x`) is
   compiled against them alone and loaded in its own class loader (path in `-Dcosid.migration.legacy4x`), so run them

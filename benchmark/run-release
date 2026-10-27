@@ -85,7 +85,7 @@ fi
 # The machine and the JDK, recorded before the run.
 ./gradlew -q :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
 java="$(./gradlew -q :benchmark:v5:printJmhJava | tail -n 1)"
-JAVA="$java" python3 -I - "$work/machine.json" <<'EOF'
+JAVA="$java" python3 -I - "$work.machine.json" <<'EOF'
 import datetime, json, os, platform, re, subprocess, sys
 
 def run(*command):
@@ -163,7 +163,7 @@ for side in ("baseline-4x", "v5"):
     with open(os.path.join(out, f"{side}.json"), "w") as file:
         json.dump(rows, file, indent=2)
         file.write("\n")
-with open(os.path.join(work, "machine.json")) as file:
+with open(work + ".machine.json") as file:
     machine = json.load(file)
 with open(os.path.join(work, "load.tsv")) as file:
     loads = [line.rstrip("\n").split("\t") for line in file if line.strip()]

@@ -111,8 +111,9 @@ R0 骨架、接口冻结、4.x 基线基准
 | R0 | 已合入(P5/P12 基线待在空闲机器上干净重跑) | [#1308](https://github.com/Ahoo-Wang/CosId/pull/1308) |
 | R1-C | 已合入 | [#1309](https://github.com/Ahoo-Wang/CosId/pull/1309) |
 | R1-B | 已合入 | [#1310](https://github.com/Ahoo-Wang/CosId/pull/1310) |
-| R1-A | 实现完成,冒烟基准重跑中,PR 待开 | |
-| R2-JDBC / Redis / Mongo / ZK | 进行中(四个会话并行) | |
+| R1-A | 审查中:改为短临界区(D25)后合入 | [#1312](https://github.com/Ahoo-Wang/CosId/pull/1312) |
+| R2-Mongo | 已合入 | [#1311](https://github.com/Ahoo-Wang/CosId/pull/1311) |
+| R2-JDBC / Redis / ZK | 进行中 | |
 | R3 / R3-S | 未开始 | |
 | R4-A / R4-B / R4-C | 未开始 | |
 | R5-A / R5-B | 未开始 | |

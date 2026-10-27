@@ -37,7 +37,7 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
 }
 
 public record BatchPolicy(long step,              // 默认 100;单次预留的最小规模
-                          long initialOffset,     // 默认 0
+                          long initialOffset,     // 默认 1(不发 0,与 4.x 一致;IdFiller 把 0 视为未设置)
                           Duration lookahead,     // 默认 1s;手里的余量希望撑多久;ZERO 表示不预取(等价 4.x DefaultSegmentId)
                           long maxBatch,          // 默认 step × 1000;必须是 step 的整数倍
                           Duration reserveTimeout,// 默认 3s;调用方同步等待补充的上限

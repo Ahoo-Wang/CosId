@@ -100,6 +100,22 @@ class AuthTest {
     }
 
     @Test
+    void publicPathsReplaceTheDefaultHealthPaths() {
+        try (TestServer custom = TestServer.memory(new InMemoryStore(), "cosid.server.auth.tokens[0]=" + TestServer.TOKEN,
+            "cosid.server.auth.public-paths[0]=/actuator/info")) {
+            HttpResponse<String> info = custom.get("/actuator/info", null);
+            assertEquals(200, info.statusCode(), "the configured path needs no token");
+            assertEquals("no-store", info.headers().firstValue("Cache-Control").orElseThrow());
+            HttpResponse<String> health = custom.get("/actuator/health", null);
+            assertEquals(401, health.statusCode(), "the list replaces the default one: health needs a token now");
+            assertEquals(401, custom.get("/actuator/health/liveness", null).statusCode());
+            assertEquals(200, custom.get("/actuator/health", TestServer.TOKEN).statusCode());
+            assertEquals(401, custom.post(RemoteApi.RESERVE, reserve("any/a"), null).statusCode(), "the API still needs a token");
+        }
+        assertEquals(401, server.get("/actuator/info", null).statusCode(), "info is not public by default");
+    }
+
+    @Test
     void clientIsLimitedToItsNamespaces() {
         try (RemoteStore orders = server.client(ORDERS)) {
             assertEquals(new Range(0, 5), orders.ranges().reserve("orders/" + UUID.randomUUID(), 5, 0));

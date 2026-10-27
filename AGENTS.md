@@ -33,9 +33,16 @@ benchmark/run-smoke [P5 P12 ...]                   # 4.x and 5.x back to back pe
                                                    # how a PR reports performance (paste build/benchmark-smoke/report.md)
 ./gradlew :benchmark:baseline-4x:jmh               # JMH on the released 4.1.0 jars alone (smoke profile)
 ./gradlew :benchmark:v5:jmh -PjmhProfile=release   # JMH on 5.x, release-gate settings; -PjmhIncludes=A,B narrows
+benchmark/run-release [--dry-run] [P1 ...]       # the release gate: all of P1..P12, release settings, load guard,
+                                                   # machine info; writes docs/jmh/5.0/ (see benchmark/scenarios.md)
 benchmark/compare BASELINE.json CANDIDATE.json --smoke
 python3 -I benchmark/compare_test.py               # tests of the compare script
 ```
+
+`scripts/test-stability.sh :store:redis 20 build/stability` runs a project's tests 20 times without retries and prints
+a per-class table (the `Test Stability` workflow, L4). `-Pcosid.test.skipProjects=:a,:b` leaves those projects' tests
+out of a build (the CI `check` job, whose store, server and Spring tests run in their own jobs);
+`-Pcosid.test.exclude=*.SomeTest` leaves classes out.
 
 `check` fails on any Checkstyle (`config/checkstyle/checkstyle.xml`, Checkstyle 10.x) or SpotBugs
 (`config/spotbugs/exclude.xml`) finding. In CI (`CI=true`) flaky tests get up to 2 retries via `test-retry`.
@@ -63,7 +70,8 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
 | `benchmark/v5/` | not published | the same scenarios on 5.x |
 | `migration/` | not published | R4-C: the offline 4.x → 5.0 migration fat jar (`:migration:shadowJar` → `build/libs/cosid-migration.jar`): 4.x readers, a narrow 5.0 admin path per store, `plan` / `apply` / `verify` / `config` / `purge`; see its README |
-| `extras/sharding/`, `examples/` | | not created yet (R4–R5) |
+| `extras/sharding/` | `cosid-sharding` | R5-B: the 4.x sharding algorithms (`ModCycle`, `IntervalTimeline`, `CachedSharding`, the convertors) on `core` alone: `ShardingRange` replaces Guava's `Range`, the Snowflake convertor reads `Layout` |
+| `examples/` | not published | not created yet (R5-B) |
 | `build-logic/` | — | included build: convention plugins and build rules (see below) |
 | `docs/architecture/` | — | the design; `docs/jmh/<version>/` benchmark results |
 | `documentation/` | — | the VitePress site, still 4.x content until R5-B |

@@ -46,6 +46,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.DockerClientFactory;
+import org.testcontainers.mongodb.MongoDBContainer;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -220,5 +222,31 @@ class MongoStoreProviderTest {
             throw other;
         })));
         assertEquals("ok", MongoStore.timed("seal", () -> "ok"));
+    }
+
+    @Test
+    void storeTimeoutBoundsAnOperationOnAServerThatStoppedAnswering() {
+        // A replica set of its own: pausing it freezes the server with its sockets open, so only the store timeout ends the call.
+        String image = System.getenv("COSID_TEST_MONGODB_IMAGE");
+        try (MongoDBContainer mongo = new MongoDBContainer(image == null || image.isBlank() ? MongoTestSupport.DEFAULT_IMAGE : image).withReplicaSet()) {
+            mongo.start();
+            StoreConfig config = new StoreConfig("paused", MongoStoreProvider.TYPE, Duration.ofMillis(500),
+                Map.of(MongoStoreProvider.URI, mongo.getReplicaSetUrl(MongoTestSupport.DATABASE)), Optional.empty());
+            try (Store store = new MongoStoreProvider().open(config)) {
+                String key = "timeout/" + UUID.randomUUID();
+                assertEquals(new Range(0, 1), store.ranges().reserve(key, 1, 0));
+                var docker = DockerClientFactory.instance().client();
+                docker.pauseContainerCmd(mongo.getContainerId()).exec();
+                try {
+                    long start = System.nanoTime();
+                    StoreTimeoutException timeout = assertThrows(StoreTimeoutException.class, () -> store.ranges().reserve(key, 1, 0));
+                    assertInstanceOf(MongoOperationTimeoutException.class, timeout.getCause());
+                    long millis = (System.nanoTime() - start) / 1_000_000;
+                    assertTrue(millis >= 450 && millis < 5_000, "the store timeout bounds the call: " + millis + " ms");
+                } finally {
+                    docker.unpauseContainerCmd(mongo.getContainerId()).exec();
+                }
+            }
+        }
     }
 }

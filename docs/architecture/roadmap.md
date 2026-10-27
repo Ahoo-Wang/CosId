@@ -125,8 +125,8 @@ R0 骨架、接口冻结、4.x 基线基准
 | R4-A 远程服务与客户端 | ✅ 已合入 | [#1328](https://github.com/Ahoo-Wang/CosId/pull/1328) |
 | R4-B 集成适配器 | ✅ 已合入 | [#1327](https://github.com/Ahoo-Wang/CosId/pull/1327) |
 | R4-C 离线迁移工具 | ✅ 已合入 | [#1324](https://github.com/Ahoo-Wang/CosId/pull/1324) |
-| R5-A 发布门槛基准与特性验收 | 🔄 第一部分 [#1335](https://github.com/Ahoo-Wang/CosId/pull/1335)、能力缺口 [#1336](https://github.com/Ahoo-Wang/CosId/pull/1336) 审查中;发布门槛基准等其他会话全部停下后在本机运行 | |
-| R5-B 文档站、示例、迁移指南 | 🔄 进行中 | |
+| R5-A 发布门槛基准与特性验收 | 🔄 第一部分 ✅ [#1335](https://github.com/Ahoo-Wang/CosId/pull/1335);能力缺口 [#1336](https://github.com/Ahoo-Wang/CosId/pull/1336) 审查中;发布门槛基准等其他会话全部停下后在本机运行 | |
+| R5-B 文档站、示例、迁移指南 | 🔄 分片 ✅ [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330);README/skills [#1338](https://github.com/Ahoo-Wang/CosId/pull/1338)、示例 [#1333](https://github.com/Ahoo-Wang/CosId/pull/1333)、文档站 [#1337](https://github.com/Ahoo-Wang/CosId/pull/1337) 待合入 | |
 | D29 integrations 按依赖拆分 | ✅ 已合入 | [#1334](https://github.com/Ahoo-Wang/CosId/pull/1334) |
 | D30 server API 去掉 `/v5` 前缀 | 🔄 同步 D29 后合入 | [#1332](https://github.com/Ahoo-Wang/CosId/pull/1332) |
 | R6 发布 | ⏳ | |
@@ -154,8 +154,10 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 | L6 | 文档站写明 ZK 槽位节点人工重建的前提、Redis 持久化前提、各后端"实测兼容性(不承诺)"汇总 | R5-B |
 | L7 | ~~`config` 子命令对 4.x proxy 配置生成的 `remote` 存储与 R4-A 选项名一致~~ 已在 #1324 中完成 | R4-C ✅ |
 | L8 | 特性验收发现 4 项能力缺口(D21):Mongo `writeConcern` 选项、4.x 分组前缀的两种写法(期间在业务前缀之后 / 文本不含期间)、Spring 侧 `seq-reset-threshold`、`onStoreTimeout` 从未触发(`cosid.store.timeouts` 恒为 0) | R5-A 补齐 |
-| L9 | 分片 `extras/sharding` 尚未迁入 | R5-B |
+| L9 | 分片 `extras/sharding` 迁入 | ✅ [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330) |
 | L10 | Redis `ReplicaWaitTest` 偶发失败修复 | ✅ [#1331](https://github.com/Ahoo-Wang/CosId/pull/1331) |
+| L11 | 号段默认 `initialOffset` 改为 1,不发 0(与 4.x 一致;`IdFiller` 把 0 视为未设置) | R1-B 小 PR |
+| L12 | 稳定性:实施后期又出现 3 个偶发/可疑测试:`RemoteStoreTest`(已在 #1332 修复)、Mongo `lostUpsertRacesRetryAndNeverOverlap`、Redis `sweepMovesAtMostOneBatchOfExpiredLeases`(待查是否真缺陷) | R2-Mongo、R2-Redis |
 
 ## 6. 风险与经验
 

@@ -24,6 +24,7 @@ import me.ahoo.cosid.migration.config.Legacy4x;
 import me.ahoo.cosid.runtime.CodecSpec;
 import me.ahoo.cosid.runtime.GeneratorSpec;
 import me.ahoo.cosid.runtime.GroupedCodecSpec;
+import me.ahoo.cosid.runtime.MachineSpec;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.spring.autoconfigure.CosIdProperties;
 import me.ahoo.cosid.spring.autoconfigure.CosIdSpecs;
@@ -102,6 +103,13 @@ class ConfigBindingTest {
         assertThat(((GeneratorSpec.Snowflake) edgeSpec().generators().get(Legacy4x.DEFAULT)).layout(), is(layout));
         assertThat(ConfigConverter.layoutsOf5(FlatConfig.load(MigrationScenarioTest.resource("config/edge/expected.yaml"))).get(Legacy4x.DEFAULT),
             is(layout));
+    }
+
+    @Test
+    void theStatefulSetSlotBindsFromThePodOrdinal() throws IOException {
+        MachineSpec.Static machine = (MachineSpec.Static) edgeSpec().machine().orElseThrow();
+        assertThat(machine.slot(), is(3));
+        assertThat(machine.bits(), is(8));
     }
 
     private static GroupedCodecSpec codecOf(RuntimeSpec spec, String generator) {

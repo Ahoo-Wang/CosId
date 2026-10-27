@@ -86,6 +86,11 @@ public final class JdbcSource implements SourceReader {
                         segments.put(name.substring(prefix.length()), rs.getLong(2));
                     }
                 }
+            } catch (SQLException e) {
+                if (!isMissingTable(e)) {
+                    throw e;
+                }
+                // A deployment of machine ids only has no segment table.
             }
             try (PreparedStatement select = connection.prepareStatement("select * from " + machineTable + " where namespace = ?")) {
                 select.setString(1, namespace);

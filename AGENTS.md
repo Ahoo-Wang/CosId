@@ -57,7 +57,8 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
 | `benchmark/v5/` | not published | the same scenarios on 5.x |
-| `store/{jdbc,redis,mongo,zookeeper,remote}`, `server/`, `spring/{autoconfigure,starter}`, `integrations/`, `extras/sharding/`, `migration/`, `examples/` | | not created yet (R2–R5) |
+| `migration/` | not published | R4-C: the offline 4.x → 5.0 migration fat jar (`:migration:shadowJar` → `build/libs/cosid-migration.jar`): 4.x readers, a narrow 5.0 admin path per store, `plan` / `apply` / `verify` / `config` / `purge`; see its README |
+| `store/{jdbc,redis,mongo,zookeeper,remote}`, `server/`, `spring/{autoconfigure,starter}`, `integrations/`, `extras/sharding/`, `examples/` | | not created yet (R2–R5) |
 | `build-logic/` | — | included build: convention plugins and build rules (see below) |
 | `docs/architecture/` | — | the design; `docs/jmh/<version>/` benchmark results |
 | `documentation/` | — | the VitePress site, still 4.x content until R5-B |
@@ -121,6 +122,10 @@ Adding a package means deciding whether `module-info.java` exports it.
   when `COSID_TEST_REDIS_URI` is set (it covers standalone only); the cluster's node addresses are mapped to the published
   ports by a `MappingSocketAddressResolver`. `-Pcosid.test.redis.image=redis:7.0-alpine` runs them on another Redis (minimum 7.0, D27; default the latest 8.x).
 - `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.
+- **migration tests** write real 4.x data with the 4.1.0 jars: the `legacy4x` source set (`migration/src/test/legacy4x`) is
+  compiled against them alone and loaded in its own class loader (path in `-Dcosid.migration.legacy4x`), so run them
+  through Gradle. H2 (TCP) and ZooKeeper always run, Redis and MongoDB only with Docker. The admin path writes the 5.0
+  store formats directly (`migration/src/main/.../target`): a change of a store's schema or node format must change it too.
 - **store/jdbc tests** run the TCK on H2 always and on MySQL, MariaDB, PostgreSQL and SQL Server from
   `COSID_TEST_{MYSQL,MARIADB,POSTGRES,SQLSERVER}_URL` (+ `_USERNAME` / `_PASSWORD`) or Testcontainers at the D27 minimum
   (`mysql:8.4`, `mariadb:10.11`, `postgres:15-alpine`, SQL Server 2019; `COSID_TEST_<NAME>_IMAGE` overrides); without

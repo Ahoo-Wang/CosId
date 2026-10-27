@@ -75,6 +75,9 @@ tasks.test {
 
 tasks.shadowJar {
     archiveFileName.set("cosid-migration.jar")
+    // The JDBC drivers and the store providers each bring META-INF/services files of the same name: merge them
+    // (Shadow hands duplicates to its transformers only when they are included).
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
     manifest {
         attributes["Main-Class"] = "me.ahoo.cosid.migration.Main"

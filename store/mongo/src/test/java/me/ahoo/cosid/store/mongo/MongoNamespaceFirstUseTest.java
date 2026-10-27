@@ -44,8 +44,8 @@ import java.util.concurrent.Future;
 
 /**
  * Many clients using a fresh namespace at once: the first-use upsert of {@code cosid_namespace}, the slot
- * provisioning and the index creation all race. MongoDB 4.4 does not retry the losing upsert itself (E11000), so the
- * store must; each round uses new store instances, so nothing is cached between rounds.
+ * provisioning and the index creation all race. A losing upsert may get E11000 (the server does not retry it in every
+ * case), so the store retries and reads the winner back; each round uses new store instances, so nothing is cached between rounds.
  */
 class MongoNamespaceFirstUseTest {
     private static final int CLIENTS = 4;

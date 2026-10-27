@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * The MongoDB store (06-stores.md §2.3): {@link MongoRangeStore} and {@link MongoSlotLeaseStore} on one database,
- * MongoDB 4.4 or later. Every operation reads and writes with {@code majority} concern on the primary and runs under the
+ * MongoDB 6.0 or later. Every operation reads and writes with {@code majority} concern on the primary and runs under the
  * driver's client-side operation timeout ({@code timeoutMS}).
  */
 public final class MongoStore implements Store {

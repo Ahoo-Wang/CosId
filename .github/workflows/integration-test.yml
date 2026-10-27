@@ -54,7 +54,7 @@ jobs:
       - name: Compile the benchmarks
         run: ./gradlew :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
 
-  # R2-Mongo: the store TCK on a single-node replica set (Testcontainers), on the minimum (4.4) and a current MongoDB;
+  # R2-Mongo: the store TCK on a single-node replica set (Testcontainers), on the minimum (6.0) and a current MongoDB;
   # checkContractsRan fails the job when the contract cases were skipped.
   store-mongo:
     name: Store MongoDB (${{ matrix.image }})
@@ -62,7 +62,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [ 'mongo:4.4', 'mongo:8.0' ]
+        image: [ 'mongo:6.0', 'mongo:8.0' ]
     steps:
       - name: Checkout
         uses: actions/checkout@v7

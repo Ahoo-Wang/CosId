@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.OptionalInt;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -91,8 +90,6 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     private static final Bson STAMP = new Document("$set", new Document(WRITTEN_AT, NOW));
     /** Attempts of the namespace upsert that lose the first-use race (E11000) before the error is rethrown. */
     private static final int NAMESPACE_ATTEMPTS = 5;
-    /** NamespaceExists and IndexBuildAlreadyInProgress: concurrent first index creations on MongoDB 4.4. */
-    private static final Set<Integer> INDEX_RACES = Set.of(48, 276);
     private static final FindOneAndUpdateOptions AFTER = new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER);
     private static final FindOneAndUpdateOptions LOWEST_AFTER = new FindOneAndUpdateOptions()
         .returnDocument(ReturnDocument.AFTER).sort(Sorts.ascending(SLOT));
@@ -270,30 +267,17 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         }
     }
 
-    /**
-     * Creates the slot indexes, idempotently. Instances starting at once race on them and on the implicit creation of
-     * the collection; MongoDB 4.4 may report that race as {@code NamespaceExists} or {@code IndexBuildAlreadyInProgress},
-     * and the next attempt finds the index in place.
-     */
+    /** Creates the slot indexes, idempotently. */
     private void createIndexes() {
-        for (int attempt = 1; ; attempt++) {
-            try {
-                slots.createIndex(Indexes.ascending(NS, SLOT), new IndexOptions().unique(true).name("ns_slot"));
-                // The acquire read of the slots a key holds or held last.
-                slots.createIndex(Indexes.ascending(NS, OWNER_KEY), new IndexOptions().name("ns_ownerKey"));
-                slots.createIndex(Indexes.ascending(NS, LAST_OWNER_KEY), new IndexOptions().name("ns_lastOwnerKey"));
-                return;
-            } catch (MongoServerException e) {
-                if (!INDEX_RACES.contains(e.getCode()) || attempt >= NAMESPACE_ATTEMPTS) {
-                    throw e;
-                }
-            }
-        }
+        slots.createIndex(Indexes.ascending(NS, SLOT), new IndexOptions().unique(true).name("ns_slot"));
+        // The acquire read of the slots a key holds or held last.
+        slots.createIndex(Indexes.ascending(NS, OWNER_KEY), new IndexOptions().name("ns_ownerKey"));
+        slots.createIndex(Indexes.ascending(NS, LAST_OWNER_KEY), new IndexOptions().name("ns_lastOwnerKey"));
     }
 
     /**
      * Records the parameters of a new namespace, or reads those it was first used with. Concurrent first uses race on
-     * the {@code _id} insert of the upsert, and MongoDB 4.4 does not retry the loser itself: it gets {@code E11000},
+     * the {@code _id} insert of the upsert, and the server does not retry the loser in every case: it gets {@code E11000},
      * then reads the winner's document back (or upserts again, when that write is not majority-visible yet).
      */
     private NamespaceParams recordNamespace(String namespace, NamespaceParams params) {

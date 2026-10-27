@@ -160,6 +160,8 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 - 待用户决定:E-M1(是否修改 `4.x` 的 document-deploy);RC1 必须以 pre-release 发布;发布前 `gradle.properties` 改为 `5.0.0-RC1`。
 - 规则:所有 WIP 在 Draft PR 上;CPU ≤ 90%,只在 CI 验证;提交英文、作者 Ahoo Wang、无 Co-authored-by;回复用户用中文。
 
+- **CI 偶发问题(待处理,收尾阶段不开新任务):** `Store MongoDB (mongo:8.0)` 在部分 runner 上整个 job 的容器都起不来(`Container exited with code 1`,等不到 `waiting for connections`),同一 job 在别的 runner 上通过(#1347 16:26、#1350 17:09)。#1342 两次、#1348 一次因此失败,均为基础设施问题,与改动无关,已重跑。RC 后需查明(可能与 runner 的 CPU 或镜像有关,建议 job 失败时打印容器日志)。
+
 ## 4.2 审查不通过登记
 
 | PR | 问题 | 处理 |

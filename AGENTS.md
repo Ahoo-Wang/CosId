@@ -55,13 +55,13 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `store/redis/` | `cosid-store-redis` | R2-Redis: Lua scripts behind `RedisScripts`, Lettuce, `WAIT` auto; see its README (durability precondition) |
 | `store/zookeeper/` | `cosid-store-zookeeper` | R2-ZK: `ZookeeperStore` (Curator 5.9), provider type `zookeeper`, ZooKeeper 3.8+ (3.9 primary, D27); TCK on `COSID_TEST_ZOOKEEPER_CONNECT` or an in-process curator-test server |
 | `spring/autoconfigure/` | `cosid-spring-boot-autoconfigure` | R3-S: `cosid.*` records → `RuntimeSpec` (`CosIdSpecs`, pure), the `CosIdRuntime` bean, one bean per generator (`CosIdGeneratorRegistrar`), `SpringDataRedisScripts`, Micrometer, the `cosid` endpoint, health, native hints; stores `compileOnly` |
-| `store/remote/` | `cosid-store-remote` | R4-A: `RemoteStore` over the JDK `HttpClient` (no third-party dependency), provider type `remote` (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`); `RemoteApi` holds the `/v5` paths and error codes the server shares |
-| `server/` | not published | R4-A: cosid-server, a Spring Boot app (`CosIdServer`): the two primitives of its backing store (`cosid.stores`, `cosid.server.store`) under `/v5`, optional `/v5/ids/**`, bearer auth on by default, limits, 503 pool, OpenAPI, Actuator; `Dockerfile` + `:server:dockerImage` |
+| `store/remote/` | `cosid-store-remote` | R4-A: `RemoteStore` over the JDK `HttpClient` (no third-party dependency), provider type `remote` (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`); `RemoteApi` holds the paths (no version prefix, D30) and error codes the server shares |
+| `server/` | not published | R4-A: cosid-server, a Spring Boot app (`CosIdServer`): the two primitives of its backing store (`cosid.stores`, `cosid.server.store`) at the root (no version prefix, D30), optional `/ids/**`, bearer auth on by default, limits, 503 pool, OpenAPI, Actuator; `Dockerfile` + `:server:dockerImage` |
 | `integrations/` | `cosid-integrations` | R4-B: Jackson `@AsString`, MyBatis `CosIdInterceptor`, Spring Data JDBC `CosIdBeforeConvertCallback`, Activiti / Flowable id generators, Axon `CosIdIdentifierFactory`; every library `compileOnly`; see its README (the Axon static binding) |
 | `spring/starter/` | `cosid-spring-boot-starter` | R3-S: dependencies only (core + autoconfigure, D14); applications add the store artifacts |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
-| `benchmark/v5/` | not published | the same scenarios on 5.x |
+| `benchmark/` | not published | the same scenarios on 5.x |
 | `migration/` | not published | R4-C: the offline 4.x → 5.0 migration fat jar (`:migration:shadowJar` → `build/libs/cosid-migration.jar`): 4.x readers, a narrow 5.0 admin path per store, `plan` / `apply` / `verify` / `config` / `purge`; see its README |
 | `extras/sharding/`, `examples/` | | not created yet (R4–R5) |
 | `build-logic/` | — | included build: convention plugins and build rules (see below) |

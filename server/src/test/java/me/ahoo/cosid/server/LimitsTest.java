@@ -193,7 +193,7 @@ class LimitsTest {
 
     @Test
     void unknownPathsAndMethodsAnswerTheErrorBody() {
-        HttpResponse<String> missing = server.get("/v5/nothing", TestServer.TOKEN);
+        HttpResponse<String> missing = server.get("/nothing", TestServer.TOKEN);
         assertEquals(404, missing.statusCode());
         assertThat(missing.body(), containsString("\"code\":\"" + RemoteApi.NOT_FOUND + "\""));
         assertEquals(404, server.get(RemoteApi.IDS, TestServer.TOKEN).statusCode(), "the id endpoints are off by default");

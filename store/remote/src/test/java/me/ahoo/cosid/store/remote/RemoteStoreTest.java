@@ -50,7 +50,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * How the client maps the answers of the {@code /v5} API to the outcomes of the primitives, against a stub server
+ * How the client maps the answers of the HTTP API to the outcomes of the primitives, against a stub server
  * answering each path with a canned status and body. The full contracts run in server/ against a real server.
  */
 class RemoteStoreTest {

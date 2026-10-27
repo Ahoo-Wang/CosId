@@ -34,6 +34,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -62,9 +63,15 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
     /** The terminal sentinel: it never issues, so the hot path needs no closed check. */
     private static final RangeCursor CLOSED = new RangeCursor(0, Long.MIN_VALUE);
     private static final Logger log = LoggerFactory.getLogger(SegmentGenerator.class);
+    /**
+     * The operation {@link GeneratorListener#onStoreTimeout} reports when callers waited for a refill longer than the
+     * reserve timeout; a reserve call that hits the store's own timeout is reported as {@code reserve}.
+     */
+    public static final String RESERVE_WAIT = "reserve-wait";
 
     private final String name;
     private final String key;
+    private final String storeName;
     private final RangeStore store;
     private final BatchPolicy policy;
     private final Executor refillExecutor;
@@ -91,6 +98,8 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
     private boolean refillClaimed;
     /** Created by its first waiter, completed once its range is ready. */
     private CompletableFuture<Void> refillDone;
+    /** The refill whose wait timed out last: a refill reports one wait timeout, however many callers waited. */
+    private final AtomicReference<CompletableFuture<Void>> timedOut = new AtomicReference<>();
     private long currentSize;
     private long currentSinceMillis;
     private long highWater = -1;
@@ -111,8 +120,27 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
      */
     public SegmentGenerator(String name, String key, RangeStore store, BatchPolicy policy,
                             Executor refillExecutor, TimeSource time, GeneratorListener listener) {
+        this(name, key, "", store, policy, refillExecutor, time, listener);
+    }
+
+    /**
+     * A segment generator on a named store. It reserves nothing until the first {@link #generate()}.
+     *
+     * @param name           the generator name, for events and errors
+     * @param key            the range key
+     * @param storeName      the store name, for {@link GeneratorListener#onStoreTimeout} when a caller waits for a
+     *                       refill longer than the reserve timeout
+     * @param store          the range store
+     * @param policy         the batch policy
+     * @param refillExecutor runs the reservations; the runtime's own executor by default
+     * @param time           the time source
+     * @param listener       the event listener
+     */
+    public SegmentGenerator(String name, String key, String storeName, RangeStore store, BatchPolicy policy,
+                            Executor refillExecutor, TimeSource time, GeneratorListener listener) {
         this.name = Objects.requireNonNull(name, "name");
         this.key = Objects.requireNonNull(key, "key");
+        this.storeName = Objects.requireNonNull(storeName, "storeName");
         this.store = Objects.requireNonNull(store, "store");
         this.policy = Objects.requireNonNull(policy, "policy");
         this.refillExecutor = Objects.requireNonNull(refillExecutor, "refillExecutor");
@@ -446,6 +474,9 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
             if (current == CLOSED) {
                 throw closed();
             }
+            if (timedOut.getAndSet(done) != done) {
+                fireWaitTimeout();
+            }
             throw new RangeUnavailableException(key, e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -486,6 +517,14 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
     private void fireFailed(Throwable error) {
         try {
             listener.onRefillFailed(name, key, error);
+        } catch (RuntimeException e) {
+            listenerFailed(e);
+        }
+    }
+
+    private void fireWaitTimeout() {
+        try {
+            listener.onStoreTimeout(storeName, RESERVE_WAIT);
         } catch (RuntimeException e) {
             listenerFailed(e);
         }

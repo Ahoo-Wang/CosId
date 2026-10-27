@@ -16,6 +16,7 @@ package me.ahoo.cosid.store.jdbc;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.SQLTimeoutException;
 import java.util.List;
 import java.util.OptionalLong;
 
@@ -146,5 +147,18 @@ public interface JdbcDialect {
     default boolean isRetryable(SQLException e) {
         String state = e.getSQLState();
         return "40001".equals(state) || "40P01".equals(state);
+    }
+
+    /**
+     * Whether a failure is the statement running out of the query timeout ({@code StoreConfig.timeout}); the store
+     * then fails with {@link me.ahoo.cosid.store.StoreTimeoutException}.
+     *
+     * @param e the failure
+     * @return true for a {@link SQLTimeoutException} and the SQL states {@code 57014} (query canceled: PostgreSQL, H2)
+     *         and {@code HY008} (operation canceled: SQL Server)
+     */
+    default boolean isTimeout(SQLException e) {
+        String state = e.getSQLState();
+        return e instanceof SQLTimeoutException || "57014".equals(state) || "HY008".equals(state);
     }
 }

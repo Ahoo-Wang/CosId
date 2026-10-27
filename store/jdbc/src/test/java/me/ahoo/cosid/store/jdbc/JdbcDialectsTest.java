@@ -25,6 +25,7 @@ import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
+import java.sql.SQLTimeoutException;
 import java.util.List;
 
 /**
@@ -104,6 +105,10 @@ class JdbcDialectsTest {
         assertTrue(dialect.isRetryable(new SQLException("deadlock", "40P01")));
         assertFalse(dialect.isRetryable(new SQLException("lock wait timeout", "HY000", 1205)));
         assertTrue(JdbcDialects.SQL_SERVER.isRetryable(new SQLException("deadlock victim", null, 1205)));
+        assertTrue(dialect.isTimeout(new SQLTimeoutException("query timeout")));
+        assertTrue(dialect.isTimeout(new SQLException("canceling statement due to statement timeout", "57014")));
+        assertTrue(JdbcDialects.SQL_SERVER.isTimeout(new SQLException("The query has timed out.", "HY008")));
+        assertFalse(dialect.isTimeout(new SQLException("lock wait timeout", "HY000", 1205)));
     }
 
     /** Registered in {@code META-INF/services}; supports no database, so detection passes it by. */

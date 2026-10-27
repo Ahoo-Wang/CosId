@@ -20,8 +20,11 @@ dependencies {
     api(project(":core"))
     // MongoStore takes a MongoDatabase and the provider an injected MongoClient: the driver is part of the API.
     api(libs.mongodb.driver.sync)
+    implementation(libs.slf4j.api)
     testImplementation(project(":store:tck"))
     testImplementation(libs.testcontainers.mongodb)
+    // Captures the startup warning of a write concern weaker than majority.
+    testImplementation(libs.logback.classic)
 }
 
 // The contracts ran against MongoDB (roadmap R2), as in store/tck: a run that skipped them fails.

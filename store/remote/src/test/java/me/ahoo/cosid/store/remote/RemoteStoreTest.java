@@ -30,6 +30,7 @@ import me.ahoo.cosid.lease.AcquireResult;
 import me.ahoo.cosid.lease.Owner;
 import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.segment.Range;
+import me.ahoo.cosid.store.StoreTimeoutException;
 
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -218,6 +219,7 @@ class RemoteStoreTest {
         assertEquals(502, html.status(), html::getMessage);
         assertNull(html.code());
         assertThat(html.getMessage(), containsString("without a JSON body"));
+        assertFalse(StoreTimeoutException.isTimeout(html), "an error answer is no store timeout");
 
         answer(RemoteApi.RESERVE, 500, "");
         assertThat(assertThrows(RemoteStoreException.class, () -> store.ranges().reserve("ns/a", 1, 0)).getMessage(), containsString("HTTP 500"));
@@ -235,6 +237,7 @@ class RemoteStoreTest {
         assertEquals(0, timeout.status(), timeout::getMessage);
         assertTrue(timeout.transientFailure());
         assertThat(timeout.getMessage(), containsString("timed out"));
+        assertTrue(StoreTimeoutException.isTimeout(timeout), "the runtime reports it as a store timeout");
     }
 
     @Test

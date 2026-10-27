@@ -27,9 +27,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.PartsIdGenerator;
+import me.ahoo.cosid.RangeUnavailableException;
 import me.ahoo.cosid.accessor.IdFiller;
 import me.ahoo.cosid.observe.GeneratorInfo;
 import me.ahoo.cosid.runtime.CosIdRuntime;
+import me.ahoo.cosid.store.StoreTimeoutException;
+import me.ahoo.cosid.store.tck.Fault;
+import me.ahoo.cosid.store.tck.FaultInjector;
 
 import io.micrometer.core.instrument.FunctionCounter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -195,6 +199,24 @@ class CosIdActuatorTest {
                 long names = registry.getMeters().stream().map(meter -> meter.getId().getName()).filter(name -> name.startsWith("cosid."))
                     .distinct().count();
                 assertEquals(19, names, "the meters of CosIdMeterListener");
+            });
+    }
+
+    @Test
+    void theStoreTimeoutsCountTimeoutsOfRealStoreCalls() {
+        // Not RecordingListener.fire: a reserve the store times out (the TCK's fault injection), through the runtime.
+        MemoryStores stores = new MemoryStores();
+        stores.faults = new FaultInjector().once(FaultInjector.Operation.RESERVE,
+            new Fault.Fail(() -> new StoreTimeoutException("the store did not answer in time")));
+        CosIdAutoConfigurationTest.RUNNER.withBean(MemoryStores.class, () -> stores).withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+            .withPropertyValues("cosid.stores.mem.type=memory", "cosid.stores.mem.timeout=100ms", "cosid.generators.order.strategy=segment",
+                "cosid.generators.order.store=mem", "cosid.generators.order.lookahead=0s")
+            .run(context -> {
+                assertNull(context.getStartupFailure());
+                MeterRegistry registry = context.getBean(MeterRegistry.class);
+                IdGenerator order = context.getBean("order", IdGenerator.class);
+                assertThrows(RangeUnavailableException.class, order::generate);
+                assertEquals(1.0, registry.get("cosid.store.timeouts").tag("store", "mem").tag("operation", "reserve").counter().count());
             });
     }
 

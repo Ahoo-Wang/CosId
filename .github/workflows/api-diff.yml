@@ -20,10 +20,10 @@ name: API Diff
 on:
   push:
     branches:
-      - 'main'
+      - '4.x'
   pull_request:
     branches:
-      - 'main'
+      - '4.x'
     # Re-run when the api-break-approved label is added or removed.
     types: [ opened, synchronize, reopened, labeled, unlabeled ]
   workflow_dispatch:

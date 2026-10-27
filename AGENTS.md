@@ -52,7 +52,7 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `store/tck/` | `cosid-store-tck` | R1-C: the contracts, `InMemoryStore` (passes them), `ManualClock`, fault injection, `ContractsRan` |
 | `store/mongo/` | `cosid-store-mongo` | R2-Mongo: `MongoStore` (`RangeStore` + `SlotLeaseStore`, sync driver, MongoDB 4.4+), `StoreProvider` type `mongo` |
 | `store/redis/` | `cosid-store-redis` | R2-Redis: Lua scripts behind `RedisScripts`, Lettuce, `WAIT` auto; see its README (durability precondition) |
-| `store/zookeeper/` | `cosid-store-zookeeper` | R2-ZK: `ZookeeperStore` (Curator), provider type `zookeeper`; TCK on `COSID_TEST_ZOOKEEPER_CONNECT` or an in-process curator-test server |
+| `store/zookeeper/` | `cosid-store-zookeeper` | R2-ZK: `ZookeeperStore` (Curator 5.9), provider type `zookeeper`, ZooKeeper 3.8+ (3.9 primary, D27); TCK on `COSID_TEST_ZOOKEEPER_CONNECT` or an in-process curator-test server |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
 | `benchmark/v5/` | not published | the same scenarios on 5.x |
@@ -111,7 +111,7 @@ Adding a package means deciding whether `module-info.java` exports it.
   P10 for Mongo is `benchmark/run-smoke MongoStoreBenchmark` with `COSID_BENCHMARK_MONGODB_URI` pointing at a replica set
   (default `mongodb://localhost:27017`).
 - **ZooKeeper tests** (`store/zookeeper`) need no Docker: without `COSID_TEST_ZOOKEEPER_CONNECT` they start a curator-test
-  server in process, and the failover case always runs its own three-server `TestingCluster`. P10 on ZooKeeper
+  server in process (ZooKeeper 3.9, the Curator one; CI also runs the TCK on 3.8), and the failover case always runs its own three-server `TestingCluster`. P10 on ZooKeeper
   (`benchmark/run-smoke ZookeeperStoreBenchmark`) likewise starts one per trial unless `COSID_BENCH_ZOOKEEPER_CONNECT` is set.
 - **Lease tests** drive `LeaseKeeper` / `StaticSlot` without threads: a capturing executor, the package-private
   constructor taking an `internal.Ticker`, and `runDue()` / `extendIfDue()` for each step; `store/tck`'s `ManualClock`

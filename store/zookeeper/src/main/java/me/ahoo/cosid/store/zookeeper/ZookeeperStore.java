@@ -26,6 +26,9 @@ import java.util.Objects;
  * The ZooKeeper store (06-stores.md §2.4): ranges under {@code /cosid/range}, slot leases under {@code /cosid/slot}, on a
  * started {@link CuratorFramework}. Every operation is bounded by the timeout as a whole, since Curator has no
  * per-operation timeout. Closing it closes the client only when the store owns it.
+ *
+ * <p>Requires ZooKeeper 3.8 or later on the server (D27); 3.9 is the primary target, the version Curator is aligned
+ * with. Acquire relies on read-only {@code multi} (ZooKeeper 3.6+).
  */
 public final class ZookeeperStore implements Store {
     private final CuratorFramework client;

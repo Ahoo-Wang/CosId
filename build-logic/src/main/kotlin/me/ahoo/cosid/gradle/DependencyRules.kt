@@ -41,7 +41,7 @@ object DependencyRules {
     private const val CORE = ":core"
     private const val STORES = ":store:*"
     private const val SPRING = ":spring:*"
-    private const val INTEGRATIONS = ":integrations"
+    private const val INTEGRATIONS = ":integrations:*"
     private const val EXTRAS = ":extras:*"
 
     /** Project pattern → the projects it may depend on in main scopes. An exact path wins over a pattern. */
@@ -49,6 +49,7 @@ object DependencyRules {
         CORE to emptyList(),
         TCK to listOf(CORE),
         STORES to listOf(CORE),
+        // D29: each integration on core and its own library only, never on another integration.
         INTEGRATIONS to listOf(CORE),
         EXTRAS to listOf(CORE),
         ":migration" to listOf(CORE, STORES),
@@ -71,7 +72,7 @@ object DependencyRules {
     )
 
     /** Projects that only group others and hold no code, such as `:store`. */
-    private val CONTAINERS = setOf(":store", ":spring", ":extras", ":benchmark", ":examples")
+    private val CONTAINERS = setOf(":store", ":spring", ":integrations", ":extras", ":benchmark", ":examples")
 
     fun violations(projects: Collection<String>, edges: Collection<Edge>): List<String> {
         val problems = mutableListOf<String>()

@@ -23,7 +23,7 @@ import org.junit.jupiter.params.provider.ValueSource
 class DependencyRulesTest {
     private val projects = listOf(
         ":", ":core", ":bom", ":store", ":store:tck", ":store:jdbc", ":store:redis", ":store:remote", ":spring", ":spring:autoconfigure",
-        ":spring:starter", ":server", ":integrations", ":extras", ":extras:sharding", ":migration", ":benchmark",
+        ":spring:starter", ":server", ":integrations", ":integrations:jackson", ":integrations:axon", ":extras", ":extras:sharding", ":migration", ":benchmark",
         ":benchmark:baseline-4x", ":benchmark:v5", ":examples", ":examples:segment-jdbc",
     )
 
@@ -36,12 +36,14 @@ class DependencyRulesTest {
             ":store:jdbc->:core",
             ":store:jdbc->:store:tck(test)",
             ":core->:store:tck(test)",
-            ":integrations->:core",
+            ":integrations:jackson->:core",
+            ":integrations:axon->:core",
             ":extras:sharding->:core",
             ":migration->:store:jdbc",
             ":migration->:spring:autoconfigure(test)",
             ":spring:autoconfigure->:store:redis",
-            ":spring:autoconfigure->:integrations",
+            ":spring:autoconfigure->:integrations:jackson",
+            ":spring:autoconfigure->:integrations:axon",
             ":spring:starter->:spring:autoconfigure",
             ":server->:spring:autoconfigure",
             ":server->:store:jdbc",
@@ -65,7 +67,10 @@ class DependencyRulesTest {
             ":store:jdbc->:store:redis",
             ":store:jdbc->:store:tck",
             ":store:tck->:store:jdbc",
-            ":integrations->:spring:autoconfigure",
+            ":integrations:jackson->:spring:autoconfigure",
+            // D29: no integration depends on another one.
+            ":integrations:axon->:integrations:jackson",
+            ":integrations:jackson->:store:jdbc",
             ":spring:autoconfigure->:server",
             ":spring:starter->:store:jdbc",
             ":extras:sharding->:store:jdbc",

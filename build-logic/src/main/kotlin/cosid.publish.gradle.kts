@@ -19,12 +19,13 @@ plugins {
     signing
 }
 
-val artifactId = ArtifactIds.of(project.path)
+// Not named artifactId: inside a MavenPublication block that name is the publication's own property.
+val publishedArtifactId = ArtifactIds.of(project.path)
 val isInCI = System.getenv("CI") != null
 fun property(name: String) = rootProject.findProperty(name)?.toString()
 
 pluginManager.withPlugin("base") {
-    the<BasePluginExtension>().archivesName.set(artifactId)
+    the<BasePluginExtension>().archivesName.set(publishedArtifactId)
 }
 
 publishing {
@@ -43,9 +44,9 @@ publishing {
         }
     }
     publications.withType<MavenPublication>().configureEach {
-        this.artifactId = artifactId
+        artifactId = publishedArtifactId
         pom {
-            name.set(artifactId)
+            name.set(publishedArtifactId)
             description.set(property("description"))
             url.set(property("website"))
             issueManagement {

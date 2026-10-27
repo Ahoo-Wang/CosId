@@ -29,7 +29,10 @@ import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.DockerImageName;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,28 +87,47 @@ final class RedisServers {
     /** A client on a three-primary cluster in one container, its node addresses mapped to the published ports. */
     static synchronized RedisClusterClient cluster() {
         if (cluster == null) {
-            StringBuilder script = new StringBuilder();
-            for (int port : CLUSTER_PORTS) {
-                script.append("redis-server --port ").append(port).append(" --cluster-enabled yes --cluster-config-file nodes-").append(port)
-                    .append(".conf --save '' --appendonly no --daemonize yes && ");
-            }
-            script.append("sleep 1 && redis-cli --cluster create");
-            CLUSTER_PORTS.forEach(port -> script.append(" 127.0.0.1:").append(port));
-            script.append(" --cluster-replicas 0 --cluster-yes && tail -f /dev/null");
-            GenericContainer<?> redis = new GenericContainer<>(IMAGE)
-                .withExposedPorts(CLUSTER_PORTS.toArray(Integer[]::new))
-                .withCommand("sh", "-c", script.toString())
-                .waitingFor(Wait.forLogMessage(".*All 16384 slots covered.*", 1).withStartupTimeout(Duration.ofMinutes(2)));
-            redis.start();
-            String host = redis.getHost();
-            Map<Integer, Integer> mapped = new HashMap<>();
-            CLUSTER_PORTS.forEach(port -> mapped.put(port, redis.getMappedPort(port)));
-            MappingSocketAddressResolver resolver = MappingSocketAddressResolver.create(DnsResolvers.UNRESOLVED, address ->
-                mapped.containsKey(address.getPort()) ? HostAndPort.of(host, mapped.get(address.getPort())) : address);
-            ClientResources resources = ClientResources.builder().socketAddressResolver(resolver).build();
-            cluster = RedisClusterClient.create(resources, RedisURI.create("redis://127.0.0.1:" + CLUSTER_PORTS.get(0)));
+            cluster = startCluster(CLUSTER_PORTS, 0).client();
         }
         return cluster;
+    }
+
+    /**
+     * A new three-primary cluster with one replica per primary, in one container, each replica online and caught up.
+     * Each call starts its own cluster, so a test may stop its replicas.
+     *
+     * @return the cluster
+     */
+    static Cluster clusterWithReplicas() {
+        Cluster started = startCluster(List.of(7000, 7001, 7002, 7003, 7004, 7005), 1);
+        started.awaitReplicasInSync();
+        return started;
+    }
+
+    /** A cluster on {@code ports} in one container, its node addresses mapped to the published ports. */
+    private static Cluster startCluster(List<Integer> ports, int replicasPerPrimary) {
+        StringBuilder script = new StringBuilder();
+        for (int port : ports) {
+            script.append("redis-server --port ").append(port).append(" --cluster-enabled yes --cluster-config-file nodes-").append(port)
+                .append(".conf --save '' --appendonly no --repl-diskless-sync-delay 0 --daemonize yes && ");
+        }
+        script.append("sleep 1 && redis-cli --cluster create");
+        ports.forEach(port -> script.append(" 127.0.0.1:").append(port));
+        script.append(" --cluster-replicas ").append(replicasPerPrimary).append(" --cluster-yes && tail -f /dev/null");
+        GenericContainer<?> redis = new GenericContainer<>(IMAGE)
+            .withExposedPorts(ports.toArray(Integer[]::new))
+            .withCommand("sh", "-c", script.toString())
+            .waitingFor(Wait.forLogMessage(".*All 16384 slots covered.*", 1).withStartupTimeout(Duration.ofMinutes(2)));
+        redis.start();
+        String host = redis.getHost();
+        Map<Integer, Integer> mapped = new HashMap<>();
+        ports.forEach(port -> mapped.put(port, redis.getMappedPort(port)));
+        MappingSocketAddressResolver resolver = MappingSocketAddressResolver.create(DnsResolvers.UNRESOLVED, address ->
+            mapped.containsKey(address.getPort()) ? HostAndPort.of(host, mapped.get(address.getPort())) : address);
+        ClientResources resources = ClientResources.builder().socketAddressResolver(resolver).build();
+        Map<Integer, RedisClient> nodes = new HashMap<>();
+        mapped.forEach((port, published) -> nodes.put(port, RedisClient.create(RedisURI.create("redis://" + host + ":" + published))));
+        return new Cluster(redis, RedisClusterClient.create(resources, RedisURI.create("redis://127.0.0.1:" + ports.get(0))), nodes);
     }
 
     /** A primary with one replica shared by the contract tests, which never break it. */
@@ -172,5 +194,85 @@ final class RedisServers {
             connection.sync().set("cosid-test:sync", UUID.randomUUID().toString());
             return connection.sync().waitForReplication(1, 1000) >= 1;
         }
+    }
+
+    /**
+     * A cluster in one container.
+     *
+     * @param container the container running every node
+     * @param client    a cluster client, node addresses mapped
+     * @param nodes     a standalone client per node, by the node's port in the container
+     */
+    record Cluster(GenericContainer<?> container, RedisClusterClient client, Map<Integer, RedisClient> nodes) {
+        /** The ports of the replica nodes. */
+        List<Integer> replicaPorts() {
+            return nodes.entrySet().stream().filter(node -> role(node.getValue()).equals("slave")).map(Map.Entry::getKey).sorted().toList();
+        }
+
+        private static String role(RedisClient node) {
+            try (StatefulRedisConnection<String, String> connection = node.connect()) {
+                return connection.sync().info("replication").replaceAll("(?s).*role:(\\w+).*", "$1");
+            }
+        }
+
+        /** Waits until every primary's replica is online with its offset caught up. */
+        void awaitReplicasInSync() {
+            long deadline = System.nanoTime() + Duration.ofMinutes(1).toNanos();
+            for (RedisClient node : nodes.values()) {
+                if (!role(node).equals("master")) {
+                    continue;
+                }
+                try (StatefulRedisConnection<String, String> connection = node.connect()) {
+                    while (!caughtUp(connection.sync().info("replication"))) {
+                        if (System.nanoTime() > deadline) {
+                            throw new AssertionError("The replicas did not get in sync: " + connection.sync().info("replication"));
+                        }
+                        Thread.sleep(100);
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(e);
+                }
+            }
+        }
+
+        /** The process ids of the replica nodes, from {@code INFO server}; read before freezing them. */
+        List<String> replicaPids() {
+            return replicaPorts().stream().map(port -> {
+                try (StatefulRedisConnection<String, String> connection = nodes.get(port).connect()) {
+                    return connection.sync().info("server").replaceAll("(?s).*process_id:(\\d+).*", "$1");
+                }
+            }).toList();
+        }
+
+        /** Sends {@code signal} to the processes: {@code STOP} freezes a replica, so it acknowledges nothing; {@code CONT} thaws it. */
+        void signal(String signal, List<String> pids) {
+            try {
+                List<String> command = new ArrayList<>(List.of("kill", "-" + signal));
+                command.addAll(pids);
+                var result = container.execInContainer(command.toArray(String[]::new));
+                if (result.getExitCode() != 0) {
+                    throw new AssertionError("kill -" + signal + " " + pids + " failed: " + result.getStderr());
+                }
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(e);
+            }
+        }
+
+        void stop() {
+            client.shutdown();
+            nodes.values().forEach(RedisClient::shutdown);
+            container.stop();
+        }
+    }
+
+    private static boolean caughtUp(String info) {
+        Matcher replica = REPLICA.matcher(info);
+        Matcher primaryOffset = PRIMARY_OFFSET.matcher(info);
+        return replica.find() && "online".equals(replica.group(1)) && primaryOffset.find()
+            && Long.parseLong(replica.group(2)) >= Long.parseLong(primaryOffset.group(1));
     }
 }

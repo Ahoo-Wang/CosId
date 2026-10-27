@@ -81,9 +81,13 @@ local function take(slot, reason)
     return reply(slot, row, reason)
 end
 
--- 1. Held by this very owner (key and incarnation): a retry, returned as it is.
+-- 1. Held by this very owner (key and incarnation): a retry, returned as it is. The row is written again, unchanged:
+-- the first acquire may have run on a connection lost before its WAIT, and the WAIT after this script only covers what
+-- this connection wrote, so the write makes it cover the lease being handed out (B-N4). HSET always replicates.
 if mine then
-    return reply(mine, decode(redis.call('HGET', slotKey, mine)), 'IDEMPOTENT')
+    local raw = redis.call('HGET', slotKey, mine)
+    redis.call('HSET', slotKey, mine, raw)
+    return reply(mine, decode(raw), 'IDEMPOTENT')
 end
 -- 2. The preferred slot.
 if preferred ~= '' then

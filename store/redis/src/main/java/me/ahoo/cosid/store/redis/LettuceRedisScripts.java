@@ -43,15 +43,12 @@ import java.util.function.Function;
  * {@link RedisStoreProvider} does.
  */
 public final class LettuceRedisScripts implements RedisScripts {
-    private final RedisScriptingAsyncCommands<String, String> commands;
-    private final Function<String, BaseRedisAsyncCommands<String, String>> waitTarget;
+    private final Function<String, Target> targets;
     private final Duration timeout;
     private final int replicas;
 
-    private LettuceRedisScripts(RedisScriptingAsyncCommands<String, String> commands,
-                                Function<String, BaseRedisAsyncCommands<String, String>> waitTarget, Duration timeout, int replicas) {
-        this.commands = commands;
-        this.waitTarget = waitTarget;
+    private LettuceRedisScripts(Function<String, Target> targets, Duration timeout, int replicas) {
+        this.targets = targets;
         this.timeout = Objects.requireNonNull(timeout, "timeout");
         if (timeout.isNegative() || timeout.isZero()) {
             throw new IllegalArgumentException("timeout must be positive: " + timeout);
@@ -72,7 +69,8 @@ public final class LettuceRedisScripts implements RedisScripts {
      */
     public static LettuceRedisScripts of(StatefulRedisConnection<String, String> connection, Duration timeout, int replicas) {
         Objects.requireNonNull(connection, "connection");
-        return new LettuceRedisScripts(connection.async(), key -> connection.async(), timeout, replicas);
+        Target target = new Target(connection.async(), connection.async());
+        return new LettuceRedisScripts(key -> target, timeout, replicas);
     }
 
     /**
@@ -85,13 +83,20 @@ public final class LettuceRedisScripts implements RedisScripts {
      */
     public static LettuceRedisScripts of(StatefulRedisClusterConnection<String, String> connection, Duration timeout, int replicas) {
         Objects.requireNonNull(connection, "connection");
-        // Lettuce keeps one write connection per node, shared by the commands routed to its slots: the script's.
-        return new LettuceRedisScripts(connection.async(), key -> {
+        if (replicas == 0) {
+            // No WAIT: let the cluster connection route the script, and follow MOVED redirects.
+            Target routed = new Target(connection.async(), connection.async());
+            return new LettuceRedisScripts(key -> routed, timeout, replicas);
+        }
+        // WAIT counts the replicas that acknowledged the writes of the connection it runs on, so the script and its WAIT
+        // must share one connection: the one to the node serving the key, taken once per call (B-B1).
+        return new LettuceRedisScripts(key -> {
             RedisClusterNode node = connection.getPartitions().getPartitionBySlot(SlotHash.getSlot(key));
             if (node == null) {
                 throw new RedisStoreException("No Redis Cluster node serves the key " + key);
             }
-            return connection.async().getConnection(node.getNodeId());
+            StatefulRedisConnection<String, String> nodeConnection = connection.getConnection(node.getNodeId());
+            return new Target(nodeConnection.async(), nodeConnection.async());
         }, timeout, replicas);
     }
 
@@ -148,14 +153,16 @@ public final class LettuceRedisScripts implements RedisScripts {
     public List<Object> eval(String sha, String script, List<String> keys, List<String> args) {
         String[] keyArray = keys.toArray(String[]::new);
         String[] argArray = args.toArray(String[]::new);
+        // Every store script names keys, and they share a hash tag: the first one picks the node.
+        Target target = targets.apply(keys.get(0));
         List<Object> reply;
         try {
-            reply = await(commands.<List<Object>>evalsha(sha, ScriptOutputType.MULTI, keyArray, argArray), timeout);
+            reply = await(target.scripts().<List<Object>>evalsha(sha, ScriptOutputType.MULTI, keyArray, argArray), timeout);
         } catch (RedisNoScriptException e) {
-            reply = await(commands.<List<Object>>eval(script, ScriptOutputType.MULTI, keyArray, argArray), timeout);
+            reply = await(target.scripts().<List<Object>>eval(script, ScriptOutputType.MULTI, keyArray, argArray), timeout);
         }
-        if (replicas > 0 && !keys.isEmpty()) {
-            long acknowledged = await(waitTarget.apply(keys.get(0)).waitForReplication(replicas, timeout.toMillis()), timeout.multipliedBy(2));
+        if (replicas > 0) {
+            long acknowledged = await(target.server().waitForReplication(replicas, timeout.toMillis()), timeout.multipliedBy(2));
             if (acknowledged < replicas) {
                 throw new RedisStoreException("The write was acknowledged by " + acknowledged + " of " + replicas + " replicas within " + timeout);
             }
@@ -187,5 +194,14 @@ public final class LettuceRedisScripts implements RedisScripts {
         } catch (RedisException e) {
             throw new RedisStoreException("Redis failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Where one call runs: the script and its {@code WAIT}, on the same connection.
+     *
+     * @param scripts runs the script
+     * @param server  runs {@code WAIT}
+     */
+    private record Target(RedisScriptingAsyncCommands<String, String> scripts, BaseRedisAsyncCommands<String, String> server) {
     }
 }

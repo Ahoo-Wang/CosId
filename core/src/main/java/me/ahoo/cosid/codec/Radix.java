@@ -13,6 +13,9 @@
 
 package me.ahoo.cosid.codec;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+
 /**
  * Encodes non-negative ids in base 2 to 62 with the digits {@code 0-9A-Za-z}; replaces the 4.x
  * {@code ToStringIdConverter}, {@code Radix36IdConverter} and {@code Radix62IdConverter} (03-core-model.md §1).
@@ -20,6 +23,16 @@ package me.ahoo.cosid.codec;
 public final class Radix implements IdCodec {
     public static final int MIN_RADIX = 2;
     public static final int MAX_RADIX = 62;
+
+    private static final byte[] DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".getBytes(StandardCharsets.ISO_8859_1);
+    private static final byte[] VALUES = new byte['z' + 1];
+
+    static {
+        Arrays.fill(VALUES, (byte) -1);
+        for (int i = 0; i < DIGITS.length; i++) {
+            VALUES[DIGITS[i]] = (byte) i;
+        }
+    }
 
     private final int radix;
     private final int width;
@@ -99,11 +112,96 @@ public final class Radix implements IdCodec {
 
     @Override
     public String encode(long id) {
-        throw new UnsupportedOperationException("R1-A");
+        if (id < 0 || id > maxValue) {
+            throw new IllegalArgumentException("id " + id + " must be in [0, " + maxValue + "] for " + width + " digits in radix " + radix);
+        }
+        byte[] buf = new byte[width];
+        int start = writeDigits(buf, width, radix, id);
+        if (padStart) {
+            Arrays.fill(buf, 0, start, (byte) '0');
+            start = 0;
+        }
+        return new String(buf, start, width - start, StandardCharsets.ISO_8859_1);
     }
 
     @Override
     public long decode(String text) {
-        throw new UnsupportedOperationException("R1-A");
+        int length = text.length();
+        if (length == 0 || length > width) {
+            throw new IllegalArgumentException("[" + text + "] must have 1 to " + width + " digits in radix " + radix);
+        }
+        return readDigits(text, 0, length, radix);
+    }
+
+    /**
+     * Writes the digits of {@code value} in {@code radix} ending before {@code end}, most significant first.
+     *
+     * @return the index of the first digit written; one digit for 0
+     */
+    static int writeDigits(byte[] buf, int end, int radix, long value) {
+        int at = end;
+        // A constant divisor per case: the JIT turns each division into a multiplication.
+        switch (radix) {
+            case 62 -> {
+                do {
+                    buf[--at] = DIGITS[(int) (value % 62)];
+                    value /= 62;
+                } while (value > 0);
+            }
+            case 36 -> {
+                do {
+                    buf[--at] = DIGITS[(int) (value % 36)];
+                    value /= 36;
+                } while (value > 0);
+            }
+            case 10 -> {
+                do {
+                    buf[--at] = DIGITS[(int) (value % 10)];
+                    value /= 10;
+                } while (value > 0);
+            }
+            default -> {
+                do {
+                    buf[--at] = DIGITS[(int) (value % radix)];
+                    value /= radix;
+                } while (value > 0);
+            }
+        }
+        return at;
+    }
+
+    /**
+     * Reads the digits of {@code text} from {@code from} to {@code to} in {@code radix}.
+     *
+     * @throws IllegalArgumentException for a character that is not a digit of the radix, or a value beyond a long
+     */
+    static long readDigits(String text, int from, int to, int radix) {
+        long value = 0;
+        for (int i = from; i < to; i++) {
+            char c = text.charAt(i);
+            int digit = c < VALUES.length ? VALUES[c] : -1;
+            if (digit < 0 || digit >= radix) {
+                throw new IllegalArgumentException("[" + text + "] has a character [" + c + "] that is not a digit in radix " + radix + " at " + i);
+            }
+            try {
+                value = Math.addExact(Math.multiplyExact(value, radix), digit);
+            } catch (ArithmeticException overflow) {
+                throw new IllegalArgumentException("[" + text + "] overflows a long in radix " + radix, overflow);
+            }
+        }
+        return value;
+    }
+
+    /**
+     * The digits of {@code 2^bits - 1} in {@code radix}: the fixed width of a part of {@code bits}.
+     *
+     * @return the width, 0 for 0 bits
+     */
+    static int partWidth(int radix, int bits) {
+        int width = 0;
+        for (long rest = ~(-1L << bits); rest > 0; rest /= radix) {
+            width++;
+        }
+        return width;
     }
 }

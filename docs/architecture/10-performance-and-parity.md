@@ -51,7 +51,7 @@ benchmark/
 
 | 4.x 热路径 | 5.0 做法 |
 |---|---|
-| Snowflake `synchronized generate`,序列耗尽时持锁 park | 打包状态的 `AtomicLong` CAS,等待时不持锁 |
+| Snowflake `synchronized generate`,序列耗尽时持锁 park | 短临界区发号(D25),所有等待都在锁外 |
 | 每次生成都经过装饰链(Leased → ClockSync → Counted → String) | 单个 final 类;租约检查是一次 volatile 读 |
 | 热路径调用全局 `CosIdEvents` | 热路径不调用 listener |
 | Friendly 编码每次构造 `LocalDateTime` + `DateTimeFormatter` | 预计算字段宽度,直接写 `char[]` |

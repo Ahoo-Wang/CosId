@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Random;
 
 class LayoutTest {
     @Test
@@ -72,5 +73,40 @@ class LayoutTest {
         IdParts parts = new IdParts(1000, 1, 2);
         assertThat(parts.instant(Layout.SNOWFLAKE_MS), is(Layout.COSID_EPOCH.plusMillis(1000)));
         assertThat(parts.instant(Layout.SNOWFLAKE_S), is(Layout.COSID_EPOCH.plusSeconds(1000)));
+    }
+
+    @Test
+    void packAndUnpackRoundTrip() {
+        Random random = new Random(42);
+        for (Layout layout : new Layout[] {Layout.SNOWFLAKE_MS, Layout.SNOWFLAKE_S, Layout.JS_SAFE_MS, Layout.JS_SAFE_S,
+            new Layout(Layout.COSID_EPOCH, ChronoUnit.MILLIS, 62, 0, 1, 0)}) {
+            for (int i = 0; i < 10_000; i++) {
+                long time = random.nextLong() >>> (64 - layout.timeBits());
+                int node = layout.nodeBits() == 0 ? 0 : random.nextInt(1 << layout.nodeBits());
+                long seq = random.nextLong() >>> (64 - layout.seqBits());
+                long id = layout.pack(time, node, seq);
+                assertThat(id >= 0, is(true));
+                assertThat(layout.unpack(id), is(new IdParts(time, node, seq)));
+            }
+        }
+        assertThat(Layout.SNOWFLAKE_MS.pack(1, 1, 1), is((1L << 22) | (1L << 12) | 1));
+        assertThat(Layout.SNOWFLAKE_MS.pack(~(-1L << 41), 1023, 4095), is(Long.MAX_VALUE));
+    }
+
+    @Test
+    void packRejectsPartsOutOfRange() {
+        assertThrows(IllegalArgumentException.class, () -> Layout.SNOWFLAKE_MS.pack(1L << 41, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> Layout.SNOWFLAKE_MS.pack(-1, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> Layout.SNOWFLAKE_MS.pack(0, 1024, 0));
+        assertThrows(IllegalArgumentException.class, () -> Layout.SNOWFLAKE_MS.pack(0, -1, 0));
+        assertThrows(IllegalArgumentException.class, () -> Layout.SNOWFLAKE_MS.pack(0, 0, 4096));
+        assertThrows(IllegalArgumentException.class, () -> Layout.JS_SAFE_MS.unpack(1L << 53));
+        assertThrows(IllegalArgumentException.class, () -> Layout.SNOWFLAKE_MS.unpack(-1));
+    }
+
+    @Test
+    void wideLayoutsDoNotPack() {
+        assertThrows(IllegalStateException.class, () -> Layout.COSID_80.pack(0, 0, 0));
+        assertThrows(IllegalStateException.class, () -> Layout.COSID_80.unpack(0));
     }
 }

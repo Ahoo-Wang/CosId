@@ -159,6 +159,8 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 | L11 | 号段默认 `initialOffset` 改为 1,不发 0(与 4.x 一致;`IdFiller` 把 0 视为未设置) | ✅ [#1339](https://github.com/Ahoo-Wang/CosId/pull/1339) |
 | L12 | 稳定性:实施后期又出现 3 个偶发/可疑测试:`RemoteStoreTest`(已在 #1332 修复)、Mongo `lostUpsertRacesRetryAndNeverOverlap`、Redis `sweepMovesAtMostOneBatchOfExpiredLeases`(待查是否真缺陷) | R2-Mongo、R2-Redis |
 | L13 | `config` 转换:4.x 非零 `offset` 应转换为 `initial-offset = offset + 1`(4.x 新 key / 新周期首个 ID 为 offset+1) | R4-C 后续 PR |
+| L14 | Linux 上不用 Spring 时 `store/redis` + `store/zookeeper` 共存失败(ZooKeeper 带入 Netty 4.1 epoll,Lettuce 7 需要 Netty 4.2):`store/zookeeper` 排除 ZooKeeper 的 Netty 依赖(客户端默认 NIO),加 Linux 回归测试 | R2-ZK |
+| L15 | 发布门槛 CI 试跑的早期信号(待正式门槛确认):P6 分配 24→32 B/op、P10 MySQL 分配增加、x86 上编解码 decode 约 −15% | 正式门槛后按归属分派 |
 
 ## 6. 风险与经验
 

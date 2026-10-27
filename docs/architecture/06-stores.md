@@ -71,9 +71,11 @@ create table cosid_namespace (
 
 槽位:
 - 命名空间首次使用时幂等预建 `limit` 行(MySQL `insert ignore`;PostgreSQL `on conflict do nothing`;SQL Server `merge`;H2 `merge`)。
-- `acquire` 按 05 §2.1 的顺序逐个尝试。每次尝试是一个 `READ COMMITTED` 事务:
-  先锁定一个候选行(MySQL/PostgreSQL 用 `for update skip locked`;SQL Server 用 `with (updlock, readpast, rowlock)` 加 `top 1`),
-  再执行 `update … where namespace = ? and slot = ? and fence = ?`。
+- `acquire` 按 05 §2.1 的顺序逐个尝试,走 CAS 路径(R2 裁定,往返次数不多于 4.x):
+  一次非锁定读取得到候选槽位(幂等、preferred、粘性、前几个空闲槽位)与存储时钟;每一步是一条自动提交的
+  `update … where namespace = ? and slot = ? and fence = ? and (以数据库时钟判断"可取")`,影响 0 行则换下一个候选。
+  LOWEST 一步在前 k 个空闲槽位中随机选取以分散竞争。PostgreSQL 可用单条 `update … where slot = (select … for update skip locked limit 1) returning`。
+  正确性只依赖单槽位的原子条件更新。
 - 存储时钟(UTC):MySQL `timestampdiff(microsecond, '1970-01-01 00:00:00', utc_timestamp(6)) div 1000`(不受会话时区与夏令时影响);PostgreSQL `(extract(epoch from clock_timestamp()) * 1000)::bigint`;
   SQL Server `datediff_big(ms, '1970-01-01', sysutcdatetime())`;H2 同 PostgreSQL 写法。
 - 是否自动建表由 `options.initSchema` 控制(默认关闭);表名可通过 `options.rangeTable` / `slotTable` / `namespaceTable` 配置。

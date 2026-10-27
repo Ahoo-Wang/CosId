@@ -1,93 +1,85 @@
-# 监控
+# 指标与健康检查
 
-## 健康检查
-
-使用 Spring Boot Actuator 时，`machineId` 健康指示器在以下情况报告 `DOWN`：
-
-- 机器号租约续约失败期间，并附带错误和失败续约的时间（`error`、`guardAt`）；下一次续约成功后恢复为 `UP`；
-- 租约已过期或已丢失（被其他实例接管）。即使之后续约成功也保持 `DOWN`，因为该机器号的生成器已经停止：请重启实例。
-
-请为它配置告警：在最后一次成功续约之后约 4 分 50 秒（`safe-guard-duration - min(10s, safe-guard-duration / 10)`），Snowflake 生成器和 `CosIdGenerator` 会抛出 `MachineIdLostException` 停止生成。
-
-`leases` 详情按命名空间和实例 ID 列出实例持有的每个租约：
-
-| 字段 | 含义 |
-|------|------|
-| `machineId` | 租约的机器号 |
-| `instanceId` | 持有它的实例 ID |
-| `remainingMillis` | 租约过期前的剩余时间；降到零时生成器停止 |
-| `lost` | 机器号被其他实例接管后为 `true` |
-| `expired` | 租约未续约而到期后为 `true` |
-| `released` | 租约已归还（关闭时）后为 `true` |
-
-```yaml
-management:
-  endpoint:
-    health:
-      show-details: when-authorized
-```
+当 classpath 上有 Spring Boot Actuator 与 Micrometer 时，starter 会注册一个指标 listener、一个健康检查
+和一个端点。不使用 Spring 时，实现 `GeneratorListener`（通过 `RuntimeOptions` 传入），并读取
+`runtime.describe()` 与 `runtime.slot()`。
 
 ## 指标
 
-类路径上有 Micrometer 并且存在 `MeterRegistry` Bean 时（Spring Boot Actuator 会同时提供），starter 会注册 `CosIdMeterBinder`。设置 `cosid.metrics.enabled=false` 可以关闭。
+所有指标都以 `cosid.*` 命名（共 19 个）。它们来自 listener 事件，因此热路径从不调用它们；只有
+`cosid.generator.generated` 对 id 计数，并且仅在 `cosid.metrics.generated: true` 时开启。
 
-| 指标 | 类型 | 标签 | 含义 |
-|------|------|------|------|
-| `cosid.segment.remaining` | gauge | `name`、`segment` | 号段生成器已持有号段中剩余的 ID；持续接近零时请告警 |
-| `cosid.segment.prefetch.distance` | gauge | `name`、`segment` | 号段链预取的号段数；负载高时增长，最大为 `max-prefetch-distance` |
-| `cosid.segment.fetch` | timer | `segment`、`outcome` | 从存储获取号段，`success` 或 `failure` |
-| `cosid.segment.prefetch.expansions` | counter | `segment` | 号段链耗尽并扩大预取距离的次数 |
-| `cosid.segment.prefetch.failures` | counter | `segment` | 预取失败次数 |
-| `cosid.machine.lease.remaining` | time gauge | `namespace` | 机器号租约的剩余时间；降到零时 Snowflake 生成器停止。永不过期的租约（未启用守护）为 `+Inf` |
-| `cosid.machine.clock.skew` | time gauge | `namespace` | 最近一次续约时本机时钟比存储时钟快多少 |
-| `cosid.machine.lease.acquired` | counter | `namespace`、`claim` | 申领的租约：`self`、`released`、`new` 或 `expired` |
-| `cosid.machine.lease.renew.failures` | counter | `namespace` | 续约失败次数 |
-| `cosid.machine.lease.lost` | counter | `namespace` | 被其他实例接管的租约数 |
-| `cosid.clock.backwards` | counter | `type` | 该类生成器发现时钟回拨的次数 |
-| `cosid.clock.sync.wait` | timer | `type` | 等待时钟追上的时间 |
-| `cosid.sequence.exhausted.wait` | timer | | 序列号用完后等待下一个时间单位的时间 |
-| `cosid.call.timeouts`、`cosid.call.rejections` | counter | `operation` | 超时的存储调用，或超出 `cosid.max-concurrent-calls` 被拒绝的存储调用 |
-| `cosid.generator.generated` | function counter | `name` | 生成的 ID 数，仅在 `cosid.metrics.generated.enabled=true` 时注册 |
+| 指标 | 类型 | 标签 | 4.x 名称 |
+|---|---|---|---|
+| `cosid.segment.reserve` | timer | `name`、`key` | `segment.fetch` |
+| `cosid.segment.refill.failures` | counter | `name`、`key`、`error` | `segment.prefetch.failures` |
+| `cosid.segment.batch.resizes` | counter | `name`、`direction`（`up`、`down`） | `segment.prefetch.expansions` |
+| `cosid.segment.batch` | gauge | `name` | `segment.prefetch.distance` |
+| `cosid.segment.held` | gauge | `name` | `segment.remaining` |
+| `cosid.sequence.exhausted` | counter | `name` | `sequence.exhausted.wait` |
+| `cosid.clock.backwards` | summary（ms） | `name`、`action`（`borrow`、`wait`、`fail`） | `clock.backwards`、`clock.sync.wait` |
+| `cosid.machine.window.exceeded` | counter | `name` | |
+| `cosid.machine.lease.acquired` | counter | `namespace`、`reason`（`idempotent`、`preferred`、`sticky`、`lowest`） | `machine.lease.acquired` |
+| `cosid.machine.lease.renewed` | counter | `namespace` | |
+| `cosid.machine.lease.released` | counter | `namespace` | |
+| `cosid.machine.lease.renew.failures` | counter | `namespace` | `machine.lease.renew.failures` |
+| `cosid.machine.lease.lost` | counter | `namespace` | `machine.lease.lost` |
+| `cosid.machine.lease.remaining` | time gauge | `namespace` | `machine.lease.remaining` |
+| `cosid.machine.window.remaining` | time gauge | `namespace` | |
+| `cosid.machine.clock.skew` | time gauge | `namespace` | `machine.clock.skew` |
+| `cosid.machine.owner.duplicates` | counter | `namespace` | |
+| `cosid.store.timeouts` | counter | `store`、`operation`（`reserve`、`seal`、`acquire`、`renew`、`release`：存储调用超时；`reserve-wait`：调用方等待补充超过 `reserve-timeout`，每次补充计一次） | `call.timeouts` |
+| `cosid.generator.generated` | function counter | `name` | `generator.generated` |
 
-`cosid.metrics.generated.enabled` 默认关闭：开启后号段和 Snowflake 生成器会被计数装饰器（`CountedSegmentId`、`CountedSnowflakeId`）包装，每个 ID 一次原子加法。Bean 仍是 `SegmentId` 和 `SnowflakeId` 类型。这些 Bean 本身就是装饰器（例如包装 `SegmentChainId` 的 `StringSegmentId`），获取原生成器请使用递归的 `Decorator.getActual(bean)`，不要只调用一次 `getActual()` 再用 `instanceof` 判断：开启后会多一层。
+`cosid.generator.generated` 统计运行时交出的每个视图，包括 `IdFiller`。cosid-server 另外增加
+`cosid.server.call.rejections{reason}`。
 
-设置 `cosid.provider.isolated=true` 时，每个应用上下文只统计自己实例的租约事件（因此每个隔离的上下文需要自己的实例 ID：默认的非稳定 `{host}:{pid}:{random}` 满足，固定的 `cosid.machine.instance-id` 或稳定实例默认的 `{host}:{pid}` 不满足），以及自己生成器所用号段存储的号段事件：两个上下文的生成器使用同一个号段存储时，都会统计该存储的事件。时钟、序列号和存储调用指标无法区分上下文，统计的是整个 JVM。启动后才加入容器的生成器，会在下一次 `CosIdMeterBinder.refresh()` 时获得指标。
+## 健康检查
 
-### 告警
+健康检查 `cosId`（`/actuator/health/cosId`；开关 `management.health.cosid.enabled`）：
 
-| 告警 | 级别 | PromQL 示例 |
-|------|------|-------------|
-| 租约即将过期：低于 `safe-guard-duration`（默认 5m）的约三分之一 | warning | `cosid_machine_lease_remaining_seconds < 100` |
-| 租约续约失败 | warning | `increase(cosid_machine_lease_renew_failures_total[5m]) > 0` |
-| 租约丢失：该实例的 Snowflake 生成器停止 | critical | `increase(cosid_machine_lease_lost_total[5m]) > 0` |
-| 号段预取失败：生成使用预留的号段 | warning | `increase(cosid_segment_prefetch_failures_total[5m]) > 0` |
-| 号段链即将耗尽 | warning | `cosid_segment_remaining < 1000 and on(name, segment) cosid_segment_prefetch_distance`（仅号段链：`DefaultSegmentId` 只持有一个号段，每次获取前都会降低；按你的 `step` 取值） |
-| 存储调用被拒绝 | warning | `increase(cosid_call_rejections_total[5m]) > 0` |
+- 当槽位租约已丢失且未能重新获取，或某个时间型生成器的槽位绑定不再有效时为 `DOWN`；否则为 `UP`。
+  没有时间型生成器时不存在槽位，状态为 `UP`。
+- 详情：`slot`、`owner`、`fence`、`expiresAt` 与 `expiresInMillis`、`ceiling` 与 `windowRemainingMillis`、
+  每个生成器的 `slotValid`、`lost`、`renewFailures`（连续次数）以及最近一次续约错误。
 
-租约丢失或过期时健康指示器也会变为 `DOWN`；按你的平台已采集的数据选择其一告警即可。
-
-## 生成器状态
-
-`cosid` 端点列出每个生成器的类型、转换器和状态：Snowflake 生成器的机器号和最后时间戳，号段生成器的当前号段。
-
-```yaml
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health, cosid
+```json
+{"status":"UP","details":{"slot":0,"owner":"app-7d9f:8080","fence":1,"expiresAt":1793098633174,
+ "expiresInMillis":28124,"ceiling":1793098634174,"windowRemainingMillis":29124,
+ "slotValid":{"default":true},"lost":false,"renewFailures":0}}
 ```
 
-`GET /actuator/cosid` 返回所有生成器，`GET /actuator/cosid/{name}` 返回其中一个。`cosidGenerator` 和 `cosidStringGenerator` 端点会生成 ID：只暴露给可信的调用方。`cosid` 的 `DELETE` 操作会删除生成器，除非设置 `cosid.actuator.delete.enabled=true`，否则不可用。请像保护其他管理接口一样保护管理端口。
+## `cosid` 端点
 
-## 日志
+| 请求 | 响应 |
+|---|---|
+| `GET /actuator/cosid` | `describe()`：每个生成器的策略、存储与详情 |
+| `GET /actuator/cosid/{name}` | 单个生成器 |
+| `GET /actuator/cosid/{name}/long` | 一个新 id（`snowflake`、`segment`） |
+| `GET /actuator/cosid/{name}/string` | 一个新的文本 id（所有策略） |
 
-| 日志内容 | 含义 |
-|----------|------|
-| `Guard Failed`（ERROR） | 一次租约续约失败；在下一次成功之前健康指示器为 `DOWN`，如果期间租约丢失或过期则一直为 `DOWN` |
-| `Detected clock backwards`（WARN） | 生成器或机器号的新持有者正在等待时钟 |
-| `Prefetch [...] - Hunger, Safety distance expansion`（INFO） | 号段链耗尽并扩大预取距离；频繁出现说明 `step` 或 `safe-distance` 对当前负载太小 |
-| `AppendChain [...] - prefetch failed`（ERROR），之后是 `prefetch still failing`（WARN） | 号段链无法从存储获取号段；生成会继续使用预留的号段，直到用完 |
-| `Revert machine id of [...] failed`（ERROR） | 关闭时没有释放机器号；它会在安全守护时长后空出 |
+用 `management.endpoints.web.exposure.include: health,cosid` 暴露它。它取代了 4.x 的 `cosid`、
+`cosidGenerator` 与 `cosidStringGenerator` 端点。
 
-设置 `logging.level.me.ahoo.cosid=debug` 可以详细跟踪分配、续约和预取过程。
+## 自行监听
+
+```java
+public interface GeneratorListener {
+    default void onRangeReserved(String generator, String key, Range range, Duration latency) {}
+    default void onRefillFailed(String generator, String key, Throwable error) {}
+    default void onBatchResized(String generator, long oldSize, long newSize) {}
+    default void onSequenceExhausted(String generator) {}
+    default void onClockRegression(String generator, long backwardsMillis, String action) {}
+    default void onWindowExceeded(String generator) {}
+    default void onSlotAcquired(SlotLease lease, String reason) {}
+    default void onSlotRenewed(SlotLease lease) {}
+    default void onSlotRenewFailed(SlotLease lease, Throwable error) {}
+    default void onSlotLost(SlotLease lease) {}
+    default void onSlotReleased(SlotLease lease) {}
+    default void onClockSkew(String namespace, long skewMillis) {}
+    default void onDuplicateOwnerKey(String namespace, String ownerKey) {}
+    default void onStoreTimeout(String store, String operation) {}
+}
+```
+
+在 Spring 中，`GeneratorListener` Bean 与指标 listener 一同接收事件。

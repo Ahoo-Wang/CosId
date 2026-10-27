@@ -1,82 +1,20 @@
-# CosId-MyBatis 模块
+# MyBatis
 
-[cosid-mybatis](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-mybatis) 拦截**MyBatis**插入(`Insert`)请求,并解析 `@CosId` 注入**分布式ID**。
+`CosIdInterceptor`（artifact `cosid-mybatis`，包 `me.ahoo.cosid.mybatis`）在 INSERT 之前填充实体的 `@CosId` 字段。对于以 `listKey`（默认 `list`）
+传入的批量参数，它也会填充其中的每个实体。
 
-## 安装
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    implementation("me.ahoo.cosid:cosid-mybatis:${cosidVersion}")
-```
-```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-mybatis</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
-```
-:::
-
-
-::: tip `cosid-accessor`
-`@CosId` 注解与 ID 字段访问器位于 `me.ahoo.cosid:cosid-accessor` 构件中（4.0 起），本模块已经引入。只有在不使用 MyBatis、Spring Data JDBC 或 starter 填充 `@CosId` 字段时，才需要直接依赖它。
-:::
-
-## 使用
-
-```java
-public class Order {
-
-    @CosId(value = "order")
-    private Long orderId;
-    private Long userId;
-
-    public Long getOrderId() {
-        return orderId;
-    }
-
-    public void setOrderId(Long orderId) {
-        this.orderId = orderId;
-    }
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-}
+```xml
+<insert id="insertAll">
+    insert into t_order (id, item) values
+    <foreach collection="list" item="order" separator=",">(#{order.id}, #{order.item})</foreach>
+</insert>
 ```
 
-```java
-@Mapper
-public interface OrderRepository {
-    @Insert("insert into t_table (id) value (#{id});")
-    void insert(LongIdEntity order);
+使用 Spring Boot 时拦截器是一个 Bean，只要 MyBatis 位于 classpath 上就启用：
 
-    @Insert({
-            "<script>",
-            "insert into t_friendly_table (id)",
-            "VALUES" +
-                    "<foreach item='item' collection='list' open='' separator=',' close=''>" +
-                    "(#{item.id})" +
-                    "</foreach>",
-            "</script>"})
-    void insertList(List<FriendlyIdEntity> list);
-}
-```
+| 属性 | 默认值 |
+|---|---|
+| `cosid.mybatis.enabled` | `true` |
+| `cosid.mybatis.list-key` | `list` |
 
-```java
-        LongIdEntity entity=new LongIdEntity();
-        entityRepository.insert(entity);
-        /**
-         * {
-         *   "id": 208796080181248
-         * }
-         */
-        return entity;
-```
+不使用 Spring 时：`configuration.addInterceptor(new CosIdInterceptor(runtime.filler(), "list"))`。

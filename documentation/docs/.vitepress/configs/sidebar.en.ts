@@ -28,13 +28,10 @@ const guide: DefaultTheme.SidebarItem[] = [
         text: 'Core Concepts',
         collapsed: false,
         items: [
-            {text: 'ID Generators', link: 'id-generator'},
-            {text: 'SnowflakeId', link: 'snowflake'},
-            {text: 'Machine ID', link: 'machine-id'},
-            {text: 'SegmentId / SegmentChainId', link: 'segment'},
-            {text: 'CosIdGenerator', link: 'cosid-generator'},
-            {text: 'ID Converters', link: 'id-converter'},
-            {text: 'ID Generator Provider', link: 'provider'},
+            {text: 'Layouts and Codecs', link: 'layout-and-codecs'},
+            {text: 'Machine Slot Lease', link: 'slot-lease'},
+            {text: 'Segments and Periodic Segments', link: 'segment'},
+            {text: 'The Runtime', link: 'runtime'},
         ],
     }, {
         base: '/guide/backends/',
@@ -42,12 +39,18 @@ const guide: DefaultTheme.SidebarItem[] = [
         collapsed: false,
         items: [
             {text: 'Choosing a Backend', link: 'index'},
-            {text: 'Redis', link: 'redis'},
             {text: 'JDBC', link: 'jdbc'},
+            {text: 'Redis', link: 'redis'},
             {text: 'MongoDB', link: 'mongo'},
             {text: 'ZooKeeper', link: 'zookeeper'},
-            {text: 'CosId Proxy', link: 'proxy'},
-            {text: 'Compatibility Test Suite', link: 'test-suite'},
+            {text: 'Store TCK', link: 'test-suite'},
+        ],
+    }, {
+        base: '/guide/',
+        text: 'Remote Server',
+        collapsed: false,
+        items: [
+            {text: 'cosid-server', link: 'server'},
         ],
     }, {
         base: '/guide/integrations/',
@@ -55,16 +58,14 @@ const guide: DefaultTheme.SidebarItem[] = [
         collapsed: false,
         items: [
             {text: 'Spring Boot Starter', link: 'spring-boot-starter'},
-            {text: '@CosId Annotation', link: 'annotation'},
+            {text: '@CosId Field Filling', link: 'annotation'},
             {text: 'MyBatis', link: 'mybatis'},
             {text: 'Spring Data JDBC', link: 'spring-data-jdbc'},
             {text: 'Jackson', link: 'jackson'},
-            {text: 'ShardingSphere', link: 'shardingsphere'},
-            {text: 'Modulo Sharding', link: 'sharding/mod-cycle'},
-            {text: 'Interval Sharding', link: 'sharding/interval-timeline'},
             {text: 'Activiti', link: 'activiti'},
             {text: 'Flowable', link: 'flowable'},
             {text: 'Axon', link: 'axon'},
+            {text: 'Sharding Algorithms', link: 'sharding'},
         ],
     }, {
         text: 'Configuration',
@@ -73,23 +74,21 @@ const guide: DefaultTheme.SidebarItem[] = [
             {text: 'Configuration Reference', link: '/reference/config/basic'},
         ],
     }, {
-        base: '/guide/',
+        base: '/guide/operations/',
         text: 'Operations',
         collapsed: false,
         items: [
-            {text: 'Production Checklist', link: 'operations/production'},
-            {text: 'Rolling Upgrade', link: 'operations/rolling-upgrade'},
-            {text: 'Proxy Deployment Security', link: 'backends/proxy#deployment-security'},
-            {text: 'Monitoring', link: 'operations/monitoring'},
-            {text: 'Troubleshooting', link: 'operations/troubleshooting'},
-            {text: 'FAQ', link: 'operations/faq'},
+            {text: 'Production Checklist', link: 'production'},
+            {text: 'Metrics and Health', link: 'monitoring'},
+            {text: 'Troubleshooting', link: 'troubleshooting'},
+            {text: 'FAQ', link: 'faq'},
         ],
     }, {
         base: '/guide/migration/',
         text: 'Migration',
         collapsed: false,
         items: [
-            {text: 'Migrating to 4.0', link: '4.0'},
+            {text: '4.x → 5.0', link: 'from-4x'},
         ],
     },
 ]
@@ -100,23 +99,16 @@ const reference: DefaultTheme.SidebarItem[] = [
         text: 'Configuration',
         collapsed: false,
         items: [
-            {text: 'Basics', link: 'basic'},
-            {text: 'Machine ID', link: 'machine'},
-            {text: 'SnowflakeId', link: 'snowflake'},
-            {text: 'SegmentId', link: 'segment'},
-            {text: 'CosIdGenerator', link: 'cosid-generator'},
-            {text: 'ZooKeeper', link: 'zookeeper'},
-            {text: 'Proxy', link: 'proxy'},
-            {text: 'ShardingSphere', link: 'shardingsphere'},
+            {text: 'Runtime, Stores, Machine', link: 'basic'},
+            {text: 'Generators and Codecs', link: 'generators'},
+            {text: 'cosid-server', link: 'server'},
         ],
     }, {
         base: '/reference/performance/',
         text: 'Performance',
         collapsed: false,
         items: [
-            {text: 'JMH Benchmark', link: 'benchmark'},
-            {text: 'Comparison of ID Schemes', link: 'comparison'},
-            {text: 'CosId VS Leaf', link: 'cosid-vs-leaf'},
+            {text: 'Benchmarks', link: 'benchmark'},
         ],
     }, {
         base: '/reference/',
@@ -124,7 +116,7 @@ const reference: DefaultTheme.SidebarItem[] = [
         collapsed: false,
         items: [
             {text: 'Who is using CosId', link: 'showcase/who-is-using'},
-            {text: 'ShardingSphere Integration CosId', link: 'blog/ShardingSphere-Integration-CosId'},
+            {text: 'ShardingSphere Integration CosId (4.x)', link: 'blog/ShardingSphere-Integration-CosId'},
         ],
     },
 ]

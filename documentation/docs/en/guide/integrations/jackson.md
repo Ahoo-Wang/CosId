@@ -1,84 +1,18 @@
-# CosId-Jackson Module
+# Jackson
 
-**Jackson** serialization/deserialization annotation plugin, which isolates the *ID* usage methods inside and outside the application API boundary. The application internally uses `long`, externally uses `String`, achieving non-intrusive and imperceptible effects.
-
-::: danger JavaScript Number Overflow Issue
-
-`JavaScript`'s `Number.MAX_SAFE_INTEGER` is only **53-bit**. If a 63-bit `SnowflakeId` is directly returned to the frontend, it will cause value overflow (so we should know that the overflow issue of `long` values passed from backend to frontend will appear sooner or later, but `SnowflakeId` appears faster).
-
-Obviously, overflow is unacceptable. Generally, the following solutions can be used:
-
-- Directly convert `long` to `String` (`@AsString(AsString.Type.TO_STRING)`)
-- Use `SnowflakeFriendlyId` to convert `SnowflakeId` to a more friendly string representation: `{timestamp}-{machineId}-{sequence} -> 20210623131730192-1-0` (`@AsString(AsString.Type.FRIENDLY_ID)`)
-- Customize `SnowflakeId` bit allocation to shorten the bit length of `SnowflakeId` (**53-bit**) so that **ID** does not overflow when provided to the frontend (`SafeJavaScriptSnowflakeId`)
-- Use `Radix62IdConverter` to convert `long` type **ID** and compress the string. (`@AsString(AsString.Type.RADIX)`)
-
-The [cosid-jackson](https://github.com/Ahoo-Wang/CosId/tree/main/cosid-jackson) module provides minimal invasiveness for the above solutions.
-:::
-
-## Installation
-
-::: code-group
-```kotlin [Gradle(Kotlin)]
-    val cosidVersion = "latestVersion"
-    implementation("me.ahoo.cosid:cosid-jackson:${cosidVersion}")
-```
-```xml [Maven]
-    <dependencies>
-        <dependency>
-            <groupId>me.ahoo.cosid</groupId>
-            <artifactId>cosid-jackson</artifactId>
-            <version>${cosid.version}</version>
-        </dependency>
-    </dependencies>
-```
-:::
-
-## Usage
+`cosid-jackson` (package `me.ahoo.cosid.jackson`) brings `@AsString` for **Jackson 3** (`tools.jackson`): a `long` id is written as text and read
+back from it, for JavaScript clients that cannot hold 63-bit numbers.
 
 ```java
-public class AsStringDto {
-
-    @AsString
-    private Long id;
-
-    @AsString(AsString.Type.RADIX)
-    private Long radixId;
-
-    @AsString(value = AsString.Type.RADIX, radixPadStart = true)
-    private Long radixPadStartId;
-
-    @AsString(value = AsString.Type.RADIX, radixPadStart = true, radixCharSize = 10)
-    private Long radixPadStartCharSize10Id;
-
-    @AsString(AsString.Type.FRIENDLY_ID)
-    private long friendlyId;
-
-   // getter / setter
-}
+@AsString long id;                                                    // radix 62, 11 digits, padded (as in 4.x)
+@AsString(generator = "order") long orderId;                          // the codec of generator "order"
+@AsString(codec = Codec.TO_STRING) long a;                            // decimal text
+@AsString(radix = 36, width = 13, padStart = false) long b;
+@AsString(codec = Codec.FRIENDLY, layout = Preset.SNOWFLAKE_S, zone = "Asia/Shanghai") long c;
+@AsString(codec = Codec.FRIENDLY, timeBits = 41, nodeBits = 5, seqBits = 17, epoch = 1700000000000L) long d;
 ```
 
-**Serialization Result**
-
-```json
-{
-  "id": "266300479548424192",
-  "radixId": "JferHIEYZk",
-  "radixPadStartId": "0JferHIEYZk",
-  "radixPadStartCharSize10Id": "JferHIEYZk",
-  "friendlyId": "20211228202301948-0-0"
-}
-```
-
-
-## Reading ids
-
-`@AsString` fields accept, by JSON type:
-
-| JSON | Result |
-|------|--------|
-| a string | converted with the field's converter (to-string, radix or friendly id) |
-| a number, such as `123` | the id itself. Before 4.1 it was read as the string `"123"`, which for a radix field is a different id |
-| `null` or `""` | `null` |
-| a string the converter cannot read | `InvalidFormatException`, which Spring MVC and WebFlux answer with `400` |
-| any other type (a decimal, a boolean) | `MismatchedInputException`, also `400` |
+- `generator = …` and the inline attributes are exclusive.
+- The inline codecs need no module. `generator = …` needs `new CosIdJacksonModule(runtime)` on the `JsonMapper`;
+  Spring Boot registers a `CosIdJacksonModule` bean.
+- Reading accepts the text, a JSON number the codec could have written, and an empty string as `null`.

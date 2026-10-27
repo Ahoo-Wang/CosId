@@ -19,6 +19,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import me.ahoo.cosid.store.remote.RemoteApi;
@@ -41,8 +42,8 @@ import java.util.Set;
  */
 class IdEndpointsTest {
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final String SERVICE = "service-token";
-    private static final String OTHER = "other-token";
+    private static final String SERVICE = "service-token-0123456789";
+    private static final String OTHER = "other-token-0123456789";
     private static TestServer server;
 
     @BeforeAll
@@ -137,6 +138,19 @@ class IdEndpointsTest {
         assertEquals(200, server.get("/actuator/cosid", TestServer.TOKEN).statusCode());
         assertEquals(200, server.get("/actuator/prometheus", TestServer.TOKEN).statusCode());
         assertEquals(404, server.get("/v5/ids", TestServer.TOKEN).statusCode(), "the old prefix is gone");
+    }
+
+    /** C-N2: with the id endpoints on, a generator named strings or periodic would be shadowed: the server refuses it. */
+    @Test
+    void refusesReservedGeneratorNames() {
+        for (String name : IdController.RESERVED_NAMES) {
+            Exception error = assertThrows(Exception.class, () -> TestServer.memory(new InMemoryStore(), "cosid.server.ids.enabled=true",
+                "cosid.generators." + name + ".strategy=segment", "cosid.generators." + name + ".store=mem"));
+            assertTrue(AuthTest.rootMessage(error).contains("rename the generators [" + name + "]"), () -> AuthTest.rootMessage(error));
+        }
+        try (TestServer off = TestServer.memory(new InMemoryStore(), "cosid.generators.strings.strategy=segment", "cosid.generators.strings.store=mem")) {
+            assertEquals(404, off.get(RemoteApi.IDS + "/strings", TestServer.TOKEN).statusCode(), "without the id endpoints the name is free");
+        }
     }
 
     @Test

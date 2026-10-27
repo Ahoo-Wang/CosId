@@ -36,7 +36,7 @@ import java.util.Optional;
  * test, through a {@code memory} {@link StoreProvider} bean, the same path as any store type.
  */
 final class TestServer implements AutoCloseable {
-    static final String TOKEN = "test-token";
+    static final String TOKEN = "test-token-0123456789";
 
     private final ConfigurableApplicationContext context;
     private final URI baseUrl;

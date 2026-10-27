@@ -167,7 +167,8 @@ class CosIdIntegrationsConfigurationTest {
         } finally {
             System.clearProperty(CosIdIdentifierFactory.ID_KEY);
         }
-        assertThat(axon.generateIdentifier(), matchesPattern(UUID_PATTERN));
+        // Both contexts closed: nothing is bound.
+        assertThrows(IllegalStateException.class, axon::generateIdentifier);
     }
 
     private static org.activiti.spring.SpringProcessEngineConfiguration activitiEngine(org.springframework.context.ApplicationContext context) {

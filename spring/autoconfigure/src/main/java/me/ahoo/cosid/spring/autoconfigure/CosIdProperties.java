@@ -127,6 +127,9 @@ public record CosIdProperties(@DefaultValue("true") boolean enabled,
      * @param timeBits      snowflake: overrides the preset's time bits
      * @param nodeBits      snowflake: overrides the preset's node bits
      * @param seqBits       snowflake: overrides the preset's sequence bits
+     * @param seqResetThreshold snowflake: overrides the highest sequence a new time unit may start from (4.x
+     *                      {@code sequence-reset-threshold}); default the preset's, or half the sequence range when
+     *                      {@code seq-bits} is set
      * @param regression    time-based: the clock regression policy
      * @param store         segment: the store name
      * @param step          segment: the smallest reservation; default 100
@@ -151,6 +154,7 @@ public record CosIdProperties(@DefaultValue("true") boolean enabled,
                             Integer timeBits,
                             Integer nodeBits,
                             Integer seqBits,
+                            Long seqResetThreshold,
                             @DefaultValue Regression regression,
                             String store,
                             @DefaultValue("100") long step,

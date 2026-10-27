@@ -18,6 +18,9 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 
 import me.ahoo.cosid.codec.DatePrefix;
+import me.ahoo.cosid.migration.config.ConfigConverter;
+import me.ahoo.cosid.migration.config.FlatConfig;
+import me.ahoo.cosid.migration.config.Legacy4x;
 import me.ahoo.cosid.runtime.CodecSpec;
 import me.ahoo.cosid.runtime.GeneratorSpec;
 import me.ahoo.cosid.runtime.GroupedCodecSpec;
@@ -27,6 +30,7 @@ import me.ahoo.cosid.spring.autoconfigure.CosIdSpecs;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.remote.RemoteStoreProvider;
+import me.ahoo.cosid.time.Layout;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -87,6 +91,17 @@ class ConfigBindingTest {
             List.of(new CodecSpec.DatePrefix("yy", "-", DatePrefix.Source.NOW, ZoneId.of("UTC")), new CodecSpec.Prefix("P")))));
         // enabled = false: the value alone.
         assertThat(codecOf(spec, "grouped-plain"), is(new GroupedCodecSpec.ValueOnly(List.of(new CodecSpec.Prefix("N")))));
+    }
+
+    @Test
+    void theSequenceResetThresholdOf4xKeepsItsLayout() throws IOException {
+        // cosid.snowflake.share.sequence-reset-threshold = 7 in the edge input: converted, and bound to the same layout.
+        Legacy4x legacy = new Legacy4x(FlatConfig.load(MigrationScenarioTest.resource("config/edge/input.yaml")));
+        Layout layout = ConfigConverter.targetLayouts(legacy).get(Legacy4x.DEFAULT);
+        assertThat(layout.seqResetThreshold(), is(7L));
+        assertThat(((GeneratorSpec.Snowflake) edgeSpec().generators().get(Legacy4x.DEFAULT)).layout(), is(layout));
+        assertThat(ConfigConverter.layoutsOf5(FlatConfig.load(MigrationScenarioTest.resource("config/edge/expected.yaml"))).get(Legacy4x.DEFAULT),
+            is(layout));
     }
 
     private static GroupedCodecSpec codecOf(RuntimeSpec spec, String generator) {

@@ -375,10 +375,12 @@ public final class ConfigConverter {
             if (layout.seqBits() != base.seqBits()) {
                 generator.put("seq-bits", layout.seqBits());
             }
-            report.add(prefix + ": the 4.x layout is no 5.0 preset; it is written as " + generator.get("layout") + " with overrides, keep it as is (M3)");
-            if (layout.seqResetThreshold() != Layout.defaultSeqResetThreshold(layout.seqBits())) {
-                report.add(prefix + ".sequence-reset-threshold = " + layout.seqResetThreshold() + ": 5.0 configuration keeps the default threshold");
+            // The threshold the 5.0 binding derives when seq-reset-threshold is not set.
+            long derived = generator.containsKey("seq-bits") ? Layout.defaultSeqResetThreshold(layout.seqBits()) : base.seqResetThreshold();
+            if (layout.seqResetThreshold() != derived) {
+                generator.put("seq-reset-threshold", layout.seqResetThreshold());
             }
+            report.add(prefix + ": the 4.x layout is no 5.0 preset; it is written as " + generator.get("layout") + " with overrides, keep it as is (M3)");
         }
         for (String part : List.of("epoch", "timestamp-unit", "timestamp-bit", "machine-bit", "sequence-bit", "sequence-reset-threshold", "enabled")) {
             handled.add(prefix + "." + part);
@@ -623,10 +625,11 @@ public final class ConfigConverter {
                 String epoch = config.get(prefix + ".epoch");
                 String unit = config.get(prefix + ".unit");
                 int seqBits = (int) config.number(prefix + ".seq-bits", base.seqBits());
+                long derived = seqBits == base.seqBits() ? base.seqResetThreshold() : Layout.defaultSeqResetThreshold(seqBits);
                 layouts.put(name, new Layout(epoch == null ? base.epoch() : Instant.parse(epoch),
                     unit == null ? base.unit() : ChronoUnit.valueOf(unit.toUpperCase(Locale.ROOT)),
                     (int) config.number(prefix + ".time-bits", base.timeBits()), (int) config.number(prefix + ".node-bits", base.nodeBits()), seqBits,
-                    seqBits == base.seqBits() ? base.seqResetThreshold() : Layout.defaultSeqResetThreshold(seqBits)));
+                    config.number(prefix + ".seq-reset-threshold", derived)));
             }
         }
         return layouts;

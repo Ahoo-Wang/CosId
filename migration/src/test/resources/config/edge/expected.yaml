@@ -3,7 +3,6 @@
 #  - cosid.segment.distributor.type = proxy: written as store [remote] (store/remote, 08); its baseUrl must point at a 5.0 cosid-server, the 4.x proxy server does not speak the /v5 API
 #  - cosid.proxy.client = coapi: the 5.0 remote store uses the JDK HttpClient; dropped
 #  - cosid.snowflake.share: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_S with overrides, keep it as is (M3)
-#  - cosid.snowflake.share.sequence-reset-threshold = 7: 5.0 configuration keeps the default threshold
 #  - cosid.snowflake.share.converter.date-prefix.before-prefix = false: the 5.0 codec list applies in order; check the order of date-prefix and prefix
 #  - cosid.snowflake.provider.cosid: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_MS with overrides, keep it as is (M3)
 #  - cosid.snowflake.provider.odd: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_MS with overrides, keep it as is (M3)
@@ -44,6 +43,7 @@ cosid:
       time-bits: 41
       node-bits: 8
       seq-bits: 12
+      seq-reset-threshold: 7
       codec:
       - radix:
           radix: 36

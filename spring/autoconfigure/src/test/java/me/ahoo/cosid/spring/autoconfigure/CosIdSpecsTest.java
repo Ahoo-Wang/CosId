@@ -77,7 +77,7 @@ class CosIdSpecsTest {
     }
 
     private static CosIdProperties.Generator generator(String strategy, String store, List<CosIdProperties.Codec> codec) {
-        return new CosIdProperties.Generator(strategy, false, "SNOWFLAKE_MS", null, null, null, null, null, null, store, 100, 0,
+        return new CosIdProperties.Generator(strategy, false, "SNOWFLAKE_MS", null, null, null, null, null, null, null, store, 100, 0,
             Duration.ofSeconds(1), null, Duration.ofSeconds(3), null, null, null, Duration.ofMinutes(1), null, codec);
     }
 
@@ -170,6 +170,7 @@ class CosIdSpecsTest {
             "cosid.generators.custom.time-bits=40",
             "cosid.generators.custom.node-bits=8",
             "cosid.generators.custom.seq-bits=15",
+            "cosid.generators.custom.seq-reset-threshold=7",
             "cosid.generators.custom.regression.borrow-up-to=0ms",
             "cosid.generators.custom.regression.wait-up-to=2s",
             "cosid.generators.custom.codec[0].custom=myCodec",
@@ -194,8 +195,7 @@ class CosIdSpecsTest {
         assertEquals(Optional.of(new MachineSpec.Static(8, 7, Optional.of(Path.of("/var/lib/cosid/state")), Duration.ofSeconds(5),
             Optional.of(Instant.parse("2026-11-01T00:00:00Z")))), spec.machine());
         assertEquals("memory", spec.stores().get("mem").type());
-        assertEquals(new GeneratorSpec.Snowflake(new Layout(Instant.parse("2020-01-01T00:00:00Z"), ChronoUnit.MILLIS, 40, 8, 15,
-                Layout.defaultSeqResetThreshold(15)), new ClockRegressionPolicy(Duration.ZERO, Duration.ofSeconds(2)),
+        assertEquals(new GeneratorSpec.Snowflake(new Layout(Instant.parse("2020-01-01T00:00:00Z"), ChronoUnit.MILLIS, 40, 8, 15, 7), new ClockRegressionPolicy(Duration.ZERO, Duration.ofSeconds(2)),
                 List.of(new CodecSpec.Custom("myCodec"), new CodecSpec.Suffix("Z"), new CodecSpec.DatePrefix("yyMM", "-", DatePrefix.Source.NOW, ZONE))),
             spec.generators().get("custom"));
         assertEquals(new GeneratorSpec.Segment("mem", new BatchPolicy(10, 5, Duration.ZERO, 10, Duration.ofSeconds(5), Optional.of(Duration.ofHours(1))),
@@ -221,6 +221,16 @@ class CosIdSpecsTest {
             "cosid.stores.mongo.options.database=ids", "cosid.stores.mongo.options.writeConcern=w1");
         assertEquals(new StoreSpec("mongo", Duration.ofSeconds(2), Map.of("uri", "mongodb://db/?replicaSet=rs", "database", "ids",
             "writeConcern", "w1")), spec.stores().get("mongo"));
+    }
+
+    @Test
+    void overridesTheSeqResetThresholdAlone() {
+        Layout layout = ((GeneratorSpec.Snowflake) spec("cosid.generators.a.strategy=snowflake", "cosid.generators.a.seq-reset-threshold=0")
+            .generators().get("a")).layout();
+        assertEquals(new Layout(Layout.SNOWFLAKE_MS.epoch(), Layout.SNOWFLAKE_MS.unit(), Layout.SNOWFLAKE_MS.timeBits(), Layout.SNOWFLAKE_MS.nodeBits(),
+            Layout.SNOWFLAKE_MS.seqBits(), 0), layout);
+        assertThat(invalid("cosid.generators.b.strategy=snowflake", "cosid.generators.b.seq-bits=4", "cosid.generators.b.seq-reset-threshold=16")
+            .getMessage(), containsString("cosid.generators.b: seqResetThreshold must be in [0, 15]: 16"));
     }
 
     @Test

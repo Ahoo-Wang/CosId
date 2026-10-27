@@ -173,16 +173,22 @@ public final class CosIdSpecs {
             return Layout.SNOWFLAKE_MS;
         }
         if (generator.epoch() == null && generator.unit() == null && generator.timeBits() == null && generator.nodeBits() == null
-            && generator.seqBits() == null) {
+            && generator.seqBits() == null && generator.seqResetThreshold() == null) {
             return preset;
         }
         int seqBits = generator.seqBits() == null ? preset.seqBits() : generator.seqBits();
+        long seqResetThreshold;
+        if (generator.seqResetThreshold() != null) {
+            seqResetThreshold = generator.seqResetThreshold();
+        } else {
+            seqResetThreshold = generator.seqBits() == null ? preset.seqResetThreshold() : Layout.defaultSeqResetThreshold(seqBits);
+        }
         return new Layout(generator.epoch() == null ? preset.epoch() : generator.epoch(),
             generator.unit() == null ? preset.unit() : generator.unit(),
             generator.timeBits() == null ? preset.timeBits() : generator.timeBits(),
             generator.nodeBits() == null ? preset.nodeBits() : generator.nodeBits(),
             seqBits,
-            generator.seqBits() == null ? preset.seqResetThreshold() : Layout.defaultSeqResetThreshold(seqBits));
+            seqResetThreshold);
     }
 
     private static ClockRegressionPolicy regression(CosIdProperties.Generator generator) {

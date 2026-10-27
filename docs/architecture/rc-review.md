@@ -130,7 +130,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 | 工作包 | 内容 | 归属会话 | PR | 状态 |
 |---|---|---|---|---|
-| WP-Redis | **B-B1**、B-N4 | R2-Redis | | 已派发 |
+| WP-Redis | **B-B1**、B-N4 | R2-Redis | [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | Draft,等 CI(含带副本的 Cluster 测试) |
 | WP-JDBC | B-M1、B-N2 | R2-JDBC | | 已派发 |
 | WP-ZK | B-N1;**E-B1** 即 #1342 | R2-ZK | #1342 | B-N1 已并入 #1342,等 CI |
 | WP-server | **C-B1**、**C-B2**、C-M1、C-N1、C-N2、B-N3 | R4-A | [#1349](https://github.com/Ahoo-Wang/CosId/pull/1349) | Draft,进行中 |
@@ -145,11 +145,21 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 ## 4.1 当前待办(交接用)
 
+**收尾规则(用户 2026-10-27):** 修复 PR 转为 ready 且 CI 全绿后审查;**审查通过即 squash 合入,不通过则登记到 §4.2**,不阻塞其他 PR。
+
+**快照(2026-10-27 晚):** CI 排队严重(发布门槛占用 runner),各修复 PR 大多 28 项排队中:#1342、#1346(ready)、#1347(ready)为非草稿;#1348–#1353、#1355 仍为 Draft;尚无可合入的 PR。WP-JDBC 的 PR 尚未开出。
+
 - 各修复 PR(#1347–#1353、#1342、#1346)CI 全绿后:审查 → squash 合入 → 在 §4 标记。合并前必须确认 CI 状态非空且全部 SUCCESS。
 - WP-Redis(B-B1)、WP-JDBC(B-M1)的 PR 尚未开出,对应会话在做。
 - 发布门槛:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762),分析在 #1345;仍失败的行按 §4 归属派发。
 - 待用户决定:E-M1(是否修改 `4.x` 的 document-deploy);RC1 必须以 pre-release 发布;发布前 `gradle.properties` 改为 `5.0.0-RC1`。
 - 规则:所有 WIP 在 Draft PR 上;CPU ≤ 90%,只在 CI 验证;提交英文、作者 Ahoo Wang、无 Co-authored-by;回复用户用中文。
+
+## 4.2 审查不通过登记
+
+| PR | 问题 | 处理 |
+|---|---|---|
+| — | — | — |
 
 ## 5. RC1 准入清单
 

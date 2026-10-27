@@ -56,6 +56,16 @@ Every slot below the limit is in exactly one of `free` and `live`. An acquire sw
 leases into `free`, then tries the held, preferred, sticky and lowest free slot (05-machine-lease.md §2.1): a few hash
 and sorted set operations, O(log n), never a scan. The store clock is `TIME` inside the scripts.
 
+## 实测兼容性(不承诺)
+
+Support starts at Redis 7.0 (D27). Versions below it get one non-blocking TCK run (the `probe` entry of the
+`store-redis` CI job, D28) to document what really works; there is no compatibility code for them, and a later change
+may break them without notice.
+
+| Version | TCK result | Notes |
+|---|---|---|
+| 6.2.24 | passed: 96 cases, every contract case ran (standalone, primary + replica with `WAIT`, 3-primary Cluster) | 2026-10-27, local run; scripts use no 7.x-only command |
+
 ## Tests
 
 `./gradlew :store:redis:check` runs the TCK on standalone Redis (`COSID_TEST_REDIS_URI` when set, Testcontainers

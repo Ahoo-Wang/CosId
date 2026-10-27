@@ -534,9 +534,11 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
     }
 
     /**
-     * The values at hand: the rest of the current range plus the ready ranges.
+     * The values at hand, for {@code describe()}.
+     *
+     * @return the rest of the current range plus the ready ranges
      */
-    long held() {
+    public long held() {
         switchLock.lock();
         try {
             return current.remaining(time.currentMillis()) + readyValues;
@@ -545,7 +547,12 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
         }
     }
 
-    long batch() {
+    /**
+     * The size of the next reservation, for {@code describe()}.
+     *
+     * @return the batch size the rate estimate gives now
+     */
+    public long batch() {
         switchLock.lock();
         try {
             return sizer.batch();

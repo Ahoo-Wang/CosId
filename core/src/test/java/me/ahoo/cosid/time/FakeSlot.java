@@ -16,27 +16,10 @@ package me.ahoo.cosid.time;
 import me.ahoo.cosid.lease.SlotBinding;
 import me.ahoo.cosid.lease.SlotHandle;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
-
 /**
  * A test-only slot that rebinds, raises the ceiling and invalidates on demand.
- *
- * <p>TODO(R1-C): {@link #raiseCeiling(long)} sets the ceiling field of the binding through a {@link VarHandle} until
- * {@code SlotBinding.raiseCeiling} is implemented; then it calls that.
  */
 final class FakeSlot implements SlotHandle {
-    private static final VarHandle CEILING;
-
-    static {
-        try {
-            CEILING = MethodHandles.privateLookupIn(SlotBinding.class, MethodHandles.lookup())
-                .findVarHandle(SlotBinding.class, "ceiling", long.class);
-        } catch (ReflectiveOperationException e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
     private volatile SlotBinding current;
 
     FakeSlot(int slot, long floor, long ceiling) {
@@ -59,12 +42,7 @@ final class FakeSlot implements SlotHandle {
     }
 
     void raiseCeiling(long ceiling) {
-        SlotBinding binding = current;
-        for (long now = (long) CEILING.getVolatile(binding); ceiling > now; now = (long) CEILING.getVolatile(binding)) {
-            if (CEILING.compareAndSet(binding, now, ceiling)) {
-                return;
-            }
-        }
+        current.raiseCeiling(ceiling);
     }
 
     void invalidate() {

@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.benchmark;
 
-import me.ahoo.cosid.lease.SlotBinding;
 import me.ahoo.cosid.lease.SlotHandle;
+import me.ahoo.cosid.lease.StaticSlot;
 import me.ahoo.cosid.observe.GeneratorListener;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.segment.SegmentGenerator;
@@ -24,14 +24,16 @@ import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeBasedGenerator;
 import me.ahoo.cosid.time.TimeSource;
 
+import java.time.Duration;
 import java.time.ZoneId;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
  * What a 5.x runtime builds by default, shared by the scenarios (benchmark/scenarios.md).
  *
- * <p>TODO(R1-B): the segment scenarios fail at setup until R1-B.
+ * <p>TODO(R1): the 5.x generators are skeletons until R1; these scenarios compile but fail at setup until then.
  */
 final class V5 {
     static final int SLOT = 1;
@@ -41,16 +43,10 @@ final class V5 {
     private V5() {
     }
 
-    /**
-     * A fixed binding with an unbounded window, as 4.x {@code MachineIdLease.FOREVER} and a {@code StaticSlot} without a
-     * file. The generator still reads it and checks the window on every id.
-     *
-     * <p>TODO(R1-C): back to {@code new StaticSlot(SLOT, 10, Optional.empty(), Duration.ofSeconds(10), Optional.empty(),
-     * EXECUTOR, TimeSource.SYSTEM)} once {@code StaticSlot} is implemented.
-     */
     static SlotHandle slot() {
-        SlotBinding binding = new SlotBinding(SLOT, Long.MIN_VALUE, Long.MAX_VALUE, 0);
-        return () -> binding;
+        StaticSlot slot = new StaticSlot(SLOT, 10, Optional.empty(), Duration.ofSeconds(10), Optional.empty(), EXECUTOR, TimeSource.SYSTEM);
+        slot.start();
+        return slot;
     }
 
     static TimeBasedGenerator timeBased(String name, Layout layout) {

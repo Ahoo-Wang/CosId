@@ -1,0 +1,106 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.cosid.migration.source;
+
+import me.ahoo.cosid.migration.StoreLocation;
+
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.FindOneAndUpdateOptions;
+import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.Updates;
+import org.bson.Document;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.regex.Pattern;
+
+/**
+ * The 4.x MongoDB store (09 §4.1): segments in the collection {@code cosid}, {@code {_id: "{ns}.{name}", lastMaxId}};
+ * machine ids in {@code cosid_machine}, {@code {_id: "{ns}.{machineId}", namespace, lastTimestamp, distributeTime,
+ * revertTime, ...}}. The database is {@code options.database}, {@code cosid_db} by default.
+ */
+public final class MongoSource implements SourceReader {
+    static final String SEGMENTS = "cosid";
+    static final String MACHINES = "cosid_machine";
+    private static final String LAST_MAX_ID = "lastMaxId";
+    private static final List<String> TIMESTAMPS = List.of("lastTimestamp", "distributeTime", "revertTime");
+    private final MongoClient client;
+    private final MongoDatabase database;
+
+    public MongoSource(StoreLocation location) {
+        this.client = MongoClients.create(location.url());
+        this.database = client.getDatabase(database(location));
+    }
+
+    /**
+     * The database of a location: {@code options.database}, {@code cosid_db} by default.
+     *
+     * @param location the location
+     * @return the database name
+     */
+    public static String database(StoreLocation location) {
+        String name = location.option("database");
+        return name == null ? "cosid_db" : name;
+    }
+
+    @Override
+    public SourceSnapshot read(String namespace) {
+        String prefix = namespace + ".";
+        Map<String, Long> segments = new TreeMap<>();
+        List<String> unrecognized = new ArrayList<>();
+        for (Document document : database.getCollection(SEGMENTS).find(Filters.regex("_id", "^" + Pattern.quote(prefix)))) {
+            String id = String.valueOf(document.get("_id"));
+            Object value = document.get(LAST_MAX_ID);
+            if (value instanceof Number number) {
+                segments.put(id.substring(prefix.length()), number.longValue());
+            } else {
+                unrecognized.add(id + ": no lastMaxId (" + value + ")");
+            }
+        }
+        Map<String, String> machines = new TreeMap<>();
+        long maxTimestamp = 0;
+        for (Document document : database.getCollection(MACHINES).find(Filters.eq("namespace", namespace))) {
+            machines.put(String.valueOf(document.get("_id")), document.toJson());
+            for (String field : TIMESTAMPS) {
+                if (document.get(field) instanceof Number number) {
+                    maxTimestamp = Math.max(maxTimestamp, number.longValue());
+                }
+            }
+        }
+        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized);
+    }
+
+    @Override
+    public long seal(String namespace, String name, long increment) {
+        String id = namespace + "." + name;
+        Document current = database.getCollection(SEGMENTS).find(Filters.eq("_id", id)).first();
+        if (current == null || !(current.get(LAST_MAX_ID) instanceof Number value)) {
+            throw new IllegalStateException("Segment [" + id + "] does not exist");
+        }
+        SourceReader.sealed(id, value.longValue(), increment);
+        Document sealed = database.getCollection(SEGMENTS).findOneAndUpdate(Filters.eq("_id", id), Updates.inc(LAST_MAX_ID, increment),
+            new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER));
+        return ((Number) sealed.get(LAST_MAX_ID)).longValue();
+    }
+
+    @Override
+    public void close() {
+        client.close();
+    }
+}

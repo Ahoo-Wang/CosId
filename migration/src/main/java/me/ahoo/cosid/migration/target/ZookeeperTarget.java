@@ -1,0 +1,367 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.cosid.migration.target;
+
+import me.ahoo.cosid.migration.StoreLocation;
+import me.ahoo.cosid.migration.Zookeeper;
+
+import org.apache.curator.framework.CuratorFramework;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.data.Stat;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * The 5.0 ZooKeeper store (06 §2.4): a range is the node {@code /cosid/range/{key}}, its data the decimal next value
+ * with {@code :sealed} appended once sealed; a namespace is {@code /cosid/slot/{ns}} ({@code limit=..\ntolerance=..})
+ * with one node per slot, {@code name=value} lines of which this class only ever raises {@code nextFloor} (and, for a
+ * slot whose holder expired, {@code ceilingMin}, the lower bound of the ceiling that becomes the next floor). The other
+ * lines are kept byte for byte.
+ */
+public final class ZookeeperTarget implements TargetAdmin {
+    static final String RANGES = "/cosid/range";
+    static final String SLOTS = "/cosid/slot";
+    private static final String SEALED = ":sealed";
+    private final CuratorFramework client;
+    private final boolean owned;
+
+    public ZookeeperTarget(StoreLocation location) {
+        this(Zookeeper.open(location), true);
+    }
+
+    ZookeeperTarget(CuratorFramework client, boolean owned) {
+        this.client = client;
+        this.owned = owned;
+    }
+
+    @Override
+    public long now() {
+        String path = "/cosid/.migration-clock-" + UUID.randomUUID();
+        return call("read the clock", () -> {
+            client.create().creatingParentsIfNeeded().withMode(CreateMode.EPHEMERAL).forPath(path);
+            Stat stat = client.checkExists().forPath(path);
+            client.delete().forPath(path);
+            return stat.getCtime();
+        });
+    }
+
+    private static String rangePath(String key) {
+        return RANGES + "/" + key;
+    }
+
+    @Override
+    public Optional<RangeState> range(String key) {
+        return call("read range " + key, () -> {
+            try {
+                return parseRange(key, client.getData().forPath(rangePath(key)));
+            } catch (KeeperException.NoNodeException e) {
+                return Optional.empty();
+            }
+        });
+    }
+
+    static Optional<RangeState> parseRange(String key, byte[] data) {
+        if (data == null || data.length == 0) {
+            return Optional.empty();
+        }
+        String text = new String(data, StandardCharsets.US_ASCII);
+        boolean sealed = text.endsWith(SEALED);
+        long next = Long.parseLong(sealed ? text.substring(0, text.length() - SEALED.length()) : text);
+        return Optional.of(new RangeState(key, next, sealed));
+    }
+
+    @Override
+    public RangeState raise(String key, long next) {
+        String path = rangePath(key);
+        return call("raise " + key, () -> {
+            while (true) {
+                Stat stat = new Stat();
+                byte[] data;
+                try {
+                    data = client.getData().storingStatIn(stat).forPath(path);
+                } catch (KeeperException.NoNodeException e) {
+                    try {
+                        client.create().creatingParentsIfNeeded().forPath(path, Long.toString(next).getBytes(StandardCharsets.US_ASCII));
+                        return new RangeState(key, next, false);
+                    } catch (KeeperException.NodeExistsException exists) {
+                        continue;
+                    }
+                }
+                Optional<RangeState> current = parseRange(key, data);
+                if (current.isPresent() && current.get().next() >= next) {
+                    return current.get();
+                }
+                boolean sealed = current.isPresent() && current.get().sealed();
+                byte[] raised = (next + (sealed ? SEALED : "")).getBytes(StandardCharsets.US_ASCII);
+                try {
+                    client.setData().withVersion(stat.getVersion()).forPath(path, raised);
+                    return new RangeState(key, next, sealed);
+                } catch (KeeperException.BadVersionException e) {
+                    // changed meanwhile: read again
+                }
+            }
+        });
+    }
+
+    @Override
+    public List<RangeState> ranges(String prefix) {
+        int slash = prefix.lastIndexOf('/');
+        String base = slash < 0 ? "" : prefix.substring(0, slash);
+        List<RangeState> found = new ArrayList<>();
+        call("list ranges", () -> {
+            walk(base, prefix, found);
+            return null;
+        });
+        found.sort((a, b) -> a.key().compareTo(b.key()));
+        return found;
+    }
+
+    private void walk(String key, String prefix, List<RangeState> found) throws Exception {
+        String path = key.isEmpty() ? RANGES : rangePath(key);
+        List<String> children;
+        try {
+            if (!key.isEmpty() && key.startsWith(prefix)) {
+                parseRange(key, client.getData().forPath(path)).ifPresent(found::add);
+            }
+            children = client.getChildren().forPath(path);
+        } catch (KeeperException.NoNodeException e) {
+            return;
+        }
+        for (String child : children) {
+            String childKey = key.isEmpty() ? child : key + "/" + child;
+            if (childKey.startsWith(prefix) || prefix.startsWith(childKey + "/")) {
+                walk(childKey, prefix, found);
+            }
+        }
+    }
+
+    @Override
+    public boolean delete(String key) {
+        return call("delete " + key, () -> {
+            Stat stat = new Stat();
+            byte[] data;
+            try {
+                data = client.getData().storingStatIn(stat).forPath(rangePath(key));
+            } catch (KeeperException.NoNodeException e) {
+                return false;
+            }
+            Optional<RangeState> state = parseRange(key, data);
+            if (state.isEmpty() || !state.get().sealed() || stat.getNumChildren() > 0) {
+                return false;
+            }
+            try {
+                client.delete().withVersion(stat.getVersion()).forPath(rangePath(key));
+                return true;
+            } catch (KeeperException.BadVersionException | KeeperException.NotEmptyException e) {
+                return false;
+            }
+        });
+    }
+
+    @Override
+    public Optional<NamespaceState> namespace(String namespace) {
+        return call("read namespace " + namespace, () -> {
+            long[] meta = meta(namespace);
+            if (meta == null) {
+                return Optional.empty();
+            }
+            int limit = (int) meta[0];
+            long now = now();
+            int count = 0;
+            int live = 0;
+            long minNextFloor = Long.MAX_VALUE;
+            for (int slot = 0; slot < limit; slot++) {
+                Stat stat = new Stat();
+                byte[] data;
+                try {
+                    data = client.getData().storingStatIn(stat).forPath(SLOTS + "/" + namespace + "/" + slot);
+                } catch (KeeperException.NoNodeException e) {
+                    continue;
+                }
+                count++;
+                Slot state = Slot.parse(data);
+                minNextFloor = Math.min(minNextFloor, state.nextFloor(stat.getMtime()));
+                if (state.held() && state.expiresAt(stat.getMtime()) >= now) {
+                    live++;
+                }
+            }
+            return Optional.of(new NamespaceState(limit, meta[1], count, minNextFloor, live));
+        });
+    }
+
+    private long[] meta(String namespace) throws Exception {
+        byte[] data;
+        try {
+            data = client.getData().forPath(SLOTS + "/" + namespace);
+        } catch (KeeperException.NoNodeException e) {
+            return null;
+        }
+        if (data == null || data.length == 0) {
+            return null;
+        }
+        Map<String, String> fields = Slot.fields(data);
+        return new long[]{Long.parseLong(fields.get("limit")), Long.parseLong(fields.get("tolerance"))};
+    }
+
+    @Override
+    public NamespaceState prepare(String namespace, int limit, long toleranceMillis, long nextFloor) {
+        String nsPath = SLOTS + "/" + namespace;
+        return call("prepare namespace " + namespace, () -> {
+            byte[] metaData = ("limit=" + limit + "\ntolerance=" + toleranceMillis + "\n").getBytes(StandardCharsets.US_ASCII);
+            while (meta(namespace) == null) {
+                try {
+                    Stat stat = client.checkExists().forPath(nsPath);
+                    if (stat == null) {
+                        client.create().creatingParentsIfNeeded().forPath(nsPath, metaData);
+                    } else {
+                        client.setData().withVersion(stat.getVersion()).forPath(nsPath, metaData);
+                    }
+                } catch (KeeperException.NodeExistsException | KeeperException.BadVersionException e) {
+                    // raced: read again
+                }
+            }
+            long[] meta = meta(namespace);
+            if (meta[0] != limit || meta[1] != toleranceMillis) {
+                throw TargetAdmin.mismatch(namespace, limit, toleranceMillis, (int) meta[0], meta[1]);
+            }
+            NamespaceState before = namespace(namespace).orElseThrow();
+            if (before.live() > 0) {
+                throw TargetAdmin.live(namespace, before.live());
+            }
+            for (int slot = 0; slot < limit; slot++) {
+                raiseSlot(nsPath + "/" + slot, nextFloor);
+            }
+            return namespace(namespace).orElseThrow();
+        });
+    }
+
+    private void raiseSlot(String path, long nextFloor) throws Exception {
+        while (true) {
+            Stat stat = new Stat();
+            byte[] data;
+            try {
+                data = client.getData().storingStatIn(stat).forPath(path);
+            } catch (KeeperException.NoNodeException e) {
+                try {
+                    client.create().creatingParentsIfNeeded().forPath(path, Slot.free(nextFloor));
+                    return;
+                } catch (KeeperException.NodeExistsException exists) {
+                    continue;
+                }
+            }
+            Slot slot = Slot.parse(data);
+            if (slot.nextFloor(stat.getMtime()) >= nextFloor && slot.number("nextFloor") >= nextFloor) {
+                return;
+            }
+            try {
+                client.setData().withVersion(stat.getVersion()).forPath(path, slot.raised(stat.getMtime(), nextFloor));
+                return;
+            } catch (KeeperException.BadVersionException e) {
+                // changed meanwhile: read again
+            }
+        }
+    }
+
+    private <T> T call(String operation, Work<T> work) {
+        try {
+            return work.run();
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IllegalStateException(operation + " failed on the 5.0 ZooKeeper store: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void close() {
+        if (owned) {
+            client.close();
+        }
+    }
+
+    @FunctionalInterface
+    private interface Work<T> {
+        T run() throws Exception;
+    }
+
+    /**
+     * The {@code name=value} lines of a slot node, in their order, as ISO-8859-1 text so that owner keys round-trip
+     * byte for byte.
+     */
+    record Slot(Map<String, String> lines) {
+        static Slot parse(byte[] data) {
+            return new Slot(fields(data));
+        }
+
+        static Map<String, String> fields(byte[] data) {
+            Map<String, String> fields = new LinkedHashMap<>();
+            for (String line : new String(data, StandardCharsets.ISO_8859_1).split("\n")) {
+                int eq = line.indexOf('=');
+                if (eq > 0) {
+                    fields.put(line.substring(0, eq), line.substring(eq + 1));
+                }
+            }
+            return fields;
+        }
+
+        /** The data of a free slot never held, as store/zookeeper writes it, with the next floor W. */
+        static byte[] free(long nextFloor) {
+            return ("fence=0\nttl=0\ntolerance=0\nfloor=0\nexpiresMin=0\nceilingMin=0\nnextFloor=" + nextFloor + "\n").getBytes(StandardCharsets.US_ASCII);
+        }
+
+        long number(String name) {
+            String value = lines.get(name);
+            return value == null ? 0 : Long.parseLong(value);
+        }
+
+        boolean held() {
+            return lines.containsKey("incarnation");
+        }
+
+        long expiresAt(long mtime) {
+            return Math.max(number("expiresMin"), mtime + number("ttl"));
+        }
+
+        /** {@code SlotState.nextFloor}: the ceiling while held, the recorded value once released. */
+        long nextFloor(long mtime) {
+            return held() ? Math.max(number("ceilingMin"), expiresAt(mtime) + number("tolerance")) : number("nextFloor");
+        }
+
+        /**
+         * The data with the next floor raised to {@code nextFloor}. A slot whose holder expired keeps being judged by
+         * the {@code mtime} of the node, which this write moves: its {@code ttl} becomes 0 and its expiry and ceiling
+         * become lower bounds ({@code expiresMin}, {@code ceilingMin}), so the write neither revives the lease nor
+         * lowers its ceiling, and the ceiling, the next holder's floor, is at least {@code nextFloor}.
+         */
+        byte[] raised(long mtime, long nextFloor) {
+            Map<String, String> raised = new LinkedHashMap<>(lines);
+            raised.put("nextFloor", Long.toString(Math.max(number("nextFloor"), nextFloor)));
+            if (held()) {
+                raised.put("expiresMin", Long.toString(expiresAt(mtime)));
+                raised.put("ceilingMin", Long.toString(Math.max(nextFloor(mtime), nextFloor)));
+                raised.put("ttl", "0");
+            }
+            StringBuilder text = new StringBuilder();
+            raised.forEach((name, value) -> text.append(name).append('=').append(value).append('\n'));
+            return text.toString().getBytes(StandardCharsets.ISO_8859_1);
+        }
+    }
+}

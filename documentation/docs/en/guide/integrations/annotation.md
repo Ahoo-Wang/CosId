@@ -26,8 +26,3 @@ public class LineItem extends BaseEntity { }
   resolved. A class has at most one id.
 - The accessor of each class is resolved on first use and cached as method handles. There is no scanning or
   registration step (4.x's accessor registry and scanner are gone).
-
-::: tip Segment ids start at `initial-offset`
-A new segment key starts at `initial-offset` (default `0`), and `0` counts as "unset". Use `initial-offset: 1` for
-entity ids.
-:::

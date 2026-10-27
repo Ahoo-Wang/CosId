@@ -18,7 +18,6 @@ A dense, strictly increasing `BIGINT` per table, one store write per range:
     order:
       strategy: segment
       store: db
-      initial-offset: 1
 ```
 
 ## Ids for JavaScript clients
@@ -46,7 +45,6 @@ Or keep 63 bits and send them as text with Jackson's [`@AsString`](integrations/
     coupon:
       strategy: segment
       store: db
-      initial-offset: 1
       codec: [ { radix: { radix: 36 } }, { prefix: "C" } ]                # C1, C2, … CA, …
 ```
 
@@ -68,7 +66,6 @@ Order numbers that carry the day they were issued, with no reset:
     order-no:
       strategy: segment
       store: db
-      initial-offset: 1
       codec:
         - radix: { radix: 10, width: 8, pad-start: true }
         - date-prefix: { pattern: yyyyMMdd, delimiter: "", source: NOW, zone: Asia/Shanghai }   # 2026102700000042

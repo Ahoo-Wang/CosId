@@ -31,7 +31,7 @@
 |---|---|---|
 | `store` | | 存储名称 |
 | `step` | `100` | 最小预留量 |
-| `initial-offset` | `0` | 新 key 的起点：它的第一个 id。实体 id 请用 `1` |
+| `initial-offset` | `1` | 新 key 的起点：它的第一个 id（默认不会是 0，与 4.x 一致） |
 | `lookahead` | `1s` | 手头的 id 应能维持多久；`0` 关闭预取 |
 | `max-batch` | `max(step × 1000, 2^20)`，按 `step` 取整 | 最大预留量；`step` 的倍数 |
 | `reserve-timeout` | `3s` | 调用方等待补充的时长；不小于存储的 `timeout` |
@@ -91,7 +91,6 @@ cosid:
       strategy: segment
       store: db
       step: 1000
-      initial-offset: 1
       lookahead: 2s
       codec: [ { radix: { radix: 36 } }, { prefix: "O-" } ]
     bill:

@@ -31,7 +31,7 @@ depends on the strategy. The name may not contain `/`, and `default` is the prim
 |---|---|---|
 | `store` | | the store name |
 | `step` | `100` | the smallest reservation |
-| `initial-offset` | `0` | where a new key starts: its first id. Use `1` for entity ids |
+| `initial-offset` | `1` | where a new key starts: its first id (never 0 by default, as in 4.x) |
 | `lookahead` | `1s` | how long the ids at hand should last; `0` disables prefetching |
 | `max-batch` | `max(step × 1000, 2^20)` rounded to `step` | the largest reservation; a multiple of `step` |
 | `reserve-timeout` | `3s` | how long a caller waits for a refill; at least the store `timeout` |
@@ -92,7 +92,6 @@ cosid:
       strategy: segment
       store: db
       step: 1000
-      initial-offset: 1
       lookahead: 2s
       codec: [ { radix: { radix: 36 } }, { prefix: "O-" } ]
     bill:

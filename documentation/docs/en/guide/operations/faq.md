@@ -27,9 +27,6 @@ There is no option to issue past a lost lease (P1).
 Gaps are allowed, duplicates never (D19). A restart drops the rest of a range, and so do a timed-out wait and a
 `range-ttl` expiry.
 
-**Why is the first segment id 0?**
-A new key starts at `initial-offset`, which defaults to `0`. Set `initial-offset: 1` for entity ids.
-
 **How many instances can share a namespace?**
 `2^bits` with leased slots (1024 by default). Segments need no slot.
 

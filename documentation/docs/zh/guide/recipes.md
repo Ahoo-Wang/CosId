@@ -18,7 +18,6 @@ cosid:
     order:
       strategy: segment
       store: db
-      initial-offset: 1
 ```
 
 ## 供 JavaScript 客户端使用的 ID
@@ -46,7 +45,6 @@ cosid:
     coupon:
       strategy: segment
       store: db
-      initial-offset: 1
       codec: [ { radix: { radix: 36 } }, { prefix: "C" } ]                # C1, C2, … CA, …
 ```
 
@@ -68,7 +66,6 @@ cosid:
     order-no:
       strategy: segment
       store: db
-      initial-offset: 1
       codec:
         - radix: { radix: 10, width: 8, pad-start: true }
         - date-prefix: { pattern: yyyyMMdd, delimiter: "", source: NOW, zone: Asia/Shanghai }   # 2026102700000042

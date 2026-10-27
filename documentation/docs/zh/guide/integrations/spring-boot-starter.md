@@ -34,7 +34,6 @@ cosid:
     order:
       strategy: segment
       store: db
-      initial-offset: 1
       codec: [ { radix: { radix: 62 } }, { prefix: "O" } ]
     trace:
       strategy: snowflake

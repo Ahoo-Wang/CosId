@@ -30,16 +30,11 @@ Every store passes the same contract tests:
 
 Keys are `{namespace}/{generator}`, and `{namespace}/{generator}/{period}` for periodic segments.
 
-::: tip The first id is `initialOffset`
-A new key's first range is `[initialOffset, initialOffset + size)`, so with the default `initial-offset: 0` the very
-first id is `0`. `@CosId` filling (and most schemas) treat `0` as "no id yet". Set `initial-offset: 1` for entity ids.
-:::
-
 ## SegmentGenerator and its batch policy
 
 ```java
 public record BatchPolicy(long step,                 // default 100: the smallest reservation
-                          long initialOffset,        // default 0
+                          long initialOffset,        // default 1, as in 4.x
                           Duration lookahead,        // default 1s: how long the ids at hand should last; 0 = no prefetch
                           long maxBatch,             // default max(step × 1000, 2^20), rounded to step
                           Duration reserveTimeout,   // default 3s: how long a caller waits for a refill

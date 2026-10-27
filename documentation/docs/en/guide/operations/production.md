@@ -13,7 +13,6 @@
   surge. `bits ≤ layout.nodeBits` (10 for `SNOWFLAKE_*`, 3 for `JS_SAFE_*`).
 - [ ] **Static slots** (`machine.static`): the deployment must keep slots unique, and `state-file` must be on a
   persistent volume. Without it there is no protection against a clock set back across a restart.
-- [ ] **Entity ids from segments**: `initial-offset: 1`, so that no entity gets id `0`.
 - [ ] **Store timeout ≤ `reserve-timeout`** of each segment (2s and 3s by default; start-up checks it).
 - [ ] **Run NTP** on hosts and store. Skew never breaks uniqueness, but skew beyond `tolerance` pauses issuing near the
   window ceiling.

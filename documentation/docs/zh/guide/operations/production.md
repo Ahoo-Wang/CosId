@@ -13,7 +13,6 @@
   `bits ≤ layout.nodeBits`（`SNOWFLAKE_*` 为 10，`JS_SAFE_*` 为 3）。
 - [ ] **静态槽位**（`machine.static`）：部署必须保证槽位唯一，且 `state-file` 必须位于持久卷上。
   没有它，就无法防护跨重启的时钟回拨。
-- [ ] **用号段生成实体 id**：`initial-offset: 1`，使任何实体都不会得到 id `0`。
 - [ ] **存储 timeout ≤ 每个号段的 `reserve-timeout`**（默认分别为 2s 与 3s；启动时会检查）。
 - [ ] **在主机与存储上运行 NTP。** 时钟偏差绝不会破坏唯一性，但偏差超过 `tolerance` 时，接近窗口 ceiling
   会暂停发号。

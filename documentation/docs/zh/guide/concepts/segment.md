@@ -29,16 +29,11 @@ public interface RangeStore extends AutoCloseable {
 
 key 为 `{namespace}/{generator}`，周期号段为 `{namespace}/{generator}/{period}`。
 
-::: tip 第一个 ID 是 `initialOffset`
-新 key 的第一个区间是 `[initialOffset, initialOffset + size)`，因此在默认的 `initial-offset: 0` 下，第一个 ID 就是 `0`。
-`@CosId` 字段填充（以及大多数表结构）把 `0` 视为"尚无 ID"。实体 ID 请设置 `initial-offset: 1`。
-:::
-
 ## SegmentGenerator 及其批量策略
 
 ```java
 public record BatchPolicy(long step,                 // default 100: the smallest reservation
-                          long initialOffset,        // default 0
+                          long initialOffset,        // default 1, as in 4.x
                           Duration lookahead,        // default 1s: how long the ids at hand should last; 0 = no prefetch
                           long maxBatch,             // default max(step × 1000, 2^20), rounded to step
                           Duration reserveTimeout,   // default 3s: how long a caller waits for a refill

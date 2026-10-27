@@ -67,7 +67,6 @@ cosid:
     order:
       strategy: segment
       store: db
-      initial-offset: 1
 ```
 
 ## 3. 使用

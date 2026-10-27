@@ -4,7 +4,7 @@
 
 ## 1. 工作方式
 
-- **分支**:5.0 在长期分支 `5.x` 上开发(D10)。RC 前已改名(2026-10-27):原 `main` → `4.x` 维护分支,`5.x` → `main`(默认分支)。4.x 修复进 `4.x`,5.0 的工作包 PR 指向 `main`。
+- **分支**:5.0 在长期分支 `5.x` 上开发(D10)。RC 前已改名(2026-10-27):原 `main` → `4.x` 维护分支,`5.x` → `main`(默认分支)。4.x 修复进 `4.x`,5.0 的工作包 PR 指向 `main`。**`4.x` 只接受缺陷修复,不接受依赖更新**(Renovate 只针对 `main`)。
 - **会话**:每个工作包一个子会话、一个 worktree、一个指向 `main`(原 `5.x`)的 PR。总调度会话负责拆分、审查、合入,并同步更新本文档与设计文档。
 - **合入门槛**:
   - `./gradlew check` 全绿;相关 TCK 通过;patch 覆盖率 ≥ 80%;
@@ -148,11 +148,14 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 |---|---|---|
 | L1 | 4.1.0 基线 P5、P12 在空闲机器上干净重跑(R0 时机器负载过高) | R5-A |
 | L2 | 存储场景 P7、P10 在安静机器上最终判定;已知待复核:ZK renew p99、ZK reserve sample 分配、Mongo P10 | R5-A |
-| L3 | Redis `ReplicaWaitTest` 偶发失败的修复 PR(R2-Redis 正在本地连跑验证) | R2-Redis 后续 PR |
+| L3 | 见 L10 | — |
 | L4 | 集成测试稳定性:每个集成测试类在 CI 上连跑 N 次(建议 20)无失败,作为 R5-A 验收项;实施期间已出现 4 个依赖时序的偶发失败(Mongo 2、ZK 1、Redis 1) | R5-A |
 | L5 | 主 `check` job 与各存储 job 重复跑容器测试,需要一个跳过容器的开关去重 | R5-A |
 | L6 | 文档站写明 ZK 槽位节点人工重建的前提、Redis 持久化前提、各后端"实测兼容性(不承诺)"汇总 | R5-B |
 | L7 | ~~`config` 子命令对 4.x proxy 配置生成的 `remote` 存储与 R4-A 选项名一致~~ 已在 #1324 中完成 | R4-C ✅ |
+| L8 | 特性验收发现 4 项能力缺口(D21):Mongo `writeConcern` 选项、4.x 分组前缀的两种写法(期间在业务前缀之后 / 文本不含期间)、Spring 侧 `seq-reset-threshold`、`onStoreTimeout` 从未触发(`cosid.store.timeouts` 恒为 0) | R5-A 补齐 |
+| L9 | 分片 `extras/sharding` 尚未迁入 | R5-B |
+| L10 | Redis `ReplicaWaitTest` 偶发失败修复 | [#1331](https://github.com/Ahoo-Wang/CosId/pull/1331) |
 
 ## 6. 风险与经验
 

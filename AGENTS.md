@@ -57,7 +57,7 @@ Directories carry no `cosid-` prefix (D2). The published artifactId is derived f
 | `spring/autoconfigure/` | `cosid-spring-boot-autoconfigure` | R3-S: `cosid.*` records → `RuntimeSpec` (`CosIdSpecs`, pure), the `CosIdRuntime` bean, one bean per generator (`CosIdGeneratorRegistrar`), `SpringDataRedisScripts`, Micrometer, the `cosid` endpoint, health, native hints; stores `compileOnly` |
 | `store/remote/` | `cosid-store-remote` | R4-A: `RemoteStore` over the JDK `HttpClient` (no third-party dependency), provider type `remote` (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`); `RemoteApi` holds the paths (no version prefix, D30) and error codes the server shares |
 | `server/` | not published | R4-A: cosid-server, a Spring Boot app (`CosIdServer`): the two primitives of its backing store (`cosid.stores`, `cosid.server.store`) at the root (no version prefix, D30), optional `/ids/**`, bearer auth on by default, limits, 503 pool, OpenAPI, Actuator; `Dockerfile` + `:server:dockerImage` |
-| `integrations/` | `cosid-integrations` | R4-B: Jackson `@AsString`, MyBatis `CosIdInterceptor`, Spring Data JDBC `CosIdBeforeConvertCallback`, Activiti / Flowable id generators, Axon `CosIdIdentifierFactory`; every library `compileOnly`; see its README (the Axon static binding) |
+| `integrations/*` | `cosid-jackson`, `cosid-mybatis`, `cosid-spring-data-jdbc`, `cosid-activiti`, `cosid-flowable`, `cosid-axon` | R4-B, split by dependency (D29): one module per library, each on `core` and that library only (no integration depends on another). `@AsString`, `CosIdInterceptor`, `CosIdBeforeConvertCallback`, `ActivitiIdGenerator` / `FlowableIdGenerator`, `CosIdIdentifierFactory`; see `integrations/README.md` (the Axon static binding) |
 | `spring/starter/` | `cosid-spring-boot-starter` | R3-S: dependencies only (core + autoconfigure, D14); applications add the store artifacts |
 | `bom/` | `cosid-bom` | the project's own artifacts; add each published module |
 | `benchmark/baseline-4x/` | not published | JMH on `me.ahoo.cosid:*:4.1.0`; see `benchmark/scenarios.md` |
@@ -83,14 +83,14 @@ Adding a package means deciding whether `module-info.java` exports it.
 - `cosid.java`: Java 21, `-parameters`, Checkstyle, SpotBugs, JaCoCo (XML reports for Codecov), JUnit 5 + Hamcrest,
   Logback for tests, `-PtestJavaVersion=25` to run tests on another JDK.
 - `cosid.library`: `cosid.java` + sources/javadoc jars + Maven publication (`cosid.publish`).
-- `cosid.spring` (`spring/*`, `integrations`; `server` applies `cosid.java` + the Spring Boot plugin and the BOM itself, since it is not published): `cosid.library` + the Spring Boot BOM on the build's
+- `cosid.spring` (`spring/*`, `integrations/*`; `server` applies `cosid.java` + the Spring Boot plugin and the BOM itself, since it is not published): `cosid.library` + the Spring Boot BOM on the build's
   classpaths only (never published), published versions of `spring-boot-minimum`, `checkPublishedMetadata` (in `check`),
   and the compatibility matrix: `-PspringBootVersion=4.0.8` builds and tests on another Boot (02 §5), with
   `-PtestJavaVersion=25`; CI job `spring-compatibility`.
 - `cosid.platform`: the BOM. `cosid.benchmark`: `cosid.java` + JMH (`me.champeau.jmh`) — JMH is applied nowhere else.
 - `cosid.root` (root project): `checkDependencyRules`, wired into `check` with build-logic's own tests.
 - **Dependency rules (02 §3)** are data in `DependencyRules.kt`, unit tested in `DependencyRulesTest.kt`: `core` depends
-  on `slf4j-api` only; `store/*`, `integrations`, `extras/*` on `core`; `store/tck` is a test-scope dependency for
+  on `slf4j-api` only; `store/*`, `integrations/*`, `extras/*` on `core`; `store/tck` is a test-scope dependency for
   everyone; nothing depends on `server`, `migration`, `examples` or `benchmark`; `benchmark/baseline-4x` depends on no
   project at all (it shares the package `me.ahoo.cosid` with 5.x). Changing a rule means changing 02-modules.md first.
 
@@ -104,6 +104,7 @@ Adding a package means deciding whether `module-info.java` exports it.
   no `URF_UNREAD_FIELD` exclusion any more: a skeleton keeps a field only if something reads it.
 - **Coverage** (`codecov.yml`): patch and project targets 80%; `benchmark/`, `store/tck/`, `build-logic/` ignored.
 - **Commits and PR titles** follow Conventional Commits (`feat(core)!:`, `build!:`); 5.0 PRs target `main`; 4.x fixes target `4.x`.
+  The `4.x` maintenance branch takes **bug fixes only, no dependency updates**; Renovate targets `main` only (`baseBranches`).
   Commit messages are in English, authored by `Ahoo Wang <ahoowang@gmail.com>`, and never carry a `Co-authored-by:` trailer;
   squash merges pass an explicit `--body` so GitHub adds none.
 
@@ -134,10 +135,11 @@ Adding a package means deciding whether `module-info.java` exports it.
   `InMemoryStore`), H2 for JDBC, and Redis from `COSID_TEST_REDIS_URI` or Testcontainers (`-Pcosid.test.redis.image`).
   Generator beans are registered in a `BeanDefinitionRegistryPostProcessor`, so `RuntimeSpecCustomizer` beans must be
   dependency-free (`static @Bean`).
-- **integrations** (`integrations/`): tests run each adapter end to end on `TestRuntimes` (every strategy on
-  `InMemoryStore`): MyBatis and Spring Data JDBC on H2, Activiti and Flowable as in-memory engines, Axon through
+- **integrations** (`integrations/*`): tests run each adapter end to end on `store/tck`'s `TestRuntimes` (every
+  strategy on `InMemoryStore`): MyBatis and Spring Data JDBC on H2, Activiti and Flowable as in-memory engines, Axon through
   `IdentifierFactory.getInstance()`. `CosIdIdentifierFactory` keeps the only static state of the project (its bindings);
-  a test that binds must unbind. The Spring side is `CosIdIntegrationsConfiguration` in `spring/autoconfigure`.
+  a test that binds must unbind; unbound, it throws. `TextIds` (text ids of any strategy) is a package-private copy in
+  each module that needs it, since integrations must not depend on each other. The Spring side is `CosIdIntegrationsConfiguration` in `spring/autoconfigure`.
 - `skills/` and `documentation/` still describe 4.x; they are rewritten in R5-B.
 - **migration tests** write real 4.x data with the 4.1.0 jars: the `legacy4x` source set (`migration/src/test/legacy4x`) is
   compiled against them alone and loaded in its own class loader (path in `-Dcosid.migration.legacy4x`), so run them

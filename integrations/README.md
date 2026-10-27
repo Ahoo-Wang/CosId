@@ -1,19 +1,18 @@
-# cosid-integrations
+# integrations
 
-The integration adapters of CosId 5 ([07-runtime-and-spring.md §5](../docs/architecture/07-runtime-and-spring.md), D15)
-in one module. It depends on `cosid-core`; every third-party library is `compileOnly`, so an adapter works when the
-application has its library, and the classes of the others are never loaded. With Spring Boot,
-`CosIdIntegrationsConfiguration` (in `cosid-spring-boot-autoconfigure`) sets each one up from the context's
-`CosIdRuntime`.
+The integration adapters of CosId 5 ([07-runtime-and-spring.md §5](../docs/architecture/07-runtime-and-spring.md)),
+split by dependency (D29): one module per third-party library, each depending on `cosid-core` and that library only, and
+never on another integration. With Spring Boot, `CosIdIntegrationsConfiguration` (in `cosid-spring-boot-autoconfigure`)
+sets up each module on the classpath from the context's `CosIdRuntime`.
 
-| Library | Adapter | Spring Boot |
+| Artifact (directory) | Adapter | Spring Boot |
 |---|---|---|
-| Jackson 3 | `@AsString` with `AsStringSerializer` / `AsStringDeserializer`; `CosIdJacksonModule` for `@AsString(generator = …)` | a `CosIdJacksonModule` bean |
-| MyBatis | `CosIdInterceptor`: fills `@CosId` before an INSERT, for the entity or each one under `listKey` | `cosid.mybatis.enabled` (default `true`), `cosid.mybatis.list-key` (default `list`) |
-| Spring Data JDBC | `CosIdBeforeConvertCallback`: `@CosId`, then an unset `@Id` from the `default` generator | `cosid.jdbc.enabled` (default `false`, as in 4.x), `cosid.jdbc.id-generator` |
-| Activiti (tested 7.0.0.SR1) | `ActivitiIdGenerator` | `cosid.activiti.enabled` (default `true`), `cosid.activiti.generator-name` |
-| Flowable (tested 8.0) | `FlowableIdGenerator` | `cosid.flowable.enabled` (default `true`), `cosid.flowable.generator-name` |
-| Axon 4 (tested 4.13) | `CosIdIdentifierFactory` (`META-INF/services`) | binds the runtime, `cosid.axon.generator-name` |
+| `cosid-jackson` (`jackson/`, Jackson 3) | `@AsString` with `AsStringSerializer` / `AsStringDeserializer`; `CosIdJacksonModule` for `@AsString(generator = …)` | a `CosIdJacksonModule` bean |
+| `cosid-mybatis` (`mybatis/`) | `CosIdInterceptor`: fills `@CosId` before an INSERT, for the entity or each one under `listKey` | `cosid.mybatis.enabled` (default `true`), `cosid.mybatis.list-key` (default `list`) |
+| `cosid-spring-data-jdbc` (`spring-data-jdbc/`) | `CosIdBeforeConvertCallback`: `@CosId`, then an unset `@Id` from the `default` generator | `cosid.jdbc.enabled` (default `false`, as in 4.x), `cosid.jdbc.id-generator` |
+| `cosid-activiti` (`activiti/`, tested 7.0.0.SR1) | `ActivitiIdGenerator` | `cosid.activiti.enabled` (default `true`), `cosid.activiti.generator-name` |
+| `cosid-flowable` (`flowable/`, tested 8.0) | `FlowableIdGenerator` | `cosid.flowable.enabled` (default `true`), `cosid.flowable.generator-name` |
+| `cosid-axon` (`axon/`, Axon 4, tested 4.13) | `CosIdIdentifierFactory` (`META-INF/services`) | binds the runtime, `cosid.axon.generator-name` |
 
 Text ids come from the named generator whatever its strategy: a `long` generator through its codec, the 80-bit CosId
 through its `PartsCodec`, a periodic segment through its `GroupedCodec`. Without a Spring name, Activiti, Flowable and
@@ -48,7 +47,7 @@ CosId 5:
 - Without Spring, bind it yourself:
   `try (var binding = CosIdIdentifierFactory.bind(runtime, null)) { … }`, or set
   `new CosIdIdentifierFactory(runtime, generator)` where Axon takes a factory.
-- With nothing bound, the factory falls back to random UUIDs (Axon's own default) and logs a warning once: an
-  application that has this module for another integration keeps Axon's identifiers.
+- With nothing bound, generating an identifier throws an `IllegalStateException` (as in 4.x): having `cosid-axon` means
+  Axon's identifiers come from CosId.
 
 Axon 5 has no `IdentifierFactory`; the adapter serves Axon 4.

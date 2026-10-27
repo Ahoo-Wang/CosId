@@ -24,7 +24,6 @@ class ArtifactIdsTest {
         assertEquals("cosid-store-tck", ArtifactIds.of(":store:tck"))
         assertEquals("cosid-store-jdbc", ArtifactIds.of(":store:jdbc"))
         assertEquals("cosid-server", ArtifactIds.of(":server"))
-        assertEquals("cosid-integrations", ArtifactIds.of(":integrations"))
         assertEquals("cosid-migration", ArtifactIds.of(":migration"))
     }
 
@@ -40,9 +39,21 @@ class ArtifactIdsTest {
     }
 
     @Test
+    fun publishesIntegrationsUnderTheirOwnName() {
+        assertEquals("cosid-jackson", ArtifactIds.of(":integrations:jackson"))
+        assertEquals("cosid-mybatis", ArtifactIds.of(":integrations:mybatis"))
+        assertEquals("cosid-spring-data-jdbc", ArtifactIds.of(":integrations:spring-data-jdbc"))
+        assertEquals("cosid-activiti", ArtifactIds.of(":integrations:activiti"))
+        assertEquals("cosid-flowable", ArtifactIds.of(":integrations:flowable"))
+        assertEquals("cosid-axon", ArtifactIds.of(":integrations:axon"))
+    }
+
+    @Test
     fun derivesTheModuleName() {
         assertEquals("me.ahoo.cosid.core", ArtifactIds.moduleName(":core"))
         assertEquals("me.ahoo.cosid.store.tck", ArtifactIds.moduleName(":store:tck"))
         assertEquals("me.ahoo.cosid.spring.boot.starter", ArtifactIds.moduleName(":spring:starter"))
+        assertEquals("me.ahoo.cosid.spring.data.jdbc", ArtifactIds.moduleName(":integrations:spring-data-jdbc"))
+        assertEquals("me.ahoo.cosid.axon", ArtifactIds.moduleName(":integrations:axon"))
     }
 }

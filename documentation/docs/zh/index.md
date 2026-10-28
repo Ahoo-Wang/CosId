@@ -20,6 +20,9 @@ hero:
       text: 从 4.x 迁移
       link: /zh/guide/migration/from-4x
     - theme: alt
+      text: 4.x 文档
+      link: https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/zh
+    - theme: alt
       text: GitHub
       link: https://github.com/Ahoo-Wang/CosId
 
@@ -43,3 +46,7 @@ features:
   icon: 📈
   details: "19 个 Micrometer 指标、一个槽位租约健康检查，以及一个可描述并试用每个生成器的 Actuator 端点。"
 ---
+
+::: warning 预览版
+`5.0.0-alpha.x` 是预览版，不做兼容性承诺。API、配置、存储格式和 cosid-server HTTP 接口在 alpha 之间以及 GA 之前都可能变化，alpha 之间不提供数据迁移。不建议用于生产：生产环境请继续使用 4.x（[4.x 文档](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/zh)）。
+:::

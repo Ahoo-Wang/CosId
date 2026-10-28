@@ -1,0 +1,35 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The build setup of every Gradle job, after actions/checkout (a local action lives in the checkout): the JDKs and
+# Gradle through gradle/actions/setup-gradle, which validates the wrapper and caches Gradle's user home. The cache is
+# written by main only; pull requests read it.
+name: Set up the build
+description: JDKs and Gradle for a CosId build job
+inputs:
+  java-version:
+    description: The JDKs to install, one per line; the last one is JAVA_HOME
+    default: '21'
+runs:
+  using: composite
+  steps:
+    - name: Set up JDK
+      uses: actions/setup-java@v6
+      with:
+        java-version: ${{ inputs.java-version }}
+        distribution: temurin
+
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v6
+      with:
+        cache-read-only: ${{ github.ref != 'refs/heads/main' }}

@@ -202,12 +202,12 @@ public final class Radix implements IdCodec {
         char c = text.charAt(at);
         int digit = c < VALUES.length ? VALUES[c] : -1;
         if (digit < 0 || digit >= radix) {
-            throw notADigit(text, at, radix);
+            throw invalidDigit(text, at, radix);
         }
         return digit;
     }
 
-    private static IllegalArgumentException notADigit(String text, int at, int radix) {
+    private static IllegalArgumentException invalidDigit(String text, int at, int radix) {
         return new IllegalArgumentException("[" + text + "] has a character [" + text.charAt(at) + "] that is not a digit in radix " + radix + " at " + at);
     }
 

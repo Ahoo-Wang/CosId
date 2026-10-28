@@ -168,7 +168,7 @@ What keeps a plausible configuration from issuing 4.x ids again (pre-RC review):
   from is named with `--allow-new`. The slot `bits` and `tolerance` come from the result.
 - **Credentials.** `plan.json` keeps no password: the password of a URL's userinfo and `password=` / `pwd=` parameters
   are removed, so give them again with `--from-option password=...` (MongoDB takes `user` / `password` /
-  `authSource` options too).
+  `authSource` options too). The account option is `user`, or `username` as the 5.0 JDBC store names it.
 - W is taken from the later of the source and target store clocks.
 
 `apply` refuses when the 5.0 namespace has a live slot lease (5.0 runs) or other slot parameters, and, given

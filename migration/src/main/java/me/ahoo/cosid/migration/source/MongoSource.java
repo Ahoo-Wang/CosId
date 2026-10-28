@@ -77,7 +77,7 @@ public final class MongoSource implements SourceReader {
         ConnectionString connection = new ConnectionString(url);
         MongoClientSettings.Builder settings = MongoClientSettings.builder().applyConnectionString(connection);
         if (password != null) {
-            String user = firstOf(location.option("user"), urlUser, connection.getUsername());
+            String user = firstOf(location.user(), urlUser, connection.getUsername());
             if (user == null) {
                 throw new IllegalArgumentException("Option password needs option user or a user in the URL " + StoreLocation.redactUrl(location.url()));
             }

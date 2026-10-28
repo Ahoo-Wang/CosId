@@ -169,9 +169,9 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 - ✅ **`v5.0.0-alpha.1` pre-release 已创建**(2026-10-28,目标 `81a9ef59`):**已核对**:Packages Deploy(校验、构建、Central、GitHub Packages、迁移工具 jar)与 Docker Image Deploy 全部成功;Central 06:34 可解析(`cosid-bom`、`cosid-core`、`cosid-spring-boot-starter`、各 store);Docker Hub 有 `5.0.0-alpha.1`、无 `latest`;release 附 `cosid-migration.jar`;文档站已由 tag 部署(run 40644322052),页面显示 `5.0.0-alpha.1`、alpha 提示与 4.x 文档入口。✅ main 已改回 `5.0.0-SNAPSHOT` 并修复 `CosIdRuntimeHintsTest`([#1363](https://github.com/Ahoo-Wang/CosId/pull/1363),`3a1cdaae`)。**alpha.1 发布步骤全部完成。**
 - **第 1 轮完成**(2026-10-28,[#1364](https://github.com/Ahoo-Wang/CosId/pull/1364)):95 条,BLOCKER 1(R1-x-07)、MAJOR 19(10 条触及冻结面)、MINOR 75;总调度抽查核实(R1-x-03/06/07、R1-core-04、R1-jdbc-01 无 `owner_key` 索引、R1-server-01 等)。修复分组与顺序(一次一个子会话):
   1. ✅ **WP-server**([#1365](https://github.com/Ahoo-Wang/CosId/pull/1365) `f641e1ae`):`docs.public` 开关、虚拟线程默认开启、匿名内网部署文档、R1-server-01(admin 改白名单)/02/03。
-  2. **WP-migration-safety**(下一个):R1-x-07 先做止血(`config`/`plan` 遇到与 `cosid.namespace` 不同的 `cosid.generator.namespace` 时拒绝并报告,T4 纳入全局命名空间)、R1-doc-01(未封存回滚会重号)、R1-x-04、R1-jdbc-06 迁移侧。
-  3. **WP-API-freeze**:先在 03/05/07 定稿再改代码:D36(R1-x-03/05)、D37(R1-x-06,命名 machine,含 R1-x-07 的最终修复)、D38(namespace 默认应用名)、R1-core-01(公开 record 演进策略)、R1-core-02(自定义生成器)、R1-core-03(`acquireTimeout`)及冻结面 MINOR。
-  4. **WP-store-contract**:R1-spi-01/R1-spring-01(options 键规范与未知键报错)、R1-spi-02(可移植 key 语法)、R1-jdbc-01(`cosid_slot` 索引,DDL)。
+  2. ✅ **WP-migration-safety**([#1369](https://github.com/Ahoo-Wang/CosId/pull/1369) `598fa80f`;R1-jdbc-06 迁移侧移到 WP-store-contract):R1-x-07 先做止血(`config`/`plan` 遇到与 `cosid.namespace` 不同的 `cosid.generator.namespace` 时拒绝并报告,T4 纳入全局命名空间)、R1-doc-01(未封存回滚会重号)、R1-x-04、R1-jdbc-06 迁移侧。
+  3. **WP-API-freeze**(下一个):先在 03/05/07 定稿再改代码:D36(R1-x-03/05)、D37(R1-x-06,命名 machine,含 R1-x-07 的最终修复)、D38(namespace 默认应用名)、R1-core-01(公开 record 演进策略)、R1-core-02(自定义生成器)、R1-core-03(`acquireTimeout`)及冻结面 MINOR。
+  4. **WP-store-contract**:R1-spi-01/R1-spring-01(options 键规范与未知键报错)、R1-spi-02(可移植 key 语法)、R1-jdbc-01(`cosid_slot` 索引,DDL)、R1-jdbc-06(SQL 代理下 generated key 校验,含迁移侧)。
   5. **WP-perf**:R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
   6. **WP-docs**:R1-x-01/08、R1-doc-01–07、R1-mongo-04(加分片集群 CI 或收窄承诺)、k8s 部署指南、设计文档与 11 对照表同步、javadoc。
 - 原派发队列(一次一个子会话):① codec(✅)→ alpha.1 发布(✅)→ ② **GA 前审查第 1 轮**(下一个)(§6)→ ③ 门槛实现 D34(`benchmark/compare` 及测试、10 §1.3)→ ④ 修复:第 1 轮发现 + MySQL 分配 + 号段与 ZK 分配(按严重度排序,一次一个)→ ⑤ 在 main 上按 D34 重跑门槛 → RC1(用户确认)→ 第 2 轮审查 → GA。alpha.1 不等门槛(D33),数据写入 release notes 已知问题。

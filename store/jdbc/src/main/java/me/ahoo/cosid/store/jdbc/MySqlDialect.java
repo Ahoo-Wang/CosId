@@ -36,6 +36,8 @@ import java.util.OptionalLong;
 final class MySqlDialect implements JdbcDialect {
     /** Rows of one provisioning insert: 2 parameters each. */
     private static final int PROVISION_CHUNK = 256;
+    private final TableSql reserveSql = new TableSql(tables -> "insert into " + tables.range() + " (range_key, next_value) values (?, last_insert_id(? + ?))"
+        + " on duplicate key update next_value = if(sealed or next_value > ?, next_value + last_insert_id(0), last_insert_id(next_value + ?))");
     private final boolean mariaDb;
 
     MySqlDialect(boolean mariaDb) {
@@ -65,9 +67,7 @@ final class MySqlDialect implements JdbcDialect {
 
     @Override
     public OptionalLong reserve(JdbcSession session, String key, long size, long initialOffset) throws SQLException {
-        try (PreparedStatement upsert = session.prepare("insert into " + session.tables().range() + " (range_key, next_value) values (?, last_insert_id(? + ?))"
-            + " on duplicate key update next_value = if(sealed or next_value > ?, next_value + last_insert_id(0), last_insert_id(next_value + ?))",
-            Statement.RETURN_GENERATED_KEYS)) {
+        try (PreparedStatement upsert = session.prepare(reserveSql.of(session.tables()), Statement.RETURN_GENERATED_KEYS)) {
             upsert.setString(1, key);
             upsert.setLong(2, initialOffset);
             upsert.setLong(3, size);

@@ -25,6 +25,12 @@ import java.util.OptionalLong;
  * with {@code top}.
  */
 final class SqlServerDialect implements JdbcDialect {
+    private final TableSql reserveSql = new TableSql(tables -> "merge into " + tables.range() + " with (holdlock) as r"
+        + " using (select ? as range_key) as k on r.range_key = k.range_key"
+        + " when matched and r.sealed = 0 and r.next_value <= ? then update set next_value = r.next_value + ?"
+        + " when not matched then insert (range_key, next_value) values (k.range_key, ?)"
+        + " output inserted.next_value;");
+
     @Override
     public String name() {
         return "sqlserver";
@@ -47,11 +53,7 @@ final class SqlServerDialect implements JdbcDialect {
 
     @Override
     public OptionalLong reserve(JdbcSession session, String key, long size, long initialOffset) throws SQLException {
-        try (PreparedStatement merge = session.prepare("merge into " + session.tables().range() + " with (holdlock) as r"
-            + " using (select ? as range_key) as k on r.range_key = k.range_key"
-            + " when matched and r.sealed = 0 and r.next_value <= ? then update set next_value = r.next_value + ?"
-            + " when not matched then insert (range_key, next_value) values (k.range_key, ?)"
-            + " output inserted.next_value;")) {
+        try (PreparedStatement merge = session.prepare(reserveSql.of(session.tables()))) {
             merge.setString(1, key);
             merge.setLong(2, Long.MAX_VALUE - size);
             merge.setLong(3, size);

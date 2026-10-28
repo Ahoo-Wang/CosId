@@ -73,6 +73,13 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
     private final Jdbc jdbc;
     private final String now;
     private final String free;
+    // R1-jdbc-02: the statements, built once: the table names and the dialect are fixed for a store.
+    private final String candidatesSql;
+    private final String earliestSql;
+    private final String takeSql;
+    private final String currentSql;
+    private final String renewSql;
+    private final String releaseSql;
     private final Map<String, Namespace> namespaces = new ConcurrentHashMap<>();
     /** Whether {@code cosid_namespace} has {@link #SLOT_OFFSET}; null until detected. */
     private volatile Boolean slotOffsetColumn;
@@ -81,6 +88,26 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         this.jdbc = jdbc;
         this.now = jdbc.dialect.nowMillis();
         this.free = "(owner_key is null or expires_at < " + now + ")";
+        String table = jdbc.tables.slot();
+        String columns = "slot, fence, owner_key, incarnation, last_owner_key, expires_at, floor_ms, ceiling_ms, next_floor_ms, case when " + free
+            + " then 1 else 0 end as free_now, " + now + " as store_now";
+        // R1-jdbc-01: one branch per index. take() writes owner_key and last_owner_key together and release() keeps
+        // last_owner_key, so the rows the owner key holds are among those it held last: (namespace, last_owner_key)
+        // finds them, the primary key the preferred slot and the free ones, with no scan of the namespace.
+        this.candidatesSql = "select * from (select " + columns + " from " + table + " where namespace = ? and slot < ? and last_owner_key = ?) o"
+            + " union all select * from (select " + columns + " from " + table + " where namespace = ? and slot = ? and slot < ?) p"
+            + " union all select * from (" + jdbc.dialect.firstRows(columns, table, "namespace = ? and slot < ? and " + free, "slot", FREE_CANDIDATES) + ") f";
+        this.earliestSql = "select min(expires_at) from " + table + " where namespace = ? and slot < ?";
+        this.takeSql = "update " + table + " set owner_key = ?, incarnation = ?, last_owner_key = ?,"
+            + " fence = ?, expires_at = ?, floor_ms = ?, ceiling_ms = ?, next_floor_ms = ?"
+            + " where namespace = ? and slot = ? and fence = ? and next_floor_ms = ? and " + free;
+        this.currentSql = "select expires_at, floor_ms, ceiling_ms, " + now + " from " + table
+            + " where namespace = ? and slot = ? and incarnation = ? and fence = ?";
+        this.renewSql = "update " + table + " set expires_at = ?, ceiling_ms = ?, next_floor_ms = ?"
+            + " where namespace = ? and slot = ? and incarnation = ? and fence = ? and expires_at = ? and ceiling_ms = ?";
+        this.releaseSql = "update " + table + " set owner_key = null, incarnation = null,"
+            + " expires_at = ?, next_floor_ms = ?, fence = fence + 1"
+            + " where namespace = ? and slot = ? and incarnation = ? and fence = ? and expires_at = ? and ceiling_ms = ?";
     }
 
     @Override
@@ -101,11 +128,10 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         Namespace ns = new Namespace(limit, toleranceMillis, slotOffset);
         ensureNamespace(namespace, ns);
         int preferred = preferredSlot.isPresent() && preferredSlot.getAsInt() >= 0 && preferredSlot.getAsInt() < limit ? preferredSlot.getAsInt() : -1;
-        String operation = "acquire in " + namespace;
         long deadline = jdbc.deadline();
-        return jdbc.run(operation, session -> {
+        return jdbc.run("acquire in", namespace, -1, session -> {
             while (true) {
-                jdbc.checkDeadline(deadline, operation);
+                jdbc.checkDeadline(deadline, "acquire in", namespace, -1);
                 AcquireResult result = attempt(session, namespace, owner, ns, ttlMillis, preferred);
                 if (result != null) {
                     return result;
@@ -196,17 +222,8 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
      * preferred slot, and the first {@link #FREE_CANDIDATES} free slots, each with the store clock of the read.
      */
     private Map<Integer, Candidate> candidates(JdbcSession session, String namespace, Owner owner, Namespace ns, int preferred) throws SQLException {
-        String table = session.tables().slot();
-        String columns = "slot, fence, owner_key, incarnation, last_owner_key, expires_at, floor_ms, ceiling_ms, next_floor_ms, case when " + free
-            + " then 1 else 0 end as free_now, " + now + " as store_now";
-        // R1-jdbc-01: one branch per index. take() writes owner_key and last_owner_key together and release() keeps
-        // last_owner_key, so the rows the owner key holds are among those it held last: (namespace, last_owner_key)
-        // finds them, the primary key the preferred slot and the free ones, with no scan of the namespace.
-        String sql = "select * from (select " + columns + " from " + table + " where namespace = ? and slot < ? and last_owner_key = ?) o"
-            + " union all select * from (select " + columns + " from " + table + " where namespace = ? and slot = ? and slot < ?) p"
-            + " union all select * from (" + jdbc.dialect.firstRows(columns, table, "namespace = ? and slot < ? and " + free, "slot", FREE_CANDIDATES) + ") f";
         Map<Integer, Candidate> candidates = new TreeMap<>();
-        try (PreparedStatement select = session.prepare(sql)) {
+        try (PreparedStatement select = session.prepare(candidatesSql)) {
             select.setString(1, namespace);
             select.setInt(2, ns.limit);
             select.setString(3, owner.key());
@@ -229,7 +246,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
     }
 
     private long earliestExpiresAt(JdbcSession session, String namespace, Namespace ns) throws SQLException {
-        try (PreparedStatement select = session.prepare("select min(expires_at) from " + session.tables().slot() + " where namespace = ? and slot < ?")) {
+        try (PreparedStatement select = session.prepare(earliestSql)) {
             select.setString(1, namespace);
             select.setInt(2, ns.limit);
             try (ResultSet rs = select.executeQuery()) {
@@ -251,9 +268,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         long floor = candidate.nextFloor;
         long expiresAt = candidate.storeNow + ttlMillis;
         long ceiling = Math.max(expiresAt + ns.toleranceMillis, floor);
-        try (PreparedStatement update = session.prepare("update " + session.tables().slot() + " set owner_key = ?, incarnation = ?, last_owner_key = ?,"
-            + " fence = ?, expires_at = ?, floor_ms = ?, ceiling_ms = ?, next_floor_ms = ?"
-            + " where namespace = ? and slot = ? and fence = ? and next_floor_ms = ? and " + free)) {
+        try (PreparedStatement update = session.prepare(takeSql)) {
             update.setString(1, owner.key());
             update.setString(2, owner.incarnation().toString());
             update.setString(3, owner.key());
@@ -287,19 +302,17 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         Objects.requireNonNull(lease, "lease");
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
-        String operation = "renew " + lease.namespace() + "/" + lease.slot();
         long deadline = jdbc.deadline();
-        return jdbc.run(operation, session -> {
+        return jdbc.run("renew", lease.namespace(), lease.slot(), session -> {
             while (true) {
-                jdbc.checkDeadline(deadline, operation);
+                jdbc.checkDeadline(deadline, "renew", lease.namespace(), lease.slot());
                 Current current = current(session, lease);
                 if (current == null) {
                     return Optional.empty();
                 }
                 long expiresAt = Math.max(current.expiresAt, current.storeNow + ttlMillis);
                 long ceiling = Math.max(current.ceiling, expiresAt + toleranceMillis);
-                try (PreparedStatement update = session.prepare("update " + session.tables().slot() + " set expires_at = ?, ceiling_ms = ?, next_floor_ms = ?"
-                    + " where namespace = ? and slot = ? and incarnation = ? and fence = ? and expires_at = ? and ceiling_ms = ?")) {
+                try (PreparedStatement update = session.prepare(renewSql)) {
                     update.setLong(1, expiresAt);
                     update.setLong(2, ceiling);
                     update.setLong(3, ceiling);
@@ -324,19 +337,16 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
     @Override
     public boolean release(SlotLease lease, long lastIssued) {
         Objects.requireNonNull(lease, "lease");
-        String operation = "release " + lease.namespace() + "/" + lease.slot();
         long deadline = jdbc.deadline();
-        return jdbc.run(operation, session -> {
+        return jdbc.run("release", lease.namespace(), lease.slot(), session -> {
             while (true) {
-                jdbc.checkDeadline(deadline, operation);
+                jdbc.checkDeadline(deadline, "release", lease.namespace(), lease.slot());
                 Current current = current(session, lease);
                 if (current == null) {
                     return false;
                 }
                 long nextFloor = Math.max(current.floor, Math.min(lastIssued, current.ceiling));
-                try (PreparedStatement update = session.prepare("update " + session.tables().slot() + " set owner_key = null, incarnation = null,"
-                    + " expires_at = ?, next_floor_ms = ?, fence = fence + 1"
-                    + " where namespace = ? and slot = ? and incarnation = ? and fence = ? and expires_at = ? and ceiling_ms = ?")) {
+                try (PreparedStatement update = session.prepare(releaseSql)) {
                     update.setLong(1, current.storeNow);
                     update.setLong(2, nextFloor);
                     bindCurrent(update, 3, lease, current);
@@ -353,8 +363,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
      * clock of the read.
      */
     private Current current(JdbcSession session, SlotLease lease) throws SQLException {
-        try (PreparedStatement select = session.prepare("select expires_at, floor_ms, ceiling_ms, " + now + " from " + session.tables().slot()
-            + " where namespace = ? and slot = ? and incarnation = ? and fence = ?")) {
+        try (PreparedStatement select = session.prepare(currentSql)) {
             select.setString(1, lease.namespace());
             select.setInt(2, lease.slot());
             select.setString(3, lease.owner().incarnation().toString());

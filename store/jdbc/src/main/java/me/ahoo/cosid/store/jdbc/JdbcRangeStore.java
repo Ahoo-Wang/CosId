@@ -31,9 +31,25 @@ import java.util.OptionalLong;
  */
 final class JdbcRangeStore implements RangeStore {
     private final Jdbc jdbc;
+    // R1-jdbc-02: the statements, built once: the table name is fixed for a store.
+    private final String addSql;
+    private final String rowSql;
+    private final String insertSql;
+    private final String nextSql;
+    private final String sealedSql;
+    private final String insertSealedSql;
+    private final String sealSql;
 
     JdbcRangeStore(Jdbc jdbc) {
         this.jdbc = jdbc;
+        String range = jdbc.tables.range();
+        this.addSql = "update " + range + " set next_value = next_value + ? where range_key = ? and sealed = ? and next_value <= ?";
+        this.rowSql = "select sealed, next_value from " + range + " where range_key = ?";
+        this.insertSql = "insert into " + range + " (range_key, next_value, sealed) values (?, ?, ?)";
+        this.nextSql = "select next_value from " + range + " where range_key = ?";
+        this.sealedSql = "select sealed from " + range + " where range_key = ?";
+        this.insertSealedSql = "insert into " + range + " (range_key, next_value, sealed) values (?, 0, ?)";
+        this.sealSql = "update " + range + " set sealed = ? where range_key = ?";
     }
 
     @Override
@@ -46,7 +62,7 @@ final class JdbcRangeStore implements RangeStore {
             throw new IllegalArgumentException("initialOffset must not be negative: " + initialOffset);
         }
         jdbc.dialect.checkKey("range key", key);
-        return jdbc.run("reserve " + key, session -> {
+        return jdbc.run("reserve", key, -1, session -> {
             long offset = initialOffset;
             if (offset > Long.MAX_VALUE - size) {
                 // The insert branch would overflow: only an existing key, whose initialOffset no longer applies, can reserve.
@@ -79,12 +95,10 @@ final class JdbcRangeStore implements RangeStore {
      * {@link FetchPlan#TRANSACTION}: in one transaction, the update that adds {@code size} (or the insert of a new
      * key), then a read of the row it locked, so the value read is the one written whatever routes the statements.
      */
-    private static OptionalLong reserveInTransaction(JdbcSession session, String key, long size, long initialOffset) throws SQLException {
-        String range = session.tables().range();
+    private OptionalLong reserveInTransaction(JdbcSession session, String key, long size, long initialOffset) throws SQLException {
         return session.transaction(() -> {
             int updated;
-            try (PreparedStatement update = session.prepare("update " + range + " set next_value = next_value + ? where range_key = ? and sealed = ?"
-                + " and next_value <= ?")) {
+            try (PreparedStatement update = session.prepare(addSql)) {
                 update.setLong(1, size);
                 update.setString(2, key);
                 update.setBoolean(3, false);
@@ -94,7 +108,7 @@ final class JdbcRangeStore implements RangeStore {
             if (updated == 0) {
                 // Sealed or full: not reserved. An open row that is not full was inserted by a concurrent first reserve
                 // after the update looked: a duplicate key, which the caller retries from the start.
-                try (PreparedStatement select = session.prepare("select sealed, next_value from " + range + " where range_key = ?")) {
+                try (PreparedStatement select = session.prepare(rowSql)) {
                     select.setString(1, key);
                     try (ResultSet rs = select.executeQuery()) {
                         if (rs.next()) {
@@ -106,14 +120,14 @@ final class JdbcRangeStore implements RangeStore {
                     }
                 }
                 // A new key; a concurrent first reserve makes this a duplicate key, which the caller retries.
-                try (PreparedStatement insert = session.prepare("insert into " + range + " (range_key, next_value, sealed) values (?, ?, ?)")) {
+                try (PreparedStatement insert = session.prepare(insertSql)) {
                     insert.setString(1, key);
                     insert.setLong(2, initialOffset + size);
                     insert.setBoolean(3, false);
                     insert.executeUpdate();
                 }
             }
-            try (PreparedStatement select = session.prepare("select next_value from " + range + " where range_key = ?")) {
+            try (PreparedStatement select = session.prepare(nextSql)) {
                 select.setString(1, key);
                 try (ResultSet rs = select.executeQuery()) {
                     rs.next();
@@ -133,11 +147,11 @@ final class JdbcRangeStore implements RangeStore {
     public boolean seal(String key) {
         Objects.requireNonNull(key, "key");
         jdbc.dialect.checkKey("range key", key);
-        return jdbc.run("seal " + key, session -> {
+        return jdbc.run("seal", key, -1, session -> {
             if (sealExisting(session, key) > 0) {
                 return true;
             }
-            try (PreparedStatement insert = session.prepare("insert into " + session.tables().range() + " (range_key, next_value, sealed) values (?, 0, ?)")) {
+            try (PreparedStatement insert = session.prepare(insertSealedSql)) {
                 insert.setString(1, key);
                 insert.setBoolean(2, true);
                 insert.executeUpdate();
@@ -152,16 +166,16 @@ final class JdbcRangeStore implements RangeStore {
         });
     }
 
-    private static int sealExisting(JdbcSession session, String key) throws SQLException {
-        try (PreparedStatement update = session.prepare("update " + session.tables().range() + " set sealed = ? where range_key = ?")) {
+    private int sealExisting(JdbcSession session, String key) throws SQLException {
+        try (PreparedStatement update = session.prepare(sealSql)) {
             update.setBoolean(1, true);
             update.setString(2, key);
             return update.executeUpdate();
         }
     }
 
-    private static Row row(JdbcSession session, String key) throws SQLException {
-        try (PreparedStatement select = session.prepare("select sealed from " + session.tables().range() + " where range_key = ?")) {
+    private Row row(JdbcSession session, String key) throws SQLException {
+        try (PreparedStatement select = session.prepare(sealedSql)) {
             select.setString(1, key);
             try (ResultSet rs = select.executeQuery()) {
                 if (!rs.next()) {

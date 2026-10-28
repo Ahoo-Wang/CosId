@@ -192,12 +192,24 @@ class JdbcSupportTest {
     }
 
     @Test
+    void aDialectStatementIsBuiltOncePerTableNames() {
+        AtomicInteger built = new AtomicInteger();
+        TableSql sql = new TableSql(tables -> "select " + built.incrementAndGet() + " from " + tables.range());
+        assertEquals("select 1 from cosid_range", sql.of(JdbcTables.DEFAULT));
+        assertEquals("select 1 from cosid_range", sql.of(new JdbcTables("cosid_range", "cosid_slot", "cosid_namespace")));
+        assertEquals("select 2 from app.r", sql.of(new JdbcTables("app.r", "app.s", "app.n")));
+        assertEquals("select 3 from cosid_range", sql.of(JdbcTables.DEFAULT));
+    }
+
+    @Test
     void multiStatementOperationsEndAtTheTimeout() throws InterruptedException {
         Jdbc bounded = new Jdbc(h2(), JdbcDialects.H2, JdbcTables.DEFAULT, Duration.ofMillis(20));
         long deadline = bounded.deadline();
-        bounded.checkDeadline(deadline, "probe");
+        bounded.checkDeadline(deadline, "probe", null, -1);
         Thread.sleep(40);
-        StoreTimeoutException thrown = assertThrows(StoreTimeoutException.class, () -> bounded.checkDeadline(deadline, "acquire in ns"));
+        StoreTimeoutException thrown = assertThrows(StoreTimeoutException.class, () -> bounded.checkDeadline(deadline, "acquire in", "ns", -1));
         assertTrue(thrown.getMessage().startsWith("acquire in ns did not complete on h2 within"), thrown.getMessage());
+        StoreTimeoutException renew = assertThrows(StoreTimeoutException.class, () -> bounded.checkDeadline(deadline, "renew", "ns", 7));
+        assertTrue(renew.getMessage().startsWith("renew ns/7 did not complete on h2 within"), renew.getMessage());
     }
 }

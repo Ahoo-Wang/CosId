@@ -20,7 +20,6 @@ import org.springframework.boot.context.properties.bind.Name;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 /**
  * {@code cosid.server.*} (08-remote.md): the backing store, the limits, the blocking pool, the authentication and the
@@ -117,20 +116,15 @@ public record ServerProperties(String store,
      * @param tokens         tokens that may use every namespace and key
      * @param clients        tokens limited to namespaces and key prefixes
      * @param publicPaths    path patterns that need no token
-     * @param adminPaths     path patterns, other than the public ones, that need a token of {@code tokens}: a client token
-     *                       gets {@code 403} there (Actuator, springdoc), since its scope does not apply to them
      */
     public record Auth(boolean allowAnonymous,
                        @DefaultValue List<String> tokens,
                        @DefaultValue List<Client> clients,
-                       @DefaultValue({"/actuator/health", "/actuator/health/**"}) List<String> publicPaths,
-                       @DefaultValue({"/actuator", "/actuator/**", "/v3/api-docs", "/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui.html", "/swagger-ui/**"})
-                       List<String> adminPaths) {
+                       @DefaultValue({"/actuator/health", "/actuator/health/**"}) List<String> publicPaths) {
         public Auth {
             tokens = List.copyOf(Objects.requireNonNull(tokens, "tokens"));
             clients = List.copyOf(Objects.requireNonNull(clients, "clients"));
             publicPaths = List.copyOf(Objects.requireNonNull(publicPaths, "publicPaths"));
-            adminPaths = List.copyOf(Objects.requireNonNull(adminPaths, "adminPaths"));
         }
     }
 
@@ -160,29 +154,24 @@ public record ServerProperties(String store,
     }
 
     /**
-     * The OpenAPI document and Swagger UI (springdoc). They are admin paths by default; {@code public} adds their
-     * read-only paths ({@link #PATHS}) to {@code auth.public-paths}, so a browser can show them without a token. The
-     * calls "Try it out" makes still need one (Authorize), checked against its namespaces and key prefixes; Actuator stays
-     * an admin path.
+     * The OpenAPI document and Swagger UI (springdoc). By default they need an unrestricted token; {@code public} adds
+     * their read-only paths ({@link #paths}) to {@code auth.public-paths}, so anyone, with or without a token, can read
+     * them in a browser. The calls "Try it out" makes still need a token (Authorize), checked as any other call.
      *
      * @param publicAccess {@code cosid.server.docs.public}: whether the documentation needs no token; off by default
      */
     public record Docs(@Name("public") boolean publicAccess) {
-        /** The springdoc paths {@code public} opens: the UI, its configuration and the document in JSON and YAML. */
-        public static final List<String> PATHS = List.of("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
-            "/v3/api-docs.yaml");
-    }
-
-    /**
-     * The paths that need no token: {@code auth.public-paths}, and the documentation when {@code docs.public} is set.
-     *
-     * @return the public path patterns
-     */
-    public List<String> publicPaths() {
-        if (!docs.publicAccess()) {
-            return auth.publicPaths();
+        /**
+         * The springdoc paths {@code public} opens: the UI, its resources and configuration, the document in JSON and
+         * YAML.
+         *
+         * @param apiDocsPath   {@code springdoc.api-docs.path}
+         * @param swaggerUiPath {@code springdoc.swagger-ui.path}
+         * @return the path patterns
+         */
+        public static List<String> paths(String apiDocsPath, String swaggerUiPath) {
+            return List.of(swaggerUiPath, "/swagger-ui/**", apiDocsPath, apiDocsPath + "/**", apiDocsPath + ".yaml");
         }
-        return Stream.concat(auth.publicPaths().stream(), Docs.PATHS.stream()).toList();
     }
 
     private static void positive(long value, String name) {

@@ -32,6 +32,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
+import org.springframework.core.env.Environment;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * cosid-server (08-remote.md): the range and slot lease primitives of its backing store at the root (no version prefix, D30), and
@@ -55,11 +59,38 @@ public class CosIdServer {
         return Grants.of(properties.auth());
     }
 
+    /**
+     * The bearer authentication of every path. A client token gets only the client paths, wherever
+     * {@code spring.mvc.servlet.path}, {@code management.endpoints.web.base-path} or {@code springdoc.*.path} move the
+     * rest (R1-server-01); {@code docs.public} adds the springdoc paths to the public ones.
+     */
     @Bean
-    FilterRegistrationBean<AuthFilter> cosIdServerAuthFilter(Grants grants, ServerProperties properties) {
-        FilterRegistrationBean<AuthFilter> registration = new FilterRegistrationBean<>(new AuthFilter(grants, properties.publicPaths(), properties.auth().adminPaths()));
+    FilterRegistrationBean<AuthFilter> cosIdServerAuthFilter(Grants grants, ServerProperties properties, Environment environment) {
+        requireOneManagementPort(environment, grants);
+        String servlet = AuthFilter.servletPrefix(environment.getProperty("spring.mvc.servlet.path"));
+        List<String> publicPaths = new ArrayList<>(properties.auth().publicPaths());
+        if (properties.docs().publicAccess()) {
+            ServerProperties.Docs.paths(environment.getProperty("springdoc.api-docs.path", "/v3/api-docs"),
+                environment.getProperty("springdoc.swagger-ui.path", "/swagger-ui.html")).forEach(path -> publicPaths.add(servlet + path));
+        }
+        FilterRegistrationBean<AuthFilter> registration = new FilterRegistrationBean<>(new AuthFilter(grants, publicPaths, AuthFilter.clientPaths(servlet)));
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
         return registration;
+    }
+
+    /**
+     * Actuator on its own port runs in a child context this filter does not reach, which would open the {@code cosid}
+     * endpoint (it issues ids) to anyone: refuse that unless the server is open anyway (R1-server-01).
+     */
+    static void requireOneManagementPort(Environment environment, Grants grants) {
+        // The rule of Spring Boot's ManagementPortType: a negative port disables Actuator over HTTP, 0 is a random port of its own.
+        Integer port = environment.getProperty("management.server.port", Integer.class);
+        Integer serverPort = environment.getProperty("server.port", Integer.class);
+        if (port == null || port < 0 || grants.anonymous() || serverPort == null && port == 8080 || port != 0 && port.equals(serverPort)) {
+            return;
+        }
+        throw new IllegalStateException("cosid-server refuses management.server.port=" + port + ": Actuator on a port of its own is not "
+            + "authenticated, and its cosid endpoint issues ids. Keep Actuator on server.port (health is public there for probes)");
     }
 
     @Bean

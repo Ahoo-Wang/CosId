@@ -32,10 +32,16 @@ import me.ahoo.cosid.store.tck.InMemoryStore;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
 
+import java.net.URI;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.OptionalInt;
 import java.util.UUID;
 
@@ -116,12 +122,15 @@ class AuthTest {
         assertEquals(401, server.get("/actuator/info", null).statusCode(), "info is not public by default");
     }
 
-    /** C-B1: Actuator (the cosid endpoint issues ids) and springdoc ignore client scopes, so client tokens get 403 there. */
+    /**
+     * C-B1, R1-server-01: Actuator (the cosid endpoint issues ids) and springdoc ignore client scopes; a client token
+     * gets the client paths only, so 403 there and anywhere else.
+     */
     @Test
-    void adminPathsNeedAnUnrestrictedToken() {
+    void clientTokensGetTheClientPathsOnly() {
         List<String> adminPaths = List.of("/actuator", "/actuator/cosid", "/actuator/cosid/default", "/actuator/cosid/default/long",
             "/actuator/prometheus", "/actuator/info", "/v3/api-docs", "/v3/api-docs.yaml", "/swagger-ui.html", "/swagger-ui/index.html",
-            "/%61ctuator/cosid", "/actuator;x=y/cosid", "/actuator/cosid/");
+            "/%61ctuator/cosid", "/actuator;x=y/cosid", "/actuator/cosid/", "/anything-else", "/ranges", "/ids%2F..%2Factuator/cosid");
         for (String client : List.of(ORDERS, PREFIXED, STAR)) {
             for (String path : adminPaths) {
                 HttpResponse<String> response = server.get(path, client);
@@ -132,6 +141,11 @@ class AuthTest {
         }
         for (String path : List.of("/actuator", "/actuator/cosid", "/actuator/prometheus", "/v3/api-docs", "/swagger-ui/index.html")) {
             assertEquals(200, server.get(path, TestServer.TOKEN).statusCode(), () -> path + " with an unrestricted token");
+        }
+        for (String path : List.of("/ids/../actuator/cosid", "/ids/%2e%2e/actuator/cosid", "/ids/./x")) {
+            HttpResponse<String> response = server.send(HttpRequest.newBuilder(URI.create(server.baseUrl() + path)).header("Authorization", "Bearer " + ORDERS)
+                .GET().build());
+            assertTrue(response.statusCode() == 400 || response.statusCode() == 403, () -> path + " with a client token: " + response.statusCode());
         }
     }
 
@@ -161,20 +175,54 @@ class AuthTest {
             assertEquals(401, docs.get("/ids", null).statusCode(), "the id endpoints still need a token");
             assertEquals(401, docs.post(RemoteApi.RESERVE, reserve("orders/a"), null).statusCode(), "the API still needs a token");
             assertEquals(401, docs.get("/actuator/cosid", null).statusCode(), "Actuator still needs a token");
-            assertEquals(403, docs.get("/actuator/cosid", ORDERS).statusCode(), "Actuator is still an admin path");
+            assertEquals(403, docs.get("/actuator/cosid", ORDERS).statusCode(), "Actuator still needs an unrestricted token");
             assertEquals(403, docs.get("/actuator/prometheus", ORDERS).statusCode());
             assertEquals(200, docs.get("/actuator/cosid", TestServer.TOKEN).statusCode());
         }
     }
 
+    /** R1-server-01: moving Actuator or springdoc does not open them to client tokens. */
     @Test
-    void adminPathsCanBeConfigured() {
-        try (TestServer custom = TestServer.memory(new InMemoryStore(), "cosid.server.auth.tokens[0]=" + TestServer.TOKEN,
+    void movedActuatorAndDocsStayClosedToClients() {
+        try (TestServer moved = TestServer.memory(new InMemoryStore(), "cosid.server.auth.tokens[0]=" + TestServer.TOKEN,
             "cosid.server.auth.clients[0].token=" + ORDERS, "cosid.server.auth.clients[0].namespaces[0]=orders",
-            "cosid.server.auth.admin-paths[0]=/actuator/cosid/**")) {
-            assertEquals(403, custom.get("/actuator/cosid", ORDERS).statusCode());
-            assertEquals(200, custom.get("/actuator/prometheus", ORDERS).statusCode(), "the list replaces the default one");
+            "management.endpoints.web.base-path=/manage", "springdoc.api-docs.path=/openapi")) {
+            for (String path : List.of("/manage/cosid", "/manage/cosid/default", "/manage/prometheus", "/openapi", "/actuator/cosid")) {
+                HttpResponse<String> response = moved.get(path, ORDERS);
+                assertEquals(403, response.statusCode(), () -> path + " with a client token: " + response.body());
+            }
+            assertEquals(200, moved.get("/manage/cosid", TestServer.TOKEN).statusCode());
+            assertEquals(200, moved.get("/openapi", TestServer.TOKEN).statusCode());
+            assertEquals(200, moved.post(RemoteApi.RESERVE, reserve("orders/" + UUID.randomUUID()), ORDERS).statusCode());
         }
+    }
+
+    /** Under spring.mvc.servlet.path every MVC path moves: the client paths and docs.public follow it. */
+    @Test
+    void clientPathsAndDocsFollowTheServletPath() {
+        try (TestServer api = TestServer.memory(new InMemoryStore(), "cosid.server.auth.tokens[0]=" + TestServer.TOKEN,
+            "cosid.server.auth.clients[0].token=" + ORDERS, "cosid.server.auth.clients[0].namespaces[0]=orders",
+            "spring.mvc.servlet.path=/api", "cosid.server.docs.public=true")) {
+            assertEquals(200, api.post("/api" + RemoteApi.RESERVE, reserve("orders/" + UUID.randomUUID()), ORDERS).statusCode());
+            assertEquals(403, api.get("/api/actuator/cosid", ORDERS).statusCode());
+            assertEquals(200, api.get("/api/actuator/cosid", TestServer.TOKEN).statusCode());
+            assertEquals(200, api.get("/api/v3/api-docs", null).statusCode(), "docs.public follows the servlet path");
+            assertEquals(401, api.get("/api/actuator/cosid", null).statusCode());
+        }
+    }
+
+    /** R1-server-01: Actuator on a port of its own is outside this filter, so the server refuses it. */
+    @Test
+    void refusesASeparateManagementPort() {
+        Exception error = assertThrows(Exception.class, () -> TestServer.memory(new InMemoryStore(), "management.server.port=0"));
+        assertTrue(rootMessage(error).contains("refuses management.server.port"), () -> rootMessage(error));
+        Grants tokens = Grants.of(new ServerProperties.Auth(false, List.of(TestServer.TOKEN), List.of(), List.of()));
+        CosIdServer.requireOneManagementPort(environment("server.port", "8688", "management.server.port", "8688"), tokens);
+        CosIdServer.requireOneManagementPort(environment("management.server.port", "8080"), tokens);
+        CosIdServer.requireOneManagementPort(environment("management.server.port", "-1"), tokens);
+        assertThrows(IllegalStateException.class, () -> CosIdServer.requireOneManagementPort(environment("management.server.port", "9000"), tokens));
+        CosIdServer.requireOneManagementPort(environment("management.server.port", "9000"),
+            Grants.of(new ServerProperties.Auth(true, List.of(), List.of(), List.of())));
     }
 
     @Test
@@ -236,13 +284,13 @@ class AuthTest {
     /** C-B2: a placeholder nobody resolved must not become the token the documentation shows. */
     @Test
     void refusesUnresolvedPlaceholderTokens() {
-        Grants.of(new ServerProperties.Auth(false, List.of(TestServer.TOKEN), List.of(), List.of(), List.of()));
+        Grants.of(new ServerProperties.Auth(false, List.of(TestServer.TOKEN), List.of(), List.of()));
         for (String token : List.of("${COSID_SERVER_TOKEN}", "prefix-${COSID_SERVER_TOKEN}-0123456789")) {
             IllegalStateException error = assertThrows(IllegalStateException.class,
-                () -> Grants.of(new ServerProperties.Auth(false, List.of(token), List.of(), List.of(), List.of())));
+                () -> Grants.of(new ServerProperties.Auth(false, List.of(token), List.of(), List.of())));
             assertThat(error.getMessage(), containsString("unresolved placeholder"));
             IllegalStateException client = assertThrows(IllegalStateException.class, () -> Grants.of(new ServerProperties.Auth(false, List.of(),
-                List.of(new ServerProperties.Client("orders", token, List.of("orders"), List.of())), List.of(), List.of())));
+                List.of(new ServerProperties.Client("orders", token, List.of("orders"), List.of())), List.of())));
             assertThat(client.getMessage(), containsString("clients[0].token"));
         }
         Exception started = assertThrows(Exception.class, () -> TestServer.memory(new InMemoryStore(),
@@ -258,8 +306,8 @@ class AuthTest {
         Exception error = assertThrows(Exception.class, () -> TestServer.memory(new InMemoryStore(), "cosid.server.auth.tokens[0]=" + fifteen));
         assertTrue(rootMessage(error).contains("shorter than 16 characters"), () -> rootMessage(error));
         assertThrows(IllegalStateException.class, () -> Grants.of(new ServerProperties.Auth(false, List.of(),
-            List.of(new ServerProperties.Client("short", " " + fifteen + " ", List.of("x"), List.of())), List.of(), List.of())));
-        Grants.of(new ServerProperties.Auth(false, List.of("a".repeat(Grants.MIN_TOKEN_LENGTH)), List.of(), List.of(), List.of()));
+            List.of(new ServerProperties.Client("short", " " + fifteen + " ", List.of("x"), List.of())), List.of())));
+        Grants.of(new ServerProperties.Auth(false, List.of("a".repeat(Grants.MIN_TOKEN_LENGTH)), List.of(), List.of()));
     }
 
     @Test
@@ -270,6 +318,16 @@ class AuthTest {
             assertEquals(new Range(0, 5), anonymous.ranges().reserve("open/a", 5, 0));
             assertEquals(new Range(5, 10), tokened.ranges().reserve("open/a", 5, 0), "an open server ignores tokens");
         }
+    }
+
+    private static StandardEnvironment environment(String... keysAndValues) {
+        Map<String, Object> properties = new HashMap<>();
+        for (int i = 0; i < keysAndValues.length; i += 2) {
+            properties.put(keysAndValues[i], keysAndValues[i + 1]);
+        }
+        StandardEnvironment environment = new StandardEnvironment();
+        environment.getPropertySources().addFirst(new MapPropertySource("test", properties));
+        return environment;
     }
 
     static String rootMessage(Throwable error) {

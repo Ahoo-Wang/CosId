@@ -11,7 +11,7 @@ record 绑定。生成器与编解码器：[生成器](generators.md)。cosid-se
 
 | 属性 | 默认值 | 含义 |
 |---|---|---|
-| `cosid.enabled` | `true` | 总开关；没有按功能划分的开关 |
+| `cosid.enabled` | `true` | 总开关；生成器、存储与 machine 没有各自的开关，集成有（[见下文](#集成)） |
 | `cosid.namespace` | `spring.application.name`，否则 `cosid` 并记录 `WARN` | 隔离槽位与 key：同一应用的所有实例使用同一个命名空间；命名空间（含命名 machine 的）是 1 到 100 个字母、数字、`.`、`_`、`:`、`-`，以字母或数字开头（每个后端都能存）；应用名不是合法命名空间时启动失败，需显式设置 `cosid.namespace` |
 | `cosid.stores.<name>.*` | | 按名称配置的存储（见下文） |
 | `cosid.machine.*` | | 默认机器号槽位，时间型生成器需要（见下文） |

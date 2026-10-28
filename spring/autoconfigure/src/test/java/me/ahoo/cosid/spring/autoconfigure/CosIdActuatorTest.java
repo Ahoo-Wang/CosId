@@ -206,7 +206,11 @@ class CosIdActuatorTest {
                 assertEquals(1.0, registry.get("cosid.machine.lease.renew.failures").counter().count());
                 assertEquals(1.0, registry.get("cosid.machine.lease.lost").counter().count());
                 assertEquals(1.0, registry.get("cosid.machine.lease.released").counter().count());
-                assertEquals(7.0, registry.get("cosid.machine.clock.skew").timeGauge().value(java.util.concurrent.TimeUnit.MILLISECONDS));
+                // The skew gauge is the one of the machine's namespace.
+                listener.onClockSkew(context.getBean(CosIdRuntime.class).namespace(), 7);
+                assertEquals(7.0, registry.get("cosid.machine.clock.skew").tag("machine", "default").timeGauge()
+                    .value(java.util.concurrent.TimeUnit.MILLISECONDS));
+                assertEquals(1.0, registry.get("cosid.machine.lease.lost").tag("machine", "default").counter().count());
                 assertEquals(1.0, registry.get("cosid.machine.owner.duplicates").counter().count());
                 assertEquals(1.0, registry.get("cosid.store.timeouts").tag("operation", "reserve").counter().count());
                 long names = registry.getMeters().stream().map(meter -> meter.getId().getName()).filter(name -> name.startsWith("cosid."))

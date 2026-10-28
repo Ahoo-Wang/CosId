@@ -12,6 +12,8 @@
 -- The CosId 5 JDBC schema (docs/architecture/06-stores.md §2.1). Keys and slots are never deleted (D23).
 -- Run as is for the default table names; options.initSchema runs it with options.rangeTable / slotTable /
 -- namespaceTable in place of cosid_range / cosid_slot / cosid_namespace.
+-- cosid_namespace.slot_offset came after 5.0.0-alpha.1: initSchema adds it to an older table
+-- (alter table cosid_namespace add slot_offset integer not null default 0).
 -- SQL Server 2019+. Text columns are nvarchar: the driver sends string parameters as nvarchar by default, and a
 -- varchar key column would then be converted for every lookup instead of seeking its index. Key columns use the
 -- binary collation Latin1_General_100_BIN2, so keys are case-sensitive; SQL Server still ignores trailing spaces when
@@ -45,5 +47,6 @@ create table cosid_namespace
 (
     namespace    nvarchar(100) collate Latin1_General_100_BIN2 not null primary key,
     slot_limit   integer       not null,
-    tolerance_ms bigint        not null
+    tolerance_ms bigint        not null,
+    slot_offset  integer       not null default 0
 );

@@ -174,6 +174,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
   4. **WP-store-contract**(✅;✅ A 选项与 key 契约 [#1378](https://github.com/Ahoo-Wang/CosId/pull/1378) `48bcb039`:`StoreProvider.options()` 声明 + 宽松匹配 + 未知键报错,`StoreKeys` 可移植 key 规则 + TCK,timeout 必须为正;✅ B JDBC [#1379](https://github.com/Ahoo-Wang/CosId/pull/1379) `16687821`:`(namespace, last_owner_key)` 索引 + 三段 union 候选查询(各库 EXPLAIN 断言),alpha.1 表由 initSchema 补建;R1-jdbc-06 恢复 4.x 值校验、去掉 `last_insert_id()` 兜底、`fetchPlan=transaction`;迁移侧校验无专用测试(需代理,接受)。**WP-store-contract 完成**):R1-spi-01/R1-spring-01(options 键规范与未知键报错)、R1-spi-02(可移植 key 语法)、R1-jdbc-01(`cosid_slot` 索引,DDL)、R1-jdbc-06(SQL 代理下 generated key 校验,含迁移侧)。
   5. **WP-perf**(代码完成;门槛正式重跑进行中:[run 40772963183](https://github.com/Ahoo-Wang/CosId/actions/runs/40772963183) @ `1ed9aaeb`;✅ P1 修回退 [#1380](https://github.com/Ahoo-Wang/CosId/pull/1380) `1ed9aaeb`:P6 本地 22k→71k ops/ms、32→0 B/op,P5/P6 走生产路径,JDBC SQL 预构建,ZK 分配削减;✅ P2 门槛工具 [#1381](https://github.com/Ahoo-Wang/CosId/pull/1381) `ec0d4b71`:D34 容差、compare_test 15 例、MySQL P10 不对称修正):R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
   6. ✅ **WP-docs**:D1 [#1382](https://github.com/Ahoo-Wang/CosId/pull/1382) `5ada30ea`(Kubernetes 部署指南中英文、R1-mongo-04 分片收窄为"未验证、cosid 集合不分片"、R1-x-01/08、R1-doc-03/04/05/07;R1-doc-01/02 核实已修)+ D2 [#1383](https://github.com/Ahoo-Wang/CosId/pull/1383) `8438d0d6`(设计文档 01–08 与实现对齐,11 锚点 287 个全部复核、补 2 行)。
+  7. **依赖与 MINOR**(进行中,2026-10-28 派发):Dependabot 11 条全部在 `documentation/pnpm-lock.yaml`(vite/source-map-js/@vue/server-renderer/esbuild,只影响站点构建)→ 文档依赖 PR;剩余 MINOR 先出分诊表(已修/本次修/GA 后/不修)再按主题修。Renovate:✅ #1366 jackson 2.22.4 已合入(`0e05cf23`);#1367 cosid4 4.1.1 暂缓——它改变门槛对比的 4.x 基线,待本轮门槛结论后再定(见 §4.3 第 12 项)。
   6. **WP-docs**:R1-x-01/08、R1-doc-01–07、R1-mongo-04(加分片集群 CI 或收窄承诺)、k8s 部署指南、设计文档与 11 对照表同步、javadoc。
 - 原派发队列(一次一个子会话):① codec(✅)→ alpha.1 发布(✅)→ ② **GA 前审查第 1 轮**(下一个)(§6)→ ③ 门槛实现 D34(`benchmark/compare` 及测试、10 §1.3)→ ④ 修复:第 1 轮发现 + MySQL 分配 + 号段与 ZK 分配(按严重度排序,一次一个)→ ⑤ 在 main 上按 D34 重跑门槛 → RC1(用户确认)→ 第 2 轮审查 → GA。alpha.1 不等门槛(D33),数据写入 release notes 已知问题。
 
@@ -214,6 +215,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | 9 | main 上 11 个 Dependabot 告警(3 high)须在 GA 前处理(Renovate) | GA 准入核对项 | — |
 | 10 | 是否发布 RC1、何时发布 | 待门槛 PASS 与 API 冻结完成后请用户决定 | — |
 | 11 | RC 版本号写法:`5.0.0-rc.1`(与 `5.0.0-alpha.1` 同为 SemVer 点分预发布标识,`alpha.1 < rc.1` 在 SemVer 与 Maven 中都成立;大写 `RC1` 在 SemVer ASCII 排序中会排在 `alpha` 之前)。roadmap 中 `5.0.0-RC1` 指同一版本 | 协调会话按推荐(PR6 #1377 的草稿 release notes 已用 `rc.1`) | 改用 `5.0.0-RC1` |
+| 12 | 门槛 4.x 基线:RC1 门槛按已文档化的 4.1.0 判定(本轮 run 40772963183);Renovate #1367(cosid4 → 4.1.1,4.x 分支只含 bug 修复)在门槛结论后合入,并在 RC 期间用 4.1.1 复跑一次门槛作为 GA 依据 | 协调会话按推荐 | 立即升 4.1.1 并重跑 |
 
 ## 4.2 审查不通过登记
 

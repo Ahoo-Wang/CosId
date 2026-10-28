@@ -151,11 +151,15 @@ public final class Radix implements IdCodec {
 
     private static int write(byte[] buf, int end, int radix, long value) {
         int at = end;
-        do {
-            long quotient = value / radix;
-            buf[--at] = DIGITS[(int) (value - quotient * radix)];
-            value = quotient;
-        } while (value > 0);
+        if (value == 0) {
+            buf[--at] = '0';
+            return at;
+        }
+        // The value > 0 guard bounds value % radix to [0, radix), so the JIT drops the DIGITS range check.
+        while (value > 0) {
+            buf[--at] = DIGITS[(int) (value % radix)];
+            value /= radix;
+        }
         return at;
     }
 

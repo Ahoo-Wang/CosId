@@ -27,6 +27,7 @@ import me.ahoo.cosid.lease.AcquireResult;
 import me.ahoo.cosid.lease.Owner;
 import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.lease.SlotLeaseStore;
+import me.ahoo.cosid.store.StoreKeys;
 
 import org.junit.jupiter.api.Test;
 
@@ -551,6 +552,26 @@ public abstract class SlotLeaseStoreContract {
             acquired(store, plain, owner("host-a"), 4);
             assertThrows(NamespaceMismatchException.class,
                 () -> other.acquire(plain, owner("host-b"), 4, LONG_TTL, TOLERANCE, 1, OptionalInt.empty()));
+        }
+    }
+
+    /**
+     * Keys: the longest portable namespace and owner key ({@code StoreKeys}, R1-spi-02) are stored and read back as they
+     * are, every allowed punctuation and a non-ASCII owner key included.
+     */
+    @Test
+    public void storesTheLongestPortableNamespaceAndOwnerKey() {
+        String prefix = newNamespace() + "._:-";
+        String namespace = prefix + "n".repeat(StoreKeys.MAX_NAMESPACE_LENGTH - prefix.length());
+        String ownerPrefix = "订单-" + UUID.randomUUID() + ":8080 ";
+        String ownerKey = ownerPrefix + "k".repeat(StoreKeys.MAX_KEY_LENGTH - ownerPrefix.length());
+        try (SlotLeaseStore store = newStore()) {
+            SlotLease lease = acquired(store, namespace, owner(ownerKey), 4);
+            assertEquals(namespace, lease.namespace());
+            assertEquals(ownerKey, lease.owner().key());
+            assertTrue(store.renew(lease, LONG_TTL, TOLERANCE).isPresent(), "the lease renews under the longest keys");
+            SlotLease next = acquired(store, namespace, owner(ownerKey.substring(0, ownerKey.length() - 1) + "j"), 4);
+            assertNotEquals(lease.slot(), next.slot(), "owner keys that differ in the last character are two owners");
         }
     }
 }

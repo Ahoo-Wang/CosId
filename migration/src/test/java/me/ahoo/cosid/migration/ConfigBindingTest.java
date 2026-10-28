@@ -130,6 +130,11 @@ class ConfigBindingTest {
               snowflake:
                 enabled: true
                 share: { sequence-reset-threshold: 100 }
+                provider:
+                  seconds: { timestamp-unit: second, timestamp-bit: 31, sequence-bit: 22, sequence-reset-threshold: 5 }
+                  js-ms: { machine-bit: 3, sequence-bit: 9, sequence-reset-threshold: 5 }
+                  js-s: { timestamp-unit: second, timestamp-bit: 31, machine-bit: 3, sequence-bit: 19, sequence-reset-threshold: 5 }
+              generator: { enabled: true, sequence-reset-threshold: 7 }
             """);
         Legacy4x legacy = new Legacy4x(FlatConfig.load(input));
         ConfigConverter.Conversion conversion = new ConfigConverter(ZoneId.of("UTC")).convert(legacy.config(), null);
@@ -138,11 +143,24 @@ class ConfigBindingTest {
         assertThat(generator.get("layout"), is("SNOWFLAKE_MS"));
         assertThat(generator.get("seq-reset-threshold"), is(100L));
         assertThat(conversion.report(), not(hasItem(containsString("no 5.0 preset"))));
+        // The cosid80 threshold cannot be set in 5.0 yet: reported, not taken for other bits.
+        assertThat(conversion.report(), hasItem(containsString("cosid.generator.sequence-reset-threshold = 7")));
+        assertThat(conversion.report(), not(hasItem(containsString("the 4.x bits differ"))));
         Path output = dir.resolve("application-5.yaml");
         conversion.write(output);
         Layout layout = legacy.snowflakeLayout("cosid.snowflake.share");
         assertThat(layout.seqResetThreshold(), is(100L));
-        assertThat(((GeneratorSpec.Snowflake) specOf(output).generators().get(Legacy4x.DEFAULT)).layout(), is(layout));
+        RuntimeSpec spec = specOf(output);
+        assertThat(((GeneratorSpec.Snowflake) spec.generators().get(Legacy4x.DEFAULT)).layout(), is(layout));
+        Map<String, Object> generators = (Map<String, Object>) cosid.get("generators");
+        Map<String, String> presets = Map.of("seconds", "SNOWFLAKE_S", "js-ms", "JS_SAFE_MS", "js-s", "JS_SAFE_S");
+        presets.forEach((name, preset) -> {
+            Map<String, Object> provider = (Map<String, Object>) generators.get(name);
+            assertThat(name, provider.get("layout"), is(preset));
+            assertThat(name, provider.get("seq-reset-threshold"), is(5L));
+            assertThat(name, ((GeneratorSpec.Snowflake) spec.generators().get(name)).layout(),
+                is(legacy.snowflakeLayout("cosid.snowflake.provider." + name)));
+        });
     }
 
     @Test

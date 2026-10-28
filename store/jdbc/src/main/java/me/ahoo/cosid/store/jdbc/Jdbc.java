@@ -43,12 +43,18 @@ final class Jdbc {
     final JdbcTables tables;
     final int queryTimeoutSeconds;
     final Duration timeout;
+    final FetchPlan fetchPlan;
 
     Jdbc(DataSource dataSource, JdbcDialect dialect, JdbcTables tables, Duration timeout) {
+        this(dataSource, dialect, tables, timeout, FetchPlan.STATEMENT);
+    }
+
+    Jdbc(DataSource dataSource, JdbcDialect dialect, JdbcTables tables, Duration timeout, FetchPlan fetchPlan) {
         this.dataSource = dataSource;
         this.dialect = dialect;
         this.tables = tables;
         this.timeout = timeout;
+        this.fetchPlan = fetchPlan;
         this.queryTimeoutSeconds = queryTimeoutSeconds(timeout);
     }
 

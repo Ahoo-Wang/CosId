@@ -167,6 +167,12 @@ public final class JdbcSource implements SourceReader {
                         sealed = rs.getLong(1);
                     }
                 }
+                // R1-jdbc-06: the update added the increment to what was read, under the row lock; a value below that was
+                // not read from the row it wrote (an SQL proxy that routed the statements apart).
+                if (sealed < current + increment) {
+                    throw new IllegalStateException("Segment [" + key + "] read back last_max_id " + sealed + " after adding " + increment + " to "
+                        + current + ": the statements did not reach one database (an SQL proxy?); connect to the primary directly");
+                }
                 connection.commit();
                 return sealed;
             } catch (SQLException | RuntimeException e) {

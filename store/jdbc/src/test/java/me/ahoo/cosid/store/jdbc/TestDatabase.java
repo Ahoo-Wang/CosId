@@ -128,11 +128,7 @@ enum TestDatabase {
     /**
      * A new store instance on the shared data.
      */
-    JdbcDialect dialect() {
-        return dialect;
-    }
-
-        JdbcStore store() {
+    JdbcStore store() {
         return new JdbcStore(dataSource(), dialect, JdbcTables.DEFAULT, TIMEOUT);
     }
 

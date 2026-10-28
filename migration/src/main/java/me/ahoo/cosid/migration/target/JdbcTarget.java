@@ -128,7 +128,13 @@ public final class JdbcTarget implements TargetAdmin {
                     continue;
                 }
             }
-            return range(key).orElseThrow();
+            RangeState raised = range(key).orElseThrow();
+            // R1-jdbc-06: the value read back covers the one written, unless the read went elsewhere (a read replica).
+            if (raised.next() < next) {
+                throw new IllegalStateException("Range " + key + " read back next_value " + raised.next() + " after raising it to " + next
+                    + ": the read did not reach the database written (an SQL proxy or read replica?); connect to the primary directly");
+            }
+            return raised;
         }
     }
 

@@ -46,14 +46,28 @@ public final class JdbcStore implements Store {
      * @param dataSource the data source
      * @param dialect    the dialect of its database
      * @param tables     the table names
-     * @param timeout    the timeout of each statement, rounded up to seconds; zero for none
+     * @param timeout    the timeout of each statement, rounded up to seconds; positive
      */
     public JdbcStore(DataSource dataSource, JdbcDialect dialect, JdbcTables tables, Duration timeout) {
+        this(dataSource, dialect, tables, timeout, FetchPlan.STATEMENT);
+    }
+
+    /**
+     * A store on a database of the given dialect, reserving ranges with the given plan.
+     *
+     * @param dataSource the data source
+     * @param dialect    the dialect of its database
+     * @param tables     the table names
+     * @param timeout    the timeout of each statement, rounded up to seconds; positive
+     * @param fetchPlan  how a reserve reads the value it wrote ({@code options.fetchPlan}, R1-jdbc-06)
+     */
+    public JdbcStore(DataSource dataSource, JdbcDialect dialect, JdbcTables tables, Duration timeout, FetchPlan fetchPlan) {
         Objects.requireNonNull(dataSource, "dataSource");
         Objects.requireNonNull(dialect, "dialect");
         Objects.requireNonNull(tables, "tables");
         Objects.requireNonNull(timeout, "timeout");
-        this.jdbc = new Jdbc(dataSource, dialect, tables, timeout);
+        Objects.requireNonNull(fetchPlan, "fetchPlan");
+        this.jdbc = new Jdbc(dataSource, dialect, tables, timeout, fetchPlan);
         this.ranges = new JdbcRangeStore(jdbc);
         this.slots = new JdbcSlotLeaseStore(jdbc);
     }
@@ -62,7 +76,7 @@ public final class JdbcStore implements Store {
      * A store on the default tables, with the dialect detected from the database ({@link JdbcDialects#detect}).
      *
      * @param dataSource the data source
-     * @param timeout    the timeout of each statement; zero for none
+     * @param timeout    the timeout of each statement; positive
      * @return the store
      * @throws JdbcStoreException       if the database cannot be reached
      * @throws IllegalArgumentException if no dialect supports the database

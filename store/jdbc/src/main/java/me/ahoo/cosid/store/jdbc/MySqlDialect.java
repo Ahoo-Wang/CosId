@@ -27,9 +27,11 @@ import java.util.OptionalLong;
  * <p>{@code reserve} is {@code insert … on duplicate key update} where <em>both</em> branches set
  * {@code last_insert_id}: the insert branch through {@code values (?, last_insert_id(? + ?))}, the update branch
  * through {@code last_insert_id(next_value + ?)}, or {@code last_insert_id(0)} when the key is sealed or full. The
- * store reads it from the statement's own OK packet ({@code getGeneratedKeys()}, as 4.x does), and only when that
- * is empty or 0 asks {@code select last_insert_id()} on the same connection: either way it never reads a value an
- * earlier statement left on a pooled connection. 0 cannot be a new {@code next_value}, so it means "not reserved".
+ * store reads it from the statement's own OK packet ({@code getGeneratedKeys()}, as 4.x does). 0 cannot be a new
+ * {@code next_value}, so an empty or 0 key means "not reserved", but only if the row says so (sealed, or full): the
+ * store never asks the connection for {@code last_insert_id()}, which an SQL proxy may answer from another backend
+ * connection (R1-jdbc-06). A key the statement cannot have set fails the reserve; {@link FetchPlan#TRANSACTION}
+ * avoids generated keys altogether.
  */
 final class MySqlDialect implements JdbcDialect {
     /** Rows of one provisioning insert: 2 parameters each. */
@@ -79,11 +81,17 @@ final class MySqlDialect implements JdbcDialect {
                 }
             }
         }
-        try (PreparedStatement select = session.prepare("select last_insert_id()"); ResultSet rs = select.executeQuery()) {
-            rs.next();
-            long next = rs.getLong(1);
-            return next == 0 ? OptionalLong.empty() : OptionalLong.of(next);
+        // last_insert_id(0): the key is sealed or full, as its row shows. Otherwise the generated key was lost on the way.
+        try (PreparedStatement select = session.prepare("select sealed, next_value from " + session.tables().range() + " where range_key = ?")) {
+            select.setString(1, key);
+            try (ResultSet rs = select.executeQuery()) {
+                if (rs.next() && (rs.getBoolean(1) || rs.getLong(2) > Long.MAX_VALUE - size)) {
+                    return OptionalLong.empty();
+                }
+            }
         }
+        throw new IllegalStateException("Reserving " + size + " of [" + key + "] returned no generated key, but the key is neither sealed nor full:"
+            + " last_insert_id did not reach the store (an SQL proxy?); set options.fetchPlan=transaction");
     }
 
     @Override

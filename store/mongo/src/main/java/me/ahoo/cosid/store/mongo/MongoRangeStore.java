@@ -51,7 +51,7 @@ public final class MongoRangeStore implements RangeStore {
     static final String NEXT = "next";
     static final String SEALED = "sealed";
     /** A first reservation that lost the upsert race retries once; a third attempt covers a stale read in between. */
-    private static final int ATTEMPTS = 3;
+    static final int ATTEMPTS = 3;
     private static final FindOneAndUpdateOptions UPSERT = new FindOneAndUpdateOptions()
         .upsert(true).returnDocument(ReturnDocument.AFTER).projection(Projections.include(NEXT));
     private static final FindOneAndUpdateOptions UPDATE = new FindOneAndUpdateOptions()
@@ -77,7 +77,12 @@ public final class MongoRangeStore implements RangeStore {
      * @param writeConcern the write concern, acknowledged ({@code majority} keeps ranges across a failover)
      */
     public MongoRangeStore(MongoDatabase database, Duration timeout, WriteConcern writeConcern) {
-        this.ranges = MongoStore.configure(database, timeout, writeConcern).getCollection(COLLECTION);
+        this(MongoStore.configure(database, timeout, writeConcern).getCollection(COLLECTION));
+    }
+
+    /** On a given collection, already configured: tests wrap it to inject server errors. */
+    MongoRangeStore(MongoCollection<Document> ranges) {
+        this.ranges = ranges;
     }
 
     /** The collection as the store uses it (tests check its concerns). */

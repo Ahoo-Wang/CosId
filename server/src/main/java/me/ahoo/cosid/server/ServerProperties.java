@@ -15,10 +15,12 @@ package me.ahoo.cosid.server;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
+import org.springframework.boot.context.properties.bind.Name;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * {@code cosid.server.*} (08-remote.md): the backing store, the limits, the blocking pool, the authentication and the
@@ -29,13 +31,15 @@ import java.util.Objects;
  * @param blocking the bounded pool the store calls run on
  * @param auth     the bearer token authentication, on by default
  * @param ids      the optional id endpoints
+ * @param docs     whether the OpenAPI document and Swagger UI need a token
  */
 @ConfigurationProperties(prefix = ServerProperties.PREFIX)
 public record ServerProperties(String store,
                                @DefaultValue Limits limits,
                                @DefaultValue Blocking blocking,
                                @DefaultValue Auth auth,
-                               @DefaultValue Ids ids) {
+                               @DefaultValue Ids ids,
+                               @DefaultValue Docs docs) {
     /** The prefix of the properties. */
     public static final String PREFIX = "cosid.server";
 
@@ -153,6 +157,32 @@ public record ServerProperties(String store,
      * @param enabled whether they are on; off by default
      */
     public record Ids(boolean enabled) {
+    }
+
+    /**
+     * The OpenAPI document and Swagger UI (springdoc). They are admin paths by default; {@code public} adds their
+     * read-only paths ({@link #PATHS}) to {@code auth.public-paths}, so a browser can show them without a token. The
+     * calls "Try it out" makes still need one (Authorize), checked against its namespaces and key prefixes; Actuator stays
+     * an admin path.
+     *
+     * @param publicAccess {@code cosid.server.docs.public}: whether the documentation needs no token; off by default
+     */
+    public record Docs(@Name("public") boolean publicAccess) {
+        /** The springdoc paths {@code public} opens: the UI, its configuration and the document in JSON and YAML. */
+        public static final List<String> PATHS = List.of("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
+            "/v3/api-docs.yaml");
+    }
+
+    /**
+     * The paths that need no token: {@code auth.public-paths}, and the documentation when {@code docs.public} is set.
+     *
+     * @return the public path patterns
+     */
+    public List<String> publicPaths() {
+        if (!docs.publicAccess()) {
+            return auth.publicPaths();
+        }
+        return Stream.concat(auth.publicPaths().stream(), Docs.PATHS.stream()).toList();
     }
 
     private static void positive(long value, String name) {

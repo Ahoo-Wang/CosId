@@ -57,7 +57,7 @@ public class CosIdServer {
 
     @Bean
     FilterRegistrationBean<AuthFilter> cosIdServerAuthFilter(Grants grants, ServerProperties properties) {
-        FilterRegistrationBean<AuthFilter> registration = new FilterRegistrationBean<>(new AuthFilter(grants, properties.auth().publicPaths(), properties.auth().adminPaths()));
+        FilterRegistrationBean<AuthFilter> registration = new FilterRegistrationBean<>(new AuthFilter(grants, properties.publicPaths(), properties.auth().adminPaths()));
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
         return registration;
     }

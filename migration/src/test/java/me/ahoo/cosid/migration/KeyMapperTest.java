@@ -18,6 +18,8 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 
+import me.ahoo.cosid.store.StoreKeys;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -64,5 +66,11 @@ class KeyMapperTest {
     void namesWith5ForbiddenCharactersAreNotMigrated() {
         assertThat(mapper.map("a/b").mapped(), is(false));
         assertThat(mapper.map("@2026").mapped(), is(false));
+        // R1-spi-02: names and keys that some 5.0 backend cannot store.
+        assertThat(mapper.map("order item").problem(), containsString("the name must not contain whitespace; use --rename"));
+        assertThat(mapper.map("..").mapped(), is(false));
+        String longName = "n".repeat(StoreKeys.MAX_KEY_LENGTH);
+        assertThat(mapper.map(longName).problem(), containsString("is longer than 255 characters"));
+        assertThat(mapper.map("n".repeat(StoreKeys.MAX_KEY_LENGTH - "app/".length())).mapped(), is(true));
     }
 }

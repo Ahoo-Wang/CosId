@@ -23,6 +23,11 @@ import java.util.Objects;
  * Encodes a time-based id as readable text, {@code yyyyMMddHHmmssSSS-<node>-<seq>}, from {@link Layout#unpack(long)};
  * the time zone is always explicit (03-core-model.md §1). Formats through precomputed field widths into a
  * {@code char[]}, without {@code DateTimeFormatter}.
+ *
+ * <p>The text holds a local time without its offset. In a zone with daylight saving time, the hour repeated when the
+ * clocks go back reads twice: {@link #decode(String)} resolves it to the earlier instant (as {@code ZonedDateTime.of}
+ * does, and as 4.x did), so ids of the later pass through that hour do not round-trip. Use UTC or a fixed-offset zone
+ * when ids must decode exactly.
  */
 public final class Friendly implements IdCodec {
     private final Layout layout;

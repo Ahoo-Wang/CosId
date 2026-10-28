@@ -42,6 +42,9 @@ public interface PartsCodec {
     /**
      * The time part as {@code yyyyMMddHHmmssSSS} in {@code zone}, then the node and the sequence.
      *
+     * <p>As with {@link Friendly}, the repeated hour when a daylight-saving zone goes back decodes to the earlier
+     * instant; use UTC or a fixed-offset zone when parts must decode exactly.
+     *
      * @param layout the layout of the parts
      * @param zone   the time zone of the time part
      * @return the codec

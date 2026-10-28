@@ -118,6 +118,8 @@ class TimeBasedGeneratorTest {
         assertThat(listener.events, hasItem("exhausted"));
         time.advance(1);
         assertThat(TINY.unpack(done(next)), is(new IdParts(T + 1, 5, 0)));
+        // Once per call, not once per retry of the wait.
+        assertThat(listener.events, contains("exhausted"));
     }
 
     @Test
@@ -149,6 +151,7 @@ class TimeBasedGeneratorTest {
         assertThat(listener.events, hasItem("wait:100"));
         time.set(T0);
         assertThat(Layout.SNOWFLAKE_MS.unpack(done(next)), is(new IdParts(T, 5, 1)));
+        assertThat(listener.events, contains("wait:100"));
     }
 
     @Test
@@ -524,5 +527,65 @@ class TimeBasedGeneratorTest {
         assertThat(System.nanoTime() - started < TimeUnit.MILLISECONDS.toNanos(500), is(true));
         ExecutionException error = assertThrows(ExecutionException.class, () -> task.get(5, TimeUnit.SECONDS));
         assertThat(error.getCause() instanceof IllegalStateException, is(true));
+    }
+
+    @Test
+    void oneBorrowEventPerRegression() {
+        TimeBasedGenerator generator = generator(Layout.SNOWFLAKE_MS);
+        generator.generate();
+        time.set(T0 - 3);
+        for (int i = 0; i < 100; i++) {
+            generator.generate();
+        }
+        assertThat(listener.events, contains("borrow:3"));
+        time.set(T0 + 1);
+        generator.generate();
+        time.set(T0 - 1);
+        generator.generate();
+        generator.generate();
+        assertThat(listener.events, contains("borrow:3", "borrow:2"));
+    }
+
+    @Test
+    void aThrowingListenerNeitherFailsNorLosesIds() throws Exception {
+        GeneratorListener throwing = new GeneratorListener() {
+            @Override
+            public void onSequenceExhausted(String generator) {
+                throw new IllegalStateException("listener");
+            }
+
+            @Override
+            public void onClockRegression(String generator, long backwardsMillis, String action) {
+                throw new IllegalStateException("listener");
+            }
+        };
+        TimeBasedGenerator generator = new TimeBasedGenerator("test", TINY, FakeSlot.forever(5), time, ClockRegressionPolicy.DEFAULT, throwing);
+        for (int seq = 0; seq <= 7; seq++) {
+            generator.generate();
+        }
+        // Exhausted: the listener throws, the call still waits and issues.
+        Future<Long> next = blocked(generator::generate);
+        time.advance(1);
+        assertThat(TINY.unpack(done(next)), is(new IdParts(T + 1, 5, 0)));
+        // Borrowing: the listener throws, the id is still issued and the sequence moves on.
+        time.set(T0 - 1);
+        assertThat(TINY.unpack(generator.generate()), is(new IdParts(T + 1, 5, 1)));
+    }
+
+    @Test
+    void secondsLayoutWaitsOutASmallRegressionAfterAUsedUpSecond() throws Exception {
+        Layout tinySeconds = new Layout(Layout.COSID_EPOCH, ChronoUnit.SECONDS, 31, 10, 3, 3);
+        long second = EPOCH + 1_000_000L * 1000;
+        time.set(second + 500);
+        TimeBasedGenerator generator = generator(tinySeconds);
+        for (int seq = 0; seq <= 7; seq++) {
+            generator.generate();
+        }
+        // 1 ms back, before the used-up second: about a second until the next one, yet only a 1 ms regression.
+        time.set(second - 1);
+        Future<Long> next = blocked(generator::generate);
+        assertThat(listener.events, hasItem("wait:1"));
+        time.set(second + 1000);
+        assertThat(tinySeconds.unpack(done(next)), is(new IdParts(1_000_001, 5, 0)));
     }
 }

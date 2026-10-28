@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -76,6 +77,17 @@ class ZookeeperStoreEdgeTest {
         assertThrows(IllegalArgumentException.class, () -> store.ranges().reserve("edge/a", 1, -1));
         assertThrows(NullPointerException.class, () -> store.ranges().reserve(null, 1, 0));
         assertThrows(IllegalArgumentException.class, () -> store.ranges().seal("bad//key"));
+    }
+
+    @Test
+    void rangePathsAreValidatedOncePerKeyUpToACap() {
+        ZookeeperRangeStore ranges = new ZookeeperRangeStore(new Zk(client, ZookeeperTests.TIMEOUT));
+        assertSame(ranges.cachedPath("edge/cached"), ranges.cachedPath("edge/cached"));
+        for (int i = 0; i < ZookeeperRangeStore.MAX_CACHED_PATHS + 10; i++) {
+            assertEquals(ZookeeperRangeStore.ROOT + "/many/" + i, ranges.cachedPath("many/" + i));
+        }
+        assertThrows(IllegalArgumentException.class, () -> ranges.cachedPath("bad//key"));
+        assertThrows(NullPointerException.class, () -> ranges.cachedPath(null));
     }
 
     @Test

@@ -74,10 +74,14 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
     static final String OWNER_ROOT = "/cosid/owner";
     static final int FIRST_BATCH = 32;
     static final int MAX_BATCH = 256;
+    private static final String RENEW = "renew";
+    private static final String RELEASE = "release";
 
     private final Zk zk;
     /** The namespaces whose metadata this instance checked: the metadata never changes once recorded. */
     private final Map<String, Metadata> namespaces = new ConcurrentHashMap<>();
+    /** The validated path of each namespace a lease of this instance named (R1-zk-01: renew validates no path). */
+    private final Map<String, String> namespacePaths = new ConcurrentHashMap<>();
 
     ZookeeperSlotLeaseStore(Zk zk) {
         this.zk = Objects.requireNonNull(zk, "zk");
@@ -99,6 +103,19 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
 
     static String slotPath(String namespace, int slot) {
         return namespacePath(namespace) + "/" + slot;
+    }
+
+    /** {@link #slotPath} of a lease, its namespace validated once. */
+    private String leasePath(SlotLease lease) {
+        String namespace = lease.namespace();
+        String path = namespacePaths.get(namespace);
+        if (path == null) {
+            path = namespacePath(namespace);
+            if (namespacePaths.size() < ZookeeperRangeStore.MAX_CACHED_PATHS) {
+                namespacePaths.put(namespace, path);
+            }
+        }
+        return path + "/" + lease.slot();
     }
 
     /** The owner index of a key: the key as a node name, URL-encoded with {@code .} and {@code *} escaped too. */
@@ -273,33 +290,31 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
         Objects.requireNonNull(lease, "lease");
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
-        String path = slotPath(lease.namespace(), lease.slot());
-        String what = "renew " + path;
+        String path = leasePath(lease);
         long deadline = zk.deadline();
         for (int attempt = 0; ; attempt++) {
-            Optional<Node> node = read(what, path, deadline);
+            Optional<Node> node = read(RENEW, path, deadline);
             if (node.isEmpty() || !node.get().state.heldBy(lease)) {
                 return Optional.empty();
             }
             SlotState renewed = node.get().state.renew(node.get().mtime, ttlMillis, toleranceMillis);
-            Optional<Stat> written = write(what, node.get(), renewed, deadline);
+            Optional<Stat> written = write(RENEW, node.get(), renewed, deadline);
             if (written.isPresent()) {
                 long mtime = written.get().getMtime();
                 return Optional.of(renewed.toLease(lease.namespace(), lease.slot(), mtime, mtime));
             }
-            Zk.backoff(attempt, deadline, what);
+            Zk.backoff(attempt, deadline, RENEW, path);
         }
     }
 
     @Override
     public boolean release(SlotLease lease, long lastIssued) {
         Objects.requireNonNull(lease, "lease");
-        String path = slotPath(lease.namespace(), lease.slot());
-        String what = "release " + path;
+        String path = leasePath(lease);
         long deadline = zk.deadline();
         boolean conflicted = false;
         for (int attempt = 0; ; attempt++) {
-            Optional<Node> node = read(what, path, deadline);
+            Optional<Node> node = read(RELEASE, path, deadline);
             if (node.isEmpty()) {
                 return false;
             }
@@ -309,17 +324,18 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
                 // release of this very tenure leaves the slot free at the next fence.
                 return conflicted && !state.held() && state.fence() == lease.fence() + 1 && lease.owner().key().equals(state.lastOwnerKey());
             }
-            if (write(what, node.get(), state.release(node.get().mtime, lastIssued), deadline).isPresent()) {
+            if (write(RELEASE, node.get(), state.release(node.get().mtime, lastIssued), deadline).isPresent()) {
                 return true;
             }
             conflicted = true;
-            Zk.backoff(attempt, deadline, what);
+            Zk.backoff(attempt, deadline, RELEASE, path);
         }
     }
 
-    private Optional<Node> read(String what, String path, long deadline) {
-        CuratorEvent read = zk.call(what, deadline, callback -> zk.client().getData().inBackground(callback).forPath(path));
-        Node node = Node.of(what, path, read);
+    /** Reads a slot node; {@code verb} and the path name the operation in errors. */
+    private Optional<Node> read(String verb, String path, long deadline) {
+        CuratorEvent read = zk.call(verb, path, deadline, callback -> zk.client().getData().inBackground(callback).forPath(path));
+        Node node = Node.of(verb, path, read);
         return node.stat == null ? Optional.empty() : Optional.of(node);
     }
 
@@ -328,15 +344,15 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
      *
      * @return the stat of the write, or empty if the node changed since the read
      */
-    private Optional<Stat> write(String what, Node node, SlotState state, long deadline) {
+    private Optional<Stat> write(String verb, Node node, SlotState state, long deadline) {
         byte[] data = state.bytes();
         int version = node.stat.getVersion();
-        CuratorEvent write = zk.call(what, deadline,
+        CuratorEvent write = zk.call(verb, node.path, deadline,
             callback -> zk.client().setData().withVersion(version).inBackground(callback).forPath(node.path, data));
         return switch (Zk.code(write)) {
-            case OK -> Optional.of(Zk.stat(what, write));
+            case OK -> Optional.of(Zk.stat(verb, node.path, write));
             case BADVERSION, NONODE -> Optional.empty();
-            default -> throw Zk.unexpected(what, write);
+            default -> throw Zk.unexpected(verb, node.path, write);
         };
     }
 
@@ -591,11 +607,11 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
      * @param mtime the modification time, 0 if the node does not exist
      */
     private record Node(String path, SlotState state, Stat stat, long mtime) {
-        static Node of(String what, String path, CuratorEvent read) {
+        static Node of(String verb, String path, CuratorEvent read) {
             return switch (Zk.code(read)) {
                 case OK -> new Node(path, SlotState.parse(path, read.getData()), read.getStat(), read.getStat().getMtime());
                 case NONODE -> new Node(path, SlotState.NEW, null, 0);
-                default -> throw Zk.unexpected(what, read);
+                default -> throw Zk.unexpected(verb, path, read);
             };
         }
 

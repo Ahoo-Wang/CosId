@@ -39,6 +39,32 @@ final class Ascii {
         return Arrays.equals(data, from, to, name, 0, name.length);
     }
 
+    /**
+     * A decimal long followed by {@code suffix}, in one array of the exact length (R1-zk-01: no buffer to copy).
+     */
+    static byte[] number(long value, byte[] suffix) {
+        if (value == Long.MIN_VALUE) {
+            return new Writer(32).number(value).raw(suffix).toBytes();
+        }
+        boolean negative = value < 0;
+        long rest = negative ? -value : value;
+        int digits = 1;
+        for (long left = rest / 10; left > 0; left /= 10) {
+            digits++;
+        }
+        int sign = negative ? 1 : 0;
+        byte[] data = new byte[sign + digits + suffix.length];
+        if (negative) {
+            data[0] = '-';
+        }
+        for (int i = sign + digits - 1; i >= sign; i--) {
+            data[i] = (byte) ('0' + rest % 10);
+            rest /= 10;
+        }
+        System.arraycopy(suffix, 0, data, sign + digits, suffix.length);
+        return data;
+    }
+
     /** Parses a decimal long in {@code [from, to)}, with an optional leading minus. */
     static long number(byte[] data, int from, int to) {
         if (from >= to) {

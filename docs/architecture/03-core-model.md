@@ -44,6 +44,7 @@ public record Layout(Instant epoch, ChronoUnit unit, int timeBits, int nodeBits,
     public static final Layout JS_SAFE_MS;     // 41/3/9,共 53 位(沿用 4.x)
     public static final Layout JS_SAFE_S;      // 31/3/19
     public static final Layout COSID_80;       // epoch 0(Unix),44 位毫秒 + 20 位节点 + 16 位序列(沿用 4.x),只能经由 PartsCodec 输出
+                                               // cosid80 的默认布局;位宽与阈值可改,epoch/unit 固定(D36,见 api-freeze.md §1)
 }
 
 public record IdParts(long time, int node, long seq) {   // time 为从 epoch 起的 unit 计数
@@ -54,7 +55,8 @@ public record IdParts(long time, int node, long seq) {   // time 为从 epoch �
 - 构造时按段校验:time 1–63、node 0–31、seq 1–62,`seqResetThreshold` 在序列范围内,`unit` 只能是 `MILLIS` 或 `SECONDS`,`SECONDS` 的 epoch 必须是整秒。
   总位数不在构造时限制(`COSID_80` 也是 `Layout`):超过 63 位的布局调用 `pack` / `generate` 会抛异常,只能用 `nextParts()`;
   `withNodeBits` 拒绝把原本 ≤ 63 位的布局扩到 63 位以上。
-- 节点位与机器槽位(D18):运行时只持有一个槽位,`limit = 2^machine.bits`。装配时校验每个时间型生成器 `layout.nodeBits ≥ machine.bits`,不满足即启动失败。
+- 节点位与机器槽位(D18、D37):每个 machine 持有一个槽位,`limit = 2^machine.bits`;运行时有一个默认 machine,另可有命名的 machine(07 §1.2)。
+  装配时校验每个时间型生成器 `layout.nodeBits ≥ 所选 machine 的 bits`,不满足即启动失败。
   `withNodeBits` 只改变节点位,不会偷偷缩减时间位或序列位。
   因此 JS 安全布局(3 位节点)要求 `machine.bits ≤ 3`,与 4.x `SafeJavaScriptSnowflakeId` 的约束相同。
 - 解析:4.x 的 `SnowflakeIdStateParser`、`CosIdIdStateParser` 及其 `parse`/`parseTimestamp`/`parseMachineId`/`parseSequence`,
@@ -131,7 +133,7 @@ loop:
 ```java
 public final class IdGenerators {
     public static IntIdGenerator toInt(IdGenerator ids);                                   // 取代 IntegerIdGenerator,溢出抛 IdOverflowException
-    public static IdGenerator uncertain(IdGenerator ids, int bits, RandomGenerator random); // 取代 UncertaintyIdGenerator
+    public static IdGenerator uncertain(IdGenerator ids, int bits, RandomGenerator random); // 取代 UncertaintyIdGenerator,原 id 太大时抛 IdOverflowException(R1-core-11)
     public static IdGenerator local();                                                     // 取代 AtomicLongGenerator
     public static Supplier<String> uuid();                                                 // 取代 UuidGenerator
     public static IdGenerator lazy(Supplier<? extends IdGenerator> lookup);                // 取代 LazyIdGenerator
@@ -141,10 +143,22 @@ public final class IdGenerators {
 
 这些都是不到 50 行的组合函数,不引入新的类层次。
 
-## 6. 公开 API 清单
+时间位溢出抛 `TimeOverflowException extends CosIdException`(对应 4.x `TimestampOverflowException`);epoch 在未来由 `RuntimePlan` 在启动时拒绝(R1-core-12)。
 
-`IdGenerator`、`IntIdGenerator`、`StringIdGenerator`、`IdGenerators`、`IdCodec`、`Radix`、`Friendly`、`DatePrefix`、`PartsCodec`、
-`Layout`、`IdParts`、`TimeSource`、`TimeBasedGenerator`、`ClockRegressionPolicy`、`GroupedId`,共 15 个(4.x 同一范围约 60 个)。
+## 6. 公开 API 清单与演进规则
+
+本章范围内的核心类型:`IdGenerator`、`IntIdGenerator`、`StringIdGenerator`、`IdGenerators`、`IdCodec`、`Radix`、`Friendly`、`DatePrefix`、`PartsCodec`、
+`Layout`、`IdParts`、`TimeSource`、`TimeBasedGenerator`、`ClockRegressionPolicy`、`GroupedId`(4.x 同一范围约 60 个);core 导出的全部类型见 02 §4。
+
+**值类型的演进(D39,R1-core-01,详见 [api-freeze.md](api-freeze.md) §4)**:
+
+- 封闭的值保留 `record`,规范构造器与记录模式都属于兼容承诺:`Range`、`IdParts`、`GroupedId`、`Owner`、`Layout`、`ClockRegressionPolicy`、
+  `CodecSpec.*`、`PartsCodecSpec.*`、`GroupedCodecSpec.*`、`GeneratorSpec.Disabled`、`AcquireResult.Exhausted`。
+- 配置与 SPI 值类型是 **final class + builder**(无 public 构造器,访问器沿用 record 风格,值等价,`toString` 同 record 格式):
+  `RuntimeSpec`、`StoreSpec`、`RuntimeOptions`、`MachineSpec.Leased/Static`、`GeneratorSpec` 的策略变体、`BatchPolicy`、`PeriodicPolicy`、
+  `StoreConfig`、`SlotLease`、`AcquireResult.Acquired`、`GeneratorInfo`。GA 后只往 builder 加有默认值的可选字段。
+- sealed 规格接口(`GeneratorSpec`、`MachineSpec`、`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`)次版本可加变体,对它们 `switch` 须保留 `default`;
+  `AcquireResult` 封闭(D40)。
 
 ## 7. 删除项
 

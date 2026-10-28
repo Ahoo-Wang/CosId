@@ -77,11 +77,17 @@ W = max(T_apply, T4 + 1s) + sourceSkew        // sourceSkew 默认 10s,对应 4.
 5.0 实例启动后重新选槽,首次发号前最多等待约 `sourceSkew`。
 
 **独立的 `cosid.generator.namespace`(GA 审查 R1-x-07)**:4.x 的 CosIdGenerator 在 `cosid.generator.namespace`(空则用 `cosid.namespace`)里分配机器号,
-用同一个分配器与同一种记录格式,常见用法是让多个服务共享这个命名空间,使 80 位 ID 跨服务唯一。5.0 在命名的 machine(D37)落地之前没有对应能力,
-转换出的 `cosid80` 会在服务命名空间里重新取槽位,跨服务重号。所以在 D37 之前:CosIdGenerator 启用且 `cosid.generator.namespace` 不同于 `cosid.namespace` 时,
-`config` 以及带 `--layout-config` 的 `plan`/`apply` 拒绝执行(非 0 退出码,报告原因)。该命名空间的机器号记录可以照常读取:
-`--layout-config` 中出现独立的 `cosid.generator.namespace` 时(例如 CosIdGenerator 已关闭),它作为只含机器号记录的附加命名空间进入 `T4` 与静止观察,
-共享它的其他服务的 4.x 实例也必须停止。D37 落地后,`config` 生成命名的 machine 并让 `cosid80` 引用它,W 按该命名空间计算。
+用同一个分配器与同一种记录格式,常见用法是让多个服务共享这个命名空间,使 80 位 ID 跨服务唯一。
+
+- **现状(止血,#1369)**:CosIdGenerator 启用且 `cosid.generator.namespace` 不同于 `cosid.namespace` 时,`config` 以及带 `--layout-config` 的 `plan`/`apply` 拒绝执行。
+  `--layout-config` 中出现独立的 `cosid.generator.namespace` 时(例如 CosIdGenerator 已关闭),它作为只含机器号记录的附加命名空间进入 `T4` 与静止观察。
+- **D37 落地后(设计见 [api-freeze.md](api-freeze.md) §2.7)**:
+  - `config` 不再拒绝,写出命名 machine `cosid.machines.generator`(`namespace` 取 4.x 值;存储与 ttl/tolerance 同默认 machine;默认 machine 为 static 时写 static;`bits: 10`,
+    因为 5.0 的 bits 是每个命名空间预建的槽位数,不是 4.x 的 20 位节点宽度),并让转换出的 `cosid80` 写 `machine: generator`。
+    报告写明:共享该命名空间的全部服务必须用相同的 `bits` 与 `tolerance`。
+  - 共享命名空间**单独迁移一次**:`plan/apply --namespace <共享命名空间>`,只做 M2(静止观察覆盖所有共享它的服务、`T4`、预建槽位 `next_floor = W`)。
+    各服务自己的 `apply` 检查目标存储中该命名空间已准备好且 `limit`/`tolerance` 一致,否则拒绝并提示先做这一步;共享命名空间的记录照旧计入本服务的 `T4`。
+  - 因此共享全局命名空间的服务需要**一起停机切换 cosid80**;滚动迁移(5.0 槽位偏移到 4.x 机器号之上)作为 GA 后的增量评估。
 
 ### 4.3 布局校验(M3)
 
@@ -89,7 +95,7 @@ W = max(T_apply, T4 + 1s) + sourceSkew        // sourceSkew 默认 10s,对应 4.
 
 - 布局与 epoch 都相同:由 M2 保证不相交,通过。"相同"只比较 `epoch`、`unit` 与三个位宽;`seqResetThreshold` 只决定每个时间单位的序列从哪里开始,
   不改变数值空间,不同时照样通过并写进报告(GA 审查 R1-x-04)。`config` 把 4.x 的 `sequence-reset-threshold` 写成 5.0 的 `seq-reset-threshold`
-  (cosid80 的阈值在 5.0 中尚不可配,只写进报告)。
+  (D36 落地后,cosid80 的位宽、阈值与 friendly 的 `pad-start` 同样写出;4.x 阈值超出 5.0 的序列范围时写 `2^seqBits − 1` 并报告)。
 - 不同:要求 `new.pack(W, 0, 0) > old.pack(Tmax4, maxNode, maxSeq)`,其中 `Tmax4 = W` 作为 4.x 可能发出的最大时间戳的上界。
   不成立则拒绝,并提示保持 4.x 布局,或者改用新的业务列。
 

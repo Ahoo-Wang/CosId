@@ -21,17 +21,19 @@
 ```java
 public record Owner(String key, UUID incarnation) {}
 // key:逻辑身份(主机名、Pod 名),只用于粘性选槽与观测
-// incarnation:每个 LeaseKeeper(即每个 CosIdRuntime)启动时生成;同一 JVM 中的多个运行时互不相同
+// incarnation:每个 LeaseKeeper(每个运行时的每个 machine)启动时生成;同一 JVM 中互不相同
 
-public record SlotLease(String namespace, int slot, Owner owner,
-                        long fence,        // 每次所有权变化 +1(获取、接管、释放);续约不变
-                        long expiresAt,    // 存储时钟,毫秒;仅用于判断能否被他人接管
-                        long floor,        // 毫秒,不含;本任持有者的时间戳必须 > floor
-                        long ceiling,      // 毫秒,含;本任持有者的时间戳必须 ≤ ceiling
-                        long storeNow) {}
+public final class SlotLease {   // 字段如下;final class + builder(D39),访问器同名
+    String namespace; int slot; Owner owner;
+    long fence;        // 每次所有权变化 +1(获取、接管、释放);续约不变
+    long expiresAt;    // 存储时钟,毫秒;仅用于判断能否被他人接管
+    long floor;        // 毫秒,不含;本任持有者的时间戳必须 > floor
+    long ceiling;      // 毫秒,含;本任持有者的时间戳必须 ≤ ceiling
+    long storeNow;
+}
 
-public sealed interface AcquireResult {
-    record Acquired(SlotLease lease, AcquireReason reason, boolean duplicateOwnerKey) implements AcquireResult {}   // reason:IDEMPOTENT / PREFERRED / STICKY / LOWEST
+public sealed interface AcquireResult {      // 封闭(D40)
+    final class Acquired implements AcquireResult { SlotLease lease(); AcquireReason reason(); boolean duplicateOwnerKey(); }   // builder;reason:IDEMPOTENT / PREFERRED / STICKY / LOWEST
     record Exhausted(long earliestExpiresAt) implements AcquireResult {}
 }
 
@@ -119,17 +121,18 @@ public final class SlotBinding {
 
 ### 4.2 LeaseKeeper
 
-- 每个运行时一个(D18),自己生成 incarnation;所有时间型生成器共享它的 `SlotHandle`。
+- 每个 machine 一个(D18、D37):运行时的默认 machine 与每个被引用的命名 machine 各有一个 `LeaseKeeper`,各自生成 incarnation、各自续约;
+  选了同一个 machine 的时间型生成器共享它的 `SlotHandle`。一个运行时内各 machine 的命名空间两两不同(见 07 §1.2)。
 - 在 `ttl/3` 时续约;失败时按退避重试(100ms 起倍增,上限 `ttl/6`)。在 ceiling 之前生成器照常发号。
 - 续约返回空(所有权已变):旧绑定标记失效;重新 `acquire`,成功后发布新绑定。
-- `Exhausted`:启动时在 `acquireTimeout`(默认等于 `ttl`)内按 `earliestExpiresAt` 重试,超时则启动失败;运行中则持续重试,期间生成器 fail fast。
+- `Exhausted`:启动时在 `acquireTimeout`(`MachineSpec.Leased.acquireTimeout`,默认等于 `ttl`,`0` 表示只试一次;Spring `cosid.machine.leased.acquire-timeout`)内按 `earliestExpiresAt` 重试,超时则启动失败;运行中则持续重试,期间生成器 fail fast。
 - 续约在注入的执行器上执行(默认虚拟线程)。
 - 健康检查(非安全条件):用 `storeNow` 与本地墙钟估计偏差,超过 `tolerance/2` 时发出 `onClockSkew` 事件。
 
 ### 4.3 关闭顺序
 
 1. 每个生成器把序列器状态 CAS 为终止哨兵 `CLOSED`,并从被替换的状态中取得精确的 `lastIssued`。之后任何并发 CAS 都会失败并抛出 `IllegalStateException`。
-2. `release(lease, max(lastIssued))`。
+2. 每个 machine `release(lease, max(lastIssued))`,其中的最大值只取**选了该 machine 的**生成器(D37);命名 machine 按启动的逆序,最后是默认 machine。
 3. 关闭存储与自建执行器。
 
 ### 4.4 StaticSlot(本地窗口)
@@ -148,8 +151,9 @@ public final class SlotBinding {
 | `ttl` | 30s | 进程崩溃后其槽位最多空置 30s |
 | 续约间隔 | `ttl/3` | |
 | `tolerance` | 1s | 命名空间级(D20);命名空间元数据记录 `{limit, tolerance}`,参数不一致则拒绝 |
-| `bits` | 10 | `limit = 2^bits`;装配时校验 `bits ≤ layout.nodeBits`(JS 安全布局为 3,见 03) |
-| `acquireTimeout` | `ttl` | |
+| `bits` | 10 | `limit = 2^bits`;装配时校验 `bits ≤ layout.nodeBits`(JS 安全布局为 3,见 03)。共享一个命名空间的所有运行时(例如跨服务的全局 machine)必须使用相同的 `bits` 与 `tolerance` |
+| `namespace` | 运行时命名空间 | 槽位租约的命名空间;命名 machine 必须显式给出(D37) |
+| `acquireTimeout` | `ttl` | 启动时等待空闲槽位的上限;`0` 只试一次(R1-core-03) |
 | StaticSlot `ahead` | 10s | |
 
 ## 6. 删除项

@@ -141,10 +141,14 @@ What keeps a plausible configuration from issuing 4.x ids again (pre-RC review):
 - **A CosIdGenerator in a namespace of its own** (`cosid.generator.namespace` other than `cosid.namespace`, D37): 4.x
   shares its machine ids across services to keep their 80-bit ids apart; 5.0 keeps them in the named machine
   `cosid.machines.generator`. Migrate the shared namespace **once**, before any service: `plan --namespace <shared>
-  --layout-config <a service's yaml>` reads the largest 4.x machine id M there and plans the slot offset
-  `roundUpToPowerOfTwo(M + 1)` (`--slot-offset` overrides it; it must stay above M with `offset + 2^bits <= 2^machine-bit`).
-  With an offset, `apply` needs no `--confirm-stopped` and watches no quiet period: 4.x keeps running while each service
-  moves, and `verify` fails once 4.x hands out a machine id at or above the offset. `--slot-offset 0` migrates it at once,
+  --layout-config <a service's yaml>` reads the largest 4.x machine id M there. The default slot offset is the hard cap
+  of the 4.x distributor, `2^(cosid.generator.machine-bit)` (4.1.0 never hands out a machine id at or above it), when
+  `cap + 2^bits <= 2^node-bits`; then 4.x and 5.0 stay apart however 4.x scales (`guaranteed: true` in `plan.json`).
+  `config` keeps `machine-bit` as the 5.0 `node-bits`, so the cap fills the nodes and the default does not fit: `plan`
+  then wants an explicit `--slot-offset` above M (`offset + 2^bits <= 2^node-bits`), warns that 4.x must not hand out
+  machine ids at or above it, and records `guaranteed: false`. With an offset, `apply` needs no `--confirm-stopped` and
+  watches no quiet period: 4.x keeps running while each service moves, and `verify` fails once 4.x hands out a machine
+  id at or above the offset. `--slot-offset 0` migrates it at once,
   every sharing service stopped. Each service's `apply` then refuses unless the shared namespace is prepared as its plan
   saw it, and `config` writes `cosid.machines.generator` (with that `slot-offset`) and `machine: generator` on cosid80.
   With the CosIdGenerator disabled, the machine records of that namespace count for T4 and the quiet period.

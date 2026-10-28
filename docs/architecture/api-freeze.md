@@ -259,8 +259,9 @@ cosid.generators.cosid:            # 或 cosid80(已有命名规则)
 **`plan`/`apply`**:共享命名空间是多个服务共用的,只准备一次(第二次会覆盖已经发出的 5.0 槽位)。
 
 1. **共享命名空间单独迁移一次**:`plan/apply --namespace <global>`,该命名空间只有机器号记录、没有号段 key,工具只做 M2。
-   - `plan` 从 4.x 机器号记录读出该命名空间**出现过的最大机器号** `M`(含已过期与 stable 的记录),推荐 `slotOffset = roundUpToPowerOfTwo(M + 1)`(没有记录时为 0),
-     并校验 `slotOffset + 2^bits ≤ 2^nodeBits`(nodeBits 取 `--layout-config` 中 4.x CosIdGenerator 的 `machine-bit`)。
+   - `plan` 从 4.x 机器号记录读出该命名空间**出现过的最大机器号** `M`(含已过期与 stable 的记录),默认 `slotOffset` 取 4.x 分配器的硬上限 `2^(cosid.generator.machine-bit)`
+     (CosIdGenerator 用该位宽分配,4.1.0 不会分出 ≥ 它的号),前提是 `cap + 2^bits ≤ 2^nodeBits`,此时 `plan.json` 记录 `guaranteed: true`;放不下时(保留 4.x 位宽时 `cap = 2^nodeBits`,总是如此)要求显式 `--slot-offset`,
+     低于 cap 时警告"4.x 不得再分出 ≥ offset 的机器号"并记录 `guaranteed: false`。并校验 `offset > M` 与 `slotOffset + 2^bits ≤ 2^nodeBits`(nodeBits 取 `--layout-config` 中 4.x CosIdGenerator 的 `machine-bit`)。
    - 报告给出两种做法,由 `apply --slot-offset` 选择(默认取推荐值):
      - **滚动迁移**(`slotOffset > 0`,推荐):不要求 4.x 停止,不做静止观察;各服务逐个把 cosid80 切到 5.0,4.x 与 5.0 同时在线。
      - **一次性切换**(`--slot-offset 0`):沿用原规则,静止观察覆盖所有共享它的服务,它们必须都已停止。
@@ -273,7 +274,7 @@ cosid.generators.cosid:            # 或 cosid80(已有命名规则)
 
 - 5.0 一侧由 §2.2 第 5 条与元数据比对保证。
 - 4.x 一侧靠操作约束:4.x 分配器按"最小空闲机器号"分配,所以 4.x 的机器号上限约等于 4.x 同时在线实例的峰值。迁移期间**不能扩容 4.x**到 `slotOffset` 个以上实例(含 surge);
-  `M + 1` 向上取整到 2 的幂留出了余量,报告写明这一点,`verify` 负责事后检查。需要更多余量时用 `--slot-offset` 手工指定更大的 2 的幂。
+  偏移不低于 4.x 硬上限时由构造保证;低于它时(显式 `--slot-offset`,`guaranteed: false`)报告写明这一点,`verify` 负责事后检查。显式偏移应按 4.x 峰值实例数(含 surge)留足余量。
 - M2 的变化:有偏移时,4.x 与 5.0 时间段重叠也不会重号,所以不要求停机、不做静止观察;W 照样写入,防止偏移配置错误时退化为重号。
 
 一次性切换(偏移 0)仍然可用,适合 4.x 实例很少或节点位很紧的部署。09 §4.2 同步。

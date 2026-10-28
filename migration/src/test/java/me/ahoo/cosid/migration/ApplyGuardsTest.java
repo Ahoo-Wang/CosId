@@ -287,12 +287,13 @@ class ApplyGuardsTest extends MigrationScenarioTest {
     @SuppressWarnings("unchecked")
     void theSharedGeneratorNamespaceMigratesOnceAsANamedMachine() throws IOException {
         // D37, api-freeze.md §2.7: 4.x shares the CosIdGenerator machine ids of "global" across services; 5.0 keeps them
-        // in the named machine "generator", its slots above the 4.x machine ids, so 4.x may keep running.
+        // in the named machine "generator", its slots above the 4.x machine ids, so 4.x may keep running. The 4.x hard cap
+        // 2^20 (cosid.generator.machine-bit) leaves no room in the 2^20 nodes: the offset is explicit and not guaranteed.
         String global = "global-" + namespace;
         writer.segment(namespace, "order", 0, 10, 1);
         Map<String, Object> written = writer.machines(global, 3, 10);
         int maxMachineId = ((List<Number>) written.get("machineIds")).stream().mapToInt(Number::intValue).max().orElseThrow();
-        int offset = Migration.roundUpToPowerOfTwo(maxMachineId + 1);
+        int offset = 64;
         Path layout = generatorLayout(true, global);
 
         // A service before its shared namespace: plan says so, apply refuses.
@@ -306,11 +307,13 @@ class ApplyGuardsTest extends MigrationScenarioTest {
         Path sharedPlan = dir.resolve("shared-plan.json");
         Path sharedResult = dir.resolve("shared-result.json");
         Plan shared = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
-            Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), sharedPlan));
+            Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), sharedPlan, offset));
         assertThat(shared.segments(), empty());
-        assertThat(shared.shared().maxMachineId(), is(maxMachineId));
+        assertThat(shared.shared(), is(new Plan.Shared(maxMachineId, 1 << 20, 20, true, false)));
         assertThat(shared.slots().slotOffset(), is(offset));
-        assertThat(shared.shared().rolling(), is(true));
+        assertThat(shared.warnings(), hasItem(containsString("NOT GUARANTEED: [" + global + "]")));
+        assertThat(shared.warnings(), hasItem(containsString("4.x must not hand out machine ids >= " + offset)));
+        assertThat(Files.readString(sharedPlan), containsString("\"guaranteed\" : false"));
         // Rolling: neither --confirm-stopped nor a quiet period; running it again changes nothing.
         Migration.ApplyOptions rolling = new Migration.ApplyOptions(sharedPlan, false, Duration.ofMinutes(5), 0, Duration.ZERO, true,
             Migration.DEFAULT_SEAL_GAP, sharedResult, Map.of(), Map.of(), layout, null);
@@ -345,10 +348,22 @@ class ApplyGuardsTest extends MigrationScenarioTest {
         int maxMachineId = ((List<Number>) written.get("machineIds")).stream().mapToInt(Number::intValue).max().orElseThrow();
         Path layout = generatorLayout(true, global);
         Path planned = dir.resolve("shared-plan.json");
+        // No default: the 4.x hard cap 2^20 (cosid.generator.machine-bit) leaves no room for 2^10 slots in the 2^20 nodes.
+        MigrationAbortedException implicit = assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(
+            source.location(), target.location(), null, null, global, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
+            planned)));
+        assertThat(implicit.getMessage(), containsString("hard cap 1048576"));
+        assertThat(implicit.getMessage(), containsString("Take an explicit --slot-offset"));
+        // M + 1 a power of two (ids 0..3): M + 1 is the least offset, explicit and not guaranteed; M is refused.
+        assertThat(maxMachineId, is(3));
+        Plan least = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
+            Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), planned, maxMachineId + 1));
+        assertThat(least.slots().slotOffset(), is(4));
+        assertThat(least.shared().guaranteed(), is(false));
         // Not above the 4.x machine ids: their nodes would collide.
         MigrationAbortedException low = assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(
             source.location(), target.location(), null, null, global, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
-            planned, Math.max(1, maxMachineId))));
+            planned, maxMachineId)));
         assertThat(low.getMessage(), containsString("is not above the 4.x machine ids"));
         // Beyond the node bits of the CosIdGenerator: 2^20 nodes hold no 2^10 slots above 2^20 - 1.
         MigrationAbortedException high = assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(
@@ -360,6 +375,7 @@ class ApplyGuardsTest extends MigrationScenarioTest {
         Plan atOnce = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
             Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), planned, 0));
         assertThat(atOnce.shared().rolling(), is(false));
+        assertThat(atOnce.shared().guaranteed(), is(true));
         assertThrows(MigrationAbortedException.class, () -> migration().apply(new Migration.ApplyOptions(planned, false, Duration.ZERO, 0,
             Duration.ZERO, true, Migration.DEFAULT_SEAL_GAP, dir.resolve("shared-result.json"), Map.of(), Map.of(), layout, null)));
         // --slot-offset belongs to the shared namespace only.

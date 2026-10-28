@@ -95,8 +95,8 @@ public final class Migration {
      * @param groupPatterns 5.0 generator name to the 4.x group key pattern
      * @param output        where {@code plan.json} goes
      * @param slotOffset    the slot offset of a shared {@code cosid.generator.namespace} ({@code --slot-offset}); null for
-     *                      the recommended one, {@code roundUpToPowerOfTwo(M + 1)}; 0 migrates it at once, every service
-     *                      sharing it stopped (api-freeze.md §2.7)
+     *                      the hard cap of the 4.x distributor, {@code 2^(cosid.generator.machine-bit)}, when the slots
+     *                      fit above it; 0 migrates it at once, every service sharing it stopped (api-freeze.md §2.7)
      */
     public record PlanOptions(StoreLocation from, StoreLocation to, StoreLocation machineFrom, StoreLocation machineTo, String namespace,
                               Path layoutConfig, Path targetConfig, Integer slotBits, Duration tolerance, Duration sourceSkew,
@@ -193,17 +193,26 @@ public final class Migration {
         int slotOffset = 0;
         if (sharedPlan) {
             int maxMachineId = snapshot.maxMachineId(options.namespace());
-            int recommended = maxMachineId < 0 ? 0 : roundUpToPowerOfTwo(maxMachineId + 1);
-            slotOffset = options.slotOffset() == null ? recommended : options.slotOffset();
             int nodeBits = legacy.cosidLayout().nodeBits();
-            checkSlotOffset(options.namespace(), maxMachineId, slotOffset, bits, nodeBits);
-            shared = new Plan.Shared(maxMachineId, recommended, nodeBits, slotOffset > 0);
-            warnings.add(slotOffset > 0
-                ? "[" + options.namespace() + "] is the shared cosid.generator.namespace, migrated rolling with slot offset " + slotOffset + " (the 4.x machine"
-                    + " ids are below " + (maxMachineId + 1) + "): 4.x keeps running while each service moves to 5.0, but must not grow beyond " + slotOffset
-                    + " instances (surge included) in it until every service moved; verify checks it"
-                : "[" + options.namespace() + "] is the shared cosid.generator.namespace, migrated at once (slot offset 0): every 4.x instance of every"
+            // The 4.x CosIdGenerator distributes with cosid.generator.machine-bit, which 5.0 keeps as node-bits; 4.1.0 throws
+            // MachineIdOverflowException above maxMachineId(machineBit), so its machine ids stay below this cap.
+            long cap = 1L << nodeBits;
+            slotOffset = sharedSlotOffset(options.namespace(), maxMachineId, options.slotOffset(), bits, cap, nodeBits);
+            boolean rollingOffset = slotOffset > 0;
+            boolean guaranteed = !rollingOffset || slotOffset >= cap;
+            shared = new Plan.Shared(maxMachineId, cap, nodeBits, rollingOffset, guaranteed);
+            if (!rollingOffset) {
+                warnings.add("[" + options.namespace() + "] is the shared cosid.generator.namespace, migrated at once (slot offset 0): every 4.x instance of every"
                     + " service sharing it must be stopped during apply, and its quiet period covers them");
+            } else if (guaranteed) {
+                warnings.add("[" + options.namespace() + "] is the shared cosid.generator.namespace, migrated rolling with slot offset " + slotOffset
+                    + ", the hard cap of the 4.x distributor: 4.x keeps running while each service moves to 5.0, and its machine ids stay below it");
+            } else {
+                warnings.add("NOT GUARANTEED: [" + options.namespace() + "] is the shared cosid.generator.namespace, migrated rolling with slot offset "
+                    + slotOffset + ", below the hard cap 2^" + nodeBits + " = " + cap + " of the 4.x distributor (the 4.x machine ids are below "
+                    + (maxMachineId + 1) + " now): 4.x must not hand out machine ids >= " + slotOffset + " in it (no more than " + slotOffset
+                    + " 4.x instances, surge included) until every service moved; nothing enforces it, verify only checks it afterwards");
+            }
         }
         Plan.Slots slots = Plan.Slots.of(bits, options.tolerance().toMillis(), slotOffset);
         final boolean rolling = shared != null && shared.rolling();
@@ -276,6 +285,31 @@ public final class Migration {
     /** The smallest power of two at least {@code n}, {@code n >= 1}. */
     static int roundUpToPowerOfTwo(int n) {
         return Integer.bitCount(n) == 1 ? n : Integer.highestOneBit(n) << 1;
+    }
+
+    /**
+     * The slot offset of a shared namespace (api-freeze.md §2.7): {@code --slot-offset}, or else the hard cap of the 4.x
+     * distributor when the slots fit above it. Below the cap only an explicit offset is taken, as 4.x could still reach it.
+     *
+     * @param namespace    the shared namespace
+     * @param maxMachineId M, -1 without records
+     * @param requested    {@code --slot-offset}, null for the default
+     * @param bits         the slot bits
+     * @param cap          {@code 2^(cosid.generator.machine-bit)}: 4.x never hands out a machine id at or above it
+     * @param nodeBits     the node bits of the 5.0 CosIdGenerator
+     * @return the checked slot offset
+     */
+    static int sharedSlotOffset(String namespace, int maxMachineId, Integer requested, int bits, long cap, int nodeBits) {
+        if (requested == null && cap + (1L << bits) > 1L << nodeBits) {
+            throw new MigrationAbortedException("[" + namespace + "] is the shared cosid.generator.namespace: 4.x can hand out machine ids"
+                + " up to its hard cap " + cap + " (2^cosid.generator.machine-bit), which leaves no room for 2^" + bits + " slots in the 2^" + nodeBits
+                + " nodes, so no slot offset is safe by construction. Take an explicit --slot-offset above the 4.x machine ids (the largest is "
+                + maxMachineId + ") and keep 4.x from handing out machine ids at or above it until every service moved, or --slot-offset 0 with"
+                + " every service stopped");
+        }
+        int slotOffset = requested == null ? (int) cap : requested;
+        checkSlotOffset(namespace, maxMachineId, slotOffset, bits, nodeBits);
+        return slotOffset;
     }
 
     /**
@@ -420,8 +454,9 @@ public final class Migration {
         out.println("  slots: limit " + plan.slots().limit() + ", tolerance " + plan.slots().toleranceMillis() + "ms, slot offset " + plan.slots().slotOffset()
             + ", next floor W");
         if (plan.shared() != null) {
-            out.println("  shared cosid.generator.namespace: 4.x machine ids up to " + plan.shared().maxMachineId() + ", recommended slot offset "
-                + plan.shared().recommendedOffset() + ", node bits " + plan.shared().nodeBits() + (plan.shared().rolling() ? "; rolling" : "; at once"));
+            out.println("  shared cosid.generator.namespace: 4.x machine ids up to " + plan.shared().maxMachineId() + ", 4.x hard cap "
+                + plan.shared().recommendedOffset() + ", node bits " + plan.shared().nodeBits() + (plan.shared().rolling() ? "; rolling" : "; at once")
+                + (plan.shared().guaranteed() ? "" : "; NOT GUARANTEED: 4.x must stay below the slot offset"));
         }
         if (plan.generatorNamespace() != null) {
             out.println("  cosid.generator.namespace " + plan.generatorNamespace().namespace() + ": "
@@ -558,7 +593,8 @@ public final class Migration {
             LegacySnapshot snapshot = first;
             if (rolling) {
                 warnings.add("a rolling migration of the shared namespace: no quiet period, 4.x keeps running with machine ids below the slot offset "
-                    + plan.slots().slotOffset());
+                    + plan.slots().slotOffset() + (plan.shared().guaranteed() ? "" : " (NOT GUARANTEED: 4.x must not hand out machine ids >= "
+                    + plan.slots().slotOffset() + "; verify checks it)"));
             } else if (!options.observe().isZero()) {
                 out.println("Watching the 4.x store for " + options.observe() + " (--observe) ...");
                 long started = System.nanoTime();

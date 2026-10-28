@@ -262,8 +262,11 @@ Stop every 5.0 instance of the namespace first: 4.x and 5.0 do not run side by s
   `cosid.generator.namespace` to a namespace other than `cosid.namespace` shares the CosIdGenerator machine ids of that
   namespace across services. 5.0 keeps them in the named machine `cosid.machines.generator`:
   1. Migrate the shared namespace once: `plan --namespace <shared> --layout-config <a service's yaml>`, then `apply`. The
-     plan takes the slot offset above every 4.x machine id there (`--slot-offset` overrides it). With an offset, 4.x keeps
-     running and the services move one by one; do not grow 4.x beyond the offset meanwhile (`verify` checks it).
+     plan defaults the slot offset to the hard cap of the 4.x distributor, `2^(cosid.generator.machine-bit)`, when the
+     slots fit above it; 4.x then never reaches the 5.0 nodes. With the 4.x bits kept, they do not fit, and the plan wants
+     an explicit `--slot-offset` above every 4.x machine id there, sized for the 4.x peak (surge included); it warns that
+     4.x must not hand out machine ids at or above it and records `guaranteed: false`. With an offset, 4.x keeps running
+     and the services move one by one; do not grow 4.x beyond the offset meanwhile (`verify` checks it).
      `--slot-offset 0` migrates it at once, every service sharing it stopped.
   2. Migrate each service as usual; its `apply` refuses until step 1 is done, and `config` writes
      `cosid.machines.generator` and `machine: generator` on its cosid80.

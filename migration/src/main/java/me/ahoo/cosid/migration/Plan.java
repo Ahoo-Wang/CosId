@@ -85,12 +85,16 @@ public record Plan(String format, String createdAt, String namespace, StoreLocat
      * every service that shares it.
      *
      * @param maxMachineId      M, the largest 4.x machine id ever handed out in it; -1 without records
-     * @param recommendedOffset {@code roundUpToPowerOfTwo(M + 1)}, 0 without records
-     * @param nodeBits          the node bits of the 4.x CosIdGenerator ({@code cosid.generator.machine-bit}): the slots
-     *                          end at {@code slotOffset + 2^bits <= 2^nodeBits}
+     * @param recommendedOffset the hard cap of the 4.x distributor, {@code 2^(cosid.generator.machine-bit)}: 4.x 4.1.0
+     *                          never hands out a machine id at or above it ({@code MachineIdOverflowException})
+     * @param nodeBits          the node bits of the 5.0 CosIdGenerator (the 4.x {@code cosid.generator.machine-bit}): the
+     *                          slots end at {@code slotOffset + 2^bits <= 2^nodeBits}
      * @param rolling           a slot offset above M: 4.x keeps running while each service moves to 5.0
+     * @param guaranteed        whether the 4.x and 5.0 nodes stay apart by construction: false for a rolling offset below
+     *                          {@code recommendedOffset}, where 4.x must not hand out machine ids at or above the offset
+     *                          and only {@code verify} checks it afterwards
      */
-    public record Shared(int maxMachineId, int recommendedOffset, int nodeBits, boolean rolling) {
+    public record Shared(int maxMachineId, long recommendedOffset, int nodeBits, boolean rolling, boolean guaranteed) {
     }
 
     /**

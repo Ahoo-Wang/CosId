@@ -73,4 +73,14 @@ class KeyMapperTest {
         assertThat(mapper.map(longName).problem(), containsString("is longer than 255 characters"));
         assertThat(mapper.map("n".repeat(StoreKeys.MAX_KEY_LENGTH - "app/".length())).mapped(), is(true));
     }
+
+    @Test
+    void planRefusesANamespace5Cannot() {
+        Migration.PlanOptions options = new Migration.PlanOptions(StoreLocation.parse("jdbc:h2:mem:x", Map.of()), StoreLocation.parse("jdbc:h2:mem:y", Map.of()),
+            null, null, "{cosid}", null, null, null, java.time.Duration.ofSeconds(1), java.time.Duration.ZERO, Map.of(), Map.of(),
+            java.nio.file.Path.of("plan.json"));
+        MigrationAbortedException refused = org.junit.jupiter.api.Assertions.assertThrows(MigrationAbortedException.class,
+            () -> new Migration(System.out).plan(options));
+        assertThat(refused.getMessage(), containsString("--namespace: namespace [{cosid}] must be 1 to 100"));
+    }
 }

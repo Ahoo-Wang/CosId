@@ -93,7 +93,11 @@ class IdFillerTest {
             .generator("order", GeneratorSpec.Segment.builder("db").batch(BatchPolicy.DEFAULT).codec(List.of(new CodecSpec.Prefix("O"))).build())
             .generator("big", GeneratorSpec.Segment.builder("db").batch(nearIntMax).codec(List.of()).build())
             .generator("token", GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build())
-            .generator("bill", GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR, ZoneOffset.UTC) .batch(BatchPolicy.DEFAULT) .periodic(PeriodicPolicy.DEFAULT) .codec(new GroupedCodecSpec.DatePrefix("-", List.of(new CodecSpec.Radix(10, 4, true)))) .build())
+            .generator("bill", GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR, ZoneOffset.UTC)
+                .batch(BatchPolicy.DEFAULT)
+                .periodic(PeriodicPolicy.DEFAULT)
+                .codec(new GroupedCodecSpec.DatePrefix("-", List.of(new CodecSpec.Radix(10, 4, true))))
+                .build())
             .generator("first", GeneratorSpec.Segment.builder("db").batch(BatchPolicy.DEFAULT).codec(List.of()).build())
             .generator("off", new GeneratorSpec.Disabled(GeneratorSpec.Segment.builder("db").batch(BatchPolicy.DEFAULT).codec(List.of()).build()))
             .build();

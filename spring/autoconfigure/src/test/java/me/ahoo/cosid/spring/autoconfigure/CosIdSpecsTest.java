@@ -221,7 +221,14 @@ class CosIdSpecsTest {
             .build(),
             spec.generators().get("custom"));
         assertEquals(GeneratorSpec.Segment.builder("mem")
-            .batch(BatchPolicy.builder() .step(10) .initialOffset(5) .lookahead(Duration.ZERO) .maxBatch(10) .reserveTimeout(Duration.ofSeconds(5)) .rangeTtl(Duration.ofHours(1)) .build())
+            .batch(BatchPolicy.builder()
+                .step(10)
+                .initialOffset(5)
+                .lookahead(Duration.ZERO)
+                .maxBatch(10)
+                .reserveTimeout(Duration.ofSeconds(5))
+                .rangeTtl(Duration.ofHours(1))
+                .build())
             .codec(List.of())
             .build(), spec.generators().get("seg"));
         assertEquals(GeneratorSpec.PeriodicSegment.builder("mem", Period.YEAR, ZONE)

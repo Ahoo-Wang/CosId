@@ -56,7 +56,11 @@ class CountGeneratedTest {
             .generator("default", snowflake(Layout.SNOWFLAKE_MS))
             .generator("order", segment("mem"))
             .generator("token", GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build())
-            .generator("bill", GeneratorSpec.PeriodicSegment.builder("mem", Period.YEAR_MONTH_DAY, SHANGHAI) .batch(BatchPolicy.DEFAULT) .periodic(PeriodicPolicy.DEFAULT) .codec(new GroupedCodecSpec.DatePrefix("-", List.of())) .build())
+            .generator("bill", GeneratorSpec.PeriodicSegment.builder("mem", Period.YEAR_MONTH_DAY, SHANGHAI)
+                .batch(BatchPolicy.DEFAULT)
+                .periodic(PeriodicPolicy.DEFAULT)
+                .codec(new GroupedCodecSpec.DatePrefix("-", List.of()))
+                .build())
             .generator("off", new GeneratorSpec.Disabled(segment("mem")))
             .build();
     }

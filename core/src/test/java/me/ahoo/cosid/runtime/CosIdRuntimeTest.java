@@ -133,7 +133,11 @@ class CosIdRuntimeTest {
             .generator("trace", snowflake(Layout.SNOWFLAKE_MS, new CodecSpec.Friendly(SHANGHAI, true)))
             .generator("token", GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build())
             .generator("order", segment("db", new CodecSpec.Radix(62, 11, false), new CodecSpec.Prefix("O")))
-            .generator("bill", GeneratorSpec.PeriodicSegment.builder("cache", Period.YEAR_MONTH_DAY, SHANGHAI) .batch(BatchPolicy.DEFAULT) .periodic(PeriodicPolicy.DEFAULT) .codec(new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Radix(10, 6, true)))) .build())
+            .generator("bill", GeneratorSpec.PeriodicSegment.builder("cache", Period.YEAR_MONTH_DAY, SHANGHAI)
+                .batch(BatchPolicy.DEFAULT)
+                .periodic(PeriodicPolicy.DEFAULT)
+                .codec(new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Radix(10, 6, true))))
+                .build())
             .build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(db, cache))) {
             assertThat(runtime.namespace(), is("app"));

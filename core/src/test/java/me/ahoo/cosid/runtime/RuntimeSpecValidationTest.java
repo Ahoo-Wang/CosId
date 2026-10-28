@@ -101,7 +101,11 @@ class RuntimeSpecValidationTest {
             .store("db", StoreSpec.builder("memory").timeout(Duration.ofSeconds(1)).build())
             .store("zero", StoreSpec.builder("memory").timeout(Duration.ZERO).build())
             .generator("order", GeneratorSpec.Segment.builder("db").batch(quick).codec(List.of()).build())
-            .generator("bill", GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR, ZoneOffset.UTC) .batch(quick) .periodic(PeriodicPolicy.DEFAULT) .codec(new GroupedCodecSpec.DatePrefix("-", List.of())) .build())
+            .generator("bill", GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR, ZoneOffset.UTC)
+                .batch(quick)
+                .periodic(PeriodicPolicy.DEFAULT)
+                .codec(new GroupedCodecSpec.DatePrefix("-", List.of()))
+                .build())
             .generator("fine", segment("zero"))
             .build());
         assertThat(message, containsString("generator [order]: store [db] timeout PT1S exceeds batch.reserveTimeout PT0.5S"));
@@ -119,7 +123,11 @@ class RuntimeSpecValidationTest {
             .generator("custom", segment("db", new CodecSpec.Custom("com.example.NoSuchCodec")))
             .generator("notCodec", segment("db", new CodecSpec.Custom(String.class.getName())))
             .generator("date", segment("db", new CodecSpec.DatePrefix("yyyyMMdd", "", DatePrefix.Source.ID_TIME, ZoneOffset.UTC)))
-            .generator("bill", GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR, ZoneOffset.UTC) .batch(BatchPolicy.DEFAULT) .periodic(PeriodicPolicy.DEFAULT) .codec(new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Friendly(ZoneOffset.UTC, false)))) .build())
+            .generator("bill", GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR, ZoneOffset.UTC)
+                .batch(BatchPolicy.DEFAULT)
+                .periodic(PeriodicPolicy.DEFAULT)
+                .codec(new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Friendly(ZoneOffset.UTC, false))))
+                .build())
             .build());
         assertThat(message, containsString("generator [friendly]: A friendly codec needs a time-based generator"));
         assertThat(message, containsString("generator [second]: Radix[radix=62, width=11, padStart=true] turns the id into text, so it must be the first codec"));

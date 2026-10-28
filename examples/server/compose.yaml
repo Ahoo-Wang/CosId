@@ -17,6 +17,9 @@ services:
       COSID_STORES_MAIN_TYPE: redis
       COSID_STORES_MAIN_OPTIONS_URI: redis://redis:6379
       COSID_SERVER_AUTH_TOKENS_0: change-me-to-a-long-random-token
+      # On a trusted network only (e.g. a ClusterIP Service behind a NetworkPolicy), no token at all: drop the line
+      # above and COSID_SERVER_TOKEN below, and set COSID_SERVER_AUTH_ALLOW_ANONYMOUS: "true". Every caller then
+      # reaches every namespace and Actuator, including the cosid endpoint, which issues ids.
       COSID_SERVER_IDS_ENABLED: "true"
       # Development only: Swagger UI at http://localhost:8688/swagger-ui.html without a token ("Try it out" still needs
       # one, via Authorize). Leave it off where the server is reachable by others.

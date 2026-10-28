@@ -14,7 +14,6 @@ properties ([runtime, stores, machine](basic.md), [generators](generators.md)): 
 | `cosid.server.auth.clients[i].namespaces` | `[]` | slot namespaces, and range keys whose first segment is one of them; `*` for all; the id endpoints check `cosid.namespace` |
 | `cosid.server.auth.clients[i].key-prefixes` | `[]` | range keys with one of these prefixes |
 | `cosid.server.auth.public-paths` | `/actuator/health`, `/actuator/health/**` | path patterns that need no token |
-| `cosid.server.auth.admin-paths` | `/actuator`, `/actuator/**`, `/v3/api-docs`, `/v3/api-docs/**`, `/v3/api-docs.yaml`, `/swagger-ui.html`, `/swagger-ui/**` | path patterns (other than the public ones) only `tokens` may use; a client token gets `403` |
 | `cosid.server.limits.min-ttl` | `100ms` | the shortest lease ttl |
 | `cosid.server.limits.max-ttl` | `1h` | the longest lease ttl |
 | `cosid.server.limits.max-tolerance` | `1m` | the largest tolerance |
@@ -27,7 +26,13 @@ properties ([runtime, stores, machine](basic.md), [generators](generators.md)): 
 | `cosid.server.blocking.threads` | `64` | the bounded pool the store calls run on |
 | `cosid.server.blocking.queue-capacity` | `1024` | calls that may wait; beyond it `503` with `Retry-After: 1` |
 | `cosid.server.ids.enabled` | `false` | the optional `/ids/**` endpoints; generators named `strings` or `periodic` are then refused |
+| `cosid.server.docs.public` | `false` | the OpenAPI document and Swagger UI need no token (added to `auth.public-paths`); their "Try it out" calls still do |
 
-The image's own defaults (`application.yaml`): `server.port: 8688`, the health probes on, and Actuator exposing
-`health`, `info`, `prometheus` and `cosid`. `cosid.namespace` defaults to `${spring.application.name}`
+A client token may use only the store primitives and `/ids/**` (under `spring.mvc.servlet.path`); every other path,
+Actuator and springdoc included, needs a token of `tokens`. The server refuses a `management.server.port` other than
+`server.port` unless it is anonymous. `auth.admin-paths` of 5.0.0-alpha.1 is gone: there is nothing to list any more.
+
+The image's own defaults (`application.yaml`): `server.port: 8688`, requests on virtual threads
+(`spring.threads.virtual.enabled: true`; `SPRING_THREADS_VIRTUAL_ENABLED=false` turns it off), the health probes on with
+the backing store in the readiness group, and Actuator exposing `health`, `info`, `prometheus` and `cosid`. `cosid.namespace` defaults to `${spring.application.name}`
 (`cosid-server`).

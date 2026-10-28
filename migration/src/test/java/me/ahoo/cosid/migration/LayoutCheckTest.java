@@ -65,6 +65,11 @@ class LayoutCheckTest {
         Layout cosid = new Layout(Layout.COSID_80.epoch(), Layout.COSID_80.unit(), 44, 20, 16, 7);
         assertThat(LayoutCheck.check("cosid", cosid, Layout.COSID_80, W).ok(), is(true));
         assertThat(LayoutCheck.sameIdSpace(cosid, Layout.COSID_80.withNodeBits(19)), is(false));
+        // Each part of the id space counts.
+        assertThat(LayoutCheck.sameIdSpace(Layout.SNOWFLAKE_MS, LayoutCheck.snowflake(0, false, 41, 10, 12)), is(false));
+        assertThat(LayoutCheck.sameIdSpace(Layout.SNOWFLAKE_MS, LayoutCheck.snowflake(Layout.COSID_EPOCH.toEpochMilli(), true, 41, 10, 12)), is(false));
+        assertThat(LayoutCheck.sameIdSpace(Layout.SNOWFLAKE_MS, LayoutCheck.snowflake(Layout.COSID_EPOCH.toEpochMilli(), false, 40, 10, 12)), is(false));
+        assertThat(LayoutCheck.sameIdSpace(Layout.SNOWFLAKE_MS, LayoutCheck.snowflake(Layout.COSID_EPOCH.toEpochMilli(), false, 41, 10, 13)), is(false));
     }
 
     @Test

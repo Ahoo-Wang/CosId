@@ -180,7 +180,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         // Step 2: the preferred slot.
         Candidate preferredCandidate = candidates.get(preferred);
         if (preferredCandidate != null && preferredCandidate.free) {
-            SlotLease lease = take(session, namespace, owner, ns, ttlMillis, preferredCandidate);
+            SlotLease lease = take(session, namespace, owner, incarnation, ns, ttlMillis, preferredCandidate);
             if (lease != null) {
                 return AcquireResult.Acquired.builder(lease, AcquireReason.PREFERRED).duplicateOwnerKey(duplicate).build();
             }
@@ -188,7 +188,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         // Step 3: a free slot the owner key held last, lowest first.
         for (Candidate candidate : candidates.values()) {
             if (candidate.free && owner.key().equals(candidate.lastOwnerKey)) {
-                SlotLease lease = take(session, namespace, owner, ns, ttlMillis, candidate);
+                SlotLease lease = take(session, namespace, owner, incarnation, ns, ttlMillis, candidate);
                 if (lease != null) {
                     return AcquireResult.Acquired.builder(lease, AcquireReason.STICKY).duplicateOwnerKey(duplicate).build();
                 }
@@ -209,7 +209,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
             Collections.shuffle(free.subList(1, free.size()), ThreadLocalRandom.current());
         }
         for (Candidate candidate : free) {
-            SlotLease lease = take(session, namespace, owner, ns, ttlMillis, candidate);
+            SlotLease lease = take(session, namespace, owner, incarnation, ns, ttlMillis, candidate);
             if (lease != null) {
                 return AcquireResult.Acquired.builder(lease, AcquireReason.LOWEST).duplicateOwnerKey(duplicate).build();
             }
@@ -264,13 +264,13 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
      *
      * @return the lease, or null if the row changed since the read
      */
-    private SlotLease take(JdbcSession session, String namespace, Owner owner, Namespace ns, long ttlMillis, Candidate candidate) throws SQLException {
+    private SlotLease take(JdbcSession session, String namespace, Owner owner, String incarnation, Namespace ns, long ttlMillis, Candidate candidate) throws SQLException {
         long floor = candidate.nextFloor;
         long expiresAt = candidate.storeNow + ttlMillis;
         long ceiling = Math.max(expiresAt + ns.toleranceMillis, floor);
         try (PreparedStatement update = session.prepare(takeSql)) {
             update.setString(1, owner.key());
-            update.setString(2, owner.incarnation().toString());
+            update.setString(2, incarnation);
             update.setString(3, owner.key());
             update.setLong(4, candidate.fence + 1);
             update.setLong(5, expiresAt);
@@ -366,10 +366,11 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         try (PreparedStatement select = session.prepare(currentSql)) {
             select.setString(1, lease.namespace());
             select.setInt(2, lease.slot());
-            select.setString(3, lease.owner().incarnation().toString());
+            String incarnation = lease.owner().incarnation().toString();
+            select.setString(3, incarnation);
             select.setLong(4, lease.fence());
             try (ResultSet rs = select.executeQuery()) {
-                return rs.next() ? new Current(rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4)) : null;
+                return rs.next() ? new Current(incarnation, rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4)) : null;
             }
         }
     }
@@ -377,7 +378,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
     private static void bindCurrent(PreparedStatement update, int from, SlotLease lease, Current current) throws SQLException {
         update.setString(from, lease.namespace());
         update.setInt(from + 1, lease.slot());
-        update.setString(from + 2, lease.owner().incarnation().toString());
+        update.setString(from + 2, current.incarnation);
         update.setLong(from + 3, lease.fence());
         update.setLong(from + 4, current.expiresAt);
         update.setLong(from + 5, current.ceiling);
@@ -545,7 +546,8 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
     private record Namespace(int limit, long toleranceMillis, int slotOffset) {
     }
 
-    private record Current(long expiresAt, long floor, long ceiling, long storeNow) {
+    /** The row of a lease; {@code incarnation} is the lease's, as text, converted once per call. */
+    private record Current(String incarnation, long expiresAt, long floor, long ceiling, long storeNow) {
     }
 
 }

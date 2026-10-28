@@ -26,6 +26,10 @@ public final class Radix implements IdCodec {
 
     private static final byte[] DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".getBytes(StandardCharsets.ISO_8859_1);
     private static final byte[] VALUES = new byte['z' + 1];
+    private static final byte[] HIGH_62 = pairDigits(62, true);
+    private static final byte[] LOW_62 = pairDigits(62, false);
+    private static final byte[] HIGH_36 = pairDigits(36, true);
+    private static final byte[] LOW_36 = pairDigits(36, false);
 
     static {
         Arrays.fill(VALUES, (byte) -1);
@@ -142,11 +146,43 @@ public final class Radix implements IdCodec {
     static int writeDigits(byte[] buf, int end, int radix, long value) {
         // A constant radix per case: once inlined, each division becomes a multiplication.
         return switch (radix) {
-            case 62 -> write(buf, end, 62, value);
-            case 36 -> write(buf, end, 36, value);
+            case 62 -> writePairs(buf, end, 62, HIGH_62, LOW_62, value);
+            case 36 -> writePairs(buf, end, 36, HIGH_36, LOW_36, value);
             case 10 -> write(buf, end, 10, value);
             default -> write(buf, end, radix, value);
         };
+    }
+
+    /**
+     * Two digits per division by {@code radix^2}, as {@code Long.toString} does with 100: half the long divisions.
+     */
+    private static int writePairs(byte[] buf, int end, int radix, byte[] high, byte[] low, long value) {
+        int at = end;
+        int square = radix * radix;
+        // The value >= square guard bounds value % square to [0, square), the length of both tables.
+        while (value >= square) {
+            int pair = (int) (value % square);
+            value /= square;
+            buf[--at] = low[pair];
+            buf[--at] = high[pair];
+        }
+        int last = (int) value;
+        buf[--at] = low[last];
+        if (last >= radix) {
+            buf[--at] = high[last];
+        }
+        return at;
+    }
+
+    /**
+     * The digit tables of {@link #writePairs}: for each {@code pair} below {@code radix^2}, its high or low digit.
+     */
+    private static byte[] pairDigits(int radix, boolean high) {
+        byte[] digits = new byte[radix * radix];
+        for (int pair = 0; pair < digits.length; pair++) {
+            digits[pair] = DIGITS[high ? pair / radix : pair % radix];
+        }
+        return digits;
     }
 
     private static int write(byte[] buf, int end, int radix, long value) {

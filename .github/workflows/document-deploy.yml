@@ -13,9 +13,9 @@
 
 name: Documentation Build and Deploy
 # The site documents released versions: it is built from a release tag, and pages show that version.
+# Manual dispatch only (E-M1, D33): once 5.0 is GA the site documents 5.0, and a 4.x patch release must not overwrite it.
+# Until 5.0 GA, run this workflow by hand with the 4.x tag when the 4.x site needs an update.
 on:
-  release:
-    types: [ released ]
   workflow_dispatch:
     inputs:
       ref:
@@ -41,7 +41,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.release.tag_name || inputs.ref }}
+          ref: ${{ inputs.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6

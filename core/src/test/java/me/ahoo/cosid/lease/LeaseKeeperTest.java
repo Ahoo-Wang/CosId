@@ -259,6 +259,30 @@ class LeaseKeeperTest {
     }
 
     @Test
+    void aZeroAcquireTimeoutTriesOnce() {
+        hold("host-x", 1, Duration.ofSeconds(5), OptionalInt.empty());
+        hold("host-y", 1, Duration.ofSeconds(8), OptionalInt.empty());
+        LeaseKeeper keeper = keeper(store, owner("host-a"), 1, Duration.ZERO, tasks::add, clock);
+        CosIdException error = assertThrows(CosIdException.class, keeper::start);
+        assertThat(error.getMessage(), containsString("within PT0S: every slot is held"));
+        // No wait for the expiry at 5s.
+        assertThat(clock.currentMillis(), lessThan(START + 5_000));
+        assertThat(tasks.isEmpty(), is(true));
+    }
+
+    @Test
+    void aLongerAcquireTimeoutWaitsForALaterExpiry() {
+        hold("host-x", 1, Duration.ofSeconds(50), OptionalInt.empty());
+        hold("host-y", 1, Duration.ofSeconds(80), OptionalInt.empty());
+        // The default (the 30s ttl) gives up before the first expiry at 50s; 60s waits for it.
+        LeaseKeeper keeper = keeper(store, owner("host-a"), 1, Duration.ofSeconds(60), tasks::add, clock);
+        keeper.start();
+        assertThat(keeper.current().isValid(), is(true));
+        assertThat(clock.currentMillis(), greaterThan(START + 50_000));
+        keeper.close();
+    }
+
+    @Test
     void startRetriesStoreErrorsAndPropagatesANamespaceMismatch() {
         faults.once(Operation.ACQUIRE, new Fault.Fail(() -> new CosIdException("down")));
         LeaseKeeper keeper = keeper(2);

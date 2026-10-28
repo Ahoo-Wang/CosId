@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.codec.DatePrefix;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.segment.Period;
@@ -35,8 +36,11 @@ import me.ahoo.cosid.time.Layout;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 
 class RuntimeSpecValidationTest {
     final TestStores memory = new TestStores("memory");
@@ -171,5 +175,62 @@ class RuntimeSpecValidationTest {
         assertThat(message, containsString("generator [a/b]: the name must not be blank nor contain '/'"));
         assertThat(message, containsString("generator [ ]: the name must not be blank nor contain '/'"));
         assertThat(message, containsString("clients: [typo] is not a store of the spec"));
+    }
+
+    @Test
+    void cosId80LayoutsAreChecked() {
+        Layout narrow = new Layout(Instant.EPOCH, ChronoUnit.MILLIS, 41, 10, 12, 0);
+        Layout otherEpoch = new Layout(Layout.COSID_EPOCH, ChronoUnit.MILLIS, 44, 20, 16, 0);
+        Layout seconds = new Layout(Instant.EPOCH, ChronoUnit.SECONDS, 44, 20, 16, 0);
+        Layout fewNodes = new Layout(Instant.EPOCH, ChronoUnit.MILLIS, 44, 8, 28, 0);
+        String message = problems(RuntimeSpec.builder("app")
+            .store("m", store("memory"))
+            .machine(leased("m"))
+            .generator("narrow", GeneratorSpec.CosId80.builder().layout(narrow).build())
+            .generator("epoch", GeneratorSpec.CosId80.builder().layout(otherEpoch).build())
+            .generator("seconds", GeneratorSpec.CosId80.builder().layout(seconds).build())
+            .generator("nodes", GeneratorSpec.CosId80.builder().layout(fewNodes).build())
+            .build());
+        assertThat(message, containsString("generator [narrow]: a cosid80 layout must be wider than a long, not 63 bits: it fits a long, use snowflake"));
+        assertThat(message, containsString("generator [epoch]: a cosid80 layout keeps the Unix epoch and milliseconds, not " + Layout.COSID_EPOCH));
+        assertThat(message, containsString("generator [seconds]: a cosid80 layout keeps the Unix epoch and milliseconds, not 1970-01-01T00:00:00Z in Seconds"));
+        assertThat(message, containsString("generator [nodes]: the layout has 8 node bits, fewer than machine.bits 10"));
+    }
+
+    @Test
+    void anEpochInTheFutureFailsTheStart() {
+        Layout future = new Layout(Instant.now().plus(Duration.ofDays(1)).truncatedTo(ChronoUnit.MILLIS), ChronoUnit.MILLIS, 41, 10, 12, 0);
+        String message = problems(RuntimeSpec.builder("app")
+            .store("m", store("memory"))
+            .machine(leased("m"))
+            .generator("later", snowflake(future))
+            .build());
+        assertThat(message, containsString("generator [later]: the epoch " + future.epoch() + " is in the future"));
+    }
+
+    @Test
+    void customGeneratorsAreChecked() {
+        String message = problems(RuntimeSpec.builder("app")
+            .generator("missing", GeneratorSpec.Custom.builder("nowhere").build())
+            .generator("friendly", GeneratorSpec.Instance.builder(() -> 1).codec(List.of(new CodecSpec.Friendly(ZoneOffset.UTC, true))).build())
+            .generator("date", GeneratorSpec.Custom.builder("ids")
+                .codec(List.of(new CodecSpec.Radix(62, 11, true), new CodecSpec.DatePrefix("yyMMdd", "-", DatePrefix.Source.ID_TIME, ZoneOffset.UTC)))
+                .build())
+            .build(), options(memory).toBuilder().generators(reference -> "ids".equals(reference) ? Optional.<IdGenerator>of(() -> 1) : Optional.empty()).build());
+        assertThat(message, containsString("generator [missing]: no generator [nowhere] to refer to"));
+        assertThat(message, containsString("generator [friendly]: A friendly codec needs a time-based generator"));
+        assertThat(message, containsString("generator [date]: A date prefix from the id time needs a time-based generator"));
+        // Custom generators need neither a store nor a machine slot.
+        assertThat(message.contains("machine"), is(false));
+    }
+
+    @Test
+    void acquireTimeoutMustNotBeNegative() {
+        String message = problems(RuntimeSpec.builder("app")
+            .store("m", store("memory"))
+            .machine(MachineSpec.Leased.builder("m").acquireTimeout(Duration.ofSeconds(-1)).build())
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS))
+            .build());
+        assertThat(message, containsString("machine: acquireTimeout must not be negative: PT-1S"));
     }
 }

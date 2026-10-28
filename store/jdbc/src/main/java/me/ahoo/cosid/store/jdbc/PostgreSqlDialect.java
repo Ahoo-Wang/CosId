@@ -62,12 +62,10 @@ final class PostgreSqlDialect implements JdbcDialect {
     }
 
     @Override
-    public boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
-        try (PreparedStatement insert = session.prepare("insert into " + session.tables().namespace()
-            + " (namespace, slot_limit, tolerance_ms) values (?, ?, ?) on conflict (namespace) do nothing")) {
-            insert.setString(1, namespace);
-            insert.setInt(2, limit);
-            insert.setLong(3, toleranceMillis);
+    public boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis, int slotOffset) throws SQLException {
+        try (PreparedStatement insert = session.prepare("insert into " + session.tables().namespace() + " " + JdbcDialects.namespaceInsert(slotOffset)
+            + " on conflict (namespace) do nothing")) {
+            JdbcDialects.bindNamespace(insert, namespace, limit, toleranceMillis, slotOffset);
             return insert.executeUpdate() > 0;
         }
     }

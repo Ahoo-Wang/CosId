@@ -28,7 +28,9 @@ import javax.sql.DataSource;
  * The JDBC store (06-stores.md §2.1): ranges and slot leases over a {@link DataSource}, which should be pooled. Every
  * statement carries the store timeout as its {@code queryTimeout}. Closing the store does not close the data source.
  *
- * <p>The tables are those of the dialect's {@code schema-*.sql}; {@link #initSchema()} creates them when missing.
+ * <p>The tables are those of the dialect's {@code schema-*.sql}; {@link #initSchema()} creates them when missing, and
+ * adds {@code cosid_namespace.slot_offset} to a table of 5.0.0-alpha.1. Without it, such a table still serves
+ * namespaces of slot offset 0.
  */
 public final class JdbcStore implements Store {
     private final Jdbc jdbc;
@@ -93,7 +95,9 @@ public final class JdbcStore implements Store {
     }
 
     /**
-     * Creates the tables that do not exist ({@code options.initSchema}); existing tables are left as they are.
+     * Creates the tables that do not exist ({@code options.initSchema}); existing tables are left as they are, except
+     * that a {@code cosid_namespace} of 5.0.0-alpha.1 gets the {@code slot_offset} column it lacks
+     * ({@link JdbcDialect#addColumn}; its rows read 0, the column default).
      *
      * @throws JdbcStoreException if a statement fails
      */
@@ -105,6 +109,7 @@ public final class JdbcStore implements Store {
                     statement.execute(ddl);
                 }
             }
+            slots.addMissingColumns(session);
             return null;
         });
     }

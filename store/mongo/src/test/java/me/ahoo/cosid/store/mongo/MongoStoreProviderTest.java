@@ -82,7 +82,7 @@ class MongoStoreProviderTest {
             Optional.of(MongoTestSupport.client())))) {
             assertEquals(new Range(0, 10), store.ranges().reserve(key, 10, 0));
             assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire("provider-" + UUID.randomUUID(),
-                new Owner("host-a", UUID.randomUUID()), 4, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty()));
+                new Owner("host-a", UUID.randomUUID()), 4, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
         }
         Document stored = MongoTestSupport.database().getCollection(MongoRangeStore.COLLECTION).find(Filters.eq(MongoRangeStore.ID, key)).first();
         assertEquals(10L, stored.getLong(MongoRangeStore.NEXT), "the injected client is still open, on the configured database");

@@ -27,7 +27,8 @@ import java.util.Objects;
  *     <caption>details keys</caption>
  *     <tr><th>strategy</th><th>keys</th></tr>
  *     <tr><td>{@code snowflake}, {@code cosid80}</td><td>{@code epoch unit timeBits nodeBits seqBits lastIssuedMillis slot floor
- *         ceiling slotValid}</td></tr>
+ *         ceiling slotValid node machine machineNamespace} ({@code node} is the slot plus the slot offset, the node the ids
+ *         carry)</td></tr>
  *     <tr><td>{@code segment}</td><td>{@code key step maxBatch lookahead reserveTimeout batch held}</td></tr>
  *     <tr><td>{@code periodic-segment}</td><td>those of {@code segment}, and {@code zone prewarm sealAfter period}</td></tr>
  *     <tr><td>{@code custom}</td><td>{@code class}</td></tr>

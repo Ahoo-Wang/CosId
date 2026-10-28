@@ -51,7 +51,9 @@ import java.util.stream.IntStream;
  * {@link SlotLeaseStore} on ZooKeeper (06-stores.md §2.4).
  *
  * <ul>
- *     <li>{@code /cosid/slot/{ns}}: the namespace metadata {@code limit} and {@code tolerance}, recorded on first use;</li>
+ *     <li>{@code /cosid/slot/{ns}}: the namespace metadata {@code limit}, {@code tolerance} and {@code slotOffset} as
+ *     {@code name=value} lines, recorded on first use; a node without the {@code slotOffset} line (5.0.0-alpha.1) has
+ *     offset {@code 0};</li>
  *     <li>{@code /cosid/slot/{ns}/{slot}}: a slot, {@link SlotState}; created by its first acquire, never deleted;</li>
  *     <li>{@code /cosid/slot/{ns}/.clock}: written by every acquire, its {@code mtime} is the {@code now} of the
  *     expiry check;</li>
@@ -107,11 +109,14 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
     }
 
     @Override
-    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
         Objects.requireNonNull(owner, "owner");
         Objects.requireNonNull(preferredSlot, "preferredSlot");
         if (limit < 1) {
             throw new IllegalArgumentException("limit must be positive: " + limit);
+        }
+        if (slotOffset < 0) {
+            throw new IllegalArgumentException("slotOffset must not be negative: " + slotOffset);
         }
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
@@ -119,7 +124,7 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
         String ownerPath = ownerPath(namespace, owner.key());
         String what = "acquire " + nsPath;
         long deadline = zk.deadline();
-        checkMetadata(namespace, nsPath, new Metadata(limit, toleranceMillis), deadline);
+        checkMetadata(namespace, nsPath, new Metadata(limit, toleranceMillis, slotOffset), deadline);
         Request request = new Request(namespace, nsPath, ownerPath, owner, limit, ttlMillis, toleranceMillis, deadline);
         for (int attempt = 0; ; attempt++) {
             // The clock write and the index read go out together; ZooKeeper answers them in order, one round trip.
@@ -369,8 +374,8 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
             namespaces.putIfAbsent(namespace, known);
         }
         if (!known.equals(expected)) {
-            throw new NamespaceMismatchException(namespace, "first used with limit " + known.limit + " and tolerance " + known.toleranceMillis
-                + "ms, now " + expected.limit + " and " + expected.toleranceMillis + "ms");
+            throw new NamespaceMismatchException(namespace, "first used with limit " + known.limit + ", tolerance " + known.toleranceMillis
+                + "ms and slot offset " + known.slotOffset + ", now " + expected.limit + ", " + expected.toleranceMillis + "ms and " + expected.slotOffset);
         }
     }
 
@@ -599,10 +604,13 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
         }
     }
 
-    /** The namespace metadata (06 §1). */
-    private record Metadata(int limit, long toleranceMillis) {
+    /**
+     * The namespace metadata (06 §1). The {@code slotOffset} line was appended after 5.0.0-alpha.1, whose parser skips
+     * unknown lines; a node written without it has offset {@code 0}.
+     */
+    private record Metadata(int limit, long toleranceMillis, int slotOffset) {
         byte[] bytes() {
-            return ("limit=" + limit + "\ntolerance=" + toleranceMillis + "\n").getBytes(StandardCharsets.US_ASCII);
+            return ("limit=" + limit + "\ntolerance=" + toleranceMillis + "\nslotOffset=" + slotOffset + "\n").getBytes(StandardCharsets.US_ASCII);
         }
 
         static Metadata parse(String path, byte[] data) {
@@ -611,12 +619,15 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
             }
             Integer limit = null;
             Long tolerance = null;
+            int slotOffset = 0;
             try {
                 for (String line : new String(data, StandardCharsets.US_ASCII).split("\n")) {
                     if (line.startsWith("limit=")) {
                         limit = Integer.parseInt(line.substring("limit=".length()));
                     } else if (line.startsWith("tolerance=")) {
                         tolerance = Long.parseLong(line.substring("tolerance=".length()));
+                    } else if (line.startsWith("slotOffset=")) {
+                        slotOffset = Integer.parseInt(line.substring("slotOffset=".length()));
                     }
                 }
             } catch (NumberFormatException e) {
@@ -625,7 +636,7 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
             if (limit == null || tolerance == null) {
                 throw new CosIdException("Namespace node " + path + " is unreadable: " + new String(data, StandardCharsets.US_ASCII));
             }
-            return new Metadata(limit, tolerance);
+            return new Metadata(limit, tolerance, slotOffset);
         }
     }
 }

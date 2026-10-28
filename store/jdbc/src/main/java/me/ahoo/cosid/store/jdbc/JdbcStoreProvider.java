@@ -28,7 +28,8 @@ import javax.sql.DataSource;
  * <ul>
  *     <li>{@code dialect}: the dialect name ({@code mysql}, {@code mariadb}, {@code postgresql}, {@code sqlserver},
  *     {@code h2} or one registered as a {@link JdbcDialect}); detected from the database by default;</li>
- *     <li>{@code initSchema}: create the tables that are missing, false by default;</li>
+ *     <li>{@code initSchema}: create the tables that are missing, and the columns that tables of an earlier 5.0
+ *     pre-release lack, false by default;</li>
  *     <li>{@code rangeTable}, {@code slotTable}, {@code namespaceTable}: the table names ({@link JdbcTables}).</li>
  * </ul>
  * {@code StoreConfig.timeout} is the {@code queryTimeout} of every statement.

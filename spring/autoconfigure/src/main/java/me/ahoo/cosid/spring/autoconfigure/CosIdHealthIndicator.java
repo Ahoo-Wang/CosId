@@ -25,21 +25,24 @@ import org.springframework.boot.health.contributor.HealthIndicator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.LongSupplier;
 
 /**
- * The machine slot's health (07 §4.2), replacing the 4.x {@code MachineIdHealthIndicator}: {@code DOWN} when the lease
- * was lost and not acquired again, or when a time-based generator's slot binding is no longer valid; otherwise
- * {@code UP}. Details: the slot, owner, fence, expiry and window ceiling with the milliseconds left, and the renewals
- * failed in a row with the last error. Without a time-based generator there is no slot, and it is {@code UP}.
+ * The health of the machine slots (07 §4.2, api-freeze.md §2.4), replacing the 4.x {@code MachineIdHealthIndicator}:
+ * {@code DOWN} when a started machine lost its lease and did not acquire it again, or when the slot binding of a
+ * time-based generator on it is no longer valid; otherwise {@code UP}. The details are
+ * {@code machines: {<name>: {namespace, slot, valid, owner, fence, expiresAt, expiresInMillis, ceiling,
+ * windowRemainingMillis, lost, renewFailures, lastRenewError}}}, one entry per started machine ({@code default} for the
+ * default one; the lease fields only for a leased one). Without a time-based generator no machine starts: the details
+ * are empty and it is {@code UP}.
  */
 public class CosIdHealthIndicator implements HealthIndicator, GeneratorListener {
     private final ObjectProvider<CosIdRuntime> runtime;
     private final LongSupplier clock;
-    private final AtomicInteger renewFailures = new AtomicInteger();
-    private volatile Throwable lastRenewError;
-    private volatile boolean lost;
+    /** The renewal state of each machine, by the namespace of its slot, unique in a runtime. */
+    private final Map<String, LeaseState> states = new ConcurrentHashMap<>();
 
     public CosIdHealthIndicator(ObjectProvider<CosIdRuntime> runtime) {
         this(runtime, System::currentTimeMillis);
@@ -50,70 +53,92 @@ public class CosIdHealthIndicator implements HealthIndicator, GeneratorListener 
         this.clock = clock;
     }
 
+    /** What the listener learned about the lease of one namespace. */
+    private static final class LeaseState {
+        private volatile boolean lost;
+        private final AtomicInteger renewFailures = new AtomicInteger();
+        private volatile Throwable lastRenewError;
+    }
+
+    private LeaseState state(String namespace) {
+        return states.computeIfAbsent(namespace, k -> new LeaseState());
+    }
+
     @Override
     public Health health() {
         CosIdRuntime current = runtime.getIfAvailable();
         if (current == null) {
             return Health.unknown().build();
         }
-        Map<String, Object> details = new LinkedHashMap<>();
-        boolean down = lost;
-        Optional<SlotLease> lease = current.slot();
-        long now = clock.getAsLong();
-        lease.ifPresent(held -> {
-            details.put("slot", held.slot());
-            details.put("owner", held.owner().key());
-            details.put("fence", held.fence());
-            details.put("expiresAt", held.expiresAt());
-            details.put("expiresInMillis", held.expiresAt() - now);
-            details.put("ceiling", held.ceiling());
-            details.put("windowRemainingMillis", held.ceiling() - now);
-        });
-        Map<String, Object> bindings = new LinkedHashMap<>();
-        for (Map.Entry<String, GeneratorInfo> entry : current.describe().entrySet()) {
-            Object valid = entry.getValue().details().get("slotValid");
-            if (valid != null) {
-                bindings.put(entry.getKey(), valid);
-                down |= Boolean.FALSE.equals(valid);
-                details.putIfAbsent("slot", entry.getValue().details().get("slot"));
+        Map<String, Map<String, Object>> machines = new LinkedHashMap<>();
+        boolean down = false;
+        // The generators tell the namespace, slot and validity of each machine they issue on.
+        for (GeneratorInfo info : current.describe().values()) {
+            Object machine = info.details().get("machine");
+            if (machine == null) {
+                continue;
             }
+            Map<String, Object> details = machines.computeIfAbsent(machine.toString(), k -> new LinkedHashMap<>());
+            details.putIfAbsent("namespace", info.details().get("machineNamespace"));
+            details.putIfAbsent("slot", info.details().get("slot"));
+            boolean valid = !Boolean.FALSE.equals(info.details().get("slotValid"));
+            details.merge("valid", valid, (a, b) -> (Boolean) a && (Boolean) b);
+            down |= !valid;
         }
-        if (details.isEmpty()) {
-            details.put("slot", "none");
+        long now = clock.getAsLong();
+        for (Map.Entry<String, Map<String, Object>> entry : machines.entrySet()) {
+            Map<String, Object> details = entry.getValue();
+            Optional<SlotLease> lease = current.slot(entry.getKey());
+            lease.ifPresent(held -> {
+                details.put("slot", held.slot());
+                details.put("owner", held.owner().key());
+                details.put("fence", held.fence());
+                details.put("expiresAt", held.expiresAt());
+                details.put("expiresInMillis", held.expiresAt() - now);
+                details.put("ceiling", held.ceiling());
+                details.put("windowRemainingMillis", held.ceiling() - now);
+            });
+            LeaseState state = states.get(String.valueOf(details.get("namespace")));
+            boolean lost = state != null && state.lost;
+            details.put("lost", lost);
+            details.put("renewFailures", state == null ? 0 : state.renewFailures.get());
+            Throwable error = state == null ? null : state.lastRenewError;
+            if (error != null) {
+                details.put("lastRenewError", error.getClass().getName() + ": " + error.getMessage());
+            }
+            down |= lost;
         }
-        if (!bindings.isEmpty()) {
-            details.put("slotValid", bindings);
+        Health.Builder health = down ? Health.down() : Health.up();
+        if (!machines.isEmpty()) {
+            health.withDetail("machines", machines);
         }
-        details.put("lost", lost);
-        details.put("renewFailures", renewFailures.get());
-        Throwable error = lastRenewError;
-        if (error != null) {
-            details.put("lastRenewError", error.getClass().getName() + ": " + error.getMessage());
-        }
-        return (down ? Health.down() : Health.up()).withDetails(details).build();
+        return health.build();
     }
 
     @Override
     public void onSlotAcquired(SlotLease lease, String reason) {
-        lost = false;
-        renewFailures.set(0);
-        lastRenewError = null;
+        LeaseState state = state(lease.namespace());
+        state.lost = false;
+        state.renewFailures.set(0);
+        state.lastRenewError = null;
     }
 
     @Override
     public void onSlotRenewed(SlotLease lease) {
-        renewFailures.set(0);
-        lastRenewError = null;
+        LeaseState state = state(lease.namespace());
+        state.renewFailures.set(0);
+        state.lastRenewError = null;
     }
 
     @Override
     public void onSlotRenewFailed(SlotLease lease, Throwable error) {
-        renewFailures.incrementAndGet();
-        lastRenewError = error;
+        LeaseState state = state(lease.namespace());
+        state.renewFailures.incrementAndGet();
+        state.lastRenewError = error;
     }
 
     @Override
     public void onSlotLost(SlotLease lease) {
-        lost = true;
+        state(lease.namespace()).lost = true;
     }
 }

@@ -36,6 +36,14 @@ public sealed interface MachineSpec {
     int bits();
 
     /**
+     * The namespace of the slot leases (D37): a machine shared by several services, such as the slot of a cosid80
+     * generator unique across them, names its own; every machine of a runtime has another namespace.
+     *
+     * @return the namespace; empty for the {@link RuntimeSpec#namespace()}
+     */
+    Optional<String> namespace();
+
+    /**
      * A slot leased from a store.
      */
     final class Leased implements MachineSpec {
@@ -44,8 +52,10 @@ public sealed interface MachineSpec {
         private final Duration ttl;
         private final Duration tolerance;
         private final Duration acquireTimeout;
+        private final int slotOffset;
         private final OptionalInt preferredSlot;
         private final Optional<String> ownerKey;
+        private final Optional<String> namespace;
 
         private Leased(Builder builder) {
             this.store = builder.store;
@@ -53,6 +63,8 @@ public sealed interface MachineSpec {
             this.ttl = builder.ttl;
             this.tolerance = builder.tolerance;
             this.acquireTimeout = builder.acquireTimeout == null ? builder.ttl : builder.acquireTimeout;
+            this.slotOffset = builder.slotOffset;
+            this.namespace = Optional.ofNullable(builder.namespace);
             this.preferredSlot = builder.preferredSlot;
             this.ownerKey = Optional.ofNullable(builder.ownerKey);
         }
@@ -115,6 +127,18 @@ public sealed interface MachineSpec {
         }
 
         /**
+         * Added to the slot to give the node of the ids (api-freeze.md §2.1.1): the nodes of this machine are
+         * {@code [slotOffset, slotOffset + 2^bits)}, apart from the 4.x machine ids below it during a rolling
+         * migration. The store keeps the slots {@code [0, 2^bits)} and records the offset; every client of the namespace
+         * must use the same one, and once used it never changes.
+         *
+         * @return the slot offset, not negative; default 0
+         */
+        public int slotOffset() {
+            return slotOffset;
+        }
+
+        /**
          * The slot to try first, such as a StatefulSet ordinal.
          *
          * @return the preferred slot; default none
@@ -133,21 +157,40 @@ public sealed interface MachineSpec {
         }
 
         @Override
+        public Optional<String> namespace() {
+            return namespace;
+        }
+
+        /**
+         * This machine in another namespace.
+         *
+         * @param namespace the namespace of the slot leases
+         * @return the machine
+         */
+        public Leased withNamespace(String namespace) {
+            Builder builder = new Builder(store).bits(bits).ttl(ttl).tolerance(tolerance).acquireTimeout(acquireTimeout).slotOffset(slotOffset)
+                .namespace(namespace);
+            preferredSlot.ifPresent(builder::preferredSlot);
+            ownerKey.ifPresent(builder::ownerKey);
+            return builder.build();
+        }
+
+        @Override
         public boolean equals(Object o) {
             return o instanceof Leased that && store.equals(that.store) && bits == that.bits && ttl.equals(that.ttl)
-                && tolerance.equals(that.tolerance) && acquireTimeout.equals(that.acquireTimeout) && preferredSlot.equals(that.preferredSlot)
-                && ownerKey.equals(that.ownerKey);
+                && tolerance.equals(that.tolerance) && acquireTimeout.equals(that.acquireTimeout) && slotOffset == that.slotOffset
+                && preferredSlot.equals(that.preferredSlot) && ownerKey.equals(that.ownerKey) && namespace.equals(that.namespace);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(store, bits, ttl, tolerance, acquireTimeout, preferredSlot, ownerKey);
+            return Objects.hash(store, bits, ttl, tolerance, acquireTimeout, slotOffset, preferredSlot, ownerKey, namespace);
         }
 
         @Override
         public String toString() {
             return "Leased[store=" + store + ", bits=" + bits + ", ttl=" + ttl + ", tolerance=" + tolerance + ", acquireTimeout=" + acquireTimeout
-                + ", preferredSlot=" + preferredSlot + ", ownerKey=" + ownerKey + "]";
+                + ", slotOffset=" + slotOffset + ", preferredSlot=" + preferredSlot + ", ownerKey=" + ownerKey + ", namespace=" + namespace + "]";
         }
 
         /**
@@ -159,8 +202,10 @@ public sealed interface MachineSpec {
             private Duration ttl = Duration.ofSeconds(30);
             private Duration tolerance = Duration.ofSeconds(1);
             private Duration acquireTimeout;
+            private int slotOffset;
             private OptionalInt preferredSlot = OptionalInt.empty();
             private String ownerKey;
+            private String namespace;
 
             private Builder(String store) {
                 this.store = Objects.requireNonNull(store, "store");
@@ -211,6 +256,18 @@ public sealed interface MachineSpec {
             }
 
             /**
+             * Sets the offset added to the slot to give the node of the ids (api-freeze.md §2.1.1); it never changes once
+             * used, and every client of the namespace uses the same one.
+             *
+             * @param slotOffset the offset, not negative; default 0
+             * @return this builder
+             */
+            public Builder slotOffset(int slotOffset) {
+                this.slotOffset = slotOffset;
+                return this;
+            }
+
+            /**
              * Sets the slot to try first, such as a StatefulSet ordinal.
              *
              * @param preferredSlot the slot; default none
@@ -229,6 +286,17 @@ public sealed interface MachineSpec {
              */
             public Builder ownerKey(String ownerKey) {
                 this.ownerKey = Objects.requireNonNull(ownerKey, "ownerKey");
+                return this;
+            }
+
+            /**
+             * Sets the namespace of the slot leases (D37).
+             *
+             * @param namespace the namespace; default the {@link RuntimeSpec#namespace()}
+             * @return this builder
+             */
+            public Builder namespace(String namespace) {
+                this.namespace = Objects.requireNonNull(namespace, "namespace");
                 return this;
             }
 
@@ -252,6 +320,7 @@ public sealed interface MachineSpec {
         private final Optional<Path> stateFile;
         private final Duration ahead;
         private final Optional<Instant> notBefore;
+        private final Optional<String> namespace;
 
         private Static(Builder builder) {
             this.bits = builder.bits;
@@ -259,6 +328,7 @@ public sealed interface MachineSpec {
             this.stateFile = Optional.ofNullable(builder.stateFile);
             this.ahead = builder.ahead;
             this.notBefore = Optional.ofNullable(builder.notBefore);
+            this.namespace = Optional.ofNullable(builder.namespace);
         }
 
         /**
@@ -318,19 +388,38 @@ public sealed interface MachineSpec {
         }
 
         @Override
+        public Optional<String> namespace() {
+            return namespace;
+        }
+
+        /**
+         * This machine in another namespace.
+         *
+         * @param namespace the namespace
+         * @return the machine
+         */
+        public Static withNamespace(String namespace) {
+            Builder builder = new Builder(slot).bits(bits).ahead(ahead).namespace(namespace);
+            stateFile.ifPresent(builder::stateFile);
+            notBefore.ifPresent(builder::notBefore);
+            return builder.build();
+        }
+
+        @Override
         public boolean equals(Object o) {
             return o instanceof Static that && bits == that.bits && slot == that.slot && stateFile.equals(that.stateFile)
-                && ahead.equals(that.ahead) && notBefore.equals(that.notBefore);
+                && ahead.equals(that.ahead) && notBefore.equals(that.notBefore) && namespace.equals(that.namespace);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(bits, slot, stateFile, ahead, notBefore);
+            return Objects.hash(bits, slot, stateFile, ahead, notBefore, namespace);
         }
 
         @Override
         public String toString() {
-            return "Static[bits=" + bits + ", slot=" + slot + ", stateFile=" + stateFile + ", ahead=" + ahead + ", notBefore=" + notBefore + "]";
+            return "Static[bits=" + bits + ", slot=" + slot + ", stateFile=" + stateFile + ", ahead=" + ahead + ", notBefore=" + notBefore
+                + ", namespace=" + namespace + "]";
         }
 
         /**
@@ -342,6 +431,7 @@ public sealed interface MachineSpec {
             private Path stateFile;
             private Duration ahead = Duration.ofSeconds(10);
             private Instant notBefore;
+            private String namespace;
 
             private Builder(int slot) {
                 this.slot = slot;
@@ -388,6 +478,18 @@ public sealed interface MachineSpec {
              */
             public Builder notBefore(Instant notBefore) {
                 this.notBefore = Objects.requireNonNull(notBefore, "notBefore");
+                return this;
+            }
+
+            /**
+             * Sets the namespace the machine belongs to (D37); a static machine leases nothing, but its namespace tells
+             * the machines of a runtime apart in events, metrics and health.
+             *
+             * @param namespace the namespace; default the {@link RuntimeSpec#namespace()}
+             * @return this builder
+             */
+            public Builder namespace(String namespace) {
+                this.namespace = Objects.requireNonNull(namespace, "namespace");
                 return this;
             }
 

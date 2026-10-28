@@ -28,7 +28,7 @@ the data source.
 |---|---|---|
 | `url`, `username`, `password` | | the connection, when there is no `DataSource` client |
 | `dialect` | detected | `mysql`, `mariadb`, `postgresql`, `sqlserver`, `h2` or a registered dialect |
-| `initSchema` | `false` | create the tables that are missing |
+| `initSchema` | `false` | create the tables that are missing, and add `cosid_namespace.slot_offset` to a table of 5.0.0-alpha.1 |
 | `rangeTable`, `slotTable`, `namespaceTable` | `cosid_range`, `cosid_slot`, `cosid_namespace` | table names: identifiers, optionally schema-qualified |
 
 `StoreConfig.timeout` is the `queryTimeout` of every statement, rounded up to seconds (zero: none); a statement that
@@ -41,6 +41,16 @@ compare-and-set loop is still losing races when the timeout has passed. In code:
 
 `src/main/resources/me/ahoo/cosid/store/jdbc/schema-{mysql,mariadb,postgresql,sqlserver,h2}.sql`, runnable as they
 are for the default names. Rows are never deleted (D23): a sealed range key keeps its value.
+
+`cosid_namespace (namespace, slot_limit, tolerance_ms, slot_offset)` records the parameters of a namespace on its first
+use. `slot_offset integer not null default 0` came after 5.0.0-alpha.1, whose `cosid_namespace` lacks it (and
+`create table if not exists` does not add it):
+
+- with `initSchema`, the store adds it (`alter table cosid_namespace add column slot_offset integer not null default 0`;
+  SQL Server: `add slot_offset …`, without `column`); existing namespaces read offset 0;
+- without, the store detects the missing column once (`DatabaseMetaData.getColumns`) and keeps working for slot offset
+  0: the offset reads as 0 and new namespaces are recorded without the column. A slot offset other than 0 then fails
+  with an `IllegalStateException` that names the `alter table` to run.
 
 Keys are exact, as on every other backend: range keys, namespaces and owner keys that differ only in case or in a
 trailing space are different keys. The key columns therefore use binary collations that keep trailing spaces
@@ -57,8 +67,9 @@ let it share the row of the key without it.
   PostgreSQL (`on conflict … returning`) and SQL Server (`merge … with (holdlock) … output`); H2 merges and reads in a
   transaction. The update branch stops at `Long.MAX_VALUE` (`RangeExhaustedException`) and at a sealed key
   (`RangeSealedException`).
-- **acquire**: the first use of a namespace records `{limit, tolerance}` and creates its `limit` slot rows. Then one
-  non-locking read returns the candidates (the rows of the owner key, the preferred slot, the first 8 free slots) with
+- **acquire**: the first use of a namespace records `{limit, tolerance, slotOffset}` and creates its `limit` slot
+  rows (the offset does not change the slot choice); another use with other parameters fails with
+  `NamespaceMismatchException`. Then one non-locking read returns the candidates (the rows of the owner key, the preferred slot, the first 8 free slots) with
   the store clock, and each step of 05 §2.1 is one auto-commit compare-and-set `update … where namespace = ? and slot =
   ? and fence = ? and next_floor_ms = ? and (free by the store clock)`; 0 rows moves on to the next candidate. After
   losing the lowest free slot to a concurrent acquire, the store picks a random one of the other candidates. Two round

@@ -100,9 +100,9 @@ class RedisStoreProviderTest {
         try (RedisStore store = new RedisStore(unexpected)) {
             assertThrows(IllegalArgumentException.class, () -> store.reserve("k", 0, 0));
             assertThrows(IllegalArgumentException.class, () -> store.reserve("k", 1, -1));
-            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 0, TTL, TOLERANCE, OptionalInt.empty()));
-            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 1, Duration.ZERO, TOLERANCE, OptionalInt.empty()));
-            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 1, TTL, Duration.ofSeconds(-1), OptionalInt.empty()));
+            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 0, TTL, TOLERANCE, 0, OptionalInt.empty()));
+            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 1, Duration.ZERO, TOLERANCE, 0, OptionalInt.empty()));
+            assertThrows(IllegalArgumentException.class, () -> store.acquire("ns", OWNER, 1, TTL, Duration.ofSeconds(-1), 0, OptionalInt.empty()));
             SlotLease lease = SlotLease.builder()
                 .namespace("ns")
                 .slot(0)
@@ -114,7 +114,7 @@ class RedisStoreProviderTest {
                 .storeNow(0)
                 .build();
             assertThrows(RedisStoreException.class, () -> store.reserve("k", 1, 0));
-            assertThrows(RedisStoreException.class, () -> store.acquire("ns", OWNER, 1, TTL, TOLERANCE, OptionalInt.empty()));
+            assertThrows(RedisStoreException.class, () -> store.acquire("ns", OWNER, 1, TTL, TOLERANCE, 0, OptionalInt.empty()));
             assertThrows(RedisStoreException.class, () -> store.renew(lease, TTL, TOLERANCE));
             assertThrows(RedisStoreException.class, () -> store.release(lease, 0));
         }
@@ -162,7 +162,7 @@ class RedisStoreProviderTest {
     void acquireReportsExhaustedWithTheEarliestExpiry() {
         RedisScripts exhausted = (sha, script, keys, args) -> List.of("exhausted", "1234");
         try (RedisStore store = new RedisStore(exhausted)) {
-            assertEquals(new AcquireResult.Exhausted(1234), store.acquire("ns", OWNER, 1, TTL, TOLERANCE, OptionalInt.of(0)));
+            assertEquals(new AcquireResult.Exhausted(1234), store.acquire("ns", OWNER, 1, TTL, TOLERANCE, 0, OptionalInt.of(0)));
         }
     }
 }

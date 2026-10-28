@@ -53,7 +53,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * {@link SlotLeaseStore} on the {@code cosid_slot} collection (06-stores.md §2.3): one document per slot,
  * {@code {ns, slot, ownerKey, incarnation, lastOwnerKey, fence, expiresAt, floor, ceiling, nextFloor, writtenAt}}, unique
  * on {@code (ns, slot)}, with every slot of a namespace created on its first use; the namespace parameters live in
- * {@code cosid_namespace}, {@code {_id: ns, limit, toleranceMs}}.
+ * {@code cosid_namespace}, {@code {_id: ns, limit, toleranceMs, slotOffset}}. A namespace document written by 5.0.0-alpha.1 has no
+ * {@code slotOffset}: it reads as offset 0 and is never rewritten.
  *
  * <p>An acquire first reads the slots the owner key holds or held last (one aggregation, with {@code $$NOW}): that
  * answers the idempotent step and the duplicate key check and names the sticky candidates. Each step that takes a slot
@@ -82,6 +83,8 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     private static final String READ_AT = "readAt";
     static final String LIMIT = "limit";
     static final String TOLERANCE_MS = "toleranceMs";
+    /** Appended after 5.0.0-alpha.1: a namespace document without it was first used with offset 0. */
+    static final String SLOT_OFFSET = "slotOffset";
     /** The store clock: {@code $$NOW} in epoch milliseconds. */
     private static final Document NOW = new Document("$toLong", "$$NOW");
     /** Free: nobody holds the slot, or the lease expired (§2.1). Released slots keep an explicit null incarnation. */
@@ -143,20 +146,23 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     }
 
     @Override
-    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-        return MongoStore.timed("acquire", () -> acquireNow(namespace, owner, limit, ttl, tolerance, preferredSlot));
+    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+        return MongoStore.timed("acquire", () -> acquireNow(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot));
     }
 
-    private AcquireResult acquireNow(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+    private AcquireResult acquireNow(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
         Objects.requireNonNull(namespace, "namespace");
         Objects.requireNonNull(owner, "owner");
         Objects.requireNonNull(preferredSlot, "preferredSlot");
         if (limit < 1) {
             throw new IllegalArgumentException("limit must be positive: " + limit);
         }
+        if (slotOffset < 0) {
+            throw new IllegalArgumentException("slotOffset must not be negative: " + slotOffset);
+        }
         final long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
-        ensureNamespace(namespace, new NamespaceParams(limit, toleranceMillis));
+        ensureNamespace(namespace, new NamespaceParams(limit, toleranceMillis, slotOffset));
         final Bson inNamespace = Filters.and(Filters.eq(NS, namespace), Filters.lt(SLOT, limit));
         String incarnation = owner.incarnation().toString();
 
@@ -306,8 +312,8 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
             }
         }
         if (!checked.equals(params)) {
-            throw new NamespaceMismatchException(namespace, "first used with limit " + checked.limit() + " and tolerance "
-                + checked.toleranceMillis() + "ms, now " + params.limit() + " and " + params.toleranceMillis() + "ms");
+            throw new NamespaceMismatchException(namespace, "first used with limit " + checked.limit() + ", tolerance " + checked.toleranceMillis()
+                + "ms and slot offset " + checked.slotOffset() + ", now " + params.limit() + ", " + params.toleranceMillis() + "ms and " + params.slotOffset());
         }
     }
 
@@ -322,11 +328,14 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     /**
      * Records the parameters of a new namespace, or reads those it was first used with. Concurrent first uses race on
      * the {@code _id} insert of the upsert, and the server does not retry the loser in every case: it gets {@code E11000},
-     * then reads the winner's document back (or upserts again, when that write is not majority-visible yet).
+     * then reads the winner's document back (or upserts again, when that write is not majority-visible yet). The
+     * {@code $setOnInsert} never touches an existing document, so one written by 5.0.0-alpha.1 keeps its shape and its
+     * missing {@code slotOffset} reads as 0.
      */
     private NamespaceParams recordNamespace(String namespace, NamespaceParams params) {
         Bson id = Filters.eq(MongoRangeStore.ID, namespace);
-        Bson setOnInsert = Updates.combine(Updates.setOnInsert(LIMIT, params.limit()), Updates.setOnInsert(TOLERANCE_MS, params.toleranceMillis()));
+        Bson setOnInsert = Updates.combine(Updates.setOnInsert(LIMIT, params.limit()), Updates.setOnInsert(TOLERANCE_MS, params.toleranceMillis()),
+            Updates.setOnInsert(SLOT_OFFSET, params.slotOffset()));
         for (int attempt = 1; ; attempt++) {
             Document stored;
             try {
@@ -338,7 +347,7 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
                 stored = namespaces.find(id).first();
             }
             if (stored != null) {
-                return new NamespaceParams(stored.getInteger(LIMIT), stored.getLong(TOLERANCE_MS));
+                return new NamespaceParams(stored.getInteger(LIMIT), stored.getLong(TOLERANCE_MS), stored.getInteger(SLOT_OFFSET, 0));
             }
         }
     }
@@ -410,6 +419,6 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         return tolerance.toMillis();
     }
 
-    private record NamespaceParams(int limit, long toleranceMillis) {
+    private record NamespaceParams(int limit, long toleranceMillis, int slotOffset) {
     }
 }

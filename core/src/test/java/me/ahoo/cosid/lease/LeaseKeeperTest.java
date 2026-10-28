@@ -88,7 +88,7 @@ class LeaseKeeperTest {
     }
 
     private SlotLease hold(String key, int bits, Duration ttl, OptionalInt preferred) {
-        AcquireResult result = memory.acquire(NS, owner(key), 1 << bits, ttl, TOLERANCE, preferred);
+        AcquireResult result = memory.acquire(NS, owner(key), 1 << bits, ttl, TOLERANCE, 0, preferred);
         assertThat(result, instanceOf(AcquireResult.Acquired.class));
         return ((AcquireResult.Acquired) result).lease();
     }
@@ -305,8 +305,8 @@ class LeaseKeeperTest {
         List<Boolean> validAtRelease = new ArrayList<>();
         SlotLeaseStore observing = new SlotLeaseStore() {
             @Override
-            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-                return store.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot);
+            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+                return store.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot);
             }
 
             @Override
@@ -448,8 +448,8 @@ class LeaseKeeperTest {
         AtomicReference<LeaseKeeper> self = new AtomicReference<>();
         SlotLeaseStore closingOnAcquire = new SlotLeaseStore() {
             @Override
-            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-                AcquireResult result = store.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot);
+            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+                AcquireResult result = store.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot);
                 self.get().close();
                 return result;
             }
@@ -539,8 +539,8 @@ class LeaseKeeperTest {
         }
 
         @Override
-        public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-            return stall(Operation.ACQUIRE, () -> store.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot));
+        public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+            return stall(Operation.ACQUIRE, () -> store.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot));
         }
 
         @Override

@@ -22,7 +22,11 @@ public record StoreConfig(String name, String type, Duration timeout, Map<String
 - `client` 用于注入已有连接对象(`DataSource`、Lettuce 连接、`MongoClient`、`CuratorFramework`);为空时 provider 按 `options` 自行创建并负责关闭。
 - `timeout` 由后端用原生机制实现(JDBC `queryTimeout`、Redis 命令超时、Mongo `timeoutMS`、Curator 操作超时、HTTP 请求超时),core 不再包装超时线程池。
 - **存储时钟**一律取 UTC 纪元毫秒。安全性不依赖存储时钟(05 §3),它只影响过期判断。
-- 命名空间元数据:首次 `acquire` 时记录 `{limit, tolerance}`,之后参数不一致即拒绝。
+- 命名空间元数据:首次 `acquire` 时记录 `{limit, tolerance, slotOffset}`(`slotOffset` 见 api-freeze §2.1.1、§2.5.1,只记录并比对,不影响选槽),之后任一不一致即抛 `NamespaceMismatchException`。
+  `slotOffset` 是 5.0.0-alpha.1 之后追加的字段:各后端读到没有它的旧元数据时按 0 处理,也不改写旧元数据;旧读者忽略它。各后端的格式:
+  JDBC `cosid_namespace.slot_offset integer not null default 0`(`initSchema` 为已有的 alpha.1 表补列;未补列时 offset 0 照常工作,非 0 报错并给出 `alter table` 语句);
+  Redis `cosid:{ns}:meta` 哈希追加字段 `slotOffset`;Mongo `cosid_namespace` 文档追加 `slotOffset`(int32);ZooKeeper `/cosid/slot/{ns}` 的元数据文本追加一行 `slotOffset=`;
+  remote 的 `/slots:acquire` 请求体追加可选的 `slotOffset`(08)。
 
 ## 2. 各后端实现
 
@@ -58,7 +62,8 @@ create table cosid_slot (
 create table cosid_namespace (
     namespace    varchar(100) not null primary key,
     slot_limit   integer      not null,
-    tolerance_ms bigint       not null
+    tolerance_ms bigint       not null,
+    slot_offset  integer      not null default 0
 );
 ```
 

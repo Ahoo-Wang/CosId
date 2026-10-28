@@ -11,7 +11,8 @@
 
 -- SlotLeaseStore.acquire (05-machine-lease.md §2.1, 06-stores.md §2.2), atomic as one script.
 -- KEYS: cosid:{ns}:meta, :slot, :free, :live, :owner, :held.
--- ARGV: limit, toleranceMillis, ttlMillis, ownerKey, incarnation, preferredSlot ('' for none), sweep batch.
+-- ARGV: limit, toleranceMillis, ttlMillis, ownerKey, incarnation, preferredSlot ('' for none), sweep batch, slotOffset.
+-- The meta hash holds limit, tolerance and slotOffset; a meta of 5.0.0-alpha.1 has no slotOffset field, which reads as 0.
 -- Every slot below the limit is in exactly one of the sorted sets: free (score = slot) or live (score = expiresAt).
 local metaKey, slotKey, freeKey, liveKey, ownerKey, heldKey = KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5], KEYS[6]
 local limit = tonumber(ARGV[1])
@@ -19,9 +20,9 @@ local tolerance = tonumber(ARGV[2])
 local ttl = tonumber(ARGV[3])
 local key, inc, preferred = ARGV[4], ARGV[5], ARGV[6]
 
-local meta = redis.call('HMGET', metaKey, 'limit', 'tolerance')
+local meta = redis.call('HMGET', metaKey, 'limit', 'tolerance', 'slotOffset')
 if not meta[1] then
-    redis.call('HSET', metaKey, 'limit', ARGV[1], 'tolerance', ARGV[2])
+    redis.call('HSET', metaKey, 'limit', ARGV[1], 'tolerance', ARGV[2], 'slotOffset', ARGV[8])
     local batch = {}
     for slot = 0, limit - 1 do
         batch[#batch + 1] = slot
@@ -31,8 +32,11 @@ if not meta[1] then
             batch = {}
         end
     end
-elseif meta[1] ~= ARGV[1] or meta[2] ~= ARGV[2] then
-    return {'mismatch', meta[1], meta[2]}
+else
+    local offset = meta[3] or '0'
+    if meta[1] ~= ARGV[1] or meta[2] ~= ARGV[2] or offset ~= ARGV[8] then
+        return {'mismatch', meta[1], meta[2], offset}
+    end
 end
 
 local now = nowMillis()

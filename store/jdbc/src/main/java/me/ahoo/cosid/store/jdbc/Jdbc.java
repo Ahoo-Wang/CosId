@@ -16,9 +16,14 @@ package me.ahoo.cosid.store.jdbc;
 import me.ahoo.cosid.store.StoreTimeoutException;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 import javax.sql.DataSource;
 
 /**
@@ -123,6 +128,45 @@ final class Jdbc {
                 throw e;
             }
         }
+    }
+
+    /**
+     * The columns of a table as {@link DatabaseMetaData#getColumns} shows them, lower case; empty when it shows no such
+     * table. A schema-qualified name ({@code s.t}) matches the table of that schema (or catalog: MySQL's databases);
+     * an unqualified one the table of the current schema, or of any schema of the current catalog when the current
+     * schema has none (a PostgreSQL {@code search_path} beyond its first schema). Names compare ignoring case: the
+     * databases fold unquoted identifiers to upper (H2) or lower case (PostgreSQL).
+     */
+    static Set<String> columns(Connection connection, String table) throws SQLException {
+        int dot = table.indexOf('.');
+        String qualifier = dot < 0 ? null : table.substring(0, dot);
+        String schema = qualifier == null ? connection.getSchema() : null;
+        String name = table.substring(dot + 1);
+        DatabaseMetaData metaData = connection.getMetaData();
+        String pattern = metaData.storesUpperCaseIdentifiers() ? name.toUpperCase(Locale.ROOT)
+            : metaData.storesLowerCaseIdentifiers() ? name.toLowerCase(Locale.ROOT) : name;
+        Set<String> inSchema = new HashSet<>();
+        Set<String> elsewhere = new HashSet<>();
+        try (ResultSet rs = metaData.getColumns(qualifier == null ? connection.getCatalog() : null, null, pattern, null)) {
+            while (rs.next()) {
+                // The name is a pattern: "_" matches any character.
+                if (!name.equalsIgnoreCase(rs.getString("TABLE_NAME"))) {
+                    continue;
+                }
+                String column = rs.getString("COLUMN_NAME").toLowerCase(Locale.ROOT);
+                String tableSchema = rs.getString("TABLE_SCHEM");
+                if (qualifier != null) {
+                    if (qualifier.equalsIgnoreCase(tableSchema) || qualifier.equalsIgnoreCase(rs.getString("TABLE_CAT"))) {
+                        inSchema.add(column);
+                    }
+                } else if (schema != null && schema.equalsIgnoreCase(tableSchema)) {
+                    inSchema.add(column);
+                } else {
+                    elsewhere.add(column);
+                }
+            }
+        }
+        return qualifier != null || !inSchema.isEmpty() ? inSchema : elsewhere;
     }
 
     @FunctionalInterface

@@ -108,7 +108,7 @@ class RuntimeLifecycleTest {
     /** The slot is free again: a stranger takes the lowest slot. */
     void assertSlotFree(int slot) {
         AcquireResult result = memory.backing("b").acquire("app", new Owner("stranger", UUID.randomUUID()), 4, Duration.ofSeconds(30),
-            Duration.ofSeconds(1), OptionalInt.of(slot));
+            Duration.ofSeconds(1), 0, OptionalInt.of(slot));
         assertThat(result, instanceOf(AcquireResult.Acquired.class));
         assertThat(((AcquireResult.Acquired) result).lease().slot(), is(slot));
     }
@@ -135,7 +135,7 @@ class RuntimeLifecycleTest {
 
         // The next holder of the slot starts right after the largest timestamp issued: T0 + 1234, not the ceiling.
         AcquireResult next = memory.backing("b").acquire("app", new Owner("next", UUID.randomUUID()), 4, Duration.ofSeconds(30),
-            Duration.ofSeconds(1), OptionalInt.of(slot));
+            Duration.ofSeconds(1), 0, OptionalInt.of(slot));
         assertThat(((AcquireResult.Acquired) next).lease().floor(), is(T0 + 1234));
 
         // Closing again does nothing.
@@ -149,7 +149,7 @@ class RuntimeLifecycleTest {
         int slot = runtime.slot().orElseThrow().slot();
         runtime.close();
         AcquireResult next = memory.backing("b").acquire("app", new Owner("next", UUID.randomUUID()), 4, Duration.ofSeconds(30),
-            Duration.ofSeconds(1), OptionalInt.of(slot));
+            Duration.ofSeconds(1), 0, OptionalInt.of(slot));
         assertThat(((AcquireResult.Acquired) next).lease().floor(), is(0L));
     }
 
@@ -174,7 +174,7 @@ class RuntimeLifecycleTest {
     void rollsBackWhenEverySlotIsTaken() {
         for (int i = 0; i < 4; i++) {
             memory.backing("b").acquire("app", new Owner("other-" + i, UUID.randomUUID()), 4, Duration.ofSeconds(30),
-                Duration.ofSeconds(1), OptionalInt.empty());
+                Duration.ofSeconds(1), 0, OptionalInt.empty());
         }
         RuntimeSpec spec = RuntimeSpec.builder("app")
             .store("b", store("memory"))

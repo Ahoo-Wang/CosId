@@ -30,8 +30,9 @@ import java.util.OptionalLong;
  * {@link #nowMillis()}. The
  * tables are those of {@link #schema}: {@code cosid_range(range_key, next_value, sealed)},
  * {@code cosid_slot(namespace, slot, owner_key, incarnation, last_owner_key, fence, expires_at, floor_ms, ceiling_ms,
- * next_floor_ms)} and {@code cosid_namespace(namespace, slot_limit, tolerance_ms)}, under the names of
- * {@link JdbcSession#tables()}.
+ * next_floor_ms)} and {@code cosid_namespace(namespace, slot_limit, tolerance_ms, slot_offset)}, under the names of
+ * {@link JdbcSession#tables()}. Tables of 5.0.0-alpha.1 have no {@code cosid_namespace.slot_offset}: a missing value
+ * reads as 0, and {@code options.initSchema} adds the column ({@link #addColumn}).
  */
 public interface JdbcDialect {
     /**
@@ -97,21 +98,35 @@ public interface JdbcDialect {
     }
 
     /**
-     * Records the parameters of a namespace on its first use; a namespace that exists is left as it is.
+     * The statement that adds a column to an existing table, for {@code options.initSchema} on tables created by an
+     * earlier 5.0 pre-release ({@code cosid_namespace.slot_offset} came after 5.0.0-alpha.1). The store runs it only
+     * when the column is missing.
+     *
+     * @param table      the table, as {@link JdbcTables} names it
+     * @param column     the column
+     * @param definition its type, nullability and default, such as {@code integer not null default 0}
+     * @return the statement: {@code alter table <table> add column <column> <definition>} by default
+     */
+    default String addColumn(String table, String column, String definition) {
+        return "alter table " + table + " add column " + column + " " + definition;
+    }
+
+    /**
+     * Records the parameters of a namespace on its first use; a namespace that exists is left as it is. A slot offset
+     * of 0 is the column default: the statement then leaves {@code slot_offset} out, so that it also runs on a table of
+     * 5.0.0-alpha.1 that has no such column.
      *
      * @param session         the session
      * @param namespace       the namespace
      * @param limit           the slot limit
      * @param toleranceMillis the tolerance
+     * @param slotOffset      the slot offset, not negative
      * @return whether this call inserted the row: the one first use that creates the slot rows
      * @throws SQLException if the database fails; a duplicate key counts as "not inserted"
      */
-    default boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
-        try (PreparedStatement insert = session.prepare("insert into " + session.tables().namespace()
-            + " (namespace, slot_limit, tolerance_ms) values (?, ?, ?)")) {
-            insert.setString(1, namespace);
-            insert.setInt(2, limit);
-            insert.setLong(3, toleranceMillis);
+    default boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis, int slotOffset) throws SQLException {
+        try (PreparedStatement insert = session.prepare("insert into " + session.tables().namespace() + " " + JdbcDialects.namespaceInsert(slotOffset))) {
+            JdbcDialects.bindNamespace(insert, namespace, limit, toleranceMillis, slotOffset);
             return insert.executeUpdate() > 0;
         }
     }

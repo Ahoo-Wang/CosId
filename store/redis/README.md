@@ -52,7 +52,7 @@ Each group shares one hash tag, so every script runs on one Redis Cluster node. 
 |---|---|---|
 | `cosid:{key}` | string | the next value of a range key, a decimal string (exact beyond 2^53) |
 | `cosid:{key}:sealed` | string | the seal marker |
-| `cosid:{ns}:meta` | hash | `limit`, `tolerance`: what the namespace was first used with |
+| `cosid:{ns}:meta` | hash | `limit`, `tolerance`, `slotOffset`: what the namespace was first used with (a meta written by 5.0.0-alpha.1 has no `slotOffset`, read as `0`) |
 | `cosid:{ns}:slot` | hash | slot → `ownerKey\|incarnation\|lastOwnerKey\|fence\|expiresAt\|floor\|ceiling\|nextFloor` (owner keys escaped: `\` as `\\`, `\|` as `\p`) |
 | `cosid:{ns}:free` | sorted set | free slots, scored by slot number; prefilled with `0..limit-1` by `ZADD NX` |
 | `cosid:{ns}:live` | sorted set | live leases, scored by `expiresAt` |

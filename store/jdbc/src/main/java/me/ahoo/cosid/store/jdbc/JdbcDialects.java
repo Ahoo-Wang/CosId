@@ -19,6 +19,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -99,6 +100,32 @@ public final class JdbcDialects {
      */
     static boolean isMariaDb(DatabaseMetaData metaData) throws SQLException {
         return productIs(metaData, "mariadb") || metaData.getDatabaseProductVersion().toLowerCase(Locale.ROOT).contains("mariadb");
+    }
+
+    /**
+     * The column list and placeholders of a {@code cosid_namespace} insert:
+     * {@code (namespace, slot_limit, tolerance_ms[, slot_offset]) values (?, ?, ?[, ?])}. A slot offset of 0 is left to
+     * the column default, so that the insert also runs on a table of 5.0.0-alpha.1 without {@code slot_offset}.
+     *
+     * @param slotOffset the slot offset
+     * @return the column list and the {@code values} clause
+     */
+    static String namespaceInsert(int slotOffset) {
+        return slotOffset == 0
+            ? "(namespace, slot_limit, tolerance_ms) values (?, ?, ?)"
+            : "(namespace, slot_limit, tolerance_ms, slot_offset) values (?, ?, ?, ?)";
+    }
+
+    /**
+     * Binds the parameters of {@link #namespaceInsert}, or of a statement with the same parameters in the same order.
+     */
+    static void bindNamespace(PreparedStatement statement, String namespace, int limit, long toleranceMillis, int slotOffset) throws SQLException {
+        statement.setString(1, namespace);
+        statement.setInt(2, limit);
+        statement.setLong(3, toleranceMillis);
+        if (slotOffset != 0) {
+            statement.setInt(4, slotOffset);
+        }
     }
 
     /**

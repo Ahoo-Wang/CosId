@@ -72,7 +72,7 @@ public class MySqlStoreBenchmark {
     }
 
     SlotLease acquire(Owner owner) {
-        return ((AcquireResult.Acquired) slots.acquire(namespace, owner, LIMIT, TTL, TOLERANCE, OptionalInt.empty())).lease();
+        return ((AcquireResult.Acquired) slots.acquire(namespace, owner, LIMIT, TTL, TOLERANCE, 0, OptionalInt.empty())).lease();
     }
 
     @TearDown

@@ -67,16 +67,27 @@ final class SqlServerDialect implements JdbcDialect {
         return "select top " + rows + " " + columns + " from " + table + " where " + where + " order by " + orderBy;
     }
 
+    /**
+     * A slot offset of 0 is left to the column default, as in {@code JdbcDialects.namespaceInsert}.
+     */
     @Override
-    public boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis) throws SQLException {
+    public boolean insertNamespaceIfAbsent(JdbcSession session, String namespace, int limit, long toleranceMillis, int slotOffset) throws SQLException {
+        boolean offset = slotOffset != 0;
         try (PreparedStatement merge = session.prepare("merge into " + session.tables().namespace() + " with (holdlock) as n"
-            + " using (select ? as namespace, ? as slot_limit, ? as tolerance_ms) as v on n.namespace = v.namespace"
-            + " when not matched then insert (namespace, slot_limit, tolerance_ms) values (v.namespace, v.slot_limit, v.tolerance_ms);")) {
-            merge.setString(1, namespace);
-            merge.setInt(2, limit);
-            merge.setLong(3, toleranceMillis);
+            + " using (select ? as namespace, ? as slot_limit, ? as tolerance_ms" + (offset ? ", ? as slot_offset" : "") + ") as v on n.namespace = v.namespace"
+            + " when not matched then insert (namespace, slot_limit, tolerance_ms" + (offset ? ", slot_offset" : "")
+            + ") values (v.namespace, v.slot_limit, v.tolerance_ms" + (offset ? ", v.slot_offset" : "") + ");")) {
+            JdbcDialects.bindNamespace(merge, namespace, limit, toleranceMillis, slotOffset);
             return merge.executeUpdate() > 0;
         }
+    }
+
+    /**
+     * SQL Server's {@code alter table … add} has no {@code column} keyword.
+     */
+    @Override
+    public String addColumn(String table, String column, String definition) {
+        return "alter table " + table + " add " + column + " " + definition;
     }
 
     /**

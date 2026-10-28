@@ -225,7 +225,7 @@ class LimitsTest {
             assertEquals(400, invalid.status());
             assertThat(invalid.getMessage(), not(containsString("10.0.0.7")));
             RemoteStoreException unsupported = assertThrows(RemoteStoreException.class, () -> client.slots().acquire("unsupported", new Owner("h", UUID.randomUUID()), 1,
-                Duration.ofSeconds(1), Duration.ZERO, OptionalInt.empty()));
+                Duration.ofSeconds(1), Duration.ZERO, 0, OptionalInt.empty()));
             assertEquals(501, unsupported.status());
             assertEquals(RemoteApi.UNSUPPORTED, unsupported.code());
         }
@@ -305,11 +305,11 @@ class LimitsTest {
         public SlotLeaseStore slots() {
             return new SlotLeaseStore() {
                 @Override
-                public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+                public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
                     if ("unsupported".equals(namespace)) {
                         throw new UnsupportedOperationException("no slots here");
                     }
-                    return memory.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot);
+                    return memory.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot);
                 }
 
                 @Override

@@ -12,6 +12,7 @@
  */
 
 // CI trial: core (do not merge)
+
 package me.ahoo.cosid;
 
 /**

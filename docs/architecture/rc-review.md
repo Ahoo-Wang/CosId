@@ -175,6 +175,27 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
   5. **WP-perf**(代码完成;门槛正式重跑进行中:[run 40772963183](https://github.com/Ahoo-Wang/CosId/actions/runs/40772963183) @ `1ed9aaeb`;✅ P1 修回退 [#1380](https://github.com/Ahoo-Wang/CosId/pull/1380) `1ed9aaeb`:P6 本地 22k→71k ops/ms、32→0 B/op,P5/P6 走生产路径,JDBC SQL 预构建,ZK 分配削减;✅ P2 门槛工具 [#1381](https://github.com/Ahoo-Wang/CosId/pull/1381) `ec0d4b71`:D34 容差、compare_test 15 例、MySQL P10 不对称修正):R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
   6. ✅ **WP-docs**:D1 [#1382](https://github.com/Ahoo-Wang/CosId/pull/1382) `5ada30ea`(Kubernetes 部署指南中英文、R1-mongo-04 分片收窄为"未验证、cosid 集合不分片"、R1-x-01/08、R1-doc-03/04/05/07;R1-doc-01/02 核实已修)+ D2 [#1383](https://github.com/Ahoo-Wang/CosId/pull/1383) `8438d0d6`(设计文档 01–08 与实现对齐,11 锚点 287 个全部复核、补 2 行)。
   7. **依赖与 MINOR**(进行中,2026-10-28 派发):Dependabot 11 条全部在 `documentation/pnpm-lock.yaml`(vite/source-map-js/@vue/server-renderer/esbuild,只影响站点构建)→ 文档依赖 PR;剩余 MINOR 先出分诊表(已修/本次修/GA 后/不修)再按主题修。Renovate:✅ #1366 jackson 2.22.4 已合入(`0e05cf23`);#1367 cosid4 4.1.1 暂缓——它改变门槛对比的 4.x 基线,待本轮门槛结论后再定(见 §4.3 第 12 项)。
+  8. **WP-ci 重构 CI(工程质量、执行效率)**(用户 2026-10-28 提出;排在文档依赖 PR 之后、MINOR 分诊之前)。现状(以 #1375 一次推送为样本):
+     - 每次推送约 59 runner·分钟:Integration Test 22 个 job 约 37 分钟,CodeQL autobuild 5 分钟,Codecov 在 `pull_request` 和**所有分支的 `push`** 上各跑一次全量 `check`(8–9 分钟)。同一份 `./gradlew check` 每次推送跑 3 遍(IT Check + Codecov×2)。关键路径约 9 分钟。
+     - 没有 `concurrency`:同一个 PR 连续推送时,旧运行跑到底。没有 `timeout-minutes`:mongo:8 卡住时跑满 6 小时默认值。
+     - 不支持版本的 probe(Mongo 4.4/5.0、ZK 3.6/3.7、Redis 6.2、JDBC probe×3,共 8 个 job)每个 PR 都跑;store 和 Spring job 不看改了什么,全部都跑。
+     - 约 10 个 job 重复写 checkout + setup-java + `cache: gradle`,没有使用 `gradle/actions/setup-gradle`(构建缓存、wrapper 校验、依赖图提交)。
+     - labeler 的 `cancel-in-progress` 在 PR 检查中留下 CANCELLED 噪声。branch protection 只把 `Conventional Commits title` 设为必需检查;"全绿才能合并"目前靠人工判断。
+     - 目标(可度量):PR 每次推送 ≤ 30 runner·分钟(代码改动)、只改 docs 时 ≤ 2 分钟;关键路径 ≤ 8 分钟;每次推送只跑 1 遍 `check`;所有 job 都有超时;旧运行自动取消;一个汇总检查 `CI` 代表全部结果。
+     - 方案:
+       ① 删掉独立的 Codecov workflow,覆盖率在 IT `Check` 的同一次 `check` 中上传(按 Codecov flags 拆分,保留 patch 80%)。
+       ② 所有 PR workflow 加 `concurrency: ${{ workflow }}-${{ PR 号 }}`,`cancel-in-progress: true`;push 到 main 不取消。
+       ③ 新增 composite action `.github/actions/setup-build`(checkout、JDK、setup-gradle,PR 上缓存只读、main 上可写)。
+       ④ 新增 `changes` job,用路径过滤决定 store-*/server/spring 是否运行:core、tck、构建脚本改动时全部运行。
+       ⑤ probe 和 Spring 兼容全矩阵移到 nightly + main;PR 上 Spring 只跑 最低 Boot/J21 + 当前 Boot/J25 两个对角组合。
+       ⑥ CodeQL Java 在 PR 上用 `build-mode: none`;main 和每周 schedule 保持完整构建。
+       ⑦ 所有 job 加 `timeout-minutes`。
+       ⑧ 新增汇总 job `CI`(`needs` 全部、`if: always()`,skipped 视为通过、failure 或 cancelled 视为失败),作为合并依据。
+       ⑨ labeler 改为不取消。
+       ⑩ 用 setup-gradle 提交依赖图,让 Dependabot 看到 Gradle 依赖。
+       ⑪ 失败时上传 JUnit 报告并生成注释。
+     - 不在范围内:release-gate、package-deploy、docker-deploy、document-deploy 这些发布链路只加 timeout,不重构。
+     - 验证:同一提交在旧/新 workflow 下的 runner·分钟和关键路径对比写进 PR 描述;docs-only、单 store、core 三种改动各推一次验证路径过滤。
   6. **WP-docs**:R1-x-01/08、R1-doc-01–07、R1-mongo-04(加分片集群 CI 或收窄承诺)、k8s 部署指南、设计文档与 11 对照表同步、javadoc。
 - 原派发队列(一次一个子会话):① codec(✅)→ alpha.1 发布(✅)→ ② **GA 前审查第 1 轮**(下一个)(§6)→ ③ 门槛实现 D34(`benchmark/compare` 及测试、10 §1.3)→ ④ 修复:第 1 轮发现 + MySQL 分配 + 号段与 ZK 分配(按严重度排序,一次一个)→ ⑤ 在 main 上按 D34 重跑门槛 → RC1(用户确认)→ 第 2 轮审查 → GA。alpha.1 不等门槛(D33),数据写入 release notes 已知问题。
 
@@ -216,6 +237,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | 10 | 是否发布 RC1、何时发布 | 待门槛 PASS 与 API 冻结完成后请用户决定 | — |
 | 11 | RC 版本号写法:`5.0.0-rc.1`(与 `5.0.0-alpha.1` 同为 SemVer 点分预发布标识,`alpha.1 < rc.1` 在 SemVer 与 Maven 中都成立;大写 `RC1` 在 SemVer ASCII 排序中会排在 `alpha` 之前)。roadmap 中 `5.0.0-RC1` 指同一版本 | 协调会话按推荐(PR6 #1377 的草稿 release notes 已用 `rc.1`) | 改用 `5.0.0-RC1` |
 | 12 | 门槛 4.x 基线:RC1 门槛按已文档化的 4.1.0 判定(本轮 run 40772963183);Renovate #1367(cosid4 → 4.1.1,4.x 分支只含 bug 修复)在门槛结论后合入,并在 RC 期间用 4.1.1 复跑一次门槛作为 GA 依据 | 协调会话按推荐 | 立即升 4.1.1 并重跑 |
+| 13 | WP-ci 完成后把 branch protection 的必需检查设为汇总检查 `CI`(加上现有的 `Conventional Commits title`),由 GitHub 强制"全绿才能合并"。仓库设置的改动须由用户本人操作或明确授权 | 待 WP-ci 合入后请用户决定 | 维持现状(只要求标题检查) |
 
 ## 4.2 审查不通过登记
 

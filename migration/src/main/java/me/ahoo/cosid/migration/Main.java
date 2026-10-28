@@ -32,9 +32,9 @@ public final class Main {
           plan    --from <4.x store> --to <5.0 store> --namespace <ns> [--output plan.json] [--layout-config <4.x yaml>]
                   [--machine-from <4.x machine store>] [--machine-to <5.0 slot store>]
                   [--target-config <5.0 yaml>] [--slot-bits 10] [--tolerance 1s] [--source-skew 10s]
-                  [--slot-offset <n>]   (the shared cosid.generator.namespace only: default 2^(4.x cosid.generator.machine-bit),
-                                         the 4.x hard cap, when the slots fit above it; otherwise required, and 4.x must
-                                         not hand out machine ids >= <n>; 0 migrates it at once, every service stopped)
+                  [--slot-offset <n>]   (the shared cosid.generator.namespace only: default 2^node-bits - 2^slot-bits,
+                                         the top of the nodes; above the 4.x machine ids, which must stay below it;
+                                         0 migrates it at once, every service stopped)
                   [--rename <4.x name>=<5.0 name>]... [--group-pattern <generator>=<4.x pattern>]...
                   [--from-option k=v]... [--to-option k=v]...
           apply   --plan plan.json --confirm-stopped [--observe 2m] [--gap 0] [--source-skew 10s] [--no-seal-source]

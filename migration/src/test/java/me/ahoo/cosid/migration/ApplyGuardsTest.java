@@ -21,6 +21,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -287,13 +288,12 @@ class ApplyGuardsTest extends MigrationScenarioTest {
     @SuppressWarnings("unchecked")
     void theSharedGeneratorNamespaceMigratesOnceAsANamedMachine() throws IOException {
         // D37, api-freeze.md §2.7: 4.x shares the CosIdGenerator machine ids of "global" across services; 5.0 keeps them
-        // in the named machine "generator", its slots above the 4.x machine ids, so 4.x may keep running. The 4.x hard cap
-        // 2^20 (cosid.generator.machine-bit) leaves no room in the 2^20 nodes: the offset is explicit and not guaranteed.
+        // in the named machine "generator", its slots at the top of the 2^20 nodes, so 4.x may keep running below them.
         String global = "global-" + namespace;
         writer.segment(namespace, "order", 0, 10, 1);
         Map<String, Object> written = writer.machines(global, 3, 10);
         int maxMachineId = ((List<Number>) written.get("machineIds")).stream().mapToInt(Number::intValue).max().orElseThrow();
-        int offset = 64;
+        int offset = (1 << 20) - 1024;
         Path layout = generatorLayout(true, global);
 
         // A service before its shared namespace: plan says so, apply refuses.
@@ -307,13 +307,16 @@ class ApplyGuardsTest extends MigrationScenarioTest {
         Path sharedPlan = dir.resolve("shared-plan.json");
         Path sharedResult = dir.resolve("shared-result.json");
         Plan shared = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
-            Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), sharedPlan, offset));
+            Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), sharedPlan));
         assertThat(shared.segments(), empty());
-        assertThat(shared.shared(), is(new Plan.Shared(maxMachineId, 1 << 20, 20, true, false)));
+        long headroom = offset - (maxMachineId + 1L);
+        assertThat(shared.shared(), is(new Plan.Shared(maxMachineId, offset, 20, true, 1L << 20, headroom, false)));
         assertThat(shared.slots().slotOffset(), is(offset));
-        assertThat(shared.warnings(), hasItem(containsString("NOT GUARANTEED: [" + global + "]")));
-        assertThat(shared.warnings(), hasItem(containsString("4.x must not hand out machine ids >= " + offset)));
-        assertThat(Files.readString(sharedPlan), containsString("\"guaranteed\" : false"));
+        assertThat(shared.warnings(), hasItem(containsString("4.x can hand out " + headroom + " more machine ids")));
+        assertThat(shared.warnings(), not(hasItem(containsString("LOW HEADROOM"))));
+        String planJson = Files.readString(sharedPlan);
+        assertThat(planJson, containsString("\"headroom\" : " + headroom));
+        assertThat(planJson, containsString("\"guaranteed\" : false"));
         // Rolling: neither --confirm-stopped nor a quiet period; running it again changes nothing.
         Migration.ApplyOptions rolling = new Migration.ApplyOptions(sharedPlan, false, Duration.ofMinutes(5), 0, Duration.ZERO, true,
             Migration.DEFAULT_SEAL_GAP, sharedResult, Map.of(), Map.of(), layout, null);
@@ -348,18 +351,20 @@ class ApplyGuardsTest extends MigrationScenarioTest {
         int maxMachineId = ((List<Number>) written.get("machineIds")).stream().mapToInt(Number::intValue).max().orElseThrow();
         Path layout = generatorLayout(true, global);
         Path planned = dir.resolve("shared-plan.json");
-        // No default: the 4.x hard cap 2^20 (cosid.generator.machine-bit) leaves no room for 2^10 slots in the 2^20 nodes.
-        MigrationAbortedException implicit = assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(
-            source.location(), target.location(), null, null, global, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
-            planned)));
-        assertThat(implicit.getMessage(), containsString("hard cap 1048576"));
-        assertThat(implicit.getMessage(), containsString("Take an explicit --slot-offset"));
-        // M + 1 a power of two (ids 0..3): M + 1 is the least offset, explicit and not guaranteed; M is refused.
+        // The default: the top of the 2^20 nodes (cosid.generator.machine-bit), below the 4.x hard cap 2^20, so not guaranteed.
+        Plan top = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
+            Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), planned));
+        assertThat(top.slots().slotOffset(), is((1 << 20) - 1024));
+        assertThat(top.shared().headroom(), is((1L << 20) - 1024 - (maxMachineId + 1)));
+        assertThat(top.shared().guaranteed(), is(false));
+        // M + 1 a power of two (ids 0..3): M + 1 is the least offset, with no headroom at all; M is refused.
         assertThat(maxMachineId, is(3));
         Plan least = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
             Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), planned, maxMachineId + 1));
         assertThat(least.slots().slotOffset(), is(4));
+        assertThat(least.shared().headroom(), is(0L));
         assertThat(least.shared().guaranteed(), is(false));
+        assertThat(least.warnings(), hasItem(startsWith("LOW HEADROOM: [" + global + "]")));
         // Not above the 4.x machine ids: their nodes would collide.
         MigrationAbortedException low = assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(
             source.location(), target.location(), null, null, global, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),

@@ -86,15 +86,15 @@ W = max(T_apply, T4 + 1s) + sourceSkew        // sourceSkew 默认 10s,对应 4.
     因为 5.0 的 bits 是每个命名空间预建的槽位数,不是 4.x 的 20 位节点宽度),并让转换出的 `cosid80` 写 `machine: generator`。
     报告提示:峰值 Pod 总数(含 surge)超过 1024 时调大 bits,且受 `slotOffset + 2^bits ≤ 2^nodeBits` 约束;共享该命名空间的全部服务必须用相同的 `bits`、`tolerance`、`slotOffset`。
   - 共享命名空间**单独迁移一次**:`plan/apply --namespace <共享命名空间>`,只做 M2。`plan` 读出 4.x 记录中出现过的最大机器号 `M`,
-    默认 `slotOffset` 取 4.x 分配器的硬上限 `cap = 2^(cosid.generator.machine-bit)`(4.1.0 的 `AbstractMachineIdDistributor` 对 `> maxMachineId(machineBit)` 抛 `MachineIdOverflowException`,
-    CosIdGenerator 用 `cosid.generator.machine-bit` 分配),前提是 `cap + 2^bits ≤ 2^nodeBits`:这样 4.x 无论怎样扩容都不会与 5.0 相交,由构造保证,`plan.json` 记录 `guaranteed: true`。
-    放不下时不再自动回退,要求显式 `--slot-offset`;由于 `config` 把 4.x `cosid.generator.machine-bit` 原样写成 5.0 的 `node-bits`,`cap = 2^nodeBits`,保留 4.x 位宽时总是这种情况。
-    显式偏移低于 cap 时,`plan` 报告警告"4.x 不得再分出 ≥ offset 的机器号",并记录 `guaranteed: false`。
+    默认 `slotOffset = 2^nodeBits − 2^bits`,把 5.0 的槽位放在节点空间顶端,给 4.x 留出最大余量(cosid80 默认节点 20 位、bits 10 时约 104 万个机器号);`--slot-offset` 可改。
+    `plan` 报告并在 `plan.json` 记录 `headroom = offset − (M + 1)`(4.x 还能分出多少机器号才会与 5.0 相交),低于 `2^bits` 时升级为醒目警告。
+    4.x 分配器的硬上限是 `2^(cosid.generator.machine-bit)`(4.1.0 的 `AbstractMachineIdDistributor` 对 `> maxMachineId(machineBit)` 抛 `MachineIdOverflowException`),
+    `config` 把它原样写成 5.0 的 `node-bits`,所以保留 4.x 位宽时不可能由构造保证:`guaranteed` 仅当 offset ≥ 该上限时为 true,滚动迁移实际为 false。
     任何偏移都检查 `offset > M` 与 `offset + 2^bits ≤ 2^nodeBits`(nodeBits 为 4.x `cosid.generator.machine-bit`,超出时给出可用的 `--slot-bits`)。
     报告两种做法:**滚动迁移**(offset > 0:4.x 与 5.0 同时在线、各服务逐个切换,`apply` 不需要 `--confirm-stopped`,不做静止观察)
     与**一次性切换**(`--slot-offset 0`:沿用静止观察,共享它的服务都必须停止)。两种做法都写入 W 与元数据 `{limit, tolerance, slotOffset}`;`apply` 幂等,重复执行不变。
     `M` 由各存储的 4.x 记录读出:JDBC `machine_id`;Redis `adder`(最后发出的号)与 `itc_idx`/`revert`/`lease` 中的号;Mongo `machineId`;ZooKeeper `__itc_idx`/`__revert` 中的号与 `__counter − 1`。
-  - 滚动期间的不变式:`4.x 机器号 < slotOffset ≤ 5.0 节点号`。偏移不低于 cap 时由构造保证;低于 cap 时靠操作约束:4.x 按最小空闲号分配,迁移期间不能把 4.x 扩容到 `slotOffset` 个实例以上;
+  - 滚动期间的不变式:`4.x 机器号 < slotOffset ≤ 5.0 节点号`。靠操作约束(headroom 即余量):4.x 按最小空闲号分配,迁移期间不能把 4.x 扩容到 `slotOffset` 个实例以上;
     两种情况下 `verify` 发现 4.x 机器号 ≥ offset 都会报错。
     有偏移时时间段重叠不会重号,W 作为纵深防护保留。
   - 各服务自己的 `plan` 读出目标中该命名空间的元数据,`apply` 检查它已准备好且与计划一致,否则拒绝并提示先做这一步;结果写进 `apply-result.json` 供 `config` 使用。

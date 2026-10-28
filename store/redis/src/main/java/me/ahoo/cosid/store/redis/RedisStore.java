@@ -12,6 +12,7 @@
  */
 
 // CI trial: one store (do not merge)
+
 package me.ahoo.cosid.store.redis;
 
 import me.ahoo.cosid.NamespaceMismatchException;

@@ -86,12 +86,12 @@ public final class KeyMapper {
         }
     }
 
-
     private static Mapping portable(Mapping mapping) {
         return StoreKeys.keyProblem("5.0 range key", mapping.targetKey())
             .map(problem -> Mapping.unrecognized(mapping.sourceName(), problem + "; use --rename"))
             .orElse(mapping);
     }
+
     /** The preset whose strict format the group key has: by length, 4, 6 or 8 digits. */
     static String[] preset(String groupKey) {
         String name = switch (groupKey.length()) {

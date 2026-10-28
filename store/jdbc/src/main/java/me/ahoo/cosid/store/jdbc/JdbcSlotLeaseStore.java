@@ -78,6 +78,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
     private final String earliestSql;
     private final String takeSql;
     private final String currentSql;
+    private final String storeNowSql;
     private final String renewSql;
     private final String releaseSql;
     private final Map<String, Namespace> namespaces = new ConcurrentHashMap<>();
@@ -103,6 +104,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
             + " where namespace = ? and slot = ? and fence = ? and next_floor_ms = ? and " + free;
         this.currentSql = "select expires_at, floor_ms, ceiling_ms, " + now + " from " + table
             + " where namespace = ? and slot = ? and incarnation = ? and fence = ?";
+        this.storeNowSql = jdbc.dialect.selectNowMillis();
         this.renewSql = "update " + table + " set expires_at = ?, ceiling_ms = ?, next_floor_ms = ?"
             + " where namespace = ? and slot = ? and incarnation = ? and fence = ? and expires_at = ? and ceiling_ms = ?";
         this.releaseSql = "update " + table + " set owner_key = null, incarnation = null,"
@@ -304,9 +306,12 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         long toleranceMillis = toleranceMillis(tolerance);
         long deadline = jdbc.deadline();
         return jdbc.run("renew", lease.namespace(), lease.slot(), session -> {
+            // The row as the lease saw it last, with only the store clock read (as 4.x reads its server time): the
+            // compare-and-set below matches only if the row still holds exactly these values. When it does not (a
+            // renewal whose response was lost moved it), the row is read in full and the compare-and-set retried.
+            Current current = asLeased(session, lease);
             while (true) {
                 jdbc.checkDeadline(deadline, "renew", lease.namespace(), lease.slot());
-                Current current = current(session, lease);
                 if (current == null) {
                     return Optional.empty();
                 }
@@ -330,8 +335,23 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
                             .build());
                     }
                 }
+                current = current(session, lease);
             }
         });
+    }
+
+    /**
+     * The row as {@code lease} describes it, with the store clock: its expiry, floor and ceiling as of the lease.
+     */
+    private Current asLeased(JdbcSession session, SlotLease lease) throws SQLException {
+        try (PreparedStatement select = session.prepare(storeNowSql)) {
+            try (ResultSet rs = select.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("The store clock query returned no row: " + storeNowSql);
+                }
+                return new Current(lease.owner().incarnation().toString(), lease.expiresAt(), lease.floor(), lease.ceiling(), rs.getLong(1));
+            }
+        }
     }
 
     @Override

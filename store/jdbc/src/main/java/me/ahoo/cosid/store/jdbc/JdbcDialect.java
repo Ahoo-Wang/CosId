@@ -68,6 +68,17 @@ public interface JdbcDialect {
     String nowMillis();
 
     /**
+     * A query of one row and one column, the store clock ({@link #nowMillis()}): what a renewal reads before its
+     * compare-and-set.
+     *
+     * @return {@code select} and the clock, without a table; a database that needs one overrides it (Oracle:
+     *         {@code from dual})
+     */
+    default String selectNowMillis() {
+        return "select " + nowMillis();
+    }
+
+    /**
      * Reserves {@code size} values of {@code key} in one round trip where the database allows it: a key that does
      * not exist is created with {@code next_value = initialOffset + size}; an existing key that is not sealed and has
      * {@code next_value <= Long.MAX_VALUE - size} gets {@code next_value + size}. The caller guarantees

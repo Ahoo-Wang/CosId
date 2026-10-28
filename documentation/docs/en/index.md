@@ -20,6 +20,9 @@ hero:
       text: Migrating from 4.x
       link: /guide/migration/from-4x
     - theme: alt
+      text: 4.x docs
+      link: https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/en
+    - theme: alt
       text: GitHub
       link: https://github.com/Ahoo-Wang/CosId
 
@@ -43,3 +46,9 @@ features:
   icon: 📈
   details: "19 Micrometer meters, a health indicator for the slot lease, and an Actuator endpoint that describes and exercises every generator."
 ---
+
+::: warning Preview
+`5.0.0-alpha.x` is a preview with no compatibility promise. The API, configuration, storage format and cosid-server
+HTTP API may change between alphas and before GA, and no data migration is provided between alphas. Do not use it in
+production: stay on 4.x there ([4.x docs](https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/en)).
+:::

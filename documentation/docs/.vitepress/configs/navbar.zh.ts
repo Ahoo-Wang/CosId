@@ -54,6 +54,11 @@ export const navbar: DefaultTheme.NavItem[] = [
         ]
     },
     {
+        // 5.0 replaces the 4.x site; the 4.x docs stay on the 4.x branch.
+        text: '4.x 文档',
+        link: 'https://github.com/Ahoo-Wang/CosId/tree/4.x/documentation/docs/zh'
+    },
+    {
         text: `更新日志`,
         link: `https://github.com/Ahoo-Wang/CosId/releases`
     }

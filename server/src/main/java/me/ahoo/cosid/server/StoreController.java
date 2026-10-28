@@ -145,7 +145,16 @@ class StoreController {
         long fence = Requests.required(request.fence(), "fence");
         long floor = request.floor() == null ? 0 : request.floor();
         long ceiling = request.ceiling() == null || request.ceiling() < floor ? floor : request.ceiling();
-        return new SlotLease(namespace, slot, owner, fence, orZero(request.expiresAt()), floor, ceiling, orZero(request.storeNow()));
+        return SlotLease.builder()
+            .namespace(namespace)
+            .slot(slot)
+            .owner(owner)
+            .fence(fence)
+            .expiresAt(orZero(request.expiresAt()))
+            .floor(floor)
+            .ceiling(ceiling)
+            .storeNow(orZero(request.storeNow()))
+            .build();
     }
 
     private static long orZero(Long value) {

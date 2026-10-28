@@ -37,9 +37,6 @@ import org.junit.jupiter.api.Test;
 import java.time.Duration;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalInt;
 
 class RuntimeSpecValidationTest {
     final TestStores memory = new TestStores("memory");
@@ -57,25 +54,35 @@ class RuntimeSpecValidationTest {
 
     @Test
     void timeBasedGeneratorsNeedAMachine() {
-        String message = problems(new RuntimeSpec("app", Map.of(), Optional.empty(),
-            Map.of("default", snowflake(Layout.SNOWFLAKE_MS),
-                "token", new GeneratorSpec.CosId80(ClockRegressionPolicy.DEFAULT, new PartsCodecSpec.Radix(62)))));
+        String message = problems(RuntimeSpec.builder("app")
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS))
+            .generator("token", GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build())
+            .build());
         assertThat(message, containsString("Invalid RuntimeSpec of namespace [app]"));
         assertThat(message, containsString("time-based generators [default, token] need a machine slot, but the spec has no machine"));
     }
 
     @Test
     void layoutsMustCoverTheMachineBits() {
-        String message = problems(new RuntimeSpec("app", Map.of("m", store("memory")), Optional.of(leased("m")),
-            Map.of("js", snowflake(Layout.JS_SAFE_MS), "wide", snowflake(Layout.COSID_80))));
+        String message = problems(RuntimeSpec.builder("app")
+            .store("m", store("memory"))
+            .machine(leased("m"))
+            .generator("js", snowflake(Layout.JS_SAFE_MS))
+            .generator("wide", snowflake(Layout.COSID_80))
+            .build());
         assertThat(message, containsString("generator [js]: the layout has 3 node bits, fewer than machine.bits 10"));
         assertThat(message, containsString("generator [wide]: a snowflake layout must fit a long, not 80 bits: use cosid80"));
     }
 
     @Test
     void storesMustExistAndHaveAProvider() {
-        String message = problems(new RuntimeSpec("app", Map.of("odd", store("unknown-type")), Optional.of(leased("nowhere")),
-            Map.of("default", snowflake(Layout.SNOWFLAKE_MS), "order", segment("missing"), "bill", segment("odd"))));
+        String message = problems(RuntimeSpec.builder("app")
+            .store("odd", store("unknown-type"))
+            .machine(leased("nowhere"))
+            .generator("default", snowflake(Layout.SNOWFLAKE_MS))
+            .generator("order", segment("missing"))
+            .generator("bill", segment("odd"))
+            .build());
         assertThat(message, containsString("machine: no store [nowhere]"));
         assertThat(message, containsString("generator [order]: no store [missing]"));
         assertThat(message, containsString("store [odd]: no StoreProvider of type [unknown-type]"));
@@ -83,13 +90,20 @@ class RuntimeSpecValidationTest {
 
     @Test
     void storeTimeoutMustNotExceedTheReserveTimeout() {
-        BatchPolicy quick = new BatchPolicy(100, 0, Duration.ofSeconds(1), 100_000, Duration.ofMillis(500), Optional.empty());
-        String message = problems(new RuntimeSpec("app", Map.of("db", new StoreSpec("memory", Duration.ofSeconds(1), Map.of()),
-                "zero", new StoreSpec("memory", Duration.ZERO, Map.of())), Optional.empty(),
-            Map.of("order", new GeneratorSpec.Segment("db", quick, List.of()),
-                "bill", new GeneratorSpec.PeriodicSegment("db", Period.YEAR, ZoneOffset.UTC, quick, PeriodicPolicy.DEFAULT,
-                    new GroupedCodecSpec.DatePrefix("-", List.of())),
-                "fine", segment("zero"))));
+        BatchPolicy quick = BatchPolicy.builder()
+            .step(100)
+            .initialOffset(0)
+            .lookahead(Duration.ofSeconds(1))
+            .maxBatch(100_000)
+            .reserveTimeout(Duration.ofMillis(500))
+            .build();
+        String message = problems(RuntimeSpec.builder("app")
+            .store("db", StoreSpec.builder("memory").timeout(Duration.ofSeconds(1)).build())
+            .store("zero", StoreSpec.builder("memory").timeout(Duration.ZERO).build())
+            .generator("order", GeneratorSpec.Segment.builder("db").batch(quick).codec(List.of()).build())
+            .generator("bill", GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR, ZoneOffset.UTC) .batch(quick) .periodic(PeriodicPolicy.DEFAULT) .codec(new GroupedCodecSpec.DatePrefix("-", List.of())) .build())
+            .generator("fine", segment("zero"))
+            .build());
         assertThat(message, containsString("generator [order]: store [db] timeout PT1S exceeds batch.reserveTimeout PT0.5S"));
         assertThat(message, containsString("generator [bill]: store [db] timeout PT1S exceeds batch.reserveTimeout PT0.5S"));
         assertThat(message, containsString("store [zero]: timeout must be positive: PT0S"));
@@ -97,15 +111,16 @@ class RuntimeSpecValidationTest {
 
     @Test
     void codecListsAreChecked() {
-        String message = problems(new RuntimeSpec("app", Map.of("db", store("memory")), Optional.empty(),
-            Map.of("friendly", segment("db", new CodecSpec.Friendly(ZoneOffset.UTC, true)),
-                "second", segment("db", new CodecSpec.Prefix("O"), new CodecSpec.Radix(62, 11, true)),
-                "radix", segment("db", new CodecSpec.Radix(99, 11, true)),
-                "custom", segment("db", new CodecSpec.Custom("com.example.NoSuchCodec")),
-                "notCodec", segment("db", new CodecSpec.Custom(String.class.getName())),
-                "date", segment("db", new CodecSpec.DatePrefix("yyyyMMdd", "", DatePrefix.Source.ID_TIME, ZoneOffset.UTC)),
-                "bill", new GeneratorSpec.PeriodicSegment("db", Period.YEAR, ZoneOffset.UTC, BatchPolicy.DEFAULT, PeriodicPolicy.DEFAULT,
-                    new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Friendly(ZoneOffset.UTC, false)))))));
+        String message = problems(RuntimeSpec.builder("app")
+            .store("db", store("memory"))
+            .generator("friendly", segment("db", new CodecSpec.Friendly(ZoneOffset.UTC, true)))
+            .generator("second", segment("db", new CodecSpec.Prefix("O"), new CodecSpec.Radix(62, 11, true)))
+            .generator("radix", segment("db", new CodecSpec.Radix(99, 11, true)))
+            .generator("custom", segment("db", new CodecSpec.Custom("com.example.NoSuchCodec")))
+            .generator("notCodec", segment("db", new CodecSpec.Custom(String.class.getName())))
+            .generator("date", segment("db", new CodecSpec.DatePrefix("yyyyMMdd", "", DatePrefix.Source.ID_TIME, ZoneOffset.UTC)))
+            .generator("bill", GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR, ZoneOffset.UTC) .batch(BatchPolicy.DEFAULT) .periodic(PeriodicPolicy.DEFAULT) .codec(new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Friendly(ZoneOffset.UTC, false)))) .build())
+            .build());
         assertThat(message, containsString("generator [friendly]: A friendly codec needs a time-based generator"));
         assertThat(message, containsString("generator [second]: Radix[radix=62, width=11, padStart=true] turns the id into text, so it must be the first codec"));
         assertThat(message, containsString("generator [radix]: radix must be in [2, 62]: 99"));
@@ -117,15 +132,19 @@ class RuntimeSpecValidationTest {
 
     @Test
     void machineSpecsAreChecked() {
-        Map<String, GeneratorSpec> generators = Map.of("default", snowflake(Layout.SNOWFLAKE_MS));
-        assertThat(problems(new RuntimeSpec("app", Map.of(), Optional.of(new MachineSpec.Static(0, 0, Optional.empty(),
-            Duration.ofSeconds(10), Optional.empty())), generators)), containsString("machine: bits must be in [1, 30]: 0"));
-        String fixed = problems(new RuntimeSpec("app", Map.of(), Optional.of(new MachineSpec.Static(3, 8, Optional.empty(),
-            Duration.ofMillis(1), Optional.empty())), generators));
+        RuntimeSpec.Builder generators = RuntimeSpec.builder("app").generator("default", snowflake(Layout.SNOWFLAKE_MS));
+        assertThat(problems(generators.machine(MachineSpec.Static.builder(0).bits(0).ahead(Duration.ofSeconds(10)).build()).build()),
+            containsString("machine: bits must be in [1, 30]: 0"));
+        String fixed = problems(generators.machine(MachineSpec.Static.builder(8).bits(3).ahead(Duration.ofMillis(1)).build()).build());
         assertThat(fixed, containsString("machine: slot must be in [0, 8): 8"));
         assertThat(fixed, containsString("machine: ahead must be at least 2ms: PT0.001S"));
-        String leased = problems(new RuntimeSpec("app", Map.of("m", store("memory")), Optional.of(new MachineSpec.Leased("m", 4,
-            Duration.ZERO, Duration.ofSeconds(-1), OptionalInt.of(16), Optional.of(" "))), generators));
+        String leased = problems(generators.store("m", store("memory")).machine(MachineSpec.Leased.builder("m")
+            .bits(4)
+            .ttl(Duration.ZERO)
+            .tolerance(Duration.ofSeconds(-1))
+            .preferredSlot(16)
+            .ownerKey(" ")
+            .build()).build());
         assertThat(leased, containsString("machine: ttl must be positive: PT0S"));
         assertThat(leased, containsString("machine: tolerance must not be negative: PT-1S"));
         assertThat(leased, containsString("machine: preferredSlot must be in [0, 16): 16"));
@@ -135,10 +154,12 @@ class RuntimeSpecValidationTest {
     @Test
     void namesAndClientsAreChecked() {
         RuntimeOptions base = options(memory);
-        RuntimeOptions withClient = new RuntimeOptions(base.time(), base.executor(), base.listener(), base.storeProviders(),
-            Map.of("typo", new Object()), base.hostResolver(), base.port(), base.codecs());
-        String message = problems(new RuntimeSpec("app", Map.of("db", store("memory")), Optional.empty(),
-            Map.of("a/b", segment("db"), " ", segment("db"))), withClient);
+        RuntimeOptions withClient = base.toBuilder().client("typo", new Object()).build();
+        String message = problems(RuntimeSpec.builder("app")
+            .store("db", store("memory"))
+            .generator("a/b", segment("db"))
+            .generator(" ", segment("db"))
+            .build(), withClient);
         assertThat(message, containsString("generator [a/b]: the name must not be blank nor contain '/'"));
         assertThat(message, containsString("generator [ ]: the name must not be blank nor contain '/'"));
         assertThat(message, containsString("clients: [typo] is not a store of the spec"));

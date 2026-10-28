@@ -32,8 +32,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
 
@@ -60,7 +58,10 @@ class ClusterReplicaWaitTest {
     }
 
     private static Store open(Duration timeout) {
-        return new RedisStoreProvider().open(new StoreConfig("cluster-wait", RedisStoreProvider.TYPE, timeout, Map.of(), Optional.of(cluster.client())));
+        return new RedisStoreProvider().open(StoreConfig.builder("cluster-wait", RedisStoreProvider.TYPE)
+            .timeout(timeout)
+            .client(cluster.client())
+            .build());
     }
 
     @Test

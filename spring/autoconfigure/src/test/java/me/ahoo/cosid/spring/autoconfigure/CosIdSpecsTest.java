@@ -50,7 +50,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 
 /**
  * {@link CosIdSpecs}: the pure mapping of {@link CosIdProperties}, from records built by hand and from bound properties.
@@ -91,10 +90,14 @@ class CosIdSpecsTest {
             null);
         RuntimeSpec spec = CosIdSpecs.toSpec(properties, ZONE);
         assertEquals("app", spec.namespace());
-        assertEquals(new StoreSpec("jdbc", Duration.ofSeconds(2), Map.of("initSchema", "true")), spec.stores().get("db"));
-        assertEquals(Optional.of(new MachineSpec.Static(10, 3, Optional.empty(), Duration.ofSeconds(10), Optional.empty())), spec.machine());
-        assertEquals(new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT, List.of()), spec.generators().get("default"));
-        assertEquals(new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of(new CodecSpec.Prefix("O"))), spec.generators().get("order"));
+        assertEquals(StoreSpec.builder("jdbc").timeout(Duration.ofSeconds(2)).option("initSchema", "true").build(), spec.stores().get("db"));
+        assertEquals(Optional.of(MachineSpec.Static.builder(3).bits(10).ahead(Duration.ofSeconds(10)).build()), spec.machine());
+        assertEquals(GeneratorSpec.Snowflake.builder()
+            .layout(Layout.SNOWFLAKE_MS)
+            .regression(ClockRegressionPolicy.DEFAULT)
+            .codec(List.of())
+            .build(), spec.generators().get("default"));
+        assertEquals(GeneratorSpec.Segment.builder("db").batch(BatchPolicy.DEFAULT).codec(List.of(new CodecSpec.Prefix("O"))).build(), spec.generators().get("order"));
         assertEquals(new CosIdProperties.Metrics(false), properties.metrics());
     }
 
@@ -139,19 +142,31 @@ class CosIdSpecsTest {
             "cosid.generators.token.codec[0].radix.radix=62",
             "cosid.metrics.generated=false");
         assertEquals("app", spec.namespace());
-        assertEquals(new StoreSpec("redis", Duration.ofSeconds(1), Map.of("wait", "auto")), spec.stores().get("cache"));
-        assertEquals(Optional.of(new MachineSpec.Leased("cache", 10, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty(),
-            Optional.empty())), spec.machine());
-        assertEquals(new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT, List.of(new CodecSpec.Radix(62, 11, true))),
+        assertEquals(StoreSpec.builder("redis").timeout(Duration.ofSeconds(1)).option("wait", "auto").build(), spec.stores().get("cache"));
+        assertEquals(Optional.of(MachineSpec.Leased.builder("cache").bits(10).ttl(Duration.ofSeconds(30)).tolerance(Duration.ofSeconds(1)).build()), spec.machine());
+        assertEquals(GeneratorSpec.Snowflake.builder()
+            .layout(Layout.SNOWFLAKE_MS)
+            .regression(ClockRegressionPolicy.DEFAULT)
+            .codec(List.of(new CodecSpec.Radix(62, 11, true)))
+            .build(),
             spec.generators().get("default"));
-        assertEquals(new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT,
-            List.of(new CodecSpec.Radix(62, Radix.maxWidth(62), false), new CodecSpec.Prefix("O"))), spec.generators().get("order"));
-        assertEquals(new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT, List.of(new CodecSpec.Friendly(ZONE, true))),
+        assertEquals(GeneratorSpec.Segment.builder("db")
+            .batch(BatchPolicy.DEFAULT)
+            .codec(List.of(new CodecSpec.Radix(62, Radix.maxWidth(62), false), new CodecSpec.Prefix("O")))
+            .build(), spec.generators().get("order"));
+        assertEquals(GeneratorSpec.Snowflake.builder()
+            .layout(Layout.SNOWFLAKE_MS)
+            .regression(ClockRegressionPolicy.DEFAULT)
+            .codec(List.of(new CodecSpec.Friendly(ZONE, true)))
+            .build(),
             spec.generators().get("trace"));
-        assertEquals(new GeneratorSpec.PeriodicSegment("db", Period.YEAR_MONTH_DAY, ZONE, BatchPolicy.DEFAULT, PeriodicPolicy.DEFAULT,
-                new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Radix(10, 6, true)))),
+        assertEquals(GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR_MONTH_DAY, ZONE)
+            .batch(BatchPolicy.DEFAULT)
+            .periodic(PeriodicPolicy.DEFAULT)
+            .codec(new GroupedCodecSpec.DatePrefix("", List.of(new CodecSpec.Radix(10, 6, true))))
+            .build(),
             spec.generators().get("bill"));
-        assertEquals(new GeneratorSpec.CosId80(ClockRegressionPolicy.DEFAULT, new PartsCodecSpec.Radix(62)), spec.generators().get("token"));
+        assertEquals(GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build(), spec.generators().get("token"));
     }
 
     @Test
@@ -192,17 +207,29 @@ class CosIdSpecsTest {
             "cosid.generators.year.seal-after=2d",
             "cosid.generators.friendly80.strategy=cosid80",
             "cosid.generators.friendly80.codec[0].friendly.pad-start=false");
-        assertEquals(Optional.of(new MachineSpec.Static(8, 7, Optional.of(Path.of("/var/lib/cosid/state")), Duration.ofSeconds(5),
-            Optional.of(Instant.parse("2026-11-01T00:00:00Z")))), spec.machine());
+        assertEquals(Optional.of(MachineSpec.Static.builder(7)
+            .bits(8)
+            .stateFile(Path.of("/var/lib/cosid/state"))
+            .ahead(Duration.ofSeconds(5))
+            .notBefore(Instant.parse("2026-11-01T00:00:00Z"))
+            .build()), spec.machine());
         assertEquals("memory", spec.stores().get("mem").type());
-        assertEquals(new GeneratorSpec.Snowflake(new Layout(Instant.parse("2020-01-01T00:00:00Z"), ChronoUnit.MILLIS, 40, 8, 15, 7), new ClockRegressionPolicy(Duration.ZERO, Duration.ofSeconds(2)),
-                List.of(new CodecSpec.Custom("myCodec"), new CodecSpec.Suffix("Z"), new CodecSpec.DatePrefix("yyMM", "-", DatePrefix.Source.NOW, ZONE))),
+        assertEquals(GeneratorSpec.Snowflake.builder()
+            .layout(new Layout(Instant.parse("2020-01-01T00:00:00Z"), ChronoUnit.MILLIS, 40, 8, 15, 7))
+            .regression(new ClockRegressionPolicy(Duration.ZERO, Duration.ofSeconds(2)))
+            .codec(List.of(new CodecSpec.Custom("myCodec"), new CodecSpec.Suffix("Z"), new CodecSpec.DatePrefix("yyMM", "-", DatePrefix.Source.NOW, ZONE)))
+            .build(),
             spec.generators().get("custom"));
-        assertEquals(new GeneratorSpec.Segment("mem", new BatchPolicy(10, 5, Duration.ZERO, 10, Duration.ofSeconds(5), Optional.of(Duration.ofHours(1))),
-            List.of()), spec.generators().get("seg"));
-        assertEquals(new GeneratorSpec.PeriodicSegment("mem", Period.YEAR, ZONE, BatchPolicy.DEFAULT,
-            new PeriodicPolicy(Duration.ZERO, Optional.of(Duration.ofDays(2))), new GroupedCodecSpec.DatePrefix("-", List.of())), spec.generators().get("year"));
-        assertEquals(new GeneratorSpec.CosId80(ClockRegressionPolicy.DEFAULT, new PartsCodecSpec.Friendly(ZONE)), spec.generators().get("friendly80"));
+        assertEquals(GeneratorSpec.Segment.builder("mem")
+            .batch(BatchPolicy.builder() .step(10) .initialOffset(5) .lookahead(Duration.ZERO) .maxBatch(10) .reserveTimeout(Duration.ofSeconds(5)) .rangeTtl(Duration.ofHours(1)) .build())
+            .codec(List.of())
+            .build(), spec.generators().get("seg"));
+        assertEquals(GeneratorSpec.PeriodicSegment.builder("mem", Period.YEAR, ZONE)
+            .batch(BatchPolicy.DEFAULT)
+            .periodic(PeriodicPolicy.builder().prewarm(Duration.ZERO).sealAfter(Duration.ofDays(2)).build())
+            .codec(new GroupedCodecSpec.DatePrefix("-", List.of()))
+            .build(), spec.generators().get("year"));
+        assertEquals(GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Friendly(ZONE)).build(), spec.generators().get("friendly80"));
     }
 
     @Test
@@ -219,8 +246,12 @@ class CosIdSpecsTest {
         // The Mongo write concern (06-stores.md §2.3) is a backend option: it reaches the StoreProvider unchanged.
         RuntimeSpec spec = spec("cosid.stores.mongo.type=mongo", "cosid.stores.mongo.options.uri=mongodb://db/?replicaSet=rs",
             "cosid.stores.mongo.options.database=ids", "cosid.stores.mongo.options.writeConcern=w1");
-        assertEquals(new StoreSpec("mongo", Duration.ofSeconds(2), Map.of("uri", "mongodb://db/?replicaSet=rs", "database", "ids",
-            "writeConcern", "w1")), spec.stores().get("mongo"));
+        assertEquals(StoreSpec.builder("mongo")
+            .timeout(Duration.ofSeconds(2))
+            .option("uri", "mongodb://db/?replicaSet=rs")
+            .option("database", "ids")
+            .option("writeConcern", "w1")
+            .build(), spec.stores().get("mongo"));
     }
 
     @Test
@@ -237,7 +268,13 @@ class CosIdSpecsTest {
     void mapsALeasedMachineWithAllItsSettings() {
         RuntimeSpec spec = spec("cosid.machine.leased.store=s", "cosid.machine.leased.bits=6", "cosid.machine.leased.ttl=10s",
             "cosid.machine.leased.tolerance=0s", "cosid.machine.leased.preferred-slot=4", "cosid.machine.leased.owner-key=pod-4");
-        assertEquals(Optional.of(new MachineSpec.Leased("s", 6, Duration.ofSeconds(10), Duration.ZERO, OptionalInt.of(4), Optional.of("pod-4"))),
+        assertEquals(Optional.of(MachineSpec.Leased.builder("s")
+            .bits(6)
+            .ttl(Duration.ofSeconds(10))
+            .tolerance(Duration.ZERO)
+            .preferredSlot(4)
+            .ownerKey("pod-4")
+            .build()),
             spec.machine());
     }
 
@@ -264,7 +301,11 @@ class CosIdSpecsTest {
         assertThat(spec.generators().get("off"), instanceOf(GeneratorSpec.Disabled.class));
         assertThat(((GeneratorSpec.Disabled) spec.generators().get("off")).generator(), instanceOf(GeneratorSpec.Segment.class));
         assertThat(((GeneratorSpec.Disabled) spec.generators().get("broken")).generator(), instanceOf(GeneratorSpec.PeriodicSegment.class));
-        assertEquals(new GeneratorSpec.Disabled(new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT, List.of())),
+        assertEquals(new GeneratorSpec.Disabled(GeneratorSpec.Snowflake.builder()
+            .layout(Layout.SNOWFLAKE_MS)
+            .regression(ClockRegressionPolicy.DEFAULT)
+            .codec(List.of())
+            .build()),
             spec.generators().get("ok"));
         RuntimeSpec placeholders = spec(
             "cosid.generators.a.strategy=snowflake", "cosid.generators.a.disabled=true", "cosid.generators.a.layout=nope",

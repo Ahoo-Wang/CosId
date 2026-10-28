@@ -33,7 +33,6 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executor;
 
@@ -42,7 +41,13 @@ class PeriodicSegmentGeneratorTest {
     private static final Instant MIDNIGHT = Instant.parse("2026-10-27T00:00:00Z");
     private final FakeRangeStore store = new FakeRangeStore();
     private final ManualTime time = new ManualTime(MORNING);
-    private final BatchPolicy batch = new BatchPolicy(10, 0, Duration.ofSeconds(1), 10, Duration.ofMillis(200), Optional.empty());
+    private final BatchPolicy batch = BatchPolicy.builder()
+        .step(10)
+        .initialOffset(0)
+        .lookahead(Duration.ofSeconds(1))
+        .maxBatch(10)
+        .reserveTimeout(Duration.ofMillis(200))
+        .build();
 
     private PeriodicSegmentGenerator generator(PeriodicPolicy periodic, Executor executor) {
         return new PeriodicSegmentGenerator("bill", "app/bill", Period.YEAR_MONTH_DAY, ZoneOffset.UTC, store, batch, periodic, executor,
@@ -127,7 +132,7 @@ class PeriodicSegmentGeneratorTest {
 
     @Test
     void sealsTheOldKeyOnlyAfterSealAfter() {
-        PeriodicPolicy periodic = new PeriodicPolicy(Duration.ofMinutes(1), Optional.of(Duration.ofHours(1)));
+        PeriodicPolicy periodic = PeriodicPolicy.builder().prewarm(Duration.ofMinutes(1)).sealAfter(Duration.ofHours(1)).build();
         try (PeriodicSegmentGenerator generator = generator(periodic, Runnable::run)) {
             generator.generate();
             time.set(MIDNIGHT);
@@ -155,7 +160,7 @@ class PeriodicSegmentGeneratorTest {
 
     @Test
     void sealFailureOrRejectionIsOnlyLogged() {
-        PeriodicPolicy periodic = new PeriodicPolicy(Duration.ZERO, Optional.of(Duration.ZERO));
+        PeriodicPolicy periodic = PeriodicPolicy.builder().prewarm(Duration.ZERO).sealAfter(Duration.ZERO).build();
         RangeStore failing = new RangeStore() {
             @Override
             public Range reserve(String key, long size, long initialOffset) {
@@ -266,7 +271,7 @@ class PeriodicSegmentGeneratorTest {
                 return key.equals("20261027") && !repaired[0] ? Instant.EPOCH : Period.YEAR_MONTH_DAY.endOf(key, zone);
             }
         };
-        PeriodicPolicy sealAtOnce = new PeriodicPolicy(Duration.ZERO, Optional.of(Duration.ZERO));
+        PeriodicPolicy sealAtOnce = PeriodicPolicy.builder().prewarm(Duration.ZERO).sealAfter(Duration.ZERO).build();
         try (PeriodicSegmentGenerator generator = new PeriodicSegmentGenerator("bill", "app/bill", faulty, ZoneOffset.UTC, store, batch,
             sealAtOnce, Runnable::run, time, GeneratorListener.NOOP)) {
             assertThat(generator.generate().period(), is("20261026"));
@@ -300,7 +305,7 @@ class PeriodicSegmentGeneratorTest {
             }
         };
         try (PeriodicSegmentGenerator generator = new PeriodicSegmentGenerator("bill", "app/bill", sticky, ZoneOffset.UTC, store, batch,
-            new PeriodicPolicy(Duration.ofSeconds(2), Optional.empty()), Runnable::run, time, GeneratorListener.NOOP)) {
+            PeriodicPolicy.builder().prewarm(Duration.ofSeconds(2)).build(), Runnable::run, time, GeneratorListener.NOOP)) {
             assertThat(generator.generate(), is(new GroupedId("all", 0)));
             time.advance(1500);
             assertThat(generator.generate(), is(new GroupedId("all", 1)));
@@ -312,9 +317,15 @@ class PeriodicSegmentGeneratorTest {
     void concurrentGenerationAcrossTheBoundaryIsUniquePerPeriod() throws Exception {
         java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
         java.util.concurrent.atomic.AtomicLong clock = new java.util.concurrent.atomic.AtomicLong(MIDNIGHT.minusMillis(200).toEpochMilli());
-        BatchPolicy policy = new BatchPolicy(10, 0, Duration.ofMillis(10), 100, Duration.ofSeconds(5), Optional.empty());
+        BatchPolicy policy = BatchPolicy.builder()
+            .step(10)
+            .initialOffset(0)
+            .lookahead(Duration.ofMillis(10))
+            .maxBatch(100)
+            .reserveTimeout(Duration.ofSeconds(5))
+            .build();
         try (executor; PeriodicSegmentGenerator generator = new PeriodicSegmentGenerator("bill", "app/bill", Period.YEAR_MONTH_DAY,
-            ZoneOffset.UTC, store, policy, new PeriodicPolicy(Duration.ofMillis(100), Optional.empty()), executor,
+            ZoneOffset.UTC, store, policy, PeriodicPolicy.builder().prewarm(Duration.ofMillis(100)).build(), executor,
             () -> clock.incrementAndGet() / 10, GeneratorListener.NOOP)) {
             clock.set(MIDNIGHT.minusMillis(200).toEpochMilli() * 10);
             int threads = 8;

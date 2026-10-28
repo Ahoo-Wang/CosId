@@ -94,7 +94,16 @@ class ZookeeperSlotNodeTest {
 
         int version = client.checkExists().forPath(path).getVersion();
         assertNotEquals(b.fence(), version, "the node version is not the fence");
-        SlotLease versionAsFence = new SlotLease(namespace, 0, b.owner(), version, b.expiresAt(), b.floor(), b.ceiling(), b.storeNow());
+        SlotLease versionAsFence = SlotLease.builder()
+            .namespace(namespace)
+            .slot(0)
+            .owner(b.owner())
+            .fence(version)
+            .expiresAt(b.expiresAt())
+            .floor(b.floor())
+            .ceiling(b.ceiling())
+            .storeNow(b.storeNow())
+            .build();
         assertTrue(slots.renew(versionAsFence, TTL, TOLERANCE).isEmpty(), "a lease is matched by the fence in the data");
         assertFalse(slots.release(versionAsFence, b.ceiling()));
         assertTrue(slots.renew(b, TTL, TOLERANCE).isPresent());

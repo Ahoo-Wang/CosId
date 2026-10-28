@@ -44,7 +44,6 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -56,7 +55,13 @@ import java.util.concurrent.TimeUnit;
  */
 class StoreTimeoutEventsTest {
     /** No prefetching, so that each refill is one the caller waits for. */
-    private static final BatchPolicy WAITING = new BatchPolicy(10, 0, Duration.ZERO, 10, Duration.ofMillis(200), Optional.empty());
+    private static final BatchPolicy WAITING = BatchPolicy.builder()
+        .step(10)
+        .initialOffset(0)
+        .lookahead(Duration.ZERO)
+        .maxBatch(10)
+        .reserveTimeout(Duration.ofMillis(200))
+        .build();
 
     private final List<String> timeouts = new CopyOnWriteArrayList<>();
     private final List<String> renewFailures = new CopyOnWriteArrayList<>();
@@ -77,15 +82,20 @@ class StoreTimeoutEventsTest {
     }
 
     private CosIdRuntime start(TestStores stores, Optional<MachineSpec> machine, Map<String, GeneratorSpec> generators) {
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("db", new StoreSpec("mem", Duration.ofMillis(100), Map.of())), machine, generators);
-        return CosIdRuntime.start(spec, CosIdRuntimeTest.options(TimeSource.SYSTEM, listener, stores));
+        RuntimeSpec.Builder spec = RuntimeSpec.builder("app").store("db", StoreSpec.builder("mem").timeout(Duration.ofMillis(100)).build());
+        machine.ifPresent(spec::machine);
+        generators.forEach(spec::generator);
+        return CosIdRuntime.start(spec.build(), CosIdRuntimeTest.options(TimeSource.SYSTEM, listener, stores));
     }
 
     @Test
     void aReserveThatTimesOutInTheStoreIsReported() {
         TestStores stores = new TestStores("mem");
         stores.faults.put("db", new FaultInjector().once(FaultInjector.Operation.RESERVE, new Fault.Fail(StoreTimeoutEventsTest::timedOut)));
-        try (CosIdRuntime runtime = start(stores, Optional.empty(), Map.of("order", new GeneratorSpec.Segment("db", WAITING, List.of())))) {
+        try (CosIdRuntime runtime = start(stores, Optional.empty(), Map.of("order", GeneratorSpec.Segment.builder("db")
+            .batch(WAITING)
+            .codec(List.of())
+            .build()))) {
             RangeUnavailableException e = assertThrows(RangeUnavailableException.class, () -> runtime.generator("order").generate());
             assertThat(StoreTimeoutException.isTimeout(e), is(true));
             assertThat(timeouts, contains("db:reserve"));
@@ -96,7 +106,10 @@ class StoreTimeoutEventsTest {
     void anotherStoreFailureIsNoTimeout() {
         TestStores stores = new TestStores("mem");
         stores.faults.put("db", new FaultInjector().once(FaultInjector.Operation.RESERVE, new Fault.Fail(() -> new CosIdException("refused"))));
-        try (CosIdRuntime runtime = start(stores, Optional.empty(), Map.of("order", new GeneratorSpec.Segment("db", WAITING, List.of())))) {
+        try (CosIdRuntime runtime = start(stores, Optional.empty(), Map.of("order", GeneratorSpec.Segment.builder("db")
+            .batch(WAITING)
+            .codec(List.of())
+            .build()))) {
             assertThrows(RangeUnavailableException.class, () -> runtime.generator("order").generate());
             assertThat(timeouts.isEmpty(), is(true));
         }
@@ -106,7 +119,10 @@ class StoreTimeoutEventsTest {
     void aRefillWaitLongerThanTheReserveTimeoutIsReportedOncePerRefill() throws Exception {
         TestStores stores = new TestStores("mem");
         stores.faults.put("db", new FaultInjector().once(FaultInjector.Operation.RESERVE, new Fault.Delay(Duration.ofSeconds(1))));
-        try (CosIdRuntime runtime = start(stores, Optional.empty(), Map.of("order", new GeneratorSpec.Segment("db", WAITING, List.of())))) {
+        try (CosIdRuntime runtime = start(stores, Optional.empty(), Map.of("order", GeneratorSpec.Segment.builder("db")
+            .batch(WAITING)
+            .codec(List.of())
+            .build()))) {
             IdGenerator order = runtime.generator("order");
             // The first caller makes the slow reservation itself; the later ones wait for it, and two of them give up
             // on that one refill: one event.
@@ -123,8 +139,11 @@ class StoreTimeoutEventsTest {
     void aPeriodicRefillWaitIsReportedWithItsStore() throws Exception {
         TestStores stores = new TestStores("mem");
         stores.faults.put("db", new FaultInjector().once(FaultInjector.Operation.RESERVE, new Fault.Delay(Duration.ofSeconds(1))));
-        GeneratorSpec bill = new GeneratorSpec.PeriodicSegment("db", Period.YEAR, ZoneOffset.UTC, WAITING, PeriodicPolicy.DEFAULT,
-            new GroupedCodecSpec.DatePrefix("-", List.of()));
+        GeneratorSpec bill = GeneratorSpec.PeriodicSegment.builder("db", Period.YEAR, ZoneOffset.UTC)
+            .batch(WAITING)
+            .periodic(PeriodicPolicy.DEFAULT)
+            .codec(new GroupedCodecSpec.DatePrefix("-", List.of()))
+            .build();
         try (CosIdRuntime runtime = start(stores, Optional.empty(), Map.of("bill", bill))) {
             GroupedIdGenerator generator = runtime.get("bill", GroupedIdGenerator.class);
             CompletableFuture<GroupedId> first = CompletableFuture.supplyAsync(generator::generate);
@@ -142,9 +161,13 @@ class StoreTimeoutEventsTest {
             .once(FaultInjector.Operation.ACQUIRE, new Fault.Fail(StoreTimeoutEventsTest::timedOut))
             .always(FaultInjector.Operation.RENEW, new Fault.Fail(StoreTimeoutEventsTest::timedOut)));
         // A short ttl renews every ttl/3.
-        MachineSpec leased = new MachineSpec.Leased("db", 10, Duration.ofMillis(600), Duration.ofMillis(100), OptionalInt.empty(), Optional.empty());
+        MachineSpec leased = MachineSpec.Leased.builder("db").bits(10).ttl(Duration.ofMillis(600)).tolerance(Duration.ofMillis(100)).build();
         try (CosIdRuntime runtime = start(stores, Optional.of(leased),
-            Map.of("default", new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT, List.of())))) {
+            Map.of("default", GeneratorSpec.Snowflake.builder()
+                .layout(Layout.SNOWFLAKE_MS)
+                .regression(ClockRegressionPolicy.DEFAULT)
+                .codec(List.of())
+                .build()))) {
             assertThat(runtime.slot().isPresent(), is(true));
             assertThat(timeouts, hasItem("db:acquire"));
             long deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos();

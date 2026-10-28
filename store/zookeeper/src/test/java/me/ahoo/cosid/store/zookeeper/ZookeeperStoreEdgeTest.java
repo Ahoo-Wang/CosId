@@ -126,10 +126,28 @@ class ZookeeperStoreEdgeTest {
         String namespace = "edge-" + UUID.randomUUID();
         SlotLease lease = assertInstanceOf(AcquireResult.Acquired.class,
             store.slots().acquire(namespace, owner("host-a"), 4, TTL, TOLERANCE, OptionalInt.empty())).lease();
-        SlotLease elsewhere = new SlotLease(namespace, 3, lease.owner(), lease.fence(), lease.expiresAt(), lease.floor(), lease.ceiling(), lease.storeNow());
+        SlotLease elsewhere = SlotLease.builder()
+            .namespace(namespace)
+            .slot(3)
+            .owner(lease.owner())
+            .fence(lease.fence())
+            .expiresAt(lease.expiresAt())
+            .floor(lease.floor())
+            .ceiling(lease.ceiling())
+            .storeNow(lease.storeNow())
+            .build();
         assertEquals(Optional.empty(), store.slots().renew(elsewhere, TTL, TOLERANCE));
         assertFalse(store.slots().release(elsewhere, 0));
-        SlotLease unknown = new SlotLease("edge-" + UUID.randomUUID(), 0, lease.owner(), 1, 0, 0, 0, 0);
+        SlotLease unknown = SlotLease.builder()
+            .namespace("edge-" + UUID.randomUUID())
+            .slot(0)
+            .owner(lease.owner())
+            .fence(1)
+            .expiresAt(0)
+            .floor(0)
+            .ceiling(0)
+            .storeNow(0)
+            .build();
         assertFalse(store.slots().release(unknown, 0));
         assertTrue(store.slots().release(lease, lease.ceiling()));
         assertFalse(store.slots().release(lease, lease.ceiling()), "a second release finds the slot free");
@@ -223,8 +241,8 @@ class ZookeeperStoreEdgeTest {
     void providerRejectsBadIntegers() {
         Map<String, Object> options = Map.of("connectString", ZookeeperTests.connectString(), "retry.maxRetries", "many");
         assertThrows(IllegalArgumentException.class, () -> new ZookeeperStoreProvider().open(
-            new me.ahoo.cosid.store.StoreConfig("zk", "zookeeper", TTL, options, Optional.empty())));
+            me.ahoo.cosid.store.StoreConfig.builder("zk", "zookeeper").timeout(TTL).options(options).build()));
         Map<String, Object> numeric = Map.of("connectString", ZookeeperTests.connectString(), "retry.maxRetries", 2);
-        new ZookeeperStoreProvider().open(new me.ahoo.cosid.store.StoreConfig("zk", "zookeeper", TTL, numeric, Optional.empty())).close();
+        new ZookeeperStoreProvider().open(me.ahoo.cosid.store.StoreConfig.builder("zk", "zookeeper").timeout(TTL).options(numeric).build()).close();
     }
 }

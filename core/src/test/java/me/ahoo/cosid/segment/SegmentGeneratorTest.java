@@ -66,7 +66,9 @@ class SegmentGeneratorTest {
     }
 
     private static BatchPolicy policy(long step, Duration lookahead, long maxBatch, Duration reserveTimeout, Optional<Duration> rangeTtl) {
-        return new BatchPolicy(step, 0, lookahead, maxBatch, reserveTimeout, rangeTtl);
+        BatchPolicy.Builder policy = BatchPolicy.builder().step(step).initialOffset(0).lookahead(lookahead).maxBatch(maxBatch).reserveTimeout(reserveTimeout);
+        rangeTtl.ifPresent(policy::rangeTtl);
+        return policy.build();
     }
 
     private static BatchPolicy noPrefetch(long step) {
@@ -79,7 +81,13 @@ class SegmentGeneratorTest {
 
     @Test
     void issuesFromInitialOffsetInOrder() {
-        BatchPolicy policy = new BatchPolicy(10, 1000, Duration.ZERO, 10, Duration.ofSeconds(3), Optional.empty());
+        BatchPolicy policy = BatchPolicy.builder()
+            .step(10)
+            .initialOffset(1000)
+            .lookahead(Duration.ZERO)
+            .maxBatch(10)
+            .reserveTimeout(Duration.ofSeconds(3))
+            .build();
         try (SegmentGenerator generator = generator(policy, Runnable::run, TimeSource.SYSTEM)) {
             assertThat(store.reserves.get(), is(0));
             for (long expected = 1000; expected < 1025; expected++) {
@@ -101,7 +109,13 @@ class SegmentGeneratorTest {
 
     @Test
     void anExplicitZeroOffsetStartsAtZero() {
-        BatchPolicy fromZero = new BatchPolicy(10, 0, Duration.ZERO, 10, Duration.ofSeconds(3), Optional.empty());
+        BatchPolicy fromZero = BatchPolicy.builder()
+            .step(10)
+            .initialOffset(0)
+            .lookahead(Duration.ZERO)
+            .maxBatch(10)
+            .reserveTimeout(Duration.ofSeconds(3))
+            .build();
         try (SegmentGenerator generator = generator(fromZero, Runnable::run, TimeSource.SYSTEM)) {
             assertThat(generator.generate(), is(0L));
         }
@@ -547,7 +561,13 @@ class SegmentGeneratorTest {
     void aBatchNearLongMaxStillRefills() {
         // batch * MAX_READY_RANGES would wrap negative: the refill must still start, not busy-loop.
         long step = Long.MAX_VALUE / 32;
-        BatchPolicy huge = new BatchPolicy(step, 1, Duration.ofSeconds(1), step, Duration.ofSeconds(3), Optional.empty());
+        BatchPolicy huge = BatchPolicy.builder()
+            .step(step)
+            .initialOffset(1)
+            .lookahead(Duration.ofSeconds(1))
+            .maxBatch(step)
+            .reserveTimeout(Duration.ofSeconds(3))
+            .build();
         try (SegmentGenerator generator = generator(huge, Runnable::run, new ManualTime(0))) {
             assertTimeoutPreemptively(Duration.ofSeconds(5), () -> {
                 assertThat(generator.generate(), is(1L));

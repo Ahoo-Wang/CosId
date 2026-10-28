@@ -51,7 +51,9 @@ class JdbcStoreProviderTest {
     }
 
     private static StoreConfig config(Map<String, Object> options, Optional<Object> client) {
-        return new StoreConfig("test", "jdbc", Duration.ofSeconds(3), options, client);
+        StoreConfig.Builder config = StoreConfig.builder("test", "jdbc").timeout(Duration.ofSeconds(3)).options(options);
+        client.ifPresent(config::client);
+        return config.build();
     }
 
     @Test

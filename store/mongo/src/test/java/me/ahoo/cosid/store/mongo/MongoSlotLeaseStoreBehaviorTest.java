@@ -122,8 +122,16 @@ class MongoSlotLeaseStoreBehaviorTest {
     void renewAndReleaseMatchTheFence() {
         String namespace = newNamespace();
         SlotLease lease = acquire(namespace, owner("host-a"), 1, OptionalInt.empty()).lease();
-        SlotLease staleFence = new SlotLease(namespace, lease.slot(), lease.owner(), lease.fence() - 1, lease.expiresAt(),
-            lease.floor(), lease.ceiling(), lease.storeNow());
+        SlotLease staleFence = SlotLease.builder()
+            .namespace(namespace)
+            .slot(lease.slot())
+            .owner(lease.owner())
+            .fence(lease.fence() - 1)
+            .expiresAt(lease.expiresAt())
+            .floor(lease.floor())
+            .ceiling(lease.ceiling())
+            .storeNow(lease.storeNow())
+            .build();
         assertTrue(store.renew(staleFence, TTL, TOLERANCE).isEmpty());
         assertFalse(store.release(staleFence, lease.ceiling()));
         assertTrue(store.release(lease, lease.ceiling()));

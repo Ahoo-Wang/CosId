@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.TreeMap;
 
 /**
@@ -79,7 +78,7 @@ public final class CosIdSpecs {
                 problems.add(at + ".type: required");
                 return;
             }
-            stores.put(name, new StoreSpec(store.type().trim(), store.timeout(), Map.copyOf(store.options())));
+            stores.put(name, StoreSpec.builder(store.type().trim()).timeout(store.timeout()).options(store.options()).build());
         });
         final Optional<MachineSpec> machine = machine(properties.machine(), problems);
         Map<String, GeneratorSpec> generators = new LinkedHashMap<>();
@@ -95,7 +94,11 @@ public final class CosIdSpecs {
         if (!problems.isEmpty()) {
             throw new CosIdException("Invalid " + CosIdProperties.PREFIX + ".* configuration:\n  - " + String.join("\n  - ", problems));
         }
-        return new RuntimeSpec(properties.namespace(), stores, machine, generators);
+        RuntimeSpec.Builder spec = RuntimeSpec.builder(properties.namespace());
+        stores.forEach(spec::store);
+        machine.ifPresent(spec::machine);
+        generators.forEach(spec::generator);
+        return spec.build();
     }
 
     private static Optional<MachineSpec> machine(CosIdProperties.Machine machine, List<String> problems) {
@@ -113,17 +116,22 @@ public final class CosIdSpecs {
                 problems.add(at + ".leased.store: required");
                 return Optional.empty();
             }
-            return Optional.of(new MachineSpec.Leased(leased.store(), leased.bits(), leased.ttl(), leased.tolerance(),
-                leased.preferredSlot() == null ? OptionalInt.empty() : OptionalInt.of(leased.preferredSlot()),
-                Optional.ofNullable(leased.ownerKey()).filter(key -> !key.isEmpty())));
+            MachineSpec.Leased.Builder spec = MachineSpec.Leased.builder(leased.store()).bits(leased.bits()).ttl(leased.ttl()).tolerance(leased.tolerance());
+            if (leased.preferredSlot() != null) {
+                spec.preferredSlot(leased.preferredSlot());
+            }
+            Optional.ofNullable(leased.ownerKey()).filter(key -> !key.isEmpty()).ifPresent(spec::ownerKey);
+            return Optional.of(spec.build());
         }
         CosIdProperties.Static fixed = machine.fixed();
         if (fixed.slot() == null) {
             problems.add(at + ".static.slot: required");
             return Optional.empty();
         }
-        return Optional.of(new MachineSpec.Static(fixed.bits(), fixed.slot(), Optional.ofNullable(fixed.stateFile()), fixed.ahead(),
-            Optional.ofNullable(fixed.notBefore())));
+        MachineSpec.Static.Builder spec = MachineSpec.Static.builder(fixed.slot()).bits(fixed.bits()).ahead(fixed.ahead());
+        Optional.ofNullable(fixed.stateFile()).ifPresent(spec::stateFile);
+        Optional.ofNullable(fixed.notBefore()).ifPresent(spec::notBefore);
+        return Optional.of(spec.build());
     }
 
     private static GeneratorSpec generator(String at, CosIdProperties.Generator generator, ZoneId zone, List<String> problems) {
@@ -137,12 +145,24 @@ public final class CosIdSpecs {
         GeneratorSpec spec;
         try {
             spec = switch (strategy) {
-                case SNOWFLAKE -> new GeneratorSpec.Snowflake(layout(at, generator, own), regression(generator), codecs(at, generator.codec(), zone, own));
-                case COSID80 -> new GeneratorSpec.CosId80(regression(generator), partsCodec(at, generator.codec(), zone, own));
-                case SEGMENT -> new GeneratorSpec.Segment(store(at, generator, own), batch(generator), codecs(at, generator.codec(), zone, own));
-                default -> new GeneratorSpec.PeriodicSegment(store(at, generator, own), period(at, generator, own),
-                    generator.zone() == null ? zone : generator.zone(), batch(generator),
-                    new PeriodicPolicy(generator.prewarm(), Optional.ofNullable(generator.sealAfter())), groupedCodec(at, generator.codec(), zone, own));
+                case SNOWFLAKE -> GeneratorSpec.Snowflake.builder()
+                    .layout(layout(at, generator, own))
+                    .regression(regression(generator))
+                    .codec(codecs(at, generator.codec(), zone, own))
+                    .build();
+                case COSID80 -> GeneratorSpec.CosId80.builder()
+                    .regression(regression(generator))
+                    .codec(partsCodec(at, generator.codec(), zone, own))
+                    .build();
+                case SEGMENT -> GeneratorSpec.Segment.builder(store(at, generator, own))
+                    .batch(batch(generator))
+                    .codec(codecs(at, generator.codec(), zone, own))
+                    .build();
+                default -> GeneratorSpec.PeriodicSegment.builder(store(at, generator, own), period(at, generator, own), generator.zone() == null ? zone : generator.zone())
+                    .batch(batch(generator))
+                    .periodic(periodic(generator))
+                    .codec(groupedCodec(at, generator.codec(), zone, own))
+                    .build();
             };
         } catch (IllegalArgumentException e) {
             own.add(at + ": " + e.getMessage());
@@ -158,11 +178,18 @@ public final class CosIdSpecs {
     private static GeneratorSpec placeholder(String strategy, CosIdProperties.Generator generator) {
         String store = generator.store() == null ? "" : generator.store();
         return switch (strategy) {
-            case SNOWFLAKE -> new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT, List.of());
-            case COSID80 -> new GeneratorSpec.CosId80(ClockRegressionPolicy.DEFAULT, new PartsCodecSpec.Radix(62));
-            case SEGMENT -> new GeneratorSpec.Segment(store, BatchPolicy.DEFAULT, List.of());
-            default -> new GeneratorSpec.PeriodicSegment(store, Period.YEAR_MONTH_DAY, ZoneId.of("UTC"), BatchPolicy.DEFAULT,
-                PeriodicPolicy.DEFAULT, new GroupedCodecSpec.DatePrefix("-", List.of()));
+            case SNOWFLAKE -> GeneratorSpec.Snowflake.builder()
+                .layout(Layout.SNOWFLAKE_MS)
+                .regression(ClockRegressionPolicy.DEFAULT)
+                .codec(List.of())
+                .build();
+            case COSID80 -> GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build();
+            case SEGMENT -> GeneratorSpec.Segment.builder(store).batch(BatchPolicy.DEFAULT).codec(List.of()).build();
+            default -> GeneratorSpec.PeriodicSegment.builder(store, Period.YEAR_MONTH_DAY, ZoneId.of("UTC"))
+                .batch(BatchPolicy.DEFAULT)
+                .periodic(PeriodicPolicy.DEFAULT)
+                .codec(new GroupedCodecSpec.DatePrefix("-", List.of()))
+                .build();
         };
     }
 
@@ -206,8 +233,20 @@ public final class CosIdSpecs {
 
     private static BatchPolicy batch(CosIdProperties.Generator generator) {
         long maxBatch = generator.maxBatch() == null ? BatchPolicy.defaultMaxBatch(generator.step()) : generator.maxBatch();
-        return new BatchPolicy(generator.step(), generator.initialOffset(), generator.lookahead(), maxBatch, generator.reserveTimeout(),
-            Optional.ofNullable(generator.rangeTtl()));
+        BatchPolicy.Builder batch = BatchPolicy.builder()
+            .step(generator.step())
+            .initialOffset(generator.initialOffset())
+            .lookahead(generator.lookahead())
+            .maxBatch(maxBatch)
+            .reserveTimeout(generator.reserveTimeout());
+        Optional.ofNullable(generator.rangeTtl()).ifPresent(batch::rangeTtl);
+        return batch.build();
+    }
+
+    private static PeriodicPolicy periodic(CosIdProperties.Generator generator) {
+        PeriodicPolicy.Builder periodic = PeriodicPolicy.builder().prewarm(generator.prewarm());
+        Optional.ofNullable(generator.sealAfter()).ifPresent(periodic::sealAfter);
+        return periodic.build();
     }
 
     private static Period period(String at, CosIdProperties.Generator generator, List<String> problems) {

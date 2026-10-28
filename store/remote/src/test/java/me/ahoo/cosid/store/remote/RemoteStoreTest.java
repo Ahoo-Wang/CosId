@@ -61,7 +61,16 @@ import java.util.concurrent.Executors;
 class RemoteStoreTest {
     private static final UUID INCARNATION = UUID.fromString("6f1c7c2a-0d7e-4c35-9a53-2a3f3d1f0b11");
     private static final Owner OWNER = new Owner("host:8080", INCARNATION);
-    private static final SlotLease LEASE = new SlotLease("ns", 3, OWNER, 7, 2_000, 1_000, 3_000, 1_500);
+    private static final SlotLease LEASE = SlotLease.builder()
+        .namespace("ns")
+        .slot(3)
+        .owner(OWNER)
+        .fence(7)
+        .expiresAt(2_000)
+        .floor(1_000)
+        .ceiling(3_000)
+        .storeNow(1_500)
+        .build();
     private static final String LEASE_JSON = "\"namespace\":\"ns\",\"slot\":3,\"ownerKey\":\"host:8080\",\"incarnation\":\"" + INCARNATION
         + "\",\"fence\":7,\"expiresAt\":2000,\"floor\":1000,\"ceiling\":3000,\"storeNow\":1500";
 

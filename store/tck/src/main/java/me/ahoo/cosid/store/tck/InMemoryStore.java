@@ -141,7 +141,9 @@ public final class InMemoryStore implements Store, RangeStore, SlotLeaseStore {
             // §2.1, each step a conditional update of one slot: held by this very owner, preferred, sticky, lowest.
             for (int slot = 0; slot < limit; slot++) {
                 if (owner.equals(ns.rows[slot].owner)) {
-                    return new AcquireResult.Acquired(ns.rows[slot].toLease(namespace, slot, now), AcquireReason.IDEMPOTENT, duplicate);
+                    return AcquireResult.Acquired.builder(ns.rows[slot].toLease(namespace, slot, now), AcquireReason.IDEMPOTENT)
+                        .duplicateOwnerKey(duplicate)
+                        .build();
                 }
             }
             if (preferredSlot.isPresent()) {
@@ -178,7 +180,7 @@ public final class InMemoryStore implements Store, RangeStore, SlotLeaseStore {
         row.expiresAt = now + ttlMillis;
         row.ceiling = Math.max(row.expiresAt + ns.toleranceMillis, row.floor);
         row.nextFloor = row.ceiling;
-        return new AcquireResult.Acquired(row.toLease(namespace, slot, now), reason, duplicateOwnerKey);
+        return AcquireResult.Acquired.builder(row.toLease(namespace, slot, now), reason).duplicateOwnerKey(duplicateOwnerKey).build();
     }
 
     @Override
@@ -282,7 +284,16 @@ public final class InMemoryStore implements Store, RangeStore, SlotLeaseStore {
         }
 
         private SlotLease toLease(String namespace, int slot, long now) {
-            return new SlotLease(namespace, slot, owner, fence, expiresAt, floor, ceiling, now);
+            return SlotLease.builder()
+                .namespace(namespace)
+                .slot(slot)
+                .owner(owner)
+                .fence(fence)
+                .expiresAt(expiresAt)
+                .floor(floor)
+                .ceiling(ceiling)
+                .storeNow(now)
+                .build();
         }
     }
 }

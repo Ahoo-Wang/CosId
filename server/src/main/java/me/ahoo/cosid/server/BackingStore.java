@@ -68,7 +68,11 @@ public final class BackingStore implements Store {
             .orElseThrow(() -> new CosIdException("No StoreProvider of type [" + spec.type() + "] for the backing store"));
         HikariDataSource pool = "jdbc".equals(spec.type()) && spec.options().get("url") != null ? pool(chosen, spec, poolSize) : null;
         try {
-            Store store = provider.open(new StoreConfig(chosen, spec.type(), spec.timeout(), spec.options(), Optional.ofNullable(pool)));
+            StoreConfig.Builder config = StoreConfig.builder(chosen, spec.type()).timeout(spec.timeout()).options(spec.options());
+            if (pool != null) {
+                config.client(pool);
+            }
+            Store store = provider.open(config.build());
             log.info("Backing store [{}] of type [{}] opened", chosen, spec.type());
             return new BackingStore(chosen, store, pool);
         } catch (RuntimeException e) {

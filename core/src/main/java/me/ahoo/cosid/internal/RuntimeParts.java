@@ -109,9 +109,9 @@ public final class RuntimeParts {
             Executor executor = options.executor().orElse(parts.ownExecutor);
             for (String name : plan.stores()) {
                 StoreSpec store = spec.stores().get(name);
-                StoreConfig config = new StoreConfig(name, store.type(), store.timeout(), store.options(),
-                    Optional.ofNullable(options.clients().get(name)));
-                Store opened = providers.find(store.type()).orElseThrow().open(config);
+                StoreConfig.Builder config = StoreConfig.builder(name, store.type()).timeout(store.timeout()).options(store.options());
+                Optional.ofNullable(options.clients().get(name)).ifPresent(config::client);
+                Store opened = providers.find(store.type()).orElseThrow().open(config.build());
                 if (opened == null) {
                     throw new CosIdException("StoreProvider of type [" + store.type() + "] opened no store [" + name + "]");
                 }

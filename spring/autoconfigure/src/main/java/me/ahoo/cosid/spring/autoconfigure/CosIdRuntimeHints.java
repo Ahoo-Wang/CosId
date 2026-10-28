@@ -13,7 +13,6 @@
 
 package me.ahoo.cosid.spring.autoconfigure;
 
-import me.ahoo.cosid.observe.GeneratorInfo;
 import me.ahoo.cosid.store.StoreProvider;
 
 import org.springframework.aot.hint.BindingReflectionHintsRegistrar;
@@ -27,7 +26,7 @@ import java.util.List;
 /**
  * Native image hints (11 §5): the stores' {@link java.util.ServiceLoader} registrations and providers, the Redis Lua
  * scripts, the JDBC schemas and dialect registrations, the generator bean factory, and the endpoint's
- * {@link GeneratorInfo} for JSON.
+ * {@link CosIdEndpoint.Generator} for JSON.
  */
 public class CosIdRuntimeHints implements RuntimeHintsRegistrar {
     static final List<String> STORE_PROVIDERS = List.of(
@@ -48,6 +47,6 @@ public class CosIdRuntimeHints implements RuntimeHintsRegistrar {
             hints.reflection().registerTypeIfPresent(classLoader, provider, MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
         }
         hints.reflection().registerType(TypeReference.of(CosIdGeneratorRegistrar.GeneratorBean.class), MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
-        new BindingReflectionHintsRegistrar().registerReflectionHints(hints.reflection(), GeneratorInfo.class);
+        new BindingReflectionHintsRegistrar().registerReflectionHints(hints.reflection(), CosIdEndpoint.Generator.class);
     }
 }

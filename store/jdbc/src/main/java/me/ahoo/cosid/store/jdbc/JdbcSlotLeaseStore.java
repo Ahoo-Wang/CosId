@@ -121,8 +121,17 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         }
         // §2.1 step 1: the owner, same key and incarnation, already holds a slot.
         if (held != null) {
-            SlotLease lease = new SlotLease(namespace, held.slot, owner, held.fence, held.expiresAt, held.floor, held.ceiling, held.storeNow);
-            return new AcquireResult.Acquired(lease, AcquireReason.IDEMPOTENT, duplicate);
+            SlotLease lease = SlotLease.builder()
+                .namespace(namespace)
+                .slot(held.slot)
+                .owner(owner)
+                .fence(held.fence)
+                .expiresAt(held.expiresAt)
+                .floor(held.floor)
+                .ceiling(held.ceiling)
+                .storeNow(held.storeNow)
+                .build();
+            return AcquireResult.Acquired.builder(lease, AcquireReason.IDEMPOTENT).duplicateOwnerKey(duplicate).build();
         }
         if (candidates.isEmpty()) {
             return new AcquireResult.Exhausted(earliestExpiresAt(session, namespace, ns));
@@ -132,7 +141,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         if (preferredCandidate != null && preferredCandidate.free) {
             SlotLease lease = take(session, namespace, owner, ns, ttlMillis, preferredCandidate);
             if (lease != null) {
-                return new AcquireResult.Acquired(lease, AcquireReason.PREFERRED, duplicate);
+                return AcquireResult.Acquired.builder(lease, AcquireReason.PREFERRED).duplicateOwnerKey(duplicate).build();
             }
         }
         // Step 3: a free slot the owner key held last, lowest first.
@@ -140,7 +149,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
             if (candidate.free && owner.key().equals(candidate.lastOwnerKey)) {
                 SlotLease lease = take(session, namespace, owner, ns, ttlMillis, candidate);
                 if (lease != null) {
-                    return new AcquireResult.Acquired(lease, AcquireReason.STICKY, duplicate);
+                    return AcquireResult.Acquired.builder(lease, AcquireReason.STICKY).duplicateOwnerKey(duplicate).build();
                 }
             }
         }
@@ -161,7 +170,7 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         for (Candidate candidate : free) {
             SlotLease lease = take(session, namespace, owner, ns, ttlMillis, candidate);
             if (lease != null) {
-                return new AcquireResult.Acquired(lease, AcquireReason.LOWEST, duplicate);
+                return AcquireResult.Acquired.builder(lease, AcquireReason.LOWEST).duplicateOwnerKey(duplicate).build();
             }
         }
         return null;
@@ -242,7 +251,16 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
                 return null;
             }
         }
-        return new SlotLease(namespace, candidate.slot, owner, candidate.fence + 1, expiresAt, floor, ceiling, candidate.storeNow);
+        return SlotLease.builder()
+            .namespace(namespace)
+            .slot(candidate.slot)
+            .owner(owner)
+            .fence(candidate.fence + 1)
+            .expiresAt(expiresAt)
+            .floor(floor)
+            .ceiling(ceiling)
+            .storeNow(candidate.storeNow)
+            .build();
     }
 
     @Override
@@ -268,8 +286,16 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
                     update.setLong(3, ceiling);
                     bindCurrent(update, 4, lease, current);
                     if (update.executeUpdate() == 1) {
-                        return Optional.of(new SlotLease(lease.namespace(), lease.slot(), lease.owner(), lease.fence(), expiresAt, current.floor, ceiling,
-                            current.storeNow));
+                        return Optional.of(SlotLease.builder()
+                            .namespace(lease.namespace())
+                            .slot(lease.slot())
+                            .owner(lease.owner())
+                            .fence(lease.fence())
+                            .expiresAt(expiresAt)
+                            .floor(current.floor)
+                            .ceiling(ceiling)
+                            .storeNow(current.storeNow)
+                            .build());
                     }
                 }
             }

@@ -38,8 +38,6 @@ import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactor
 import java.lang.reflect.Proxy;
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 
@@ -55,7 +53,10 @@ class SpringDataRedisScriptsTest {
     }
 
     static Store store(SpringDataRedisScripts scripts) {
-        return new RedisStoreProvider().open(new StoreConfig("spring", RedisStoreProvider.TYPE, Duration.ofSeconds(1), Map.of(), Optional.of(scripts)));
+        return new RedisStoreProvider().open(StoreConfig.builder("spring", RedisStoreProvider.TYPE)
+            .timeout(Duration.ofSeconds(1))
+            .client(scripts)
+            .build());
     }
 
     @Test
@@ -87,7 +88,7 @@ class SpringDataRedisScriptsTest {
 
     @Test
     void aLettuceFactoryGivesItsNativeClientAndAnotherOneTheAdapter() {
-        StoreSpec spec = new StoreSpec("redis", Duration.ofSeconds(1), Map.of("wait", "off"));
+        StoreSpec spec = StoreSpec.builder("redis").timeout(Duration.ofSeconds(1)).option("wait", "off").build();
         assertThat(SpringDataRedisScripts.clientOf(FACTORY, spec), instanceOf(RedisClient.class));
         assertThat(SpringDataRedisScripts.clientOf(factory(connection(false, keysAndArgs -> List.of())), spec), instanceOf(SpringDataRedisScripts.class));
         LettuceConnectionFactory unstarted = new LettuceConnectionFactory();

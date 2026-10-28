@@ -163,9 +163,19 @@ public final class RedisStore implements Store, RangeStore, SlotLeaseStore {
         List<String> reply = Script.ACQUIRE.eval(scripts, keys, args);
         return switch (reply.get(0)) {
             case "acquired" -> {
-                SlotLease lease = new SlotLease(namespace, Integer.parseInt(reply.get(3)), owner, Long.parseLong(reply.get(4)),
-                    Long.parseLong(reply.get(5)), Long.parseLong(reply.get(6)), Long.parseLong(reply.get(7)), Long.parseLong(reply.get(8)));
-                yield new AcquireResult.Acquired(lease, AcquireReason.valueOf(reply.get(1)), "1".equals(reply.get(2)));
+                SlotLease lease = SlotLease.builder()
+                    .namespace(namespace)
+                    .slot(Integer.parseInt(reply.get(3)))
+                    .owner(owner)
+                    .fence(Long.parseLong(reply.get(4)))
+                    .expiresAt(Long.parseLong(reply.get(5)))
+                    .floor(Long.parseLong(reply.get(6)))
+                    .ceiling(Long.parseLong(reply.get(7)))
+                    .storeNow(Long.parseLong(reply.get(8)))
+                    .build();
+                yield AcquireResult.Acquired.builder(lease, AcquireReason.valueOf(reply.get(1)))
+                    .duplicateOwnerKey("1".equals(reply.get(2)))
+                    .build();
             }
             case "exhausted" -> new AcquireResult.Exhausted(Long.parseLong(reply.get(1)));
             case "mismatch" -> throw new NamespaceMismatchException(namespace, "first used with limit " + reply.get(1) + " and tolerance "
@@ -185,8 +195,16 @@ public final class RedisStore implements Store, RangeStore, SlotLeaseStore {
             List.of(Integer.toString(lease.slot()), lease.owner().incarnation().toString(), Long.toString(lease.fence()),
                 Long.toString(ttlMillis), Long.toString(toleranceMillis)));
         return switch (reply.get(0)) {
-            case "renewed" -> Optional.of(new SlotLease(namespace, lease.slot(), lease.owner(), Long.parseLong(reply.get(1)),
-                Long.parseLong(reply.get(2)), Long.parseLong(reply.get(3)), Long.parseLong(reply.get(4)), Long.parseLong(reply.get(5))));
+            case "renewed" -> Optional.of(SlotLease.builder()
+                .namespace(namespace)
+                .slot(lease.slot())
+                .owner(lease.owner())
+                .fence(Long.parseLong(reply.get(1)))
+                .expiresAt(Long.parseLong(reply.get(2)))
+                .floor(Long.parseLong(reply.get(3)))
+                .ceiling(Long.parseLong(reply.get(4)))
+                .storeNow(Long.parseLong(reply.get(5)))
+                .build());
             case "lost" -> Optional.empty();
             default -> throw unexpected("renew", reply);
         };

@@ -66,7 +66,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.OptionalInt;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -150,15 +149,24 @@ abstract class MigrationScenarioTest {
 
     CosIdRuntime runtime() {
         Map<String, GeneratorSpec> generators = new LinkedHashMap<>();
-        generators.put("order", new GeneratorSpec.Segment("main", BatchPolicy.DEFAULT, List.of()));
-        generators.put("big", new GeneratorSpec.Segment("main", BatchPolicy.DEFAULT, List.of()));
-        generators.put("default", new GeneratorSpec.Segment("main", BatchPolicy.DEFAULT, List.of()));
-        generators.put("bill", new GeneratorSpec.PeriodicSegment("main", Period.YEAR_MONTH_DAY, ZoneId.systemDefault(), BatchPolicy.DEFAULT,
-            PeriodicPolicy.DEFAULT, new GroupedCodecSpec.DatePrefix("-", List.of())));
-        generators.put("snow", new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT, List.of()));
-        RuntimeSpec spec = new RuntimeSpec(namespace, Map.of("main", target.spec()), Optional.of(new MachineSpec.Leased("main", 10, Duration.ofSeconds(30),
-            Duration.ofSeconds(1), OptionalInt.empty(), Optional.empty())), generators);
-        return CosIdRuntime.start(spec, RuntimeOptions.defaults());
+        generators.put("order", GeneratorSpec.Segment.builder("main").batch(BatchPolicy.DEFAULT).codec(List.of()).build());
+        generators.put("big", GeneratorSpec.Segment.builder("main").batch(BatchPolicy.DEFAULT).codec(List.of()).build());
+        generators.put("default", GeneratorSpec.Segment.builder("main").batch(BatchPolicy.DEFAULT).codec(List.of()).build());
+        generators.put("bill", GeneratorSpec.PeriodicSegment.builder("main", Period.YEAR_MONTH_DAY, ZoneId.systemDefault())
+            .batch(BatchPolicy.DEFAULT)
+            .periodic(PeriodicPolicy.DEFAULT)
+            .codec(new GroupedCodecSpec.DatePrefix("-", List.of()))
+            .build());
+        generators.put("snow", GeneratorSpec.Snowflake.builder()
+            .layout(Layout.SNOWFLAKE_MS)
+            .regression(ClockRegressionPolicy.DEFAULT)
+            .codec(List.of())
+            .build());
+        RuntimeSpec.Builder spec = RuntimeSpec.builder(namespace)
+            .store("main", target.spec())
+            .machine(MachineSpec.Leased.builder("main").bits(10).ttl(Duration.ofSeconds(30)).tolerance(Duration.ofSeconds(1)).build());
+        generators.forEach(spec::generator);
+        return CosIdRuntime.start(spec.build(), RuntimeOptions.defaults());
     }
 
     @Test

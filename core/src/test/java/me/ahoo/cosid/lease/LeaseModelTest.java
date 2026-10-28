@@ -53,14 +53,41 @@ class LeaseModelTest {
     void ownerAndLeaseValidate() {
         assertThrows(IllegalArgumentException.class, () -> new Owner(" ", UUID.randomUUID()));
         assertThrows(NullPointerException.class, () -> new Owner("host-1", null));
-        SlotLease lease = new SlotLease("app", 3, OWNER, 1, 30_000, 0, 31_000, 0);
-        assertThat(new AcquireResult.Acquired(lease, AcquireReason.LOWEST, false).lease(), is(lease));
+        SlotLease lease = SlotLease.builder()
+            .namespace("app")
+            .slot(3)
+            .owner(OWNER)
+            .fence(1)
+            .expiresAt(30_000)
+            .floor(0)
+            .ceiling(31_000)
+            .storeNow(0)
+            .build();
+        assertThat(AcquireResult.Acquired.builder(lease, AcquireReason.LOWEST).duplicateOwnerKey(false).build().lease(), is(lease));
         assertThat(AcquireReason.IDEMPOTENT.label(), is("idempotent"));
         assertThat(new AcquireResult.Exhausted(5).earliestExpiresAt(), is(5L));
-        assertThrows(IllegalArgumentException.class, () -> new SlotLease("app", -1, OWNER, 1, 0, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new SlotLease("app", 1, OWNER, 1, 0, 10, 9, 0));
-        assertThrows(NullPointerException.class, () -> new AcquireResult.Acquired(null, AcquireReason.LOWEST, false));
-        assertThrows(NullPointerException.class, () -> new AcquireResult.Acquired(lease, null, false));
+        assertThrows(IllegalArgumentException.class, () -> SlotLease.builder()
+            .namespace("app")
+            .slot(-1)
+            .owner(OWNER)
+            .fence(1)
+            .expiresAt(0)
+            .floor(0)
+            .ceiling(0)
+            .storeNow(0)
+            .build());
+        assertThrows(IllegalArgumentException.class, () -> SlotLease.builder()
+            .namespace("app")
+            .slot(1)
+            .owner(OWNER)
+            .fence(1)
+            .expiresAt(0)
+            .floor(10)
+            .ceiling(9)
+            .storeNow(0)
+            .build());
+        assertThrows(NullPointerException.class, () -> AcquireResult.Acquired.builder(null, AcquireReason.LOWEST).duplicateOwnerKey(false).build());
+        assertThrows(NullPointerException.class, () -> AcquireResult.Acquired.builder(lease, null).duplicateOwnerKey(false).build());
         store.close();
     }
 

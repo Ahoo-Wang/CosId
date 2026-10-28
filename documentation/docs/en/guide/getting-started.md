@@ -110,19 +110,18 @@ an insert: see [@CosId field filling](integrations/annotation.md).
 `CosIdRuntime` is the one assembly path; Spring only binds `cosid.*` to a `RuntimeSpec`. The same configuration in code:
 
 ```java
-RuntimeSpec spec = new RuntimeSpec("shop",
-    Map.of("db", new StoreSpec("jdbc", Duration.ofSeconds(2), Map.of("initSchema", "true"))),
-    Optional.of(new MachineSpec.Leased("db", 10, Duration.ofSeconds(30), Duration.ofSeconds(1),
-        OptionalInt.empty(), Optional.empty())),
-    Map.of(
-        "default", new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT,
-            List.of(new CodecSpec.Radix(62, 11, true))),
-        "order", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of())));
+RuntimeSpec spec = RuntimeSpec.builder("shop")
+    .store("db", StoreSpec.builder("jdbc").option("initSchema", "true").build())
+    .machine(MachineSpec.Leased.builder("db").build())        // default 10 bits, ttl 30s, tolerance 1s
+    .generator("default", GeneratorSpec.Snowflake.builder()
+        .codec(List.of(new CodecSpec.Radix(62, 11, true)))
+        .build())
+    .generator("order", GeneratorSpec.Segment.builder("db").build())
+    .build();
 
-RuntimeOptions defaults = RuntimeOptions.defaults();
-RuntimeOptions options = new RuntimeOptions(defaults.time(), defaults.executor(), defaults.listener(),
-    defaults.storeProviders(), Map.of("db", dataSource),           // existing clients by store name
-    defaults.hostResolver(), defaults.port(), defaults.codecs());
+RuntimeOptions options = RuntimeOptions.builder()
+    .client("db", dataSource)                                 // existing clients by store name
+    .build();
 
 try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
     long id = runtime.generator("default").generate();

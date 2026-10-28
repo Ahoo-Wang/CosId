@@ -59,8 +59,11 @@ class SegmentGeneratorsTest {
 
     @Test
     void periodicPolicyRejectsNegativeDurations() {
-        assertThrows(IllegalArgumentException.class, () -> new PeriodicPolicy(Duration.ofSeconds(-1), Optional.empty()));
-        assertThrows(IllegalArgumentException.class, () -> new PeriodicPolicy(Duration.ZERO, Optional.of(Duration.ofSeconds(-1))));
-        assertThat(new PeriodicPolicy(Duration.ZERO, Optional.of(Duration.ofDays(1))).sealAfter(), is(Optional.of(Duration.ofDays(1))));
+        assertThrows(IllegalArgumentException.class, () -> PeriodicPolicy.builder().prewarm(Duration.ofSeconds(-1)).build());
+        assertThrows(IllegalArgumentException.class, () -> PeriodicPolicy.builder()
+            .prewarm(Duration.ZERO)
+            .sealAfter(Duration.ofSeconds(-1))
+            .build());
+        assertThat(PeriodicPolicy.builder().prewarm(Duration.ZERO).sealAfter(Duration.ofDays(1)).build().sealAfter(), is(Optional.of(Duration.ofDays(1))));
     }
 }

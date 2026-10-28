@@ -188,7 +188,9 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
         }
         // 1. A slot this very owner holds: returned as it is, stamped with the read.
         if (held != null) {
-            return new AcquireResult.Acquired(toLease(held, owner, held.getLong(READ_AT)), AcquireReason.IDEMPOTENT, !liveOfOtherIncarnations.isEmpty());
+            return AcquireResult.Acquired.builder(toLease(held, owner, held.getLong(READ_AT)), AcquireReason.IDEMPOTENT)
+                .duplicateOwnerKey(!liveOfOtherIncarnations.isEmpty())
+                .build();
         }
         List<Bson> take = take(owner, ttlMillis, toleranceMillis);
         // 2. The preferred slot, if free.
@@ -224,7 +226,7 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     private static AcquireResult acquired(Document slot, Owner owner, AcquireReason reason, List<Integer> liveOfOtherIncarnations) {
         SlotLease lease = toLease(slot, owner);
         boolean duplicateOwnerKey = liveOfOtherIncarnations.stream().anyMatch(other -> other != lease.slot());
-        return new AcquireResult.Acquired(lease, reason, duplicateOwnerKey);
+        return AcquireResult.Acquired.builder(lease, reason).duplicateOwnerKey(duplicateOwnerKey).build();
     }
 
     /**
@@ -367,8 +369,16 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     }
 
     private static SlotLease toLease(Document slot, Owner owner, long storeNow) {
-        return new SlotLease(slot.getString(NS), slot.getInteger(SLOT), owner, slot.getLong(FENCE), slot.getLong(EXPIRES_AT),
-            slot.getLong(FLOOR), slot.getLong(CEILING), storeNow);
+        return SlotLease.builder()
+            .namespace(slot.getString(NS))
+            .slot(slot.getInteger(SLOT))
+            .owner(owner)
+            .fence(slot.getLong(FENCE))
+            .expiresAt(slot.getLong(EXPIRES_AT))
+            .floor(slot.getLong(FLOOR))
+            .ceiling(slot.getLong(CEILING))
+            .storeNow(storeNow)
+            .build();
     }
 
     /** A constant in a pipeline stage: a key starting with {@code $} stays a string, never a field path. */

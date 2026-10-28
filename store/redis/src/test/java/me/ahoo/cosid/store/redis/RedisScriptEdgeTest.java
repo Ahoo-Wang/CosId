@@ -243,8 +243,26 @@ class RedisScriptEdgeTest {
             SlotLease c = acquired(store, namespace, new Owner("host-c", UUID.randomUUID()), 1, TTL, OptionalInt.empty()).lease();
             assertEquals(b.floor(), c.floor());
             assertFalse(store.slots().release(b, 0), "a stale fence");
-            assertTrue(store.slots().renew(new SlotLease("missing-" + namespace, 0, c.owner(), c.fence(), 0, 0, 0, 0), TTL, TOLERANCE).isEmpty());
-            assertFalse(store.slots().release(new SlotLease("missing-" + namespace, 0, c.owner(), c.fence(), 0, 0, 0, 0), 0));
+            assertTrue(store.slots().renew(SlotLease.builder()
+                .namespace("missing-" + namespace)
+                .slot(0)
+                .owner(c.owner())
+                .fence(c.fence())
+                .expiresAt(0)
+                .floor(0)
+                .ceiling(0)
+                .storeNow(0)
+                .build(), TTL, TOLERANCE).isEmpty());
+            assertFalse(store.slots().release(SlotLease.builder()
+                .namespace("missing-" + namespace)
+                .slot(0)
+                .owner(c.owner())
+                .fence(c.fence())
+                .expiresAt(0)
+                .floor(0)
+                .ceiling(0)
+                .storeNow(0)
+                .build(), 0));
         }
     }
 }

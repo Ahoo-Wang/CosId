@@ -29,12 +29,11 @@ import org.junit.jupiter.api.Test;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.ServiceLoader;
 
 class RemoteStoreProviderTest {
     private static StoreConfig config(Map<String, Object> options) {
-        return new StoreConfig("remote", RemoteStoreProvider.TYPE, Duration.ofSeconds(3), options, Optional.empty());
+        return StoreConfig.builder("remote", RemoteStoreProvider.TYPE).timeout(Duration.ofSeconds(3)).options(options).build();
     }
 
     @Test
@@ -62,7 +61,11 @@ class RemoteStoreProviderTest {
         assertThrows(IllegalArgumentException.class, () -> provider.open(config(Map.of("baseUrl", "localhost:8688"))));
         assertThrows(IllegalArgumentException.class, () -> provider.open(config(Map.of("baseUrl", "http://h", "connectTimeout", "0s"))));
         assertThrows(IllegalArgumentException.class, () -> provider.open(config(Map.of("baseUrl", "http://h", "requestTimeout", "soon"))));
-        StoreConfig withClient = new StoreConfig("remote", "remote", Duration.ofSeconds(1), Map.of("baseUrl", "http://h"), Optional.of(new Object()));
+        StoreConfig withClient = StoreConfig.builder("remote", "remote")
+            .timeout(Duration.ofSeconds(1))
+            .option("baseUrl", "http://h")
+            .client(new Object())
+            .build();
         assertThat(assertThrows(IllegalArgumentException.class, () -> provider.open(withClient)).getMessage(), containsString("takes no client"));
     }
 

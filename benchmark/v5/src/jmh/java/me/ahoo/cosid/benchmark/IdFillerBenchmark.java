@@ -37,8 +37,6 @@ import org.openjdk.jmh.annotations.Threads;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -67,11 +65,11 @@ public class IdFillerBenchmark {
                 return new InMemoryStore();
             }
         };
-        RuntimeSpec spec = new RuntimeSpec("bench", Map.of("memory", new StoreSpec("memory", Duration.ofSeconds(1), Map.of())),
-            Optional.empty(), Map.of(RuntimeSpec.DEFAULT_GENERATOR, new GeneratorSpec.Segment("memory", V5.batch(IdFillerBenchmark.STEP), List.of())));
-        RuntimeOptions defaults = RuntimeOptions.defaults();
-        RuntimeOptions options = new RuntimeOptions(defaults.time(), Optional.of(V5.EXECUTOR), defaults.listener(), List.of(memory),
-            defaults.clients(), defaults.hostResolver(), defaults.port(), defaults.codecs());
+        RuntimeSpec spec = RuntimeSpec.builder("bench")
+            .store("memory", StoreSpec.builder("memory").timeout(Duration.ofSeconds(1)).build())
+            .generator(RuntimeSpec.DEFAULT_GENERATOR, GeneratorSpec.Segment.builder("memory").batch(V5.batch(IdFillerBenchmark.STEP)).codec(List.of()).build())
+            .build();
+        RuntimeOptions options = RuntimeOptions.builder().executor(V5.EXECUTOR).storeProvider(memory).build();
         runtime = CosIdRuntime.start(spec, options);
         filler = runtime.filler();
     }

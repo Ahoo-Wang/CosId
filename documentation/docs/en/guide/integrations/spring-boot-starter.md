@@ -90,11 +90,9 @@ store types of your own.
 ```java
 @Bean
 static RuntimeSpecCustomizer moreGenerators() {          // static: it runs while bean definitions are processed
-    return spec -> {
-        var generators = new HashMap<>(spec.generators());
-        generators.put("audit", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of()));
-        return new RuntimeSpec(spec.namespace(), spec.stores(), spec.machine(), generators);
-    };
+    return spec -> spec.toBuilder()
+        .generator("audit", GeneratorSpec.Segment.builder("db").build())
+        .build();
 }
 ```
 

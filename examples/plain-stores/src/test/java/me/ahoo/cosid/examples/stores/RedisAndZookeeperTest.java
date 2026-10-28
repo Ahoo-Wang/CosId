@@ -29,7 +29,6 @@ import org.testcontainers.containers.GenericContainer;
 
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.Set;
 import java.util.TreeSet;
@@ -68,9 +67,12 @@ class RedisAndZookeeperTest {
             String redisUri = "redis://" + redis.getHost() + ":" + redis.getMappedPort(6379);
             String connectString = zookeeper.getHost() + ":" + zookeeper.getMappedPort(2181);
             String key = "plain/" + UUID.randomUUID();
-            try (Store redisStore = provider("redis").open(new StoreConfig("redis", "redis", TIMEOUT, Map.of("uri", redisUri), Optional.empty()));
-                 Store zookeeperStore = provider("zookeeper").open(new StoreConfig("zookeeper", "zookeeper", TIMEOUT,
-                     Map.of("connectString", connectString, "blockUntilConnectedWait", "30s"), Optional.empty()))) {
+            try (Store redisStore = provider("redis").open(StoreConfig.builder("redis", "redis").timeout(TIMEOUT).option("uri", redisUri).build());
+                 Store zookeeperStore = provider("zookeeper").open(StoreConfig.builder("zookeeper", "zookeeper")
+                     .timeout(TIMEOUT)
+                     .option("connectString", connectString)
+                     .option("blockUntilConnectedWait", "30s")
+                     .build())) {
                 assertEquals(new Range(0, 10), redisStore.ranges().reserve(key, 10, 0));
                 assertEquals(new Range(0, 10), zookeeperStore.ranges().reserve(key, 10, 0));
                 assertEquals(new Range(10, 20), redisStore.ranges().reserve(key, 10, 0));

@@ -309,7 +309,7 @@ public final class GeneratorEntry {
      * @return the info
      */
     public GeneratorInfo info() {
-        return new GeneratorInfo(name, strategy, store, details.get());
+        return GeneratorInfo.builder(name, strategy).store(store).details(details.get()).build();
     }
 
     /**

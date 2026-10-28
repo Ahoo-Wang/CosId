@@ -1,6 +1,6 @@
 # GA 前全面审查(D35)
 
-> 状态:**第 1 轮进行中**(2026-10-28,基于 `main` @ `3a1cdaae`,即 `5.0.0-alpha.1` 之后)。
+> 状态:**第 1 轮完成,待总调度逐条核实**(2026-10-28,基于 `main` @ `3a1cdaae`,即 `5.0.0-alpha.1` 之后)。
 > 本文件只记录审查发现;核实、排期与修复进度由总调度在 [rc-review.md](rc-review.md) §6 与 [roadmap.md](roadmap.md) 维护。
 > 中断后从 §0 继续。
 
@@ -19,9 +19,9 @@
 |---|---|
 | core | ✅ 完成(§4) |
 | store/*(含 tck)、migration | ✅ 完成(§5) |
-| spring/*、server、integrations/*、extras、bom、examples、benchmark/v5 | 进行中 |
-| documentation/、模块 README | 进行中 |
-| 结果条件(性能、特性、文档)与汇总 | 待做 |
+| spring/*、server、integrations/*、extras、bom、examples、benchmark/v5 | ✅ 完成(§6) |
+| documentation/、模块 README | ✅ 完成(§6.6、§7.3) |
+| 结果条件(性能、特性、文档)与汇总 | ✅ 完成(§7、§8) |
 
 ## 2. 专题:4.x 静态入口 `DefaultIdGeneratorProvider.INSTANCE` / `getShare()`(总调度追加)
 
@@ -145,7 +145,7 @@
 
 范围:`store/{jdbc,redis,mongo,zookeeper,remote,tck}`、`migration` 及其 README,对照 05(存储侧)/06/08/09/11 与 `v4.1.0`(baseline-4x 所用版本)。总调度抽查核实:R1-jdbc-01(`schema-mysql.sql` 的 `cosid_slot` 只有主键 `(namespace, slot)`,而 `JdbcSlotLeaseStore.java:176-180` 按 `owner_key = ? or last_owner_key = ? or slot = ?` 查询)、R1-jdbc-02(同处每次拼接 SQL)、R1-jdbc-06(`MySqlDialect.java:77-78` 只要 generated key 非 0 即采信)。
 
-### 5.x 跨存储 / core SPI
+### 5.1 跨存储 / core SPI
 
 | 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
 |---|---|---|---|---|---|---|
@@ -155,7 +155,7 @@
 | R1-spi-04 | MINOR | 代码清洁 / 易用性 | `StoreConfig.java`(不校验 timeout)、`Jdbc.java:97`、`MongoStore.java:117-126`、`Zk.java:46`、`LettuceRedisScripts.java:56`、`RemoteClient.java:~40`、`core/.../internal/RuntimePlan.java:178` | `timeout = 0` 的语义互相矛盾:JDBC 和 Mongo 当作"无超时"(JDBC README 也这样写),ZK、Redis、Remote 直接拒绝,RuntimePlan 要求为正数。于是"0 = 无超时"的分支只有直接 new 才能走到 | 在 `StoreConfig` 的紧凑构造器中要求 timeout 为正数,删掉 0 的分支与相应文档 | 是(StoreConfig) |
 | R1-spi-05 | MINOR | 高扩展性 | `core/.../store/StoreConfig.java` | `StoreConfig` 是公开 record,第三方测试会直接调用它的规范构造器。冻结后再加字段(例如 clock、metrics)会破坏所有 `new StoreConfig(...)` 调用 | RC 前确认字段集;或者提供静态工厂 / builder,作为对外推荐的构造方式 | 是 |
 
-### 5.x jdbc
+### 5.2 jdbc
 
 | 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
 |---|---|---|---|---|---|---|
@@ -172,7 +172,7 @@
 | R1-jdbc-11 | MINOR | 架构(文档) | `docs/architecture/06-stores.md` §2.1 | 06 已经落后于代码:DDL 没有二进制排序规则(B-M1 的修复只在代码里);MySQL reserve 写的是"然后 `select last_insert_id()`",实际先读 OK 包,且漏写了 `if(sealed or next_value > ?)`;PG 漏了 `r.next_value <= ?`;H2 时钟写"同 PG",代码是 `current_timestamp` | 06 是存储格式的权威文档,RC 前与 schema 文件逐字对齐 | 否(文档) |
 | R1-jdbc-12 | MINOR | 代码清洁 | `src/main/resources/.../schema-mariadb.sql:1` | 只有这一份 schema 缺许可证头 | 补上 | 否 |
 
-### 5.x redis
+### 5.3 redis
 
 | 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
 |---|---|---|---|---|---|---|
@@ -181,7 +181,7 @@
 | R1-redis-03 | MINOR | 易用性 | `RedisStoreProvider.java:135,147-151` | `wait=auto` 只在 open 时解析一次,而且不记日志。之后加了副本,不会 WAIT,持久性前提被悄悄丢掉;去掉副本,所有写都会失败,直到重启 | open 时用 INFO 级别记录解析出的副本数;README 写明要重启;可选:定期重新解析 | 否 |
 | R1-redis-04 | MINOR | 高性能 | `Script.java:66`、`RedisStore.java:158-162,183-186` | 每次调用都用 stream 转换回复;acquire 每次拼 6 个 key 字符串和 7 个参数;`keys.toArray`/`args.toArray` 再各拷一次 | 普通循环;按命名空间缓存 key 列表(`ConcurrentHashMap<String, List<String>>`) | 否 |
 
-### 5.x mongo
+### 5.4 mongo
 
 | 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
 |---|---|---|---|---|---|---|
@@ -190,14 +190,14 @@
 | R1-mongo-03 | MINOR | 架构(文档) | 06 §2.3 | 缺 `cosid_namespace {_id, limit, toleranceMs}`、`writtenAt` 字段和 3 个索引;写的是"E11000 重试一次",代码是 `ATTEMPTS=3` / `NAMESPACE_ATTEMPTS=5` | 更新 06 | 否(文档) |
 | R1-mongo-04 | MAJOR | 特性、文档 | `store/mongo/README.md:5`;`documentation/docs/{en,zh}/guide/backends/mongo.md:4`、`backends/index.md:12/11`;`.github/workflows/`(无 mongos) | README 与文档站承诺"副本集**或分片集群**",但 CI 与测试只在单节点副本集上跑 TCK(仓库内无 mongos/shard 配置),属未经验证的承诺。代码层面:集合**不分片**(默认)时经 mongos 路由到 primary shard,语义应与副本集相同;若用户把 `cosid_slot` 分片,`MongoSlotLeaseStore.java:211` 的 `findOneAndUpdate(and(inNamespace, FREE))` 与 `:216` 的排序查询不含完整分片键等值,6.0/7.0 上单文档 `findOneAndUpdate` 会被拒绝(7.1+ 放宽为广播),`$$NOW`(`:86`)在分片间取各自 mongod 时钟;`cosid_range`/`cosid_namespace` 按 `_id` 过滤,以 `_id` 为分片键时可定向。`majority` 读写与 CSOT 经 mongos 透传,未见代码问题。另:未分片集合被 `moveCollection`/`movePrimary` 迁到另一分片后,"存储时钟"换成另一台 mongod 的时钟(存疑,影响取决于分片间时钟偏差与 tolerance) | 二选一:① 加 CI job(mongos + 一个分片副本集 + 配置服务器副本集)跑 TCK,证实不分片集合可用,文档写明"cosid 的三个集合不要分片(数据量极小)"并说明时钟取自 primary shard;② 把 README 与文档站(中英文)的承诺收窄为副本集,分片集群列入"实测兼容性(不承诺)" | 否 |
 
-### 5.x zookeeper
+### 5.5 zookeeper
 
 | 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
 |---|---|---|---|---|---|---|
 | R1-zk-01 | MAJOR | 高性能 | `ZookeeperRangeStore.java:66-81,169-171`、`Zk.java:71-78,103-105` | reserve 分配 +19% 的来源(见"性能回退候选"):每次调用都 `PathUtils.validatePath`(`toCharArray`)、拼 `"reserve " + path`;每个 Curator 后台操作都有 `CompletableFuture`、两个 lambda、`CuratorEventImpl`、EventThread 队列节点和带时限 `get` 的 `Signaller`;`Ascii.Writer(32)` 加 `toBytes()` 是两次 byte[] 分配(4.x 只有 `ByteBuffer.allocate(8)`) | 缓存已校验的 path(`ConcurrentHashMap`,key 有限);`what` 延迟构造;`Value.bytes()` 先算好位数,一次分配到位;可选:热路径直接用 ZooKeeper 原生异步回调(`DataCallback`/`StatCallback`)加一个轻量 future,绕开 `CuratorEventImpl` | 否 |
 | R1-zk-02 | MINOR | 架构(文档) | 06 §2.4 对比 `ZookeeperSlotLeaseStore.java:52-68,73-74`、`README.md:32-38` | 06 写的是"异步批量 getData 读取全部槽位";代码是 owner 索引 + 32→256 递增批次的只读 multi。06 没有记录 `/cosid/owner/{ns}/{key}`(URL 编码,`.` 和 `*` 也转义)、`.clock` 以及 `limit=..\ntolerance=..` 的元数据格式,这些都是存储格式 | 把 README 中的节点表并入 06 | 否(文档,但这是冻结格式的唯一权威描述) |
 
-### 5.x remote
+### 5.6 remote
 
 | 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
 |---|---|---|---|---|---|---|
@@ -205,7 +205,7 @@
 | R1-remote-02 | MINOR | 扩展性 | `RemoteStoreProvider.java:~45-47`、`RemoteClient.java:~40-44` | provider 拒绝任何 client,`HttpClient` 由内部构建。自定义 `SSLContext`(mTLS)、代理、HTTP/2 都只能靠 JVM 全局默认值 | 允许把 `java.net.http.HttpClient` 作为 `client` 传入(增量改动) | 否 |
 | R1-remote-03 | MINOR | 安全 | `RemoteClient.java:~33-36` | 有 token 时,在明文 `http` 上发 bearer token 不会有任何提示 | `http` + token + 非回环地址时,在 open 时告警 | 否 |
 
-### 5.x tck
+### 5.7 tck
 
 | 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
 |---|---|---|---|---|---|---|
@@ -213,7 +213,7 @@
 | R1-tck-02 | MINOR | 高扩展性 | `store/tck`(缺失) | 只有 `RangeStoreContract` 和 `SlotLeaseStoreContract`,没有 provider/Store 级别的契约:`type()`、注入的 client 不关闭、自建的 client 随 store 关闭、超时映射为 `StoreTimeoutException.isTimeout`、坏 option 报错。第三方 provider 无法自证这些 | 增加 `StoreProviderContract`(增量) | 否 |
 | R1-tck-03 | MINOR | 易用性 | `store/tck/`(没有 README)、`documentation/docs/*/guide/backends/test-suite.md` | `ContractsRan` 对第三方怎么用只有一句话,没有 Gradle/Maven 片段;文档说 `InMemoryStore` 是 "a `memory` provider",实际上 TCK 没有在 ServiceLoader 中注册(只有 `TestRuntimes` 里一个编程式 provider) | 补 README,给出 `JavaExec`/exec-maven 的示例;修正 memory provider 的说法 | 否 |
 
-### 5.x migration
+### 5.8 migration
 
 | 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
 |---|---|---|---|---|---|---|
@@ -223,7 +223,7 @@
 | R1-mig-04 | MINOR | 代码清洁 / 高内聚 | `target/RedisTarget.java:42,65-69,151-153`、`target/ZookeeperTarget.java:232,377`、`target/MongoTarget.java:146-149` | 迁移工具自己重写了一遍各 store 的存储格式(Redis key 与行、ZK 节点文本、Mongo 字段名字面量),冻结后两处容易漂移。已有的缓解:`TargetAdminTest` 在 prepare 之后通过真实 store 做 acquire | 要求每个 target 都必须有"prepare 后经真实 store acquire/reserve"的测试;或者从各 store 暴露格式常量 | 否 |
 | R1-mig-05 | MINOR | 易用性 | `target/JdbcTarget.java:47-52` 对比 `JdbcStoreProvider.java:53` | 迁移用 `user`,运行时 option 是 `username`;从 `--to-option` 抄到 5.0 配置时容易写错 | 两边都接受 `user` 和 `username` | 否 |
 
-### 5.x Javadoc 缺口(公开成员)
+### 5.9 Javadoc 缺口(公开成员)
 
 - `store/jdbc/.../JdbcStoreException.java:25`:构造器。
 - `store/redis/.../RedisStoreException.java:27,31`:两个构造器。
@@ -231,7 +231,7 @@
 - `store/tck/.../FaultyRangeStore.java:30`、`FaultySlotLeaseStore.java:35`:构造器;`TestRuntimes.java:70,84`:`spec()` 和 `options()`。
 - 其余公开类型与方法都有 Javadoc(脚本扫描了全部 `store/*/src/main`)。`store/tck` 是唯一没有 README 的 store 模块。
 
-### 5.x 确认通过的部分
+### 5.10 确认通过的部分
 
 - **依赖方向**:每个 store 只依赖 `:core` 与各自的驱动(jdbc 只依赖 core,驱动由应用提供;remote 只用 JDK);store 之间没有互相引用;不暴露 `internal` 类型;store 模块没有 module-info,但发布时带 `Automatic-Module-Name`(`cosid.library.gradle.kts:30`)。
 - **rc-review 修复复核**:
@@ -261,9 +261,9 @@
   - 注入的 client 一律不关闭。
 - **README 快速上手**:与代码中的 option 名和默认值核对一致(jdbc、redis、mongo、zookeeper、remote)。jdbc README 的 "zero: none" 见 R1-spi-04。
 
-### 5.x 性能回退候选
+### 5.11 性能回退候选
 
-### MySQL(acquire/renew/reserve 分配 +25~+67%,acquire 延迟 +15%)
+#### MySQL(acquire/renew/reserve 分配 +25~+67%,acquire 延迟 +15%)
 
 基准:`benchmark/v5/.../MySqlStoreBenchmark.java` 对比 `benchmark/baseline-4x/.../MySqlStoreBenchmark.java`,两边都是 Hikari 32,driver 默认参数(没有 `cachePrepStmts`/`useServerPrepStmts`,所以每次 `prepareStatement` 都在客户端重新解析 SQL,分配量随 SQL 长度和参数个数增长);两边都对每条语句 `setQueryTimeout`,这部分不是差异来源。
 
@@ -295,7 +295,7 @@
    4. reserve 参数合并;
    5. 基准的 teardown 与 UUID 对齐 4.x,或在报告中注明。
 
-### ZooKeeper reserve(分配 +19%)
+#### ZooKeeper reserve(分配 +19%)
 
 - **调用方式**:4.x(`ZookeeperIdSegmentDistributor.tryCompareAndAdd`,`CallTimeout.NONE`)是前台同步 `getData().storingStatIn(stat)` 和 `setData().withVersion()`,值是 8 字节二进制。v5 每次 reserve 是两次 Curator **后台**操作。
 - **v5 每次调用多出的分配**(`ZookeeperRangeStore.java:66-81`、`Zk.java:71-78,103-105`):
@@ -312,7 +312,7 @@
   - `Value.bytes()` 一次分配;
   - 可选:热路径直接用 ZooKeeper 原生异步 API 加轻量 future,省掉 `CuratorEventImpl` 和一层回调。
 
-### Mongo / Redis 热路径可疑点
+#### Mongo / Redis 热路径可疑点
 
 - **Mongo**:
   - renew/take 每次重建 pipeline 文档,并且返回整份文档(R1-mongo-02);
@@ -323,7 +323,7 @@
   - 在有副本的 Cluster 上,每次调用都要 `getPartitionBySlot` + `getConnection(nodeId)`,另加一次 `WAIT` 往返(这是设计决定);
   - `WAIT` 会阻塞该节点连接,同一节点上的 store 调用会串行地排在它后面:吞吐受副本确认延迟限制,README 中应写明。
 
-### 5.x 特性对照
+### 5.12 特性对照
 
 - **11 中的引用**:存储和迁移各行引用的测试类和方法都存在,内容与声明相符(抽查了 `ReplicaWaitTest`、`ClusterReplicaWaitTest`、`KeyExactnessTest`、`JdbcStoreProviderTest`、`MongoStoreProviderTest`、`ZookeeperStoreProviderTest`、`TargetAdminTest`)。有 6 处行号锚点已过期:
   - `ConfigBindingTest`:#L60→68、#L85→93、#L98→106、#L109→117;
@@ -335,3 +335,193 @@
   - Mongo:database ✅、write-concern ✅。
   - proxy → `remote` ✅;但不能注入自定义 `HttpClient`(R1-remote-02);4.x 的两种客户端实现合并为 JDK HttpClient 一种,符合 11:112 的说法。
 - **迁移**:四种后端的 4.x 读取与 5.0 写入齐全,支持跨类型迁移;Proxy 源按其背后的实际存储读取(09 §4.1)✅。
+
+## 6. spring/*、server、integrations/*、extras、bom、examples、benchmark/v5 与文档
+
+范围见标题,另含 `documentation/`(中英文)、根 README 与各模块 README、02/07/08。总调度抽查核实:R1-server-01(`ServerProperties.java:123` 的 admin-paths 为固定默认列表,`AuthFilter.java:65` 按 `requestURI − contextPath` 匹配)、R1-doc-01(`from-4x.md` Rollback 一节无条件写号段"safe")、R1-spring-01(`ZookeeperStoreProvider.java:74` 精确匹配驼峰键 `connectString`;`CosIdProperties.java:69` 为 `Map<String,String>`)。
+
+### 6.1 spring(spring/autoconfigure、spring/starter)
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-spring-01 | MAJOR | 易用性 | `spring/autoconfigure/.../CosIdProperties.java:66-69`(`Map<String,String> options`);各 provider 精确匹配驼峰键:`store/zookeeper/.../ZookeeperStoreProvider.java:71-80`、`store/jdbc/.../JdbcStoreProvider.java:61`、`store/remote/.../RemoteStoreProvider.java:53-59`、`JdbcTables.java:49`;`documentation/docs/{en,zh}/reference/config/server.md:5`("Every property can be set from the environment") | 存储 options 的键大小写敏感且是驼峰(`initSchema`、`connectString`、`baseUrl`、`writeConcern`、`retry.baseSleepTime`…),但 Spring 把环境变量绑定到 Map 时**键一律小写**(`COSID_STORES_MAIN_OPTIONS_CONNECTSTRING` 得到 `connectstring`),kebab 写法 `init-schema` 也匹配不上。未知键被静默忽略:Docker 部署的 cosid-server 用环境变量配 ZooKeeper 时会**悄悄连 `localhost:2181`**,`initSchema` / `writeConcern` 也会悄悄失效。只有 `uri`、`url`、`wait` 这种全小写的键碰巧能用(文档示例只用了它们) | 在 `CosIdSpecs`(或 core 的 `StoreConfig` 取值处)按"小写并去掉 `-`、`_`"规范化选项键;各 provider 声明自己认识的键,遇到未知键时启动失败或打 WARN;在 metadata 里给 `cosid.stores.*.options` 加键提示;修正 server.md 中"每个属性都能来自环境变量"的说法 | 是(选项键的规范与校验规则须在 RC 前定下) |
+| R1-spring-02 | MINOR | 高扩展性 | `CosIdAutoConfiguration.java:74-95` | `cosIdRuntime` 和 `cosIdFiller` 都不是 `@ConditionalOnMissingBean`,`RuntimeOptions` 的 executor 写死为 `Optional.empty()`、时间源写死为 `TimeSource.SYSTEM`,Spring 用户没有任何钩子替换预取执行器或时钟。11 §4 却把 4.x `prefetch-worker` 标为"注入的执行器 → 等价",对 Spring 用户并不成立 | 增加 `RuntimeOptionsCustomizer` Bean(或读取一个带名字的 `Executor` Bean);`cosIdRuntime` 加 `@ConditionalOnMissingBean` | 否(新增) |
+| R1-spring-03 | MINOR | 易用性 | `CosIdGeneratorRegistrar.java:81`(`bindOrCreate` 用默认处理器) | `cosid.*` 中写错的属性名(如 `stepp`、`seal-afer`)被静默忽略,会以默认值启动 | 绑定 `CosIdProperties` 时用 `NoUnboundElementsBindHandler`(`options` 除外),或至少对未知键打 WARN | 是(收紧校验后,原本能启动的配置会启动失败) |
+| R1-spring-04 | MINOR | 易用性 | `CosIdSpecs.java:283-297` | cosid80 的 `radix` 项只取 `radix.radix`,`width` / `pad-start` 以及 `friendly.pad-start` 被静默忽略 | 这些字段被设置时报告问题(与其他校验一样按属性路径报告) | 否 |
+| R1-spring-05 | MINOR | 易用性 | `CosIdActuatorConfiguration.java:53-54` | 健康指示器的开关是 `management.health.cosid.enabled`,但 Bean 名 `cosIdHealthIndicator` 让贡献者名变成 `cosId`(`/actuator/health/cosId`,health group 里也要写 `cosId`):同一个名字大小写不一致 | 把 Bean 名改为 `cosidHealthIndicator`,使路径变为 `/health/cosid`,并同步文档 | 是(健康检查路径与 group 名) |
+| R1-spring-06 | MINOR | 高性能 | `CosIdMeterListener.java:131-133` | `cosid.segment.reserve` 计时器带 `key` 标签;周期号段每个周期都是一个新 key,每天新增一个永不移除的 Timer,长期运行后基数无界 | 周期号段只打 `name` 标签(或打 `period` 粒度标签);移除已封存周期的 meter | 是(指标标签) |
+| R1-spring-07 | MINOR | 高内聚低耦合 | `CosIdIntegrationsConfiguration.java:75` | `CosIdJacksonModule` 直接注入 `CosIdRuntime`,于是创建 `JsonMapper` 时就会先启动运行时(阻塞获取租约、连接存储)。只要某个存储或监听器 Bean 依赖 JsonMapper 就会形成循环依赖(存疑:未见实际案例) | 改用 `new CosIdJacksonModule(name -> runtime.getObject().get(name, IdCodec.class))`,通过 `ObjectProvider` 延迟解析 | 否 |
+| R1-spring-08 | MINOR | 架构 | `CosIdGeneratorRegistrar.java:93` | AOT / 原生镜像下生成器 Bean 定义在构建期就已固定,而 `cosIdRuntimeSpec` 在运行期重新绑定环境。部署时通过环境变量增删的生成器会没有 Bean,或者 Bean 失效,且没有任何报错;文档未说明 | 运行期比较 AOT 生成的名字集合与 spec,不一致时启动失败;在 spring-boot-starter 页写明原生镜像下生成器集合在构建期固定 | 否 |
+| R1-spring-09 | MINOR | 代码清洁 | `CosIdIntegrationsConfiguration.java:58-66`;`CosIdProperties.java:58` | 集成相关属性用 `Environment.getProperty` 零散读取,不像设计说的那样是 `*Properties` record(只靠 additional metadata 描述);`Store.type` 的 javadoc 漏了 `remote`(IDE 提示里会看到) | 收拢为 `CosIdProperties` 的嵌套 record,或在 07 中写明这是例外;javadoc 补上 `remote` | 否(属性名不变) |
+| R1-spring-10 | MINOR(存疑) | 易用性 | `CosIdProperties.java:198-205` | 无字段的 codec 项写成 `- friendly: {}` 或 `- period: {}` 时,大概率绑定为 null,报"0 set",提示令人困惑;想全用默认值时必须随便写一个字段 | 支持简写 `- friendly` / `- period`,或把"0 set"的报错改为提示"至少写一个字段" | 否 |
+
+### 6.2 server
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-server-01 | MAJOR | 易用性(安全) | `server/.../ServerProperties.java:122-124`;`AuthFilter.java:65,76` | `admin-paths` 硬编码为 `/actuator/**`、`/v3/api-docs/**`、`/swagger-ui/**`,并用 `requestURI − contextPath` 去匹配。一旦设置了 `management.endpoints.web.base-path`(如 `/manage`)、`spring.mvc.servlet.path` 或 `springdoc.*.path`,受限的 client token 就能重新访问 `cosid` 端点(给任意生成器发号)、prometheus 和 api-docs,C-B1 换个条件又出现。另外,设置 `management.server.port` 后 Actuator 运行在子上下文里,`FilterRegistrationBean` 不会作用到它,即 Actuator **完全不鉴权**(存疑:按 Boot 子上下文的行为推断,未实测) | 改为默认拒绝:受限 token 只放行 `/ranges:*`、`/slots:*`、`/ids/**`(白名单),其他路径一律要求不受限 token;或者从 `WebEndpointProperties` 与 springdoc 属性推出 admin 路径;`management.server.port` 与主端口不同时拒绝启动,或给管理上下文也注册过滤器;补测试 | 是(`admin-paths` 的语义) |
+| R1-server-02 | MINOR | 易用性 | `server/build.gradle.kts:27-47`;`documentation/docs/en/guide/server.md:28,138` | server 没有任何检查后端存储的健康指示器(没有 spring-data-redis / DataSource Bean / MongoClient Bean,`cosId` 只看槽位)。文档说"liveness 不访问存储",暗示 readiness 或 health 会访问,实际上存储宕机时 readiness 仍是 UP | 增加 `BackingStore` 健康检查(带超时的轻量调用,如读存储时钟),并纳入 readiness group;或者修正文档 | 否 |
+| R1-server-03 | MINOR | 高性能 / 高内聚 | `CosIdServer.java:85-93`、`BackingStore.java:82`、`CosIdStoreClients.java:53-63` | 开启 `/ids` 时,运行时又从同一份 `cosid.stores` 打开第二个 Store:JDBC 走无连接池的 `DriverManagerDataSource`(每次补充都新建连接),Redis、Mongo、ZK 各多一个客户端 | 让运行时复用 `BackingStore`(以 `StoreProvider` Bean 或 client 的形式交给运行时),或把 Hikari 池注册为 `DataSource` Bean | 否 |
+| R1-server-04 | MINOR | 高性能 | `server/.../IdController.java:86-88,103` | `count` 最多 1000,每个 id 都装箱为 `List<Long>` | 改用 `long[]` 的 body(JSON 形状不变) | 否 |
+| R1-server-05 | MINOR | 架构(文档) | `docs/architecture/08-remote.md:23-41` | 08 没有反映已合入的 C-B1、C-B2、C-M1、B-N3:`admin-paths`、token 最短 16 位与拒绝 `${`、`max-namespaces-per-client`、`key-idle-timeout`、`504 store_timeout`;renew/release 请求体的说明也漏了 `ownerKey`(仅在"R4-A 补充"中提到) | 改文档,以代码为准 | 否 |
+
+### 6.3 integrations
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-int-01 | MINOR | 高内聚低耦合 / 代码清洁 | `integrations/{activiti,flowable,axon,spring-data-jdbc}/.../TextIds.java`(4 份相同);`spring/autoconfigure/.../CosIdEndpoint.java:84-88`;core 已有 `internal/GeneratorEntry.java:281 text()` | "任意策略的文本 id"在 core 内部已经存在,但 `CosIdRuntime` 没有公开它,于是 4 个集成各复制一份,并按字符串 `"cosid80"` / `"periodic-segment"` 分支,与策略名耦合 | `CosIdRuntime` 增加 `Supplier<String> text(String name)`(或 `textGenerator`),删除这 4 份复制和端点里的分支 | 是(core 公开 API,新增,宜在冻结前加入) |
+| R1-int-02 | MINOR | 易用性 | `CosIdIntegrationsConfiguration.java:89-100`;4.x `cosid-spring-boot-starter/.../jdbc/CosIdJdbcDisabledHintAutoConfiguration.java` | 4.x 在 `cosid.jdbc.enabled` 关闭(默认)时,会在启动日志里列出 CosId 本会填充的 Spring Data JDBC 实体;5.0 去掉了这个提示,引入 `cosid-spring-data-jdbc` 后什么都不做,也没有任何提示 | 恢复这条 INFO 提示(`SmartInitializingSingleton`) | 否 |
+| R1-int-03 | MINOR | 文档 / 特性对照 | `integrations/jackson/build.gradle.kts:20`;`documentation/docs/*/guide/integrations/jackson.md`;`guide/migration/from-4x.md:248` | cosid-jackson 从 Jackson 2(`com.fasterxml`)改为只支持 Jackson 3(07 §5 已决定)。但迁移页写的是"the same artifacts",`@AsString` 属性也已改名(`value`→`codec`、`radixCharSize`→`width`、`radixPadStart`→`padStart`、`timestampBit` / `machineBit` / `sequenceBit`→`timeBits` / `nodeBits` / `seqBits`、`FRIENDLY_ID`→`FRIENDLY`),文档里都没有对照表 | 在 jackson 页与 from-4x 加"4.x → 5.0"对照,写明不再支持 Jackson 2;11 §6 的 Jackson 行注明这一点 | 否 |
+| R1-int-04 | MINOR | 易用性 | `integrations/mybatis/.../CosIdInterceptor.java:85-93` | 只认一个全局 `listKey`;`insert(@Param("order") Order o)` 这样单个实体放在 ParamMap 里时不会被填充(与 4.x 相同,但文档没有写) | 文档写明;可选:遍历 ParamMap 中所有 `Iterable` 和实体值 | 否 |
+
+### 6.4 extras(sharding)
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-sharding-01 | MINOR | 代码清洁 | `extras/sharding/.../ExactCollection.java:39,62,66,70`;`LocalDateTimeConvertor.java:18` | 公开方法和接口缺 javadoc(doclint 允许缺失,但这是公开 API) | 补上 | 否 |
+| R1-sharding-02 | MINOR | 易用性 | `CachedSharding.java:77-87` | 缓存直接返回被包装算法的集合实例;如果调用方修改它(`ExactCollection` 支持 `add(index, …)`),会污染缓存(4.x 同样存在) | 缓存不可变视图,或在 javadoc 写明不可修改 | 否 |
+
+### 6.5 bom / examples / benchmark
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-build-01 | MINOR | 文档 | `documentation/docs/{en,zh}/guide/getting-started.md`("Next"一节) | 说三个示例都能用 `./gradlew :examples:<name>:bootRun` 运行;`server` 示例需要先跑 server(compose),`plain-stores` 只是测试 | 按 `examples/README.md` 改写 | 否 |
+| R1-build-02 | MINOR | 代码清洁 | `benchmark/v5/.../SpringStartBenchmark.java:36` | javadoc 里有转义反引号 `` \` ``(Markdown 残留) | 改为 `{@code …}` | 否 |
+| R1-build-03 | MINOR | 架构(文档) | `docs/architecture/02-modules.md:30` | 目录表里的 examples 只有三个,漏了 `plain-stores`(L14) | 补上 | 否 |
+
+bom:16 个发布模块与 `settings.gradle.kts` 一致,`checkBom` 会守住,无发现。starter 只依赖 core 和 autoconfigure,与 D14 一致。
+
+### 6.6 documentation(VitePress、README、设计文档)
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-doc-01 | MAJOR | 文档(重号风险) | `documentation/docs/en/guide/migration/from-4x.md:235-237`、`zh/.../from-4x.md:212-214`;`docs/architecture/09-migration.md:137`("封存不影响回滚") | 回滚一节无条件写"号段:安全,封存只会调高 4.x 的值"。但手工迁移的封存是"建议、可选",工具也有 `--no-seal-source`:**没有封存就回滚时,4.x 从 `last_max_id` 继续取段,正好与 5.0 从 `last_max_id+1` 起已发出的号重叠,产生重号** | 回滚一节写明"只有封存过才安全;未封存时,回滚前必须先把 4.x 的值调到不低于 5.0 已用的最大值(或补做封存)";09 §6.3 同步 | 否 |
+| R1-doc-02 | MINOR | 文档 | `docs/architecture/07-runtime-and-spring.md:151`、`roadmap.md:78`、`AGENTS.md:9-10` | rc-review 的 C-N4(`codec: { radix: 62 }` 无法绑定)、C-N5(`/v5` 残留)、E-N1("4.x 代码在 `main`")**并未修在 main 上**:修复只在 `origin/wip/rc-review`(#1344 未合入) | 把这三处改动从 `wip/rc-review` 摘到 main | 否 |
+| R1-doc-03 | MINOR | 架构(文档) | `07-runtime-and-spring.md:157,159`;`reference/config/basic.md:11`;`guide/integrations/spring-boot-starter.md:15`(中英文) | "不再有各特性的 `enabled` 开关",与实际存在的 `cosid.mybatis.enabled`、`cosid.jdbc.enabled`、`cosid.activiti.enabled`、`cosid.flowable.enabled` 矛盾;07 还写着"周期号段列表第一项必须是 `date-prefix`",代码已支持 `period` 项 | 改文档:生成器、存储没有开关,集成有各自的开关;补上 `period` 项的说明 | 否 |
+| R1-doc-04 | MINOR | 文档 | `guide/migration/from-4x.md`(中英文) | 运行手册没有提 `--machine-from` / `--machine-to`(D-B4:4.x 号段与机器号在不同存储)、`--allow-unmigrated`(D-B3)、`--target-config`、`config --allow-new`、`--gap`;这些只在 `migration/README.md` 里。拆分存储的用户照着站点文档做会被 apply 拒绝 | 在 Plan / Apply 两步补上这些选项,并链接到 README | 否 |
+| R1-doc-05 | MINOR | 易用性 | `migration/.../target/JdbcTarget.java:48`、`RedisConnection.java:55`;`from-4x.md:40,62` | 迁移工具的 JDBC 账号选项是 `user`,而运行时 JDBC 存储是 `options.username`:同一个概念两个名字,容易写错 | 迁移工具同时接受 `username`(别名) | 否 |
+| R1-doc-06 | MINOR | 文档 | `docs/architecture/11-feature-parity.md` §5–§7 | 引用的测试都存在、方法都在,但有 17 处行号锚点失效(偏 7–59 行),例如 `AuthTest.allowAnonymousStartsOpen` 写 #L175,实际在 L234;`IdFillerTest` 整体偏 19 行;`CosIdRuntimeHintsTest` 写 #L36,实际在 L50 | 重新生成锚点(或去掉行号) | 否 |
+| R1-doc-07 | MINOR | 文档 | `guide/integrations/spring-boot-starter.md:113` | 只说"注册原生镜像所需反射",没有说 AOT 下生成器集合在构建期固定(见 R1-spring-08) | 补一句 | 否 |
+
+### 6.7 确认通过的部分
+
+- **配置参考与代码一致(a)**:`reference/config/{basic,generators,server}.md` 列出的 `cosid.*`、`cosid.server.*` 属性名和默认值,逐项与 `CosIdProperties`、`ServerProperties` 的 record 和 `@DefaultValue` 对照,全部一致。核对过的项包括:timeout 2s、bits 10、ttl 30s、tolerance 1s、ahead 10s、step 100、initial-offset 1、lookahead 1s、reserve-timeout 3s、prewarm 1m、regression 5ms / 1s、radix 62、friendly pad-start true、date-prefix `yyyyMMdd` / `-` / `ID_TIME`、period `true` / `-`、metrics.generated false,limits 100ms / 1h / 1m / 65536 / 1e12 / 1000 / 10000 / 1000 / 1h,blocking 64 / 1024,public-paths 与 admin-paths 的默认列表。后端选项表也与各 provider 的默认值一致(`cosid_db`、`sweepBatch` 16、ZK 的 60s / 15s / 10s / 100ms / 5 / 500ms、remote connectTimeout 5s,jdbc 表名)。
+- **中英文页面对应(b)**:页面集合完全相同;每页的标题数、代码块数、表格行数都相同;去掉注释后代码块内容逐字相同;三张配置表的第一列和默认值列只有翻译差异;两个 sidebar 的链接一致。README 与 README.zh-CN 的代码块一致。
+- **快速上手与示例(c)**:坐标(`cosid-bom`、`cosid-spring-boot-starter`、`cosid-store-*`)、`__COSID_VERSION__` 替换、YAML 片段都能绑定到当前 record;`RuntimeOptions` 的 8 参数构造器存在;示例的 yaml、compose 与代码一致(compose 的卷路径相对 compose 文件,正确)。
+- **迁移文档(d)**:from-4x、README、09 里出现的 CLI 选项在 `Main.java` 中全部存在;D32 手工迁移一节(时间型、普通号段、何时必须用工具)与 09 §6 一致;回滚问题见 R1-doc-01。
+- **运维文档(e)**:monitoring 页的 19 个 meter 名称、类型、标签,与 `CosIdMeterListener` 逐一对应;`cosid.server.call.rejections{reason}` 与 `Rejections` 一致;健康指示器 `cosId` 与开关 `management.health.cosid.enabled` 与代码一致(大小写问题见 R1-spring-05)。
+- **模块 README(f)**:server、integrations、sharding、store/remote 的 README 与代码一致。
+- **javadoc(g)**:spring 和 integrations 的公开 API 基本都有 javadoc;缺失的只是常量和 `@Bean` 方法。
+- **依赖方向**:autoconfigure 对 store 与 integrations 都是 `compileOnly` 加 `@ConditionalOnClass`;每个 integration 只依赖 core 和自己的库;server 依赖 autoconfigure、stores 和 store/remote(用到 RemoteApi),与 `DependencyRules.kt` 一致。
+- **性能**:
+  - `AnnotatedIdFiller` 按类用 `ClassValue` 缓存 `MethodHandle`(`invokeExact`),MyBatis 每次 insert 无反射;
+  - Jackson 的 `createContextual` 每个属性只解析一次;
+  - 运行时的视图有缓存;
+  - `CompositeListener` 对 0 个和 1 个监听器不包装;
+  - server 请求路径:正则是静态编译的,KeyCap 按客户端加锁,存储调用在有界池上执行,没有全局锁。
+- **rc-review 修复复核**:
+  - C-B1 ✅:`admin-paths` 让受限 token 得到 403;但换路径、换端口后会失效,见 R1-server-01。
+  - C-B2 ✅:`requireToken` 拒绝含 `${` 的 token 和少于 16 个字符的 token,并拒绝重复 token。
+  - C-M1 ✅:按客户端计数,同时限制命名空间数,reserve 失败时 forget,并按 LRU / idle 淘汰。
+  - C-N1 ✅:存储错误只返回通用消息,细节写日志。
+  - C-N2 ✅:保留名 `strings`、`periodic`。
+  - C-N3 ✅:hints 和 metadata 都包含 remote。
+  - E-B2 ✅:`docker-deploy.yml` 推送到 Docker Hub、ghcr、aliyun,多架构,`latest` 只在主版本 ≥5 的 GA 上打。
+  - E-B3 ✅:迁移工具 jar 由 `gh release upload` 上传,权限 `contents: write`。
+  - E-M2 ✅:`javadocSite` 由 Gradle 按 artifactId 命名目录。
+  - E-M3 ✅:发布 job 依赖 `verify-build`。
+  - E-N2 ✅:`checkPublishedMetadata` 已在 `cosid.library` 中,并拒绝 enforced-platform。
+  - E-N3 ✅:有 `checkBom`。
+  - E-N4 ✅:SCM 带 `scm:git:` 前缀,并有 developerConnection。
+  - E-N6 ✅:没有 `TODO(R1)`。
+  - E-N7 ✅:Lua 脚本有许可证头。
+  - E-N8 ✅:codeql 的 paths-ignore 已是 5.0 路径。
+  - E-N9 ✅:发布由 `release: published` 触发。
+  - **C-N4、C-N5、E-N1 ❌ 未在 main 上**(R1-doc-02)。
+
+### 6.8 性能回退候选
+
+只读审查,没有新的测量。下面是代码层面的候选:
+
+1. R1-server-03:`/ids` 在 JDBC 上补充时无连接池,每次新建连接;会影响 server 发号场景的延迟。现有基准不覆盖 server。
+2. R1-spring-06:周期号段的 Timer 随周期累积,长期运行时内存和抓取量增长;不影响基准。
+3. R1-server-04:`/ids` 的装箱分配,每次请求最多 1000 个对象。
+4. 本轮在 MyBatis / Spring Data JDBC 填充、Jackson 和 Actuator 路径上没有发现新的热路径分配或锁。
+
+### 6.9 特性对照(4.x → 5.0)
+
+- 11 §5–§7 引用的测试全部存在并测试了对应能力,只是锚点失效(R1-doc-06)。
+- 已覆盖的 4.x 能力(由 `cosid-migration config` 转换):
+  - `cosid.machine.*`(distributor 类型、stable、instance-id、guarder、state-storage)→ `machine.leased` / `static`;
+  - `cosid.snowflake.share` 与 `cosid.segment.share` → `default`;
+  - `cosid.segment.chain` / `prefetch-worker` → `lookahead`(执行器不可配见 R1-spring-02);
+  - `snowflake.provider.*.converter` → codec 列表;
+  - `clock-backwards` → `regression`;
+  - 3 个 4.x Actuator 端点 → 一个 `cosid` 端点,DELETE → `disabled`;
+  - `MachineIdHealthIndicator` → `CosIdHealthIndicator`;
+  - proxy server → server 加 store/remote,另增 key 前缀限定与 `max-namespaces-per-client`;
+  - ShardingSphere 由 ShardingSphere 自己维护(blog 页已标为 4.x 文章)。
+- 缺失或变化,需要在文档中说明:
+  - Jackson 2 不再支持,`@AsString` 属性改名(R1-int-03);
+  - Spring Data JDBC 关闭时的启动提示没了(R1-int-02);
+  - 4.x `cosid.metrics.enabled` 总开关没了,只能用 `management.metrics.enable.cosid=false`,迁移页没有写;
+  - 4.x `cosid.metrics.generated.enabled` 在 5.0 是布尔值 `cosid.metrics.generated`,以后无法再加子属性(MINOR,触及冻结面:是);
+  - Spring 用户无法注入预取执行器(R1-spring-02)。
+
+## 7. 结果条件
+
+### 7.1 性能(D21,按 D34 判定;只列候选,未跑基准)
+
+| 门槛回退 | 疑似原因 | 修复候选 |
+|---|---|---|
+| SegmentNoPrefetch 分配 24→32 B、吞吐 −6% | 每次补充分配并发布一个 32 B 的 `RangeCursor`(4.x 是一个 24 B 对象,且无锁快路),每次补充两次加锁、两次 `currentMillis`、一次 `BatchSizer.record` | R1-core-04;另 R1-core-06(运行时路径上 `ObservedStores` 的 lambda,门槛未覆盖) |
+| MySQL acquire 耗时 +15%、acquire/renew/reserve 分配 +25~+67% | `cosid_slot` 缺 `(namespace, last_owner_key)` 索引,候选查询扫整个命名空间;每次调用重新拼接约 600 字符的 SQL(驱动按 SQL 文本重新解析);acquire 读回多行多列;只在出错时才用到的字符串被预先拼接;基准本身不对称(v5 每次 `UUID.randomUUID()`、TearDown 释放两条语句) | R1-jdbc-01(须在 RC 前,改 DDL)、R1-jdbc-02;同时修正基准的不对称(§5.11) |
+| ZK reserve 分配 +19% | 两次 Curator 后台操作(各有 `CompletableFuture`、lambda、`CuratorEventImpl`、带时限等待)、每次路径校验、预拼错误字符串、两次 byte[] | R1-zk-01;其中"总是带超时"是有意设计,剩余部分可优化 |
+| 时间型(P1/P2,非门槛失败行) | 每个 id 在监视器内一次 volatile 写 | R1-core-05(存疑) |
+| 服务端 `/ids`(无基准) | 运行时另开一个无连接池的 JDBC Store | R1-server-03 |
+
+### 7.2 特性(11-feature-parity 与 4.x)
+
+不是"等价"、需修代码或改对照表的:
+- **跨服务全局唯一**(`cosid.generator.namespace`):R1-x-06(缺失,冻结面)与 R1-x-07(迁移静默丢弃,BLOCKER)。
+- **CosIdGenerator 位宽与 `sequence-reset-threshold` 不可配**:R1-x-03(冻结面);迁移误拒绝 R1-x-04;friendly 不补零 R1-x-05 / R1-spring-04。
+- **按名注册自定义生成器**(`IdGeneratorProvider.set`):R1-core-02(冻结面)。
+- **SQL 代理下 generated key 校验与 `fetch-plan=transaction` 退路**:R1-jdbc-06。
+- **Spring 用户注入预取执行器或时钟**:R1-spring-02;`acquireTimeout` 不可配:R1-core-03。
+- **Jackson 2 不再支持、`@AsString` 改名**、Spring Data JDBC 关闭提示、`cosid.metrics.enabled` 总开关:R1-int-02、R1-int-03、§6.9,文档补对照即可。
+- 11 的对照表需补行:时间戳溢出、存储回退检测(`highWater`)、自定义 Period(§4.3);测试锚点行号失效(R1-core-15、R1-doc-06,共约 60 处)。
+
+### 7.3 文档
+
+- **会导致重号的文档**:R1-doc-01(未封存时回滚)。
+- **未经验证的承诺**:R1-mongo-04(Mongo 分片集群)。
+- **设计文档落后于代码**:03/04/05/01/02(R1-core-14)、06 的 DDL 与 Redis/ZK 键(§5)、08(R1-server-05)、07(R1-doc-03);rc-review 中 C-N4、C-N5、E-N1 的修复只在 `wip/rc-review`,未上 main(R1-doc-02)。
+- **迁移指南缺项**:静态取号写法(R1-x-01)、跨服务唯一(R1-x-08)、拆分存储等 CLI 选项(R1-doc-04)。
+- **配置参考**:属性名与默认值逐项与 `*Properties` record 一致(§6.7);但环境变量对存储 options 不可用(R1-spring-01)。
+- **中英文**:页面、标题、代码块、表格逐页对应(§6.7)。
+- **javadoc**:core 导出包约 160 个公开声明缺 javadoc,SPI 契约(`IdCodec.encode`、`StoreProvider.open`、listener 线程约定)缺失,无 `package-info.java`(R1-core-09、R1-core-16);store 见 §5.9。
+
+## 8. 汇总
+
+共 **95** 条(按编号计;其中 R1-spring-04 与 R1-x-05、R1-doc-06 与 R1-core-15、R1-spring-01 与 R1-spi-01 同源,修复时合并)。
+
+| 严重度 | 触及冻结面 | 不触及 | 合计 |
+|---|---|---|---|
+| BLOCKER | 0 | 1 | 1 |
+| MAJOR | 10 | 9 | 19 |
+| MINOR | 17 | 58 | 75 |
+| 合计 | 27 | 68 | 95 |
+
+**BLOCKER**:R1-x-07(迁移静默丢弃 `cosid.generator.namespace`,跨服务 80 位 ID 迁移后重复;T4 不含全局命名空间)。
+
+**MAJOR 且触及冻结面(RC 前必须决定)**:R1-x-03(cosid80 布局)、R1-x-06(命名 machine)、R1-core-01(公开 record 的演进)、R1-core-02(自定义生成器)、R1-core-03(`acquireTimeout`)、R1-spi-01 / R1-spring-01(存储 options 的键规范与未知键校验)、R1-spi-02(可移植的 key/namespace 语法)、R1-jdbc-01(`cosid_slot` 索引,DDL)、R1-server-01(admin 路径改为白名单)。
+
+**MAJOR 不触及冻结面**:R1-x-01、R1-x-04、R1-x-08、R1-core-04、R1-jdbc-02、R1-jdbc-06、R1-mongo-04、R1-zk-01、R1-doc-01。
+
+**建议的修复分组**(供总调度排队,一次一个):
+1. **WP-API-freeze**(core + spring):R1-core-01、R1-core-02、R1-core-03、R1-x-03、R1-x-06 及其 Spring 配置,R1-core-11/12/17 等冻结面 MINOR——先在设计文档(03/05/07)定稿再改代码。
+2. **WP-store-contract**:R1-spi-01、R1-spi-02、R1-spring-01、R1-jdbc-01(+ 五份 schema 与迁移工具的 admin 写路径)。
+3. **WP-perf**:R1-core-04、R1-core-05、R1-core-06、R1-jdbc-02、R1-zk-01,修正 MySQL 基准的不对称;之后按 D34 重跑门槛。
+4. **WP-server-auth**:R1-server-01(+ R1-server-02/03)。
+5. **WP-migration**:R1-x-07、R1-x-04、R1-jdbc-06 的迁移侧、R1-doc-05。
+6. **WP-docs**:R1-x-01、R1-x-08、R1-doc-01–07、R1-mongo-04(或加 CI)、R1-core-14/15/16、R1-server-05、11 的补行。

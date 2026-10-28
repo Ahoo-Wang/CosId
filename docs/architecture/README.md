@@ -62,6 +62,7 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
 | D29 | 集成适配器按第三方依赖拆分为 `integrations/{jackson,mybatis,spring-data-jdbc,activiti,flowable,axon}`,artifactId 为 `cosid-*`(与 4.x 坐标一致);每个模块只依赖自己的第三方库;Axon 未绑定时报错 | 已定 |
 | D30 | `cosid-server` 的 HTTP API 不带版本前缀(`/ranges:reserve`、`/slots:*`、`/ids/*`) | 已定 |
 | D31 | 基准测试不在本地运行;发布门槛在 CI(`release-gate` workflow,同一 runner 上交替运行 4.1.0 与 5.x)上判定 | 已定 |
+| D32 | 4.x → 5.0 除迁移工具外,另有可选的**停机手工迁移**:时间型生成器在布局不变时停机升级(停机 ≥ 主机最大时钟偏差,至少 1 分钟,并核对 NTP);普通号段停机后取 4.x `last_max_id`,设 `initial-offset = last_max_id + 1`(建议手工封存 4.x 值);周期号段、自定义布局/秒级 epoch、key 多或需要防护时用工具。只改文档,不新增配置项(租约模式的命名空间级 `not-before` 留待 RC 后评估) | 已定 |
 | D24 | 不提供租约丢失后继续发号的开关(P1);运行时删除生成器改为启动期的 `disabled` 配置(P2) | 已定 |
 
 ## 术语

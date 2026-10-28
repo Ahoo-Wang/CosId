@@ -13,7 +13,9 @@
 
 # The build setup of every Gradle job, after actions/checkout (a local action lives in the checkout): the JDKs and
 # Gradle through gradle/actions/setup-gradle, which validates the wrapper and caches Gradle's user home. The cache is
-# written by main only; pull requests read it.
+# written by main only; pull requests read it. It holds the downloaded dependencies and the wrapper, never the local
+# build cache: test results would come back from it while the stores they ran against (COSID_TEST_* images, which are
+# no task input) changed, and the nightly probes would run nothing.
 name: Set up the build
 description: JDKs and Gradle for a CosId build job
 inputs:
@@ -32,4 +34,5 @@ runs:
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v6
       with:
-        cache-read-only: false  # TEMPORARY (WP-ci measurement): this PR writes its own cache once
+        cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+        gradle-home-cache-excludes: caches/build-cache-1

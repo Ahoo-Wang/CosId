@@ -24,14 +24,13 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: labeler-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
+# No cancel-in-progress: a cancelled run would stay on the pull request as a CANCELLED check. Each run labels from the
+# pull request's current state, so runs that overlap reach the same labels.
 jobs:
   label-by-files:
     name: Label by changed files
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: write
@@ -44,6 +43,7 @@ jobs:
   label-by-title:
     name: Label by title type
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       pull-requests: write
     steps:

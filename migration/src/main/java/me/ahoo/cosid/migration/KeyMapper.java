@@ -15,6 +15,7 @@ package me.ahoo.cosid.migration;
 
 import me.ahoo.cosid.migration.config.Legacy4x;
 import me.ahoo.cosid.segment.Period;
+import me.ahoo.cosid.store.StoreKeys;
 
 import java.time.DateTimeException;
 import java.time.ZoneOffset;
@@ -25,6 +26,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Maps 4.x segment names to 5.0 range keys (09 §4.1): {@code {name}} to {@code {namespace}/{name}}, and a grouped
@@ -65,21 +67,29 @@ public final class KeyMapper {
         int at = sourceName.indexOf('@');
         String base = at < 0 ? sourceName : sourceName.substring(0, at);
         String generator = renames.getOrDefault(base, base);
-        if (generator.isEmpty() || generator.contains("/")) {
-            return Mapping.unrecognized(sourceName, "5.0 generator names must be non-empty and contain no '/': [" + generator + "]; use --rename");
+        // R1-spi-02: a 5.0 name and key every backend stores, or 5.0 refuses the generator at start-up.
+        Optional<String> badName = StoreKeys.nameProblem(generator);
+        if (badName.isPresent()) {
+            return Mapping.unrecognized(sourceName, "5.0 generator [" + generator + "]: " + badName.get() + "; use --rename");
         }
         if (at < 0) {
-            return new Mapping(sourceName, generator, null, null, namespace + "/" + generator, null);
+            return portable(new Mapping(sourceName, generator, null, null, namespace + "/" + generator, null));
         }
         String groupKey = sourceName.substring(at + 1);
         String pattern = groupPatterns.containsKey(generator) ? groupPatterns.get(generator) : groupPatterns.get(base);
         try {
             String[] period = pattern == null ? preset(groupKey) : reformat(groupKey, pattern);
-            return new Mapping(sourceName, generator, period[0], period[1], namespace + "/" + generator + "/" + period[1], null);
+            return portable(new Mapping(sourceName, generator, period[0], period[1], namespace + "/" + generator + "/" + period[1], null));
         } catch (IllegalArgumentException | DateTimeException e) {
             return Mapping.unrecognized(sourceName, "group key [" + groupKey + "] " + e.getMessage()
                 + "; name its 4.x pattern with --group-pattern " + generator + "=<pattern>");
         }
+    }
+
+    private static Mapping portable(Mapping mapping) {
+        return StoreKeys.keyProblem("5.0 range key", mapping.targetKey())
+            .map(problem -> Mapping.unrecognized(mapping.sourceName(), problem + "; use --rename"))
+            .orElse(mapping);
     }
 
     /** The preset whose strict format the group key has: by length, 4, 6 or 8 digits. */

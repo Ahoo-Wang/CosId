@@ -19,6 +19,7 @@ import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.segment.RangeStore;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
+import me.ahoo.cosid.store.StoreOptions;
 import me.ahoo.cosid.store.StoreProvider;
 
 import com.zaxxer.hikari.HikariConfig;
@@ -66,9 +67,11 @@ public final class BackingStore implements Store {
         StoreSpec spec = backing.getValue();
         StoreProvider provider = provider(spec.type(), providers.stream().filter(bean -> !(bean instanceof SharedStoreProvider)).toList())
             .orElseThrow(() -> new CosIdException("No StoreProvider of type [" + spec.type() + "] for the backing store"));
-        HikariDataSource pool = "jdbc".equals(spec.type()) && spec.options().get("url") != null ? pool(chosen, spec, poolSize) : null;
+        // The options as the runtime passes them: an environment variable or kebab-case key reaches its option (R1-spring-01).
+        Map<String, Object> options = StoreOptions.resolve(chosen, provider, spec.options());
+        HikariDataSource pool = "jdbc".equals(spec.type()) && options.get("url") != null ? pool(chosen, options, poolSize) : null;
         try {
-            StoreConfig.Builder config = StoreConfig.builder(chosen, spec.type()).timeout(spec.timeout()).options(spec.options());
+            StoreConfig.Builder config = StoreConfig.builder(chosen, spec.type()).timeout(spec.timeout()).options(options);
             if (pool != null) {
                 config.client(pool);
             }
@@ -121,12 +124,12 @@ public final class BackingStore implements Store {
         return Optional.ofNullable(loaded.get(type));
     }
 
-    private static HikariDataSource pool(String name, StoreSpec spec, int poolSize) {
+    private static HikariDataSource pool(String name, Map<String, Object> options, int poolSize) {
         HikariConfig config = new HikariConfig();
         config.setPoolName("cosid-server-" + name);
-        config.setJdbcUrl(spec.options().get("url").toString());
-        Optional.ofNullable(spec.options().get("username")).map(Object::toString).ifPresent(config::setUsername);
-        Optional.ofNullable(spec.options().get("password")).map(Object::toString).ifPresent(config::setPassword);
+        config.setJdbcUrl(options.get("url").toString());
+        Optional.ofNullable(options.get("username")).map(Object::toString).ifPresent(config::setUsername);
+        Optional.ofNullable(options.get("password")).map(Object::toString).ifPresent(config::setPassword);
         config.setMaximumPoolSize(poolSize);
         return new HikariDataSource(config);
     }

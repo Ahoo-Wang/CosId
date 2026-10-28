@@ -2,7 +2,8 @@
 
 `cosid.server.*`, bound by `ServerProperties` of cosid-server. Besides these, the server reads the ordinary `cosid.*`
 properties ([runtime, stores, machine](basic.md), [generators](generators.md)): its backing store is one of
-`cosid.stores`. Every property can be set from the environment, as in `COSID_SERVER_AUTH_TOKENS_0`.
+`cosid.stores`. Every property can be set from the environment, as in `COSID_SERVER_AUTH_TOKENS_0`, store options included
+(`COSID_STORES_MAIN_OPTIONS_CONNECTSTRING` sets `connectString`: their case does not count).
 
 | Property | Default | Meaning |
 |---|---|---|

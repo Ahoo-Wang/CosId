@@ -18,6 +18,7 @@ import me.ahoo.cosid.store.StoreConfig;
 import me.ahoo.cosid.store.StoreProvider;
 
 import java.util.Map;
+import java.util.Set;
 import javax.sql.DataSource;
 
 /**
@@ -41,6 +42,11 @@ public final class JdbcStoreProvider implements StoreProvider {
     @Override
     public String type() {
         return TYPE;
+    }
+
+    @Override
+    public Set<String> options() {
+        return Set.of("url", "username", "password", "dialect", "initSchema", "rangeTable", "slotTable", "namespaceTable");
     }
 
     @Override

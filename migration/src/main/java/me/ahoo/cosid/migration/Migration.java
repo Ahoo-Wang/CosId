@@ -22,6 +22,7 @@ import me.ahoo.cosid.migration.target.NamespaceState;
 import me.ahoo.cosid.migration.target.RangeState;
 import me.ahoo.cosid.migration.target.TargetAdmin;
 import me.ahoo.cosid.migration.target.Targets;
+import me.ahoo.cosid.store.StoreKeys;
 import me.ahoo.cosid.time.Layout;
 
 import java.io.PrintStream;
@@ -126,6 +127,10 @@ public final class Migration {
      *                                   keep, or a slot offset of a shared namespace that does not fit
      */
     public Plan plan(PlanOptions options) {
+        // R1-spi-02: 5.0 only takes a namespace every backend stores.
+        StoreKeys.namespaceProblem(options.namespace()).ifPresent(problem -> {
+            throw new MigrationAbortedException("--namespace: " + problem + "; 5.0 cannot use it");
+        });
         List<String> warnings = new ArrayList<>();
         Legacy4x legacy = options.layoutConfig() == null ? null : new Legacy4x(FlatConfig.load(options.layoutConfig()));
         // The plan of the shared namespace of the CosIdGenerator itself (api-freeze.md §2.7): machine records only.

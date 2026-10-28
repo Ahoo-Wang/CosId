@@ -1,7 +1,8 @@
 # 配置参考：生成器与编解码器
 
 `cosid.generators.<name>`：每个生成器一项，由 `CosIdProperties.Generator` 绑定。哪些属性适用取决于策略。
-名称不能包含 `/`，`default` 为主 `IdGenerator` Bean（即 4.x 的 share）。
+`default` 为主 `IdGenerator` Bean（即 4.x 的 share）。生成器名与 machine 名只能是每个后端都能存的：不含 `/`、空白，
+不是 `.` 或 `..`，不含控制字符或私用区字符；号段的键 `namespace/name[/period]` 至多 255 个字符。其他名字会让启动失败。
 
 ## 所有策略
 

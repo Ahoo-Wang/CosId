@@ -113,7 +113,7 @@ public final class RuntimeParts {
             Executor executor = options.executor().orElse(parts.ownExecutor);
             for (String name : plan.stores()) {
                 StoreSpec store = spec.stores().get(name);
-                StoreConfig.Builder config = StoreConfig.builder(name, store.type()).timeout(store.timeout()).options(store.options());
+                StoreConfig.Builder config = StoreConfig.builder(name, store.type()).timeout(store.timeout()).options(plan.storeOptions(name));
                 Optional.ofNullable(options.clients().get(name)).ifPresent(config::client);
                 Store opened = providers.find(store.type()).orElseThrow().open(config.build());
                 if (opened == null) {

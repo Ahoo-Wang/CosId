@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Opens {@link MongoStore}s, type {@code mongo} (06-stores.md §1); registered for {@link java.util.ServiceLoader}.
@@ -49,6 +50,11 @@ public final class MongoStoreProvider implements StoreProvider {
     @Override
     public String type() {
         return TYPE;
+    }
+
+    @Override
+    public Set<String> options() {
+        return Set.of(URI, DATABASE, WRITE_CONCERN);
     }
 
     @Override

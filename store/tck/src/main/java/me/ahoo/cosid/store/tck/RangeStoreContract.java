@@ -21,6 +21,7 @@ import me.ahoo.cosid.RangeExhaustedException;
 import me.ahoo.cosid.RangeSealedException;
 import me.ahoo.cosid.segment.Range;
 import me.ahoo.cosid.segment.RangeStore;
+import me.ahoo.cosid.store.StoreKeys;
 
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -200,6 +201,22 @@ public abstract class RangeStoreContract {
             Range previous = sorted.get(i - 1);
             Range next = sorted.get(i);
             assertTrue(next.start() >= previous.end(), () -> "ranges overlap: " + previous + " and " + next);
+        }
+    }
+
+    /**
+     * Keys: the longest portable range key ({@code StoreKeys}, R1-spi-02) is a key of its own, every allowed
+     * punctuation and non-ASCII letters included; keys that differ in the last character stay apart.
+     */
+    @Test
+    public void storesTheLongestPortableKey() {
+        String prefix = "tck._:-" + UUID.randomUUID() + "/订单-";
+        String key = prefix + "k".repeat(StoreKeys.MAX_KEY_LENGTH - prefix.length());
+        String sibling = key.substring(0, key.length() - 1) + "j";
+        try (RangeStore store = newStore()) {
+            assertEquals(new Range(1, 11), store.reserve(key, 10, 1));
+            assertEquals(new Range(1, 6), store.reserve(sibling, 5, 1));
+            assertEquals(new Range(11, 21), store.reserve(key, 10, 1));
         }
     }
 }

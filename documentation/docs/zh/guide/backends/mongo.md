@@ -11,7 +11,7 @@ cosid:
   stores:
     mongo:
       type: mongo
-      timeout: 2s            # 驱动的 timeoutMS；0 表示不限
+      timeout: 2s            # 驱动的 timeoutMS，必须为正
       options:
         uri: mongodb://mongo-1,mongo-2,mongo-3/?replicaSet=rs0
         database: cosid_db

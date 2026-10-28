@@ -31,7 +31,7 @@ the data source.
 | `initSchema` | `false` | create the tables that are missing, and add `cosid_namespace.slot_offset` to a table of 5.0.0-alpha.1 |
 | `rangeTable`, `slotTable`, `namespaceTable` | `cosid_range`, `cosid_slot`, `cosid_namespace` | table names: identifiers, optionally schema-qualified |
 
-`StoreConfig.timeout` is the `queryTimeout` of every statement, rounded up to seconds (zero: none); a statement that
+`StoreConfig.timeout` is the `queryTimeout` of every statement, rounded up to seconds (it is positive); a statement that
 runs out of it fails with `StoreTimeoutException` (`JdbcDialect.isTimeout`). So does a pool that hands out no connection
 in time (`SQLTransientConnectionException`, SQL state class `08`), and an acquire, renew or release whose
 compare-and-set loop is still losing races when the timeout has passed. In code:

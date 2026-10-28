@@ -30,6 +30,8 @@ import me.ahoo.cosid.codec.DatePrefix;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.segment.Period;
 import me.ahoo.cosid.segment.PeriodicPolicy;
+import me.ahoo.cosid.store.StoreKeys;
+import me.ahoo.cosid.store.StoreOptions;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 
@@ -40,6 +42,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 class RuntimeSpecValidationTest {
@@ -90,6 +93,32 @@ class RuntimeSpecValidationTest {
         assertThat(message, containsString("machine: no store [nowhere]"));
         assertThat(message, containsString("generator [order]: no store [missing]"));
         assertThat(message, containsString("store [odd]: no StoreProvider of type [unknown-type]"));
+    }
+
+    @Test
+    void storeOptionsMustBeOnesTheProviderDeclares() {
+        // R1-spi-01: a misspelt option fails the start instead of falling back to a default.
+        String message = problems(RuntimeSpec.builder("app")
+            .store("db", StoreSpec.builder("memory").option("initSchema", "true").option("rangeTabel", "x").build())
+            .store("twice", StoreSpec.builder("memory").option("wait", "off").option("WAIT", "auto").build())
+            .generator("order", segment("db"))
+            .generator("bill", segment("twice"))
+            .build());
+        assertThat(message, containsString("store [db]: unknown option [rangeTabel] of type [memory]; known: initSchema, wait"));
+        assertThat(message, containsString("store [twice]: options [WAIT] and [wait] are both wait"));
+    }
+
+    @Test
+    void storeOptionsMatchIgnoringCaseDashesAndUnderscores() {
+        // R1-spring-01: environment variables bind lower case, and kebab-case is Spring's spelling.
+        try (CosIdRuntime runtime = CosIdRuntime.start(RuntimeSpec.builder("app")
+            .store("db", StoreSpec.builder("memory").option("init-schema", "true").option("WAIT", "off").build())
+            .generator("order", segment("db"))
+            .build(), options(memory))) {
+            assertThat(runtime.generator("order").generate(), is(1L));
+        }
+        assertThat(memory.configs.getFirst().options(), is(Map.of("initSchema", "true", "wait", "off")));
+        assertThat(StoreOptions.canonical("retry.base_sleep-Time"), is("retry.basesleeptime"));
     }
 
     @Test
@@ -172,9 +201,39 @@ class RuntimeSpecValidationTest {
             .generator("a/b", segment("db"))
             .generator(" ", segment("db"))
             .build(), withClient);
-        assertThat(message, containsString("generator [a/b]: the name must not be blank nor contain '/'"));
-        assertThat(message, containsString("generator [ ]: the name must not be blank nor contain '/'"));
+        assertThat(message, containsString("generator [a/b]: the name must not contain '/'"));
+        assertThat(message, containsString("generator [ ]: the name must not contain whitespace"));
         assertThat(message, containsString("clients: [typo] is not a store of the spec"));
+    }
+
+    @Test
+    void onlyKeysEveryBackendStoresAreTaken() {
+        // R1-spi-02: the JDBC column widths, SQL Server's trailing spaces, ZooKeeper's paths, cosid-server's keys.
+        String longName = "n".repeat(StoreKeys.MAX_KEY_LENGTH - "app/".length() + 1);
+        String message = problems(RuntimeSpec.builder("app")
+            .store("db", store("memory"))
+            .generator(longName, segment("db"))
+            .generator("..", segment("db"))
+            .generator("tab\tbed", segment("db"))
+            .generator("private\uE000", segment("db"))
+            .machine("named", MachineSpec.Leased.builder("db").namespace("global/ids").build())
+            .generator("token", GeneratorSpec.CosId80.builder().machine("named").build())
+            .build());
+        assertThat(message, containsString("generator [" + longName + "]: the range key [app/" + longName + "] is longer than 255 characters: 256"));
+        assertThat(message, containsString("generator [..]: the name must not be '..'"));
+        assertThat(message, containsString("generator [tab\tbed]: the name must not contain whitespace"));
+        assertThat(message, containsString("generator [private\uE000]: the name [private\uE000] holds the character U+E000, which ZooKeeper cannot store"));
+        assertThat(message, containsString("machines.named: namespace [global/ids] must be 1 to 100 of A-Z a-z 0-9 . _ : -"));
+
+        String namespace = problems(RuntimeSpec.builder("{app}").build());
+        assertThat(namespace, containsString("namespace [{app}] must be 1 to 100 of A-Z a-z 0-9 . _ : -, starting with a letter or digit"));
+        // The longest of each passes.
+        String longestNamespace = "a".repeat(StoreKeys.MAX_NAMESPACE_LENGTH);
+        String longest = "n".repeat(StoreKeys.MAX_KEY_LENGTH - longestNamespace.length() - 1);
+        try (CosIdRuntime runtime = CosIdRuntime.start(RuntimeSpec.builder(longestNamespace)
+            .store("db", store("memory")).generator(longest, segment("db")).build(), options(memory))) {
+            assertThat(runtime.generator(longest).generate(), is(1L));
+        }
     }
 
     @Test

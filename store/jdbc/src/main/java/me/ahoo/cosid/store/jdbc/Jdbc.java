@@ -48,11 +48,12 @@ final class Jdbc {
     }
 
     /**
-     * {@code queryTimeout} has whole seconds: a timeout is rounded up, zero means none.
+     * {@code queryTimeout} has whole seconds: a timeout is rounded up. The timeout is positive, as {@code StoreConfig}
+     * requires (R1-spi-04).
      */
     static int queryTimeoutSeconds(Duration timeout) {
-        if (timeout.isNegative()) {
-            throw new IllegalArgumentException("timeout must not be negative: " + timeout);
+        if (timeout.isNegative() || timeout.isZero()) {
+            throw new IllegalArgumentException("timeout must be positive: " + timeout);
         }
         long seconds = timeout.toSeconds() + (timeout.getNano() > 0 ? 1 : 0);
         return (int) Math.min(Integer.MAX_VALUE, seconds);
@@ -96,11 +97,10 @@ final class Jdbc {
     }
 
     /**
-     * When an operation of several statements started now has to give up: {@code timeout} from now, or never when
-     * the store has no timeout.
+     * When an operation of several statements started now has to give up: {@code timeout} from now.
      */
     long deadline() {
-        return timeout.isZero() ? Long.MAX_VALUE : System.nanoTime() + timeout.toNanos();
+        return System.nanoTime() + timeout.toNanos();
     }
 
     /**

@@ -1,7 +1,9 @@
 # Configuration Reference: Generators and Codecs
 
 `cosid.generators.<name>`: one entry per generator, bound by `CosIdProperties.Generator`. Which properties apply
-depends on the strategy. The name may not contain `/`, and `default` is the primary `IdGenerator` bean (4.x's share).
+depends on the strategy. `default` is the primary `IdGenerator` bean (4.x's share). Names, like machine names, are
+what every backend stores: no `/`, no whitespace, not `.` or `..`, and no control or private-use characters; a segment's
+key `namespace/name[/period]` is at most 255 characters. Other names fail the start.
 
 ## All strategies
 

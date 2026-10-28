@@ -27,6 +27,7 @@ import io.lettuce.core.codec.StringCodec;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
@@ -60,6 +61,11 @@ public final class RedisStoreProvider implements StoreProvider {
     @Override
     public String type() {
         return TYPE;
+    }
+
+    @Override
+    public Set<String> options() {
+        return Set.of("uri", "cluster", "wait", "sweepBatch");
     }
 
     @Override

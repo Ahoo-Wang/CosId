@@ -437,7 +437,7 @@ Function<String, Optional<IdGenerator>> generators();   // 解析 Custom 的引�
 | R1-spring-06 指标基数 | **RC 前改** | `cosid.segment.reserve`、`cosid.segment.refill.failures` 去掉 `key` 标签,只留 `name`(普通号段的 key 等于 `namespace/name`,本来就冗余;周期号段每期一个 key 会无界增长) |
 | `cosid.metrics.generated`(§6.9) | **RC 前改** | 改为 `cosid.metrics.generated.enabled`(默认 false),与 4.x 同名;迁移 `config` 直接照抄。布尔值以后无法加子属性 |
 | R1-spi-04 / R1-spi-05 `StoreConfig` | RC 前改 | 并入 §4(builder,`timeout` 必须为正,删去 0 = 无超时的分支与 JDBC README 中的说法) |
-| R1-spi-01 / 02 / 03、R1-spring-01、R1-jdbc-01 / 07、R1-redis-01、R1-mongo-01、R1-remote-01、R1-tck-01 | 归 **WP-store-contract** | 不在本设计范围;与本设计的交点只有 `StoreConfig`(§4.2)。WP-store-contract 在 `StoreConfig` builder 之上实现选项键规范化与未知键校验 |
+| R1-spi-01 / 02 / 03、R1-spring-01、R1-jdbc-01 / 07、R1-redis-01、R1-mongo-01、R1-remote-01、R1-tck-01 | 归 **WP-store-contract** | 不在本设计范围;与本设计的交点只有 `StoreConfig`(§4.2)。WP-store-contract 在 `StoreConfig` builder 之上实现选项键规范化与未知键校验。**已实现(R1-spi-01/02/04、R1-spring-01)**:`StoreProvider.options()` + `StoreOptions`(忽略大小写、`-`、`_` 对应声明的键,未知键启动失败);`StoreKeys` 定义可移植的命名空间、名字、range key 与 owner key(06 §1),`RuntimePlan` 启动时校验;`StoreConfig.timeout` 各后端一律为正 |
 | R1-server-01 | 已完成(#1365) | — |
 
 ---

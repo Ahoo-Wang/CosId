@@ -41,12 +41,12 @@ class JdbcSupportTest {
 
     @Test
     void timeoutBecomesWholeQueryTimeoutSeconds() {
-        assertEquals(0, Jdbc.queryTimeoutSeconds(Duration.ZERO), "zero is no timeout");
         assertEquals(1, Jdbc.queryTimeoutSeconds(Duration.ofMillis(1)));
         assertEquals(2, Jdbc.queryTimeoutSeconds(Duration.ofMillis(1500)));
         assertEquals(3, Jdbc.queryTimeoutSeconds(Duration.ofSeconds(3)));
         assertEquals(Integer.MAX_VALUE, Jdbc.queryTimeoutSeconds(Duration.ofDays(100_000)));
         assertThrows(IllegalArgumentException.class, () -> Jdbc.queryTimeoutSeconds(Duration.ofSeconds(-1)));
+        assertThrows(IllegalArgumentException.class, () -> Jdbc.queryTimeoutSeconds(Duration.ZERO), "R1-spi-04: no zero timeout");
     }
 
     @Test
@@ -183,11 +183,6 @@ class JdbcSupportTest {
 
     @Test
     void multiStatementOperationsEndAtTheTimeout() throws InterruptedException {
-        Jdbc unbounded = new Jdbc(h2(), JdbcDialects.H2, JdbcTables.DEFAULT, Duration.ZERO);
-        long never = unbounded.deadline();
-        assertEquals(Long.MAX_VALUE, never, "no timeout, no deadline");
-        unbounded.checkDeadline(never, "probe");
-
         Jdbc bounded = new Jdbc(h2(), JdbcDialects.H2, JdbcTables.DEFAULT, Duration.ofMillis(20));
         long deadline = bounded.deadline();
         bounded.checkDeadline(deadline, "probe");

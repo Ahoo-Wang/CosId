@@ -61,23 +61,10 @@ public final class BackingStore implements Store {
      * @return the store
      */
     static BackingStore open(Map<String, StoreSpec> stores, String name, List<StoreProvider> providers, int poolSize) {
-        String chosen;
-        StoreSpec spec;
-        if (name == null || name.isBlank()) {
-            if (stores.size() != 1) {
-                throw new CosIdException(ServerProperties.PREFIX + ".store: name the backing store among cosid.stores " + stores.keySet());
-            }
-            Map.Entry<String, StoreSpec> only = stores.entrySet().iterator().next();
-            chosen = only.getKey();
-            spec = only.getValue();
-        } else {
-            chosen = name;
-            spec = stores.get(chosen);
-            if (spec == null) {
-                throw new CosIdException(ServerProperties.PREFIX + ".store: no store [" + chosen + "] in cosid.stores " + stores.keySet());
-            }
-        }
-        StoreProvider provider = provider(spec.type(), providers)
+        Map.Entry<String, StoreSpec> backing = choose(stores, name);
+        String chosen = backing.getKey();
+        StoreSpec spec = backing.getValue();
+        StoreProvider provider = provider(spec.type(), providers.stream().filter(bean -> !(bean instanceof SharedStoreProvider)).toList())
             .orElseThrow(() -> new CosIdException("No StoreProvider of type [" + spec.type() + "] for the backing store"));
         HikariDataSource pool = "jdbc".equals(spec.type()) && spec.options().get("url") != null ? pool(chosen, spec, poolSize) : null;
         try {
@@ -92,7 +79,28 @@ public final class BackingStore implements Store {
         }
     }
 
-    private static Optional<StoreProvider> provider(String type, List<StoreProvider> beans) {
+    /**
+     * The backing store among {@code cosid.stores}.
+     *
+     * @param stores {@code cosid.stores}
+     * @param name   {@code cosid.server.store}; may be null when there is one store
+     * @return its name and spec
+     */
+    static Map.Entry<String, StoreSpec> choose(Map<String, StoreSpec> stores, String name) {
+        if (name == null || name.isBlank()) {
+            if (stores.size() != 1) {
+                throw new CosIdException(ServerProperties.PREFIX + ".store: name the backing store among cosid.stores " + stores.keySet());
+            }
+            return stores.entrySet().iterator().next();
+        }
+        StoreSpec spec = stores.get(name);
+        if (spec == null) {
+            throw new CosIdException(ServerProperties.PREFIX + ".store: no store [" + name + "] in cosid.stores " + stores.keySet());
+        }
+        return Map.entry(name, spec);
+    }
+
+    static Optional<StoreProvider> provider(String type, List<StoreProvider> beans) {
         for (StoreProvider provider : beans) {
             if (provider.type().equals(type)) {
                 return Optional.of(provider);

@@ -89,6 +89,13 @@ class IdEndpointsTest {
         assertThat(response.body(), containsString("\"code\":\"" + code + "\""));
     }
 
+    /** R1-server-03: the runtime's generators on the backing store use it, not a second store opened on the same spec. */
+    @Test
+    void runtimeReusesTheBackingStore() {
+        assertEquals(200, server.get(RemoteApi.IDS + "/order", TestServer.TOKEN).statusCode());
+        assertEquals(1, server.memoryOpens(), "the memory store opened once, for the backing store");
+    }
+
     @Test
     void defaultGeneratorWithoutAName() {
         JsonNode one = ok(RemoteApi.IDS, TestServer.TOKEN);

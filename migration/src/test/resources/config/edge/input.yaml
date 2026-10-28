@@ -77,6 +77,8 @@ cosid:
           prefix: "N"
   generator:
     enabled: true
+    # The same as cosid.namespace: converted (one of its own is refused, R1-x-07).
+    namespace: edge
     type: friendly
     machine-bit: 19
     pad-start: false

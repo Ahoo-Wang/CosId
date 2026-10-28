@@ -30,7 +30,8 @@ import java.time.temporal.ChronoUnit;
 public record LayoutCheck(String generator, String source, String target, boolean ok, String reason) {
     /**
      * Checks a pair of layouts: the same layout and epoch pass (M2 then keeps them apart); otherwise the smallest 5.0 id
-     * at W must exceed the largest 4.x id that W bounds, {@code new.pack(W, 0, 0) > old.pack(W, maxNode, maxSeq)}.
+     * at W must exceed the largest 4.x id that W bounds, {@code new.pack(W, 0, 0) > old.pack(W, maxNode, maxSeq)}. The
+     * sequence reset threshold takes no part: it picks where a time unit starts in the same id space (R1-x-04).
      *
      * @param generator the generator
      * @param old       the 4.x layout
@@ -39,8 +40,13 @@ public record LayoutCheck(String generator, String source, String target, boolea
      * @return the check
      */
     public static LayoutCheck check(String generator, Layout old, Layout neu, long w) {
-        if (old.equals(neu)) {
-            return new LayoutCheck(generator, describe(old), describe(neu), true, "same layout and epoch: the first 5.0 timestamp is after W (M2)");
+        if (sameIdSpace(old, neu)) {
+            String reason = "same layout and epoch: the first 5.0 timestamp is after W (M2)";
+            if (old.seqResetThreshold() != neu.seqResetThreshold()) {
+                reason += "; the sequence reset threshold differs (4.x " + old.seqResetThreshold() + ", 5.0 " + neu.seqResetThreshold()
+                    + "), which changes no id, only how the low bits scatter";
+            }
+            return new LayoutCheck(generator, describe(old), describe(neu), true, reason);
         }
         if (old.totalBits() > Layout.LONG_BITS || neu.totalBits() > Layout.LONG_BITS) {
             return new LayoutCheck(generator, describe(old), describe(neu), false,
@@ -56,6 +62,18 @@ public record LayoutCheck(String generator, String source, String target, boolea
         } catch (IllegalArgumentException e) {
             return new LayoutCheck(generator, describe(old), describe(neu), false, "W does not fit a layout: " + e.getMessage());
         }
+    }
+
+    /**
+     * Whether two layouts give one id space: the same epoch, unit and bits, whatever their sequence reset thresholds.
+     *
+     * @param one   a layout
+     * @param other another layout
+     * @return true when they pack the same parts to the same ids
+     */
+    public static boolean sameIdSpace(Layout one, Layout other) {
+        return one.epoch().equals(other.epoch()) && one.unit() == other.unit() && one.timeBits() == other.timeBits()
+            && one.nodeBits() == other.nodeBits() && one.seqBits() == other.seqBits();
     }
 
     private static long time(Layout layout, long w) {

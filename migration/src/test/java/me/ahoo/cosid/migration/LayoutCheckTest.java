@@ -56,6 +56,23 @@ class LayoutCheckTest {
     }
 
     @Test
+    void aSequenceResetThresholdAloneIsTheSameLayout() {
+        // R1-x-04: the threshold moves where a time unit starts, inside the same id space.
+        Layout scattered = new Layout(Layout.SNOWFLAKE_MS.epoch(), Layout.SNOWFLAKE_MS.unit(), 41, 10, 12, 100);
+        LayoutCheck check = LayoutCheck.check("snow", scattered, Layout.SNOWFLAKE_MS, W);
+        assertThat(check.ok(), is(true));
+        assertThat(check.reason(), containsString("the sequence reset threshold differs (4.x 100, 5.0 2047)"));
+        Layout cosid = new Layout(Layout.COSID_80.epoch(), Layout.COSID_80.unit(), 44, 20, 16, 7);
+        assertThat(LayoutCheck.check("cosid", cosid, Layout.COSID_80, W).ok(), is(true));
+        assertThat(LayoutCheck.sameIdSpace(cosid, Layout.COSID_80.withNodeBits(19)), is(false));
+        // Each part of the id space counts.
+        assertThat(LayoutCheck.sameIdSpace(Layout.SNOWFLAKE_MS, LayoutCheck.snowflake(0, false, 41, 10, 12)), is(false));
+        assertThat(LayoutCheck.sameIdSpace(Layout.SNOWFLAKE_MS, LayoutCheck.snowflake(Layout.COSID_EPOCH.toEpochMilli(), true, 41, 10, 12)), is(false));
+        assertThat(LayoutCheck.sameIdSpace(Layout.SNOWFLAKE_MS, LayoutCheck.snowflake(Layout.COSID_EPOCH.toEpochMilli(), false, 40, 10, 12)), is(false));
+        assertThat(LayoutCheck.sameIdSpace(Layout.SNOWFLAKE_MS, LayoutCheck.snowflake(Layout.COSID_EPOCH.toEpochMilli(), false, 41, 10, 13)), is(false));
+    }
+
+    @Test
     void aWBeforeTheEpochFails() {
         Layout future = LayoutCheck.snowflake(W + 1000, false, 41, 10, 12);
         assertThat(LayoutCheck.check("snow", Layout.SNOWFLAKE_MS, future, W).reason(), containsString("W does not fit"));

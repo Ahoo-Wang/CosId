@@ -14,7 +14,10 @@
 package me.ahoo.cosid.migration;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 
 import me.ahoo.cosid.codec.DatePrefix;
@@ -40,6 +43,7 @@ import me.ahoo.cosid.store.tck.ManualClock;
 import me.ahoo.cosid.time.Layout;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.boot.context.properties.bind.Bindable;
@@ -51,6 +55,8 @@ import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.FileSystemResource;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -114,6 +120,50 @@ class ConfigBindingTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void aThresholdAloneKeepsThePreset(@TempDir Path dir) throws IOException {
+        // R1-x-04: a 4.x preset layout with its own sequence-reset-threshold is the preset plus seq-reset-threshold.
+        Path input = dir.resolve("application.yaml");
+        Files.writeString(input, """
+            cosid:
+              namespace: scatter
+              snowflake:
+                enabled: true
+                share: { sequence-reset-threshold: 100 }
+                provider:
+                  seconds: { timestamp-unit: second, timestamp-bit: 31, sequence-bit: 22, sequence-reset-threshold: 5 }
+                  js-ms: { machine-bit: 3, sequence-bit: 9, sequence-reset-threshold: 5 }
+                  js-s: { timestamp-unit: second, timestamp-bit: 31, machine-bit: 3, sequence-bit: 19, sequence-reset-threshold: 5 }
+              generator: { enabled: true, sequence-reset-threshold: 7 }
+            """);
+        Legacy4x legacy = new Legacy4x(FlatConfig.load(input));
+        ConfigConverter.Conversion conversion = new ConfigConverter(ZoneId.of("UTC")).convert(legacy.config(), null);
+        Map<String, Object> cosid = (Map<String, Object>) conversion.model().get("cosid");
+        Map<String, Object> generator = (Map<String, Object>) ((Map<String, Object>) cosid.get("generators")).get(Legacy4x.DEFAULT);
+        assertThat(generator.get("layout"), is("SNOWFLAKE_MS"));
+        assertThat(generator.get("seq-reset-threshold"), is(100L));
+        assertThat(conversion.report(), not(hasItem(containsString("no 5.0 preset"))));
+        // The cosid80 threshold cannot be set in 5.0 yet: reported, not taken for other bits.
+        assertThat(conversion.report(), hasItem(containsString("cosid.generator.sequence-reset-threshold = 7")));
+        assertThat(conversion.report(), not(hasItem(containsString("the 4.x bits differ"))));
+        Path output = dir.resolve("application-5.yaml");
+        conversion.write(output);
+        Layout layout = legacy.snowflakeLayout("cosid.snowflake.share");
+        assertThat(layout.seqResetThreshold(), is(100L));
+        RuntimeSpec spec = specOf(output);
+        assertThat(((GeneratorSpec.Snowflake) spec.generators().get(Legacy4x.DEFAULT)).layout(), is(layout));
+        Map<String, Object> generators = (Map<String, Object>) cosid.get("generators");
+        Map<String, String> presets = Map.of("seconds", "SNOWFLAKE_S", "js-ms", "JS_SAFE_MS", "js-s", "JS_SAFE_S");
+        presets.forEach((name, preset) -> {
+            Map<String, Object> provider = (Map<String, Object>) generators.get(name);
+            assertThat(name, provider.get("layout"), is(preset));
+            assertThat(name, provider.get("seq-reset-threshold"), is(5L));
+            assertThat(name, ((GeneratorSpec.Snowflake) spec.generators().get(name)).layout(),
+                is(legacy.snowflakeLayout("cosid.snowflake.provider." + name)));
+        });
+    }
+
+    @Test
     void theStatefulSetSlotBindsFromThePodOrdinal() throws IOException {
         MachineSpec.Static machine = (MachineSpec.Static) edgeSpec().machine().orElseThrow();
         assertThat(machine.slot(), is(3));
@@ -136,9 +186,12 @@ class ConfigBindingTest {
 
     /** Binds a golden as {@link #theGoldenBindsToARuntimeSpec} does. */
     static RuntimeSpec spec(String golden) throws IOException {
+        return specOf(MigrationScenarioTest.resource("config/" + golden + "/expected.yaml"));
+    }
+
+    private static RuntimeSpec specOf(Path yaml) throws IOException {
         StandardEnvironment environment = new StandardEnvironment();
-        for (PropertySource<?> source : new YamlPropertySourceLoader().load(golden,
-            new FileSystemResource(MigrationScenarioTest.resource("config/" + golden + "/expected.yaml")))) {
+        for (PropertySource<?> source : new YamlPropertySourceLoader().load(yaml.getFileName().toString(), new FileSystemResource(yaml))) {
             environment.getPropertySources().addFirst(source);
         }
         environment.getPropertySources().addLast(new MapPropertySource("slots", Map.of("POD_ORDINAL", "3", "COSID_SLOT", "5")));

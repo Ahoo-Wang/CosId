@@ -59,8 +59,11 @@ timestamp of the 4.x machine records, `sourceSkew` (10s) the clock skew 4.x allo
    `java -jar cosid-migration.jar purge --to jdbc:... --namespace shop --before 20250101 --dry-run`, then with
    `--confirm-stopped` instead of `--dry-run`.
 
-**Rollback** to 4.x stays safe for segments: the seal only moved the 4.x values up. For time-based ids, wait until the
-last 5.0 ceiling has passed (the lease `ttl` plus `tolerance`, 31s by default) before starting 4.x again.
+**Rollback** to 4.x, after stopping 5.0: sealed segments are safe, the seal moved the 4.x values `2^40` up. **Without
+the seal (`--no-seal-source`) 4.x would issue again what 5.0 issued from `lastMaxId + 1`**: before starting 4.x, move
+each migrated 4.x value above everything 5.0 reserved on the key (add the seal gap by hand; the commands per backend
+are in the migration guide, "Rollback"). For time-based ids, wait until the last 5.0 ceiling has passed (the lease
+`ttl` plus `tolerance`, 31s by default) before starting 4.x again.
 
 **A forgotten 4.x instance** after `apply --observe 0`: the seal keeps its new ranges `2^40` above 5.0's, and `verify`
 reports the segment as grown. It cannot keep its time-based ids apart, which is what the quiet period is for.
@@ -135,6 +138,11 @@ What keeps a plausible configuration from issuing 4.x ids again (pre-RC review):
   its machine id in `other`). With `--layout-config`, `plan` reads those namespaces too and maps `other.{name}` to
   `{ns}/{name}`, the generator 5.0 gives it; a key `shop.v2.order` of namespace `shop.v2` is not taken for a segment
   `v2.order` of `shop`. Without `--layout-config` a dotted segment name is reported.
+- **A CosIdGenerator in a namespace of its own** (`cosid.generator.namespace` other than `cosid.namespace`, GA review
+  R1-x-07): 4.x shares its machine ids across services to keep their 80-bit ids apart, which this 5.0 release cannot
+  carry over until named machines (D37). `config`, and `plan` / `apply` with `--layout-config`, refuse it while the
+  CosIdGenerator is enabled. With it disabled, the machine records of that namespace still count for T4 and the quiet
+  period.
 - **The share.** `__share__` is `default`, or `segment-share` when the 4.x snowflake share is enabled too: `plan`
   refuses it without `--layout-config` or `--rename __share__=<generator>`.
 - **Keys that do not map** (a group pattern 5.0 cannot read, a name with `/`): `apply` aborts unless each is named with

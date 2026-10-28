@@ -40,9 +40,9 @@ Failures of the backing store answer a generic message; their details go to the 
 | `store` | the only store | the backing store among `cosid.stores` |
 | `auth.tokens` | — | tokens that may use everything |
 | `auth.clients[i].{name, token, namespaces, key-prefixes}` | — | tokens limited to slot namespaces, range keys whose first segment is one of the namespaces, or range keys with one of the prefixes; `*` allows every namespace; the id endpoints need `cosid.namespace` |
-| `auth.allow-anonymous` | `false` | without any token, the server **refuses to start** unless this is set; tokens shorter than 16 characters or holding `${` (an unresolved placeholder) are refused too |
+| `auth.allow-anonymous` | `false` | without any token, the server **refuses to start** unless this is set; tokens shorter than 16 characters or holding `${` (an unresolved placeholder) are refused too. Anonymous opens **everything** to every caller, Actuator's `cosid` endpoint included: only on a trusted network (a `ClusterIP` Service behind a `NetworkPolicy`, no Ingress); see the guide |
 | `auth.public-paths` | `/actuator/health`, `/actuator/health/**` | path patterns that need no token |
-| `auth.admin-paths` | `/actuator/**`, `/v3/api-docs/**`, `/swagger-ui/**` (and their roots) | paths only `tokens` may use: the `cosid` endpoint issues ids of every generator and ignores namespaces, so a client token gets `403` |
+| `docs.public` | `false` | adds the springdoc paths (`/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**`, `/v3/api-docs.yaml`, following `springdoc.*.path`) to the public paths, on top of `auth.public-paths`, so a browser shows Swagger UI without a token; its "Try it out" calls still need one (Authorize), and Actuator still needs a token of `tokens` |
 | `limits.min-ttl` / `max-ttl` | `100ms` / `1h` | the lease ttl range |
 | `limits.max-tolerance` | `1m` | |
 | `limits.max-slot-limit` | `65536` | the stores prepare `limit` slots per namespace |
@@ -54,14 +54,27 @@ Failures of the backing store answer a generic message; their details go to the 
 | `blocking.threads` / `queue-capacity` | `64` / `1024` | the bounded pool of the store calls |
 | `ids.enabled` | `false` | the id endpoints; the server then refuses generators named `strings` or `periodic` (path segments) |
 
-A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`.
+A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`. The runtime's generators on
+the backing store (the id endpoints, the `cosid` endpoint) use that same store, not a second client.
+
+A client token may use only the client paths: the store primitives and `/ids/**`, under `spring.mvc.servlet.path`.
+Every other path, Actuator and springdoc wherever `management.endpoints.web.base-path` or `springdoc.*.path` put them,
+needs a token of `auth.tokens`; a client token gets `403` there. (`auth.admin-paths` of 5.0.0-alpha.1 is gone.) The
+server refuses a `management.server.port` other than `server.port`, which this authentication would not cover, unless
+it is anonymous.
+
+Requests run on virtual threads by default (`spring.threads.virtual.enabled: true`); the store and generator calls
+still run on the bounded `blocking` pool, which is what bounds the store. `SPRING_THREADS_VIRTUAL_ENABLED=false` turns
+it off.
 
 ## Operations
 
-- Actuator: `health` (public; `liveness` and `readiness` probes), `info`, `prometheus`, and `cosid` (the runtime).
+- Actuator: `health` (public; `liveness` and `readiness` probes; readiness also reserves on the backing store, key
+  `cosid-server/readiness`, at most once a second, `DOWN` after 2s), `info`, `prometheus`, and `cosid` (the runtime).
   The meter `cosid.server.call.rejections{reason=busy|too_many_keys|too_many_namespaces}` counts the calls the server
-  turned away. Actuator other than health is an admin path.
-- OpenAPI: `/v3/api-docs` and Swagger UI at `/swagger-ui.html`, admin paths.
+  turned away. Actuator other than health needs a token of `auth.tokens`.
+- OpenAPI: `/v3/api-docs` and Swagger UI at `/swagger-ui.html`; they need a token of `auth.tokens` unless `docs.public=true`. The document
+  lists the Actuator endpoints too (`springdoc.show-actuator`); set it to `false` to leave them out.
 - Image: `./gradlew :server:dockerImage` (the `Dockerfile` on `build/libs/cosid-server.jar`), or `:server:bootBuildImage`.
 
 ```bash

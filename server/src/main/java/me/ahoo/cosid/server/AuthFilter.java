@@ -30,25 +30,53 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Bearer token authentication of every path but the public ones (08-remote.md §3), and {@code Cache-Control: no-store}
  * on every response. A known token puts its {@link Grant} in the request; the endpoints check it against the namespace
- * or key ({@code 403}). No token or an unknown one is a {@code 401}. The admin paths (Actuator, springdoc) issue ids,
- * describe every generator and expose metrics regardless of namespaces, so a client token, limited to its scope, gets
- * {@code 403} there: only the unrestricted {@code tokens} (or an open server) may use them.
+ * or key ({@code 403}). No token or an unknown one is a {@code 401}. A client token, limited to its scope, may use the
+ * client paths (the store primitives and the id endpoints, which check that scope) and nothing else: everything else
+ * (Actuator, whose {@code cosid} endpoint issues ids of every generator, springdoc, whatever path they are moved to)
+ * gets {@code 403}, and only the unrestricted {@code tokens} (or an open server) may use it.
  */
 final class AuthFilter extends OncePerRequestFilter {
     private static final String BEARER = "Bearer ";
 
     private final Grants grants;
     private final List<PathPattern> publicPaths;
-    private final List<PathPattern> adminPaths;
+    private final List<PathPattern> clientPaths;
 
-    AuthFilter(Grants grants, List<String> publicPaths, List<String> adminPaths) {
+    AuthFilter(Grants grants, List<String> publicPaths, List<String> clientPaths) {
         this.grants = grants;
         this.publicPaths = patterns(publicPaths);
-        this.adminPaths = patterns(adminPaths);
+        this.clientPaths = patterns(clientPaths);
+    }
+
+    /**
+     * The paths a client token may use: the store primitives and the id endpoints, under the dispatcher servlet.
+     *
+     * @param servletPrefix the path of the dispatcher servlet, {@link #servletPrefix}
+     * @return the path patterns
+     */
+    static List<String> clientPaths(String servletPrefix) {
+        return Stream.of(RemoteApi.RESERVE, RemoteApi.SEAL, RemoteApi.ACQUIRE, RemoteApi.RENEW, RemoteApi.RELEASE, RemoteApi.IDS, RemoteApi.IDS + "/**")
+            .map(path -> servletPrefix + path)
+            .toList();
+    }
+
+    /**
+     * The prefix the dispatcher servlet puts before every MVC path, endpoints, Actuator and springdoc alike.
+     *
+     * @param servletPath {@code spring.mvc.servlet.path}
+     * @return {@code ""} for the root, otherwise {@code /path} without a trailing slash
+     */
+    static String servletPrefix(String servletPath) {
+        String prefix = servletPath == null ? "" : servletPath.strip();
+        while (prefix.endsWith("/")) {
+            prefix = prefix.substring(0, prefix.length() - 1);
+        }
+        return prefix.isEmpty() || prefix.startsWith("/") ? prefix : "/" + prefix;
     }
 
     private static List<PathPattern> patterns(List<String> paths) {
@@ -63,6 +91,11 @@ final class AuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
         PathContainer path = PathContainer.parsePath(request.getRequestURI().substring(request.getContextPath().length()));
+        if (hasDotSegment(path)) {
+            // The patterns match segments as sent; a dot segment the container resolves later could leave them behind.
+            error(response, HttpServletResponse.SC_BAD_REQUEST, RemoteApi.BAD_REQUEST, "The path must not have a '.' or '..' segment");
+            return;
+        }
         if (matches(publicPaths, path)) {
             chain.doFilter(request, response);
             return;
@@ -73,7 +106,7 @@ final class AuthFilter extends OncePerRequestFilter {
             error(response, HttpServletResponse.SC_UNAUTHORIZED, RemoteApi.UNAUTHORIZED, "A valid bearer token is required");
             return;
         }
-        if (!grant.get().unrestricted() && matches(adminPaths, path)) {
+        if (!grant.get().unrestricted() && !matches(clientPaths, path)) {
             error(response, HttpServletResponse.SC_FORBIDDEN, RemoteApi.FORBIDDEN, "This path needs an unrestricted token");
             return;
         }
@@ -85,6 +118,15 @@ final class AuthFilter extends OncePerRequestFilter {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.getOutputStream().write(("{\"code\":\"" + code + "\",\"message\":\"" + message + "\"}").getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static boolean hasDotSegment(PathContainer path) {
+        for (PathContainer.Element element : path.elements()) {
+            if (element instanceof PathContainer.PathSegment segment && (".".equals(segment.valueToMatch()) || "..".equals(segment.valueToMatch()))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean matches(List<PathPattern> patterns, PathContainer path) {

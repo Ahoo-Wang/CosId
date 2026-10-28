@@ -30,6 +30,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A cosid-server started in process on a random port. {@link #memory(Store, String...)} backs it with a store of the
@@ -127,8 +128,17 @@ final class TestServer implements AutoCloseable {
         context.close();
     }
 
-    /** Opens the test's store for type {@code memory}; closing it is the test's business. */
-    record MemoryProvider(Store store) implements StoreProvider {
+    /** How many stores the {@code memory} provider opened. */
+    int memoryOpens() {
+        return context.getBean("memoryStoreProvider", MemoryProvider.class).opens().get();
+    }
+
+    /** Opens the test's store for type {@code memory}, counting; closing it is the test's business. */
+    record MemoryProvider(Store store, AtomicInteger opens) implements StoreProvider {
+        MemoryProvider(Store store) {
+            this(store, new AtomicInteger());
+        }
+
         @Override
         public String type() {
             return "memory";
@@ -136,6 +146,7 @@ final class TestServer implements AutoCloseable {
 
         @Override
         public Store open(StoreConfig config) {
+            opens.incrementAndGet();
             return new Store() {
                 @Override
                 public me.ahoo.cosid.segment.RangeStore ranges() {

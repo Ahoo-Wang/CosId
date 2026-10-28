@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.migration.config;
 
+import me.ahoo.cosid.migration.LayoutCheck;
 import me.ahoo.cosid.time.Layout;
 
 import java.time.Instant;
@@ -65,6 +66,36 @@ public final class Legacy4x {
 
     public boolean cosidEnabled() {
         return config.bool("cosid.generator.enabled", false);
+    }
+
+    /**
+     * The namespace of its own the 4.x {@code CosIdGenerator} distributes its machine id in
+     * ({@code cosid.generator.namespace}): one namespace across services keeps their 80-bit ids apart. 4.x takes
+     * {@link #namespace()} when it is blank.
+     *
+     * @return the namespace when set and other than {@link #namespace()}, enabled generator or not
+     */
+    public Optional<String> generatorNamespace() {
+        String namespace = config.get("cosid.generator.namespace");
+        return namespace == null || namespace.isBlank() || namespace.equals(namespace()) ? Optional.empty() : Optional.of(namespace);
+    }
+
+    /**
+     * Why this configuration cannot migrate yet (R1-x-07): an enabled {@code CosIdGenerator} in a namespace of its own
+     * shares its machine ids across services, which 5.0 has no counterpart of until named machines (D37). A converted
+     * {@code cosid80} would take its slot in the service namespace and issue the 80-bit ids of other services again.
+     *
+     * @return the reason, empty when the configuration may migrate
+     */
+    public Optional<String> unsupported() {
+        if (!cosidEnabled()) {
+            return Optional.empty();
+        }
+        return generatorNamespace().map(shared -> "cosid.generator.namespace = " + shared + " differs from cosid.namespace = " + namespace()
+            + ": the 4.x CosIdGenerator shares the machine ids of [" + shared + "] across services to keep their 80-bit ids apart. This 5.0"
+            + " release has no shared machine for cosid80 yet (named machines, D37, come in a later 5.0 release): a converted cosid80"
+            + " takes its slot in [" + namespace() + "] and issues the ids of other services again. Keep the services on 4.x until"
+            + " then, or issue the 80-bit ids of every service from one cosid-server");
     }
 
     public boolean machineEnabled() {
@@ -227,12 +258,14 @@ public final class Legacy4x {
 
     /**
      * The 4.x namespaces other than {@link #namespace()} that definitions use ({@code provider.<name>.namespace}): their
-     * segment keys are {@code {ownNs}.{name}}, and a snowflake's machine id is distributed in its own namespace too.
+     * segment keys are {@code {ownNs}.{name}}, and a snowflake's machine id is distributed in its own namespace too. The
+     * {@link #generatorNamespace()} is one of them, for its machine records: T4 and the quiet period cover it.
      *
-     * @return namespace to the 4.x segment names kept there (empty for a namespace of snowflakes only)
+     * @return namespace to the 4.x segment names kept there (empty for a namespace of machine records only)
      */
     public Map<String, Set<String>> extraNamespaces() {
         Map<String, Set<String>> extra = new TreeMap<>();
+        generatorNamespace().ifPresent(namespace -> extra.computeIfAbsent(namespace, key -> new TreeSet<>()));
         snowflakes().forEach((name, prefix) -> ownNamespace(prefix).ifPresent(namespace -> extra.computeIfAbsent(namespace, key -> new TreeSet<>())));
         segments().forEach((name, prefix) -> ownNamespace(prefix).ifPresent(namespace -> extra.computeIfAbsent(namespace, key -> new TreeSet<>())
             .add(prefix.equals("cosid.segment.share") ? SHARE : name)));
@@ -268,7 +301,7 @@ public final class Legacy4x {
     }
 
     /**
-     * The 5.0 layout preset a layout is, if any.
+     * The 5.0 layout preset a layout is, if any, whatever its sequence reset threshold (that one is set apart).
      *
      * @param layout the layout
      * @return {@code SNOWFLAKE_MS}, {@code SNOWFLAKE_S}, {@code JS_SAFE_MS}, {@code JS_SAFE_S} or null
@@ -280,7 +313,7 @@ public final class Legacy4x {
         presets.put("JS_SAFE_MS", Layout.JS_SAFE_MS);
         presets.put("JS_SAFE_S", Layout.JS_SAFE_S);
         for (Map.Entry<String, Layout> preset : presets.entrySet()) {
-            if (preset.getValue().equals(layout)) {
+            if (LayoutCheck.sameIdSpace(preset.getValue(), layout)) {
                 return preset.getKey();
             }
         }

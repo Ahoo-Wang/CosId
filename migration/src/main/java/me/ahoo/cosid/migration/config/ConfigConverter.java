@@ -14,6 +14,7 @@
 package me.ahoo.cosid.migration.config;
 
 import me.ahoo.cosid.migration.ApplyResult;
+import me.ahoo.cosid.migration.LayoutCheck;
 import me.ahoo.cosid.time.Layout;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -394,6 +395,11 @@ public final class ConfigConverter {
         String preset = Legacy4x.preset(layout);
         if (preset != null) {
             generator.put("layout", preset);
+            // A 4.x threshold other than the preset's: set apart, the id space is the preset's (R1-x-04).
+            long derived = layoutOfPreset(preset).seqResetThreshold();
+            if (layout.seqResetThreshold() != derived) {
+                generator.put("seq-reset-threshold", layout.seqResetThreshold());
+            }
         } else {
             // A preset with field overrides, as the 5.0 binding takes them (epoch, unit, time-bits, node-bits, seq-bits).
             Layout base = layout.unit() == ChronoUnit.SECONDS ? Layout.SNOWFLAKE_S : Layout.SNOWFLAKE_MS;
@@ -612,12 +618,17 @@ public final class ConfigConverter {
             case "friendly" -> generator.put("codec", List.of(Map.of("friendly", Map.of("zone", config.get("cosid.generator.zone-id", zone().getId())))));
             default -> generator.put("codec", List.of(Map.of("radix", Map.of("radix", 62))));
         }
-        if (!new Legacy4x(config).cosidLayout().equals(Layout.COSID_80)) {
+        Layout layout = new Legacy4x(config).cosidLayout();
+        if (!LayoutCheck.sameIdSpace(layout, Layout.COSID_80)) {
             report.add("cosid.generator: the 4.x bits differ from the 5.0 COSID_80 layout (44/20/16); the 5.0 ids keep COSID_80 (M3 fails in plan)");
+        } else if (layout.seqResetThreshold() != Layout.COSID_80.seqResetThreshold()) {
+            report.add("cosid.generator.sequence-reset-threshold = " + layout.seqResetThreshold() + ": 5.0 cosid80 resets at "
+                + Layout.COSID_80.seqResetThreshold() + "; the ids stay in the same space, only their low bits scatter otherwise");
         }
         if (!config.bool("cosid.generator.pad-start", true)) {
             report.add("cosid.generator.pad-start = false: 5.0 cosid80 text ids are always padded");
         }
+        // cosid.generator.namespace: the same as cosid.namespace here; Migration#config refuses one of its own (R1-x-07).
         for (String part : List.of("type", "zone-id", "timestamp-bit", "machine-bit", "sequence-bit", "sequence-reset-threshold", "pad-start", "namespace")) {
             handled.add("cosid.generator." + part);
         }
@@ -640,6 +651,15 @@ public final class ConfigConverter {
         return layouts;
     }
 
+    private static Layout layoutOfPreset(String preset) {
+        return switch (preset.toUpperCase(Locale.ROOT)) {
+            case "SNOWFLAKE_S" -> Layout.SNOWFLAKE_S;
+            case "JS_SAFE_MS" -> Layout.JS_SAFE_MS;
+            case "JS_SAFE_S" -> Layout.JS_SAFE_S;
+            default -> Layout.SNOWFLAKE_MS;
+        };
+    }
+
     /**
      * The layouts of the time-based generators of a 5.0 configuration ({@code plan --target-config}).
      *
@@ -654,12 +674,7 @@ public final class ConfigConverter {
             if ("cosid80".equals(strategy)) {
                 layouts.put(name, Layout.COSID_80);
             } else if ("snowflake".equals(strategy)) {
-                Layout base = switch (config.get(prefix + ".layout", "SNOWFLAKE_MS").toUpperCase(Locale.ROOT)) {
-                    case "SNOWFLAKE_S" -> Layout.SNOWFLAKE_S;
-                    case "JS_SAFE_MS" -> Layout.JS_SAFE_MS;
-                    case "JS_SAFE_S" -> Layout.JS_SAFE_S;
-                    default -> Layout.SNOWFLAKE_MS;
-                };
+                Layout base = layoutOfPreset(config.get(prefix + ".layout", "SNOWFLAKE_MS"));
                 String epoch = config.get(prefix + ".epoch");
                 String unit = config.get(prefix + ".unit");
                 int seqBits = (int) config.number(prefix + ".seq-bits", base.seqBits());

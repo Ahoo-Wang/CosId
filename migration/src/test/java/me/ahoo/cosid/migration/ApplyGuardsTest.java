@@ -16,9 +16,11 @@ package me.ahoo.cosid.migration;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -263,6 +265,76 @@ class ApplyGuardsTest extends MigrationScenarioTest {
         migration().config(new Migration.ConfigOptions(layout, result, output, ZoneId.of("UTC"), Set.of("fresh")));
         // The rename of the plan names the generator: it continues the key "orders".
         assertThat(Files.readString(output), containsString("    orders:\n      strategy: segment"));
+    }
+
+    private static final String GENERATOR_LAYOUT = """
+        cosid:
+          namespace: NS
+          machine: { enabled: true, distributor: { type: jdbc } }
+          generator: { enabled: ENABLED, namespace: GENERATOR_NS }
+          segment:
+            enabled: true
+            share: { enabled: false }
+            distributor: { type: jdbc }
+            provider: { order: {} }
+        """;
+
+    private Path generatorLayout(boolean enabled, String generatorNamespace) throws IOException {
+        return layout(GENERATOR_LAYOUT.replace("ENABLED", String.valueOf(enabled)).replace("GENERATOR_NS", generatorNamespace));
+    }
+
+    @Test
+    void aCosIdGeneratorOfANamespaceOfItsOwnIsRefused() throws IOException {
+        // R1-x-07: 4.x shares the CosIdGenerator machine ids of "global" across services; a converted cosid80 would
+        // start over in the service namespace and issue the 80-bit ids of the other services again.
+        writer.segment(namespace, "order", 0, 10, 1);
+        Path shared = generatorLayout(true, "global-" + namespace);
+        MigrationAbortedException planRefused = assertThrows(MigrationAbortedException.class, () -> plan(shared, null, null, Map.of()));
+        assertThat(planRefused.getMessage(), containsString("cosid.generator.namespace = global-" + namespace));
+        assertThat(planRefused.getMessage(), containsString("D37"));
+        // A plan made without it: apply refuses the configuration all the same, before it reads anything.
+        plan(generatorLayout(true, namespace), null, null, Map.of());
+        assertThrows(MigrationAbortedException.class, () -> migration().apply(apply(shared)));
+        Path output = dir.resolve("application-5.yaml");
+        MigrationAbortedException configRefused = assertThrows(MigrationAbortedException.class,
+            () -> migration().config(new Migration.ConfigOptions(shared, null, output, ZoneId.of("UTC"), Set.of("order"))));
+        assertThat(configRefused.getMessage(), containsString("named machines"));
+        assertThat(Files.exists(output), is(false));
+    }
+
+    @Test
+    void aCosIdGeneratorOfTheServiceNamespaceConverts() throws IOException {
+        writer.segment(namespace, "order", 0, 10, 1);
+        Path output = dir.resolve("application-5.yaml");
+        // The same namespace as cosid.namespace, blank (4.x takes cosid.namespace then), or no generator namespace at all.
+        for (String generatorNamespace : List.of(namespace, "\"\"")) {
+            Path layout = generatorLayout(true, generatorNamespace);
+            assertThat(plan(layout, null, null, Map.of()).extraNamespaces(), is(Map.of()));
+            migration().config(new Migration.ConfigOptions(layout, null, output, ZoneId.of("UTC"), Set.of("order")));
+            assertThat(Files.readString(output), containsString("    cosid:\n      strategy: cosid80"));
+            assertThat(Files.readString(output), not(containsString("cosid.generator.namespace")));
+        }
+        Path unset = layout(GENERATOR_LAYOUT.replace(", namespace: GENERATOR_NS", "").replace("ENABLED", "true"));
+        migration().config(new Migration.ConfigOptions(unset, null, output, ZoneId.of("UTC"), Set.of("order")));
+        assertThat(Files.readString(output), containsString("strategy: cosid80"));
+    }
+
+    @Test
+    void theMachineRecordsOfTheGeneratorNamespaceCountForT4() throws IOException {
+        // A disabled CosIdGenerator does not stop the migration, but the records 4.x left in its namespace count for W.
+        String global = "global-" + namespace;
+        writer.segment(namespace, "order", 0, 10, 1);
+        Map<String, Object> written = writer.machines(global, 2, 100);
+        Path layout = generatorLayout(false, global);
+        Plan plan = plan(layout, null, null, Map.of());
+        assertThat(plan.extraNamespaces(), is(Map.of(global, List.of())));
+        assertThat(plan.machines().records(), greaterThanOrEqualTo(1));
+        assertThat(plan.machines().maxTimestamp(), greaterThanOrEqualTo((Long) written.get("maxTimestamp")));
+        assertThat(plan.warnings(), hasItem(containsString("cosid.generator.namespace = " + global)));
+        ApplyResult result = migration().apply(apply(layout));
+        assertThat(result.w(), greaterThan((Long) written.get("maxTimestamp")));
+        assertThat(result.segments().size(), is(1));
+        assertThat(verify(), empty());
     }
 
     @Test

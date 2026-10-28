@@ -22,7 +22,9 @@
 3. **封存源**(默认开启,可用 `--no-seal-source` 关闭):**先封存、后写目标**(R4-C 实现):对每个 4.x 号段做一次原子递增 `sealGap`(默认 2^40,与 4.x 取段是同一种操作),
    取 `lastMaxId = 封存后的值 − sealGap`,这样快照与封存之间 4.x 的取段也被覆盖。已达到 `计划值 + sealGap` 的号段视为已封存,重跑不会重复封存(`--seal-gap` 在多次运行间必须一致)。
    对**已封存的 key**,即使还有遗漏的 4.x 实例在运行,它拿到的区间也远离 5.0 的区间,不会重复。但遗漏实例在封存之后**新建的 key**(例如跨期产生的新周期 key)不受封存保护,`verify` 必须标出 4.x 中存在而迁移结果中没有的 key(RC 审查 D-M1)。所以停写仍是前提,封存只是兜底。
-   封存不影响回滚:回到 4.x 时,4.x 会从更大的值继续发号,仍然不会重复。
+   封存后回滚是安全的:回到 4.x 时,4.x 从封存后的值继续发号,只要 5.0 在该 key 上预留的号少于 `sealGap`,就不会重复。
+   **未封存时回滚会重号**(`--no-seal-source`,或 §6.3 的手工迁移跳过了封存;GA 审查 R1-doc-01):4.x 从 `lastMaxId` 继续取段,与 5.0 从 `lastMaxId + 1` 起已发出的号重叠。
+   所以未封存的回滚必须先停止 5.0,再把每个迁移过的 4.x 值推进到 5.0 在该 key 上预留过的最大值之上(例如补做一次 `+sealGap` 的原子递增,各后端的命令见迁移指南"回滚"一节),然后才启动 4.x。
 
 升级流程:**停止 4.x → `plan` → `apply` → `verify` → 用 `apply` 的输出生成 5.0 配置 → 启动 5.0**。不支持 4.x 与 5.0 在同一命名空间混跑。
 
@@ -74,11 +76,29 @@ W = max(T_apply, T4 + 1s) + sourceSkew        // sourceSkew 默认 10s,对应 4.
 工具为每个命名空间写入元数据 `{limit, tolerance}`,并预建 `limit` 个空闲槽位,`next_floor = W`。槽位分配关系不迁移。
 5.0 实例启动后重新选槽,首次发号前最多等待约 `sourceSkew`。
 
+**独立的 `cosid.generator.namespace`(GA 审查 R1-x-07)**:4.x 的 CosIdGenerator 在 `cosid.generator.namespace`(空则用 `cosid.namespace`)里分配机器号,
+用同一个分配器与同一种记录格式,常见用法是让多个服务共享这个命名空间,使 80 位 ID 跨服务唯一。
+
+- **现状(止血,#1369)**:CosIdGenerator 启用且 `cosid.generator.namespace` 不同于 `cosid.namespace` 时,`config` 以及带 `--layout-config` 的 `plan`/`apply` 拒绝执行。
+  `--layout-config` 中出现独立的 `cosid.generator.namespace` 时(例如 CosIdGenerator 已关闭),它作为只含机器号记录的附加命名空间进入 `T4` 与静止观察。
+- **D37 落地后(设计见 [api-freeze.md](api-freeze.md) §2.7)**:
+  - `config` 不再拒绝,写出命名 machine `cosid.machines.generator`(`namespace` 取 4.x 值;存储与 ttl/tolerance 同默认 machine;默认 machine 为 static 时写 static;
+    `bits: 10`,因为 5.0 的 bits 是每个命名空间预建的槽位数,不是 4.x 的 20 位节点宽度;`slot-offset` 取自 `apply-result.json`),并让转换出的 `cosid80` 写 `machine: generator`。
+    报告提示:峰值 Pod 总数(含 surge)超过 1024 时调大 bits,且受 `slotOffset + 2^bits ≤ 2^nodeBits` 约束;共享该命名空间的全部服务必须用相同的 `bits`、`tolerance`、`slotOffset`。
+  - 共享命名空间**单独迁移一次**:`plan/apply --namespace <共享命名空间>`,只做 M2。`plan` 读出 4.x 记录中出现过的最大机器号 `M`,
+    推荐 `slotOffset = roundUpToPowerOfTwo(M + 1)`,报告两种做法:**滚动迁移**(offset > 0,默认:4.x 与 5.0 同时在线、各服务逐个切换,不做静止观察)
+    与**一次性切换**(`--slot-offset 0`:沿用静止观察,共享它的服务都必须停止)。两种做法都写入 W 与元数据 `{limit, tolerance, slotOffset}`。
+  - 滚动期间的不变式:`4.x 机器号 < slotOffset ≤ 5.0 节点号`。4.x 按最小空闲号分配,迁移期间不能把 4.x 扩容到 `slotOffset` 个实例以上;`verify` 发现 4.x 机器号 ≥ offset 即报错。
+    有偏移时时间段重叠不会重号,W 作为纵深防护保留。
+  - 各服务自己的 `apply` 检查该命名空间已准备好且元数据一致,否则拒绝并提示先做这一步。设计见 [api-freeze.md](api-freeze.md) §2.7。
+
 ### 4.3 布局校验(M3)
 
 工具从 `--layout-config` 读取 4.x 的 Snowflake 与 CosIdGenerator 布局,与 5.0 配置比较:
 
-- 布局与 epoch 都相同:由 M2 保证不相交,通过。
+- 布局与 epoch 都相同:由 M2 保证不相交,通过。"相同"只比较 `epoch`、`unit` 与三个位宽;`seqResetThreshold` 只决定每个时间单位的序列从哪里开始,
+  不改变数值空间,不同时照样通过并写进报告(GA 审查 R1-x-04)。`config` 把 4.x 的 `sequence-reset-threshold` 写成 5.0 的 `seq-reset-threshold`
+  (D36 落地后,cosid80 的位宽、阈值与 friendly 的 `pad-start` 同样写出;4.x 阈值超出 5.0 的序列范围时写 `2^seqBits − 1` 并报告)。
 - 不同:要求 `new.pack(W, 0, 0) > old.pack(Tmax4, maxNode, maxSeq)`,其中 `Tmax4 = W` 作为 4.x 可能发出的最大时间戳的上界。
   不成立则拒绝,并提示保持 4.x 布局,或者改用新的业务列。
 
@@ -134,4 +154,4 @@ W = max(T_apply, T4 + 1s) + sourceSkew        // sourceSkew 默认 10s,对应 4.
 - `initial-offset` 挂在生成器上,与 key 映射无关;5.0 key 仍为 `{namespace}/{name}`。share 号段对应 5.0 的 `default` 生成器,要读取共享的那个 4.x key(`{namespace}.__share__`)。
 - `initial-offset` 只在 5.0 的 key **首次创建**时生效(S2):必须在 5.0 第一次启动前配置好;key 已存在时它不起作用。
 - **手工封存(建议,可选)**:对 4.x 的值做一次大幅原子递增(例如 `+2^40`,与工具的 `sealGap` 相同),并取 `last_max_id = 封存后的值 − 2^40`。
-  这样封存之前的取段都被计入,遗漏的 4.x 实例此后取到的区间远离 5.0。封存不影响回滚(§2)。
+  这样封存之前的取段都被计入,遗漏的 4.x 实例此后取到的区间远离 5.0。封存后回滚是安全的;**没有封存时,回滚前必须先把 4.x 的值推进到 5.0 已预留的最大值之上**,否则重号(§2)。

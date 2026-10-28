@@ -178,7 +178,7 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
 
    也可以用只读的 `cosid-migration plan`（操作手册第 2 步）一次读出全部值，报告中每个号段都列出 4.x 的值。
 3. **（建议）手工封存**：把 4.x 的值原子地加上一个大数（例如 `2^40` = `1099511627776`），然后取 `last_max_id = 封存后的值 − 2^40`。
-   这样封存前的取段都被计入，遗漏的 4.x 实例此后取到的区间也远离 5.0；回滚时 4.x 从更大的值继续，同样不会重号。
+   这样封存前的取段都被计入，遗漏的 4.x 实例此后取到的区间也远离 5.0；回滚时 4.x 从更大的值继续，同样不会重号；不封存的话，回滚前要多做一步（见[回滚](#回滚)）。
 
    | 4.x 后端 | 封存（返回或读回封存后的值） |
    |---|---|
@@ -211,8 +211,32 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
 
 ## 回滚
 
-- **号段**：安全。封存只会把 4.x 的值调高，因此 4.x 会在 5.0 可能用过的一切之上继续。
+先停止该命名空间的所有 5.0 实例：回退时 4.x 与 5.0 同样不能同时运行。
+
+- **号段，已封存**（`apply` 没有带 `--no-seal-source`，或做过手工封存）：可以直接重新启动 4.x。封存把每个 4.x 的值调高了封存间隔
+  （2^40），只要 5.0 在这个 key 上预留的号少于 2^40，4.x 就会在 5.0 发出的一切之上继续。
+- **号段，未封存**（`apply --no-seal-source`，或手工迁移时跳过了第 3 步）：**不能直接启动 4.x**。4.x 会从它的 `last_max_id`
+  继续取段，而 5.0 已经从 `last_max_id + 1` 起发过号：4.x 会再发一遍这些号。启动 4.x 之前，先把每个 4.x 的值推进到 5.0 在这个
+  key 上预留过的一切之上，例如现在补加一次封存间隔，命令与[手工封存](#普通号段)相同：
+
+  | 4.x 后端 | 调高 4.x 的值 |
+  |---|---|
+  | JDBC | `update cosid set last_max_id = last_max_id + 1099511627776 where name = 'shop.order';` |
+  | Redis | `INCRBY "cosid:{shop.order}.adder" 1099511627776` |
+  | MongoDB | `db.cosid.updateOne({_id: "shop.order"}, {$inc: {lastMaxId: NumberLong("1099511627776")}})` |
+  | ZooKeeper | 没有可用的 shell 命令：在所有 4.x 与 5.0 实例都停止时，用 ZooKeeper 客户端（Curator `setData`）写入节点 `/cosid/shop.order` 的 8 字节大端值 |
+
+  只要 5.0 在这个 key 上预留的号少于 2^40，加 2^40 就够了；否则把 4.x 的值设为不小于 5.0 预留过的最大值。每个迁移过的 key 都要做，
+  包括 share（`{ns}.__share__`）和各周期 key。
 - **时间型 ID**：等最后一个 5.0 ceiling 过去（租约 `ttl` 加 `tolerance`，默认 31s）之后再重新启动 4.x。
+
+## 已知限制
+
+- **独立命名空间的 CosIdGenerator 暂时不能迁移。** 4.x 部署若把 `cosid.generator.namespace` 设成与 `cosid.namespace` 不同的命名空间，
+  就是在各服务之间共享这个命名空间里 CosIdGenerator 的机器号，使 80 位 ID 跨服务唯一。5.0 的当前版本还没有对应的能力：转换出的
+  `cosid80` 会在服务命名空间里取槽位，重新发出其他服务已经发过的 ID。`config` 以及带 `--layout-config` 的 `plan` / `apply` 会拒绝这样的配置。
+  在后续 5.0 版本提供命名的 machine（D37）之前，请让这些服务继续使用 4.x，或者让所有服务都从同一个 cosid-server 获取 80 位 ID。
+  `cosid.generator.namespace` 等于 `cosid.namespace` 或未设置时，照常迁移。
 
 ## Artifact 与代码
 

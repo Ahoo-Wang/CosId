@@ -200,7 +200,7 @@ protect them.
 3. **(Recommended) Seal by hand**: atomically add a large number to the 4.x value (for example `2^40` =
    `1099511627776`), then take `last_max_id = sealed value − 2^40`. Every fetch before the seal is counted, and a
    forgotten 4.x instance gets ranges far away from 5.0's. On a rollback 4.x continues from the larger value, still
-   without repeats.
+   without repeats; without the seal a rollback needs one more step (see [Rollback](#rollback)).
 
    | 4.x backend | Seal (returns or reads back the sealed value) |
    |---|---|
@@ -234,9 +234,37 @@ trial run, say), it no longer has any effect: make sure the key does not exist i
 
 ## Rollback
 
-- **Segments**: safe. The seal only moved the 4.x values up, so 4.x continues above everything 5.0 could have used.
+Stop every 5.0 instance of the namespace first: 4.x and 5.0 do not run side by side on the way back either.
+
+- **Segments, sealed** (`apply` without `--no-seal-source`, or the manual seal): 4.x can start again as it is. The seal
+  moved each 4.x value up by the seal gap (2^40), above every id 5.0 issued from the key, as long as 5.0 reserved
+  fewer than 2^40 ids on it.
+- **Segments, not sealed** (`apply --no-seal-source`, or a manual migration without step 3): **do not start 4.x as it
+  is**. 4.x continues from its `last_max_id`, and 5.0 issued from `last_max_id + 1` on: 4.x would issue those ids
+  again. Before starting 4.x, move each 4.x value above everything 5.0 reserved on the key, for example by adding the
+  seal gap now, with the commands of [the manual seal](#plain-segments):
+
+  | 4.x backend | Move the 4.x value up |
+  |---|---|
+  | JDBC | `update cosid set last_max_id = last_max_id + 1099511627776 where name = 'shop.order';` |
+  | Redis | `INCRBY "cosid:{shop.order}.adder" 1099511627776` |
+  | MongoDB | `db.cosid.updateOne({_id: "shop.order"}, {$inc: {lastMaxId: NumberLong("1099511627776")}})` |
+  | ZooKeeper | no shell command does it: write the 8-byte big-endian value of the node `/cosid/shop.order` with a ZooKeeper client (Curator `setData`), while every 4.x and 5.0 instance is stopped |
+
+  Adding 2^40 is enough while 5.0 reserved fewer than 2^40 ids on the key; otherwise set the 4.x value to at least the
+  largest id 5.0 reserved. Do it for every migrated key, the share (`{ns}.__share__`) and the periodic keys included.
 - **Time-based ids**: wait until the last 5.0 ceiling has passed (the lease `ttl` plus `tolerance`, 31s by default)
   before starting 4.x again.
+
+## Known limitations
+
+- **A CosIdGenerator in a namespace of its own cannot migrate yet.** A 4.x deployment that sets
+  `cosid.generator.namespace` to a namespace other than `cosid.namespace` shares the CosIdGenerator machine ids of that
+  namespace across services, to keep their 80-bit ids unique across them. This 5.0 release has no counterpart yet: a
+  converted `cosid80` would take its slot in the service namespace and issue the ids of other services again. `config`,
+  and `plan` / `apply` with `--layout-config`, refuse such a configuration. Keep those services on 4.x until named
+  machines (D37) come in a later 5.0 release, or issue the 80-bit ids of every service from one cosid-server. A
+  `cosid.generator.namespace` equal to `cosid.namespace`, or not set, migrates as usual.
 
 ## Artifacts and code
 

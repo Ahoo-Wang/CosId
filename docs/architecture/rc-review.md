@@ -166,7 +166,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 - 判定口径已定为 **D34**(容差:吞吐/平均 5%、p99/p99.9 10%、分配 max(5%, +64 B),重跑仍失败才算回退)。
 - 新偶发测试(2026-10-28):`spring/autoconfigure` 的 `CosIdRuntimeHintsTest.theStoreTypeHintsNameEveryStore` 用 `ClassPathResource("META-INF/spring-configuration-metadata.json")` 读取,classpath 上有多份同名文件(含 Spring Boot 自身),取到哪份取决于顺序(#1362 的 push Codecov run 40640793637 失败 3 次,同提交的 pull_request run 通过)。修复:读取本模块生成的那份(按 jar/目录过滤,或 `getResources` 合并后查找)。并入下一个修复会话。
 - ✅ codec 修复 [#1362](https://github.com/Ahoo-Wang/CosId/pull/1362) 已合入 `81a9ef59`(dry-run:decode +8~13%、encode +30~32%,分配 88 B)。
-- ✅ **`v5.0.0-alpha.1` pre-release 已创建**(2026-10-28,目标 `81a9ef59`):Packages Deploy run 40642647501、Docker Image Deploy run 40642646814 进行中;文档站部署与核对待其成功后进行。
+- ✅ **`v5.0.0-alpha.1` pre-release 已创建**(2026-10-28,目标 `81a9ef59`):**已核对**:Packages Deploy(校验、构建、Central、GitHub Packages、迁移工具 jar)与 Docker Image Deploy 全部成功;Central 06:34 可解析(`cosid-bom`、`cosid-core`、`cosid-spring-boot-starter`、各 store);Docker Hub 有 `5.0.0-alpha.1`、无 `latest`;release 附 `cosid-migration.jar`;文档站已由 tag 部署(run 40644322052),页面显示 `5.0.0-alpha.1`、alpha 提示与 4.x 文档入口。待办:main 改回 SNAPSHOT 并修复 `CosIdRuntimeHintsTest`(任务卡片 task_15c4056c,等用户启动)。
 - 派发队列(一次一个子会话):① codec(✅)→ alpha.1 发布(总调度)→ ② **GA 前审查第 1 轮**(§6)→ ③ 门槛实现 D34(`benchmark/compare` 及测试、10 §1.3)→ ④ 修复:第 1 轮发现 + MySQL 分配 + 号段与 ZK 分配(按严重度排序,一次一个)→ ⑤ 在 main 上按 D34 重跑门槛 → RC1(用户确认)→ 第 2 轮审查 → GA。alpha.1 不等门槛(D33),数据写入 release notes 已知问题。
 
 **协调(2026-10-28,用户同意执行顺序):**

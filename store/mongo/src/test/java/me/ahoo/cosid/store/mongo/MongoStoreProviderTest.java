@@ -39,6 +39,8 @@ import com.mongodb.MongoOperationTimeoutException;
 import com.mongodb.MongoTimeoutException;
 import com.mongodb.ReadConcern;
 import com.mongodb.WriteConcern;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.Filters;
 import org.bson.Document;
@@ -230,11 +232,15 @@ class MongoStoreProviderTest {
         String image = System.getenv("COSID_TEST_MONGODB_IMAGE");
         try (MongoDBContainer mongo = new MongoDBContainer(image == null || image.isBlank() ? MongoTestSupport.DEFAULT_IMAGE : image).withReplicaSet()) {
             mongo.start();
-            StoreConfig config = new StoreConfig("paused", MongoStoreProvider.TYPE, Duration.ofMillis(500),
-                Map.of(MongoStoreProvider.URI, mongo.getReplicaSetUrl(MongoTestSupport.DATABASE)), Optional.empty());
-            try (Store store = new MongoStoreProvider().open(config)) {
-                String key = "timeout/" + UUID.randomUUID();
-                assertEquals(new Range(0, 1), store.ranges().reserve(key, 1, 0));
+            String key = "timeout/" + UUID.randomUUID();
+            Map<String, Object> options = Map.of(MongoStoreProvider.DATABASE, MongoTestSupport.DATABASE);
+            // One client for both stores: the first, cold operation (server discovery, connection, collection creation) runs
+            // under the generous timeout, so the 500 ms store reaches a warm pool and only the paused call is bounded by it.
+            try (MongoClient client = MongoClients.create(mongo.getReplicaSetUrl(MongoTestSupport.DATABASE));
+                 Store warmUp = new MongoStoreProvider().open(config(options, Optional.of(client)));
+                 Store store = new MongoStoreProvider().open(
+                     new StoreConfig("paused", MongoStoreProvider.TYPE, Duration.ofMillis(500), options, Optional.of(client)))) {
+                assertEquals(new Range(0, 1), warmUp.ranges().reserve(key, 1, 0));
                 var docker = DockerClientFactory.instance().client();
                 docker.pauseContainerCmd(mongo.getContainerId()).exec();
                 try {

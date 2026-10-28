@@ -43,7 +43,7 @@ import java.util.concurrent.TimeUnit;
  * leases its slot and reserves its segments through the server, and the server's optional id endpoint answers a token.
  */
 class ServerClientApplicationTest {
-    private static final String TOKEN = "example-token";
+    private static final String TOKEN = "example-token-0123456789";
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final HttpClient HTTP = HttpClient.newHttpClient();
     private static TestingServer zookeeper;

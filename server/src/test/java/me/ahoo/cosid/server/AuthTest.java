@@ -35,6 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.List;
 import java.util.OptionalInt;
 import java.util.UUID;
 
@@ -43,9 +44,9 @@ import java.util.UUID;
  * prefixes, the public health path, {@code Cache-Control: no-store}, and the refusal to start without a token.
  */
 class AuthTest {
-    private static final String ORDERS = "orders-token";
-    private static final String PREFIXED = "prefixed-token";
-    private static final String STAR = "star-token";
+    private static final String ORDERS = "orders-token-0123456789";
+    private static final String PREFIXED = "prefixed-token-0123456789";
+    private static final String STAR = "star-token-0123456789";
     private static TestServer server;
 
     @BeforeAll
@@ -115,6 +116,35 @@ class AuthTest {
         assertEquals(401, server.get("/actuator/info", null).statusCode(), "info is not public by default");
     }
 
+    /** C-B1: Actuator (the cosid endpoint issues ids) and springdoc ignore client scopes, so client tokens get 403 there. */
+    @Test
+    void adminPathsNeedAnUnrestrictedToken() {
+        List<String> adminPaths = List.of("/actuator", "/actuator/cosid", "/actuator/cosid/default", "/actuator/cosid/default/long",
+            "/actuator/prometheus", "/actuator/info", "/v3/api-docs", "/v3/api-docs.yaml", "/swagger-ui.html", "/swagger-ui/index.html",
+            "/%61ctuator/cosid", "/actuator;x=y/cosid", "/actuator/cosid/");
+        for (String client : List.of(ORDERS, PREFIXED, STAR)) {
+            for (String path : adminPaths) {
+                HttpResponse<String> response = server.get(path, client);
+                assertEquals(403, response.statusCode(), () -> path + " with a client token: " + response.body());
+                assertThat(response.body(), containsString("\"code\":\"" + RemoteApi.FORBIDDEN + "\""));
+            }
+            assertEquals(200, server.get("/actuator/health", client).statusCode(), "the public paths stay public");
+        }
+        for (String path : List.of("/actuator", "/actuator/cosid", "/actuator/prometheus", "/v3/api-docs", "/swagger-ui/index.html")) {
+            assertEquals(200, server.get(path, TestServer.TOKEN).statusCode(), () -> path + " with an unrestricted token");
+        }
+    }
+
+    @Test
+    void adminPathsCanBeConfigured() {
+        try (TestServer custom = TestServer.memory(new InMemoryStore(), "cosid.server.auth.tokens[0]=" + TestServer.TOKEN,
+            "cosid.server.auth.clients[0].token=" + ORDERS, "cosid.server.auth.clients[0].namespaces[0]=orders",
+            "cosid.server.auth.admin-paths[0]=/actuator/cosid/**")) {
+            assertEquals(403, custom.get("/actuator/cosid", ORDERS).statusCode());
+            assertEquals(200, custom.get("/actuator/prometheus", ORDERS).statusCode(), "the list replaces the default one");
+        }
+    }
+
     @Test
     void clientIsLimitedToItsNamespaces() {
         try (RemoteStore orders = server.client(ORDERS)) {
@@ -158,7 +188,7 @@ class AuthTest {
 
     @Test
     void refusesAClientWithoutScope() {
-        Exception error = assertThrows(Exception.class, () -> TestServer.memory(new InMemoryStore(), "cosid.server.auth.clients[0].token=x"));
+        Exception error = assertThrows(Exception.class, () -> TestServer.memory(new InMemoryStore(), "cosid.server.auth.clients[0].token=" + ORDERS));
         assertTrue(rootMessage(error).contains("give it namespaces or key-prefixes"), () -> rootMessage(error));
     }
 
@@ -167,8 +197,37 @@ class AuthTest {
         Exception blank = assertThrows(Exception.class, () -> TestServer.memory(new InMemoryStore(), "cosid.server.auth.tokens[0]= "));
         assertTrue(rootMessage(blank).contains("is blank"), () -> rootMessage(blank));
         Exception repeated = assertThrows(Exception.class, () -> TestServer.memory(new InMemoryStore(),
-            "cosid.server.auth.tokens[0]=a", "cosid.server.auth.clients[0].token=a", "cosid.server.auth.clients[0].namespaces[0]=x"));
+            "cosid.server.auth.tokens[0]=" + STAR, "cosid.server.auth.clients[0].token=" + STAR, "cosid.server.auth.clients[0].namespaces[0]=x"));
         assertTrue(rootMessage(repeated).contains("repeats another token"), () -> rootMessage(repeated));
+    }
+
+    /** C-B2: a placeholder nobody resolved must not become the token the documentation shows. */
+    @Test
+    void refusesUnresolvedPlaceholderTokens() {
+        Grants.of(new ServerProperties.Auth(false, List.of(TestServer.TOKEN), List.of(), List.of(), List.of()));
+        for (String token : List.of("${COSID_SERVER_TOKEN}", "prefix-${COSID_SERVER_TOKEN}-0123456789")) {
+            IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> Grants.of(new ServerProperties.Auth(false, List.of(token), List.of(), List.of(), List.of())));
+            assertThat(error.getMessage(), containsString("unresolved placeholder"));
+            IllegalStateException client = assertThrows(IllegalStateException.class, () -> Grants.of(new ServerProperties.Auth(false, List.of(),
+                List.of(new ServerProperties.Client("orders", token, List.of("orders"), List.of())), List.of(), List.of())));
+            assertThat(client.getMessage(), containsString("clients[0].token"));
+        }
+        Exception started = assertThrows(Exception.class, () -> TestServer.memory(new InMemoryStore(),
+            "cosid.server.auth.tokens[0]=${COSID_SERVER_TOKEN_THAT_IS_NOT_SET}"));
+        // The binder ignores placeholders it cannot resolve: the literal text arrives, as with a documented
+        // tokens: [ "${COSID_SERVER_TOKEN}" ] and no such variable.
+        assertTrue(rootMessage(started).contains("unresolved placeholder"), () -> rootMessage(started));
+    }
+
+    @Test
+    void refusesShortTokens() {
+        String fifteen = "a".repeat(Grants.MIN_TOKEN_LENGTH - 1);
+        Exception error = assertThrows(Exception.class, () -> TestServer.memory(new InMemoryStore(), "cosid.server.auth.tokens[0]=" + fifteen));
+        assertTrue(rootMessage(error).contains("shorter than 16 characters"), () -> rootMessage(error));
+        assertThrows(IllegalStateException.class, () -> Grants.of(new ServerProperties.Auth(false, List.of(),
+            List.of(new ServerProperties.Client("short", " " + fifteen + " ", List.of("x"), List.of())), List.of(), List.of())));
+        Grants.of(new ServerProperties.Auth(false, List.of("a".repeat(Grants.MIN_TOKEN_LENGTH)), List.of(), List.of(), List.of()));
     }
 
     @Test

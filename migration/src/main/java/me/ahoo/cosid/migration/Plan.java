@@ -25,6 +25,10 @@ import java.util.Map;
  * @param namespace     the namespace, the same in 4.x and 5.0
  * @param source        the 4.x store, without passwords
  * @param target        the 5.0 store, without passwords
+ * @param machineSource where 4.x keeps its machine ids when not in {@code source} ({@code --machine-from}); null otherwise
+ * @param machineTarget where the 5.0 slots go when not in {@code target} ({@code --machine-to}); null otherwise
+ * @param extraNamespaces 4.x namespaces of definitions with a namespace of their own, to the 4.x segment names taken
+ *                      from them; their keys {@code {ownNs}.{name}} map to {@code {namespace}/{name}}
  * @param slots         the slot parameters the 5.0 namespace gets
  * @param renames       4.x generator name to 5.0 generator name ({@code __share__ -> default} unless given otherwise)
  * @param groupPatterns 5.0 generator name to the 4.x date pattern of its group keys, where not a 5.0 preset
@@ -34,7 +38,8 @@ import java.util.Map;
  * @param layouts       the layout validation (M3)
  * @param warnings      everything else the operator should read
  */
-public record Plan(String format, String createdAt, String namespace, StoreLocation source, StoreLocation target, Slots slots,
+public record Plan(String format, String createdAt, String namespace, StoreLocation source, StoreLocation target, StoreLocation machineSource,
+                   StoreLocation machineTarget, Map<String, List<String>> extraNamespaces, Slots slots,
                    Map<String, String> renames, Map<String, String> groupPatterns, List<SegmentPlan> segments, List<String> unrecognized,
                    Machines machines, List<LayoutCheck> layouts, List<String> warnings) {
     public static final String FORMAT = "cosid-migration-plan/1";
@@ -67,7 +72,8 @@ public record Plan(String format, String createdAt, String namespace, StoreLocat
     /**
      * One 4.x segment key and its 5.0 key.
      *
-     * @param sourceName the 4.x name after {@code {namespace}.}, with {@code @groupKey} for grouped segments
+     * @param sourceNamespace the 4.x namespace of the key
+     * @param sourceName the 4.x name after {@code {sourceNamespace}.}, with {@code @groupKey} for grouped segments
      * @param generator  the 5.0 generator name
      * @param period     the 5.0 period preset of a grouped segment, null otherwise
      * @param targetKey  the 5.0 range key
@@ -75,7 +81,7 @@ public record Plan(String format, String createdAt, String namespace, StoreLocat
      * @param next       {@code lastMaxId + 1}, the planned next value before {@code --gap}
      * @param targetNext the next value the target already has, null if the key does not exist there
      */
-    public record SegmentPlan(String sourceName, String generator, String period, String targetKey, long lastMaxId, long next, Long targetNext) {
+    public record SegmentPlan(String sourceNamespace, String sourceName, String generator, String period, String targetKey, long lastMaxId, long next, Long targetNext) {
     }
 
     /**

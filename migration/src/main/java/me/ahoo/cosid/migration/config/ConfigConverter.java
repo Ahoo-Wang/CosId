@@ -67,6 +67,31 @@ public final class ConfigConverter {
      */
     public record Conversion(Map<String, Object> model, List<String> report) {
         /**
+         * The segment and periodic segment generators that continue no key of an apply result: a plain generator needs
+         * {@code {ns}/{name}}, a periodic one some {@code {ns}/{name}/{period}} (rc-review D-B2).
+         *
+         * @param result the apply result; null for none, so every segment generator
+         * @return the generator names
+         */
+        @SuppressWarnings("unchecked")
+        public List<String> unmigratedSegments(ApplyResult result) {
+            Map<String, Object> cosid = (Map<String, Object>) model.get("cosid");
+            String namespace = String.valueOf(cosid.get("namespace"));
+            Map<String, Object> generators = (Map<String, Object>) cosid.getOrDefault("generators", Map.of());
+            List<String> keys = result == null ? List.of() : result.segments().stream().map(ApplyResult.SegmentResult::targetKey).toList();
+            List<String> missing = new ArrayList<>();
+            generators.forEach((name, spec) -> {
+                Object strategy = ((Map<String, Object>) spec).get("strategy");
+                if ("segment".equals(strategy) && !keys.contains(namespace + "/" + name)) {
+                    missing.add(name);
+                } else if ("periodic-segment".equals(strategy) && keys.stream().noneMatch(key -> key.startsWith(namespace + "/" + name + "/"))) {
+                    missing.add(name);
+                }
+            });
+            return missing;
+        }
+
+        /**
          * The configuration as YAML, the report as comments at its top.
          *
          * @return the text
@@ -129,7 +154,12 @@ public final class ConfigConverter {
         String segmentStore = legacy.segments().isEmpty() ? null : store(config, "cosid.segment.distributor", "redis", stores, report, handled);
         Map<String, Object> generators = new LinkedHashMap<>();
         legacy.snowflakes().forEach((name, prefix) -> generators.put(name, snowflake(legacy, name, prefix, report, handled)));
-        legacy.segments().forEach((name, prefix) -> generators.put(name, segment(legacy, name, prefix, segmentStore, report, handled)));
+        // The names plan and apply gave the migrated keys (--rename, the share): the generators must continue them (D-B2).
+        Map<String, String> renames = result == null || result.renames() == null ? Map.of() : result.renames();
+        legacy.segments().forEach((name, prefix) -> {
+            String renamed = renames.get(prefix.equals("cosid.segment.share") ? Legacy4x.SHARE : name);
+            generators.put(renamed == null ? name : renamed, segment(legacy, name, prefix, segmentStore, report, handled));
+        });
         if (legacy.cosidEnabled()) {
             if (generators.containsKey("cosid")) {
                 report.add("cosid.generator: a generator named [cosid] exists already; the CosIdGenerator is written as [cosid80]");
@@ -313,7 +343,9 @@ public final class ConfigConverter {
             handled.add("cosid.machine.port");
         }
         final Map<String, Object> machine = new LinkedHashMap<>();
-        int bits = legacy.machineBit();
+        // The slot parameters apply recorded (--slot-bits, --tolerance): 5.0 refuses others (NamespaceMismatchException).
+        int bits = result == null ? legacy.machineBit() : result.slots().bits();
+        final long tolerance = result == null ? 1000 : result.slots().toleranceMillis();
         if ("manual".equals(type) || "stateful_set".equals(type) || !legacy.machineEnabled()) {
             Map<String, Object> fixed = new LinkedHashMap<>();
             fixed.put("bits", bits);
@@ -343,6 +375,9 @@ public final class ConfigConverter {
         Map<String, Object> leased = new LinkedHashMap<>();
         leased.put("store", store);
         leased.put("bits", bits);
+        if (tolerance != 1000) {
+            leased.put("tolerance", tolerance + "ms");
+        }
         if (config.get("cosid.machine.instance-id") != null) {
             leased.put("owner-key", config.get("cosid.machine.instance-id"));
             handled.add("cosid.machine.instance-id");

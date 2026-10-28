@@ -1,6 +1,5 @@
 # Converted from a CosId 4.x configuration by cosid-migration config (09-migration.md §3).
 # Not converted as is - review before starting 5.0:
-#  - apply-result.json is of namespace [legacy], the configuration of [shop]
 #  - cosid.segment.distributor.jdbc.enable-auto-init-cosid-table: custom 4.x SQL and table initialization are gone; 5.0 uses JdbcDialect and options.initSchema (06 §2.1)
 #  - cosid.snowflake.provider.custom: the 4.x layout is no 5.0 preset; it is written as SNOWFLAKE_MS with overrides, keep it as is (M3)
 #  - cosid.snowflake.provider.custom.clock-sync: replaced by the clock regression policy (borrow 5ms, wait 1s; 03 §4)
@@ -25,6 +24,7 @@ cosid:
     leased:
       store: redis
       bits: 10
+      tolerance: 2000ms
       owner-key: shop-1
   generators:
     default:

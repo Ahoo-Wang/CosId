@@ -96,6 +96,18 @@ final class SqlServerDialect implements JdbcDialect {
     }
 
     /**
+     * SQL Server pads strings with spaces before it compares them, under every collation: {@code 'a'} and
+     * {@code 'a '} are one primary key. Such keys are rejected rather than merged.
+     */
+    @Override
+    public void checkKey(String what, String key) {
+        if (key.endsWith(" ")) {
+            throw new IllegalArgumentException("SQL Server cannot store a " + what + " that ends with a space apart from the same "
+                + what + " without it: [" + key + "]");
+        }
+    }
+
+    /**
      * Also error 1205 (deadlock victim), whatever SQL state the driver reports for it.
      */
     @Override

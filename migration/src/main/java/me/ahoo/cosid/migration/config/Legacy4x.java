@@ -22,6 +22,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 /**
  * What the migration needs from a 4.x {@code cosid.*} configuration ({@code --layout-config}, {@code config --input}):
@@ -154,6 +158,10 @@ public final class Legacy4x {
         if (epoch <= 0) {
             epoch = config.number("cosid.snowflake.epoch", COSID_EPOCH);
         }
+        // 4.x reads any epoch other than the default in the id's unit: seconds for timestamp-unit second.
+        if (seconds(prefix) && epoch != COSID_EPOCH) {
+            epoch = Math.multiplyExact(epoch, 1000L);
+        }
         int machineBit = (int) config.number(prefix + ".machine-bit", machineBit());
         int sequenceBit = (int) config.number(prefix + ".sequence-bit", 12);
         long threshold = config.number(prefix + ".sequence-reset-threshold", Layout.defaultSeqResetThreshold(sequenceBit));
@@ -218,22 +226,45 @@ public final class Legacy4x {
     }
 
     /**
-     * The 4.x definitions with a namespace of their own, which the 5.0 runtime (one namespace) cannot keep.
+     * The 4.x namespaces other than {@link #namespace()} that definitions use ({@code provider.<name>.namespace}): their
+     * segment keys are {@code {ownNs}.{name}}, and a snowflake's machine id is distributed in its own namespace too.
      *
-     * @return one line per definition
+     * @return namespace to the 4.x segment names kept there (empty for a namespace of snowflakes only)
      */
-    public List<String> ownNamespaces() {
-        List<String> found = new ArrayList<>();
-        Map<String, String> all = new LinkedHashMap<>(snowflakes());
-        all.putAll(segments());
-        all.forEach((name, prefix) -> {
-            String namespace = config.get(prefix + ".namespace");
-            if (namespace != null && !namespace.isBlank() && !namespace.equals(namespace())) {
-                found.add(prefix + ".namespace = " + namespace + ": 5.0 has one namespace per runtime; generator [" + name + "] moves to ["
-                    + namespace() + "], migrate its 4.x keys with plan --namespace " + namespace + " into a runtime of its own");
-            }
-        });
-        return found;
+    public Map<String, Set<String>> extraNamespaces() {
+        Map<String, Set<String>> extra = new TreeMap<>();
+        snowflakes().forEach((name, prefix) -> ownNamespace(prefix).ifPresent(namespace -> extra.computeIfAbsent(namespace, key -> new TreeSet<>())));
+        segments().forEach((name, prefix) -> ownNamespace(prefix).ifPresent(namespace -> extra.computeIfAbsent(namespace, key -> new TreeSet<>())
+            .add(prefix.equals("cosid.segment.share") ? SHARE : name)));
+        return extra;
+    }
+
+    private Optional<String> ownNamespace(String prefix) {
+        String namespace = config.get(prefix + ".namespace");
+        return namespace == null || namespace.isBlank() || namespace.equals(namespace()) ? Optional.empty() : Optional.of(namespace);
+    }
+
+    /**
+     * The store type of the 4.x segments ({@code cosid.segment.distributor.type}, {@code redis} by default).
+     *
+     * @return the type, empty without segments
+     */
+    public Optional<String> segmentStoreType() {
+        return segments().isEmpty() ? Optional.empty() : Optional.of(config.get("cosid.segment.distributor.type", "redis").toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * The store type of the 4.x machine ids ({@code cosid.machine.distributor.type}), when it is a store.
+     *
+     * @return {@code jdbc}, {@code redis}, {@code mongo} or {@code zookeeper}; empty for manual, stateful_set, proxy or
+     *     no machine
+     */
+    public Optional<String> machineStoreType() {
+        if (!machineEnabled()) {
+            return Optional.empty();
+        }
+        String type = config.get("cosid.machine.distributor.type", "manual").toLowerCase(Locale.ROOT);
+        return Set.of("jdbc", "redis", "mongo", "zookeeper").contains(type) ? Optional.of(type) : Optional.empty();
     }
 
     /**

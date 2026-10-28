@@ -130,7 +130,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 | 工作包 | 内容 | 归属会话 | PR | 状态 |
 |---|---|---|---|---|
-| WP-Redis | **B-B1**、B-N4 | R2-Redis'(会话 `r2-redis-b-b1`,2026-10-28 派发) | [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | Draft,退回修复中(见 §4.2) |
+| WP-Redis | **B-B1**、B-N4 | R2-Redis'(会话 `r2-redis-b-b1`,2026-10-28 派发) | [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | Draft,**复审通过**(`8b4dfaca`,CI 34 项全绿):7.0 根因为集群总线未传播副本角色(`CLUSTER NODES` 把副本列为无 slot 的 master),刷新拓扑无效;auto 改为逐主节点取 `max(INFO connected_slaves, CLUSTER REPLICAS)`,部分有副本时 open 失败;冻结副本的测试证明同一连接与 B-N4。待用户同意转 ready |
 | WP-JDBC | B-M1、B-N2 | R2-JDBC | [#1354](https://github.com/Ahoo-Wang/CosId/pull/1354) | ✅ 已合入 `d6264e11`;偏差:SQL Server 无论排序规则都忽略尾随空格,方言改为拒绝以空格结尾的 key(不合并为同一 key,唯一性不受损),总调度认可 |
 | WP-ZK | B-N1;**E-B1** 即 #1342 | R2-ZK | [#1342](https://github.com/Ahoo-Wang/CosId/pull/1342) | ✅ 已合入 `a0104227` |
 | WP-server | **C-B1**、**C-B2**、C-M1、C-N1、C-N2、B-N3 | R4-A | [#1349](https://github.com/Ahoo-Wang/CosId/pull/1349) | ✅ 已合入 `2068c48f` |

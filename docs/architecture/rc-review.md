@@ -134,10 +134,10 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | WP-JDBC | B-M1、B-N2 | R2-JDBC | [#1354](https://github.com/Ahoo-Wang/CosId/pull/1354) | ✅ 已合入 `d6264e11`;偏差:SQL Server 无论排序规则都忽略尾随空格,方言改为拒绝以空格结尾的 key(不合并为同一 key,唯一性不受损),总调度认可 |
 | WP-ZK | B-N1;**E-B1** 即 #1342 | R2-ZK | [#1342](https://github.com/Ahoo-Wang/CosId/pull/1342) | ✅ 已合入 `a0104227` |
 | WP-server | **C-B1**、**C-B2**、C-M1、C-N1、C-N2、B-N3 | R4-A | [#1349](https://github.com/Ahoo-Wang/CosId/pull/1349) | ✅ 已合入 `2068c48f` |
-| WP-spring | C-N3 | R3-S | [#1353](https://github.com/Ahoo-Wang/CosId/pull/1353) | 修复完成,等 CI |
+| WP-spring | C-N3 | R3-S | [#1353](https://github.com/Ahoo-Wang/CosId/pull/1353) | ready,审查通过;mongo:8.0 job 卡住(受影响内核),已取消重跑 |
 | WP-migration | **D-B1**、**D-B2**、**D-B3**、**D-B4**、D-M1、D-M2、D-M3、D-N1–N4;修正 09 §2 表述 | R4-C | [#1350](https://github.com/Ahoo-Wang/CosId/pull/1350) | ✅ 已合入 `40d3e13c` |
 | WP-lease | A-M1 | R1-C | [#1351](https://github.com/Ahoo-Wang/CosId/pull/1351) | ✅ 已合入 `a68a0191` |
-| WP-time-codec | A-N1、A-N2、A-N3、A-N6、A-N7 | R1-A | [#1352](https://github.com/Ahoo-Wang/CosId/pull/1352) | 修复完成,等 CI |
+| WP-time-codec | A-N1、A-N2、A-N3、A-N6、A-N7 | R1-A | [#1352](https://github.com/Ahoo-Wang/CosId/pull/1352) | ✅ 已合入 `0ae7c45c`(2026-10-28) |
 | WP-segment | A-N4、A-N5 | R1-B | [#1347](https://github.com/Ahoo-Wang/CosId/pull/1347) | ✅ 已合入 `3e25d483` |
 | WP-release | **E-B2**、**E-B3**、E-M2、E-M3、E-N2、E-N3、E-N4、E-N6–N9 | R5-B | [#1348](https://github.com/Ahoo-Wang/CosId/pull/1348) | ✅ 已合入 `9de77578` |
 | WP-docs | E-N1、C-N4、C-N5;09 §2 表述 | 总调度(本 PR) | #1344 | ✅ 已在本 PR 修改 |

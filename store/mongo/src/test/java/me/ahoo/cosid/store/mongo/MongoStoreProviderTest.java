@@ -64,7 +64,9 @@ class MongoStoreProviderTest {
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
 
     private static StoreConfig config(Map<String, Object> options, Optional<Object> client) {
-        return new StoreConfig("ids", MongoStoreProvider.TYPE, TIMEOUT, options, client);
+        StoreConfig.Builder config = StoreConfig.builder("ids", MongoStoreProvider.TYPE).timeout(TIMEOUT).options(options);
+        client.ifPresent(config::client);
+        return config.build();
     }
 
     @Test
@@ -194,8 +196,11 @@ class MongoStoreProviderTest {
     @Test
     void anOperationThatRunsOutOfTheTimeoutFailsWithStoreTimeoutException() {
         // 1ms: some operations still make it, but none fails otherwise, and the ones that do not are store timeouts.
-        StoreConfig tight = new StoreConfig("ids", MongoStoreProvider.TYPE, Duration.ofMillis(1), Map.of(MongoStoreProvider.DATABASE,
-            MongoTestSupport.DATABASE), Optional.of(MongoTestSupport.client()));
+        StoreConfig tight = StoreConfig.builder("ids", MongoStoreProvider.TYPE)
+            .timeout(Duration.ofMillis(1))
+            .option(MongoStoreProvider.DATABASE, MongoTestSupport.DATABASE)
+            .client(MongoTestSupport.client())
+            .build();
         int timeouts = 0;
         try (Store store = new MongoStoreProvider().open(tight)) {
             for (int i = 0; i < 50 && timeouts == 0; i++) {
@@ -238,7 +243,11 @@ class MongoStoreProviderTest {
             try (MongoClient client = MongoClients.create(mongo.getReplicaSetUrl(MongoTestSupport.DATABASE));
                  Store warmUp = new MongoStoreProvider().open(config(options, Optional.of(client)));
                  Store store = new MongoStoreProvider().open(
-                     new StoreConfig("paused", MongoStoreProvider.TYPE, Duration.ofMillis(500), options, Optional.of(client)))) {
+                     StoreConfig.builder("paused", MongoStoreProvider.TYPE)
+                         .timeout(Duration.ofMillis(500))
+                         .options(options)
+                         .client(client)
+                         .build())) {
                 assertEquals(new Range(0, 1), warmUp.ranges().reserve(key, 1, 0));
                 var docker = DockerClientFactory.instance().client();
                 docker.pauseContainerCmd(mongo.getContainerId()).exec();

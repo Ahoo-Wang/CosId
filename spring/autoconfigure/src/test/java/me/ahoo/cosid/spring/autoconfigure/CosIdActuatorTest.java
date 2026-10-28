@@ -29,7 +29,6 @@ import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.PartsIdGenerator;
 import me.ahoo.cosid.RangeUnavailableException;
 import me.ahoo.cosid.accessor.IdFiller;
-import me.ahoo.cosid.observe.GeneratorInfo;
 import me.ahoo.cosid.runtime.CosIdRuntime;
 import me.ahoo.cosid.store.StoreTimeoutException;
 import me.ahoo.cosid.store.tck.Fault;
@@ -63,7 +62,7 @@ class CosIdActuatorTest {
             .withPropertyValues("cosid.generators.off.strategy=segment", "cosid.generators.off.disabled=true").run(context -> {
                 assertNull(context.getStartupFailure());
                 CosIdEndpoint endpoint = context.getBean(CosIdEndpoint.class);
-                Map<String, GeneratorInfo> all = endpoint.describe();
+                Map<String, CosIdEndpoint.Generator> all = endpoint.describe();
                 assertEquals(List.of("bill", "default", "off", "order", "token", "trace"), List.copyOf(all.keySet()));
                 assertEquals("segment", endpoint.generator("order").strategy());
                 assertEquals("other", endpoint.generator("order").store());

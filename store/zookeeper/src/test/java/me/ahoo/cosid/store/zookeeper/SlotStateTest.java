@@ -85,7 +85,16 @@ class SlotStateTest {
         SlotLease lease = a.toLease("ns", 0, 10_000, 10_000);
         assertTrue(a.heldBy(lease));
         assertTrue(!a.release(10_000, 0).heldBy(lease));
-        SlotLease otherFence = new SlotLease("ns", 0, A, 7, lease.expiresAt(), lease.floor(), lease.ceiling(), lease.storeNow());
+        SlotLease otherFence = SlotLease.builder()
+            .namespace("ns")
+            .slot(0)
+            .owner(A)
+            .fence(7)
+            .expiresAt(lease.expiresAt())
+            .floor(lease.floor())
+            .ceiling(lease.ceiling())
+            .storeNow(lease.storeNow())
+            .build();
         assertTrue(!a.heldBy(otherFence));
         assertTrue(!a.free(10_000, 11_000), "expiresAt is not before now");
         assertTrue(a.free(10_000, 11_001));

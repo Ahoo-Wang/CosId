@@ -29,7 +29,6 @@ import java.net.ServerSocket;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.UUID;
 
@@ -143,7 +142,7 @@ enum TestBackend {
             StoreSpec spec = spec();
             for (StoreProvider provider : ServiceLoader.load(StoreProvider.class)) {
                 if (provider.type().equals(spec.type())) {
-                    return provider.open(new StoreConfig("main", spec.type(), spec.timeout(), spec.options(), Optional.empty()));
+                    return provider.open(StoreConfig.builder("main", spec.type()).timeout(spec.timeout()).options(spec.options()).build());
                 }
             }
             throw new IllegalStateException("No store provider of type " + spec.type());
@@ -156,7 +155,7 @@ enum TestBackend {
                 case REDIS -> Map.of("uri", url, "wait", "off");
                 default -> Map.of("uri", url);
             };
-            return new StoreSpec(backend.legacyType, Duration.ofSeconds(2), options);
+            return StoreSpec.builder(backend.legacyType).timeout(Duration.ofSeconds(2)).options(options).build();
         }
     }
 }

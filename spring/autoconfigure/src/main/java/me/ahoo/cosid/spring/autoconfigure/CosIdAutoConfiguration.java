@@ -77,16 +77,17 @@ public class CosIdAutoConfiguration {
                                      ObjectProvider<HostResolver> hostResolver, ConfigurableListableBeanFactory beanFactory,
                                      Environment environment) {
         RuntimeOptions defaults = RuntimeOptions.defaults();
-        RuntimeOptions options = new RuntimeOptions(TimeSource.SYSTEM, Optional.empty(),
-            CompositeListener.of(listeners.orderedStream().toList()),
-            storeProviders.orderedStream().toList(),
-            CosIdStoreClients.resolve(spec, properties, beanFactory, CosIdGeneratorRegistrar.RUNTIME_BEAN),
-            hostResolver.getIfAvailable(() -> HostResolver.LOCAL),
-            port(environment),
-            reference -> beanFactory.containsBean(reference) && beanFactory.isTypeMatch(reference, IdCodec.class)
-                ? Optional.of(beanFactory.getBean(reference, IdCodec.class)) : defaults.codecs().apply(reference),
-            properties.metrics().generated());
-        return CosIdRuntime.start(spec, options);
+        RuntimeOptions.Builder options = RuntimeOptions.builder()
+            .time(TimeSource.SYSTEM)
+            .listener(CompositeListener.of(listeners.orderedStream().toList()))
+            .hostResolver(hostResolver.getIfAvailable(() -> HostResolver.LOCAL))
+            .codecs(reference -> beanFactory.containsBean(reference) && beanFactory.isTypeMatch(reference, IdCodec.class)
+                ? Optional.of(beanFactory.getBean(reference, IdCodec.class)) : defaults.codecs().apply(reference))
+            .countGenerated(properties.metrics().generated());
+        storeProviders.orderedStream().forEach(options::storeProvider);
+        CosIdStoreClients.resolve(spec, properties, beanFactory, CosIdGeneratorRegistrar.RUNTIME_BEAN).forEach(options::client);
+        port(environment).ifPresent(options::port);
+        return CosIdRuntime.start(spec, options.build());
     }
 
     @Bean

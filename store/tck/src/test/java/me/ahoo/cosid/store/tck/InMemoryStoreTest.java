@@ -57,7 +57,7 @@ class InMemoryStoreTest {
 
     @Test
     void anUnknownNamespaceOrSlotHoldsNoLease() {
-        SlotLease lease = new SlotLease("ns", 5, owner, 1, 0, 0, 0, 0);
+        SlotLease lease = SlotLease.builder().namespace("ns").slot(5).owner(owner).fence(1).expiresAt(0).floor(0).ceiling(0).storeNow(0).build();
         assertThat(store.renew(lease, Duration.ofSeconds(1), Duration.ZERO), is(Optional.empty()));
         assertThat(store.release(lease, 0), is(false));
         store.acquire("ns", owner, 2, Duration.ofSeconds(1), Duration.ZERO, OptionalInt.of(7));

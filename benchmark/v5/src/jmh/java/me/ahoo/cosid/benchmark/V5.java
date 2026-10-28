@@ -58,8 +58,7 @@ final class V5 {
      * {@code BatchPolicy.DEFAULT} with another step and that step's default {@code maxBatch}, the rest unchanged.
      */
     static BatchPolicy batch(long step) {
-        BatchPolicy defaults = BatchPolicy.DEFAULT;
-        return new BatchPolicy(step, defaults.initialOffset(), defaults.lookahead(), BatchPolicy.defaultMaxBatch(step), defaults.reserveTimeout(), defaults.rangeTtl());
+        return BatchPolicy.builder().step(step).build();
     }
 
     static SegmentGenerator segment(String name, BatchPolicy policy) {

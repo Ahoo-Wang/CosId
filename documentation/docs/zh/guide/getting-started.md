@@ -107,19 +107,18 @@ public class OrderService {
 `CosIdRuntime` 是唯一的装配路径；Spring 只是把 `cosid.*` 绑定到 `RuntimeSpec`。同样的配置用代码表示：
 
 ```java
-RuntimeSpec spec = new RuntimeSpec("shop",
-    Map.of("db", new StoreSpec("jdbc", Duration.ofSeconds(2), Map.of("initSchema", "true"))),
-    Optional.of(new MachineSpec.Leased("db", 10, Duration.ofSeconds(30), Duration.ofSeconds(1),
-        OptionalInt.empty(), Optional.empty())),
-    Map.of(
-        "default", new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT,
-            List.of(new CodecSpec.Radix(62, 11, true))),
-        "order", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of())));
+RuntimeSpec spec = RuntimeSpec.builder("shop")
+    .store("db", StoreSpec.builder("jdbc").option("initSchema", "true").build())
+    .machine(MachineSpec.Leased.builder("db").build())        // 默认 10 位、ttl 30s、tolerance 1s
+    .generator("default", GeneratorSpec.Snowflake.builder()
+        .codec(List.of(new CodecSpec.Radix(62, 11, true)))
+        .build())
+    .generator("order", GeneratorSpec.Segment.builder("db").build())
+    .build();
 
-RuntimeOptions defaults = RuntimeOptions.defaults();
-RuntimeOptions options = new RuntimeOptions(defaults.time(), defaults.executor(), defaults.listener(),
-    defaults.storeProviders(), Map.of("db", dataSource),           // 按存储名提供已有客户端
-    defaults.hostResolver(), defaults.port(), defaults.codecs());
+RuntimeOptions options = RuntimeOptions.builder()
+    .client("db", dataSource)                                 // 按存储名提供已有客户端
+    .build();
 
 try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
     long id = runtime.generator("default").generate();

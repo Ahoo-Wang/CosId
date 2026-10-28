@@ -26,7 +26,9 @@ import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.actuate.endpoint.annotation.ReadOperation;
 import org.springframework.boot.actuate.endpoint.annotation.Selector;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * The read-only {@code cosid} Actuator endpoint (07 §4.2, D17), replacing the 4.x {@code cosid},
@@ -51,14 +53,28 @@ public class CosIdEndpoint {
         this.runtime = runtime;
     }
 
+    /**
+     * Describes every generator.
+     *
+     * @return the generators by name
+     */
     @ReadOperation
-    public Map<String, GeneratorInfo> describe() {
-        return runtime.describe();
+    public Map<String, Generator> describe() {
+        Map<String, Generator> generators = new LinkedHashMap<>();
+        runtime.describe().forEach((name, info) -> generators.put(name, Generator.of(info)));
+        return generators;
     }
 
+    /**
+     * Describes one generator.
+     *
+     * @param name the generator name
+     * @return the generator, or null for an unknown one
+     */
     @ReadOperation
-    public GeneratorInfo generator(@Selector String name) {
-        return runtime.describe().get(name);
+    public Generator generator(@Selector String name) {
+        GeneratorInfo info = runtime.describe().get(name);
+        return info == null ? null : Generator.of(info);
     }
 
     /**
@@ -92,6 +108,27 @@ public class CosIdEndpoint {
             };
         } catch (GeneratorDisabledException e) {
             throw new InvalidEndpointRequestException(e.getMessage(), "disabled");
+        }
+    }
+
+    /**
+     * The JSON body of a generator: {@link GeneratorInfo}, which has no bean accessors for Jackson, as a record.
+     *
+     * @param name     the generator name
+     * @param strategy {@code snowflake}, {@code cosid80}, {@code segment} or {@code periodic-segment}
+     * @param store    the store name, empty for time-based generators
+     * @param details  layout, slot, window, ready range headroom, batch size and the like
+     */
+    public record Generator(String name, String strategy, String store, Map<String, Object> details) {
+        public Generator {
+            Objects.requireNonNull(name, "name");
+            Objects.requireNonNull(strategy, "strategy");
+            Objects.requireNonNull(store, "store");
+            details = Map.copyOf(Objects.requireNonNull(details, "details"));
+        }
+
+        static Generator of(GeneratorInfo info) {
+            return new Generator(info.name(), info.strategy(), info.store(), info.details());
         }
     }
 }

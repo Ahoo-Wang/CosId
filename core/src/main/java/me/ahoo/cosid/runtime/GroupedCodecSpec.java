@@ -22,6 +22,9 @@ import java.util.Objects;
  * The codec of a {@link GeneratorSpec.PeriodicSegment} generator. In configuration the codec list holds the period
  * item where the period key goes (or starts with the {@code date-prefix} item, the period first); the items before it
  * apply to the value, the items after it decorate the text that starts with the period key.
+ *
+ * <p>The variants are the current snapshot of a closed set of specs: a minor version may add a variant, so keep a
+ * {@code default} branch in a {@code switch} over them (D40).
  */
 public sealed interface GroupedCodecSpec {
     /**

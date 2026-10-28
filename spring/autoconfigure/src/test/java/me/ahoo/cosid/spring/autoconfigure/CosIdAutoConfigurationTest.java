@@ -65,7 +65,6 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.core.annotation.Order;
 import org.testcontainers.mongodb.MongoDBContainer;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -462,9 +461,7 @@ class CosIdAutoConfigurationTest {
         static RuntimeSpecCustomizer add() {
             return spec -> {
                 CALLS.add("add");
-                Map<String, GeneratorSpec> generators = new HashMap<>(spec.generators());
-                generators.put("extra", new GeneratorSpec.Segment("mem", BatchPolicy.DEFAULT, List.of()));
-                return new RuntimeSpec(spec.namespace(), spec.stores(), spec.machine(), generators);
+                return spec.toBuilder().generator("extra", GeneratorSpec.Segment.builder("mem").batch(BatchPolicy.DEFAULT).codec(List.of()).build()).build();
             };
         }
 
@@ -474,9 +471,7 @@ class CosIdAutoConfigurationTest {
             return spec -> {
                 CALLS.add("remove");
                 assertTrue(spec.generators().containsKey("extra"), "runs after add");
-                Map<String, GeneratorSpec> generators = new HashMap<>(spec.generators());
-                generators.remove("gone");
-                return new RuntimeSpec(spec.namespace(), spec.stores(), spec.machine(), generators);
+                return spec.toBuilder().removeGenerator("gone").build();
             };
         }
     }

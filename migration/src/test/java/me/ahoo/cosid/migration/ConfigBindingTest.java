@@ -62,7 +62,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * Every {@code config} golden binds as a 5.0 application binds it: Spring Boot's YAML loader and {@link Binder} into
@@ -86,7 +85,10 @@ class ConfigBindingTest {
         // Every store opens through its real provider config; only the remote one opens without a server behind it.
         spec.stores().forEach((name, store) -> {
             if (RemoteStoreProvider.TYPE.equals(store.type())) {
-                try (Store remote = new RemoteStoreProvider().open(new StoreConfig(name, store.type(), store.timeout(), store.options(), Optional.empty()))) {
+                try (Store remote = new RemoteStoreProvider().open(StoreConfig.builder(name, store.type())
+                    .timeout(store.timeout())
+                    .options(store.options())
+                    .build())) {
                     assertThat(remote.ranges(), notNullValue());
                 } catch (Exception e) {
                     throw new AssertionError("store [" + name + "] does not open: " + e, e);

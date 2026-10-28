@@ -88,11 +88,9 @@ public OrderService(IdGenerator ids,                                  // "defaul
 ```java
 @Bean
 static RuntimeSpecCustomizer moreGenerators() {          // static:它在处理 Bean 定义期间运行
-    return spec -> {
-        var generators = new HashMap<>(spec.generators());
-        generators.put("audit", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of()));
-        return new RuntimeSpec(spec.namespace(), spec.stores(), spec.machine(), generators);
-    };
+    return spec -> spec.toBuilder()
+        .generator("audit", GeneratorSpec.Segment.builder("db").build())
+        .build();
 }
 ```
 

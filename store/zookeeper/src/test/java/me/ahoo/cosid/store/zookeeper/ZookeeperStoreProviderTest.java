@@ -44,7 +44,9 @@ import java.util.UUID;
  */
 class ZookeeperStoreProviderTest {
     private static StoreConfig config(Map<String, Object> options, Optional<Object> client) {
-        return new StoreConfig("zk", ZookeeperStoreProvider.TYPE, Duration.ofSeconds(5), options, client);
+        StoreConfig.Builder config = StoreConfig.builder("zk", ZookeeperStoreProvider.TYPE).timeout(Duration.ofSeconds(5)).options(options);
+        client.ifPresent(config::client);
+        return config.build();
     }
 
     @Test

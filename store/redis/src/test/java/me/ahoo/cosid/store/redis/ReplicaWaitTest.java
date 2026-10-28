@@ -30,7 +30,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
 
@@ -42,7 +41,11 @@ class ReplicaWaitTest {
     private static final Duration SHORT = Duration.ofMillis(500);
 
     private static Store open(Object client, Duration timeout, Map<String, Object> options) {
-        return new RedisStoreProvider().open(new StoreConfig("wait", RedisStoreProvider.TYPE, timeout, options, Optional.of(client)));
+        return new RedisStoreProvider().open(StoreConfig.builder("wait", RedisStoreProvider.TYPE)
+            .timeout(timeout)
+            .options(options)
+            .client(client)
+            .build());
     }
 
     @Test

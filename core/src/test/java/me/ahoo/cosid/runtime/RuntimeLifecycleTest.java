@@ -36,7 +36,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
@@ -66,8 +65,13 @@ class RuntimeLifecycleTest {
 
     RuntimeOptions options() {
         RuntimeOptions defaults = RuntimeOptions.defaults();
-        return new RuntimeOptions(clock, Optional.empty(), listener, List.of(memory), Map.of(), () -> "host",
-            OptionalInt.empty(), defaults.codecs());
+        return RuntimeOptions.builder()
+            .time(clock)
+            .listener(listener)
+            .storeProvider(memory)
+            .hostResolver(() -> "host")
+            .codecs(defaults.codecs())
+            .build();
     }
 
     CosIdRuntime start(RuntimeSpec spec) {
@@ -79,13 +83,20 @@ class RuntimeLifecycleTest {
     }
 
     static MachineSpec.Leased leased(String store) {
-        return new MachineSpec.Leased(store, 2, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty(), Optional.empty());
+        return MachineSpec.Leased.builder(store).bits(2).ttl(Duration.ofSeconds(30)).tolerance(Duration.ofSeconds(1)).build();
     }
 
     RuntimeSpec mixed() {
-        return new RuntimeSpec("app", Map.of("a", store("memory"), "b", store("memory"), "c", store("memory")),
-            Optional.of(leased("b")),
-            Map.of("ms", snowflake(Layout.SNOWFLAKE_MS), "s", snowflake(Layout.SNOWFLAKE_S), "order", segment("c"), "x", segment("a")));
+        return RuntimeSpec.builder("app")
+            .store("a", store("memory"))
+            .store("b", store("memory"))
+            .store("c", store("memory"))
+            .machine(leased("b"))
+            .generator("ms", snowflake(Layout.SNOWFLAKE_MS))
+            .generator("s", snowflake(Layout.SNOWFLAKE_S))
+            .generator("order", segment("c"))
+            .generator("x", segment("a"))
+            .build();
     }
 
     void assertExecutorsTerminated() {
@@ -165,9 +176,11 @@ class RuntimeLifecycleTest {
             memory.backing("b").acquire("app", new Owner("other-" + i, UUID.randomUUID()), 4, Duration.ofSeconds(30),
                 Duration.ofSeconds(1), OptionalInt.empty());
         }
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("b", store("memory")),
-            Optional.of(new MachineSpec.Leased("b", 2, Duration.ofMillis(200), Duration.ZERO, OptionalInt.empty(), Optional.empty())),
-            Map.of("ms", snowflake(Layout.SNOWFLAKE_MS)));
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("b", store("memory"))
+            .machine(MachineSpec.Leased.builder("b").bits(2).ttl(Duration.ofMillis(200)).tolerance(Duration.ZERO).build())
+            .generator("ms", snowflake(Layout.SNOWFLAKE_MS))
+            .build();
         assertThrows(CosIdException.class, () -> start(spec));
         assertThat(events, contains("open:b", "close:b", "executor:shutdown"));
         assertExecutorsTerminated();
@@ -187,8 +200,11 @@ class RuntimeLifecycleTest {
 
     @Test
     void rollsBackWhenTheExecutorRejectsTheRenewals() {
-        RuntimeSpec spec = new RuntimeSpec("app", Map.of("b", store("memory")), Optional.of(leased("b")),
-            Map.of("ms", snowflake(Layout.SNOWFLAKE_MS)));
+        RuntimeSpec spec = RuntimeSpec.builder("app")
+            .store("b", store("memory"))
+            .machine(leased("b"))
+            .generator("ms", snowflake(Layout.SNOWFLAKE_MS))
+            .build();
         CosIdException failed = assertThrows(CosIdException.class, () -> CosIdRuntime.start(spec, options(), namespace -> {
             TrackedExecutor executor = new TrackedExecutor(events);
             executor.reject = true;
@@ -217,8 +233,7 @@ class RuntimeLifecycleTest {
     void aCallerExecutorIsNotClosed() {
         TrackedExecutor own = new TrackedExecutor(events);
         RuntimeOptions base = options();
-        RuntimeOptions withExecutor = new RuntimeOptions(base.time(), Optional.of(own), base.listener(), base.storeProviders(),
-            base.clients(), base.hostResolver(), base.port(), base.codecs());
+        RuntimeOptions withExecutor = base.toBuilder().executor(own).build();
         CosIdRuntime runtime = CosIdRuntime.start(mixed(), withExecutor, namespace -> {
             throw new AssertionError("the runtime must not create an executor");
         });

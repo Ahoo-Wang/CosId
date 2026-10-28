@@ -19,24 +19,26 @@ generators, leases and stores by hand in production code.
 4. Own the runtime for its full life (`try`-with-resources, or close it on shutdown).
 5. Add one focused check: uniqueness, monotonicity, decoding, restart, or clock regression.
 
-In a CosId checkout, verify signatures in `core/src/main/java/me/ahoo/cosid/runtime/` (records) and use
+In a CosId checkout, verify signatures in `core/src/main/java/me/ahoo/cosid/runtime/` (builders; codec specs are records) and use
 `core/src/test/java/me/ahoo/cosid/runtime/CosIdRuntimeTest.java` as the example.
 
 ## A Runtime
 
 ```java
-RuntimeSpec spec = new RuntimeSpec("shop",
-    Map.of("db", new StoreSpec("jdbc", Duration.ofSeconds(2), Map.of("initSchema", "true"))),
-    Optional.of(new MachineSpec.Leased("db", 10, Duration.ofSeconds(30), Duration.ofSeconds(1),
-        OptionalInt.empty(), Optional.empty())),                  // preferred slot, owner key
-    Map.of(
-        "default", new GeneratorSpec.Snowflake(Layout.SNOWFLAKE_MS, ClockRegressionPolicy.DEFAULT,
-            List.of(new CodecSpec.Radix(62, 11, true))),
-        "order", new GeneratorSpec.Segment("db", BatchPolicy.DEFAULT, List.of(new CodecSpec.Prefix("O")))));
+RuntimeSpec spec = RuntimeSpec.builder("shop")
+    .store("db", StoreSpec.builder("jdbc").timeout(Duration.ofSeconds(2)).option("initSchema", "true").build())
+    .machine(MachineSpec.Leased.builder("db")                 // also preferredSlot(int), ownerKey(String)
+        .bits(10).ttl(Duration.ofSeconds(30)).tolerance(Duration.ofSeconds(1)).build())
+    .generator("default", GeneratorSpec.Snowflake.builder()
+        .layout(Layout.SNOWFLAKE_MS).regression(ClockRegressionPolicy.DEFAULT)
+        .codec(List.of(new CodecSpec.Radix(62, 11, true))).build())
+    .generator("order", GeneratorSpec.Segment.builder("db")
+        .batch(BatchPolicy.DEFAULT).codec(List.of(new CodecSpec.Prefix("O"))).build())
+    .build();
 
-RuntimeOptions d = RuntimeOptions.defaults();
-RuntimeOptions options = new RuntimeOptions(d.time(), d.executor(), d.listener(), d.storeProviders(),
-    Map.of("db", dataSource), d.hostResolver(), d.port(), d.codecs());   // existing clients by store name
+RuntimeOptions options = RuntimeOptions.builder()
+    .client("db", dataSource)                                 // existing clients by store name
+    .build();
 
 try (CosIdRuntime runtime = CosIdRuntime.start(spec, options)) {
     long id = runtime.generator("default").generate();

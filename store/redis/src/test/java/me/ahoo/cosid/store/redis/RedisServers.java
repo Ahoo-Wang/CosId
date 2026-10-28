@@ -36,7 +36,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -159,7 +158,11 @@ final class RedisServers {
     }
 
     static Store open(Object client, Map<String, Object> options) {
-        return new RedisStoreProvider().open(new StoreConfig("test", RedisStoreProvider.TYPE, TIMEOUT, options, Optional.of(client)));
+        return new RedisStoreProvider().open(StoreConfig.builder("test", RedisStoreProvider.TYPE)
+            .timeout(TIMEOUT)
+            .options(options)
+            .client(client)
+            .build());
     }
 
     /** A primary with one replica. */

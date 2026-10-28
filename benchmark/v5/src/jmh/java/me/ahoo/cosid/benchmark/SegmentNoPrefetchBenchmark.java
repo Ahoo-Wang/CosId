@@ -27,7 +27,6 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
 
 import java.time.Duration;
-import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -41,7 +40,13 @@ public class SegmentNoPrefetchBenchmark {
 
     @Setup
     public void setup() {
-        segment = V5.segment("p6", new BatchPolicy(1, 0, Duration.ZERO, 1, Duration.ofSeconds(3), Optional.empty()));
+        segment = V5.segment("p6", BatchPolicy.builder()
+            .step(1)
+            .initialOffset(0)
+            .lookahead(Duration.ZERO)
+            .maxBatch(1)
+            .reserveTimeout(Duration.ofSeconds(3))
+            .build());
     }
 
     @TearDown

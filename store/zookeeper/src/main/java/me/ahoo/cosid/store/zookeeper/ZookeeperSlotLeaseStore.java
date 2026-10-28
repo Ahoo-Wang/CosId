@@ -158,7 +158,9 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
         for (int slot : index.slots) {
             Node node = slots.node(slot);
             if (owner.equals(node.state.owner())) {
-                return Optional.of(new AcquireResult.Acquired(node.state.toLease(request.namespace, slot, node.mtime, now), AcquireReason.IDEMPOTENT, duplicate));
+                return Optional.of(AcquireResult.Acquired.builder(node.state.toLease(request.namespace, slot, node.mtime, now), AcquireReason.IDEMPOTENT)
+                    .duplicateOwnerKey(duplicate)
+                    .build());
             }
         }
         if (preferred >= 0 && slots.node(preferred).free(now)) {
@@ -234,7 +236,9 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
                     throw new CosIdException("ZooKeeper " + what + " returned no stat");
                 }
                 long mtime = stat.getMtime();
-                return Optional.of(new AcquireResult.Acquired(taken.toLease(request.namespace, slot, mtime, mtime), reason, duplicate));
+                return Optional.of(AcquireResult.Acquired.builder(taken.toLease(request.namespace, slot, mtime, mtime), reason)
+                    .duplicateOwnerKey(duplicate)
+                    .build());
             }
             case NONODE -> {
                 // The parent of the owner index is created on first need.

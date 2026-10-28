@@ -19,6 +19,8 @@ import me.ahoo.cosid.observe.GeneratorListener;
 import me.ahoo.cosid.store.StoreProvider;
 import me.ahoo.cosid.time.TimeSource;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,65 +31,39 @@ import java.util.function.Function;
 
 /**
  * What a {@link CosIdRuntime} starts with besides its {@link RuntimeSpec}: everything that is not configuration.
- *
- * @param time           the time source
- * @param executor       runs refills and renewals; when empty the runtime creates a virtual thread executor and
- *                       closes it
- * @param listener       the event listener
- * @param storeProviders providers besides those {@link java.util.ServiceLoader} finds; they win for the same type
- * @param clients        existing client objects by store name, passed as {@code StoreConfig.client}
- * @param hostResolver   the host of a derived owner key
- * @param port           the port of a derived owner key, {@code host:port}; {@code host:pid} when empty
- * @param codecs         resolves {@link CodecSpec.Custom} references; empty for an unknown one
- * @param countGenerated count the ids each generator issues through the views the runtime hands out
- *                       ({@link CosIdRuntime#generated(String)}); off by default, which leaves the hot path unchanged
+ * Immutable; built with {@link #builder()}, the only way to create one, so fields can be added with a default
+ * (api-freeze.md §4); {@link #toBuilder()} changes one.
  */
-public record RuntimeOptions(TimeSource time,
-                             Optional<Executor> executor,
-                             GeneratorListener listener,
-                             List<StoreProvider> storeProviders,
-                             Map<String, Object> clients,
-                             HostResolver hostResolver,
-                             OptionalInt port,
-                             Function<String, Optional<IdCodec>> codecs,
-                             boolean countGenerated) {
-    public RuntimeOptions {
-        Objects.requireNonNull(time, "time");
-        Objects.requireNonNull(executor, "executor");
-        Objects.requireNonNull(listener, "listener");
-        storeProviders = List.copyOf(Objects.requireNonNull(storeProviders, "storeProviders"));
-        clients = Map.copyOf(Objects.requireNonNull(clients, "clients"));
-        Objects.requireNonNull(hostResolver, "hostResolver");
-        Objects.requireNonNull(port, "port");
-        Objects.requireNonNull(codecs, "codecs");
+public final class RuntimeOptions {
+    private final TimeSource time;
+    private final Optional<Executor> executor;
+    private final GeneratorListener listener;
+    private final List<StoreProvider> storeProviders;
+    private final Map<String, Object> clients;
+    private final HostResolver hostResolver;
+    private final OptionalInt port;
+    private final Function<String, Optional<IdCodec>> codecs;
+    private final boolean countGenerated;
+
+    private RuntimeOptions(Builder builder) {
+        this.time = builder.time;
+        this.executor = Optional.ofNullable(builder.executor);
+        this.listener = builder.listener;
+        this.storeProviders = List.copyOf(builder.storeProviders);
+        this.clients = Map.copyOf(builder.clients);
+        this.hostResolver = builder.hostResolver;
+        this.port = builder.port;
+        this.codecs = builder.codecs;
+        this.countGenerated = builder.countGenerated;
     }
 
     /**
-     * Options without counting.
+     * A builder starting from the defaults ({@link #defaults()}).
      *
-     * @param time           the time source
-     * @param executor       the executor, or empty for an own one
-     * @param listener       the event listener
-     * @param storeProviders providers besides those {@link java.util.ServiceLoader} finds
-     * @param clients        existing client objects by store name
-     * @param hostResolver   the host of a derived owner key
-     * @param port           the port of a derived owner key
-     * @param codecs         resolves {@link CodecSpec.Custom} references
+     * @return the builder
      */
-    public RuntimeOptions(TimeSource time, Optional<Executor> executor, GeneratorListener listener, List<StoreProvider> storeProviders,
-                          Map<String, Object> clients, HostResolver hostResolver, OptionalInt port,
-                          Function<String, Optional<IdCodec>> codecs) {
-        this(time, executor, listener, storeProviders, clients, hostResolver, port, codecs, false);
-    }
-
-    /**
-     * These options, counting the generated ids or not.
-     *
-     * @param count whether to count
-     * @return the options
-     */
-    public RuntimeOptions withCountGenerated(boolean count) {
-        return new RuntimeOptions(time, executor, listener, storeProviders, clients, hostResolver, port, codecs, count);
+    public static Builder builder() {
+        return new Builder();
     }
 
     /**
@@ -97,7 +73,250 @@ public record RuntimeOptions(TimeSource time,
      * @return the default options
      */
     public static RuntimeOptions defaults() {
-        return new RuntimeOptions(TimeSource.SYSTEM, Optional.empty(), GeneratorListener.NOOP, List.of(), Map.of(),
-            HostResolver.LOCAL, OptionalInt.empty(), ClassNameCodecs::resolve);
+        return builder().build();
+    }
+
+    /**
+     * A builder holding these options, to change them.
+     *
+     * @return the builder
+     */
+    public Builder toBuilder() {
+        Builder builder = new Builder().time(time).listener(listener).hostResolver(hostResolver).codecs(codecs).countGenerated(countGenerated);
+        executor.ifPresent(builder::executor);
+        builder.storeProviders.addAll(storeProviders);
+        builder.clients.putAll(clients);
+        builder.port = port;
+        return builder;
+    }
+
+    /**
+     * The time source.
+     *
+     * @return the time source; default {@link TimeSource#SYSTEM}
+     */
+    public TimeSource time() {
+        return time;
+    }
+
+    /**
+     * Runs refills and renewals.
+     *
+     * @return the executor; when empty (the default) the runtime creates a virtual thread executor and closes it
+     */
+    public Optional<Executor> executor() {
+        return executor;
+    }
+
+    /**
+     * The event listener.
+     *
+     * @return the listener; default {@link GeneratorListener#NOOP}
+     */
+    public GeneratorListener listener() {
+        return listener;
+    }
+
+    /**
+     * Providers besides those {@link java.util.ServiceLoader} finds; they win for the same type.
+     *
+     * @return the providers, unmodifiable; default none
+     */
+    public List<StoreProvider> storeProviders() {
+        return storeProviders;
+    }
+
+    /**
+     * Existing client objects by store name, passed as {@code StoreConfig.client}.
+     *
+     * @return the clients, unmodifiable; default none
+     */
+    public Map<String, Object> clients() {
+        return clients;
+    }
+
+    /**
+     * The host of a derived owner key.
+     *
+     * @return the resolver; default {@link HostResolver#LOCAL}
+     */
+    public HostResolver hostResolver() {
+        return hostResolver;
+    }
+
+    /**
+     * The port of a derived owner key, {@code host:port}.
+     *
+     * @return the port; when empty (the default) the owner key is {@code host:pid}
+     */
+    public OptionalInt port() {
+        return port;
+    }
+
+    /**
+     * Resolves {@link CodecSpec.Custom} references.
+     *
+     * @return the resolver, empty for an unknown reference; default by class name
+     */
+    public Function<String, Optional<IdCodec>> codecs() {
+        return codecs;
+    }
+
+    /**
+     * Whether to count the ids each generator issues through the views the runtime hands out
+     * ({@link CosIdRuntime#generated(String)}).
+     *
+     * @return whether to count; off by default, which leaves the hot path unchanged
+     */
+    public boolean countGenerated() {
+        return countGenerated;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof RuntimeOptions that && time.equals(that.time) && executor.equals(that.executor) && listener.equals(that.listener)
+            && storeProviders.equals(that.storeProviders) && clients.equals(that.clients) && hostResolver.equals(that.hostResolver)
+            && port.equals(that.port) && codecs.equals(that.codecs) && countGenerated == that.countGenerated;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(time, executor, listener, storeProviders, clients, hostResolver, port, codecs, countGenerated);
+    }
+
+    @Override
+    public String toString() {
+        return "RuntimeOptions[time=" + time + ", executor=" + executor + ", listener=" + listener + ", storeProviders=" + storeProviders
+            + ", clients=" + clients + ", hostResolver=" + hostResolver + ", port=" + port + ", codecs=" + codecs
+            + ", countGenerated=" + countGenerated + "]";
+    }
+
+    /**
+     * Builds {@link RuntimeOptions}.
+     */
+    public static final class Builder {
+        private TimeSource time = TimeSource.SYSTEM;
+        private Executor executor;
+        private GeneratorListener listener = GeneratorListener.NOOP;
+        private final List<StoreProvider> storeProviders = new ArrayList<>();
+        private final Map<String, Object> clients = new LinkedHashMap<>();
+        private HostResolver hostResolver = HostResolver.LOCAL;
+        private OptionalInt port = OptionalInt.empty();
+        private Function<String, Optional<IdCodec>> codecs = ClassNameCodecs::resolve;
+        private boolean countGenerated;
+
+        private Builder() {
+        }
+
+        /**
+         * Sets the time source.
+         *
+         * @param time the time source; default {@link TimeSource#SYSTEM}
+         * @return this builder
+         */
+        public Builder time(TimeSource time) {
+            this.time = Objects.requireNonNull(time, "time");
+            return this;
+        }
+
+        /**
+         * Sets the executor of refills and renewals; the runtime does not close it.
+         *
+         * @param executor the executor; by default the runtime creates a virtual thread executor and closes it
+         * @return this builder
+         */
+        public Builder executor(Executor executor) {
+            this.executor = Objects.requireNonNull(executor, "executor");
+            return this;
+        }
+
+        /**
+         * Sets the event listener.
+         *
+         * @param listener the listener; default {@link GeneratorListener#NOOP}
+         * @return this builder
+         */
+        public Builder listener(GeneratorListener listener) {
+            this.listener = Objects.requireNonNull(listener, "listener");
+            return this;
+        }
+
+        /**
+         * Adds a provider besides those {@link java.util.ServiceLoader} finds; it wins for the same type, and of two
+         * added for one type the first wins.
+         *
+         * @param storeProvider the provider
+         * @return this builder
+         */
+        public Builder storeProvider(StoreProvider storeProvider) {
+            storeProviders.add(Objects.requireNonNull(storeProvider, "storeProvider"));
+            return this;
+        }
+
+        /**
+         * Sets an existing client object of a store, passed as {@code StoreConfig.client}.
+         *
+         * @param store  the store name
+         * @param client the client object
+         * @return this builder
+         */
+        public Builder client(String store, Object client) {
+            clients.put(Objects.requireNonNull(store, "store"), Objects.requireNonNull(client, "client"));
+            return this;
+        }
+
+        /**
+         * Sets the host of a derived owner key.
+         *
+         * @param hostResolver the resolver; default {@link HostResolver#LOCAL}
+         * @return this builder
+         */
+        public Builder hostResolver(HostResolver hostResolver) {
+            this.hostResolver = Objects.requireNonNull(hostResolver, "hostResolver");
+            return this;
+        }
+
+        /**
+         * Sets the port of a derived owner key, {@code host:port}.
+         *
+         * @param port the port; by default the owner key is {@code host:pid}
+         * @return this builder
+         */
+        public Builder port(int port) {
+            this.port = OptionalInt.of(port);
+            return this;
+        }
+
+        /**
+         * Sets how {@link CodecSpec.Custom} references resolve.
+         *
+         * @param codecs the resolver, empty for an unknown reference; default by class name
+         * @return this builder
+         */
+        public Builder codecs(Function<String, Optional<IdCodec>> codecs) {
+            this.codecs = Objects.requireNonNull(codecs, "codecs");
+            return this;
+        }
+
+        /**
+         * Sets whether to count the ids each generator issues through the views the runtime hands out
+         * ({@link CosIdRuntime#generated(String)}).
+         *
+         * @param countGenerated whether to count; off by default, which leaves the hot path unchanged
+         * @return this builder
+         */
+        public Builder countGenerated(boolean countGenerated) {
+            this.countGenerated = countGenerated;
+            return this;
+        }
+
+        /**
+         * Builds the options.
+         *
+         * @return the options
+         */
+        public RuntimeOptions build() {
+            return new RuntimeOptions(this);
+        }
     }
 }

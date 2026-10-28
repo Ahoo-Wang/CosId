@@ -92,7 +92,16 @@ record SlotState(String ownerKey, UUID incarnation, String lastOwnerKey, long fe
     }
 
     SlotLease toLease(String namespace, int slot, long mtime, long storeNow) {
-        return new SlotLease(namespace, slot, owner(), fence, expiresAt(mtime), floor, ceiling(mtime), storeNow);
+        return SlotLease.builder()
+            .namespace(namespace)
+            .slot(slot)
+            .owner(owner())
+            .fence(fence)
+            .expiresAt(expiresAt(mtime))
+            .floor(floor)
+            .ceiling(ceiling(mtime))
+            .storeNow(storeNow)
+            .build();
     }
 
     /** The state after {@code owner} takes the slot: a new tenure starting at the next floor. */

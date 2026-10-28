@@ -182,7 +182,8 @@ class RuntimeSpecValidationTest {
         Layout narrow = new Layout(Instant.EPOCH, ChronoUnit.MILLIS, 41, 10, 12, 0);
         Layout otherEpoch = new Layout(Layout.COSID_EPOCH, ChronoUnit.MILLIS, 44, 20, 16, 0);
         Layout seconds = new Layout(Instant.EPOCH, ChronoUnit.SECONDS, 44, 20, 16, 0);
-        Layout fewNodes = new Layout(Instant.EPOCH, ChronoUnit.MILLIS, 44, 8, 28, 0);
+        Layout fewNodes = new Layout(Instant.EPOCH, ChronoUnit.MILLIS, 44, 8, 18, 0);
+        Layout packed = new Layout(Instant.EPOCH, ChronoUnit.MILLIS, 44, 12, 24, 0);
         String message = problems(RuntimeSpec.builder("app")
             .store("m", store("memory"))
             .machine(leased("m"))
@@ -190,11 +191,13 @@ class RuntimeSpecValidationTest {
             .generator("epoch", GeneratorSpec.CosId80.builder().layout(otherEpoch).build())
             .generator("seconds", GeneratorSpec.CosId80.builder().layout(seconds).build())
             .generator("nodes", GeneratorSpec.CosId80.builder().layout(fewNodes).build())
+            .generator("packed", GeneratorSpec.CosId80.builder().layout(packed).build())
             .build());
         assertThat(message, containsString("generator [narrow]: a cosid80 layout must be wider than a long, not 63 bits: it fits a long, use snowflake"));
         assertThat(message, containsString("generator [epoch]: a cosid80 layout keeps the Unix epoch and milliseconds, not " + Layout.COSID_EPOCH));
         assertThat(message, containsString("generator [seconds]: a cosid80 layout keeps the Unix epoch and milliseconds, not 1970-01-01T00:00:00Z in Seconds"));
         assertThat(message, containsString("generator [nodes]: the layout has 8 node bits, fewer than machine.bits 10"));
+        assertThat(message, containsString("generator [packed]: timeBits + seqBits of a cosid80 layout must be at most 63, not 68"));
     }
 
     @Test

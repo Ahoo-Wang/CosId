@@ -291,8 +291,8 @@ class TimeBasedGeneratorTest {
 
     @Test
     void aCustomCosId80LayoutIssuesItsParts() {
-        // 44 time bits, 12 node bits, 24 sequence bits, a low reset threshold: a new millisecond starts at most at 3.
-        Layout wide = new Layout(Instant.EPOCH, ChronoUnit.MILLIS, 44, 12, 24, 3);
+        // 43 time bits, 12 node bits, 20 sequence bits, a low reset threshold: a new millisecond starts at most at 3.
+        Layout wide = new Layout(Instant.EPOCH, ChronoUnit.MILLIS, 43, 12, 20, 3);
         TimeBasedGenerator generator = generator(wide, FakeSlot.forever(4095), ClockRegressionPolicy.DEFAULT);
         time.set(1_800_000_000_000L);
         for (int i = 0; i < 100; i++) {

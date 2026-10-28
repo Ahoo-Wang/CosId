@@ -178,8 +178,8 @@ public sealed interface GeneratorSpec {
         }
 
         /**
-         * The layout: wider than 63 bits, with the Unix epoch and milliseconds; its node bits must cover the machine
-         * bits.
+         * The layout: wider than 63 bits, with the Unix epoch and milliseconds, {@code timeBits + seqBits} at most 63;
+         * its node bits must cover the machine bits.
          *
          * @return the layout; default {@link Layout#COSID_80}
          */

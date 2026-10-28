@@ -155,6 +155,11 @@ public final class RuntimePlan {
                         if (!layout.epoch().equals(Instant.EPOCH) || layout.unit() != ChronoUnit.MILLIS) {
                             problems.add(at + "a cosid80 layout keeps the Unix epoch and milliseconds, not " + layout.epoch() + " in " + layout.unit());
                         }
+                        // The sequencer packs the time and the sequence in a long (TimeSequencer).
+                        if (layout.timeBits() + layout.seqBits() > Layout.LONG_BITS) {
+                            problems.add(at + "timeBits + seqBits of a cosid80 layout must be at most " + Layout.LONG_BITS + ", not "
+                                + (layout.timeBits() + layout.seqBits()));
+                        }
                         checkNodeBits(spec.machine(), layout, at, problems);
                         codec = Codecs.parts(cosId80.codec(), layout);
                     }

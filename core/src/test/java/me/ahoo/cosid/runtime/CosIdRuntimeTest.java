@@ -591,7 +591,7 @@ class CosIdRuntimeTest {
 
     @Test
     void aCosId80GeneratorUsesItsLayout() {
-        Layout wide = new Layout(Instant.EPOCH, java.time.temporal.ChronoUnit.MILLIS, 44, 12, 24, Layout.defaultSeqResetThreshold(24));
+        Layout wide = new Layout(Instant.EPOCH, java.time.temporal.ChronoUnit.MILLIS, 43, 12, 20, Layout.defaultSeqResetThreshold(20));
         TestStores db = new TestStores("memory");
         RuntimeSpec spec = RuntimeSpec.builder("app")
             .store("db", store("memory"))
@@ -601,7 +601,7 @@ class CosIdRuntimeTest {
             .build();
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(db))) {
             assertThat(runtime.describe().get("token").details().get("nodeBits"), is(12));
-            assertThat(runtime.describe().get("token").details().get("seqBits"), is(24));
+            assertThat(runtime.describe().get("token").details().get("seqBits"), is(20));
             PartsCodec radix = runtime.get("token", PartsCodec.class);
             IdParts parts = runtime.get("token", me.ahoo.cosid.PartsIdGenerator.class).nextParts();
             assertThat(radix.decode(radix.encode(parts)), is(parts));
@@ -609,7 +609,7 @@ class CosIdRuntimeTest {
             PartsCodec friendly = runtime.get("trace", PartsCodec.class);
             IdParts traced = runtime.get("trace", me.ahoo.cosid.PartsIdGenerator.class).nextParts();
             String text = friendly.encode(traced);
-            assertThat(text, matchesPattern("\\d{17}-\\d{1,4}-\\d{1,8}"));
+            assertThat(text, matchesPattern("\\d{17}-\\d{1,4}-\\d{1,7}"));
             assertThat(friendly.decode(text), is(traced));
         }
     }
@@ -618,7 +618,7 @@ class CosIdRuntimeTest {
     void theAcquireTimeoutBoundsTheStart() {
         TestStores db = new TestStores("memory");
         for (int i = 0; i < 2; i++) {
-            assertThat(db.backing("db").acquire("app", new Owner("other-" + i, UUID.randomUUID()), 2, Duration.ofMinutes(5), Duration.ZERO,
+            assertThat(db.backing("db").acquire("app", new Owner("other-" + i, UUID.randomUUID()), 2, Duration.ofMinutes(5), Duration.ofSeconds(1),
                 OptionalInt.empty()), instanceOf(AcquireResult.Acquired.class));
         }
         RuntimeSpec spec = RuntimeSpec.builder("app")

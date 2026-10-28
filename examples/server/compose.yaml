@@ -9,7 +9,7 @@ services:
     # The Redis store's precondition: acknowledged writes survive (AOF, fsync on every write).
     command: [ "redis-server", "--appendonly", "yes", "--appendfsync", "always" ]
   cosid-server:
-    image: ahoowang/cosid-server:${COSID_VERSION:-5.0.0-alpha.1}
+    image: ahoowang/cosid-server:${COSID_VERSION:-5.0.0-SNAPSHOT}
     depends_on: [ redis ]
     ports: [ "8688:8688" ]
     environment:

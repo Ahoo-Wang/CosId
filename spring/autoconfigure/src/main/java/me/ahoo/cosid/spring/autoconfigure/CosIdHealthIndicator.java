@@ -44,6 +44,11 @@ public class CosIdHealthIndicator implements HealthIndicator, GeneratorListener 
     /** The renewal state of each machine, by the namespace of its slot, unique in a runtime. */
     private final Map<String, LeaseState> states = new ConcurrentHashMap<>();
 
+    /**
+     * Creates the indicator on the system clock.
+     *
+     * @param runtime the runtime, once it started
+     */
     public CosIdHealthIndicator(ObjectProvider<CosIdRuntime> runtime) {
         this(runtime, System::currentTimeMillis);
     }

@@ -69,6 +69,11 @@ public final class TimeBasedGenerator implements IdGenerator, PartsIdGenerator, 
             Objects.requireNonNull(regression, "regression"), SafeListener.of(listener));
     }
 
+    /**
+     * The generator name.
+     *
+     * @return the name
+     */
     public String name() {
         return name;
     }
@@ -95,6 +100,11 @@ public final class TimeBasedGenerator implements IdGenerator, PartsIdGenerator, 
         return sequencer.nextParts();
     }
 
+    /**
+     * The bit layout of the ids.
+     *
+     * @return the layout
+     */
     public Layout layout() {
         return layout;
     }

@@ -99,6 +99,17 @@ static RuntimeSpecCustomizer moreGenerators() {          // static: it runs whil
 Customizers run in `@Order` before the runtime starts, and the generators they add get beans too. A customizer must
 not depend on other beans (it is a `static @Bean`), as in 4.x.
 
+An `IdGenerator` of your own joins the runtime by its bean name (4.x `IdGeneratorProvider.set`):
+
+```yaml
+cosid:
+  generators:
+    legacy: { strategy: custom, ref: legacyIdGenerator, codec: [ { radix: { radix: 62 } } ] }
+```
+
+The runtime serves it like the others (bean, `IdFiller`, endpoint) but does not close it, and the bean must not depend
+on `CosIdRuntime`. In code, `GeneratorSpec.Instance.builder(ids).build()` takes the instance itself.
+
 ## Actuator, metrics, health
 
 - Endpoint `cosid`: `GET /actuator/cosid` describes every generator, `/actuator/cosid/{name}` one, and

@@ -20,11 +20,22 @@ package me.ahoo.cosid;
 public class NamespaceMismatchException extends CosIdException {
     private final String namespace;
 
+    /**
+     * Creates the exception.
+     *
+     * @param namespace the namespace
+     * @param detail    what the namespace records and what was asked for
+     */
     public NamespaceMismatchException(String namespace, String detail) {
         super("Namespace [" + namespace + "] mismatch: " + detail);
         this.namespace = namespace;
     }
 
+    /**
+     * The namespace whose metadata differs.
+     *
+     * @return the namespace
+     */
     public String namespace() {
         return namespace;
     }

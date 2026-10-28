@@ -103,6 +103,20 @@ java -jar cosid-migration.jar config --input application.yaml --result apply-res
 4.x 的 `cosid.*` 配置被转换为 5.0 模型。**所有无法原样转换的内容都以注释形式放在输出文件顶部：请逐条审阅。**
 静态槽位会从结果中得到 `not-before: W`。4.x 的 proxy 配置变为一个 `remote` 存储（`baseUrl`、`token`、`connectTimeout`、`requestTimeout`）。
 
+CosIdGenerator 的键按下表对应（`config` 会写出）：
+
+| 4.x `cosid.generator.*` | 5.0 `cosid.generators.<name>.*`（策略 `cosid80`） |
+|---|---|
+| `type: radix62` / `radix36` / `friendly` | `codec[0]`：`radix: { radix: 62 }` / `radix: { radix: 36 }` / `friendly` |
+| `timestamp-bit`（44）、`machine-bit`（20）、`sequence-bit`（16） | `time-bits`、`node-bits`、`seq-bits`（默认相同） |
+| `sequence-reset-threshold`（32767） | `seq-reset-threshold`（默认相同；超出序列范围的 4.x 取值按最大值处理） |
+| `zone-id` | `codec[0].friendly.zone` |
+| `pad-start`（true，只作用于 friendly 文本） | `codec[0].friendly.pad-start`（true） |
+| `namespace` | `machine: generator` + `cosid.machines.generator.namespace`（见[下文](#共享的-cosidgenerator-命名空间)） |
+
+其他键：`cosid.metrics.generated.enabled` 沿用 4.x 的名字。健康检查名为 `cosid`（`/actuator/health/cosid`，开关
+`management.health.cosid.enabled`）。5.0 不认识的 `cosid.*` 键会导致启动失败。
+
 ### 6. 启动 5.0
 
 使用新配置和 5.0 artifact（见下文）部署。第一个时间型 ID 要等到时钟越过 W，最多约 `sourceSkew`。
@@ -264,6 +278,7 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
 | `IdConverter` 系列 | `IdCodec`：`Radix`、`Friendly`、`DatePrefix`、前缀 / 后缀 |
 | `SnowflakeIdStateParser` | `Layout.unpack`、`Friendly.decode` |
 | `IdGeneratorProvider`、`DefaultIdGeneratorProvider.INSTANCE`、share | `CosIdRuntime`、名为 `default` 的生成器 |
+| `IdGeneratorProvider.set(name, generator)` | `strategy: custom` + `ref: <bean>`（`GeneratorSpec.Custom`），或在 `RuntimeSpecCustomizer` 中用 `GeneratorSpec.Instance` |
 | `MachineIdDistributor` 系列、guarder、`~/.cosid-machine-state` | `cosid.machine.leased` / `static`（见[槽位租约](../concepts/slot-lease.md)） |
 | `IntegerIdGenerator`、`UncertaintyIdGenerator`、`LazyIdGenerator` | `IdGenerators.toInt`、`.uncertain`、`.lazy` |
 | `CosIdStoreProvider` | `StoreProvider` |

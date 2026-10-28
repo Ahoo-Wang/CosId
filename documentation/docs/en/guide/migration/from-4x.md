@@ -113,6 +113,20 @@ The 4.x `cosid.*` configuration becomes the 5.0 model. **Everything it could not
 top of the output: review them.** A static slot gets `not-before: W` from the result. A 4.x proxy configuration becomes
 a `remote` store (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`).
 
+The CosIdGenerator keys map as follows (`config` writes them):
+
+| 4.x `cosid.generator.*` | 5.0 `cosid.generators.<name>.*` (strategy `cosid80`) |
+|---|---|
+| `type: radix62` / `radix36` / `friendly` | `codec[0]`: `radix: { radix: 62 }` / `radix: { radix: 36 }` / `friendly` |
+| `timestamp-bit` (44), `machine-bit` (20), `sequence-bit` (16) | `time-bits`, `node-bits`, `seq-bits` (same defaults) |
+| `sequence-reset-threshold` (32767) | `seq-reset-threshold` (same default; a 4.x value beyond the sequence range is taken as its largest) |
+| `zone-id` | `codec[0].friendly.zone` |
+| `pad-start` (true, friendly text only) | `codec[0].friendly.pad-start` (true) |
+| `namespace` | `machine: generator` + `cosid.machines.generator.namespace` ([below](#a-shared-cosidgenerator-namespace)) |
+
+Other keys: `cosid.metrics.generated.enabled` keeps its 4.x name. The health indicator is `cosid`
+(`/actuator/health/cosid`, `management.health.cosid.enabled`). A `cosid.*` key 5.0 does not know fails the start.
+
 ### 6. Start 5.0
 
 Deploy with the new configuration and the 5.0 artifacts (below). The first time-based id waits until the clock passes
@@ -295,6 +309,7 @@ Stop every 5.0 instance of the namespace first: 4.x and 5.0 do not run side by s
 | `IdConverter`s | `IdCodec`: `Radix`, `Friendly`, `DatePrefix`, prefix / suffix |
 | `SnowflakeIdStateParser` | `Layout.unpack`, `Friendly.decode` |
 | `IdGeneratorProvider`, `DefaultIdGeneratorProvider.INSTANCE`, the share | `CosIdRuntime`, the generator `default` |
+| `IdGeneratorProvider.set(name, generator)` | `strategy: custom` + `ref: <bean>` (`GeneratorSpec.Custom`), or `GeneratorSpec.Instance` in a `RuntimeSpecCustomizer` |
 | `MachineIdDistributor`s, the guarder, `~/.cosid-machine-state` | `cosid.machine.leased` / `static` (see [the slot lease](../concepts/slot-lease.md)) |
 | `IntegerIdGenerator`, `UncertaintyIdGenerator`, `LazyIdGenerator` | `IdGenerators.toInt`, `.uncertain`, `.lazy` |
 | `CosIdStoreProvider` | `StoreProvider` |

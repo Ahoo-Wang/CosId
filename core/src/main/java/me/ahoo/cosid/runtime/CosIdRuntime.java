@@ -76,6 +76,11 @@ public final class CosIdRuntime implements AutoCloseable {
         return new CosIdRuntime(RuntimeParts.assemble(spec, options, ownExecutors));
     }
 
+    /**
+     * The namespace of the runtime: of the default machine and of the segment keys.
+     *
+     * @return the namespace
+     */
     public String namespace() {
         return parts.namespace();
     }

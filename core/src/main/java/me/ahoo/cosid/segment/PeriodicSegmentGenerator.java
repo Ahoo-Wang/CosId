@@ -124,6 +124,11 @@ public final class PeriodicSegmentGenerator implements GroupedIdGenerator, AutoC
         this.active = new Active("", null, Long.MIN_VALUE + 1);
     }
 
+    /**
+     * The generator name.
+     *
+     * @return the name
+     */
     public String name() {
         return name;
     }

@@ -91,9 +91,12 @@ one after the other on the same runner.
 
 The `Report` job joins the groups with `benchmark/aggregate-release` into one `report.md` (a table of the groups and
 their runners, then each group's comparison), `baseline-4x.json`, `v5.json`, the re-run JSON, and `baseline-4x.md`
-(the 4.1.0 side alone), uploaded as the `release-gate-report` artifact. Run with `publish = true`, it opens a PR that
-commits the report to `docs/jmh/5.0/` and the 4.1.0 side to `docs/jmh/4.1.0/release-ci.{json,md}` (the clean 4.1.0
-baseline, L1). A FAIL row is published too, for review: investigate it, fix a real regression, and run the gate again.
+(the 4.1.0 side alone), uploaded as the `release-gate-report` artifact. The verdict and every group's comparison are
+written to the job summary of the run, and the markdown alone (`report.md`, `baseline-4x.md`, without the raw JSON) is
+the `release-gate-summary` artifact. The report is evidence, kept with the run: the workflow commits nothing and opens
+no PR. To keep a result in the repository, commit the summary by hand (`report.md` to `docs/jmh/5.0/`,
+`baseline-4x.md` to `docs/jmh/4.1.0/release-ci.md`, the clean 4.1.0 baseline, L1) and link the run. A FAIL row is
+reported the same way: investigate it, fix a real regression, and run the gate again.
 
 A push to a `release-gate-check/**` branch runs the same pipeline with smoke settings and re-runs every row
 (`COSID_RELEASE_RERUN_ALL=true`), to check the workflow and the scripts; it is never a result.

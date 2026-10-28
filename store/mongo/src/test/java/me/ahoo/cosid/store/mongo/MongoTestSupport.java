@@ -16,6 +16,8 @@ package me.ahoo.cosid.store.mongo;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
+import org.testcontainers.containers.ContainerLaunchException;
+import org.testcontainers.containers.output.ToStringConsumer;
 import org.testcontainers.mongodb.MongoDBContainer;
 
 import java.time.Duration;
@@ -48,11 +50,31 @@ final class MongoTestSupport {
         if (external != null && !external.isBlank()) {
             return external;
         }
-        String image = System.getenv("COSID_TEST_MONGODB_IMAGE");
-        MongoDBContainer container = new MongoDBContainer(image == null || image.isBlank() ? DEFAULT_IMAGE : image).withReplicaSet();
-        container.start();
+        MongoDBContainer container = container();
+        start(container);
         // Stopped by the Testcontainers reaper when the test JVM exits.
         return container.getReplicaSetUrl(DATABASE);
+    }
+
+    /** A single-node replica set on {@code COSID_TEST_MONGODB_IMAGE}, not started yet; start it with {@link #start}. */
+    static MongoDBContainer container() {
+        String image = System.getenv("COSID_TEST_MONGODB_IMAGE");
+        return new MongoDBContainer(image == null || image.isBlank() ? DEFAULT_IMAGE : image).withReplicaSet();
+    }
+
+    /**
+     * Starts the container; when it does not come up, the failure carries the output of mongod, which a container that
+     * exits during startup takes with it (CI uploads the test results of a failed job).
+     */
+    static void start(MongoDBContainer container) {
+        ToStringConsumer output = new ToStringConsumer();
+        container.withLogConsumer(output);
+        try {
+            container.start();
+        } catch (ContainerLaunchException e) {
+            throw new IllegalStateException("MongoDB container " + container.getDockerImageName() + " did not start; its output:\n"
+                + output.toUtf8String(), e);
+        }
     }
 
     static synchronized MongoClient client() {

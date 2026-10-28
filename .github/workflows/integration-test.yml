@@ -87,10 +87,35 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      # mongo:8.0 sometimes exits during startup on some runners: record what the runner is, to compare with a failure.
+      - name: Describe the runner
+        run: |
+          {
+            echo "### Runner"
+            echo '```'
+            echo "kernel $(uname -r)"
+            lscpu | grep -E '^(Model name|CPU\(s\)):'
+            for flag in avx avx2; do echo "$flag: $(grep -qw "$flag" /proc/cpuinfo && echo yes || echo no)"; done
+            docker info --format 'Docker {{.ServerVersion}}, cgroup v{{.CgroupVersion}}, {{.NCPU}} CPUs, {{.MemTotal}} bytes'
+            echo "transparent hugepages: $(cat /sys/kernel/mm/transparent_hugepage/enabled)"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Store TCK
         env:
           COSID_TEST_MONGODB_IMAGE: ${{ matrix.image }}
         run: scripts/gradle-retry.sh :store:mongo:check
+
+      # A container that did not start: its mongod output is in the failure message of the test results.
+      - name: Upload the test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-mongo-test-results-${{ strategy.job-index }}
+          path: |
+            store/mongo/build/test-results/test
+            store/mongo/build/reports/tests/test
+          retention-days: 14
 
   # D28: one TCK run on MongoDB versions below the 6.0 minimum, to document real compatibility in store/mongo/README.md.
   # Not a support commitment and never blocking: the step may fail, the job stays green and reports the outcome.

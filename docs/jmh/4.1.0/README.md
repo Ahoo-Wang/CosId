@@ -7,8 +7,9 @@ The scenarios of [benchmark/scenarios.md](../../../benchmark/scenarios.md) on th
 ## smoke-apple-m4-jdk21.json
 
 A short run for development and PR smoke comparisons, **not** the release gate. The release gate runs on CI (the
-`Release Gate` workflow, see [benchmark/scenarios.md](../../../benchmark/scenarios.md)): its 4.1.0 side lands here as
-`release-ci.json` and `release-ci.md`, the clean baseline with release settings, and the comparison in `docs/jmh/5.0/`.
+`Release Gate` workflow, see [benchmark/scenarios.md](../../../benchmark/scenarios.md)): its results stay with the run
+(job summary and artifacts); the 4.1.0 side, the clean baseline with release settings, is committed here by hand as
+`release-ci.md` and the comparison in `docs/jmh/5.0/`, both from the run's `release-gate-summary` artifact.
 
 | | |
 |---|---|

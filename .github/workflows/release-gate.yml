@@ -13,8 +13,10 @@
 
 # The release gate of D21 (10-performance-and-parity.md §1.3): every scenario P1..P12, 4.1.0 against 5.x. Each scenario
 # group is a job of its own; within a job benchmark/run-release runs both sides on the same runner, interleaved per
-# scenario, and re-runs a failed row once in fresh forks (runners are shared machines). The report job joins the groups;
-# with publish = true it opens a PR that commits the report to docs/jmh/5.0/ and the 4.1.0 side to docs/jmh/4.1.0/.
+# scenario, and re-runs a failed row once in fresh forks (runners are shared machines). The report job joins the groups:
+# the verdict and every group's comparison go to the job summary, the full report with the raw JMH JSON to the
+# release-gate-report artifact, and the markdown alone (report.md, baseline-4x.md) to the release-gate-summary artifact,
+# small enough to commit by hand. The report is evidence, not source: nothing is committed or opened as a PR.
 # A push to a release-gate-check/** branch runs the whole pipeline with smoke settings, re-running every row, to check
 # the workflow itself; that is never a result.
 name: Release Gate
@@ -24,10 +26,6 @@ on:
       ref:
         description: 'Branch, tag or commit to measure'
         default: 'main'
-      publish:
-        description: 'Open a PR with the report under docs/jmh/'
-        type: boolean
-        default: false
   push:
     branches:
       - 'release-gate-check/**'
@@ -171,9 +169,6 @@ jobs:
     needs: [ resolve, gate ]
     if: always() && needs.resolve.result == 'success'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -191,13 +186,19 @@ jobs:
         run: |
           groups=()
           for dir in build/release-gate/release-gate-*; do
+            # A re-run of this job also sees its own artifacts of the previous attempt.
+            case "${dir##*/}" in release-gate-report | release-gate-summary) rm -rf "$dir"; continue ;; esac
             group="build/release-gate/groups/${dir##*/release-gate-}"
             mkdir -p "$(dirname "$group")" && mv "$dir" "$group"
             groups+=("$group")
           done
           status=0
           benchmark/aggregate-release build/release-gate/report "${groups[@]}" || status=$?
-          cat build/release-gate/report/report.md >> "$GITHUB_STEP_SUMMARY"
+          {
+            cat build/release-gate/report/report.md
+            echo
+            echo "The raw JMH JSON is in the \`release-gate-report\` artifact, the markdown alone in \`release-gate-summary\`."
+          } >> "$GITHUB_STEP_SUMMARY"
           echo "status=$status" >> "$GITHUB_OUTPUT"
 
       - name: Upload the report
@@ -207,31 +208,15 @@ jobs:
           path: build/release-gate/report
           retention-days: 90
 
-      # The report goes in as a PR, never straight onto a branch; a FAIL is published too, for review.
-      - name: Open a PR with the report
-        if: inputs.publish && github.event_name == 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          SHA: ${{ needs.resolve.outputs.sha }}
-          STATUS: ${{ steps.join.outputs.status }}
-        run: |
-          report=build/release-gate/report
-          mkdir -p docs/jmh/5.0 docs/jmh/4.1.0
-          cp "$report"/report.md "$report"/baseline-4x.json "$report"/v5.json docs/jmh/5.0/
-          cp "$report"/rerun-*.json docs/jmh/5.0/ 2>/dev/null || true
-          cp "$report"/baseline-4x.json docs/jmh/4.1.0/release-ci.json
-          cp "$report"/baseline-4x.md docs/jmh/4.1.0/release-ci.md
-          branch="release-gate/run-${GITHUB_RUN_ID}"
-          git switch -c "$branch"
-          git config user.name 'Ahoo Wang'
-          git config user.email 'ahoowang@gmail.com'
-          git add docs/jmh
-          verdict=$([ "$STATUS" = 0 ] && echo PASS || echo FAIL)
-          git commit -m "docs(jmh): release gate report for ${SHA:0:8} (${verdict})" \
-            -m "Run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} of the Release Gate workflow: the 5.0 report under docs/jmh/5.0/ and the 4.1.0 side as the refreshed baseline under docs/jmh/4.1.0/."
-          git push origin "$branch"
-          gh pr create --base main --head "$branch" --title "docs(jmh): release gate report for ${SHA:0:8} (${verdict})" \
-            --body "Release gate run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID} on ${SHA}: **${verdict}**. See docs/jmh/5.0/report.md."
+      # The markdown alone, without the raw JSON: what a person commits when the report should be kept in the repository.
+      - name: Upload the summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-gate-summary
+          path: |
+            build/release-gate/report/report.md
+            build/release-gate/report/baseline-4x.md
+          retention-days: 90
 
       - name: Fail on a FAIL row
         if: steps.join.outputs.status != '0'

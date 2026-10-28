@@ -142,6 +142,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | WP-release | **E-B2**、**E-B3**、E-M2、E-M3、E-N2、E-N3、E-N4、E-N6–N9 | R5-B | [#1348](https://github.com/Ahoo-Wang/CosId/pull/1348) | ✅ 已合入 `9de77578` |
 | WP-docs | E-N1、C-N4、C-N5;09 §2 表述 | 总调度(本 PR) | #1344 | ✅ 已在本 PR 修改 |
 | WP-migration-doc | D32 停机手工迁移(09 §6、from-4x 中英文) | 会话 `docs-manual-migration` | [#1359](https://github.com/Ahoo-Wang/CosId/pull/1359) | ✅ 已合入 `f2f21f75`(2026-10-28) |
+| WP-alpha1 | D33:版本号 `5.0.0-alpha.1`、alpha 提示、4.x 文档入口、release notes 草稿;4.x document-deploy 只保留手动触发 | 会话 `alpha1-prep` | [#1360](https://github.com/Ahoo-Wang/CosId/pull/1360)(main)、[#1361](https://github.com/Ahoo-Wang/CosId/pull/1361)(4.x) | Draft,内容审查通过;#1360 补 PR 上的文档站构建检查(发布当天手动部署前必须证明能构建) |
 | 需用户决定 | E-M1:改 `4.x` 的 document-deploy(GA 后避免覆盖 5.0 文档站);RC 以 pre-release 发布 | 用户 | | ✅ 已决定(2026-10-28,D33):先发 `5.0.0-alpha.1`(pre-release,不做兼容性承诺);4.x document-deploy 去掉 release 触发 |
 
 ## 4.1 当前待办(交接用)
@@ -173,6 +174,8 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 - 规则:所有 WIP 在 Draft PR 上;CPU ≤ 90%,只在 CI 验证;提交英文、作者 Ahoo Wang、无 Co-authored-by;回复用户用中文。
 
 - **CI 偶发问题(✅ 已由 #1358 解决:根因 SERVER-125742,mongo:8.0 改在 ubuntu-22.04 上运行):** `Store MongoDB (mongo:8.0)` 在部分 runner 上整个 job 的容器都起不来(`Container exited with code 1`,等不到 `waiting for connections`),同一 job 在别的 runner 上通过(#1347 16:26、#1350 17:09)。#1342 两次、#1348 一次因此失败,均为基础设施问题,与改动无关,已重跑。RC 后需查明(可能与 runner 的 CPU 或镜像有关,建议 job 失败时打印容器日志)。
+
+**alpha.1 发布步骤(D33):** 1) #1360、#1361 CI 全绿,经用户同意转 ready 后合入;2) release notes 的已知问题按门槛结论填写;3) 用户最终确认后,在合入 #1360 的提交上创建 pre-release `v5.0.0-alpha.1`(会触发 package-deploy:校验、发布 Central、上传迁移工具 jar;以及 docker-deploy,不打 `latest`);4) 用该 tag 手动触发 `document-deploy`;5) 跟踪各 workflow,在 Central、Docker Hub、站点上核对;6) main 改回 SNAPSHOT 版本(例如 `5.0.0-SNAPSHOT`),避免之后的构建冒用 alpha.1 版本号。
 
 ## 4.2 审查不通过登记
 

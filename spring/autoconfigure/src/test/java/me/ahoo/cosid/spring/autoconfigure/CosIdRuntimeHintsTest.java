@@ -21,10 +21,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
-import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -32,6 +33,19 @@ import java.util.List;
  * The native image hints and the generated configuration metadata.
  */
 class CosIdRuntimeHintsTest {
+    /**
+     * This module's generated metadata, whitespace stripped. Spring Boot's own jars carry a file of the same name, and which
+     * one a plain classpath lookup returns depends on the classpath order, so read the one next to {@link CosIdProperties}.
+     */
+    private static String cosIdMetadata() throws IOException {
+        String clazz = CosIdProperties.class.getName().replace('.', '/') + ".class";
+        String location = CosIdProperties.class.getClassLoader().getResource(clazz).toString();
+        URL metadata = URI.create(location.substring(0, location.length() - clazz.length()) + "META-INF/spring-configuration-metadata.json").toURL();
+        try (InputStream in = metadata.openStream()) {
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8).replaceAll("\\s", "");
+        }
+    }
+
     @Test
     void registersTheResourcesAndTypesTheStoresAndTheEndpointNeed() {
         RuntimeHints hints = new RuntimeHints();
@@ -53,10 +67,7 @@ class CosIdRuntimeHintsTest {
 
     @Test
     void theStoreTypeHintsNameEveryStore() throws IOException {
-        String metadata;
-        try (InputStream in = new ClassPathResource("META-INF/spring-configuration-metadata.json").getInputStream()) {
-            metadata = new String(in.readAllBytes(), StandardCharsets.UTF_8).replaceAll("\\s", "");
-        }
+        String metadata = cosIdMetadata();
         int hints = metadata.indexOf("\"name\":\"cosid.stores.values.type\"");
         assertTrue(hints >= 0, "the store type hints");
         String values = metadata.substring(hints, metadata.indexOf(']', hints));
@@ -67,10 +78,7 @@ class CosIdRuntimeHintsTest {
 
     @Test
     void theConfigurationMetadataDescribesTheCosIdTree() throws IOException {
-        String metadata;
-        try (InputStream in = new ClassPathResource("META-INF/spring-configuration-metadata.json").getInputStream()) {
-            metadata = new String(in.readAllBytes(), StandardCharsets.UTF_8).replaceAll("\\s", "");
-        }
+        String metadata = cosIdMetadata();
         for (String property : List.of(
             "\"name\":\"cosid.enabled\",\"type\":\"java.lang.Boolean\"",
             "\"defaultValue\":\"cosid\"",

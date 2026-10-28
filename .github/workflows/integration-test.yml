@@ -71,11 +71,17 @@ jobs:
   # checkContractsRan fails the job when the contract cases were skipped.
   store-mongo:
     name: Store MongoDB (${{ matrix.image }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        image: [ 'mongo:6.0', 'mongo:8.0' ]
+        include:
+          - image: 'mongo:6.0'
+            os: ubuntu-latest
+          # MongoDB 8.0.21 and later exit during startup on Linux 6.19 up to 7.0.13 (SERVER-125742: the kernel's rseq
+          # change breaks tcmalloc), the kernel of newer ubuntu-24.04 images; ubuntu-22.04 runs 6.8.
+          - image: 'mongo:8.0'
+            os: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -87,7 +93,7 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # The kernel decides whether mongo:8.0 starts (see below); the rest is for comparing with a failure.
+      # The kernel decides whether mongo:8.0 starts (see the matrix); the rest is for comparing with a failure.
       - name: Describe the runner
         run: |
           {
@@ -101,11 +107,10 @@ jobs:
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # MongoDB 8.0.21 and later exit during startup on Linux 6.19 up to 7.0.13 (SERVER-125742: the kernel's rseq change
-      # breaks tcmalloc), so on a runner image with such a kernel the TCK cannot run on 8.0: the job says so instead of
-      # failing. Any other startup failure still runs the TCK, which fails with the output of mongod.
+      # The 8.0 runner must have a kernel MongoDB 8.0 starts on (see the matrix): when the image drifts to an affected
+      # kernel, the job fails here, naming the kernel, instead of losing the 8.0 coverage. Any other startup failure
+      # goes on to the TCK, which fails with the output of mongod.
       - name: Check that MongoDB starts on this kernel
-        id: starts
         if: startsWith(matrix.image, 'mongo:8')
         env:
           IMAGE: ${{ matrix.image }}
@@ -116,20 +121,21 @@ jobs:
             if grep -qi 'waiting for connections' <<< "$logs"; then break; fi
             if grep -qi 'known incompatibility' <<< "$logs"; then
               grep -i 'known incompatibility' <<< "$logs" | head -1
-              echo "::warning title=TCK skipped on $IMAGE::$IMAGE does not start on kernel $(uname -r) (SERVER-125742, Linux 6.19 to 7.0.13); the TCK did not run on it."
-              echo "**TCK skipped**: $IMAGE does not start on kernel $(uname -r) (SERVER-125742)." >> "$GITHUB_STEP_SUMMARY"
-              echo "skip=true" >> "$GITHUB_OUTPUT"
-              break
+              docker rm -f mongo-probe > /dev/null
+              echo "**$IMAGE does not start on kernel $(uname -r)** (SERVER-125742, Linux 6.19 to 7.0.13): move this matrix entry to a runner with another kernel." >> "$GITHUB_STEP_SUMMARY"
+              echo "::error title=$IMAGE does not start on kernel $(uname -r)::SERVER-125742: MongoDB 8.0.21+ exits during startup on Linux 6.19 to 7.0.13; move this matrix entry to a runner with another kernel."
+              exit 1
             fi
             sleep 1
           done
           docker rm -f mongo-probe > /dev/null
 
       - name: Store TCK
-        if: steps.starts.outputs.skip != 'true'
         env:
           COSID_TEST_MONGODB_IMAGE: ${{ matrix.image }}
-        run: scripts/gradle-retry.sh :store:mongo:check
+        run: |
+          scripts/gradle-retry.sh :store:mongo:check
+          echo "**TCK passed** on $COSID_TEST_MONGODB_IMAGE, ${{ matrix.os }}, kernel $(uname -r)." | tee -a "$GITHUB_STEP_SUMMARY"
 
       # A container that did not start: its mongod output is in the failure message of the test results.
       - name: Upload the test results

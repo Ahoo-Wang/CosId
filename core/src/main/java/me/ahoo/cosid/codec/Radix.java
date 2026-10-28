@@ -26,6 +26,10 @@ public final class Radix implements IdCodec {
 
     private static final byte[] DIGITS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".getBytes(StandardCharsets.ISO_8859_1);
     private static final byte[] VALUES = new byte['z' + 1];
+    private static final byte[] HIGH_62 = pairDigits(62, true);
+    private static final byte[] LOW_62 = pairDigits(62, false);
+    private static final byte[] HIGH_36 = pairDigits(36, true);
+    private static final byte[] LOW_36 = pairDigits(36, false);
 
     static {
         Arrays.fill(VALUES, (byte) -1);
@@ -118,8 +122,9 @@ public final class Radix implements IdCodec {
         byte[] buf = new byte[width];
         int start = writeDigits(buf, width, radix, id);
         if (padStart) {
-            Arrays.fill(buf, 0, start, (byte) '0');
-            start = 0;
+            while (start > 0) {
+                buf[--start] = '0';
+            }
         }
         return new String(buf, start, width - start, StandardCharsets.ISO_8859_1);
     }
@@ -139,33 +144,57 @@ public final class Radix implements IdCodec {
      * @return the index of the first digit written; one digit for 0
      */
     static int writeDigits(byte[] buf, int end, int radix, long value) {
+        // A constant radix per case: once inlined, each division becomes a multiplication.
+        return switch (radix) {
+            case 62 -> writePairs(buf, end, 62, HIGH_62, LOW_62, value);
+            case 36 -> writePairs(buf, end, 36, HIGH_36, LOW_36, value);
+            case 10 -> write(buf, end, 10, value);
+            default -> write(buf, end, radix, value);
+        };
+    }
+
+    /**
+     * Two digits per division by {@code radix^2}, as {@code Long.toString} does with 100: half the long divisions.
+     */
+    private static int writePairs(byte[] buf, int end, int radix, byte[] high, byte[] low, long value) {
         int at = end;
-        // A constant divisor per case: the JIT turns each division into a multiplication.
-        switch (radix) {
-            case 62 -> {
-                do {
-                    buf[--at] = DIGITS[(int) (value % 62)];
-                    value /= 62;
-                } while (value > 0);
-            }
-            case 36 -> {
-                do {
-                    buf[--at] = DIGITS[(int) (value % 36)];
-                    value /= 36;
-                } while (value > 0);
-            }
-            case 10 -> {
-                do {
-                    buf[--at] = DIGITS[(int) (value % 10)];
-                    value /= 10;
-                } while (value > 0);
-            }
-            default -> {
-                do {
-                    buf[--at] = DIGITS[(int) (value % radix)];
-                    value /= radix;
-                } while (value > 0);
-            }
+        int square = radix * radix;
+        // The value >= square guard bounds value % square to [0, square), the length of both tables.
+        while (value >= square) {
+            int pair = (int) (value % square);
+            value /= square;
+            buf[--at] = low[pair];
+            buf[--at] = high[pair];
+        }
+        int last = (int) value;
+        buf[--at] = low[last];
+        if (last >= radix) {
+            buf[--at] = high[last];
+        }
+        return at;
+    }
+
+    /**
+     * The digit tables of {@link #writePairs}: for each {@code pair} below {@code radix^2}, its high or low digit.
+     */
+    private static byte[] pairDigits(int radix, boolean high) {
+        byte[] digits = new byte[radix * radix];
+        for (int pair = 0; pair < digits.length; pair++) {
+            digits[pair] = DIGITS[high ? pair / radix : pair % radix];
+        }
+        return digits;
+    }
+
+    private static int write(byte[] buf, int end, int radix, long value) {
+        int at = end;
+        if (value == 0) {
+            buf[--at] = '0';
+            return at;
+        }
+        // The value > 0 guard bounds value % radix to [0, radix), so the JIT drops the DIGITS range check.
+        while (value > 0) {
+            buf[--at] = DIGITS[(int) (value % radix)];
+            value /= radix;
         }
         return at;
     }
@@ -176,13 +205,26 @@ public final class Radix implements IdCodec {
      * @throws IllegalArgumentException for a character that is not a digit of the radix, or a value beyond a long
      */
     static long readDigits(String text, int from, int to, int radix) {
+        // A constant radix and its maxWidth per case, as in writeDigits.
+        return switch (radix) {
+            case 62 -> read(text, from, to, 62, 11);
+            case 36 -> read(text, from, to, 36, 13);
+            case 10 -> read(text, from, to, 10, 19);
+            default -> read(text, from, to, radix, maxWidth(radix));
+        };
+    }
+
+    private static long read(String text, int from, int to, int radix, int maxWidth) {
+        // Fewer than maxWidth digits are below radix^(maxWidth - 1) <= Long.MAX_VALUE: only the digits from the
+        // maxWidth-th on can overflow, so only those take the checked arithmetic.
+        int unchecked = Math.min(to, from + maxWidth - 1);
         long value = 0;
-        for (int i = from; i < to; i++) {
-            char c = text.charAt(i);
-            int digit = c < VALUES.length ? VALUES[c] : -1;
-            if (digit < 0 || digit >= radix) {
-                throw new IllegalArgumentException("[" + text + "] has a character [" + c + "] that is not a digit in radix " + radix + " at " + i);
-            }
+        int i = from;
+        for (; i < unchecked; i++) {
+            value = value * radix + digit(text, i, radix);
+        }
+        for (; i < to; i++) {
+            int digit = digit(text, i, radix);
             try {
                 value = Math.addExact(Math.multiplyExact(value, radix), digit);
             } catch (ArithmeticException overflow) {
@@ -190,6 +232,19 @@ public final class Radix implements IdCodec {
             }
         }
         return value;
+    }
+
+    private static int digit(String text, int at, int radix) {
+        char c = text.charAt(at);
+        int digit = c < VALUES.length ? VALUES[c] : -1;
+        if (digit < 0 || digit >= radix) {
+            throw invalidDigit(text, at, radix);
+        }
+        return digit;
+    }
+
+    private static IllegalArgumentException invalidDigit(String text, int at, int radix) {
+        return new IllegalArgumentException("[" + text + "] has a character [" + text.charAt(at) + "] that is not a digit in radix " + radix + " at " + at);
     }
 
     /**

@@ -35,7 +35,7 @@ does not know fails the start and lists the ones it does:
 
 | Type | Options (default) |
 |---|---|
-| `jdbc` | `url`, `username`, `password`; `dialect` (detected); `initSchema` (`false`); `rangeTable` (`cosid_range`), `slotTable` (`cosid_slot`), `namespaceTable` (`cosid_namespace`) |
+| `jdbc` | `url`, `username`, `password`; `dialect` (detected); `initSchema` (`false`); `rangeTable` (`cosid_range`), `slotTable` (`cosid_slot`), `namespaceTable` (`cosid_namespace`); `fetchPlan` (`statement`; `transaction` behind an SQL proxy) |
 | `redis` | `uri`; `cluster` (`false`); `wait` (`auto` / `off` / a replica count); `sweepBatch` (`16`) |
 | `mongo` | `uri`; `database` (`cosid_db`); `writeConcern` (`majority`; weaker settings log a `WARN`) |
 | `zookeeper` | `connectString` (`localhost:2181`); `sessionTimeout` (`60s`); `connectionTimeout` (`15s`); `blockUntilConnectedWait` (`10s`); `retry.baseSleepTime` (`100ms`), `retry.maxRetries` (`5`), `retry.maxSleep` (`500ms`) |

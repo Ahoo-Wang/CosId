@@ -33,7 +33,7 @@ record 绑定。生成器与编解码器：[生成器](generators.md)。cosid-se
 
 | 类型 | 选项（默认值） |
 |---|---|
-| `jdbc` | `url`、`username`、`password`；`dialect`（自动探测）；`initSchema`（`false`）；`rangeTable`（`cosid_range`）、`slotTable`（`cosid_slot`）、`namespaceTable`（`cosid_namespace`） |
+| `jdbc` | `url`、`username`、`password`；`dialect`（自动探测）；`initSchema`（`false`）；`rangeTable`（`cosid_range`）、`slotTable`（`cosid_slot`）、`namespaceTable`（`cosid_namespace`）；`fetchPlan`（`statement`；位于 SQL 代理之后时为 `transaction`） |
 | `redis` | `uri`；`cluster`（`false`）；`wait`（`auto` / `off` / 副本数）；`sweepBatch`（`16`） |
 | `mongo` | `uri`；`database`（`cosid_db`）；`writeConcern`（`majority`；更弱的设置会记录 `WARN`） |
 | `zookeeper` | `connectString`（`localhost:2181`）；`sessionTimeout`（`60s`）；`connectionTimeout`（`15s`）；`blockUntilConnectedWait`（`10s`）；`retry.baseSleepTime`（`100ms`）、`retry.maxRetries`（`5`）、`retry.maxSleep`（`500ms`） |

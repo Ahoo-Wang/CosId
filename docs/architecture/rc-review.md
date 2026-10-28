@@ -159,6 +159,12 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **发布门槛:** run 40534275762 结论 **FAIL**(5/8 组),见 §4.2 #1357;D21 未满足,RC 阻断。
 
+**门槛第二次运行(2026-10-28,[run 40623986450](https://github.com/Ahoo-Wang/CosId/actions/runs/40623986450),main `a68a0191`,含 #1351/#1354,不含 #1352/#1355):FAIL,6/8 组。** 重跑后仍失败:
+- 确定的回退:codec radix36/62 编解码吞吐 −9~−18%(原因见 #1345);MySQL acquire/renew/reserve 分配 +25~+67%、acquire 耗时 +15%;ZK reserve 分配 +19%;SegmentNoPrefetch 分配 24→32 B、吞吐 −6%。
+- 接近噪声:Mongo reserve 分配 +5%、p99/p99.9 +2~4%;Redis reserve p99.9 一行;ZK renew 分配 +2%;MySQL 多行延迟 +0.8~8%。
+- **门槛判定本身过严**:阈值只比 4.x 宽 0.3%~1.5%(例如 renew 906.4 vs 913.5 µs,阈值 908.9),低于共享 runner 的噪声,同一代码两次运行也会有不同的行失败。需要用户裁定 D21 的判定口径(例如吞吐与平均延迟 5%、p99.9 10%、分配 5% 或 +64 B,可重复失败才算回退)。
+- 派发顺序(一次一个子会话):codec → MySQL 分配 → segment 与 ZK 分配 → 复核噪声行。alpha.1 不等门槛(D33),数据写入 release notes 已知问题。
+
 **协调(2026-10-28,用户同意执行顺序):**
 1. 第一次门槛测的是修复合入前的 `614d5df9`;#1354(JDBC 排序规则与超时)、#1351(存储 I/O 移出锁)会改变 MySQL 与租约的数据。因此先在 main 上重跑:[run 40623986450](https://github.com/Ahoo-Wang/CosId/actions/runs/40623986450)(`a68a0191`,publish=false)。结果出来后再派发回退修复:R1-A' codec radix 编解码(在 #1352 合入后的 main 上做,避免冲突;原因见 #1345)、R2-JDBC' MySQL store;mongo/zookeeper/segment 用两次结果判断是否为噪声,仍超阈值的分别派发或请用户裁定例外。
 2. 已派发会话 `r2-redis-b-b1`:#1355 查清 Redis 7.0 下 `wait=auto` 解析为 0 的根因并修复。

@@ -76,7 +76,7 @@ public interface TimeSource {
 ## 4. TimeBasedGenerator
 
 ```java
-public final class TimeBasedGenerator implements IdGenerator, AutoCloseable {
+public final class TimeBasedGenerator implements IdGenerator, PartsIdGenerator, AutoCloseable {
     public TimeBasedGenerator(String name, Layout layout, SlotHandle slot, TimeSource time,
                               ClockRegressionPolicy regression, GeneratorListener listener);
     public long generate();              // 仅 totalBits ≤ 63
@@ -84,7 +84,7 @@ public final class TimeBasedGenerator implements IdGenerator, AutoCloseable {
     public Layout layout();
     public int slot();
     public long lastIssuedMillis();
-    public void close();                 // 状态 CAS 为终止哨兵,返回后不会再有任何发号
+    public void close();                 // 换上终止状态,返回后不会再有任何发号
 }
 
 public record ClockRegressionPolicy(Duration borrowUpTo, Duration waitUpTo) {
@@ -99,34 +99,37 @@ public record ClockRegressionPolicy(Duration borrowUpTo, Duration waitUpTo) {
 
 ### 4.1 发号算法
 
-生成器持有 `AtomicReference<Bound>`,`Bound = (SlotBinding b, AtomicLong state)`(见 [05-machine-lease.md](05-machine-lease.md) §4.1)。
-`state` 打包了 `(timeOffset << seqBits) | seq`;另有一个终止哨兵 `CLOSED`。
+生成器(`internal.TimeSequencer`)持有 `AtomicReference<Bound>`,`Bound = (SlotBinding b, AtomicLong state)`(见 [05-machine-lease.md](05-machine-lease.md) §4.1),
+以及一把锁(`synchronized`)。`state` 打包了 `(timeOffset << seqBits) | seq`;被替换或关闭的状态是哨兵 `CLOSED`,关闭后换上终止 `Bound`(`TERMINATED`)。
 
 ```
-bound = this.bound.get()
-if bound.b != slot.current(): CAS 换上 Bound(slot.current(), 新的初始状态); 重新读取 bound
-b = bound.b;  state = bound.state
 loop:
-  s = state.get()
-  if s == CLOSED:              throw IllegalStateException
-  if !b.isValid():             throw SlotLostException
-  t, q = unpack(s);  now = time.now(unit) − epoch
-  tm   = toMillis(max(now, t))                       // 本次将使用的时间单位所覆盖的毫秒区间起点
-  if tm ≤ b.floor:             wait(b.floor − tm); continue          // 首次发号与每次换绑都会走到这里
-  if tm + unitMillis − 1 > b.ceiling:  onWindowExceeded(); 按 regression.waitUpTo 等待续约,否则抛出 SlotWindowExceededException
-  if now > t:                  next = pack(now, startSeq(now))      // startSeq 保留 4.x 的低位打散
-  elif now == t:
-      if q < seqMax:           next = s + 1
-      else:                    onSequenceExhausted(); waitUntilAfter(t); continue
-  else:                        regression.handle(t − now)  → 借用 t / 等待 / 抛出
-  if state.compareAndSet(s, next): return pack(t', b.slot, seq')
+  synchronized (lock):                 // 一次尝试;锁内从不等待
+    bound = this.bound.get()
+    if bound == TERMINATED:            throw IllegalStateException
+    if bound.b != slot.current():      old = bound; bound = Bound(slot.current(), INITIAL); this.bound.set(bound); retire(old)   // 换绑即重置序列
+    b = bound.b;  s = bound.state.get()
+    if !b.isValid():                   throw SlotLostException
+    t, q = unpack(s);  now = time.now(unit) − epoch
+    if now > t:                        next = pack(now, startSeq(now))      // startSeq 保留 4.x 的低位打散
+    elif now == t:
+        if q < seqMax:                 next = s + 1
+        else:                          结果 = EXHAUSTED
+    else:                              regression.classify(t − now)  → 借用 t / 结果 = WAIT / FAIL
+    tm = toMillis(本次使用的时间单位)                                    // 该单位覆盖的毫秒区间起点
+    if tm ≤ b.floor:                   结果 = WAIT(b.floor − tm)           // 首次发号与每次换绑都会走到这里
+    elif tm + unitMillis − 1 > b.ceiling: 结果 = WINDOW_EXCEEDED
+    else:                              bound.state.setRelease(next); 记下 b.slot
+  if 已发号:                           return pack(t', slot, seq')
+  // 锁外:发事件(每次调用每类一次),等待(序列耗尽、回拨、floor、在 ceiling 处等待续约至 regression.waitUpTo)或抛出,然后重试
 ```
 
-- **发号本身是一个很短的临界区**(D25):读时间、检查 floor/ceiling、计算、发布新状态。**所有等待都在锁外**:floor 等待、序列耗尽、回拨等待、在 ceiling 处等待续约时,先释放锁再等待,然后重试。
+- **发号本身是一个很短的临界区**(D25):读绑定与时间、检查 floor/ceiling、计算、发布新状态。**所有等待都在锁外**:floor 等待、序列耗尽、回拨等待、在 ceiling 处等待续约时,先释放锁再等待,然后重试;listener 也在锁外调用。
   R1-A 的基准表明,无锁 CAS 在 16 线程下只有 4.x 的 92–97%(缓存行在核间搬运),而短临界区与 4.x 持平;要保住的性质是"不在锁内等待",而不是"无锁"。
-- floor/ceiling 检查是安全条件,在 CAS 之前对本次实际使用的时间戳进行,与 GC 停顿、时钟跳变无关。
+- 新状态用 `setRelease` 发布(R1-core-05):下一次尝试在同一把锁内读取;锁外唯一的读者 `lastIssuedMillis()` 可以容忍旧值,直到 `close()` 或换绑用 `getAndSet` 退役状态,那时是精确的。
+- floor/ceiling 检查是安全条件,在发布新状态之前对本次实际使用的时间戳进行,与 GC 停顿、时钟跳变无关。
 - 换绑后序列器随新绑定一起重置,ID 中的槽位总是取自同一个绑定。
-- `close()`:把当前 `Bound` 的状态 CAS 为 `CLOSED`(并阻止换上新的 `Bound`),被替换的状态给出精确的 `lastIssued`。并发中的 CAS 会失败,随后读到 `CLOSED` 并抛出异常。
+- `close()`:在锁内换上终止 `Bound`,并把被替换的状态 `getAndSet` 为 `CLOSED`,由此得到精确的 `lastIssued`。之后的尝试读到终止 `Bound` 并抛出 `IllegalStateException`。
 
 ## 5. 工具与小众能力(D21:特性不回退)
 

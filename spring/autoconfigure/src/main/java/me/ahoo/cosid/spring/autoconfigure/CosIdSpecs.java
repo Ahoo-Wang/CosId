@@ -47,6 +47,8 @@ public final class CosIdSpecs {
     public static final String COSID80 = "cosid80";
     public static final String SEGMENT = "segment";
     public static final String PERIODIC_SEGMENT = "periodic-segment";
+    /** The strategy of a user generator ({@code GeneratorSpec.Custom} or {@code Instance}) in {@code describe()}. */
+    public static final String CUSTOM = "custom";
 
     private static final Map<String, Layout> LAYOUTS = Map.of(
         "SNOWFLAKE_MS", Layout.SNOWFLAKE_MS,

@@ -58,4 +58,21 @@ class SharedSlotOffsetTest {
         Migration.checkSlotOffset("global", 3, (1 << 20) - 1024, 10, 20);
         assertThrows(MigrationAbortedException.class, () -> Migration.checkSlotOffset("global", 3, (1 << 20) - 1023, 10, 20));
     }
+
+    @Test
+    void theMachineIdOfA4xStateIsReadOrMinusOne() {
+        assertThat(me.ahoo.cosid.migration.source.SourceSnapshot.machineIdOf("12|1700000000000"), is(12));
+        assertThat(me.ahoo.cosid.migration.source.SourceSnapshot.machineIdOf(" 5 "), is(5));
+        assertThat(me.ahoo.cosid.migration.source.SourceSnapshot.machineIdOf("host:8080"), is(-1));
+        assertThat(me.ahoo.cosid.migration.source.SourceSnapshot.machineIdOf(null), is(-1));
+        assertThat(new me.ahoo.cosid.migration.source.SourceSnapshot(java.util.Map.of(), java.util.Map.of(), 0, java.util.List.of()).maxMachineId(),
+            is(-1));
+    }
+
+    @Test
+    void theSlotsKeepTheirOffset() {
+        assertThat(Plan.Slots.of(10, 1000), is(Plan.Slots.of(10, 1000, 0)));
+        assertThat(Plan.Slots.of(10, 1000, 512).slotOffset(), is(512));
+        assertThrows(IllegalArgumentException.class, () -> Plan.Slots.of(10, 1000, -1));
+    }
 }

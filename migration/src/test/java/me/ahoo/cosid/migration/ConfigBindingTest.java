@@ -211,6 +211,31 @@ class ConfigBindingTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void aStaticDefaultMachineGivesAStaticGeneratorMachine(@TempDir Path dir) throws IOException {
+        // A manual 4.x machine: the shared namespace becomes a static named machine whose slot each service sets.
+        Path input = dir.resolve("application.yaml");
+        Files.writeString(input, """
+            cosid:
+              namespace: orders
+              machine: { enabled: true, distributor: { type: manual, manual: { machine-id: 7 } } }
+              generator:
+                enabled: true
+                namespace: global-ids
+                type: radix
+                pad-start: false
+            """);
+        Legacy4x legacy = new Legacy4x(FlatConfig.load(input));
+        ConfigConverter.Conversion conversion = new ConfigConverter(ZoneId.of("UTC")).convert(legacy.config(), null);
+        Map<String, Object> cosid = (Map<String, Object>) conversion.model().get("cosid");
+        Map<String, Object> generator = (Map<String, Object>) ((Map<String, Object>) cosid.get("machines")).get("generator");
+        assertThat(generator.get("namespace"), is("global-ids"));
+        assertThat(generator.get("static"), is(Map.of("slot", "${COSID_GENERATOR_SLOT}")));
+        assertThat(conversion.report(), hasItem(containsString("cosid.machines.generator.static.slot is ${COSID_GENERATOR_SLOT}")));
+        assertThat(conversion.report(), hasItem(containsString("cosid.generator.pad-start = false: 4.x applies it to friendly text only")));
+    }
+
+    @Test
     void theStatefulSetSlotBindsFromThePodOrdinal() throws IOException {
         MachineSpec.Static machine = (MachineSpec.Static) edgeSpec().machine().orElseThrow();
         assertThat(machine.slot(), is(3));

@@ -66,19 +66,9 @@ class ClusterReplicaWaitTest {
     @Test
     void autoWaitsForOneReplicaOfEachPrimary() {
         try (StatefulRedisClusterConnection<String, String> connection = cluster.client().connect()) {
-            int seen = LettuceRedisScripts.connectedReplicas(connection);
-            if (seen != 1) {
-                StringBuilder diagnostic = new StringBuilder("lettuce partitions: ").append(connection.getPartitions());
-                cluster.client().refreshPartitions();
-                diagnostic.append("\nafter refresh: ").append(LettuceRedisScripts.connectedReplicas(connection)).append(' ').append(connection.getPartitions());
-                cluster.nodes().forEach((port, node) -> {
-                    try (var nodeConnection = node.connect()) {
-                        diagnostic.append("\n--- node ").append(port).append(" CLUSTER NODES:\n").append(nodeConnection.sync().clusterNodes())
-                            .append("\nINFO replication:\n").append(nodeConnection.sync().info("replication"));
-                    }
-                });
-                throw new AssertionError("auto resolved to " + seen + "\n" + diagnostic);
-            }
+            // On Redis 7.0 the topology may still list the replicas as primaries without slots; auto must see them anyway.
+            assertEquals(1, RedisStoreProvider.replicas("auto", () -> LettuceRedisScripts.fewestReplicas(connection, RedisServers.TIMEOUT)),
+                () -> "the topology: " + connection.getPartitions());
         }
         assertEquals(3, cluster.replicaPorts().size());
     }

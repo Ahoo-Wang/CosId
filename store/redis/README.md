@@ -31,7 +31,7 @@ is strict, prefer the JDBC or ZooKeeper store. For the same reason the keys must
 |---|---|---|
 | `uri` | — | a Redis URI, when no client is given |
 | `cluster` | `false` | `uri` names a Redis Cluster |
-| `wait` | `auto` | `auto`: `WAIT 1` after every write when the server has replicas (`INFO replication` at open; in a cluster, when every primary has one); `off`; or the replica count |
+| `wait` | `auto` | `auto`: `WAIT 1` after every write when the server has replicas (`INFO replication` at open; in a cluster, each primary serving slots is asked for its replicas, `INFO replication` and `CLUSTER REPLICAS`, and the open fails when some primaries have replicas and others none); `off`; or the replica count |
 | `sweepBatch` | 16 | how many expired leases one acquire moves back to the free set at most |
 
 `StoreConfig.timeout` bounds every command and is the `WAIT` timeout; a command that gets no answer within it fails

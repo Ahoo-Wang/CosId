@@ -26,8 +26,11 @@ import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 import io.lettuce.core.cluster.models.partitions.RedisClusterNode;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -118,26 +121,38 @@ public final class LettuceRedisScripts implements RedisScripts {
     }
 
     /**
-     * The fewest replicas any primary of the cluster has, from the cluster topology: what {@code wait=auto} waits for
-     * (capped at 1 by the provider).
+     * The fewest replicas any primary of the cluster has: what {@code wait=auto} waits for (capped at 1 by the provider).
+     * Each primary serving slots is asked for its own: the more of its connected replicas ({@code INFO replication},
+     * what {@code WAIT} counts) and the replicas the cluster bus knows ({@code CLUSTER REPLICAS}, connected or not). The
+     * cluster topology alone is not enough: on Redis 7.0 it may list replicas in sync as primaries without slots, so
+     * {@code auto} would resolve to 0 and never {@code WAIT}. When some primaries have replicas and others none,
+     * {@code WAIT} would fail every write of the latter, and skipping it would drop the guarantee of the former, so this
+     * fails.
      *
      * @param connection the connection
+     * @param timeout    how long to wait for each reply
      * @return the replica count of the primary with the fewest replicas
+     * @throws RedisStoreException when no primary serves slots, or some primaries have replicas and others none
      */
-    public static int connectedReplicas(StatefulRedisClusterConnection<String, String> connection) {
-        int fewest = Integer.MAX_VALUE;
+    public static int fewestReplicas(StatefulRedisClusterConnection<String, String> connection, Duration timeout) {
+        Map<String, Integer> replicas = new TreeMap<>();
         for (RedisClusterNode node : connection.getPartitions()) {
             if (node.is(RedisClusterNode.NodeFlag.UPSTREAM) && !node.getSlots().isEmpty()) {
-                int count = 0;
-                for (RedisClusterNode other : connection.getPartitions()) {
-                    if (node.getNodeId().equals(other.getSlaveOf())) {
-                        count++;
-                    }
-                }
-                fewest = Math.min(fewest, count);
+                String nodeId = node.getNodeId();
+                StatefulRedisConnection<String, String> primary = connection.getConnection(nodeId);
+                int known = await(primary.async().clusterReplicas(nodeId), timeout).size();
+                replicas.put(node.getUri() + " " + nodeId, Math.max(connectedReplicas(primary, timeout), known));
             }
         }
-        return fewest == Integer.MAX_VALUE ? 0 : fewest;
+        if (replicas.isEmpty()) {
+            throw new RedisStoreException("No Redis Cluster primary serves slots: " + connection.getPartitions());
+        }
+        int fewest = Collections.min(replicas.values());
+        if (fewest == 0 && Collections.max(replicas.values()) > 0) {
+            throw new RedisStoreException("Some Redis Cluster primaries have replicas and others none, so wait=auto can neither WAIT nor skip it: "
+                + replicas + "; set options.wait to off or to a replica count");
+        }
+        return fewest;
     }
 
     /**

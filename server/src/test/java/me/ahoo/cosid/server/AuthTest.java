@@ -130,7 +130,7 @@ class AuthTest {
     void clientTokensGetTheClientPathsOnly() {
         List<String> adminPaths = List.of("/actuator", "/actuator/cosid", "/actuator/cosid/default", "/actuator/cosid/default/long",
             "/actuator/prometheus", "/actuator/info", "/v3/api-docs", "/v3/api-docs.yaml", "/swagger-ui.html", "/swagger-ui/index.html",
-            "/%61ctuator/cosid", "/actuator;x=y/cosid", "/actuator/cosid/", "/anything-else", "/ranges", "/ids%2F..%2Factuator/cosid");
+            "/%61ctuator/cosid", "/actuator;x=y/cosid", "/actuator/cosid/", "/anything-else", "/ranges");
         for (String client : List.of(ORDERS, PREFIXED, STAR)) {
             for (String path : adminPaths) {
                 HttpResponse<String> response = server.get(path, client);
@@ -142,7 +142,8 @@ class AuthTest {
         for (String path : List.of("/actuator", "/actuator/cosid", "/actuator/prometheus", "/v3/api-docs", "/swagger-ui/index.html")) {
             assertEquals(200, server.get(path, TestServer.TOKEN).statusCode(), () -> path + " with an unrestricted token");
         }
-        for (String path : List.of("/ids/../actuator/cosid", "/ids/%2e%2e/actuator/cosid", "/ids/./x")) {
+        // Dot segments get our 400 (or 403); an encoded slash gets Tomcat's own 400 page before the filter. Either way: refused.
+        for (String path : List.of("/ids/../actuator/cosid", "/ids/%2e%2e/actuator/cosid", "/ids/./x", "/ids%2F..%2Factuator/cosid")) {
             HttpResponse<String> response = server.send(HttpRequest.newBuilder(URI.create(server.baseUrl() + path)).header("Authorization", "Bearer " + ORDERS)
                 .GET().build());
             assertTrue(response.statusCode() == 400 || response.statusCode() == 403, () -> path + " with a client token: " + response.statusCode());

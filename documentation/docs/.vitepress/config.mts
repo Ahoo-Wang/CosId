@@ -43,7 +43,8 @@ if (SITE_BASE == '/wow/') {
 
 // https://vitepress.dev/reference/site-config
 let userConfig = defineConfig({
-    // A dead internal link fails the build; document-build.yml builds the site on every pull request that touches it.
+    // A dead internal link fails the build; the "Build the site" job of integration-test.yml builds it on every pull
+    // request that touches documentation/.
     // The Javadoc under /javadoc/ is copied in only by document-deploy.yml, and no page links to it from Markdown.
     ignoreDeadLinks: [/^\/javadoc\//],
     buildEnd(siteConfig) {

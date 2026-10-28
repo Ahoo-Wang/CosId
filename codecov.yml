@@ -11,6 +11,12 @@ coverage:
       default:
         target: 80%
         threshold: 1%
+# The CI workflow uploads one report per job, flagged by job (check, jdbc, mongo, redis, zookeeper, server, spring),
+# and only from the jobs a pull request's changes need: the flags it did not run carry the base commit's coverage
+# forward, so the project total compares like with like. The status waits for CI to finish (wait_for_ci).
+flag_management:
+  default_rules:
+    carryforward: true
 ignore:
   - "benchmark/.*"
   - "examples/.*"

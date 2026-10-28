@@ -11,37 +11,152 @@
 # limitations under the License.
 #
 
-name: Integration Test
+# The checks of every pull request and of main, in one workflow whose last job, CI, is the one result to require.
+# - A pull request runs what its changes reach (job changes): Check for any code, a store's TCK for that store, the
+#   server and Spring for the stores and modules they build on, the site for documentation/; core, the TCK, the build
+#   and this workflow reach everything. main, the nightly schedule and a manual run take everything, plus the probes of
+#   versions below the minimum (D28) and the whole Spring Boot x Java matrix.
+# - check runs once per push: Check covers every project except those in SKIP_TESTS, whose tests run in their own job
+#   (their containers start once); each job uploads its coverage to Codecov under a flag of its own (codecov.yml carries
+#   the flags a pull request did not run forward).
+# - A newer push to a pull request cancels the run of the older one; runs on main are never cancelled.
+name: CI
 on:
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - 'documentation/**'
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 env:
   CI: true
 permissions:
   contents: read
 
 jobs:
-  # 5.x: one job runs every module's check (compile, Checkstyle, SpotBugs, tests, JaCoCo), the dependency rules and the
-  # build-logic tests. Each store/* module gets its own TCK job here as it lands (02-modules.md §5).
-  # L5: the tests of the projects in SKIP_TESTS run in their own job below (store-*, server, spring-compatibility on the
-  # build's Boot and Java 21), so check leaves them out and their containers start once per CI run.
+  # Which jobs a pull request needs, and the matrices: the probes and the full Spring matrix run only when full.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      full: ${{ steps.plan.outputs.full }}
+      code: ${{ steps.plan.outputs.code }}
+      docs: ${{ steps.plan.outputs.docs }}
+      jdbc: ${{ steps.plan.outputs.jdbc }}
+      mongo: ${{ steps.plan.outputs.mongo }}
+      redis: ${{ steps.plan.outputs.redis }}
+      zookeeper: ${{ steps.plan.outputs.zookeeper }}
+      server: ${{ steps.plan.outputs.server }}
+      spring: ${{ steps.plan.outputs.spring }}
+      jdbc-matrix: ${{ steps.plan.outputs.jdbc-matrix }}
+      redis-matrix: ${{ steps.plan.outputs.redis-matrix }}
+      spring-matrix: ${{ steps.plan.outputs.spring-matrix }}
+    steps:
+      # Each filter matches a file only when every pattern does (predicate-quantifier: every), so the first pattern
+      # lists the paths and the others leave out Markdown and documentation.
+      - name: Filter the changed paths
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v4
+        with:
+          predicate-quantifier: every
+          filters: |
+            all:
+              - '{core/**,store/tck/**,build-logic/**,gradle/**,config/**,scripts/**,bom/**,.github/actions/**,.github/workflows/integration-test.yml,build.gradle.kts,settings.gradle.kts,gradle.properties,gradlew,gradlew.bat,codecov.yml}'
+              - '!**/*.md'
+            code:
+              - '**'
+              - '!{docs,documentation,skills}/**'
+              - '!**/*.md'
+            docs:
+              - '{documentation/**,gradle.properties,.github/workflows/integration-test.yml}'
+            jdbc:
+              - 'store/jdbc/**'
+              - '!**/*.md'
+            mongo:
+              - 'store/mongo/**'
+              - '!**/*.md'
+            redis:
+              - 'store/redis/**'
+              - '!**/*.md'
+            zookeeper:
+              - 'store/zookeeper/**'
+              - '!**/*.md'
+            server:
+              - '{store/**,server/**,spring/autoconfigure/**,integrations/**}'
+              - '!**/*.md'
+            spring:
+              - '{store/**,spring/**,integrations/**}'
+              - '!**/*.md'
+
+      - name: Plan the jobs
+        id: plan
+        env:
+          FULL: ${{ github.event_name != 'pull_request' }}
+          FILTER: ${{ toJSON(steps.filter.outputs) }}
+        run: |
+          python3 -I - >> "$GITHUB_OUTPUT" <<'EOF'
+          import json, os
+          full = os.environ["FULL"] == "true"
+          changed = json.loads(os.environ["FILTER"] or "{}") or {}
+          def on(name):
+              return full or changed.get("all") == "true" or changed.get(name) == "true"
+          out = {name: on(name) for name in ("code", "docs", "jdbc", "mongo", "redis", "zookeeper", "server", "spring")}
+          out["full"] = full
+          jdbc = [
+              dict(versions="minimum", mysql="mysql:8.4", mariadb="mariadb:10.11", postgres="postgres:15-alpine",
+                   sqlserver="mcr.microsoft.com/mssql/server:2019-latest", dialects="h2,mysql,mariadb,postgresql,sqlserver",
+                   tests="", probe=False, coverage=True),
+              dict(versions="current", mysql="mysql:9", mariadb="mariadb:11", postgres="postgres:18-alpine",
+                   sqlserver="mcr.microsoft.com/mssql/server:2022-latest", dialects="h2,mysql,mariadb,postgresql,sqlserver",
+                   tests="", probe=False, coverage=False),
+              dict(versions="probe MySQL 8.0, MariaDB 10.6, PostgreSQL 12, SQL Server 2017", mysql="mysql:8.0",
+                   mariadb="mariadb:10.6", postgres="postgres:12-alpine", sqlserver="mcr.microsoft.com/mssql/server:2017-latest",
+                   dialects="mysql,mariadb,postgresql,sqlserver", tests="", probe=True, coverage=False),
+              dict(versions="probe PostgreSQL 13", mysql="mysql:8.4", mariadb="mariadb:10.11", postgres="postgres:13-alpine",
+                   sqlserver="mcr.microsoft.com/mssql/server:2019-latest", dialects="postgresql",
+                   tests="me.ahoo.cosid.store.jdbc.Postgres*", probe=True, coverage=False),
+              dict(versions="probe PostgreSQL 14", mysql="mysql:8.4", mariadb="mariadb:10.11", postgres="postgres:14-alpine",
+                   sqlserver="mcr.microsoft.com/mssql/server:2019-latest", dialects="postgresql",
+                   tests="me.ahoo.cosid.store.jdbc.Postgres*", probe=True, coverage=False),
+          ]
+          # D28: once below the 7.0 minimum, to document real compatibility (store/redis README); never blocks.
+          redis = [dict(redis="7.0", probe=False, coverage=False), dict(redis="8.10", probe=False, coverage=True),
+                   dict(redis="6.2", probe=True, coverage=False)]
+          # The lowest supported and the build's Boot on Java 21 and 25; a pull request runs the two diagonals.
+          spring = [dict(boot="4.0.8", java="21", coverage=False), dict(boot="4.1.2", java="25", coverage=True),
+                    dict(boot="4.0.8", java="25", coverage=False, full=True), dict(boot="4.1.2", java="21", coverage=False, full=True)]
+          out["jdbc-matrix"] = [e for e in jdbc if full or not e["probe"]]
+          out["redis-matrix"] = [e for e in redis if full or not e["probe"]]
+          out["spring-matrix"] = [{k: v for k, v in e.items() if k != "full"} for e in spring if full or not e.get("full")]
+          for name, value in out.items():
+              print(f"{name}={json.dumps(value) if isinstance(value, list) else str(value).lower()}")
+          EOF
+          cat "$GITHUB_OUTPUT"
+
+  # Every module's check (compile, Checkstyle, SpotBugs, tests, JaCoCo), the dependency rules and the build-logic
+  # tests, except the tests of SKIP_TESTS, which run in their own jobs below.
   check:
     name: Check
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       SKIP_TESTS: ':store:jdbc,:store:mongo,:store:redis,:store:zookeeper,:store:remote,:server,:spring:autoconfigure,:spring:starter,:integrations:jackson,:integrations:mybatis,:integrations:spring-data-jdbc,:integrations:activiti,:integrations:flowable,:integrations:axon'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
 
       # Each project left out must be checked by another job of this workflow.
       - name: Check the left-out tests run elsewhere
@@ -67,17 +182,35 @@ jobs:
       - name: Compile the benchmarks
         run: ./gradlew :benchmark:baseline-4x:jmhJar :benchmark:v5:jmhJar
 
+      - name: Upload the coverage
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: check
+          files: ./**/build/reports/jacoco/test/jacocoTestReport.xml
+          fail_ci_if_error: true
+
+      - name: Report the failed tests
+        if: failure()
+        uses: ./.github/actions/test-reports
+        with:
+          name: check-test-reports
+
   # R2-Mongo: the store TCK on a single-node replica set (Testcontainers), on the minimum (6.0) and a current MongoDB;
   # checkContractsRan fails the job when the contract cases were skipped.
   store-mongo:
     name: Store MongoDB (${{ matrix.image }})
+    needs: changes
+    if: needs.changes.outputs.mongo == 'true'
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         include:
           - image: 'mongo:6.0'
             os: ubuntu-latest
+            coverage: true
           # MongoDB 8.0.21 and later exit during startup on Linux 6.19 up to 7.0.13 (SERVER-125742: the kernel's rseq
           # change breaks tcmalloc), the kernel of newer ubuntu-24.04 images; ubuntu-22.04 runs 6.8.
           - image: 'mongo:8.0'
@@ -86,12 +219,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
 
       # The kernel decides whether mongo:8.0 starts (see the matrix); the rest is for comparing with a failure.
       - name: Describe the runner
@@ -137,22 +266,30 @@ jobs:
           scripts/gradle-retry.sh :store:mongo:check
           echo "**TCK passed** on $COSID_TEST_MONGODB_IMAGE, ${{ matrix.os }}, kernel $(uname -r)." | tee -a "$GITHUB_STEP_SUMMARY"
 
-      # A container that did not start: its mongod output is in the failure message of the test results.
-      - name: Upload the test results
-        if: failure()
-        uses: actions/upload-artifact@v4
+      - name: Upload the coverage
+        if: matrix.coverage
+        uses: codecov/codecov-action@v7
         with:
-          name: store-mongo-test-results-${{ strategy.job-index }}
-          path: |
-            store/mongo/build/test-results/test
-            store/mongo/build/reports/tests/test
-          retention-days: 14
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: mongo
+          files: ./**/build/reports/jacoco/test/jacocoTestReport.xml
+          fail_ci_if_error: true
+
+      # A container that did not start: its mongod output is in the failure message of the test results.
+      - name: Report the failed tests
+        if: failure()
+        uses: ./.github/actions/test-reports
+        with:
+          name: store-mongo-test-reports-${{ strategy.job-index }}
 
   # D28: one TCK run on MongoDB versions below the 6.0 minimum, to document real compatibility in store/mongo/README.md.
   # Not a support commitment and never blocking: the step may fail, the job stays green and reports the outcome.
   store-mongo-probe:
     name: Store MongoDB probe (${{ matrix.image }}, not supported)
+    needs: changes
+    if: needs.changes.outputs.full == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -161,12 +298,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
 
       - name: Store TCK (probe)
         id: tck
@@ -184,16 +317,15 @@ jobs:
   # the job if the contract cases did not run.
   store-redis:
     name: Store Redis TCK (Redis ${{ matrix.redis }}${{ matrix.probe && ', probe' || '' }})
+    needs: changes
+    if: needs.changes.outputs.redis == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
+      # 7.0 (the minimum, D27) and 8.10; on full runs also 6.2 as a probe (D28). See the changes job.
       matrix:
-        redis: [ '7.0', '8.10' ]
-        probe: [ false ]
-        # D28: once below the 7.0 minimum, to document real compatibility (store/redis README); never blocks.
-        include:
-          - redis: '6.2'
-            probe: true
+        include: ${{ fromJSON(needs.changes.outputs.redis-matrix) }}
     services:
       redis:
         image: redis:${{ matrix.redis }}-alpine
@@ -205,12 +337,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
 
       - name: Check store/redis
         id: tck
@@ -222,16 +350,38 @@ jobs:
         run: |
           echo "Redis ${{ matrix.redis }} TCK probe (not supported, D28): ${{ steps.tck.outcome }}" | tee -a "$GITHUB_STEP_SUMMARY"
 
+      - name: Upload the coverage
+        if: matrix.coverage
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: redis
+          files: ./**/build/reports/jacoco/test/jacocoTestReport.xml
+          fail_ci_if_error: true
+
+      - name: Report the failed tests
+        if: failure() && !matrix.probe
+        uses: ./.github/actions/test-reports
+        with:
+          name: store-redis-test-reports-${{ strategy.job-index }}
+
   # R2-ZK: the store TCK against a real ZooKeeper, on the minimum (3.8) and the primary target (3.9) (D27); the failover
   # case runs its own three-server ensemble in process. checkContractsRan (part of check) fails the job if a contract
   # case did not run.
   store-zookeeper:
     name: Store ZooKeeper (${{ matrix.zookeeper }})
+    needs: changes
+    if: needs.changes.outputs.zookeeper == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        zookeeper: [ '3.8', '3.9' ]
+        include:
+          - zookeeper: '3.8'
+            coverage: false
+          - zookeeper: '3.9'
+            coverage: true
     services:
       zookeeper:
         image: zookeeper:${{ matrix.zookeeper }}
@@ -248,21 +398,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
 
       - name: Check
         run: scripts/gradle-retry.sh :store:zookeeper:check
+
+      - name: Upload the coverage
+        if: matrix.coverage
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: zookeeper
+          files: ./**/build/reports/jacoco/test/jacocoTestReport.xml
+          fail_ci_if_error: true
+
+      - name: Report the failed tests
+        if: failure()
+        uses: ./.github/actions/test-reports
+        with:
+          name: store-zookeeper-test-reports-${{ strategy.job-index }}
+
 
   # D28: the TCK once on ZooKeeper below the 3.8 minimum, to record real compatibility (store/zookeeper/README.md),
   # not to support it. The step may fail; the job never does, so this never turns the required checks red.
   store-zookeeper-probe:
     name: Store ZooKeeper probe (${{ matrix.zookeeper }}, unsupported)
+    needs: changes
+    if: needs.changes.outputs.full == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -283,12 +448,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
 
       - name: Store TCK (probe)
         id: probe
@@ -308,48 +469,15 @@ jobs:
   # they are no support commitment: their test step may fail without failing the job, and the summary shows the outcome.
   store-jdbc:
     name: Store JDBC (${{ matrix.versions }})
+    needs: changes
+    if: needs.changes.outputs.jdbc == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
+      # minimum and current; on full runs also the probes (D28). The entries are in the changes job.
       matrix:
-        include:
-          - versions: minimum
-            mysql: mysql:8.4
-            mariadb: mariadb:10.11
-            postgres: postgres:15-alpine
-            sqlserver: mcr.microsoft.com/mssql/server:2019-latest
-            dialects: h2,mysql,mariadb,postgresql,sqlserver
-            probe: false
-          - versions: current
-            mysql: mysql:9
-            mariadb: mariadb:11
-            postgres: postgres:18-alpine
-            sqlserver: mcr.microsoft.com/mssql/server:2022-latest
-            dialects: h2,mysql,mariadb,postgresql,sqlserver
-            probe: false
-          - versions: probe MySQL 8.0, MariaDB 10.6, PostgreSQL 12, SQL Server 2017
-            mysql: mysql:8.0
-            mariadb: mariadb:10.6
-            postgres: postgres:12-alpine
-            sqlserver: mcr.microsoft.com/mssql/server:2017-latest
-            dialects: mysql,mariadb,postgresql,sqlserver
-            probe: true
-          - versions: probe PostgreSQL 13
-            mysql: mysql:8.4
-            mariadb: mariadb:10.11
-            postgres: postgres:13-alpine
-            sqlserver: mcr.microsoft.com/mssql/server:2019-latest
-            dialects: postgresql
-            tests: me.ahoo.cosid.store.jdbc.Postgres*
-            probe: true
-          - versions: probe PostgreSQL 14
-            mysql: mysql:8.4
-            mariadb: mariadb:10.11
-            postgres: postgres:14-alpine
-            sqlserver: mcr.microsoft.com/mssql/server:2019-latest
-            dialects: postgresql
-            tests: me.ahoo.cosid.store.jdbc.Postgres*
-            probe: true
+        include: ${{ fromJSON(needs.changes.outputs.jdbc-matrix) }}
     services:
       mysql:
         image: ${{ matrix.mysql }}
@@ -391,12 +519,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
 
       - name: Check store/jdbc
         id: tck
@@ -434,12 +558,31 @@ jobs:
                       print(f"- {suite.get('name').rsplit('.', 1)[-1]}.{case.get('name')}: {(failure.get('message') or '')[:200]}")
           EOF
 
+      - name: Upload the coverage
+        if: matrix.coverage
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: jdbc
+          files: ./**/build/reports/jacoco/test/jacocoTestReport.xml
+          fail_ci_if_error: true
+
+      - name: Report the failed tests
+        if: failure() && !matrix.probe
+        uses: ./.github/actions/test-reports
+        with:
+          name: store-jdbc-test-reports-${{ strategy.job-index }}
+
+
   # R4-A: store/remote through a real cosid-server, started in process: the store TCK on InMemoryStore, H2 (JDBC) and
   # the Redis service below (08-remote.md); checkContractsRan fails the job when a contract case was skipped. Then the
   # Docker image is built and smoke tested on the same Redis: health public, 401 without the token, a reserve with it.
   server:
     name: Server (remote TCK, image)
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       redis:
         image: redis:8.10-alpine
@@ -451,12 +594,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v6
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-          cache: gradle
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
 
       - name: Remote TCK
         run: scripts/gradle-retry.sh :store:remote:check :server:check
@@ -487,16 +626,33 @@ jobs:
         if: failure()
         run: docker logs cosid-server || true
 
+      - name: Upload the coverage
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: server
+          files: ./**/build/reports/jacoco/test/jacocoTestReport.xml
+          fail_ci_if_error: true
+
+      - name: Report the failed tests
+        if: failure()
+        uses: ./.github/actions/test-reports
+        with:
+          name: server-test-reports
+
   # R3-S: the Spring Boot compatibility matrix of spring/* and integrations (02-modules.md §5): the lowest supported and the build's Boot,
   # on Java 21 and 25. Java 21 compiles, the matrix Java runs the tests; a test run with skipped tests fails the job.
   spring-compatibility:
     name: Spring Boot ${{ matrix.boot }}, Java ${{ matrix.java }}
+    needs: changes
+    if: needs.changes.outputs.spring == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
+      # A pull request runs the diagonals (4.0.8 on 21, 4.1.2 on 25); full runs all four. See the changes job.
       matrix:
-        boot: [ '4.0.8', '4.1.2' ]
-        java: [ '21', '25' ]
+        include: ${{ fromJSON(needs.changes.outputs.spring-matrix) }}
     services:
       redis:
         image: redis:8.10-alpine
@@ -508,14 +664,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up JDK ${{ matrix.java }} and 21
-        uses: actions/setup-java@v6
+      - name: Set up the build (JDK ${{ matrix.java }} and 21)
+        uses: ./.github/actions/setup-build
         with:
           java-version: |
             ${{ matrix.java }}
             21
-          distribution: 'temurin'
-          cache: gradle
 
       - name: Check spring/* and integrations
         run: >-
@@ -535,3 +689,72 @@ jobs:
             fi
           done
           exit $status
+
+      - name: Upload the coverage
+        if: matrix.coverage
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: spring
+          files: ./**/build/reports/jacoco/test/jacocoTestReport.xml
+          fail_ci_if_error: true
+
+      - name: Report the failed tests
+        if: failure()
+        uses: ./.github/actions/test-reports
+        with:
+          name: spring-test-reports-${{ strategy.job-index }}
+
+
+  # The site, without deploying it, so a broken site (a dead link, a VitePress error) shows on the pull request rather
+  # than on release day, when document-deploy.yml is dispatched with the release tag. Its steps are those of
+  # document-deploy.yml, minus the Javadoc, which no Markdown page links to.
+  docs:
+    name: Build the site
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24.22.1
+          cache-dependency-path: documentation/pnpm-lock.yaml
+          cache: 'pnpm'
+
+      - name: Build VitePress site
+        working-directory: documentation
+        run: pnpm install --frozen-lockfile && pnpm run docs:build
+
+  # The one check to require: green when every job above succeeded or was not needed (skipped), red when one failed
+  # or was cancelled.
+  ci:
+    name: CI
+    needs: [ changes, check, store-mongo, store-mongo-probe, store-redis, store-zookeeper, store-zookeeper-probe, store-jdbc, server, spring-compatibility, docs ]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All jobs passed or were not needed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          python3 -I - <<'EOF'
+          import json, os, sys
+          results = {name: job["result"] for name, job in json.loads(os.environ["NEEDS"]).items()}
+          for name, result in sorted(results.items()):
+              print(f"{name}: {result}")
+          bad = [name for name, result in results.items() if result not in ("success", "skipped")]
+          if bad:
+              print(f"::error::failed or cancelled: {', '.join(sorted(bad))}")
+              sys.exit(1)
+          EOF

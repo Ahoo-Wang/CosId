@@ -36,7 +36,8 @@ cd documentation && pnpm install && pnpm docs:build
 
 Store modules run the store TCK against real servers: from `COSID_TEST_*` environment variables when set, otherwise
 on Testcontainers (Docker required). ZooKeeper tests start an in-process server. [AGENTS.md](./AGENTS.md) lists the
-variables and the minimum versions each CI job covers; CI runs all of them, see `.github/workflows/integration-test.yml`.
+variables and the minimum versions each CI job covers. CI (`.github/workflows/integration-test.yml`) runs on a pull
+request the jobs its changes reach, and everything on `main` and nightly; its last job, `CI`, sums them up.
 
 ## Branching model
 

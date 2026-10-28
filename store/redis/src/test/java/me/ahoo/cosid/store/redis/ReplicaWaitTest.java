@@ -109,7 +109,7 @@ class ReplicaWaitTest {
     @Test
     void waitsOnTheClusterNodeOfTheKeys() {
         try (StatefulRedisClusterConnection<String, String> connection = RedisServers.cluster().connect()) {
-            assertEquals(0, LettuceRedisScripts.connectedReplicas(connection), "the test cluster has no replicas");
+            assertEquals(0, LettuceRedisScripts.fewestReplicas(connection, RedisServers.TIMEOUT), "the test cluster has no replicas");
         }
         try (Store store = open(RedisServers.cluster(), SHORT, Map.of("wait", "1"))) {
             RedisStoreException failure = assertThrows(RedisStoreException.class, () -> store.ranges().reserve("cluster-" + UUID.randomUUID(), 10, 0));

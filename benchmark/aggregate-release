@@ -17,7 +17,7 @@
 
 Each GROUP_DIR is the --out directory of one run-release (its name is the group's name). OUT receives the joined
 baseline-4x.json and v5.json (and rerun-*.json), report.md (the groups with their runners, then each group's
-comparison), a table of the rows that still fail after their re-run with the phase that owns each, and baseline-4x.md (the 4.1.0 side alone, the refreshed baseline of docs/jmh/4.1.0). Exits 1 when a
+comparison), a table of the rows that still fail after their re-run with the phase that owns each, and baseline-4x.md (the 4.1.0 side alone, committed by hand as docs/jmh/4.1.0/release-ci.md). Exits 1 when a
 group failed or is missing its results, 0 otherwise.
 """
 

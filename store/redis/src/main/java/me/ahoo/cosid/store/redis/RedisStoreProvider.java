@@ -82,7 +82,7 @@ public final class RedisStoreProvider implements StoreProvider {
         }
         if (client instanceof StatefulRedisClusterConnection<?, ?> connection) {
             StatefulRedisClusterConnection<String, String> shared = (StatefulRedisClusterConnection<String, String>) connection;
-            int replicas = replicas(wait, () -> LettuceRedisScripts.connectedReplicas(shared));
+            int replicas = replicas(wait, () -> LettuceRedisScripts.fewestReplicas(shared, config.timeout()));
             requireNoWait(config, replicas);
             return new RedisStore(LettuceRedisScripts.of(shared, config.timeout(), 0), sweepBatch, () -> {
             });
@@ -117,7 +117,7 @@ public final class RedisStoreProvider implements StoreProvider {
     }
 
     private static Store cluster(RedisClusterClient client, StoreConfig config, String wait, int sweepBatch, Runnable shutdown) {
-        return opened(() -> client.connect(StringCodec.UTF8), shutdown, LettuceRedisScripts::connectedReplicas,
+        return opened(() -> client.connect(StringCodec.UTF8), shutdown, connection -> LettuceRedisScripts.fewestReplicas(connection, config.timeout()),
             (connection, replicas) -> LettuceRedisScripts.of(connection, config.timeout(), replicas), wait, sweepBatch);
     }
 

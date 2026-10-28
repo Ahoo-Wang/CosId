@@ -229,9 +229,8 @@ class MongoStoreProviderTest {
     @Test
     void storeTimeoutBoundsAnOperationOnAServerThatStoppedAnswering() {
         // A replica set of its own: pausing it freezes the server with its sockets open, so only the store timeout ends the call.
-        String image = System.getenv("COSID_TEST_MONGODB_IMAGE");
-        try (MongoDBContainer mongo = new MongoDBContainer(image == null || image.isBlank() ? MongoTestSupport.DEFAULT_IMAGE : image).withReplicaSet()) {
-            mongo.start();
+        try (MongoDBContainer mongo = MongoTestSupport.container()) {
+            MongoTestSupport.start(mongo);
             String key = "timeout/" + UUID.randomUUID();
             Map<String, Object> options = Map.of(MongoStoreProvider.DATABASE, MongoTestSupport.DATABASE);
             // One client for both stores: the first, cold operation (server discovery, connection, collection creation) runs

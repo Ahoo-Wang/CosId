@@ -15,6 +15,7 @@ package me.ahoo.cosid.time;
 
 import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.PartsIdGenerator;
+import me.ahoo.cosid.internal.SafeListener;
 import me.ahoo.cosid.internal.TimeSequencer;
 import me.ahoo.cosid.lease.SlotHandle;
 import me.ahoo.cosid.observe.GeneratorListener;
@@ -39,14 +40,14 @@ public final class TimeBasedGenerator implements IdGenerator, PartsIdGenerator, 
      * @param slot       the machine slot, shared by every time-based generator of a runtime (D18)
      * @param time       the time source
      * @param regression the clock regression policy
-     * @param listener   the event listener
+     * @param listener   the event listener; a listener that throws is logged and never fails or loses an id
      */
     public TimeBasedGenerator(String name, Layout layout, SlotHandle slot, TimeSource time,
                               ClockRegressionPolicy regression, GeneratorListener listener) {
         this.name = Objects.requireNonNull(name, "name");
         this.layout = Objects.requireNonNull(layout, "layout");
         this.sequencer = new TimeSequencer(name, layout, Objects.requireNonNull(slot, "slot"), Objects.requireNonNull(time, "time"),
-            Objects.requireNonNull(regression, "regression"), Objects.requireNonNull(listener, "listener"));
+            Objects.requireNonNull(regression, "regression"), SafeListener.of(listener));
     }
 
     public String name() {

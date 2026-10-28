@@ -92,6 +92,8 @@ public final class TimeSequencer {
     private int issuedSlot;
     /** Under {@link #lock}: the first detail of an attempt's outcome (milliseconds to wait, or the window timestamp). */
     private long outcomeMillis;
+    /** Under {@link #lock}: whether the last id was issued on a borrowed time unit, ahead of the clock. */
+    private boolean borrowing;
     /** Under {@link #lock}: the second detail (how far the clock went back, -1 for none; or the window ceiling). */
     private long outcomeDetail;
 
@@ -134,6 +136,7 @@ public final class TimeSequencer {
      */
     public long nextId() {
         long waitStarted = 0;
+        int fired = 0;
         for (; ; ) {
             long next;
             int nextSlot;
@@ -151,7 +154,9 @@ public final class TimeSequencer {
                 }
                 return (next >>> seqBits) << timeShift | (long) nextSlot << seqBits | next & seqMax;
             }
-            waitStarted = outsideLock(next, millis, detail, waitStarted);
+            int event = eventBit(next);
+            waitStarted = outsideLock(next, millis, detail, waitStarted, (fired & event) == 0);
+            fired |= event;
         }
     }
 
@@ -162,6 +167,7 @@ public final class TimeSequencer {
      */
     public IdParts nextParts() {
         long waitStarted = 0;
+        int fired = 0;
         for (; ; ) {
             long next;
             int nextSlot;
@@ -179,25 +185,40 @@ public final class TimeSequencer {
                 }
                 return new IdParts(next >>> seqBits, nextSlot, next & seqMax);
             }
-            waitStarted = outsideLock(next, millis, detail, waitStarted);
+            int event = eventBit(next);
+            waitStarted = outsideLock(next, millis, detail, waitStarted, (fired & event) == 0);
+            fired |= event;
         }
     }
 
     /**
-     * Handles an attempt that did not issue, with the lock released: tells the listener, waits or throws.
+     * The bit of an outcome's event in the events a call fired: each event fires at most once per call (07 §2), not on
+     * every retry of a wait.
+     */
+    private static int eventBit(long outcome) {
+        return 1 << (int) -outcome;
+    }
+
+    /**
+     * Handles an attempt that did not issue, with the lock released: tells the listener (when {@code first} of its kind
+     * in this call), waits or throws.
      *
      * @return when the bounded wait for a renewal started, {@link System#nanoTime()} with the low bit set, or 0
      */
-    private long outsideLock(long outcome, long millis, long detail, long waitStarted) {
+    private long outsideLock(long outcome, long millis, long detail, long waitStarted, boolean first) {
         if (outcome == EXHAUSTED) {
-            listener.onSequenceExhausted(name);
+            if (first) {
+                listener.onSequenceExhausted(name);
+            }
         } else if (outcome == REGRESSION_WAIT) {
-            listener.onClockRegression(name, detail, "wait");
+            if (first) {
+                listener.onClockRegression(name, detail, "wait");
+            }
         } else if (outcome == REGRESSION_FAIL) {
             listener.onClockRegression(name, detail, "fail");
             throw new ClockBackwardsException(name, detail);
         } else if (outcome == WINDOW_EXCEEDED) {
-            if (waitStarted == 0) {
+            if (first) {
                 listener.onWindowExceeded(name);
             }
             if (waitStarted == 0 ? waitUpToNanos == 0 : System.nanoTime() - waitStarted >= waitUpToNanos) {
@@ -280,8 +301,9 @@ public final class TimeSequencer {
      * Under {@link #lock}: one attempt. Never waits; an outcome that needs a wait or an event leaves its details in
      * {@link #outcomeMillis} and {@link #outcomeDetail}.
      *
-     * @return the published state {@code time << seqBits | seq}, its slot in {@link #issuedSlot} and a borrowed
-     *     regression in {@link #outcomeDetail} (else -1); or a negative outcome
+     * @return the published state {@code time << seqBits | seq}, its slot in {@link #issuedSlot} and, for the first
+     *     borrowed id of a regression, how far the clock went back in {@link #outcomeDetail} (else -1); or a negative
+     *     outcome
      */
     private long attempt() {
         Bound current = bound();
@@ -311,12 +333,14 @@ public final class TimeSequencer {
             } else if (now == last) {
                 return outcome(EXHAUSTED, toMillis(needed) - nowMillis, -1);
             } else {
+                // Classified by how far the clock went back; the wait lasts until the needed unit starts. In a SECONDS
+                // layout with the second used up, a 1 ms regression is a wait of about a second, not a failure.
                 long backwards = toMillis(last) - nowMillis;
                 long ahead = toMillis(needed) - nowMillis;
-                if (ahead > waitUpToMillis && ahead > borrowUpToMillis) {
+                if (backwards > waitUpToMillis && backwards > borrowUpToMillis) {
                     return outcome(REGRESSION_FAIL, 0, backwards);
                 }
-                if (ahead > borrowUpToMillis) {
+                if (backwards > borrowUpToMillis || ahead > borrowUpToMillis) {
                     return outcome(REGRESSION_WAIT, ahead, backwards);
                 }
                 use = needed;
@@ -341,7 +365,9 @@ public final class TimeSequencer {
         long next = use << seqBits | seq;
         current.state.set(next);
         issuedSlot = binding.slot();
-        outcomeDetail = borrowed;
+        // One borrow event per regression: the first borrowed id reports it, until an id is issued on the clock again.
+        outcomeDetail = borrowed >= 0 && !borrowing ? borrowed : -1;
+        borrowing = borrowed >= 0;
         return next;
     }
 

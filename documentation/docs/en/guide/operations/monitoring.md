@@ -11,42 +11,45 @@ Every meter is named `cosid.*` (19 in all). They come from listener events, so t
 
 | Meter | Type | Tags | 4.x name |
 |---|---|---|---|
-| `cosid.segment.reserve` | timer | `name`, `key` | `segment.fetch` |
-| `cosid.segment.refill.failures` | counter | `name`, `key`, `error` | `segment.prefetch.failures` |
+| `cosid.segment.reserve` | timer | `name` | `segment.fetch` |
+| `cosid.segment.refill.failures` | counter | `name`, `error` | `segment.prefetch.failures` |
 | `cosid.segment.batch.resizes` | counter | `name`, `direction` (`up`, `down`) | `segment.prefetch.expansions` |
 | `cosid.segment.batch` | gauge | `name` | `segment.prefetch.distance` |
 | `cosid.segment.held` | gauge | `name` | `segment.remaining` |
 | `cosid.sequence.exhausted` | counter | `name` | `sequence.exhausted.wait` |
 | `cosid.clock.backwards` | summary (ms) | `name`, `action` (`borrow`, `wait`, `fail`) | `clock.backwards`, `clock.sync.wait` |
 | `cosid.machine.window.exceeded` | counter | `name` | |
-| `cosid.machine.lease.acquired` | counter | `namespace`, `reason` (`idempotent`, `preferred`, `sticky`, `lowest`) | `machine.lease.acquired` |
-| `cosid.machine.lease.renewed` | counter | `namespace` | |
-| `cosid.machine.lease.released` | counter | `namespace` | |
-| `cosid.machine.lease.renew.failures` | counter | `namespace` | `machine.lease.renew.failures` |
-| `cosid.machine.lease.lost` | counter | `namespace` | `machine.lease.lost` |
-| `cosid.machine.lease.remaining` | time gauge | `namespace` | `machine.lease.remaining` |
-| `cosid.machine.window.remaining` | time gauge | `namespace` | |
-| `cosid.machine.clock.skew` | time gauge | `namespace` | `machine.clock.skew` |
-| `cosid.machine.owner.duplicates` | counter | `namespace` | |
+| `cosid.machine.lease.acquired` | counter | `namespace`, `machine`, `reason` (`idempotent`, `preferred`, `sticky`, `lowest`) | `machine.lease.acquired` |
+| `cosid.machine.lease.renewed` | counter | `namespace`, `machine` | |
+| `cosid.machine.lease.released` | counter | `namespace`, `machine` | |
+| `cosid.machine.lease.renew.failures` | counter | `namespace`, `machine` | `machine.lease.renew.failures` |
+| `cosid.machine.lease.lost` | counter | `namespace`, `machine` | `machine.lease.lost` |
+| `cosid.machine.lease.remaining` | time gauge | `namespace`, `machine` | `machine.lease.remaining` |
+| `cosid.machine.window.remaining` | time gauge | `namespace`, `machine` | |
+| `cosid.machine.clock.skew` | time gauge | `namespace`, `machine` | `machine.clock.skew` |
+| `cosid.machine.owner.duplicates` | counter | `namespace`, `machine` | |
 | `cosid.store.timeouts` | counter | `store`, `operation` (`reserve`, `seal`, `acquire`, `renew`, `release`: a store call hit its timeout; `reserve-wait`: callers waited for a refill past `reserve-timeout`, once per refill) | `call.timeouts` |
 | `cosid.generator.generated` | function counter | `name` | `generator.generated` |
 
-`cosid.generator.generated` counts every view the runtime hands out, `IdFiller` included. cosid-server adds
+The `cosid.machine.*` meters of a lease carry the `machine` tag (`default` or the [named machine](../concepts/slot-lease.md#named-machines))
+next to its `namespace`. The segment meters have no per-key tag, so a periodic segment adds no meters as its periods
+roll. `cosid.generator.generated` counts every view the runtime hands out, `IdFiller` included. cosid-server adds
 `cosid.server.call.rejections{reason}`.
 
 ## Health
 
 The health indicator `cosid` (`/actuator/health/cosid`; switch `management.health.cosid.enabled`):
 
-- `DOWN` when the slot lease was lost and not acquired again, or when a time-based generator's slot binding is no
-  longer valid; otherwise `UP`. Without a time-based generator there is no slot, and it is `UP`.
-- Details: `slot`, `owner`, `fence`, `expiresAt` and `expiresInMillis`, `ceiling` and `windowRemainingMillis`,
-  `slotValid` per generator, `lost`, `renewFailures` (in a row) and the last renewal error.
+- `DOWN` when a machine's slot lease was lost and not acquired again, or when a time-based generator's slot binding
+  is no longer valid; otherwise `UP`. Without a time-based generator there is no slot, no details, and it is `UP`.
+- Details: `machines`, one entry per started machine (`default` and each [named machine](../concepts/slot-lease.md#named-machines)):
+  `namespace`, `slot`, `valid`, `owner`, `fence`, `expiresAt` and `expiresInMillis`, `ceiling` and
+  `windowRemainingMillis`, `lost`, `renewFailures` (in a row) and `lastRenewError`.
 
 ```json
-{"status":"UP","details":{"slot":0,"owner":"app-7d9f:8080","fence":1,"expiresAt":1793098633174,
- "expiresInMillis":28124,"ceiling":1793098634174,"windowRemainingMillis":29124,
- "slotValid":{"default":true},"lost":false,"renewFailures":0}}
+{"status":"UP","details":{"machines":{"default":{"namespace":"order-service","slot":0,"valid":true,
+ "owner":"app-7d9f:8080","fence":1,"expiresAt":1793098633174,"expiresInMillis":28124,
+ "ceiling":1793098634174,"windowRemainingMillis":29124,"lost":false,"renewFailures":0}}}}
 ```
 
 ## The `cosid` endpoint

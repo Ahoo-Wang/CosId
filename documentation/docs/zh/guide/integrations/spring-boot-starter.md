@@ -97,6 +97,17 @@ static RuntimeSpecCustomizer moreGenerators() {          // static:它在处理 
 Customizer 在运行时启动前按 `@Order` 依次执行，它们添加的生成器同样会注册 Bean。Customizer 不能依赖其他 Bean
 （它是 `static @Bean`），与 4.x 相同。
 
+自己的 `IdGenerator` 按 Bean 名加入运行时（对应 4.x 的 `IdGeneratorProvider.set`）：
+
+```yaml
+cosid:
+  generators:
+    legacy: { strategy: custom, ref: legacyIdGenerator, codec: [ { radix: { radix: 62 } } ] }
+```
+
+运行时像其他生成器一样提供它（Bean、`IdFiller`、端点），但不负责关闭；该 Bean 不能依赖 `CosIdRuntime`。
+代码中可用 `GeneratorSpec.Instance.builder(ids).build()` 直接传入实例。
+
 ## Actuator、指标与健康检查
 
 - 端点 `cosid`：`GET /actuator/cosid` 描述所有生成器，`/actuator/cosid/{name}` 描述单个生成器，

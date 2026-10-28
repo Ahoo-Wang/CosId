@@ -100,9 +100,10 @@ released with it, then the stores and executors close.
 |---|---|---|
 | `ttl` | 30s | a crashed instance's slot is free again after at most 30s (+ `tolerance`) |
 | renewal | `ttl/3` | |
-| `tolerance` | 1s | per namespace (D20): the namespace records `{limit, tolerance}`, and other values are refused |
+| `tolerance` | 1s | per namespace (D20): the namespace records `{limit, tolerance, slotOffset}`, and other values are refused |
 | `bits` | 10 | 1024 slots; at most the layout's node bits |
-| acquire timeout | `ttl` | |
+| `acquire-timeout` | `ttl` | how long the start waits for a free slot; 0 tries once (D42) |
+| `slot-offset` | 0 | [slot offset](#slot-offset) |
 
 ## Static slots
 
@@ -125,3 +126,54 @@ cosid:
 - **Without `state-file` there is no protection against a clock set back across a restart.** Use it in production.
 - `not-before` is the floor while the file does not exist yet. The migration tool writes it (W in the
   [migration guide](../migration/from-4x.md)).
+
+## Named machines
+
+A runtime has one default machine (`cosid.machine`) and any number of named ones (`cosid.machines.<name>`, or
+`RuntimeSpec.Builder.machine(name, spec)` in code). Each holds one slot in a namespace of its own; a time-based
+generator picks one with `machine: <name>` and issues with its slot. Rules:
+
+- The namespaces of the started machines differ; the name `default` is reserved.
+- Only the machines an enabled generator picks start, and only their stores open.
+- They start one after the other (the default machine first, then by name) and are released in reverse order, each
+  with the last timestamp of its own generators.
+- Metrics carry a `machine` tag and the health details list each machine ([monitoring](../operations/monitoring.md)).
+
+### Slot offset
+
+`leased.slot-offset` (default 0) shifts the node: **node = slot-offset + slot**. The store still keeps the slots
+`[0, 2^bits)`; only the id moves. It must hold that `slot-offset + 2^bits <= 2^node-bits` for every generator on the
+machine. The namespace records `{limit, tolerance, slotOffset}`, and a runtime with other values is refused
+(`NamespaceMismatchException`), so every user of a namespace agrees on them.
+
+The offset keeps the nodes below it free, so 4.x instances (whose machine ids stay below it) and 5.0 instances can
+issue in one namespace at once during a [rolling migration](../migration/from-4x.md). Once used, never lower it.
+
+## Ids unique across services
+
+Ids of one service are unique by its own namespace. For ids unique **across** services (a cosid80 token, an id several
+services write into one table), give those services one named machine in a shared namespace:
+
+```yaml
+# The same in every service that shares the ids
+cosid:
+  namespace: ${spring.application.name}   # the default machine and the segments stay per service
+  stores:
+    cache: { type: redis, options: { uri: "redis://redis:6379" } }
+  machine:
+    leased: { store: cache }
+  machines:
+    global:
+      namespace: global-ids
+      leased: { store: cache, bits: 12 }   # 4096 slots: the peak pods of all services together, surge included
+  generators:
+    token: { strategy: cosid80, machine: global }
+```
+
+- Every service uses the same store, `bits`, `tolerance` and `slot-offset` for `global-ids`; the first one to start
+  records them, and a different value fails the start of the next.
+- `bits` counts the pods of all the services together, rolling-update surge included. A cosid80 node has 20 bits, so
+  there is room to raise it.
+- A restricted cosid-server token lists both namespaces.
+- Clients in other languages, or with few ids, can call cosid-server's `/ids` instead of running a machine of their
+  own ([server](../server.md)).

@@ -94,10 +94,21 @@ public final class Migration {
      * @param renames       4.x to 5.0 generator names
      * @param groupPatterns 5.0 generator name to the 4.x group key pattern
      * @param output        where {@code plan.json} goes
+     * @param slotOffset    the slot offset of a shared {@code cosid.generator.namespace} ({@code --slot-offset}); null for
+     *                      the recommended one, {@code roundUpToPowerOfTwo(M + 1)}; 0 migrates it at once, every service
+     *                      sharing it stopped (api-freeze.md §2.7)
      */
     public record PlanOptions(StoreLocation from, StoreLocation to, StoreLocation machineFrom, StoreLocation machineTo, String namespace,
                               Path layoutConfig, Path targetConfig, Integer slotBits, Duration tolerance, Duration sourceSkew,
-                              Map<String, String> renames, Map<String, String> groupPatterns, Path output) {
+                              Map<String, String> renames, Map<String, String> groupPatterns, Path output, Integer slotOffset) {
+        /** With the recommended slot offset. */
+        public PlanOptions(StoreLocation from, StoreLocation to, StoreLocation machineFrom, StoreLocation machineTo, String namespace,
+                           Path layoutConfig, Path targetConfig, Integer slotBits, Duration tolerance, Duration sourceSkew,
+                           Map<String, String> renames, Map<String, String> groupPatterns, Path output) {
+            this(from, to, machineFrom, machineTo, namespace, layoutConfig, targetConfig, slotBits, tolerance, sourceSkew, renames, groupPatterns, output,
+                null);
+        }
+
         /** Without separate machine stores. */
         public PlanOptions(StoreLocation from, StoreLocation to, String namespace, Path layoutConfig, Path targetConfig, Integer slotBits,
                            Duration tolerance, Duration sourceSkew, Map<String, String> renames, Map<String, String> groupPatterns, Path output) {
@@ -111,31 +122,66 @@ public final class Migration {
      * @param options the options
      * @return the plan, also written to {@code options.output()}
      * @throws MigrationAbortedException when the plan would be unsafe: the share without {@code --layout-config}, or
-     *                                   4.x stores the locations do not match, or a CosIdGenerator in a namespace of
-     *                                   its own ({@link Legacy4x#unsupported()})
+     *                                   4.x stores the locations do not match, or 4.x CosIdGenerator bits 5.0 cannot
+     *                                   keep, or a slot offset of a shared namespace that does not fit
      */
     public Plan plan(PlanOptions options) {
         List<String> warnings = new ArrayList<>();
         Legacy4x legacy = options.layoutConfig() == null ? null : new Legacy4x(FlatConfig.load(options.layoutConfig()));
+        // The plan of the shared namespace of the CosIdGenerator itself (api-freeze.md §2.7): machine records only.
+        boolean sharedPlan = legacy != null && legacy.sharedGeneratorNamespace().filter(options.namespace()::equals).isPresent();
         Map<String, String> renames = new TreeMap<>();
         Map<String, String> groupPatterns = new TreeMap<>();
         Map<String, List<String>> extraNamespaces = new TreeMap<>();
         if (legacy != null) {
-            refuseUnsupported(legacy);
-            legacy.generatorNamespace().ifPresent(shared -> warnings.add("cosid.generator.namespace = " + shared + ": the machine records of ["
-                + shared + "] count for T4 and the quiet period, and 4.x instances of other services that share it must be stopped too"));
-            renames.putAll(legacy.renames());
-            groupPatterns.putAll(legacy.groupPatterns());
-            legacy.extraNamespaces().forEach((ns, names) -> extraNamespaces.put(ns, List.copyOf(names)));
-            if (!legacy.namespace().equals(options.namespace())) {
-                warnings.add("--layout-config has namespace [" + legacy.namespace() + "], the plan [" + options.namespace() + "]");
+            legacy.cosidLayoutProblem().ifPresent(reason -> {
+                throw new MigrationAbortedException(reason);
+            });
+            if (!sharedPlan) {
+                renames.putAll(legacy.renames());
+                groupPatterns.putAll(legacy.groupPatterns());
+                legacy.extraNamespaces().forEach((ns, names) -> extraNamespaces.put(ns, List.copyOf(names)));
+                if (!legacy.namespace().equals(options.namespace())) {
+                    warnings.add("--layout-config has namespace [" + legacy.namespace() + "], the plan [" + options.namespace() + "]");
+                }
             }
             checkStores(legacy, options);
         }
         renames.putAll(options.renames());
         groupPatterns.putAll(options.groupPatterns());
         int bits = options.slotBits() != null ? options.slotBits() : legacy != null ? legacy.machineBit() : Legacy4x.DEFAULT_MACHINE_BIT;
-        Plan.Slots slots = Plan.Slots.of(bits, options.tolerance().toMillis());
+        if (options.slotOffset() != null && !sharedPlan) {
+            throw new MigrationAbortedException("--slot-offset applies to the shared cosid.generator.namespace of --layout-config only: plan it with"
+                + " --namespace <that namespace>");
+        }
+
+        // The shared namespace of this service's CosIdGenerator, as the target records it: migrated once before (§2.7).
+        Plan.GeneratorNamespace generatorNamespace = null;
+        if (legacy != null && !sharedPlan && legacy.sharedGeneratorNamespace().isPresent()) {
+            String shared = legacy.sharedGeneratorNamespace().get();
+            try (TargetAdmin target = targets.apply(options.to()); TargetAdmin slotTarget = machineTarget(options.to(), options.machineTo(), target)) {
+                generatorNamespace = slotTarget.namespace(shared)
+                    .map(state -> new Plan.GeneratorNamespace(shared, state.limit(), state.toleranceMillis(), state.slotOffset()))
+                    .orElse(new Plan.GeneratorNamespace(shared, 0, 0, 0));
+            }
+            if (!generatorNamespace.prepared()) {
+                warnings.add("cosid.generator.namespace = " + shared + " is not migrated yet: migrate it first, once for every service sharing it"
+                    + " (plan and apply --namespace " + shared + " with this --layout-config); apply refuses until then");
+            } else if (generatorNamespace.slotOffset() > 0) {
+                // A rolling migration: 4.x keeps issuing in the shared namespace, its records count for nothing here.
+                if (extraNamespaces.getOrDefault(shared, List.of()).isEmpty()) {
+                    extraNamespaces.remove(shared);
+                }
+                warnings.add("cosid.generator.namespace = " + shared + " was migrated with slot offset " + generatorNamespace.slotOffset()
+                    + ": config writes cosid.machines.generator, and 4.x instances of other services may keep running");
+            } else {
+                warnings.add("cosid.generator.namespace = " + shared + " was migrated with slot offset 0: its machine records count for T4 and the"
+                    + " quiet period, and 4.x instances of other services that share it must be stopped too");
+            }
+        } else if (legacy != null && !sharedPlan) {
+            legacy.generatorNamespace().ifPresent(shared -> warnings.add("cosid.generator.namespace = " + shared + " (the CosIdGenerator is disabled):"
+                + " the machine records of [" + shared + "] count for T4 and the quiet period"));
+        }
 
         LegacySnapshot snapshot;
         long sourceNow;
@@ -143,6 +189,24 @@ public final class Migration {
             snapshot = readers.read(options.namespace(), extraNamespaces);
             sourceNow = readers.now();
         }
+        Plan.Shared shared = null;
+        int slotOffset = 0;
+        if (sharedPlan) {
+            int maxMachineId = snapshot.maxMachineId(options.namespace());
+            int recommended = maxMachineId < 0 ? 0 : roundUpToPowerOfTwo(maxMachineId + 1);
+            slotOffset = options.slotOffset() == null ? recommended : options.slotOffset();
+            int nodeBits = legacy.cosidLayout().nodeBits();
+            checkSlotOffset(options.namespace(), maxMachineId, slotOffset, bits, nodeBits);
+            shared = new Plan.Shared(maxMachineId, recommended, nodeBits, slotOffset > 0);
+            warnings.add(slotOffset > 0
+                ? "[" + options.namespace() + "] is the shared cosid.generator.namespace, migrated rolling with slot offset " + slotOffset + " (the 4.x machine"
+                    + " ids are below " + (maxMachineId + 1) + "): 4.x keeps running while each service moves to 5.0, but must not grow beyond " + slotOffset
+                    + " instances (surge included) in it until every service moved; verify checks it"
+                : "[" + options.namespace() + "] is the shared cosid.generator.namespace, migrated at once (slot offset 0): every 4.x instance of every"
+                    + " service sharing it must be stopped during apply, and its quiet period covers them");
+        }
+        Plan.Slots slots = Plan.Slots.of(bits, options.tolerance().toMillis(), slotOffset);
+        final boolean rolling = shared != null && shared.rolling();
         boolean share = snapshot.segments().keySet().stream().anyMatch(key -> key.name().equals(Legacy4x.SHARE) || key.name().startsWith(Legacy4x.SHARE + "@"));
         if (share && legacy == null && !options.renames().containsKey(Legacy4x.SHARE)) {
             throw new MigrationAbortedException("4.x key [" + options.namespace() + "." + Legacy4x.SHARE + "] needs --layout-config (or --rename "
@@ -175,11 +239,11 @@ public final class Migration {
                 }
             }
             slotTarget.namespace(options.namespace()).ifPresent(state -> {
-                if (state.limit() != slots.limit() || state.toleranceMillis() != slots.toleranceMillis()) {
-                    warnings.add("the 5.0 namespace is recorded with limit " + state.limit() + " and tolerance " + state.toleranceMillis()
-                        + "ms: apply fails unless --slot-bits / --tolerance match");
+                if (!TargetAdmin.matches(state, slots.limit(), slots.toleranceMillis(), slots.slotOffset())) {
+                    warnings.add("the 5.0 namespace is recorded with limit " + state.limit() + ", tolerance " + state.toleranceMillis()
+                        + "ms and slot offset " + state.slotOffset() + ": apply fails unless --slot-bits / --tolerance / --slot-offset match");
                 }
-                if (state.live() > 0) {
+                if (state.live() > 0 && !rolling) {
                     warnings.add("the 5.0 namespace has " + state.live() + " live slot lease(s): stop 5.0 before apply");
                 }
             });
@@ -197,7 +261,8 @@ public final class Migration {
         Plan plan = new Plan(Plan.FORMAT, Instant.now().toString(), options.namespace(), options.from().redacted(), options.to().redacted(),
             options.machineFrom() == null ? null : options.machineFrom().redacted(), options.machineTo() == null ? null : options.machineTo().redacted(),
             extraNamespaces, slots, renames, groupPatterns, segments, unrecognized,
-            new Plan.Machines(snapshot.machines().size(), snapshot.maxTimestamp(), Math.max(targetNow, sourceNow), sourceSkew, w), layouts, warnings);
+            new Plan.Machines(snapshot.machines().size(), snapshot.maxTimestamp(), Math.max(targetNow, sourceNow), sourceSkew, w,
+                snapshot.maxMachineId(options.namespace())), layouts, warnings, shared, generatorNamespace);
         Json.write(options.output(), plan);
         report(plan);
         return plan;
@@ -208,10 +273,29 @@ public final class Migration {
      * machine ids in {@code --from} too or in {@code --machine-from}; slots of a separate 4.x machine store go to the
      * 5.0 store of {@code cosid.machine.leased}, which {@code --machine-to} names.
      */
-    private static void refuseUnsupported(Legacy4x legacy) {
-        legacy.unsupported().ifPresent(reason -> {
-            throw new MigrationAbortedException(reason);
-        });
+    /** The smallest power of two at least {@code n}, {@code n >= 1}. */
+    static int roundUpToPowerOfTwo(int n) {
+        return Integer.bitCount(n) == 1 ? n : Integer.highestOneBit(n) << 1;
+    }
+
+    /**
+     * The slot offset of a shared namespace (api-freeze.md §2.7): above every 4.x machine id, and the slots
+     * {@code [offset, offset + 2^bits)} within the node bits of the CosIdGenerator.
+     */
+    static void checkSlotOffset(String namespace, int maxMachineId, int slotOffset, int bits, int nodeBits) {
+        if (slotOffset > 0 && slotOffset <= maxMachineId) {
+            throw new MigrationAbortedException("--slot-offset " + slotOffset + " is not above the 4.x machine ids of [" + namespace + "] (the largest is "
+                + maxMachineId + "): 5.0 nodes would collide with 4.x ones; take " + roundUpToPowerOfTwo(maxMachineId + 1) + " or more, or 0 to"
+                + " migrate at once with every service stopped");
+        }
+        long end = (long) slotOffset + (1L << bits);
+        if (end > 1L << nodeBits) {
+            int fitting = 63 - Long.numberOfLeadingZeros((1L << nodeBits) - slotOffset);
+            throw new MigrationAbortedException("slot offset " + slotOffset + " + 2^" + bits + " slots = " + end + " exceeds the 2^" + nodeBits
+                + " nodes of the CosIdGenerator (cosid.generator.machine-bit = " + nodeBits + ")"
+                + (fitting >= 1 && (long) slotOffset + (1L << fitting) <= 1L << nodeBits ? ": take --slot-bits " + fitting + " or fewer" : ": no slots fit above it")
+                + ", or migrate at once with --slot-offset 0 and every service stopped");
+        }
     }
 
     private static void checkStores(Legacy4x legacy, PlanOptions options) {
@@ -311,8 +395,8 @@ public final class Migration {
         }
 
         @Override
-        public NamespaceState prepare(String namespace, int limit, long toleranceMillis, long nextFloor) {
-            return delegate.prepare(namespace, limit, toleranceMillis, nextFloor);
+        public NamespaceState prepare(String namespace, int limit, long toleranceMillis, int slotOffset, long nextFloor) {
+            return delegate.prepare(namespace, limit, toleranceMillis, slotOffset, nextFloor);
         }
 
         @Override
@@ -333,7 +417,16 @@ public final class Migration {
         Plan.Machines machines = plan.machines();
         out.println("  machine records: " + machines.records() + ", T4 = " + machines.maxTimestamp() + "; W estimate = " + machines.estimatedW()
             + " (" + Instant.ofEpochMilli(machines.estimatedW()) + ")");
-        out.println("  slots: limit " + plan.slots().limit() + ", tolerance " + plan.slots().toleranceMillis() + "ms, next floor W");
+        out.println("  slots: limit " + plan.slots().limit() + ", tolerance " + plan.slots().toleranceMillis() + "ms, slot offset " + plan.slots().slotOffset()
+            + ", next floor W");
+        if (plan.shared() != null) {
+            out.println("  shared cosid.generator.namespace: 4.x machine ids up to " + plan.shared().maxMachineId() + ", recommended slot offset "
+                + plan.shared().recommendedOffset() + ", node bits " + plan.shared().nodeBits() + (plan.shared().rolling() ? "; rolling" : "; at once"));
+        }
+        if (plan.generatorNamespace() != null) {
+            out.println("  cosid.generator.namespace " + plan.generatorNamespace().namespace() + ": "
+                + (plan.generatorNamespace().prepared() ? "migrated, slot offset " + plan.generatorNamespace().slotOffset() : "NOT migrated yet"));
+        }
         for (LayoutCheck layout : plan.layouts()) {
             out.println("  layout " + layout.generator() + ": " + (layout.ok() ? "OK" : "FAIL") + " - " + layout.reason());
         }
@@ -426,9 +519,6 @@ public final class Migration {
      * @throws MigrationAbortedException if a check fails before anything is written
      */
     public ApplyResult apply(ApplyOptions options) {
-        if (!options.confirmStopped()) {
-            throw new MigrationAbortedException("apply needs --confirm-stopped: stop every 4.x instance of the namespace first (09 §2)");
-        }
         if (options.gap() < 0 || options.sealGap() <= 0) {
             throw new IllegalArgumentException("--gap must not be negative and --seal-gap must be positive");
         }
@@ -436,8 +526,15 @@ public final class Migration {
         if (!Plan.FORMAT.equals(plan.format())) {
             throw new MigrationAbortedException(options.plan() + " is no " + Plan.FORMAT + " file");
         }
+        // A shared namespace migrated rolling: 4.x keeps running there, the slot offset keeps the nodes apart (§2.7).
+        boolean rolling = plan.shared() != null && plan.shared().rolling();
+        if (!options.confirmStopped() && !rolling) {
+            throw new MigrationAbortedException("apply needs --confirm-stopped: stop every 4.x instance of the namespace first (09 §2)");
+        }
         if (options.layoutConfig() != null) {
-            refuseUnsupported(new Legacy4x(FlatConfig.load(options.layoutConfig())));
+            new Legacy4x(FlatConfig.load(options.layoutConfig())).cosidLayoutProblem().ifPresent(reason -> {
+                throw new MigrationAbortedException(reason);
+            });
         }
         if (!plan.layoutsOk()) {
             throw new MigrationAbortedException("the plan failed the layout validation (M3): " + failed(plan.layouts()));
@@ -455,10 +552,14 @@ public final class Migration {
         KeyMapper mapper = new KeyMapper(plan.namespace(), plan.renames(), plan.groupPatterns());
         try (Readers source = readers(from, machineFrom); TargetAdmin target = targets.apply(to);
              TargetAdmin slotTarget = machineTarget(to, machineTo, target)) {
+            Plan.GeneratorNamespace generatorNamespace = checkGeneratorNamespace(plan, slotTarget);
             LegacySnapshot first = source.read(plan.namespace(), extra);
             long observed = 0;
             LegacySnapshot snapshot = first;
-            if (!options.observe().isZero()) {
+            if (rolling) {
+                warnings.add("a rolling migration of the shared namespace: no quiet period, 4.x keeps running with machine ids below the slot offset "
+                    + plan.slots().slotOffset());
+            } else if (!options.observe().isZero()) {
                 out.println("Watching the 4.x store for " + options.observe() + " (--observe) ...");
                 long started = System.nanoTime();
                 try {
@@ -561,11 +662,11 @@ public final class Migration {
             }
 
             // 3. Slots (M2): metadata, every slot free, next floor W.
-            NamespaceState slots = slotTarget.prepare(plan.namespace(), plan.slots().limit(), plan.slots().toleranceMillis(), w);
+            NamespaceState slots = slotTarget.prepare(plan.namespace(), plan.slots().limit(), plan.slots().toleranceMillis(), plan.slots().slotOffset(), w);
             ApplyResult result = new ApplyResult(ApplyResult.FORMAT, Json.sha256(options.plan()), plan.namespace(), plan.source(), plan.target(),
                 plan.machineTarget(), plan.renames(), List.copyOf(new TreeSet<>(options.allowUnmigrated())), appliedAt,
                 snapshot.maxTimestamp(), sourceSkew, w, Instant.ofEpochMilli(w).toString(), options.gap(), options.sealSource(), options.sealGap(),
-                observed, plan.slots(), List.copyOf(results.values()), warnings);
+                observed, plan.slots(), List.copyOf(results.values()), warnings, plan.shared(), generatorNamespace);
             Json.write(options.result(), result);
             out.println("Applied plan for namespace [" + plan.namespace() + "] at " + Instant.ofEpochMilli(appliedAt) + ": " + results.size()
                 + " key(s), " + slots.slots() + " slot(s) with next floor >= W = " + w + " (" + result.notBefore() + ")");
@@ -575,6 +676,29 @@ public final class Migration {
             warnings.forEach(warning -> out.println("  WARNING " + warning));
             return result;
         }
+    }
+
+    /**
+     * The shared namespace of the service's CosIdGenerator must be migrated before the service, as the plan saw it: its
+     * metadata is what {@code config} writes as {@code cosid.machines.generator} (§2.7).
+     */
+    private static Plan.GeneratorNamespace checkGeneratorNamespace(Plan plan, TargetAdmin slotTarget) {
+        Plan.GeneratorNamespace planned = plan.generatorNamespace();
+        if (planned == null) {
+            return null;
+        }
+        Optional<NamespaceState> state = slotTarget.namespace(planned.namespace());
+        if (state.isEmpty()) {
+            throw new MigrationAbortedException("the shared cosid.generator.namespace [" + planned.namespace() + "] is not migrated: migrate it first,"
+                + " once for every service sharing it (plan and apply --namespace " + planned.namespace() + " with the --layout-config of a service)");
+        }
+        Plan.GeneratorNamespace now = new Plan.GeneratorNamespace(planned.namespace(), state.get().limit(), state.get().toleranceMillis(),
+            state.get().slotOffset());
+        if (!now.equals(planned)) {
+            throw new MigrationAbortedException("the shared namespace [" + planned.namespace() + "] is recorded with limit " + now.limit() + ", tolerance "
+                + now.toleranceMillis() + "ms and slot offset " + now.slotOffset() + " since the plan (" + planned + "): plan again");
+        }
+        return now;
     }
 
     private static String failed(List<LayoutCheck> checks) {
@@ -668,8 +792,9 @@ public final class Migration {
                 problems.add("M2: the 5.0 namespace has no slot metadata");
             } else {
                 NamespaceState state = slots.get();
-                if (state.limit() != result.slots().limit() || state.toleranceMillis() != result.slots().toleranceMillis()) {
-                    problems.add("M2: the namespace is recorded with limit " + state.limit() + " and tolerance " + state.toleranceMillis() + "ms");
+                if (!TargetAdmin.matches(state, result.slots().limit(), result.slots().toleranceMillis(), result.slots().slotOffset())) {
+                    problems.add("M2: the namespace is recorded with limit " + state.limit() + ", tolerance " + state.toleranceMillis() + "ms and slot offset "
+                        + state.slotOffset());
                 }
                 if (state.slots() < state.limit()) {
                     problems.add("M2: only " + state.slots() + " of " + state.limit() + " slots exist");
@@ -678,9 +803,26 @@ public final class Migration {
                     problems.add("M2: a slot's next floor is " + state.minNextFloor() + ", before W = " + result.w());
                 }
             }
-            if (snapshot.maxTimestamp() > result.sourceMaxTimestamp()) {
+            boolean rolling = result.shared() != null && result.shared().rolling();
+            if (rolling) {
+                // 4.x runs on: its machine ids must stay below the slot offset, or 5.0 nodes collide with them (§2.7).
+                int maxMachineId = snapshot.maxMachineId(plan.namespace());
+                out.println("  4.x machine ids of [" + plan.namespace() + "] up to " + maxMachineId + ", slot offset " + result.slots().slotOffset());
+                if (maxMachineId >= result.slots().slotOffset()) {
+                    problems.add("M2: 4.x handed out machine id " + maxMachineId + " in the shared namespace, not below the slot offset "
+                        + result.slots().slotOffset() + ": 4.x grew beyond the offset, and its nodes collide with 5.0's; stop it and move the services");
+                }
+            } else if (snapshot.maxTimestamp() > result.sourceMaxTimestamp()) {
                 problems.add("M2: a 4.x machine record moved to " + snapshot.maxTimestamp() + " after the migration (T4 was "
                     + result.sourceMaxTimestamp() + "): a 4.x instance still runs");
+            }
+            if (result.generatorNamespace() != null) {
+                Plan.GeneratorNamespace recorded = result.generatorNamespace();
+                Optional<NamespaceState> shared = slotTarget.namespace(recorded.namespace());
+                if (shared.isEmpty() || !TargetAdmin.matches(shared.get(), recorded.limit(), recorded.toleranceMillis(), recorded.slotOffset())) {
+                    problems.add("the shared namespace [" + recorded.namespace() + "] is no longer recorded as " + recorded
+                        + ": cosid.machines.generator would not match it");
+                }
             }
         }
         if (!plan.layoutsOk()) {
@@ -772,13 +914,15 @@ public final class Migration {
      *
      * @param options the options
      * @return the conversion
-     * @throws MigrationAbortedException if a segment generator has no migrated key, or the CosIdGenerator has a
-     *                                   namespace of its own ({@link Legacy4x#unsupported()})
+     * @throws MigrationAbortedException if a segment generator has no migrated key, or the 4.x CosIdGenerator bits
+     *                                   do not fit a 5.0 cosid80 ({@link Legacy4x#cosidLayoutProblem()})
      */
     public ConfigConverter.Conversion config(ConfigOptions options) {
         ApplyResult result = options.result() == null ? null : Json.read(options.result(), ApplyResult.class);
         FlatConfig input = FlatConfig.load(options.input());
-        refuseUnsupported(new Legacy4x(input));
+        new Legacy4x(input).cosidLayoutProblem().ifPresent(reason -> {
+            throw new MigrationAbortedException(reason);
+        });
         ConfigConverter.Conversion conversion = new ConfigConverter(options.zone()).convert(input, result);
         List<String> missing = conversion.unmigratedSegments(result).stream().filter(name -> !options.allowNew().contains(name)).toList();
         if (!missing.isEmpty()) {

@@ -36,8 +36,10 @@ import java.util.TreeSet;
  * @param unrecognized keys not migrated, {@code "{key}: {reason}"}
  * @param unmapped     the keys of {@code unrecognized}
  */
-record LegacySnapshot(Map<Key, Long> segments, Map<String, String> machines, long maxTimestamp, List<String> unrecognized, Set<String> unmapped) {
+record LegacySnapshot(Map<Key, Long> segments, Map<String, String> machines, long maxTimestamp, List<String> unrecognized, Set<String> unmapped,
+                      Map<String, Integer> maxMachineIds) {
     LegacySnapshot {
+        maxMachineIds = Map.copyOf(maxMachineIds);
         // Sorted: plan and apply walk the keys in order.
         segments = Collections.unmodifiableSortedMap(new TreeMap<>(segments));
         machines = Collections.unmodifiableSortedMap(new TreeMap<>(machines));
@@ -70,6 +72,16 @@ record LegacySnapshot(Map<Key, Long> segments, Map<String, String> machines, lon
     }
 
     /**
+     * The largest 4.x machine id handed out in a namespace.
+     *
+     * @param namespace the namespace
+     * @return the machine id, -1 when the namespace has no machine records
+     */
+    int maxMachineId(String namespace) {
+        return maxMachineIds.getOrDefault(namespace, -1);
+    }
+
+    /**
      * Reads the namespaces.
      *
      * @param segmentsFrom where the segments are
@@ -86,6 +98,7 @@ record LegacySnapshot(Map<Key, Long> segments, Map<String, String> machines, lon
         Map<String, String> machines = new TreeMap<>();
         List<String> unrecognized = new ArrayList<>();
         Set<String> unmapped = new TreeSet<>();
+        Map<String, Integer> maxMachineIds = new TreeMap<>();
         long maxTimestamp = 0;
         for (String ns : namespaces) {
             SourceSnapshot snapshot = segmentsFrom.read(ns);
@@ -108,6 +121,7 @@ record LegacySnapshot(Map<Key, Long> segments, Map<String, String> machines, lon
             SourceSnapshot machineSnapshot = machinesFrom == segmentsFrom ? snapshot : machinesFrom.read(ns);
             machineSnapshot.machines().forEach((id, content) -> machines.put(ns + "/" + id, content));
             maxTimestamp = Math.max(maxTimestamp, machineSnapshot.maxMachineTimestamp());
+            maxMachineIds.put(ns, machineSnapshot.maxMachineId());
             if (machinesFrom != segmentsFrom) {
                 for (String problem : machineSnapshot.unrecognized()) {
                     if (!snapshot.unrecognized().contains(problem)) {
@@ -118,7 +132,7 @@ record LegacySnapshot(Map<Key, Long> segments, Map<String, String> machines, lon
                 }
             }
         }
-        return new LegacySnapshot(segments, machines, maxTimestamp, unrecognized, unmapped);
+        return new LegacySnapshot(segments, machines, maxTimestamp, unrecognized, unmapped, maxMachineIds);
     }
 
     private static boolean ownedByAnother(String namespace, String name, Set<String> namespaces) {

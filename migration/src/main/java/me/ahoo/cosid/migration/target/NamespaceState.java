@@ -18,9 +18,10 @@ package me.ahoo.cosid.migration.target;
  *
  * @param limit           the recorded slot limit
  * @param toleranceMillis the recorded tolerance
+ * @param slotOffset      the recorded slot offset (api-freeze.md §2.5.1); 0 for metadata without one
  * @param slots           how many of the slots {@code [0, limit)} exist
  * @param minNextFloor    the smallest floor a next holder of those slots would get; {@code Long.MAX_VALUE} without slots
  * @param live            how many of them have a live lease
  */
-public record NamespaceState(int limit, long toleranceMillis, int slots, long minNextFloor, int live) {
+public record NamespaceState(int limit, long toleranceMillis, int slotOffset, int slots, long minNextFloor, int live) {
 }

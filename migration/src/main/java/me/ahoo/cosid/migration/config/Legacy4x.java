@@ -42,6 +42,8 @@ public final class Legacy4x {
     public static final String SEGMENT_SHARE = "segment-share";
     public static final long COSID_EPOCH = 1577203200000L;
     public static final int DEFAULT_MACHINE_BIT = 10;
+    /** The 5.0 named machine of the shared {@code cosid.generator.namespace} (D37). */
+    public static final String GENERATOR_MACHINE = "generator";
     private final FlatConfig config;
 
     public Legacy4x(FlatConfig config) {
@@ -81,21 +83,44 @@ public final class Legacy4x {
     }
 
     /**
-     * Why this configuration cannot migrate yet (R1-x-07): an enabled {@code CosIdGenerator} in a namespace of its own
-     * shares its machine ids across services, which 5.0 has no counterpart of until named machines (D37). A converted
-     * {@code cosid80} would take its slot in the service namespace and issue the 80-bit ids of other services again.
+     * The shared namespace of an enabled {@code CosIdGenerator}: its machine ids are shared across services, so it
+     * becomes the named machine {@value #GENERATOR_MACHINE} of 5.0 (D37, api-freeze.md §2.7), migrated once on its own.
      *
-     * @return the reason, empty when the configuration may migrate
+     * @return the namespace when the generator is enabled and has one of its own
      */
-    public Optional<String> unsupported() {
+    public Optional<String> sharedGeneratorNamespace() {
+        return cosidEnabled() ? generatorNamespace() : Optional.empty();
+    }
+
+    /**
+     * Why the 4.x {@code CosIdGenerator} bits cannot be kept by 5.0 cosid80: its time and sequence bits do not fit the
+     * {@code long} the 5.0 sequencer packs them in ({@code timeBits + seqBits <= 63}).
+     *
+     * @return the reason, empty when they fit or the generator is disabled
+     */
+    public Optional<String> cosidLayoutProblem() {
         if (!cosidEnabled()) {
             return Optional.empty();
         }
-        return generatorNamespace().map(shared -> "cosid.generator.namespace = " + shared + " differs from cosid.namespace = " + namespace()
-            + ": the 4.x CosIdGenerator shares the machine ids of [" + shared + "] across services to keep their 80-bit ids apart. This 5.0"
-            + " release has no shared machine for cosid80 yet (named machines, D37, come in a later 5.0 release): a converted cosid80"
-            + " takes its slot in [" + namespace() + "] and issues the ids of other services again. Keep the services on 4.x until"
-            + " then, or issue the 80-bit ids of every service from one cosid-server");
+        int timeBits = (int) config.number("cosid.generator.timestamp-bit", 44);
+        int seqBits = (int) config.number("cosid.generator.sequence-bit", 16);
+        if (timeBits + seqBits <= Layout.LONG_BITS) {
+            return Optional.empty();
+        }
+        return Optional.of("cosid.generator.timestamp-bit (" + timeBits + ") + sequence-bit (" + seqBits + ") = " + (timeBits + seqBits)
+            + " exceeds " + Layout.LONG_BITS + ": 5.0 cosid80 packs the time and the sequence in a long and refuses the layout. Lower one of them"
+            + " (fewer time bits end the ids earlier, fewer sequence bits issue fewer ids per millisecond) and check the id space with plan (M3)");
+    }
+
+    /**
+     * Whether {@code cosid.generator.sequence-reset-threshold} exceeds the sequence range (4.x does not check it): the
+     * layout takes the largest sequence instead, which behaves the same, as 4.x never resets then either.
+     *
+     * @return true if clamped
+     */
+    public boolean cosidThresholdClamped() {
+        int sequenceBit = (int) config.number("cosid.generator.sequence-bit", 16);
+        return config.number("cosid.generator.sequence-reset-threshold", 0) > ~(-1L << sequenceBit);
     }
 
     public boolean machineEnabled() {
@@ -207,9 +232,9 @@ public final class Legacy4x {
      */
     public Layout cosidLayout() {
         int sequenceBit = (int) config.number("cosid.generator.sequence-bit", 16);
+        long threshold = Math.min(config.number("cosid.generator.sequence-reset-threshold", Layout.defaultSeqResetThreshold(sequenceBit)), ~(-1L << sequenceBit));
         return new Layout(Instant.EPOCH, ChronoUnit.MILLIS, (int) config.number("cosid.generator.timestamp-bit", 44),
-            (int) config.number("cosid.generator.machine-bit", 20), sequenceBit,
-            config.number("cosid.generator.sequence-reset-threshold", Layout.defaultSeqResetThreshold(sequenceBit)));
+            (int) config.number("cosid.generator.machine-bit", 20), sequenceBit, threshold);
     }
 
     /**
@@ -259,7 +284,8 @@ public final class Legacy4x {
     /**
      * The 4.x namespaces other than {@link #namespace()} that definitions use ({@code provider.<name>.namespace}): their
      * segment keys are {@code {ownNs}.{name}}, and a snowflake's machine id is distributed in its own namespace too. The
-     * {@link #generatorNamespace()} is one of them, for its machine records: T4 and the quiet period cover it.
+     * {@link #generatorNamespace()} is one of them, for its machine records: T4 and the quiet period cover it, unless the
+     * shared namespace was migrated with a slot offset (a rolling migration, api-freeze.md §2.7).
      *
      * @return namespace to the 4.x segment names kept there (empty for a namespace of machine records only)
      */

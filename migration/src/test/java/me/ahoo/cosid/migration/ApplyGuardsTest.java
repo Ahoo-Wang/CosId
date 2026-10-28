@@ -232,7 +232,7 @@ class ApplyGuardsTest extends MigrationScenarioTest {
     @Test
     void purgeRefusesALiveNamespace() {
         try (TargetAdmin admin = Targets.open(target.location()); Store store5 = target.open5()) {
-            admin.prepare(namespace, 16, 1000, 0);
+            admin.prepare(namespace, 16, 1000, 0, 0);
             store5.slots().acquire(namespace, new Owner("live", UUID.randomUUID()), 16, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty());
         }
         MigrationAbortedException refused = assertThrows(MigrationAbortedException.class,
@@ -284,21 +284,99 @@ class ApplyGuardsTest extends MigrationScenarioTest {
     }
 
     @Test
-    void aCosIdGeneratorOfANamespaceOfItsOwnIsRefused() throws IOException {
-        // R1-x-07: 4.x shares the CosIdGenerator machine ids of "global" across services; a converted cosid80 would
-        // start over in the service namespace and issue the 80-bit ids of the other services again.
+    @SuppressWarnings("unchecked")
+    void theSharedGeneratorNamespaceMigratesOnceAsANamedMachine() throws IOException {
+        // D37, api-freeze.md §2.7: 4.x shares the CosIdGenerator machine ids of "global" across services; 5.0 keeps them
+        // in the named machine "generator", its slots above the 4.x machine ids, so 4.x may keep running.
+        String global = "global-" + namespace;
         writer.segment(namespace, "order", 0, 10, 1);
-        Path shared = generatorLayout(true, "global-" + namespace);
-        MigrationAbortedException planRefused = assertThrows(MigrationAbortedException.class, () -> plan(shared, null, null, Map.of()));
-        assertThat(planRefused.getMessage(), containsString("cosid.generator.namespace = global-" + namespace));
-        assertThat(planRefused.getMessage(), containsString("D37"));
-        // A plan made without it: apply refuses the configuration all the same, before it reads anything.
-        plan(generatorLayout(true, namespace), null, null, Map.of());
-        assertThrows(MigrationAbortedException.class, () -> migration().apply(apply(shared)));
+        Map<String, Object> written = writer.machines(global, 3, 10);
+        int maxMachineId = ((List<Number>) written.get("machineIds")).stream().mapToInt(Number::intValue).max().orElseThrow();
+        int offset = Migration.roundUpToPowerOfTwo(maxMachineId + 1);
+        Path layout = generatorLayout(true, global);
+
+        // A service before its shared namespace: plan says so, apply refuses.
+        Plan early = plan(layout, null, null, Map.of());
+        assertThat(early.generatorNamespace().prepared(), is(false));
+        assertThat(early.warnings(), hasItem(containsString("is not migrated yet")));
+        MigrationAbortedException notYet = assertThrows(MigrationAbortedException.class, () -> migration().apply(apply(layout)));
+        assertThat(notYet.getMessage(), containsString("[" + global + "] is not migrated"));
+
+        // 1. The shared namespace, once: machine records only, the slot offset above every 4.x machine id.
+        Path sharedPlan = dir.resolve("shared-plan.json");
+        Path sharedResult = dir.resolve("shared-result.json");
+        Plan shared = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
+            Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), sharedPlan));
+        assertThat(shared.segments(), empty());
+        assertThat(shared.shared().maxMachineId(), is(maxMachineId));
+        assertThat(shared.slots().slotOffset(), is(offset));
+        assertThat(shared.shared().rolling(), is(true));
+        // Rolling: neither --confirm-stopped nor a quiet period; running it again changes nothing.
+        Migration.ApplyOptions rolling = new Migration.ApplyOptions(sharedPlan, false, Duration.ofMinutes(5), 0, Duration.ZERO, true,
+            Migration.DEFAULT_SEAL_GAP, sharedResult, Map.of(), Map.of(), layout, null);
+        ApplyResult sharedApplied = migration().apply(rolling);
+        assertThat(sharedApplied.observedMillis(), is(0L));
+        assertThat(sharedApplied.slots().slotOffset(), is(offset));
+        assertThat(migration().apply(rolling).slots().slotOffset(), is(offset));
+        assertThat(migration().verify(new Migration.VerifyOptions(sharedPlan, sharedResult, Map.of(), Map.of())), empty());
+
+        // 2. The service: its shared namespace is migrated, rolling, so its 4.x records count for nothing here.
+        Plan service = plan(layout, null, null, Map.of());
+        assertThat(service.generatorNamespace(), is(new Plan.GeneratorNamespace(global, 1024, 1000, offset)));
+        assertThat(service.extraNamespaces().containsKey(global), is(false));
+        ApplyResult result = migration().apply(apply(layout));
+        assertThat(result.generatorNamespace().slotOffset(), is(offset));
+        assertThat(verify(), empty());
+
+        // 3. config: the CosIdGenerator issues on the named machine of the shared namespace.
         Path output = dir.resolve("application-5.yaml");
-        MigrationAbortedException configRefused = assertThrows(MigrationAbortedException.class,
-            () -> migration().config(new Migration.ConfigOptions(shared, null, output, ZoneId.of("UTC"), Set.of("order"))));
-        assertThat(configRefused.getMessage(), containsString("named machines"));
+        migration().config(new Migration.ConfigOptions(layout, dir.resolve("apply-result.json"), output, ZoneId.of("UTC"), Set.of()));
+        String yaml = Files.readString(output);
+        assertThat(yaml, containsString("  machines:\n    generator:\n      namespace: " + global + "\n      leased:\n"));
+        assertThat(yaml, containsString("        slot-offset: " + offset + "\n"));
+        assertThat(yaml, containsString("      strategy: cosid80\n      machine: generator\n"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void theSlotOffsetOfASharedNamespaceIsChecked() throws IOException {
+        String global = "global-" + namespace;
+        Map<String, Object> written = writer.machines(global, 4, 10);
+        int maxMachineId = ((List<Number>) written.get("machineIds")).stream().mapToInt(Number::intValue).max().orElseThrow();
+        Path layout = generatorLayout(true, global);
+        Path planned = dir.resolve("shared-plan.json");
+        // Not above the 4.x machine ids: their nodes would collide.
+        MigrationAbortedException low = assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(
+            source.location(), target.location(), null, null, global, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
+            planned, Math.max(1, maxMachineId))));
+        assertThat(low.getMessage(), containsString("is not above the 4.x machine ids"));
+        // Beyond the node bits of the CosIdGenerator: 2^20 nodes hold no 2^10 slots above 2^20 - 1.
+        MigrationAbortedException high = assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(
+            source.location(), target.location(), null, null, global, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(),
+            planned, (1 << 20) - 512)));
+        assertThat(high.getMessage(), containsString("exceeds the 2^20 nodes"));
+        assertThat(high.getMessage(), containsString("--slot-bits 9"));
+        // Offset 0: migrated at once, every service stopped, so apply wants --confirm-stopped.
+        Plan atOnce = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
+            Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), planned, 0));
+        assertThat(atOnce.shared().rolling(), is(false));
+        assertThrows(MigrationAbortedException.class, () -> migration().apply(new Migration.ApplyOptions(planned, false, Duration.ZERO, 0,
+            Duration.ZERO, true, Migration.DEFAULT_SEAL_GAP, dir.resolve("shared-result.json"), Map.of(), Map.of(), layout, null)));
+        // --slot-offset belongs to the shared namespace only.
+        assertThrows(MigrationAbortedException.class, () -> migration().plan(new Migration.PlanOptions(source.location(), target.location(), null,
+            null, namespace, layout, null, null, Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), planned, 4)));
+    }
+
+    @Test
+    void cosIdGeneratorBitsBeyondALongAreRefused() throws IOException {
+        // timeBits + seqBits <= 63 (D36): refused before a configuration 5.0 would not start.
+        writer.segment(namespace, "order", 0, 10, 1);
+        Path wide = layout(GENERATOR_LAYOUT.replace("ENABLED", "true").replace(", namespace: GENERATOR_NS", ", timestamp-bit: 50, sequence-bit: 16"));
+        MigrationAbortedException planned = assertThrows(MigrationAbortedException.class, () -> plan(wide, null, null, Map.of()));
+        assertThat(planned.getMessage(), containsString("= 66 exceeds 63"));
+        Path output = dir.resolve("application-5.yaml");
+        assertThrows(MigrationAbortedException.class, () -> migration().config(new Migration.ConfigOptions(wide, null, output, ZoneId.of("UTC"),
+            Set.of("order"))));
         assertThat(Files.exists(output), is(false));
     }
 
@@ -367,7 +445,7 @@ class ApplyGuardsTest extends MigrationScenarioTest {
     void anotherSlotLimitInTheTargetFails() {
         writer.segment(namespace, "order", 0, 10, 1);
         try (TargetAdmin admin = Targets.open(target.location())) {
-            admin.prepare(namespace, 16, 1000, 0);
+            admin.prepare(namespace, 16, 1000, 0, 0);
         }
         Plan plan = plan(migration());
         assertThat(plan.warnings(), hasItem(containsString("recorded with limit 16")));

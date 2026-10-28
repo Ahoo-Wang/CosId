@@ -366,8 +366,8 @@ abstract class MigrationScenarioTest {
         }
 
         @Override
-        public NamespaceState prepare(String namespace, int limit, long toleranceMillis, long nextFloor) {
-            return delegate.prepare(namespace, limit, toleranceMillis, nextFloor);
+        public NamespaceState prepare(String namespace, int limit, long toleranceMillis, int slotOffset, long nextFloor) {
+            return delegate.prepare(namespace, limit, toleranceMillis, slotOffset, nextFloor);
         }
 
         @Override

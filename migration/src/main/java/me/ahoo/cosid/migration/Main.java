@@ -32,6 +32,7 @@ public final class Main {
           plan    --from <4.x store> --to <5.0 store> --namespace <ns> [--output plan.json] [--layout-config <4.x yaml>]
                   [--machine-from <4.x machine store>] [--machine-to <5.0 slot store>]
                   [--target-config <5.0 yaml>] [--slot-bits 10] [--tolerance 1s] [--source-skew 10s]
+                  [--slot-offset <n>]   (the shared cosid.generator.namespace only: default the 4.x machine ids rounded up to a power of 2)
                   [--rename <4.x name>=<5.0 name>]... [--group-pattern <generator>=<4.x pattern>]...
                   [--from-option k=v]... [--to-option k=v]...
           apply   --plan plan.json --confirm-stopped [--observe 2m] [--gap 0] [--source-skew 10s] [--no-seal-source]
@@ -75,8 +76,9 @@ public final class Main {
                 case "plan" -> {
                     Args options = Args.parse(rest, Set.of(), Set.of("from", "to", "machine-from", "machine-to", "namespace", "output", "layout-config",
                         "target-config", "slot-bits", "tolerance", "source-skew", "rename", "group-pattern", "from-option", "to-option",
-                        "machine-from-option", "machine-to-option"));
+                        "machine-from-option", "machine-to-option", "slot-offset"));
                     String bits = options.get("slot-bits");
+                    String slotOffset = options.get("slot-offset");
                     String machineFrom = options.get("machine-from");
                     String machineTo = options.get("machine-to");
                     migration.plan(new Migration.PlanOptions(
@@ -87,7 +89,7 @@ public final class Main {
                         options.required("namespace"), options.path("layout-config"), options.path("target-config"),
                         bits == null ? null : Integer.parseInt(bits), options.duration("tolerance", Duration.ofSeconds(1)),
                         options.duration("source-skew", Migration.DEFAULT_SOURCE_SKEW), options.pairs("rename"), options.pairs("group-pattern"),
-                        options.path("output", "plan.json")));
+                        options.path("output", "plan.json"), slotOffset == null ? null : Integer.parseInt(slotOffset)));
                     return 0;
                 }
                 case "apply" -> {

@@ -72,18 +72,19 @@ public interface TargetAdmin extends AutoCloseable {
     Optional<NamespaceState> namespace(String namespace);
 
     /**
-     * Prepares the slots of a namespace (09 §4.2): records {@code {limit, tolerance}} when there is no metadata yet,
+     * Prepares the slots of a namespace (09 §4.2): records {@code {limit, tolerance, slotOffset}} when there is no metadata yet,
      * creates the missing slots {@code [0, limit)} free, and raises every slot's next floor to at least
      * {@code nextFloor}.
      *
      * @param namespace       the namespace
      * @param limit           the slot limit
      * @param toleranceMillis the tolerance
+     * @param slotOffset      the slot offset (api-freeze.md §2.1.1); 0 writes no offset, as 5.0.0-alpha.1 did
      * @param nextFloor       W
      * @return the state after the write
      * @throws IllegalStateException if the metadata differs, or a slot has a live lease: 5.0 runs already
      */
-    NamespaceState prepare(String namespace, int limit, long toleranceMillis, long nextFloor);
+    NamespaceState prepare(String namespace, int limit, long toleranceMillis, int slotOffset, long nextFloor);
 
     @Override
     void close();
@@ -91,9 +92,17 @@ public interface TargetAdmin extends AutoCloseable {
     /**
      * The error of a namespace recorded with other parameters.
      */
-    static IllegalStateException mismatch(String namespace, int limit, long toleranceMillis, int recordedLimit, long recordedTolerance) {
-        return new IllegalStateException("Namespace [" + namespace + "] is recorded with limit " + recordedLimit + " and tolerance " + recordedTolerance
-            + "ms, the plan has " + limit + " and " + toleranceMillis + "ms: use --slot-bits / --tolerance of the 5.0 configuration");
+    static IllegalStateException mismatch(String namespace, int limit, long toleranceMillis, int slotOffset, NamespaceState recorded) {
+        return new IllegalStateException("Namespace [" + namespace + "] is recorded with limit " + recorded.limit() + ", tolerance "
+            + recorded.toleranceMillis() + "ms and slot offset " + recorded.slotOffset() + ", the plan has " + limit + ", " + toleranceMillis + "ms and "
+            + slotOffset + ": use --slot-bits / --tolerance / --slot-offset of the 5.0 configuration");
+    }
+
+    /**
+     * Whether the recorded metadata is the planned one.
+     */
+    static boolean matches(NamespaceState recorded, int limit, long toleranceMillis, int slotOffset) {
+        return recorded.limit() == limit && recorded.toleranceMillis() == toleranceMillis && recorded.slotOffset() == slotOffset;
     }
 
     /**

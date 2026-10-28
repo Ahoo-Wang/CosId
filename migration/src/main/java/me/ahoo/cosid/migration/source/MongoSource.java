@@ -124,15 +124,19 @@ public final class MongoSource implements SourceReader {
         }
         Map<String, String> machines = new TreeMap<>();
         long maxTimestamp = 0;
+        int maxMachineId = -1;
         for (Document document : database.getCollection(MACHINES).find(Filters.eq("namespace", namespace))) {
             machines.put(String.valueOf(document.get("_id")), document.toJson());
+            if (document.get("machineId") instanceof Number id) {
+                maxMachineId = Math.max(maxMachineId, id.intValue());
+            }
             for (String field : TIMESTAMPS) {
                 if (document.get(field) instanceof Number number) {
                     maxTimestamp = Math.max(maxTimestamp, number.longValue());
                 }
             }
         }
-        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized);
+        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized, maxMachineId);
     }
 
     @Override

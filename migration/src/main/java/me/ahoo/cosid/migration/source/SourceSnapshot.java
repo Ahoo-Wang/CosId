@@ -29,12 +29,46 @@ import java.util.TreeSet;
  * @param maxMachineTimestamp {@code T4}, the largest timestamp of the machine records ({@code last_timestamp},
  *                            {@code watermark}, {@code renew_time} and the like), 0 without records
  * @param unrecognized        keys under the namespace the reader could not interpret, with the reason
+ * @param maxMachineId        the largest 4.x machine id the records show ever handed out, -1 without records; the slot
+ *                            offset of a namespace that 4.x and 5.0 share during a rolling migration lies above it
+ *                            (api-freeze.md §2.7)
  */
-public record SourceSnapshot(Map<String, Long> segments, Map<String, String> machines, long maxMachineTimestamp, List<String> unrecognized) {
+public record SourceSnapshot(Map<String, Long> segments, Map<String, String> machines, long maxMachineTimestamp, List<String> unrecognized,
+                             int maxMachineId) {
     public SourceSnapshot {
         segments = Map.copyOf(Objects.requireNonNull(segments, "segments"));
         machines = Map.copyOf(Objects.requireNonNull(machines, "machines"));
         unrecognized = List.copyOf(Objects.requireNonNull(unrecognized, "unrecognized"));
+    }
+
+    /**
+     * A snapshot without machine ids.
+     *
+     * @param segments            the segments
+     * @param machines            the machine records
+     * @param maxMachineTimestamp T4
+     * @param unrecognized        the keys not interpreted
+     */
+    public SourceSnapshot(Map<String, Long> segments, Map<String, String> machines, long maxMachineTimestamp, List<String> unrecognized) {
+        this(segments, machines, maxMachineTimestamp, unrecognized, -1);
+    }
+
+    /**
+     * The machine id of a 4.x state {@code machineId|lastTimestamp}.
+     *
+     * @param state the state
+     * @return the machine id, -1 when unreadable
+     */
+    public static int machineIdOf(String state) {
+        if (state == null) {
+            return -1;
+        }
+        int bar = state.indexOf('|');
+        try {
+            return Integer.parseInt((bar < 0 ? state : state.substring(0, bar)).trim());
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     /**

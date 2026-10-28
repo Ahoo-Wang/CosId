@@ -78,6 +78,7 @@ public final class JdbcSource implements SourceReader {
         Map<String, String> machines = new TreeMap<>();
         List<String> unrecognized = new ArrayList<>();
         long maxTimestamp = 0;
+        int maxMachineId = -1;
         try (Connection connection = connect(location)) {
             try (PreparedStatement select = connection.prepareStatement("select name, last_max_id from " + segmentTable);
                  ResultSet rs = select.executeQuery()) {
@@ -107,6 +108,9 @@ public final class JdbcSource implements SourceReader {
                             if ("name".equals(label)) {
                                 id = value;
                             }
+                            if ("machine_id".equals(label) && value != null) {
+                                maxMachineId = Math.max(maxMachineId, rs.getInt(column));
+                            }
                             if (TIMESTAMPS.contains(label) && value != null) {
                                 maxTimestamp = Math.max(maxTimestamp, rs.getLong(column));
                             }
@@ -123,7 +127,7 @@ public final class JdbcSource implements SourceReader {
         } catch (SQLException e) {
             throw new IllegalStateException("Reading the 4.x JDBC store " + location.url() + " failed: " + e.getMessage(), e);
         }
-        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized);
+        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized, maxMachineId);
     }
 
     static boolean isMissingTable(SQLException e) {

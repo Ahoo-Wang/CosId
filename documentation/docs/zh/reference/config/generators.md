@@ -7,7 +7,7 @@
 
 | 属性 | 默认值 | 含义 |
 |---|---|---|
-| `strategy` | | `snowflake`、`cosid80`、`segment` 或 `periodic-segment` |
+| `strategy` | | `snowflake`、`cosid80`、`segment`、`periodic-segment` 或 `custom` |
 | `disabled` | `false` | 已声明但不创建；其 Bean 抛出 `GeneratorDisabledException`（D24） |
 | `codec` | `[]`（十进制） | 编解码器列表，按顺序应用（见下文） |
 
@@ -15,16 +15,38 @@
 
 | 属性 | 默认值 | 含义 |
 |---|---|---|
-| `layout` | `SNOWFLAKE_MS` | snowflake：预设，`SNOWFLAKE_MS`、`SNOWFLAKE_S`、`JS_SAFE_MS` 或 `JS_SAFE_S` |
-| `epoch` | 预设的值 | snowflake：覆盖 epoch（一个 `Instant`，`2019-12-24T16:00:00Z`） |
-| `unit` | 预设的值 | snowflake：`MILLIS` 或 `SECONDS` |
-| `time-bits`、`node-bits`、`seq-bits` | 预设的值 | snowflake：覆盖各段位宽；`node-bits ≥ machine bits` |
-| `seq-reset-threshold` | 预设的值；设置了 `seq-bits` 时为序列范围的一半 | snowflake：新时间单位起始序列的上限（4.x `sequence-reset-threshold`）；取值 `0` 到 `2^seq-bits − 1` |
+| `layout` | snowflake 为 `SNOWFLAKE_MS`；cosid80 为 `COSID_80` | 预设：snowflake 为 `SNOWFLAKE_MS`、`SNOWFLAKE_S`、`JS_SAFE_MS` 或 `JS_SAFE_S`；cosid80 只接受 `COSID_80` |
+| `epoch` | 预设的值 | snowflake：覆盖 epoch（一个 `Instant`，`2019-12-24T16:00:00Z`）；在 cosid80 上报错（固定 Unix epoch） |
+| `unit` | 预设的值 | snowflake：`MILLIS` 或 `SECONDS`；在 cosid80 上报错（固定毫秒） |
+| `time-bits`、`node-bits`、`seq-bits` | 预设的值 | 覆盖各段位宽（cosid80 对应 4.x 的 `timestamp-bit`、`machine-bit`、`sequence-bit`）；`node-bits` 须容纳所选 machine 的 `slot-offset + 2^bits` |
+| `seq-reset-threshold` | 预设的值；设置了 `seq-bits` 时为序列范围的一半 | 新时间单位起始序列的上限（4.x `sequence-reset-threshold`）；取值 `0` 到 `2^seq-bits − 1` |
+| `machine` | `cosid.machine` | ID 所用槽位的命名 machine（`cosid.machines.<name>`） |
 | `regression.borrow-up-to` | `5ms` | 在最后一个时间单位上继续发号所允许的最大时钟回拨 |
 | `regression.wait-up-to` | `1s` | 等待恢复的最大回拨；超出则抛出 `ClockBackwardsException` |
 
-`cosid80` 始终使用 `Layout.COSID_80`（44 位毫秒、20 位节点、16 位序列）；其编解码器为单个 `radix` 或
-`friendly` 项。
+`cosid80` 以 `Layout.COSID_80`（自 Unix epoch 起的 44 位毫秒、20 位节点、16 位序列）为起点，总位数必须大于 63，且 `time-bits + seq-bits`
+不超过 63。其编解码器为单个项：`radix` 只接受 `radix` 62 或 36（各段宽度由布局决定，设置 `width`、`pad-start` 会报错），或 `friendly`，
+其 `pad-start` 生效（对应 4.x `cosid.generator.pad-start`）。
+
+```yaml
+cosid:
+  generators:
+    token:
+      strategy: cosid80
+      node-bits: 16              # 4.x cosid.generator.machine-bit
+      seq-reset-threshold: 1023  # 4.x cosid.generator.sequence-reset-threshold
+      codec: [ { friendly: { zone: Asia/Shanghai, pad-start: false } } ]
+```
+
+## `custom`
+
+用户提供的 `IdGenerator` Bean（对应 4.x `IdGeneratorProvider.set`）；运行时对外提供它（它的 Bean、`IdFiller`、端点），但不负责关闭它。
+
+| 属性 | 默认值 | 含义 |
+|---|---|---|
+| `ref` | | 必填：Bean 名，不能与任何生成器同名；该 Bean 不能依赖 `CosIdRuntime` |
+
+其 `codec` 规则同 `segment`（不能用 `friendly`，也不能用取自 ID 时间的 `date-prefix`）。
 
 ## `segment`
 

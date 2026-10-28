@@ -193,7 +193,7 @@ public final class ConfigConverter {
         }
         cosid.put("generators", generators);
         if (config.get("cosid.metrics.generated.enabled") != null) {
-            cosid.put("metrics", Map.of("generated", config.bool("cosid.metrics.generated.enabled", false)));
+            cosid.put("metrics", Map.of("generated", Map.of("enabled", config.bool("cosid.metrics.generated.enabled", false))));
             handled.add("cosid.metrics.generated.enabled");
         }
 

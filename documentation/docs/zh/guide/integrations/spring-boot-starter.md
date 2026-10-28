@@ -102,7 +102,7 @@ Customizer 在运行时启动前按 `@Order` 依次执行，它们添加的生�
 - 端点 `cosid`：`GET /actuator/cosid` 描述所有生成器，`/actuator/cosid/{name}` 描述单个生成器，
   `/actuator/cosid/{name}/long` 或 `/string` 生成一个 ID。端点只读（D17）；4.x 的删除操作改为
   `disabled` 属性。
-- 健康检查 `cosId`（`/actuator/health/cosId`，开关 `management.health.cosid.enabled`）：机器号槽位租约。
+- 健康检查 `cosid`（`/actuator/health/cosid`，开关 `management.health.cosid.enabled`）：机器号槽位租约。
 - Micrometer：19 个 `cosid.*` 指标。见[指标与健康检查](../operations/monitoring.md)。
 - 各集成（Jackson、MyBatis、Spring Data JDBC、Activiti、Flowable、Axon）在其库与对应的 CosId artifact（`cosid-jackson`、`cosid-mybatis`……）
   位于 classpath 上时自动装配。

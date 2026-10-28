@@ -62,20 +62,76 @@
     {
       "name": "cosid.stores.values.type",
       "values": [
-        { "value": "jdbc", "description": "cosid-store-jdbc on the context's DataSource." },
-        { "value": "redis", "description": "cosid-store-redis on the context's Lettuce client or RedisConnectionFactory." },
-        { "value": "mongo", "description": "cosid-store-mongo on the context's MongoClient." },
-        { "value": "zookeeper", "description": "cosid-store-zookeeper on the context's CuratorFramework." },
-        { "value": "remote", "description": "cosid-store-remote: the leases and ranges of a cosid-server." }
+        {
+          "value": "jdbc",
+          "description": "cosid-store-jdbc on the context's DataSource."
+        },
+        {
+          "value": "redis",
+          "description": "cosid-store-redis on the context's Lettuce client or RedisConnectionFactory."
+        },
+        {
+          "value": "mongo",
+          "description": "cosid-store-mongo on the context's MongoClient."
+        },
+        {
+          "value": "zookeeper",
+          "description": "cosid-store-zookeeper on the context's CuratorFramework."
+        },
+        {
+          "value": "remote",
+          "description": "cosid-store-remote: the leases and ranges of a cosid-server."
+        }
       ]
     },
     {
       "name": "cosid.generators.values.strategy",
       "values": [
-        { "value": "snowflake" },
-        { "value": "cosid80" },
-        { "value": "segment" },
-        { "value": "periodic-segment" }
+        {
+          "value": "snowflake",
+          "description": "A time-based long id on a machine slot."
+        },
+        {
+          "value": "cosid80",
+          "description": "The 80-bit CosId, text and parts only, on a machine slot."
+        },
+        {
+          "value": "segment",
+          "description": "Ranges reserved from a store."
+        },
+        {
+          "value": "periodic-segment",
+          "description": "Ranges per period (year, month or day) reserved from a store."
+        },
+        {
+          "value": "custom",
+          "description": "A user IdGenerator bean, named by ref; the runtime does not own it."
+        }
+      ]
+    },
+    {
+      "name": "cosid.generators.values.layout",
+      "values": [
+        {
+          "value": "SNOWFLAKE_MS",
+          "description": "snowflake (default): 41 time bits in ms, 10 node bits, 12 sequence bits."
+        },
+        {
+          "value": "SNOWFLAKE_S",
+          "description": "snowflake: time in seconds."
+        },
+        {
+          "value": "JS_SAFE_MS",
+          "description": "snowflake: at most 53 bits, safe as a JavaScript number; time in ms."
+        },
+        {
+          "value": "JS_SAFE_S",
+          "description": "snowflake: at most 53 bits, safe as a JavaScript number; time in seconds."
+        },
+        {
+          "value": "COSID_80",
+          "description": "cosid80 (default, the only one): 44 time bits in ms since the Unix epoch, 20 node bits, 16 sequence bits."
+        }
       ]
     }
   ]

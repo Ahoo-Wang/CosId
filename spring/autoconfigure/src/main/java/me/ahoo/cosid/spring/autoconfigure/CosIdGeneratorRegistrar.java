@@ -21,6 +21,8 @@ import me.ahoo.cosid.runtime.CosIdRuntime;
 import me.ahoo.cosid.runtime.GeneratorSpec;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.aot.AotDetector;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
@@ -33,8 +35,8 @@ import org.springframework.beans.factory.config.RuntimeBeanReference;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.beans.factory.support.RootBeanDefinition;
-import org.springframework.boot.context.properties.bind.Bindable;
-import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.bind.PropertySourcesPlaceholdersResolver;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.Environment;
 
@@ -54,6 +56,7 @@ import java.util.Objects;
  * destroyed before the runtime closes.
  */
 public class CosIdGeneratorRegistrar implements BeanDefinitionRegistryPostProcessor, EnvironmentAware, BeanFactoryAware {
+    private static final Logger log = LoggerFactory.getLogger(CosIdGeneratorRegistrar.class);
     public static final String RUNTIME_BEAN = "cosIdRuntime";
     public static final String SPEC_BEAN = "cosIdRuntimeSpec";
 
@@ -78,14 +81,26 @@ public class CosIdGeneratorRegistrar implements BeanDefinitionRegistryPostProces
      */
     public synchronized RuntimeSpec spec() {
         if (spec == null) {
-            CosIdProperties properties = Binder.get(environment).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class));
-            RuntimeSpec built = CosIdSpecs.toSpec(properties, ZoneId.systemDefault());
+            CosIdProperties properties = CosIdSpecs.bind(ConfigurationPropertySources.get(environment), new PropertySourcesPlaceholdersResolver(environment));
+            RuntimeSpec built = CosIdSpecs.toSpec(properties, namespace(properties, environment), ZoneId.systemDefault());
             for (RuntimeSpecCustomizer customizer : beanFactory.getBeanProvider(RuntimeSpecCustomizer.class).orderedStream().toList()) {
                 built = Objects.requireNonNull(customizer.customize(built), () -> customizer + " returned no spec");
             }
             spec = built;
         }
         return spec;
+    }
+
+    /**
+     * {@code cosid.namespace}, else {@code spring.application.name}, else {@value CosIdProperties#DEFAULT_NAMESPACE}
+     * with a warning (D38).
+     */
+    static String namespace(CosIdProperties properties, Environment environment) {
+        return CosIdSpecs.namespace(properties.namespace(), environment.getProperty("spring.application.name")).orElseGet(() -> {
+            log.warn("cosid.namespace and spring.application.name are both unset: using [{}]; two such applications share their segment keys "
+                + "and slots", CosIdProperties.DEFAULT_NAMESPACE);
+            return CosIdProperties.DEFAULT_NAMESPACE;
+        });
     }
 
     @Override
@@ -134,7 +149,7 @@ public class CosIdGeneratorRegistrar implements BeanDefinitionRegistryPostProces
 
     /**
      * The bean of one generator: the runtime's view of it by the bean type, which counts the ids when
-     * {@code cosid.metrics.generated} is on. A disabled generator's bean throws {@link GeneratorDisabledException} on
+     * {@code cosid.metrics.generated.enabled} is on. A disabled generator's bean throws {@link GeneratorDisabledException} on
      * each call (D24).
      *
      * @param <T> the bean type: {@link IdGenerator}, {@link PartsIdGenerator} or {@link GroupedIdGenerator}

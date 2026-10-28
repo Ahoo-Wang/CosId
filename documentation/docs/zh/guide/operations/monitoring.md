@@ -7,7 +7,7 @@
 ## 指标
 
 所有指标都以 `cosid.*` 命名（共 19 个）。它们来自 listener 事件，因此热路径从不调用它们；只有
-`cosid.generator.generated` 对 id 计数，并且仅在 `cosid.metrics.generated: true` 时开启。
+`cosid.generator.generated` 对 id 计数，并且仅在 `cosid.metrics.generated.enabled: true` 时开启。
 
 | 指标 | 类型 | 标签 | 4.x 名称 |
 |---|---|---|---|
@@ -36,7 +36,7 @@
 
 ## 健康检查
 
-健康检查 `cosId`（`/actuator/health/cosId`；开关 `management.health.cosid.enabled`）：
+健康检查 `cosid`（`/actuator/health/cosid`；开关 `management.health.cosid.enabled`）：
 
 - 当槽位租约已丢失且未能重新获取，或某个时间型生成器的槽位绑定不再有效时为 `DOWN`；否则为 `UP`。
   没有时间型生成器时不存在槽位，状态为 `UP`。

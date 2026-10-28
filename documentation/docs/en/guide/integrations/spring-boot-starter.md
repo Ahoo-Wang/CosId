@@ -104,7 +104,7 @@ not depend on other beans (it is a `static @Bean`), as in 4.x.
 - Endpoint `cosid`: `GET /actuator/cosid` describes every generator, `/actuator/cosid/{name}` one, and
   `/actuator/cosid/{name}/long` or `/string` generates one id. It is read-only (D17); the 4.x delete operation became the
   `disabled` property.
-- Health `cosId` (`/actuator/health/cosId`, switch `management.health.cosid.enabled`): the slot lease.
+- Health `cosid` (`/actuator/health/cosid`, switch `management.health.cosid.enabled`): the slot lease.
 - Micrometer: 19 `cosid.*` meters. See [metrics and health](../operations/monitoring.md).
 - The integrations (Jackson, MyBatis, Spring Data JDBC, Activiti, Flowable, Axon) set themselves up when their library
   and the matching CosId artifact (`cosid-jackson`, `cosid-mybatis`, …) are on the classpath.

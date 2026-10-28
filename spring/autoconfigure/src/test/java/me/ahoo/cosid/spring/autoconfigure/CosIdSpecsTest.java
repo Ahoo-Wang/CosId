@@ -37,8 +37,7 @@ import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.context.properties.bind.Bindable;
-import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.bind.PlaceholdersResolver;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
 import java.nio.file.Path;
@@ -64,7 +63,8 @@ class CosIdSpecsTest {
             int at = pair.indexOf('=');
             map.put(pair.substring(0, at), pair.substring(at + 1));
         }
-        return new Binder(new MapConfigurationPropertySource(map)).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class));
+        // Strictly, as the registrar does: an unknown key fails (R1-spring-03).
+        return CosIdSpecs.bind(List.of(new MapConfigurationPropertySource(map)), PlaceholdersResolver.NONE);
     }
 
     static RuntimeSpec spec(String... pairs) {
@@ -76,7 +76,7 @@ class CosIdSpecsTest {
     }
 
     private static CosIdProperties.Generator generator(String strategy, String store, List<CosIdProperties.Codec> codec) {
-        return new CosIdProperties.Generator(strategy, false, "SNOWFLAKE_MS", null, null, null, null, null, null, null, store, 100, 1,
+        return new CosIdProperties.Generator(strategy, false, "SNOWFLAKE_MS", null, null, null, null, null, null, null, null, null, store, 100, 1,
             Duration.ofSeconds(1), null, Duration.ofSeconds(3), null, null, null, Duration.ofMinutes(1), null, codec);
     }
 
@@ -84,7 +84,8 @@ class CosIdSpecsTest {
     void mapsHandBuiltRecords() {
         CosIdProperties properties = new CosIdProperties(true, "app",
             Map.of("db", new CosIdProperties.Store("jdbc", Duration.ofSeconds(2), null, Map.of("initSchema", "true"))),
-            new CosIdProperties.Machine(null, new CosIdProperties.Static(10, 3, null, Duration.ofSeconds(10), null)),
+            new CosIdProperties.Machine(null, null, new CosIdProperties.Static(10, 3, null, Duration.ofSeconds(10), null)),
+            null,
             Map.of("default", generator("snowflake", null, null),
                 "order", generator("segment", "db", List.of(new CosIdProperties.Codec(null, null, "O", null, null, null, null)))),
             null);
@@ -98,7 +99,7 @@ class CosIdSpecsTest {
             .codec(List.of())
             .build(), spec.generators().get("default"));
         assertEquals(GeneratorSpec.Segment.builder("db").batch(BatchPolicy.DEFAULT).codec(List.of(new CodecSpec.Prefix("O"))).build(), spec.generators().get("order"));
-        assertEquals(new CosIdProperties.Metrics(false), properties.metrics());
+        assertEquals(new CosIdProperties.Metrics(new CosIdProperties.Generated(false)), properties.metrics());
     }
 
     @Test
@@ -140,7 +141,7 @@ class CosIdSpecsTest {
             "cosid.generators.bill.codec[1].radix.pad-start=true",
             "cosid.generators.token.strategy=cosid80",
             "cosid.generators.token.codec[0].radix.radix=62",
-            "cosid.metrics.generated=false");
+            "cosid.metrics.generated.enabled=false");
         assertEquals("app", spec.namespace());
         assertEquals(StoreSpec.builder("redis").timeout(Duration.ofSeconds(1)).option("wait", "auto").build(), spec.stores().get("cache"));
         assertEquals(Optional.of(MachineSpec.Leased.builder("cache").bits(10).ttl(Duration.ofSeconds(30)).tolerance(Duration.ofSeconds(1)).build()), spec.machine());
@@ -236,7 +237,7 @@ class CosIdSpecsTest {
             .periodic(PeriodicPolicy.builder().prewarm(Duration.ZERO).sealAfter(Duration.ofDays(2)).build())
             .codec(new GroupedCodecSpec.DatePrefix("-", List.of()))
             .build(), spec.generators().get("year"));
-        assertEquals(GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Friendly(ZONE)).build(), spec.generators().get("friendly80"));
+        assertEquals(GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Friendly(ZONE, false)).build(), spec.generators().get("friendly80"));
     }
 
     @Test
@@ -350,7 +351,7 @@ class CosIdSpecsTest {
         assertThat(message, containsString("cosid.namespace: must not be blank"));
         assertThat(message, containsString("cosid.stores.s.type: required"));
         assertThat(message, containsString("cosid.machine: set either leased or static, not both"));
-        assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, not [uuid]"));
+        assertThat(message, containsString("cosid.generators.a.strategy: one of snowflake, cosid80, segment, periodic-segment, custom, not [uuid]"));
         assertThat(message, containsString("cosid.generators.b.store: required"));
         assertThat(message, containsString("cosid.generators.c.layout: one of [JS_SAFE_MS, JS_SAFE_S, SNOWFLAKE_MS, SNOWFLAKE_S], not [SNOWFLAKE_US]"));
         assertThat(message, containsString("cosid.generators.c.codec[0]: set exactly one of radix, friendly, prefix, suffix, date-prefix, custom, period (2 set)"));
@@ -417,5 +418,127 @@ class CosIdSpecsTest {
         assertThat(message, containsString("cosid.generators.p.codec[1]: set exactly one"));
         assertThat(message, containsString("cosid.generators.q.codec[0]: set exactly one"));
         assertThat(message, containsString("cosid.generators.r.codec: a cosid80 generator takes a single radix or friendly item"));
+    }
+
+    @Test
+    void cosId80TakesTheBitWidthsOfTheSnowflakeKeys() {
+        // D36: the 4.x CosIdGenerator bits and threshold, and friendly text without padding.
+        RuntimeSpec spec = spec("cosid.machine.static.slot=1",
+            "cosid.generators.token.strategy=cosid80",
+            "cosid.generators.token.node-bits=16",
+            "cosid.generators.token.seq-reset-threshold=1023",
+            "cosid.generators.token.codec[0].friendly.zone=UTC",
+            "cosid.generators.token.codec[0].friendly.pad-start=false",
+            "cosid.generators.plain.strategy=cosid80",
+            "cosid.generators.trace.strategy=snowflake");
+        GeneratorSpec.CosId80 token = (GeneratorSpec.CosId80) spec.generators().get("token");
+        assertEquals(new Layout(Instant.EPOCH, ChronoUnit.MILLIS, 44, 16, 16, 1023), token.layout());
+        assertEquals(new PartsCodecSpec.Friendly(ZoneId.of("UTC"), false), token.codec());
+        // Each strategy has its default layout.
+        assertEquals(Layout.COSID_80, ((GeneratorSpec.CosId80) spec.generators().get("plain")).layout());
+        assertEquals(Layout.SNOWFLAKE_MS, ((GeneratorSpec.Snowflake) spec.generators().get("trace")).layout());
+    }
+
+    @Test
+    void cosId80RefusesTheKeysItsLayoutFixes() {
+        String message = invalid("cosid.generators.a.strategy=cosid80", "cosid.generators.a.epoch=2020-01-01T00:00:00Z", "cosid.generators.a.unit=SECONDS",
+            "cosid.generators.b.strategy=cosid80", "cosid.generators.b.layout=SNOWFLAKE_MS",
+            "cosid.generators.c.strategy=cosid80", "cosid.generators.c.codec[0].radix.width=10",
+            "cosid.generators.d.strategy=cosid80", "cosid.generators.d.codec[0].radix.pad-start=true",
+            "cosid.generators.e.strategy=cosid80", "cosid.generators.e.codec[0].radix.radix=16").getMessage();
+        assertThat(message, containsString("cosid.generators.a.epoch: a cosid80 generator keeps the Unix epoch"));
+        assertThat(message, containsString("cosid.generators.a.unit: a cosid80 generator keeps milliseconds"));
+        assertThat(message, containsString("cosid.generators.b.layout: a cosid80 generator takes COSID_80 only, not [SNOWFLAKE_MS]"));
+        assertThat(message, containsString("cosid.generators.c.codec[0].radix.width: a cosid80 generator's layout gives each part its width"));
+        assertThat(message, containsString("cosid.generators.d.codec[0].radix.pad-start: a cosid80 generator's radix text is always padded"));
+        assertThat(message, containsString("cosid.generators.e.codec[0].radix.radix: a cosid80 generator takes 62 or 36: 16"));
+    }
+
+    @Test
+    void mapsNamedMachinesAndTheirChoice() {
+        // D37 with D42 and the slot offset.
+        RuntimeSpec spec = spec("cosid.namespace=order-service",
+            "cosid.stores.cache.type=redis",
+            "cosid.machine.leased.store=cache",
+            "cosid.machine.leased.acquire-timeout=5s",
+            "cosid.machines.global.namespace=global-ids",
+            "cosid.machines.global.leased.store=cache",
+            "cosid.machines.global.leased.ttl=20s",
+            "cosid.machines.global.leased.slot-offset=1024",
+            "cosid.machines.edge.namespace=edge-ids",
+            "cosid.machines.edge.static.slot=3",
+            "cosid.generators.trace.strategy=snowflake",
+            "cosid.generators.token.strategy=cosid80",
+            "cosid.generators.token.machine=global");
+        assertEquals(Optional.of(MachineSpec.Leased.builder("cache").acquireTimeout(Duration.ofSeconds(5)).build()), spec.machine());
+        // Unset, the acquire timeout follows the ttl.
+        assertEquals(MachineSpec.Leased.builder("cache").ttl(Duration.ofSeconds(20)).slotOffset(1024).namespace("global-ids").build(),
+            spec.machines().get("global"));
+        assertEquals(Duration.ofSeconds(20), ((MachineSpec.Leased) spec.machines().get("global")).acquireTimeout());
+        assertEquals(MachineSpec.Static.builder(3).namespace("edge-ids").build(), spec.machines().get("edge"));
+        assertEquals(Optional.of("global"), ((GeneratorSpec.CosId80) spec.generators().get("token")).machine());
+        assertEquals(Optional.empty(), ((GeneratorSpec.Snowflake) spec.generators().get("trace")).machine());
+    }
+
+    @Test
+    void namedMachinesAreChecked() {
+        String message = invalid("cosid.stores.cache.type=redis",
+            "cosid.machines.nameless.leased.store=cache",
+            "cosid.machines.empty.namespace=x",
+            "cosid.generators.order.strategy=segment", "cosid.generators.order.store=cache", "cosid.generators.order.machine=nameless").getMessage();
+        assertThat(message, containsString("cosid.machines.nameless.namespace: required: a named machine has a namespace of its own"));
+        assertThat(message, containsString("cosid.machines.empty: set leased or static"));
+        assertThat(message, containsString("cosid.generators.order.machine: only a snowflake or cosid80 generator chooses a machine"));
+    }
+
+    @Test
+    void mapsACustomGeneratorByReference() {
+        // D41: the bean is resolved when the runtime starts.
+        RuntimeSpec spec = spec("cosid.generators.legacy.strategy=custom", "cosid.generators.legacy.ref=legacyIds",
+            "cosid.generators.legacy.codec[0].radix.radix=36");
+        assertEquals(GeneratorSpec.Custom.builder("legacyIds").codec(List.of(new CodecSpec.Radix(36, Radix.maxWidth(36), false))).build(),
+            spec.generators().get("legacy"));
+        String message = invalid("cosid.generators.a.strategy=custom",
+            "cosid.generators.b.strategy=custom", "cosid.generators.b.ref=c",
+            "cosid.generators.c.strategy=segment", "cosid.generators.c.store=s", "cosid.generators.c.ref=x").getMessage();
+        assertThat(message, containsString("cosid.generators.a.ref: required: the bean name of an IdGenerator"));
+        assertThat(message, containsString("cosid.generators.b.ref: [c] is the name of a generator, whose bean CosId registers"));
+        assertThat(message, containsString("cosid.generators.c.ref: only a custom generator refers to a bean"));
+    }
+
+    @Test
+    void anUnknownKeyFails() {
+        // R1-spring-03: a typo would otherwise fall back to the default silently.
+        Exception typo = assertThrows(Exception.class, () -> bind("cosid.generators.order.strategy=segment", "cosid.generators.order.stpe=10"));
+        assertThat(rootMessage(typo), containsString("cosid.generators.order.stpe"));
+        assertThrows(Exception.class, () -> bind("cosid.machines.global.namespace=g", "cosid.machines.global.leased.bitz=10"));
+        assertThrows(Exception.class, () -> bind("cosid.metrics.generated=true"));
+        // Backend options, and the keys of the integrations and the server, are checked elsewhere.
+        CosIdProperties properties = bind("cosid.stores.db.type=jdbc", "cosid.stores.db.options.anything=1", "cosid.stores.db.options.a.b=2",
+            "cosid.server.ids.enabled=true", "cosid.mybatis.enabled=false", "cosid.jdbc.enabled=true", "cosid.activiti.generator-name=a",
+            "cosid.flowable.enabled=false", "cosid.axon.generator-name=b", "cosid.metrics.generated.enabled=true");
+        assertEquals("1", properties.stores().get("db").options().get("anything"));
+        assertTrue(properties.metrics().generated().enabled());
+    }
+
+    private static String rootMessage(Throwable error) {
+        StringBuilder messages = new StringBuilder();
+        for (Throwable current = error; current != null; current = current.getCause()) {
+            messages.append(current.getMessage()).append('\n');
+        }
+        return messages.toString();
+    }
+
+    @Test
+    void theNamespaceFallsBackToTheApplicationName() {
+        // D38.
+        assertEquals(Optional.of("explicit"), CosIdSpecs.namespace("explicit", "orders"));
+        assertEquals(Optional.of("orders"), CosIdSpecs.namespace(null, "orders"));
+        assertEquals(Optional.empty(), CosIdSpecs.namespace(null, null));
+        assertEquals(Optional.empty(), CosIdSpecs.namespace(null, " "));
+        CosIdException invalid = assertThrows(CosIdException.class, () -> CosIdSpecs.namespace(null, "Order Service"));
+        assertThat(invalid.getMessage(), containsString("spring.application.name [Order Service] is no valid namespace"));
+        assertThat(invalid.getMessage(), containsString("set cosid.namespace"));
+        assertEquals("orders", CosIdSpecs.toSpec(bind(), "orders", ZONE).namespace());
     }
 }

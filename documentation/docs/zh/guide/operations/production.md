@@ -25,7 +25,7 @@
 
 | 信号 | 含义 |
 |---|---|
-| 健康检查 `cosId` 为 `DOWN` | 槽位租约已丢失且未能重新获取：时间型生成器快速失败 |
+| 健康检查 `cosid` 为 `DOWN` | 槽位租约已丢失且未能重新获取：时间型生成器快速失败 |
 | `cosid.machine.lease.renew.failures` 上升 | 存储不可达或缓慢；id 会继续发出，直到 ceiling |
 | `cosid.machine.window.remaining` 接近 0 | 续约没有成功；发号即将暂停 |
 | `cosid.machine.clock.skew` 超过 `tolerance / 2` | 修复 NTP |

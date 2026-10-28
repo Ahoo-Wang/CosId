@@ -39,5 +39,5 @@
 ## 获取更多细节
 
 - `GET /actuator/cosid` 显示每个生成器的布局、槽位、时间窗口、批量大小与手头持有的 ID。
-- `GET /actuator/health/cosId` 显示租约、剩余时间窗口与最近一次续约错误。
+- `GET /actuator/health/cosid` 显示租约、剩余时间窗口与最近一次续约错误。
 - 将日志器 `me.ahoo.cosid` 设为 `DEBUG`。

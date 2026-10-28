@@ -47,8 +47,8 @@ import java.util.function.ToDoubleFunction;
  * <table>
  *     <caption>Meters</caption>
  *     <tr><th>Meter</th><th>Tags</th><th>4.x</th></tr>
- *     <tr><td>{@code cosid.segment.reserve} (timer)</td><td>name, key</td><td>{@code segment.fetch}</td></tr>
- *     <tr><td>{@code cosid.segment.refill.failures}</td><td>name, key, error</td><td>{@code segment.prefetch.failures}</td></tr>
+ *     <tr><td>{@code cosid.segment.reserve} (timer)</td><td>name</td><td>{@code segment.fetch}</td></tr>
+ *     <tr><td>{@code cosid.segment.refill.failures}</td><td>name, error</td><td>{@code segment.prefetch.failures}</td></tr>
  *     <tr><td>{@code cosid.segment.batch.resizes}</td><td>name, direction</td><td>{@code segment.prefetch.expansions}</td></tr>
  *     <tr><td>{@code cosid.segment.batch} (gauge)</td><td>name</td><td>{@code segment.prefetch.distance}</td></tr>
  *     <tr><td>{@code cosid.segment.held} (gauge)</td><td>name</td><td>{@code segment.remaining}</td></tr>
@@ -64,7 +64,7 @@ import java.util.function.ToDoubleFunction;
  *     <tr><td>{@code cosid.machine.clock.skew} (time gauge)</td><td>namespace, machine</td><td>{@code machine.clock.skew}</td></tr>
  *     <tr><td>{@code cosid.machine.owner.duplicates}</td><td>namespace, machine</td><td>—</td></tr>
  *     <tr><td>{@code cosid.store.timeouts}</td><td>store, operation</td><td>{@code call.timeouts}</td></tr>
- *     <tr><td>{@code cosid.generator.generated} (function counter, {@code cosid.metrics.generated})</td><td>name</td><td>{@code generator.generated}</td></tr>
+ *     <tr><td>{@code cosid.generator.generated} (function counter, {@code cosid.metrics.generated.enabled})</td><td>name</td><td>{@code generator.generated}</td></tr>
  * </table>
  *
  * <p>{@code cosid.generator.generated} counts every view the runtime hands out, the {@code IdFiller} among them. The
@@ -183,13 +183,14 @@ public class CosIdMeterListener implements GeneratorListener, SmartInitializingS
 
     @Override
     public void onRangeReserved(String generator, String key, Range range, Duration latency) {
-        Timer.builder(PREFIX + "segment.reserve").tags("name", generator, "key", key).description("Range reservations")
+        // No key tag (R1-spring-06): a periodic segment has a key per period, an unbounded tag.
+        Timer.builder(PREFIX + "segment.reserve").tags("name", generator).description("Range reservations")
             .register(registry).record(latency);
     }
 
     @Override
     public void onRefillFailed(String generator, String key, Throwable error) {
-        counter("segment.refill.failures", "name", generator, "key", key, "error", error.getClass().getSimpleName()).increment();
+        counter("segment.refill.failures", "name", generator, "error", error.getClass().getSimpleName()).increment();
     }
 
     @Override

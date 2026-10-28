@@ -196,7 +196,7 @@ class CosIdActuatorTest {
                 assertTrue(health.getDetails().isEmpty(), "no machine started");
             });
         runner().withPropertyValues("management.health.cosid.enabled=false", "cosid.generators.default.strategy=snowflake",
-            "cosid.machine.static.slot=1").run(context -> assertFalse(context.containsBean("cosIdHealthIndicator")));
+            "cosid.machine.static.slot=1").run(context -> assertFalse(context.containsBean("cosidHealthIndicator")));
     }
 
     @Test
@@ -211,7 +211,7 @@ class CosIdActuatorTest {
     void theMetricsCoverSegmentsLeasesAndEvents() {
         runner().withBean(MeterRegistry.class, SimpleMeterRegistry::new)
             .withPropertyValues("cosid.stores.mem.type=memory", "cosid.machine.leased.store=mem", "cosid.generators.default.strategy=snowflake",
-                "cosid.generators.order.strategy=segment", "cosid.generators.order.store=mem", "cosid.metrics.generated=true",
+                "cosid.generators.order.strategy=segment", "cosid.generators.order.store=mem", "cosid.metrics.generated.enabled=true",
                 "cosid.generators.token.strategy=cosid80", "cosid.generators.off.strategy=segment", "cosid.generators.off.disabled=true")
             .run(context -> {
                 assertNull(context.getStartupFailure());

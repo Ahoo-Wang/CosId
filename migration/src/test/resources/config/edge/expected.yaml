@@ -122,4 +122,5 @@ cosid:
       - friendly:
           zone: Asia/Shanghai
   metrics:
-    generated: true
+    generated:
+      enabled: true

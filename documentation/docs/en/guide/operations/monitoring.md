@@ -7,7 +7,7 @@ and an endpoint. Without Spring, implement `GeneratorListener` (passed in `Runti
 ## Meters
 
 Every meter is named `cosid.*` (19 in all). They come from listener events, so the hot path never calls them; only
-`cosid.generator.generated` counts ids, and only when `cosid.metrics.generated: true`.
+`cosid.generator.generated` counts ids, and only when `cosid.metrics.generated.enabled: true`.
 
 | Meter | Type | Tags | 4.x name |
 |---|---|---|---|
@@ -36,7 +36,7 @@ Every meter is named `cosid.*` (19 in all). They come from listener events, so t
 
 ## Health
 
-The health indicator `cosId` (`/actuator/health/cosId`; switch `management.health.cosid.enabled`):
+The health indicator `cosid` (`/actuator/health/cosid`; switch `management.health.cosid.enabled`):
 
 - `DOWN` when the slot lease was lost and not acquired again, or when a time-based generator's slot binding is no
   longer valid; otherwise `UP`. Without a time-based generator there is no slot, and it is `UP`.

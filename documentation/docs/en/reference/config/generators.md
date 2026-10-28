@@ -7,7 +7,7 @@ depends on the strategy. The name may not contain `/`, and `default` is the prim
 
 | Property | Default | Meaning |
 |---|---|---|
-| `strategy` | | `snowflake`, `cosid80`, `segment` or `periodic-segment` |
+| `strategy` | | `snowflake`, `cosid80`, `segment`, `periodic-segment` or `custom` |
 | `disabled` | `false` | declared but not created; its bean throws `GeneratorDisabledException` (D24) |
 | `codec` | `[]` (decimal) | the codec list, applied in order (below) |
 
@@ -15,16 +15,40 @@ depends on the strategy. The name may not contain `/`, and `default` is the prim
 
 | Property | Default | Meaning |
 |---|---|---|
-| `layout` | `SNOWFLAKE_MS` | snowflake: the preset, `SNOWFLAKE_MS`, `SNOWFLAKE_S`, `JS_SAFE_MS` or `JS_SAFE_S` |
-| `epoch` | the preset's | snowflake: overrides the epoch (an `Instant`, `2019-12-24T16:00:00Z`) |
-| `unit` | the preset's | snowflake: `MILLIS` or `SECONDS` |
-| `time-bits`, `node-bits`, `seq-bits` | the preset's | snowflake: override the widths; `node-bits ≥ machine bits` |
-| `seq-reset-threshold` | the preset's; half the sequence range when `seq-bits` is set | snowflake: the highest sequence a new time unit may start from (4.x `sequence-reset-threshold`); `0` to `2^seq-bits − 1` |
+| `layout` | snowflake `SNOWFLAKE_MS`; cosid80 `COSID_80` | the preset: snowflake `SNOWFLAKE_MS`, `SNOWFLAKE_S`, `JS_SAFE_MS` or `JS_SAFE_S`; cosid80 `COSID_80` only |
+| `epoch` | the preset's | snowflake: overrides the epoch (an `Instant`, `2019-12-24T16:00:00Z`); an error on cosid80, which keeps the Unix epoch |
+| `unit` | the preset's | snowflake: `MILLIS` or `SECONDS`; an error on cosid80, which keeps milliseconds |
+| `time-bits`, `node-bits`, `seq-bits` | the preset's | override the widths (4.x `timestamp-bit`, `machine-bit`, `sequence-bit` for cosid80); `node-bits` holds the machine's `slot-offset + 2^bits` |
+| `seq-reset-threshold` | the preset's; half the sequence range when `seq-bits` is set | the highest sequence a new time unit may start from (4.x `sequence-reset-threshold`); `0` to `2^seq-bits − 1` |
+| `machine` | the `cosid.machine` | the named machine (`cosid.machines.<name>`) whose slot the ids carry |
 | `regression.borrow-up-to` | `5ms` | the largest clock regression issued on the last time unit |
 | `regression.wait-up-to` | `1s` | the largest regression waited out; beyond it, `ClockBackwardsException` |
 
-`cosid80` always uses `Layout.COSID_80` (44-bit ms, 20-bit node, 16-bit sequence); its codec is a single `radix` or
-`friendly` item.
+`cosid80` starts from `Layout.COSID_80` (44-bit ms since the Unix epoch, 20-bit node, 16-bit sequence) and must stay
+wider than 63 bits, with `time-bits + seq-bits` at most 63. Its codec is a single item: `radix` with `radix` 62 or 36
+only (the layout gives each part its width, so `width` and `pad-start` are errors), or `friendly`, whose `pad-start`
+applies (4.x `cosid.generator.pad-start`).
+
+```yaml
+cosid:
+  generators:
+    token:
+      strategy: cosid80
+      node-bits: 16              # 4.x cosid.generator.machine-bit
+      seq-reset-threshold: 1023  # 4.x cosid.generator.sequence-reset-threshold
+      codec: [ { friendly: { zone: Asia/Shanghai, pad-start: false } } ]
+```
+
+## `custom`
+
+A user `IdGenerator` bean (4.x `IdGeneratorProvider.set`); the runtime hands it out (its bean, `IdFiller`, the
+endpoint) but does not close it.
+
+| Property | Default | Meaning |
+|---|---|---|
+| `ref` | | required: the bean name, other than every generator's name; the bean must not depend on `CosIdRuntime` |
+
+Its `codec` follows the rules of `segment` (no `friendly`, no `date-prefix` from the id time).
 
 ## `segment`
 

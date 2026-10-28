@@ -11,7 +11,7 @@ cosid:
   stores:
     mongo:
       type: mongo
-      timeout: 2s            # the driver's timeoutMS; 0 means none
+      timeout: 2s            # the driver's timeoutMS, positive
       options:
         uri: mongodb://mongo-1,mongo-2,mongo-3/?replicaSet=rs0
         database: cosid_db

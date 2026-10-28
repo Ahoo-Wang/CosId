@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.runtime;
 
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.codec.IdCodec;
 import me.ahoo.cosid.internal.ClassNameCodecs;
 import me.ahoo.cosid.observe.GeneratorListener;
@@ -43,6 +44,7 @@ public final class RuntimeOptions {
     private final HostResolver hostResolver;
     private final OptionalInt port;
     private final Function<String, Optional<IdCodec>> codecs;
+    private final Function<String, Optional<IdGenerator>> generators;
     private final boolean countGenerated;
 
     private RuntimeOptions(Builder builder) {
@@ -54,6 +56,7 @@ public final class RuntimeOptions {
         this.hostResolver = builder.hostResolver;
         this.port = builder.port;
         this.codecs = builder.codecs;
+        this.generators = builder.generators;
         this.countGenerated = builder.countGenerated;
     }
 
@@ -68,7 +71,7 @@ public final class RuntimeOptions {
 
     /**
      * The system clock, an own executor, no listener, providers from {@link java.util.ServiceLoader} only, no
-     * clients, the local host, no port, custom codecs by class name, no counting.
+     * clients, the local host, no port, custom codecs by class name, no custom generators, no counting.
      *
      * @return the default options
      */
@@ -82,7 +85,8 @@ public final class RuntimeOptions {
      * @return the builder
      */
     public Builder toBuilder() {
-        Builder builder = new Builder().time(time).listener(listener).hostResolver(hostResolver).codecs(codecs).countGenerated(countGenerated);
+        Builder builder = new Builder().time(time).listener(listener).hostResolver(hostResolver).codecs(codecs).generators(generators)
+            .countGenerated(countGenerated);
         executor.ifPresent(builder::executor);
         builder.storeProviders.addAll(storeProviders);
         builder.clients.putAll(clients);
@@ -163,6 +167,16 @@ public final class RuntimeOptions {
     }
 
     /**
+     * Resolves {@link GeneratorSpec.Custom} references (D41).
+     *
+     * @return the resolver, empty for an unknown reference; by default always empty, so a custom reference fails the
+     *     start
+     */
+    public Function<String, Optional<IdGenerator>> generators() {
+        return generators;
+    }
+
+    /**
      * Whether to count the ids each generator issues through the views the runtime hands out
      * ({@link CosIdRuntime#generated(String)}).
      *
@@ -176,19 +190,19 @@ public final class RuntimeOptions {
     public boolean equals(Object o) {
         return o instanceof RuntimeOptions that && time.equals(that.time) && executor.equals(that.executor) && listener.equals(that.listener)
             && storeProviders.equals(that.storeProviders) && clients.equals(that.clients) && hostResolver.equals(that.hostResolver)
-            && port.equals(that.port) && codecs.equals(that.codecs) && countGenerated == that.countGenerated;
+            && port.equals(that.port) && codecs.equals(that.codecs) && generators.equals(that.generators) && countGenerated == that.countGenerated;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(time, executor, listener, storeProviders, clients, hostResolver, port, codecs, countGenerated);
+        return Objects.hash(time, executor, listener, storeProviders, clients, hostResolver, port, codecs, generators, countGenerated);
     }
 
     @Override
     public String toString() {
         return "RuntimeOptions[time=" + time + ", executor=" + executor + ", listener=" + listener + ", storeProviders=" + storeProviders
             + ", clients=" + clients + ", hostResolver=" + hostResolver + ", port=" + port + ", codecs=" + codecs
-            + ", countGenerated=" + countGenerated + "]";
+            + ", generators=" + generators + ", countGenerated=" + countGenerated + "]";
     }
 
     /**
@@ -203,6 +217,7 @@ public final class RuntimeOptions {
         private HostResolver hostResolver = HostResolver.LOCAL;
         private OptionalInt port = OptionalInt.empty();
         private Function<String, Optional<IdCodec>> codecs = ClassNameCodecs::resolve;
+        private Function<String, Optional<IdGenerator>> generators = reference -> Optional.empty();
         private boolean countGenerated;
 
         private Builder() {
@@ -295,6 +310,17 @@ public final class RuntimeOptions {
          */
         public Builder codecs(Function<String, Optional<IdCodec>> codecs) {
             this.codecs = Objects.requireNonNull(codecs, "codecs");
+            return this;
+        }
+
+        /**
+         * Sets how {@link GeneratorSpec.Custom} references resolve (D41).
+         *
+         * @param generators the resolver, empty for an unknown reference; by default always empty
+         * @return this builder
+         */
+        public Builder generators(Function<String, Optional<IdGenerator>> generators) {
+            this.generators = Objects.requireNonNull(generators, "generators");
             return this;
         }
 

@@ -20,13 +20,13 @@ import java.time.ZoneId;
 import java.util.Objects;
 
 /**
- * {@link PartsCodec#friendly}: {@code yyyyMMddHHmmssSSS-<node>-<seq>}, the node and the sequence padded.
+ * {@link PartsCodec#friendly}: {@code yyyyMMddHHmmssSSS-<node>-<seq>}, the node and the sequence padded or not.
  */
 final class FriendlyParts implements PartsCodec {
     private final FriendlyFormat format;
 
-    FriendlyParts(Layout layout, ZoneId zone) {
-        this.format = new FriendlyFormat(Objects.requireNonNull(layout, "layout"), Objects.requireNonNull(zone, "zone"), true);
+    FriendlyParts(Layout layout, ZoneId zone, boolean padStart) {
+        this.format = new FriendlyFormat(Objects.requireNonNull(layout, "layout"), Objects.requireNonNull(zone, "zone"), padStart);
     }
 
     @Override

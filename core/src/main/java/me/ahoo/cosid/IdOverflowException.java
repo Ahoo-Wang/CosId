@@ -14,16 +14,37 @@
 package me.ahoo.cosid;
 
 /**
- * An id does not fit the narrower type it is converted to (03-core-model.md §5).
+ * An id does not fit where it goes (03-core-model.md §5): the narrower type it is converted to, or the bits left
+ * beside the random bits of {@link IdGenerators#uncertain}.
  */
 public class IdOverflowException extends CosIdException {
     private final long id;
 
+    /**
+     * The id overflows {@code int}.
+     *
+     * @param id the id
+     */
     public IdOverflowException(long id) {
-        super("Id " + id + " overflows int");
+        this(id, "Id " + id + " overflows int");
+    }
+
+    /**
+     * The id overflows, as {@code message} tells.
+     *
+     * @param id      the id
+     * @param message the message
+     */
+    public IdOverflowException(long id, String message) {
+        super(message);
         this.id = id;
     }
 
+    /**
+     * The id that overflowed.
+     *
+     * @return the id
+     */
     public long id() {
         return id;
     }

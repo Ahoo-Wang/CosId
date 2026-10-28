@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.runtime;
 
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.segment.Period;
 import me.ahoo.cosid.segment.PeriodicPolicy;
@@ -152,13 +153,17 @@ public sealed interface GeneratorSpec {
     }
 
     /**
-     * The 80-bit CosId ({@link Layout#COSID_80}), text only.
+     * A time-based generator wider than a {@code long} ({@link Layout#COSID_80} by default), issuing parts and text
+     * only. Its layout keeps the Unix epoch and milliseconds, so the text of every CosId implementation decodes alike
+     * (D36); {@code CosIdRuntime.start} rejects a layout of 63 bits or fewer (use {@link Snowflake}).
      */
     final class CosId80 implements GeneratorSpec {
+        private final Layout layout;
         private final ClockRegressionPolicy regression;
         private final PartsCodecSpec codec;
 
         private CosId80(Builder builder) {
+            this.layout = builder.layout;
             this.regression = builder.regression;
             this.codec = builder.codec;
         }
@@ -170,6 +175,16 @@ public sealed interface GeneratorSpec {
          */
         public static Builder builder() {
             return new Builder();
+        }
+
+        /**
+         * The layout: wider than 63 bits, with the Unix epoch and milliseconds; its node bits must cover the machine
+         * bits.
+         *
+         * @return the layout; default {@link Layout#COSID_80}
+         */
+        public Layout layout() {
+            return layout;
         }
 
         /**
@@ -192,27 +207,39 @@ public sealed interface GeneratorSpec {
 
         @Override
         public boolean equals(Object o) {
-            return o instanceof CosId80 that && regression.equals(that.regression) && codec.equals(that.codec);
+            return o instanceof CosId80 that && layout.equals(that.layout) && regression.equals(that.regression) && codec.equals(that.codec);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(regression, codec);
+            return Objects.hash(layout, regression, codec);
         }
 
         @Override
         public String toString() {
-            return "CosId80[regression=" + regression + ", codec=" + codec + "]";
+            return "CosId80[layout=" + layout + ", regression=" + regression + ", codec=" + codec + "]";
         }
 
         /**
          * Builds a {@link CosId80}.
          */
         public static final class Builder {
+            private Layout layout = Layout.COSID_80;
             private ClockRegressionPolicy regression = ClockRegressionPolicy.DEFAULT;
             private PartsCodecSpec codec = new PartsCodecSpec.Radix(62);
 
             private Builder() {
+            }
+
+            /**
+             * Sets the layout: wider than 63 bits, with the Unix epoch and milliseconds (D36).
+             *
+             * @param layout the layout; default {@link Layout#COSID_80}
+             * @return this builder
+             */
+            public Builder layout(Layout layout) {
+                this.layout = Objects.requireNonNull(layout, "layout");
+                return this;
             }
 
             /**
@@ -519,6 +546,195 @@ public sealed interface GeneratorSpec {
              */
             public PeriodicSegment build() {
                 return new PeriodicSegment(this);
+            }
+        }
+    }
+
+    /**
+     * A user {@code long} generator by reference, for configuration: {@code CosIdRuntime.start} resolves the reference
+     * through {@link RuntimeOptions#generators()} and fails when it resolves to nothing.
+     *
+     * <p>The runtime does not own it (D41): it does not close, renew nor prefetch it, and it needs no store nor machine
+     * slot. It takes part in every lookup ({@code generator(name)}, {@code stringGenerator(name)}, {@code get(name,
+     * type)}), in {@code IdFiller}, in {@code describe()} (strategy {@code custom}, details {@code class}), in counting
+     * and in {@link Disabled}.
+     */
+    final class Custom implements GeneratorSpec {
+        private final String reference;
+        private final List<CodecSpec> codec;
+
+        private Custom(Builder builder) {
+            this.reference = builder.reference;
+            this.codec = builder.codec;
+        }
+
+        /**
+         * A builder of a generator by reference.
+         *
+         * @param reference the name the runtime resolves through {@code RuntimeOptions.generators()}; in Spring a bean name
+         * @return the builder
+         */
+        public static Builder builder(String reference) {
+            return new Builder(reference);
+        }
+
+        /**
+         * The name the runtime resolves through {@code RuntimeOptions.generators()}; in Spring a bean name.
+         *
+         * @return the reference
+         */
+        public String reference() {
+            return reference;
+        }
+
+        /**
+         * The codec list of its text ids, applied in order; as for a {@link Segment}, without a layout, so neither a
+         * {@link CodecSpec.Friendly} nor a {@link CodecSpec.DatePrefix} from the id time.
+         *
+         * @return the codec list; default empty, for none
+         */
+        public List<CodecSpec> codec() {
+            return codec;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof Custom that && reference.equals(that.reference) && codec.equals(that.codec);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(reference, codec);
+        }
+
+        @Override
+        public String toString() {
+            return "Custom[reference=" + reference + ", codec=" + codec + "]";
+        }
+
+        /**
+         * Builds a {@link Custom}.
+         */
+        public static final class Builder {
+            private final String reference;
+            private List<CodecSpec> codec = List.of();
+
+            private Builder(String reference) {
+                this.reference = Objects.requireNonNull(reference, "reference");
+            }
+
+            /**
+             * Sets the codec list of its text ids, applied in order.
+             *
+             * @param codec the codec list; default empty, for none
+             * @return this builder
+             */
+            public Builder codec(List<CodecSpec> codec) {
+                this.codec = List.copyOf(Objects.requireNonNull(codec, "codec"));
+                return this;
+            }
+
+            /**
+             * Builds the generator.
+             *
+             * @return the generator
+             */
+            public Custom build() {
+                return new Custom(this);
+            }
+        }
+    }
+
+    /**
+     * A user {@code long} generator instance, for specs built in code.
+     *
+     * <p>The runtime does not own it (D41): it does not close, renew nor prefetch it, and it needs no store nor machine
+     * slot. It takes part in every lookup ({@code generator(name)}, {@code stringGenerator(name)}, {@code get(name,
+     * type)}), in {@code IdFiller}, in {@code describe()} (strategy {@code custom}, details {@code class}), in counting
+     * and in {@link Disabled}.
+     */
+    final class Instance implements GeneratorSpec {
+        private final IdGenerator ids;
+        private final List<CodecSpec> codec;
+
+        private Instance(Builder builder) {
+            this.ids = builder.ids;
+            this.codec = builder.codec;
+        }
+
+        /**
+         * A builder of a generator instance.
+         *
+         * @param ids the generator
+         * @return the builder
+         */
+        public static Builder builder(IdGenerator ids) {
+            return new Builder(ids);
+        }
+
+        /**
+         * The generator.
+         *
+         * @return the ids
+         */
+        public IdGenerator ids() {
+            return ids;
+        }
+
+        /**
+         * The codec list of its text ids, applied in order; as for a {@link Segment}, without a layout, so neither a
+         * {@link CodecSpec.Friendly} nor a {@link CodecSpec.DatePrefix} from the id time.
+         *
+         * @return the codec list; default empty, for none
+         */
+        public List<CodecSpec> codec() {
+            return codec;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof Instance that && ids.equals(that.ids) && codec.equals(that.codec);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(ids, codec);
+        }
+
+        @Override
+        public String toString() {
+            return "Instance[ids=" + ids + ", codec=" + codec + "]";
+        }
+
+        /**
+         * Builds a {@link Instance}.
+         */
+        public static final class Builder {
+            private final IdGenerator ids;
+            private List<CodecSpec> codec = List.of();
+
+            private Builder(IdGenerator ids) {
+                this.ids = Objects.requireNonNull(ids, "ids");
+            }
+
+            /**
+             * Sets the codec list of its text ids, applied in order.
+             *
+             * @param codec the codec list; default empty, for none
+             * @return this builder
+             */
+            public Builder codec(List<CodecSpec> codec) {
+                this.codec = List.copyOf(Objects.requireNonNull(codec, "codec"));
+                return this;
+            }
+
+            /**
+             * Builds the generator.
+             *
+             * @return the generator
+             */
+            public Instance build() {
+                return new Instance(this);
             }
         }
     }

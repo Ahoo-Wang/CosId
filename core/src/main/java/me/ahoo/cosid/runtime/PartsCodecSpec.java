@@ -34,13 +34,23 @@ public sealed interface PartsCodecSpec {
     }
 
     /**
-     * {@link PartsCodec#friendly}.
+     * {@link PartsCodec#friendly(me.ahoo.cosid.time.Layout, ZoneId, boolean)}.
      *
-     * @param zone the time zone
+     * @param zone     the time zone
+     * @param padStart pad the node and the sequence to the width their bits need; default true
      */
-    record Friendly(ZoneId zone) implements PartsCodecSpec {
+    record Friendly(ZoneId zone, boolean padStart) implements PartsCodecSpec {
         public Friendly {
             Objects.requireNonNull(zone, "zone");
+        }
+
+        /**
+         * The node and the sequence padded.
+         *
+         * @param zone the time zone
+         */
+        public Friendly(ZoneId zone) {
+            this(zone, true);
         }
     }
 

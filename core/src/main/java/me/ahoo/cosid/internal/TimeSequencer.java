@@ -16,6 +16,7 @@ package me.ahoo.cosid.internal;
 import me.ahoo.cosid.ClockBackwardsException;
 import me.ahoo.cosid.SlotLostException;
 import me.ahoo.cosid.SlotWindowExceededException;
+import me.ahoo.cosid.TimeOverflowException;
 import me.ahoo.cosid.lease.SlotBinding;
 import me.ahoo.cosid.lease.SlotHandle;
 import me.ahoo.cosid.observe.GeneratorListener;
@@ -348,10 +349,12 @@ public final class TimeSequencer {
                 borrowed = backwards;
             }
         }
-        if (Long.compareUnsigned(use, maxTime) > 0) {
-            throw use < 0
-                ? new IllegalStateException("The epoch " + layout.epoch() + " of generator [" + name + "] is in the future")
-                : new IllegalStateException("The time " + use + " overflows the " + layout.timeBits() + " time bits of generator [" + name + "]");
+        if (use < 0) {
+            // CosIdRuntime.start rejects an epoch in the future: a clock now before the epoch went back (R1-core-12).
+            return outcome(REGRESSION_FAIL, 0, epochMillis - nowMillis);
+        }
+        if (use > maxTime) {
+            throw new TimeOverflowException(name, use, layout.timeBits());
         }
         long useMillis = toMillis(use);
         if (useMillis <= binding.floor()) {

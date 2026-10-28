@@ -54,11 +54,15 @@ public final class GeneratorEntry {
     public static final String COSID80 = "cosid80";
     public static final String SEGMENT = "segment";
     public static final String PERIODIC_SEGMENT = "periodic-segment";
+    public static final String CUSTOM = "custom";
 
     private final String name;
     private final String strategy;
     private final String store;
-    private final AutoCloseable generator;
+    /** The generator itself, the last view; null when disabled. */
+    private final Object generator;
+    /** Whether the runtime closes {@link #generator}: not a user one (D41). */
+    private final boolean owned;
     private final IdGenerator ids;
     private final StringIdGenerator strings;
     private final Supplier<String> text;
@@ -68,10 +72,16 @@ public final class GeneratorEntry {
 
     private GeneratorEntry(String name, String strategy, String store, AutoCloseable generator, IdGenerator ids, IdCodec codec,
                            Supplier<String> text, List<Object> extraViews, Supplier<Map<String, Object>> details, LongAdder counter) {
+        this(name, strategy, store, generator, true, ids, codec, text, extraViews, details, counter);
+    }
+
+    private GeneratorEntry(String name, String strategy, String store, Object generator, boolean owned, IdGenerator ids, IdCodec codec,
+                           Supplier<String> text, List<Object> extraViews, Supplier<Map<String, Object>> details, LongAdder counter) {
         this.name = Objects.requireNonNull(name, "name");
         this.strategy = Objects.requireNonNull(strategy, "strategy");
         this.store = Objects.requireNonNull(store, "store");
         this.generator = generator;
+        this.owned = owned;
         this.ids = ids;
         this.strings = ids == null ? null : new StringIdGenerator(ids, codec);
         this.text = text;
@@ -192,9 +202,30 @@ public final class GeneratorEntry {
         return new GeneratorEntry(generator.name(), PERIODIC_SEGMENT, store, generator, null, null,
             () -> codec.encode(grouped.generate()), List.of(grouped, codec), () -> {
                 Map<String, Object> all = new LinkedHashMap<>(fixed);
+                all.put("batch", generator.batch());
+                all.put("held", generator.held());
                 all.put("period", generator.currentPeriod());
                 return all;
             }, counter);
+    }
+
+    /**
+     * A user generator ({@code GeneratorSpec.Custom} or {@code Instance}, D41): the runtime hands it out but does not
+     * own it, so closing the entry leaves it open.
+     *
+     * @param name    the generator name
+     * @param ids     the user generator
+     * @param codec   its codec
+     * @param counter counts the ids issued; null for none
+     * @return the entry
+     */
+    public static GeneratorEntry custom(String name, IdGenerator ids, IdCodec codec, LongAdder counter) {
+        Objects.requireNonNull(ids, "ids");
+        Objects.requireNonNull(codec, "codec");
+        IdGenerator counted = counted(ids, counter);
+        String type = ids.getClass().getName();
+        return new GeneratorEntry(name, CUSTOM, "", ids, false, counted, codec, () -> codec.encode(counted.generate()), List.of(),
+            () -> Map.of("class", type), counter);
     }
 
     /**
@@ -206,7 +237,7 @@ public final class GeneratorEntry {
      * @return the entry
      */
     public static GeneratorEntry disabled(String name, String strategy, String store) {
-        return new GeneratorEntry(name, strategy, store, null, null, null, null, List.of(), () -> Map.of("disabled", true), null);
+        return new GeneratorEntry(name, strategy, store, null, false, null, null, null, List.of(), () -> Map.of("disabled", true), null);
     }
 
     /**
@@ -236,7 +267,7 @@ public final class GeneratorEntry {
      * @return the generator, or empty for other strategies
      */
     public Optional<TimeBasedGenerator> timeBased() {
-        return generator instanceof TimeBasedGenerator timeBased ? Optional.of(timeBased) : Optional.empty();
+        return owned && generator instanceof TimeBasedGenerator timeBased ? Optional.of(timeBased) : Optional.empty();
     }
 
     private void requireEnabled() {
@@ -313,13 +344,13 @@ public final class GeneratorEntry {
     }
 
     /**
-     * Closes the generator; a disabled one has nothing to close.
+     * Closes the generator; a disabled one has nothing to close, and a user one is left to its owner.
      *
      * @throws Exception if the generator fails to close
      */
     public void close() throws Exception {
-        if (generator != null) {
-            generator.close();
+        if (owned && generator instanceof AutoCloseable closeable) {
+            closeable.close();
         }
     }
 

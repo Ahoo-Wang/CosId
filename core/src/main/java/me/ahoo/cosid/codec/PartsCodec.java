@@ -50,6 +50,18 @@ public interface PartsCodec {
      * @return the codec
      */
     static PartsCodec friendly(Layout layout, ZoneId zone) {
-        return new FriendlyParts(layout, zone);
+        return friendly(layout, zone, true);
+    }
+
+    /**
+     * The time part as {@code yyyyMMddHHmmssSSS} in {@code zone}, then the node and the sequence, padded or not.
+     *
+     * @param layout   the layout of the parts
+     * @param zone     the time zone of the time part
+     * @param padStart pad the node and the sequence to the width their bits need
+     * @return the codec
+     */
+    static PartsCodec friendly(Layout layout, ZoneId zone, boolean padStart) {
+        return new FriendlyParts(layout, zone, padStart);
     }
 }

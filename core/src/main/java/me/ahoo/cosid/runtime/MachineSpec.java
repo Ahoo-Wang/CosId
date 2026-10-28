@@ -43,6 +43,7 @@ public sealed interface MachineSpec {
         private final int bits;
         private final Duration ttl;
         private final Duration tolerance;
+        private final Duration acquireTimeout;
         private final OptionalInt preferredSlot;
         private final Optional<String> ownerKey;
 
@@ -51,6 +52,7 @@ public sealed interface MachineSpec {
             this.bits = builder.bits;
             this.ttl = builder.ttl;
             this.tolerance = builder.tolerance;
+            this.acquireTimeout = builder.acquireTimeout == null ? builder.ttl : builder.acquireTimeout;
             this.preferredSlot = builder.preferredSlot;
             this.ownerKey = Optional.ofNullable(builder.ownerKey);
         }
@@ -103,6 +105,16 @@ public sealed interface MachineSpec {
         }
 
         /**
+         * How long {@code CosIdRuntime.start} waits for a slot while every slot is held (D42): it retries as leases
+         * expire, then fails; {@link Duration#ZERO} tries once. Align it with the startup probe of a rolling update.
+         *
+         * @return the acquire timeout, not negative; default the {@link #ttl()}
+         */
+        public Duration acquireTimeout() {
+            return acquireTimeout;
+        }
+
+        /**
          * The slot to try first, such as a StatefulSet ordinal.
          *
          * @return the preferred slot; default none
@@ -123,17 +135,18 @@ public sealed interface MachineSpec {
         @Override
         public boolean equals(Object o) {
             return o instanceof Leased that && store.equals(that.store) && bits == that.bits && ttl.equals(that.ttl)
-                && tolerance.equals(that.tolerance) && preferredSlot.equals(that.preferredSlot) && ownerKey.equals(that.ownerKey);
+                && tolerance.equals(that.tolerance) && acquireTimeout.equals(that.acquireTimeout) && preferredSlot.equals(that.preferredSlot)
+                && ownerKey.equals(that.ownerKey);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(store, bits, ttl, tolerance, preferredSlot, ownerKey);
+            return Objects.hash(store, bits, ttl, tolerance, acquireTimeout, preferredSlot, ownerKey);
         }
 
         @Override
         public String toString() {
-            return "Leased[store=" + store + ", bits=" + bits + ", ttl=" + ttl + ", tolerance=" + tolerance
+            return "Leased[store=" + store + ", bits=" + bits + ", ttl=" + ttl + ", tolerance=" + tolerance + ", acquireTimeout=" + acquireTimeout
                 + ", preferredSlot=" + preferredSlot + ", ownerKey=" + ownerKey + "]";
         }
 
@@ -145,6 +158,7 @@ public sealed interface MachineSpec {
             private int bits = 10;
             private Duration ttl = Duration.ofSeconds(30);
             private Duration tolerance = Duration.ofSeconds(1);
+            private Duration acquireTimeout;
             private OptionalInt preferredSlot = OptionalInt.empty();
             private String ownerKey;
 
@@ -182,6 +196,17 @@ public sealed interface MachineSpec {
              */
             public Builder tolerance(Duration tolerance) {
                 this.tolerance = Objects.requireNonNull(tolerance, "tolerance");
+                return this;
+            }
+
+            /**
+             * Sets how long {@code CosIdRuntime.start} waits for a slot while every slot is held (D42).
+             *
+             * @param acquireTimeout the timeout, not negative; {@link Duration#ZERO} tries once; default the ttl
+             * @return this builder
+             */
+            public Builder acquireTimeout(Duration acquireTimeout) {
+                this.acquireTimeout = Objects.requireNonNull(acquireTimeout, "acquireTimeout");
                 return this;
             }
 

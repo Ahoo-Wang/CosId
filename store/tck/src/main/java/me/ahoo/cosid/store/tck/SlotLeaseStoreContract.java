@@ -535,7 +535,7 @@ public abstract class SlotLeaseStoreContract {
      * NamespaceMismatchException, and the offset does not change the slots: they stay {@code [0, limit)}.
      */
     @Test
-    public void rejectsAMismatchedSlotOffset() {
+    public void rejectsMismatchedSlotOffset() {
         String namespace = newNamespace();
         try (SlotLeaseStore store = newStore(); SlotLeaseStore other = newStore()) {
             AcquireResult first = store.acquire(namespace, owner("host-a"), 4, LONG_TTL, TOLERANCE, 1024, OptionalInt.empty());

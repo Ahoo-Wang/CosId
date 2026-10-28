@@ -40,6 +40,16 @@ class JdbcSupportTest {
     }
 
     @Test
+    void fetchPlansParseIgnoringCaseAndSeparators() {
+        assertEquals(FetchPlan.STATEMENT, FetchPlan.of(null));
+        assertEquals(FetchPlan.STATEMENT, FetchPlan.of("statement"));
+        assertEquals(FetchPlan.TRANSACTION, FetchPlan.of(" Transaction "));
+        assertEquals(FetchPlan.TRANSACTION, FetchPlan.of("TRANS-ACTION"));
+        IllegalArgumentException unknown = assertThrows(IllegalArgumentException.class, () -> FetchPlan.of("lastInsertId"));
+        assertTrue(unknown.getMessage().contains("statement or transaction"), unknown.getMessage());
+    }
+
+    @Test
     void timeoutBecomesWholeQueryTimeoutSeconds() {
         assertEquals(1, Jdbc.queryTimeoutSeconds(Duration.ofMillis(1)));
         assertEquals(2, Jdbc.queryTimeoutSeconds(Duration.ofMillis(1500)));

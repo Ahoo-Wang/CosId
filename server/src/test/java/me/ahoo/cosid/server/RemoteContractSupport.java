@@ -59,8 +59,8 @@ final class RemoteContractSupport {
         SlotLeaseStore slots = remote.slots();
         return new SlotLeaseStore() {
             @Override
-            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-                return slots.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot);
+            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+                return slots.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot);
             }
 
             @Override

@@ -69,7 +69,7 @@ class ReplicaWaitTest {
             RedisStoreException failure = assertThrows(RedisStoreException.class, () -> store.ranges().reserve("wait-" + UUID.randomUUID(), 10, 0));
             assertThat(failure.getMessage(), containsString("acknowledged by 1 of 2 replicas"));
             assertThrows(RedisStoreException.class, () -> store.slots().acquire("wait-" + UUID.randomUUID(), new Owner("host", UUID.randomUUID()), 4,
-                Duration.ofSeconds(10), Duration.ofSeconds(1), OptionalInt.empty()));
+                Duration.ofSeconds(10), Duration.ofSeconds(1), 0, OptionalInt.empty()));
         }
     }
 
@@ -121,7 +121,7 @@ class ReplicaWaitTest {
         try (StatefulRedisClusterConnection<String, String> shared = RedisServers.cluster().connect();
              Store store = open(shared, SHORT, Map.of())) {
             assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire("cluster-" + UUID.randomUUID(), new Owner("host", UUID.randomUUID()), 4,
-                Duration.ofSeconds(10), Duration.ofSeconds(1), OptionalInt.empty()));
+                Duration.ofSeconds(10), Duration.ofSeconds(1), 0, OptionalInt.empty()));
         }
     }
 }

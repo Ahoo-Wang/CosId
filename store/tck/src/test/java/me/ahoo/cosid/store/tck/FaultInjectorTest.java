@@ -60,7 +60,7 @@ class FaultInjectorTest {
     void wrapsEveryLeaseOperation() {
         FaultySlotLeaseStore store = new FaultySlotLeaseStore(memory, faults);
         Owner owner = new Owner("host", UUID.randomUUID());
-        AcquireResult result = store.acquire("ns", owner, 2, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty());
+        AcquireResult result = store.acquire("ns", owner, 2, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty());
         assertThat(result, instanceOf(AcquireResult.Acquired.class));
         SlotLease lease = ((AcquireResult.Acquired) result).lease();
         faults.once(Operation.RENEW, new Fault.LoseResponse(() -> new CosIdException("lost")));

@@ -66,7 +66,7 @@ public class RedisStoreBenchmark {
     }
 
     private SlotLease acquire(Owner owner) {
-        return ((AcquireResult.Acquired) store.slots().acquire(namespace, owner, LIMIT, TTL, TOLERANCE, OptionalInt.empty())).lease();
+        return ((AcquireResult.Acquired) store.slots().acquire(namespace, owner, LIMIT, TTL, TOLERANCE, 0, OptionalInt.empty())).lease();
     }
 
     @Benchmark

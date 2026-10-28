@@ -71,7 +71,7 @@ class RedisScriptEdgeTest {
     }
 
     private static AcquireResult.Acquired acquired(Store store, String namespace, Owner owner, int limit, Duration ttl, OptionalInt preferred) {
-        return assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner, limit, ttl, TOLERANCE, preferred));
+        return assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner, limit, ttl, TOLERANCE, 0, preferred));
     }
 
     @Test
@@ -122,10 +122,10 @@ class RedisScriptEdgeTest {
             acquired(store, namespace, new Owner("host-a", UUID.randomUUID()), 8, TTL, OptionalInt.empty());
             assertEquals(Map.of("limit", "8", "tolerance", "1000"), redis.hgetall(RedisStore.namespaceKey(namespace, "meta")));
             NamespaceMismatchException grown = assertThrows(NamespaceMismatchException.class,
-                () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 16, TTL, TOLERANCE, OptionalInt.empty()));
+                () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 16, TTL, TOLERANCE, 0, OptionalInt.empty()));
             assertTrue(grown.getMessage().contains("limit 8 and tolerance 1000ms, now 16 and 1000ms"), grown.getMessage());
             assertThrows(NamespaceMismatchException.class,
-                () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 4, TTL, TOLERANCE, OptionalInt.empty()));
+                () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 4, TTL, TOLERANCE, 0, OptionalInt.empty()));
             assertEquals(7L, redis.zcard(RedisStore.namespaceKey(namespace, "free")), "a rejected acquire changes nothing");
         }
     }
@@ -193,7 +193,7 @@ class RedisScriptEdgeTest {
             assertEquals(lease.fence(), renewed.fence(), "nobody took it over");
             assertEquals(0L, redis.zcard(RedisStore.namespaceKey(namespace, "free")));
             assertInstanceOf(AcquireResult.Exhausted.class,
-                store.slots().acquire(namespace, new Owner("host-c", UUID.randomUUID()), 2, TTL, TOLERANCE, OptionalInt.empty()));
+                store.slots().acquire(namespace, new Owner("host-c", UUID.randomUUID()), 2, TTL, TOLERANCE, 0, OptionalInt.empty()));
         }
     }
 

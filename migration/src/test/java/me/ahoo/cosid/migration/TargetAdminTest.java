@@ -88,7 +88,7 @@ class TargetAdminTest {
             assertThat(mismatch.getMessage(), containsString("recorded with limit 16"));
 
             AcquireResult.Acquired first = (AcquireResult.Acquired) store5.slots().acquire(ns, new Owner("a", UUID.randomUUID()), 16,
-                Duration.ofMillis(300), Duration.ofSeconds(1), OptionalInt.of(3));
+                Duration.ofMillis(300), Duration.ofSeconds(1), 0, OptionalInt.of(3));
             assertThat(first.lease().floor(), is(w1));
             IllegalStateException live = assertThrows(IllegalStateException.class, () -> admin.prepare(ns, 16, 1000, w1));
             assertThat(live.getMessage(), containsString("live slot lease"));
@@ -98,7 +98,7 @@ class TargetAdminTest {
             long w2 = first.lease().ceiling() + 60_000;
             assertThat(admin.prepare(ns, 16, 1000, w2).minNextFloor(), greaterThanOrEqualTo(w2));
             AcquireResult.Acquired second = (AcquireResult.Acquired) store5.slots().acquire(ns, new Owner("b", UUID.randomUUID()), 16,
-                Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.of(3));
+                Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.of(3));
             assertThat(second.lease().slot(), is(3));
             assertThat(second.lease().floor(), greaterThanOrEqualTo(w2));
         }

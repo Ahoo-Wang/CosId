@@ -111,12 +111,12 @@ class ZookeeperStoreEdgeTest {
     void slotArgumentsAreChecked() {
         String namespace = "edge-" + UUID.randomUUID();
         Owner owner = owner("host-a");
-        assertThrows(IllegalArgumentException.class, () -> store.slots().acquire(namespace, owner, 0, TTL, TOLERANCE, OptionalInt.empty()));
-        assertThrows(IllegalArgumentException.class, () -> store.slots().acquire(namespace, owner, 1, Duration.ZERO, TOLERANCE, OptionalInt.empty()));
-        assertThrows(IllegalArgumentException.class, () -> store.slots().acquire(namespace, owner, 1, TTL.negated(), TOLERANCE, OptionalInt.empty()));
-        assertThrows(IllegalArgumentException.class, () -> store.slots().acquire(namespace, owner, 1, TTL, TOLERANCE.negated(), OptionalInt.empty()));
-        assertThrows(IllegalArgumentException.class, () -> store.slots().acquire("..", owner, 1, TTL, TOLERANCE, OptionalInt.empty()));
-        assertThrows(NullPointerException.class, () -> store.slots().acquire(namespace, null, 1, TTL, TOLERANCE, OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.slots().acquire(namespace, owner, 0, TTL, TOLERANCE, 0, OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.slots().acquire(namespace, owner, 1, Duration.ZERO, TOLERANCE, 0, OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.slots().acquire(namespace, owner, 1, TTL.negated(), TOLERANCE, 0, OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.slots().acquire(namespace, owner, 1, TTL, TOLERANCE.negated(), 0, OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.slots().acquire("..", owner, 1, TTL, TOLERANCE, 0, OptionalInt.empty()));
+        assertThrows(NullPointerException.class, () -> store.slots().acquire(namespace, null, 1, TTL, TOLERANCE, 0, OptionalInt.empty()));
         assertThrows(NullPointerException.class, () -> store.slots().renew(null, TTL, TOLERANCE));
         assertThrows(NullPointerException.class, () -> store.slots().release(null, 0));
     }
@@ -125,7 +125,7 @@ class ZookeeperStoreEdgeTest {
     void leasesOfMissingSlotsAreNotHeld() {
         String namespace = "edge-" + UUID.randomUUID();
         SlotLease lease = assertInstanceOf(AcquireResult.Acquired.class,
-            store.slots().acquire(namespace, owner("host-a"), 4, TTL, TOLERANCE, OptionalInt.empty())).lease();
+            store.slots().acquire(namespace, owner("host-a"), 4, TTL, TOLERANCE, 0, OptionalInt.empty())).lease();
         SlotLease elsewhere = SlotLease.builder()
             .namespace(namespace)
             .slot(3)
@@ -157,18 +157,18 @@ class ZookeeperStoreEdgeTest {
     void preferredSlotOutsideTheLimitIsIgnored() {
         String namespace = "edge-" + UUID.randomUUID();
         AcquireResult.Acquired result = assertInstanceOf(AcquireResult.Acquired.class,
-            store.slots().acquire(namespace, owner("host-a"), 2, TTL, TOLERANCE, OptionalInt.of(9)));
+            store.slots().acquire(namespace, owner("host-a"), 2, TTL, TOLERANCE, 0, OptionalInt.of(9)));
         assertEquals(0, result.lease().slot());
-        assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner("host-b"), 2, TTL, TOLERANCE, OptionalInt.of(-1)));
+        assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner("host-b"), 2, TTL, TOLERANCE, 0, OptionalInt.of(-1)));
     }
 
     @Test
     void namespaceNodeWithoutDataGetsTheMetadata() throws Exception {
         String namespace = "edge-" + UUID.randomUUID();
         client.create().creatingParentsIfNeeded().forPath(ZookeeperSlotLeaseStore.namespacePath(namespace), new byte[0]);
-        assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner("host-a"), 2, TTL, TOLERANCE, OptionalInt.empty()));
+        assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner("host-a"), 2, TTL, TOLERANCE, 0, OptionalInt.empty()));
         ZookeeperStore other = new ZookeeperStore(client, ZookeeperTests.TIMEOUT);
-        assertThrows(NamespaceMismatchException.class, () -> other.slots().acquire(namespace, owner("host-b"), 4, TTL, TOLERANCE, OptionalInt.empty()),
+        assertThrows(NamespaceMismatchException.class, () -> other.slots().acquire(namespace, owner("host-b"), 4, TTL, TOLERANCE, 0, OptionalInt.empty()),
             "another instance reads the recorded metadata");
     }
 
@@ -176,20 +176,20 @@ class ZookeeperStoreEdgeTest {
     void unreadableNodesFail() throws Exception {
         String garbled = "edge-" + UUID.randomUUID();
         client.create().creatingParentsIfNeeded().forPath(ZookeeperSlotLeaseStore.namespacePath(garbled), "limit=x".getBytes(StandardCharsets.US_ASCII));
-        assertThrows(CosIdException.class, () -> store.slots().acquire(garbled, owner("host-a"), 2, TTL, TOLERANCE, OptionalInt.empty()));
+        assertThrows(CosIdException.class, () -> store.slots().acquire(garbled, owner("host-a"), 2, TTL, TOLERANCE, 0, OptionalInt.empty()));
         String partial = "edge-" + UUID.randomUUID();
         client.create().creatingParentsIfNeeded().forPath(ZookeeperSlotLeaseStore.namespacePath(partial), "limit=2\n".getBytes(StandardCharsets.US_ASCII));
-        assertThrows(CosIdException.class, () -> store.slots().acquire(partial, owner("host-a"), 2, TTL, TOLERANCE, OptionalInt.empty()));
+        assertThrows(CosIdException.class, () -> store.slots().acquire(partial, owner("host-a"), 2, TTL, TOLERANCE, 0, OptionalInt.empty()));
         String badSlot = "edge-" + UUID.randomUUID();
-        store.slots().acquire(badSlot, owner("host-a"), 2, TTL, TOLERANCE, OptionalInt.empty());
+        store.slots().acquire(badSlot, owner("host-a"), 2, TTL, TOLERANCE, 0, OptionalInt.empty());
         client.setData().forPath(ZookeeperSlotLeaseStore.slotPath(badSlot, 0), "fence=1\n".getBytes(StandardCharsets.UTF_8));
-        assertThrows(CosIdException.class, () -> store.slots().acquire(badSlot, owner("host-b"), 2, TTL, TOLERANCE, OptionalInt.empty()));
+        assertThrows(CosIdException.class, () -> store.slots().acquire(badSlot, owner("host-b"), 2, TTL, TOLERANCE, 0, OptionalInt.empty()));
         client.create().forPath(ZookeeperSlotLeaseStore.namespacePath(badSlot) + "/other");
         client.create().forPath(ZookeeperSlotLeaseStore.namespacePath(badSlot) + "/1234567890");
         client.setData().forPath(ZookeeperSlotLeaseStore.slotPath(badSlot, 0),
             SlotState.NEW.take(owner("host-c"), 0, TTL.toMillis(), TOLERANCE.toMillis()).bytes());
         assertEquals(1, assertInstanceOf(AcquireResult.Acquired.class,
-            store.slots().acquire(badSlot, owner("host-d"), 2, TTL, TOLERANCE, OptionalInt.empty())).lease().slot(), "other children are not slots");
+            store.slots().acquire(badSlot, owner("host-d"), 2, TTL, TOLERANCE, 0, OptionalInt.empty())).lease().slot(), "other children are not slots");
     }
 
     @Test

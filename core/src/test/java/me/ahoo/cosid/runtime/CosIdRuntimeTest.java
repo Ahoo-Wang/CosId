@@ -226,7 +226,7 @@ class CosIdRuntimeTest {
         try (CosIdRuntime runtime = CosIdRuntime.start(spec, options(db))) {
             assertThat(runtime.slot(), is(Optional.empty()));
             assertThat(db.backing("db").acquire("app", new me.ahoo.cosid.lease.Owner("other", java.util.UUID.randomUUID()), 1024,
-                Duration.ofSeconds(1), Duration.ZERO, OptionalInt.empty()), instanceOf(me.ahoo.cosid.lease.AcquireResult.Acquired.class));
+                Duration.ofSeconds(1), Duration.ZERO, 0, OptionalInt.empty()), instanceOf(me.ahoo.cosid.lease.AcquireResult.Acquired.class));
             assertThat(runtime.generator("order").generate(), is(1L));
         }
     }
@@ -482,8 +482,8 @@ class CosIdRuntimeTest {
         CountDownLatch renewed = new CountDownLatch(1);
         SlotLeaseStore recording = new SlotLeaseStore() {
             @Override
-            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-                return memory.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot);
+            public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+                return memory.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot);
             }
 
             @Override
@@ -551,10 +551,10 @@ class CosIdRuntimeTest {
             faults.always(FaultInjector.Operation.RENEW, new Fault.Fail(() -> new CosIdException("down")));
             clock.advance(Duration.ofSeconds(10));
             AcquireResult stolen = memory.acquire("app", new Owner("stranger", UUID.randomUUID()), 2, Duration.ofSeconds(30),
-                Duration.ZERO, OptionalInt.of(slot));
+                Duration.ZERO, 0, OptionalInt.of(slot));
             assertThat(((AcquireResult.Acquired) stolen).lease().slot(), is(slot));
             AcquireResult other = memory.acquire("app", new Owner("stranger-2", UUID.randomUUID()), 2, Duration.ofSeconds(30),
-                Duration.ZERO, OptionalInt.of(1 - slot));
+                Duration.ZERO, 0, OptionalInt.of(1 - slot));
             assertThat(((AcquireResult.Acquired) other).lease().slot(), is(1 - slot));
 
             // The clock is past the ceiling of the stolen lease: refused by the window check, or as lost if the keeper
@@ -619,6 +619,7 @@ class CosIdRuntimeTest {
         TestStores db = new TestStores("memory");
         for (int i = 0; i < 2; i++) {
             assertThat(db.backing("db").acquire("app", new Owner("other-" + i, UUID.randomUUID()), 2, Duration.ofMinutes(5), Duration.ofSeconds(1),
+                0,
                 OptionalInt.empty()), instanceOf(AcquireResult.Acquired.class));
         }
         RuntimeSpec spec = RuntimeSpec.builder("app")

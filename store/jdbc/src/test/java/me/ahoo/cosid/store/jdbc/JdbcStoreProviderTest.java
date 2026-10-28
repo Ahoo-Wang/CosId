@@ -69,7 +69,7 @@ class JdbcStoreProviderTest {
             assertSame(JdbcDialects.H2, jdbc.dialect(), "detected");
             assertEquals(new Range(3, 13), store.ranges().reserve("ns/gen", 10, 3));
             assertInstanceOf(AcquireResult.Acquired.class,
-                store.slots().acquire("ns", new Owner("host", UUID.randomUUID()), 4, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty()));
+                store.slots().acquire("ns", new Owner("host", UUID.randomUUID()), 4, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
         }
     }
 
@@ -91,7 +91,7 @@ class JdbcStoreProviderTest {
             assertEquals(new JdbcTables("id_range", "id_slot", "id_namespace"), ((JdbcStore) store).tables());
             assertEquals(new Range(0, 5), store.ranges().reserve("k", 5, 0));
             assertInstanceOf(AcquireResult.Acquired.class,
-                store.slots().acquire("ns", new Owner("host", UUID.randomUUID()), 2, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty()));
+                store.slots().acquire("ns", new Owner("host", UUID.randomUUID()), 2, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
         }
         try (Connection connection = dataSource.getConnection(); ResultSet rs = connection.createStatement().executeQuery("select count(*) from id_slot")) {
             rs.next();
@@ -117,7 +117,7 @@ class JdbcStoreProviderTest {
             assertInstanceOf(FixedClockH2Dialect.class, ((JdbcStore) store).dialect(), "the dialect registered with ServiceLoader, by name");
             assertEquals(new Range(7, 12), store.ranges().reserve("custom/gen", 5, 7));
             AcquireResult.Acquired acquired = assertInstanceOf(AcquireResult.Acquired.class,
-                store.slots().acquire("custom", new Owner("host", UUID.randomUUID()), 2, ttl, Duration.ofSeconds(1), OptionalInt.empty()));
+                store.slots().acquire("custom", new Owner("host", UUID.randomUUID()), 2, ttl, Duration.ofSeconds(1), 0, OptionalInt.empty()));
             assertEquals(FixedClockH2Dialect.NOW, acquired.lease().storeNow(), "the lease is stamped by the dialect's store clock");
             assertEquals(FixedClockH2Dialect.NOW + ttl.toMillis(), acquired.lease().expiresAt());
             assertEquals(FixedClockH2Dialect.NOW, store.slots().renew(acquired.lease(), ttl, Duration.ofSeconds(1)).orElseThrow().storeNow(),

@@ -43,6 +43,7 @@ class JdbcSlotLeaseStoreTest {
             insert.executeUpdate();
         }
         AcquireResult result = store.slots().acquire("orphan", new Owner("host", UUID.randomUUID()), 4, Duration.ofSeconds(30), Duration.ofSeconds(1),
+            0,
             OptionalInt.empty());
         assertEquals(0, assertInstanceOf(AcquireResult.Acquired.class, result).lease().slot(), "the waiting user created the rows itself");
         try (Connection connection = dataSource.getConnection();

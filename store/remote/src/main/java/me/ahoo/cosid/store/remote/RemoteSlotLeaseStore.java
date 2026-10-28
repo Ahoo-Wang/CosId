@@ -40,7 +40,7 @@ final class RemoteSlotLeaseStore implements SlotLeaseStore {
     }
 
     @Override
-    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("namespace", namespace);
         body.put("ownerKey", owner.key());

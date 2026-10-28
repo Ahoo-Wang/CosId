@@ -38,8 +38,8 @@ public final class FaultySlotLeaseStore implements SlotLeaseStore {
     }
 
     @Override
-    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
-        return faults.apply(Operation.ACQUIRE, () -> delegate.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot));
+    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
+        return faults.apply(Operation.ACQUIRE, () -> delegate.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot));
     }
 
     @Override

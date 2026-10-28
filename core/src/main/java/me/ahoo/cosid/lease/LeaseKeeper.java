@@ -305,7 +305,7 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
 
     private AcquireResult acquireOnce() {
         long sentAt = time.currentMillis();
-        AcquireResult result = store.acquire(namespace, owner, 1 << bits, ttl, tolerance, preferredSlot);
+        AcquireResult result = store.acquire(namespace, owner, 1 << bits, ttl, tolerance, 0, preferredSlot);
         if (result instanceof AcquireResult.Acquired acquired) {
             observeClock(acquired.lease(), sentAt);
         }

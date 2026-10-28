@@ -34,7 +34,7 @@ class LeaseModelTest {
 
     private final SlotLeaseStore store = new SlotLeaseStore() {
         @Override
-        public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+        public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
             return new AcquireResult.Exhausted(0);
         }
 

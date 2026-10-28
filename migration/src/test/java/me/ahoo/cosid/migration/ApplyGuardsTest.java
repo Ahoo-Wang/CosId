@@ -233,7 +233,7 @@ class ApplyGuardsTest extends MigrationScenarioTest {
     void purgeRefusesALiveNamespace() {
         try (TargetAdmin admin = Targets.open(target.location()); Store store5 = target.open5()) {
             admin.prepare(namespace, 16, 1000, 0);
-            store5.slots().acquire(namespace, new Owner("live", UUID.randomUUID()), 16, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty());
+            store5.slots().acquire(namespace, new Owner("live", UUID.randomUUID()), 16, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty());
         }
         MigrationAbortedException refused = assertThrows(MigrationAbortedException.class,
             () -> migration().purge(new Migration.PurgeOptions(target.location(), namespace, "20250101", true, false)));

@@ -54,7 +54,7 @@ class ClusterRoutingTest {
 
                 String namespace = "routing-" + UUID.randomUUID();
                 assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, new Owner("host", UUID.randomUUID()), 4,
-                    Duration.ofSeconds(60), Duration.ofSeconds(1), OptionalInt.empty()));
+                    Duration.ofSeconds(60), Duration.ofSeconds(1), 0, OptionalInt.empty()));
                 Set<Integer> slots = new HashSet<>();
                 for (String suffix : List.of("meta", "slot", "free", "live", "owner", "held")) {
                     String namespaceKey = RedisStore.namespaceKey(namespace, suffix);

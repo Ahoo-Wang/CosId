@@ -237,9 +237,9 @@ class AuthTest {
 
             Owner owner = new Owner("host", UUID.randomUUID());
             assertInstanceOf(AcquireResult.Acquired.class,
-                orders.slots().acquire("orders", owner, 4, Duration.ofSeconds(10), Duration.ofSeconds(1), OptionalInt.empty()));
+                orders.slots().acquire("orders", owner, 4, Duration.ofSeconds(10), Duration.ofSeconds(1), 0, OptionalInt.empty()));
             RemoteStoreException slots = assertThrows(RemoteStoreException.class,
-                () -> orders.slots().acquire("billing", owner, 4, Duration.ofSeconds(10), Duration.ofSeconds(1), OptionalInt.empty()));
+                () -> orders.slots().acquire("billing", owner, 4, Duration.ofSeconds(10), Duration.ofSeconds(1), 0, OptionalInt.empty()));
             assertEquals(403, slots.status());
         }
     }
@@ -250,7 +250,7 @@ class AuthTest {
             assertEquals(new Range(0, 5), prefixed.ranges().reserve("shared/orders-" + UUID.randomUUID(), 5, 0));
             assertEquals(403, assertThrows(RemoteStoreException.class, () -> prefixed.ranges().reserve("shared/billing-a", 5, 0)).status());
             assertEquals(403, assertThrows(RemoteStoreException.class, () -> prefixed.slots().acquire("shared", new Owner("host", UUID.randomUUID()), 4,
-                Duration.ofSeconds(10), Duration.ofSeconds(1), OptionalInt.empty())).status(), "key prefixes do not open slot namespaces");
+                Duration.ofSeconds(10), Duration.ofSeconds(1), 0, OptionalInt.empty())).status(), "key prefixes do not open slot namespaces");
         }
     }
 

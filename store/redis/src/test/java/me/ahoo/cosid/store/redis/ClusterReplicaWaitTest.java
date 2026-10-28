@@ -101,11 +101,11 @@ class ClusterReplicaWaitTest {
         Owner owner = new Owner("host", UUID.randomUUID());
         List<String> pids = cluster.replicaPids();
         try (Store store = open(SHORT)) {
-            assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner, 4, TTL, TOLERANCE, OptionalInt.empty()));
+            assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner, 4, TTL, TOLERANCE, 0, OptionalInt.empty()));
             cluster.signal("STOP", pids);
             // The first acquire's WAIT passed on this connection; only a write of the retry makes its WAIT wait again.
             RedisStoreException failure = assertThrows(RedisStoreException.class,
-                () -> store.slots().acquire(namespace, owner, 4, TTL, TOLERANCE, OptionalInt.empty()));
+                () -> store.slots().acquire(namespace, owner, 4, TTL, TOLERANCE, 0, OptionalInt.empty()));
             assertThat(failure.getMessage(), containsString("acknowledged by 0 of 1 replicas"));
         } finally {
             cluster.signal("CONT", pids);
@@ -113,7 +113,7 @@ class ClusterReplicaWaitTest {
         cluster.awaitReplicasInSync();
         try (Store store = open(RedisServers.TIMEOUT)) {
             AcquireResult.Acquired retry = assertInstanceOf(AcquireResult.Acquired.class,
-                store.slots().acquire(namespace, owner, 4, TTL, TOLERANCE, OptionalInt.empty()));
+                store.slots().acquire(namespace, owner, 4, TTL, TOLERANCE, 0, OptionalInt.empty()));
             assertEquals(AcquireReason.IDEMPOTENT, retry.reason());
         }
     }

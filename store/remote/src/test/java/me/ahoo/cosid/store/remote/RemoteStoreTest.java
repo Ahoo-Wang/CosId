@@ -176,32 +176,32 @@ class RemoteStoreTest {
     void acquireMapsLeasesExhaustionAndMismatch() {
         answer(RemoteApi.ACQUIRE, 200, "{" + LEASE_JSON + ",\"reason\":\"STICKY\",\"duplicateOwnerKey\":true}");
         AcquireResult.Acquired acquired = assertInstanceOf(AcquireResult.Acquired.class,
-            store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.of(3)));
+            store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.of(3)));
         assertEquals(LEASE, acquired.lease());
         assertEquals(AcquireReason.STICKY, acquired.reason());
         assertTrue(acquired.duplicateOwnerKey());
         assertEquals("{\"namespace\":\"ns\",\"ownerKey\":\"host:8080\",\"incarnation\":\"" + INCARNATION
             + "\",\"limit\":8,\"ttlMs\":30000,\"toleranceMs\":1000,\"preferredSlot\":3}", requests.get(RemoteApi.ACQUIRE));
-        store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty());
+        store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty());
         assertFalse(requests.get(RemoteApi.ACQUIRE).contains("preferredSlot"));
 
         answer(RemoteApi.ACQUIRE, 409, "{\"code\":\"slots_exhausted\",\"message\":\"full\",\"earliestExpiresAt\":12345}");
-        assertEquals(new AcquireResult.Exhausted(12345), store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty()));
+        assertEquals(new AcquireResult.Exhausted(12345), store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
 
         answer(RemoteApi.ACQUIRE, 409, error(RemoteApi.NAMESPACE_MISMATCH));
         NamespaceMismatchException mismatch = assertThrows(NamespaceMismatchException.class,
-            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty()));
+            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
         assertEquals("ns", mismatch.namespace());
         answer(RemoteApi.ACQUIRE, 409, "{\"code\":\"namespace_mismatch\"}");
         assertThrows(NamespaceMismatchException.class,
-            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty()));
+            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
 
         answer(RemoteApi.ACQUIRE, 401, error(RemoteApi.UNAUTHORIZED));
         assertEquals(RemoteApi.UNAUTHORIZED, assertThrows(RemoteStoreException.class,
-            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty())).code());
+            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty())).code());
         answer(RemoteApi.ACQUIRE, 200, "{" + LEASE_JSON + ",\"reason\":7}");
         assertThat(assertThrows(RemoteStoreException.class,
-            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty())).getMessage(),
+            () -> store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty())).getMessage(),
             containsString("not a string"));
     }
 

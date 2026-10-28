@@ -72,8 +72,8 @@ class ZookeeperStoreProviderTest {
             ZookeeperStore store = new ZookeeperStore(chrooted, ZookeeperTests.TIMEOUT);
             String namespace = "provider-" + UUID.randomUUID();
             Owner owner = new Owner("host-a", UUID.randomUUID());
-            AcquireResult first = store.slots().acquire(namespace, owner, 4, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty());
-            AcquireResult again = store.slots().acquire(namespace, owner, 4, Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty());
+            AcquireResult first = store.slots().acquire(namespace, owner, 4, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty());
+            AcquireResult again = store.slots().acquire(namespace, owner, 4, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty());
             assertEquals(me.ahoo.cosid.lease.AcquireReason.IDEMPOTENT, assertInstanceOf(AcquireResult.Acquired.class, again).reason(),
                 "the batched reads see the slot written under the client namespace");
             assertEquals(assertInstanceOf(AcquireResult.Acquired.class, first).lease().slot(), ((AcquireResult.Acquired) again).lease().slot());
@@ -90,7 +90,7 @@ class ZookeeperStoreProviderTest {
         Store store = new ZookeeperStoreProvider().open(config(options, Optional.empty()));
         try {
             AcquireResult result = store.slots().acquire("provider-" + UUID.randomUUID(), new Owner("host-a", UUID.randomUUID()), 4,
-                Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty());
+                Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty());
             assertInstanceOf(AcquireResult.Acquired.class, result);
         } finally {
             store.close();
@@ -146,7 +146,7 @@ class ZookeeperStoreProviderTest {
             ZookeeperStore store = new ZookeeperStore(client, ZookeeperTests.TIMEOUT);
             assertThrows(IllegalArgumentException.class, () -> store.ranges().reserve("a//b", 1, 0));
             assertThrows(IllegalArgumentException.class, () -> store.slots().acquire("a/b", new Owner("host-a", UUID.randomUUID()), 1,
-                Duration.ofSeconds(30), Duration.ofSeconds(1), OptionalInt.empty()));
+                Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty()));
             assertThrows(IllegalArgumentException.class, () -> new ZookeeperStore(client, Duration.ZERO));
         }
     }

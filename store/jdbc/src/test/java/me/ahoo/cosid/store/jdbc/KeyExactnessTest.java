@@ -68,7 +68,7 @@ abstract class KeyExactnessTest {
     }
 
     private static SlotLease acquired(SlotLeaseStore store, String namespace, Owner owner, int limit) {
-        return assertInstanceOf(AcquireResult.Acquired.class, store.acquire(namespace, owner, limit, TTL, TOLERANCE, OptionalInt.empty())).lease();
+        return assertInstanceOf(AcquireResult.Acquired.class, store.acquire(namespace, owner, limit, TTL, TOLERANCE, 0, OptionalInt.empty())).lease();
     }
 
     @Test
@@ -115,7 +115,7 @@ abstract class KeyExactnessTest {
         assertEquals(0, acquired(store, namespace, owner("host-a"), 1).slot());
         if (rejectsTrailingSpaces()) {
             assertThrows(IllegalArgumentException.class,
-                () -> store.acquire(namespace + " ", owner("host-b"), 2, TTL, TOLERANCE, OptionalInt.empty()));
+                () -> store.acquire(namespace + " ", owner("host-b"), 2, TTL, TOLERANCE, 0, OptionalInt.empty()));
             return;
         }
         assertEquals(0, acquired(store, namespace + " ", owner("host-b"), 2).slot());
@@ -143,17 +143,17 @@ abstract class KeyExactnessTest {
         SlotLease held = acquired(store, namespace, owner(key), 4);
         assertEquals(1, held.slot());
         if (!byCase && rejectsTrailingSpaces()) {
-            assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner(other), 4, TTL, TOLERANCE, OptionalInt.empty()));
+            assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner(other), 4, TTL, TOLERANCE, 0, OptionalInt.empty()));
             return;
         }
         AcquireResult.Acquired live = assertInstanceOf(AcquireResult.Acquired.class,
-            store.acquire(namespace, owner(other), 4, TTL, TOLERANCE, OptionalInt.empty()));
+            store.acquire(namespace, owner(other), 4, TTL, TOLERANCE, 0, OptionalInt.empty()));
         assertFalse(live.duplicateOwnerKey(), "another key is no duplicate of the live lease");
         assertTrue(store.release(live.lease(), live.lease().ceiling()));
         assertTrue(store.release(first, first.ceiling()));
         assertTrue(store.release(held, held.ceiling()));
         AcquireResult.Acquired next = assertInstanceOf(AcquireResult.Acquired.class,
-            store.acquire(namespace, owner(other), 4, TTL, TOLERANCE, OptionalInt.empty()));
+            store.acquire(namespace, owner(other), 4, TTL, TOLERANCE, 0, OptionalInt.empty()));
         assertEquals(AcquireReason.STICKY, next.reason(), "sticky to its own last slot");
         assertEquals(live.lease().slot(), next.lease().slot(), "not to slot " + held.slot() + " of " + key);
     }

@@ -57,7 +57,7 @@ class MongoSlotLeaseStoreBehaviorTest {
     }
 
     private AcquireResult.Acquired acquire(String namespace, Owner owner, int limit, OptionalInt preferred) {
-        return assertInstanceOf(AcquireResult.Acquired.class, store.acquire(namespace, owner, limit, TTL, TOLERANCE, preferred));
+        return assertInstanceOf(AcquireResult.Acquired.class, store.acquire(namespace, owner, limit, TTL, TOLERANCE, 0, preferred));
     }
 
     @Test
@@ -95,7 +95,7 @@ class MongoSlotLeaseStoreBehaviorTest {
         String namespace = newNamespace();
         acquire(namespace, owner("host-a"), 16, OptionalInt.empty());
         MongoSlotLeaseStore other = new MongoSlotLeaseStore(MongoTestSupport.database(), MongoTestSupport.TIMEOUT);
-        assertInstanceOf(AcquireResult.Acquired.class, other.acquire(namespace, owner("host-b"), 16, TTL, TOLERANCE, OptionalInt.empty()));
+        assertInstanceOf(AcquireResult.Acquired.class, other.acquire(namespace, owner("host-b"), 16, TTL, TOLERANCE, 0, OptionalInt.empty()));
         List<Integer> provisioned = new ArrayList<>();
         slots.find(Filters.eq(MongoSlotLeaseStore.NS, namespace)).sort(Sorts.ascending(MongoSlotLeaseStore.SLOT))
             .forEach(slot -> provisioned.add(slot.getInteger(MongoSlotLeaseStore.SLOT)));
@@ -147,9 +147,9 @@ class MongoSlotLeaseStoreBehaviorTest {
     void rejectsInvalidArguments() {
         String namespace = newNamespace();
         Owner owner = owner("host-a");
-        assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner, 0, TTL, TOLERANCE, OptionalInt.empty()));
-        assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner, 1, Duration.ZERO, TOLERANCE, OptionalInt.empty()));
-        assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner, 1, TTL, Duration.ofMillis(-1), OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner, 0, TTL, TOLERANCE, 0, OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner, 1, Duration.ZERO, TOLERANCE, 0, OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner, 1, TTL, Duration.ofMillis(-1), 0, OptionalInt.empty()));
         assertThrows(IllegalArgumentException.class, () -> new MongoSlotLeaseStore(MongoTestSupport.database(), Duration.ofMillis(-1)));
     }
 }

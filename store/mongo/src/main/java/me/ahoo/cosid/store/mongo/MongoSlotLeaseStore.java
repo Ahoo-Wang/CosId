@@ -143,7 +143,7 @@ public final class MongoSlotLeaseStore implements SlotLeaseStore {
     }
 
     @Override
-    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
         return MongoStore.timed("acquire", () -> acquireNow(namespace, owner, limit, ttl, tolerance, preferredSlot));
     }
 

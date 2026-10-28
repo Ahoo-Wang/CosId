@@ -49,7 +49,7 @@ class ZookeeperAcquireManySlotsTest {
             ZookeeperStore store = new ZookeeperStore(client, ZookeeperTests.TIMEOUT);
             String namespace = "many-" + UUID.randomUUID();
             SlotLease first = assertInstanceOf(AcquireResult.Acquired.class,
-                store.slots().acquire(namespace, new Owner("host-0", UUID.randomUUID()), LIMIT, TTL, TOLERANCE, OptionalInt.empty())).lease();
+                store.slots().acquire(namespace, new Owner("host-0", UUID.randomUUID()), LIMIT, TTL, TOLERANCE, 0, OptionalInt.empty())).lease();
             assertEquals(0, first.slot());
             List<CompletableFuture<?>> creates = new ArrayList<>();
             for (int slot = 1; slot < LIMIT - 1; slot++) {
@@ -68,12 +68,12 @@ class ZookeeperAcquireManySlotsTest {
                 Owner owner = new Owner("host-new", UUID.randomUUID());
                 long start = System.nanoTime();
                 AcquireResult.Acquired acquired = assertInstanceOf(AcquireResult.Acquired.class,
-                    store.slots().acquire(namespace, owner, LIMIT, TTL, TOLERANCE, OptionalInt.empty()));
+                    store.slots().acquire(namespace, owner, LIMIT, TTL, TOLERANCE, 0, OptionalInt.empty()));
                 nanos[i] = System.nanoTime() - start;
                 assertEquals(LIMIT - 1, acquired.lease().slot());
                 assertEquals(i == 0 ? AcquireReason.LOWEST : AcquireReason.STICKY, acquired.reason());
                 assertInstanceOf(AcquireResult.Exhausted.class,
-                    store.slots().acquire(namespace, new Owner("host-x", UUID.randomUUID()), LIMIT, TTL, TOLERANCE, OptionalInt.empty()));
+                    store.slots().acquire(namespace, new Owner("host-x", UUID.randomUUID()), LIMIT, TTL, TOLERANCE, 0, OptionalInt.empty()));
                 assertTrue(store.slots().release(acquired.lease(), acquired.lease().ceiling()));
             }
             Arrays.sort(nanos);

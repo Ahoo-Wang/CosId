@@ -107,7 +107,7 @@ final class ZookeeperSlotLeaseStore implements SlotLeaseStore {
     }
 
     @Override
-    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+    public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
         Objects.requireNonNull(owner, "owner");
         Objects.requireNonNull(preferredSlot, "preferredSlot");
         if (limit < 1) {

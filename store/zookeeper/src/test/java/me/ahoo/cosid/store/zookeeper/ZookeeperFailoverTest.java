@@ -57,7 +57,7 @@ class ZookeeperFailoverTest {
                 String namespace = "failover-" + UUID.randomUUID();
                 String key = "failover/" + UUID.randomUUID();
                 SlotLease a = assertInstanceOf(AcquireResult.Acquired.class,
-                    store.slots().acquire(namespace, new Owner("host-a", UUID.randomUUID()), 1, Duration.ofSeconds(3), TOLERANCE, OptionalInt.empty()))
+                    store.slots().acquire(namespace, new Owner("host-a", UUID.randomUUID()), 1, Duration.ofSeconds(3), TOLERANCE, 0, OptionalInt.empty()))
                     .lease();
 
                 List<Range> ranges = new ArrayList<>();
@@ -105,7 +105,7 @@ class ZookeeperFailoverTest {
                 AcquireResult result;
                 deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
                 do {
-                    result = otherStore.slots().acquire(namespace, b, 1, Duration.ofSeconds(30), TOLERANCE, OptionalInt.empty());
+                    result = otherStore.slots().acquire(namespace, b, 1, Duration.ofSeconds(30), TOLERANCE, 0, OptionalInt.empty());
                     Thread.sleep(100);
                 } while (result instanceof AcquireResult.Exhausted && System.nanoTime() < deadline);
                 SlotLease next = assertInstanceOf(AcquireResult.Acquired.class, result).lease();

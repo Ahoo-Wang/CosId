@@ -85,7 +85,7 @@ class MongoNamespaceRaceTest {
     }
 
     private static AcquireResult acquire(MongoSlotLeaseStore store, String namespace, int limit) {
-        return store.acquire(namespace, new Owner("host", UUID.randomUUID()), limit, TTL, TOLERANCE, OptionalInt.empty());
+        return store.acquire(namespace, new Owner("host", UUID.randomUUID()), limit, TTL, TOLERANCE, 0, OptionalInt.empty());
     }
 
     private static String newNamespace() {

@@ -104,7 +104,7 @@ class StoreController {
         allowNamespace(grant, namespace);
         OptionalInt preferred = preferredSlot;
         return calls.submit(() -> {
-            AcquireResult result = store.slots().acquire(namespace, owner, limit, ttl, tolerance, preferred);
+            AcquireResult result = store.slots().acquire(namespace, owner, limit, ttl, tolerance, 0, preferred);
             if (result instanceof AcquireResult.Acquired acquired) {
                 return ResponseEntity.ok(Bodies.AcquiredBody.of(acquired));
             }

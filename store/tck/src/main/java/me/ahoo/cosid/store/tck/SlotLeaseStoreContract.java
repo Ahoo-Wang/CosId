@@ -128,7 +128,7 @@ public abstract class SlotLeaseStoreContract {
 
     private static AcquireResult.Acquired acquiredResult(SlotLeaseStore store, String namespace, Owner owner, int limit, Duration ttl,
                                                          OptionalInt preferredSlot) {
-        AcquireResult result = store.acquire(namespace, owner, limit, ttl, TOLERANCE, preferredSlot);
+        AcquireResult result = store.acquire(namespace, owner, limit, ttl, TOLERANCE, 0, preferredSlot);
         return assertInstanceOf(AcquireResult.Acquired.class, result, () -> owner + " acquires in " + namespace);
     }
 
@@ -163,7 +163,7 @@ public abstract class SlotLeaseStoreContract {
     private AcquireResult.Acquired awaitAcquiredResult(SlotLeaseStore store, String namespace, Owner owner, int limit, Duration ttl) {
         long deadline = System.nanoTime() + takeoverTimeout().toNanos();
         while (true) {
-            AcquireResult result = store.acquire(namespace, owner, limit, ttl, TOLERANCE, OptionalInt.empty());
+            AcquireResult result = store.acquire(namespace, owner, limit, ttl, TOLERANCE, 0, OptionalInt.empty());
             if (result instanceof AcquireResult.Acquired acquired) {
                 return acquired;
             }
@@ -284,10 +284,10 @@ public abstract class SlotLeaseStoreContract {
         try (SlotLeaseStore store = newStore()) {
             SlotLease a = acquired(store, namespace, owner("host-a"), 2, LONG_TTL, OptionalInt.empty());
             SlotLease b = acquired(store, namespace, owner("host-b"), 2, LONG_TTL.multipliedBy(2), OptionalInt.empty());
-            AcquireResult result = store.acquire(namespace, owner("host-c"), 2, LONG_TTL, TOLERANCE, OptionalInt.empty());
+            AcquireResult result = store.acquire(namespace, owner("host-c"), 2, LONG_TTL, TOLERANCE, 0, OptionalInt.empty());
             AcquireResult.Exhausted exhausted = assertInstanceOf(AcquireResult.Exhausted.class, result);
             assertEquals(Math.min(a.expiresAt(), b.expiresAt()), exhausted.earliestExpiresAt());
-            assertInstanceOf(AcquireResult.Exhausted.class, store.acquire(namespace, owner("host-c"), 2, LONG_TTL, TOLERANCE, OptionalInt.of(0)),
+            assertInstanceOf(AcquireResult.Exhausted.class, store.acquire(namespace, owner("host-c"), 2, LONG_TTL, TOLERANCE, 0, OptionalInt.of(0)),
                 "a held preferred slot does not help");
             assertTrue(store.release(a, a.ceiling()));
             assertEquals(a.slot(), acquired(store, namespace, owner("host-c"), 2).slot());
@@ -300,7 +300,7 @@ public abstract class SlotLeaseStoreContract {
         try (SlotLeaseStore store = newStore()) {
             String single = newNamespace();
             assertEquals(0, acquired(store, single, owner("host-a"), 1).slot());
-            assertInstanceOf(AcquireResult.Exhausted.class, store.acquire(single, owner("host-b"), 1, LONG_TTL, TOLERANCE, OptionalInt.empty()));
+            assertInstanceOf(AcquireResult.Exhausted.class, store.acquire(single, owner("host-b"), 1, LONG_TTL, TOLERANCE, 0, OptionalInt.empty()));
 
             String sixteen = newNamespace();
             int limit = 1 << 4;
@@ -311,7 +311,7 @@ public abstract class SlotLeaseStoreContract {
                 slots.add(slot);
             }
             assertEquals(limit, slots.size());
-            assertInstanceOf(AcquireResult.Exhausted.class, store.acquire(sixteen, owner("host-x"), limit, LONG_TTL, TOLERANCE, OptionalInt.empty()));
+            assertInstanceOf(AcquireResult.Exhausted.class, store.acquire(sixteen, owner("host-x"), limit, LONG_TTL, TOLERANCE, 0, OptionalInt.empty()));
 
             String wide = newNamespace();
             assertEquals(1023, acquired(store, wide, owner("host-a"), 1 << 10, LONG_TTL, OptionalInt.of(1023)).slot());
@@ -403,7 +403,7 @@ public abstract class SlotLeaseStoreContract {
             assertTrue(secondResult.duplicateOwnerKey());
             SlotLease second = secondResult.lease();
             assertNotEquals(first.slot(), second.slot());
-            AcquireResult third = store.acquire(namespace, owner("host-a"), 2, LONG_TTL, TOLERANCE, OptionalInt.of(first.slot()));
+            AcquireResult third = store.acquire(namespace, owner("host-a"), 2, LONG_TTL, TOLERANCE, 0, OptionalInt.of(first.slot()));
             assertInstanceOf(AcquireResult.Exhausted.class, third);
             assertTrue(store.renew(first, LONG_TTL, TOLERANCE).isPresent(), "the first incarnation still holds its slot");
         }
@@ -490,7 +490,7 @@ public abstract class SlotLeaseStoreContract {
         List<SlotLeaseStore> stores = Concurrently.open(storeInstances(), this::newStore);
         try {
             List<AcquireResult> results = Concurrently.run(clients,
-                i -> stores.get(i % stores.size()).acquire(namespace, owner("host-" + i), limit, LONG_TTL, TOLERANCE, OptionalInt.empty()));
+                i -> stores.get(i % stores.size()).acquire(namespace, owner("host-" + i), limit, LONG_TTL, TOLERANCE, 0, OptionalInt.empty()));
             Set<Integer> slots = new HashSet<>();
             int exhausted = 0;
             for (AcquireResult result : results) {
@@ -505,7 +505,7 @@ public abstract class SlotLeaseStoreContract {
 
             String shared = newNamespace();
             List<AcquireResult> sameKey = Concurrently.run(limit,
-                i -> stores.get(i % stores.size()).acquire(shared, owner("same-host"), limit, LONG_TTL, TOLERANCE, OptionalInt.of(0)));
+                i -> stores.get(i % stores.size()).acquire(shared, owner("same-host"), limit, LONG_TTL, TOLERANCE, 0, OptionalInt.of(0)));
             Set<Integer> sameKeySlots = new HashSet<>();
             for (AcquireResult result : sameKey) {
                 assertTrue(sameKeySlots.add(assertInstanceOf(AcquireResult.Acquired.class, result).lease().slot()),
@@ -523,10 +523,34 @@ public abstract class SlotLeaseStoreContract {
         try (SlotLeaseStore store = newStore(); SlotLeaseStore other = newStore()) {
             acquired(store, namespace, owner("host-a"), 8);
             assertThrows(NamespaceMismatchException.class,
-                () -> other.acquire(namespace, owner("host-b"), 16, LONG_TTL, TOLERANCE, OptionalInt.empty()));
+                () -> other.acquire(namespace, owner("host-b"), 16, LONG_TTL, TOLERANCE, 0, OptionalInt.empty()));
             assertThrows(NamespaceMismatchException.class,
-                () -> other.acquire(namespace, owner("host-b"), 8, LONG_TTL, TOLERANCE.multipliedBy(2), OptionalInt.empty()));
+                () -> other.acquire(namespace, owner("host-b"), 8, LONG_TTL, TOLERANCE.multipliedBy(2), 0, OptionalInt.empty()));
             acquired(other, namespace, owner("host-b"), 8);
+        }
+    }
+
+    /**
+     * Metadata: the slot offset is recorded with the limit and the tolerance (api-freeze.md §2.5.1); another offset throws
+     * NamespaceMismatchException, and the offset does not change the slots: they stay {@code [0, limit)}.
+     */
+    @Test
+    public void rejectsAMismatchedSlotOffset() {
+        String namespace = newNamespace();
+        try (SlotLeaseStore store = newStore(); SlotLeaseStore other = newStore()) {
+            AcquireResult first = store.acquire(namespace, owner("host-a"), 4, LONG_TTL, TOLERANCE, 1024, OptionalInt.empty());
+            assertEquals(0, assertInstanceOf(AcquireResult.Acquired.class, first).lease().slot());
+            assertThrows(NamespaceMismatchException.class,
+                () -> other.acquire(namespace, owner("host-b"), 4, LONG_TTL, TOLERANCE, 0, OptionalInt.empty()));
+            assertThrows(NamespaceMismatchException.class,
+                () -> other.acquire(namespace, owner("host-b"), 4, LONG_TTL, TOLERANCE, 2048, OptionalInt.empty()));
+            AcquireResult second = other.acquire(namespace, owner("host-b"), 4, LONG_TTL, TOLERANCE, 1024, OptionalInt.empty());
+            assertEquals(1, assertInstanceOf(AcquireResult.Acquired.class, second).lease().slot());
+            // A namespace without an offset is offset 0 for every client.
+            String plain = newNamespace();
+            acquired(store, plain, owner("host-a"), 4);
+            assertThrows(NamespaceMismatchException.class,
+                () -> other.acquire(plain, owner("host-b"), 4, LONG_TTL, TOLERANCE, 1, OptionalInt.empty()));
         }
     }
 }

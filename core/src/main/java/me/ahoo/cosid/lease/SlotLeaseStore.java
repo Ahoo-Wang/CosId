@@ -31,11 +31,15 @@ public interface SlotLeaseStore extends AutoCloseable {
      * @param limit         the slots are {@code [0, limit)}
      * @param ttl           the lease expires this long after the write
      * @param tolerance     the ceiling lies this far beyond the expiry (D20)
+     * @param slotOffset    the offset the clients add to the slot to get the node of their ids (api-freeze.md §2.1.1); it
+     *                      is recorded with the limit and the tolerance and does not change which slot is chosen
      * @param preferredSlot the slot to try before the others
      * @return the lease, or {@link AcquireResult.Exhausted}
-     * @throws me.ahoo.cosid.NamespaceMismatchException if the namespace was first used with another limit or tolerance
+     * @throws me.ahoo.cosid.NamespaceMismatchException if the namespace was first used with another limit, tolerance or
+     *                                                  slot offset (metadata written before the slot offset existed
+     *                                                  reads as offset 0)
      */
-    AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot);
+    AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot);
 
     /**
      * Renews a lease; idempotent, the fence stays.

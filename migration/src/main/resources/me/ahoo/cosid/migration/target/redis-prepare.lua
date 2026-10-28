@@ -10,13 +10,14 @@
 -- limitations under the License.
 
 -- TargetAdmin.prepare on the 5.0 Redis store (09 §4.2), after store/redis slot-row.lua (decode, encode, nowMillis).
--- KEYS: cosid:{ns}:meta, :slot, :free, :live. ARGV: limit, toleranceMillis, nextFloor.
+-- KEYS: cosid:{ns}:meta, :slot, :free, :live. ARGV: limit, toleranceMillis, nextFloor, slotOffset.
 -- Keeps the invariant of acquire.lua: every slot below the limit is in exactly one of free and live.
-local meta = redis.call('HMGET', KEYS[1], 'limit', 'tolerance')
+-- A meta of 5.0.0-alpha.1 has no slotOffset: offset 0, as acquire.lua reads it.
+local meta = redis.call('HMGET', KEYS[1], 'limit', 'tolerance', 'slotOffset')
 if not meta[1] then
-    redis.call('HSET', KEYS[1], 'limit', ARGV[1], 'tolerance', ARGV[2])
-elseif meta[1] ~= ARGV[1] or meta[2] ~= ARGV[2] then
-    return {'mismatch', meta[1], meta[2]}
+    redis.call('HSET', KEYS[1], 'limit', ARGV[1], 'tolerance', ARGV[2], 'slotOffset', ARGV[4])
+elseif meta[1] ~= ARGV[1] or meta[2] ~= ARGV[2] or (meta[3] or '0') ~= ARGV[4] then
+    return {'mismatch', meta[1], meta[2], meta[3] or '0'}
 end
 local live = redis.call('ZCOUNT', KEYS[4], num(nowMillis()), '+inf')
 if live > 0 then

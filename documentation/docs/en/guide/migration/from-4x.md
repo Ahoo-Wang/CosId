@@ -256,15 +256,21 @@ Stop every 5.0 instance of the namespace first: 4.x and 5.0 do not run side by s
 - **Time-based ids**: wait until the last 5.0 ceiling has passed (the lease `ttl` plus `tolerance`, 31s by default)
   before starting 4.x again.
 
-## Known limitations
+## A shared CosIdGenerator namespace
 
-- **A CosIdGenerator in a namespace of its own cannot migrate yet.** A 4.x deployment that sets
+- **A CosIdGenerator in a namespace of its own migrates once, before the services.** A 4.x deployment that sets
   `cosid.generator.namespace` to a namespace other than `cosid.namespace` shares the CosIdGenerator machine ids of that
-  namespace across services, to keep their 80-bit ids unique across them. This 5.0 release has no counterpart yet: a
-  converted `cosid80` would take its slot in the service namespace and issue the ids of other services again. `config`,
-  and `plan` / `apply` with `--layout-config`, refuse such a configuration. Keep those services on 4.x until named
-  machines (D37) come in a later 5.0 release, or issue the 80-bit ids of every service from one cosid-server. A
-  `cosid.generator.namespace` equal to `cosid.namespace`, or not set, migrates as usual.
+  namespace across services. 5.0 keeps them in the named machine `cosid.machines.generator`:
+  1. Migrate the shared namespace once: `plan --namespace <shared> --layout-config <a service's yaml>`, then `apply`. The
+     plan puts the 5.0 slots at the top of the CosIdGenerator nodes by default (`--slot-offset` overrides it) and reports
+     the headroom: how many more machine ids 4.x can hand out before they meet the 5.0 nodes (about a million with the
+     4.x defaults). Nothing stops 4.x from using it up, so the plan records `guaranteed: false`. With an offset, 4.x keeps running
+     and the services move one by one; do not grow 4.x beyond the offset meanwhile (`verify` checks it).
+     `--slot-offset 0` migrates it at once, every service sharing it stopped.
+  2. Migrate each service as usual; its `apply` refuses until step 1 is done, and `config` writes
+     `cosid.machines.generator` and `machine: generator` on its cosid80.
+  Every service sharing the namespace uses the same `bits`, `tolerance` and `slot-offset`. (5.0.0-alpha.1 refused such a
+  configuration.)
 
 ## Artifacts and code
 

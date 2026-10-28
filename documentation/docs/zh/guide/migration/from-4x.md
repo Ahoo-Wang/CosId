@@ -230,13 +230,16 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
   包括 share（`{ns}.__share__`）和各周期 key。
 - **时间型 ID**：等最后一个 5.0 ceiling 过去（租约 `ttl` 加 `tolerance`，默认 31s）之后再重新启动 4.x。
 
-## 已知限制
+## 共享的 CosIdGenerator 命名空间
 
-- **独立命名空间的 CosIdGenerator 暂时不能迁移。** 4.x 部署若把 `cosid.generator.namespace` 设成与 `cosid.namespace` 不同的命名空间，
-  就是在各服务之间共享这个命名空间里 CosIdGenerator 的机器号，使 80 位 ID 跨服务唯一。5.0 的当前版本还没有对应的能力：转换出的
-  `cosid80` 会在服务命名空间里取槽位，重新发出其他服务已经发过的 ID。`config` 以及带 `--layout-config` 的 `plan` / `apply` 会拒绝这样的配置。
-  在后续 5.0 版本提供命名的 machine（D37）之前，请让这些服务继续使用 4.x，或者让所有服务都从同一个 cosid-server 获取 80 位 ID。
-  `cosid.generator.namespace` 等于 `cosid.namespace` 或未设置时，照常迁移。
+- **独立命名空间的 CosIdGenerator 先单独迁移一次，再迁移各服务。** 4.x 部署若把 `cosid.generator.namespace` 设成与 `cosid.namespace`
+  不同的命名空间，就是在各服务之间共享这个命名空间里 CosIdGenerator 的机器号。5.0 用命名 machine `cosid.machines.generator` 承接：
+  1. 单独迁移共享命名空间一次：`plan --namespace <共享命名空间> --layout-config <任一服务的配置>`，再 `apply`。计划默认把 5.0 的槽位放在 CosIdGenerator
+     节点空间的顶端（`--slot-offset` 可改），并报告余量：4.x 还能分出多少机器号才会碰到 5.0 的节点号（4.x 默认位宽下约 104 万个）。
+     没有机制阻止 4.x 用完余量，所以计划记录 `guaranteed: false`。有偏移时 4.x 可以继续运行，各服务逐个切换；切换期间不要把 4.x 扩容到偏移以上（`verify` 会检查）。
+     `--slot-offset 0` 表示一次性切换，共享它的服务都必须停止。
+  2. 照常迁移各服务：在第 1 步完成之前，服务的 `apply` 会拒绝执行；`config` 会写出 `cosid.machines.generator`，并给 cosid80 写 `machine: generator`。
+  共享该命名空间的所有服务必须使用相同的 `bits`、`tolerance` 与 `slot-offset`。（5.0.0-alpha.1 会拒绝这样的配置。）
 
 ## Artifact 与代码
 

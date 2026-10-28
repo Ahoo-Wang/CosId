@@ -55,6 +55,7 @@ public final class ZookeeperSource implements SourceReader {
         List<String> unrecognized = new ArrayList<>();
         Map<String, String> machines = new TreeMap<>();
         long maxTimestamp = 0;
+        int maxMachineId = -1;
         try {
             List<String> children = children(ROOT);
             Set<String> names = new HashSet<>(children);
@@ -81,6 +82,9 @@ public final class ZookeeperSource implements SourceReader {
                 for (String child : children(nsPath + "/" + node)) {
                     String state = text(nsPath + "/" + node + "/" + child);
                     machines.put(node + "/" + child, state);
+                    if (!"__stable".equals(node)) {
+                        maxMachineId = Math.max(maxMachineId, SourceSnapshot.machineIdOf(state));
+                    }
                     int bar = state.indexOf('|');
                     if (bar > 0) {
                         try {
@@ -94,11 +98,15 @@ public final class ZookeeperSource implements SourceReader {
             if (client.checkExists().forPath(nsPath + "/__counter") != null) {
                 byte[] counter = client.getData().forPath(nsPath + "/__counter");
                 machines.put("__counter", counter == null ? "" : java.util.HexFormat.of().formatHex(counter));
+                // The number of machine ids ever handed out (a Curator atomic integer): the last one is one less.
+                if (counter != null && counter.length == Integer.BYTES) {
+                    maxMachineId = Math.max(maxMachineId, ByteBuffer.wrap(counter).getInt() - 1);
+                }
             }
         } catch (Exception e) {
             throw new IllegalStateException("Reading the 4.x ZooKeeper store failed: " + e.getMessage(), e);
         }
-        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized);
+        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized, maxMachineId);
     }
 
     private List<String> children(String path) throws Exception {

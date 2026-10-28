@@ -41,6 +41,8 @@ public final class JdbcTarget implements TargetAdmin {
     private final Connection connection;
     private final JdbcDialect dialect;
     private final JdbcTables tables;
+    /** Whether the namespace table has {@code slot_offset}; null until probed. */
+    private Boolean slotOffsetColumn;
 
     public JdbcTarget(StoreLocation location) {
         try {
@@ -66,6 +68,13 @@ public final class JdbcTarget implements TargetAdmin {
                     try (Statement statement = connection.createStatement()) {
                         statement.execute(ddl);
                     }
+                }
+                // A namespace table of 5.0.0-alpha.1 gets the column, as JdbcStore.initSchema adds it.
+                if (!hasSlotOffset()) {
+                    try (Statement statement = connection.createStatement()) {
+                        statement.execute(dialect.addColumn(tables.namespace(), "slot_offset", "integer not null default 0"));
+                    }
+                    slotOffsetColumn = null;
                 }
             }
         } catch (SQLException | RuntimeException e) {
@@ -153,6 +162,7 @@ public final class JdbcTarget implements TargetAdmin {
         }
         int limit = (int) meta.get()[0];
         long tolerance = meta.get()[1];
+        int slotOffset = (int) meta.get()[2];
         return Optional.of(query("read slots of " + namespace, "select count(*), min(next_floor_ms), sum(case when owner_key is not null and expires_at >= "
             + dialect.nowMillis() + " then 1 else 0 end) from " + tables.slot() + " where namespace = ? and slot < ?", statement -> {
                 statement.setString(1, namespace);
@@ -160,28 +170,62 @@ public final class JdbcTarget implements TargetAdmin {
                 try (ResultSet rs = statement.executeQuery()) {
                     rs.next();
                     int slots = rs.getInt(1);
-                    return new NamespaceState(limit, tolerance, slots, slots == 0 ? Long.MAX_VALUE : rs.getLong(2), rs.getInt(3));
+                    return new NamespaceState(limit, tolerance, slotOffset, slots, slots == 0 ? Long.MAX_VALUE : rs.getLong(2), rs.getInt(3));
                 }
             }));
     }
 
+    /** {@code {limit, tolerance, slotOffset}}; a table of 5.0.0-alpha.1 has no {@code slot_offset} column: offset 0. */
     private Optional<long[]> meta(String namespace) {
+        if (hasSlotOffset()) {
+            return query("read namespace " + namespace, "select slot_limit, tolerance_ms, slot_offset from " + tables.namespace() + " where namespace = ?",
+                statement -> {
+                    statement.setString(1, namespace);
+                    try (ResultSet rs = statement.executeQuery()) {
+                        return rs.next() ? Optional.of(new long[]{rs.getInt(1), rs.getLong(2), rs.getInt(3)}) : Optional.empty();
+                    }
+                });
+        }
         return query("read namespace " + namespace, "select slot_limit, tolerance_ms from " + tables.namespace() + " where namespace = ?", statement -> {
             statement.setString(1, namespace);
             try (ResultSet rs = statement.executeQuery()) {
-                return rs.next() ? Optional.of(new long[]{rs.getInt(1), rs.getLong(2)}) : Optional.empty();
+                return rs.next() ? Optional.of(new long[]{rs.getInt(1), rs.getLong(2), 0}) : Optional.empty();
             }
         });
     }
 
+    /** Whether the namespace table has the {@code slot_offset} column, added after 5.0.0-alpha.1. */
+    private boolean hasSlotOffset() {
+        if (slotOffsetColumn == null) {
+            try (PreparedStatement probe = connection.prepareStatement("select slot_offset from " + tables.namespace() + " where 1 = 0")) {
+                probe.executeQuery().close();
+                slotOffsetColumn = true;
+            } catch (SQLException e) {
+                slotOffsetColumn = false;
+            }
+        }
+        return slotOffsetColumn;
+    }
+
     @Override
-    public NamespaceState prepare(String namespace, int limit, long toleranceMillis, long nextFloor) {
+    public NamespaceState prepare(String namespace, int limit, long toleranceMillis, int slotOffset, long nextFloor) {
         Optional<long[]> meta = meta(namespace);
         if (meta.isEmpty()) {
-            try (PreparedStatement insert = connection.prepareStatement("insert into " + tables.namespace() + " (namespace, slot_limit, tolerance_ms) values (?, ?, ?)")) {
+            if (slotOffset != 0 && !hasSlotOffset()) {
+                throw new IllegalStateException("Namespace " + namespace + " needs slot offset " + slotOffset + ", but " + tables.namespace()
+                    + " has no slot_offset column (a table of 5.0.0-alpha.1): add it with [alter table " + tables.namespace()
+                    + " add slot_offset integer not null default 0], or run with initSchema");
+            }
+            // Offset 0 leaves the column to its default, as 5.0.0-alpha.1 wrote it.
+            String sql = slotOffset == 0 ? "insert into " + tables.namespace() + " (namespace, slot_limit, tolerance_ms) values (?, ?, ?)"
+                : "insert into " + tables.namespace() + " (namespace, slot_limit, tolerance_ms, slot_offset) values (?, ?, ?, ?)";
+            try (PreparedStatement insert = connection.prepareStatement(sql)) {
                 insert.setString(1, namespace);
                 insert.setInt(2, limit);
                 insert.setLong(3, toleranceMillis);
+                if (slotOffset != 0) {
+                    insert.setInt(4, slotOffset);
+                }
                 insert.executeUpdate();
             } catch (SQLException e) {
                 if (!dialect.isDuplicateKey(e)) {
@@ -190,11 +234,11 @@ public final class JdbcTarget implements TargetAdmin {
             }
             meta = meta(namespace);
         }
-        long[] recorded = meta.orElseThrow();
-        if (recorded[0] != limit || recorded[1] != toleranceMillis) {
-            throw TargetAdmin.mismatch(namespace, limit, toleranceMillis, (int) recorded[0], recorded[1]);
-        }
+        meta.orElseThrow();
         NamespaceState before = namespace(namespace).orElseThrow();
+        if (!TargetAdmin.matches(before, limit, toleranceMillis, slotOffset)) {
+            throw TargetAdmin.mismatch(namespace, limit, toleranceMillis, slotOffset, before);
+        }
         if (before.live() > 0) {
             throw TargetAdmin.live(namespace, before.live());
         }

@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * The 5.0 ZooKeeper store (06 §2.4): a range is the node {@code /cosid/range/{key}}, its data the decimal next value
- * with {@code :sealed} appended once sealed; a namespace is {@code /cosid/slot/{ns}} ({@code limit=..\ntolerance=..})
+ * with {@code :sealed} appended once sealed; a namespace is {@code /cosid/slot/{ns}} ({@code limit=..\ntolerance=..\nslotOffset=..})
  * with one node per slot, {@code name=value} lines of which this class only ever raises {@code nextFloor} (and, for a
  * slot whose holder expired, {@code ceilingMin}, the lower bound of the ceiling that becomes the next floor). The other
  * lines are kept byte for byte.
@@ -207,7 +207,7 @@ public final class ZookeeperTarget implements TargetAdmin {
                     live++;
                 }
             }
-            return Optional.of(new NamespaceState(limit, meta[1], count, minNextFloor, live));
+            return Optional.of(new NamespaceState(limit, meta[1], (int) meta[2], count, minNextFloor, live));
         });
     }
 
@@ -222,14 +222,16 @@ public final class ZookeeperTarget implements TargetAdmin {
             return null;
         }
         Map<String, String> fields = Slot.fields(data);
-        return new long[]{Long.parseLong(fields.get("limit")), Long.parseLong(fields.get("tolerance"))};
+        // Metadata of 5.0.0-alpha.1 has no slotOffset line: offset 0.
+        String slotOffset = fields.get("slotOffset");
+        return new long[]{Long.parseLong(fields.get("limit")), Long.parseLong(fields.get("tolerance")), slotOffset == null ? 0 : Long.parseLong(slotOffset)};
     }
 
     @Override
-    public NamespaceState prepare(String namespace, int limit, long toleranceMillis, long nextFloor) {
+    public NamespaceState prepare(String namespace, int limit, long toleranceMillis, int slotOffset, long nextFloor) {
         String nsPath = SLOTS + "/" + namespace;
         return call("prepare namespace " + namespace, () -> {
-            byte[] metaData = ("limit=" + limit + "\ntolerance=" + toleranceMillis + "\n").getBytes(StandardCharsets.US_ASCII);
+            byte[] metaData = ("limit=" + limit + "\ntolerance=" + toleranceMillis + "\nslotOffset=" + slotOffset + "\n").getBytes(StandardCharsets.US_ASCII);
             while (meta(namespace) == null) {
                 try {
                     Stat stat = client.checkExists().forPath(nsPath);
@@ -242,11 +244,10 @@ public final class ZookeeperTarget implements TargetAdmin {
                     // raced: read again
                 }
             }
-            long[] meta = meta(namespace);
-            if (meta[0] != limit || meta[1] != toleranceMillis) {
-                throw TargetAdmin.mismatch(namespace, limit, toleranceMillis, (int) meta[0], meta[1]);
-            }
             NamespaceState before = namespace(namespace).orElseThrow();
+            if (!TargetAdmin.matches(before, limit, toleranceMillis, slotOffset)) {
+                throw TargetAdmin.mismatch(namespace, limit, toleranceMillis, slotOffset, before);
+            }
             if (before.live() > 0) {
                 throw TargetAdmin.live(namespace, before.live());
             }

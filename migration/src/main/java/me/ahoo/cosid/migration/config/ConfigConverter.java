@@ -14,7 +14,7 @@
 package me.ahoo.cosid.migration.config;
 
 import me.ahoo.cosid.migration.ApplyResult;
-import me.ahoo.cosid.migration.LayoutCheck;
+import me.ahoo.cosid.migration.Plan;
 import me.ahoo.cosid.time.Layout;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -190,6 +190,8 @@ public final class ConfigConverter {
         }
         if (machine != null) {
             cosid.put("machine", machine);
+            legacy.sharedGeneratorNamespace().ifPresent(shared ->
+                cosid.put("machines", Map.of(Legacy4x.GENERATOR_MACHINE, generatorMachine(shared, machine, result, report))));
         }
         cosid.put("generators", generators);
         if (config.get("cosid.metrics.generated.enabled") != null) {
@@ -385,6 +387,47 @@ public final class ConfigConverter {
         }
         machine.put("leased", leased);
         return machine;
+    }
+
+    /**
+     * The named machine of the shared {@code cosid.generator.namespace} (D37, api-freeze.md §2.7): the store and kind of
+     * the default machine, the slot parameters the shared namespace was migrated with, as this service's apply found
+     * them.
+     */
+    private static Map<String, Object> generatorMachine(String shared, Map<String, Object> machine, ApplyResult result, List<String> report) {
+        Map<String, Object> named = new LinkedHashMap<>();
+        named.put("namespace", shared);
+        Plan.GeneratorNamespace recorded = result == null ? null : result.generatorNamespace();
+        if (recorded == null || !recorded.namespace().equals(shared)) {
+            recorded = null;
+            report.add("cosid.machines.generator: no apply result of this service with the migrated shared namespace [" + shared + "]; written with"
+                + " slot-offset 0 and 10 bits. Migrate [" + shared + "] once (plan and apply --namespace " + shared + "), apply this service, and run"
+                + " config with its apply-result.json");
+        }
+        if (machine.get("leased") instanceof Map<?, ?> defaultLeased) {
+            Map<String, Object> leased = new LinkedHashMap<>();
+            leased.put("store", defaultLeased.get("store"));
+            leased.put("bits", recorded == null ? 10 : recorded.bits());
+            if (recorded != null && recorded.toleranceMillis() != 1000) {
+                leased.put("tolerance", recorded.toleranceMillis() + "ms");
+            }
+            if (recorded != null && recorded.slotOffset() > 0) {
+                leased.put("slot-offset", recorded.slotOffset());
+            }
+            named.put("leased", leased);
+            report.add("cosid.machines.generator: every service sharing [" + shared + "] uses the same bits, tolerance and slot-offset; more peak pods"
+                + " in all (rolling surge included) than 2^bits need more bits, within slot-offset + 2^bits <= 2^node-bits");
+        } else {
+            Map<String, Object> fixed = new LinkedHashMap<>();
+            fixed.put("slot", "${COSID_GENERATOR_SLOT}");
+            if (result != null) {
+                fixed.put("not-before", result.notBefore());
+            }
+            named.put("static", fixed);
+            report.add("cosid.machines.generator.static.slot is ${COSID_GENERATOR_SLOT}: a slot of [" + shared + "] unique across every service sharing it,"
+                + " above the 4.x machine ids there");
+        }
+        return named;
     }
 
     private Map<String, Object> snowflake(Legacy4x legacy, String name, String prefix, List<String> report, Set<String> handled) {
@@ -610,25 +653,46 @@ public final class ConfigConverter {
     }
 
     private Map<String, Object> cosid80(FlatConfig config, List<String> report, Set<String> handled) {
+        Legacy4x legacy = new Legacy4x(config);
         Map<String, Object> generator = new LinkedHashMap<>();
         generator.put("strategy", "cosid80");
+        // The shared namespace of the 4.x CosIdGenerator is the named machine of the same name (D37).
+        legacy.sharedGeneratorNamespace().ifPresent(shared -> generator.put("machine", Legacy4x.GENERATOR_MACHINE));
+        // The 4.x bits and threshold, as the 5.0 binding takes them over COSID_80 (D36).
+        Layout layout = legacy.cosidLayout();
+        if (layout.timeBits() != Layout.COSID_80.timeBits()) {
+            generator.put("time-bits", layout.timeBits());
+        }
+        if (layout.nodeBits() != Layout.COSID_80.nodeBits()) {
+            generator.put("node-bits", layout.nodeBits());
+        }
+        if (layout.seqBits() != Layout.COSID_80.seqBits()) {
+            generator.put("seq-bits", layout.seqBits());
+        }
+        long derived = generator.containsKey("seq-bits") ? Layout.defaultSeqResetThreshold(layout.seqBits()) : Layout.COSID_80.seqResetThreshold();
+        if (layout.seqResetThreshold() != derived) {
+            generator.put("seq-reset-threshold", layout.seqResetThreshold());
+        }
+        if (legacy.cosidThresholdClamped()) {
+            report.add("cosid.generator.sequence-reset-threshold = " + config.get("cosid.generator.sequence-reset-threshold") + " exceeds the sequence"
+                + " range: written as " + layout.seqResetThreshold() + ", the largest sequence, as 4.x never resets either then");
+        }
         String type = config.get("cosid.generator.type", "radix62").toLowerCase(Locale.ROOT);
         switch (type) {
             case "radix36" -> generator.put("codec", List.of(Map.of("radix", Map.of("radix", 36))));
-            case "friendly" -> generator.put("codec", List.of(Map.of("friendly", Map.of("zone", config.get("cosid.generator.zone-id", zone().getId())))));
+            case "friendly" -> {
+                Map<String, Object> friendly = new LinkedHashMap<>();
+                friendly.put("zone", config.get("cosid.generator.zone-id", zone().getId()));
+                if (!config.bool("cosid.generator.pad-start", true)) {
+                    friendly.put("pad-start", false);
+                }
+                generator.put("codec", List.of(Map.of("friendly", friendly)));
+            }
             default -> generator.put("codec", List.of(Map.of("radix", Map.of("radix", 62))));
         }
-        Layout layout = new Legacy4x(config).cosidLayout();
-        if (!LayoutCheck.sameIdSpace(layout, Layout.COSID_80)) {
-            report.add("cosid.generator: the 4.x bits differ from the 5.0 COSID_80 layout (44/20/16); the 5.0 ids keep COSID_80 (M3 fails in plan)");
-        } else if (layout.seqResetThreshold() != Layout.COSID_80.seqResetThreshold()) {
-            report.add("cosid.generator.sequence-reset-threshold = " + layout.seqResetThreshold() + ": 5.0 cosid80 resets at "
-                + Layout.COSID_80.seqResetThreshold() + "; the ids stay in the same space, only their low bits scatter otherwise");
+        if (!"friendly".equals(type) && !config.bool("cosid.generator.pad-start", true)) {
+            report.add("cosid.generator.pad-start = false: 4.x applies it to friendly text only; the radix text of 5.0 cosid80 is padded as before");
         }
-        if (!config.bool("cosid.generator.pad-start", true)) {
-            report.add("cosid.generator.pad-start = false: 5.0 cosid80 text ids are always padded");
-        }
-        // cosid.generator.namespace: the same as cosid.namespace here; Migration#config refuses one of its own (R1-x-07).
         for (String part : List.of("type", "zone-id", "timestamp-bit", "machine-bit", "sequence-bit", "sequence-reset-threshold", "pad-start", "namespace")) {
             handled.add("cosid.generator." + part);
         }
@@ -646,7 +710,8 @@ public final class ConfigConverter {
         Map<String, Layout> layouts = new LinkedHashMap<>();
         legacy.snowflakes().forEach((name, prefix) -> layouts.put(name, legacy.snowflakeLayout(prefix)));
         if (legacy.cosidEnabled()) {
-            layouts.put("cosid", Layout.COSID_80);
+            // config keeps the 4.x bits of the CosIdGenerator (D36).
+            layouts.put("cosid", legacy.cosidLayout());
         }
         return layouts;
     }
@@ -672,7 +737,11 @@ public final class ConfigConverter {
             String prefix = "cosid.generators." + name;
             String strategy = config.get(prefix + ".strategy", "");
             if ("cosid80".equals(strategy)) {
-                layouts.put(name, Layout.COSID_80);
+                Layout base = Layout.COSID_80;
+                int seqBits = (int) config.number(prefix + ".seq-bits", base.seqBits());
+                long derived = seqBits == base.seqBits() ? base.seqResetThreshold() : Layout.defaultSeqResetThreshold(seqBits);
+                layouts.put(name, new Layout(base.epoch(), base.unit(), (int) config.number(prefix + ".time-bits", base.timeBits()),
+                    (int) config.number(prefix + ".node-bits", base.nodeBits()), seqBits, config.number(prefix + ".seq-reset-threshold", derived)));
             } else if ("snowflake".equals(strategy)) {
                 Layout base = layoutOfPreset(config.get(prefix + ".layout", "SNOWFLAKE_MS"));
                 String epoch = config.get(prefix + ".epoch");

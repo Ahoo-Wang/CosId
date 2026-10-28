@@ -138,11 +138,23 @@ What keeps a plausible configuration from issuing 4.x ids again (pre-RC review):
   its machine id in `other`). With `--layout-config`, `plan` reads those namespaces too and maps `other.{name}` to
   `{ns}/{name}`, the generator 5.0 gives it; a key `shop.v2.order` of namespace `shop.v2` is not taken for a segment
   `v2.order` of `shop`. Without `--layout-config` a dotted segment name is reported.
-- **A CosIdGenerator in a namespace of its own** (`cosid.generator.namespace` other than `cosid.namespace`, GA review
-  R1-x-07): 4.x shares its machine ids across services to keep their 80-bit ids apart, which this 5.0 release cannot
-  carry over until named machines (D37). `config`, and `plan` / `apply` with `--layout-config`, refuse it while the
-  CosIdGenerator is enabled. With it disabled, the machine records of that namespace still count for T4 and the quiet
-  period.
+- **A CosIdGenerator in a namespace of its own** (`cosid.generator.namespace` other than `cosid.namespace`, D37): 4.x
+  shares its machine ids across services to keep their 80-bit ids apart; 5.0 keeps them in the named machine
+  `cosid.machines.generator`. Migrate the shared namespace **once**, before any service: `plan --namespace <shared>
+  --layout-config <a service's yaml>` reads the largest 4.x machine id M there. The default slot offset puts the 5.0 slots at
+  the top of the nodes, `2^node-bits - 2^bits` (`2^20 - 1024` with the 4.x defaults), which leaves 4.x the most room
+  below them; `--slot-offset` overrides it, above M with `offset + 2^bits <= 2^node-bits`. `plan` reports and records the
+  `headroom`, `offset - (M + 1)`: how many more machine ids 4.x can hand out before its nodes meet 5.0's, loudly when it
+  is below `2^bits`. 4.x could hand out ids up to its hard cap `2^(cosid.generator.machine-bit)`, which `config` keeps as
+  `node-bits`, so the separation is not by construction (`guaranteed: false`): 4.x must stay below the offset. With an offset, `apply` needs no `--confirm-stopped` and
+  watches no quiet period: 4.x keeps running while each service moves, and `verify` fails once 4.x hands out a machine
+  id at or above the offset. `--slot-offset 0` migrates it at once,
+  every sharing service stopped. Each service's `apply` then refuses unless the shared namespace is prepared as its plan
+  saw it, and `config` writes `cosid.machines.generator` (with that `slot-offset`) and `machine: generator` on cosid80.
+  With the CosIdGenerator disabled, the machine records of that namespace count for T4 and the quiet period.
+- **CosIdGenerator bits.** `config` keeps the 4.x `timestamp-bit`, `machine-bit`, `sequence-bit` and
+  `sequence-reset-threshold` (a threshold beyond the sequence range is taken as its largest value) and the friendly
+  `pad-start`; bits whose time and sequence exceed 63 are refused by `plan` and `config`.
 - **The share.** `__share__` is `default`, or `segment-share` when the 4.x snowflake share is enabled too: `plan`
   refuses it without `--layout-config` or `--rename __share__=<generator>`.
 - **Keys that do not map** (a group pattern 5.0 cannot read, a name with `/`): `apply` aborts unless each is named with

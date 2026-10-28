@@ -58,27 +58,33 @@ public final class RedisSource implements SourceReader {
         }
         Map<String, String> machines = new TreeMap<>();
         long maxTimestamp = 0;
+        int maxMachineId = -1;
         String machinePrefix = "cosid:{" + namespace + "}:";
         for (Map.Entry<String, String> entry : hash(commands, machinePrefix + "itc_idx").entrySet()) {
             machines.put("itc_idx/" + entry.getKey(), entry.getValue());
+            maxMachineId = Math.max(maxMachineId, SourceSnapshot.machineIdOf(entry.getValue()));
             maxTimestamp = Math.max(maxTimestamp, numbers(entry.getValue(), 1));
         }
         for (Map.Entry<String, String> entry : hash(commands, machinePrefix + "revert").entrySet()) {
             machines.put("revert/" + entry.getKey(), entry.getValue());
+            maxMachineId = Math.max(maxMachineId, SourceSnapshot.machineIdOf(entry.getKey()));
             maxTimestamp = Math.max(maxTimestamp, numbers(entry.getValue(), 0));
         }
         for (Map.Entry<String, String> entry : hash(commands, machinePrefix + "lease").entrySet()) {
             machines.put("lease/" + entry.getKey(), entry.getValue());
+            maxMachineId = Math.max(maxMachineId, SourceSnapshot.machineIdOf(entry.getKey()));
             maxTimestamp = Math.max(maxTimestamp, numbers(entry.getValue(), 0));
         }
         String adder = commands.get(machinePrefix + "adder");
         if (adder != null) {
             machines.put("adder", adder);
+            // The last machine id ever handed out.
+            maxMachineId = Math.max(maxMachineId, SourceSnapshot.machineIdOf(adder));
         }
         for (String stable : commands.smembers(machinePrefix + "stable")) {
             machines.put("stable/" + stable, "1");
         }
-        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized);
+        return new SourceSnapshot(segments, machines, maxTimestamp, unrecognized, maxMachineId);
     }
 
     private static Map<String, String> hash(RedisClusterCommands<String, String> commands, String key) {

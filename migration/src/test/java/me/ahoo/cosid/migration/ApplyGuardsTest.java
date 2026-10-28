@@ -357,11 +357,11 @@ class ApplyGuardsTest extends MigrationScenarioTest {
         assertThat(top.slots().slotOffset(), is((1 << 20) - 1024));
         assertThat(top.shared().headroom(), is((1L << 20) - 1024 - (maxMachineId + 1)));
         assertThat(top.shared().guaranteed(), is(false));
-        // M + 1 a power of two (ids 0..3): M + 1 is the least offset, with no headroom at all; M is refused.
-        assertThat(maxMachineId, is(3));
+        // M + 1 a power of two: M + 1 is the least offset, with no headroom at all; M is refused.
+        assertThat(Integer.bitCount(maxMachineId + 1), is(1));
         Plan least = migration().plan(new Migration.PlanOptions(source.location(), target.location(), null, null, global, layout, null, null,
             Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), planned, maxMachineId + 1));
-        assertThat(least.slots().slotOffset(), is(4));
+        assertThat(least.slots().slotOffset(), is(maxMachineId + 1));
         assertThat(least.shared().headroom(), is(0L));
         assertThat(least.shared().guaranteed(), is(false));
         assertThat(least.warnings(), hasItem(startsWith("LOW HEADROOM: [" + global + "]")));

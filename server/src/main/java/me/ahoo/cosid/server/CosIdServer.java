@@ -14,6 +14,7 @@
 package me.ahoo.cosid.server;
 
 import me.ahoo.cosid.runtime.RuntimeSpec;
+import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.spring.autoconfigure.CosIdGeneratorRegistrar;
 import me.ahoo.cosid.store.StoreProvider;
 
@@ -26,6 +27,7 @@ import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -36,6 +38,7 @@ import org.springframework.core.env.Environment;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * cosid-server (08-remote.md): the range and slot lease primitives of its backing store at the root (no version prefix, D30), and
@@ -45,6 +48,9 @@ import java.util.List;
 @SpringBootApplication
 @EnableConfigurationProperties(ServerProperties.class)
 public class CosIdServer {
+    /** The bean name of the {@link BackingStore}. */
+    static final String STORE_BEAN = "cosIdServerStore";
+
     /**
      * Starts the server.
      *
@@ -113,14 +119,27 @@ public class CosIdServer {
         return new KeyCap(properties.limits(), rejections);
     }
 
-    @Bean(destroyMethod = "close")
+    @Bean(name = STORE_BEAN, destroyMethod = "close")
     BackingStore cosIdServerStore(@Qualifier(CosIdGeneratorRegistrar.SPEC_BEAN) ObjectProvider<RuntimeSpec> spec, ServerProperties properties,
                                   ObjectProvider<StoreProvider> providers) {
+        return BackingStore.open(stores(spec), properties.store(), providers.orderedStream().toList(), properties.blocking().threads());
+    }
+
+    /** The runtime's store of the same name is the backing store, not a second client on it (R1-server-03). */
+    @Bean
+    SharedStoreProvider cosIdServerSharedStoreProvider(@Qualifier(CosIdGeneratorRegistrar.SPEC_BEAN) ObjectProvider<RuntimeSpec> spec,
+                                                       ServerProperties properties, ObjectProvider<BackingStore> backing,
+                                                       ObjectProvider<StoreProvider> providers, ConfigurableListableBeanFactory beanFactory) {
+        Map.Entry<String, StoreSpec> store = BackingStore.choose(stores(spec), properties.store());
+        return new SharedStoreProvider(store.getValue().type(), store.getKey(), backing, providers, beanFactory);
+    }
+
+    private static Map<String, StoreSpec> stores(ObjectProvider<RuntimeSpec> spec) {
         RuntimeSpec runtimeSpec = spec.getIfAvailable();
         if (runtimeSpec == null || runtimeSpec.stores().isEmpty()) {
             throw new IllegalStateException("cosid-server needs a backing store: configure cosid.stores.<name> (and keep cosid.enabled=true)");
         }
-        return BackingStore.open(runtimeSpec.stores(), properties.store(), providers.orderedStream().toList(), properties.blocking().threads());
+        return runtimeSpec.stores();
     }
 
     /** The backing store in the readiness group, as {@code cosIdServerStore} (R1-server-02); liveness does not ask it. */

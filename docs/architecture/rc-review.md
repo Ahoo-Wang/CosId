@@ -169,6 +169,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 - 各修复 PR(#1347–#1353、#1342、#1346)CI 全绿后:审查 → squash 合入 → 在 §4 标记。合并前必须确认 CI 状态非空且全部 SUCCESS。
 - 发布门槛:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762),分析在 #1345;仍失败的行按 §4 归属派发。
 - 待用户决定:E-M1(是否修改 `4.x` 的 document-deploy);RC1 必须以 pre-release 发布;发布前 `gradle.properties` 改为 `5.0.0-RC1`。
+- 规则(2026-10-28 用户追加):**同一时间最多 1 个工作中的子会话**,串行派发,防止与其他会话争抢 CPU。
 - 规则:所有 WIP 在 Draft PR 上;CPU ≤ 90%,只在 CI 验证;提交英文、作者 Ahoo Wang、无 Co-authored-by;回复用户用中文。
 
 - **CI 偶发问题(✅ 已由 #1358 解决:根因 SERVER-125742,mongo:8.0 改在 ubuntu-22.04 上运行):** `Store MongoDB (mongo:8.0)` 在部分 runner 上整个 job 的容器都起不来(`Container exited with code 1`,等不到 `waiting for connections`),同一 job 在别的 runner 上通过(#1347 16:26、#1350 17:09)。#1342 两次、#1348 一次因此失败,均为基础设施问题,与改动无关,已重跑。RC 后需查明(可能与 runner 的 CPU 或镜像有关,建议 job 失败时打印容器日志)。
@@ -178,7 +179,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | PR | 问题 | 处理 |
 |---|---|---|
 | [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | WP-Redis(B-B1)审查不通过:`Store Redis TCK (Redis 7.0)` 稳定失败(8.10 和 6.2 probe 通过)。`ClusterReplicaWaitTest` 中 `wait=auto` 在 7.0 上解析为 0(期望 1),之后 WAIT 不执行,冻结副本时写入照常成功。这是产品缺陷,不只是测试问题:启动时 auto 若解析为 0,WAIT 就会一直被静默跳过,与 B-B1 属同类问题。可能原因:Lettuce 缓存的拓扑还没显示副本,或 7.0 的 CLUSTER NODES 解析不同 | 已退回 R2-Redis:查清 7.0 的根因;auto 解析改为刷新拓扑或按各主节点的 INFO replication 计数,存在副本却解析为 0 时不能静默;同连接执行 WAIT 和 B-N4 的设计认可 |
-| [#1357](https://github.com/Ahoo-Wang/CosId/pull/1357) | 发布门槛自动报告(run 40534275762,基于 `614d5df9`,即各修复合入前):**FAIL,8 组中 5 组失败**。重跑后仍失败:codec-filler 4 行(radix36/62 编解码单线程吞吐低约 12–15%);mongo 1 行(reserve 分配多约 4%);mysql 7 行(`MySqlStoreBenchmark.acquire` 耗时约 +70%,acquire/renew/reserve 分配 +25–65%,ChainId p99/p99.9 偏高);segment 1 行;zookeeper 4 行(renew/reserve 小幅超阈值 1–7%)。另外该 PR 由 workflow 的 GITHUB_TOKEN 创建,不触发 CI,处于 BLOCKED,不满足“CI 全绿”规则 | 不合入。D21(性能不回退)未满足,是 **RC 阻断项**;分析在 #1345(R5-A)。收尾阶段不开新任务,RC 前需派发:codec 与 MySQL store 为主要回退;mongo/zookeeper/segment 行接近阈值,需先确认是否为噪声。报告需改为由能触发 CI 的身份创建(或改为直接推到 #1345) |
+| [#1357](https://github.com/Ahoo-Wang/CosId/pull/1357)(✅ 已关闭,2026-10-28) | 发布门槛自动报告(run 40534275762,基于 `614d5df9`,即各修复合入前):**FAIL,8 组中 5 组失败**。重跑后仍失败:codec-filler 4 行(radix36/62 编解码单线程吞吐低约 12–15%);mongo 1 行(reserve 分配多约 4%);mysql 7 行(`MySqlStoreBenchmark.acquire` 耗时约 +70%,acquire/renew/reserve 分配 +25–65%,ChainId p99/p99.9 偏高);segment 1 行;zookeeper 4 行(renew/reserve 小幅超阈值 1–7%)。另外该 PR 由 workflow 的 GITHUB_TOKEN 创建,不触发 CI,处于 BLOCKED,不满足“CI 全绿”规则 | 不合入。D21(性能不回退)未满足,是 **RC 阻断项**;分析在 #1345(R5-A)。收尾阶段不开新任务,RC 前需派发:codec 与 MySQL store 为主要回退;mongo/zookeeper/segment 行接近阈值,需先确认是否为噪声。报告需改为由能触发 CI 的身份创建(或改为直接推到 #1345) |
 | [#1358](https://github.com/Ahoo-Wang/CosId/pull/1358) | CI(会话 `ci-gate-mongo`):门槛报告改为 job summary + artifact、不再开 PR,通过;mongo:8.0 根因为 MongoDB 8.0.21+ 在 Linux 6.19–7.0.13 上启动即退出(SERVER-125742,runner 镜像 20261025),认可。不通过:检测到不兼容时跳过 TCK,job 显示绿色而 8.0 实际未覆盖 | 已退回(2026-10-28):`mongo:8*` 改在 `ubuntu-22.04`(内核 6.8)上真跑;探测到不兼容时 job 失败而非跳过。**复审通过**(`5cd86293`,CI 全绿,8.0 TCK 在内核 6.8.0-1064-azure 上跑完),待用户同意转 ready;✅ **已合入 `0873ed9e`**(2026-10-28) |
 
 ## 5. RC1 准入清单

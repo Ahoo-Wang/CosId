@@ -32,4 +32,4 @@ runs:
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@v6
       with:
-        cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+        cache-read-only: false  # TEMPORARY (WP-ci measurement): this PR writes its own cache once

@@ -1,6 +1,6 @@
 # RC1 API 冻结设计
 
-> 状态:**设计定稿待审**(2026-10-28,基于 `main` @ `5021602e`)。只定设计,不改代码;实现按 §10 一次一个 PR。
+> 状态:**已审,按协调会话结论定稿**(2026-10-28,基于 `main` @ `5021602e`;§12 第 5 项改为 RC 前纳入 `slotOffset`)。只定设计,不改代码;实现按 §10 一次一个 PR。
 > 输入:README D36–D38;[ga-review.md](ga-review.md) §2、§3、§3.1、§4 与各模块"触及冻结面"的条目。
 > 决策表的新增或修改见 §11,由协调会话转录进 README;本文件不改 README、rc-review、roadmap。
 > 设计细节同步进 [03](03-core-model.md)、[05](05-machine-lease.md)、[07](07-runtime-and-spring.md)、[09](09-migration.md)、[11](11-feature-parity.md)。
@@ -135,8 +135,22 @@ Optional<SlotLease> slot(String machine); // 新增
 Set<String> machines();                   // 新增:已启动的 machine 名("default" 在内),名序
 ```
 
-`MachineSpec.Leased` 的全部字段(`store`、`bits`、`ttl`、`tolerance`、`preferredSlot`、`ownerKey`、`acquireTimeout`(§6)、`namespace`)与
+`MachineSpec.Leased` 的全部字段(`store`、`bits`、`ttl`、`tolerance`、`preferredSlot`、`ownerKey`、`acquireTimeout`(§6)、`slotOffset`(§2.1.1)、`namespace`)与
 `MachineSpec.Static` 的全部字段(`bits`、`slot`、`stateFile`、`ahead`、`notBefore`、`namespace`)对默认 machine 和命名 machine 一样可用。
+
+### 2.1.1 `slotOffset`:与 4.x 机器号错开的节点区间(滚动迁移)
+
+```java
+// MachineSpec.Leased
+int slotOffset();      // 默认 0;ID 中的节点号 = slotOffset + slot
+```
+
+- 存储中的槽位编号不变,仍是 `[0, 2^bits)`;`SlotLease.slot()` 仍是存储槽位。偏移只在客户端打包 ID 时加上:`TimeSequencer` 用 `slotOffset + binding.slot()` 作为节点号,
+  `describe()` 的时间型生成器增加 `node` 键(= 实际写进 ID 的节点号)。
+- 用途:4.x 与 5.0 在同一个(全局)命名空间里**同时在线**。4.x 的机器号都 `< slotOffset`,5.0 的节点号都 `≥ slotOffset`,两边的 ID 节点段不相交,
+  即使时间段重叠也不会重号,于是各服务可以逐个切换(§2.7)。4.x 的机器号记录(`cosid_machine` 等)与 5.0 的槽位(`cosid_slot` 等)在存储中是不同的表/键,可以共存。
+- 偏移一旦用过就**永远不改**:改小会让新槽位落进 4.x 或旧 5.0 已用过的节点号。4.x 全部下线之后也保留原值(代价只是节点空间的低段不再使用)。
+- 只给 `Leased`。`Static` 的槽位由用户直接指定,需要错开时直接选更大的 `slot`,不需要偏移。
 
 ### 2.2 校验(`RuntimePlan`)
 
@@ -146,10 +160,13 @@ Set<String> machines();                   // 新增:已启动的 machine 名("de
    没有用处;而且命名空间不同,listener、指标、健康检查就能继续只用命名空间区分 machine,`GeneratorListener` 的签名不必改。
    两个 Static machine 的 `stateFile` 也不能相同。
 4. 每个 machine 按现有规则校验(bits、ttl、tolerance、slot 范围、ownerKey),错误前缀为 `machine:` 或 `machines.<name>:`。
-5. `checkNodeBits` 按生成器所选 machine 的 bits。
+5. `checkNodeBits` 按生成器所选 machine:`slotOffset + 2^bits ≤ 2^nodeBits`,**对引用该 machine 的每一个时间型生成器**都要成立(`slotOffset = 0` 时退化为现有的 `bits ≤ nodeBits`)。
+   `slotOffset ≥ 0`;`slotOffset + 2^bits` 用 `long` 计算防止溢出。
 6. **只启动被启用的时间型生成器引用到的 machine**,只打开这些 machine 用到的存储(与现有"只打开用到的存储"一致)。未被引用的命名 machine 在启动日志里以 INFO 列出,不报错
    (同一份配置可被多个服务共用,其中有的服务没有 cosid80)。
-7. 存储端不变:命名空间元数据 `{limit, tolerance}` 不一致时 acquire 抛 `NamespaceMismatchException`。共享一个全局命名空间的**所有服务必须使用相同的 `bits` 与 `tolerance`**,文档写明。
+7. 存储端:命名空间元数据由 `{limit, tolerance}` 扩为 `{limit, tolerance, slotOffset}`,三者任一不一致时 acquire 抛 `NamespaceMismatchException`。
+   共享一个全局命名空间的**所有服务必须使用相同的 `bits`、`tolerance` 与 `slotOffset`**,文档写明。旧元数据没有 `slotOffset` 时按 0 读取(向前兼容的追加字段)。
+   这需要 SPI 与格式的小改动,见 §2.5.1。
 
 ### 2.3 启动与关闭顺序
 
@@ -179,6 +196,18 @@ Set<String> machines();                   // 新增:已启动的 machine 名("de
 - `max-namespaces-per-client` 只计号段 key 的命名空间(`ServerProperties.java:56`),全局命名空间只用于槽位,不占配额,不变。
 - server 自己的 `/ids` 运行时由同一个 Spring 自动配置装配,天然支持 `cosid.machines`,无需另做。
 
+### 2.5.1 `slotOffset` 进入存储元数据(SPI、格式、协议)
+
+| 面 | 变更 |
+|---|---|
+| SPI | `SlotLeaseStore.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot)` 增加 `int slotOffset` 参数(只用于元数据比对与创建,不影响选槽)。`renew`/`release` 不变 |
+| 存储格式(06) | 各后端的命名空间元数据追加 `slot_offset`/`slotOffset`(JDBC `cosid_namespace` 加列,默认 0;Redis `:meta` 追加字段;Mongo `cosid_namespace` 文档加字段;ZK 元数据文本加一行 `slotOffset=`);缺失时读作 0 |
+| 协议(08) | `/slots:acquire` 请求体增加可选 `slotOffset`(默认 0);`409 namespace_mismatch` 的说明加上 slotOffset |
+| TCK | `SlotLeaseStoreContract` 增加:offset 不一致抛 `NamespaceMismatchException`;无该字段的旧元数据按 0 处理 |
+| 迁移 target | 准备命名空间时写入 `slotOffset` |
+
+这些都是 RC 冻结面(存储格式与协议),所以随 PR3 一起做,而不是 GA 后。
+
 ### 2.6 Spring 配置
 
 ```yaml
@@ -191,7 +220,7 @@ cosid:
   machines:                         # 新增
     global:
       namespace: global-ids         # 必填:命名 machine 必须写出命名空间(省略即与默认 machine 冲突,见 §2.2 第 3 条)
-      leased: { store: cache, bits: 10, ttl: 30s, tolerance: 1s, acquire-timeout: 30s }
+      leased: { store: cache, bits: 10, ttl: 30s, tolerance: 1s, acquire-timeout: 30s, slot-offset: 1024 }   # slot-offset 默认 0
       # 或 static: { bits: 10, slot: 3, state-file: ..., ahead: 10s }
   generators:
     order: { strategy: segment, store: cache }     # 号段仍在 order-service 命名空间
@@ -220,29 +249,42 @@ cosid.generators.cosid:            # 或 cosid80(已有命名规则)
 
 - machine 名固定为 `generator`(对应 `cosid.generator.namespace`)。
 - 存储:4.x CosIdGenerator 与 snowflake 用同一个分配器,所以复用默认 machine 的存储。默认 machine 是 static(4.x manual/stateful-set)时,
-  4.x 的 CosIdGenerator 同样是手工机器号,写 `static`,`not-before` 取 W(§4.4 的现有规则)。
-- `bits`:**写 10**,不照抄 4.x `cosid.generator.machine-bit`(默认 20)。5.0 的 `bits` 是租约槽位数(每个命名空间预建 `2^bits` 行),不是节点位宽;
-  20 位意味着 100 万行。报告写明"共享该命名空间的全部服务必须用相同的 bits 与 tolerance;实例总数超过 1024 时调大"(见 §12 待决定 5)。
-- 节点位宽 `node-bits` 仍按 4.x `machine-bit` 写出(§1.4),`bits(10) ≤ node-bits(20)` 成立。
+  4.x 的 CosIdGenerator 同样是手工机器号,写 `static`,`not-before` 取 W(§4.4 的现有规则);错开节点号用更大的 `slot`。
+- `bits`:**默认写 10**,不照抄 4.x `cosid.generator.machine-bit`(默认 20)。5.0 的 `bits` 是租约槽位数(每个命名空间预建 `2^bits` 行),不是节点位宽;20 位意味着 100 万行。
+  报告提示:全局命名空间被所有服务共享,**峰值 Pod 总数(含滚动发布的 surge)超过 1024 时要调大**,且受 `slotOffset + 2^bits ≤ 2^nodeBits` 约束;
+  共享该命名空间的全部服务必须用相同的 `bits`、`tolerance`、`slotOffset`。
+- `slot-offset`:取自 `apply-result.json`(与 bits/tolerance 一样由 `config` 从结果读取,D-N2),见下文;没有结果时写 0 并报告。
+- 节点位宽 `node-bits` 仍按 4.x `machine-bit` 写出(§1.4)。
 
-**`plan`/`apply`**:共享命名空间是多个服务共用的,不能在每个服务的迁移里各准备一次(第二次会覆盖第一次已经发出的 5.0 槽位)。规则:
+**`plan`/`apply`**:共享命名空间是多个服务共用的,只准备一次(第二次会覆盖已经发出的 5.0 槽位)。
 
-1. 共享命名空间单独迁移一次:`plan/apply --namespace <global>`,该命名空间只有机器号记录、没有号段 key,工具只做 M2(静止观察、`T4`、预建槽位 `next_floor = W`)。
-   静止观察覆盖**所有共享它的服务**的 4.x 实例,它们必须都已停止(与现有 D-B1 附加命名空间的口径一致)。
-2. 服务自己的迁移(带 `--layout-config`,其中有独立的 `cosid.generator.namespace`):`apply` 检查目标存储中该共享命名空间已准备好(元数据存在且 `limit`、`tolerance` 与生成配置一致),
-   否则拒绝并提示先做第 1 步。共享命名空间的记录照旧计入本服务的 `T4`(只会让 W 更大)。
-3. `verify` 对共享命名空间报告槽位的 `next_floor ≥ W`。
+1. **共享命名空间单独迁移一次**:`plan/apply --namespace <global>`,该命名空间只有机器号记录、没有号段 key,工具只做 M2。
+   - `plan` 从 4.x 机器号记录读出该命名空间**出现过的最大机器号** `M`(含已过期与 stable 的记录),推荐 `slotOffset = roundUpToPowerOfTwo(M + 1)`(没有记录时为 0),
+     并校验 `slotOffset + 2^bits ≤ 2^nodeBits`(nodeBits 取 `--layout-config` 中 4.x CosIdGenerator 的 `machine-bit`)。
+   - 报告给出两种做法,由 `apply --slot-offset` 选择(默认取推荐值):
+     - **滚动迁移**(`slotOffset > 0`,推荐):不要求 4.x 停止,不做静止观察;各服务逐个把 cosid80 切到 5.0,4.x 与 5.0 同时在线。
+     - **一次性切换**(`--slot-offset 0`):沿用原规则,静止观察覆盖所有共享它的服务,它们必须都已停止。
+   - 两种做法都写入 `W` 并预建槽位 `next_floor = W`(有偏移时 W 不是唯一性所必需的,作为纵深防护保留);元数据写入 `{limit, tolerance, slotOffset}`;结果写进 `apply-result.json`。
+2. **服务自己的迁移**(带 `--layout-config`,其中有独立的 `cosid.generator.namespace`):`apply` 检查目标存储中该共享命名空间已准备好,元数据的 `limit`/`tolerance`/`slotOffset` 与生成配置一致,
+   否则拒绝并提示先做第 1 步。一次性切换时,共享命名空间的记录照旧计入本服务的 `T4`;滚动迁移时不计入(4.x 还在发号,T4 没有意义)。
+3. `verify` 对共享命名空间报告元数据与 `next_floor ≥ W`;滚动迁移时另报告 4.x 记录中的最大机器号,一旦 `≥ slotOffset` 即报错(不变式被破坏)。
 
-这意味着**共享全局命名空间的服务需要一起停机切换 cosid80**(4.x 实例在第 1 步之后不能再用该命名空间发号,否则与 5.0 同号槽位重叠)。
-滚动迁移需要让 5.0 的槽位与 4.x 机器号错开(`slotOffset`),作为 GA 后的增量评估,见 §12 待决定 5。09 §4.2 同步。
+**滚动期间的不变式**:`所有 4.x 机器号 < slotOffset ≤ 所有 5.0 节点号 < slotOffset + 2^bits ≤ 2^nodeBits`。
+
+- 5.0 一侧由 §2.2 第 5 条与元数据比对保证。
+- 4.x 一侧靠操作约束:4.x 分配器按"最小空闲机器号"分配,所以 4.x 的机器号上限约等于 4.x 同时在线实例的峰值。迁移期间**不能扩容 4.x**到 `slotOffset` 个以上实例(含 surge);
+  `M + 1` 向上取整到 2 的幂留出了余量,报告写明这一点,`verify` 负责事后检查。需要更多余量时用 `--slot-offset` 手工指定更大的 2 的幂。
+- M2 的变化:有偏移时,4.x 与 5.0 时间段重叠也不会重号,所以不要求停机、不做静止观察;W 照样写入,防止偏移配置错误时退化为重号。
+
+一次性切换(偏移 0)仍然可用,适合 4.x 实例很少或节点位很紧的部署。09 §4.2 同步。
 
 ### 2.8 测试要点
 
-- core:两个 machine 各自取槽、各自续约;同一命名空间被两个 machine 使用被拒;未引用的 machine 不启动、其存储不打开;生成器引用不存在的 machine 被拒;
+- core:`slotOffset` 写进 ID 的节点号(`IdParts.node = offset + slot`);`offset + 2^bits > 2^nodeBits` 被拒(对每个引用该 machine 的生成器);两个 machine 各自取槽、各自续约;同一命名空间被两个 machine 使用被拒;未引用的 machine 不启动、其存储不打开;生成器引用不存在的 machine 被拒;
   node bits 按所选 machine 校验;启动中第二个 machine 失败时第一个被 release;关闭时每个 machine 的 `lastIssued` 只取自自己的生成器;`slot(name)`/`machines()`。
-- store/tck:无改动(协议与格式不变);remote:命名 machine 经 remote 存储用自己的命名空间(server 集成测试,受限 token 缺少全局命名空间时 403)。
+- store/tck:元数据 slotOffset 不一致抛 `NamespaceMismatchException`,缺字段按 0(全部后端 + remote);remote:命名 machine 经 remote 存储用自己的命名空间(server 集成测试,受限 token 缺少全局命名空间时 403)。
 - spring:`cosid.machines` 绑定与校验;指标带 `machine` 标签、每个 machine 一组 gauge;健康检查 `machines` 结构、任一失效即 DOWN。
-- migration:`config` 写出命名 machine 并启动通过;共享命名空间未准备时 `apply` 拒绝;单独迁移共享命名空间(无号段 key)成功;`Legacy4x.unsupported()` 删除后的回归。
+- migration:`plan` 从 4.x 记录算出推荐 offset;滚动迁移不要求 4.x 停止;`verify` 发现 4.x 机器号 ≥ offset 报错;`config` 从结果写出 `slot-offset`;`config` 写出命名 machine 并启动通过;共享命名空间未准备时 `apply` 拒绝;单独迁移共享命名空间(无号段 key)成功;`Legacy4x.unsupported()` 删除后的回归。
 
 ---
 
@@ -294,7 +336,7 @@ record 加分量会同时改掉规范构造器(源码与二进制都不兼容)�
 |---|---|---|---|
 | `RuntimeSpec` | `namespace` | `store(name, StoreSpec)`、`machine(MachineSpec)`、`machine(name, MachineSpec)`、`generator(name, GeneratorSpec)`、`removeGenerator(name)` | `toBuilder()`(供 `RuntimeSpecCustomizer` 修改) |
 | `StoreSpec` | `type` | `timeout`(2s)、`option(k, v)`/`options(Map)` | — |
-| `MachineSpec.Leased` | `store` | `bits`(10)、`ttl`(30s)、`tolerance`(1s)、`acquireTimeout`(= ttl,§6)、`preferredSlot`、`ownerKey`、`namespace` | `withNamespace` |
+| `MachineSpec.Leased` | `store` | `bits`(10)、`ttl`(30s)、`tolerance`(1s)、`acquireTimeout`(= ttl,§6)、`slotOffset`(0,§2.1.1)、`preferredSlot`、`ownerKey`、`namespace` | `withNamespace` |
 | `MachineSpec.Static` | `slot` | `bits`(10)、`stateFile`、`ahead`(10s)、`notBefore`、`namespace` | `withNamespace` |
 | `GeneratorSpec.Snowflake` | — | `layout`(`SNOWFLAKE_MS`)、`regression`(DEFAULT)、`codec(List)`、`machine` | `withMachine` |
 | `GeneratorSpec.CosId80` | — | `layout`(`COSID_80`)、`regression`、`codec`(`Radix(62)`)、`machine` | `withMachine` |
@@ -375,6 +417,7 @@ Function<String, Optional<IdGenerator>> generators();   // 解析 Custom 的引�
   builder 化之后加字段没有成本,删掉反而要在 05 写明一个用户无法调整的阻塞上限。
 - 与 4.x:4.x 没有对应项(获取失败立即抛异常),5.0 默认更宽容;11 不需要新行。
 - 测试:`LeaseKeeperTest` 已有超时用例,补 `0` 与自定义值;Spring 默认跟随 ttl。
+- 同一批新增 `Leased` 字段:`slotOffset`(默认 0,`cosid.machine.leased.slot-offset`、`cosid.machines.<name>.leased.slot-offset`),设计见 §2.1.1;随 PR3 实现(它需要 SPI 与存储格式改动)。
 
 ---
 
@@ -406,7 +449,7 @@ Function<String, Optional<IdGenerator>> generators();   // 解析 Custom 的引�
 |---|---|
 | `runtime.RuntimeSpec` | record → final class + builder;新增 `machines()`、`DEFAULT_MACHINE` |
 | `runtime.StoreSpec`、`runtime.RuntimeOptions` | → final class + builder;`RuntimeOptions` 新增 `generators()`,删 8 参数重载与 `withCountGenerated` |
-| `runtime.MachineSpec` | `Leased`/`Static` → final class + builder;接口新增 `namespace()`;`Leased` 新增 `acquireTimeout()` |
+| `runtime.MachineSpec` | `Leased`/`Static` → final class + builder;接口新增 `namespace()`;`Leased` 新增 `acquireTimeout()`、`slotOffset()` |
 | `runtime.GeneratorSpec` | 4 个策略变体 → final class + builder;`Snowflake`/`CosId80` 新增 `machine()`;`CosId80` 新增 `layout()`;新增 `Custom`、`Instance`;`Disabled` 保留 record |
 | `runtime.PartsCodecSpec.Friendly` | 新增 `padStart`(record 分量 + 单参构造器) |
 | `runtime.CosIdRuntime` | 新增 `slot(String)`、`machines()`、`text(String)` |
@@ -414,6 +457,7 @@ Function<String, Optional<IdGenerator>> generators();   // 解析 Custom 的引�
 | `store.StoreConfig` | → final class + builder;`timeout` 必须为正 |
 | `lease.SlotLease`、`lease.AcquireResult.Acquired` | → final class + builder |
 | `observe.GeneratorInfo` | → final class + builder;javadoc 键表 |
+| `lease.SlotLeaseStore.acquire` | 增加 `int slotOffset` 参数(§2.5.1) |
 | `codec.PartsCodec` | 新增 `friendly(Layout, ZoneId, boolean)` |
 | `IdOverflowException` | 新增 `(long, String)` 构造器 |
 | `TimeOverflowException` | 新增 |
@@ -427,6 +471,7 @@ Function<String, Optional<IdGenerator>> generators();   // 解析 Custom 的引�
 | `cosid.namespace` | 默认取 `spring.application.name`,再回退 `cosid` + WARN |
 | `cosid.machine.namespace` | 新增(可选) |
 | `cosid.machine.leased.acquire-timeout` | 新增,默认 = ttl |
+| `cosid.machine.leased.slot-offset` | 新增,默认 0 |
 | `cosid.machines.<name>.{namespace, leased.*, static.*}` | 新增 |
 | `cosid.generators.<g>.machine` | 新增(snowflake/cosid80) |
 | `cosid.generators.<g>.layout` | 默认值按策略(`SNOWFLAKE_MS` / `COSID_80`) |
@@ -439,11 +484,11 @@ Function<String, Optional<IdGenerator>> generators();   // 解析 Custom 的引�
 | 指标 | `cosid.machine.*` 增加 `machine` 标签;`cosid.segment.reserve`/`refill.failures` 去掉 `key` 标签 |
 | `CosIdProperties` | javadoc 声明是绑定类,不属于 API 兼容承诺 |
 
-**migration**:`config` 写出 cosid80 位宽/阈值/`pad-start`,写出 `cosid.machines.generator`,删除 `Legacy4x.unsupported()` 的拒绝;`apply` 检查共享命名空间已准备;`cosid.metrics.generated.enabled` 照抄。
+**migration**:`plan` 计算推荐 `slotOffset`,`apply --slot-offset`,滚动迁移不做静止观察,`verify` 检查 4.x 机器号 < offset;`config` 写出 cosid80 位宽/阈值/`pad-start`,写出 `cosid.machines.generator`(含 `slot-offset`),删除 `Legacy4x.unsupported()` 的拒绝;`apply` 检查共享命名空间已准备;`cosid.metrics.generated.enabled` 照抄。
 
-**server**:无代码改动(协议不变);文档补受限 token 的全局命名空间、健康检查路径。
+**server**:`/slots:acquire` 请求体增加可选 `slotOffset`(§2.5.1);文档补受限 token 的全局命名空间、健康检查路径。
 
-**store/***:随 `StoreConfig`、`SlotLease`、`AcquireResult.Acquired` 的 builder 机械替换构造调用;无格式改动。
+**store/***:随 `StoreConfig`、`SlotLease`、`AcquireResult.Acquired` 的 builder 机械替换构造调用;命名空间元数据追加 `slotOffset`(06 同步,JDBC 五份 schema 加列);TCK 增加比对用例。
 
 ---
 
@@ -460,7 +505,7 @@ Function<String, Optional<IdGenerator>> generators();   // 解析 Custom 的引�
 |---|---|---|
 | PR1 `refactor(core)!: evolvable value types` | §4:类型改为 final class + builder,全仓构造调用机械替换;`StoreConfig` timeout 为正;不加任何新字段、不改行为 | — |
 | PR2 `feat(core)!: cosid80 layout, acquire timeout, custom generators` | §1.1、§5、§6、§7 的 R1-core-11/12/17 | PR1 |
-| PR3 `feat(core): named machines` | §2.1–2.4 的 core 部分;`CosIdRuntime.slot(name)/machines()/text(name)` | PR2 |
+| PR3 `feat(core)!: named machines and slot offset` | §2.1–2.4 的 core 部分;`Leased.slotOffset` 与 §2.5.1(SPI 参数、各后端元数据、remote 协议、TCK、06/08);`CosIdRuntime.slot(name)/machines()/text(name)` | PR2 |
 | PR4 `feat(spring)!: freeze the configuration` | §1.2、§3、§5/§6 的 Spring 键、§7 的 R1-spring-03/05/06 与 `metrics.generated.enabled`、§2.6 的 `cosid.machines` 与指标/健康检查 | PR3 |
 | PR5 `feat(migration): named machine for cosid.generator.namespace` | §1.4、§2.7;09 同步 | PR4 |
 | PR6 `docs: API freeze` | §9(中英文);11 的新行与测试链接 | PR5 |
@@ -472,21 +517,23 @@ PR4 偏大时可拆成 4a(D36/D38/R1-core-02/03 的键与 R1-spring-03/05/06)与
 | 编号 | 决策 | 状态 |
 |---|---|---|
 | D36(补充) | cosid80 的 `epoch`/`unit` 固定(Unix、毫秒),设置即报错;Spring 的 `layout` 默认值按策略;radix 的 `width`/`pad-start` 在 cosid80 上报错;迁移 `config` 写出 4.x 位宽、阈值与 `pad-start` | 待确认 |
-| D37(补充) | 一个运行时内各 machine 的有效命名空间两两不同;machine 名 `default` 保留;只启动被引用的 machine;串行启动、逆序释放,各 machine 按自己的生成器取 `lastIssued`;指标加 `machine` 标签,健康检查按 machine 汇总;迁移把 `cosid.generator.namespace` 写成命名 machine `generator`(`bits: 10`),共享命名空间单独迁移一次 | 待确认 |
+| D37(补充) | 一个运行时内各 machine 的有效命名空间两两不同;machine 名 `default` 保留;只启动被引用的 machine;串行启动、逆序释放,各 machine 按自己的生成器取 `lastIssued`;指标加 `machine` 标签,健康检查按 machine 汇总;`Leased.slotOffset`(默认 0,节点号 = offset + slot,`offset + 2^bits ≤ 2^nodeBits`,记入命名空间元数据 `{limit, tolerance, slotOffset}`,不一致即拒绝,RC 前随 PR3 实现);迁移把 `cosid.generator.namespace` 写成命名 machine `generator`(`bits: 10`,`slot-offset` 默认取 4.x 最大机器号 + 1 向上取整到 2 的幂),共享命名空间单独迁移一次,默认滚动迁移(4.x 与 5.0 共存),可选一次性切换(offset 0) | 已定(协调会话 2026-10-28) |
 | D38(补充) | 解析在自动配置中完成,应用名同样校验命名空间语法 | 待确认 |
-| D39 | 公开值类型的演进:封闭的值(`Range`、`IdParts`、`GroupedId`、`Owner`、`Layout`、`ClockRegressionPolicy`、codec 规格、`Exhausted`、`Disabled`)保留 record;配置与 SPI 值类型改为 final class + builder,GA 后只往 builder 加有默认值的字段;`CosIdProperties` 不属于 API 承诺 | 待用户确认 |
-| D40 | sealed 规格接口(`GeneratorSpec`、`MachineSpec`、`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`)次版本可加变体,javadoc 要求 `switch` 保留 `default`;`AcquireResult` 封闭 | 待用户确认 |
-| D41 | `GeneratorSpec.Custom`(按名,Spring Bean)与 `Instance`(实例)覆盖 4.x `IdGeneratorProvider.set`;运行时不拥有其生命周期 | 待用户确认 |
-| D42 | `MachineSpec.Leased.acquireTimeout`(默认 ttl,`cosid.machine.leased.acquire-timeout`) | 待用户确认 |
-| D43 | 其余冻结面 MINOR:R1-core-11/12/17、R1-spring-03/05/06、`metrics.generated.enabled` 在 RC 前改;R1-x-02 只做文档;R1-int-01 在 PR3 顺带加入 | 待确认 |
+| D39 | 公开值类型的演进:封闭的值(`Range`、`IdParts`、`GroupedId`、`Owner`、`Layout`、`ClockRegressionPolicy`、codec 规格、`Exhausted`、`Disabled`)保留 record;配置与 SPI 值类型改为 final class + builder,GA 后只往 builder 加有默认值的字段;`CosIdProperties` 不属于 API 承诺 | 已定(按推荐,协调会话 2026-10-28) |
+| D40 | sealed 规格接口(`GeneratorSpec`、`MachineSpec`、`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`)次版本可加变体,javadoc 要求 `switch` 保留 `default`;`AcquireResult` 封闭 | 已定(按推荐,协调会话 2026-10-28) |
+| D41 | `GeneratorSpec.Custom`(按名,Spring Bean)与 `Instance`(实例)覆盖 4.x `IdGeneratorProvider.set`;运行时不拥有其生命周期 | 已定(按推荐,协调会话 2026-10-28) |
+| D42 | `MachineSpec.Leased.acquireTimeout`(默认 ttl,`cosid.machine.leased.acquire-timeout`) | 已定(按推荐,协调会话 2026-10-28) |
+| D43 | 其余冻结面 MINOR:R1-core-11/12/17、R1-spring-03/05/06、`metrics.generated.enabled` 在 RC 前改;R1-x-02 只做文档;R1-int-01 在 PR3 顺带加入 | 已定(按推荐) |
 
 ## 12. 待决定(每项附推荐)
+
+> 2026-10-28 协调会话审查:第 1–4、6、7 项按推荐定稿;第 5 项改为 RC 前纳入 `slotOffset`(下文已更新)。本节保留原始推荐以备查。
 
 1. **公开值类型的形式(D39)**。推荐 **C:final class + builder**(§4.1)。备选 A(保持 record + 重载)改动最小,但 GA 后每加一个字段就多一个重载,且记录模式会断。
 2. **sealed 规格接口 GA 后能否加变体(D40)**。推荐**允许,javadoc 声明**;备选是"5.x 内封闭,加变体等 6.0",更严格但会逼着新能力挤进 `Custom`。
 3. **自定义生成器(D41)**。推荐**加 `Custom` + `Instance`**;备选是在 11 写成"不提供"(4.x `IdGeneratorProvider.set` 的用户需要改成直接注入自己的 Bean,`@CosId` 无法引用它)。
 4. **`acquireTimeout`(D42)**。推荐**加配置项,默认 ttl**;备选是从 05 删除、固定等于 ttl。
-5. **共享全局命名空间的迁移方式**。推荐 **RC 只支持一次性切换**(共享该命名空间的服务一起停机切换 cosid80,§2.7),bits 写 10;
-   滚动迁移所需的 `Leased.slotOffset`(5.0 槽位整体偏移到 4.x 机器号之上)在 builder 化后是增量,GA 后按需求评估。若用户的服务数多、无法一起停机,需要在 RC 前提出,才把 `slotOffset` 纳入 PR3。
+5. **共享全局命名空间的迁移方式**。~~原推荐:RC 只支持一次性切换,`slotOffset` 留到 GA 后。~~ **定稿:RC 前纳入 `Leased.slotOffset`(PR3),默认滚动迁移**(§2.1.1、§2.5.1、§2.7):
+   K8s 上大量微服务共享全局命名空间时,一起停机切换不现实;offset 让 4.x 机器号与 5.0 节点号不相交,两边可以同时在线、逐个服务切换。一次性切换(offset 0)仍可选。bits 默认 10。
 6. **静态入口(R1-x-02)**。推荐**方案 A,只做文档**;GA 后需要时在 `spring/autoconfigure` 加只读 holder(增量)。
 7. **`cosid.metrics.generated` 改名**。推荐改为 `cosid.metrics.generated.enabled`(与 4.x 同名);备选保持布尔值,放弃以后加子属性。

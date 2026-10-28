@@ -38,7 +38,8 @@ public sealed interface AcquireResult {      // 封闭(D40)
 }
 
 public interface SlotLeaseStore extends AutoCloseable {
-    AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot);
+    AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot);
+    // slotOffset 只用于命名空间元数据的比对与创建,不影响选槽(D37,api-freeze.md §2.5.1)
     Optional<SlotLease> renew(SlotLease lease, Duration ttl, Duration tolerance);
     boolean release(SlotLease lease, long lastIssued);
 }
@@ -150,8 +151,9 @@ public final class SlotBinding {
 |---|---|---|
 | `ttl` | 30s | 进程崩溃后其槽位最多空置 30s |
 | 续约间隔 | `ttl/3` | |
-| `tolerance` | 1s | 命名空间级(D20);命名空间元数据记录 `{limit, tolerance}`,参数不一致则拒绝 |
+| `tolerance` | 1s | 命名空间级(D20);命名空间元数据记录 `{limit, tolerance, slotOffset}`,参数不一致则拒绝(旧元数据缺 `slotOffset` 时按 0) |
 | `bits` | 10 | `limit = 2^bits`;装配时校验 `bits ≤ layout.nodeBits`(JS 安全布局为 3,见 03)。共享一个命名空间的所有运行时(例如跨服务的全局 machine)必须使用相同的 `bits` 与 `tolerance` |
+| `slotOffset` | 0 | ID 中的节点号 = `slotOffset + slot`;要求 `slotOffset + 2^bits ≤ 2^nodeBits`;让 5.0 节点号与 4.x 机器号不相交,用于滚动迁移,一经使用永不改(api-freeze.md §2.1.1) |
 | `namespace` | 运行时命名空间 | 槽位租约的命名空间;命名 machine 必须显式给出(D37) |
 | `acquireTimeout` | `ttl` | 启动时等待空闲槽位的上限;`0` 只试一次(R1-core-03) |
 | StaticSlot `ahead` | 10s | |

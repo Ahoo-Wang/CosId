@@ -18,9 +18,10 @@ public final class StoreSpec { String type; Duration timeout; Map<String, Object
 public sealed interface MachineSpec {          // 次版本可加变体(D40)
     int bits();
     Optional<String> namespace();              // 槽位命名空间,空则取 RuntimeSpec.namespace
-    final class Leased implements MachineSpec { String store; int bits; Duration ttl; Duration tolerance; Duration acquireTimeout;
+    final class Leased implements MachineSpec { String store; int bits; Duration ttl; Duration tolerance; Duration acquireTimeout; int slotOffset;
                                                 OptionalInt preferredSlot; Optional<String> ownerKey; Optional<String> namespace; }
-                                                // ownerKey 为空时按 §1.1 推导;acquireTimeout 默认 = ttl(R1-core-03)
+                                                // ownerKey 为空时按 §1.1 推导;acquireTimeout 默认 = ttl(R1-core-03);
+                                                // slotOffset 默认 0,节点号 = slotOffset + slot(D37,滚动迁移)
     final class Static implements MachineSpec { int bits; int slot; Optional<Path> stateFile; Duration ahead;
                                                 Optional<Instant> notBefore; Optional<String> namespace; }   // notBefore 由迁移工具给出
 }
@@ -94,8 +95,8 @@ host 由 `HostResolver` 提供,Spring Cloud 环境下使用 `InetUtils`。ownerK
 时间型生成器用 `machine` 选择槽位来自哪个 machine,默认选默认 machine。典型用法是跨服务全局唯一:各服务的 `global` machine 用同一个命名空间与同一个存储(或经 cosid-server `remote`),业务生成器仍在服务命名空间。
 
 - 校验:machine 名不含 `/`,不能是 `default`;生成器引用的 machine 必须存在;**一个运行时内各 machine 的有效命名空间两两不同**,两个 Static 的 `stateFile` 不同;
-  每个时间型生成器的 `nodeBits ≥ 所选 machine 的 bits`;只启动被引用的 machine(未引用的在日志 INFO 列出)。
-- 存储端:共享命名空间的元数据 `{limit, tolerance}` 不一致时 acquire 抛 `NamespaceMismatchException`,所以共享一个命名空间的各服务须用相同的 `bits` 与 `tolerance`。
+  每个时间型生成器满足 `所选 machine 的 slotOffset + 2^bits ≤ 2^nodeBits`;只启动被引用的 machine(未引用的在日志 INFO 列出)。
+- 存储端:共享命名空间的元数据 `{limit, tolerance, slotOffset}` 不一致时 acquire 抛 `NamespaceMismatchException`,所以共享一个命名空间的各服务须用相同的 `bits`、`tolerance` 与 `slot-offset`。
 - 生命周期:每个 machine 一个 `LeaseKeeper`/`StaticSlot`;串行启动;关闭时每个 machine 用"选了它的生成器"的 `max(lastIssued)` release,命名 machine 逆序,最后是默认 machine。
 - 观测:`GeneratorListener` 签名不变(namespace 在运行时内唯一确定 machine);指标 `cosid.machine.*` 增加 `machine` 标签;健康检查按 machine 汇总;
   时间型生成器的 `describe()` 增加 `machine`、`machineNamespace`。
@@ -162,6 +163,7 @@ cosid:
       tolerance: 1s
       preferred-slot: ${POD_ORDINAL:}
       acquire-timeout: 30s                                   # 默认 = ttl(R1-core-03)
+      slot-offset: 0                                         # 默认 0;节点号 = slot-offset + slot(D37)
     # 或者:
     # static: { bits: 10, slot: 3, state-file: /var/lib/cosid/state, ahead: 10s, not-before: 2026-11-01T00:00:00Z }
   machines:                                                  # 命名的 machine(D37),键与 machine 相同,另需 namespace

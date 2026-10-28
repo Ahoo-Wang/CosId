@@ -20,6 +20,7 @@
 - [ ] **采集指标并配置告警**（见下文）。向编排系统暴露 `/actuator/health`。
 - [ ] **优雅停机**（SIGTERM，而不是 SIGKILL）。正常关闭会以精确的最后时间戳释放槽位，下一个持有者紧接其后开始。
   强制杀死只会让该槽位的复用最多推迟 `ttl + tolerance`。
+- [ ] **在 Kubernetes 上**：探针、槽位数与宽限期见 [Kubernetes](kubernetes.md)。
 
 ## 值得配置的告警
 

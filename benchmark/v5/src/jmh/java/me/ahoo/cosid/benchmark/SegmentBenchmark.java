@@ -13,8 +13,8 @@
 
 package me.ahoo.cosid.benchmark;
 
-import me.ahoo.cosid.segment.BatchPolicy;
-import me.ahoo.cosid.segment.SegmentGenerator;
+import me.ahoo.cosid.IdGenerator;
+import me.ahoo.cosid.runtime.CosIdRuntime;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -41,16 +41,18 @@ public class SegmentBenchmark {
     @Param({"10", "100"})
     long step;
 
-    SegmentGenerator segment;
+    CosIdRuntime runtime;
+    IdGenerator segment;
 
     @Setup
     public void setup() {
-        segment = V5.segment("p5", V5.batch(step));
+        runtime = V5.segmentRuntime("p5", V5.batch(step));
+        segment = runtime.generator("p5");
     }
 
     @TearDown
     public void tearDown() {
-        segment.close();
+        runtime.close();
     }
 
     @Benchmark

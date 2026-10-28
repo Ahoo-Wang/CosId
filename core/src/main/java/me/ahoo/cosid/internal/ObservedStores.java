@@ -26,7 +26,6 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.function.Supplier;
 
 /**
  * The stores as the runtime hands them to its generators and lease keeper: every call that fails with a
@@ -57,12 +56,20 @@ public final class ObservedStores {
         return new RangeStore() {
             @Override
             public Range reserve(String key, long size, long initialOffset) {
-                return observer.call(RESERVE, () -> store.reserve(key, size, initialOffset));
+                try {
+                    return store.reserve(key, size, initialOffset);
+                } catch (RuntimeException e) {
+                    throw observer.failed(RESERVE, e);
+                }
             }
 
             @Override
             public boolean seal(String key) {
-                return observer.call(SEAL, () -> store.seal(key));
+                try {
+                    return store.seal(key);
+                } catch (RuntimeException e) {
+                    throw observer.failed(SEAL, e);
+                }
             }
 
             @Override
@@ -86,17 +93,29 @@ public final class ObservedStores {
         return new SlotLeaseStore() {
             @Override
             public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, int slotOffset, OptionalInt preferredSlot) {
-                return observer.call(ACQUIRE, () -> store.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot));
+                try {
+                    return store.acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferredSlot);
+                } catch (RuntimeException e) {
+                    throw observer.failed(ACQUIRE, e);
+                }
             }
 
             @Override
             public Optional<SlotLease> renew(SlotLease lease, Duration ttl, Duration tolerance) {
-                return observer.call(RENEW, () -> store.renew(lease, ttl, tolerance));
+                try {
+                    return store.renew(lease, ttl, tolerance);
+                } catch (RuntimeException e) {
+                    throw observer.failed(RENEW, e);
+                }
             }
 
             @Override
             public boolean release(SlotLease lease, long lastIssued) {
-                return observer.call(RELEASE, () -> store.release(lease, lastIssued));
+                try {
+                    return store.release(lease, lastIssued);
+                } catch (RuntimeException e) {
+                    throw observer.failed(RELEASE, e);
+                }
             }
 
             @Override
@@ -112,15 +131,17 @@ public final class ObservedStores {
             Objects.requireNonNull(listener, "listener");
         }
 
-        <T> T call(String operation, Supplier<T> call) {
-            try {
-                return call.get();
-            } catch (RuntimeException e) {
-                if (StoreTimeoutException.isTimeout(e)) {
-                    listener.onStoreTimeout(name, operation);
-                }
-                throw e;
+        /**
+         * Reports {@code e} if it is a timeout; a call catches and rethrows it directly rather than through a lambda,
+         * which would be allocated on every call (R1-core-06).
+         *
+         * @return {@code e}, to rethrow
+         */
+        RuntimeException failed(String operation, RuntimeException e) {
+            if (StoreTimeoutException.isTimeout(e)) {
+                listener.onStoreTimeout(name, operation);
             }
+            return e;
         }
     }
 }

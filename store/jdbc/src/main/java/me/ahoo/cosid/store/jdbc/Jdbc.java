@@ -71,8 +71,19 @@ final class Jdbc {
     }
 
     <T> T run(String operation, SessionWork<T> work) {
+        return run(operation, null, -1, work);
+    }
+
+    /**
+     * Runs {@code work} on a borrowed connection. The operation, {@code verb subject[/slot]}, names it in errors only, so
+     * it is built only when one occurs (R1-jdbc-03).
+     *
+     * @param subject the key or namespace, or null
+     * @param slot    the slot, or -1
+     */
+    <T> T run(String verb, String subject, int slot, SessionWork<T> work) {
         for (int attempt = 1; ; attempt++) {
-            Connection connection = connection(operation);
+            Connection connection = connection(verb, subject, slot);
             try (connection) {
                 return work.run(new JdbcSession(connection, tables, queryTimeoutSeconds));
             } catch (SQLException e) {
@@ -80,25 +91,32 @@ final class Jdbc {
                     continue;
                 }
                 if (dialect.isTimeout(e)) {
-                    throw new StoreTimeoutException(operation + " timed out on " + dialect.name() + " after " + timeout, e);
+                    throw new StoreTimeoutException(operation(verb, subject, slot) + " timed out on " + dialect.name() + " after " + timeout, e);
                 }
-                throw new JdbcStoreException(operation + " failed on " + dialect.name(), e);
+                throw new JdbcStoreException(operation(verb, subject, slot) + " failed on " + dialect.name(), e);
             }
         }
+    }
+
+    static String operation(String verb, String subject, int slot) {
+        if (subject == null) {
+            return verb;
+        }
+        return slot < 0 ? verb + " " + subject : verb + " " + subject + "/" + slot;
     }
 
     /**
      * Borrows a connection. A pool that hands none out in time ({@link SQLTransientConnectionException}, a timeout,
      * or a connection exception of SQL state class {@code 08}) is a store timeout like a statement timeout.
      */
-    private Connection connection(String operation) {
+    private Connection connection(String verb, String subject, int slot) {
         try {
             return dataSource.getConnection();
         } catch (SQLException e) {
             if (isConnectionTimeout(e)) {
-                throw new StoreTimeoutException(operation + " got no " + dialect.name() + " connection", e);
+                throw new StoreTimeoutException(operation(verb, subject, slot) + " got no " + dialect.name() + " connection", e);
             }
-            throw new JdbcStoreException(operation + " got no " + dialect.name() + " connection", e);
+            throw new JdbcStoreException(operation(verb, subject, slot) + " got no " + dialect.name() + " connection", e);
         }
     }
 
@@ -118,9 +136,9 @@ final class Jdbc {
      * Throws {@link StoreTimeoutException} once {@code deadline} has passed: a loop of statements that keeps losing
      * races, or a wait for another client, ends within the store timeout like a single statement does.
      */
-    void checkDeadline(long deadline, String operation) {
+    void checkDeadline(long deadline, String verb, String subject, int slot) {
         if (deadline != Long.MAX_VALUE && System.nanoTime() - deadline > 0) {
-            throw new StoreTimeoutException(operation + " did not complete on " + dialect.name() + " within " + timeout);
+            throw new StoreTimeoutException(operation(verb, subject, slot) + " did not complete on " + dialect.name() + " within " + timeout);
         }
     }
 

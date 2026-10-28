@@ -58,6 +58,15 @@ class AsciiTest {
     }
 
     @Test
+    void aNumberWithASuffixIsOneExactArray() {
+        byte[] sealed = Ascii.bytes(":sealed");
+        for (long value : new long[] {0, 7, -7, 10, 1_726_000_000_000L, Long.MAX_VALUE, Long.MIN_VALUE, Long.MIN_VALUE + 1}) {
+            assertArrayEquals(Ascii.bytes(Long.toString(value)), Ascii.number(value, new byte[0]), Long.toString(value));
+            assertArrayEquals(Ascii.bytes(value + ":sealed"), Ascii.number(value, sealed), Long.toString(value));
+        }
+    }
+
+    @Test
     void uuidsRoundTrip() {
         for (int i = 0; i < 100; i++) {
             UUID value = UUID.randomUUID();

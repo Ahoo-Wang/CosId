@@ -24,7 +24,9 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.common.PathUtils;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * {@link RangeStore} on ZooKeeper (06-stores.md §2.4): the node {@code /cosid/range/{key}} holds the next value as
@@ -36,9 +38,15 @@ import java.util.Objects;
 final class ZookeeperRangeStore implements RangeStore {
     static final String ROOT = "/cosid/range";
     static final String SEALED = ":sealed";
+    private static final String RESERVE = "reserve";
     private static final byte[] SEALED_BYTES = Ascii.bytes(SEALED);
+    private static final byte[] NO_BYTES = new byte[0];
+    /** At most this many validated paths are kept; a store has a few keys (and one per period of a periodic one). */
+    static final int MAX_CACHED_PATHS = 4096;
 
     private final Zk zk;
+    /** The validated path of each key (R1-zk-01): validation copies the path into a char array. */
+    private final Map<String, String> paths = new ConcurrentHashMap<>();
 
     ZookeeperRangeStore(Zk zk) {
         this.zk = Objects.requireNonNull(zk, "zk");
@@ -55,6 +63,18 @@ final class ZookeeperRangeStore implements RangeStore {
         return path;
     }
 
+    /** {@link #path(String)}, validated once per key. */
+    String cachedPath(String key) {
+        String path = paths.get(Objects.requireNonNull(key, "key"));
+        if (path == null) {
+            path = path(key);
+            if (paths.size() < MAX_CACHED_PATHS) {
+                paths.put(key, path);
+            }
+        }
+        return path;
+    }
+
     @Override
     public Range reserve(String key, long size, long initialOffset) {
         if (size <= 0) {
@@ -63,11 +83,10 @@ final class ZookeeperRangeStore implements RangeStore {
         if (initialOffset < 0) {
             throw new IllegalArgumentException("initialOffset must not be negative: " + initialOffset);
         }
-        String path = path(key);
-        String what = "reserve " + path;
+        String path = cachedPath(key);
         long deadline = zk.deadline();
         for (int attempt = 0; ; attempt++) {
-            CuratorEvent read = zk.call(what, deadline, callback -> zk.client().getData().inBackground(callback).forPath(path));
+            CuratorEvent read = zk.call(RESERVE, path, deadline, callback -> zk.client().getData().inBackground(callback).forPath(path));
             switch (Zk.code(read)) {
                 case OK -> {
                     Value value = Value.parse(path, read.getData());
@@ -77,29 +96,29 @@ final class ZookeeperRangeStore implements RangeStore {
                     long start = value == null ? initialOffset : value.next();
                     byte[] data = new Value(next(key, start, size), false).bytes();
                     int version = read.getStat().getVersion();
-                    CuratorEvent write = zk.call(what, deadline,
+                    CuratorEvent write = zk.call(RESERVE, path, deadline,
                         callback -> zk.client().setData().withVersion(version).inBackground(callback).forPath(path, data));
                     switch (Zk.code(write)) {
                         case OK -> {
                             return new Range(start, start + size);
                         }
-                        case BADVERSION, NONODE -> Zk.backoff(attempt, deadline, what);
-                        default -> throw Zk.unexpected(what, write);
+                        case BADVERSION, NONODE -> Zk.backoff(attempt, deadline, RESERVE, path);
+                        default -> throw Zk.unexpected(RESERVE, path, write);
                     }
                 }
                 case NONODE -> {
                     byte[] data = new Value(next(key, initialOffset, size), false).bytes();
-                    CuratorEvent create = zk.call(what, deadline, callback -> zk.client().create().creatingParentsIfNeeded()
+                    CuratorEvent create = zk.call(RESERVE, path, deadline, callback -> zk.client().create().creatingParentsIfNeeded()
                         .withMode(CreateMode.PERSISTENT).inBackground(callback).forPath(path, data));
                     switch (Zk.code(create)) {
                         case OK -> {
                             return new Range(initialOffset, initialOffset + size);
                         }
-                        case NODEEXISTS -> Zk.backoff(attempt, deadline, what);
-                        default -> throw Zk.unexpected(what, create);
+                        case NODEEXISTS -> Zk.backoff(attempt, deadline, RESERVE, path);
+                        default -> throw Zk.unexpected(RESERVE, path, create);
                     }
                 }
-                default -> throw Zk.unexpected(what, read);
+                default -> throw Zk.unexpected(RESERVE, path, read);
             }
         }
     }
@@ -119,7 +138,7 @@ final class ZookeeperRangeStore implements RangeStore {
      */
     @Override
     public boolean seal(String key) {
-        String path = path(key);
+        String path = cachedPath(key);
         String what = "seal " + path;
         long deadline = zk.deadline();
         for (int attempt = 0; ; attempt++) {
@@ -167,8 +186,7 @@ final class ZookeeperRangeStore implements RangeStore {
      */
     record Value(long next, boolean sealed) {
         byte[] bytes() {
-            Ascii.Writer data = new Ascii.Writer(32).number(next);
-            return (sealed ? data.raw(SEALED_BYTES) : data).toBytes();
+            return Ascii.number(next, sealed ? SEALED_BYTES : NO_BYTES);
         }
 
         /**

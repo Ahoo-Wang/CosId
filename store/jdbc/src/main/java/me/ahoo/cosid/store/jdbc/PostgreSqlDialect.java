@@ -24,6 +24,10 @@ import java.util.OptionalLong;
  * PostgreSQL 15+: {@code insert … on conflict … do update … where … returning}, one round trip.
  */
 final class PostgreSqlDialect implements JdbcDialect {
+    private final TableSql reserveSql = new TableSql(tables -> "insert into " + tables.range() + " as r (range_key, next_value) values (?, ? + ?)"
+        + " on conflict (range_key) do update set next_value = r.next_value + ? where not r.sealed and r.next_value <= ?"
+        + " returning next_value");
+
     @Override
     public String name() {
         return "postgresql";
@@ -46,10 +50,7 @@ final class PostgreSqlDialect implements JdbcDialect {
 
     @Override
     public OptionalLong reserve(JdbcSession session, String key, long size, long initialOffset) throws SQLException {
-        String range = session.tables().range();
-        try (PreparedStatement upsert = session.prepare("insert into " + range + " as r (range_key, next_value) values (?, ? + ?)"
-            + " on conflict (range_key) do update set next_value = r.next_value + ? where not r.sealed and r.next_value <= ?"
-            + " returning next_value")) {
+        try (PreparedStatement upsert = session.prepare(reserveSql.of(session.tables()))) {
             upsert.setString(1, key);
             upsert.setLong(2, initialOffset);
             upsert.setLong(3, size);

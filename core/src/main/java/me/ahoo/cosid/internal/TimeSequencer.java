@@ -388,7 +388,10 @@ public final class TimeSequencer {
             return outcome(WINDOW_EXCEEDED, useMillis, ceiling);
         }
         long next = use << seqBits | seq;
-        current.state.set(next);
+        // A release store, not a volatile one (R1-core-05): the next attempt reads it under the same lock, and the only
+        // reader outside the lock, lastIssuedMillis(), tolerates a stale value until close() or a new binding retires
+        // the state with getAndSet, which is exact.
+        current.state.setRelease(next);
         issuedSlot = binding.slot();
         // One borrow event per regression: the first borrowed id reports it, until an id is issued on the clock again.
         outcomeDetail = borrowed >= 0 && !borrowing ? borrowed : -1;

@@ -44,11 +44,12 @@ public record Layout(Instant epoch, ChronoUnit unit, int timeBits, int nodeBits,
 | `COSID_80` | Unix epoch | ms | 44 / 20 / 16 | 80 | 80 位 CosId：只有文本形式，通过 `PartsCodec` 输出 |
 
 - 布局在构建时校验：time 1–63 位，node 0–31 位，sequence 1–62 位，单位为 `MILLIS` 或 `SECONDS`（秒级 epoch 必须是整秒）。
-- **node 位必须能容纳机器号槽位。** 一个运行时持有 `[0, 2^machine.bits)` 中的一个槽位（D18）；除非每个时间型生成器都满足
-  `layout.nodeBits ≥ machine.bits`，否则启动失败。因此 `JS_SAFE_*`（3 个 node 位）需要 `machine.leased.bits: 3` 或更小。
+- **node 位必须能容纳机器号槽位。** 时间型生成器使用其 machine（默认 machine 或[命名 machine](slot-lease.md#命名-machine)）的槽位发号，
+  节点号为 `slot-offset + slot`；除非每个时间型生成器都满足 `slot-offset + 2^bits ≤ 2^nodeBits`，否则启动失败。因此 `JS_SAFE_*`（3 个 node 位）需要 `machine.leased.bits: 3` 或更小。
 - `seqResetThreshold` 保留了 4.x 的低位打散：新的时间单位从不超过该阈值的某个值（默认为范围的一半）开始计序列，
   使 ID 对一个小数取模时分布均匀。
 - 在 Spring 中，`layout` 指定一个预设，`epoch`、`unit`、`time-bits`、`node-bits`、`seq-bits`、`seq-reset-threshold` 覆盖其字段。
+  `cosid80` 生成器只接受 `COSID_80` 及其位宽与阈值：epoch 固定为 Unix epoch、单位为毫秒，时间位与序列位合起来要放得进一个 `long`（D36）。
 
 ### TimeBasedGenerator
 

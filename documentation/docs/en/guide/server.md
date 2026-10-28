@@ -91,7 +91,7 @@ Other statuses: `400 bad_request` (a missing field, a bad character set or lengt
 `too_many_namespaces`, `503 busy` with `Retry-After: 1`, `504 store_timeout` and `500 store_error`. Errors of the
 backing store answer a generic message; the details go to the server log. Every response carries
 `Cache-Control: no-store`. The OpenAPI document is at `/v3/api-docs`, Swagger UI at `/swagger-ui.html`; both are admin
-paths.
+paths unless `cosid.server.docs.public=true` (see below).
 
 ## Authentication
 
@@ -117,6 +117,13 @@ check `cosid.namespace` of the server's own runtime against the client's namespa
 (`auth.admin-paths`, by default `/actuator/**` and the springdoc paths) ignore namespaces (the `cosid` endpoint issues
 ids of every generator), so only the unrestricted `tokens` may use them: a client token gets `403` there. The public
 paths are checked first, so health stays open.
+
+A browser sends no bearer token when it opens a page, so Swagger UI needs `cosid.server.docs.public=true` (default
+`false`). It adds the read-only springdoc paths (`/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`,
+`/v3/api-docs/**`, `/v3/api-docs.yaml`) to `public-paths` instead of replacing them, so health stays open. Anyone
+who reaches the server can then read the API, Actuator included (`springdoc.show-actuator: true`; set it to `false` to
+leave Actuator out), but calls nothing: "Try it out" needs a token entered with Authorize, checked against its
+namespaces and key prefixes, and Actuator stays an admin path.
 
 ## Limits
 

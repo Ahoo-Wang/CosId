@@ -136,6 +136,38 @@ class AuthTest {
     }
 
     @Test
+    void docsNeedATokenByDefault() {
+        for (String path : List.of("/swagger-ui.html", "/swagger-ui/index.html", "/v3/api-docs", "/v3/api-docs/swagger-config", "/v3/api-docs.yaml")) {
+            assertEquals(401, server.get(path, null).statusCode(), () -> path + " without a token");
+        }
+    }
+
+    /** docs.public opens the read-only springdoc paths, on top of public-paths; the API and Actuator keep their rules. */
+    @Test
+    void docsPublicOpensTheDocumentationOnly() {
+        try (TestServer docs = TestServer.memory(new InMemoryStore(), "cosid.server.auth.tokens[0]=" + TestServer.TOKEN,
+            "cosid.server.auth.clients[0].token=" + ORDERS, "cosid.server.auth.clients[0].namespaces[0]=orders",
+            "cosid.server.ids.enabled=true", "cosid.server.docs.public=true")) {
+            HttpResponse<String> ui = docs.get("/swagger-ui.html", null);
+            assertEquals(302, ui.statusCode(), "springdoc redirects to the UI");
+            assertThat(ui.headers().firstValue("Location").orElseThrow(), containsString("/swagger-ui/index.html"));
+            for (String path : List.of("/swagger-ui/index.html", "/swagger-ui/swagger-initializer.js", "/v3/api-docs", "/v3/api-docs/swagger-config",
+                "/v3/api-docs.yaml")) {
+                HttpResponse<String> response = docs.get(path, null);
+                assertEquals(200, response.statusCode(), () -> path + " without a token: " + response.body());
+            }
+            assertThat(docs.get("/v3/api-docs", null).body(), containsString("\"bearer\""));
+            assertEquals(200, docs.get("/actuator/health", null).statusCode(), "public-paths are kept, not replaced");
+            assertEquals(401, docs.get("/ids", null).statusCode(), "the id endpoints still need a token");
+            assertEquals(401, docs.post(RemoteApi.RESERVE, reserve("orders/a"), null).statusCode(), "the API still needs a token");
+            assertEquals(401, docs.get("/actuator/cosid", null).statusCode(), "Actuator still needs a token");
+            assertEquals(403, docs.get("/actuator/cosid", ORDERS).statusCode(), "Actuator is still an admin path");
+            assertEquals(403, docs.get("/actuator/prometheus", ORDERS).statusCode());
+            assertEquals(200, docs.get("/actuator/cosid", TestServer.TOKEN).statusCode());
+        }
+    }
+
+    @Test
     void adminPathsCanBeConfigured() {
         try (TestServer custom = TestServer.memory(new InMemoryStore(), "cosid.server.auth.tokens[0]=" + TestServer.TOKEN,
             "cosid.server.auth.clients[0].token=" + ORDERS, "cosid.server.auth.clients[0].namespaces[0]=orders",

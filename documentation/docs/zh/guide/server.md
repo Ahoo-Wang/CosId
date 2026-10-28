@@ -85,7 +85,7 @@ key 与命名空间放在 JSON 请求体中，从不放在路径里。错误为 
 其他状态：`400 bad_request`（缺少字段、字符集或长度不合法、值超过上限）、`401`（没有 token）、`403`（token 超出其命名空间，
 或 client token 访问管理路径）、`429 too_many_keys` / `too_many_namespaces`、带 `Retry-After: 1` 的 `503 busy`、`504 store_timeout`
 以及 `500 store_error`。后备存储的错误只返回通用消息，细节写入服务端日志。每个响应都带有 `Cache-Control: no-store`。
-OpenAPI 文档位于 `/v3/api-docs`，Swagger UI 位于 `/swagger-ui.html`；两者都属于管理路径。
+OpenAPI 文档位于 `/v3/api-docs`，Swagger UI 位于 `/swagger-ui.html`；两者都属于管理路径，除非设置了 `cosid.server.docs.public=true`（见下文）。
 
 ## 认证
 
@@ -108,6 +108,12 @@ client token 只能访问其命名空间（`*` 表示全部）与 key 前缀：�
 与 client 的命名空间做比对。**管理路径**（`auth.admin-paths`，默认 `/actuator/**` 与 springdoc 路径）不区分命名空间
 （`cosid` 端点可以为任意生成器发号），所以只有不受限的 `tokens` 可以访问，client token 一律 `403`。公开路径先于它判断，
 health 仍然公开。
+
+浏览器打开页面时不会带 Bearer token，所以要在浏览器里查看 Swagger UI，需要设置 `cosid.server.docs.public=true`（默认 `false`）。
+它把 springdoc 的只读路径（`/swagger-ui.html`、`/swagger-ui/**`、`/v3/api-docs`、`/v3/api-docs/**`、`/v3/api-docs.yaml`）
+追加到 `public-paths`，而不是替换它，health 仍然公开。此后能访问服务端的任何人都能阅读 API 文档，其中也包括 Actuator 端点
+（`springdoc.show-actuator: true`；设为 `false` 即不列出），但无法调用任何端点："Try it out" 需要先通过 Authorize 填入 token，
+并按该 token 的命名空间与 key 前缀鉴权；Actuator 仍然是管理路径。
 
 服务端拒绝短于 16 个字符的 token，也拒绝仍含 `${` 的 token：环境变量没有设置时，占位符不能变成一个谁都能在文档里读到的 token。
 

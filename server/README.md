@@ -43,6 +43,7 @@ Failures of the backing store answer a generic message; their details go to the 
 | `auth.allow-anonymous` | `false` | without any token, the server **refuses to start** unless this is set; tokens shorter than 16 characters or holding `${` (an unresolved placeholder) are refused too |
 | `auth.public-paths` | `/actuator/health`, `/actuator/health/**` | path patterns that need no token |
 | `auth.admin-paths` | `/actuator/**`, `/v3/api-docs/**`, `/swagger-ui/**` (and their roots) | paths only `tokens` may use: the `cosid` endpoint issues ids of every generator and ignores namespaces, so a client token gets `403` |
+| `docs.public` | `false` | adds the springdoc paths (`/swagger-ui.html`, `/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**`, `/v3/api-docs.yaml`) to the public paths, on top of `auth.public-paths`, so a browser shows Swagger UI without a token; its "Try it out" calls still need one (Authorize), and Actuator stays an admin path |
 | `limits.min-ttl` / `max-ttl` | `100ms` / `1h` | the lease ttl range |
 | `limits.max-tolerance` | `1m` | |
 | `limits.max-slot-limit` | `65536` | the stores prepare `limit` slots per namespace |
@@ -61,7 +62,8 @@ A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.
 - Actuator: `health` (public; `liveness` and `readiness` probes), `info`, `prometheus`, and `cosid` (the runtime).
   The meter `cosid.server.call.rejections{reason=busy|too_many_keys|too_many_namespaces}` counts the calls the server
   turned away. Actuator other than health is an admin path.
-- OpenAPI: `/v3/api-docs` and Swagger UI at `/swagger-ui.html`, admin paths.
+- OpenAPI: `/v3/api-docs` and Swagger UI at `/swagger-ui.html`, admin paths unless `docs.public=true`. The document
+  lists the Actuator endpoints too (`springdoc.show-actuator`); set it to `false` to leave them out.
 - Image: `./gradlew :server:dockerImage` (the `Dockerfile` on `build/libs/cosid-server.jar`), or `:server:bootBuildImage`.
 
 ```bash

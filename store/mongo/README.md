@@ -6,6 +6,10 @@ The MongoDB store of CosId 5 (`docs/architecture/06-stores.md` §2.3): `MongoRan
 default, writes with `majority` concern.
 
 - **Supported:** MongoDB **6.0 or later**. CI runs the store TCK on `mongo:6.0` (the minimum) and `mongo:8.0`.
+  MongoDB 8.0.21 and later refuse to start on Linux 6.19 up to 7.0.13
+  ([SERVER-125742](https://jira.mongodb.org/browse/SERVER-125742), the kernel's rseq change breaks tcmalloc), the
+  kernel of newer `ubuntu-24.04` runner images, so the `mongo:8.0` job runs on `ubuntu-22.04` (Linux 6.8). It fails,
+  naming the kernel, if its runner ever moves to an affected kernel. This is MongoDB's limit, not the store's.
 - **Options:** `uri` (required unless a `MongoClient` is injected through `StoreConfig.client`), `database`
   (default `cosid_db`), `writeConcern` (default `majority`, see below). `StoreConfig.timeout` becomes the driver's
   `timeoutMS`; zero means none. An operation that runs out of it fails with `StoreTimeoutException`.

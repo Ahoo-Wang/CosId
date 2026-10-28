@@ -21,9 +21,19 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.lease.AcquireResult;
 import me.ahoo.cosid.lease.Owner;
+import me.ahoo.cosid.runtime.CosIdRuntime;
+import me.ahoo.cosid.runtime.GeneratorSpec;
+import me.ahoo.cosid.runtime.MachineSpec;
+import me.ahoo.cosid.runtime.RuntimeOptions;
+import me.ahoo.cosid.runtime.RuntimeSpec;
+import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.segment.Range;
+import me.ahoo.cosid.store.Store;
+import me.ahoo.cosid.store.StoreConfig;
+import me.ahoo.cosid.store.StoreProvider;
 import me.ahoo.cosid.store.remote.RemoteApi;
 import me.ahoo.cosid.store.remote.RemoteStore;
 import me.ahoo.cosid.store.remote.RemoteStoreException;
@@ -52,6 +62,7 @@ import java.util.UUID;
 class AuthTest {
     private static final String ORDERS = "orders-token-0123456789";
     private static final String PREFIXED = "prefixed-token-0123456789";
+    private static final String GLOBAL = "global-token-0123456789";
     private static final String STAR = "star-token-0123456789";
     private static TestServer server;
 
@@ -65,7 +76,10 @@ class AuthTest {
             "cosid.server.auth.clients[1].token=" + PREFIXED,
             "cosid.server.auth.clients[1].key-prefixes[0]=shared/orders-",
             "cosid.server.auth.clients[2].token=" + STAR,
-            "cosid.server.auth.clients[2].namespaces[0]=*");
+            "cosid.server.auth.clients[2].namespaces[0]=*",
+            "cosid.server.auth.clients[3].token=" + GLOBAL,
+            "cosid.server.auth.clients[3].namespaces[0]=orders",
+            "cosid.server.auth.clients[3].namespaces[1]=global-ids");
     }
 
     @AfterAll
@@ -241,6 +255,48 @@ class AuthTest {
             RemoteStoreException slots = assertThrows(RemoteStoreException.class,
                 () -> orders.slots().acquire("billing", owner, 4, Duration.ofSeconds(10), Duration.ofSeconds(1), 0, OptionalInt.empty()));
             assertEquals(403, slots.status());
+        }
+    }
+
+    /** A runtime whose store is this server through a client token. */
+    private static RuntimeOptions remoteClient(String token) {
+        return RuntimeOptions.builder().storeProvider(new StoreProvider() {
+            @Override
+            public String type() {
+                return "remote-client";
+            }
+
+            @Override
+            public Store open(StoreConfig config) {
+                return server.client(token);
+            }
+        }).build();
+    }
+
+    /**
+     * A named machine (api-freeze.md §2.5) leases its slot in its own namespace through the remote store, so a restricted
+     * token must list it beside the service namespace.
+     */
+    @Test
+    void aNamedMachineNeedsItsNamespaceInTheToken() {
+        RuntimeSpec spec = RuntimeSpec.builder("orders")
+            .store("remote", StoreSpec.builder("remote-client").build())
+            .machine(MachineSpec.Leased.builder("remote").bits(2).build())
+            .machine("global", MachineSpec.Leased.builder("remote").bits(2).namespace("global-ids").acquireTimeout(Duration.ZERO).build())
+            .generator("trace", GeneratorSpec.Snowflake.builder().build())
+            .generator("token", GeneratorSpec.CosId80.builder().machine("global").build())
+            .build();
+        CosIdException failed = assertThrows(CosIdException.class, () -> CosIdRuntime.start(spec, remoteClient(ORDERS)));
+        Throwable cause = failed;
+        while (cause != null && !(cause instanceof RemoteStoreException)) {
+            cause = cause.getCause();
+        }
+        assertInstanceOf(RemoteStoreException.class, cause, () -> "a 403 from the server: " + failed);
+        assertEquals(403, ((RemoteStoreException) cause).status());
+        try (CosIdRuntime runtime = CosIdRuntime.start(spec, remoteClient(GLOBAL))) {
+            assertEquals("orders", runtime.slot().orElseThrow().namespace());
+            assertEquals("global-ids", runtime.slot("global").orElseThrow().namespace());
+            assertTrue(runtime.text("token").get().length() > 10);
         }
     }
 

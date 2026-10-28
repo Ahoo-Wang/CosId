@@ -221,7 +221,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 ### 第 1 轮进展
 
 - 进行中:会话 `ga-review-r1`,Draft PR [#1364](https://github.com/Ahoo-Wang/CosId/pull/1364)(`docs/architecture/ga-review.md`)。
-- 已核实(总调度):R1-x-03 MAJOR(cosid80 位宽与阈值不可配,11 第 19 行"等价"不准确,触及冻结面)、R1-x-04 MAJOR(迁移的布局相同判定包含 `seqResetThreshold`)、R1-x-05 MINOR(cosid80 静默忽略 friendly `pad-start` 等属性)。处理按 D36(方案 1:补齐)。全部发现出齐后统一排入修复队列。
+- 已核实(总调度):R1-x-03 MAJOR(cosid80 位宽与阈值不可配,11 第 19 行"等价"不准确,触及冻结面)、R1-x-04 MAJOR(迁移的布局相同判定包含 `seqResetThreshold`)、R1-x-05 MINOR(cosid80 静默忽略 friendly `pad-start` 等属性)。处理按 D36(方案 1:补齐)。R1-x-06 MAJOR(触及冻结面):5.0 一个运行时只有一个命名空间与一个 machine,缺少 4.x CosIdGenerator 的全局命名空间与独立机器号,无法做到"业务在服务命名空间、cosid80 跨服务全局唯一";处理按 D37(命名的 machine),并已请审查会话补查迁移与文档。全部发现出齐后统一排入修复队列。
 
 ### GA 准入清单
 

@@ -67,6 +67,7 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
 | D34 | D21 发布门槛的判定口径(2026-10-28 用户裁定):5.x 与 4.x 在同一 runner 上交替运行,每行的上限取 `max(4.x ± 其 JMH 误差, 4.x × (1 ± 容差))`。容差:吞吐与平均/单次耗时 5%,p99/p99.9 10%,分配 `max(5%, +64 B)`(另保留 0.01 B/op 的零分配下限)。首次失败的行在新 fork 中重跑,**重跑仍失败才算回退**。原口径只用 4.x 的 JMH 误差(约 0.3%~1.5%),低于共享 runner 的噪声,同一代码两次运行的失败行不同。冒烟口径(0.9×)不变 | 已定 |
 | D35 | GA 前做 2 轮全面代码审查(架构、代码清洁、高内聚低耦合、高性能、高扩展性、易用性),第 1 轮在 RC1 之前(API/配置/存储格式类问题必须在 RC 冻结前修),第 2 轮在 RC 观察期、GA 之前;GA 条件:性能无明显回退(D21/D34)、无特性缺失(11-feature-parity)、文档齐备。见 rc-review.md §6 | 已定 |
 | D36 | `cosid80` 补齐 4.x CosIdGenerator 的可配置项(GA 审查 R1-x-03/04/05,按总调度推荐,用户可推翻):`GeneratorSpec.CosId80` 增加 `layout`(默认 `COSID_80`,总位数 > 63,epoch 固定 Unix epoch),Spring 复用 snowflake 的布局配置键(位宽与 `seq-reset-threshold`);`PartsCodecSpec.Friendly` 增加 `padStart`;cosid80 上设置不适用的 codec 属性时报配置错误;迁移判定"相同布局"不比较 `seqResetThreshold`,converter 写出 4.x 位宽与阈值。须在 RC 冻结前完成 | 已定(待用户确认) |
+| D37 | 跨服务全局唯一(4.x CosIdGenerator 的独立 `cosid.generator.namespace` 与独立机器号,GA 审查 R1-x-06):5.0 支持**命名的 machine**:`RuntimeSpec` 可含多个机器规格(默认一个 + 命名的),各自的 `namespace`、`store`、`bits`;时间型生成器用 `machine: <name>` 选择,默认用默认 machine。全局场景:各服务的全局 machine 用同一个 `namespace` 与同一个(或经 cosid-server `remote` 访问的)存储,业务生成器仍在服务命名空间。cosid-server `/ids` 集中发号作为多语言/低频场景的补充,不替代进程内发号。须在 RC 冻结前完成 | 已定(按推荐,待用户确认) |
 | D24 | 不提供租约丢失后继续发号的开关(P1);运行时删除生成器改为启动期的 `disabled` 配置(P2) | 已定 |
 
 ## 术语

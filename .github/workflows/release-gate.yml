@@ -18,7 +18,7 @@
 # release-gate-report artifact, and the markdown alone (report.md, baseline-4x.md) to the release-gate-summary artifact,
 # small enough to commit by hand. The report is evidence, not source: nothing is committed or opened as a PR.
 # A push to a release-gate-check/** branch runs the whole pipeline with smoke settings, re-running every row, to check
-# the workflow itself; that is never a result.
+# the workflow itself; that is never a result, and only a group without a result fails it.
 name: Release Gate
 on:
   workflow_dispatch:
@@ -218,6 +218,12 @@ jobs:
             build/release-gate/report/baseline-4x.md
           retention-days: 90
 
+      # A dry run checks the pipeline, not the numbers: its smoke rows are noise, so only a group without a result fails it.
       - name: Fail on a FAIL row
         if: steps.join.outputs.status != '0'
-        run: exit 1
+        run: |
+          if [ "$DRY_RUN" = true ] && ! grep -q 'no result' build/release-gate/report/report.md; then
+            echo "::notice::Dry run: every group produced a result; its FAIL rows are smoke noise, not a verdict."
+            exit 0
+          fi
+          exit 1

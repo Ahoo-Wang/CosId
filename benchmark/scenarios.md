@@ -99,7 +99,8 @@ no PR. To keep a result in the repository, commit the summary by hand (`report.m
 reported the same way: investigate it, fix a real regression, and run the gate again.
 
 A push to a `release-gate-check/**` branch runs the same pipeline with smoke settings and re-runs every row
-(`COSID_RELEASE_RERUN_ALL=true`), to check the workflow and the scripts; it is never a result.
+(`COSID_RELEASE_RERUN_ALL=true`), to check the workflow and the scripts; it is never a result. Its smoke rows are
+noise, so it fails only when a group produced no result.
 `benchmark/run-release --dry-run CodecBenchmark` checks the script locally in a minute or two, likewise never a
 result.
 

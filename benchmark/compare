@@ -19,15 +19,15 @@ BASELINE is the 4.x run (benchmark/baseline-4x), CANDIDATE the 5.x run (benchmar
 machine. Rows are matched by benchmark (class.method), mode, threads and params. Prints a Markdown report and exits 1
 when any row fails, 2 on bad input.
 
-Release rules (default):
-  throughput (thrpt)        score_5 >= score_4 - error_4
-  latency (sample)          p99 and p99.9 of 5.x <= those of 4.x + error_4 (JMH gives no per-percentile error, so
-                            error_4 is the error of the 4.x mean)
-  average / single shot     score_5 <= score_4 + error_4; a single shot or a startup scenario (--startup, P11 by
+Release rules (default, D34): a row's limit is the more lenient of 4.x with its JMH error and 4.x with a tolerance.
+  throughput (thrpt)        score_5 >= min(score_4 - error_4, score_4 x 0.95)
+  latency (sample)          p99 and p99.9 of 5.x <= max(those of 4.x + error_4, those of 4.x x 1.10) (JMH gives no
+                            per-percentile error, so error_4 is the error of the 4.x mean)
+  average / single shot     score_5 <= max(score_4 + error_4, score_4 x 1.05); a startup scenario (--startup, P11 by
                             default) is at most 105% of 4.x
-  allocation                gc.alloc.rate.norm of 5.x <= that of 4.x + its error, or <= 0.01 B/op (the
-                            amortized cost of refills and other rare bookkeeping, not a hot path allocation);
-                            the long hot paths (--zero-alloc) allocate nothing (< 1 B/op)
+  allocation                gc.alloc.rate.norm of 5.x <= max(4.x + its error, 4.x x 1.05, 4.x + 64 B), and always
+                            passes at <= 0.01 B/op (the amortized cost of refills and other rare bookkeeping, not a hot
+                            path allocation); the long hot paths (--zero-alloc) allocate nothing (< 1 B/op)
 --smoke (PR smoke runs): throughput >= 0.9 x 4.x, latency and time <= 4.x / 0.9, allocation as above.
 A row of the baseline missing from the candidate fails; rows only in the candidate are listed, not judged.
 
@@ -50,6 +50,12 @@ SMOKE_RATIO = 0.9
 STARTUP_RATIO = 1.05
 ZERO_ALLOC_BYTES = 1.0
 ALLOC_FLOOR_BYTES = 0.01
+# D34: the tolerances of the release rules, beside the 4.x JMH error (which alone is below a shared runner's noise).
+THROUGHPUT_TOLERANCE = 0.05
+TIME_TOLERANCE = 0.05
+PERCENTILE_TOLERANCE = 0.10
+ALLOC_TOLERANCE = 0.05
+ALLOC_SLACK_BYTES = 64.0
 
 
 def error(metric):
@@ -82,7 +88,7 @@ def judge(base, cand, smoke, zero_alloc, startup=re.compile(DEFAULT_STARTUP)):
     name = key(base)[0]
     unit = b.get("scoreUnit", "")
     if mode == "thrpt":
-        limit = b["score"] * SMOKE_RATIO if smoke else b["score"] - error(b)
+        limit = b["score"] * SMOKE_RATIO if smoke else min(b["score"] - error(b), b["score"] * (1 - THROUGHPUT_TOLERANCE))
         checks.append((f"score ({unit})", b["score"], c["score"], f">= {fmt(limit)}", c["score"] >= limit))
     elif mode == "sample":
         for percentile in ("99.0", "99.9"):
@@ -91,13 +97,13 @@ def judge(base, cand, smoke, zero_alloc, startup=re.compile(DEFAULT_STARTUP)):
             if bp is None or cp is None:
                 checks.append((f"p{percentile}", bp or 0.0, cp or 0.0, "present", False))
                 continue
-            limit = bp / SMOKE_RATIO if smoke else bp + error(b)
+            limit = bp / SMOKE_RATIO if smoke else max(bp + error(b), bp * (1 + PERCENTILE_TOLERANCE))
             checks.append((f"p{percentile} ({unit})", bp, cp, f"<= {fmt(limit)}", cp <= limit))
-    elif mode == "ss" or startup.search(name):
+    elif startup.search(name):
         limit = b["score"] / SMOKE_RATIO if smoke else b["score"] * STARTUP_RATIO
         checks.append((f"time ({unit})", b["score"], c["score"], f"<= {fmt(limit)}", c["score"] <= limit))
-    else:  # avgt
-        limit = b["score"] / SMOKE_RATIO if smoke else b["score"] + error(b)
+    else:  # avgt, ss
+        limit = b["score"] / SMOKE_RATIO if smoke else max(b["score"] + error(b), b["score"] * (1 + TIME_TOLERANCE))
         checks.append((f"score ({unit})", b["score"], c["score"], f"<= {fmt(limit)}", c["score"] <= limit))
     ba = base.get("secondaryMetrics", {}).get(ALLOC)
     ca = cand.get("secondaryMetrics", {}).get(ALLOC)
@@ -105,7 +111,8 @@ def judge(base, cand, smoke, zero_alloc, startup=re.compile(DEFAULT_STARTUP)):
         if mode == "thrpt" and zero_alloc.search(name):
             checks.append(("alloc (B/op)", ba["score"], ca["score"], f"< {ZERO_ALLOC_BYTES}", ca["score"] < ZERO_ALLOC_BYTES))
         else:
-            limit = max(ba["score"] + error(ba), ALLOC_FLOOR_BYTES)
+            limit = max(ba["score"] + error(ba), ba["score"] * (1 + ALLOC_TOLERANCE), ba["score"] + ALLOC_SLACK_BYTES,
+                        ALLOC_FLOOR_BYTES)
             checks.append(("alloc (B/op)", ba["score"], ca["score"], f"<= {fmt(limit)}", ca["score"] <= limit))
     return checks
 

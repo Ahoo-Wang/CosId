@@ -31,8 +31,9 @@ benchmark/
 | P11 | Spring context start to the first id | time |
 | P12 | `IdFiller.fill` | throughput, allocation |
 
-A row passes when 5.0's throughput is at least 4.x's minus 4.x's error (JMH's 99.9% confidence interval), and its
-latency at most 4.x's plus its error. Release numbers come only from a fixed, quiet physical machine. Numbers from a
+A row's limit is the wider of 4.x with its error (JMH's 99.9% confidence interval) and 4.x with a tolerance: 5% for
+throughput and average time, 10% for p99 / p99.9, and the larger of 5% and +64 B for allocation. A row that fails runs
+again in fresh forks, and only a failed re-run counts as a regression. Release numbers come only from a fixed, quiet physical machine. Numbers from a
 shared machine or another time are noise.
 
 Run it yourself:

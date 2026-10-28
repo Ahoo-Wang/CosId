@@ -80,7 +80,10 @@ class CosIdRuntimeHintsTest {
         String metadata = cosIdMetadata();
         for (String property : List.of(
             "\"name\":\"cosid.enabled\",\"type\":\"java.lang.Boolean\"",
-            "\"defaultValue\":\"cosid\"",
+            "\"name\":\"cosid.namespace\"",
+            "\"name\":\"cosid.machines\"",
+            "\"name\":\"cosid.machine.leased.acquire-timeout\"",
+            "\"name\":\"cosid.machine.leased.slot-offset\"",
             "\"name\":\"cosid.machine.leased.ttl\"",
             "\"defaultValue\":\"30s\"",
             "\"name\":\"cosid.machine.static.slot\"",

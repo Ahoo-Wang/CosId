@@ -20,7 +20,7 @@ key 与命名空间放在请求体中,不放在路径里,避免 `/` 需要编码
 |---|---|---|---|
 | POST | `/ranges:reserve` | `{key, size, initialOffset}` | `{start, end}`;封存为 `410` |
 | POST | `/ranges:seal` | `{key}` | `204` |
-| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, preferredSlot?}` | `SlotLease`,或 `409 {earliestExpiresAt}` |
+| POST | `/slots:acquire` | `{namespace, ownerKey, incarnation, limit, ttlMs, toleranceMs, slotOffset?, preferredSlot?}`(`slotOffset` 默认 0,记入命名空间元数据,api-freeze §2.5.1) | `SlotLease`,或 `409 {earliestExpiresAt}` |
 | POST | `/slots:renew` | `{namespace, slot, incarnation, fence, ttlMs, toleranceMs}` | `SlotLease` 或 `409` |
 | POST | `/slots:release` | `{namespace, slot, incarnation, fence, lastIssued}` | `204` 或 `409` |
 | GET | `/ids/{generator}?count=n` | — | `{ids: [...]}`(可选) |
@@ -32,7 +32,8 @@ key 与命名空间放在请求体中,不放在路径里,避免 `/` 需要编码
 - 阻塞操作在有界池上执行(默认 64 线程,队列 1024);满时返回 `503` 与 `Retry-After: 1`。
 - 参数错误返回 `400`,统一错误体 `{code, message}`。
 - R4-A 补充:renew / release 请求体带 `ownerKey`(ZooKeeper 的 release 需要比对);acquire 的 200 响应是扁平的租约加 `reason` 与 `duplicateOwnerKey`;
-  状态码 `422 range_exhausted`、`409 namespace_mismatch` / `slots_exhausted`(以 `code` 区分)、`501 seal_unsupported`(客户端返回 false)、`409 generator_disabled`;
+  状态码 `422 range_exhausted`、`409 namespace_mismatch`(limit、tolerance 或 slotOffset 与首次使用不同)/ `slots_exhausted`(以 `code` 区分)、`501 seal_unsupported`(客户端返回 false)、`409 generator_disabled`;
+  命名 machine(api-freeze §2)经 remote 存储时用自己的命名空间,协议不变;受限 client token 的 `namespaces` 须同时包含服务命名空间与全局命名空间(如 `[order-service, global-ids]`),否则 `403`;
   `periodic` 端点只返回同一期的值,跨期时截断;新增 `limits.max-slot-limit`(默认 65536)与 `limits.max-tolerance`(默认 1m);限流指标 `cosid.server.call.rejections{reason}`。
 
 ## 3. 安全

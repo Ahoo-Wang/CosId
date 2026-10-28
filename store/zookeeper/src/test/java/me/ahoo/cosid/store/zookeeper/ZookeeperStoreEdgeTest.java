@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.store.zookeeper;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -170,6 +171,24 @@ class ZookeeperStoreEdgeTest {
         ZookeeperStore other = new ZookeeperStore(client, ZookeeperTests.TIMEOUT);
         assertThrows(NamespaceMismatchException.class, () -> other.slots().acquire(namespace, owner("host-b"), 4, TTL, TOLERANCE, 0, OptionalInt.empty()),
             "another instance reads the recorded metadata");
+    }
+
+    @Test
+    void alpha1MetadataWithoutSlotOffsetHasOffsetZero() throws Exception {
+        String namespace = "edge-" + UUID.randomUUID();
+        byte[] alpha1 = ("limit=2\ntolerance=" + TOLERANCE.toMillis() + "\n").getBytes(StandardCharsets.US_ASCII);
+        client.create().creatingParentsIfNeeded().forPath(ZookeeperSlotLeaseStore.namespacePath(namespace), alpha1);
+        assertInstanceOf(AcquireResult.Acquired.class, store.slots().acquire(namespace, owner("host-a"), 2, TTL, TOLERANCE, 0, OptionalInt.empty()));
+        ZookeeperStore other = new ZookeeperStore(client, ZookeeperTests.TIMEOUT);
+        assertThrows(NamespaceMismatchException.class, () -> other.slots().acquire(namespace, owner("host-b"), 2, TTL, TOLERANCE, 1, OptionalInt.empty()),
+            "a node without the slotOffset line has offset 0");
+        assertArrayEquals(alpha1, client.getData().forPath(ZookeeperSlotLeaseStore.namespacePath(namespace)), "the recorded metadata is not rewritten");
+    }
+
+    @Test
+    void negativeSlotOffsetIsRejected() {
+        String namespace = "edge-" + UUID.randomUUID();
+        assertThrows(IllegalArgumentException.class, () -> store.slots().acquire(namespace, owner("host-a"), 2, TTL, TOLERANCE, -1, OptionalInt.empty()));
     }
 
     @Test

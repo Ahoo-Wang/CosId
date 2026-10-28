@@ -176,12 +176,12 @@ class RemoteStoreTest {
     void acquireMapsLeasesExhaustionAndMismatch() {
         answer(RemoteApi.ACQUIRE, 200, "{" + LEASE_JSON + ",\"reason\":\"STICKY\",\"duplicateOwnerKey\":true}");
         AcquireResult.Acquired acquired = assertInstanceOf(AcquireResult.Acquired.class,
-            store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.of(3)));
+            store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 1024, OptionalInt.of(3)));
         assertEquals(LEASE, acquired.lease());
         assertEquals(AcquireReason.STICKY, acquired.reason());
         assertTrue(acquired.duplicateOwnerKey());
         assertEquals("{\"namespace\":\"ns\",\"ownerKey\":\"host:8080\",\"incarnation\":\"" + INCARNATION
-            + "\",\"limit\":8,\"ttlMs\":30000,\"toleranceMs\":1000,\"preferredSlot\":3}", requests.get(RemoteApi.ACQUIRE));
+            + "\",\"limit\":8,\"ttlMs\":30000,\"toleranceMs\":1000,\"slotOffset\":1024,\"preferredSlot\":3}", requests.get(RemoteApi.ACQUIRE));
         store.slots().acquire("ns", OWNER, 8, Duration.ofSeconds(30), Duration.ofSeconds(1), 0, OptionalInt.empty());
         assertFalse(requests.get(RemoteApi.ACQUIRE).contains("preferredSlot"));
 

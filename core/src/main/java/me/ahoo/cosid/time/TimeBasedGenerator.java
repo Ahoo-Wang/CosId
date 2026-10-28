@@ -30,6 +30,7 @@ import java.util.Objects;
 public final class TimeBasedGenerator implements IdGenerator, PartsIdGenerator, AutoCloseable {
     private final String name;
     private final Layout layout;
+    private final int nodeOffset;
     private final TimeSequencer sequencer;
 
     /**
@@ -44,9 +45,27 @@ public final class TimeBasedGenerator implements IdGenerator, PartsIdGenerator, 
      */
     public TimeBasedGenerator(String name, Layout layout, SlotHandle slot, TimeSource time,
                               ClockRegressionPolicy regression, GeneratorListener listener) {
+        this(name, layout, slot, 0, time, regression, listener);
+    }
+
+    /**
+     * A time-based generator whose node is the slot plus an offset: the {@code slotOffset} of a leased machine
+     * (api-freeze.md §2.1.1), so its nodes lie in {@code [nodeOffset, nodeOffset + 2^bits)}.
+     *
+     * @param name       the generator name, for events and errors
+     * @param layout     the id layout; its node bits must cover {@code nodeOffset} plus the slots
+     * @param slot       the machine slot
+     * @param nodeOffset added to the slot to give the node of the ids, not negative
+     * @param time       the time source
+     * @param regression the clock regression policy
+     * @param listener   the event listener; a listener that throws is logged and never fails or loses an id
+     */
+    public TimeBasedGenerator(String name, Layout layout, SlotHandle slot, int nodeOffset, TimeSource time,
+                              ClockRegressionPolicy regression, GeneratorListener listener) {
         this.name = Objects.requireNonNull(name, "name");
         this.layout = Objects.requireNonNull(layout, "layout");
-        this.sequencer = new TimeSequencer(name, layout, Objects.requireNonNull(slot, "slot"), Objects.requireNonNull(time, "time"),
+        this.nodeOffset = nodeOffset;
+        this.sequencer = new TimeSequencer(name, layout, Objects.requireNonNull(slot, "slot"), nodeOffset, Objects.requireNonNull(time, "time"),
             Objects.requireNonNull(regression, "regression"), SafeListener.of(listener));
     }
 
@@ -87,6 +106,15 @@ public final class TimeBasedGenerator implements IdGenerator, PartsIdGenerator, 
      */
     public int slot() {
         return sequencer.slot();
+    }
+
+    /**
+     * The node the ids of the current binding carry: the slot plus the node offset.
+     *
+     * @return the node
+     */
+    public int node() {
+        return sequencer.slot() + nodeOffset;
     }
 
     /**

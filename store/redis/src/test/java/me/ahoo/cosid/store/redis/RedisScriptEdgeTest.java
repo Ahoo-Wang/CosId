@@ -120,13 +120,30 @@ class RedisScriptEdgeTest {
         String namespace = newKey();
         try (Store store = open(Map.of())) {
             acquired(store, namespace, new Owner("host-a", UUID.randomUUID()), 8, TTL, OptionalInt.empty());
-            assertEquals(Map.of("limit", "8", "tolerance", "1000"), redis.hgetall(RedisStore.namespaceKey(namespace, "meta")));
+            assertEquals(Map.of("limit", "8", "tolerance", "1000", "slotOffset", "0"), redis.hgetall(RedisStore.namespaceKey(namespace, "meta")));
             NamespaceMismatchException grown = assertThrows(NamespaceMismatchException.class,
                 () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 16, TTL, TOLERANCE, 0, OptionalInt.empty()));
-            assertTrue(grown.getMessage().contains("limit 8 and tolerance 1000ms, now 16 and 1000ms"), grown.getMessage());
+            assertTrue(grown.getMessage().contains("limit 8, tolerance 1000ms and slot offset 0, now 16, 1000ms and 0"), grown.getMessage());
             assertThrows(NamespaceMismatchException.class,
                 () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 4, TTL, TOLERANCE, 0, OptionalInt.empty()));
             assertEquals(7L, redis.zcard(RedisStore.namespaceKey(namespace, "free")), "a rejected acquire changes nothing");
+        }
+    }
+
+    @Test
+    void alphaOneMetaWithoutSlotOffsetReadsAsZero() {
+        String namespace = newKey();
+        try (Store store = open(Map.of())) {
+            redis.hset(RedisStore.namespaceKey(namespace, "meta"), Map.of("limit", "8", "tolerance", "1000"));
+            for (int slot = 0; slot < 8; slot++) {
+                redis.zadd(RedisStore.namespaceKey(namespace, "free"), slot, Integer.toString(slot));
+            }
+            NamespaceMismatchException shifted = assertThrows(NamespaceMismatchException.class,
+                () -> store.slots().acquire(namespace, new Owner("host-b", UUID.randomUUID()), 8, TTL, TOLERANCE, 1, OptionalInt.empty()));
+            assertTrue(shifted.getMessage().contains("limit 8, tolerance 1000ms and slot offset 0, now 8, 1000ms and 1"), shifted.getMessage());
+            assertEquals(0, acquired(store, namespace, new Owner("host-a", UUID.randomUUID()), 8, TTL, OptionalInt.empty()).lease().slot());
+            assertEquals(Map.of("limit", "8", "tolerance", "1000"), redis.hgetall(RedisStore.namespaceKey(namespace, "meta")),
+                "an alpha.1 meta is left as it is");
         }
     }
 

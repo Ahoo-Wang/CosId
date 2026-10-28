@@ -14,10 +14,6 @@
 package me.ahoo.cosid.spring.autoconfigure;
 
 import me.ahoo.cosid.GeneratorDisabledException;
-import me.ahoo.cosid.GroupedIdGenerator;
-import me.ahoo.cosid.PartsIdGenerator;
-import me.ahoo.cosid.codec.GroupedCodec;
-import me.ahoo.cosid.codec.PartsCodec;
 import me.ahoo.cosid.observe.GeneratorInfo;
 import me.ahoo.cosid.runtime.CosIdRuntime;
 
@@ -28,6 +24,7 @@ import org.springframework.boot.actuate.endpoint.annotation.Selector;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 
 /**
@@ -92,23 +89,15 @@ public class CosIdEndpoint {
         }
         try {
             return switch (format) {
-                case LONG -> {
-                    if (!CosIdSpecs.SNOWFLAKE.equals(info.strategy()) && !CosIdSpecs.SEGMENT.equals(info.strategy())
-                        && !CosIdSpecs.CUSTOM.equals(info.strategy())) {
-                        throw new InvalidEndpointRequestException("Generator [" + name + "] (" + info.strategy() + ") issues no long ids",
-                            "no long ids");
-                    }
-                    yield runtime.generator(name).generate();
-                }
-                case STRING -> switch (info.strategy()) {
-                    case CosIdSpecs.COSID80 -> runtime.get(name, PartsCodec.class).encode(runtime.get(name, PartsIdGenerator.class).nextParts());
-                    case CosIdSpecs.PERIODIC_SEGMENT -> runtime.get(name, GroupedCodec.class).encode(runtime.get(name, GroupedIdGenerator.class).generate());
-                    default -> runtime.stringGenerator(name).generate();
-                };
+                case LONG -> runtime.generator(name).generate();
+                case STRING -> runtime.text(name).get();
                 default -> throw new InvalidEndpointRequestException("Unknown format [" + format + "]: long or string", "unknown format");
             };
         } catch (GeneratorDisabledException e) {
             throw new InvalidEndpointRequestException(e.getMessage(), "disabled");
+        } catch (NoSuchElementException e) {
+            // A strategy without long ids (cosid80, periodic-segment).
+            throw new InvalidEndpointRequestException(e.getMessage(), "no long ids");
         }
     }
 

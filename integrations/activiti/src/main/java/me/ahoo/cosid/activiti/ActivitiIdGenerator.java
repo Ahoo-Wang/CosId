@@ -16,6 +16,8 @@ package me.ahoo.cosid.activiti;
 
 import me.ahoo.cosid.runtime.CosIdRuntime;
 
+import java.util.Objects;
+
 /**
  * Activiti's {@code IdGenerator} on the text ids of a runtime generator: set it with
  * {@code processEngineConfiguration.setIdGenerator(new ActivitiIdGenerator(runtime))}. The generator is the one named
@@ -28,7 +30,8 @@ public class ActivitiIdGenerator implements org.activiti.engine.impl.cfg.IdGener
     /** The generator when neither a name nor the system property gives one. */
     public static final String DEFAULT_GENERATOR = "default";
 
-    private final TextIds ids;
+    private final CosIdRuntime runtime;
+    private final String generator;
 
     /**
      * The generator of the {@link #ID_KEY} system property, else {@code default}.
@@ -46,7 +49,8 @@ public class ActivitiIdGenerator implements org.activiti.engine.impl.cfg.IdGener
      * @param generator the generator name; blank or {@code null} for the {@link #ID_KEY} system property's
      */
     public ActivitiIdGenerator(CosIdRuntime runtime, String generator) {
-        this.ids = TextIds.of(runtime, generator != null && !generator.isBlank() ? generator : System.getProperty(ID_KEY, DEFAULT_GENERATOR));
+        this.runtime = Objects.requireNonNull(runtime, "runtime");
+        this.generator = generator != null && !generator.isBlank() ? generator : System.getProperty(ID_KEY, DEFAULT_GENERATOR);
     }
 
     /**
@@ -55,11 +59,12 @@ public class ActivitiIdGenerator implements org.activiti.engine.impl.cfg.IdGener
      * @return the name
      */
     public String generator() {
-        return ids.generator();
+        return generator;
     }
 
     @Override
     public String getNextId() {
-        return ids.get();
+        // Looked up on every id, so a disabled generator fails when used (D24), not when the engine is set up.
+        return runtime.text(generator).get();
     }
 }

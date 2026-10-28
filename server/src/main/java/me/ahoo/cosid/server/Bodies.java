@@ -66,10 +66,11 @@ final class Bodies {
      * @param limit         the slots are {@code [0, limit)}
      * @param ttlMs         the lease ttl
      * @param toleranceMs   the tolerance
+     * @param slotOffset    the slot offset recorded in the namespace metadata (api-freeze.md §2.5.1), optional: default 0
      * @param preferredSlot the slot to try first, optional
      */
     record AcquireRequest(String namespace, String ownerKey, String incarnation, Integer limit, Long ttlMs, Long toleranceMs,
-                          Integer preferredSlot) {
+                          Integer slotOffset, Integer preferredSlot) {
     }
 
     /**

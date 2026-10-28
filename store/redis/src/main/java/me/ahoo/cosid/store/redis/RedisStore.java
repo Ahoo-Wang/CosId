@@ -39,7 +39,9 @@ import java.util.OptionalInt;
  * <ul>
  *   <li>{@code cosid:{key}}: the counter of a range key, a decimal string; {@code cosid:{key}:sealed}: its seal marker.
  *       Keys are never deleted (D23).</li>
- *   <li>{@code cosid:{ns}:meta}: the limit and tolerance a namespace was first used with;
+ *   <li>{@code cosid:{ns}:meta}: the limit, tolerance and slot offset a namespace was first used with (a hash of
+ *       {@code limit}, {@code tolerance}, {@code slotOffset}; a meta written by 5.0.0-alpha.1 has no
+ *       {@code slotOffset}, which reads as 0);
  *       {@code cosid:{ns}:slot}: slot to its row; {@code cosid:{ns}:free}: the free slots, scored by slot number;
  *       {@code cosid:{ns}:live}: the live leases, scored by {@code expiresAt}; {@code cosid:{ns}:owner}: owner key to
  *       the slot it took last; {@code cosid:{ns}:held}: owner key to the slots whose row names it.</li>
@@ -153,13 +155,16 @@ public final class RedisStore implements Store, RangeStore, SlotLeaseStore {
         if (limit < 1) {
             throw new IllegalArgumentException("limit must be positive: " + limit);
         }
+        if (slotOffset < 0) {
+            throw new IllegalArgumentException("slotOffset must not be negative: " + slotOffset);
+        }
         long ttlMillis = positiveMillis(ttl, "ttl");
         long toleranceMillis = toleranceMillis(tolerance);
         List<String> keys = List.of(namespaceKey(namespace, "meta"), namespaceKey(namespace, "slot"), namespaceKey(namespace, "free"),
             namespaceKey(namespace, "live"), namespaceKey(namespace, "owner"), namespaceKey(namespace, "held"));
         List<String> args = List.of(Integer.toString(limit), Long.toString(toleranceMillis), Long.toString(ttlMillis), owner.key(),
             owner.incarnation().toString(), preferredSlot.isPresent() ? Integer.toString(preferredSlot.getAsInt()) : "",
-            Integer.toString(sweepBatch));
+            Integer.toString(sweepBatch), Integer.toString(slotOffset));
         List<String> reply = Script.ACQUIRE.eval(scripts, keys, args);
         return switch (reply.get(0)) {
             case "acquired" -> {
@@ -178,8 +183,8 @@ public final class RedisStore implements Store, RangeStore, SlotLeaseStore {
                     .build();
             }
             case "exhausted" -> new AcquireResult.Exhausted(Long.parseLong(reply.get(1)));
-            case "mismatch" -> throw new NamespaceMismatchException(namespace, "first used with limit " + reply.get(1) + " and tolerance "
-                + reply.get(2) + "ms, now " + limit + " and " + toleranceMillis + "ms");
+            case "mismatch" -> throw new NamespaceMismatchException(namespace, "first used with limit " + reply.get(1) + ", tolerance "
+                + reply.get(2) + "ms and slot offset " + reply.get(3) + ", now " + limit + ", " + toleranceMillis + "ms and " + slotOffset);
             default -> throw unexpected("acquire", reply);
         };
     }

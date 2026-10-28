@@ -94,6 +94,10 @@ class StoreController {
         int limit = requests.limit(request.limit());
         Duration ttl = requests.ttl(request.ttlMs());
         Duration tolerance = requests.tolerance(request.toleranceMs());
+        int slotOffset = request.slotOffset() == null ? 0 : request.slotOffset();
+        if (slotOffset < 0) {
+            throw ApiException.badRequest("slotOffset must not be negative: " + slotOffset);
+        }
         OptionalInt preferredSlot = OptionalInt.empty();
         if (request.preferredSlot() != null) {
             if (request.preferredSlot() < 0 || request.preferredSlot() >= limit) {
@@ -104,7 +108,7 @@ class StoreController {
         allowNamespace(grant, namespace);
         OptionalInt preferred = preferredSlot;
         return calls.submit(() -> {
-            AcquireResult result = store.slots().acquire(namespace, owner, limit, ttl, tolerance, 0, preferred);
+            AcquireResult result = store.slots().acquire(namespace, owner, limit, ttl, tolerance, slotOffset, preferred);
             if (result instanceof AcquireResult.Acquired acquired) {
                 return ResponseEntity.ok(Bodies.AcquiredBody.of(acquired));
             }

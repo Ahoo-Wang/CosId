@@ -155,8 +155,8 @@ Adding a package means deciding whether `module-info.java` exports it.
 - **integrations** (`integrations/*`): tests run each adapter end to end on `store/tck`'s `TestRuntimes` (every
   strategy on `InMemoryStore`): MyBatis and Spring Data JDBC on H2, Activiti and Flowable as in-memory engines, Axon through
   `IdentifierFactory.getInstance()`. `CosIdIdentifierFactory` keeps the only static state of the project (its bindings);
-  a test that binds must unbind; unbound, it throws. `TextIds` (text ids of any strategy) is a package-private copy in
-  each module that needs it, since integrations must not depend on each other. The Spring side is `CosIdIntegrationsConfiguration` in `spring/autoconfigure`.
+  a test that binds must unbind; unbound, it throws. Text ids of any strategy come from `CosIdRuntime.text(name)`
+  (R1-int-01). The Spring side is `CosIdIntegrationsConfiguration` in `spring/autoconfigure`.
 - **Site layout** (`documentation/docs/{en,zh}`, kept in sync page for page): `guide/introduction`, `getting-started`,
   `recipes`; `guide/concepts/` (`layout-and-codecs`, `slot-lease`, `segment`, `runtime`); `guide/backends/` (one page per
   store, `index` chooses and carries the "实测兼容性(不承诺)" summary of the store READMEs, `test-suite`); `guide/server`;

@@ -23,6 +23,7 @@ import me.ahoo.cosid.time.Layout;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * A generator of a {@link RuntimeSpec}, by strategy.
@@ -39,11 +40,13 @@ public sealed interface GeneratorSpec {
         private final Layout layout;
         private final ClockRegressionPolicy regression;
         private final List<CodecSpec> codec;
+        private final Optional<String> machine;
 
         private Snowflake(Builder builder) {
             this.layout = builder.layout;
             this.regression = builder.regression;
             this.codec = builder.codec;
+            this.machine = Optional.ofNullable(builder.machine);
         }
 
         /**
@@ -82,19 +85,40 @@ public sealed interface GeneratorSpec {
             return codec;
         }
 
+        /**
+         * The machine whose slot the ids carry (D37).
+         *
+         * @return the machine name; empty (the default) or {@value RuntimeSpec#DEFAULT_MACHINE} for the
+         *     {@link RuntimeSpec#machine()}
+         */
+        public Optional<String> machine() {
+            return machine;
+        }
+
+        /**
+         * This generator on another machine.
+         *
+         * @param machine the machine name
+         * @return the generator
+         */
+        public Snowflake withMachine(String machine) {
+            return new Builder().layout(layout).regression(regression).codec(codec).machine(machine).build();
+        }
+
         @Override
         public boolean equals(Object o) {
-            return o instanceof Snowflake that && layout.equals(that.layout) && regression.equals(that.regression) && codec.equals(that.codec);
+            return o instanceof Snowflake that && layout.equals(that.layout) && regression.equals(that.regression) && codec.equals(that.codec)
+                && machine.equals(that.machine);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(layout, regression, codec);
+            return Objects.hash(layout, regression, codec, machine);
         }
 
         @Override
         public String toString() {
-            return "Snowflake[layout=" + layout + ", regression=" + regression + ", codec=" + codec + "]";
+            return "Snowflake[layout=" + layout + ", regression=" + regression + ", codec=" + codec + ", machine=" + machine + "]";
         }
 
         /**
@@ -104,8 +128,20 @@ public sealed interface GeneratorSpec {
             private Layout layout = Layout.SNOWFLAKE_MS;
             private ClockRegressionPolicy regression = ClockRegressionPolicy.DEFAULT;
             private List<CodecSpec> codec = List.of();
+            private String machine;
 
             private Builder() {
+            }
+
+            /**
+             * Sets the machine whose slot the ids carry (D37).
+             *
+             * @param machine the machine name; default the {@link RuntimeSpec#machine()}
+             * @return this builder
+             */
+            public Builder machine(String machine) {
+                this.machine = Objects.requireNonNull(machine, "machine");
+                return this;
             }
 
             /**
@@ -161,11 +197,13 @@ public sealed interface GeneratorSpec {
         private final Layout layout;
         private final ClockRegressionPolicy regression;
         private final PartsCodecSpec codec;
+        private final Optional<String> machine;
 
         private CosId80(Builder builder) {
             this.layout = builder.layout;
             this.regression = builder.regression;
             this.codec = builder.codec;
+            this.machine = Optional.ofNullable(builder.machine);
         }
 
         /**
@@ -205,19 +243,40 @@ public sealed interface GeneratorSpec {
             return codec;
         }
 
+        /**
+         * The machine whose slot the ids carry (D37).
+         *
+         * @return the machine name; empty (the default) or {@value RuntimeSpec#DEFAULT_MACHINE} for the
+         *     {@link RuntimeSpec#machine()}
+         */
+        public Optional<String> machine() {
+            return machine;
+        }
+
+        /**
+         * This generator on another machine, such as a slot in a namespace shared across services.
+         *
+         * @param machine the machine name
+         * @return the generator
+         */
+        public CosId80 withMachine(String machine) {
+            return new Builder().layout(layout).regression(regression).codec(codec).machine(machine).build();
+        }
+
         @Override
         public boolean equals(Object o) {
-            return o instanceof CosId80 that && layout.equals(that.layout) && regression.equals(that.regression) && codec.equals(that.codec);
+            return o instanceof CosId80 that && layout.equals(that.layout) && regression.equals(that.regression) && codec.equals(that.codec)
+                && machine.equals(that.machine);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(layout, regression, codec);
+            return Objects.hash(layout, regression, codec, machine);
         }
 
         @Override
         public String toString() {
-            return "CosId80[layout=" + layout + ", regression=" + regression + ", codec=" + codec + "]";
+            return "CosId80[layout=" + layout + ", regression=" + regression + ", codec=" + codec + ", machine=" + machine + "]";
         }
 
         /**
@@ -227,8 +286,20 @@ public sealed interface GeneratorSpec {
             private Layout layout = Layout.COSID_80;
             private ClockRegressionPolicy regression = ClockRegressionPolicy.DEFAULT;
             private PartsCodecSpec codec = new PartsCodecSpec.Radix(62);
+            private String machine;
 
             private Builder() {
+            }
+
+            /**
+             * Sets the machine whose slot the ids carry (D37).
+             *
+             * @param machine the machine name; default the {@link RuntimeSpec#machine()}
+             * @return this builder
+             */
+            public Builder machine(String machine) {
+                this.machine = Objects.requireNonNull(machine, "machine");
+                return this;
             }
 
             /**

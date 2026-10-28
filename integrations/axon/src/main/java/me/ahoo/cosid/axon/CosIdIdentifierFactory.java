@@ -49,11 +49,11 @@ public class CosIdIdentifierFactory extends IdentifierFactory {
     private static final Deque<Binding> BINDINGS = new ConcurrentLinkedDeque<>();
     private static final AtomicBoolean MULTIPLE_WARNED = new AtomicBoolean();
 
-    private final TextIds ids;
+    private final Binding own;
 
     /** The factory {@link java.util.ServiceLoader} creates: the ids of the bound runtime, failing without one. */
     public CosIdIdentifierFactory() {
-        this.ids = null;
+        this.own = null;
     }
 
     /**
@@ -63,7 +63,7 @@ public class CosIdIdentifierFactory extends IdentifierFactory {
      * @param generator the generator name; blank or {@code null} for the {@link #ID_KEY} system property's
      */
     public CosIdIdentifierFactory(CosIdRuntime runtime, String generator) {
-        this.ids = TextIds.of(runtime, generatorName(generator));
+        this.own = new Binding(Objects.requireNonNull(runtime, "runtime"), generatorName(generator));
     }
 
     private static String generatorName(String generator) {
@@ -78,7 +78,7 @@ public class CosIdIdentifierFactory extends IdentifierFactory {
      * @return the binding; close it to unbind
      */
     public static Binding bind(CosIdRuntime runtime, String generator) {
-        Binding binding = new Binding(TextIds.of(Objects.requireNonNull(runtime, "runtime"), generatorName(generator)), runtime);
+        Binding binding = new Binding(Objects.requireNonNull(runtime, "runtime"), generatorName(generator));
         BINDINGS.addFirst(binding);
         if (BINDINGS.stream().map(Binding::runtime).distinct().count() > 1 && MULTIPLE_WARNED.compareAndSet(false, true)) {
             log.warn("Several CosIdRuntimes are bound to CosIdIdentifierFactory (for example, several Spring contexts): Axon's "
@@ -109,8 +109,8 @@ public class CosIdIdentifierFactory extends IdentifierFactory {
 
     @Override
     public String generateIdentifier() {
-        if (ids != null) {
-            return ids.get();
+        if (own != null) {
+            return own.next();
         }
         Binding bound = BINDINGS.peekFirst();
         if (bound == null) {
@@ -118,17 +118,22 @@ public class CosIdIdentifierFactory extends IdentifierFactory {
                 + "CosIdIdentifierFactory.bind(runtime, generator), as the Spring Boot auto-configuration does for the context's runtime, "
                 + "or give Axon new CosIdIdentifierFactory(runtime, generator)");
         }
-        return bound.ids.get();
+        return bound.next();
     }
 
     /** A runtime bound by {@link #bind(CosIdRuntime, String)}; closing it unbinds it. */
     public static final class Binding implements AutoCloseable {
-        private final TextIds ids;
         private final CosIdRuntime runtime;
+        private final String generator;
 
-        private Binding(TextIds ids, CosIdRuntime runtime) {
-            this.ids = ids;
+        private Binding(CosIdRuntime runtime, String generator) {
             this.runtime = runtime;
+            this.generator = generator;
+        }
+
+        /** The next text id, the generator looked up on every id so a disabled one fails when used (D24). */
+        private String next() {
+            return runtime.text(generator).get();
         }
 
         /**
@@ -146,7 +151,7 @@ public class CosIdIdentifierFactory extends IdentifierFactory {
          * @return the name
          */
         public String generator() {
-            return ids.generator();
+            return generator;
         }
 
         @Override

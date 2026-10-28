@@ -58,6 +58,7 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
     private final Duration tolerance;
     private final OptionalInt preferredSlot;
     private final Duration acquireTimeout;
+    private final int slotOffset;
     private final Executor executor;
     private final TimeSource time;
     private final GeneratorListener listener;
@@ -98,12 +99,44 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
     public LeaseKeeper(SlotLeaseStore store, String namespace, Owner owner, int bits, Duration ttl, Duration tolerance,
                        OptionalInt preferredSlot, Duration acquireTimeout, Executor executor, TimeSource time,
                        GeneratorListener listener) {
-        this(store, namespace, owner, bits, ttl, tolerance, preferredSlot, acquireTimeout, executor, time, listener, Ticker.SYSTEM);
+        this(store, namespace, owner, bits, ttl, tolerance, 0, preferredSlot, acquireTimeout, executor, time, listener, Ticker.SYSTEM);
+    }
+
+    /**
+     * A lease keeper of a namespace with a slot offset (api-freeze.md §2.1.1); {@link #start()} acquires the slot.
+     *
+     * @param store          the lease store
+     * @param namespace      the namespace
+     * @param owner          the owner, with this runtime's incarnation
+     * @param bits           the slots are {@code [0, 2^bits)}
+     * @param ttl            the lease time to live
+     * @param tolerance      the ceiling lies this far beyond the expiry (D20)
+     * @param slotOffset     recorded in the namespace metadata; the generators add it to the slot
+     * @param preferredSlot  the slot to try first
+     * @param acquireTimeout how long {@link #start()} retries an exhausted namespace
+     * @param executor       runs the renewals
+     * @param time           the time source
+     * @param listener       the event listener
+     */
+    public LeaseKeeper(SlotLeaseStore store, String namespace, Owner owner, int bits, Duration ttl, Duration tolerance, int slotOffset,
+                       OptionalInt preferredSlot, Duration acquireTimeout, Executor executor, TimeSource time,
+                       GeneratorListener listener) {
+        this(store, namespace, owner, bits, ttl, tolerance, slotOffset, preferredSlot, acquireTimeout, executor, time, listener, Ticker.SYSTEM);
     }
 
     LeaseKeeper(SlotLeaseStore store, String namespace, Owner owner, int bits, Duration ttl, Duration tolerance,
                 OptionalInt preferredSlot, Duration acquireTimeout, Executor executor, TimeSource time,
                 GeneratorListener listener, Ticker ticker) {
+        this(store, namespace, owner, bits, ttl, tolerance, 0, preferredSlot, acquireTimeout, executor, time, listener, ticker);
+    }
+
+    LeaseKeeper(SlotLeaseStore store, String namespace, Owner owner, int bits, Duration ttl, Duration tolerance, int slotOffset,
+                OptionalInt preferredSlot, Duration acquireTimeout, Executor executor, TimeSource time,
+                GeneratorListener listener, Ticker ticker) {
+        if (slotOffset < 0) {
+            throw new IllegalArgumentException("slotOffset must not be negative: " + slotOffset);
+        }
+        this.slotOffset = slotOffset;
         this.store = Objects.requireNonNull(store, "store");
         this.namespace = Objects.requireNonNull(namespace, "namespace");
         this.owner = Objects.requireNonNull(owner, "owner");
@@ -305,7 +338,7 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
 
     private AcquireResult acquireOnce() {
         long sentAt = time.currentMillis();
-        AcquireResult result = store.acquire(namespace, owner, 1 << bits, ttl, tolerance, 0, preferredSlot);
+        AcquireResult result = store.acquire(namespace, owner, 1 << bits, ttl, tolerance, slotOffset, preferredSlot);
         if (result instanceof AcquireResult.Acquired acquired) {
             observeClock(acquired.lease(), sentAt);
         }

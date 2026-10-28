@@ -69,6 +69,8 @@ public final class GeneratorEntry {
     private final List<Object> views;
     private final Supplier<Map<String, Object>> details;
     private final LongAdder counter;
+    /** The machine of a time-based generator; null otherwise. */
+    private String machine;
 
     private GeneratorEntry(String name, String strategy, String store, AutoCloseable generator, IdGenerator ids, IdCodec codec,
                            Supplier<String> text, List<Object> extraViews, Supplier<Map<String, Object>> details, LongAdder counter) {
@@ -138,34 +140,41 @@ public final class GeneratorEntry {
     /**
      * A Snowflake generator.
      *
-     * @param generator the generator
-     * @param codec     its codec
-     * @param slot      the slot it issues on
-     * @param counter   counts the ids issued; null for none
+     * @param generator        the generator
+     * @param codec            its codec
+     * @param slot             the slot it issues on
+     * @param machine          the name of the machine of the slot
+     * @param machineNamespace the namespace of the machine
+     * @param counter          counts the ids issued; null for none
      * @return the entry
      */
-    public static GeneratorEntry snowflake(TimeBasedGenerator generator, IdCodec codec, SlotHandle slot, LongAdder counter) {
+    public static GeneratorEntry snowflake(TimeBasedGenerator generator, IdCodec codec, SlotHandle slot, String machine, String machineNamespace,
+                                           LongAdder counter) {
         Objects.requireNonNull(codec, "codec");
         IdGenerator ids = counted((IdGenerator) generator, counter);
         return new GeneratorEntry(generator.name(), SNOWFLAKE, "", generator, ids, codec,
             () -> codec.encode(ids.generate()), List.of(counted((PartsIdGenerator) generator, counter)),
-            () -> timeBasedDetails(generator, slot), counter);
+            () -> timeBasedDetails(generator, slot, machine, machineNamespace), counter).onMachine(machine);
     }
 
     /**
      * An 80-bit CosId generator: parts and text ids only.
      *
-     * @param generator the generator
-     * @param codec     its parts codec
-     * @param slot      the slot it issues on
-     * @param counter   counts the ids issued; null for none
+     * @param generator        the generator
+     * @param codec            its parts codec
+     * @param slot             the slot it issues on
+     * @param machine          the name of the machine of the slot
+     * @param machineNamespace the namespace of the machine
+     * @param counter          counts the ids issued; null for none
      * @return the entry
      */
-    public static GeneratorEntry cosId80(TimeBasedGenerator generator, PartsCodec codec, SlotHandle slot, LongAdder counter) {
+    public static GeneratorEntry cosId80(TimeBasedGenerator generator, PartsCodec codec, SlotHandle slot, String machine, String machineNamespace,
+                                         LongAdder counter) {
         Objects.requireNonNull(codec, "codec");
         PartsIdGenerator parts = counted((PartsIdGenerator) generator, counter);
         return new GeneratorEntry(generator.name(), COSID80, "", generator, null, null,
-            () -> codec.encode(parts.nextParts()), List.of(parts, codec), () -> timeBasedDetails(generator, slot), counter);
+            () -> codec.encode(parts.nextParts()), List.of(parts, codec), () -> timeBasedDetails(generator, slot, machine, machineNamespace), counter)
+            .onMachine(machine);
     }
 
     /**
@@ -238,6 +247,20 @@ public final class GeneratorEntry {
      */
     public static GeneratorEntry disabled(String name, String strategy, String store) {
         return new GeneratorEntry(name, strategy, store, null, false, null, null, null, List.of(), () -> Map.of("disabled", true), null);
+    }
+
+    private GeneratorEntry onMachine(String machine) {
+        this.machine = Objects.requireNonNull(machine, "machine");
+        return this;
+    }
+
+    /**
+     * The machine a time-based generator issues on.
+     *
+     * @return the machine name; empty for other strategies
+     */
+    public Optional<String> machine() {
+        return Optional.ofNullable(machine);
     }
 
     /**
@@ -354,7 +377,7 @@ public final class GeneratorEntry {
         }
     }
 
-    private static Map<String, Object> timeBasedDetails(TimeBasedGenerator generator, SlotHandle slot) {
+    private static Map<String, Object> timeBasedDetails(TimeBasedGenerator generator, SlotHandle slot, String machine, String machineNamespace) {
         Layout layout = generator.layout();
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("epoch", layout.epoch().toString());
@@ -368,6 +391,9 @@ public final class GeneratorEntry {
         details.put("floor", binding.floor());
         details.put("ceiling", binding.ceiling());
         details.put("slotValid", binding.isValid());
+        details.put("node", generator.node());
+        details.put("machine", machine);
+        details.put("machineNamespace", machineNamespace);
         return details;
     }
 

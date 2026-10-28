@@ -20,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import me.ahoo.cosid.NamespaceMismatchException;
 import me.ahoo.cosid.lease.AcquireReason;
 import me.ahoo.cosid.lease.AcquireResult;
 import me.ahoo.cosid.lease.Owner;
@@ -39,7 +40,8 @@ import java.util.UUID;
 
 /**
  * What the slot lease contract does not pin down for MongoDB: the slot choice priority in one namespace, the
- * provisioned documents and their unique index, owner keys that look like field paths, and the fence in the CAS.
+ * provisioned documents and their unique index, the namespace document and the one 5.0.0-alpha.1 wrote, owner keys that
+ * look like field paths, and the fence in the CAS.
  */
 class MongoSlotLeaseStoreBehaviorTest {
     private static final Duration TTL = Duration.ofSeconds(60);
@@ -47,6 +49,7 @@ class MongoSlotLeaseStoreBehaviorTest {
 
     private final MongoSlotLeaseStore store = new MongoSlotLeaseStore(MongoTestSupport.database(), MongoTestSupport.TIMEOUT);
     private final MongoCollection<Document> slots = MongoTestSupport.database().getCollection(MongoSlotLeaseStore.COLLECTION);
+    private final MongoCollection<Document> namespaces = MongoTestSupport.database().getCollection(MongoSlotLeaseStore.NAMESPACE_COLLECTION);
 
     private static String newNamespace() {
         return "mongo-" + UUID.randomUUID();
@@ -108,6 +111,31 @@ class MongoSlotLeaseStoreBehaviorTest {
     }
 
     @Test
+    void firstUseRecordsTheNamespaceParameters() {
+        String namespace = newNamespace();
+        assertInstanceOf(AcquireResult.Acquired.class, store.acquire(namespace, owner("host-a"), 4, TTL, TOLERANCE, 2, OptionalInt.empty()));
+        Document recorded = namespaces.find(Filters.eq(MongoRangeStore.ID, namespace)).first();
+        assertEquals(new Document(MongoRangeStore.ID, namespace).append(MongoSlotLeaseStore.LIMIT, 4)
+            .append(MongoSlotLeaseStore.TOLERANCE_MS, TOLERANCE.toMillis()).append(MongoSlotLeaseStore.SLOT_OFFSET, 2), recorded);
+    }
+
+    /** A namespace document written by 5.0.0-alpha.1 has no {@code slotOffset}: it reads as 0 and stays as it is. */
+    @Test
+    void namespaceWithoutSlotOffsetReadsAsOffsetZero() {
+        String namespace = newNamespace();
+        Document legacy = new Document(MongoRangeStore.ID, namespace).append(MongoSlotLeaseStore.LIMIT, 4)
+            .append(MongoSlotLeaseStore.TOLERANCE_MS, TOLERANCE.toMillis());
+        namespaces.insertOne(legacy);
+
+        assertInstanceOf(AcquireResult.Acquired.class, store.acquire(namespace, owner("host-a"), 4, TTL, TOLERANCE, 0, OptionalInt.empty()));
+        MongoSlotLeaseStore other = new MongoSlotLeaseStore(MongoTestSupport.database(), MongoTestSupport.TIMEOUT);
+        NamespaceMismatchException mismatch = assertThrows(NamespaceMismatchException.class,
+            () -> other.acquire(namespace, owner("host-b"), 4, TTL, TOLERANCE, 1, OptionalInt.empty()));
+        assertTrue(mismatch.getMessage().contains("slot offset 0, now 4, " + TOLERANCE.toMillis() + "ms and 1"), mismatch.getMessage());
+        assertEquals(legacy, namespaces.find(Filters.eq(MongoRangeStore.ID, namespace)).first(), "the old document is not rewritten");
+    }
+
+    @Test
     void ownerKeysThatLookLikeFieldPathsStayStrings() {
         String namespace = newNamespace();
         Owner dollar = owner("$fence");
@@ -150,6 +178,7 @@ class MongoSlotLeaseStoreBehaviorTest {
         assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner, 0, TTL, TOLERANCE, 0, OptionalInt.empty()));
         assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner, 1, Duration.ZERO, TOLERANCE, 0, OptionalInt.empty()));
         assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner, 1, TTL, Duration.ofMillis(-1), 0, OptionalInt.empty()));
+        assertThrows(IllegalArgumentException.class, () -> store.acquire(namespace, owner, 1, TTL, TOLERANCE, -1, OptionalInt.empty()));
         assertThrows(IllegalArgumentException.class, () -> new MongoSlotLeaseStore(MongoTestSupport.database(), Duration.ofMillis(-1)));
     }
 }

@@ -25,10 +25,13 @@ import java.util.Optional;
  */
 public final class RuntimeSpec {
     public static final String DEFAULT_GENERATOR = "default";
+    /** The name of the {@link #machine()} among the machines; no named machine may take it. */
+    public static final String DEFAULT_MACHINE = "default";
 
     private final String namespace;
     private final Map<String, StoreSpec> stores;
     private final Optional<MachineSpec> machine;
+    private final Map<String, MachineSpec> machines;
     private final Map<String, GeneratorSpec> generators;
 
     private RuntimeSpec(Builder builder) {
@@ -38,6 +41,7 @@ public final class RuntimeSpec {
         }
         this.stores = Map.copyOf(builder.stores);
         this.machine = Optional.ofNullable(builder.machine);
+        this.machines = Map.copyOf(builder.machines);
         this.generators = Map.copyOf(builder.generators);
     }
 
@@ -60,6 +64,7 @@ public final class RuntimeSpec {
         Builder builder = new Builder(namespace);
         builder.stores.putAll(stores);
         builder.machine = machine.orElse(null);
+        builder.machines.putAll(machines);
         builder.generators.putAll(generators);
         return builder;
     }
@@ -92,6 +97,16 @@ public final class RuntimeSpec {
     }
 
     /**
+     * The named machines (D37), such as a slot in a namespace shared by several services: a time-based generator
+     * chooses one by name ({@code GeneratorSpec.Snowflake.machine()}); only the chosen ones start.
+     *
+     * @return the named machines, unmodifiable; default none
+     */
+    public Map<String, MachineSpec> machines() {
+        return machines;
+    }
+
+    /**
      * The generators by name; the one named {@value #DEFAULT_GENERATOR} is the 4.x share.
      *
      * @return the generators, unmodifiable
@@ -103,17 +118,18 @@ public final class RuntimeSpec {
     @Override
     public boolean equals(Object o) {
         return o instanceof RuntimeSpec that && namespace.equals(that.namespace) && stores.equals(that.stores)
-            && machine.equals(that.machine) && generators.equals(that.generators);
+            && machine.equals(that.machine) && machines.equals(that.machines) && generators.equals(that.generators);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(namespace, stores, machine, generators);
+        return Objects.hash(namespace, stores, machine, machines, generators);
     }
 
     @Override
     public String toString() {
-        return "RuntimeSpec[namespace=" + namespace + ", stores=" + stores + ", machine=" + machine + ", generators=" + generators + "]";
+        return "RuntimeSpec[namespace=" + namespace + ", stores=" + stores + ", machine=" + machine + ", machines=" + machines
+            + ", generators=" + generators + "]";
     }
 
     /**
@@ -123,6 +139,7 @@ public final class RuntimeSpec {
         private final String namespace;
         private final Map<String, StoreSpec> stores = new LinkedHashMap<>();
         private MachineSpec machine;
+        private final Map<String, MachineSpec> machines = new LinkedHashMap<>();
         private final Map<String, GeneratorSpec> generators = new LinkedHashMap<>();
 
         private Builder(String namespace) {
@@ -149,6 +166,19 @@ public final class RuntimeSpec {
          */
         public Builder machine(MachineSpec machine) {
             this.machine = Objects.requireNonNull(machine, "machine");
+            return this;
+        }
+
+        /**
+         * Declares a named machine (D37), replacing one of the same name; it starts only when an enabled time-based
+         * generator chooses it.
+         *
+         * @param name    the machine name, not {@value RuntimeSpec#DEFAULT_MACHINE}
+         * @param machine the machine; give it a namespace of its own ({@code namespace(...)})
+         * @return this builder
+         */
+        public Builder machine(String name, MachineSpec machine) {
+            machines.put(Objects.requireNonNull(name, "name"), Objects.requireNonNull(machine, "machine"));
             return this;
         }
 

@@ -42,7 +42,6 @@ public class CosIdBeforeConvertCallback implements BeforeConvertCallback<Object>
     private final CosIdRuntime runtime;
     private final RelationalMappingContext mappingContext;
     private final String idGenerator;
-    private final TextIds textIds;
 
     /**
      * A callback that fills {@code @Id} properties from the {@code default} generator.
@@ -65,7 +64,6 @@ public class CosIdBeforeConvertCallback implements BeforeConvertCallback<Object>
         this.runtime = Objects.requireNonNull(runtime, "runtime");
         this.mappingContext = Objects.requireNonNull(mappingContext, "mappingContext");
         this.idGenerator = Objects.requireNonNull(idGenerator, "idGenerator");
-        this.textIds = TextIds.of(runtime, idGenerator);
     }
 
     @Override
@@ -87,7 +85,7 @@ public class CosIdBeforeConvertCallback implements BeforeConvertCallback<Object>
         } else if (type == int.class || type == Integer.class) {
             value = runtime.get(idGenerator, IntIdGenerator.class).generate();
         } else if (type == String.class) {
-            value = textIds.get();
+            value = runtime.text(idGenerator).get();
         } else {
             return aggregate;
         }

@@ -24,10 +24,15 @@ import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.time.Layout;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,35 +42,46 @@ import java.util.TreeSet;
 
 /**
  * A {@link RuntimeSpec} checked as a whole before anything starts (07-runtime-and-spring.md §1): every problem is
- * reported at once, and the codecs are built. Only the stores the enabled generators and the machine slot use are
- * opened, and the machine slot only when a time-based generator is enabled.
+ * reported at once, and the codecs are built. Only the stores the enabled generators and the started machines use are
+ * opened, and only the machines an enabled time-based generator chooses are started (api-freeze.md §2.2).
  */
 public final class RuntimePlan {
+    private static final Logger log = LoggerFactory.getLogger(RuntimePlan.class);
     /** The slot bits a lease keeper accepts. */
     static final int MAX_MACHINE_BITS = Integer.SIZE - 2;
 
     private final List<Generator> generators;
     private final List<String> stores;
-    private final Optional<MachineSpec> machine;
-    private final Optional<String> ownerKey;
+    private final List<Machine> machines;
 
-    private RuntimePlan(List<Generator> generators, List<String> stores, Optional<MachineSpec> machine, Optional<String> ownerKey) {
+    private RuntimePlan(List<Generator> generators, List<String> stores, List<Machine> machines) {
         this.generators = List.copyOf(generators);
         this.stores = List.copyOf(stores);
-        this.machine = machine;
-        this.ownerKey = ownerKey;
+        this.machines = List.copyOf(machines);
     }
 
     /**
      * A generator to create.
      *
-     * @param name  the name
-     * @param spec  the spec; a {@link GeneratorSpec.Disabled} one is not created
-     * @param codec the {@code IdCodec}, {@code PartsCodec} or {@code GroupedCodec} by strategy; null when disabled
-     * @param ids   the user generator of a {@link GeneratorSpec.Custom} (resolved) or {@link GeneratorSpec.Instance}; null
-     *              otherwise
+     * @param name    the name
+     * @param spec    the spec; a {@link GeneratorSpec.Disabled} one is not created
+     * @param codec   the {@code IdCodec}, {@code PartsCodec} or {@code GroupedCodec} by strategy; null when disabled
+     * @param ids     the user generator of a {@link GeneratorSpec.Custom} (resolved) or {@link GeneratorSpec.Instance};
+     *                null otherwise
+     * @param machine the machine a time-based generator issues on; null for other strategies
      */
-    public record Generator(String name, GeneratorSpec spec, Object codec, IdGenerator ids) {
+    public record Generator(String name, GeneratorSpec spec, Object codec, IdGenerator ids, String machine) {
+    }
+
+    /**
+     * A machine to start.
+     *
+     * @param name      {@value RuntimeSpec#DEFAULT_MACHINE} or the name of a named machine
+     * @param spec      the machine
+     * @param namespace the namespace of its slot, unique among the machines of the runtime
+     * @param ownerKey  the owner key of a leased slot (07 §1.1); empty for a static one
+     */
+    public record Machine(String name, MachineSpec spec, String namespace, Optional<String> ownerKey) {
     }
 
     /**
@@ -87,21 +103,12 @@ public final class RuntimePlan {
     }
 
     /**
-     * The machine slot, when a time-based generator is enabled.
+     * The machines to start, in start order: the default machine, then the named ones in name order.
      *
-     * @return the machine spec
+     * @return the machines
      */
-    public Optional<MachineSpec> machine() {
-        return machine;
-    }
-
-    /**
-     * The owner key of a leased slot (§1.1).
-     *
-     * @return the owner key, empty without a leased slot
-     */
-    public Optional<String> ownerKey() {
-        return ownerKey;
+    public List<Machine> machines() {
+        return machines;
     }
 
     /**
@@ -118,7 +125,8 @@ public final class RuntimePlan {
         Codecs codecs = new Codecs(options.time(), options.codecs());
         TreeSet<String> usedStores = new TreeSet<>();
         List<Generator> generators = new ArrayList<>();
-        List<String> timeBased = new ArrayList<>();
+        // The generators of each chosen machine, by machine name.
+        Map<String, List<String>> chosen = new TreeMap<>();
         for (Map.Entry<String, GeneratorSpec> entry : new TreeMap<>(spec.generators()).entrySet()) {
             String name = entry.getKey();
             GeneratorSpec generator = entry.getValue();
@@ -127,27 +135,27 @@ public final class RuntimePlan {
                 continue;
             }
             if (generator instanceof GeneratorSpec.Disabled) {
-                generators.add(new Generator(name, generator, null, null));
+                generators.add(new Generator(name, generator, null, null, null));
                 continue;
             }
             String at = "generator [" + name + "]: ";
             Object codec = null;
             IdGenerator ids = null;
+            String machineName = null;
             try {
                 switch (generator) {
                     case GeneratorSpec.Snowflake snowflake -> {
-                        timeBased.add(name);
                         Layout layout = snowflake.layout();
+                        machineName = chooseMachine(spec, name, snowflake.machine(), layout, at, problems, chosen);
                         if (layout.totalBits() > Layout.LONG_BITS) {
                             problems.add(at + "a snowflake layout must fit a long, not " + layout.totalBits() + " bits: use cosid80");
                         }
-                        checkNodeBits(spec.machine(), layout, at, problems);
                         checkEpoch(layout, options, at, problems);
                         codec = codecs.ids(snowflake.codec(), Optional.of(layout));
                     }
                     case GeneratorSpec.CosId80 cosId80 -> {
-                        timeBased.add(name);
                         Layout layout = cosId80.layout();
+                        machineName = chooseMachine(spec, name, cosId80.machine(), layout, at, problems, chosen);
                         if (layout.totalBits() <= Layout.LONG_BITS) {
                             problems.add(at + "a cosid80 layout must be wider than a long, not " + layout.totalBits() + " bits: it fits a long, use snowflake");
                         }
@@ -160,7 +168,6 @@ public final class RuntimePlan {
                             problems.add(at + "timeBits + seqBits of a cosid80 layout must be at most " + Layout.LONG_BITS + ", not "
                                 + (layout.timeBits() + layout.seqBits()));
                         }
-                        checkNodeBits(spec.machine(), layout, at, problems);
                         codec = Codecs.parts(cosId80.codec(), layout);
                     }
                     case GeneratorSpec.Segment segment -> {
@@ -187,22 +194,10 @@ public final class RuntimePlan {
             } catch (IllegalArgumentException e) {
                 problems.add(at + e.getMessage());
             }
-            generators.add(new Generator(name, generator, codec, ids));
+            generators.add(new Generator(name, generator, codec, ids, machineName));
         }
 
-        Optional<MachineSpec> machine = Optional.empty();
-        Optional<String> ownerKey = Optional.empty();
-        if (!timeBased.isEmpty()) {
-            if (spec.machine().isEmpty()) {
-                problems.add("machine: time-based generators " + timeBased + " need a machine slot, but the spec has no machine");
-            } else {
-                machine = spec.machine();
-                checkMachine(spec, machine.get(), problems, usedStores);
-                if (machine.get() instanceof MachineSpec.Leased leased) {
-                    ownerKey = Optional.of(deriveOwnerKey(leased.ownerKey(), options.hostResolver(), options.port()));
-                }
-            }
-        }
+        List<Machine> machines = machines(spec, options, chosen, problems, usedStores);
 
         for (String store : usedStores) {
             StoreSpec storeSpec = spec.stores().get(store);
@@ -221,13 +216,91 @@ public final class RuntimePlan {
         if (!problems.isEmpty()) {
             throw new CosIdException("Invalid RuntimeSpec of namespace [" + spec.namespace() + "]:\n  - " + String.join("\n  - ", problems));
         }
-        return new RuntimePlan(generators, new ArrayList<>(usedStores), machine, ownerKey);
+        return new RuntimePlan(generators, new ArrayList<>(usedStores), machines);
     }
 
-    private static void checkNodeBits(Optional<MachineSpec> machine, Layout layout, String at, List<String> problems) {
-        if (machine.isPresent() && layout.nodeBits() < machine.get().bits()) {
-            problems.add(at + "the layout has " + layout.nodeBits() + " node bits, fewer than machine.bits " + machine.get().bits());
+    /**
+     * The machine a time-based generator chooses, recorded in {@code chosen}, with its node bits checked against it:
+     * {@code slotOffset + 2^bits <= 2^nodeBits} (api-freeze.md §2.2 item 5).
+     */
+    private static String chooseMachine(RuntimeSpec spec, String generator, Optional<String> choice, Layout layout, String at, List<String> problems,
+                                        Map<String, List<String>> chosen) {
+        String name = choice.orElse(RuntimeSpec.DEFAULT_MACHINE);
+        boolean isDefault = RuntimeSpec.DEFAULT_MACHINE.equals(name);
+        MachineSpec machine = isDefault ? spec.machine().orElse(null) : spec.machines().get(name);
+        if (machine == null && !isDefault) {
+            problems.add(at + "no machine [" + name + "]");
+            return name;
         }
+        chosen.computeIfAbsent(name, k -> new ArrayList<>()).add(generator);
+        if (machine == null || machine.bits() < 1 || machine.bits() > MAX_MACHINE_BITS) {
+            return name;
+        }
+        int offset = machine instanceof MachineSpec.Leased leased ? Math.max(0, leased.slotOffset()) : 0;
+        if (offset + (1L << machine.bits()) > 1L << layout.nodeBits()) {
+            String bits = isDefault ? "machine.bits " : "machines." + name + ".bits ";
+            problems.add(offset == 0
+                ? at + "the layout has " + layout.nodeBits() + " node bits, fewer than " + bits + machine.bits()
+                : at + "the layout has " + layout.nodeBits() + " node bits, too few for slotOffset " + offset + " + 2^" + machine.bits()
+                    + " slots of machine [" + name + "]");
+        }
+        return name;
+    }
+
+    /**
+     * The machines to start (api-freeze.md §2.2, §2.3): the chosen ones, the default first, each checked, with a namespace
+     * of its own.
+     */
+    private static List<Machine> machines(RuntimeSpec spec, RuntimeOptions options, Map<String, List<String>> chosen, List<String> problems,
+                                          TreeSet<String> usedStores) {
+        for (String name : new TreeSet<>(spec.machines().keySet())) {
+            if (name.isBlank() || name.indexOf('/') >= 0 || RuntimeSpec.DEFAULT_MACHINE.equals(name)) {
+                problems.add("machines." + name + ": the name must not be blank, contain '/' nor be [" + RuntimeSpec.DEFAULT_MACHINE + "]");
+            }
+        }
+        List<String> unused = new ArrayList<>(new TreeSet<>(spec.machines().keySet()));
+        unused.removeAll(chosen.keySet());
+        if (!unused.isEmpty()) {
+            log.info("Machines {} of namespace [{}] are chosen by no enabled generator: they do not start", unused, spec.namespace());
+        }
+        List<Machine> machines = new ArrayList<>();
+        Map<String, String> namespaces = new HashMap<>();
+        Map<Path, String> stateFiles = new HashMap<>();
+        // The default machine first, then the named ones in name order (TreeMap).
+        List<String> order = new ArrayList<>();
+        if (chosen.containsKey(RuntimeSpec.DEFAULT_MACHINE)) {
+            order.add(RuntimeSpec.DEFAULT_MACHINE);
+        }
+        chosen.keySet().stream().filter(name -> !RuntimeSpec.DEFAULT_MACHINE.equals(name)).forEach(order::add);
+        for (String name : order) {
+            boolean isDefault = RuntimeSpec.DEFAULT_MACHINE.equals(name);
+            MachineSpec machine = isDefault ? spec.machine().orElse(null) : spec.machines().get(name);
+            if (machine == null) {
+                problems.add("machine: time-based generators " + chosen.get(name) + " need a machine slot, but the spec has no machine");
+                continue;
+            }
+            String at = isDefault ? "machine: " : "machines." + name + ": ";
+            checkMachine(spec, machine, at, problems, usedStores);
+            String namespace = machine.namespace().orElse(spec.namespace());
+            if (namespace.isBlank()) {
+                problems.add(at + "namespace must not be blank");
+            }
+            String other = namespaces.putIfAbsent(namespace, name);
+            if (other != null) {
+                problems.add(at + "namespace [" + namespace + "] is also the namespace of machine [" + other + "]: each machine needs its own");
+            }
+            if (machine instanceof MachineSpec.Static fixed && fixed.stateFile().isPresent()) {
+                String sharing = stateFiles.putIfAbsent(fixed.stateFile().get().toAbsolutePath().normalize(), name);
+                if (sharing != null) {
+                    problems.add(at + "stateFile " + fixed.stateFile().get() + " is also the state file of machine [" + sharing + "]");
+                }
+            }
+            Optional<String> ownerKey = machine instanceof MachineSpec.Leased leased
+                ? Optional.of(deriveOwnerKey(leased.ownerKey(), options.hostResolver(), options.port()))
+                : Optional.empty();
+            machines.add(new Machine(name, machine, namespace, ownerKey));
+        }
+        return machines;
     }
 
     /** An epoch in the future fails the start (R1-core-12): the sequencer takes a clock before the epoch as a regression. */
@@ -252,44 +325,47 @@ public final class RuntimePlan {
         }
     }
 
-    private static void checkMachine(RuntimeSpec spec, MachineSpec machine, List<String> problems, TreeSet<String> usedStores) {
+    private static void checkMachine(RuntimeSpec spec, MachineSpec machine, String at, List<String> problems, TreeSet<String> usedStores) {
         if (machine.bits() < 1 || machine.bits() > MAX_MACHINE_BITS) {
-            problems.add("machine: bits must be in [1, " + MAX_MACHINE_BITS + "]: " + machine.bits());
+            problems.add(at + "bits must be in [1, " + MAX_MACHINE_BITS + "]: " + machine.bits());
             return;
         }
         switch (machine) {
             case MachineSpec.Leased leased -> {
                 StoreSpec storeSpec = spec.stores().get(leased.store());
                 if (storeSpec == null) {
-                    problems.add("machine: no store [" + leased.store() + "]");
+                    problems.add(at + "no store [" + leased.store() + "]");
                 } else {
                     usedStores.add(leased.store());
                 }
                 if (!isPositive(leased.ttl())) {
-                    problems.add("machine: ttl must be positive: " + leased.ttl());
+                    problems.add(at + "ttl must be positive: " + leased.ttl());
                 }
                 if (leased.tolerance().isNegative()) {
-                    problems.add("machine: tolerance must not be negative: " + leased.tolerance());
+                    problems.add(at + "tolerance must not be negative: " + leased.tolerance());
+                }
+                if (leased.slotOffset() < 0) {
+                    problems.add(at + "slotOffset must not be negative: " + leased.slotOffset());
                 }
                 if (leased.acquireTimeout().isNegative()) {
-                    problems.add("machine: acquireTimeout must not be negative: " + leased.acquireTimeout());
+                    problems.add(at + "acquireTimeout must not be negative: " + leased.acquireTimeout());
                 }
-                leased.preferredSlot().ifPresent(slot -> checkSlot("preferredSlot", slot, machine.bits(), problems));
+                leased.preferredSlot().ifPresent(slot -> checkSlot(at, "preferredSlot", slot, machine.bits(), problems));
                 leased.ownerKey().filter(String::isBlank)
-                    .ifPresent(key -> problems.add("machine: ownerKey must not be blank"));
+                    .ifPresent(key -> problems.add(at + "ownerKey must not be blank"));
             }
             case MachineSpec.Static fixed -> {
-                checkSlot("slot", fixed.slot(), machine.bits(), problems);
+                checkSlot(at, "slot", fixed.slot(), machine.bits(), problems);
                 if (fixed.ahead().toMillis() < 2) {
-                    problems.add("machine: ahead must be at least 2ms: " + fixed.ahead());
+                    problems.add(at + "ahead must be at least 2ms: " + fixed.ahead());
                 }
             }
         }
     }
 
-    private static void checkSlot(String what, int slot, int bits, List<String> problems) {
+    private static void checkSlot(String at, String what, int slot, int bits, List<String> problems) {
         if (slot < 0 || slot >= 1 << bits) {
-            problems.add("machine: " + what + " must be in [0, " + (1 << bits) + "): " + slot);
+            problems.add(at + what + " must be in [0, " + (1 << bits) + "): " + slot);
         }
     }
 

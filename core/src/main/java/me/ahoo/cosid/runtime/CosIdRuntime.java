@@ -30,8 +30,11 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * The one registry and lifecycle owner of stores, the machine slot and generators (07-runtime-and-spring.md §1).
@@ -167,12 +170,44 @@ public final class CosIdRuntime implements AutoCloseable {
     }
 
     /**
-     * The slot lease.
+     * The slot lease of the default machine.
      *
-     * @return the lease, or empty without a leased machine slot
+     * @return the lease, or empty without a leased default machine
      */
     public Optional<SlotLease> slot() {
         return parts.lease();
+    }
+
+    /**
+     * The slot lease of a machine (D37).
+     *
+     * @param machine the machine name; {@value RuntimeSpec#DEFAULT_MACHINE} for the default one
+     * @return the lease, or empty when that machine is static or did not start (no enabled generator chose it)
+     */
+    public Optional<SlotLease> slot(String machine) {
+        return parts.lease(Objects.requireNonNull(machine, "machine"));
+    }
+
+    /**
+     * The machines that started: those an enabled time-based generator chose (D37).
+     *
+     * @return the machine names in name order, {@value RuntimeSpec#DEFAULT_MACHINE} included when it started
+     */
+    public Set<String> machines() {
+        return Collections.unmodifiableSet(new TreeSet<>(parts.machines().keySet()));
+    }
+
+    /**
+     * The text ids of the generator of that name, whatever its strategy (R1-int-01): the codec of its {@code long}
+     * ids, its parts codec (cosid80) or its grouped codec (periodic segment).
+     *
+     * @param name the generator name
+     * @return the text ids
+     * @throws java.util.NoSuchElementException          if there is none
+     * @throws me.ahoo.cosid.GeneratorDisabledException if it is disabled
+     */
+    public Supplier<String> text(String name) {
+        return entry(name).text();
     }
 
     /**

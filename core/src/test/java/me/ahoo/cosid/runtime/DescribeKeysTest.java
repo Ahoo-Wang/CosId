@@ -39,7 +39,7 @@ import java.util.TreeSet;
  */
 class DescribeKeysTest {
     static final Set<String> TIME_BASED = Set.of("epoch", "unit", "timeBits", "nodeBits", "seqBits", "lastIssuedMillis", "slot", "floor",
-        "ceiling", "slotValid");
+        "ceiling", "slotValid", "node", "machine", "machineNamespace");
     static final Set<String> SEGMENT = Set.of("key", "step", "maxBatch", "lookahead", "reserveTimeout", "batch", "held");
     static final Set<String> PERIODIC = union(SEGMENT, Set.of("zone", "prewarm", "sealAfter", "period"));
 

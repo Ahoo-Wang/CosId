@@ -85,7 +85,11 @@ class MongoNamespaceRaceTest {
     }
 
     private static AcquireResult acquire(MongoSlotLeaseStore store, String namespace, int limit) {
-        return store.acquire(namespace, new Owner("host", UUID.randomUUID()), limit, TTL, TOLERANCE, 0, OptionalInt.empty());
+        return acquire(store, namespace, limit, 0);
+    }
+
+    private static AcquireResult acquire(MongoSlotLeaseStore store, String namespace, int limit, int slotOffset) {
+        return store.acquire(namespace, new Owner("host", UUID.randomUUID()), limit, TTL, TOLERANCE, slotOffset, OptionalInt.empty());
     }
 
     private static String newNamespace() {
@@ -103,6 +107,14 @@ class MongoNamespaceRaceTest {
         String namespace = newNamespace();
         acquire(new MongoSlotLeaseStore(MongoTestSupport.database(), MongoTestSupport.TIMEOUT), namespace, 4);
         assertThrows(NamespaceMismatchException.class, () -> acquire(store(1, MongoStore.DUPLICATE_KEY, Mode.AFTER), namespace, 8));
+    }
+
+    @Test
+    void lostUpsertComparesTheWinnersSlotOffset() {
+        String namespace = newNamespace();
+        acquire(new MongoSlotLeaseStore(MongoTestSupport.database(), MongoTestSupport.TIMEOUT), namespace, 4, 1);
+        assertInstanceOf(AcquireResult.Acquired.class, acquire(store(1, MongoStore.DUPLICATE_KEY, Mode.AFTER), namespace, 4, 1));
+        assertThrows(NamespaceMismatchException.class, () -> acquire(store(1, MongoStore.DUPLICATE_KEY, Mode.AFTER), namespace, 4, 0));
     }
 
     @Test

@@ -48,6 +48,7 @@ final class RemoteSlotLeaseStore implements SlotLeaseStore {
         body.put("limit", limit);
         body.put("ttlMs", ttl.toMillis());
         body.put("toleranceMs", tolerance.toMillis());
+        body.put("slotOffset", slotOffset);
         if (preferredSlot.isPresent()) {
             body.put("preferredSlot", preferredSlot.getAsInt());
         }

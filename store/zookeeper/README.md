@@ -32,7 +32,7 @@ The failover case always runs on its own in-process 3.9 ensemble, so these rows 
 | Node | Data |
 |---|---|
 | `/cosid/range/{key}` | the next value as decimal text, `:sealed` appended once sealed; never deleted (S6) |
-| `/cosid/slot/{ns}` | the namespace metadata, `limit` and `tolerance` |
+| `/cosid/slot/{ns}` | the namespace metadata as `name=value` lines: `limit`, `tolerance` and `slotOffset`; a node without `slotOffset` (written by 5.0.0-alpha.1) has offset 0 |
 | `/cosid/slot/{ns}/{slot}` | the slot as `name=value` lines; the fence is in the data, never `Stat.version`; never deleted |
 | `/cosid/slot/{ns}/.clock` | written by every acquire: its `mtime` is the `now` of the expiry check |
 | `/cosid/owner/{ns}/{ownerKey}` | the owner index: the slots (`3,7`) whose last owner is the key, written in the same `multi` as each acquire; the key URL-encoded, `.` and `*` too |

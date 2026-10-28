@@ -33,5 +33,5 @@ warn too.
 
 | 版本 | TCK 结果 | 说明 |
 |---|---|---|
-| 4.4 | 通过(46/46,单节点副本集) | 并发首次使用同一命名空间时,`cosid_namespace` 的 `$setOnInsert` upsert 输家会收到 E11000,4.4 的服务端不会替它重试(8.0 上没有观察到)。这在 #1311 中导致 `concurrentAcquiresGetDistinctSlots` 偶发失败。现在的实现在所有版本上都会对 E11000 重试并读回比较 `{limit, toleranceMs}`,所以 4.4 上也通过了。 |
+| 4.4 | 通过(46/46,单节点副本集) | 并发首次使用同一命名空间时,`cosid_namespace` 的 `$setOnInsert` upsert 输家会收到 E11000,4.4 的服务端不会替它重试(8.0 上没有观察到)。这在 #1311 中导致 `concurrentAcquiresGetDistinctSlots` 偶发失败。现在的实现在所有版本上都会对 E11000 重试并读回比较 `{limit, toleranceMs, slotOffset}`(5.0.0-alpha.1 写的文档没有 `slotOffset`,按 0 读),所以 4.4 上也通过了。 |
 | 5.0 | 通过(46/46,单节点副本集) | 无 |

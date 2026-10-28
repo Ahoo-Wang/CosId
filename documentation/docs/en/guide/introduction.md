@@ -81,3 +81,5 @@ The [recipes](recipes.md) give the configuration of each.
 | `cosid-bom` | versions of all of the above |
 | cosid-server (Docker image) | the remote store service; [cosid-server](server.md) |
 | `cosid-migration.jar` | the offline 4.x → 5.0 tool |
+
+<!-- CI trial: docs only -->

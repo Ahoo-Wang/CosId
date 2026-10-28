@@ -2,6 +2,12 @@
 
 CosId 5 needs **Java 21** or later. With Spring Boot it supports Boot 4.0 and later.
 
+::: warning Preview
+`5.0.0-alpha.x` is a preview with no compatibility promise. The API, configuration, storage format and cosid-server
+HTTP API may change between alphas and before GA, and no data migration is provided between alphas. Do not use it in
+production: stay on 4.x there.
+:::
+
 ## 1. Add the dependencies
 
 Every artifact has the group `me.ahoo.cosid`; `cosid-bom` aligns their versions. Add the starter and the store(s) you

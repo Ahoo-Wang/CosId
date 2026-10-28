@@ -14,6 +14,11 @@
 
 > [中文文档](https://cosid.ahoo.me/zh/) | [English Document](https://cosid.ahoo.me/)
 
+> [!WARNING]
+> **`5.0.0-alpha.x` is a preview with no compatibility promise.** The API, configuration, storage format and
+> cosid-server HTTP API may change between alphas and before GA, and no data migration is provided between alphas. Do
+> not use it in production: stay on 4.x there.
+
 Every replica of a service needs ids (primary keys, order numbers, event ids) that never collide with those of the other
 replicas. *CosId* generates them inside your process, without a network call per id, and does the coordination that
 keeps them unique.

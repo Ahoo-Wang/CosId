@@ -14,6 +14,9 @@
 
 > [中文文档](https://cosid.ahoo.me/zh/) | [English Document](https://cosid.ahoo.me/)
 
+> [!WARNING]
+> **`5.0.0-alpha.x` 是预览版，不做兼容性承诺。** API、配置、存储格式和 cosid-server HTTP 接口在 alpha 之间以及 GA 之前都可能变化，alpha 之间不提供数据迁移。不建议用于生产：生产环境请继续使用 4.x。
+
 服务的每个副本都需要生成 ID（主键、订单号、事件 ID），并且不能与其他副本的 ID 冲突。*CosId* 在应用进程内生成这样的 ID，每个 ID 都不需要网络调用，并替你完成保证唯一所需的协调。
 
 **CosId 5** 是一次完全重写，不保留向后兼容。**唯一性不依赖任何时钟**：机器号槽位以时间窗口的形式租用，相继持有者的窗口互不重叠，这条规则由存储自身维护；时钟偏差、GC 停顿与故障切换只影响可用性，不影响唯一性。所有策略运行在同一个 `CosIdRuntime` 上，Spring Boot、cosid-server 与纯 Java 以同样的方式启动它。离线迁移工具 [`cosid-migration`](./migration/README.md) 负责把 4.x 部署迁移过来。

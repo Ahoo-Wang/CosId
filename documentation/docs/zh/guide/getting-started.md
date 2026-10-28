@@ -2,6 +2,10 @@
 
 CosId 5 需要 **Java 21** 或更高版本。在 Spring Boot 下支持 Boot 4.0 及更高版本。
 
+::: warning 预览版
+`5.0.0-alpha.x` 是预览版，不做兼容性承诺。API、配置、存储格式和 cosid-server HTTP 接口在 alpha 之间以及 GA 之前都可能变化，alpha 之间不提供数据迁移。不建议用于生产：生产环境请继续使用 4.x。
+:::
+
 ## 1. 添加依赖
 
 所有 artifact 的 group 都是 `me.ahoo.cosid`；`cosid-bom` 统一它们的版本。添加 starter 和所用的存储：

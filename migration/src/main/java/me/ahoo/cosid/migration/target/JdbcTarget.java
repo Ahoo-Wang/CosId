@@ -16,6 +16,7 @@ package me.ahoo.cosid.migration.target;
 import me.ahoo.cosid.migration.StoreLocation;
 import me.ahoo.cosid.store.jdbc.JdbcDialect;
 import me.ahoo.cosid.store.jdbc.JdbcDialects;
+import me.ahoo.cosid.store.jdbc.JdbcStore;
 import me.ahoo.cosid.store.jdbc.JdbcTables;
 
 import java.sql.Connection;
@@ -76,6 +77,8 @@ public final class JdbcTarget implements TargetAdmin {
                     }
                     slotOffsetColumn = null;
                 }
+                // So does the slot table its index of an acquire's own rows (R1-jdbc-01).
+                JdbcStore.addMissingIndex(connection, dialect, tables);
             }
         } catch (SQLException | RuntimeException e) {
             close();
@@ -125,7 +128,13 @@ public final class JdbcTarget implements TargetAdmin {
                     continue;
                 }
             }
-            return range(key).orElseThrow();
+            RangeState raised = range(key).orElseThrow();
+            // R1-jdbc-06: the value read back covers the one written, unless the read went elsewhere (a read replica).
+            if (raised.next() < next) {
+                throw new IllegalStateException("Range " + key + " read back next_value " + raised.next() + " after raising it to " + next
+                    + ": the read did not reach the database written (an SQL proxy or read replica?); connect to the primary directly");
+            }
+            return raised;
         }
     }
 

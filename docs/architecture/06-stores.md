@@ -69,6 +69,8 @@ create table cosid_slot (
     next_floor_ms  bigint       not null default 0,
     primary key (namespace, slot)
 );
+-- R1-jdbc-01:acquire 读取 owner key 自己的行;名字随 slotTable(<slotTable>_last_owner_key),initSchema 为 alpha.1 的表补建
+create index cosid_slot_last_owner_key on cosid_slot (namespace, last_owner_key);
 
 create table cosid_namespace (
     namespace    varchar(100) not null primary key,
@@ -82,17 +84,22 @@ create table cosid_namespace (
 
 | 方言 | 语句 |
 |---|---|
-| MySQL / MariaDB | `insert into cosid_range (range_key, next_value) values (?, last_insert_id(? + ?)) on duplicate key update next_value = last_insert_id(next_value + ?)`,然后在同一连接上 `select last_insert_id()`。插入分支与更新分支都会设置 `last_insert_id`,不会读到连接池中残留的旧值 |
+| MySQL / MariaDB | `insert into cosid_range (range_key, next_value) values (?, last_insert_id(? + ?)) on duplicate key update next_value = if(sealed or …, next_value + last_insert_id(0), last_insert_id(next_value + ?))`,从该语句自己的 OK 包(generated key)读取。各分支都设置 `last_insert_id`,不会读到连接池中残留的旧值;generated key 为空或 0 时只读该行确认已封存或已满,**不再**在连接上 `select last_insert_id()`(SQL 代理可能从另一个后端连接回答,R1-jdbc-06) |
 | PostgreSQL | `insert … values (?, ? + ?) on conflict (range_key) do update set next_value = cosid_range.next_value + ? where not cosid_range.sealed returning next_value` |
 | SQL Server | `merge … with (holdlock) … output inserted.next_value` |
 | H2 | `merge into … key (range_key)`,随后在事务内读取 |
 
 结果区间为 `[next − size, next)`。key 已封存时更新零行,抛出 `RangeSealedException`。
 
+**SQL 代理防线(R1-jdbc-06,恢复 4.x 的检查)**:`next < size` 不可能是本语句写入的值(代理改写或丢失了 `last_insert_id`),reserve 失败而不发出区间;MySQL/MariaDB 拿不到 generated key 且该行既未封存也未满时同样失败。
+退路 `options.fetchPlan=transaction`(4.x `fetch-plan=transaction`,`FetchPlan.TRANSACTION`):同一事务内 `update … set next_value = next_value + ?`(新 key 时 `insert`),再读该行;行锁保证读到的就是写入的值,
+不依赖连接状态,适用于 SQL 代理与读写分离(事务留在主库)。多一次往返。默认 `statement`。迁移工具对 4.x 源的封存与 5.0 目标的抬升同样校验读回值,不一致即报错并提示直连主库。
+
 槽位:
 - 命名空间首次使用时幂等预建 `limit` 行(MySQL `insert ignore`;PostgreSQL `on conflict do nothing`;SQL Server `merge`;H2 `merge`)。
 - `acquire` 按 05 §2.1 的顺序逐个尝试,走 CAS 路径(R2 裁定,往返次数不多于 4.x):
-  一次非锁定读取得到候选槽位(幂等、preferred、粘性、前几个空闲槽位)与存储时钟;每一步是一条自动提交的
+  一次非锁定读取得到候选槽位(幂等、preferred、粘性、前几个空闲槽位)与存储时钟。读取是三个 `union all` 分支,各走一个索引(R1-jdbc-01):
+  owner key 自己的行按 `(namespace, last_owner_key)`(`take` 同时写 `owner_key` 与 `last_owner_key`,`release` 保留后者,所以持有中的行必在其中),preferred 与空闲槽位按主键;每一步是一条自动提交的
   `update … where namespace = ? and slot = ? and fence = ? and (以数据库时钟判断"可取")`,影响 0 行则换下一个候选。
   LOWEST 一步在前 k 个空闲槽位中随机选取以分散竞争。PostgreSQL 可用单条 `update … where slot = (select … for update skip locked limit 1) returning`。
   正确性只依赖单槽位的原子条件更新。

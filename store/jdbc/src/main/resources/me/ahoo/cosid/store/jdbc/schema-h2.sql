@@ -12,6 +12,8 @@
 -- The CosId 5 JDBC schema (docs/architecture/06-stores.md §2.1). Keys and slots are never deleted (D23).
 -- Run as is for the default table names; options.initSchema runs it with options.rangeTable / slotTable /
 -- namespaceTable in place of cosid_range / cosid_slot / cosid_namespace.
+-- cosid_slot_last_owner_key, the index of an acquire's own rows (R1-jdbc-01), came after 5.0.0-alpha.1: initSchema adds it
+-- to an older table too.
 -- cosid_namespace.slot_offset came after 5.0.0-alpha.1: initSchema adds it to an older table
 -- (alter table cosid_namespace add column slot_offset integer not null default 0).
 -- H2 2.x.
@@ -36,6 +38,8 @@ create table if not exists cosid_slot
     next_floor_ms  bigint       not null default 0,
     primary key (namespace, slot)
 );
+
+create index if not exists cosid_slot_last_owner_key on cosid_slot (namespace, last_owner_key);
 
 create table if not exists cosid_namespace
 (

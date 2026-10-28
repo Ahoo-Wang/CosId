@@ -12,6 +12,8 @@
 -- The CosId 5 JDBC schema (docs/architecture/06-stores.md §2.1). Keys and slots are never deleted (D23).
 -- Run as is for the default table names; options.initSchema runs it with options.rangeTable / slotTable /
 -- namespaceTable in place of cosid_range / cosid_slot / cosid_namespace.
+-- cosid_slot_last_owner_key, the index of an acquire's own rows (R1-jdbc-01), came after 5.0.0-alpha.1: initSchema adds it
+-- to an older table too.
 -- cosid_namespace.slot_offset came after 5.0.0-alpha.1: initSchema adds it to an older table
 -- (alter table cosid_namespace add slot_offset integer not null default 0).
 -- SQL Server 2019+. Text columns are nvarchar: the driver sends string parameters as nvarchar by default, and a
@@ -41,6 +43,9 @@ create table cosid_slot
     next_floor_ms  bigint        not null default 0,
     primary key (namespace, slot)
 );
+
+if not exists (select 1 from sys.indexes where name = N'cosid_slot_last_owner_key' and object_id = object_id(N'cosid_slot'))
+create index cosid_slot_last_owner_key on cosid_slot (namespace, last_owner_key);
 
 if object_id(N'cosid_namespace', N'U') is null
 create table cosid_namespace

@@ -7,6 +7,7 @@
 ```java
 public interface StoreProvider {
     String type();                                   // "jdbc"、"redis"、"mongo"、"zookeeper"、"remote" 或自定义
+    default Set<String> options() { return Set.of(); } // 读取的 option 键(R1-spi-01)
     Store open(StoreConfig config);
 }
 
@@ -15,12 +16,22 @@ public interface Store extends AutoCloseable {
     SlotLeaseStore slots();
 }
 
-public record StoreConfig(String name, String type, Duration timeout, Map<String, Object> options, Optional<Object> client) {}
+public final class StoreConfig { /* name, type, timeout(为正), options, client;builder 构造(D39) */ }
 ```
 
 - `StoreProvider` 通过 `ServiceLoader` 发现;Spring 环境下也可以作为 Bean 提供。**两种来源走同一条创建路径**,由 `CosIdRuntime` 按 `type` 选择,Bean 优先。取代 4.x 的 `CosIdStoreProvider`。
+- **option 键(R1-spi-01、R1-spring-01)**:每个 provider 用 `options()` 声明自己读取的键(驼峰原样)。运行时按"忽略大小写、`-` 与 `_`"把配置的键对应到声明的键
+  (`init-schema`、`INITSCHEMA`、环境变量绑定出的 `initschema` 都是 `initSchema`;`.` 仍是分隔符),以声明的拼写传给 `open`;不认识的键、或两个键对应同一个键时启动失败并列出可用键。
+  对应规则在 `StoreOptions`,自己打开存储的代码(如 cosid-server 的后备存储)也用它。默认 `options()` 为空:读取 option 的第三方 provider 必须声明。
 - `client` 用于注入已有连接对象(`DataSource`、Lettuce 连接、`MongoClient`、`CuratorFramework`);为空时 provider 按 `options` 自行创建并负责关闭。
 - `timeout` 由后端用原生机制实现(JDBC `queryTimeout`、Redis 命令超时、Mongo `timeoutMS`、Curator 操作超时、HTTP 请求超时),core 不再包装超时线程池。
+- **可移植的键(R1-spi-02,冻结面)**:只接受所有后端都能存的键,`RuntimePlan` 启动时校验(`StoreKeys`),换后端不会到运行时才失败:
+  - 命名空间:1–100 个 `A-Z a-z 0-9 . _ : -`,以字母或数字开头(JDBC `varchar(100)`、ZooKeeper 节点名、Redis hash tag;Spring 与 cosid-server 用同一规则);
+  - 生成器名、machine 名:非空,不含 `/`、空白与 ZooKeeper 路径拒绝的字符(控制字符、代理项、`U+E000..U+F8FF`、`U+FFF0..U+FFFF`),不是 `.` / `..`
+    (SQL Server 比较时忽略尾随空格;cosid-server 拒绝 range key 中的空白);
+  - range key(`ns/name`、`ns/name/period`)与 owner key:至多 255 个 UTF-16 单位(JDBC `varchar(255)` / SQL Server `nvarchar(255)`),首尾无空白。
+  列宽一旦冻结只能放宽不能收紧;TCK 用例 `storesTheLongestPortableKey`、`storesTheLongestPortableNamespaceAndOwnerKey` 证明每个后端都能存下上限(含非 ASCII 字符)。
+- **超时(R1-spi-04)**:`StoreConfig.timeout` 必须为正,各后端不再有"0 = 不限"的分支。
 - **存储时钟**一律取 UTC 纪元毫秒。安全性不依赖存储时钟(05 §3),它只影响过期判断。
 - 命名空间元数据:首次 `acquire` 时记录 `{limit, tolerance, slotOffset}`(`slotOffset` 见 api-freeze §2.1.1、§2.5.1,只记录并比对,不影响选槽),之后任一不一致即抛 `NamespaceMismatchException`。
   `slotOffset` 是 5.0.0-alpha.1 之后追加的字段:各后端读到没有它的旧元数据时按 0 处理,也不改写旧元数据;旧读者忽略它。各后端的格式:

@@ -22,6 +22,7 @@ import me.ahoo.cosid.runtime.RuntimeOptions;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.segment.BatchPolicy;
+import me.ahoo.cosid.store.StoreKeys;
 import me.ahoo.cosid.store.StoreOptions;
 import me.ahoo.cosid.store.StoreProvider;
 import me.ahoo.cosid.time.Layout;
@@ -136,6 +137,8 @@ public final class RuntimePlan {
      */
     public static RuntimePlan of(RuntimeSpec spec, RuntimeOptions options, StoreProviders providers) {
         List<String> problems = new ArrayList<>();
+        // R1-spi-02: only keys every backend stores.
+        StoreKeys.namespaceProblem(spec.namespace()).ifPresent(problems::add);
         Codecs codecs = new Codecs(options.time(), options.codecs());
         TreeSet<String> usedStores = new TreeSet<>();
         List<Generator> generators = new ArrayList<>();
@@ -144,10 +147,14 @@ public final class RuntimePlan {
         for (Map.Entry<String, GeneratorSpec> entry : new TreeMap<>(spec.generators()).entrySet()) {
             String name = entry.getKey();
             GeneratorSpec generator = entry.getValue();
-            if (name.isBlank() || name.indexOf('/') >= 0) {
-                problems.add("generator [" + name + "]: the name must not be blank nor contain '/'");
+            Optional<String> badName = StoreKeys.nameProblem(name);
+            if (badName.isPresent()) {
+                problems.add("generator [" + name + "]: " + badName.get());
                 continue;
             }
+            rangeKey(spec.namespace(), name, generator, options.time().currentMillis())
+                .flatMap(key -> StoreKeys.keyProblem("range key", key))
+                .ifPresent(problem -> problems.add("generator [" + name + "]: " + problem));
             if (generator instanceof GeneratorSpec.Disabled) {
                 generators.add(new Generator(name, generator, null, null, null));
                 continue;
@@ -272,8 +279,10 @@ public final class RuntimePlan {
     private static List<Machine> startOrder(RuntimeSpec spec, RuntimeOptions options, Map<String, List<String>> chosen, List<String> problems,
                                           TreeSet<String> usedStores) {
         for (String name : new TreeSet<>(spec.machines().keySet())) {
-            if (name.isBlank() || name.indexOf('/') >= 0 || RuntimeSpec.DEFAULT_MACHINE.equals(name)) {
-                problems.add("machines." + name + ": the name must not be blank, contain '/' nor be [" + RuntimeSpec.DEFAULT_MACHINE + "]");
+            if (RuntimeSpec.DEFAULT_MACHINE.equals(name)) {
+                problems.add("machines." + name + ": the name [" + RuntimeSpec.DEFAULT_MACHINE + "] is reserved for cosid.machine");
+            } else {
+                StoreKeys.nameProblem(name).ifPresent(problem -> problems.add("machines." + name + ": " + problem));
             }
         }
         List<String> unused = new ArrayList<>(new TreeSet<>(spec.machines().keySet()));
@@ -300,9 +309,7 @@ public final class RuntimePlan {
             String at = isDefault ? "machine: " : "machines." + name + ": ";
             checkMachine(spec, machine, at, problems, usedStores);
             String namespace = machine.namespace().orElse(spec.namespace());
-            if (namespace.isBlank()) {
-                problems.add(at + "namespace must not be blank");
-            }
+            machine.namespace().flatMap(StoreKeys::namespaceProblem).ifPresent(problem -> problems.add(at + problem));
             String other = namespaces.putIfAbsent(namespace, name);
             if (other != null) {
                 problems.add(at + "namespace [" + namespace + "] is also the namespace of machine [" + other + "]: each machine needs its own");
@@ -316,9 +323,30 @@ public final class RuntimePlan {
             Optional<String> ownerKey = machine instanceof MachineSpec.Leased leased
                 ? Optional.of(deriveOwnerKey(leased.ownerKey(), options.hostResolver(), options.port()))
                 : Optional.empty();
+            ownerKey.flatMap(key -> StoreKeys.keyProblem("owner key", key)).ifPresent(problem -> problems.add(at + problem));
             machines.add(new Machine(name, machine, namespace, ownerKey));
         }
         return machines;
+    }
+
+    /**
+     * The range key a segment generator stores now: {@code namespace/name}, or {@code namespace/name/period} for a
+     * periodic one (the period key of the current time; the keys of a period have one length). A disabled generator
+     * stores none.
+     */
+    private static Optional<String> rangeKey(String namespace, String name, GeneratorSpec generator, long now) {
+        if (generator instanceof GeneratorSpec.Segment) {
+            return Optional.of(namespace + '/' + name);
+        }
+        if (generator instanceof GeneratorSpec.PeriodicSegment periodic) {
+            try {
+                return Optional.of(namespace + '/' + name + '/' + periodic.period().keyOf(Instant.ofEpochMilli(now), periodic.zone()));
+            } catch (RuntimeException e) {
+                // The period itself is checked with the codec.
+                return Optional.empty();
+            }
+        }
+        return Optional.empty();
     }
 
     /** An epoch in the future fails the start (R1-core-12): the sequencer takes a clock before the epoch as a regression. */

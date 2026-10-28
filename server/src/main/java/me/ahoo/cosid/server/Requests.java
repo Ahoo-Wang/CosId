@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.server;
 
+import me.ahoo.cosid.store.StoreKeys;
+
 import java.time.Duration;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -22,8 +24,6 @@ import java.util.regex.Pattern;
  * keys, and the {@code cosid.server.limits}. A failed check is a {@code 400}.
  */
 final class Requests {
-    /** A namespace: what every backend accepts (JDBC {@code varchar(100)}, no {@code /} for ZooKeeper). */
-    private static final Pattern NAMESPACE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._:-]{0,99}");
     /** A range key: segments separated by single slashes, without blanks or control characters. */
     private static final Pattern KEY = Pattern.compile("[^/\\s\\p{Cntrl}]+(/[^/\\s\\p{Cntrl}]+)*");
     private static final int MAX_KEY_LENGTH = 255;
@@ -67,7 +67,8 @@ final class Requests {
 
     String namespace(String namespace) {
         required(namespace, "namespace");
-        if (!NAMESPACE.matcher(namespace).matches()) {
+        // What every backend accepts (R1-spi-02).
+        if (!StoreKeys.isNamespace(namespace)) {
             throw ApiException.badRequest("namespace must be 1 to 100 letters, digits, '.', '_', ':' or '-', starting with a letter or digit: "
                 + abbreviate(namespace));
         }

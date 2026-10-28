@@ -189,8 +189,8 @@ class NamedMachinesTest {
             .generator("w", snowflake(Layout.SNOWFLAKE_MS))
             .build());
         assertThat(message, containsString("machines.same: namespace [app] is also the namespace of machine [default]: each machine needs its own"));
-        assertThat(message, containsString("machines.default: the name must not be blank, contain '/' nor be [default]"));
-        assertThat(message, containsString("machines.a/b: the name must not be blank, contain '/' nor be [default]"));
+        assertThat(message, containsString("machines.default: the name [default] is reserved for cosid.machine"));
+        assertThat(message, containsString("machines.a/b: the name must not contain '/'"));
         assertThat(message, containsString("generator [y]: no machine [missing]"));
         assertThat(message, containsString("machines.bad: no store [nowhere]"));
         assertThat(message, containsString("machines.bad: slotOffset must not be negative: -1"));

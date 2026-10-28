@@ -25,6 +25,7 @@ import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.segment.Period;
 import me.ahoo.cosid.segment.PeriodicPolicy;
+import me.ahoo.cosid.store.StoreKeys;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 
@@ -51,7 +52,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.regex.Pattern;
 
 /**
  * {@link CosIdProperties} to {@link RuntimeSpec} (07-runtime-and-spring.md §4.1): {@link #toSpec} is a pure function,
@@ -72,7 +72,6 @@ public final class CosIdSpecs {
         "JS_SAFE_MS", Layout.JS_SAFE_MS,
         "JS_SAFE_S", Layout.JS_SAFE_S);
     /** A namespace taken from {@code spring.application.name}: what every store and the server accept. */
-    private static final Pattern NAMESPACE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._:-]{0,99}");
     /** The {@code cosid.*} keys bound elsewhere: the integrations and the server. */
     private static final List<String> FOREIGN_KEYS = List.of("server", "mybatis", "jdbc", "activiti", "flowable", "axon");
     private static final Map<String, Period> PERIODS = Map.of(
@@ -178,7 +177,7 @@ public final class CosIdSpecs {
         if (applicationName == null || applicationName.isBlank()) {
             return Optional.empty();
         }
-        if (!NAMESPACE.matcher(applicationName).matches()) {
+        if (!StoreKeys.isNamespace(applicationName)) {
             throw new CosIdException("spring.application.name [" + applicationName + "] is no valid namespace (1 to 100 letters, digits, '.', '_', ':' "
                 + "or '-', starting with a letter or digit): set " + CosIdProperties.PREFIX + ".namespace");
         }

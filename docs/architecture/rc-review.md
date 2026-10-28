@@ -182,7 +182,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 - **CI 偶发问题(✅ 已由 #1358 解决:根因 SERVER-125742,mongo:8.0 改在 ubuntu-22.04 上运行):** `Store MongoDB (mongo:8.0)` 在部分 runner 上整个 job 的容器都起不来(`Container exited with code 1`,等不到 `waiting for connections`),同一 job 在别的 runner 上通过(#1347 16:26、#1350 17:09)。#1342 两次、#1348 一次因此失败,均为基础设施问题,与改动无关,已重跑。RC 后需查明(可能与 runner 的 CPU 或镜像有关,建议 job 失败时打印容器日志)。
 
-**发布授权(用户 2026-10-28):** alpha 版本由总调度自行发布,无需再确认;RC/GA 必须经用户确认。alpha.1 按推荐顺序:#1362(codec)审查合入后发布,release notes 的 codec 条目在 #1362 中同步更新。
+**发布授权(用户 2026-10-28):** alpha 版本由总调度自行发布,无需再确认;RC/GA 必须经用户确认。**用户另授权**:总调度可自行推进,审查通过且 CI 全绿的 PR 可直接转 ready 并合入,默认按总调度的推荐执行。alpha.1 按推荐顺序:#1362(codec)审查合入后发布,release notes 的 codec 条目在 #1362 中同步更新。
 
 **alpha.1 发布步骤(D33):** 1) ✅ #1360、#1361 已合入(main 版本号已为 `5.0.0-alpha.1`);2) release notes 的已知问题按门槛结论填写;3) 用户最终确认后,在合入 #1360 的提交上创建 pre-release `v5.0.0-alpha.1`(会触发 package-deploy:校验、发布 Central、上传迁移工具 jar;以及 docker-deploy,不打 `latest`);4) 用该 tag 手动触发 `document-deploy`;5) 跟踪各 workflow,在 Central、Docker Hub、站点上核对;6) main 改回 SNAPSHOT 版本(例如 `5.0.0-SNAPSHOT`),避免之后的构建冒用 alpha.1 版本号。
 

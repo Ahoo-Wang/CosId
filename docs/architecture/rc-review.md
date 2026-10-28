@@ -130,7 +130,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 | 工作包 | 内容 | 归属会话 | PR | 状态 |
 |---|---|---|---|---|
-| WP-Redis | **B-B1**、B-N4 | R2-Redis'(会话 `r2-redis-b-b1`,2026-10-28 派发) | [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | Draft,**复审通过**(`8b4dfaca`,CI 34 项全绿):7.0 根因为集群总线未传播副本角色(`CLUSTER NODES` 把副本列为无 slot 的 master),刷新拓扑无效;auto 改为逐主节点取 `max(INFO connected_slaves, CLUSTER REPLICAS)`,部分有副本时 open 失败;冻结副本的测试证明同一连接与 B-N4。待用户同意转 ready |
+| WP-Redis | **B-B1**、B-N4 | R2-Redis'(会话 `r2-redis-b-b1`) | [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | ✅ 已合入 `abb5cada`(2026-10-28,用户同意转 ready):7.0 根因为集群总线未传播副本角色,auto 改为逐主节点取 `max(INFO connected_slaves, CLUSTER REPLICAS)`,部分有副本时 open 失败;`wait>0` 时不跟随 MOVED(README 已写明) |
 | WP-JDBC | B-M1、B-N2 | R2-JDBC | [#1354](https://github.com/Ahoo-Wang/CosId/pull/1354) | ✅ 已合入 `d6264e11`;偏差:SQL Server 无论排序规则都忽略尾随空格,方言改为拒绝以空格结尾的 key(不合并为同一 key,唯一性不受损),总调度认可 |
 | WP-ZK | B-N1;**E-B1** 即 #1342 | R2-ZK | [#1342](https://github.com/Ahoo-Wang/CosId/pull/1342) | ✅ 已合入 `a0104227` |
 | WP-server | **C-B1**、**C-B2**、C-M1、C-N1、C-N2、B-N3 | R4-A | [#1349](https://github.com/Ahoo-Wang/CosId/pull/1349) | ✅ 已合入 `2068c48f` |
@@ -149,7 +149,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **收尾阶段(用户 2026-10-27 最新指示):** 不开新任务;已 ready 的 PR 等 CI 全绿后合并;最后登记文档。本机代码必须全部推送到 GitHub。
 
-**收尾结果(2026-10-27):** 用户授权后 #1349、#1351、#1354 已转 ready。已合入 8 个修复 PR;BLOCKER 已解决 9/10,**仅余 B-B1(#1355,Draft)**。其余 Draft:#1352、#1353、#1355、#1356。发布门槛 FAIL(见 §4.2 #1357)。RC1 受阻:B-B1 与门槛回退(codec、MySQL store)。
+**收尾结果(2026-10-27):** 用户授权后 #1349、#1351、#1354 已转 ready。已合入 8 个修复 PR;BLOCKER 已解决 9/10,**仅余 B-B1(#1355,Draft)**。**2026-10-28 更新:#1355 合入(`abb5cada`),10 个 BLOCKER 全部解决**。其余 Draft:#1352、#1353、#1355、#1356。发布门槛 FAIL(见 §4.2 #1357)。RC1 受阻:B-B1 与门槛回退(codec、MySQL store)。
 
 **已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)(WP-migration,D-B1–B4 等,`40d3e13c`)、[#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)(WP-ZK,E-B1 + B-N1,`a0104227`)、[#1348](https://github.com/Ahoo-Wang/CosId/pull/1348)(WP-release,E-B2/E-B3 等,`9de77578`)、[#1354](https://github.com/Ahoo-Wang/CosId/pull/1354)(WP-JDBC,B-M1、B-N2,`d6264e11`)、[#1349](https://github.com/Ahoo-Wang/CosId/pull/1349)(WP-server,**C-B1**、**C-B2**、C-M1 等,`2068c48f`)、[#1351](https://github.com/Ahoo-Wang/CosId/pull/1351)(WP-lease,A-M1,`a68a0191`)。
 
@@ -181,9 +181,9 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 ## 5. RC1 准入清单
 
-- [ ] 审查 A–E 无未关闭的 BLOCKER
+- [x] 审查 A–E 无未关闭的 BLOCKER(#1355 合入后清零,2026-10-28)
 - [ ] 发布门槛报告:全部 PASS,或每个例外有数据并经用户裁定
-- [ ] #1342 合入(L14)
+- [x] #1342 合入(L14)
 - [ ] 遗留事项 L1–L16 中阻塞 RC 的已关闭
 - [ ] 发布配置核对通过(E 路)
 - [ ] 用户确认发布 RC1

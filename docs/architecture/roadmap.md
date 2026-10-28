@@ -129,7 +129,7 @@ R0 骨架、接口冻结、4.x 基线基准
 | R5-B 文档站、示例、迁移指南 | ✅ 分片 [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330)、README/skills [#1338](https://github.com/Ahoo-Wang/CosId/pull/1338)、示例 [#1333](https://github.com/Ahoo-Wang/CosId/pull/1333)、文档站 [#1337](https://github.com/Ahoo-Wang/CosId/pull/1337) | |
 | D29 integrations 按依赖拆分 | ✅ 已合入 | [#1334](https://github.com/Ahoo-Wang/CosId/pull/1334) |
 | D30 server API 去掉 `/v5` 前缀 | ✅ 已合入 | [#1332](https://github.com/Ahoo-Wang/CosId/pull/1332) |
-| RC 前全面审查 | 🔄 审查完成(10 个 BLOCKER);已合入 [#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)、[#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)、[#1348](https://github.com/Ahoo-Wang/CosId/pull/1348)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)、[#1354](https://github.com/Ahoo-Wang/CosId/pull/1354)、[#1349](https://github.com/Ahoo-Wang/CosId/pull/1349)、[#1351](https://github.com/Ahoo-Wang/CosId/pull/1351)(BLOCKER 已解决 9 个:C-B1/C-B2、D-B1–B4、E-B1–B3);尚余 B-B1([#1355](https://github.com/Ahoo-Wang/CosId/pull/1355),Draft)。见 [rc-review.md](rc-review.md) | |
+| RC 前全面审查 | 🔄 审查完成(10 个 BLOCKER);已合入 [#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)、[#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)、[#1348](https://github.com/Ahoo-Wang/CosId/pull/1348)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)、[#1354](https://github.com/Ahoo-Wang/CosId/pull/1354)、[#1349](https://github.com/Ahoo-Wang/CosId/pull/1349)、[#1351](https://github.com/Ahoo-Wang/CosId/pull/1351)(BLOCKER 已解决 9 个:C-B1/C-B2、D-B1–B4、E-B1–B3);B-B1 由 [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) 解决(`abb5cada`),**BLOCKER 已清零**。见 [rc-review.md](rc-review.md) | |
 | R6 发布 | ⏳ | |
 
 后续修复(已合入):`maxBatch` 默认值 [#1317](https://github.com/Ahoo-Wang/CosId/pull/1317)、Mongo 并发 upsert 与重复身份误报 [#1316](https://github.com/Ahoo-Wang/CosId/pull/1316)、
@@ -140,7 +140,7 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 | 里程碑 | 条件 | 状态 |
 |---|---|---|
 | `5.0.0-M1` | R2 + R3 合入,可编程使用 | 条件已满足,待决定是否发布 |
-| `5.0.0-RC1` | R4 全部合入;RC 审查的 BLOCKER 清零;发布门槛通过 | **受阻**:BLOCKER 余 1 个(B-B1),发布门槛 FAIL |
+| `5.0.0-RC1` | R4 全部合入;RC 审查的 BLOCKER 清零;发布门槛通过 | **受阻**:BLOCKER 已清零;发布门槛 FAIL,在 main 上重跑中 |
 | `5.0.0` | R5 全部通过,RC 无阻塞问题;分支改名已在 RC 前完成 | 未开始 |
 
 ### 5.3 进入 R5 前的遗留事项

@@ -141,6 +141,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | WP-segment | A-N4、A-N5 | R1-B | [#1347](https://github.com/Ahoo-Wang/CosId/pull/1347) | ✅ 已合入 `3e25d483` |
 | WP-release | **E-B2**、**E-B3**、E-M2、E-M3、E-N2、E-N3、E-N4、E-N6–N9 | R5-B | [#1348](https://github.com/Ahoo-Wang/CosId/pull/1348) | ✅ 已合入 `9de77578` |
 | WP-docs | E-N1、C-N4、C-N5;09 §2 表述 | 总调度(本 PR) | #1344 | ✅ 已在本 PR 修改 |
+| WP-migration-doc | D32 停机手工迁移(09 §6、from-4x 中英文) | 会话 `docs-manual-migration` | [#1359](https://github.com/Ahoo-Wang/CosId/pull/1359) | Draft,审查通过(key 格式、封存命令与 `migration/source/*` 一致;边界与 D32 一致),待用户同意转 ready |
 | 需用户决定 | E-M1:改 `4.x` 的 document-deploy(GA 后避免覆盖 5.0 文档站);RC 以 pre-release 发布 | 用户 | | 待决定 |
 
 ## 4.1 当前待办(交接用)

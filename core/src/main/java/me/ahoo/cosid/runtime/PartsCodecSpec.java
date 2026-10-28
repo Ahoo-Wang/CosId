@@ -20,6 +20,9 @@ import java.util.Objects;
 
 /**
  * The codec of a {@link GeneratorSpec.CosId80} generator.
+ *
+ * <p>The variants are the current snapshot of a closed set of specs: a minor version may add a variant, so keep a
+ * {@code default} branch in a {@code switch} over them (D40).
  */
 public sealed interface PartsCodecSpec {
     /**

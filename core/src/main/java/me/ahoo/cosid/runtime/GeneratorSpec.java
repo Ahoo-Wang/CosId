@@ -25,70 +25,501 @@ import java.util.Objects;
 
 /**
  * A generator of a {@link RuntimeSpec}, by strategy.
+ *
+ * <p>The variants are the current snapshot of a closed set of specs: a minor version may add a variant, so keep a
+ * {@code default} branch in a {@code switch} over them (D40). The strategy variants are immutable and built with their
+ * builders, the only way to create one, so fields can be added with a default (api-freeze.md §4).
  */
 public sealed interface GeneratorSpec {
     /**
      * A time-based generator packing {@code long} ids.
-     *
-     * @param layout     the layout; its node bits must cover the machine bits
-     * @param regression the clock regression policy
-     * @param codec      the codec list, applied in order; empty for none
      */
-    record Snowflake(Layout layout, ClockRegressionPolicy regression, List<CodecSpec> codec) implements GeneratorSpec {
-        public Snowflake {
-            Objects.requireNonNull(layout, "layout");
-            Objects.requireNonNull(regression, "regression");
-            codec = List.copyOf(Objects.requireNonNull(codec, "codec"));
+    final class Snowflake implements GeneratorSpec {
+        private final Layout layout;
+        private final ClockRegressionPolicy regression;
+        private final List<CodecSpec> codec;
+
+        private Snowflake(Builder builder) {
+            this.layout = builder.layout;
+            this.regression = builder.regression;
+            this.codec = builder.codec;
+        }
+
+        /**
+         * A builder of a snowflake generator.
+         *
+         * @return the builder
+         */
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        /**
+         * The layout; its node bits must cover the machine bits.
+         *
+         * @return the layout; default {@link Layout#SNOWFLAKE_MS}
+         */
+        public Layout layout() {
+            return layout;
+        }
+
+        /**
+         * The clock regression policy.
+         *
+         * @return the policy; default {@link ClockRegressionPolicy#DEFAULT}
+         */
+        public ClockRegressionPolicy regression() {
+            return regression;
+        }
+
+        /**
+         * The codec list, applied in order.
+         *
+         * @return the codec list; default empty, for none
+         */
+        public List<CodecSpec> codec() {
+            return codec;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof Snowflake that && layout.equals(that.layout) && regression.equals(that.regression) && codec.equals(that.codec);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(layout, regression, codec);
+        }
+
+        @Override
+        public String toString() {
+            return "Snowflake[layout=" + layout + ", regression=" + regression + ", codec=" + codec + "]";
+        }
+
+        /**
+         * Builds a {@link Snowflake}.
+         */
+        public static final class Builder {
+            private Layout layout = Layout.SNOWFLAKE_MS;
+            private ClockRegressionPolicy regression = ClockRegressionPolicy.DEFAULT;
+            private List<CodecSpec> codec = List.of();
+
+            private Builder() {
+            }
+
+            /**
+             * Sets the layout; its node bits must cover the machine bits.
+             *
+             * @param layout the layout; default {@link Layout#SNOWFLAKE_MS}
+             * @return this builder
+             */
+            public Builder layout(Layout layout) {
+                this.layout = Objects.requireNonNull(layout, "layout");
+                return this;
+            }
+
+            /**
+             * Sets the clock regression policy.
+             *
+             * @param regression the policy; default {@link ClockRegressionPolicy#DEFAULT}
+             * @return this builder
+             */
+            public Builder regression(ClockRegressionPolicy regression) {
+                this.regression = Objects.requireNonNull(regression, "regression");
+                return this;
+            }
+
+            /**
+             * Sets the codec list, applied in order.
+             *
+             * @param codec the codec list; default empty, for none
+             * @return this builder
+             */
+            public Builder codec(List<CodecSpec> codec) {
+                this.codec = List.copyOf(Objects.requireNonNull(codec, "codec"));
+                return this;
+            }
+
+            /**
+             * Builds the generator.
+             *
+             * @return the generator
+             */
+            public Snowflake build() {
+                return new Snowflake(this);
+            }
         }
     }
 
     /**
      * The 80-bit CosId ({@link Layout#COSID_80}), text only.
-     *
-     * @param regression the clock regression policy
-     * @param codec      the parts codec
      */
-    record CosId80(ClockRegressionPolicy regression, PartsCodecSpec codec) implements GeneratorSpec {
-        public CosId80 {
-            Objects.requireNonNull(regression, "regression");
-            Objects.requireNonNull(codec, "codec");
+    final class CosId80 implements GeneratorSpec {
+        private final ClockRegressionPolicy regression;
+        private final PartsCodecSpec codec;
+
+        private CosId80(Builder builder) {
+            this.regression = builder.regression;
+            this.codec = builder.codec;
+        }
+
+        /**
+         * A builder of a cosid80 generator.
+         *
+         * @return the builder
+         */
+        public static Builder builder() {
+            return new Builder();
+        }
+
+        /**
+         * The clock regression policy.
+         *
+         * @return the policy; default {@link ClockRegressionPolicy#DEFAULT}
+         */
+        public ClockRegressionPolicy regression() {
+            return regression;
+        }
+
+        /**
+         * The parts codec.
+         *
+         * @return the codec; default radix 62
+         */
+        public PartsCodecSpec codec() {
+            return codec;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof CosId80 that && regression.equals(that.regression) && codec.equals(that.codec);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(regression, codec);
+        }
+
+        @Override
+        public String toString() {
+            return "CosId80[regression=" + regression + ", codec=" + codec + "]";
+        }
+
+        /**
+         * Builds a {@link CosId80}.
+         */
+        public static final class Builder {
+            private ClockRegressionPolicy regression = ClockRegressionPolicy.DEFAULT;
+            private PartsCodecSpec codec = new PartsCodecSpec.Radix(62);
+
+            private Builder() {
+            }
+
+            /**
+             * Sets the clock regression policy.
+             *
+             * @param regression the policy; default {@link ClockRegressionPolicy#DEFAULT}
+             * @return this builder
+             */
+            public Builder regression(ClockRegressionPolicy regression) {
+                this.regression = Objects.requireNonNull(regression, "regression");
+                return this;
+            }
+
+            /**
+             * Sets the parts codec.
+             *
+             * @param codec the codec; default radix 62
+             * @return this builder
+             */
+            public Builder codec(PartsCodecSpec codec) {
+                this.codec = Objects.requireNonNull(codec, "codec");
+                return this;
+            }
+
+            /**
+             * Builds the generator.
+             *
+             * @return the generator
+             */
+            public CosId80 build() {
+                return new CosId80(this);
+            }
         }
     }
 
     /**
      * A segment generator.
-     *
-     * @param store the store name
-     * @param batch the batch policy
-     * @param codec the codec list, applied in order; empty for none
      */
-    record Segment(String store, BatchPolicy batch, List<CodecSpec> codec) implements GeneratorSpec {
-        public Segment {
-            Objects.requireNonNull(store, "store");
-            Objects.requireNonNull(batch, "batch");
-            codec = List.copyOf(Objects.requireNonNull(codec, "codec"));
+    final class Segment implements GeneratorSpec {
+        private final String store;
+        private final BatchPolicy batch;
+        private final List<CodecSpec> codec;
+
+        private Segment(Builder builder) {
+            this.store = builder.store;
+            this.batch = builder.batch;
+            this.codec = builder.codec;
+        }
+
+        /**
+         * A builder of a segment generator.
+         *
+         * @param store the store name
+         * @return the builder
+         */
+        public static Builder builder(String store) {
+            return new Builder(store);
+        }
+
+        /**
+         * The store name.
+         *
+         * @return the store name
+         */
+        public String store() {
+            return store;
+        }
+
+        /**
+         * The batch policy.
+         *
+         * @return the policy; default {@link BatchPolicy#DEFAULT}
+         */
+        public BatchPolicy batch() {
+            return batch;
+        }
+
+        /**
+         * The codec list, applied in order.
+         *
+         * @return the codec list; default empty, for none
+         */
+        public List<CodecSpec> codec() {
+            return codec;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof Segment that && store.equals(that.store) && batch.equals(that.batch) && codec.equals(that.codec);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(store, batch, codec);
+        }
+
+        @Override
+        public String toString() {
+            return "Segment[store=" + store + ", batch=" + batch + ", codec=" + codec + "]";
+        }
+
+        /**
+         * Builds a {@link Segment}.
+         */
+        public static final class Builder {
+            private final String store;
+            private BatchPolicy batch = BatchPolicy.DEFAULT;
+            private List<CodecSpec> codec = List.of();
+
+            private Builder(String store) {
+                this.store = Objects.requireNonNull(store, "store");
+            }
+
+            /**
+             * Sets the batch policy.
+             *
+             * @param batch the policy; default {@link BatchPolicy#DEFAULT}
+             * @return this builder
+             */
+            public Builder batch(BatchPolicy batch) {
+                this.batch = Objects.requireNonNull(batch, "batch");
+                return this;
+            }
+
+            /**
+             * Sets the codec list, applied in order.
+             *
+             * @param codec the codec list; default empty, for none
+             * @return this builder
+             */
+            public Builder codec(List<CodecSpec> codec) {
+                this.codec = List.copyOf(Objects.requireNonNull(codec, "codec"));
+                return this;
+            }
+
+            /**
+             * Builds the generator.
+             *
+             * @return the generator
+             */
+            public Segment build() {
+                return new Segment(this);
+            }
         }
     }
 
     /**
      * A periodic segment generator.
-     *
-     * @param store    the store name
-     * @param period   the period
-     * @param zone     the time zone the periods follow
-     * @param batch    the batch policy of each period
-     * @param periodic the periodic policy
-     * @param codec    the grouped codec
      */
-    record PeriodicSegment(String store, Period period, ZoneId zone, BatchPolicy batch, PeriodicPolicy periodic,
-                           GroupedCodecSpec codec) implements GeneratorSpec {
-        public PeriodicSegment {
-            Objects.requireNonNull(store, "store");
-            Objects.requireNonNull(period, "period");
-            Objects.requireNonNull(zone, "zone");
-            Objects.requireNonNull(batch, "batch");
-            Objects.requireNonNull(periodic, "periodic");
-            Objects.requireNonNull(codec, "codec");
+    final class PeriodicSegment implements GeneratorSpec {
+        private final String store;
+        private final Period period;
+        private final ZoneId zone;
+        private final BatchPolicy batch;
+        private final PeriodicPolicy periodic;
+        private final GroupedCodecSpec codec;
+
+        private PeriodicSegment(Builder builder) {
+            this.store = builder.store;
+            this.period = builder.period;
+            this.zone = builder.zone;
+            this.batch = builder.batch;
+            this.periodic = builder.periodic;
+            this.codec = builder.codec;
+        }
+
+        /**
+         * A builder of a periodic segment generator.
+         *
+         * @param store  the store name
+         * @param period the period
+         * @param zone   the time zone the periods follow
+         * @return the builder
+         */
+        public static Builder builder(String store, Period period, ZoneId zone) {
+            return new Builder(store, period, zone);
+        }
+
+        /**
+         * The store name.
+         *
+         * @return the store name
+         */
+        public String store() {
+            return store;
+        }
+
+        /**
+         * The period.
+         *
+         * @return the period
+         */
+        public Period period() {
+            return period;
+        }
+
+        /**
+         * The time zone the periods follow.
+         *
+         * @return the zone
+         */
+        public ZoneId zone() {
+            return zone;
+        }
+
+        /**
+         * The batch policy of each period.
+         *
+         * @return the policy; default {@link BatchPolicy#DEFAULT}
+         */
+        public BatchPolicy batch() {
+            return batch;
+        }
+
+        /**
+         * The periodic policy.
+         *
+         * @return the policy; default {@link PeriodicPolicy#DEFAULT}
+         */
+        public PeriodicPolicy periodic() {
+            return periodic;
+        }
+
+        /**
+         * The grouped codec.
+         *
+         * @return the codec; default the period first, {@code -}, then the value
+         */
+        public GroupedCodecSpec codec() {
+            return codec;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return o instanceof PeriodicSegment that && store.equals(that.store) && period.equals(that.period) && zone.equals(that.zone)
+                && batch.equals(that.batch) && periodic.equals(that.periodic) && codec.equals(that.codec);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(store, period, zone, batch, periodic, codec);
+        }
+
+        @Override
+        public String toString() {
+            return "PeriodicSegment[store=" + store + ", period=" + period + ", zone=" + zone + ", batch=" + batch
+                + ", periodic=" + periodic + ", codec=" + codec + "]";
+        }
+
+        /**
+         * Builds a {@link PeriodicSegment}.
+         */
+        public static final class Builder {
+            private final String store;
+            private final Period period;
+            private final ZoneId zone;
+            private BatchPolicy batch = BatchPolicy.DEFAULT;
+            private PeriodicPolicy periodic = PeriodicPolicy.DEFAULT;
+            private GroupedCodecSpec codec = new GroupedCodecSpec.DatePrefix("-", List.of());
+
+            private Builder(String store, Period period, ZoneId zone) {
+                this.store = Objects.requireNonNull(store, "store");
+                this.period = Objects.requireNonNull(period, "period");
+                this.zone = Objects.requireNonNull(zone, "zone");
+            }
+
+            /**
+             * Sets the batch policy of each period.
+             *
+             * @param batch the policy; default {@link BatchPolicy#DEFAULT}
+             * @return this builder
+             */
+            public Builder batch(BatchPolicy batch) {
+                this.batch = Objects.requireNonNull(batch, "batch");
+                return this;
+            }
+
+            /**
+             * Sets the periodic policy.
+             *
+             * @param periodic the policy; default {@link PeriodicPolicy#DEFAULT}
+             * @return this builder
+             */
+            public Builder periodic(PeriodicPolicy periodic) {
+                this.periodic = Objects.requireNonNull(periodic, "periodic");
+                return this;
+            }
+
+            /**
+             * Sets the grouped codec.
+             *
+             * @param codec the codec; default the period first, {@code -}, then the value
+             * @return this builder
+             */
+            public Builder codec(GroupedCodecSpec codec) {
+                this.codec = Objects.requireNonNull(codec, "codec");
+                return this;
+            }
+
+            /**
+             * Builds the generator.
+             *
+             * @return the generator
+             */
+            public PeriodicSegment build() {
+                return new PeriodicSegment(this);
+            }
         }
     }
 

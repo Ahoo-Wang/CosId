@@ -212,6 +212,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | 8 | Mongo 分片集群:推荐加 CI job 证实"集合不分片"可用并写明不要分片(R1-mongo-04) | WP-docs | 改为文档收窄为副本集 |
 | 9 | main 上 11 个 Dependabot 告警(3 high)须在 GA 前处理(Renovate) | GA 准入核对项 | — |
 | 10 | 是否发布 RC1、何时发布 | 待门槛 PASS 与 API 冻结完成后请用户决定 | — |
+| 11 | RC 版本号写法:`5.0.0-rc.1`(与 `5.0.0-alpha.1` 同为 SemVer 点分预发布标识,`alpha.1 < rc.1` 在 SemVer 与 Maven 中都成立;大写 `RC1` 在 SemVer ASCII 排序中会排在 `alpha` 之前)。roadmap 中 `5.0.0-RC1` 指同一版本 | 协调会话按推荐(PR6 #1377 的草稿 release notes 已用 `rc.1`) | 改用 `5.0.0-RC1` |
 
 ## 4.2 审查不通过登记
 

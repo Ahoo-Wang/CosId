@@ -165,7 +165,9 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 - **门槛判定本身过严**:阈值只比 4.x 宽 0.3%~1.5%(例如 renew 906.4 vs 913.5 µs,阈值 908.9),低于共享 runner 的噪声,同一代码两次运行也会有不同的行失败。需要用户裁定 D21 的判定口径(例如吞吐与平均延迟 5%、p99.9 10%、分配 5% 或 +64 B,可重复失败才算回退)。
 - 判定口径已定为 **D34**(容差:吞吐/平均 5%、p99/p99.9 10%、分配 max(5%, +64 B),重跑仍失败才算回退)。
 - 新偶发测试(2026-10-28):`spring/autoconfigure` 的 `CosIdRuntimeHintsTest.theStoreTypeHintsNameEveryStore` 用 `ClassPathResource("META-INF/spring-configuration-metadata.json")` 读取,classpath 上有多份同名文件(含 Spring Boot 自身),取到哪份取决于顺序(#1362 的 push Codecov run 40640793637 失败 3 次,同提交的 pull_request run 通过)。修复:读取本模块生成的那份(按 jar/目录过滤,或 `getResources` 合并后查找)。并入下一个修复会话。
-- 派发队列(一次一个子会话):① codec(会话 `r1a-codec-perf`,进行中)→ alpha.1 发布(总调度)→ ② **GA 前审查第 1 轮**(§6)→ ③ 门槛实现 D34(`benchmark/compare` 及测试、10 §1.3)→ ④ 修复:第 1 轮发现 + MySQL 分配 + 号段与 ZK 分配(按严重度排序,一次一个)→ ⑤ 在 main 上按 D34 重跑门槛 → RC1(用户确认)→ 第 2 轮审查 → GA。alpha.1 不等门槛(D33),数据写入 release notes 已知问题。
+- ✅ codec 修复 [#1362](https://github.com/Ahoo-Wang/CosId/pull/1362) 已合入 `81a9ef59`(dry-run:decode +8~13%、encode +30~32%,分配 88 B)。
+- ✅ **`v5.0.0-alpha.1` pre-release 已创建**(2026-10-28,目标 `81a9ef59`):Packages Deploy run 40642647501、Docker Image Deploy run 40642646814 进行中;文档站部署与核对待其成功后进行。
+- 派发队列(一次一个子会话):① codec(✅)→ alpha.1 发布(总调度)→ ② **GA 前审查第 1 轮**(§6)→ ③ 门槛实现 D34(`benchmark/compare` 及测试、10 §1.3)→ ④ 修复:第 1 轮发现 + MySQL 分配 + 号段与 ZK 分配(按严重度排序,一次一个)→ ⑤ 在 main 上按 D34 重跑门槛 → RC1(用户确认)→ 第 2 轮审查 → GA。alpha.1 不等门槛(D33),数据写入 release notes 已知问题。
 
 **协调(2026-10-28,用户同意执行顺序):**
 1. 第一次门槛测的是修复合入前的 `614d5df9`;#1354(JDBC 排序规则与超时)、#1351(存储 I/O 移出锁)会改变 MySQL 与租约的数据。因此先在 main 上重跑:[run 40623986450](https://github.com/Ahoo-Wang/CosId/actions/runs/40623986450)(`a68a0191`,publish=false)。结果出来后再派发回退修复:R1-A' codec radix 编解码(在 #1352 合入后的 main 上做,避免冲突;原因见 #1345)、R2-JDBC' MySQL store;mongo/zookeeper/segment 用两次结果判断是否为噪声,仍超阈值的分别派发或请用户裁定例外。

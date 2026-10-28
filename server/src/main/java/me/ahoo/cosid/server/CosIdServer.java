@@ -123,6 +123,12 @@ public class CosIdServer {
         return BackingStore.open(runtimeSpec.stores(), properties.store(), providers.orderedStream().toList(), properties.blocking().threads());
     }
 
+    /** The backing store in the readiness group, as {@code cosIdServerStore} (R1-server-02); liveness does not ask it. */
+    @Bean(destroyMethod = "close")
+    StoreHealthIndicator cosIdServerStoreHealthIndicator(BackingStore store) {
+        return new StoreHealthIndicator(store);
+    }
+
     @Bean
     OpenAPI cosIdServerOpenApi() {
         return new OpenAPI()

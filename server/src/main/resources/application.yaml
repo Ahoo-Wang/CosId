@@ -15,8 +15,12 @@ management:
   endpoint:
     health:
       # /actuator/health/liveness answers without asking the store: use it for container health checks.
+      # /actuator/health/readiness also reserves on the backing store (key cosid-server/readiness, 2s timeout).
       probes:
         enabled: true
+      group:
+        readiness:
+          include: readinessState, cosIdServerStore
   endpoints:
     web:
       exposure:

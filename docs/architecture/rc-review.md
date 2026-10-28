@@ -218,6 +218,11 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 执行方式:同一时间只有 1 个子会话。审查只读(不跑构建与基准),每轮一个子会话按维度逐模块审查(可在会话内用只读子代理),发现写入 Draft PR 上的 `docs/architecture/ga-review.md`,由总调度逐条核实后排入修复队列。
 
+### 第 1 轮进展
+
+- 进行中:会话 `ga-review-r1`,Draft PR [#1364](https://github.com/Ahoo-Wang/CosId/pull/1364)(`docs/architecture/ga-review.md`)。
+- 已核实(总调度):R1-x-03 MAJOR(cosid80 位宽与阈值不可配,11 第 19 行"等价"不准确,触及冻结面)、R1-x-04 MAJOR(迁移的布局相同判定包含 `seqResetThreshold`)、R1-x-05 MINOR(cosid80 静默忽略 friendly `pad-start` 等属性)。处理按 D36(方案 1:补齐)。全部发现出齐后统一排入修复队列。
+
 ### GA 准入清单
 
 - [ ] 第 1、2 轮审查无未关闭的 BLOCKER/MAJOR(或经用户裁定)

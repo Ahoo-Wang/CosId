@@ -169,14 +169,29 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
         this.incarnationKey = namespace + '/' + owner.incarnation();
     }
 
+    /**
+     * The namespace the slot is leased in.
+     *
+     * @return the namespace
+     */
     public String namespace() {
         return namespace;
     }
 
+    /**
+     * The owner the slot is leased for.
+     *
+     * @return the owner
+     */
     public Owner owner() {
         return owner;
     }
 
+    /**
+     * The slot bits: the namespace holds {@code 2^bits} slots.
+     *
+     * @return the bits
+     */
     public int bits() {
         return bits;
     }

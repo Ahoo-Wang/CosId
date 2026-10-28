@@ -46,6 +46,11 @@ public class CosIdEndpoint {
 
     private final CosIdRuntime runtime;
 
+    /**
+     * Creates the endpoint.
+     *
+     * @param runtime the runtime it describes and generates from
+     */
     public CosIdEndpoint(CosIdRuntime runtime) {
         this.runtime = runtime;
     }

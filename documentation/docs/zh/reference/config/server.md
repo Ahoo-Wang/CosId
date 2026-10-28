@@ -2,7 +2,8 @@
 
 `cosid.server.*`，由 cosid-server 的 `ServerProperties` 绑定。除此之外，服务端也读取普通的 `cosid.*`
 属性（[运行时、存储、机器号](basic.md)、[生成器](generators.md)）：其后备存储是 `cosid.stores` 中的一个。
-每个属性都可以从环境变量设置，例如 `COSID_SERVER_AUTH_TOKENS_0`。
+每个属性都可以从环境变量设置，例如 `COSID_SERVER_AUTH_TOKENS_0`，存储选项也一样
+（`COSID_STORES_MAIN_OPTIONS_CONNECTSTRING` 设置 `connectString`：选项键不区分大小写）。
 
 | 属性 | 默认值 | 含义 |
 |---|---|---|

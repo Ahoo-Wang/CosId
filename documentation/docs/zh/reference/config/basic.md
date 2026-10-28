@@ -4,7 +4,7 @@ Spring Boot starter 的全部 `cosid.*` 属性及其默认值，由 `cosid-sprin
 record 绑定。生成器与编解码器：[生成器](generators.md)。cosid-server：
 [`cosid.server.*`](server.md)。时长采用 Spring 的格式（`500ms`、`2s`、`1m`、ISO-8601）。
 
-绑定不到任何字段的 `cosid.*` 键会让启动失败，拼错的键不会悄悄退回默认值。例外是 `cosid.stores.<name>.options.*`（由各后端自行校验）
+绑定不到任何字段的 `cosid.*` 键会让启动失败，拼错的键不会悄悄退回默认值。例外是 `cosid.stores.<name>.options.*`（由各后端自行校验，见下文）
 、下文列出的集成与 server 的键，以及与进程中其他部分共用的系统属性和环境变量。
 
 ## 顶层
@@ -28,7 +28,8 @@ record 绑定。生成器与编解码器：[生成器](generators.md)。cosid-se
 | `client` | | 用作客户端的 Bean；默认使用上下文中该类型客户端的唯一 Bean（`DataSource`；Lettuce 客户端或 `RedisConnectionFactory`；`MongoClient`；`CuratorFramework`） |
 | `options.*` | | 后端选项，字符串 |
 
-后端选项：
+后端选项。大小写、`-` 与 `_` 不区分，所以 `init-schema`、`INIT_SCHEMA` 和环境变量 `COSID_STORES_DB_OPTIONS_INITSCHEMA`
+都设置 `initSchema`；`.` 仍是分隔符（`retry.baseSleepTime`）。后端不认识的键会让启动失败，并列出它认识的键：
 
 | 类型 | 选项（默认值） |
 |---|---|

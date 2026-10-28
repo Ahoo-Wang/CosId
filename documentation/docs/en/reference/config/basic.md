@@ -5,7 +5,7 @@ Every `cosid.*` property of the Spring Boot starter, with its default, as bound 
 [`cosid.server.*`](server.md). Durations take Spring's forms (`500ms`, `2s`, `1m`, ISO-8601).
 
 A `cosid.*` key that binds to nothing fails the start, so a typo does not fall back to a default silently. The
-exceptions are `cosid.stores.<name>.options.*` (each backend checks its own), the keys of the integrations and the
+exceptions are `cosid.stores.<name>.options.*` (each backend checks its own, below), the keys of the integrations and the
 server listed below, and system properties and environment variables, which the rest of the process shares.
 
 ## Top level
@@ -29,7 +29,9 @@ server listed below, and system properties and environment variables, which the 
 | `client` | | the bean used as the client; by default the single bean of the type's client in the context (`DataSource`; Lettuce client or `RedisConnectionFactory`; `MongoClient`; `CuratorFramework`) |
 | `options.*` | | backend options, strings |
 
-Backend options:
+Backend options. Case, `-` and `_` do not count, so `init-schema`, `INIT_SCHEMA` and the environment variable
+`COSID_STORES_DB_OPTIONS_INITSCHEMA` all set `initSchema`; `.` still separates (`retry.baseSleepTime`). A key the backend
+does not know fails the start and lists the ones it does:
 
 | Type | Options (default) |
 |---|---|

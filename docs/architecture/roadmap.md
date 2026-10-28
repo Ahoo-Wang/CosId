@@ -140,6 +140,7 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 | 里程碑 | 条件 | 状态 |
 |---|---|---|
 | `5.0.0-M1` | R2 + R3 合入,可编程使用 | 条件已满足,待决定是否发布 |
+| `5.0.0-alpha.1` | BLOCKER 清零;pre-release、不做兼容性承诺(D33) | 准备中:版本号与 4.x document-deploy 的 PR 待开 |
 | `5.0.0-RC1` | R4 全部合入;RC 审查的 BLOCKER 清零;发布门槛通过 | **受阻**:BLOCKER 已清零;发布门槛 FAIL,在 main 上重跑中 |
 | `5.0.0` | R5 全部通过,RC 无阻塞问题;分支改名已在 RC 前完成 | 未开始 |
 

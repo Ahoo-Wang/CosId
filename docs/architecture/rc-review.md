@@ -33,8 +33,8 @@
 | C spring/server/integrations | ✅ 完成,已核实 | 2 BLOCKER(由 MAJOR 上调)、1 MAJOR、5 MINOR(见 §3.C) |
 | D migration | ✅ 完成 | 4 BLOCKER(含 3 个由 MAJOR 上调)、3 MAJOR、4 MINOR(见 §3.D) |
 | E 发布就绪 | ✅ 完成,已核实 | 3 BLOCKER、3 MAJOR、9 MINOR(见 §3.E) |
-| 发布门槛(CI) | 运行中:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762),spring-start 组已通过 | 分析 Draft PR [#1345](https://github.com/Ahoo-Wang/CosId/pull/1345)(`docs/jmh/5.0/analysis.md`) |
-| #1342 ZK 排除 Netty | CI 中 | — |
+| 发布门槛(CI) | 第一次 [run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762)(`614d5df9`)FAIL;**第二次 [run 40623986450](https://github.com/Ahoo-Wang/CosId/actions/runs/40623986450)(`a68a0191`,含全部已合入修复,publish=false)运行中** | 分析 Draft PR [#1345](https://github.com/Ahoo-Wang/CosId/pull/1345)(`docs/jmh/5.0/analysis.md`) |
+| #1342 ZK 排除 Netty | ✅ 已合入 | — |
 
 ## 3. 发现(核实后填写)
 
@@ -130,7 +130,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 | 工作包 | 内容 | 归属会话 | PR | 状态 |
 |---|---|---|---|---|
-| WP-Redis | **B-B1**、B-N4 | R2-Redis | [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | Draft,等 CI(含带副本的 Cluster 测试) |
+| WP-Redis | **B-B1**、B-N4 | R2-Redis'(会话 `r2-redis-b-b1`,2026-10-28 派发) | [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | Draft,退回修复中(见 §4.2) |
 | WP-JDBC | B-M1、B-N2 | R2-JDBC | [#1354](https://github.com/Ahoo-Wang/CosId/pull/1354) | ✅ 已合入 `d6264e11`;偏差:SQL Server 无论排序规则都忽略尾随空格,方言改为拒绝以空格结尾的 key(不合并为同一 key,唯一性不受损),总调度认可 |
 | WP-ZK | B-N1;**E-B1** 即 #1342 | R2-ZK | [#1342](https://github.com/Ahoo-Wang/CosId/pull/1342) | ✅ 已合入 `a0104227` |
 | WP-server | **C-B1**、**C-B2**、C-M1、C-N1、C-N2、B-N3 | R4-A | [#1349](https://github.com/Ahoo-Wang/CosId/pull/1349) | ✅ 已合入 `2068c48f` |
@@ -156,6 +156,12 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 **PR 审查(2026-10-27,全部为 Draft):** #1352(WP-time-codec,A-N1–N3、A-N6、A-N7)通过;#1353(WP-spring,C-N3)通过;#1356(Mongo range E11000 重试的确定性测试)通过,CI 全绿。#1352、#1353 唯一的失败是 mongo:8.0,已重跑。#1355 不通过,见 §4.2。#1357 共 +3,041,743 行(多为基准 JSON 原始数据),即使有 CI 也不应合入 main,报告应只提交摘要。
 
 **发布门槛:** run 40534275762 结论 **FAIL**(5/8 组),见 §4.2 #1357;D21 未满足,RC 阻断。
+
+**协调(2026-10-28,用户同意执行顺序):**
+1. 第一次门槛测的是修复合入前的 `614d5df9`;#1354(JDBC 排序规则与超时)、#1351(存储 I/O 移出锁)会改变 MySQL 与租约的数据。因此先在 main 上重跑:[run 40623986450](https://github.com/Ahoo-Wang/CosId/actions/runs/40623986450)(`a68a0191`,publish=false)。结果出来后再派发回退修复:R1-A' codec radix 编解码(在 #1352 合入后的 main 上做,避免冲突;原因见 #1345)、R2-JDBC' MySQL store;mongo/zookeeper/segment 用两次结果判断是否为噪声,仍超阈值的分别派发或请用户裁定例外。
+2. 已派发会话 `r2-redis-b-b1`:#1355 查清 Redis 7.0 下 `wait=auto` 解析为 0 的根因并修复。
+3. 已派发会话 `ci-gate-mongo`(新 Draft PR):门槛报告改为 job summary + artifact,不再自动开 PR(报告是证据,不进 main;#1357 关闭);mongo:8.0 容器起不来时打印容器日志并查根因(疑为 runner 不支持 AVX)。
+4. #1352、#1353、#1356 审查已通过,转 ready 与同步 main 待用户明确同意(自动权限拒绝了未经明确同意的转 ready 与 update-branch)。#1353 的 mongo:8.0 失败已确认为 `Container exited with code 1`,已重跑。
 
 **本机代码备份:** 12 个只存在于本机的旧分支已推送为 `origin/archive/<原分支名>`(SHA 已核对),包括 4.x 时期的 `feat/replication-window`、`feat/jdbc-dialect`、`feat/generator-name-properties`、`build/unpublished-platform`、`test/deflake-meter-binder-zk-timeout`、`chore/release-4.1.1`、`fix/b5-virtual-thread-pinning`,以及 5.0 时期的 `r3-runtime`、`claude/r0-skeleton-004bc6`、`claude/magical-gould-a7e144`、`feat/r5a-parity-gaps`、`refactor/d29-split-integrations`。本机 `main` 的 4 个提交已包含在 `origin/4.x`。两个曾有未提交改动的工作区已推送:R4-C 的改动在 #1350(`fc17ef84`),R2-Mongo 的在 #1356。
 

@@ -125,7 +125,7 @@ R0 骨架、接口冻结、4.x 基线基准
 | R4-A 远程服务与客户端 | ✅ 已合入 | [#1328](https://github.com/Ahoo-Wang/CosId/pull/1328) |
 | R4-B 集成适配器 | ✅ 已合入 | [#1327](https://github.com/Ahoo-Wang/CosId/pull/1327) |
 | R4-C 离线迁移工具 | ✅ 已合入 | [#1324](https://github.com/Ahoo-Wang/CosId/pull/1324) |
-| R5-A 发布门槛基准与特性验收 | 🔄 特性验收、稳定性、能力缺口、CI 发布门槛 workflow 均已合入([#1335](https://github.com/Ahoo-Wang/CosId/pull/1335)、[#1336](https://github.com/Ahoo-Wang/CosId/pull/1336)、[#1343](https://github.com/Ahoo-Wang/CosId/pull/1343));正式门槛 [run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762)(修复合入前的 `614d5df9`)结论 **FAIL**:8 组中 5 组回退(主要是 codec、MySQL store),D21 未满足;分析在 [#1345](https://github.com/Ahoo-Wang/CosId/pull/1345) | |
+| R5-A 发布门槛基准与特性验收 | 🔄 特性验收、稳定性、能力缺口、CI 发布门槛 workflow 均已合入([#1335](https://github.com/Ahoo-Wang/CosId/pull/1335)、[#1336](https://github.com/Ahoo-Wang/CosId/pull/1336)、[#1343](https://github.com/Ahoo-Wang/CosId/pull/1343));正式门槛 [run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762)(修复合入前的 `614d5df9`)结论 **FAIL**:8 组中 5 组回退(主要是 codec、MySQL store),D21 未满足;分析在 [#1345](https://github.com/Ahoo-Wang/CosId/pull/1345)。2026-10-28 在含全部修复的 main(`a68a0191`)上重跑:[run 40623986450](https://github.com/Ahoo-Wang/CosId/actions/runs/40623986450) | |
 | R5-B 文档站、示例、迁移指南 | ✅ 分片 [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330)、README/skills [#1338](https://github.com/Ahoo-Wang/CosId/pull/1338)、示例 [#1333](https://github.com/Ahoo-Wang/CosId/pull/1333)、文档站 [#1337](https://github.com/Ahoo-Wang/CosId/pull/1337) | |
 | D29 integrations 按依赖拆分 | ✅ 已合入 | [#1334](https://github.com/Ahoo-Wang/CosId/pull/1334) |
 | D30 server API 去掉 `/v5` 前缀 | ✅ 已合入 | [#1332](https://github.com/Ahoo-Wang/CosId/pull/1332) |

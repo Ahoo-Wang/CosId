@@ -16,6 +16,7 @@ package me.ahoo.cosid.migration.target;
 import me.ahoo.cosid.migration.StoreLocation;
 import me.ahoo.cosid.store.jdbc.JdbcDialect;
 import me.ahoo.cosid.store.jdbc.JdbcDialects;
+import me.ahoo.cosid.store.jdbc.JdbcStore;
 import me.ahoo.cosid.store.jdbc.JdbcTables;
 
 import java.sql.Connection;
@@ -76,6 +77,8 @@ public final class JdbcTarget implements TargetAdmin {
                     }
                     slotOffsetColumn = null;
                 }
+                // So does the slot table its index of an acquire's own rows (R1-jdbc-01).
+                JdbcStore.addMissingIndex(connection, dialect, tables);
             }
         } catch (SQLException | RuntimeException e) {
             close();

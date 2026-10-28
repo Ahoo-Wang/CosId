@@ -199,18 +199,22 @@ final class JdbcSlotLeaseStore implements SlotLeaseStore {
         String table = session.tables().slot();
         String columns = "slot, fence, owner_key, incarnation, last_owner_key, expires_at, floor_ms, ceiling_ms, next_floor_ms, case when " + free
             + " then 1 else 0 end as free_now, " + now + " as store_now";
-        String sql = "select * from (select " + columns + " from " + table
-            + " where namespace = ? and slot < ? and (owner_key = ? or last_owner_key = ? or slot = ?)) o union all select * from ("
-            + jdbc.dialect.firstRows(columns, table, "namespace = ? and slot < ? and " + free, "slot", FREE_CANDIDATES) + ") f";
+        // R1-jdbc-01: one branch per index. take() writes owner_key and last_owner_key together and release() keeps
+        // last_owner_key, so the rows the owner key holds are among those it held last: (namespace, last_owner_key)
+        // finds them, the primary key the preferred slot and the free ones, with no scan of the namespace.
+        String sql = "select * from (select " + columns + " from " + table + " where namespace = ? and slot < ? and last_owner_key = ?) o"
+            + " union all select * from (select " + columns + " from " + table + " where namespace = ? and slot = ? and slot < ?) p"
+            + " union all select * from (" + jdbc.dialect.firstRows(columns, table, "namespace = ? and slot < ? and " + free, "slot", FREE_CANDIDATES) + ") f";
         Map<Integer, Candidate> candidates = new TreeMap<>();
         try (PreparedStatement select = session.prepare(sql)) {
             select.setString(1, namespace);
             select.setInt(2, ns.limit);
             select.setString(3, owner.key());
-            select.setString(4, owner.key());
+            select.setString(4, namespace);
             select.setInt(5, preferred);
-            select.setString(6, namespace);
-            select.setInt(7, ns.limit);
+            select.setInt(6, ns.limit);
+            select.setString(7, namespace);
+            select.setInt(8, ns.limit);
             try (ResultSet rs = select.executeQuery()) {
                 while (rs.next()) {
                     String incarnation = rs.getString("incarnation");

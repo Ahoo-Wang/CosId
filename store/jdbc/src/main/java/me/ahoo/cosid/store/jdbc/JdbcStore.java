@@ -21,6 +21,7 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import javax.sql.DataSource;
 
@@ -33,6 +34,8 @@ import javax.sql.DataSource;
  * namespaces of slot offset 0.
  */
 public final class JdbcStore implements Store {
+    /** The columns of the slot table's index of an acquire's own rows (R1-jdbc-01). */
+    static final List<String> LAST_OWNER_INDEX_COLUMNS = List.of("namespace", "last_owner_key");
     private final Jdbc jdbc;
     private final JdbcRangeStore ranges;
     private final JdbcSlotLeaseStore slots;
@@ -110,8 +113,32 @@ public final class JdbcStore implements Store {
                 }
             }
             slots.addMissingColumns(session);
+            addMissingIndex(session.connection(), jdbc.dialect, jdbc.tables);
             return null;
         });
+    }
+
+    /**
+     * Adds the slot table's index on {@code (namespace, last_owner_key)} (R1-jdbc-01) when the table lacks it, as a
+     * table of 5.0.0-alpha.1 does; {@code initSchema} runs it, and so does the migration tool on its target. Idempotent:
+     * when a concurrent caller created the index first, the failure is ignored.
+     *
+     * @param connection a connection that may create indexes
+     * @param dialect    the dialect
+     * @param tables     the tables
+     * @throws SQLException if creating the index fails and it still does not exist
+     */
+    public static void addMissingIndex(Connection connection, JdbcDialect dialect, JdbcTables tables) throws SQLException {
+        if (Jdbc.hasIndex(connection, tables.slot(), LAST_OWNER_INDEX_COLUMNS)) {
+            return;
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(dialect.createIndex(tables.slot(), tables.lastOwnerIndex(), LAST_OWNER_INDEX_COLUMNS));
+        } catch (SQLException e) {
+            if (!Jdbc.hasIndex(connection, tables.slot(), LAST_OWNER_INDEX_COLUMNS)) {
+                throw e;
+            }
+        }
     }
 
     @Override

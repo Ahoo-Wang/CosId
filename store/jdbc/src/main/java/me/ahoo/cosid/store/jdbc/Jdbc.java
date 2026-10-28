@@ -21,9 +21,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import javax.sql.DataSource;
 
 /**
@@ -167,6 +172,49 @@ final class Jdbc {
             }
         }
         return qualifier != null || !inSchema.isEmpty() ? inSchema : elsewhere;
+    }
+
+    /**
+     * Whether a table has an index whose leading columns are these, in this order, as
+     * {@link DatabaseMetaData#getIndexInfo} shows it; the table is found as {@link #columns} finds it.
+     */
+    static boolean hasIndex(Connection connection, String table, List<String> leading) throws SQLException {
+        int dot = table.indexOf('.');
+        String qualifier = dot < 0 ? null : table.substring(0, dot);
+        String schema = qualifier == null ? connection.getSchema() : null;
+        String name = table.substring(dot + 1);
+        DatabaseMetaData metaData = connection.getMetaData();
+        String stored = metaData.storesUpperCaseIdentifiers() ? name.toUpperCase(Locale.ROOT)
+            : metaData.storesLowerCaseIdentifiers() ? name.toLowerCase(Locale.ROOT) : name;
+        Map<String, Map<Integer, String>> inSchema = new HashMap<>();
+        Map<String, Map<Integer, String>> elsewhere = new HashMap<>();
+        try (ResultSet rs = metaData.getIndexInfo(qualifier == null ? connection.getCatalog() : null, null, stored, false, true)) {
+            while (rs.next()) {
+                String column = rs.getString("COLUMN_NAME");
+                if (column == null || !name.equalsIgnoreCase(rs.getString("TABLE_NAME"))) {
+                    continue;
+                }
+                String tableSchema = rs.getString("TABLE_SCHEM");
+                String index = tableSchema + "." + rs.getString("INDEX_NAME");
+                Map<String, Map<Integer, String>> into;
+                if (qualifier != null) {
+                    if (!qualifier.equalsIgnoreCase(tableSchema) && !qualifier.equalsIgnoreCase(rs.getString("TABLE_CAT"))) {
+                        continue;
+                    }
+                    into = inSchema;
+                } else {
+                    into = schema != null && schema.equalsIgnoreCase(tableSchema) ? inSchema : elsewhere;
+                }
+                into.computeIfAbsent(index, k -> new TreeMap<>()).put((int) rs.getShort("ORDINAL_POSITION"), column.toLowerCase(Locale.ROOT));
+            }
+        }
+        for (Map<Integer, String> columns : (qualifier != null || !inSchema.isEmpty() ? inSchema : elsewhere).values()) {
+            List<String> ordered = new ArrayList<>(columns.values());
+            if (ordered.size() >= leading.size() && ordered.subList(0, leading.size()).equals(leading)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @FunctionalInterface

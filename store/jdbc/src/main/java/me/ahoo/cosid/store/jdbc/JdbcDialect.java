@@ -98,6 +98,20 @@ public interface JdbcDialect {
     }
 
     /**
+     * The statement that creates an index, for {@code options.initSchema} on a table that lacks it
+     * ({@code cosid_slot}'s index on {@code (namespace, last_owner_key)} came after 5.0.0-alpha.1). The store runs it
+     * only when the index is missing.
+     *
+     * @param table   the table, as {@link JdbcTables} names it
+     * @param name    the index name, unqualified
+     * @param columns the indexed columns, in order
+     * @return the statement
+     */
+    default String createIndex(String table, String name, List<String> columns) {
+        return "create index " + name + " on " + table + " (" + String.join(", ", columns) + ")";
+    }
+
+    /**
      * The statement that adds a column to an existing table, for {@code options.initSchema} on tables created by an
      * earlier 5.0 pre-release ({@code cosid_namespace.slot_offset} came after 5.0.0-alpha.1). The store runs it only
      * when the column is missing.

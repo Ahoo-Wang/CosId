@@ -9,6 +9,9 @@ with ids 4.x issued, and converts the configuration.
 before the migration, and 5.0 starts after it. This is not a rolling upgrade.
 :::
 
+A simple deployment may also migrate by hand during a downtime, without the tool: see
+[Stop-the-world migration without the tool](#stop-the-world-migration-without-the-tool).
+
 ## What the tool guarantees
 
 | # | Constraint | How |
@@ -125,6 +128,109 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
 ```
 
 Exit codes of every command: `0` done, `1` a check failed or the command aborted, `2` a usage error.
+
+## Stop-the-world migration without the tool
+
+**`cosid-migration` stays the recommended path**: it watches that 4.x really stopped, seals the source data, writes a
+floor for time-based generators, and checks the result with `verify`. A simple enough deployment may instead migrate
+by hand during a downtime. A manual migration has none of these safeguards: meeting M1–M3 above is entirely up to you.
+
+### When a manual migration is possible
+
+Only when **every** generator of the namespace is one of:
+
+- **a time-based generator with an unchanged layout**: Snowflake or CosIdGenerator whose epoch, time unit and field
+  widths are those of 4.x, that is the 4.x defaults (the 5.0 presets keep them).
+- **a plain (non-periodic) segment**, share included (the `default` generator in 5.0).
+
+**Use the tool** for:
+
+- periodic (grouped) segments. A manual migration moves past the 4.x value with `initial-offset`, which is where
+  **every new key** starts; a periodic generator creates a new key for every period, so every later period would start
+  at that large offset as well: an order number that restarts at 1 every day would no longer start at 1.
+- custom layouts or epochs, including a custom epoch on a second-based Snowflake.
+- many keys, too many to check one by one; or when you want the safeguards: quiescence watch, automatic seal, `verify`.
+
+As with the tool, 4.x and 5.0 never run in the same namespace: every 4.x instance stops first, 5.0 starts after.
+
+### Time-based generators
+
+1. **Stop every 4.x instance**, and note when the last one stopped (the stop time). A forgotten 4.x instance that holds
+   the same machine id as a 5.0 instance issues the same ids at the same moment, and a manual migration will not
+   catch it for you.
+2. **Stay down** for at least the largest clock skew between any two hosts, and **at least 1 minute**. 4.x also let a
+   host run up to 10s ahead of the store: count that in the skew.
+3. **Check NTP sync on every host** (`chronyc tracking`, `timedatectl`, …): the skew must be within the downtime.
+4. With StaticSlot you can also set a floor: a host whose clock is behind waits until it passes it.
+
+   ```yaml
+   cosid:
+     machine:
+       static:
+         not-before: 2026-11-01T02:00:10Z   # stop time + largest clock skew
+   ```
+
+5. **Start 5.0**.
+
+Why it works: with the same layout the time is in the highest bits, so a later id is always a larger number; the
+downtime makes 5.0's first timestamp later than every timestamp 4.x issued.
+
+::: warning A host whose clock is behind is not stopped
+The tool writes a floor `W` into every slot of the new namespace. After a manual migration the 5.0 slots have a floor
+of 0: a host whose clock is behind by more than the downtime issues ids in the time range 4.x used, and repeats ids if
+it holds the same machine id. Leased slots have no floor you can set by hand: only the downtime and the NTP check
+protect them.
+:::
+
+### Plain segments
+
+1. **Stop every 4.x instance**.
+2. **Read each segment's 4.x value, `last_max_id`**. `{ns}` is the 4.x `cosid.namespace`, `{name}` the segment name;
+   the share segment is named `__share__`:
+
+   | 4.x backend | Location | Read |
+   |---|---|---|
+   | JDBC | table `cosid`, `name = '{ns}.{name}'` | `select last_max_id from cosid where name = 'shop.order';` |
+   | Redis | string `cosid:{ns.name}.adder` (the braces are part of the key) | `GET "cosid:{shop.order}.adder"` |
+   | MongoDB | collection `cosid`, `_id = '{ns}.{name}'` | `db.cosid.findOne({_id: "shop.order"}).lastMaxId` |
+   | ZooKeeper | node `/cosid/{ns}.{name}`, an 8-byte big-endian integer | `zkCli` cannot show it: read it with `plan` below |
+
+   The read-only `cosid-migration plan` (step 2 of the runbook) also reads them all at once: its report lists the 4.x
+   value of every segment.
+3. **(Recommended) Seal by hand**: atomically add a large number to the 4.x value (for example `2^40` =
+   `1099511627776`), then take `last_max_id = sealed value − 2^40`. Every fetch before the seal is counted, and a
+   forgotten 4.x instance gets ranges far away from 5.0's. On a rollback 4.x continues from the larger value, still
+   without repeats.
+
+   | 4.x backend | Seal (returns or reads back the sealed value) |
+   |---|---|
+   | JDBC | in one transaction: `update cosid set last_max_id = last_max_id + 1099511627776 where name = 'shop.order';` then `select last_max_id from cosid where name = 'shop.order';` |
+   | Redis | `INCRBY "cosid:{shop.order}.adder" 1099511627776` |
+   | MongoDB | `db.cosid.findOneAndUpdate({_id: "shop.order"}, {$inc: {lastMaxId: NumberLong("1099511627776")}}, {returnDocument: "after"})` |
+   | ZooKeeper | no shell command does it; use the tool if you want a seal |
+
+4. **Set `initial-offset = last_max_id + 1` on the matching 5.0 generator** (see the
+   [generator configuration](../../reference/config/generators.md)). The share segment is the `default` generator.
+
+   ```yaml
+   cosid:
+     namespace: shop
+     generators:
+       order:
+         strategy: segment
+         store: main
+         initial-offset: 120001   # the 4.x last_max_id was 120000
+   ```
+
+5. **Start 5.0**.
+
+Why it works: every 4.x fetch atomically moves `last_max_id` forward by a step, so it bounds every range any instance
+reserved; 5.0's first id is `last_max_id + 1`.
+
+::: warning `initial-offset` applies to new keys only
+It is used only when 5.0 creates the key. Set it **before 5.0 first starts**; once 5.0 has issued ids for the key (a
+trial run, say), it no longer has any effect: make sure the key does not exist in the 5.0 store yet.
+:::
 
 ## Rollback
 

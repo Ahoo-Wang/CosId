@@ -153,6 +153,8 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)(WP-migration,D-B1–B4 等,`40d3e13c`)、[#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)(WP-ZK,E-B1 + B-N1,`a0104227`)、[#1348](https://github.com/Ahoo-Wang/CosId/pull/1348)(WP-release,E-B2/E-B3 等,`9de77578`)、[#1354](https://github.com/Ahoo-Wang/CosId/pull/1354)(WP-JDBC,B-M1、B-N2,`d6264e11`)、[#1349](https://github.com/Ahoo-Wang/CosId/pull/1349)(WP-server,**C-B1**、**C-B2**、C-M1 等,`2068c48f`)、[#1351](https://github.com/Ahoo-Wang/CosId/pull/1351)(WP-lease,A-M1,`a68a0191`)。
 
+**PR 审查(2026-10-27,全部为 Draft):** #1352(WP-time-codec,A-N1–N3、A-N6、A-N7)通过;#1353(WP-spring,C-N3)通过;#1356(Mongo range E11000 重试的确定性测试)通过,CI 全绿。#1352、#1353 唯一的失败是 mongo:8.0,已重跑。#1355 不通过,见 §4.2。#1357 共 +3,041,743 行(多为基准 JSON 原始数据),即使有 CI 也不应合入 main,报告应只提交摘要。
+
 **发布门槛:** run 40534275762 结论 **FAIL**(5/8 组),见 §4.2 #1357;D21 未满足,RC 阻断。
 
 **本机代码备份:** 12 个只存在于本机的旧分支已推送为 `origin/archive/<原分支名>`(SHA 已核对),包括 4.x 时期的 `feat/replication-window`、`feat/jdbc-dialect`、`feat/generator-name-properties`、`build/unpublished-platform`、`test/deflake-meter-binder-zk-timeout`、`chore/release-4.1.1`、`fix/b5-virtual-thread-pinning`,以及 5.0 时期的 `r3-runtime`、`claude/r0-skeleton-004bc6`、`claude/magical-gould-a7e144`、`feat/r5a-parity-gaps`、`refactor/d29-split-integrations`。本机 `main` 的 4 个提交已包含在 `origin/4.x`。两个曾有未提交改动的工作区已推送:R4-C 的改动在 #1350(`fc17ef84`),R2-Mongo 的在 #1356。
@@ -168,6 +170,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 | PR | 问题 | 处理 |
 |---|---|---|
+| [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | WP-Redis(B-B1)审查不通过:`Store Redis TCK (Redis 7.0)` 稳定失败(8.10 和 6.2 probe 通过)。`ClusterReplicaWaitTest` 中 `wait=auto` 在 7.0 上解析为 0(期望 1),之后 WAIT 不执行,冻结副本时写入照常成功。这是产品缺陷,不只是测试问题:启动时 auto 若解析为 0,WAIT 就会一直被静默跳过,与 B-B1 属同类问题。可能原因:Lettuce 缓存的拓扑还没显示副本,或 7.0 的 CLUSTER NODES 解析不同 | 已退回 R2-Redis:查清 7.0 的根因;auto 解析改为刷新拓扑或按各主节点的 INFO replication 计数,存在副本却解析为 0 时不能静默;同连接执行 WAIT 和 B-N4 的设计认可 |
 | [#1357](https://github.com/Ahoo-Wang/CosId/pull/1357) | 发布门槛自动报告(run 40534275762,基于 `614d5df9`,即各修复合入前):**FAIL,8 组中 5 组失败**。重跑后仍失败:codec-filler 4 行(radix36/62 编解码单线程吞吐低约 12–15%);mongo 1 行(reserve 分配多约 4%);mysql 7 行(`MySqlStoreBenchmark.acquire` 耗时约 +70%,acquire/renew/reserve 分配 +25–65%,ChainId p99/p99.9 偏高);segment 1 行;zookeeper 4 行(renew/reserve 小幅超阈值 1–7%)。另外该 PR 由 workflow 的 GITHUB_TOKEN 创建,不触发 CI,处于 BLOCKED,不满足“CI 全绿”规则 | 不合入。D21(性能不回退)未满足,是 **RC 阻断项**;分析在 #1345(R5-A)。收尾阶段不开新任务,RC 前需派发:codec 与 MySQL store 为主要回退;mongo/zookeeper/segment 行接近阈值,需先确认是否为噪声。报告需改为由能触发 CI 的身份创建(或改为直接推到 #1345) |
 
 ## 5. RC1 准入清单

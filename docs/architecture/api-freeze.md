@@ -1,6 +1,6 @@
 # RC1 API 冻结设计
 
-> 状态:**已审,按协调会话结论定稿**(2026-10-28,基于 `main` @ `5021602e`;§12 第 5 项改为 RC 前纳入 `slotOffset`)。只定设计,不改代码;实现按 §10 一次一个 PR。
+> 状态:**已审,按协调会话结论定稿**(2026-10-28,基于 `main` @ `5021602e`;§12 第 5 项改为 RC 前纳入 `slotOffset`)。只定设计,不改代码;实现按 §10 一次一个 PR,PR1–PR5 已合入(#1372–#1376),文档为 PR6。
 > 输入:README D36–D38;[ga-review.md](ga-review.md) §2、§3、§3.1、§4 与各模块"触及冻结面"的条目。
 > 决策表的新增或修改见 §11,由协调会话转录进 README;本文件不改 README、rc-review、roadmap。
 > 设计细节同步进 [03](03-core-model.md)、[05](05-machine-lease.md)、[07](07-runtime-and-spring.md)、[09](09-migration.md)、[11](11-feature-parity.md)。
@@ -502,14 +502,14 @@ Function<String, Optional<IdGenerator>> generators();   // 解析 Custom 的引�
 
 ## 10. 推荐的实现拆分(一次一个 PR,顺序依赖)
 
-| PR | 内容 | 依赖 |
-|---|---|---|
-| PR1 `refactor(core)!: evolvable value types` | §4:类型改为 final class + builder,全仓构造调用机械替换;`StoreConfig` timeout 为正;不加任何新字段、不改行为 | — |
-| PR2 `feat(core)!: cosid80 layout, acquire timeout, custom generators` | §1.1、§5、§6、§7 的 R1-core-11/12/17 | PR1 |
-| PR3 `feat(core)!: named machines and slot offset` | §2.1–2.4 的 core 部分;`Leased.slotOffset` 与 §2.5.1(SPI 参数、各后端元数据、remote 协议、TCK、06/08);`CosIdRuntime.slot(name)/machines()/text(name)` | PR2 |
-| PR4 `feat(spring)!: freeze the configuration` | §1.2、§3、§5/§6 的 Spring 键、§7 的 R1-spring-03/05/06 与 `metrics.generated.enabled`、§2.6 的 `cosid.machines` 与指标/健康检查 | PR3 |
-| PR5 `feat(migration): named machine for cosid.generator.namespace` | §1.4、§2.7;09 同步 | PR4 |
-| PR6 `docs: API freeze` | §9(中英文);11 的新行与测试链接 | PR5 |
+| PR | 内容 | 依赖 | 状态 |
+|---|---|---|---|
+| PR1 `refactor(core)!: evolvable value types` | §4:类型改为 final class + builder,全仓构造调用机械替换;`StoreConfig` timeout 为正;不加任何新字段、不改行为 | — | 已合入 #1372(`ba294a5f`) |
+| PR2 `feat(core)!: cosid80 layout, acquire timeout, custom generators` | §1.1、§5、§6、§7 的 R1-core-11/12/17 | PR1 | 已合入 #1373(`7225296a`) |
+| PR3 `feat(core)!: named machines and slot offset` | §2.1–2.4 的 core 部分;`Leased.slotOffset` 与 §2.5.1(SPI 参数、各后端元数据、remote 协议、TCK、06/08);`CosIdRuntime.slot(name)/machines()/text(name)` | PR2 | 已合入 #1374(`a6e91a88`) |
+| PR4 `feat(spring)!: freeze the configuration` | §1.2、§3、§5/§6 的 Spring 键、§7 的 R1-spring-03/05/06 与 `metrics.generated.enabled`、§2.6 的 `cosid.machines` 与指标/健康检查 | PR3 | 已合入 #1375(`8144607a`) |
+| PR5 `feat(migration): named machine for cosid.generator.namespace` | §1.4、§2.7;09 同步 | PR4 | 已合入 #1376(`385d363e`) |
+| PR6 `docs: API freeze` | §9(中英文);11 的新行与测试链接 | PR5 | 本 PR |
 
 PR4 偏大时可拆成 4a(D36/D38/R1-core-02/03 的键与 R1-spring-03/05/06)与 4b(`cosid.machines`、指标与健康检查)。WP-store-contract 可在 PR1 之后与 PR2–PR5 交替进行(只依赖 `StoreConfig` builder)。
 
@@ -518,7 +518,7 @@ PR4 偏大时可拆成 4a(D36/D38/R1-core-02/03 的键与 R1-spring-03/05/06)与
 | 编号 | 决策 | 状态 |
 |---|---|---|
 | D36(补充) | cosid80 的 `epoch`/`unit` 固定(Unix、毫秒),设置即报错;Spring 的 `layout` 默认值按策略;radix 的 `width`/`pad-start` 在 cosid80 上报错;迁移 `config` 写出 4.x 位宽、阈值与 `pad-start` | 待确认 |
-| D37(补充) | 一个运行时内各 machine 的有效命名空间两两不同;machine 名 `default` 保留;只启动被引用的 machine;串行启动、逆序释放,各 machine 按自己的生成器取 `lastIssued`;指标加 `machine` 标签,健康检查按 machine 汇总;`Leased.slotOffset`(默认 0,节点号 = offset + slot,`offset + 2^bits ≤ 2^nodeBits`,记入命名空间元数据 `{limit, tolerance, slotOffset}`,不一致即拒绝,RC 前随 PR3 实现);迁移把 `cosid.generator.namespace` 写成命名 machine `generator`(`bits: 10`,`slot-offset` 默认取 4.x 最大机器号 + 1 向上取整到 2 的幂),共享命名空间单独迁移一次,默认滚动迁移(4.x 与 5.0 共存),可选一次性切换(offset 0) | 已定(协调会话 2026-10-28) |
+| D37(补充) | 一个运行时内各 machine 的有效命名空间两两不同;machine 名 `default` 保留;只启动被引用的 machine;串行启动、逆序释放,各 machine 按自己的生成器取 `lastIssued`;指标加 `machine` 标签,健康检查按 machine 汇总;`Leased.slotOffset`(默认 0,节点号 = offset + slot,`offset + 2^bits ≤ 2^nodeBits`,记入命名空间元数据 `{limit, tolerance, slotOffset}`,不一致即拒绝,RC 前随 PR3 实现);迁移把 `cosid.generator.namespace` 写成命名 machine `generator`(`bits: 10`,`slot-offset` 默认 `2^nodeBits − 2^bits`,即 5.0 槽位放在节点空间顶端,`plan` 报告并记录 headroom `offset − (M + 1)`),共享命名空间单独迁移一次,默认滚动迁移(4.x 与 5.0 共存),可选一次性切换(offset 0) | 已定(协调会话 2026-10-28) |
 | D38(补充) | 解析在自动配置中完成,应用名同样校验命名空间语法 | 待确认 |
 | D39 | 公开值类型的演进:封闭的值(`Range`、`IdParts`、`GroupedId`、`Owner`、`Layout`、`ClockRegressionPolicy`、codec 规格、`Exhausted`、`Disabled`)保留 record;配置与 SPI 值类型改为 final class + builder,GA 后只往 builder 加有默认值的字段;`CosIdProperties` 不属于 API 承诺 | 已定(按推荐,协调会话 2026-10-28) |
 | D40 | sealed 规格接口(`GeneratorSpec`、`MachineSpec`、`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`)次版本可加变体,javadoc 要求 `switch` 保留 `default`;`AcquireResult` 封闭 | 已定(按推荐,协调会话 2026-10-28) |

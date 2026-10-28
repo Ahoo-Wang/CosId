@@ -149,7 +149,7 @@ public final class Migration {
         }
         renames.putAll(options.renames());
         groupPatterns.putAll(options.groupPatterns());
-        int bits = options.slotBits() != null ? options.slotBits() : legacy != null ? legacy.machineBit() : Legacy4x.DEFAULT_MACHINE_BIT;
+        final int bits = options.slotBits() != null ? options.slotBits() : legacy != null ? legacy.machineBit() : Legacy4x.DEFAULT_MACHINE_BIT;
         if (options.slotOffset() != null && !sharedPlan) {
             throw new MigrationAbortedException("--slot-offset applies to the shared cosid.generator.namespace of --layout-config only: plan it with"
                 + " --namespace <that namespace>");
@@ -587,7 +587,7 @@ public final class Migration {
         KeyMapper mapper = new KeyMapper(plan.namespace(), plan.renames(), plan.groupPatterns());
         try (Readers source = readers(from, machineFrom); TargetAdmin target = targets.apply(to);
              TargetAdmin slotTarget = machineTarget(to, machineTo, target)) {
-            Plan.GeneratorNamespace generatorNamespace = checkGeneratorNamespace(plan, slotTarget);
+            final Plan.GeneratorNamespace generatorNamespace = checkGeneratorNamespace(plan, slotTarget);
             LegacySnapshot first = source.read(plan.namespace(), extra);
             long observed = 0;
             LegacySnapshot snapshot = first;

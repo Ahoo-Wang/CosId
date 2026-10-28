@@ -135,4 +135,19 @@ class RuntimeModelTest {
         listener.onStoreTimeout("db", "reserve");
         assertThat(listener, sameInstance(GeneratorListener.NOOP));
     }
+
+    @Test
+    void newFieldsDefaultToTheFormerBehavior() {
+        assertThat(MachineSpec.Leased.builder("db").build().acquireTimeout(), is(Duration.ofSeconds(30)));
+        assertThat(MachineSpec.Leased.builder("db").ttl(Duration.ofSeconds(10)).build().acquireTimeout(), is(Duration.ofSeconds(10)));
+        assertThat(MachineSpec.Leased.builder("db").ttl(Duration.ofSeconds(10)).acquireTimeout(Duration.ZERO).build().acquireTimeout(), is(Duration.ZERO));
+        assertThat(GeneratorSpec.CosId80.builder().build().layout(), is(Layout.COSID_80));
+        assertThat(new PartsCodecSpec.Friendly(ZoneOffset.UTC).padStart(), is(true));
+        assertThat(new PartsCodecSpec.Friendly(ZoneOffset.UTC, false).padStart(), is(false));
+        me.ahoo.cosid.IdGenerator ids = () -> 1;
+        assertThat(GeneratorSpec.Instance.builder(ids).build(), is(GeneratorSpec.Instance.builder(ids).build()));
+        assertThat(GeneratorSpec.Custom.builder("legacy").build().codec(), is(List.of()));
+        assertThat(GeneratorSpec.Custom.builder("legacy").build().toString(), is("Custom[reference=legacy, codec=[]]"));
+        assertThrows(NullPointerException.class, () -> GeneratorSpec.Custom.builder(null));
+    }
 }

@@ -33,7 +33,6 @@ import me.ahoo.cosid.segment.RangeStore;
 import me.ahoo.cosid.segment.SegmentGenerator;
 import me.ahoo.cosid.store.Store;
 import me.ahoo.cosid.store.StoreConfig;
-import me.ahoo.cosid.time.Layout;
 import me.ahoo.cosid.time.TimeBasedGenerator;
 
 import org.slf4j.Logger;
@@ -141,7 +140,7 @@ public final class RuntimeParts {
             case MachineSpec.Leased leased -> {
                 Owner owner = new Owner(plan.ownerKey().orElseThrow(), UUID.randomUUID());
                 keeper = new LeaseKeeper(ObservedStores.slots(leased.store(), store(leased.store()).slots(), listener), namespace, owner, leased.bits(), leased.ttl(),
-                    leased.tolerance(), leased.preferredSlot(), leased.ttl(), executor, options.time(), listener);
+                    leased.tolerance(), leased.preferredSlot(), leased.acquireTimeout(), executor, options.time(), listener);
                 keeper.start();
                 return keeper;
             }
@@ -178,7 +177,7 @@ public final class RuntimeParts {
                 new TimeBasedGenerator(name, snowflake.layout(), slot, options.time(), snowflake.regression(), listener),
                 (IdCodec) generator.codec(), slot, counter);
             case GeneratorSpec.CosId80 cosId80 -> GeneratorEntry.cosId80(
-                new TimeBasedGenerator(name, Layout.COSID_80, slot, options.time(), cosId80.regression(), listener),
+                new TimeBasedGenerator(name, cosId80.layout(), slot, options.time(), cosId80.regression(), listener),
                 (PartsCodec) generator.codec(), slot, counter);
             case GeneratorSpec.Segment segment -> GeneratorEntry.segment(
                 new SegmentGenerator(name, key, segment.store(), ranges(segment.store(), listener), segment.batch(), executor, options.time(),
@@ -191,8 +190,13 @@ public final class RuntimeParts {
                     "key", key,
                     "zone", periodic.zone().getId(),
                     "step", periodic.batch().step(),
+                    "maxBatch", periodic.batch().maxBatch(),
+                    "lookahead", periodic.batch().lookahead().toString(),
+                    "reserveTimeout", periodic.batch().reserveTimeout().toString(),
                     "prewarm", periodic.periodic().prewarm().toString(),
                     "sealAfter", periodic.periodic().sealAfter().map(Object::toString).orElse("")), counter);
+            case GeneratorSpec.Custom custom -> GeneratorEntry.custom(name, generator.ids(), (IdCodec) generator.codec(), counter);
+            case GeneratorSpec.Instance instance -> GeneratorEntry.custom(name, generator.ids(), (IdCodec) generator.codec(), counter);
             case GeneratorSpec.Disabled disabled -> GeneratorEntry.disabled(name, strategy(disabled.generator()), storeOf(disabled.generator()));
         };
     }
@@ -203,6 +207,8 @@ public final class RuntimeParts {
             case GeneratorSpec.CosId80 cosId80 -> GeneratorEntry.COSID80;
             case GeneratorSpec.Segment segment -> GeneratorEntry.SEGMENT;
             case GeneratorSpec.PeriodicSegment periodic -> GeneratorEntry.PERIODIC_SEGMENT;
+            case GeneratorSpec.Custom custom -> GeneratorEntry.CUSTOM;
+            case GeneratorSpec.Instance instance -> GeneratorEntry.CUSTOM;
             case GeneratorSpec.Disabled disabled -> strategy(disabled.generator());
         };
     }

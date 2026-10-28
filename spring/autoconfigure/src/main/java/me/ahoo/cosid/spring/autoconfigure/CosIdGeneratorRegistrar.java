@@ -122,6 +122,8 @@ public class CosIdGeneratorRegistrar implements BeanDefinitionRegistryPostProces
             case GeneratorSpec.Segment segment -> IdGenerator.class;
             case GeneratorSpec.CosId80 cosId80 -> PartsIdGenerator.class;
             case GeneratorSpec.PeriodicSegment periodic -> GroupedIdGenerator.class;
+            case GeneratorSpec.Custom custom -> IdGenerator.class;
+            case GeneratorSpec.Instance instance -> IdGenerator.class;
             case GeneratorSpec.Disabled disabled -> beanType(disabled.generator());
         };
     }

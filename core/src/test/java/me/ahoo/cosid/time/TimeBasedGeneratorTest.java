@@ -15,6 +15,7 @@ package me.ahoo.cosid.time;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
@@ -23,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import me.ahoo.cosid.ClockBackwardsException;
 import me.ahoo.cosid.SlotLostException;
 import me.ahoo.cosid.SlotWindowExceededException;
+import me.ahoo.cosid.TimeOverflowException;
 import me.ahoo.cosid.observe.GeneratorListener;
 
 import org.junit.jupiter.api.AfterEach;
@@ -288,11 +290,35 @@ class TimeBasedGeneratorTest {
     }
 
     @Test
+    void aCustomCosId80LayoutIssuesItsParts() {
+        // 43 time bits, 12 node bits, 20 sequence bits, a low reset threshold: a new millisecond starts at most at 3.
+        Layout wide = new Layout(Instant.EPOCH, ChronoUnit.MILLIS, 43, 12, 20, 3);
+        TimeBasedGenerator generator = generator(wide, FakeSlot.forever(4095), ClockRegressionPolicy.DEFAULT);
+        time.set(1_800_000_000_000L);
+        for (int i = 0; i < 100; i++) {
+            IdParts parts = generator.nextParts();
+            assertThat(parts.node(), is(4095));
+            assertThat(parts.seq() <= 3, is(true));
+            time.advance(1);
+        }
+        for (int i = 0; i < 10; i++) {
+            generator.nextParts();
+        }
+        assertThat(generator.nextParts().seq() > 3, is(true));
+    }
+
+    @Test
     void timeBeyondTheLayoutFails() {
         Layout short10 = new Layout(Layout.COSID_EPOCH, ChronoUnit.MILLIS, 10, 10, 12, 0);
-        assertThrows(IllegalStateException.class, generator(short10)::generate);
+        TimeOverflowException overflow = assertThrows(TimeOverflowException.class, generator(short10)::generate);
+        assertThat(overflow.timeBits(), is(10));
+        assertThat(overflow.getMessage(), containsString("overflows the 10 time bits"));
+        // A clock before the epoch went back (CosIdRuntime.start rejects an epoch in the future).
         time.set(EPOCH - 1);
-        assertThrows(IllegalStateException.class, generator(Layout.SNOWFLAKE_MS)::generate);
+        listener.events.clear();
+        ClockBackwardsException before = assertThrows(ClockBackwardsException.class, generator(Layout.SNOWFLAKE_MS)::generate);
+        assertThat(before.backwardsMillis(), is(1L));
+        assertThat(listener.events, contains("fail:1"));
     }
 
     @Test

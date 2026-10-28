@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Random;
 
 class PartsCodecTest {
@@ -104,5 +105,34 @@ class PartsCodecTest {
         }
         assertThrows(IllegalArgumentException.class, () -> codec.encode(new IdParts(1L << 44, 0, 0)));
         assertThrows(IllegalArgumentException.class, () -> codec.decode("20261026123456789-1048576-00007"));
+    }
+
+    @Test
+    void friendlyWithoutPadding() {
+        PartsCodec codec = PartsCodec.friendly(Layout.COSID_80, SHANGHAI, false);
+        long millis = Instant.parse("2026-10-26T04:34:56.789Z").toEpochMilli();
+        assertThat(codec.encode(new IdParts(millis, 1, 7)), is("20261026123456789-1-7"));
+        assertThat(codec.decode("20261026123456789-1-7"), is(new IdParts(millis, 1, 7)));
+        assertThat(codec.encode(new IdParts(millis, 0, 0)), is("20261026123456789-0-0"));
+        assertThat(codec.decode("20261026123456789-0-0"), is(new IdParts(millis, 0, 0)));
+        Random random = new Random(11);
+        for (int i = 0; i < 2_000; i++) {
+            IdParts parts = new IdParts(random.nextLong() >>> 20, random.nextInt(1 << 20), random.nextInt(1 << 16));
+            assertThat(codec.decode(codec.encode(parts)), is(parts));
+        }
+    }
+
+    @Test
+    void codecsFollowACustomCosId80Layout() {
+        Layout wide = new Layout(Instant.EPOCH, ChronoUnit.MILLIS, 44, 12, 24, Layout.defaultSeqResetThreshold(24));
+        Random random = new Random(13);
+        for (PartsCodec codec : List.of(PartsCodec.radix(wide, 62), PartsCodec.radix(wide, 36), PartsCodec.friendly(wide, SHANGHAI),
+            PartsCodec.friendly(wide, SHANGHAI, false))) {
+            for (int i = 0; i < 1_000; i++) {
+                IdParts parts = new IdParts(random.nextLong() >>> 20, random.nextInt(1 << 12), random.nextInt(1 << 24));
+                assertThat(codec.decode(codec.encode(parts)), is(parts));
+            }
+            assertThrows(IllegalArgumentException.class, () -> codec.encode(new IdParts(0, 1 << 12, 0)));
+        }
     }
 }

@@ -14,6 +14,7 @@
 package me.ahoo.cosid.internal;
 
 import me.ahoo.cosid.CosIdException;
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.runtime.GeneratorSpec;
 import me.ahoo.cosid.runtime.HostResolver;
 import me.ahoo.cosid.runtime.MachineSpec;
@@ -24,6 +25,8 @@ import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.time.Layout;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -59,8 +62,10 @@ public final class RuntimePlan {
      * @param name  the name
      * @param spec  the spec; a {@link GeneratorSpec.Disabled} one is not created
      * @param codec the {@code IdCodec}, {@code PartsCodec} or {@code GroupedCodec} by strategy; null when disabled
+     * @param ids   the user generator of a {@link GeneratorSpec.Custom} (resolved) or {@link GeneratorSpec.Instance}; null
+     *              otherwise
      */
-    public record Generator(String name, GeneratorSpec spec, Object codec) {
+    public record Generator(String name, GeneratorSpec spec, Object codec, IdGenerator ids) {
     }
 
     /**
@@ -122,11 +127,12 @@ public final class RuntimePlan {
                 continue;
             }
             if (generator instanceof GeneratorSpec.Disabled) {
-                generators.add(new Generator(name, generator, null));
+                generators.add(new Generator(name, generator, null, null));
                 continue;
             }
             String at = "generator [" + name + "]: ";
             Object codec = null;
+            IdGenerator ids = null;
             try {
                 switch (generator) {
                     case GeneratorSpec.Snowflake snowflake -> {
@@ -136,12 +142,26 @@ public final class RuntimePlan {
                             problems.add(at + "a snowflake layout must fit a long, not " + layout.totalBits() + " bits: use cosid80");
                         }
                         checkNodeBits(spec.machine(), layout, at, problems);
+                        checkEpoch(layout, options, at, problems);
                         codec = codecs.ids(snowflake.codec(), Optional.of(layout));
                     }
                     case GeneratorSpec.CosId80 cosId80 -> {
                         timeBased.add(name);
-                        checkNodeBits(spec.machine(), Layout.COSID_80, at, problems);
-                        codec = Codecs.parts(cosId80.codec());
+                        Layout layout = cosId80.layout();
+                        if (layout.totalBits() <= Layout.LONG_BITS) {
+                            problems.add(at + "a cosid80 layout must be wider than a long, not " + layout.totalBits() + " bits: it fits a long, use snowflake");
+                        }
+                        // The 80-bit text decodes alike in every CosId implementation (D4, D36): 4.x used the Unix epoch in ms.
+                        if (!layout.epoch().equals(Instant.EPOCH) || layout.unit() != ChronoUnit.MILLIS) {
+                            problems.add(at + "a cosid80 layout keeps the Unix epoch and milliseconds, not " + layout.epoch() + " in " + layout.unit());
+                        }
+                        // The sequencer packs the time and the sequence in a long (TimeSequencer).
+                        if (layout.timeBits() + layout.seqBits() > Layout.LONG_BITS) {
+                            problems.add(at + "timeBits + seqBits of a cosid80 layout must be at most " + Layout.LONG_BITS + ", not "
+                                + (layout.timeBits() + layout.seqBits()));
+                        }
+                        checkNodeBits(spec.machine(), layout, at, problems);
+                        codec = Codecs.parts(cosId80.codec(), layout);
                     }
                     case GeneratorSpec.Segment segment -> {
                         checkStore(spec, segment.store(), segment.batch(), at, problems, usedStores);
@@ -151,12 +171,23 @@ public final class RuntimePlan {
                         checkStore(spec, periodic.store(), periodic.batch(), at, problems, usedStores);
                         codec = codecs.grouped(periodic.codec(), periodic.period());
                     }
+                    case GeneratorSpec.Custom custom -> {
+                        codec = codecs.ids(custom.codec(), Optional.empty());
+                        ids = options.generators().apply(custom.reference()).orElse(null);
+                        if (ids == null) {
+                            problems.add(at + "no generator [" + custom.reference() + "] to refer to");
+                        }
+                    }
+                    case GeneratorSpec.Instance instance -> {
+                        codec = codecs.ids(instance.codec(), Optional.empty());
+                        ids = instance.ids();
+                    }
                     case GeneratorSpec.Disabled disabled -> throw new IllegalStateException("handled above");
                 }
             } catch (IllegalArgumentException e) {
                 problems.add(at + e.getMessage());
             }
-            generators.add(new Generator(name, generator, codec));
+            generators.add(new Generator(name, generator, codec, ids));
         }
 
         Optional<MachineSpec> machine = Optional.empty();
@@ -199,6 +230,13 @@ public final class RuntimePlan {
         }
     }
 
+    /** An epoch in the future fails the start (R1-core-12): the sequencer takes a clock before the epoch as a regression. */
+    private static void checkEpoch(Layout layout, RuntimeOptions options, String at, List<String> problems) {
+        if (layout.epoch().toEpochMilli() > options.time().currentMillis()) {
+            problems.add(at + "the epoch " + layout.epoch() + " is in the future");
+        }
+    }
+
     private static void checkStore(RuntimeSpec spec, String store, BatchPolicy batch, String at, List<String> problems,
                                    TreeSet<String> usedStores) {
         StoreSpec storeSpec = spec.stores().get(store);
@@ -232,6 +270,9 @@ public final class RuntimePlan {
                 }
                 if (leased.tolerance().isNegative()) {
                     problems.add("machine: tolerance must not be negative: " + leased.tolerance());
+                }
+                if (leased.acquireTimeout().isNegative()) {
+                    problems.add("machine: acquireTimeout must not be negative: " + leased.acquireTimeout());
                 }
                 leased.preferredSlot().ifPresent(slot -> checkSlot("preferredSlot", slot, machine.bits(), problems));
                 leased.ownerKey().filter(String::isBlank)

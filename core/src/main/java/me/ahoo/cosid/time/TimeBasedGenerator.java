@@ -59,6 +59,9 @@ public final class TimeBasedGenerator implements IdGenerator, PartsIdGenerator, 
      *
      * @return the id
      * @throws IllegalStateException if the layout is wider than 63 bits, or the generator is closed
+     * @throws me.ahoo.cosid.TimeOverflowException  if the time no longer fits the time bits of the layout
+     * @throws me.ahoo.cosid.ClockBackwardsException if the clock went back further than the regression policy allows,
+     *                                               or before the epoch
      */
     @Override
     public long generate() {

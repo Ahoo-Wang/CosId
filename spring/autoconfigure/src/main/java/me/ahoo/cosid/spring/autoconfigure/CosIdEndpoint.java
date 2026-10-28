@@ -36,7 +36,7 @@ import java.util.Objects;
  * <ul>
  *     <li>{@code GET /actuator/cosid}: every generator ({@link CosIdRuntime#describe()});</li>
  *     <li>{@code GET /actuator/cosid/{name}}: one generator;</li>
- *     <li>{@code GET /actuator/cosid/{name}/long}: a {@code long} id ({@code snowflake} and {@code segment});</li>
+ *     <li>{@code GET /actuator/cosid/{name}/long}: a {@code long} id ({@code snowflake}, {@code segment} and {@code custom});</li>
  *     <li>{@code GET /actuator/cosid/{name}/string}: a text id, through the generator's codec.</li>
  * </ul>
  * An unknown generator answers 404; a disabled one, or {@code long} of a text-only one, 400.
@@ -93,7 +93,8 @@ public class CosIdEndpoint {
         try {
             return switch (format) {
                 case LONG -> {
-                    if (!CosIdSpecs.SNOWFLAKE.equals(info.strategy()) && !CosIdSpecs.SEGMENT.equals(info.strategy())) {
+                    if (!CosIdSpecs.SNOWFLAKE.equals(info.strategy()) && !CosIdSpecs.SEGMENT.equals(info.strategy())
+                        && !CosIdSpecs.CUSTOM.equals(info.strategy())) {
                         throw new InvalidEndpointRequestException("Generator [" + name + "] (" + info.strategy() + ") issues no long ids",
                             "no long ids");
                     }

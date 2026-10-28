@@ -127,6 +127,20 @@ class CosIdActuatorTest {
     }
 
     @Test
+    void theEndpointGeneratesLongIdsOfACustomGenerator() {
+        IdGenerator legacy = new java.util.concurrent.atomic.AtomicLong(41)::incrementAndGet;
+        runner().withBean(RuntimeSpecCustomizer.class, () -> spec -> spec.toBuilder()
+            .generator("legacy", me.ahoo.cosid.runtime.GeneratorSpec.Instance.builder(legacy).build()).build()).run(context -> {
+                assertNull(context.getStartupFailure());
+                CosIdEndpoint endpoint = context.getBean(CosIdEndpoint.class);
+                assertEquals(CosIdSpecs.CUSTOM, endpoint.generator("legacy").strategy());
+                assertEquals(42L, endpoint.generate("legacy", CosIdEndpoint.LONG));
+                assertEquals("43", endpoint.generate("legacy", CosIdEndpoint.STRING));
+                assertEquals(44L, context.getBean("legacy", IdGenerator.class).generate());
+            });
+    }
+
+    @Test
     void theHealthOfAStaticSlotAndOfNoSlot() {
         runner().withPropertyValues("cosid.machine.static.slot=5", "cosid.generators.default.strategy=snowflake").run(context -> {
             Health health = context.getBean(CosIdHealthIndicator.class).health();

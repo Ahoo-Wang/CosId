@@ -21,6 +21,21 @@ import java.util.Objects;
  * What {@code CosIdRuntime.describe()} tells about a generator; replaces the 4.x {@code Stat} types. Immutable; built
  * with {@link #builder(String, String)}, the only way to create one, so fields can be added with a default
  * (api-freeze.md §4).
+ *
+ * <p>The {@link #details()} keys by strategy (R1-core-17):
+ * <table>
+ *     <caption>details keys</caption>
+ *     <tr><th>strategy</th><th>keys</th></tr>
+ *     <tr><td>{@code snowflake}, {@code cosid80}</td><td>{@code epoch unit timeBits nodeBits seqBits lastIssuedMillis slot floor
+ *         ceiling slotValid}</td></tr>
+ *     <tr><td>{@code segment}</td><td>{@code key step maxBatch lookahead reserveTimeout batch held}</td></tr>
+ *     <tr><td>{@code periodic-segment}</td><td>those of {@code segment}, and {@code zone prewarm sealAfter period}</td></tr>
+ *     <tr><td>{@code custom}</td><td>{@code class}</td></tr>
+ *     <tr><td>any</td><td>{@code generated} while counting ({@code RuntimeOptions.countGenerated}); a disabled generator has
+ *         {@code disabled} alone</td></tr>
+ * </table>
+ * A listed key is never renamed nor removed; a minor version may add keys. The values are only {@code String},
+ * {@code Number} and {@code Boolean}.
  */
 public final class GeneratorInfo {
     private final String name;

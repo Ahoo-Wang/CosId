@@ -35,7 +35,8 @@ import org.springframework.beans.factory.config.RuntimeBeanReference;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.beans.factory.support.RootBeanDefinition;
-import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.bind.PropertySourcesPlaceholdersResolver;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.context.EnvironmentAware;
 import org.springframework.core.env.Environment;
 
@@ -80,7 +81,7 @@ public class CosIdGeneratorRegistrar implements BeanDefinitionRegistryPostProces
      */
     public synchronized RuntimeSpec spec() {
         if (spec == null) {
-            CosIdProperties properties = CosIdSpecs.bind(Binder.get(environment));
+            CosIdProperties properties = CosIdSpecs.bind(ConfigurationPropertySources.get(environment), new PropertySourcesPlaceholdersResolver(environment));
             RuntimeSpec built = CosIdSpecs.toSpec(properties, namespace(properties, environment), ZoneId.systemDefault());
             for (RuntimeSpecCustomizer customizer : beanFactory.getBeanProvider(RuntimeSpecCustomizer.class).orderedStream().toList()) {
                 built = Objects.requireNonNull(customizer.customize(built), () -> customizer + " returned no spec");

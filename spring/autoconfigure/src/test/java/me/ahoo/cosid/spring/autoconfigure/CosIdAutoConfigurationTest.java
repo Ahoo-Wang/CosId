@@ -467,8 +467,11 @@ class CosIdAutoConfigurationTest {
                 CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
                 assertEquals("L1002", runtime.stringGenerator("legacy").generate());
                 assertEquals("custom", runtime.describe().get("legacy").strategy());
+                // Closing the runtime leaves the bean open: the context closes its own bean.
+                runtime.close();
+                assertEquals(0, closed.get());
             });
-        assertEquals(0, closed.get());
+        assertEquals(1, closed.get());
         withStores().withPropertyValues("cosid.generators.legacy.strategy=custom", "cosid.generators.legacy.ref=nothing").run(context ->
             assertThat(root(context.getStartupFailure()).getMessage(), containsString("generator [legacy]: no generator [nothing] to refer to")));
     }

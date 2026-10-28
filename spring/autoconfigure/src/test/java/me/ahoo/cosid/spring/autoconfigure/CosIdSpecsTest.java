@@ -37,7 +37,7 @@ import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.bind.PlaceholdersResolver;
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource;
 
 import java.nio.file.Path;
@@ -64,7 +64,7 @@ class CosIdSpecsTest {
             map.put(pair.substring(0, at), pair.substring(at + 1));
         }
         // Strictly, as the registrar does: an unknown key fails (R1-spring-03).
-        return CosIdSpecs.bind(new Binder(new MapConfigurationPropertySource(map)));
+        return CosIdSpecs.bind(List.of(new MapConfigurationPropertySource(map)), PlaceholdersResolver.NONE);
     }
 
     static RuntimeSpec spec(String... pairs) {

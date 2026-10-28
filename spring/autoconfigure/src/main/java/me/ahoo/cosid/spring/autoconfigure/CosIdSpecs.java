@@ -28,14 +28,19 @@ import me.ahoo.cosid.segment.PeriodicPolicy;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 
-import org.springframework.boot.context.properties.bind.BindHandler;
+import org.springframework.boot.context.properties.bind.AbstractBindHandler;
+import org.springframework.boot.context.properties.bind.BindContext;
 import org.springframework.boot.context.properties.bind.Bindable;
 import org.springframework.boot.context.properties.bind.Binder;
-import org.springframework.boot.context.properties.bind.handler.NoUnboundElementsBindHandler;
+import org.springframework.boot.context.properties.bind.PlaceholdersResolver;
+import org.springframework.boot.context.properties.source.ConfigurationProperty;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
+import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
+import org.springframework.boot.context.properties.source.IterableConfigurationPropertySource;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -43,6 +48,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 
 /**
@@ -80,13 +86,57 @@ public final class CosIdSpecs {
      * default silently. {@code cosid.stores.*.options} and the keys of the integrations and the server are not checked
      * here.
      *
-     * @param binder the binder of the environment
+     * @param sources      the property sources, such as {@code ConfigurationPropertySources.get(environment)}
+     * @param placeholders resolves {@code ${...}} in the values
      * @return the properties
      * @throws org.springframework.boot.context.properties.bind.BindException with the unbound keys
      */
-    public static CosIdProperties bind(Binder binder) {
-        BindHandler unknownKeys = new NoUnboundElementsBindHandler(BindHandler.DEFAULT, CosIdSpecs::boundElsewhere);
-        return binder.bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class), unknownKeys);
+    public static CosIdProperties bind(Iterable<ConfigurationPropertySource> sources, PlaceholdersResolver placeholders) {
+        return new Binder(sources, placeholders).bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class), new UnknownKeys(sources));
+    }
+
+    /**
+     * Fails the binding when a {@code cosid.*} key bound to nothing; the keys checked elsewhere and empty values, such as
+     * {@code preferred-slot: ${POD_ORDINAL:}}, which bind to null, are not unknown.
+     */
+    private static final class UnknownKeys extends AbstractBindHandler {
+        private final Iterable<ConfigurationPropertySource> sources;
+        private final Set<ConfigurationPropertyName> bound = new HashSet<>();
+
+        private UnknownKeys(Iterable<ConfigurationPropertySource> sources) {
+            this.sources = sources;
+        }
+
+        @Override
+        public Object onSuccess(ConfigurationPropertyName name, Bindable<?> target, BindContext context, Object result) {
+            bound.add(name);
+            return super.onSuccess(name, target, context, result);
+        }
+
+        @Override
+        public void onFinish(ConfigurationPropertyName name, Bindable<?> target, BindContext context, Object result) throws Exception {
+            if (context.getDepth() == 0) {
+                Set<String> unknown = new TreeSet<>();
+                for (ConfigurationPropertySource source : sources) {
+                    if (source instanceof IterableConfigurationPropertySource iterable) {
+                        iterable.filter(name::isAncestorOf).forEach(key -> {
+                            if (!bound.contains(key) && !boundElsewhere(key) && !isEmpty(source, key)) {
+                                unknown.add(key.toString());
+                            }
+                        });
+                    }
+                }
+                if (!unknown.isEmpty()) {
+                    throw new CosIdException("Unknown " + CosIdProperties.PREFIX + ".* keys " + unknown + ": they bind to nothing; check their spelling");
+                }
+            }
+            super.onFinish(name, target, context, result);
+        }
+    }
+
+    private static boolean isEmpty(ConfigurationPropertySource source, ConfigurationPropertyName name) {
+        ConfigurationProperty property = source.getConfigurationProperty(name);
+        return property != null && property.getValue() instanceof CharSequence value && value.isEmpty();
     }
 
     private static boolean boundElsewhere(ConfigurationPropertyName name) {

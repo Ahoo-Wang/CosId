@@ -169,4 +169,25 @@ class RadixTest {
             }
         }
     }
+
+    @Test
+    void encodeMatchesBigIntegerForEveryRadix() {
+        Random random = new Random(13);
+        String digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        for (int radix = Radix.MIN_RADIX; radix <= Radix.MAX_RADIX; radix++) {
+            Radix codec = Radix.of(radix, Radix.maxWidth(radix), false);
+            for (int i = 0; i < 2_000; i++) {
+                long id = random.nextLong() >>> random.nextInt(1, 64);
+                StringBuilder expected = new StringBuilder();
+                BigInteger rest = BigInteger.valueOf(id);
+                BigInteger base = BigInteger.valueOf(radix);
+                do {
+                    BigInteger[] division = rest.divideAndRemainder(base);
+                    expected.append(digits.charAt(division[1].intValue()));
+                    rest = division[0];
+                } while (rest.signum() > 0);
+                assertThat(codec.encode(id), is(expected.reverse().toString()));
+            }
+        }
+    }
 }

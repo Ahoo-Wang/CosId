@@ -5,6 +5,12 @@ server:
 spring:
   application:
     name: cosid-server
+  # Requests run on virtual threads; the store and generator calls still run on the bounded pool of
+  # cosid.server.blocking (503 busy past it), so the number of requests is not what bounds the store.
+  # SPRING_THREADS_VIRTUAL_ENABLED=false goes back to Tomcat's platform threads.
+  threads:
+    virtual:
+      enabled: true
 management:
   endpoint:
     health:

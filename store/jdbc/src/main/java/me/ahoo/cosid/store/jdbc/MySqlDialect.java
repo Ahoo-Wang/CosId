@@ -53,7 +53,7 @@ final class MySqlDialect implements JdbcDialect {
 
     @Override
     public List<String> schema(JdbcTables tables) {
-        return JdbcDialects.schema("schema-mysql.sql", tables);
+        return JdbcDialects.schema(mariaDb ? "schema-mariadb.sql" : "schema-mysql.sql", tables);
     }
 
     @Override

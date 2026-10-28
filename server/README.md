@@ -29,7 +29,9 @@ also accept the lease's `expiresAt`, `floor`, `ceiling` and `storeNow`, and the 
 the path, the id endpoints use the one named `default` (the 4.x share).
 
 Other statuses: `400 bad_request` (a missing field, a bad character set or length, a value past a limit), `401`, `403`,
-`429 too_many_keys`, `503 busy` with `Retry-After: 1`, `500 store_error`. Every response carries `Cache-Control: no-store`.
+`429 too_many_keys` / `too_many_namespaces`, `503 busy` with `Retry-After: 1`, `504 store_timeout`, `500 store_error`.
+Failures of the backing store answer a generic message; their details go to the log. Every response carries
+`Cache-Control: no-store`.
 
 ## Configuration (`cosid.server.*`)
 
@@ -38,30 +40,34 @@ Other statuses: `400 bad_request` (a missing field, a bad character set or lengt
 | `store` | the only store | the backing store among `cosid.stores` |
 | `auth.tokens` | — | tokens that may use everything |
 | `auth.clients[i].{name, token, namespaces, key-prefixes}` | — | tokens limited to slot namespaces, range keys whose first segment is one of the namespaces, or range keys with one of the prefixes; `*` allows every namespace; the id endpoints need `cosid.namespace` |
-| `auth.allow-anonymous` | `false` | without any token, the server **refuses to start** unless this is set |
+| `auth.allow-anonymous` | `false` | without any token, the server **refuses to start** unless this is set; tokens shorter than 16 characters or holding `${` (an unresolved placeholder) are refused too |
 | `auth.public-paths` | `/actuator/health`, `/actuator/health/**` | path patterns that need no token |
+| `auth.admin-paths` | `/actuator/**`, `/v3/api-docs/**`, `/swagger-ui/**` (and their roots) | paths only `tokens` may use: the `cosid` endpoint issues ids of every generator and ignores namespaces, so a client token gets `403` |
 | `limits.min-ttl` / `max-ttl` | `100ms` / `1h` | the lease ttl range |
 | `limits.max-tolerance` | `1m` | |
 | `limits.max-slot-limit` | `65536` | the stores prepare `limit` slots per namespace |
 | `limits.max-reserve` | `1e12` | the largest `size` |
 | `limits.max-count` | `1000` | the largest `count` of the id endpoints |
-| `limits.max-keys-per-namespace` | `10000` | distinct range keys per namespace, per server instance (`429` past it; `0` = no cap) |
+| `limits.max-keys-per-namespace` | `10000` | range keys one client uses in one namespace, per server instance (`429 too_many_keys`; `0` = no cap) |
+| `limits.max-namespaces-per-client` | `1000` | namespaces one client uses range keys in, per server instance; a key without `/` is a namespace of its own (`429 too_many_namespaces`; `0` = no cap) |
+| `limits.key-idle-timeout` | `1h` | a key unused this long no longer counts; failed reserves never count (`0` = keep every key) |
 | `blocking.threads` / `queue-capacity` | `64` / `1024` | the bounded pool of the store calls |
-| `ids.enabled` | `false` | the id endpoints |
+| `ids.enabled` | `false` | the id endpoints; the server then refuses generators named `strings` or `periodic` (path segments) |
 
 A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`.
 
 ## Operations
 
 - Actuator: `health` (public; `liveness` and `readiness` probes), `info`, `prometheus`, and `cosid` (the runtime).
-  The meter `cosid.server.call.rejections{reason=busy|too_many_keys}` counts the calls the server turned away.
-- OpenAPI: `/v3/api-docs` and Swagger UI at `/swagger-ui.html`. Both need a token unless you add them to `public-paths`.
+  The meter `cosid.server.call.rejections{reason=busy|too_many_keys|too_many_namespaces}` counts the calls the server
+  turned away. Actuator other than health is an admin path.
+- OpenAPI: `/v3/api-docs` and Swagger UI at `/swagger-ui.html`, admin paths.
 - Image: `./gradlew :server:dockerImage` (the `Dockerfile` on `build/libs/cosid-server.jar`), or `:server:bootBuildImage`.
 
 ```bash
 docker run -d -p 8688:8688 \
   -e COSID_STORES_MAIN_TYPE=redis -e COSID_STORES_MAIN_OPTIONS_URI=redis://redis:6379 \
-  -e COSID_SERVER_AUTH_TOKENS_0=change-me ahoowang/cosid-server:5.0.0-SNAPSHOT
+  -e COSID_SERVER_AUTH_TOKENS_0=change-me-to-a-long-random-token ahoowang/cosid-server:5.0.0-SNAPSHOT
 ```
 
 Clients:
@@ -73,7 +79,7 @@ cosid:
       type: remote
       options:
         baseUrl: http://cosid-server:8688
-        token: change-me
+        token: change-me-to-a-long-random-token
         connectTimeout: 5s
         requestTimeout: 3s   # StoreConfig.timeout by default
 ```

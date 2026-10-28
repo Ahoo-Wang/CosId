@@ -17,6 +17,7 @@ import me.ahoo.cosid.GeneratorDisabledException;
 import me.ahoo.cosid.NamespaceMismatchException;
 import me.ahoo.cosid.RangeExhaustedException;
 import me.ahoo.cosid.RangeSealedException;
+import me.ahoo.cosid.store.StoreTimeoutException;
 import me.ahoo.cosid.store.remote.RemoteApi;
 
 import org.slf4j.Logger;
@@ -38,7 +39,8 @@ import java.util.concurrent.ExecutionException;
 
 /**
  * Every error as {@code {code, message}} (08-remote.md §2), with the status the client maps back to the primitive's
- * outcome ({@link RemoteApi}).
+ * outcome ({@link RemoteApi}). Failures of the backing store answer a generic message and leave their details (hosts,
+ * cluster descriptions) to the log.
  */
 @RestControllerAdvice
 class ApiErrors {
@@ -54,6 +56,10 @@ class ApiErrors {
             case ApiException api when api.status() == HttpStatus.SERVICE_UNAVAILABLE -> ResponseEntity.status(api.status())
                 .header(HttpHeaders.RETRY_AFTER, "1").body(new Bodies.ErrorBody(api.code(), api.getMessage()));
             case ApiException api -> body(api.status(), api.code(), api.getMessage());
+            case Throwable timeout when StoreTimeoutException.isTimeout(timeout) -> {
+                log.warn("The backing store timed out", timeout);
+                yield body(HttpStatus.GATEWAY_TIMEOUT, RemoteApi.STORE_TIMEOUT, "The backing store timed out");
+            }
             case RangeSealedException sealed -> body(HttpStatus.GONE, RemoteApi.RANGE_SEALED, sealed.getMessage());
             case RangeExhaustedException exhausted -> body(HttpStatus.UNPROCESSABLE_CONTENT, RemoteApi.RANGE_EXHAUSTED, exhausted.getMessage());
             case NamespaceMismatchException mismatch -> body(HttpStatus.CONFLICT, RemoteApi.NAMESPACE_MISMATCH, mismatch.getMessage());
@@ -64,12 +70,17 @@ class ApiErrors {
             case HttpMediaTypeNotSupportedException unsupported -> body(HttpStatus.BAD_REQUEST, RemoteApi.BAD_REQUEST, "The request body must be JSON");
             case HttpRequestMethodNotSupportedException method -> body(HttpStatus.METHOD_NOT_ALLOWED, RemoteApi.METHOD_NOT_ALLOWED, method.getMessage());
             case NoResourceFoundException missing -> body(HttpStatus.NOT_FOUND, RemoteApi.NOT_FOUND, "No such path: /" + missing.getResourcePath());
-            case IllegalArgumentException invalid -> body(HttpStatus.BAD_REQUEST, RemoteApi.BAD_REQUEST, invalid.getMessage());
-            case UnsupportedOperationException unsupported -> body(HttpStatus.NOT_IMPLEMENTED, RemoteApi.UNSUPPORTED,
-                "The backing store does not support it: " + unsupported.getMessage());
+            case IllegalArgumentException invalid -> {
+                log.info("The backing store rejected a request", invalid);
+                yield body(HttpStatus.BAD_REQUEST, RemoteApi.BAD_REQUEST, "The backing store rejected the request");
+            }
+            case UnsupportedOperationException unsupported -> {
+                log.info("The backing store does not support a call", unsupported);
+                yield body(HttpStatus.NOT_IMPLEMENTED, RemoteApi.UNSUPPORTED, "The backing store does not support this call");
+            }
             default -> {
                 log.warn("The backing store failed", cause);
-                yield body(HttpStatus.INTERNAL_SERVER_ERROR, RemoteApi.STORE_ERROR, String.valueOf(cause.getMessage()));
+                yield body(HttpStatus.INTERNAL_SERVER_ERROR, RemoteApi.STORE_ERROR, "The backing store failed");
             }
         };
     }

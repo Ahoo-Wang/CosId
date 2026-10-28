@@ -1,0 +1,124 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The cosid-server image (08-remote.md §4). Pull requests build and smoke-test it in the "Server" job of
+# integration-test.yml; this workflow only pushes, from main and from release tags.
+name: Docker Image Deploy
+on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - 'v*.*.*'
+    paths-ignore:
+      - 'benchmark/**'
+      - 'docs/**'
+      - 'documentation/**'
+      - 'examples/**'
+      - 'skills/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  docker-deploy:
+    name: Push cosid-server image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      # The Dockerfile copies server/build/libs/cosid-server.jar: a plain jar, so one build serves every platform.
+      - name: Build the boot jar
+        run: ./gradlew :server:bootJar
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to AliyunCR
+        uses: docker/login-action@v4
+        with:
+          registry: registry.cn-shanghai.aliyuncs.com
+          username: ${{ secrets.ALIYUN_CR_USERNAME }}
+          password: ${{ secrets.ALIYUN_CR_TOKEN }}
+
+      # latest moves only with a GA release of major 5 or later: pre-releases (5.0.0-RC1) and pushes to main never
+      # move it, and the 4.x line publishes another image (cosid-proxy).
+      - name: Latest tag
+        id: latest
+        run: |
+          latest=false
+          if [[ "$GITHUB_REF" =~ ^refs/tags/v([0-9]+)\.[0-9]+\.[0-9]+$ ]] && [ "${BASH_REMATCH[1]}" -ge 5 ]; then
+            latest=true
+          fi
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: |
+            ahoowang/cosid-server
+            ghcr.io/ahoo-wang/cosid-server
+            registry.cn-shanghai.aliyuncs.com/ahoo/cosid-server
+          flavor: |
+            latest=${{ steps.latest.outputs.latest }}
+          # semver {{major}}.{{minor}} is skipped for pre-releases by metadata-action, so 5.0 never points at an RC.
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          platforms: linux/amd64,linux/arm64
+          context: server
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Aliyun ACR rejects OCI attestation manifests (unknown manifest class for
+          # application/vnd.oci.empty.v1+json), and attestations are on by default.
+          provenance: false
+          sbom: false

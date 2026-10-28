@@ -18,7 +18,12 @@ plugins {
 
 dependencies {
     api(project(":core"))
-    api(libs.curator.framework)
+    // ZooKeeper brings Netty 4.1 (transport-native-epoll among it) for a socket the client never uses by default
+    // (ClientCnxnSocketNIO); next to Lettuce 7's Netty 4.2 it breaks Redis on Linux (EpollIoHandler). Excluded, and
+    // published as an exclusion so consumers get the same classpath.
+    api(libs.curator.framework) {
+        exclude(group = "io.netty")
+    }
     implementation(libs.slf4j.api)
     testImplementation(project(":store:tck"))
     testImplementation(libs.curator.test)

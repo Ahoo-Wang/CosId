@@ -21,7 +21,6 @@ import com.mongodb.MongoWriteException;
 import com.mongodb.ReadConcern;
 import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
@@ -53,7 +52,7 @@ public final class MongoTarget implements TargetAdmin {
     private final MongoCollection<Document> slots;
 
     public MongoTarget(StoreLocation location) {
-        this.client = MongoClients.create(location.url());
+        this.client = MongoSource.client(location);
         this.database = client.getDatabase(MongoSource.database(location)).withWriteConcern(WriteConcern.MAJORITY).withReadConcern(ReadConcern.MAJORITY);
         this.ranges = database.getCollection("cosid_range");
         this.namespaces = database.getCollection("cosid_namespace");

@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import me.ahoo.cosid.CosIdException;
 import me.ahoo.cosid.NamespaceMismatchException;
@@ -50,8 +51,11 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 /**
  * {@link LeaseKeeper} on a manual store clock and manual elapsed time (roadmap R1-C): the renewal task is captured, and
@@ -474,6 +478,111 @@ class LeaseKeeperTest {
             tasks::add, clock, listener));
         assertThrows(IllegalArgumentException.class, () -> new LeaseKeeper(store, NS, owner, 2, TTL, TOLERANCE, OptionalInt.empty(), Duration.ofSeconds(-1),
             tasks::add, clock, listener));
+    }
+
+    /**
+     * A store whose renew or acquire stalls, as during a network partition, until the test opens the gate; the call
+     * reaches the store before the stall ({@code applied}) or after it.
+     */
+    private final class StallingStore implements SlotLeaseStore {
+        final CountDownLatch entered = new CountDownLatch(1);
+        final CountDownLatch gate = new CountDownLatch(1);
+        private final Operation stalled;
+        private final boolean applied;
+        private volatile boolean armed;
+
+        StallingStore(Operation stalled, boolean applied) {
+            this.stalled = stalled;
+            this.applied = applied;
+        }
+
+        private <T> T stall(Operation operation, Supplier<T> call) {
+            if (!armed || operation != stalled) {
+                return call.get();
+            }
+            armed = false;
+            T result = applied ? call.get() : null;
+            entered.countDown();
+            try {
+                if (!gate.await(30, TimeUnit.SECONDS)) {
+                    throw new IllegalStateException("the gate never opened");
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new CosIdException("interrupted", e);
+            }
+            return applied ? result : call.get();
+        }
+
+        @Override
+        public AcquireResult acquire(String namespace, Owner owner, int limit, Duration ttl, Duration tolerance, OptionalInt preferredSlot) {
+            return stall(Operation.ACQUIRE, () -> store.acquire(namespace, owner, limit, ttl, tolerance, preferredSlot));
+        }
+
+        @Override
+        public Optional<SlotLease> renew(SlotLease lease, Duration ttl, Duration tolerance) {
+            return stall(Operation.RENEW, () -> store.renew(lease, ttl, tolerance));
+        }
+
+        @Override
+        public boolean release(SlotLease lease, long lastIssued) {
+            return store.release(lease, lastIssued);
+        }
+    }
+
+    /** Runs {@code runDue} on its own thread until the store stalls in it, then closes the keeper. */
+    private void closeWhileStalled(LeaseKeeper keeper, StallingStore stalling, long lastIssued) throws InterruptedException {
+        Thread renewal = Thread.ofPlatform().start(keeper::runDue);
+        assertThat("the store call is in flight", stalling.entered.await(30, TimeUnit.SECONDS), is(true));
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> keeper.close(lastIssued), "close() must not wait for the stalled store call");
+        assertThat(keeper.current().isValid(), is(false));
+        stalling.gate.countDown();
+        renewal.join(TimeUnit.SECONDS.toMillis(30));
+        assertThat(renewal.isAlive(), is(false));
+    }
+
+    @Test
+    void closeDoesNotWaitForAStalledRenewal() throws InterruptedException {
+        for (boolean applied : new boolean[] {false, true}) {
+            listener.events.clear();
+            String key = applied ? "host-applied" : "host-pending";
+            StallingStore stalling = new StallingStore(Operation.RENEW, applied);
+            LeaseKeeper keeper = keeper(stalling, owner(key), 1, TTL, tasks::add, clock);
+            keeper.start();
+            SlotBinding binding = keeper.current();
+            long ceiling = binding.ceiling();
+            ticker.advance(TTL.dividedBy(3));
+            stalling.armed = true;
+            long lastIssued = binding.floor() + 1;
+            closeWhileStalled(keeper, stalling, lastIssued);
+
+            assertThat("the late renewal is dropped", binding.ceiling(), is(ceiling));
+            assertThat(keeper.lease(), is(Optional.empty()));
+            assertThat(keeper.runDue(), is(-1L));
+            assertThat(listener.events, contains("acquired:" + binding.slot() + ":lowest", "released:" + binding.slot()));
+            // Invariant W: the release named the holding, whatever the renewal did, so the next holder starts after lastIssued.
+            SlotLease next = hold("host-next-" + key, 1, TTL, OptionalInt.of(binding.slot()));
+            assertThat(next.slot(), is(binding.slot()));
+            assertThat(next.floor(), is(lastIssued));
+            memory.release(next, next.floor());
+        }
+    }
+
+    @Test
+    void closeDoesNotWaitForAStalledReacquireAndReleasesItsLateSlot() throws InterruptedException {
+        StallingStore stalling = new StallingStore(Operation.ACQUIRE, false);
+        LeaseKeeper keeper = keeper(stalling, owner("host-a"), 2, TTL, tasks::add, clock);
+        keeper.start();
+        SlotBinding first = keeper.current();
+        clock.advance(TTL.plusSeconds(1));
+        hold("host-b", 2, TTL, OptionalInt.of(first.slot()));
+        ticker.advance(TTL.dividedBy(3));
+        stalling.armed = true;
+        closeWhileStalled(keeper, stalling, first.floor());
+
+        assertThat(keeper.current(), sameInstance(first));
+        assertThat("the slot acquired after close is released at once", listener.events, contains("acquired:0:lowest", "lost:0", "released:1"));
+        assertThat(hold("host-c", 2, TTL, OptionalInt.of(1)).slot(), is(1));
     }
 
     @Test

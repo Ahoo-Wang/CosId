@@ -55,8 +55,11 @@ public final class StaticSlot implements SlotHandle, AutoCloseable {
     private final long aheadMillis;
     private final long maxWaitNanos;
 
+    /** Guards the state; never held across file I/O (design principle 7). */
     private final ReentrantLock lock = new ReentrantLock();
     private final Condition wakeUp = lock.newCondition();
+    /** Serializes the writes of the window file, which share one temporary file; never taken under {@link #lock}. */
+    private final ReentrantLock fileLock = new ReentrantLock();
     private volatile boolean started;
     private volatile boolean closed;
     private volatile SlotBinding binding;
@@ -122,28 +125,33 @@ public final class StaticSlot implements SlotHandle, AutoCloseable {
             if (started || closed) {
                 throw new IllegalStateException("StaticSlot " + slot + " was already started");
             }
-            long floor = notBefore.map(Instant::toEpochMilli).orElse(0L);
-            if (window.isEmpty()) {
-                binding = new SlotBinding(slot, floor, Long.MAX_VALUE, 1);
-                started = true;
-                log.warn("StaticSlot {} has no window file: a clock regression across a restart can repeat ids", slot);
-                return;
-            }
-            WindowFile file = window.get();
+            started = true;
+        } finally {
+            lock.unlock();
+        }
+        long floor = notBefore.map(Instant::toEpochMilli).orElse(0L);
+        if (window.isEmpty()) {
+            publish(new SlotBinding(slot, floor, Long.MAX_VALUE, 1));
+            log.warn("StaticSlot {} has no window file: a clock regression across a restart can repeat ids", slot);
+            return;
+        }
+        WindowFile file = window.get();
+        long ceiling;
+        fileLock.lock();
+        try {
             OptionalLong persisted = file.read();
             if (persisted.isPresent()) {
                 floor = Math.max(floor, persisted.getAsLong());
             }
             // Write ahead: the ceiling is durable before any id can use it.
-            long ceiling = Math.max(floor, time.currentMillis() + aheadMillis);
+            ceiling = Math.max(floor, time.currentMillis() + aheadMillis);
             file.write(ceiling);
-            binding = new SlotBinding(slot, floor, ceiling, 1);
-            started = true;
-            starter = Thread.currentThread();
-            log.info("StaticSlot {} window ({}, {}] from {}", slot, floor, ceiling, file.path());
         } finally {
-            lock.unlock();
+            fileLock.unlock();
         }
+        publish(new SlotBinding(slot, floor, ceiling, 1));
+        starter = Thread.currentThread();
+        log.info("StaticSlot {} window ({}, {}] from {}", slot, floor, ceiling, file.path());
         try {
             executor.execute(this::extendLoop);
         } catch (RejectedExecutionException e) {
@@ -155,6 +163,19 @@ public final class StaticSlot implements SlotHandle, AutoCloseable {
         if (ranInline) {
             close();
             throw new IllegalArgumentException("The executor of StaticSlot must run tasks asynchronously, not on the calling thread");
+        }
+    }
+
+    /** Publishes the first binding unless {@link #close} came first; the file then keeps the ceiling written ahead. */
+    private void publish(SlotBinding first) {
+        lock.lock();
+        try {
+            if (closed) {
+                throw new IllegalStateException("StaticSlot " + slot + " was closed while starting");
+            }
+            binding = first;
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -173,6 +194,7 @@ public final class StaticSlot implements SlotHandle, AutoCloseable {
      * @param lastIssued the largest timestamp issued on the slot, in milliseconds
      */
     public void close(long lastIssued) {
+        SlotBinding current;
         lock.lock();
         try {
             if (closed) {
@@ -180,24 +202,29 @@ public final class StaticSlot implements SlotHandle, AutoCloseable {
             }
             closed = true;
             wakeUp.signalAll();
-            SlotBinding current = binding;
+            current = binding;
             if (current == null) {
                 return;
             }
             current.invalidate();
-            if (window.isPresent()) {
-                long next = Math.max(current.floor(), Math.min(lastIssued, current.ceiling()));
-                if (next < current.ceiling()) {
-                    try {
-                        window.get().write(next);
-                    } catch (RuntimeException e) {
-                        // The ceiling written ahead stays: the next start begins later, never earlier.
-                        log.warn("StaticSlot {} could not write its last issued timestamp", slot, e);
-                    }
-                }
-            }
         } finally {
             lock.unlock();
+        }
+        if (window.isEmpty()) {
+            return;
+        }
+        // Waits for an extension being written, which then finds the slot closed and writes no more: this write is the last.
+        fileLock.lock();
+        try {
+            long next = Math.max(current.floor(), Math.min(lastIssued, current.ceiling()));
+            if (next < current.ceiling()) {
+                window.get().write(next);
+            }
+        } catch (RuntimeException e) {
+            // The ceiling written ahead stays: the next start begins later, never earlier.
+            log.warn("StaticSlot {} could not write its last issued timestamp", slot, e);
+        } finally {
+            fileLock.unlock();
         }
     }
 
@@ -214,12 +241,20 @@ public final class StaticSlot implements SlotHandle, AutoCloseable {
             ranInline = true;
             return;
         }
-        lock.lock();
         try {
-            while (!closed) {
-                long waitNanos = extendIfDueLocked();
-                if (waitNanos > 0) {
+            while (true) {
+                long waitNanos = extendIfDue();
+                if (waitNanos < 0) {
+                    return;
+                }
+                lock.lock();
+                try {
+                    if (closed) {
+                        return;
+                    }
                     wakeUp.awaitNanos(waitNanos);
+                } finally {
+                    lock.unlock();
                 }
             }
         } catch (InterruptedException e) {
@@ -227,46 +262,70 @@ public final class StaticSlot implements SlotHandle, AutoCloseable {
                 log.error("The window extensions of StaticSlot {} were interrupted; generators stop at the ceiling", slot);
             }
             Thread.currentThread().interrupt();
-        } finally {
-            lock.unlock();
         }
     }
 
     /**
      * Writes the ceiling ahead again if less than {@code ahead/2} of the window is left; what the extension task does
-     * on each wake-up.
+     * on each wake-up. The write and its fsync run without the state lock; the ceiling is raised only after it.
      *
      * @return nanoseconds until the next check, or -1 when the slot does not run with a file
      */
     long extendIfDue() {
+        SlotBinding current;
+        long next;
         lock.lock();
         try {
-            return started && !closed && window.isPresent() ? extendIfDueLocked() : -1;
+            if (!started || closed || window.isEmpty() || binding == null) {
+                return -1;
+            }
+            long nowNanos = ticker.nanoTime();
+            if (nowNanos < retryAtNanos) {
+                return retryAtNanos - nowNanos;
+            }
+            current = binding;
+            long now = time.currentMillis();
+            if (current.ceiling() - now >= aheadMillis / 2) {
+                return untilDue(current);
+            }
+            next = Math.max(current.ceiling(), now + aheadMillis);
         } finally {
             lock.unlock();
         }
+        fileLock.lock();
+        try {
+            if (closed) {
+                // close() owns the last write.
+                return -1;
+            }
+            window.get().write(next);
+        } catch (RuntimeException e) {
+            long backoff;
+            lock.lock();
+            try {
+                backoffNanos = Math.min(backoffNanos == 0 ? FIRST_BACKOFF_NANOS : backoffNanos * 2, Math.max(1, maxWaitNanos));
+                backoff = backoffNanos;
+                retryAtNanos = ticker.nanoTime() + backoff;
+            } finally {
+                lock.unlock();
+            }
+            log.warn("StaticSlot {} could not extend its window; retrying in {}ms", slot, TimeUnit.NANOSECONDS.toMillis(backoff), e);
+            return backoff;
+        } finally {
+            fileLock.unlock();
+        }
+        lock.lock();
+        try {
+            backoffNanos = 0;
+            // Durable first, then raised (write ahead); raising a binding close() invalidated meanwhile issues nothing.
+            current.raiseCeiling(next);
+        } finally {
+            lock.unlock();
+        }
+        return untilDue(current);
     }
 
-    private long extendIfDueLocked() {
-        long nowNanos = ticker.nanoTime();
-        if (nowNanos < retryAtNanos) {
-            return retryAtNanos - nowNanos;
-        }
-        SlotBinding current = binding;
-        long now = time.currentMillis();
-        if (current.ceiling() - now < aheadMillis / 2) {
-            long next = Math.max(current.ceiling(), now + aheadMillis);
-            try {
-                window.get().write(next);
-            } catch (RuntimeException e) {
-                backoffNanos = Math.min(backoffNanos == 0 ? FIRST_BACKOFF_NANOS : backoffNanos * 2, Math.max(1, maxWaitNanos));
-                retryAtNanos = ticker.nanoTime() + backoffNanos;
-                log.warn("StaticSlot {} could not extend its window; retrying in {}ms", slot, TimeUnit.NANOSECONDS.toMillis(backoffNanos), e);
-                return backoffNanos;
-            }
-            backoffNanos = 0;
-            current.raiseCeiling(next);
-        }
+    private long untilDue(SlotBinding current) {
         long untilDue = TimeUnit.MILLISECONDS.toNanos(current.ceiling() - time.currentMillis() - aheadMillis / 2);
         return Math.max(1, Math.min(untilDue, maxWaitNanos));
     }

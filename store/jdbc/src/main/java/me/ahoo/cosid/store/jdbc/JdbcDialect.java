@@ -128,6 +128,18 @@ public interface JdbcDialect {
     void provisionSlots(JdbcSession session, String namespace, int limit) throws SQLException;
 
     /**
+     * Rejects a key the database could not keep apart from another one. Keys are exact on every built-in dialect
+     * (binary collations, 06 §2.1), except that SQL Server ignores trailing spaces when it compares strings, whatever
+     * the collation: there a key ending with a space would silently share the row of the key without it.
+     *
+     * @param what  what the key is, for the message: {@code range key}, {@code namespace}, {@code owner key}
+     * @param key   the key
+     * @throws IllegalArgumentException if the database cannot store the key apart from its neighbours
+     */
+    default void checkKey(String what, String key) {
+    }
+
+    /**
      * Whether a failure is a duplicate key, as two concurrent inserts of one key give.
      *
      * @param e the failure

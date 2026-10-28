@@ -6,6 +6,12 @@ The ZooKeeper store of CosId 5 ([06-stores.md §2.4](../../docs/architecture/06-
 **ZooKeeper 3.8 or later** (D27); 3.9 is the primary target, the version Curator is aligned with. CI runs the store TCK
 on both.
 
+**No Netty.** The module excludes every `io.netty` artifact that `org.apache.zookeeper:zookeeper` brings: the ZooKeeper
+client uses `ClientCnxnSocketNIO` by default, and the Netty 4.1 artifacts (`netty-transport-native-epoll` among them)
+broke Lettuce 7, which needs Netty 4.2, when `store/redis` and `store/zookeeper` share a classpath on Linux
+(`NoClassDefFoundError: io/netty/channel/epoll/EpollIoHandler`). Do not set `zookeeper.clientCnxnSocket` to
+`ClientCnxnSocketNetty` unless you add a matching Netty yourself.
+
 ## 实测兼容性(不承诺)
 
 Below the 3.8 minimum the TCK was run once (D28), to record real compatibility, not to support it: no workaround for

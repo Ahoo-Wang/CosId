@@ -134,14 +134,14 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | WP-JDBC | B-M1、B-N2 | R2-JDBC | [#1354](https://github.com/Ahoo-Wang/CosId/pull/1354) | ✅ 已合入 `d6264e11`;偏差:SQL Server 无论排序规则都忽略尾随空格,方言改为拒绝以空格结尾的 key(不合并为同一 key,唯一性不受损),总调度认可 |
 | WP-ZK | B-N1;**E-B1** 即 #1342 | R2-ZK | [#1342](https://github.com/Ahoo-Wang/CosId/pull/1342) | ✅ 已合入 `a0104227` |
 | WP-server | **C-B1**、**C-B2**、C-M1、C-N1、C-N2、B-N3 | R4-A | [#1349](https://github.com/Ahoo-Wang/CosId/pull/1349) | ✅ 已合入 `2068c48f` |
-| WP-spring | C-N3 | R3-S | [#1353](https://github.com/Ahoo-Wang/CosId/pull/1353) | ready,审查通过;mongo:8.0 job 卡住(受影响内核),已取消重跑 |
+| WP-spring | C-N3 | R3-S | [#1353](https://github.com/Ahoo-Wang/CosId/pull/1353) | ✅ 已合入 `fa515223`(2026-10-28) |
 | WP-migration | **D-B1**、**D-B2**、**D-B3**、**D-B4**、D-M1、D-M2、D-M3、D-N1–N4;修正 09 §2 表述 | R4-C | [#1350](https://github.com/Ahoo-Wang/CosId/pull/1350) | ✅ 已合入 `40d3e13c` |
 | WP-lease | A-M1 | R1-C | [#1351](https://github.com/Ahoo-Wang/CosId/pull/1351) | ✅ 已合入 `a68a0191` |
 | WP-time-codec | A-N1、A-N2、A-N3、A-N6、A-N7 | R1-A | [#1352](https://github.com/Ahoo-Wang/CosId/pull/1352) | ✅ 已合入 `0ae7c45c`(2026-10-28) |
 | WP-segment | A-N4、A-N5 | R1-B | [#1347](https://github.com/Ahoo-Wang/CosId/pull/1347) | ✅ 已合入 `3e25d483` |
 | WP-release | **E-B2**、**E-B3**、E-M2、E-M3、E-N2、E-N3、E-N4、E-N6–N9 | R5-B | [#1348](https://github.com/Ahoo-Wang/CosId/pull/1348) | ✅ 已合入 `9de77578` |
 | WP-docs | E-N1、C-N4、C-N5;09 §2 表述 | 总调度(本 PR) | #1344 | ✅ 已在本 PR 修改 |
-| WP-migration-doc | D32 停机手工迁移(09 §6、from-4x 中英文) | 会话 `docs-manual-migration` | [#1359](https://github.com/Ahoo-Wang/CosId/pull/1359) | Draft,审查通过(key 格式、封存命令与 `migration/source/*` 一致;边界与 D32 一致),待用户同意转 ready |
+| WP-migration-doc | D32 停机手工迁移(09 §6、from-4x 中英文) | 会话 `docs-manual-migration` | [#1359](https://github.com/Ahoo-Wang/CosId/pull/1359) | ✅ 已合入 `f2f21f75`(2026-10-28) |
 | 需用户决定 | E-M1:改 `4.x` 的 document-deploy(GA 后避免覆盖 5.0 文档站);RC 以 pre-release 发布 | 用户 | | 待决定 |
 
 ## 4.1 当前待办(交接用)
@@ -171,7 +171,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 - 待用户决定:E-M1(是否修改 `4.x` 的 document-deploy);RC1 必须以 pre-release 发布;发布前 `gradle.properties` 改为 `5.0.0-RC1`。
 - 规则:所有 WIP 在 Draft PR 上;CPU ≤ 90%,只在 CI 验证;提交英文、作者 Ahoo Wang、无 Co-authored-by;回复用户用中文。
 
-- **CI 偶发问题(待处理,收尾阶段不开新任务):** `Store MongoDB (mongo:8.0)` 在部分 runner 上整个 job 的容器都起不来(`Container exited with code 1`,等不到 `waiting for connections`),同一 job 在别的 runner 上通过(#1347 16:26、#1350 17:09)。#1342 两次、#1348 一次因此失败,均为基础设施问题,与改动无关,已重跑。RC 后需查明(可能与 runner 的 CPU 或镜像有关,建议 job 失败时打印容器日志)。
+- **CI 偶发问题(✅ 已由 #1358 解决:根因 SERVER-125742,mongo:8.0 改在 ubuntu-22.04 上运行):** `Store MongoDB (mongo:8.0)` 在部分 runner 上整个 job 的容器都起不来(`Container exited with code 1`,等不到 `waiting for connections`),同一 job 在别的 runner 上通过(#1347 16:26、#1350 17:09)。#1342 两次、#1348 一次因此失败,均为基础设施问题,与改动无关,已重跑。RC 后需查明(可能与 runner 的 CPU 或镜像有关,建议 job 失败时打印容器日志)。
 
 ## 4.2 审查不通过登记
 
@@ -179,7 +179,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 |---|---|---|
 | [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) | WP-Redis(B-B1)审查不通过:`Store Redis TCK (Redis 7.0)` 稳定失败(8.10 和 6.2 probe 通过)。`ClusterReplicaWaitTest` 中 `wait=auto` 在 7.0 上解析为 0(期望 1),之后 WAIT 不执行,冻结副本时写入照常成功。这是产品缺陷,不只是测试问题:启动时 auto 若解析为 0,WAIT 就会一直被静默跳过,与 B-B1 属同类问题。可能原因:Lettuce 缓存的拓扑还没显示副本,或 7.0 的 CLUSTER NODES 解析不同 | 已退回 R2-Redis:查清 7.0 的根因;auto 解析改为刷新拓扑或按各主节点的 INFO replication 计数,存在副本却解析为 0 时不能静默;同连接执行 WAIT 和 B-N4 的设计认可 |
 | [#1357](https://github.com/Ahoo-Wang/CosId/pull/1357) | 发布门槛自动报告(run 40534275762,基于 `614d5df9`,即各修复合入前):**FAIL,8 组中 5 组失败**。重跑后仍失败:codec-filler 4 行(radix36/62 编解码单线程吞吐低约 12–15%);mongo 1 行(reserve 分配多约 4%);mysql 7 行(`MySqlStoreBenchmark.acquire` 耗时约 +70%,acquire/renew/reserve 分配 +25–65%,ChainId p99/p99.9 偏高);segment 1 行;zookeeper 4 行(renew/reserve 小幅超阈值 1–7%)。另外该 PR 由 workflow 的 GITHUB_TOKEN 创建,不触发 CI,处于 BLOCKED,不满足“CI 全绿”规则 | 不合入。D21(性能不回退)未满足,是 **RC 阻断项**;分析在 #1345(R5-A)。收尾阶段不开新任务,RC 前需派发:codec 与 MySQL store 为主要回退;mongo/zookeeper/segment 行接近阈值,需先确认是否为噪声。报告需改为由能触发 CI 的身份创建(或改为直接推到 #1345) |
-| [#1358](https://github.com/Ahoo-Wang/CosId/pull/1358) | CI(会话 `ci-gate-mongo`):门槛报告改为 job summary + artifact、不再开 PR,通过;mongo:8.0 根因为 MongoDB 8.0.21+ 在 Linux 6.19–7.0.13 上启动即退出(SERVER-125742,runner 镜像 20261025),认可。不通过:检测到不兼容时跳过 TCK,job 显示绿色而 8.0 实际未覆盖 | 已退回(2026-10-28):`mongo:8*` 改在 `ubuntu-22.04`(内核 6.8)上真跑;探测到不兼容时 job 失败而非跳过。**复审通过**(`5cd86293`,CI 全绿,8.0 TCK 在内核 6.8.0-1064-azure 上跑完),待用户同意转 ready |
+| [#1358](https://github.com/Ahoo-Wang/CosId/pull/1358) | CI(会话 `ci-gate-mongo`):门槛报告改为 job summary + artifact、不再开 PR,通过;mongo:8.0 根因为 MongoDB 8.0.21+ 在 Linux 6.19–7.0.13 上启动即退出(SERVER-125742,runner 镜像 20261025),认可。不通过:检测到不兼容时跳过 TCK,job 显示绿色而 8.0 实际未覆盖 | 已退回(2026-10-28):`mongo:8*` 改在 `ubuntu-22.04`(内核 6.8)上真跑;探测到不兼容时 job 失败而非跳过。**复审通过**(`5cd86293`,CI 全绿,8.0 TCK 在内核 6.8.0-1064-azure 上跑完),待用户同意转 ready;✅ **已合入 `0873ed9e`**(2026-10-28) |
 
 ## 5. RC1 准入清单
 

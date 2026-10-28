@@ -22,7 +22,7 @@ import java.time.Duration;
 
 class ServerPropertiesTest {
     private static ServerProperties.Limits limits(Duration minTtl, Duration maxTtl, Duration maxTolerance, long maxReserve, int maxKeys) {
-        return new ServerProperties.Limits(minTtl, maxTtl, maxTolerance, 1024, maxReserve, 100, maxKeys);
+        return new ServerProperties.Limits(minTtl, maxTtl, maxTolerance, 1024, maxReserve, 100, maxKeys, 10, Duration.ofHours(1));
     }
 
     @Test
@@ -34,6 +34,9 @@ class ServerPropertiesTest {
         assertThrows(IllegalArgumentException.class, () -> limits(second, second, second, 0, 0));
         assertThrows(IllegalArgumentException.class, () -> limits(second, second, second, 1, -1));
         assertEquals(0, limits(second, second, second, 1, 0).maxKeysPerNamespace());
+        assertThrows(IllegalArgumentException.class, () -> new ServerProperties.Limits(second, second, second, 1, 1, 1, 1, -1, second));
+        assertThrows(IllegalArgumentException.class, () -> new ServerProperties.Limits(second, second, second, 1, 1, 1, 1, 1, Duration.ofSeconds(-1)));
+        assertEquals(Duration.ZERO, new ServerProperties.Limits(second, second, second, 1, 1, 1, 1, 0, Duration.ZERO).keyIdleTimeout());
     }
 
     @Test
@@ -41,13 +44,5 @@ class ServerPropertiesTest {
         assertThrows(IllegalArgumentException.class, () -> new ServerProperties.Blocking(0, 1));
         assertThrows(IllegalArgumentException.class, () -> new ServerProperties.Blocking(1, -1));
         assertEquals(0, new ServerProperties.Blocking(1, 0).queueCapacity());
-    }
-
-    @Test
-    void keyCapOfZeroAdmitsEveryKey() {
-        KeyCap cap = new KeyCap(0, new Rejections(null));
-        for (int i = 0; i < 100; i++) {
-            cap.admit("ns/" + i);
-        }
     }
 }

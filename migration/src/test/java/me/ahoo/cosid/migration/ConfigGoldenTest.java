@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.ZoneId;
+import java.util.Set;
 
 /**
  * {@code config} goldens (09 §3): each {@code config/<case>/input.*} converts to {@code expected.yaml}, report included.
@@ -39,10 +40,12 @@ class ConfigGoldenTest {
         Path dir = Files.createTempDirectory("cosid-config");
         Path output = dir.resolve("application-5.yaml");
         Path inputFile = MigrationScenarioTest.resource("config/" + input);
-        // The edge case runs without apply-result.json: a static slot without not-before is reported.
-        Path result = input.startsWith("edge/") ? null : MigrationScenarioTest.resource("config/apply-result.json");
+        // Each case has the apply-result.json of its keys; the edge case runs without one, its segment generators named
+        // as new, and its static slot without not-before is reported.
+        boolean edge = input.startsWith("edge/");
+        Path result = edge ? null : inputFile.resolveSibling("apply-result.json");
         new Migration(new PrintStream(new ByteArrayOutputStream(), true, StandardCharsets.UTF_8))
-            .config(new Migration.ConfigOptions(inputFile, result, output, ZoneId.of("Asia/Shanghai")));
+            .config(new Migration.ConfigOptions(inputFile, result, output, ZoneId.of("Asia/Shanghai"), edge ? Set.of("friendly", "grouped", "grouped-inside", "grouped-plain") : Set.of()));
         String actual = Files.readString(output);
         Path golden = inputFile.resolveSibling("expected.yaml");
         if (Boolean.getBoolean("cosid.migration.updateGoldens")) {

@@ -15,8 +15,9 @@ its backing store in one round trip; that store also runs the slot choice and st
   - `409 lease_lost` → an empty renew or a false release
   - `409 namespace_mismatch` → `NamespaceMismatchException`
   - `501` on seal → `false`
+  - `504 store_timeout` → `RemoteStoreException` with a `StoreTimeoutException` cause, so it counts as a store timeout
 
   Anything else throws `RemoteStoreException`, which carries `status()` and `code()`. Its `transientFailure()` is true
-  for `503` and for calls that got no answer.
+  for `503`, `504` and for calls that got no answer.
 - **TCK:** the contracts run in `server/` against a real server started in process. They run on `InMemoryStore`, on H2
   (JDBC), and on Redis when `COSID_TEST_REDIS_URI` is set. They live there because nothing may depend on `server`.

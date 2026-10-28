@@ -95,13 +95,17 @@ Adding a package means deciding whether `module-info.java` exports it.
 
 - `cosid.java`: Java 21, `-parameters`, Checkstyle, SpotBugs, JaCoCo (XML reports for Codecov), JUnit 5 + Hamcrest,
   Logback for tests, `-PtestJavaVersion=25` to run tests on another JDK.
-- `cosid.library`: `cosid.java` + sources/javadoc jars + Maven publication (`cosid.publish`).
+- `cosid.library`: `cosid.java` + sources/javadoc jars + Maven publication (`cosid.publish`) + `checkPublishedMetadata`
+  (in `check`): every dependency has a version (or a published platform manages it), and no enforced platform or build
+  platform is published.
 - `cosid.spring` (`spring/*`, `integrations/*`; `server` applies `cosid.java` + the Spring Boot plugin and the BOM itself, since it is not published): `cosid.library` + the Spring Boot BOM on the build's
-  classpaths only (never published), published versions of `spring-boot-minimum`, `checkPublishedMetadata` (in `check`),
+  classpaths only (never published), published versions of `spring-boot-minimum`,
   and the compatibility matrix: `-PspringBootVersion=4.0.8` builds and tests on another Boot (02 §5), with
   `-PtestJavaVersion=25`; CI job `spring-compatibility`.
 - `cosid.platform`: the BOM. `cosid.benchmark`: `cosid.java` + JMH (`me.champeau.jmh`) — JMH is applied nowhere else.
-- `cosid.root` (root project): `checkDependencyRules`, wired into `check` with build-logic's own tests.
+- `cosid.root` (root project): `checkDependencyRules` and `checkBom` (the BOM lists exactly the published modules),
+  wired into `check` with build-logic's own tests; `javadocSite` collects each published module's Javadoc into
+  `build/javadoc-site/<artifactId>` for `document-deploy.yml`.
 - **Dependency rules (02 §3)** are data in `DependencyRules.kt`, unit tested in `DependencyRulesTest.kt`: `core` depends
   on `slf4j-api` only; `store/*`, `integrations/*`, `extras/*` on `core`; `store/tck` is a test-scope dependency for
   everyone; nothing depends on `server`, `migration`, `examples` or `benchmark`; `benchmark/baseline-4x` depends on no
@@ -126,7 +130,7 @@ Adding a package means deciding whether `module-info.java` exports it.
 - **Benchmarks:** both benchmark projects use the same class and method names (`<Scenario>Benchmark.<op>_t<threads>`)
   so `benchmark/compare` can match rows. PRs report `benchmark/run-smoke`, never a comparison with stored numbers:
   smoke numbers from another time or a shared machine are noise. Results land in
-  `benchmark/*/build/results/jmh/results.json`; committed results go to `docs/jmh/<version>/` with the machine and JDK noted. The `v5` scenarios fail at setup until R1.
+  `benchmark/*/build/results/jmh/results.json`; committed results go to `docs/jmh/<version>/` with the machine and JDK noted.
 - **Store integration tests** (R2) will follow the 4.x convention: `COSID_TEST_REDIS_URI`, `COSID_TEST_MYSQL_URL`/
   `_USERNAME`/`_PASSWORD`, `COSID_TEST_POSTGRES_URL`/…, `COSID_TEST_MONGODB_URI`; Testcontainers otherwise; one CI job
   per `store/*` module running the TCK. Each backend registers a `checkContractsRan` task like `store/tck/build.gradle.kts`

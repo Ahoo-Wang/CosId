@@ -17,6 +17,7 @@ import me.ahoo.cosid.store.StoreTimeoutException;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.sql.SQLTransientConnectionException;
 import java.time.Duration;
 import javax.sql.DataSource;
 
@@ -54,7 +55,8 @@ final class Jdbc {
 
     <T> T run(String operation, SessionWork<T> work) {
         for (int attempt = 1; ; attempt++) {
-            try (Connection connection = dataSource.getConnection()) {
+            Connection connection = connection(operation);
+            try (connection) {
                 return work.run(new JdbcSession(connection, tables, queryTimeoutSeconds));
             } catch (SQLException e) {
                 if (attempt < RETRIES && dialect.isRetryable(e)) {
@@ -65,6 +67,44 @@ final class Jdbc {
                 }
                 throw new JdbcStoreException(operation + " failed on " + dialect.name(), e);
             }
+        }
+    }
+
+    /**
+     * Borrows a connection. A pool that hands none out in time ({@link SQLTransientConnectionException}, a timeout,
+     * or a connection exception of SQL state class {@code 08}) is a store timeout like a statement timeout.
+     */
+    private Connection connection(String operation) {
+        try {
+            return dataSource.getConnection();
+        } catch (SQLException e) {
+            if (isConnectionTimeout(e)) {
+                throw new StoreTimeoutException(operation + " got no " + dialect.name() + " connection", e);
+            }
+            throw new JdbcStoreException(operation + " got no " + dialect.name() + " connection", e);
+        }
+    }
+
+    boolean isConnectionTimeout(SQLException e) {
+        String state = e.getSQLState();
+        return e instanceof SQLTransientConnectionException || dialect.isTimeout(e) || state != null && state.startsWith("08");
+    }
+
+    /**
+     * When an operation of several statements started now has to give up: {@code timeout} from now, or never when
+     * the store has no timeout.
+     */
+    long deadline() {
+        return timeout.isZero() ? Long.MAX_VALUE : System.nanoTime() + timeout.toNanos();
+    }
+
+    /**
+     * Throws {@link StoreTimeoutException} once {@code deadline} has passed: a loop of statements that keeps losing
+     * races, or a wait for another client, ends within the store timeout like a single statement does.
+     */
+    void checkDeadline(long deadline, String operation) {
+        if (deadline != Long.MAX_VALUE && System.nanoTime() - deadline > 0) {
+            throw new StoreTimeoutException(operation + " did not complete on " + dialect.name() + " within " + timeout);
         }
     }
 

@@ -161,7 +161,7 @@ final class Zk {
      */
     static void backoff(int attempt, long deadline, String what) {
         if (System.nanoTime() >= deadline) {
-            throw new CosIdException("ZooKeeper " + what + " timed out after " + (attempt + 1) + " conflicts");
+            throw new StoreTimeoutException("ZooKeeper " + what + " timed out after " + (attempt + 1) + " conflicts");
         }
         // Checked here, not left to the sleep: a pause of 0 (the first attempts, or a random 0) never looks at the flag.
         if (Thread.currentThread().isInterrupted()) {

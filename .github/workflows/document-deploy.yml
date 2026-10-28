@@ -60,27 +60,12 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
-      # 5.0 has no aggregated Javadoc: each published module (those with a javadocJar) gets its own directory,
-      # named by its artifactId (D11), under one index page.
+      # One directory per published module, named by its artifactId (ArtifactIds, D11), under an index page.
       - name: Generate JavaDoc
-        run: ./gradlew javadocJar
+        run: ./gradlew javadocSite
 
       - name: Copy To Documentation
-        run: |
-          out=documentation/docs/public/javadoc
-          mkdir -p "$out"
-          links=""
-          for dir in $(find . -path '*/build/docs/javadoc' -type d -not -path './build-logic/*' | sort); do
-            module=${dir#./}; module=${module%/build/docs/javadoc}
-            case "$module" in
-              spring/*) artifact="cosid-spring-boot-${module#spring/}" ;;
-              extras/*) artifact="cosid-${module#extras/}" ;;
-              *) artifact="cosid-${module//\//-}" ;;
-            esac
-            cp -R "$dir" "$out/$artifact"
-            links="$links<li><a href=\"$artifact/index.html\">$artifact</a></li>"
-          done
-          printf '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>CosId JavaDoc</title></head><body><h1>CosId JavaDoc</h1><ul>%s</ul></body></html>\n' "$links" > "$out/index.html"
+        run: cp -R build/javadoc-site documentation/docs/public/javadoc
 
       - name: Setup Node.js
         uses: actions/setup-node@v7

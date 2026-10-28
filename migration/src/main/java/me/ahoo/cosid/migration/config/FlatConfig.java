@@ -102,6 +102,10 @@ public final class FlatConfig {
             return;
         }
         if (node.isObject()) {
+            if (node.isEmpty() && !prefix.isEmpty()) {
+                // "provider: { order: {} }" declares an entry with every default: keep its name.
+                values.put(canonical(prefix), "");
+            }
             for (Map.Entry<String, JsonNode> field : node.properties()) {
                 String name = prefix.isEmpty() ? field.getKey() : prefix + "." + field.getKey();
                 flatten(name, field.getValue(), values);

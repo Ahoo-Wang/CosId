@@ -20,7 +20,7 @@ application ──(cosid-store-remote, HTTP + token)──▶ cosid-server ─�
 docker run -d -p 8688:8688 \
   -e COSID_STORES_MAIN_TYPE=redis \
   -e COSID_STORES_MAIN_OPTIONS_URI=redis://redis:6379 \
-  -e COSID_SERVER_AUTH_TOKENS_0=change-me \
+  -e COSID_SERVER_AUTH_TOKENS_0=change-me-to-a-long-random-token \
   ahoowang/cosid-server:__COSID_VERSION__
 ```
 
@@ -64,7 +64,8 @@ ISO-8601, or `500ms` / `3s` / `1m` / `1h`. Answers that have an outcome map to i
 | `409 lease_lost` | an empty renew, a `false` release |
 | `409 namespace_mismatch` | `NamespaceMismatchException` |
 | `501` on seal | `false` |
-| anything else | `RemoteStoreException` with `status()`, `code()`; `transientFailure()` for `503` and for calls with no answer |
+| `504 store_timeout` | `RemoteStoreException` whose cause is a `StoreTimeoutException` (counted as a store timeout) |
+| anything else | `RemoteStoreException` with `status()`, `code()`; `transientFailure()` for `503`, `504` and for calls with no answer |
 
 ## API
 
@@ -86,14 +87,17 @@ the path, the id endpoints use `default`. A `periodic` answer stops at a period 
 `count` values; a disabled generator answers `409 generator_disabled`.
 
 Other statuses: `400 bad_request` (a missing field, a bad character set or length, a value past a limit), `401`
-(no token), `403` (a token outside its namespaces), `429 too_many_keys`, `503 busy` with `Retry-After: 1`, and
-`500 store_error`. Every response carries `Cache-Control: no-store`. The OpenAPI document is at `/v3/api-docs`, Swagger
-UI at `/swagger-ui.html`; both need a token unless added to `public-paths`.
+(no token), `403` (a token outside its namespaces, or a client token on an admin path), `429 too_many_keys` /
+`too_many_namespaces`, `503 busy` with `Retry-After: 1`, `504 store_timeout` and `500 store_error`. Errors of the
+backing store answer a generic message; the details go to the server log. Every response carries
+`Cache-Control: no-store`. The OpenAPI document is at `/v3/api-docs`, Swagger UI at `/swagger-ui.html`; both are admin
+paths.
 
 ## Authentication
 
 **Bearer tokens are on by default.** Without any token or client configured, the server refuses to start unless
-`cosid.server.auth.allow-anonymous=true`.
+`cosid.server.auth.allow-anonymous=true`. It also refuses a token shorter than 16 characters, and one that still holds
+`${`: an environment variable that was not set must not leave the placeholder as a token anyone can read here.
 
 ```yaml
 cosid:
@@ -109,7 +113,10 @@ cosid:
 ```
 
 A client token reaches only its namespaces (`*` for all) and key prefixes: anything else is `403`. The id endpoints
-check `cosid.namespace` of the server's own runtime against the client's namespaces.
+check `cosid.namespace` of the server's own runtime against the client's namespaces. The **admin paths**
+(`auth.admin-paths`, by default `/actuator/**` and the springdoc paths) ignore namespaces (the `cosid` endpoint issues
+ids of every generator), so only the unrestricted `tokens` may use them: a client token gets `403` there. The public
+paths are checked first, so health stays open.
 
 ## Limits
 
@@ -120,10 +127,14 @@ check `cosid.namespace` of the server's own runtime against the client's namespa
 | `limits.max-slot-limit` | `65536` | stores prepare `limit` slots per namespace |
 | `limits.max-reserve` | `1e12` | the largest range size |
 | `limits.max-count` | `1000` | the largest `count` of the id endpoints |
-| `limits.max-keys-per-namespace` | `10000` | distinct range keys per namespace per server instance (`429` past it; `0` = no cap) |
+| `limits.max-keys-per-namespace` | `10000` | range keys one client uses in one namespace, per server instance (`429 too_many_keys`; `0` = no cap) |
+| `limits.max-namespaces-per-client` | `1000` | namespaces one client uses range keys in, per server instance; a key without `/` is a namespace of its own (`429 too_many_namespaces`; `0` = no cap) |
+| `limits.key-idle-timeout` | `1h` | a key unused this long no longer counts (`0` = keep every key) |
 | `blocking.threads` / `queue-capacity` | `64` / `1024` | the bounded pool for store calls; when full, `503` + `Retry-After: 1` |
 
-The meter `cosid.server.call.rejections{reason=busy|too_many_keys}` counts the calls turned away. Actuator exposes
+Each client counts on its own, so one cannot use up a shared namespace for the others, and a reserve that failed does
+not count. The meter `cosid.server.call.rejections{reason=busy|too_many_keys|too_many_namespaces}` counts the calls
+turned away. Actuator exposes
 `health` (public, with `liveness` and `readiness` probes), `info`, `prometheus` and `cosid`.
 
 ## Issuing ids from the server

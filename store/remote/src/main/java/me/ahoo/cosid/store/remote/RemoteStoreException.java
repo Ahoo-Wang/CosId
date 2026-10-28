@@ -38,6 +38,21 @@ public class RemoteStoreException extends CosIdException {
     }
 
     /**
+     * An error the server answered, with a cause on this side, such as the {@link me.ahoo.cosid.store.StoreTimeoutException}
+     * of a {@code store_timeout}.
+     *
+     * @param status  the HTTP status
+     * @param code    the {@code code} of the error body
+     * @param message the message
+     * @param cause   the cause
+     */
+    public RemoteStoreException(int status, String code, String message, Throwable cause) {
+        super(message, cause);
+        this.status = status;
+        this.code = code;
+    }
+
+    /**
      * A call that got no answer.
      *
      * @param message the message
@@ -68,11 +83,12 @@ public class RemoteStoreException extends CosIdException {
     }
 
     /**
-     * Whether calling again later may succeed: the server was busy ({@code 503}) or did not answer.
+     * Whether calling again later may succeed: the server was busy ({@code 503}), its store timed out ({@code 504}), or
+     * it did not answer.
      *
      * @return whether the failure is transient
      */
     public boolean transientFailure() {
-        return status == 0 || status == 503;
+        return status == 0 || status == 503 || status == 504;
     }
 }

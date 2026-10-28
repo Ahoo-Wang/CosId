@@ -11,7 +11,7 @@ cosid:
       timeout: 2s
       options:
         baseUrl: ${COSID_SERVER_URL:http://localhost:8688}
-        token: ${COSID_SERVER_TOKEN:change-me}
+        token: ${COSID_SERVER_TOKEN:change-me-to-a-long-random-token}
         connectTimeout: 5s
   machine:
     leased:

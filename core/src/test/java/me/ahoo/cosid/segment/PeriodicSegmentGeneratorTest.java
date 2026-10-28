@@ -252,6 +252,40 @@ class PeriodicSegmentGeneratorTest {
     }
 
     @Test
+    void aFaultyNextPeriodLeavesNothingBehindAcrossRetries() {
+        // Day keys, but the second day's end is in the past until the period is repaired.
+        boolean[] repaired = {false};
+        Period faulty = new Period() {
+            @Override
+            public String keyOf(Instant instant, ZoneId zone) {
+                return Period.YEAR_MONTH_DAY.keyOf(instant, zone);
+            }
+
+            @Override
+            public Instant endOf(String key, ZoneId zone) {
+                return key.equals("20261027") && !repaired[0] ? Instant.EPOCH : Period.YEAR_MONTH_DAY.endOf(key, zone);
+            }
+        };
+        PeriodicPolicy sealAtOnce = new PeriodicPolicy(Duration.ZERO, Optional.of(Duration.ZERO));
+        try (PeriodicSegmentGenerator generator = new PeriodicSegmentGenerator("bill", "app/bill", faulty, ZoneOffset.UTC, store, batch,
+            sealAtOnce, Runnable::run, time, GeneratorListener.NOOP)) {
+            assertThat(generator.generate().period(), is("20261026"));
+            time.set(MIDNIGHT);
+            for (int i = 0; i < 3; i++) {
+                assertThrows(IllegalStateException.class, generator::generate);
+            }
+            // Each failure changed nothing: the old period is not sealed, the new key not created.
+            assertThat(store.sealCalls(), empty());
+            assertThat(store.exists("app/bill/20261027"), is(false));
+            assertThat(generator.currentPeriod(), is("20261026"));
+            repaired[0] = true;
+            assertThat(generator.generate().period(), is("20261027"));
+            // The old key is sealed once, not once per failed call.
+            assertThat(store.sealCalls(), contains("app/bill/20261026"));
+        }
+    }
+
+    @Test
     void customPeriodKeepsAPeriodWhoseKeyDoesNotChange() {
         // A period whose key stays the same over two ends: one key, two ends; the generator keeps issuing in it.
         Period sticky = new Period() {

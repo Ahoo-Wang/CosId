@@ -92,7 +92,9 @@ class JdbcDialectsTest {
             assertTrue(all.contains("a.r") && all.contains("s_slot") && all.contains(" n"), () -> dialect.name() + ": " + all);
             assertFalse(all.contains(";"), "statements without their terminator");
         }
-        assertEquals(JdbcDialects.MYSQL.schema(JdbcTables.DEFAULT), JdbcDialects.MARIADB.schema(JdbcTables.DEFAULT));
+        assertTrue(String.join("\n", JdbcDialects.MYSQL.schema(JdbcTables.DEFAULT)).contains("utf8mb4_0900_bin"), "MySQL keys are binary, NO PAD");
+        assertTrue(String.join("\n", JdbcDialects.MARIADB.schema(JdbcTables.DEFAULT)).contains("utf8mb4_nopad_bin"), "MariaDB keys are binary, NO PAD");
+        assertTrue(String.join("\n", JdbcDialects.SQL_SERVER.schema(JdbcTables.DEFAULT)).contains("Latin1_General_100_BIN2"), "SQL Server keys are binary");
     }
 
     @Test

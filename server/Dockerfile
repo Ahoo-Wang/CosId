@@ -1,10 +1,21 @@
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # cosid-server (08-remote.md §4). Build the jar first, then the image:
 #   ./gradlew :server:bootJar && docker build -t ahoowang/cosid-server:TAG server
 #   (or ./gradlew :server:dockerImage)
 # Run it on a backing store, with a token (the server refuses to start without one):
 #   docker run -d -p 8688:8688 \
 #     -e COSID_STORES_MAIN_TYPE=redis -e COSID_STORES_MAIN_OPTIONS_URI=redis://redis:6379 \
-#     -e COSID_SERVER_AUTH_TOKENS_0=change-me ahoowang/cosid-server:TAG
+#     -e COSID_SERVER_AUTH_TOKENS_0=change-me-to-a-long-random-token ahoowang/cosid-server:TAG
 FROM eclipse-temurin:21-jre
 
 LABEL maintainer="ahoowang@qq.com"

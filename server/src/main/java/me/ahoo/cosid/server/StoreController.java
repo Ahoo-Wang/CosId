@@ -57,8 +57,20 @@ class StoreController {
         long size = requests.size(request.size());
         long initialOffset = Requests.notNegative(request.initialOffset(), "initialOffset");
         allowKey(grant, key);
-        keyCap.admit(key);
-        return calls.submit(() -> Bodies.RangeBody.of(store.ranges().reserve(key, size, initialOffset)));
+        Runnable forget = keyCap.admit(grant, key);
+        CompletableFuture<Bodies.RangeBody> reserved;
+        try {
+            reserved = calls.submit(() -> Bodies.RangeBody.of(store.ranges().reserve(key, size, initialOffset)));
+        } catch (RuntimeException e) {
+            forget.run();
+            throw e;
+        }
+        // Only keys the store reserved stay counted (KeyCap).
+        return reserved.whenComplete((range, error) -> {
+            if (error != null) {
+                forget.run();
+            }
+        });
     }
 
     @PostMapping(RemoteApi.SEAL)

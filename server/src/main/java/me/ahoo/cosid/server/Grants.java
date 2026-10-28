@@ -26,6 +26,9 @@ import java.util.Set;
  * without a token (08-remote.md §3).
  */
 final class Grants {
+    /** The shortest token the server accepts. */
+    static final int MIN_TOKEN_LENGTH = 16;
+
     private final List<Entry> entries;
     private final boolean anonymous;
 
@@ -68,7 +71,16 @@ final class Grants {
         if (token == null || token.isBlank()) {
             throw new IllegalStateException(ServerProperties.PREFIX + ".auth." + at + " is blank");
         }
-        if (!seen.add(token.trim())) {
+        String trimmed = token.trim();
+        // An unresolved placeholder, such as ${COSID_SERVER_TOKEN} without the variable, must not become a token
+        // anyone can read in the documentation.
+        if (trimmed.contains("${")) {
+            throw new IllegalStateException(ServerProperties.PREFIX + ".auth." + at + " holds an unresolved placeholder ${...}: set the variable it names");
+        }
+        if (trimmed.length() < MIN_TOKEN_LENGTH) {
+            throw new IllegalStateException(ServerProperties.PREFIX + ".auth." + at + " is shorter than " + MIN_TOKEN_LENGTH + " characters");
+        }
+        if (!seen.add(trimmed)) {
             throw new IllegalStateException(ServerProperties.PREFIX + ".auth." + at + " repeats another token");
         }
     }

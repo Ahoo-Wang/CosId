@@ -35,8 +35,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * What a 5.x runtime builds by default, shared by the scenarios (benchmark/scenarios.md).
- *
- * <p>TODO(R1): the 5.x generators are skeletons until R1; these scenarios compile but fail at setup until then.
  */
 final class V5 {
     static final int SLOT = 1;
@@ -70,9 +68,8 @@ final class V5 {
 
     /**
      * An in-memory range store with no simulated latency, like the 4.x {@code Baseline4x.MemoryDistributor}: one
-     * atomic add per reservation.
-     *
-     * <p>TODO(R1-C): use {@code store.tck.InMemoryStore} once it is implemented, if it costs the same.
+     * atomic add per reservation. It stays rather than {@code store.tck.InMemoryStore}, so the scenarios measure the
+     * generator alone, as the 4.x side does.
      */
     static final class MemoryRangeStore implements RangeStore {
         private final ConcurrentHashMap<String, AtomicLong> values = new ConcurrentHashMap<>();

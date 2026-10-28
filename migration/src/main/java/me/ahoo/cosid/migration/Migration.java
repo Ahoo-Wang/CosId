@@ -17,7 +17,6 @@ import me.ahoo.cosid.migration.config.ConfigConverter;
 import me.ahoo.cosid.migration.config.FlatConfig;
 import me.ahoo.cosid.migration.config.Legacy4x;
 import me.ahoo.cosid.migration.source.SourceReader;
-import me.ahoo.cosid.migration.source.SourceSnapshot;
 import me.ahoo.cosid.migration.source.Sources;
 import me.ahoo.cosid.migration.target.NamespaceState;
 import me.ahoo.cosid.migration.target.RangeState;
@@ -30,12 +29,15 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 
 /**
@@ -81,6 +83,8 @@ public final class Migration {
      *
      * @param from          the 4.x store
      * @param to            the 5.0 store
+     * @param machineFrom   the 4.x store of the machine ids when not {@code from} ({@code --machine-from}); null otherwise
+     * @param machineTo     the 5.0 store of the slots when not {@code to} ({@code --machine-to}); null otherwise
      * @param namespace     the namespace
      * @param layoutConfig  the 4.x configuration, optional
      * @param targetConfig  the 5.0 configuration, optional: layouts are compared with it instead of the converted ones
@@ -91,8 +95,14 @@ public final class Migration {
      * @param groupPatterns 5.0 generator name to the 4.x group key pattern
      * @param output        where {@code plan.json} goes
      */
-    public record PlanOptions(StoreLocation from, StoreLocation to, String namespace, Path layoutConfig, Path targetConfig, Integer slotBits,
-                              Duration tolerance, Duration sourceSkew, Map<String, String> renames, Map<String, String> groupPatterns, Path output) {
+    public record PlanOptions(StoreLocation from, StoreLocation to, StoreLocation machineFrom, StoreLocation machineTo, String namespace,
+                              Path layoutConfig, Path targetConfig, Integer slotBits, Duration tolerance, Duration sourceSkew,
+                              Map<String, String> renames, Map<String, String> groupPatterns, Path output) {
+        /** Without separate machine stores. */
+        public PlanOptions(StoreLocation from, StoreLocation to, String namespace, Path layoutConfig, Path targetConfig, Integer slotBits,
+                           Duration tolerance, Duration sourceSkew, Map<String, String> renames, Map<String, String> groupPatterns, Path output) {
+            this(from, to, null, null, namespace, layoutConfig, targetConfig, slotBits, tolerance, sourceSkew, renames, groupPatterns, output);
+        }
     }
 
     /**
@@ -100,51 +110,67 @@ public final class Migration {
      *
      * @param options the options
      * @return the plan, also written to {@code options.output()}
+     * @throws MigrationAbortedException when the plan would be unsafe: the share without {@code --layout-config}, or
+     *                                   4.x stores the locations do not match
      */
     public Plan plan(PlanOptions options) {
         List<String> warnings = new ArrayList<>();
         Legacy4x legacy = options.layoutConfig() == null ? null : new Legacy4x(FlatConfig.load(options.layoutConfig()));
         Map<String, String> renames = new TreeMap<>();
         Map<String, String> groupPatterns = new TreeMap<>();
+        Map<String, List<String>> extraNamespaces = new TreeMap<>();
         if (legacy != null) {
             renames.putAll(legacy.renames());
             groupPatterns.putAll(legacy.groupPatterns());
-            warnings.addAll(legacy.ownNamespaces());
+            legacy.extraNamespaces().forEach((ns, names) -> extraNamespaces.put(ns, List.copyOf(names)));
             if (!legacy.namespace().equals(options.namespace())) {
                 warnings.add("--layout-config has namespace [" + legacy.namespace() + "], the plan [" + options.namespace() + "]");
             }
+            checkStores(legacy, options);
         }
         renames.putAll(options.renames());
         groupPatterns.putAll(options.groupPatterns());
         int bits = options.slotBits() != null ? options.slotBits() : legacy != null ? legacy.machineBit() : Legacy4x.DEFAULT_MACHINE_BIT;
         Plan.Slots slots = Plan.Slots.of(bits, options.tolerance().toMillis());
 
-        SourceSnapshot snapshot;
-        try (SourceReader source = sources.apply(options.from())) {
-            snapshot = source.read(options.namespace());
+        LegacySnapshot snapshot;
+        long sourceNow;
+        try (Readers readers = readers(options.from(), options.machineFrom())) {
+            snapshot = readers.read(options.namespace(), extraNamespaces);
+            sourceNow = readers.now();
+        }
+        boolean share = snapshot.segments().keySet().stream().anyMatch(key -> key.name().equals(Legacy4x.SHARE) || key.name().startsWith(Legacy4x.SHARE + "@"));
+        if (share && legacy == null && !options.renames().containsKey(Legacy4x.SHARE)) {
+            throw new MigrationAbortedException("4.x key [" + options.namespace() + "." + Legacy4x.SHARE + "] needs --layout-config (or --rename "
+                + Legacy4x.SHARE + "=<generator>): its 5.0 name depends on whether the 4.x snowflake share is enabled too");
         }
         KeyMapper mapper = new KeyMapper(options.namespace(), renames, groupPatterns);
         List<String> unrecognized = new ArrayList<>(snapshot.unrecognized());
         List<Plan.SegmentPlan> segments = new ArrayList<>();
         long targetNow;
-        try (TargetAdmin target = targets.apply(options.to())) {
-            targetNow = target.now();
-            Map<String, String> owners = new LinkedHashMap<>();
-            for (Map.Entry<String, Long> entry : snapshot.sortedSegments().entrySet()) {
-                KeyMapper.Mapping mapping = mapper.map(entry.getKey());
+        try (TargetAdmin target = targets.apply(options.to()); TargetAdmin slotTarget = machineTarget(options.to(), options.machineTo(), target)) {
+            targetNow = Math.max(target.now(), slotTarget.now());
+            Map<String, LegacySnapshot.Key> owners = new LinkedHashMap<>();
+            for (Map.Entry<LegacySnapshot.Key, Long> entry : snapshot.segments().entrySet()) {
+                LegacySnapshot.Key key = entry.getKey();
+                KeyMapper.Mapping mapping = mapper.map(key.name());
                 if (!mapping.mapped()) {
-                    unrecognized.add(options.namespace() + "." + entry.getKey() + ": " + mapping.problem());
+                    unrecognized.add(key + ": " + mapping.problem());
                     continue;
                 }
-                String other = owners.putIfAbsent(mapping.targetKey(), entry.getKey());
+                LegacySnapshot.Key other = owners.putIfAbsent(mapping.targetKey(), key);
                 if (other != null) {
-                    warnings.add("4.x segments [" + other + "] and [" + entry.getKey() + "] both map to [" + mapping.targetKey() + "]: the larger value wins");
+                    warnings.add("4.x segments [" + other + "] and [" + key + "] both map to [" + mapping.targetKey() + "]: the larger value wins");
                 }
                 Long targetNext = target.range(mapping.targetKey()).map(RangeState::next).orElse(null);
-                segments.add(new Plan.SegmentPlan(entry.getKey(), mapping.generator(), mapping.period(), mapping.targetKey(), entry.getValue(),
-                    next(entry.getKey(), entry.getValue(), 0), targetNext));
+                segments.add(new Plan.SegmentPlan(key.namespace(), key.name(), mapping.generator(), mapping.period(), mapping.targetKey(), entry.getValue(),
+                    next(key.toString(), entry.getValue(), 0), targetNext));
+                if (key.name().contains(".") && legacy == null) {
+                    warnings.add("4.x key [" + key + "] may belong to a namespace [" + key.namespace() + "." + key.name().substring(0, key.name().indexOf('.'))
+                        + "]: give --layout-config so plan knows the namespaces in use");
+                }
             }
-            target.namespace(options.namespace()).ifPresent(state -> {
+            slotTarget.namespace(options.namespace()).ifPresent(state -> {
                 if (state.limit() != slots.limit() || state.toleranceMillis() != slots.toleranceMillis()) {
                     warnings.add("the 5.0 namespace is recorded with limit " + state.limit() + " and tolerance " + state.toleranceMillis()
                         + "ms: apply fails unless --slot-bits / --tolerance match");
@@ -154,24 +180,141 @@ public final class Migration {
                 }
             });
         }
+        if (!unrecognized.isEmpty()) {
+            warnings.add("apply aborts unless each key not migrated is named with --allow-unmigrated <key>");
+        }
         long sourceSkew = options.sourceSkew().toMillis();
-        long w = floorW(targetNow, snapshot.maxMachineTimestamp(), sourceSkew);
+        long w = floorW(Math.max(targetNow, sourceNow), snapshot.maxTimestamp(), sourceSkew);
         List<LayoutCheck> layouts = layouts(legacy, options.targetConfig(), w);
         if (legacy == null) {
-            warnings.add("no --layout-config: layouts are not validated (M3), group patterns default to the 5.0 presets");
+            warnings.add("no --layout-config: layouts are not validated (M3), namespaces of their own and separate machine stores are not"
+                + " checked, group patterns default to the 5.0 presets");
         }
-        Plan plan = new Plan(Plan.FORMAT, Instant.now().toString(), options.namespace(), options.from().redacted(), options.to().redacted(), slots,
-            renames, groupPatterns, segments, unrecognized,
-            new Plan.Machines(snapshot.machines().size(), snapshot.maxMachineTimestamp(), targetNow, sourceSkew, w), layouts, warnings);
+        Plan plan = new Plan(Plan.FORMAT, Instant.now().toString(), options.namespace(), options.from().redacted(), options.to().redacted(),
+            options.machineFrom() == null ? null : options.machineFrom().redacted(), options.machineTo() == null ? null : options.machineTo().redacted(),
+            extraNamespaces, slots, renames, groupPatterns, segments, unrecognized,
+            new Plan.Machines(snapshot.machines().size(), snapshot.maxTimestamp(), Math.max(targetNow, sourceNow), sourceSkew, w), layouts, warnings);
         Json.write(options.output(), plan);
         report(plan);
         return plan;
     }
 
+    /**
+     * The 4.x stores of {@code --layout-config} against the locations (rc-review D-B4): segments in {@code --from}, and
+     * machine ids in {@code --from} too or in {@code --machine-from}; slots of a separate 4.x machine store go to the
+     * 5.0 store of {@code cosid.machine.leased}, which {@code --machine-to} names.
+     */
+    private static void checkStores(Legacy4x legacy, PlanOptions options) {
+        legacy.segmentStoreType().filter(type -> !type.equals(options.from().type())).ifPresent(type -> {
+            throw new MigrationAbortedException("--layout-config keeps the 4.x segments in " + type + " (cosid.segment.distributor.type), --from is "
+                + options.from().type());
+        });
+        Optional<String> machine = legacy.machineStoreType();
+        if (machine.isEmpty()) {
+            return;
+        }
+        StoreLocation machineFrom = options.machineFrom() == null ? options.from() : options.machineFrom();
+        if (!machine.get().equals(machineFrom.type())) {
+            throw new MigrationAbortedException("--layout-config keeps the 4.x machine ids in " + machine.get() + " (cosid.machine.distributor.type), "
+                + (options.machineFrom() == null ? "not in --from (" + options.from().type() + "): give --machine-from" : "--machine-from is " + machineFrom.type()));
+        }
+        boolean separate = legacy.segmentStoreType().isPresent() && !legacy.segmentStoreType().get().equals(machine.get());
+        if (separate && options.machineTo() == null) {
+            throw new MigrationAbortedException("4.x keeps segments (" + legacy.segmentStoreType().get() + ") and machine ids (" + machine.get()
+                + ") in separate stores, and config writes cosid.machine.leased on the " + machine.get()
+                + " store: give --machine-to, the 5.0 store of the slots (it may be --to)");
+        }
+    }
+
+    /** The 4.x readers of one command: one reader when segments and machine ids share a store. */
+    private Readers readers(StoreLocation from, StoreLocation machineFrom) {
+        SourceReader segments = sources.apply(from);
+        try {
+            return new Readers(segments, machineFrom == null ? segments : sources.apply(machineFrom));
+        } catch (RuntimeException e) {
+            segments.close();
+            throw e;
+        }
+    }
+
+    private record Readers(SourceReader segments, SourceReader machines) implements AutoCloseable {
+        LegacySnapshot read(String namespace, Map<String, List<String>> extra) {
+            Map<String, Set<String>> names = new TreeMap<>();
+            extra.forEach((ns, list) -> names.put(ns, new TreeSet<>(list)));
+            return LegacySnapshot.read(segments, machines, namespace, names);
+        }
+
+        long now() {
+            return machines == segments ? segments.now() : Math.max(segments.now(), machines.now());
+        }
+
+        @Override
+        public void close() {
+            try {
+                segments.close();
+            } finally {
+                if (machines != segments) {
+                    machines.close();
+                }
+            }
+        }
+    }
+
+    /** The target of the slots: a separate one, closed with the command, or the range target itself, never closed twice. */
+    private TargetAdmin machineTarget(StoreLocation to, StoreLocation machineTo, TargetAdmin target) {
+        if (machineTo == null) {
+            return new Unclosed(target);
+        }
+        return targets.apply(machineTo);
+    }
+
+    /** A target the caller closes elsewhere. */
+    private record Unclosed(TargetAdmin delegate) implements TargetAdmin {
+        @Override
+        public long now() {
+            return delegate.now();
+        }
+
+        @Override
+        public Optional<RangeState> range(String key) {
+            return delegate.range(key);
+        }
+
+        @Override
+        public RangeState raise(String key, long next) {
+            return delegate.raise(key, next);
+        }
+
+        @Override
+        public List<RangeState> ranges(String prefix) {
+            return delegate.ranges(prefix);
+        }
+
+        @Override
+        public boolean delete(String key) {
+            return delegate.delete(key);
+        }
+
+        @Override
+        public Optional<NamespaceState> namespace(String namespace) {
+            return delegate.namespace(namespace);
+        }
+
+        @Override
+        public NamespaceState prepare(String namespace, int limit, long toleranceMillis, long nextFloor) {
+            return delegate.prepare(namespace, limit, toleranceMillis, nextFloor);
+        }
+
+        @Override
+        public void close() {
+        }
+    }
+
     private void report(Plan plan) {
-        out.println("Plan for namespace [" + plan.namespace() + "]: " + plan.source() + " -> " + plan.target());
+        out.println("Plan for namespace [" + plan.namespace() + "]: " + plan.source() + " -> " + plan.target()
+            + (plan.machineSource() == null ? "" : "; machine ids " + plan.machineSource()) + (plan.machineTarget() == null ? "" : " -> slots " + plan.machineTarget()));
         for (Plan.SegmentPlan segment : plan.segments()) {
-            out.println("  segment " + plan.namespace() + "." + segment.sourceName() + " = " + segment.lastMaxId() + "  ->  " + segment.targetKey()
+            out.println("  segment " + segment.sourceNamespace() + "." + segment.sourceName() + " = " + segment.lastMaxId() + "  ->  " + segment.targetKey()
                 + " next >= " + segment.next() + (segment.targetNext() == null ? "" : " (target has " + segment.targetNext() + ")"));
         }
         for (String key : plan.unrecognized()) {
@@ -229,28 +372,39 @@ public final class Migration {
     /**
      * {@code apply} options.
      *
-     * @param plan           the plan file
-     * @param confirmStopped {@code --confirm-stopped}: the operator stopped every 4.x instance
-     * @param observe        the quiet period; zero turns the check off
-     * @param gap            added to every segment's next value
-     * @param sourceSkew     the source skew of W
-     * @param sealSource     whether to seal the source (on unless {@code --no-seal-source})
-     * @param sealGap        how far sealing advances a 4.x segment
-     * @param result         where {@code apply-result.json} goes
-     * @param fromOptions    options of the 4.x store not kept in the plan, such as the password
-     * @param toOptions      options of the 5.0 store not kept in the plan
-     * @param layoutConfig   the 4.x configuration, to check the layouts again with the real W; optional
-     * @param targetConfig   the 5.0 configuration of that check; optional
+     * @param plan              the plan file
+     * @param confirmStopped    {@code --confirm-stopped}: the operator stopped every 4.x instance
+     * @param observe           the quiet period; zero turns the check off
+     * @param gap               added to every segment's next value
+     * @param sourceSkew        the source skew of W
+     * @param sealSource        whether to seal the source (on unless {@code --no-seal-source})
+     * @param sealGap           how far sealing advances a 4.x segment
+     * @param result            where {@code apply-result.json} goes
+     * @param fromOptions       options of the 4.x store not kept in the plan, such as the password
+     * @param toOptions         options of the 5.0 store not kept in the plan
+     * @param layoutConfig      the 4.x configuration, to check the layouts again with the real W; optional
+     * @param targetConfig      the 5.0 configuration of that check; optional
+     * @param allowUnmigrated   4.x keys that may stay unmigrated ({@code --allow-unmigrated}); any other aborts
+     * @param machineFromOptions options of the 4.x machine store not kept in the plan
+     * @param machineToOptions  options of the 5.0 slot store not kept in the plan
      */
     public record ApplyOptions(Path plan, boolean confirmStopped, Duration observe, long gap, Duration sourceSkew, boolean sealSource, long sealGap,
-                               Path result, Map<String, String> fromOptions, Map<String, String> toOptions, Path layoutConfig, Path targetConfig) {
+                               Path result, Map<String, String> fromOptions, Map<String, String> toOptions, Path layoutConfig, Path targetConfig,
+                               Set<String> allowUnmigrated, Map<String, String> machineFromOptions, Map<String, String> machineToOptions) {
+        /** Without keys allowed unmigrated or separate machine stores. */
+        public ApplyOptions(Path plan, boolean confirmStopped, Duration observe, long gap, Duration sourceSkew, boolean sealSource, long sealGap,
+                            Path result, Map<String, String> fromOptions, Map<String, String> toOptions, Path layoutConfig, Path targetConfig) {
+            this(plan, confirmStopped, observe, gap, sourceSkew, sealSource, sealGap, result, fromOptions, toOptions, layoutConfig, targetConfig,
+                Set.of(), Map.of(), Map.of());
+        }
     }
 
     /**
      * Applies a plan (09 §2, §3): idempotent, values only ever increase.
      *
      * <ol>
-     *     <li>Snapshots the source, waits the quiet period, snapshots again; any change aborts.</li>
+     *     <li>Snapshots the source, waits the quiet period, snapshots again; any change aborts, so does a key that is
+     *     not migrated unless {@code --allow-unmigrated} names it.</li>
      *     <li>Seals each 4.x segment with one atomic increment of {@code sealGap}, whose result bounds everything 4.x
      *     reserved before it; a segment already at {@code planned + sealGap} or beyond was sealed by an earlier run.</li>
      *     <li>Raises each 5.0 key to {@code lastMaxId + 1 + gap} (M1).</li>
@@ -277,14 +431,20 @@ public final class Migration {
         }
         StoreLocation from = plan.source().withOptions(options.fromOptions()).withEnvironmentPassword("FROM");
         StoreLocation to = plan.target().withOptions(options.toOptions()).withEnvironmentPassword("TO");
+        StoreLocation machineFrom = plan.machineSource() == null ? null
+            : plan.machineSource().withOptions(options.machineFromOptions()).withEnvironmentPassword("MACHINE_FROM");
+        StoreLocation machineTo = plan.machineTarget() == null ? null
+            : plan.machineTarget().withOptions(options.machineToOptions()).withEnvironmentPassword("MACHINE_TO");
+        Map<String, List<String>> extra = plan.extraNamespaces() == null ? Map.of() : plan.extraNamespaces();
         List<String> warnings = new ArrayList<>();
-        Map<String, Plan.SegmentPlan> planned = new LinkedHashMap<>();
-        plan.segments().forEach(segment -> planned.put(segment.sourceName(), segment));
+        Map<LegacySnapshot.Key, Plan.SegmentPlan> planned = new LinkedHashMap<>();
+        plan.segments().forEach(segment -> planned.put(new LegacySnapshot.Key(segment.sourceNamespace(), segment.sourceName()), segment));
         KeyMapper mapper = new KeyMapper(plan.namespace(), plan.renames(), plan.groupPatterns());
-        try (SourceReader source = sources.apply(from); TargetAdmin target = targets.apply(to)) {
-            SourceSnapshot first = source.read(plan.namespace());
+        try (Readers source = readers(from, machineFrom); TargetAdmin target = targets.apply(to);
+             TargetAdmin slotTarget = machineTarget(to, machineTo, target)) {
+            LegacySnapshot first = source.read(plan.namespace(), extra);
             long observed = 0;
-            SourceSnapshot snapshot = first;
+            LegacySnapshot snapshot = first;
             if (!options.observe().isZero()) {
                 out.println("Watching the 4.x store for " + options.observe() + " (--observe) ...");
                 long started = System.nanoTime();
@@ -294,7 +454,7 @@ public final class Migration {
                     Thread.currentThread().interrupt();
                     throw new MigrationAbortedException("interrupted during the quiet period");
                 }
-                snapshot = source.read(plan.namespace());
+                snapshot = source.read(plan.namespace(), extra);
                 observed = Duration.ofNanos(System.nanoTime() - started).toMillis();
                 List<String> changes = snapshot.changesSince(first);
                 if (!changes.isEmpty()) {
@@ -303,20 +463,34 @@ public final class Migration {
             } else {
                 warnings.add("the quiet-period check was off (--observe 0)");
             }
-            for (String name : snapshot.segments().keySet()) {
-                if (!planned.containsKey(name)) {
-                    warnings.add("segment [" + name + "] is new since the plan: migrated as well");
+            for (LegacySnapshot.Key key : snapshot.segments().keySet()) {
+                if (!planned.containsKey(key)) {
+                    warnings.add("segment [" + key + "] is new since the plan: migrated as well");
                 }
             }
-            for (String name : planned.keySet()) {
-                if (!snapshot.segments().containsKey(name)) {
-                    throw new MigrationAbortedException("segment [" + name + "] of the plan is gone from the 4.x store");
+            for (LegacySnapshot.Key key : planned.keySet()) {
+                if (!snapshot.segments().containsKey(key)) {
+                    throw new MigrationAbortedException("segment [" + key + "] of the plan is gone from the 4.x store");
                 }
+            }
+            // Keys that are not migrated would start over in 5.0: refuse unless the operator names each one (rc-review D-B3).
+            Set<String> unmigrated = new TreeSet<>(snapshot.unmapped());
+            for (LegacySnapshot.Key key : snapshot.segments().keySet()) {
+                KeyMapper.Mapping mapping = mapper.map(key.name());
+                if (!mapping.mapped()) {
+                    unmigrated.add(key.toString());
+                    warnings.add("segment [" + key + "] is not migrated: " + mapping.problem());
+                }
+            }
+            unmigrated.removeAll(options.allowUnmigrated());
+            if (!unmigrated.isEmpty()) {
+                throw new MigrationAbortedException("4.x keys would not be migrated, and 5.0 would issue their ids again: " + unmigrated
+                    + "; map them (--rename, --group-pattern in plan) or name each with --allow-unmigrated <key>");
             }
 
-            long appliedAt = target.now();
+            long appliedAt = Math.max(Math.max(target.now(), slotTarget.now()), source.now());
             long sourceSkew = options.sourceSkew().toMillis();
-            long w = floorW(appliedAt, snapshot.maxMachineTimestamp(), sourceSkew);
+            long w = floorW(appliedAt, snapshot.maxTimestamp(), sourceSkew);
             if (options.layoutConfig() != null) {
                 List<LayoutCheck> checks = layouts(new Legacy4x(FlatConfig.load(options.layoutConfig())), options.targetConfig(), w);
                 if (!checks.stream().allMatch(LayoutCheck::ok)) {
@@ -325,39 +499,38 @@ public final class Migration {
             }
 
             // 1. Seal: one atomic increment per segment; the result bounds every range 4.x reserved before it.
-            Map<String, Long> lastMaxIds = new TreeMap<>();
-            Map<String, Long> sealedAt = new TreeMap<>();
-            for (Map.Entry<String, Long> entry : snapshot.sortedSegments().entrySet()) {
-                String name = entry.getKey();
+            Map<LegacySnapshot.Key, Long> lastMaxIds = new TreeMap<>();
+            Map<LegacySnapshot.Key, Long> sealedAt = new TreeMap<>();
+            for (Map.Entry<LegacySnapshot.Key, Long> entry : snapshot.segments().entrySet()) {
+                LegacySnapshot.Key key = entry.getKey();
                 long current = entry.getValue();
-                if (!options.sealSource()) {
-                    lastMaxIds.put(name, current);
+                if (!mapper.map(key.name()).mapped()) {
                     continue;
                 }
-                Plan.SegmentPlan segment = planned.get(name);
+                if (!options.sealSource()) {
+                    lastMaxIds.put(key, current);
+                    continue;
+                }
+                Plan.SegmentPlan segment = planned.get(key);
                 if (segment != null && current - segment.lastMaxId() >= options.sealGap()) {
                     // Sealed by an earlier run of this plan: what 4.x reserved before that seal is at most current - sealGap.
-                    lastMaxIds.put(name, current - options.sealGap());
-                    sealedAt.put(name, current);
-                    warnings.add("segment [" + name + "] was already sealed at " + current + " by an earlier apply");
+                    lastMaxIds.put(key, current - options.sealGap());
+                    sealedAt.put(key, current);
+                    warnings.add("segment [" + key + "] was already sealed at " + current + " by an earlier apply");
                     continue;
                 }
-                long sealed = source.seal(plan.namespace(), name, options.sealGap());
-                lastMaxIds.put(name, sealed - options.sealGap());
-                sealedAt.put(name, sealed);
+                long sealed = source.segments().seal(key.namespace(), key.name(), options.sealGap());
+                lastMaxIds.put(key, sealed - options.sealGap());
+                sealedAt.put(key, sealed);
             }
 
             // 2. Ranges (M1): next = lastMaxId + 1 + gap, only ever raised.
             Map<String, ApplyResult.SegmentResult> results = new LinkedHashMap<>();
             Map<String, Long> wanted = new LinkedHashMap<>();
-            Map<String, String> sourceOf = new LinkedHashMap<>();
-            for (Map.Entry<String, Long> entry : lastMaxIds.entrySet()) {
-                KeyMapper.Mapping mapping = mapper.map(entry.getKey());
-                if (!mapping.mapped()) {
-                    warnings.add("segment [" + entry.getKey() + "] is not migrated: " + mapping.problem());
-                    continue;
-                }
-                long next = next(entry.getKey(), entry.getValue(), options.gap());
+            Map<String, LegacySnapshot.Key> sourceOf = new LinkedHashMap<>();
+            for (Map.Entry<LegacySnapshot.Key, Long> entry : lastMaxIds.entrySet()) {
+                KeyMapper.Mapping mapping = mapper.map(entry.getKey().name());
+                long next = next(entry.getKey().toString(), entry.getValue(), options.gap());
                 Long other = wanted.get(mapping.targetKey());
                 if (other == null || next > other) {
                     wanted.put(mapping.targetKey(), next);
@@ -369,15 +542,16 @@ public final class Migration {
                 if (state.sealed()) {
                     warnings.add("5.0 key [" + entry.getKey() + "] is sealed in the target: its generator will refuse it");
                 }
-                String name = sourceOf.get(entry.getKey());
-                results.put(entry.getKey(), new ApplyResult.SegmentResult(name, entry.getKey(), lastMaxIds.get(name), entry.getValue(), state.next(),
-                    sealedAt.get(name)));
+                LegacySnapshot.Key key = sourceOf.get(entry.getKey());
+                results.put(entry.getKey(), new ApplyResult.SegmentResult(key.namespace(), key.name(), entry.getKey(), lastMaxIds.get(key), entry.getValue(),
+                    state.next(), sealedAt.get(key)));
             }
 
             // 3. Slots (M2): metadata, every slot free, next floor W.
-            NamespaceState slots = target.prepare(plan.namespace(), plan.slots().limit(), plan.slots().toleranceMillis(), w);
-            ApplyResult result = new ApplyResult(ApplyResult.FORMAT, Json.sha256(options.plan()), plan.namespace(), plan.source(), plan.target(), appliedAt,
-                snapshot.maxMachineTimestamp(), sourceSkew, w, Instant.ofEpochMilli(w).toString(), options.gap(), options.sealSource(), options.sealGap(),
+            NamespaceState slots = slotTarget.prepare(plan.namespace(), plan.slots().limit(), plan.slots().toleranceMillis(), w);
+            ApplyResult result = new ApplyResult(ApplyResult.FORMAT, Json.sha256(options.plan()), plan.namespace(), plan.source(), plan.target(),
+                plan.machineTarget(), plan.renames(), List.copyOf(new TreeSet<>(options.allowUnmigrated())), appliedAt,
+                snapshot.maxTimestamp(), sourceSkew, w, Instant.ofEpochMilli(w).toString(), options.gap(), options.sealSource(), options.sealGap(),
                 observed, plan.slots(), List.copyOf(results.values()), warnings);
             Json.write(options.result(), result);
             out.println("Applied plan for namespace [" + plan.namespace() + "] at " + Instant.ofEpochMilli(appliedAt) + ": " + results.size()
@@ -397,16 +571,24 @@ public final class Migration {
     /**
      * {@code verify} options.
      *
-     * @param plan        the plan file
-     * @param result      the result file
-     * @param fromOptions options of the 4.x store not kept in the plan
-     * @param toOptions   options of the 5.0 store not kept in the plan
+     * @param plan               the plan file
+     * @param result             the result file
+     * @param fromOptions        options of the 4.x store not kept in the plan
+     * @param toOptions          options of the 5.0 store not kept in the plan
+     * @param machineFromOptions options of the 4.x machine store not kept in the plan
+     * @param machineToOptions   options of the 5.0 slot store not kept in the plan
      */
-    public record VerifyOptions(Path plan, Path result, Map<String, String> fromOptions, Map<String, String> toOptions) {
+    public record VerifyOptions(Path plan, Path result, Map<String, String> fromOptions, Map<String, String> toOptions,
+                                Map<String, String> machineFromOptions, Map<String, String> machineToOptions) {
+        /** Without separate machine stores. */
+        public VerifyOptions(Path plan, Path result, Map<String, String> fromOptions, Map<String, String> toOptions) {
+            this(plan, result, fromOptions, toOptions, Map.of(), Map.of());
+        }
     }
 
     /**
-     * Reads both stores again and checks M1–M3 and that the source did not grow after the seal (09 §3).
+     * Reads both stores again and checks M1–M3, that the source did not grow after the seal, and that no 4.x key exists
+     * that the result does not have (09 §3; rc-review D-M1).
      *
      * @param options the options
      * @return the problems, empty when everything holds
@@ -420,32 +602,55 @@ public final class Migration {
         }
         StoreLocation from = plan.source().withOptions(options.fromOptions()).withEnvironmentPassword("FROM");
         StoreLocation to = plan.target().withOptions(options.toOptions()).withEnvironmentPassword("TO");
+        StoreLocation machineFrom = plan.machineSource() == null ? null
+            : plan.machineSource().withOptions(options.machineFromOptions()).withEnvironmentPassword("MACHINE_FROM");
+        StoreLocation machineTo = plan.machineTarget() == null ? null
+            : plan.machineTarget().withOptions(options.machineToOptions()).withEnvironmentPassword("MACHINE_TO");
         int checked = 0;
-        try (SourceReader source = sources.apply(from); TargetAdmin target = targets.apply(to)) {
-            SourceSnapshot snapshot = source.read(plan.namespace());
+        try (Readers source = readers(from, machineFrom); TargetAdmin target = targets.apply(to);
+             TargetAdmin slotTarget = machineTarget(to, machineTo, target)) {
+            LegacySnapshot snapshot = source.read(plan.namespace(), plan.extraNamespaces() == null ? Map.of() : plan.extraNamespaces());
+            Set<LegacySnapshot.Key> applied = new HashSet<>();
             for (ApplyResult.SegmentResult segment : result.segments()) {
                 checked++;
+                LegacySnapshot.Key key = new LegacySnapshot.Key(segment.sourceNamespace(), segment.sourceName());
+                applied.add(key);
                 Optional<RangeState> range = target.range(segment.targetKey());
                 if (range.isEmpty()) {
                     problems.add("M1: 5.0 key [" + segment.targetKey() + "] is missing");
                 } else if (range.get().next() <= segment.lastMaxId()) {
                     problems.add("M1: 5.0 key [" + segment.targetKey() + "] is at " + range.get().next() + ", not past the 4.x value " + segment.lastMaxId());
                 }
-                Long now = snapshot.segments().get(segment.sourceName());
+                Long now = snapshot.segments().get(key);
                 long expected = segment.sealedAt() != null ? segment.sealedAt() : segment.lastMaxId();
                 if (now == null) {
-                    problems.add("4.x segment [" + segment.sourceName() + "] is gone");
+                    problems.add("4.x segment [" + key + "] is gone");
                 } else if (now > expected) {
-                    problems.add("4.x segment [" + segment.sourceName() + "] grew to " + now + " after " + (segment.sealedAt() != null ? "the seal at " : "the migration at ")
+                    problems.add("4.x segment [" + key + "] grew to " + now + " after " + (segment.sealedAt() != null ? "the seal at " : "the migration at ")
                         + expected + ": a 4.x instance still runs" + (segment.sealedAt() != null ? " (its ids stay far from 5.0's while 5.0 is below " + segment.sealedAt() + ")" : ""));
                 }
             }
-            for (Plan.SegmentPlan segment : plan.segments()) {
-                if (result.segments().stream().noneMatch(applied -> applied.sourceName().equals(segment.sourceName()))) {
-                    problems.add("segment [" + segment.sourceName() + "] of the plan was not applied");
+            Set<String> allowed = new HashSet<>(result.allowedUnmigrated() == null ? List.of() : result.allowedUnmigrated());
+            KeyMapper mapper = new KeyMapper(plan.namespace(), plan.renames(), plan.groupPatterns());
+            for (LegacySnapshot.Key key : snapshot.segments().keySet()) {
+                if (applied.contains(key) || allowed.contains(key.toString())) {
+                    continue;
+                }
+                // A key the result does not have: created after the second snapshot (a 4.x instance crossing a period), or
+                // one whose 5.0 key another 4.x key won. Only the former is a problem.
+                KeyMapper.Mapping mapping = mapper.map(key.name());
+                boolean covered = mapping.mapped() && result.segments().stream().anyMatch(segment -> segment.targetKey().equals(mapping.targetKey()));
+                if (!covered) {
+                    problems.add("4.x key [" + key + "] is not in the result: it was created after apply, or not migrated; 5.0 would issue its ids again");
                 }
             }
-            Optional<NamespaceState> slots = target.namespace(plan.namespace());
+            for (Plan.SegmentPlan segment : plan.segments()) {
+                LegacySnapshot.Key key = new LegacySnapshot.Key(segment.sourceNamespace(), segment.sourceName());
+                if (!applied.contains(key) && result.segments().stream().noneMatch(s -> s.targetKey().equals(segment.targetKey()))) {
+                    problems.add("segment [" + key + "] of the plan was not applied");
+                }
+            }
+            Optional<NamespaceState> slots = slotTarget.namespace(plan.namespace());
             if (slots.isEmpty()) {
                 problems.add("M2: the 5.0 namespace has no slot metadata");
             } else {
@@ -460,8 +665,8 @@ public final class Migration {
                     problems.add("M2: a slot's next floor is " + state.minNextFloor() + ", before W = " + result.w());
                 }
             }
-            if (snapshot.maxMachineTimestamp() > result.sourceMaxTimestamp()) {
-                problems.add("M2: a 4.x machine record moved to " + snapshot.maxMachineTimestamp() + " after the migration (T4 was "
+            if (snapshot.maxTimestamp() > result.sourceMaxTimestamp()) {
+                problems.add("M2: a 4.x machine record moved to " + snapshot.maxTimestamp() + " after the migration (T4 was "
                     + result.sourceMaxTimestamp() + "): a 4.x instance still runs");
             }
         }
@@ -502,6 +707,10 @@ public final class Migration {
         }
         List<String> deleted = new ArrayList<>();
         try (TargetAdmin target = targets.apply(options.to())) {
+            int live = target.namespace(options.namespace()).map(NamespaceState::live).orElse(0);
+            if (live > 0 && !options.dryRun()) {
+                throw new MigrationAbortedException("the 5.0 namespace has " + live + " live slot lease(s): purge runs offline only (D23), stop 5.0 first");
+            }
             String prefix = options.namespace() + "/";
             for (RangeState range : target.ranges(prefix)) {
                 String[] parts = range.key().substring(prefix.length()).split("/");
@@ -533,19 +742,35 @@ public final class Migration {
      * @param result {@code apply-result.json}, for {@code not-before}; optional
      * @param output the 5.0 configuration to write
      * @param zone   the zone of periodic segments where 4.x used the server default; optional
+     * @param allowNew segment generators that may have no key in {@code apply-result.json} ({@code --allow-new}): 4.x
+     *                 never issued from them
      */
-    public record ConfigOptions(Path input, Path result, Path output, java.time.ZoneId zone) {
+    public record ConfigOptions(Path input, Path result, Path output, java.time.ZoneId zone, Set<String> allowNew) {
+        /** Without generators allowed to be new. */
+        public ConfigOptions(Path input, Path result, Path output, java.time.ZoneId zone) {
+            this(input, result, output, zone, Set.of());
+        }
     }
 
     /**
-     * Converts a 4.x configuration (09 §3 {@code config}).
+     * Converts a 4.x configuration (09 §3 {@code config}). Every segment and periodic segment generator it writes must
+     * continue a key of {@code apply-result.json}, or be named with {@code --allow-new} (rc-review D-B2): a generator
+     * whose name misses its migrated key would start over and issue the 4.x ids again.
      *
      * @param options the options
      * @return the conversion
+     * @throws MigrationAbortedException if a segment generator has no migrated key
      */
     public ConfigConverter.Conversion config(ConfigOptions options) {
         ApplyResult result = options.result() == null ? null : Json.read(options.result(), ApplyResult.class);
         ConfigConverter.Conversion conversion = new ConfigConverter(options.zone()).convert(FlatConfig.load(options.input()), result);
+        List<String> missing = conversion.unmigratedSegments(result).stream().filter(name -> !options.allowNew().contains(name)).toList();
+        if (!missing.isEmpty()) {
+            throw new MigrationAbortedException("segment generators " + missing + " continue no key of "
+                + (result == null ? "an apply result: pass --result apply-result.json" : options.result())
+                + "; a generator that misses its migrated key starts over and issues the 4.x ids again. Name a generator 4.x never"
+                + " issued from with --allow-new <generator>");
+        }
         conversion.write(options.output());
         out.println("Wrote " + options.output() + (conversion.report().isEmpty() ? "" : "; not converted as is:"));
         conversion.report().forEach(line -> out.println("  " + line));

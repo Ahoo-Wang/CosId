@@ -1,0 +1,44 @@
+{
+  "format": "cosid-migration-result/1",
+  "planSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "namespace": "billing",
+  "appliedAt": 1793491200000,
+  "sourceMaxTimestamp": 1793491190000,
+  "sourceSkewMillis": 10000,
+  "w": 1793491210000,
+  "notBefore": "2026-11-01T00:00:10Z",
+  "gap": 0,
+  "sealed": true,
+  "sealGap": 1099511627776,
+  "observedMillis": 120000,
+  "slots": {
+    "bits": 10,
+    "limit": 1024,
+    "toleranceMillis": 1000
+  },
+  "segments": [
+    {
+      "sourceNamespace": "billing",
+      "sourceName": "default",
+      "targetKey": "billing/default",
+      "lastMaxId": 41,
+      "next": 42,
+      "targetNext": 42,
+      "sealedAt": 1099511627817
+    },
+    {
+      "sourceNamespace": "billing",
+      "sourceName": "invoice",
+      "targetKey": "billing/invoice",
+      "lastMaxId": 41,
+      "next": 42,
+      "targetNext": 42,
+      "sealedAt": 1099511627817
+    }
+  ],
+  "warnings": [],
+  "renames": {
+    "__share__": "default"
+  },
+  "allowedUnmigrated": []
+}

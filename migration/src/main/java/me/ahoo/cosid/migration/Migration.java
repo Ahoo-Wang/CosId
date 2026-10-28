@@ -111,7 +111,8 @@ public final class Migration {
      * @param options the options
      * @return the plan, also written to {@code options.output()}
      * @throws MigrationAbortedException when the plan would be unsafe: the share without {@code --layout-config}, or
-     *                                   4.x stores the locations do not match
+     *                                   4.x stores the locations do not match, or a CosIdGenerator in a namespace of
+     *                                   its own ({@link Legacy4x#unsupported()})
      */
     public Plan plan(PlanOptions options) {
         List<String> warnings = new ArrayList<>();
@@ -120,6 +121,9 @@ public final class Migration {
         Map<String, String> groupPatterns = new TreeMap<>();
         Map<String, List<String>> extraNamespaces = new TreeMap<>();
         if (legacy != null) {
+            refuseUnsupported(legacy);
+            legacy.generatorNamespace().ifPresent(shared -> warnings.add("cosid.generator.namespace = " + shared + ": the machine records of ["
+                + shared + "] count for T4 and the quiet period, and 4.x instances of other services that share it must be stopped too"));
             renames.putAll(legacy.renames());
             groupPatterns.putAll(legacy.groupPatterns());
             legacy.extraNamespaces().forEach((ns, names) -> extraNamespaces.put(ns, List.copyOf(names)));
@@ -204,6 +208,12 @@ public final class Migration {
      * machine ids in {@code --from} too or in {@code --machine-from}; slots of a separate 4.x machine store go to the
      * 5.0 store of {@code cosid.machine.leased}, which {@code --machine-to} names.
      */
+    private static void refuseUnsupported(Legacy4x legacy) {
+        legacy.unsupported().ifPresent(reason -> {
+            throw new MigrationAbortedException(reason);
+        });
+    }
+
     private static void checkStores(Legacy4x legacy, PlanOptions options) {
         legacy.segmentStoreType().filter(type -> !type.equals(options.from().type())).ifPresent(type -> {
             throw new MigrationAbortedException("--layout-config keeps the 4.x segments in " + type + " (cosid.segment.distributor.type), --from is "
@@ -425,6 +435,9 @@ public final class Migration {
         Plan plan = Json.read(options.plan(), Plan.class);
         if (!Plan.FORMAT.equals(plan.format())) {
             throw new MigrationAbortedException(options.plan() + " is no " + Plan.FORMAT + " file");
+        }
+        if (options.layoutConfig() != null) {
+            refuseUnsupported(new Legacy4x(FlatConfig.load(options.layoutConfig())));
         }
         if (!plan.layoutsOk()) {
             throw new MigrationAbortedException("the plan failed the layout validation (M3): " + failed(plan.layouts()));
@@ -759,11 +772,14 @@ public final class Migration {
      *
      * @param options the options
      * @return the conversion
-     * @throws MigrationAbortedException if a segment generator has no migrated key
+     * @throws MigrationAbortedException if a segment generator has no migrated key, or the CosIdGenerator has a
+     *                                   namespace of its own ({@link Legacy4x#unsupported()})
      */
     public ConfigConverter.Conversion config(ConfigOptions options) {
         ApplyResult result = options.result() == null ? null : Json.read(options.result(), ApplyResult.class);
-        ConfigConverter.Conversion conversion = new ConfigConverter(options.zone()).convert(FlatConfig.load(options.input()), result);
+        FlatConfig input = FlatConfig.load(options.input());
+        refuseUnsupported(new Legacy4x(input));
+        ConfigConverter.Conversion conversion = new ConfigConverter(options.zone()).convert(input, result);
         List<String> missing = conversion.unmigratedSegments(result).stream().filter(name -> !options.allowNew().contains(name)).toList();
         if (!missing.isEmpty()) {
             throw new MigrationAbortedException("segment generators " + missing + " continue no key of "

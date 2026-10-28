@@ -39,6 +39,9 @@ import java.util.function.Supplier;
 /**
  * The one registry and lifecycle owner of stores, the machine slot and generators (07-runtime-and-spring.md §1).
  * Its generators are fixed at start (D17); there is no global singleton, and runtimes in one JVM do not share a slot.
+ * Code that needs ids gets the runtime, or its generators, from whoever started it: in Spring, inject the
+ * {@code IdGenerator} beans; static code (4.x {@code DefaultIdGeneratorProvider.INSTANCE}) keeps them in a holder of its
+ * own, set when the context has started and cleared when it closes (the migration guide shows one).
  *
  * <p>Lookups of a disabled generator (D24, {@link GeneratorSpec.Disabled}) throw
  * {@link me.ahoo.cosid.GeneratorDisabledException}.

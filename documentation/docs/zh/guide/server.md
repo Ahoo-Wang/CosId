@@ -195,6 +195,6 @@ cosid:
 curl -H "Authorization: Bearer $TOKEN" 'http://cosid-server:8688/ids/ticket?count=10'
 ```
 
-此时服务端就是一个普通的 `CosIdRuntime`：时间型生成器同样需要 `cosid.machine`，每个服务端实例租用自己的槽位。
+此时服务端就是一个普通的 `CosIdRuntime`：时间型生成器同样需要 `cosid.machine`，每个服务端实例租用自己的槽位。同一服务端命名空间发出的 ID 对所有调用方都唯一，这是实现跨服务唯一的一种方式；另一种是在各服务里使用[共享的命名 machine](concepts/slot-lease.md#跨服务全局唯一)，每个 ID 不需要一次调用。
 
 全部 `cosid.server.*` 属性见[配置参考](../reference/config/server.md)。

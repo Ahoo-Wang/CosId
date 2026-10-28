@@ -1,6 +1,7 @@
 # Why CosId
 
-CosId is a distributed ID generator for the JVM: it hands out ids that are unique across every instance of a service,
+CosId is a distributed ID generator for the JVM: it hands out ids that are unique across every instance of a service
+(and [across services](concepts/slot-lease.md#ids-unique-across-services) that share a namespace for them),
 fast enough that generating an id never shows up in a profile, and in the shape the application wants (a `long`, a
 short base-62 text, a readable time-based text, a per-day bill number).
 

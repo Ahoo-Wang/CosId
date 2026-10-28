@@ -20,13 +20,14 @@ import org.springframework.aot.hint.MemberCategory;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.aot.hint.TypeReference;
+import org.springframework.boot.context.properties.bind.BindableRuntimeHintsRegistrar;
 
 import java.util.List;
 
 /**
  * Native image hints (11 §5): the stores' {@link java.util.ServiceLoader} registrations and providers, the Redis Lua
  * scripts, the JDBC schemas and dialect registrations, the generator bean factory, and the endpoint's
- * {@link CosIdEndpoint.Generator} for JSON.
+ * {@link CosIdEndpoint.Generator} for JSON, and the {@link CosIdProperties} records the registrar binds.
  */
 public class CosIdRuntimeHints implements RuntimeHintsRegistrar {
     static final List<String> STORE_PROVIDERS = List.of(
@@ -48,5 +49,7 @@ public class CosIdRuntimeHints implements RuntimeHintsRegistrar {
         }
         hints.reflection().registerType(TypeReference.of(CosIdGeneratorRegistrar.GeneratorBean.class), MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS);
         new BindingReflectionHintsRegistrar().registerReflectionHints(hints.reflection(), CosIdEndpoint.Generator.class);
+        // The registrar binds cosid.* through the Binder itself, while the bean definitions are processed: every record of it.
+        BindableRuntimeHintsRegistrar.forTypes(CosIdProperties.class).registerHints(hints, classLoader);
     }
 }

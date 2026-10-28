@@ -51,7 +51,8 @@ public class CosIdActuatorConfiguration {
         @Bean
         @ConditionalOnMissingBean
         @ConditionalOnEnabledHealthIndicator("cosid")
-        CosIdHealthIndicator cosIdHealthIndicator(ObjectProvider<CosIdRuntime> runtime) {
+        // The bean name gives the contributor name: /actuator/health/cosid, like management.health.cosid.enabled (R1-spring-05).
+        CosIdHealthIndicator cosidHealthIndicator(ObjectProvider<CosIdRuntime> runtime) {
             return new CosIdHealthIndicator(runtime);
         }
     }

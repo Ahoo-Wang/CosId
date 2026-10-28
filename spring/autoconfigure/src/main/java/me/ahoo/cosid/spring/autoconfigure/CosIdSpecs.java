@@ -28,6 +28,12 @@ import me.ahoo.cosid.segment.PeriodicPolicy;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 
+import org.springframework.boot.context.properties.bind.BindHandler;
+import org.springframework.boot.context.properties.bind.Bindable;
+import org.springframework.boot.context.properties.bind.Binder;
+import org.springframework.boot.context.properties.bind.handler.NoUnboundElementsBindHandler;
+import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
+
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -35,11 +41,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 /**
- * {@link CosIdProperties} to {@link RuntimeSpec} (07-runtime-and-spring.md §4.1): a pure function, no Spring involved.
- * It checks what the properties alone can tell (a missing strategy, a codec item naming two codecs, ...) and reports
+ * {@link CosIdProperties} to {@link RuntimeSpec} (07-runtime-and-spring.md §4.1): {@link #toSpec} is a pure function,
+ * no Spring involved; {@link #bind} binds {@code cosid.*} strictly. It checks what the properties alone can tell (a missing strategy, a codec item naming two codecs, ...) and reports
  * every problem at once by property path; {@code CosIdRuntime.start} validates the spec as a whole.
  */
 public final class CosIdSpecs {
@@ -55,6 +63,10 @@ public final class CosIdSpecs {
         "SNOWFLAKE_S", Layout.SNOWFLAKE_S,
         "JS_SAFE_MS", Layout.JS_SAFE_MS,
         "JS_SAFE_S", Layout.JS_SAFE_S);
+    /** A namespace taken from {@code spring.application.name}: what every store and the server accept. */
+    private static final Pattern NAMESPACE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._:-]{0,99}");
+    /** The {@code cosid.*} keys bound elsewhere: the integrations and the server. */
+    private static final List<String> FOREIGN_KEYS = List.of("server", "mybatis", "jdbc", "activiti", "flowable", "axon");
     private static final Map<String, Period> PERIODS = Map.of(
         "YEAR", Period.YEAR,
         "YEAR_MONTH", Period.YEAR_MONTH,
@@ -64,7 +76,55 @@ public final class CosIdSpecs {
     }
 
     /**
-     * Maps the properties to a spec.
+     * Binds {@code cosid.*}; a key that binds to nothing fails (R1-spring-03): a typo would otherwise fall back to the
+     * default silently. {@code cosid.stores.*.options} and the keys of the integrations and the server are not checked
+     * here.
+     *
+     * @param binder the binder of the environment
+     * @return the properties
+     * @throws org.springframework.boot.context.properties.bind.BindException with the unbound keys
+     */
+    public static CosIdProperties bind(Binder binder) {
+        BindHandler unknownKeys = new NoUnboundElementsBindHandler(BindHandler.DEFAULT, CosIdSpecs::boundElsewhere);
+        return binder.bindOrCreate(CosIdProperties.PREFIX, Bindable.of(CosIdProperties.class), unknownKeys);
+    }
+
+    private static boolean boundElsewhere(ConfigurationPropertyName name) {
+        if (name.getNumberOfElements() < 2 || !CosIdProperties.PREFIX.equals(name.getElement(0, ConfigurationPropertyName.Form.UNIFORM))) {
+            return true;
+        }
+        String second = name.getElement(1, ConfigurationPropertyName.Form.DASHED);
+        if (FOREIGN_KEYS.contains(second)) {
+            return true;
+        }
+        return "stores".equals(second) && name.getNumberOfElements() > 3 && "options".equals(name.getElement(3, ConfigurationPropertyName.Form.DASHED));
+    }
+
+    /**
+     * The namespace of the runtime (D38): {@code cosid.namespace}, else {@code spring.application.name}, else
+     * {@value CosIdProperties#DEFAULT_NAMESPACE}.
+     *
+     * @param configured      {@code cosid.namespace}, or null
+     * @param applicationName {@code spring.application.name}, or null
+     * @return the namespace; empty when both are unset, for {@value CosIdProperties#DEFAULT_NAMESPACE}
+     * @throws CosIdException if the application name is no valid namespace
+     */
+    public static Optional<String> namespace(String configured, String applicationName) {
+        if (configured != null) {
+            return Optional.of(configured);
+        }
+        if (applicationName == null || applicationName.isBlank()) {
+            return Optional.empty();
+        }
+        if (!NAMESPACE.matcher(applicationName).matches()) {
+            throw new CosIdException("spring.application.name [" + applicationName + "] is no valid namespace (1 to 100 letters, digits, '.', '_', ':' "
+                + "or '-', starting with a letter or digit): set " + CosIdProperties.PREFIX + ".namespace");
+        }
+        return Optional.of(applicationName);
+    }
+
+    /**
+     * Maps the properties to a spec, in {@code cosid.namespace} or {@value CosIdProperties#DEFAULT_NAMESPACE}.
      *
      * @param properties the bound properties
      * @param zone       the zone of the zone-dependent settings left empty (the system zone in an application)
@@ -72,6 +132,19 @@ public final class CosIdSpecs {
      * @throws CosIdException listing every problem by property path
      */
     public static RuntimeSpec toSpec(CosIdProperties properties, ZoneId zone) {
+        return toSpec(properties, properties.namespace() == null ? CosIdProperties.DEFAULT_NAMESPACE : properties.namespace(), zone);
+    }
+
+    /**
+     * Maps the properties to a spec.
+     *
+     * @param properties the bound properties
+     * @param namespace  the namespace of the runtime, resolved by {@link #namespace(String, String)}
+     * @param zone       the zone of the zone-dependent settings left empty (the system zone in an application)
+     * @return the spec
+     * @throws CosIdException listing every problem by property path
+     */
+    public static RuntimeSpec toSpec(CosIdProperties properties, String namespace, ZoneId zone) {
         List<String> problems = new ArrayList<>();
         Map<String, StoreSpec> stores = new LinkedHashMap<>();
         new TreeMap<>(properties.stores()).forEach((name, store) -> {
@@ -82,50 +155,70 @@ public final class CosIdSpecs {
             }
             stores.put(name, StoreSpec.builder(store.type().trim()).timeout(store.timeout()).options(store.options()).build());
         });
-        final Optional<MachineSpec> machine = machine(properties.machine(), problems);
+        String machineAt = CosIdProperties.PREFIX + ".machine";
+        final Optional<MachineSpec> machine = properties.machine() == null ? Optional.empty()
+            : machine(machineAt, properties.machine().namespace(), properties.machine().leased(), properties.machine().fixed(), problems);
+        Map<String, MachineSpec> machines = new LinkedHashMap<>();
+        new TreeMap<>(properties.machines()).forEach((name, named) -> {
+            String at = CosIdProperties.PREFIX + ".machines." + name;
+            if (named.namespace() == null || named.namespace().isBlank()) {
+                // Without one the machine would share the namespace of the default machine (api-freeze.md §2.2).
+                problems.add(at + ".namespace: required: a named machine has a namespace of its own");
+            }
+            if (named.leased() == null && named.fixed() == null) {
+                problems.add(at + ": set leased or static");
+            }
+            machine(at, named.namespace(), named.leased(), named.fixed(), problems).ifPresent(spec -> machines.put(name, spec));
+        });
         Map<String, GeneratorSpec> generators = new LinkedHashMap<>();
         new TreeMap<>(properties.generators()).forEach((name, generator) -> {
-            GeneratorSpec spec = generator(CosIdProperties.PREFIX + ".generators." + name, generator, zone, problems);
+            GeneratorSpec spec = generator(CosIdProperties.PREFIX + ".generators." + name, generator, properties.generators().keySet(), zone, problems);
             if (spec != null) {
                 generators.put(name, spec);
             }
         });
-        if (properties.namespace() == null || properties.namespace().isBlank()) {
+        if (namespace == null || namespace.isBlank()) {
             problems.add(CosIdProperties.PREFIX + ".namespace: must not be blank");
         }
         if (!problems.isEmpty()) {
             throw new CosIdException("Invalid " + CosIdProperties.PREFIX + ".* configuration:\n  - " + String.join("\n  - ", problems));
         }
-        RuntimeSpec.Builder spec = RuntimeSpec.builder(properties.namespace());
+        RuntimeSpec.Builder spec = RuntimeSpec.builder(namespace);
         stores.forEach(spec::store);
         machine.ifPresent(spec::machine);
+        machines.forEach(spec::machine);
         generators.forEach(spec::generator);
         return spec.build();
     }
 
-    private static Optional<MachineSpec> machine(CosIdProperties.Machine machine, List<String> problems) {
-        String at = CosIdProperties.PREFIX + ".machine";
-        if (machine == null || machine.leased() == null && machine.fixed() == null) {
+    private static Optional<MachineSpec> machine(String at, String namespace, CosIdProperties.Leased leased, CosIdProperties.Static fixed,
+                                                 List<String> problems) {
+        if (leased == null && fixed == null) {
+            if (namespace != null && at.endsWith(".machine")) {
+                problems.add(at + ".namespace: set with leased or static");
+            }
             return Optional.empty();
         }
-        if (machine.leased() != null && machine.fixed() != null) {
+        if (leased != null && fixed != null) {
             problems.add(at + ": set either leased or static, not both");
             return Optional.empty();
         }
-        if (machine.leased() != null) {
-            CosIdProperties.Leased leased = machine.leased();
+        if (leased != null) {
             if (leased.store() == null || leased.store().isBlank()) {
                 problems.add(at + ".leased.store: required");
                 return Optional.empty();
             }
-            MachineSpec.Leased.Builder spec = MachineSpec.Leased.builder(leased.store()).bits(leased.bits()).ttl(leased.ttl()).tolerance(leased.tolerance());
+            MachineSpec.Leased.Builder spec = MachineSpec.Leased.builder(leased.store()).bits(leased.bits()).ttl(leased.ttl()).tolerance(leased.tolerance())
+                .slotOffset(leased.slotOffset());
+            // Unset follows the ttl, not a fixed default: a changed ttl moves it along (api-freeze.md §6).
+            Optional.ofNullable(leased.acquireTimeout()).ifPresent(spec::acquireTimeout);
             if (leased.preferredSlot() != null) {
                 spec.preferredSlot(leased.preferredSlot());
             }
             Optional.ofNullable(leased.ownerKey()).filter(key -> !key.isEmpty()).ifPresent(spec::ownerKey);
+            Optional.ofNullable(namespace).filter(ns -> !ns.isBlank()).ifPresent(spec::namespace);
             return Optional.of(spec.build());
         }
-        CosIdProperties.Static fixed = machine.fixed();
         if (fixed.slot() == null) {
             problems.add(at + ".static.slot: required");
             return Optional.empty();
@@ -133,28 +226,46 @@ public final class CosIdSpecs {
         MachineSpec.Static.Builder spec = MachineSpec.Static.builder(fixed.slot()).bits(fixed.bits()).ahead(fixed.ahead());
         Optional.ofNullable(fixed.stateFile()).ifPresent(spec::stateFile);
         Optional.ofNullable(fixed.notBefore()).ifPresent(spec::notBefore);
+        Optional.ofNullable(namespace).filter(ns -> !ns.isBlank()).ifPresent(spec::namespace);
         return Optional.of(spec.build());
     }
 
-    private static GeneratorSpec generator(String at, CosIdProperties.Generator generator, ZoneId zone, List<String> problems) {
+    private static GeneratorSpec generator(String at, CosIdProperties.Generator generator, Set<String> names, ZoneId zone, List<String> problems) {
         String strategy = generator.strategy() == null ? "" : generator.strategy().trim().toLowerCase(Locale.ROOT);
-        if (!List.of(SNOWFLAKE, COSID80, SEGMENT, PERIODIC_SEGMENT).contains(strategy)) {
-            problems.add(at + ".strategy: one of snowflake, cosid80, segment, periodic-segment, not [" + generator.strategy() + "]");
+        if (!List.of(SNOWFLAKE, COSID80, SEGMENT, PERIODIC_SEGMENT, CUSTOM).contains(strategy)) {
+            problems.add(at + ".strategy: one of snowflake, cosid80, segment, periodic-segment, custom, not [" + generator.strategy() + "]");
             return null;
         }
         // A disabled generator is not validated (D24): only its strategy, which gives its bean type, must be known.
         List<String> own = generator.disabled() ? new ArrayList<>() : problems;
+        boolean timeBased = SNOWFLAKE.equals(strategy) || COSID80.equals(strategy);
+        if (generator.machine() != null && !timeBased) {
+            own.add(at + ".machine: only a snowflake or cosid80 generator chooses a machine");
+        }
+        if (generator.ref() != null && !CUSTOM.equals(strategy)) {
+            own.add(at + ".ref: only a custom generator refers to a bean");
+        }
         GeneratorSpec spec;
         try {
             spec = switch (strategy) {
-                case SNOWFLAKE -> GeneratorSpec.Snowflake.builder()
-                    .layout(layout(at, generator, own))
-                    .regression(regression(generator))
+                case SNOWFLAKE -> {
+                    GeneratorSpec.Snowflake.Builder snowflake = GeneratorSpec.Snowflake.builder()
+                        .layout(layout(at, generator, own))
+                        .regression(regression(generator))
+                        .codec(codecs(at, generator.codec(), zone, own));
+                    Optional.ofNullable(generator.machine()).ifPresent(snowflake::machine);
+                    yield snowflake.build();
+                }
+                case COSID80 -> {
+                    GeneratorSpec.CosId80.Builder cosId80 = GeneratorSpec.CosId80.builder()
+                        .layout(cosId80Layout(at, generator, own))
+                        .regression(regression(generator))
+                        .codec(partsCodec(at, generator.codec(), zone, own));
+                    Optional.ofNullable(generator.machine()).ifPresent(cosId80::machine);
+                    yield cosId80.build();
+                }
+                case CUSTOM -> GeneratorSpec.Custom.builder(ref(at, generator, names, own))
                     .codec(codecs(at, generator.codec(), zone, own))
-                    .build();
-                case COSID80 -> GeneratorSpec.CosId80.builder()
-                    .regression(regression(generator))
-                    .codec(partsCodec(at, generator.codec(), zone, own))
                     .build();
                 case SEGMENT -> GeneratorSpec.Segment.builder(store(at, generator, own))
                     .batch(batch(generator))
@@ -186,6 +297,7 @@ public final class CosIdSpecs {
                 .codec(List.of())
                 .build();
             case COSID80 -> GeneratorSpec.CosId80.builder().regression(ClockRegressionPolicy.DEFAULT).codec(new PartsCodecSpec.Radix(62)).build();
+            case CUSTOM -> GeneratorSpec.Custom.builder(generator.ref() == null ? "" : generator.ref()).build();
             case SEGMENT -> GeneratorSpec.Segment.builder(store).batch(BatchPolicy.DEFAULT).codec(List.of()).build();
             default -> GeneratorSpec.PeriodicSegment.builder(store, Period.YEAR_MONTH_DAY, ZoneId.of("UTC"))
                 .batch(BatchPolicy.DEFAULT)
@@ -195,12 +307,47 @@ public final class CosIdSpecs {
         };
     }
 
+    /** The bean a custom generator refers to: required, and not one of the generators, whose beans CosId registers. */
+    private static String ref(String at, CosIdProperties.Generator generator, Set<String> names, List<String> problems) {
+        if (generator.ref() == null || generator.ref().isBlank()) {
+            problems.add(at + ".ref: required: the bean name of an IdGenerator");
+            return "";
+        }
+        if (names.contains(generator.ref())) {
+            problems.add(at + ".ref: [" + generator.ref() + "] is the name of a generator, whose bean CosId registers: refer to another bean");
+        }
+        return generator.ref();
+    }
+
     private static Layout layout(String at, CosIdProperties.Generator generator, List<String> problems) {
-        Layout preset = LAYOUTS.get(generator.layout() == null ? "" : generator.layout().trim().toUpperCase(Locale.ROOT));
+        Layout preset = LAYOUTS.get(generator.layout() == null ? "SNOWFLAKE_MS" : generator.layout().trim().toUpperCase(Locale.ROOT));
         if (preset == null) {
             problems.add(at + ".layout: one of " + new TreeMap<>(LAYOUTS).keySet() + ", not [" + generator.layout() + "]");
             return Layout.SNOWFLAKE_MS;
         }
+        return override(preset, generator);
+    }
+
+    /**
+     * The layout of a cosid80 generator (D36): {@code COSID_80} with its bit widths and reset threshold overridable; the
+     * Unix epoch and milliseconds stay, so the 80-bit text decodes alike everywhere.
+     */
+    private static Layout cosId80Layout(String at, CosIdProperties.Generator generator, List<String> problems) {
+        if (generator.layout() != null && !"COSID_80".equals(generator.layout().trim().toUpperCase(Locale.ROOT))) {
+            problems.add(at + ".layout: a cosid80 generator takes COSID_80 only, not [" + generator.layout() + "]");
+        }
+        if (generator.epoch() != null) {
+            problems.add(at + ".epoch: a cosid80 generator keeps the Unix epoch");
+        }
+        if (generator.unit() != null) {
+            problems.add(at + ".unit: a cosid80 generator keeps milliseconds");
+        }
+        // A set epoch or unit is reported above; the spec is not built then.
+        return override(Layout.COSID_80, generator);
+    }
+
+    /** The preset with the epoch, unit, bit widths and reset threshold the generator sets. */
+    private static Layout override(Layout preset, CosIdProperties.Generator generator) {
         if (generator.epoch() == null && generator.unit() == null && generator.timeBits() == null && generator.nodeBits() == null
             && generator.seqBits() == null && generator.seqResetThreshold() == null) {
             return preset;
@@ -289,7 +436,7 @@ public final class CosIdSpecs {
                 problems.add(at + ".radix.radix: must be in [" + Radix.MIN_RADIX + ", " + Radix.MAX_RADIX + "]: " + radix.radix());
                 return null;
             }
-            return new CodecSpec.Radix(radix.radix(), radix.width() == null ? Radix.maxWidth(radix.radix()) : radix.width(), radix.padStart());
+            return new CodecSpec.Radix(radix.radix(), radix.width() == null ? Radix.maxWidth(radix.radix()) : radix.width(), Boolean.TRUE.equals(radix.padStart()));
         }
         if (item.friendly() != null) {
             return new CodecSpec.Friendly(item.friendly().zone() == null ? zone : item.friendly().zone(), item.friendly().padStart());
@@ -333,9 +480,20 @@ public final class CosIdSpecs {
         }
         CosIdProperties.Codec item = items.get(0);
         if (item.radix() != null) {
-            return new PartsCodecSpec.Radix(item.radix().radix());
+            CosIdProperties.Radix radix = item.radix();
+            // The layout gives each part of the 80-bit text its width (D36).
+            if (radix.width() != null) {
+                problems.add(first + ".radix.width: a cosid80 generator's layout gives each part its width");
+            }
+            if (radix.padStart() != null) {
+                problems.add(first + ".radix.pad-start: a cosid80 generator's radix text is always padded to the widths of its layout");
+            }
+            if (radix.radix() != 62 && radix.radix() != 36) {
+                problems.add(first + ".radix.radix: a cosid80 generator takes 62 or 36: " + radix.radix());
+            }
+            return new PartsCodecSpec.Radix(radix.radix());
         }
-        return new PartsCodecSpec.Friendly(item.friendly().zone() == null ? zone : item.friendly().zone());
+        return new PartsCodecSpec.Friendly(item.friendly().zone() == null ? zone : item.friendly().zone(), item.friendly().padStart());
     }
 
     /**

@@ -87,7 +87,7 @@ class CosIdRuntimeHintsTest {
             "\"name\":\"cosid.machine.leased.preferred-slot\"",
             "\"name\":\"cosid.stores\"",
             "\"name\":\"cosid.generators\"",
-            "\"name\":\"cosid.metrics.generated\"")) {
+            "\"name\":\"cosid.metrics.generated.enabled\"")) {
             assertTrue(metadata.contains(property), property);
         }
     }

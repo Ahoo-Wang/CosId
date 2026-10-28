@@ -13,6 +13,7 @@
 
 package me.ahoo.cosid.spring.autoconfigure;
 
+import me.ahoo.cosid.IdGenerator;
 import me.ahoo.cosid.accessor.IdFiller;
 import me.ahoo.cosid.codec.IdCodec;
 import me.ahoo.cosid.lease.SlotLease;
@@ -83,7 +84,10 @@ public class CosIdAutoConfiguration {
             .hostResolver(hostResolver.getIfAvailable(() -> HostResolver.LOCAL))
             .codecs(reference -> beanFactory.containsBean(reference) && beanFactory.isTypeMatch(reference, IdCodec.class)
                 ? Optional.of(beanFactory.getBean(reference, IdCodec.class)) : defaults.codecs().apply(reference))
-            .countGenerated(properties.metrics().generated());
+            // strategy: custom refers to a bean by name (D41); the bean must not depend on the runtime.
+            .generators(reference -> beanFactory.containsBean(reference) && beanFactory.isTypeMatch(reference, IdGenerator.class)
+                ? Optional.of(beanFactory.getBean(reference, IdGenerator.class)) : Optional.empty())
+            .countGenerated(properties.metrics().generated().enabled());
         storeProviders.orderedStream().forEach(options::storeProvider);
         CosIdStoreClients.resolve(spec, properties, beanFactory, CosIdGeneratorRegistrar.RUNTIME_BEAN).forEach(options::client);
         port(environment).ifPresent(options::port);

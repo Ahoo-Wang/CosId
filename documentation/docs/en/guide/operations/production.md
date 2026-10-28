@@ -27,7 +27,7 @@
 
 | Signal | Meaning |
 |---|---|
-| health `cosId` `DOWN` | the slot lease was lost and not acquired again: time-based generators fail fast |
+| health `cosid` `DOWN` | the slot lease was lost and not acquired again: time-based generators fail fast |
 | `cosid.machine.lease.renew.failures` rising | the store is unreachable or slow; ids continue until the ceiling |
 | `cosid.machine.window.remaining` near 0 | renewals are not getting through; issuing is about to pause |
 | `cosid.machine.clock.skew` beyond `tolerance / 2` | fix NTP |

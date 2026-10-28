@@ -8,6 +8,8 @@
 这不是滚动升级。
 :::
 
+简单的部署也可以不用工具，停机后手工迁移，见[不用工具的停机迁移](#不用工具的停机迁移)。
+
 ## 工具的保证
 
 | # | 约束 | 方式 |
@@ -115,6 +117,97 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
 ```
 
 所有命令的退出码：`0` 完成，`1` 检查失败或命令中止，`2` 用法错误。
+
+## 不用工具的停机迁移
+
+**`cosid-migration` 仍是推荐路径**：它会观察 4.x 是否真的停止、自动封存源数据、为时间型生成器写入 floor，并用 `verify` 核对结果。
+如果部署足够简单，也可以不用工具，停机后手工迁移。手工迁移没有这些防护，是否满足上面的 M1–M3 完全由你保证。
+
+### 何时可以手工迁移
+
+只有当该命名空间中的**每一个**生成器都属于下列情况之一时才可以：
+
+- **时间型生成器，布局不变**：Snowflake 或 CosIdGenerator，epoch、时间单位和各段位宽都与 4.x 相同，也就是 4.x 的默认值
+  （5.0 预设沿用了它们）。
+- **普通（非周期）号段**，包括 share（5.0 的 `default` 生成器）。
+
+以下情况**必须用工具**：
+
+- 周期（分组）号段。手工迁移靠 `initial-offset` 越过 4.x 的值，而 `initial-offset` 是**每个新 key** 的起点；周期生成器每个新周期都是一个新 key，
+  于是以后每个周期都会从这个大偏移开始，例如按天从 1 重置的单号不再从 1 开始。
+- 自定义布局或自定义 epoch，包括秒级 Snowflake 的自定义 epoch。
+- key 很多，难以逐个核对；或者你需要静止观察、自动封存、`verify` 这些防护措施。
+
+与工具一样，4.x 与 5.0 不能在同一命名空间混跑：所有 4.x 实例先停止，5.0 后启动。
+
+### 时间型生成器
+
+1. **停止所有 4.x 实例**，记下最后一个实例停止的时刻（停机时刻）。遗漏的 4.x 实例与 5.0 实例取到同一机器号时，同一时刻会发出相同的 ID，
+   而手工迁移不会替你发现它。
+2. **保持停机**，时长不少于所有主机之间的最大时钟偏差，且**至少 1 分钟**。4.x 还允许主机比存储快 10s，估算偏差时要算上。
+3. **核对每台主机的 NTP 同步状态**（例如 `chronyc tracking`、`timedatectl`），确认时钟偏差在停机时长之内。
+4. 使用 StaticSlot 时，可以额外设置 floor：时钟落后的主机会等到越过它才发号。
+
+   ```yaml
+   cosid:
+     machine:
+       static:
+         not-before: 2026-11-01T02:00:10Z   # 停机时刻 + 最大时钟偏差
+   ```
+
+5. **启动 5.0**。
+
+原理：布局相同时，时间位于 ID 的最高位，时间更晚的 ID 数值一定更大；停机时长保证 5.0 的第一个时间戳晚于 4.x 发出过的任何时间戳。
+
+::: warning 时钟落后的主机不会被拦下
+工具会给新命名空间的每个槽位写入 floor `W`。手工迁移时 5.0 槽位的 floor 为 0：如果某台主机的时钟落后超过停机时长，
+它会发出与 4.x 时间范围重叠的 ID，并在机器号相同时重号。租约模式没有可以手工设置的 floor，只能靠停机时长与 NTP 核对。
+:::
+
+### 普通号段
+
+1. **停止所有 4.x 实例**。
+2. **读出每个号段的 4.x 值 `last_max_id`**。`{ns}` 是 4.x 的 `cosid.namespace`，`{name}` 是号段名，share 号段的名字是 `__share__`：
+
+   | 4.x 后端 | 位置 | 读取 |
+   |---|---|---|
+   | JDBC | 表 `cosid`，`name = '{ns}.{name}'` | `select last_max_id from cosid where name = 'shop.order';` |
+   | Redis | 字符串 `cosid:{ns.name}.adder`（花括号是 key 的一部分） | `GET "cosid:{shop.order}.adder"` |
+   | MongoDB | 集合 `cosid`，`_id = '{ns}.{name}'` | `db.cosid.findOne({_id: "shop.order"}).lastMaxId` |
+   | ZooKeeper | 节点 `/cosid/{ns}.{name}`，8 字节大端整数 | `zkCli` 不能直接显示，用下面的 `plan` 读取 |
+
+   也可以用只读的 `cosid-migration plan`（操作手册第 2 步）一次读出全部值，报告中每个号段都列出 4.x 的值。
+3. **（建议）手工封存**：把 4.x 的值原子地加上一个大数（例如 `2^40` = `1099511627776`），然后取 `last_max_id = 封存后的值 − 2^40`。
+   这样封存前的取段都被计入，遗漏的 4.x 实例此后取到的区间也远离 5.0；回滚时 4.x 从更大的值继续，同样不会重号。
+
+   | 4.x 后端 | 封存（返回或读回封存后的值） |
+   |---|---|
+   | JDBC | 在一个事务中：`update cosid set last_max_id = last_max_id + 1099511627776 where name = 'shop.order';` 然后 `select last_max_id from cosid where name = 'shop.order';` |
+   | Redis | `INCRBY "cosid:{shop.order}.adder" 1099511627776` |
+   | MongoDB | `db.cosid.findOneAndUpdate({_id: "shop.order"}, {$inc: {lastMaxId: NumberLong("1099511627776")}}, {returnDocument: "after"})` |
+   | ZooKeeper | 没有可用的 shell 命令；需要封存时请用工具 |
+
+4. **在 5.0 中给对应的生成器设置 `initial-offset = last_max_id + 1`**（见[生成器配置](../../reference/config/generators.md)）。
+   share 号段对应 `default` 生成器。
+
+   ```yaml
+   cosid:
+     namespace: shop
+     generators:
+       order:
+         strategy: segment
+         store: main
+         initial-offset: 120001   # 4.x 的 last_max_id 为 120000
+   ```
+
+5. **启动 5.0**。
+
+原理：4.x 每次取段都把 `last_max_id` 原子地推进一个 step，所以它是所有实例已预留区间的上界；5.0 的第一个 ID 是 `last_max_id + 1`。
+
+::: warning `initial-offset` 只对新 key 生效
+它只在 5.0 的 key 首次创建时使用。必须在 5.0 **第一次启动之前**配置好；如果 5.0 已经用这个 key 发过号（例如提前试运行过），
+它不再起作用，请先确认 5.0 存储中没有这个 key。
+:::
 
 ## 回滚
 

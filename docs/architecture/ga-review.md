@@ -18,7 +18,7 @@
 | 模块 | 状态 |
 |---|---|
 | core | ✅ 完成(§4) |
-| store/*(含 tck)、migration | 进行中 |
+| store/*(含 tck)、migration | ✅ 完成(§5) |
 | spring/*、server、integrations/*、extras、bom、examples、benchmark/v5 | 进行中 |
 | documentation/、模块 README | 进行中 |
 | 结果条件(性能、特性、文档)与汇总 | 待做 |
@@ -140,3 +140,197 @@
 5. **自定义分组 `GroupBySupplier`**:5.0 对应自定义 `Period`,`PeriodicSegmentGeneratorTest` 和 `GroupedCodecTest` 里都有自定义 Period 的用例,但 11 那一行只提到预设周期。建议补上;另外,空分隔符时自定义 Period 无法反解,见 R1-core-08。
 6. **`DefaultSegmentId.getRemaining()` / `getNamespacedName()`(4.1.0 新增)**:对应 `describe()` 里的 `held` / `key`,"Stat 体系"那一行可以覆盖,建议在该行写出来。
 7. 已核对、无缺口:`ClockBackwardsSynchronizer`(由窗口 floor 取代,见"本地状态存储"行)、`MachineIdLostException`(对应 `SlotLostException`,见 fail-fast 行)、`CallTimeout`(见 `max-concurrent-calls` 行)、`StringSegmentId` / `StringSnowflakeId`(对应 `StringIdGenerator`)、`Clock.CACHE` 和 `LocalDateTimeConvert`(03 §7 已列为删除项)。
+
+## 5. store/*(含 tck)与 migration
+
+范围:`store/{jdbc,redis,mongo,zookeeper,remote,tck}`、`migration` 及其 README,对照 05(存储侧)/06/08/09/11 与 `v4.1.0`(baseline-4x 所用版本)。总调度抽查核实:R1-jdbc-01(`schema-mysql.sql` 的 `cosid_slot` 只有主键 `(namespace, slot)`,而 `JdbcSlotLeaseStore.java:176-180` 按 `owner_key = ? or last_owner_key = ? or slot = ?` 查询)、R1-jdbc-02(同处每次拼接 SQL)、R1-jdbc-06(`MySqlDialect.java:77-78` 只要 generated key 非 0 即采信)。
+
+### 5.x 跨存储 / core SPI
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-spi-01 | MAJOR | 易用性 / 数据安全 | `store/jdbc/.../JdbcStoreProvider.java:47-64`、`store/redis/.../RedisStoreProvider.java:68-111`、`store/mongo/.../MongoStoreProvider.java`、`store/zookeeper/.../ZookeeperStoreProvider.java`、`store/remote/.../RemoteStoreProvider.java` | 所有 provider 都静默忽略未知的 option。拼错 `rangeTable`(如写成 `rangeTabel`)会悄悄改用默认表 `cosid_range`。如果迁移写入的是自定义表,5.0 会从 `initialOffset` 重新发号,与已迁移的号段重复。`wait`、`writeConcern` 拼错时也会悄悄回到默认值 | 每个 provider 声明自己认识的 option(例如在 `StoreProvider` 上加 default 方法 `Set<String> options()`,由 RuntimePlan 校验),遇到未知 key 直接拒绝。必须在 RC 之前决定:RC 之后再收紧会让已有配置启动失败 | 是(配置) |
+| R1-spi-02 | MAJOR | 架构 / 存储格式 | `schema-*.sql`(`range_key varchar(255)`、`namespace varchar(100)`)、`SqlServerDialect.java:103-107`、`ZookeeperRangeStore.java:47-56`、`ZookeeperSlotLeaseStore.java:84-96` | 没有跨后端统一的 key 语法与长度:JDBC 的 range key 最多 255 字符、namespace 最多 100;SQL Server 拒绝尾随空格;ZK 拒绝 namespace 中的 `/` 以及非法路径;Redis/Mongo 什么都接受。同一份配置换后端(或跨后端迁移)后,可能到运行时才失败,JDBC 上还只是一个笼统的 `JdbcStoreException`("Data too long") | 在 core 中定义可移植的 key/namespace/ownerKey 语法与长度上限,在 RuntimePlan 中校验,并写进 06 §1。列宽一旦冻结就无法再放宽 | 是(存储格式 + API 契约) |
+| R1-spi-03 | MINOR | 高内聚低耦合 | `MongoRangeStore.java:120-123`(原样抛出驱动异常)、`Zk.java:113,136`(`CosIdException`)、`RedisStoreException.java:43-45` 与 `RemoteClient.java:63-66`(`StoreTimeoutException` 只作为 cause) | 各后端失败类型不统一:JDBC/Mongo/ZK 直接抛 `StoreTimeoutException`,Redis/Remote 把它包成 cause;Mongo 把 `MongoException` 原样泄漏给调用方;core 没有公共的 `StoreException` 基类 | 冻结前选定一种:core 增加 `StoreException`,各后端统一包装;或者在 SPI Javadoc 中明确"任意 RuntimeException,超时用 `StoreTimeoutException.isTimeout` 判断",并让 TCK 验证 | 是(异常契约) |
+| R1-spi-04 | MINOR | 代码清洁 / 易用性 | `StoreConfig.java`(不校验 timeout)、`Jdbc.java:97`、`MongoStore.java:117-126`、`Zk.java:46`、`LettuceRedisScripts.java:56`、`RemoteClient.java:~40`、`core/.../internal/RuntimePlan.java:178` | `timeout = 0` 的语义互相矛盾:JDBC 和 Mongo 当作"无超时"(JDBC README 也这样写),ZK、Redis、Remote 直接拒绝,RuntimePlan 要求为正数。于是"0 = 无超时"的分支只有直接 new 才能走到 | 在 `StoreConfig` 的紧凑构造器中要求 timeout 为正数,删掉 0 的分支与相应文档 | 是(StoreConfig) |
+| R1-spi-05 | MINOR | 高扩展性 | `core/.../store/StoreConfig.java` | `StoreConfig` 是公开 record,第三方测试会直接调用它的规范构造器。冻结后再加字段(例如 clock、metrics)会破坏所有 `new StoreConfig(...)` 调用 | RC 前确认字段集;或者提供静态工厂 / builder,作为对外推荐的构造方式 | 是 |
+
+### 5.x jdbc
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-jdbc-01 | MAJOR | 高性能 / 存储格式 | `JdbcSlotLeaseStore.java:176-180`;各 `schema-*.sql` 的 `cosid_slot` | `cosid_slot` 在 `owner_key` 和 `last_owner_key` 上都没有索引。acquire 候选查询的子查询 `o`(`namespace=? and slot<? and (owner_key=? or last_owner_key=? or slot=?)`)只能沿主键前缀扫描该命名空间的全部 `limit` 行(默认 1024),每行还要算一次 `nowMillis()` 表达式。4.x 有 `idx_instance_id`,而且只按需插入行。这是 acquire 延迟 +15% 的首要嫌疑 | `take` 总是同时写 `owner_key = last_owner_key = key`,`release` 保留 `last_owner_key`,所以 `owner_key=?` 必然蕴含 `last_owner_key=?`:谓词可以简化为 `last_owner_key=? or slot=?`,只需在五份 schema 上加一个索引 `(namespace, last_owner_key)`。06 §2.1 的 DDL 同步更新 | 是(schema DDL) |
+| R1-jdbc-02 | MAJOR | 高性能 | `JdbcSlotLeaseStore.java:71,176-180,204,226-228,264-265,292-294,311-312`、`MySqlDialect.java:66-67,82`、`JdbcRangeStore.java:83,99,107` | 每次调用都重新拼 SQL 字符串,而表名和方言对一个 store 实例来说是固定的。acquire 要拼约 600 字符的 union 查询(含 3 份 `nowMillis()` 表达式);renew/release 每次拼两条约 200 字符的语句;reserve 拼约 250 字符。4.x 的 SQL 全是 `static final` 常量 | 在构造器里把全部 SQL 预计算成 final 字段(每个 store 一个 `Sql` record) | 否 |
+| R1-jdbc-03 | MINOR | 高性能 | `JdbcRangeStore.java:48`、`JdbcSlotLeaseStore.java:89,253,282` | `"reserve " + key`、`"renew " + ns + "/" + slot` 这类 operation 字符串在成功路径上也会被立刻拼出来,但只有出错时才用到 | 延迟构造(传 key/slot,出错时再拼),或者传 `Supplier<String>` | 否 |
+| R1-jdbc-04 | MINOR(存疑) | 高性能 | `MySqlDialect.java:66-79` | MySQL 的 upsert 绑定 5 个参数(4.x 只有 2 个),并且带 `RETURN_GENERATED_KEYS`。走 update 分支时影响行数是 2,Connector/J 的 `getGeneratedKeys()` 会按影响行数构造 2 行结果(4.x 的 update 只有 1 行) | 在客户端算好 `initialOffset+size`,绑定 3 个参数;两行 generated keys 的现象需要在 MySQL 9 驱动上实测确认 | 否 |
+| R1-jdbc-05 | MINOR | 高性能 | `JdbcSlotLeaseStore.java:192-196` | 每次 acquire 读回最多 `1+8` 行 × 11 列,按列名取值(Connector/J 每个 ResultSet 都要建一次列名映射),再用 `TreeMap<Integer>`(装箱)和 `ArrayList` 加 `Collections.shuffle` | 改用列序号取值;`FREE_CANDIDATES` 可降到 4;候选集用数组 | 否 |
+| R1-jdbc-06 | MAJOR | 数据安全(特性回退) | `MySqlDialect.java:76-79` 对比 4.x `JdbcIdSegmentDistributor.lastInsertId`(v4.1.0) | 4.1 专门为 SQL 代理和读写分离加过防线:generated key 小于 step 时抛错,并提供 `fetch-plan=transaction` 作为退路。5.0 只要 generated key 非 0 就直接采信;11:69 的结论是"fetch-plan 不再需要"。在会改写或丢失 last_insert_id 的代理后面,可能返回错误区间,进而重号 | 至少恢复合理性检查(`next >= size`;新 key 时 `next == initialOffset+size` 不可证,但可检查 `next > 0 && next >= size`),在 README 中声明不支持哪些代理;或者提供 `options.mysqlFetch=transaction`(`select … for update` + update) | 否(新增 option 属于增量) |
+| R1-jdbc-07 | MINOR | 扩展性 | `JdbcDialect.java:95-97,28-34` | SPI 的 `firstRows(columns, table, where, orderBy, rows)` 与 Javadoc 中的列清单暴露了 store 拼 SQL 的内部方式:冻结后想换 acquire 的查询形态,就会被第三方方言绑住 | 收窄为 `limitClause(int rows)` / `topClause`,或者把该方法标为 evolving | 是(公开 SPI) |
+| R1-jdbc-08 | MINOR | 易用性 | `JdbcStore.java:66` 对比 `JdbcStoreProvider.java:54-55` | `JdbcStore.of` 用 `JdbcStore.class.getClassLoader()` 查找方言,provider 用 TCCL:同一个自定义方言,一条路径能找到,另一条找不到 | 两处统一用 TCCL(TCCL 为空时回退到类加载器) | 否 |
+| R1-jdbc-09 | MINOR | 易用性 / 安全 | `DriverManagerDataSource.java:60-62,89-91` | `setLoginTimeout` 改的是 JVM 全局的 `DriverManager`;`toString` 带出完整 url(可能含 `password=`);不带连接池时,登录过程不受 `StoreConfig.timeout` 约束 | `toString` 先脱敏;login timeout 取自 store timeout,只作用于本次连接 | 否 |
+| R1-jdbc-10 | MINOR | 高性能 | `Jdbc.java:56-64` | 遇到 40001/40P01 立即重试,最多 5 次,没有退避;4.x `JdbcMachineLeaseStore.pauseAfterDeadlock` 有随机退避 | 加 1–64ms 的随机退避 | 否 |
+| R1-jdbc-11 | MINOR | 架构(文档) | `docs/architecture/06-stores.md` §2.1 | 06 已经落后于代码:DDL 没有二进制排序规则(B-M1 的修复只在代码里);MySQL reserve 写的是"然后 `select last_insert_id()`",实际先读 OK 包,且漏写了 `if(sealed or next_value > ?)`;PG 漏了 `r.next_value <= ?`;H2 时钟写"同 PG",代码是 `current_timestamp` | 06 是存储格式的权威文档,RC 前与 schema 文件逐字对齐 | 否(文档) |
+| R1-jdbc-12 | MINOR | 代码清洁 | `src/main/resources/.../schema-mariadb.sql:1` | 只有这一份 schema 缺许可证头 | 补上 | 否 |
+
+### 5.x redis
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-redis-01 | MINOR | 存储格式 | `slot-row.lua:3-5,23-38` | 槽位行是按位置解析的 `a|b|…` 字符串(带 `\\`、`\p` 转义),但没有写明演进规则 | 在 06 §2.2 / README 写明"新字段只追加在末尾,旧解码器忽略多余字段"(当前的 `decode` 已经这样处理),并加一个测试锁定 | 是(格式规则需在冻结前写明) |
+| R1-redis-02 | MINOR | 架构(文档) | `docs/architecture/06-stores.md` §2.2 对比 `RedisStore.java:38-46` | 06 只列了 `slot/free/live/owner`,缺 `:meta`、`:held`,也没写行转义 | 按 `RedisStore` 的 Javadoc 更新 06 | 否(文档) |
+| R1-redis-03 | MINOR | 易用性 | `RedisStoreProvider.java:135,147-151` | `wait=auto` 只在 open 时解析一次,而且不记日志。之后加了副本,不会 WAIT,持久性前提被悄悄丢掉;去掉副本,所有写都会失败,直到重启 | open 时用 INFO 级别记录解析出的副本数;README 写明要重启;可选:定期重新解析 | 否 |
+| R1-redis-04 | MINOR | 高性能 | `Script.java:66`、`RedisStore.java:158-162,183-186` | 每次调用都用 stream 转换回复;acquire 每次拼 6 个 key 字符串和 7 个参数;`keys.toArray`/`args.toArray` 再各拷一次 | 普通循环;按命名空间缓存 key 列表(`ConcurrentHashMap<String, List<String>>`) | 否 |
+
+### 5.x mongo
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-mongo-01 | MINOR | 高性能 / 存储格式 | `MongoSlotLeaseStore.java:167,314-317` | acquire 用 `ownerKey==k OR lastOwnerKey==k` 匹配,并建了 `ns_ownerKey` 和 `ns_lastOwnerKey` 两个索引。`take` 同时写这两个字段,`release` 保留 `lastOwnerKey`,所以前一个条件被后一个蕴含:`ns_ownerKey` 是多余的,每次 acquire/release 都要多维护一个索引 | 只匹配 `lastOwnerKey`,去掉 `ns_ownerKey`。索引由 store 自己创建,属于库上格式,RC 前定 | 是 |
+| R1-mongo-02 | MINOR | 高性能 | `MongoSlotLeaseStore.java:94-96,235-245,258-262` | take/renew 的 `findOneAndUpdate` 没有 projection,返回整份文档;pipeline 的 `Document` 每次调用都重建 | 加 projection(只取 lease 需要的字段);不随调用变化的部分预构建为常量 | 否 |
+| R1-mongo-03 | MINOR | 架构(文档) | 06 §2.3 | 缺 `cosid_namespace {_id, limit, toleranceMs}`、`writtenAt` 字段和 3 个索引;写的是"E11000 重试一次",代码是 `ATTEMPTS=3` / `NAMESPACE_ATTEMPTS=5` | 更新 06 | 否(文档) |
+
+### 5.x zookeeper
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-zk-01 | MAJOR | 高性能 | `ZookeeperRangeStore.java:66-81,169-171`、`Zk.java:71-78,103-105` | reserve 分配 +19% 的来源(见"性能回退候选"):每次调用都 `PathUtils.validatePath`(`toCharArray`)、拼 `"reserve " + path`;每个 Curator 后台操作都有 `CompletableFuture`、两个 lambda、`CuratorEventImpl`、EventThread 队列节点和带时限 `get` 的 `Signaller`;`Ascii.Writer(32)` 加 `toBytes()` 是两次 byte[] 分配(4.x 只有 `ByteBuffer.allocate(8)`) | 缓存已校验的 path(`ConcurrentHashMap`,key 有限);`what` 延迟构造;`Value.bytes()` 先算好位数,一次分配到位;可选:热路径直接用 ZooKeeper 原生异步回调(`DataCallback`/`StatCallback`)加一个轻量 future,绕开 `CuratorEventImpl` | 否 |
+| R1-zk-02 | MINOR | 架构(文档) | 06 §2.4 对比 `ZookeeperSlotLeaseStore.java:52-68,73-74`、`README.md:32-38` | 06 写的是"异步批量 getData 读取全部槽位";代码是 owner 索引 + 32→256 递增批次的只读 multi。06 没有记录 `/cosid/owner/{ns}/{key}`(URL 编码,`.` 和 `*` 也转义)、`.clock` 以及 `limit=..\ntolerance=..` 的元数据格式,这些都是存储格式 | 把 README 中的节点表并入 06 | 否(文档,但这是冻结格式的唯一权威描述) |
+
+### 5.x remote
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-remote-01 | MINOR | 架构(文档) | `docs/architecture/08-remote.md` §2 对比 `RemoteApi.java`、`RemoteSlotLeaseStore.java:96-108` | 08 是冻结的 HTTP 协议文档,但缺 `504 store_timeout`、`429 too_many_keys/too_many_namespaces`、`503 busy` 的 code;也没写 renew/release 请求体里带着 `expiresAt/floor/ceiling/storeNow` 窗口字段,以及 acquire 的扁平响应字段 | 以 `RemoteApi` 为准补全 08 §2 的表(状态码、code、请求和响应字段) | 是(协议) |
+| R1-remote-02 | MINOR | 扩展性 | `RemoteStoreProvider.java:~45-47`、`RemoteClient.java:~40-44` | provider 拒绝任何 client,`HttpClient` 由内部构建。自定义 `SSLContext`(mTLS)、代理、HTTP/2 都只能靠 JVM 全局默认值 | 允许把 `java.net.http.HttpClient` 作为 `client` 传入(增量改动) | 否 |
+| R1-remote-03 | MINOR | 安全 | `RemoteClient.java:~33-36` | 有 token 时,在明文 `http` 上发 bearer token 不会有任何提示 | `http` + token + 非回环地址时,在 open 时告警 | 否 |
+
+### 5.x tck
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-tck-01 | MINOR | 高内聚 | `store/tck/.../TestRuntimes.java:45-99` | 发布的 TCK 公开 API 里带着 CosId 自己的测试夹具(`ORDER/TOKEN/BILL/OFF` 命名空间、`spec()`、`options()`),冻结后就成了公开 API | 改用 core/spring 的 `java-test-fixtures`,或者移到 `internal` 包并注明不承诺 | 是(TCK API) |
+| R1-tck-02 | MINOR | 高扩展性 | `store/tck`(缺失) | 只有 `RangeStoreContract` 和 `SlotLeaseStoreContract`,没有 provider/Store 级别的契约:`type()`、注入的 client 不关闭、自建的 client 随 store 关闭、超时映射为 `StoreTimeoutException.isTimeout`、坏 option 报错。第三方 provider 无法自证这些 | 增加 `StoreProviderContract`(增量) | 否 |
+| R1-tck-03 | MINOR | 易用性 | `store/tck/`(没有 README)、`documentation/docs/*/guide/backends/test-suite.md` | `ContractsRan` 对第三方怎么用只有一句话,没有 Gradle/Maven 片段;文档说 `InMemoryStore` 是 "a `memory` provider",实际上 TCK 没有在 ServiceLoader 中注册(只有 `TestRuntimes` 里一个编程式 provider) | 补 README,给出 `JavaExec`/exec-maven 的示例;修正 memory provider 的说法 | 否 |
+
+### 5.x migration
+
+| 编号 | 严重度 | 维度 | 位置 | 问题 | 建议修复 | 触及冻结面 |
+|---|---|---|---|---|---|---|
+| R1-mig-01 | MINOR | 安全(D-M2 残留) | `target/JdbcTarget.java:56`、`source/JdbcSource.java:124`、`StoreLocation.java:156-158` | 异常消息直接拼 `location.url()`(可能含 `;password=` 或 `?password=`),由 Main 打印到 stderr;`StoreLocation.toString` 也返回原始 url | 统一改用 `StoreLocation.redactUrl` | 否 |
+| R1-mig-02 | MINOR(存疑) | 数据安全 | `RedisConnection.java`、`target/RedisTarget.java:93,158`(全文没有 WAIT) | 迁移对 Redis 的写入(4.x 封存、5.0 raise、prepare)不做 WAIT,与运行时的 `wait=auto` 不一致。apply 后若在复制追上之前发生 failover,raise/prepare 可能丢失,5.0 从更低的值开始,与 4.x 重叠;`verify` 只有在 failover 之后运行才能发现 | 有副本时每步写入后 `WAIT n timeout`,不足就中止 | 否 |
+| R1-mig-03 | MINOR | 架构(文档) | `docs/architecture/09-migration.md` §2(第 3 条)、§3 | D-M1 的文档部分没有落实:09 §2 仍说遗漏的 4.x 实例"不会重复"(第二次快照之后新建的 key 不受这句话保护)。09 也没有记录 README 里那些 RC 前加的护栏(`--allow-unmigrated`、`--machine-from/--machine-to`、`--allow-new`、verify 报告新出现的 4.x key) | 同步 09 与 README | 否 |
+| R1-mig-04 | MINOR | 代码清洁 / 高内聚 | `target/RedisTarget.java:42,65-69,151-153`、`target/ZookeeperTarget.java:232,377`、`target/MongoTarget.java:146-149` | 迁移工具自己重写了一遍各 store 的存储格式(Redis key 与行、ZK 节点文本、Mongo 字段名字面量),冻结后两处容易漂移。已有的缓解:`TargetAdminTest` 在 prepare 之后通过真实 store 做 acquire | 要求每个 target 都必须有"prepare 后经真实 store acquire/reserve"的测试;或者从各 store 暴露格式常量 | 否 |
+| R1-mig-05 | MINOR | 易用性 | `target/JdbcTarget.java:47-52` 对比 `JdbcStoreProvider.java:53` | 迁移用 `user`,运行时 option 是 `username`;从 `--to-option` 抄到 5.0 配置时容易写错 | 两边都接受 `user` 和 `username` | 否 |
+
+### 5.x Javadoc 缺口(公开成员)
+
+- `store/jdbc/.../JdbcStoreException.java:25`:构造器。
+- `store/redis/.../RedisStoreException.java:27,31`:两个构造器。
+- `store/zookeeper/.../ZookeeperStoreProvider.java:53`:`TYPE`(其他 provider 都有)。
+- `store/tck/.../FaultyRangeStore.java:30`、`FaultySlotLeaseStore.java:35`:构造器;`TestRuntimes.java:70,84`:`spec()` 和 `options()`。
+- 其余公开类型与方法都有 Javadoc(脚本扫描了全部 `store/*/src/main`)。`store/tck` 是唯一没有 README 的 store 模块。
+
+### 5.x 确认通过的部分
+
+- **依赖方向**:每个 store 只依赖 `:core` 与各自的驱动(jdbc 只依赖 core,驱动由应用提供;remote 只用 JDK);store 之间没有互相引用;不暴露 `internal` 类型;store 模块没有 module-info,但发布时带 `Automatic-Module-Name`(`cosid.library.gradle.kts:30`)。
+- **rc-review 修复复核**:
+  - **B-B1** ✅ `LettuceRedisScripts.java:87-103`:有副本的 Cluster 上,`EVALSHA` 与 `WAIT` 用同一个按 nodeId 取得的连接;`wait=auto` 由 `fewestReplicas`(`:137-156`)同时比较 `INFO replication` 与 `CLUSTER REPLICAS`,部分主节点没有副本时拒绝。`ClusterReplicaWaitTest.writesFailWhileTheReplicasAreFrozen` 证明了确实在同一连接上。
+  - **B-M1** ✅ MySQL `utf8mb4_0900_bin`、MariaDB `utf8mb4_nopad_bin`(都是 NO PAD)、SQL Server `Latin1_General_100_BIN2`,另加 `checkKey` 拒绝尾随空格(`SqlServerDialect.java:103-107`)。`*KeyExactnessTest` 覆盖全部 5 种数据库。
+  - **B-N1** ✅ `Zk.java:162-165`:CAS 冲突中超时抛 `StoreTimeoutException`。
+  - **B-N2** ✅ 连接池取连接超时映射为超时(`Jdbc.java:77-91`,`SQLTransientConnectionException`、08 类、`isTimeout`);acquire/renew/release 的 CAS 循环受整体期限约束(`JdbcSlotLeaseStore.java:90-93,254-257,283-286`)。
+  - **B-N3** ✅ `RemoteApi.STORE_TIMEOUT`(504)→ cause 为 `StoreTimeoutException`(`RemoteClient.java` `Response.error`);HTTP 超时同样处理。
+  - **B-N4** ✅ `acquire.lua:85-92`:幂等分支原样重写一次行;`ClusterReplicaWaitTest.idempotentAcquireWaitsForItsReplicaToo`。
+  - **D-B1** ✅ `LegacySnapshot.java:82-94` 读取额外命名空间,`plan.extraNamespaces` 在 apply/verify 中沿用。
+  - **D-B2** ✅ `config` 校验生成器名对应 `apply-result.json` 中的 key,或者有 `--allow-new`(`Migration.java:~757`、README)。
+  - **D-B3** ✅ `Migration.java:476-489`:有未映射的 key 时中止,除非用 `--allow-unmigrated` 逐个点名。
+  - **D-B4** ✅ `Migration.java:203-226`:比对 distributor 类型与 `--from/--machine-from`,两者分离时要求 `--machine-to`。
+  - **D-M1** ✅ 代码:verify 报告结果中没有的 4.x key(`Migration.java:~591`);❌ 09 的文档没有改(R1-mig-03)。
+  - **D-M2** ✅ `StoreLocation.redacted/redactUrl`(`:129-152`)去掉 userinfo 密码和 `password=`/`pwd=`;异常消息里还有残留(R1-mig-01)。
+  - **D-M3** ✅ `Legacy4x.java:161-164`:秒级单位的自定义 epoch × 1000。
+  - **D-N1** ✅ `LegacySnapshot.java:94`。
+  - **D-N2** ✅ `ConfigConverter.java:346-379`:bits 与 tolerance 取自 result。
+  - **D-N3** ✅ plan(`Migration.java:152,187`)和 apply(`:491`)都取源与目标时钟的较大者。
+  - **D-N4** ✅ purge 检查存活租约(dry-run 除外)。
+- **其他核实正确的点**:
+  - Redis 的 key 构造(`cosid:{k}`、`cosid:{k}:sealed`、`cosid:{ns}:<suffix>`)三类之间不可能互相碰撞,同组 key 共享 hash tag。
+  - Redis 的 free/live 不变式与有界清扫;release/renew 的 CAS。
+  - Mongo 管道 upsert 带 `next <= MAX-size` 过滤;CSOT 超时映射;写关注拒绝不确认的级别,弱于 majority 时告警。
+  - ZK 的 fence 存在数据里;CAS 用版本化 setData;新建 key 时 overflow 先检查。
+  - JDBC 的表名经标识符校验,其余全部参数绑定;`take` 的 CAS 包含 `fence` 和 `next_floor_ms`。
+  - 注入的 client 一律不关闭。
+- **README 快速上手**:与代码中的 option 名和默认值核对一致(jdbc、redis、mongo、zookeeper、remote)。jdbc README 的 "zero: none" 见 R1-spi-04。
+
+### 5.x 性能回退候选
+
+### MySQL(acquire/renew/reserve 分配 +25~+67%,acquire 延迟 +15%)
+
+基准:`benchmark/v5/.../MySqlStoreBenchmark.java` 对比 `benchmark/baseline-4x/.../MySqlStoreBenchmark.java`,两边都是 Hikari 32,driver 默认参数(没有 `cachePrepStmts`/`useServerPrepStmts`,所以每次 `prepareStatement` 都在客户端重新解析 SQL,分配量随 SQL 长度和参数个数增长);两边都对每条语句 `setQueryTimeout`,这部分不是差异来源。
+
+1. **acquire 延迟 +15%:服务端扫描**。见 R1-jdbc-01。`o` 子查询没有可用索引,每次 acquire 都扫描该命名空间全部 1024 行(5.0 预建全部行;4.x 只按需插入,还有 `idx_instance_id`),并且每行计算一次 `timestampdiff(... utc_timestamp(6))`。
+2. **acquire 分配**:
+   - 候选查询每次调用重新拼约 600 字符的 SQL,带 7 个参数,客户端解析成本更高(`JdbcSlotLeaseStore.java:176-180`);
+   - 读回最多 9 行 × 11 列,按列名取值(`:192-195`);
+   - take 的 update 有 12 个参数(`:226-240`);
+   - `UUID.toString()` 在 take 中再算一次(`:230`);
+   - `TreeMap` 装箱、`ArrayList` 和 shuffle;
+   - 基准本身也有不对称:
+     - v5 的 `@TearDown(Level.Invocation) release` 是 select+update 两条语句(4.x 只有一条 update);GC profiler 的每操作分配量包含 invocation 级 teardown;
+     - v5 每次调用 `UUID.randomUUID()`,4.x 是 `InstanceId.of(...)`。
+3. **renew 分配**:
+   - v5 是同一连接上的 `select current`(含 `nowMillis` 表达式)加 9 参数的 update,两条 SQL 每次都现拼(`:264-265,311-312`);
+   - `"renew " + ns + "/" + slot`(`:253`);
+   - `incarnation().toString()` 算两次(`:315,326`);
+   - `Current`、`Optional`、`SlotLease`、lambda、`JdbcSession`。
+   - 4.x 的 renew 是 `serverTime()` 加一条 7 参数的静态 SQL update;round trip 次数相近,差异主要在 SQL 构造和多出的参数。
+4. **reserve 分配**:
+   - 约 250 字符的 upsert 每次现拼(`MySqlDialect.java:66-67`),5 个参数(4.x 约 110 字符,2 个参数);
+   - update 分支 `getGeneratedKeys` 可能有 2 行(存疑,R1-jdbc-04);
+   - `"reserve " + key`(`JdbcRangeStore.java:48`)、lambda、`JdbcSession`、`OptionalLong`、`Range`。
+   - InnoDB 的 `insert … on duplicate key update` 先尝试插入、遇到重复再更新,服务端比单纯 update 多一步,也会影响延迟。
+5. **最可能的修复顺序**:
+   1. 加 `(namespace, last_owner_key)` 索引并简化谓词(schema,RC 前);
+   2. 预计算全部 SQL;
+   3. operation 字符串延迟构造,`UUID` 字符串只算一次;
+   4. reserve 参数合并;
+   5. 基准的 teardown 与 UUID 对齐 4.x,或在报告中注明。
+
+### ZooKeeper reserve(分配 +19%)
+
+- **调用方式**:4.x(`ZookeeperIdSegmentDistributor.tryCompareAndAdd`,`CallTimeout.NONE`)是前台同步 `getData().storingStatIn(stat)` 和 `setData().withVersion()`,值是 8 字节二进制。v5 每次 reserve 是两次 Curator **后台**操作。
+- **v5 每次调用多出的分配**(`ZookeeperRangeStore.java:66-81`、`Zk.java:71-78,103-105`):
+  - `path()` 的拼接与 `PathUtils.validatePath`(内部 `toCharArray`);
+  - `"reserve " + path`;
+  - 每个操作一个 `CompletableFuture`、两个 lambda(Operation 与 BackgroundCallback)、`CuratorEventImpl`、ZooKeeper EventThread 的队列节点,以及 `CompletableFuture.get(timeout)` 的 `Signaller`;
+  - 写入值时 `Ascii.Writer(32)` 的缓冲区加 `toBytes()` 的拷贝(两次 byte[] 分配)。
+- **其他差异**:
+  - 4.x 基线没有调用超时,而 v5 总是有期限(D 系列设计决定:原生超时),这一部分差异是有意为之;
+  - 十进制文本编码本身影响很小。
+- **修复**:见 R1-zk-01。
+  - 缓存已校验的 path;
+  - `what` 延迟构造;
+  - `Value.bytes()` 一次分配;
+  - 可选:热路径直接用 ZooKeeper 原生异步 API 加轻量 future,省掉 `CuratorEventImpl` 和一层回调。
+
+### Mongo / Redis 热路径可疑点
+
+- **Mongo**:
+  - renew/take 每次重建 pipeline 文档,并且返回整份文档(R1-mongo-02);
+  - `ns_ownerKey` 索引多余,每次 acquire/release 都要维护(R1-mongo-01);
+  - reserve 已经有 projection,开销合理。
+- **Redis**:
+  - `Script.eval` 的 stream 转换,以及每次拼 key 和参数(R1-redis-04);
+  - 在有副本的 Cluster 上,每次调用都要 `getPartitionBySlot` + `getConnection(nodeId)`,另加一次 `WAIT` 往返(这是设计决定);
+  - `WAIT` 会阻塞该节点连接,同一节点上的 store 调用会串行地排在它后面:吞吐受副本确认延迟限制,README 中应写明。
+
+### 5.x 特性对照
+
+- **11 中的引用**:存储和迁移各行引用的测试类和方法都存在,内容与声明相符(抽查了 `ReplicaWaitTest`、`ClusterReplicaWaitTest`、`KeyExactnessTest`、`JdbcStoreProviderTest`、`MongoStoreProviderTest`、`ZookeeperStoreProviderTest`、`TargetAdminTest`)。有 6 处行号锚点已过期:
+  - `ConfigBindingTest`:#L60→68、#L85→93、#L98→106、#L109→117;
+  - `RemoteStoreTest`:#L158→167、#L216→225。
+- **4.x 的存储能力**:
+  - JDBC:表名定制 ✅(`rangeTable/slotTable/namespaceTable`);自定义 SQL → `JdbcDialect` ✅;query-timeout ✅;**fetch-plan=transaction 及代理防线 ❌**(R1-jdbc-06,11:69 的结论"不再需要"过于乐观)。
+  - Redis:cluster ✅;wait-replicas/wait-timeout → `options.wait` 加 `timeout` ✅。
+  - ZooKeeper:connectString、sessionTimeout、connectionTimeout、blockUntilConnectedWait、retry.{baseSleepTime,maxRetries,maxSleep} 与 4.x `CosIdZookeeperProperties` 一一对应 ✅;4.x 也没有 ACL/auth,需要时注入 `CuratorFramework`。
+  - Mongo:database ✅、write-concern ✅。
+  - proxy → `remote` ✅;但不能注入自定义 `HttpClient`(R1-remote-02);4.x 的两种客户端实现合并为 JDK HttpClient 一种,符合 11:112 的说法。
+- **迁移**:四种后端的 4.x 读取与 5.0 写入齐全,支持跨类型迁移;Proxy 源按其背后的实际存储读取(09 §4.1)✅。

@@ -14,12 +14,15 @@
 package me.ahoo.cosid.codec;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
+import java.math.BigInteger;
 import java.util.Locale;
 import java.util.Random;
 
@@ -96,5 +99,74 @@ class RadixTest {
         assertThrows(IllegalArgumentException.class, () -> codec.decode("zzzzzzzzzzz"));
         assertThrows(IllegalArgumentException.class, () -> Radix.of(2, 63, false).decode("1".repeat(63) + "1"));
         assertThat(Radix.of(2, 63, false).decode("1".repeat(63)), is(Long.MAX_VALUE));
+    }
+
+    @Test
+    void constantRadixPathsMatchMaxWidth() {
+        // readDigits passes these maxWidths as literals for its constant-radix cases.
+        assertThat(Radix.maxWidth(62), is(11));
+        assertThat(Radix.maxWidth(36), is(13));
+        assertThat(Radix.maxWidth(10), is(19));
+    }
+
+    @Test
+    void decodesTheBoundariesOfEachConstantRadix() {
+        assertBoundaries(62, "AzL8n0Y58m7", "AzL8n0Y58m8");
+        assertBoundaries(36, "1Y2P0IJ32E8E7", "1Y2P0IJ32E8E8");
+        assertBoundaries(10, "9223372036854775807", "9223372036854775808");
+        assertBoundaries(16, "7FFFFFFFFFFFFFFF", "8000000000000000");
+    }
+
+    private static void assertBoundaries(int radix, String max, String maxPlusOne) {
+        int maxWidth = Radix.maxWidth(radix);
+        Radix codec = Radix.of(radix, maxWidth, false);
+        char top = (char) (radix <= 10 ? '0' + radix - 1 : radix <= 36 ? 'A' + radix - 11 : 'a' + radix - 37);
+        assertThat(codec.decode(max), is(Long.MAX_VALUE));
+        assertThat(codec.decode("0".repeat(maxWidth)), is(0L));
+        // maxWidth - 1 digits never overflow, whatever they are.
+        String belowWidth = String.valueOf(top).repeat(maxWidth - 1);
+        assertThat(codec.decode(belowWidth), is(BigInteger.valueOf(radix).pow(maxWidth - 1).longValueExact() - 1));
+        // The maxWidth-th digit is the one that overflows.
+        IllegalArgumentException overflow = assertThrows(IllegalArgumentException.class, () -> codec.decode(maxPlusOne));
+        assertThat(overflow.getMessage(), containsString("overflows a long"));
+        assertThat(overflow.getCause(), instanceOf(ArithmeticException.class));
+        assertThrows(IllegalArgumentException.class, () -> codec.decode(belowWidth + top));
+        // A character beyond the radix, in the unchecked digits and in the checked last digit.
+        char beyond = radix == 62 ? '-' : (char) (radix < 10 ? '0' + radix : radix < 36 ? 'A' + radix - 10 : 'a' + radix - 36);
+        IllegalArgumentException first = assertThrows(IllegalArgumentException.class, () -> codec.decode(beyond + max.substring(1)));
+        assertThat(first.getMessage(), containsString("[" + beyond + "] that is not a digit in radix " + radix + " at 0"));
+        String lastBeyond = max.substring(0, maxWidth - 1) + beyond;
+        IllegalArgumentException last = assertThrows(IllegalArgumentException.class, () -> codec.decode(lastBeyond));
+        assertThat(last.getMessage(), containsString("at " + (maxWidth - 1)));
+        assertThrows(IllegalArgumentException.class, () -> codec.decode(max.substring(0, 3) + '\u00e9' + max.substring(4)));
+        // Beyond maxWidth the length check fires first.
+        assertThrows(IllegalArgumentException.class, () -> codec.decode("0" + max));
+    }
+
+    @Test
+    void decodeMatchesBigIntegerForEveryRadix() {
+        Random random = new Random(11);
+        String digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        BigInteger longMax = BigInteger.valueOf(Long.MAX_VALUE);
+        for (int radix = Radix.MIN_RADIX; radix <= Radix.MAX_RADIX; radix++) {
+            int maxWidth = Radix.maxWidth(radix);
+            Radix codec = Radix.of(radix, maxWidth, false);
+            for (int i = 0; i < 2_000; i++) {
+                int length = random.nextInt(1, maxWidth + 1);
+                StringBuilder text = new StringBuilder(length);
+                BigInteger expected = BigInteger.ZERO;
+                for (int j = 0; j < length; j++) {
+                    int digit = random.nextInt(radix);
+                    text.append(digits.charAt(digit));
+                    expected = expected.multiply(BigInteger.valueOf(radix)).add(BigInteger.valueOf(digit));
+                }
+                String value = text.toString();
+                if (expected.compareTo(longMax) > 0) {
+                    assertThrows(IllegalArgumentException.class, () -> codec.decode(value));
+                } else {
+                    assertThat(codec.decode(value), is(expected.longValueExact()));
+                }
+            }
+        }
     }
 }

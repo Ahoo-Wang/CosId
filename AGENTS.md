@@ -4,10 +4,10 @@ Workspace instructions for agents working in **CosId** — a universal, flexible
 generator for the JVM. Group `me.ahoo.cosid`, current version in `gradle.properties`.
 
 **This is the `main` branch: the clean-room 5.0 rewrite** (the former `5.x`; 4.x maintenance lives on `4.x`). The design lives in [`docs/architecture/`](docs/architecture/README.md)
-(decisions D1–D24, one document per area) and the phases in [`docs/architecture/roadmap.md`](docs/architecture/roadmap.md).
+(decisions D1–D31, one document per area) and the phases in [`docs/architecture/roadmap.md`](docs/architecture/roadmap.md).
 Read the documents of the area you touch before changing it; public API changes go to the design documents first.
-The 4.x code stays on `main` as reference: read it with `git show main:<path>` (e.g.
-`git show main:cosid-core/src/main/java/me/ahoo/cosid/snowflake/MillisecondSnowflakeId.java`). Nothing here is
+The 4.x code stays on branch `4.x` as reference: read it with `git show origin/4.x:<path>` (e.g.
+`git show origin/4.x:cosid-core/src/main/java/me/ahoo/cosid/snowflake/MillisecondSnowflakeId.java`). Nothing here is
 compatible with 4.x (D1); the offline migration tool (`migration/`, 09-migration.md) is the only bridge.
 
 ## Toolchain

@@ -62,6 +62,13 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
 | D29 | 集成适配器按第三方依赖拆分为 `integrations/{jackson,mybatis,spring-data-jdbc,activiti,flowable,axon}`,artifactId 为 `cosid-*`(与 4.x 坐标一致);每个模块只依赖自己的第三方库;Axon 未绑定时报错 | 已定 |
 | D30 | `cosid-server` 的 HTTP API 不带版本前缀(`/ranges:reserve`、`/slots:*`、`/ids/*`) | 已定 |
 | D31 | 基准测试不在本地运行;发布门槛在 CI(`release-gate` workflow,同一 runner 上交替运行 4.1.0 与 5.x)上判定 | 已定 |
+| D32 | 4.x → 5.0 除迁移工具外,另有可选的**停机手工迁移**:时间型生成器在布局不变时停机升级(停机 ≥ 主机最大时钟偏差,至少 1 分钟,并核对 NTP);普通号段停机后取 4.x `last_max_id`,设 `initial-offset = last_max_id + 1`(建议手工封存 4.x 值);周期号段、自定义布局/秒级 epoch、key 多或需要防护时用工具。只改文档,不新增配置项(租约模式的命名空间级 `not-before` 留待 RC 后评估) | 已定 |
+| D33 | 5.0 的第一个公开版本为 `5.0.0-alpha.1`(取代原计划的 RC1),以 GitHub **pre-release** 发布,**不做兼容性承诺**:API、配置、存储格式与 server 接口在 alpha 之间及到 GA 之前都可能变化,不提供 alpha 之间的数据迁移,不建议用于生产。Docker 不打 `latest`。文档站随 alpha.1 部署:release 发布后用 tag `v5.0.0-alpha.1` 手动触发 `document-deploy`(它自动只响应 `released`),站点导航保留 4.x 文档入口,页面显示 alpha 提示。4.x 的 `document-deploy` 去掉 release 触发、只保留手动触发(E-M1)。D21 发布门槛仍是 RC/GA 的前提 | 已定 |
+| D34 | D21 发布门槛的判定口径(2026-10-28 用户裁定):5.x 与 4.x 在同一 runner 上交替运行,每行的上限取 `max(4.x ± 其 JMH 误差, 4.x × (1 ± 容差))`。容差:吞吐与平均/单次耗时 5%,p99/p99.9 10%,分配 `max(5%, +64 B)`(另保留 0.01 B/op 的零分配下限)。首次失败的行在新 fork 中重跑,**重跑仍失败才算回退**。原口径只用 4.x 的 JMH 误差(约 0.3%~1.5%),低于共享 runner 的噪声,同一代码两次运行的失败行不同。冒烟口径(0.9×)不变 | 已定 |
+| D35 | GA 前做 2 轮全面代码审查(架构、代码清洁、高内聚低耦合、高性能、高扩展性、易用性),第 1 轮在 RC1 之前(API/配置/存储格式类问题必须在 RC 冻结前修),第 2 轮在 RC 观察期、GA 之前;GA 条件:性能无明显回退(D21/D34)、无特性缺失(11-feature-parity)、文档齐备。见 rc-review.md §6 | 已定 |
+| D36 | `cosid80` 补齐 4.x CosIdGenerator 的可配置项(GA 审查 R1-x-03/04/05,按总调度推荐,用户可推翻):`GeneratorSpec.CosId80` 增加 `layout`(默认 `COSID_80`,总位数 > 63,epoch 固定 Unix epoch),Spring 复用 snowflake 的布局配置键(位宽与 `seq-reset-threshold`);`PartsCodecSpec.Friendly` 增加 `padStart`;cosid80 上设置不适用的 codec 属性时报配置错误;迁移判定"相同布局"不比较 `seqResetThreshold`,converter 写出 4.x 位宽与阈值。须在 RC 冻结前完成 | 已定(待用户确认) |
+| D37 | 跨服务全局唯一(4.x CosIdGenerator 的独立 `cosid.generator.namespace` 与独立机器号,GA 审查 R1-x-06):5.0 支持**命名的 machine**:`RuntimeSpec` 可含多个机器规格(默认一个 + 命名的),各自的 `namespace`、`store`、`bits`;时间型生成器用 `machine: <name>` 选择,默认用默认 machine。全局场景:各服务的全局 machine 用同一个 `namespace` 与同一个(或经 cosid-server `remote` 访问的)存储,业务生成器仍在服务命名空间。cosid-server `/ids` 集中发号作为多语言/低频场景的补充,不替代进程内发号。须在 RC 冻结前完成 | 已定(按推荐,待用户确认) |
+| D38 | Spring 下 `cosid.namespace` 默认取 `spring.application.name`(用户 2026-10-28),不必显式填写;未设置应用名时回退为 `cosid` 并在启动时 WARN(两个未命名应用会共享号段 key 与槽位)。理由:生产清单要求"每个应用一个命名空间",默认取应用名让默认即正确。迁移 `config` 子命令始终显式写出 `cosid.namespace`(4.x 默认 `cosid`),不受此默认值影响。属于冻结面,RC 前完成 | 已定 |
 | D24 | 不提供租约丢失后继续发号的开关(P1);运行时删除生成器改为启动期的 `disabled` 配置(P2) | 已定 |
 
 ## 术语

@@ -75,7 +75,7 @@ R0 骨架、接口冻结、4.x 基线基准
 
 | 包 | 依赖 | 内容 | 验收 |
 |---|---|---|---|
-| R4-A | R2 任一后端 + R3-S | `server`(`/v5` API、可选发号端点、鉴权默认开启、限流与 503)、`store/remote` 客户端 | `store/remote` 对真实 server 跑 TCK 全绿;鉴权、限制测试;Docker 镜像构建 |
+| R4-A | R2 任一后端 + R3-S | `server`(API,D30 后不带版本前缀、可选发号端点、鉴权默认开启、限流与 503)、`store/remote` 客户端 | `store/remote` 对真实 server 跑 TCK 全绿;鉴权、限制测试;Docker 镜像构建 |
 | R4-B | R3-S | `integrations`(Jackson、MyBatis、Spring Data JDBC、Activiti/Flowable、Axon) | 每个集成一个最小端到端测试 |
 | R4-C | R2 + R3 | `migration`(plan / apply / verify / config / purge) | 09 §5 的全部用例,包括用 4.1.x jar 写入真实数据、遗漏实例模拟 |
 
@@ -105,7 +105,7 @@ R0 骨架、接口冻结、4.x 基线基准
 
 ## 5. 进度
 
-> 更新于 2026-10-27。`main`(原 `5.x`)上已合入 32 个 PR;所有提交作者为 Ahoo Wang,提交说明为英文,不带 `Co-authored-by`。
+> 更新于 2026-10-27。`main`(原 `5.x`)上已合入 40 个 PR;所有提交作者为 Ahoo Wang,提交说明为英文,不带 `Co-authored-by`。
 
 ### 5.1 阶段
 
@@ -125,11 +125,11 @@ R0 骨架、接口冻结、4.x 基线基准
 | R4-A 远程服务与客户端 | ✅ 已合入 | [#1328](https://github.com/Ahoo-Wang/CosId/pull/1328) |
 | R4-B 集成适配器 | ✅ 已合入 | [#1327](https://github.com/Ahoo-Wang/CosId/pull/1327) |
 | R4-C 离线迁移工具 | ✅ 已合入 | [#1324](https://github.com/Ahoo-Wang/CosId/pull/1324) |
-| R5-A 发布门槛基准与特性验收 | 🔄 特性验收、稳定性、能力缺口、CI 发布门槛 workflow 均已合入([#1335](https://github.com/Ahoo-Wang/CosId/pull/1335)、[#1336](https://github.com/Ahoo-Wang/CosId/pull/1336)、[#1343](https://github.com/Ahoo-Wang/CosId/pull/1343));正式门槛运行中:[run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762) | |
+| R5-A 发布门槛基准与特性验收 | 🔄 特性验收、稳定性、能力缺口、CI 发布门槛 workflow 均已合入([#1335](https://github.com/Ahoo-Wang/CosId/pull/1335)、[#1336](https://github.com/Ahoo-Wang/CosId/pull/1336)、[#1343](https://github.com/Ahoo-Wang/CosId/pull/1343));正式门槛 [run 40534275762](https://github.com/Ahoo-Wang/CosId/actions/runs/40534275762)(修复合入前的 `614d5df9`)结论 **FAIL**:8 组中 5 组回退(主要是 codec、MySQL store),D21 未满足;分析在 [#1345](https://github.com/Ahoo-Wang/CosId/pull/1345)。2026-10-28 在含全部修复的 main(`a68a0191`)上重跑:[run 40623986450](https://github.com/Ahoo-Wang/CosId/actions/runs/40623986450) | |
 | R5-B 文档站、示例、迁移指南 | ✅ 分片 [#1330](https://github.com/Ahoo-Wang/CosId/pull/1330)、README/skills [#1338](https://github.com/Ahoo-Wang/CosId/pull/1338)、示例 [#1333](https://github.com/Ahoo-Wang/CosId/pull/1333)、文档站 [#1337](https://github.com/Ahoo-Wang/CosId/pull/1337) | |
 | D29 integrations 按依赖拆分 | ✅ 已合入 | [#1334](https://github.com/Ahoo-Wang/CosId/pull/1334) |
 | D30 server API 去掉 `/v5` 前缀 | ✅ 已合入 | [#1332](https://github.com/Ahoo-Wang/CosId/pull/1332) |
-| RC 前全面审查 | 🔄 进行中:见 [rc-review.md](rc-review.md) | |
+| RC 前全面审查 | 🔄 审查完成(10 个 BLOCKER);已合入 [#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)、[#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)、[#1348](https://github.com/Ahoo-Wang/CosId/pull/1348)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)、[#1354](https://github.com/Ahoo-Wang/CosId/pull/1354)、[#1349](https://github.com/Ahoo-Wang/CosId/pull/1349)、[#1351](https://github.com/Ahoo-Wang/CosId/pull/1351)(BLOCKER 已解决 9 个:C-B1/C-B2、D-B1–B4、E-B1–B3);[#1352](https://github.com/Ahoo-Wang/CosId/pull/1352)(`0ae7c45c`)、[#1353](https://github.com/Ahoo-Wang/CosId/pull/1353)(`fa515223`)、[#1358](https://github.com/Ahoo-Wang/CosId/pull/1358)(`0873ed9e`,门槛报告不再开 PR;mongo:8.0 根因 SERVER-125742)、[#1359](https://github.com/Ahoo-Wang/CosId/pull/1359)(`f2f21f75`,D32 停机手工迁移文档)、[#1356](https://github.com/Ahoo-Wang/CosId/pull/1356)(`2c5f8d47`,Mongo range E11000 重试的确定性测试,L12 Mongo 项)已合入;B-B1 由 [#1355](https://github.com/Ahoo-Wang/CosId/pull/1355) 解决(`abb5cada`),**BLOCKER 已清零**。见 [rc-review.md](rc-review.md) | |
 | R6 发布 | ⏳ | |
 
 后续修复(已合入):`maxBatch` 默认值 [#1317](https://github.com/Ahoo-Wang/CosId/pull/1317)、Mongo 并发 upsert 与重复身份误报 [#1316](https://github.com/Ahoo-Wang/CosId/pull/1316)、
@@ -139,9 +139,10 @@ ZK 退避中断 [#1320](https://github.com/Ahoo-Wang/CosId/pull/1320)、ZK acqui
 
 | 里程碑 | 条件 | 状态 |
 |---|---|---|
-| `5.0.0-M1` | R2 + R3 合入,可编程使用 | 条件已满足,待决定是否发布 |
-| `5.0.0-RC1` | R4 全部合入 | 条件已满足,待决定是否发布 |
-| `5.0.0` | R5 全部通过,RC 无阻塞问题;分支改名已在 RC 前完成 | 未开始 |
+| `5.0.0-M1` | R2 + R3 合入,可编程使用 | 不单独发布,由 alpha.1 取代(D33) |
+| `5.0.0-alpha.1` | BLOCKER 清零;pre-release、不做兼容性承诺(D33) | 准备就绪:#1360(版本号、alpha 提示、release notes)、#1361(4.x document-deploy 只手动触发)已合入;**已发布** [v5.0.0-alpha.1](https://github.com/Ahoo-Wang/CosId/releases/tag/v5.0.0-alpha.1)(pre-release,`81a9ef59`,含 codec 修复 #1362);Central、Docker(无 `latest`)、迁移工具 jar、文档站均已核对 |
+| `5.0.0-RC1` | R4 全部合入;RC 审查的 BLOCKER 清零;发布门槛通过;GA 前审查第 1 轮的 API/配置/存储格式类问题已修(D35) | **受阻**:BLOCKER 已清零;门槛第二次运行 FAIL(6/8),按 D34 容差修复回退后重跑 |
+| `5.0.0` | R5 全部通过,RC 无阻塞问题;分支改名已在 RC 前完成;两轮全面审查通过,性能无明显回退、无特性缺失、文档齐备(D35) | 未开始 |
 
 ### 5.3 进入 R5 前的遗留事项
 

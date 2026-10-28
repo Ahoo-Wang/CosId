@@ -13,7 +13,7 @@ server listed below, and system properties and environment variables, which the 
 | Property | Default | Meaning |
 |---|---|---|
 | `cosid.enabled` | `true` | the master switch; there are no per-feature switches |
-| `cosid.namespace` | `spring.application.name`, else `cosid` with a `WARN` | isolates slots and keys: every instance of one application uses the same one; an application name that is no valid namespace (1 to 100 letters, digits, `.`, `_`, `:`, `-`, starting with a letter or digit) fails the start: set `cosid.namespace` |
+| `cosid.namespace` | `spring.application.name`, else `cosid` with a `WARN` | isolates slots and keys: every instance of one application uses the same one; a namespace is 1 to 100 letters, digits, `.`, `_`, `:`, `-`, starting with a letter or digit (what every backend stores), for named machines too; an application name that is no valid namespace fails the start: set `cosid.namespace` |
 | `cosid.stores.<name>.*` | | the stores, by name (below) |
 | `cosid.machine.*` | | the default machine slot, needed by time-based generators (below) |
 | `cosid.machines.<name>.*` | | named machine slots, each in a namespace of its own (below) |

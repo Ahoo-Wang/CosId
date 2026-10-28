@@ -154,7 +154,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **已合入:** [#1346](https://github.com/Ahoo-Wang/CosId/pull/1346)(Mongo 超时测试去抖,`6efa7d69`)、[#1347](https://github.com/Ahoo-Wang/CosId/pull/1347)(WP-segment,`3e25d483`)、[#1350](https://github.com/Ahoo-Wang/CosId/pull/1350)(WP-migration,D-B1–B4 等,`40d3e13c`)、[#1342](https://github.com/Ahoo-Wang/CosId/pull/1342)(WP-ZK,E-B1 + B-N1,`a0104227`)、[#1348](https://github.com/Ahoo-Wang/CosId/pull/1348)(WP-release,E-B2/E-B3 等,`9de77578`)、[#1354](https://github.com/Ahoo-Wang/CosId/pull/1354)(WP-JDBC,B-M1、B-N2,`d6264e11`)、[#1349](https://github.com/Ahoo-Wang/CosId/pull/1349)(WP-server,**C-B1**、**C-B2**、C-M1 等,`2068c48f`)、[#1351](https://github.com/Ahoo-Wang/CosId/pull/1351)(WP-lease,A-M1,`a68a0191`)。
 
-**PR 审查(2026-10-27,全部为 Draft):** #1352(WP-time-codec,A-N1–N3、A-N6、A-N7)通过;#1353(WP-spring,C-N3)通过;#1356(Mongo range E11000 重试的确定性测试)通过,CI 全绿。#1352、#1353 唯一的失败是 mongo:8.0,已重跑。#1355 不通过,见 §4.2。#1357 共 +3,041,743 行(多为基准 JSON 原始数据),即使有 CI 也不应合入 main,报告应只提交摘要。
+**#1356 已合入 `2c5f8d47`(2026-10-28)。** **PR 审查(2026-10-27,全部为 Draft):** #1352(WP-time-codec,A-N1–N3、A-N6、A-N7)通过;#1353(WP-spring,C-N3)通过;#1356(Mongo range E11000 重试的确定性测试)通过,CI 全绿。#1352、#1353 唯一的失败是 mongo:8.0,已重跑。#1355 不通过,见 §4.2。#1357 共 +3,041,743 行(多为基准 JSON 原始数据),即使有 CI 也不应合入 main,报告应只提交摘要。
 
 **发布门槛:** run 40534275762 结论 **FAIL**(5/8 组),见 §4.2 #1357;D21 未满足,RC 阻断。
 

@@ -39,7 +39,7 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
 public record BatchPolicy(long step,              // 默认 100;单次预留的最小规模
                           long initialOffset,     // 默认 1(不发 0,与 4.x 一致;IdFiller 把 0 视为未设置)
                           Duration lookahead,     // 默认 1s;手里的余量希望撑多久;ZERO 表示不预取(等价 4.x DefaultSegmentId)
-                          long maxBatch,          // 默认 step × 1000;必须是 step 的整数倍
+                          long maxBatch,          // 默认 max(step × 1000, 2^20) 向上取整到 step 的倍数(BatchPolicy.defaultMaxBatch);必须是 step 的整数倍
                           Duration reserveTimeout,// 默认 3s;调用方同步等待补充的上限
                           Optional<Duration> rangeTtl) {}  // 默认不设;对应 4.x segment ttl:区间取得后超过该时长未用完则丢弃
 ```
@@ -50,17 +50,17 @@ public record BatchPolicy(long step,              // 默认 100;单次预留的�
 ### 2.1 内部结构
 
 ```
-current : volatile Cursor           // Cursor = (AtomicLong next, long end[, long expiresAtNanos])
-ready   : ArrayDeque<Range>         // 受 switchLock 保护,只在切换区间时访问
-inflight: CompletableFuture<Range>  // 单飞:任意时刻至多一个 reserve 在途
-CLOSED  : Cursor(next = 0, end = Long.MIN_VALUE)   // 终止哨兵
+current : volatile RangeCursor            // RangeCursor = (volatile long next, long end);设了 rangeTtl 时是 ExpiringRangeCursor(另有 expiresAtMillis,毫秒)
+ready   : ArrayDeque<RangeCursor>        // 受 switchLock 保护,只在切换区间时访问
+inflight: CompletableFuture<Void>        // 单飞:任意时刻至多一个 reserve 在途(refilling + refillDone),只用于唤醒等待者
+CLOSED  : RangeCursor(next = 0, end = Long.MIN_VALUE)   // 终止哨兵
 ```
 
 热路径,**只读一次 `current`**:
 
 ```
 c = current
-v = c.next.getAndIncrement()
+v = c.take()                                       // next 上一次 getAndAdd
 if v < c.end: return v                             // 一次原子加,无锁,无分配
 return slowPath(c)
 ```
@@ -71,7 +71,7 @@ return slowPath(c)
 switchLock.lock()
   if current == CLOSED: unlock; throw IllegalStateException
   if current != c: unlock; 重试热路径                // 已被其他线程切换
-  if ready 非空: current = Cursor(ready.poll())
+  if ready 非空: current = ready.poll()
   maybeRefill()                                    // 余量低于 lookahead 预算时发起单飞补充
   f = (ready 为空 且 current 已用尽) ? ensureInflight() : null
 switchLock.unlock()
@@ -87,6 +87,8 @@ if f != null: 在锁外等待 f,最多 reserveTimeout
 - `refillExecutor` 默认是虚拟线程执行器,由 `CosIdRuntime` 创建并关闭。
 - 等待者接手:没有余量的调用方若发现在途预留尚未被执行器取走,会在锁外亲自执行它(仍是单飞)。亲自执行的调用方只受存储超时约束,
   因此装配时要求存储 `timeout ≤ reserveTimeout`;执行器拒绝任务时调用方仍可自行预留。
+  亲自预留的调用方直接拿走区间的第一个值(`range.start()`,R1-core-04),只有 `[start + 1, end)` 非空时才放入 `ready`,不必再经过一次游标。
+- 每个返回的区间都与 `highWater`(已收到的最大值)比较,与之前的区间重叠即拒绝(视为补充失败),防止存储回退造成重号。
 - 慢路径先 `tryLock`,拿不到时短暂自旋等待其他线程完成切换;切换本身只在 `switchLock` 内进行。
 - 就绪队列按 lookahead 预算补充,至少一批、至多 64 批。
 - `close()`:`current = CLOSED`,取消在途补充,丢弃 `ready`(S4 允许)。此后热路径必然进入慢路径并抛出 `IllegalStateException`,热路径不需要额外检查。

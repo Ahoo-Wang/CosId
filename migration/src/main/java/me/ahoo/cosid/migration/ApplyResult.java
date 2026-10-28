@@ -14,6 +14,7 @@
 package me.ahoo.cosid.migration;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * {@code apply-result.json}, the output of {@code apply} and the input of {@code verify} and {@code config} (09 §3; the
@@ -24,7 +25,10 @@ import java.util.List;
  * @param namespace          the namespace
  * @param source             the 4.x store, without passwords
  * @param target             the 5.0 store, without passwords
- * @param appliedAt          {@code T_apply}, the target store clock when apply wrote
+ * @param machineTarget      where the slots went when not in {@code target}; null otherwise
+ * @param renames            the 4.x to 5.0 generator names of the plan: {@code config} names the generators the same way
+ * @param allowedUnmigrated  4.x keys not migrated on purpose ({@code --allow-unmigrated})
+ * @param appliedAt          {@code T_apply}, the later of the target and the source store clock when apply wrote
  * @param sourceMaxTimestamp T4
  * @param sourceSkewMillis   the source skew
  * @param w                  {@code W = max(T_apply, T4 + 1s) + sourceSkew}, the next floor of every slot
@@ -37,7 +41,8 @@ import java.util.List;
  * @param segments           every migrated segment
  * @param warnings           everything else the operator should read
  */
-public record ApplyResult(String format, String planSha256, String namespace, StoreLocation source, StoreLocation target, long appliedAt,
+public record ApplyResult(String format, String planSha256, String namespace, StoreLocation source, StoreLocation target, StoreLocation machineTarget,
+                          Map<String, String> renames, List<String> allowedUnmigrated, long appliedAt,
                           long sourceMaxTimestamp, long sourceSkewMillis, long w, String notBefore, long gap, boolean sealed, long sealGap,
                           long observedMillis, Plan.Slots slots, List<SegmentResult> segments, List<String> warnings) {
     public static final String FORMAT = "cosid-migration-result/1";
@@ -45,6 +50,7 @@ public record ApplyResult(String format, String planSha256, String namespace, St
     /**
      * One migrated segment.
      *
+     * @param sourceNamespace the 4.x namespace of the key
      * @param sourceName the 4.x name
      * @param targetKey  the 5.0 range key
      * @param lastMaxId  the largest value 4.x reserved before the seal
@@ -52,6 +58,6 @@ public record ApplyResult(String format, String planSha256, String namespace, St
      * @param targetNext the next value of the target after the write, at least {@code next}
      * @param sealedAt   the 4.x value after the seal; null when not sealed
      */
-    public record SegmentResult(String sourceName, String targetKey, long lastMaxId, long next, long targetNext, Long sealedAt) {
+    public record SegmentResult(String sourceNamespace, String sourceName, String targetKey, long lastMaxId, long next, long targetNext, Long sealedAt) {
     }
 }

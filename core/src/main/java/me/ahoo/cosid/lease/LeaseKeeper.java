@@ -181,13 +181,14 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
                 releaseQuietly(acquired.lease(), acquired.lease().floor());
                 throw new IllegalStateException("LeaseKeeper of namespace [" + namespace + "] was closed while starting");
             }
-            publish(acquired);
+            publishLocked(acquired);
             nextDueNanos = ticker.nanoTime() + renewIntervalNanos;
             state = State.RUNNING;
             starter = Thread.currentThread();
         } finally {
             lock.unlock();
         }
+        announce(acquired);
         try {
             executor.execute(this::renewLoop);
         } catch (RejectedExecutionException e) {
@@ -332,10 +333,9 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
         }
     }
 
-    /** Publishes a new holding as a new binding; called with the lock held. */
-    private void publish(AcquireResult.Acquired result) {
+    /** Publishes a new holding as a new binding; called with the lock held, so it only sets fields. */
+    private void publishLocked(AcquireResult.Acquired result) {
         SlotLease acquired = result.lease();
-        final String reason = result.reason().label();
         SlotBinding previous = binding;
         if (previous != null) {
             previous.invalidate();
@@ -343,6 +343,12 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
         generation++;
         lease = acquired;
         binding = new SlotBinding(acquired.slot(), acquired.floor(), acquired.ceiling(), generation);
+    }
+
+    /** Logs and reports a published holding; called without the lock. */
+    private void announce(AcquireResult.Acquired result) {
+        SlotLease acquired = result.lease();
+        final String reason = result.reason().label();
         log.info("Acquired slot {} of namespace [{}] ({}), window ({}, {}], fence {}", acquired.slot(), namespace, reason,
             acquired.floor(), acquired.ceiling(), acquired.fence());
         notify(l -> l.onSlotAcquired(acquired, reason));
@@ -357,12 +363,23 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
             ranInline = true;
             return;
         }
-        lock.lock();
         try {
-            while (state == State.RUNNING) {
-                long waitNanos = runDueLocked();
+            while (true) {
+                long waitNanos = runDue();
+                if (waitNanos < 0) {
+                    return;
+                }
                 if (waitNanos > 0) {
-                    wakeUp.awaitNanos(waitNanos);
+                    lock.lock();
+                    try {
+                        // close() signals under the lock, so a close between runDue and here is seen by this check.
+                        if (state != State.RUNNING) {
+                            return;
+                        }
+                        wakeUp.awaitNanos(waitNanos);
+                    } finally {
+                        lock.unlock();
+                    }
                 }
             }
         } catch (InterruptedException e) {
@@ -373,88 +390,175 @@ public final class LeaseKeeper implements SlotHandle, AutoCloseable {
         } catch (RuntimeException | Error e) {
             log.error("The renewals of namespace [{}] stopped; the lease will expire", namespace, e);
             throw e;
-        } finally {
-            lock.unlock();
         }
     }
 
     /**
-     * Renews or re-acquires if due; what the renewal task does on each wake-up.
+     * Renews or re-acquires if due; what the renewal task does on each wake-up. The store calls run without the lock
+     * (design principle 7): a step takes a snapshot of the holding under the lock, calls the store, then applies the
+     * outcome only if the keeper still runs and still has that holding, so {@code close()} never waits for the store.
      *
      * @return nanoseconds until the next due time, or -1 when the keeper does not run
      */
     long runDue() {
-        lock.lock();
-        try {
-            return state == State.RUNNING ? runDueLocked() : -1;
-        } finally {
-            lock.unlock();
+        while (true) {
+            SlotLease held;
+            long epoch;
+            lock.lock();
+            try {
+                if (state != State.RUNNING) {
+                    return -1;
+                }
+                long now = ticker.nanoTime();
+                if (now < nextDueNanos) {
+                    return nextDueNanos - now;
+                }
+                held = lease;
+                epoch = generation;
+            } finally {
+                lock.unlock();
+            }
+            boolean lost = held != null ? renew(held, epoch) : reacquire(epoch);
+            if (!lost) {
+                lock.lock();
+                try {
+                    return state == State.RUNNING ? Math.max(0, nextDueNanos - ticker.nanoTime()) : -1;
+                } finally {
+                    lock.unlock();
+                }
+            }
         }
     }
 
-    private long runDueLocked() {
-        long now = ticker.nanoTime();
-        if (now < nextDueNanos) {
-            return nextDueNanos - now;
-        }
-        SlotLease held = lease;
-        if (held != null) {
-            renew(held);
-        } else {
-            reacquire();
-        }
-        return Math.max(0, nextDueNanos - ticker.nanoTime());
+    /** Whether the snapshot a step took is still the keeper's holding; called with the lock held. */
+    private boolean stillHolds(SlotLease held, long epoch) {
+        return state == State.RUNNING && generation == epoch && lease == held;
     }
 
-    private void renew(SlotLease held) {
+    /**
+     * One renewal.
+     *
+     * @return true when the lease was lost and the slot must be re-acquired at once
+     */
+    private boolean renew(SlotLease held, long epoch) {
         long sentAt = time.currentMillis();
         Optional<SlotLease> renewed;
         try {
             renewed = store.renew(held, ttl, tolerance);
         } catch (RuntimeException e) {
-            backoffNanos = nextBackoff(backoffNanos);
-            nextDueNanos = ticker.nanoTime() + backoffNanos;
+            long backoff;
+            lock.lock();
+            try {
+                if (!stillHolds(held, epoch)) {
+                    return false;
+                }
+                backoffNanos = nextBackoff(backoffNanos);
+                backoff = backoffNanos;
+                nextDueNanos = ticker.nanoTime() + backoff;
+            } finally {
+                lock.unlock();
+            }
             log.warn("Renewing slot {} of namespace [{}] failed; retrying in {}ms", held.slot(), namespace,
-                TimeUnit.NANOSECONDS.toMillis(backoffNanos), e);
+                TimeUnit.NANOSECONDS.toMillis(backoff), e);
             notify(l -> l.onSlotRenewFailed(held, e));
-            return;
+            return false;
         }
-        backoffNanos = 0;
         if (renewed.isPresent()) {
             SlotLease fresh = renewed.get();
+            lock.lock();
+            try {
+                if (!stillHolds(held, epoch)) {
+                    // Closed meanwhile: the release already named this holding, and its fence is unchanged by renew.
+                    return false;
+                }
+                backoffNanos = 0;
+                lease = fresh;
+                binding.raiseCeiling(fresh.ceiling());
+                nextDueNanos = ticker.nanoTime() + renewIntervalNanos;
+            } finally {
+                lock.unlock();
+            }
             observeClock(fresh, sentAt);
-            lease = fresh;
-            binding.raiseCeiling(fresh.ceiling());
-            nextDueNanos = ticker.nanoTime() + renewIntervalNanos;
             notify(l -> l.onSlotRenewed(fresh));
-            return;
+            return false;
         }
-        // The owner or fence no longer match: another holder may already issue on the slot. Stop at once, then re-acquire.
-        binding.invalidate();
-        lease = null;
+        lock.lock();
+        try {
+            if (!stillHolds(held, epoch)) {
+                return false;
+            }
+            // The owner or fence no longer match: another holder may already issue on the slot. Stop at once, then re-acquire.
+            backoffNanos = 0;
+            binding.invalidate();
+            lease = null;
+        } finally {
+            lock.unlock();
+        }
         log.warn("Lost slot {} of namespace [{}]; re-acquiring", held.slot(), namespace);
         notify(l -> l.onSlotLost(held));
-        reacquire();
+        return true;
     }
 
-    private void reacquire() {
+    /**
+     * One acquire attempt while no slot is held.
+     *
+     * @return always false: the next attempt waits for its due time
+     */
+    private boolean reacquire(long epoch) {
+        AcquireResult result;
         try {
-            AcquireResult result = acquireOnce();
-            backoffNanos = 0;
-            if (result instanceof AcquireResult.Acquired acquired) {
-                publish(acquired);
-                nextDueNanos = ticker.nanoTime() + renewIntervalNanos;
-            } else {
-                long waitNanos = untilExpiry((AcquireResult.Exhausted) result);
-                nextDueNanos = ticker.nanoTime() + waitNanos;
-                log.warn("Namespace [{}] has no free slot; generators fail until one is acquired, retrying in {}ms", namespace,
-                    TimeUnit.NANOSECONDS.toMillis(waitNanos));
-            }
+            result = acquireOnce();
         } catch (RuntimeException e) {
-            backoffNanos = nextBackoff(backoffNanos);
-            nextDueNanos = ticker.nanoTime() + backoffNanos;
-            log.warn("Re-acquiring a slot in namespace [{}] failed; retrying in {}ms", namespace, TimeUnit.NANOSECONDS.toMillis(backoffNanos), e);
+            long backoff;
+            lock.lock();
+            try {
+                if (!stillHolds(null, epoch)) {
+                    return false;
+                }
+                backoffNanos = nextBackoff(backoffNanos);
+                backoff = backoffNanos;
+                nextDueNanos = ticker.nanoTime() + backoff;
+            } finally {
+                lock.unlock();
+            }
+            log.warn("Re-acquiring a slot in namespace [{}] failed; retrying in {}ms", namespace, TimeUnit.NANOSECONDS.toMillis(backoff), e);
+            return false;
         }
+        if (result instanceof AcquireResult.Acquired acquired) {
+            boolean published;
+            lock.lock();
+            try {
+                published = stillHolds(null, epoch);
+                if (published) {
+                    backoffNanos = 0;
+                    publishLocked(acquired);
+                    nextDueNanos = ticker.nanoTime() + renewIntervalNanos;
+                }
+            } finally {
+                lock.unlock();
+            }
+            if (published) {
+                announce(acquired);
+            } else {
+                // Closed meanwhile: nothing was issued under this holding.
+                releaseQuietly(acquired.lease(), acquired.lease().floor());
+            }
+            return false;
+        }
+        long waitNanos = untilExpiry((AcquireResult.Exhausted) result);
+        lock.lock();
+        try {
+            if (!stillHolds(null, epoch)) {
+                return false;
+            }
+            backoffNanos = 0;
+            nextDueNanos = ticker.nanoTime() + waitNanos;
+        } finally {
+            lock.unlock();
+        }
+        log.warn("Namespace [{}] has no free slot; generators fail until one is acquired, retrying in {}ms", namespace,
+            TimeUnit.NANOSECONDS.toMillis(waitNanos));
+        return false;
     }
 
     /** One retry on an error: a lost response makes the retry return false, which is fine, as the lease is gone. */

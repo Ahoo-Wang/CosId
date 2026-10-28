@@ -31,6 +31,7 @@ import me.ahoo.cosid.lease.Owner;
 import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.segment.Range;
 import me.ahoo.cosid.store.StoreTimeoutException;
+import me.ahoo.cosid.store.StoreTimeoutException;
 
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -140,6 +141,14 @@ class RemoteStoreTest {
         assertEquals(429, tooMany.status());
         assertEquals(RemoteApi.TOO_MANY_KEYS, tooMany.code());
         assertThat(tooMany.getMessage(), containsString("stubbed too_many_keys"));
+        answer(RemoteApi.RESERVE, 504, error(RemoteApi.STORE_TIMEOUT));
+        RemoteStoreException timedOut = assertThrows(RemoteStoreException.class, () -> store.ranges().reserve("ns/a", 1, 0));
+        assertEquals(504, timedOut.status());
+        assertTrue(timedOut.transientFailure());
+        assertInstanceOf(StoreTimeoutException.class, timedOut.getCause(), "the server's store timed out: a store timeout here too");
+        assertTrue(StoreTimeoutException.isTimeout(timedOut));
+        answer(RemoteApi.RESERVE, 500, error(RemoteApi.STORE_ERROR));
+        assertFalse(StoreTimeoutException.isTimeout(assertThrows(RemoteStoreException.class, () -> store.ranges().reserve("ns/a", 1, 0))));
         answer(RemoteApi.RESERVE, 200, "{\"start\":\"1\",\"end\":2}");
         assertThat(assertThrows(RemoteStoreException.class, () -> store.ranges().reserve("ns/a", 1, 0)).getMessage(), containsString("not an integer"));
     }

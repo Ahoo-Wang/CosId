@@ -32,13 +32,22 @@ the data source.
 | `rangeTable`, `slotTable`, `namespaceTable` | `cosid_range`, `cosid_slot`, `cosid_namespace` | table names: identifiers, optionally schema-qualified |
 
 `StoreConfig.timeout` is the `queryTimeout` of every statement, rounded up to seconds (zero: none); a statement that
-runs out of it fails with `StoreTimeoutException` (`JdbcDialect.isTimeout`). In code:
+runs out of it fails with `StoreTimeoutException` (`JdbcDialect.isTimeout`). So does a pool that hands out no connection
+in time (`SQLTransientConnectionException`, SQL state class `08`), and an acquire, renew or release whose
+compare-and-set loop is still losing races when the timeout has passed. In code:
 `JdbcStore.of(dataSource, timeout)`, or `new JdbcStore(dataSource, dialect, tables, timeout)`.
 
 ## Schema
 
-`src/main/resources/me/ahoo/cosid/store/jdbc/schema-{mysql,postgresql,sqlserver,h2}.sql` (MySQL and MariaDB share
-one), runnable as they are for the default names. Rows are never deleted (D23): a sealed range key keeps its value.
+`src/main/resources/me/ahoo/cosid/store/jdbc/schema-{mysql,mariadb,postgresql,sqlserver,h2}.sql`, runnable as they
+are for the default names. Rows are never deleted (D23): a sealed range key keeps its value.
+
+Keys are exact, as on every other backend: range keys, namespaces and owner keys that differ only in case or in a
+trailing space are different keys. The key columns therefore use binary collations that keep trailing spaces
+(`utf8mb4_0900_bin` on MySQL, `utf8mb4_nopad_bin` on MariaDB; PostgreSQL and H2 compare exactly anyway). SQL Server
+uses `Latin1_General_100_BIN2`, which makes keys case-sensitive, but it ignores trailing spaces when comparing strings
+under any collation: there the store rejects a key that ends with a space (`IllegalArgumentException`) rather than
+let it share the row of the key without it.
 
 ## How it works
 

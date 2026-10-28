@@ -38,6 +38,13 @@ public interface SourceReader extends AutoCloseable {
      */
     long seal(String namespace, String name, long increment);
 
+    /**
+     * The clock of the 4.x store, epoch milliseconds, so that W also covers a target whose clock is behind (09 §4.2).
+     *
+     * @return the time; 0 when the store has no clock of its own to read
+     */
+    long now();
+
     @Override
     void close();
 

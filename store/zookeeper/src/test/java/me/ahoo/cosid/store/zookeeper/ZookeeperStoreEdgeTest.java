@@ -26,6 +26,7 @@ import me.ahoo.cosid.lease.AcquireResult;
 import me.ahoo.cosid.lease.Owner;
 import me.ahoo.cosid.lease.SlotLease;
 import me.ahoo.cosid.segment.Range;
+import me.ahoo.cosid.store.StoreTimeoutException;
 
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.api.CuratorEvent;
@@ -200,14 +201,18 @@ class ZookeeperStoreEdgeTest {
         for (int attempt = 0; attempt < 8; attempt++) {
             Zk.backoff(attempt, deadline, "contended");
         }
-        assertThrows(CosIdException.class, () -> Zk.backoff(3, System.nanoTime() - 1, "contended"));
+        // Out of time while contending is a store timeout (README, 06 §1), as a timed out call is.
+        StoreTimeoutException timeout = assertThrows(StoreTimeoutException.class, () -> Zk.backoff(3, System.nanoTime() - 1, "contended"));
+        assertTrue(timeout.getMessage().contains("after 4 conflicts"), timeout.getMessage());
+        assertThrows(StoreTimeoutException.class, () -> Zk.backoff(0, System.nanoTime() - 1, "contended"));
         // An interrupted thread stops retrying at every attempt, whatever random pause it would have drawn (0 included).
         for (int attempt = 0; attempt < 8; attempt++) {
             int interruptedAttempt = attempt;
             Thread.currentThread().interrupt();
             try {
-                assertThrows(CosIdException.class,
+                CosIdException interrupted = assertThrows(CosIdException.class,
                     () -> Zk.backoff(interruptedAttempt, System.nanoTime() + Duration.ofSeconds(5).toNanos(), "interrupted"));
+                assertFalse(StoreTimeoutException.isTimeout(interrupted), "an interruption is no timeout");
             } finally {
                 Thread.interrupted();
             }

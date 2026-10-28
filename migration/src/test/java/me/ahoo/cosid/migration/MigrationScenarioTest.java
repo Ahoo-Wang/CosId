@@ -52,9 +52,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.ZoneId;
@@ -118,14 +121,27 @@ abstract class MigrationScenarioTest {
         }
     }
 
+    /** {@code scenario-4x.yaml} with the distributors of the source store. */
+    Path layout() {
+        Path file = dir.resolve("scenario-4x.yaml");
+        if (!Files.exists(file)) {
+            try {
+                Files.writeString(file, Files.readString(resource("scenario-4x.yaml")).replace("type: jdbc", "type: " + source.backend().legacyType()));
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }
+        return file;
+    }
+
     Plan plan(Migration migration) {
-        return migration.plan(new Migration.PlanOptions(source.location(), target.location(), namespace, resource("scenario-4x.yaml"), null, null,
+        return migration.plan(new Migration.PlanOptions(source.location(), target.location(), namespace, layout(), null, null,
             Duration.ofSeconds(1), Duration.ZERO, Map.of(), Map.of(), dir.resolve("plan.json")));
     }
 
     Migration.ApplyOptions apply(Duration observe, boolean seal) {
         return new Migration.ApplyOptions(dir.resolve("plan.json"), true, observe, 0, Duration.ZERO, seal, Migration.DEFAULT_SEAL_GAP,
-            dir.resolve("apply-result.json"), Map.of(), Map.of(), resource("scenario-4x.yaml"), null);
+            dir.resolve("apply-result.json"), Map.of(), Map.of(), layout(), null);
     }
 
     List<String> verify() {
@@ -209,7 +225,7 @@ abstract class MigrationScenarioTest {
         String leftover = writer.startLeftover(namespace, "order", 10, 20);
         try {
             MigrationAbortedException aborted = assertThrows(MigrationAbortedException.class, () -> migration().apply(apply(Duration.ofMillis(400), true)));
-            assertThat(aborted.getMessage(), containsString("segment [order]"));
+            assertThat(aborted.getMessage(), containsString("segment [" + namespace + ".order]"));
             try (TargetAdmin admin = Targets.open(target.location())) {
                 assertThat("nothing written", admin.range(namespace + "/order").isPresent(), is(false));
             }
@@ -285,6 +301,11 @@ abstract class MigrationScenarioTest {
         @Override
         public SourceSnapshot read(String namespace) {
             return delegate.read(namespace);
+        }
+
+        @Override
+        public long now() {
+            return delegate.now();
         }
 
         @Override

@@ -116,16 +116,40 @@ enabled; `--rename` overrides). 5.0 generator names cannot contain `/`. Keys tha
 
 ```bash
 plan    --from <4.x> --to <5.0> --namespace <ns> [--output plan.json] [--layout-config <4.x yaml|properties>]
+        [--machine-from <4.x machine store>] [--machine-to <5.0 slot store>]
         [--target-config <5.0 yaml>] [--slot-bits 10] [--tolerance 1s] [--source-skew 10s]
         [--rename old=new]... [--group-pattern generator=pattern]... [--from-option k=v]... [--to-option k=v]...
 apply   --plan plan.json --confirm-stopped [--observe 2m] [--gap 0] [--source-skew 10s] [--no-seal-source]
-        [--seal-gap 1099511627776] [--result apply-result.json] [--layout-config ..] [--target-config ..] [options]
+        [--seal-gap 1099511627776] [--result apply-result.json] [--layout-config ..] [--target-config ..]
+        [--allow-unmigrated <4.x key>]... [options]
 verify  --plan plan.json --result apply-result.json [options]
-config  --input application.yaml --output application-5.yaml [--result apply-result.json] [--zone <zone>]
+config  --input application.yaml --result apply-result.json --output application-5.yaml [--zone <zone>] [--allow-new <generator>]...
 purge   --to <5.0> --namespace <ns> --before <period> (--confirm-stopped | --dry-run) [--to-option k=v]...
 ```
 
 Exit codes: 0 done, 1 a check failed or the command aborted, 2 a usage error.
+
+What keeps a plausible configuration from issuing 4.x ids again (pre-RC review):
+
+- **Namespaces of their own.** A 4.x definition with `namespace: other` keeps its keys as `other.{name}` (and a snowflake
+  its machine id in `other`). With `--layout-config`, `plan` reads those namespaces too and maps `other.{name}` to
+  `{ns}/{name}`, the generator 5.0 gives it; a key `shop.v2.order` of namespace `shop.v2` is not taken for a segment
+  `v2.order` of `shop`. Without `--layout-config` a dotted segment name is reported.
+- **The share.** `__share__` is `default`, or `segment-share` when the 4.x snowflake share is enabled too: `plan`
+  refuses it without `--layout-config` or `--rename __share__=<generator>`.
+- **Keys that do not map** (a group pattern 5.0 cannot read, a name with `/`): `apply` aborts unless each is named with
+  `--allow-unmigrated <ns>.<name>`; `verify` reports any 4.x key the result does not have, such as one created after
+  `apply` by an instance left running.
+- **Separate 4.x stores.** With `--layout-config`, `plan` compares `cosid.segment.distributor.type` with `--from` and
+  `cosid.machine.distributor.type` with `--from` or `--machine-from`; when 4.x kept them apart it also wants
+  `--machine-to`, the 5.0 store of `cosid.machine.leased` that gets the slots.
+- **`config` continues the migrated keys.** It names the generators as the plan did (`--rename`, the share) and fails
+  unless each segment or periodic segment generator has its key in `apply-result.json`; a generator 4.x never issued
+  from is named with `--allow-new`. The slot `bits` and `tolerance` come from the result.
+- **Credentials.** `plan.json` keeps no password: the password of a URL's userinfo and `password=` / `pwd=` parameters
+  are removed, so give them again with `--from-option password=...` (MongoDB takes `user` / `password` /
+  `authSource` options too).
+- W is taken from the later of the source and target store clocks.
 
 `apply` refuses when the 5.0 namespace has a live slot lease (5.0 runs) or other slot parameters, and, given
 `--layout-config`, checks M3 again with the real W.
@@ -139,6 +163,6 @@ ids with a 5.0 `CosIdRuntime` and asserts M1–M3; leaves a 4.x instance running
 the check off, the seal keeps its ranges away); and interrupts `apply` before and after the seal. H2 (over TCP) and
 ZooKeeper (curator-test) always run, Redis and MongoDB in Testcontainers when Docker is available; the cross-type cases
 are ZooKeeper → H2, Redis → H2 and MongoDB → ZooKeeper. `config` has goldens under `src/test/resources/config`
-(`-Pcosid.migration.updateGoldens=true` rewrites them), and `ConfigBindingTest` binds each golden through Spring Boot's
+(`-Pcosid.migration.updateGoldens=true` rewrites them; each case has the `apply-result.json` of its keys), and `ConfigBindingTest` binds each golden through Spring Boot's
 YAML loader and `Binder` into the `CosIdProperties` of `spring/autoconfigure` and maps it with `CosIdSpecs.toSpec`. That
 edge is test scope only (`DependencyRules.TEST_EDGES`); `checkNoSpring` fails the build if the fat jar carries Spring.

@@ -44,6 +44,7 @@ final class JdbcRangeStore implements RangeStore {
         if (initialOffset < 0) {
             throw new IllegalArgumentException("initialOffset must not be negative: " + initialOffset);
         }
+        jdbc.dialect.checkKey("range key", key);
         return jdbc.run("reserve " + key, session -> {
             long offset = initialOffset;
             if (offset > Long.MAX_VALUE - size) {
@@ -74,6 +75,7 @@ final class JdbcRangeStore implements RangeStore {
     @Override
     public boolean seal(String key) {
         Objects.requireNonNull(key, "key");
+        jdbc.dialect.checkKey("range key", key);
         return jdbc.run("seal " + key, session -> {
             if (sealExisting(session, key) > 0) {
                 return true;

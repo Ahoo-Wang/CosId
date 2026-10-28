@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
@@ -49,7 +50,15 @@ class IdController {
     private final Requests requests;
     private final BlockingCalls calls;
 
+    /** Path segments of the id endpoints, which a generator name would be shadowed by. */
+    static final Set<String> RESERVED_NAMES = Set.of("strings", "periodic");
+
     IdController(CosIdRuntime runtime, Requests requests, BlockingCalls calls) {
+        List<String> reserved = runtime.describe().keySet().stream().filter(RESERVED_NAMES::contains).toList();
+        if (!reserved.isEmpty()) {
+            throw new IllegalStateException(ServerProperties.PREFIX + ".ids.enabled: rename the generators " + reserved
+                + "; " + RESERVED_NAMES + " are paths of the id endpoints (" + RemoteApi.IDS + "/strings would shadow a generator named strings)");
+        }
         this.runtime = runtime;
         this.requests = requests;
         this.calls = calls;

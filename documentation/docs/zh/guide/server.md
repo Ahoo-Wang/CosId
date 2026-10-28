@@ -18,7 +18,7 @@ application ──(cosid-store-remote, HTTP + token)──▶ cosid-server ─�
 docker run -d -p 8688:8688 \
   -e COSID_STORES_MAIN_TYPE=redis \
   -e COSID_STORES_MAIN_OPTIONS_URI=redis://redis:6379 \
-  -e COSID_SERVER_AUTH_TOKENS_0=change-me \
+  -e COSID_SERVER_AUTH_TOKENS_0=change-me-to-a-long-random-token \
   ahoowang/cosid-server:__COSID_VERSION__
 ```
 
@@ -61,7 +61,8 @@ cosid:
 | `409 lease_lost` | 空的 renew 结果、`false` 的 release 结果 |
 | `409 namespace_mismatch` | `NamespaceMismatchException` |
 | seal 时返回 `501` | `false` |
-| 其他 | 带 `status()`、`code()` 的 `RemoteStoreException`；`503` 以及没有应答的调用为 `transientFailure()` |
+| `504 store_timeout` | 原因为 `StoreTimeoutException` 的 `RemoteStoreException`（计为存储超时） |
+| 其他 | 带 `status()`、`code()` 的 `RemoteStoreException`；`503`、`504` 以及没有应答的调用为 `transientFailure()` |
 
 ## API
 
@@ -81,9 +82,10 @@ key 与命名空间放在 JSON 请求体中，从不放在路径里。错误为 
 租约为 `{namespace, slot, ownerKey, incarnation, fence, expiresAt, floor, ceiling, storeNow}`。路径中没有生成器时，
 发号端点使用 `default`。`periodic` 应答在周期边界处截止，因此可能少于 `count` 个值；已禁用的生成器应答 `409 generator_disabled`。
 
-其他状态：`400 bad_request`（缺少字段、字符集或长度不合法、值超过上限）、`401`（没有 token）、`403`（token 超出其命名空间）、
-`429 too_many_keys`、带 `Retry-After: 1` 的 `503 busy`，以及 `500 store_error`。每个响应都带有 `Cache-Control: no-store`。
-OpenAPI 文档位于 `/v3/api-docs`，Swagger UI 位于 `/swagger-ui.html`；除非加入 `public-paths`，两者都需要 token。
+其他状态：`400 bad_request`（缺少字段、字符集或长度不合法、值超过上限）、`401`（没有 token）、`403`（token 超出其命名空间，
+或 client token 访问管理路径）、`429 too_many_keys` / `too_many_namespaces`、带 `Retry-After: 1` 的 `503 busy`、`504 store_timeout`
+以及 `500 store_error`。后备存储的错误只返回通用消息，细节写入服务端日志。每个响应都带有 `Cache-Control: no-store`。
+OpenAPI 文档位于 `/v3/api-docs`，Swagger UI 位于 `/swagger-ui.html`；两者都属于管理路径。
 
 ## 认证
 
@@ -103,7 +105,11 @@ cosid:
 ```
 
 client token 只能访问其命名空间（`*` 表示全部）与 key 前缀：其他一律 `403`。发号端点用服务端自身运行时的 `cosid.namespace`
-与 client 的命名空间做比对。
+与 client 的命名空间做比对。**管理路径**（`auth.admin-paths`，默认 `/actuator/**` 与 springdoc 路径）不区分命名空间
+（`cosid` 端点可以为任意生成器发号），所以只有不受限的 `tokens` 可以访问，client token 一律 `403`。公开路径先于它判断，
+health 仍然公开。
+
+服务端拒绝短于 16 个字符的 token，也拒绝仍含 `${` 的 token：环境变量没有设置时，占位符不能变成一个谁都能在文档里读到的 token。
 
 ## 限制
 
@@ -114,10 +120,13 @@ client token 只能访问其命名空间（`*` 表示全部）与 key 前缀：�
 | `limits.max-slot-limit` | `65536` | 存储为每个命名空间准备 `limit` 个槽位 |
 | `limits.max-reserve` | `1e12` | 最大区间大小 |
 | `limits.max-count` | `1000` | 发号端点的最大 `count` |
-| `limits.max-keys-per-namespace` | `10000` | 每个服务端实例上每个命名空间的不同区间 key 数（超过返回 `429`；`0` = 不限） |
+| `limits.max-keys-per-namespace` | `10000` | 每个服务端实例上，一个 client 在一个命名空间中使用的区间 key 数（`429 too_many_keys`；`0` = 不限） |
+| `limits.max-namespaces-per-client` | `1000` | 每个服务端实例上，一个 client 使用区间 key 的命名空间数；不含 `/` 的 key 自成一个命名空间（`429 too_many_namespaces`；`0` = 不限） |
+| `limits.key-idle-timeout` | `1h` | 超过这么久未使用的 key 不再计数（`0` = 一直计数） |
 | `blocking.threads` / `queue-capacity` | `64` / `1024` | 存储调用的有界线程池；满时返回 `503` + `Retry-After: 1` |
 
-指标 `cosid.server.call.rejections{reason=busy|too_many_keys}` 统计被拒绝的调用。Actuator 暴露
+每个 client 各自计数，一个 client 用满不会挡住共享该命名空间的其他 client；预留失败的 key 不计数。
+指标 `cosid.server.call.rejections{reason=busy|too_many_keys|too_many_namespaces}` 统计被拒绝的调用。Actuator 暴露
 `health`（公开，带 `liveness` 与 `readiness` 探针）、`info`、`prometheus` 与 `cosid`。
 
 ## 由服务端发号

@@ -76,6 +76,13 @@ final class Args {
         return list == null ? null : list.get(list.size() - 1);
     }
 
+    /**
+     * Every value of a repeatable option.
+     */
+    List<String> all(String name) {
+        return values.getOrDefault(name, List.of());
+    }
+
     String required(String name) {
         String value = get(name);
         if (value == null) {

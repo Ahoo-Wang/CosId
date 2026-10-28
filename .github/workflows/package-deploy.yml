@@ -14,7 +14,8 @@
 name: Packages Deploy
 on:
   release:
-    types: [created]
+    # published: not when a draft release is saved (created fires for drafts too).
+    types: [published]
 
 permissions:
   contents: read
@@ -37,8 +38,32 @@ jobs:
             echo "::error::version=${version} is not a semantic version"
             exit 1
           fi
-  github-deploy:
+  # Publishing to Central cannot be undone: build, test and stage everything once before any deploy job runs.
+  verify-build:
+    name: Verify the build
     needs: [ verify-version ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      # check runs every test (containers included), Checkstyle, SpotBugs, checkPublishedMetadata, checkBom and the
+      # dependency rules; publishing to the project's build repository signs and assembles every artifact.
+      - name: Check and stage
+        run: scripts/gradle-retry.sh check javadoc publishAllPublicationsToProjectBuildRepoRepository
+        env:
+          SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
+          SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+  github-deploy:
+    needs: [ verify-build ]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -64,7 +89,7 @@ jobs:
           SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
   central-deploy:
-    needs: [ verify-version ]
+    needs: [ verify-build ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -87,3 +112,28 @@ jobs:
           SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
           SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
           SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+  # The offline migration tool (09-migration.md) is not published to Maven: the release carries the fat jar.
+  migration-jar:
+    name: Attach cosid-migration.jar
+    needs: [ verify-build ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Build the fat jar
+        run: ./gradlew :migration:shadowJar
+
+      - name: Upload to the release
+        run: gh release upload "$GITHUB_REF_NAME" migration/build/libs/cosid-migration.jar --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

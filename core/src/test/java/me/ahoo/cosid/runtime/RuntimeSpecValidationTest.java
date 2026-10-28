@@ -30,6 +30,7 @@ import me.ahoo.cosid.codec.DatePrefix;
 import me.ahoo.cosid.segment.BatchPolicy;
 import me.ahoo.cosid.segment.Period;
 import me.ahoo.cosid.segment.PeriodicPolicy;
+import me.ahoo.cosid.store.StoreOptions;
 import me.ahoo.cosid.time.ClockRegressionPolicy;
 import me.ahoo.cosid.time.Layout;
 
@@ -40,6 +41,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 class RuntimeSpecValidationTest {
@@ -90,6 +92,32 @@ class RuntimeSpecValidationTest {
         assertThat(message, containsString("machine: no store [nowhere]"));
         assertThat(message, containsString("generator [order]: no store [missing]"));
         assertThat(message, containsString("store [odd]: no StoreProvider of type [unknown-type]"));
+    }
+
+    @Test
+    void storeOptionsMustBeOnesTheProviderDeclares() {
+        // R1-spi-01: a misspelt option fails the start instead of falling back to a default.
+        String message = problems(RuntimeSpec.builder("app")
+            .store("db", StoreSpec.builder("memory").option("initSchema", "true").option("rangeTabel", "x").build())
+            .store("twice", StoreSpec.builder("memory").option("wait", "off").option("WAIT", "auto").build())
+            .generator("order", segment("db"))
+            .generator("bill", segment("twice"))
+            .build());
+        assertThat(message, containsString("store [db]: unknown option [rangeTabel] of type [memory]; known: initSchema, wait"));
+        assertThat(message, containsString("store [twice]: options [WAIT] and [wait] are both wait"));
+    }
+
+    @Test
+    void storeOptionsMatchIgnoringCaseDashesAndUnderscores() {
+        // R1-spring-01: environment variables bind lower case, and kebab-case is Spring's spelling.
+        try (CosIdRuntime runtime = CosIdRuntime.start(RuntimeSpec.builder("app")
+            .store("db", StoreSpec.builder("memory").option("init-schema", "true").option("WAIT", "off").build())
+            .generator("order", segment("db"))
+            .build(), options(memory))) {
+            assertThat(runtime.generator("order").generate(), is(1L));
+        }
+        assertThat(memory.configs.getFirst().options(), is(Map.of("initSchema", "true", "wait", "off")));
+        assertThat(StoreOptions.canonical("retry.base_sleep-Time"), is("retry.basesleeptime"));
     }
 
     @Test

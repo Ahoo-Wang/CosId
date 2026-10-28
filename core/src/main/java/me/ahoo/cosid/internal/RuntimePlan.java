@@ -22,6 +22,8 @@ import me.ahoo.cosid.runtime.RuntimeOptions;
 import me.ahoo.cosid.runtime.RuntimeSpec;
 import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.segment.BatchPolicy;
+import me.ahoo.cosid.store.StoreOptions;
+import me.ahoo.cosid.store.StoreProvider;
 import me.ahoo.cosid.time.Layout;
 
 import org.slf4j.Logger;
@@ -53,11 +55,13 @@ public final class RuntimePlan {
     private final List<Generator> generators;
     private final List<String> stores;
     private final List<Machine> machines;
+    private final Map<String, Map<String, Object>> storeOptions;
 
-    private RuntimePlan(List<Generator> generators, List<String> stores, List<Machine> machines) {
+    private RuntimePlan(List<Generator> generators, List<String> stores, List<Machine> machines, Map<String, Map<String, Object>> storeOptions) {
         this.generators = List.copyOf(generators);
         this.stores = List.copyOf(stores);
         this.machines = List.copyOf(machines);
+        this.storeOptions = Map.copyOf(storeOptions);
     }
 
     /**
@@ -109,6 +113,16 @@ public final class RuntimePlan {
      */
     public List<Machine> machines() {
         return machines;
+    }
+
+    /**
+     * The options of a store to open, keyed as its provider declares them ({@link StoreOptions}).
+     *
+     * @param store the store name, one of {@link #stores()}
+     * @return the options
+     */
+    public Map<String, Object> storeOptions(String store) {
+        return storeOptions.getOrDefault(store, Map.of());
     }
 
     /**
@@ -199,13 +213,17 @@ public final class RuntimePlan {
 
         final List<Machine> machines = startOrder(spec, options, chosen, problems, usedStores);
 
+        final Map<String, Map<String, Object>> storeOptions = new TreeMap<>();
         for (String store : usedStores) {
             StoreSpec storeSpec = spec.stores().get(store);
             if (!isPositive(storeSpec.timeout())) {
                 problems.add("store [" + store + "]: timeout must be positive: " + storeSpec.timeout());
             }
-            if (providers.find(storeSpec.type()).isEmpty()) {
+            Optional<StoreProvider> provider = providers.find(storeSpec.type());
+            if (provider.isEmpty()) {
                 problems.add("store [" + store + "]: no StoreProvider of type [" + storeSpec.type() + "]");
+            } else {
+                storeOptions.put(store, StoreOptions.resolve(store, storeSpec.type(), provider.get().options(), storeSpec.options(), problems));
             }
         }
         for (String client : new TreeSet<>(options.clients().keySet())) {
@@ -216,7 +234,7 @@ public final class RuntimePlan {
         if (!problems.isEmpty()) {
             throw new CosIdException("Invalid RuntimeSpec of namespace [" + spec.namespace() + "]:\n  - " + String.join("\n  - ", problems));
         }
-        return new RuntimePlan(generators, new ArrayList<>(usedStores), machines);
+        return new RuntimePlan(generators, new ArrayList<>(usedStores), machines, storeOptions);
     }
 
     /**

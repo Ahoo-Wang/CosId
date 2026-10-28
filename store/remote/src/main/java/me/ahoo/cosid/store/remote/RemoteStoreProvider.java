@@ -22,6 +22,7 @@ import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Opens {@link RemoteStore}s, type {@value #TYPE} (06-stores.md §1), registered with {@link java.util.ServiceLoader}.
@@ -43,6 +44,11 @@ public final class RemoteStoreProvider implements StoreProvider {
     @Override
     public String type() {
         return TYPE;
+    }
+
+    @Override
+    public Set<String> options() {
+        return Set.of("baseUrl", "token", "connectTimeout", "requestTimeout");
     }
 
     @Override

@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -55,6 +56,12 @@ public final class ZookeeperStoreProvider implements StoreProvider {
     @Override
     public String type() {
         return TYPE;
+    }
+
+    @Override
+    public Set<String> options() {
+        return Set.of("connectString", "sessionTimeout", "connectionTimeout", "retry.baseSleepTime", "retry.maxSleep", "retry.maxRetries",
+            "blockUntilConnectedWait");
     }
 
     @Override

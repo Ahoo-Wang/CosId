@@ -87,7 +87,7 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # mongo:8.0 sometimes exits during startup on some runners: record what the runner is, to compare with a failure.
+      # The kernel decides whether mongo:8.0 starts (see below); the rest is for comparing with a failure.
       - name: Describe the runner
         run: |
           {
@@ -101,7 +101,32 @@ jobs:
             echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # MongoDB 8.0.21 and later exit during startup on Linux 6.19 up to 7.0.13 (SERVER-125742: the kernel's rseq change
+      # breaks tcmalloc), so on a runner image with such a kernel the TCK cannot run on 8.0: the job says so instead of
+      # failing. Any other startup failure still runs the TCK, which fails with the output of mongod.
+      - name: Check that MongoDB starts on this kernel
+        id: starts
+        if: startsWith(matrix.image, 'mongo:8')
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          docker run -d --name mongo-probe "$IMAGE" > /dev/null
+          for i in $(seq 1 60); do
+            logs=$(docker logs mongo-probe 2>&1)
+            if grep -qi 'waiting for connections' <<< "$logs"; then break; fi
+            if grep -qi 'known incompatibility' <<< "$logs"; then
+              grep -i 'known incompatibility' <<< "$logs" | head -1
+              echo "::warning title=TCK skipped on $IMAGE::$IMAGE does not start on kernel $(uname -r) (SERVER-125742, Linux 6.19 to 7.0.13); the TCK did not run on it."
+              echo "**TCK skipped**: $IMAGE does not start on kernel $(uname -r) (SERVER-125742)." >> "$GITHUB_STEP_SUMMARY"
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              break
+            fi
+            sleep 1
+          done
+          docker rm -f mongo-probe > /dev/null
+
       - name: Store TCK
+        if: steps.starts.outputs.skip != 'true'
         env:
           COSID_TEST_MONGODB_IMAGE: ${{ matrix.image }}
         run: scripts/gradle-retry.sh :store:mongo:check

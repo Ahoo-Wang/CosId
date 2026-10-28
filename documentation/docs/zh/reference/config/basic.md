@@ -5,7 +5,7 @@ record 绑定。生成器与编解码器：[生成器](generators.md)。cosid-se
 [`cosid.server.*`](server.md)。时长采用 Spring 的格式（`500ms`、`2s`、`1m`、ISO-8601）。
 
 绑定不到任何字段的 `cosid.*` 键会让启动失败，拼错的键不会悄悄退回默认值。例外是 `cosid.stores.<name>.options.*`（由各后端自行校验）
-以及下文列出的集成与 server 的键。
+、下文列出的集成与 server 的键，以及与进程中其他部分共用的系统属性和环境变量。
 
 ## 顶层
 

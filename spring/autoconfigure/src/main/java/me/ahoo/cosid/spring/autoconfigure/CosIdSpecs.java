@@ -37,6 +37,8 @@ import org.springframework.boot.context.properties.source.ConfigurationProperty;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
 import org.springframework.boot.context.properties.source.ConfigurationPropertySource;
 import org.springframework.boot.context.properties.source.IterableConfigurationPropertySource;
+import org.springframework.core.env.PropertySource;
+import org.springframework.core.env.StandardEnvironment;
 
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -83,8 +85,8 @@ public final class CosIdSpecs {
 
     /**
      * Binds {@code cosid.*}; a key that binds to nothing fails (R1-spring-03): a typo would otherwise fall back to the
-     * default silently. {@code cosid.stores.*.options} and the keys of the integrations and the server are not checked
-     * here.
+     * default silently. {@code cosid.stores.*.options}, the keys of the integrations and the server, and system
+     * properties and environment variables are not checked here.
      *
      * @param sources      the property sources, such as {@code ConfigurationPropertySources.get(environment)}
      * @param placeholders resolves {@code ${...}} in the values
@@ -118,7 +120,7 @@ public final class CosIdSpecs {
             if (context.getDepth() == 0) {
                 Set<String> unknown = new TreeSet<>();
                 for (ConfigurationPropertySource source : sources) {
-                    if (source instanceof IterableConfigurationPropertySource iterable) {
+                    if (source instanceof IterableConfigurationPropertySource iterable && !isSystem(source)) {
                         iterable.filter(name::isAncestorOf).forEach(key -> {
                             if (!bound.contains(key) && !boundElsewhere(key) && !isEmpty(source, key)) {
                                 unknown.add(key.toString());
@@ -132,6 +134,16 @@ public final class CosIdSpecs {
             }
             super.onFinish(name, target, context, result);
         }
+    }
+
+    /**
+     * System properties and environment variables are shared with everything else in the process ({@code COSID_TEST_*},
+     * a test's {@code -Dcosid.*}): only configuration files and command line arguments are checked.
+     */
+    private static boolean isSystem(ConfigurationPropertySource source) {
+        return source.getUnderlyingSource() instanceof PropertySource<?> underlying
+            && (StandardEnvironment.SYSTEM_PROPERTIES_PROPERTY_SOURCE_NAME.equals(underlying.getName())
+                || StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME.equals(underlying.getName()));
     }
 
     private static boolean isEmpty(ConfigurationPropertySource source, ConfigurationPropertyName name) {

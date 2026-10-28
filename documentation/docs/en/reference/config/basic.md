@@ -5,8 +5,8 @@ Every `cosid.*` property of the Spring Boot starter, with its default, as bound 
 [`cosid.server.*`](server.md). Durations take Spring's forms (`500ms`, `2s`, `1m`, ISO-8601).
 
 A `cosid.*` key that binds to nothing fails the start, so a typo does not fall back to a default silently. The
-exceptions are `cosid.stores.<name>.options.*` (each backend checks its own) and the keys of the integrations and the
-server listed below.
+exceptions are `cosid.stores.<name>.options.*` (each backend checks its own), the keys of the integrations and the
+server listed below, and system properties and environment variables, which the rest of the process shares.
 
 ## Top level
 

@@ -452,6 +452,9 @@ class CosIdAutoConfigurationTest {
                 }
                 assertThat(messages.toString(), containsString("cosid.generators.order.stpe"));
             });
+        // System properties and environment variables are shared with the rest of the process: not checked.
+        withStores().withSystemProperties("cosid.example.server.jar=build/libs/x.jar").withPropertyValues("cosid.stores.mem.type=memory",
+            "cosid.generators.order.strategy=segment", "cosid.generators.order.store=mem").run(context -> assertNull(context.getStartupFailure()));
     }
 
     @Test

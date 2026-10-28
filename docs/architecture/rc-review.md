@@ -249,7 +249,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 | 10 | 是否发布 RC1、何时发布 | 待门槛 PASS 与 API 冻结完成后请用户决定 | — |
 | 11 | RC 版本号写法:`5.0.0-rc.1`(与 `5.0.0-alpha.1` 同为 SemVer 点分预发布标识,`alpha.1 < rc.1` 在 SemVer 与 Maven 中都成立;大写 `RC1` 在 SemVer ASCII 排序中会排在 `alpha` 之前)。roadmap 中 `5.0.0-RC1` 指同一版本 | 协调会话按推荐(PR6 #1377 的草稿 release notes 已用 `rc.1`) | 改用 `5.0.0-RC1` |
 | 12 | 门槛 4.x 基线:RC1 门槛按已文档化的 4.1.0 判定(本轮 run 40772963183);Renovate #1367(cosid4 → 4.1.1,4.x 分支只含 bug 修复)在门槛结论后合入,并在 RC 期间用 4.1.1 复跑一次门槛作为 GA 依据 | 协调会话按推荐 | 立即升 4.1.1 并重跑 |
-| 13 | WP-ci 完成后把 branch protection 的必需检查设为汇总检查 `CI`(加上现有的 `Conventional Commits title`),由 GitHub 强制"全绿才能合并"。仓库设置的改动须由用户本人操作或明确授权 | 待 WP-ci 合入后请用户决定 | 维持现状(只要求标题检查) |
+| 13 | WP-ci 完成后把 branch protection 的必需检查设为汇总检查 `CI`(加上现有的 `Conventional Commits title`),由 GitHub 强制"全绿才能合并"。仓库设置的改动须由用户本人操作或明确授权 | ✅ 用户已决定(2026-10-28):由用户本人在 GitHub 设置中把 `CI` 设为 main 的必需检查。之后协调会话合并 PR 时以 `CI` 为准(skipped 视为通过) | — |
 
 ## 4.2 审查不通过登记
 

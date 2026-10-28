@@ -67,6 +67,12 @@ class AsciiTest {
     }
 
     @Test
+    void ciTrialFailsOnPurpose() {
+        // CI trial: the CI summary check must turn red (do not merge).
+        assertEquals("expected", "actual");
+    }
+
+    @Test
     void uuidsRoundTrip() {
         for (int i = 0; i < 100; i++) {
             UUID value = UUID.randomUUID();

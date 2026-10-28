@@ -103,27 +103,68 @@ class CosIdActuatorTest {
                 CosIdHealthIndicator indicator = context.getBean(CosIdHealthIndicator.class);
                 Health health = indicator.health();
                 assertEquals(Status.UP, health.getStatus());
-                Map<String, Object> details = health.getDetails();
+                Map<String, Object> details = machine(health, "default");
+                String namespace = context.getBean(CosIdRuntime.class).namespace();
+                assertEquals(namespace, details.get("namespace"));
                 assertEquals(0, details.get("slot"));
                 assertThat((Long) details.get("windowRemainingMillis"), greaterThan(0L));
                 assertThat((Long) details.get("expiresInMillis"), lessThanOrEqualTo(30_000L));
-                assertEquals(Map.of("default", true), details.get("slotValid"));
+                assertEquals(true, details.get("valid"));
                 assertNotNull(details.get("owner"));
 
-                indicator.onSlotRenewFailed(RecordingListener.LEASE, new IllegalStateException("timeout"));
-                indicator.onSlotRenewFailed(RecordingListener.LEASE, new IllegalStateException("timeout"));
+                // The events of the machine's namespace; another namespace's do not touch it.
+                me.ahoo.cosid.lease.SlotLease lease = RecordingListener.LEASE.toBuilder().namespace(namespace).build();
+                indicator.onSlotRenewFailed(lease, new IllegalStateException("timeout"));
+                indicator.onSlotRenewFailed(lease, new IllegalStateException("timeout"));
+                indicator.onSlotLost(RecordingListener.LEASE);
                 health = indicator.health();
                 assertEquals(Status.UP, health.getStatus());
-                assertEquals(2, health.getDetails().get("renewFailures"));
-                assertEquals("java.lang.IllegalStateException: timeout", health.getDetails().get("lastRenewError"));
-                indicator.onSlotRenewed(RecordingListener.LEASE);
-                assertEquals(0, indicator.health().getDetails().get("renewFailures"));
+                assertEquals(2, machine(health, "default").get("renewFailures"));
+                assertEquals("java.lang.IllegalStateException: timeout", machine(health, "default").get("lastRenewError"));
+                indicator.onSlotRenewed(lease);
+                assertEquals(0, machine(indicator.health(), "default").get("renewFailures"));
 
-                indicator.onSlotLost(RecordingListener.LEASE);
+                indicator.onSlotLost(lease);
                 assertEquals(Status.DOWN, indicator.health().getStatus());
-                indicator.onSlotAcquired(RecordingListener.LEASE, "sticky");
+                assertEquals(true, machine(indicator.health(), "default").get("lost"));
+                indicator.onSlotAcquired(lease, "sticky");
                 assertEquals(Status.UP, indicator.health().getStatus());
             });
+    }
+
+    @Test
+    void eachMachineHasItsHealthAndMeters() {
+        // A named machine through a customizer (its cosid.machines keys come later).
+        runner().withBean(MeterRegistry.class, SimpleMeterRegistry::new)
+            .withBean(RuntimeSpecCustomizer.class, () -> spec -> spec.toBuilder()
+                .machine("global", me.ahoo.cosid.runtime.MachineSpec.Leased.builder("mem").namespace("global-ids").build())
+                .generator("token", me.ahoo.cosid.runtime.GeneratorSpec.CosId80.builder().machine("global").build())
+                .build())
+            .withPropertyValues("cosid.stores.mem.type=memory", "cosid.machine.leased.store=mem", "cosid.generators.default.strategy=snowflake")
+            .run(context -> {
+                assertNull(context.getStartupFailure());
+                CosIdRuntime runtime = context.getBean(CosIdRuntime.class);
+                assertEquals(java.util.Set.of("default", "global"), runtime.machines());
+                Health health = context.getBean(CosIdHealthIndicator.class).health();
+                assertEquals(Status.UP, health.getStatus());
+                assertEquals(runtime.namespace(), machine(health, "default").get("namespace"));
+                assertEquals("global-ids", machine(health, "global").get("namespace"));
+                assertEquals(true, machine(health, "global").get("valid"));
+
+                MeterRegistry registry = context.getBean(MeterRegistry.class);
+                assertEquals(1.0, registry.get("cosid.machine.lease.acquired").tag("machine", "global").tag("namespace", "global-ids").counter().count());
+                assertEquals(1.0, registry.get("cosid.machine.lease.acquired").tag("machine", "default").counter().count());
+                assertThat(registry.get("cosid.machine.lease.remaining").tag("machine", "global").timeGauge().value(), greaterThan(0.0));
+                assertThat(registry.get("cosid.machine.lease.remaining").tag("machine", "default").timeGauge().value(), greaterThan(0.0));
+
+                context.getBean(CosIdHealthIndicator.class).onSlotLost(runtime.slot("global").orElseThrow());
+                assertEquals(Status.DOWN, context.getBean(CosIdHealthIndicator.class).health().getStatus());
+            });
+    }
+
+    @SuppressWarnings("unchecked")
+    static Map<String, Object> machine(Health health, String name) {
+        return ((Map<String, Map<String, Object>>) health.getDetails().get("machines")).get(name);
     }
 
     @Test
@@ -145,13 +186,14 @@ class CosIdActuatorTest {
         runner().withPropertyValues("cosid.machine.static.slot=5", "cosid.generators.default.strategy=snowflake").run(context -> {
             Health health = context.getBean(CosIdHealthIndicator.class).health();
             assertEquals(Status.UP, health.getStatus());
-            assertEquals(5, health.getDetails().get("slot"));
+            assertEquals(5, machine(health, "default").get("slot"));
+            assertFalse(machine(health, "default").containsKey("owner"), "a static slot has no lease");
         });
         runner().withPropertyValues("cosid.stores.mem.type=memory", "cosid.generators.order.strategy=segment", "cosid.generators.order.store=mem")
             .run(context -> {
                 Health health = context.getBean(CosIdHealthIndicator.class).health();
                 assertEquals(Status.UP, health.getStatus());
-                assertEquals("none", health.getDetails().get("slot"));
+                assertTrue(health.getDetails().isEmpty(), "no machine started");
             });
         runner().withPropertyValues("management.health.cosid.enabled=false", "cosid.generators.default.strategy=snowflake",
             "cosid.machine.static.slot=1").run(context -> assertFalse(context.containsBean("cosIdHealthIndicator")));

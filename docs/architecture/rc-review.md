@@ -5,7 +5,7 @@
 
 ## 0. 恢复方法(会话中断后从这里继续)
 
-1. 在任何机器上:`git fetch origin && git switch wip/rc-review`(Draft PR [#1344](https://github.com/Ahoo-Wang/CosId/pull/1344)),读本文件 §2 的状态表与 §3 的发现。WIP 只存在于 GitHub 上的 PR 分支,不依赖本机状态。
+1. 在任何机器上:`git fetch origin && git switch wip/ga`(Draft PR 见下方;RC 前审查阶段的 WIP 已于 2026-10-28 随 [#1344](https://github.com/Ahoo-Wang/CosId/pull/1344) 作为 alpha.1 里程碑合入 main),读本文件 §2 的状态表与 §3 的发现。WIP 只存在于 GitHub 上的 PR 分支,不依赖本机状态。
 2. 状态为"进行中"的审查路,如果没有结果,按 §1 的范围重新派一个只读审查(不跑构建,遵守 `AGENTS.md` 的 CPU 规则)。
 3. 所有路都有结果后:逐条在代码中核实 → 填 §4 修复计划 → 按归属派会话修复 → 每个修复 PR 合入后在 §4 勾掉。
 4. §5 的 RC 准入清单全部通过后,再请用户决定是否发布 RC1。
@@ -239,4 +239,4 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 - [ ] RC 期间无阻塞问题
 - [ ] 用户确认发布 GA
 
-> WIP 通过 Draft PR [#1344](https://github.com/Ahoo-Wang/CosId/pull/1344) 保存:本文件与路线图的更新都推送到分支 `wip/rc-review`,换机器也能继续;在阶段节点合入 `main`。各子会话同样一开工就开 Draft PR,WIP 推送到各自 PR 分支。
+> WIP 通过分支 `wip/ga` 上的 Draft PR 保存(此前为 #1344 的 `wip/rc-review`,已合入):本文件与路线图的更新都推送到该分支,换机器也能继续;在阶段节点合入 `main`。各子会话同样一开工就开 Draft PR,WIP 推送到各自 PR 分支。

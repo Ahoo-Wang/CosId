@@ -79,18 +79,22 @@ W = max(T_apply, T4 + 1s) + sourceSkew        // sourceSkew 默认 10s,对应 4.
 **独立的 `cosid.generator.namespace`(GA 审查 R1-x-07)**:4.x 的 CosIdGenerator 在 `cosid.generator.namespace`(空则用 `cosid.namespace`)里分配机器号,
 用同一个分配器与同一种记录格式,常见用法是让多个服务共享这个命名空间,使 80 位 ID 跨服务唯一。
 
-- **现状(止血,#1369)**:CosIdGenerator 启用且 `cosid.generator.namespace` 不同于 `cosid.namespace` 时,`config` 以及带 `--layout-config` 的 `plan`/`apply` 拒绝执行。
-  `--layout-config` 中出现独立的 `cosid.generator.namespace` 时(例如 CosIdGenerator 已关闭),它作为只含机器号记录的附加命名空间进入 `T4` 与静止观察。
-- **D37 落地后(设计见 [api-freeze.md](api-freeze.md) §2.7)**:
-  - `config` 不再拒绝,写出命名 machine `cosid.machines.generator`(`namespace` 取 4.x 值;存储与 ttl/tolerance 同默认 machine;默认 machine 为 static 时写 static;
-    `bits: 10`,因为 5.0 的 bits 是每个命名空间预建的槽位数,不是 4.x 的 20 位节点宽度;`slot-offset` 取自 `apply-result.json`),并让转换出的 `cosid80` 写 `machine: generator`。
+- alpha.1 的止血(#1369)已由命名 machine(D37,PR5)取代:CosIdGenerator 已关闭时,独立的 `cosid.generator.namespace` 照旧作为只含机器号记录的附加命名空间进入 `T4` 与静止观察。
+- **CosIdGenerator 启用时(设计见 [api-freeze.md](api-freeze.md) §2.7)**:
+  - `config` 写出命名 machine `cosid.machines.generator`(`namespace` 取 4.x 值;存储同默认 machine;默认 machine 为 static 时写 static,槽位 `${COSID_GENERATOR_SLOT}`;
+    `bits`/`tolerance`/`slot-offset` 取自本服务 `apply-result.json` 记录的共享命名空间元数据(未迁移时写 offset 0、bits 10 并报告);bits 默认沿用 `cosid.machine.machine-bit`(10),
+    因为 5.0 的 bits 是每个命名空间预建的槽位数,不是 4.x 的 20 位节点宽度),并让转换出的 `cosid80` 写 `machine: generator`。
     报告提示:峰值 Pod 总数(含 surge)超过 1024 时调大 bits,且受 `slotOffset + 2^bits ≤ 2^nodeBits` 约束;共享该命名空间的全部服务必须用相同的 `bits`、`tolerance`、`slotOffset`。
   - 共享命名空间**单独迁移一次**:`plan/apply --namespace <共享命名空间>`,只做 M2。`plan` 读出 4.x 记录中出现过的最大机器号 `M`,
-    推荐 `slotOffset = roundUpToPowerOfTwo(M + 1)`,报告两种做法:**滚动迁移**(offset > 0,默认:4.x 与 5.0 同时在线、各服务逐个切换,不做静止观察)
-    与**一次性切换**(`--slot-offset 0`:沿用静止观察,共享它的服务都必须停止)。两种做法都写入 W 与元数据 `{limit, tolerance, slotOffset}`。
+    推荐 `slotOffset = roundUpToPowerOfTwo(M + 1)`,`plan --slot-offset` 可改,检查 `offset > M` 与 `offset + 2^bits ≤ 2^nodeBits`(nodeBits 为 4.x `cosid.generator.machine-bit`,超出时给出可用的 `--slot-bits`)。
+    报告两种做法:**滚动迁移**(offset > 0,默认:4.x 与 5.0 同时在线、各服务逐个切换,`apply` 不需要 `--confirm-stopped`,不做静止观察)
+    与**一次性切换**(`--slot-offset 0`:沿用静止观察,共享它的服务都必须停止)。两种做法都写入 W 与元数据 `{limit, tolerance, slotOffset}`;`apply` 幂等,重复执行不变。
+    `M` 由各存储的 4.x 记录读出:JDBC `machine_id`;Redis `adder`(最后发出的号)与 `itc_idx`/`revert`/`lease` 中的号;Mongo `machineId`;ZooKeeper `__itc_idx`/`__revert` 中的号与 `__counter − 1`。
   - 滚动期间的不变式:`4.x 机器号 < slotOffset ≤ 5.0 节点号`。4.x 按最小空闲号分配,迁移期间不能把 4.x 扩容到 `slotOffset` 个实例以上;`verify` 发现 4.x 机器号 ≥ offset 即报错。
     有偏移时时间段重叠不会重号,W 作为纵深防护保留。
-  - 各服务自己的 `apply` 检查该命名空间已准备好且元数据一致,否则拒绝并提示先做这一步。设计见 [api-freeze.md](api-freeze.md) §2.7。
+  - 各服务自己的 `plan` 读出目标中该命名空间的元数据,`apply` 检查它已准备好且与计划一致,否则拒绝并提示先做这一步;结果写进 `apply-result.json` 供 `config` 使用。
+    一次性切换时共享命名空间的记录照旧计入本服务的 `T4` 与静止观察,滚动迁移时不计入。
+  - 4.x CosIdGenerator 的 `timestamp-bit + sequence-bit > 63` 时,`plan` 与 `config` 直接报错(5.0 cosid80 把时间与序列装进一个 `long`,D36),不生成启动失败的配置。设计见 [api-freeze.md](api-freeze.md) §2.7。
 
 ### 4.3 布局校验(M3)
 

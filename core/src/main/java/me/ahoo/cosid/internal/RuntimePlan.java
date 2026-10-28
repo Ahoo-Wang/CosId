@@ -197,7 +197,7 @@ public final class RuntimePlan {
             generators.add(new Generator(name, generator, codec, ids, machineName));
         }
 
-        List<Machine> machines = machines(spec, options, chosen, problems, usedStores);
+        final List<Machine> machines = startOrder(spec, options, chosen, problems, usedStores);
 
         for (String store : usedStores) {
             StoreSpec storeSpec = spec.stores().get(store);
@@ -251,7 +251,7 @@ public final class RuntimePlan {
      * The machines to start (api-freeze.md §2.2, §2.3): the chosen ones, the default first, each checked, with a namespace
      * of its own.
      */
-    private static List<Machine> machines(RuntimeSpec spec, RuntimeOptions options, Map<String, List<String>> chosen, List<String> problems,
+    private static List<Machine> startOrder(RuntimeSpec spec, RuntimeOptions options, Map<String, List<String>> chosen, List<String> problems,
                                           TreeSet<String> usedStores) {
         for (String name : new TreeSet<>(spec.machines().keySet())) {
             if (name.isBlank() || name.indexOf('/') >= 0 || RuntimeSpec.DEFAULT_MACHINE.equals(name)) {

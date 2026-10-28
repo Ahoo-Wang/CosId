@@ -219,7 +219,11 @@ public final class SegmentGenerator implements IdGenerator, AutoCloseable {
                     resizedTo = sizer.batch();
                 }
                 start = maybeRefillLocked(now);
-                if (!current.usable(now)) {
+                // The hot path takes from the current cursor outside the lock, so it may have run out since it was
+                // checked above: ready ranges then come first, on the next turn of the loop. Only with none left does
+                // a caller wait for the reservation in flight or make it itself; one it made would otherwise issue
+                // its first value ahead of the ready ranges, which close() would then drop.
+                if (!current.usable(now) && ready.isEmpty()) {
                     if (refilling && !refillClaimed) {
                         // A caller that would only wait for a reservation the executor has not started makes it
                         // itself, still outside the lock: no hand-off when nothing is prefetched (P6), and no wait

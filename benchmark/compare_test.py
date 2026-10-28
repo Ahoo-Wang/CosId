@@ -42,17 +42,35 @@ class CompareTest(unittest.TestCase):
         self.assertEqual(0, self.failed(row("P.a", score=100), row("P.a", score=90)))
         self.assertEqual(1, self.failed(row("P.a", score=100), row("P.a", score=89)))
 
+    def test_throughput_within_five_percent_passes_when_the_error_is_smaller(self):
+        # D34: max(error, 5%); the error of 1 alone would fail at 98.
+        self.assertEqual(0, self.failed(row("P.a", score=100, error=1), row("P.a", score=95)))
+        self.assertEqual(1, self.failed(row("P.a", score=100, error=1), row("P.a", score=94.99)))
+        self.assertEqual(0, self.failed(row("P.a", score=100, error=0), row("P.a", score=95)))
+
     def test_smoke_throughput_allows_ten_percent(self):
         self.assertEqual(0, self.failed(row("P.a", score=100, error=0), row("P.a", score=90), smoke=True))
         self.assertEqual(1, self.failed(row("P.a", score=100, error=0), row("P.a", score=89), smoke=True))
 
     def test_latency_percentiles(self):
+        # The error (0.1) is below 10% of each percentile: the limits are 2.2 and 5.5.
         base = row("P.a", mode="sample", score=1.0, error=0.1, percentiles={"99.0": 2.0, "99.9": 5.0})
-        self.assertEqual(0, self.failed(base, row("P.a", mode="sample", percentiles={"99.0": 2.1, "99.9": 5.1})))
-        self.assertEqual(1, self.failed(base, row("P.a", mode="sample", percentiles={"99.0": 2.0, "99.9": 5.2})))
+        self.assertEqual(0, self.failed(base, row("P.a", mode="sample", percentiles={"99.0": 2.2, "99.9": 5.5})))
+        self.assertEqual(1, self.failed(base, row("P.a", mode="sample", percentiles={"99.0": 2.21, "99.9": 5.0})))
+        self.assertEqual(1, self.failed(base, row("P.a", mode="sample", percentiles={"99.0": 2.0, "99.9": 5.51})))
 
-    def test_startup_allows_five_percent(self):
-        base = row("P.a", mode="ss", score=1000.0)
+    def test_latency_error_above_ten_percent_rules(self):
+        base = row("P.a", mode="sample", score=1.0, error=1.0, percentiles={"99.0": 2.0, "99.9": 5.0})
+        self.assertEqual(0, self.failed(base, row("P.a", mode="sample", percentiles={"99.0": 3.0, "99.9": 6.0})))
+        self.assertEqual(1, self.failed(base, row("P.a", mode="sample", percentiles={"99.0": 3.01, "99.9": 6.0})))
+
+    def test_average_time_allows_five_percent_or_the_error(self):
+        self.assertEqual(0, self.failed(row("P.a", mode="avgt", score=100.0, error=1.0), row("P.a", mode="avgt", score=105.0)))
+        self.assertEqual(1, self.failed(row("P.a", mode="avgt", score=100.0, error=1.0), row("P.a", mode="avgt", score=105.01)))
+        self.assertEqual(0, self.failed(row("P.a", mode="avgt", score=100.0, error=8.0), row("P.a", mode="avgt", score=108.0)))
+
+    def test_single_shot_allows_five_percent(self):
+        base = row("P.a", mode="ss", score=1000.0, error=0.0)
         self.assertEqual(0, self.failed(base, row("P.a", mode="ss", score=1050.0)))
         self.assertEqual(1, self.failed(base, row("P.a", mode="ss", score=1051.0)))
 
@@ -64,16 +82,18 @@ class CompareTest(unittest.TestCase):
         # Any other average time keeps the error rule.
         self.assertEqual(0, self.failed(row("P.a", mode="avgt", score=1000.0, error=100.0), row("P.a", mode="avgt", score=1100.0)))
 
-    def test_allocation_never_grows(self):
-        self.assertEqual(0, self.failed(row("P.a", alloc=48.0), row("P.a", alloc=48.0)))
-        self.assertEqual(1, self.failed(row("P.a", alloc=48.0), row("P.a", alloc=56.0)))
+    def test_allocation_grows_by_at_most_64_bytes_or_five_percent(self):
+        # D34: max(+5%, +64 B): +64 B for small objects ...
+        self.assertEqual(0, self.failed(row("P.a", alloc=48.0), row("P.a", alloc=112.0)))
+        self.assertEqual(1, self.failed(row("P.a", alloc=48.0), row("P.a", alloc=112.01)))
+        # ... 5% above 1280 B.
+        self.assertEqual(0, self.failed(row("P.a", alloc=2000.0), row("P.a", alloc=2100.0)))
+        self.assertEqual(1, self.failed(row("P.a", alloc=2000.0), row("P.a", alloc=2100.01)))
+        self.assertEqual(1, self.failed(row("P.a", alloc=1280.0), row("P.a", alloc=1344.01)))
 
     def test_allocation_up_to_the_floor_passes(self):
-        self.assertEqual(0, self.failed(row("P.a", alloc=0.001), row("P.a", alloc=0.004)))
         self.assertEqual(0, self.failed(row("P.a", alloc=0.0), row("P.a", alloc=compare.ALLOC_FLOOR_BYTES)))
-        self.assertEqual(1, self.failed(row("P.a", alloc=0.001), row("P.a", alloc=0.011)))
-        # Above the floor the baseline still rules.
-        self.assertEqual(0, self.failed(row("P.a", alloc=0.5), row("P.a", alloc=0.5)))
+        self.assertEqual(0, self.failed(row("P.a", alloc=0.001), row("P.a", alloc=0.004)))
 
     def test_long_hot_paths_allocate_nothing(self):
         name = "SnowflakeMillisBenchmark.generate_t1"

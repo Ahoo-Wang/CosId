@@ -37,10 +37,15 @@ benchmark/
 
 对每个场景、每个线程数:
 
-- **吞吐**:`score_5 ≥ score_4 − error_4`(JMH 99.9% 置信区间)。
-- **延迟**:p99、p999 不高于 4.x 加上 4.x 的误差。
-- **分配**:每次操作分配字节数(`gc.alloc.rate.norm`)不高于 4.x 加上误差;5.x 不超过 0.01 B/op 时视为通过(低于该值只是补充等低频记账的摊销,不是热路径分配)。`long` 型生成热路径为 0。
+每行的界限取 4.x 加减其 JMH 误差(99.9% 置信区间)与 4.x 乘以容差两者中较宽的一个(D34;只用 JMH 误差时界限低于共享 runner 的噪声):
+
+- **吞吐**:`score_5 ≥ min(score_4 − error_4, 0.95 × score_4)`。
+- **延迟**:p99、p999 不高于 `max(4.x + error_4, 1.10 × 4.x)`(JMH 不给分位数误差,`error_4` 取 4.x 均值的误差)。
+- **平均与单次耗时**:不高于 `max(score_4 + error_4, 1.05 × score_4)`。
+- **分配**:每次操作分配字节数(`gc.alloc.rate.norm`)不高于 `max(4.x + 误差, 1.05 × 4.x, 4.x + 64 B)`;5.x 不超过 0.01 B/op 时视为通过(低于该值只是补充等低频记账的摊销,不是热路径分配)。`long` 型生成热路径为 0(< 1 B/op)。
 - **启动**:不慢于 4.x 的 105%。
+
+一行首次失败时,两侧在新的 fork 中重跑,**重跑仍失败才算回退**(`benchmark/run-release` 在 CI 上默认如此,`compare --rerun`)。阈值的边界由 `benchmark/compare_test.py` 覆盖。
 
 执行环境:
 - **发布门槛**(D31):**只在 CI 上运行,不在本地运行**。`release-gate` workflow(手动触发)按场景组分 job,每个 job 在同一台 GitHub runner 上交替运行 4.1.0 与 5.x;存储场景使用 CI 的 service 容器;固定 JDK 21 小版本,报告记录 runner 的 CPU 型号与核数。

@@ -196,6 +196,23 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 
 **alpha.1 发布步骤(D33):** 1) ✅ #1360、#1361 已合入(main 版本号已为 `5.0.0-alpha.1`);2) release notes 的已知问题按门槛结论填写;3) 用户最终确认后,在合入 #1360 的提交上创建 pre-release `v5.0.0-alpha.1`(会触发 package-deploy:校验、发布 Central、上传迁移工具 jar;以及 docker-deploy,不打 `latest`);4) 用该 tag 手动触发 `document-deploy`;5) 跟踪各 workflow,在 Central、Docker Hub、站点上核对;6) main 改回 SNAPSHOT 版本(例如 `5.0.0-SNAPSHOT`),避免之后的构建冒用 alpha.1 版本号。
 
+## 4.3 待用户确认的决策(用户休息期间按总调度推荐执行,2026-10-28 起)
+
+用户授权:默认按总调度推荐推进,PR 审查通过后由总调度合并;RC/GA 发布仍需用户决定。以下决策已按推荐执行或排期,**用户回来后请逐项确认或推翻**(推翻越早代价越小,冻结面相关项须在 RC1 前定):
+
+| # | 决策 | 已执行/排期 | 推翻的影响 |
+|---|---|---|---|
+| 1 | D36 cosid80 可配置布局、friendly `padStart`、不适用属性报错 | api-freeze PR2 | 改为"不支持"只需改文档 |
+| 2 | D37 命名 machine + `slotOffset` 滚动迁移(总调度改定:子会话原推荐 RC 只支持一次性停机切换) | api-freeze PR3/PR5 | 去掉 `slotOffset` 则共享全局命名空间的服务须一起停机迁移 |
+| 3 | D38 `cosid.namespace` 默认 `spring.application.name`,未设置回退 `cosid` + WARN | api-freeze PR4 | 保持默认 `cosid` |
+| 4 | D39 配置/SPI 值类型改 final class + builder(约 230 处调用) | api-freeze PR1(进行中) | 保持 record + 重载;须在 PR1 合入前提出 |
+| 5 | D40 sealed 规格接口次版本可加变体;D41 `Custom`/`Instance` 自定义生成器;D42 `acquireTimeout`;D43 其余冻结面 MINOR | api-freeze PR2/PR4 | 逐项 |
+| 6 | D34 门槛容差(吞吐/平均 5%、p99 10%、分配 max(5%, +64 B)) | 门槛实现排在 WP-perf | 用户已同意,列此备查 |
+| 7 | cosid-server:`docs.public` 默认关;虚拟线程默认开;admin 路径改为白名单(删除 `auth.admin-paths`);管理端口独立时拒绝启动 | 已合入 #1365 | 可再调 |
+| 8 | Mongo 分片集群:推荐加 CI job 证实"集合不分片"可用并写明不要分片(R1-mongo-04) | WP-docs | 改为文档收窄为副本集 |
+| 9 | main 上 11 个 Dependabot 告警(3 high)须在 GA 前处理(Renovate) | GA 准入核对项 | — |
+| 10 | 是否发布 RC1、何时发布 | 待门槛 PASS 与 API 冻结完成后请用户决定 | — |
+
 ## 4.2 审查不通过登记
 
 | PR | 问题 | 处理 |

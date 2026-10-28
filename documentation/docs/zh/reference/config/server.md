@@ -14,7 +14,6 @@
 | `cosid.server.auth.clients[i].namespaces` | `[]` | 槽位命名空间，以及首段为其中之一的区间 key；`*` 表示全部；id 端点检查 `cosid.namespace` |
 | `cosid.server.auth.clients[i].key-prefixes` | `[]` | 带有这些前缀之一的区间 key |
 | `cosid.server.auth.public-paths` | `/actuator/health`、`/actuator/health/**` | 无需 token 的路径模式 |
-| `cosid.server.auth.admin-paths` | `/actuator`、`/actuator/**`、`/v3/api-docs`、`/v3/api-docs/**`、`/v3/api-docs.yaml`、`/swagger-ui.html`、`/swagger-ui/**` | 只有 `tokens` 可以访问的路径模式（公开路径除外）；client token 得到 `403` |
 | `cosid.server.limits.min-ttl` | `100ms` | 最短的租约 ttl |
 | `cosid.server.limits.max-ttl` | `1h` | 最长的租约 ttl |
 | `cosid.server.limits.max-tolerance` | `1m` | 最大的 tolerance |
@@ -27,7 +26,13 @@
 | `cosid.server.blocking.threads` | `64` | 执行存储调用的有界线程池 |
 | `cosid.server.blocking.queue-capacity` | `1024` | 可以排队等待的调用数；超出时返回 `503` 与 `Retry-After: 1` |
 | `cosid.server.ids.enabled` | `false` | 可选的 `/ids/**` 端点；开启后拒绝名为 `strings` 或 `periodic` 的生成器 |
+| `cosid.server.docs.public` | `false` | OpenAPI 文档与 Swagger UI 无需 token（追加到 `auth.public-paths`）；"Try it out" 发出的调用仍然需要 |
 
-镜像自身的默认值（`application.yaml`）：`server.port: 8688`，开启健康探针，Actuator 暴露
+client token 只能访问存储原语与 `/ids/**`（位于 `spring.mvc.servlet.path` 之下）；其他路径，包括 Actuator 与 springdoc，都需要
+`tokens` 中的 token。`management.server.port` 不同于 `server.port` 时服务端拒绝启动，匿名模式除外。5.0.0-alpha.1 的
+`auth.admin-paths` 已删除：不再需要列出管理路径。
+
+镜像自身的默认值（`application.yaml`）：`server.port: 8688`，请求运行在虚拟线程上（`spring.threads.virtual.enabled: true`；
+设置 `SPRING_THREADS_VIRTUAL_ENABLED=false` 即可关闭），开启健康探针且 readiness 组包含后备存储，Actuator 暴露
 `health`、`info`、`prometheus` 与 `cosid`。`cosid.namespace` 默认为 `${spring.application.name}`
 （`cosid-server`）。

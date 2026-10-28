@@ -26,7 +26,9 @@ docker run -d -p 8688:8688 \
 
 Every setting can come from the environment (`COSID_SERVER_AUTH_TOKENS_0`) or a mounted `application.yaml`. The image
 runs as a non-root user on port 8688; `/actuator/health/liveness` answers without asking the store and is the
-container health check. A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`, and
+container health check. `/actuator/health/readiness` also asks the backing store (a reserve of size 1 on the key
+`cosid-server/readiness`, at most one at a time, its result reused for 1s, `DOWN` after 2s without an answer), so a
+load balancer stops sending calls to a server whose store is down. A JDBC backing store with `options.url` gets a HikariCP pool sized to `blocking.threads`, and
 the image carries the MySQL, MariaDB, PostgreSQL and SQL Server drivers.
 [`examples/server/compose.yaml`](https://github.com/Ahoo-Wang/CosId/tree/main/examples/server) runs the server on Redis
 with a client next to it. To build the image from source: `./gradlew :server:dockerImage` (or `:server:bootBuildImage`).
@@ -87,17 +89,18 @@ the path, the id endpoints use `default`. A `periodic` answer stops at a period 
 `count` values; a disabled generator answers `409 generator_disabled`.
 
 Other statuses: `400 bad_request` (a missing field, a bad character set or length, a value past a limit), `401`
-(no token), `403` (a token outside its namespaces, or a client token on an admin path), `429 too_many_keys` /
+(no token), `403` (a token outside its namespaces, or a client token outside the client paths), `429 too_many_keys` /
 `too_many_namespaces`, `503 busy` with `Retry-After: 1`, `504 store_timeout` and `500 store_error`. Errors of the
 backing store answer a generic message; the details go to the server log. Every response carries
-`Cache-Control: no-store`. The OpenAPI document is at `/v3/api-docs`, Swagger UI at `/swagger-ui.html`; both are admin
-paths.
+`Cache-Control: no-store`. The OpenAPI document is at `/v3/api-docs`, Swagger UI at `/swagger-ui.html`; both need an
+unrestricted token unless `cosid.server.docs.public=true` (see below).
 
 ## Authentication
 
 **Bearer tokens are on by default.** Without any token or client configured, the server refuses to start unless
-`cosid.server.auth.allow-anonymous=true`. It also refuses a token shorter than 16 characters, and one that still holds
-`${`: an environment variable that was not set must not leave the placeholder as a token anyone can read here.
+`cosid.server.auth.allow-anonymous=true` (see [trusted networks](#trusted-networks-without-tokens)). It also refuses a
+token shorter than 16 characters, and one that still holds `${`: an environment variable that was not set must not
+leave the placeholder as a token anyone can read here.
 
 ```yaml
 cosid:
@@ -113,10 +116,58 @@ cosid:
 ```
 
 A client token reaches only its namespaces (`*` for all) and key prefixes: anything else is `403`. The id endpoints
-check `cosid.namespace` of the server's own runtime against the client's namespaces. The **admin paths**
-(`auth.admin-paths`, by default `/actuator/**` and the springdoc paths) ignore namespaces (the `cosid` endpoint issues
-ids of every generator), so only the unrestricted `tokens` may use them: a client token gets `403` there. The public
-paths are checked first, so health stays open.
+check `cosid.namespace` of the server's own runtime against the client's namespaces. A client token may use **only the
+client paths**, the store primitives (`/ranges:*`, `/slots:*`) and `/ids/**`, under `spring.mvc.servlet.path` when it
+is set. Every other path is `403` for it, whatever `management.endpoints.web.base-path` or `springdoc.*.path` move
+Actuator and springdoc to: they ignore namespaces (the `cosid` endpoint issues ids of every generator), so only the
+unrestricted `tokens` may use them. The public paths are checked first, so health stays open; they are matched as
+written, so move them along when you move Actuator. A path with a `.` or `..` segment is `400`.
+
+Actuator on a port of its own (`management.server.port` other than `server.port`) runs outside this authentication,
+so the server refuses to start with it, unless it is anonymous anyway. Keep Actuator on the main port; health is
+public there for the probes.
+
+### Swagger UI in a browser
+
+A browser sends no bearer token when it opens a page, so Swagger UI needs `cosid.server.docs.public=true`
+(`COSID_SERVER_DOCS_PUBLIC=true`, default `false`). It adds the read-only springdoc paths (`/swagger-ui.html`,
+`/swagger-ui/**`, `/v3/api-docs`, `/v3/api-docs/**`, `/v3/api-docs.yaml`, following `springdoc.*.path` and the
+servlet path) to `public-paths` instead of replacing them, so health stays open. Anyone who reaches the server can then
+read the API, with or without a token, Actuator included (`springdoc.show-actuator: true`; set it to `false` to leave
+Actuator out), but calls nothing: "Try it out" needs a token entered with Authorize, checked as any other call, and
+Actuator still needs an unrestricted token.
+
+### Trusted networks without tokens
+
+Inside a network you trust, such as a Kubernetes cluster, the server can run without tokens. Configure no token and
+no client, and allow anonymous calls:
+
+```yaml
+# the server's container
+env:
+  - name: COSID_SERVER_AUTH_ALLOW_ANONYMOUS
+    value: "true"
+```
+
+The clients then leave `token` out:
+
+```yaml
+cosid:
+  stores:
+    remote:
+      type: remote
+      options:
+        baseUrl: http://cosid-server.cosid.svc:8688
+```
+
+An anonymous server answers every call as an unrestricted token would: **every caller reaches every namespace and
+key, and every path, Actuator included**: the `cosid` endpoint issues ids of every generator, `prometheus` and
+Swagger UI are open, and a token sent anyway is ignored. Run it this way only when the network is the boundary:
+
+- expose it through a `ClusterIP` Service only, never through an Ingress, a `LoadBalancer` or a `NodePort`;
+- restrict it with a `NetworkPolicy` to the namespaces of the applications that use it;
+- once a caller outside them needs it, configure tokens instead (the server then needs one per caller, or one client
+  token per scope).
 
 ## Limits
 
@@ -131,6 +182,11 @@ paths are checked first, so health stays open.
 | `limits.max-namespaces-per-client` | `1000` | namespaces one client uses range keys in, per server instance; a key without `/` is a namespace of its own (`429 too_many_namespaces`; `0` = no cap) |
 | `limits.key-idle-timeout` | `1h` | a key unused this long no longer counts (`0` = keep every key) |
 | `blocking.threads` / `queue-capacity` | `64` / `1024` | the bounded pool for store calls; when full, `503` + `Retry-After: 1` |
+
+**Requests run on virtual threads** (`spring.threads.virtual.enabled: true` in the image's `application.yaml`), so
+Tomcat's thread count no longer bounds them. The store and generator calls still run on the bounded pool above,
+which is what bounds the load on the store. `SPRING_THREADS_VIRTUAL_ENABLED=false` goes back to Tomcat's platform
+threads.
 
 Each client counts on its own, so one cannot use up a shared namespace for the others, and a reserve that failed does
 not count. The meter `cosid.server.call.rejections{reason=busy|too_many_keys|too_many_namespaces}` counts the calls

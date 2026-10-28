@@ -14,6 +14,7 @@
 package me.ahoo.cosid.server;
 
 import me.ahoo.cosid.runtime.RuntimeSpec;
+import me.ahoo.cosid.runtime.StoreSpec;
 import me.ahoo.cosid.spring.autoconfigure.CosIdGeneratorRegistrar;
 import me.ahoo.cosid.store.StoreProvider;
 
@@ -26,12 +27,18 @@ import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.core.Ordered;
+import org.springframework.core.env.Environment;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * cosid-server (08-remote.md): the range and slot lease primitives of its backing store at the root (no version prefix, D30), and
@@ -41,6 +48,9 @@ import org.springframework.core.Ordered;
 @SpringBootApplication
 @EnableConfigurationProperties(ServerProperties.class)
 public class CosIdServer {
+    /** The bean name of the {@link BackingStore}. */
+    static final String STORE_BEAN = "cosIdServerStore";
+
     /**
      * Starts the server.
      *
@@ -55,11 +65,38 @@ public class CosIdServer {
         return Grants.of(properties.auth());
     }
 
+    /**
+     * The bearer authentication of every path. A client token gets only the client paths, wherever
+     * {@code spring.mvc.servlet.path}, {@code management.endpoints.web.base-path} or {@code springdoc.*.path} move the
+     * rest (R1-server-01); {@code docs.public} adds the springdoc paths to the public ones.
+     */
     @Bean
-    FilterRegistrationBean<AuthFilter> cosIdServerAuthFilter(Grants grants, ServerProperties properties) {
-        FilterRegistrationBean<AuthFilter> registration = new FilterRegistrationBean<>(new AuthFilter(grants, properties.auth().publicPaths(), properties.auth().adminPaths()));
+    FilterRegistrationBean<AuthFilter> cosIdServerAuthFilter(Grants grants, ServerProperties properties, Environment environment) {
+        requireOneManagementPort(environment, grants);
+        String servlet = AuthFilter.servletPrefix(environment.getProperty("spring.mvc.servlet.path"));
+        List<String> publicPaths = new ArrayList<>(properties.auth().publicPaths());
+        if (properties.docs().publicAccess()) {
+            ServerProperties.Docs.paths(environment.getProperty("springdoc.api-docs.path", "/v3/api-docs"),
+                environment.getProperty("springdoc.swagger-ui.path", "/swagger-ui.html")).forEach(path -> publicPaths.add(servlet + path));
+        }
+        FilterRegistrationBean<AuthFilter> registration = new FilterRegistrationBean<>(new AuthFilter(grants, publicPaths, AuthFilter.clientPaths(servlet)));
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
         return registration;
+    }
+
+    /**
+     * Actuator on its own port runs in a child context this filter does not reach, which would open the {@code cosid}
+     * endpoint (it issues ids) to anyone: refuse that unless the server is open anyway (R1-server-01).
+     */
+    static void requireOneManagementPort(Environment environment, Grants grants) {
+        // The rule of Spring Boot's ManagementPortType: a negative port disables Actuator over HTTP, 0 is a random port of its own.
+        Integer port = environment.getProperty("management.server.port", Integer.class);
+        Integer serverPort = environment.getProperty("server.port", Integer.class);
+        if (port == null || port < 0 || grants.anonymous() || serverPort == null && port == 8080 || port != 0 && port.equals(serverPort)) {
+            return;
+        }
+        throw new IllegalStateException("cosid-server refuses management.server.port=" + port + ": Actuator on a port of its own is not "
+            + "authenticated, and its cosid endpoint issues ids. Keep Actuator on server.port (health is public there for probes)");
     }
 
     @Bean
@@ -82,14 +119,33 @@ public class CosIdServer {
         return new KeyCap(properties.limits(), rejections);
     }
 
-    @Bean(destroyMethod = "close")
+    @Bean(name = STORE_BEAN, destroyMethod = "close")
     BackingStore cosIdServerStore(@Qualifier(CosIdGeneratorRegistrar.SPEC_BEAN) ObjectProvider<RuntimeSpec> spec, ServerProperties properties,
                                   ObjectProvider<StoreProvider> providers) {
+        return BackingStore.open(stores(spec), properties.store(), providers.orderedStream().toList(), properties.blocking().threads());
+    }
+
+    /** The runtime's store of the same name is the backing store, not a second client on it (R1-server-03). */
+    @Bean
+    SharedStoreProvider cosIdServerSharedStoreProvider(@Qualifier(CosIdGeneratorRegistrar.SPEC_BEAN) ObjectProvider<RuntimeSpec> spec,
+                                                       ServerProperties properties, ObjectProvider<BackingStore> backing,
+                                                       ObjectProvider<StoreProvider> providers, ConfigurableListableBeanFactory beanFactory) {
+        Map.Entry<String, StoreSpec> store = BackingStore.choose(stores(spec), properties.store());
+        return new SharedStoreProvider(store.getValue().type(), store.getKey(), backing, providers, beanFactory);
+    }
+
+    private static Map<String, StoreSpec> stores(ObjectProvider<RuntimeSpec> spec) {
         RuntimeSpec runtimeSpec = spec.getIfAvailable();
         if (runtimeSpec == null || runtimeSpec.stores().isEmpty()) {
             throw new IllegalStateException("cosid-server needs a backing store: configure cosid.stores.<name> (and keep cosid.enabled=true)");
         }
-        return BackingStore.open(runtimeSpec.stores(), properties.store(), providers.orderedStream().toList(), properties.blocking().threads());
+        return runtimeSpec.stores();
+    }
+
+    /** The backing store in the readiness group, as {@code cosIdServerStore} (R1-server-02); liveness does not ask it. */
+    @Bean(destroyMethod = "close")
+    StoreHealthIndicator cosIdServerStoreHealthIndicator(BackingStore store) {
+        return new StoreHealthIndicator(store);
     }
 
     @Bean

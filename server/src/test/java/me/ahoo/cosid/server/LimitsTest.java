@@ -41,6 +41,7 @@ import org.junit.jupiter.api.Test;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -164,6 +165,18 @@ class LimitsTest {
                 RemoteStoreException error = assertThrows(RemoteStoreException.class, () -> client.ranges().reserve("busy/a", 1, 0));
                 assertEquals(503, error.status());
                 assertTrue(error.transientFailure());
+            }
+            // Requests run on virtual threads, so nothing but the blocking pool bounds them: a burst is turned away too.
+            assertEquals("true", server.context().getEnvironment().getProperty("spring.threads.virtual.enabled"));
+            List<CompletableFuture<HttpResponse<String>>> burst = new ArrayList<>();
+            for (int i = 0; i < 32; i++) {
+                burst.add(server.http().sendAsync(HttpRequest.newBuilder(server.baseUrl().resolve(RemoteApi.RESERVE))
+                    .header("Authorization", "Bearer " + TestServer.TOKEN).header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"key\":\"busy/a\",\"size\":1,\"initialOffset\":0}")).build(),
+                    HttpResponse.BodyHandlers.ofString()));
+            }
+            for (CompletableFuture<HttpResponse<String>> response : burst) {
+                assertEquals(503, response.get(10, TimeUnit.SECONDS).statusCode());
             }
             release.countDown();
             assertEquals(200, first.get(10, TimeUnit.SECONDS).statusCode());

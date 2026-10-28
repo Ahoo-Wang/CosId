@@ -109,7 +109,7 @@ abstract class SlotIndexTest {
     }
 
     /**
-     * The plan as the database explains it: MySQL's and MariaDB's {@code possible_keys}; PostgreSQL's plan with
+     * The plan as the database explains it: MySQL's and MariaDB's JSON plan, which lists the possible keys; PostgreSQL's plan with
      * sequential scans off, so that it shows an index it can use even on a table this small; H2's and SQL Server's
      * as they come (logged only).
      */
@@ -117,13 +117,8 @@ abstract class SlotIndexTest {
         try (Connection connection = database().dataSource().getConnection(); Statement statement = connection.createStatement()) {
             switch (database()) {
                 case MYSQL, MARIADB -> {
-                    try (ResultSet rs = statement.executeQuery("explain " + query)) {
-                        StringBuilder keys = new StringBuilder();
-                        while (rs.next()) {
-                            keys.append("possible_keys=").append(rs.getString("possible_keys")).append(" key=").append(rs.getString("key")).append(';');
-                        }
-                        return keys.toString();
-                    }
+                    // JSON names the possible keys whatever explain_format the server defaults to.
+                    return lines(statement, "explain format=json " + query);
                 }
                 case POSTGRES -> {
                     boolean autoCommit = connection.getAutoCommit();

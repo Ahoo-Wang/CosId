@@ -86,12 +86,16 @@ class JdbcDialectsTest {
         JdbcTables tables = new JdbcTables("a.r", "s_slot", "n");
         for (JdbcDialect dialect : List.of(JdbcDialects.MYSQL, JdbcDialects.MARIADB, JdbcDialects.POSTGRESQL, JdbcDialects.SQL_SERVER, JdbcDialects.H2)) {
             List<String> schema = dialect.schema(tables);
-            assertEquals(3, schema.size(), dialect.name());
+            // Three tables, and the index of the slot table: inline on MySQL / MariaDB, a statement of its own elsewhere.
+            boolean inline = dialect == JdbcDialects.MYSQL || dialect == JdbcDialects.MARIADB;
+            assertEquals(inline ? 3 : 4, schema.size(), dialect.name());
+            assertTrue(String.join("\n", schema).contains("s_slot_last_owner_key on s_slot") || inline, () -> dialect.name() + ": the index follows the table");
             String all = String.join("\n", schema);
             assertFalse(all.contains("cosid_"), () -> dialect.name() + " keeps a default name: " + all);
             assertTrue(all.contains("a.r") && all.contains("s_slot") && all.contains(" n"), () -> dialect.name() + ": " + all);
             assertFalse(all.contains(";"), "statements without their terminator");
         }
+        assertTrue(String.join("\n", JdbcDialects.MYSQL.schema(tables)).contains("index s_slot_last_owner_key (namespace, last_owner_key)"), "MySQL: inline");
         assertTrue(String.join("\n", JdbcDialects.MYSQL.schema(JdbcTables.DEFAULT)).contains("utf8mb4_0900_bin"), "MySQL keys are binary, NO PAD");
         assertTrue(String.join("\n", JdbcDialects.MARIADB.schema(JdbcTables.DEFAULT)).contains("utf8mb4_nopad_bin"), "MariaDB keys are binary, NO PAD");
         assertTrue(String.join("\n", JdbcDialects.SQL_SERVER.schema(JdbcTables.DEFAULT)).contains("Latin1_General_100_BIN2"), "SQL Server keys are binary");

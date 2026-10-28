@@ -21,6 +21,7 @@ import me.ahoo.cosid.segment.RangeStore;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.Objects;
 import java.util.OptionalLong;
 
@@ -91,8 +92,18 @@ final class JdbcRangeStore implements RangeStore {
                 updated = update.executeUpdate();
             }
             if (updated == 0) {
-                if (row(session, key) != Row.NONE) {
-                    return OptionalLong.empty();
+                // Sealed or full: not reserved. An open row that is not full was inserted by a concurrent first reserve
+                // after the update looked: a duplicate key, which the caller retries from the start.
+                try (PreparedStatement select = session.prepare("select sealed, next_value from " + range + " where range_key = ?")) {
+                    select.setString(1, key);
+                    try (ResultSet rs = select.executeQuery()) {
+                        if (rs.next()) {
+                            if (rs.getBoolean(1) || rs.getLong(2) > Long.MAX_VALUE - size) {
+                                return OptionalLong.empty();
+                            }
+                            throw new SQLIntegrityConstraintViolationException("[" + key + "] was created concurrently", "23000");
+                        }
+                    }
                 }
                 // A new key; a concurrent first reserve makes this a duplicate key, which the caller retries.
                 try (PreparedStatement insert = session.prepare("insert into " + range + " (range_key, next_value, sealed) values (?, ?, ?)")) {

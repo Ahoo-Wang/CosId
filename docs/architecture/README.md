@@ -64,6 +64,7 @@ R0 补充的类型(`CodecSpec`、`PartsCodecSpec`、`GroupedCodecSpec`、`Runtim
 | D31 | 基准测试不在本地运行;发布门槛在 CI(`release-gate` workflow,同一 runner 上交替运行 4.1.0 与 5.x)上判定 | 已定 |
 | D32 | 4.x → 5.0 除迁移工具外,另有可选的**停机手工迁移**:时间型生成器在布局不变时停机升级(停机 ≥ 主机最大时钟偏差,至少 1 分钟,并核对 NTP);普通号段停机后取 4.x `last_max_id`,设 `initial-offset = last_max_id + 1`(建议手工封存 4.x 值);周期号段、自定义布局/秒级 epoch、key 多或需要防护时用工具。只改文档,不新增配置项(租约模式的命名空间级 `not-before` 留待 RC 后评估) | 已定 |
 | D33 | 5.0 的第一个公开版本为 `5.0.0-alpha.1`(取代原计划的 RC1),以 GitHub **pre-release** 发布,**不做兼容性承诺**:API、配置、存储格式与 server 接口在 alpha 之间及到 GA 之前都可能变化,不提供 alpha 之间的数据迁移,不建议用于生产。Docker 不打 `latest`。文档站随 alpha.1 部署:release 发布后用 tag `v5.0.0-alpha.1` 手动触发 `document-deploy`(它自动只响应 `released`),站点导航保留 4.x 文档入口,页面显示 alpha 提示。4.x 的 `document-deploy` 去掉 release 触发、只保留手动触发(E-M1)。D21 发布门槛仍是 RC/GA 的前提 | 已定 |
+| D34 | D21 发布门槛的判定口径(2026-10-28 用户裁定):5.x 与 4.x 在同一 runner 上交替运行,每行的上限取 `max(4.x ± 其 JMH 误差, 4.x × (1 ± 容差))`。容差:吞吐与平均/单次耗时 5%,p99/p99.9 10%,分配 `max(5%, +64 B)`(另保留 0.01 B/op 的零分配下限)。首次失败的行在新 fork 中重跑,**重跑仍失败才算回退**。原口径只用 4.x 的 JMH 误差(约 0.3%~1.5%),低于共享 runner 的噪声,同一代码两次运行的失败行不同。冒烟口径(0.9×)不变 | 已定 |
 | D24 | 不提供租约丢失后继续发号的开关(P1);运行时删除生成器改为启动期的 `disabled` 配置(P2) | 已定 |
 
 ## 术语

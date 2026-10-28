@@ -164,6 +164,7 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
 - 接近噪声:Mongo reserve 分配 +5%、p99/p99.9 +2~4%;Redis reserve p99.9 一行;ZK renew 分配 +2%;MySQL 多行延迟 +0.8~8%。
 - **门槛判定本身过严**:阈值只比 4.x 宽 0.3%~1.5%(例如 renew 906.4 vs 913.5 µs,阈值 908.9),低于共享 runner 的噪声,同一代码两次运行也会有不同的行失败。需要用户裁定 D21 的判定口径(例如吞吐与平均延迟 5%、p99.9 10%、分配 5% 或 +64 B,可重复失败才算回退)。
 - 判定口径已定为 **D34**(容差:吞吐/平均 5%、p99/p99.9 10%、分配 max(5%, +64 B),重跑仍失败才算回退)。
+- 新偶发测试(2026-10-28):`spring/autoconfigure` 的 `CosIdRuntimeHintsTest.theStoreTypeHintsNameEveryStore` 用 `ClassPathResource("META-INF/spring-configuration-metadata.json")` 读取,classpath 上有多份同名文件(含 Spring Boot 自身),取到哪份取决于顺序(#1362 的 push Codecov run 40640793637 失败 3 次,同提交的 pull_request run 通过)。修复:读取本模块生成的那份(按 jar/目录过滤,或 `getResources` 合并后查找)。并入下一个修复会话。
 - 派发队列(一次一个子会话):① codec(会话 `r1a-codec-perf`,进行中)→ alpha.1 发布(总调度)→ ② **GA 前审查第 1 轮**(§6)→ ③ 门槛实现 D34(`benchmark/compare` 及测试、10 §1.3)→ ④ 修复:第 1 轮发现 + MySQL 分配 + 号段与 ZK 分配(按严重度排序,一次一个)→ ⑤ 在 main 上按 D34 重跑门槛 → RC1(用户确认)→ 第 2 轮审查 → GA。alpha.1 不等门槛(D33),数据写入 release notes 已知问题。
 
 **协调(2026-10-28,用户同意执行顺序):**

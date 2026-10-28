@@ -51,6 +51,8 @@ dependencies {
     testImplementation(project(":store:redis"))
     testImplementation(project(":store:mongo"))
     testImplementation(project(":store:zookeeper"))
+    // The native hints of every store provider (CosIdRuntimeHintsTest).
+    testImplementation(project(":store:remote"))
     testImplementation("org.springframework.boot:spring-boot-test")
     // ApplicationContextRunner's assertable context
     testImplementation("org.assertj:assertj-core")

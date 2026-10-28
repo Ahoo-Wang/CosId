@@ -44,8 +44,25 @@ class CosIdRuntimeHintsTest {
             assertTrue(RuntimeHintsPredicates.reflection().onType(org.springframework.aot.hint.TypeReference.of(provider))
                 .withMemberCategory(MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS).test(hints), provider);
         }
+        assertTrue(CosIdRuntimeHints.STORE_PROVIDERS.contains("me.ahoo.cosid.store.remote.RemoteStoreProvider"));
+        assertTrue(RuntimeHintsPredicates.reflection().onType(me.ahoo.cosid.store.remote.RemoteStoreProvider.class)
+            .withMemberCategory(MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS).test(hints), "the remote store provider");
         assertTrue(RuntimeHintsPredicates.reflection().onType(CosIdGeneratorRegistrar.GeneratorBean.class).test(hints));
         assertTrue(RuntimeHintsPredicates.reflection().onType(GeneratorInfo.class).test(hints));
+    }
+
+    @Test
+    void theStoreTypeHintsNameEveryStore() throws IOException {
+        String metadata;
+        try (InputStream in = new ClassPathResource("META-INF/spring-configuration-metadata.json").getInputStream()) {
+            metadata = new String(in.readAllBytes(), StandardCharsets.UTF_8).replaceAll("\\s", "");
+        }
+        int hints = metadata.indexOf("\"name\":\"cosid.stores.values.type\"");
+        assertTrue(hints >= 0, "the store type hints");
+        String values = metadata.substring(hints, metadata.indexOf(']', hints));
+        for (String type : List.of("jdbc", "redis", "mongo", "zookeeper", "remote")) {
+            assertTrue(values.contains("\"value\":\"" + type + "\""), type);
+        }
     }
 
     @Test

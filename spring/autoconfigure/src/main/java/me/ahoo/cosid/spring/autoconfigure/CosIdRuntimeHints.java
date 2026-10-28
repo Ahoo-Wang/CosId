@@ -34,7 +34,8 @@ public class CosIdRuntimeHints implements RuntimeHintsRegistrar {
         "me.ahoo.cosid.store.jdbc.JdbcStoreProvider",
         "me.ahoo.cosid.store.redis.RedisStoreProvider",
         "me.ahoo.cosid.store.mongo.MongoStoreProvider",
-        "me.ahoo.cosid.store.zookeeper.ZookeeperStoreProvider");
+        "me.ahoo.cosid.store.zookeeper.ZookeeperStoreProvider",
+        "me.ahoo.cosid.store.remote.RemoteStoreProvider");
 
     @Override
     public void registerHints(RuntimeHints hints, ClassLoader classLoader) {

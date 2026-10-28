@@ -179,7 +179,15 @@ E 路确认通过的:artifactId 与发布范围、示例/基准/server/迁移工
      以上都在 I/O 主导的存储操作上(µs 级,分配为 KB 级),按 D34 仍算回退。安排 WP-perf P3 逐项定位修复(先用分配剖析,不放宽容差);确实无法修复的,作为 D34 补充登记给用户决定。✅ P1 修回退 [#1380](https://github.com/Ahoo-Wang/CosId/pull/1380) `1ed9aaeb`:P6 本地 22k→71k ops/ms、32→0 B/op,P5/P6 走生产路径,JDBC SQL 预构建,ZK 分配削减;✅ P2 门槛工具 [#1381](https://github.com/Ahoo-Wang/CosId/pull/1381) `ec0d4b71`:D34 容差、compare_test 15 例、MySQL P10 不对称修正):R1-core-04/05/06、R1-jdbc-02、R1-zk-01、修正 MySQL 基准不对称 → 门槛实现 D34 → 按 D34 重跑门槛。
   6. ✅ **WP-docs**:D1 [#1382](https://github.com/Ahoo-Wang/CosId/pull/1382) `5ada30ea`(Kubernetes 部署指南中英文、R1-mongo-04 分片收窄为"未验证、cosid 集合不分片"、R1-x-01/08、R1-doc-03/04/05/07;R1-doc-01/02 核实已修)+ D2 [#1383](https://github.com/Ahoo-Wang/CosId/pull/1383) `8438d0d6`(设计文档 01–08 与实现对齐,11 锚点 287 个全部复核、补 2 行)。
   7. **依赖与 MINOR**(进行中,2026-10-28 派发):Dependabot 11 条全部在 `documentation/pnpm-lock.yaml` → ✅ [#1384](https://github.com/Ahoo-Wang/CosId/pull/1384) `b2e40694`(pnpm overrides:vite 6.4.5、esbuild 0.25.12、source-map-js 1.2.2、vue 3.5.44;73 页渲染与 main 对比一致);剩余 MINOR 先出分诊表(已修/本次修/GA 后/不修)再按主题修。Renovate:✅ #1366 jackson 2.22.4 已合入(`0e05cf23`);#1367 cosid4 4.1.1 暂缓——它改变门槛对比的 4.x 基线,待本轮门槛结论后再定(见 §4.3 第 12 项)。
-  8. **WP-ci 重构 CI(工程质量、执行效率)**(进行中:Draft [#1385](https://github.com/Ahoo-Wang/CosId/pull/1385),试验 PR #1386–#1390 验证后关闭;用户 2026-10-28 提出;排在文档依赖 PR 之后、MINOR 分诊之前)。现状(以 #1375 一次推送为样本):
+  8. ✅ **WP-ci 重构 CI(工程质量、执行效率)**([#1385](https://github.com/Ahoo-Wang/CosId/pull/1385) `157eb656`;试验 PR #1386–#1390 验证后已关闭)。实测:
+     - 改 core:75.1 → 约 35–38 runner·分钟(缓存预热后),`check` 由 3 遍变为 1 遍,关键路径约 6 分钟;
+     - 只改单个 store:约 67 → 约 20–29;
+     - 只改 docs:0.9;
+     - 汇总检查 `CI` 在 job 失败时确实变红。
+     - 协调会话取舍:不采用"PR 上每个 store 只跑一个版本"的进一步提速(只省约 8 分钟,但当前版本的问题要到 nightly 才暴露)。目标修订为:单模块改动 ≤ 30、全量运行 ≤ 40。
+     - 合入后 main 首次运行 CodeQL 时,旧配置 `analyze/language:java` 会成为陈旧配置,可在 Security → Code scanning 中删除(仓库设置,由用户操作)。
+     - 试验运行还发现了 #1380 的顺序回退,已由 #1391 修复。
+     原计划:用户 2026-10-28 提出;排在文档依赖 PR 之后、MINOR 分诊之前)。现状(以 #1375 一次推送为样本):
      - 每次推送约 59 runner·分钟:Integration Test 22 个 job 约 37 分钟,CodeQL autobuild 5 分钟,Codecov 在 `pull_request` 和**所有分支的 `push`** 上各跑一次全量 `check`(8–9 分钟)。同一份 `./gradlew check` 每次推送跑 3 遍(IT Check + Codecov×2)。关键路径约 9 分钟。
      - 没有 `concurrency`:同一个 PR 连续推送时,旧运行跑到底。没有 `timeout-minutes`:mongo:8 卡住时跑满 6 小时默认值。
      - 不支持版本的 probe(Mongo 4.4/5.0、ZK 3.6/3.7、Redis 6.2、JDBC probe×3,共 8 个 job)每个 PR 都跑;store 和 Spring job 不看改了什么,全部都跑。

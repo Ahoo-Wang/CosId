@@ -11,8 +11,9 @@ implementation("me.ahoo.cosid:cosid-store-redis")
 
 ## 统一的配置模型
 
-存储只声明一次、按名称引用，不同策略的生成器可以使用不同的存储，且没有按功能划分的 `enabled` 开关：用到什么由声明了什么决定。
-唯一的总开关是 `cosid.enabled`（默认 `true`）。
+存储只声明一次、按名称引用，不同策略的生成器可以使用不同的存储；生成器、存储与 machine 没有 `enabled` 开关：用到什么由声明了什么决定
+（关闭某个生成器用 `disabled: true`）。总开关是 `cosid.enabled`（默认 `true`）；各集成保留自己的开关（`cosid.mybatis.enabled`、
+`cosid.jdbc.enabled`、`cosid.activiti.enabled`、`cosid.flowable.enabled`，见[配置参考](../../reference/config/basic.md)）。
 
 ```yaml
 cosid:
@@ -117,6 +118,8 @@ cosid:
 - Micrometer：19 个 `cosid.*` 指标。见[指标与健康检查](../operations/monitoring.md)。
 - 各集成（Jackson、MyBatis、Spring Data JDBC、Activiti、Flowable、Axon）在其库与对应的 CosId artifact（`cosid-jackson`、`cosid-mybatis`……）
   位于 classpath 上时自动装配。
-- Native image：`CosIdRuntimeHints` 注册运行时所需的反射信息。
+- Native image：`CosIdRuntimeHints` 注册运行时所需的反射信息。在 AOT 下（native image，或 `spring.aot.enabled`）
+  **生成器 Bean 的集合在构建期固定**：运行时启动时仍会绑定 `cosid.*`，所以部署时可以改生成器的设置，但部署时新增的生成器没有
+  Bean（用 `CosIdRuntime.generator(name)` 获取），部署时删掉的生成器其 Bean 在使用时失败。增删生成器要改构建期可见的配置。
 
 每个 Spring 上下文拥有自己的运行时（4.x 的 `provider.isolated` 是默认且唯一的模式）。

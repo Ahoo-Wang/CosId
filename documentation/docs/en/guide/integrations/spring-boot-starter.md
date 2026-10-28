@@ -12,8 +12,10 @@ implementation("me.ahoo.cosid:cosid-store-redis")
 ## One configuration model
 
 Stores are declared once and referenced by name, generators of different strategies can use different stores, and
-there are no per-feature `enabled` switches: what is used follows from what is declared. The one master switch is
-`cosid.enabled` (default `true`).
+generators, stores and machines have no `enabled` switches: what is used follows from what is declared (a generator is
+switched off with `disabled: true`). The master switch is `cosid.enabled` (default `true`); the integrations keep
+switches of their own (`cosid.mybatis.enabled`, `cosid.jdbc.enabled`, `cosid.activiti.enabled`,
+`cosid.flowable.enabled`, see the [configuration reference](../../reference/config/basic.md)).
 
 ```yaml
 cosid:
@@ -119,6 +121,10 @@ on `CosIdRuntime`. In code, `GeneratorSpec.Instance.builder(ids).build()` takes 
 - Micrometer: 19 `cosid.*` meters. See [metrics and health](../operations/monitoring.md).
 - The integrations (Jackson, MyBatis, Spring Data JDBC, Activiti, Flowable, Axon) set themselves up when their library
   and the matching CosId artifact (`cosid-jackson`, `cosid-mybatis`, …) are on the classpath.
-- Native images: `CosIdRuntimeHints` registers the reflection the runtime needs.
+- Native images: `CosIdRuntimeHints` registers the reflection the runtime needs. Under AOT (a native image, or
+  `spring.aot.enabled`) **the set of generator beans is fixed at build time**: the runtime still binds `cosid.*` when it
+  starts, so a generator's settings may change at deploy time, but a generator added then has no bean (use
+  `CosIdRuntime.generator(name)`), and the bean of one removed then fails when used. Add or remove generators in the
+  configuration the build sees.
 
 Each Spring context gets its own runtime (4.x's `provider.isolated` is the default and only mode).

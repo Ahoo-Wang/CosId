@@ -66,6 +66,13 @@ java -jar cosid-migration.jar plan \
 - `--group-pattern name=yyyy-MM-dd`：分组键不是 5.0 预设（`yyyy`、`yyyyMM`、`yyyyMMdd`）的分组号段。它的 key 会被重新格式化为
   同粒度的预设。**每个周期都会迁移，包括过去的周期**，因为 4.x 使用服务器的默认时区。
 - `--slot-bits`（4.x 的 `machine-bit`，默认 10）、`--tolerance`（1s）：5.0 命名空间的槽位参数。
+- `--machine-from <4.x 存储>` 与 `--machine-to <5.0 存储>`：4.x 把机器号放在与号段不同的存储里时（`cosid.machine.distributor.type`
+  与 `cosid.segment.distributor.type` 不同），两个都要指定；`plan` 会用 `--layout-config` 比对，未声明的拆分会被拒绝。
+- `--target-config application-5.yaml`：已经写好的 5.0 配置；布局检查改用它，而不是转换出来的 4.x 布局。
+- 账号选项：`--from-option user=…` / `--to-option user=…`，也可以写 `username`（与 5.0 JDBC 存储的名字一致）；
+  `password`（或环境变量 `COSID_MIGRATION_FROM_PASSWORD` / `_TO_PASSWORD`）不会写入 `plan.json`。
+
+全部选项及其防护作用见[工具的 README](https://github.com/Ahoo-Wang/CosId/blob/main/migration/README.md#commands)。
 
 key 映射：`{ns}.{name}` → `{ns}/{name}`；分组的 `{ns}.{name}@{groupKey}` → `{ns}/{name}/{period}`。
 
@@ -80,6 +87,13 @@ java -jar cosid-migration.jar apply --plan plan.json --confirm-stopped --layout-
    并从封存后的值读取 `lastMaxId`。被遗漏的 4.x 实例会拿到远高于 5.0 的区间，`verify` 会报告它。
 3. **写入目标**：把每个 5.0 key 提升到 `next`，记录 `{limit, tolerance}`，并以 `next_floor = W` 准备每个槽位。目标值只升不降
    （`max(current, planned)`）。
+
+`apply` 的其他选项：
+
+- `--allow-unmigrated <ns>.<name>`：计划中有 `NOT MIGRATED` 的 key（5.0 读不了的分组模式、含 `/` 的名字）时 `apply` 会中止；
+  逐个列出你接受不迁移的 key。它在 4.x 中的值不会带过来，所以不能让任何 5.0 生成器发出同一批 ID。
+- `--gap <n>`（0）：每个 5.0 key 从 `lastMaxId + 1` 再加 `n` 开始，是在封存之外自己选的余量。
+- `--machine-from` / `--machine-to`、`--target-config`、`--layout-config`：同 `plan`，用于再次检查。
 
 `apply` 是幂等的。如果中途停止（崩溃、超时），再运行一次即可。当某个 5.0 运行时已在该命名空间持有槽位，或命名空间的槽位参数不同时，
 它会拒绝执行。结果文件 `apply-result.json` 包含 `T_apply`、W 和 `notBefore`（ISO-8601 格式的 W）。
@@ -101,6 +115,7 @@ java -jar cosid-migration.jar config --input application.yaml --result apply-res
 ```
 
 4.x 的 `cosid.*` 配置被转换为 5.0 模型。**所有无法原样转换的内容都以注释形式放在输出文件顶部：请逐条审阅。**
+每个号段生成器都必须在结果文件中有对应的 key，否则失败；4.x 从未发过号的生成器用 `--allow-new <generator>` 指定。
 静态槽位会从结果中得到 `not-before: W`。4.x 的 proxy 配置变为一个 `remote` 存储（`baseUrl`、`token`、`connectTimeout`、`requestTimeout`）。
 
 CosIdGenerator 的键按下表对应（`config` 会写出）：
@@ -255,6 +270,49 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
   2. 照常迁移各服务：在第 1 步完成之前，服务的 `apply` 会拒绝执行；`config` 会写出 `cosid.machines.generator`，并给 cosid80 写 `machine: generator`。
   共享该命名空间的所有服务必须使用相同的 `bits`、`tolerance` 与 `slot-offset`。（5.0.0-alpha.1 会拒绝这样的配置。）
 
+## 静态代码中取号
+
+4.x 代码常在任意位置用 `DefaultIdGeneratorProvider.INSTANCE.getShare().generate()` 取号。5.0 没有全局单例（D17）：每个运行时
+都属于启动它的一方。替代做法：
+
+1. **注入生成器。** 名为 `default` 的生成器是主 `IdGenerator` Bean，每个生成器也以自己的名字注册为 Bean
+   （`@Qualifier("order") IdGenerator`）。大多数静态调用所在的代码都可以改为接收 Bean。
+2. **必须静态调用时**（实体构造器、静态工具类），在应用里自己放一个 holder：上下文启动后赋值，关闭时清空：
+
+```java
+@Component
+public class Ids implements SmartInitializingSingleton, DisposableBean {
+    private static volatile IdGenerator generator;
+    private final IdGenerator injected;
+
+    public Ids(IdGenerator generator) {          // 名为 default 的生成器，即主 IdGenerator Bean
+        this.injected = generator;
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        generator = injected;
+    }
+
+    @Override
+    public void destroy() {
+        generator = null;
+    }
+
+    public static long next() {
+        IdGenerator current = generator;
+        if (current == null) {
+            throw new IllegalStateException("CosId is not started yet, or its context is closed");
+        }
+        return current.generate();
+    }
+}
+```
+
+   上下文启动前或关闭后调用会失败，而不是从已关闭的运行时发号。同一个 JVM 里有两个 Spring 上下文时（测试、父子上下文），
+   每个都会给 holder 赋值：每个上下文一个 holder，或者不用 holder。
+3. **不用 Spring 时**，调用 `CosIdRuntime.start` 的代码持有运行时（并负责关闭它）：把运行时或其生成器传给使用它们的地方。
+
 ## Artifact 与代码
 
 | 4.x | 5.0 |
@@ -277,7 +335,7 @@ java -jar cosid-migration.jar purge --to jdbc:… --namespace shop --before 2025
 | `CosIdGenerator`（Radix62 / Friendly） | `cosid80` + `PartsCodec` |
 | `IdConverter` 系列 | `IdCodec`：`Radix`、`Friendly`、`DatePrefix`、前缀 / 后缀 |
 | `SnowflakeIdStateParser` | `Layout.unpack`、`Friendly.decode` |
-| `IdGeneratorProvider`、`DefaultIdGeneratorProvider.INSTANCE`、share | `CosIdRuntime`、名为 `default` 的生成器 |
+| `IdGeneratorProvider`、`DefaultIdGeneratorProvider.INSTANCE`、share | `CosIdRuntime`、名为 `default` 的生成器（[静态代码中取号](#静态代码中取号)） |
 | `IdGeneratorProvider.set(name, generator)` | `strategy: custom` + `ref: <bean>`（`GeneratorSpec.Custom`），或在 `RuntimeSpecCustomizer` 中用 `GeneratorSpec.Instance` |
 | `MachineIdDistributor` 系列、guarder、`~/.cosid-machine-state` | `cosid.machine.leased` / `static`（见[槽位租约](../concepts/slot-lease.md)） |
 | `IntegerIdGenerator`、`UncertaintyIdGenerator`、`LazyIdGenerator` | `IdGenerators.toInt`、`.uncertain`、`.lazy` |

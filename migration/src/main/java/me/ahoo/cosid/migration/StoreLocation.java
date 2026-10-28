@@ -90,6 +90,21 @@ public record StoreLocation(String type, String url, Map<String, String> options
     }
 
     /**
+     * The account: option {@code user}, or {@code username} as the 5.0 JDBC store names it (R1-doc-05).
+     *
+     * @return the account, or null
+     * @throws IllegalArgumentException if both are given with different values
+     */
+    public String user() {
+        String user = options.get("user");
+        String username = options.get("username");
+        if (user != null && username != null && !user.equals(username)) {
+            throw new IllegalArgumentException("Options user [" + user + "] and username [" + username + "] differ: give one of them");
+        }
+        return user != null ? user : username;
+    }
+
+    /**
      * This location with the password from the environment when no option gives one.
      *
      * @param side {@code FROM} or {@code TO}

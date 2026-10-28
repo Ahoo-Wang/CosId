@@ -22,6 +22,7 @@
 - [ ] **Scrape the metrics and alert** (below). Expose `/actuator/health` to the orchestrator.
 - [ ] **Shut down gracefully** (SIGTERM, not SIGKILL). A clean close releases the slot with the exact last timestamp,
   and the next holder starts right after it. A kill only delays the slot's reuse by up to `ttl + tolerance`.
+- [ ] **On Kubernetes**: probes, slot count and the grace period as in [Kubernetes](kubernetes.md).
 
 ## Alerts worth having
 

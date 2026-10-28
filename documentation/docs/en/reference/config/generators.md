@@ -41,6 +41,10 @@ cosid:
       codec: [ { friendly: { zone: Asia/Shanghai, pad-start: false } } ]
 ```
 
+4.x `cosid.generator.namespace` (machine ids shared by several services) becomes a named machine:
+`machine: <name>` on the generator and `cosid.machines.<name>.namespace` ([basic](basic.md), and
+[ids unique across services](../../guide/concepts/slot-lease.md#ids-unique-across-services)).
+
 ## `custom`
 
 A user `IdGenerator` bean (4.x `IdGeneratorProvider.set`); the runtime hands it out (its bean, `IdFiller`, the

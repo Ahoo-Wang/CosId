@@ -62,8 +62,8 @@ public final class JdbcSource implements SourceReader {
 
     static Connection connect(StoreLocation location) throws SQLException {
         Properties properties = new Properties();
-        if (location.option("user") != null) {
-            properties.setProperty("user", location.option("user"));
+        if (location.user() != null) {
+            properties.setProperty("user", location.user());
         }
         if (location.option("password") != null) {
             properties.setProperty("password", location.option("password"));

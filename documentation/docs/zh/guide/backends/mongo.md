@@ -1,8 +1,12 @@
 # MongoDB
 
 `cosid-store-mongo`：基于 `mongodb-driver-sync` 的 `RangeStore` 与 `SlotLeaseStore`。**要求 MongoDB 6.0 或更高版本**（D26），
-部署为**副本集或分片集群**：每个操作都以 `majority` concern 读取，默认也以 `majority` concern 写入。CI 在 6.0 与 8.0 上运行 TCK。
+部署为**副本集**：每个操作都以 `majority` concern 读取，默认也以 `majority` concern 写入。CI 在 6.0 与 8.0 上运行 TCK。
 4.4 与 5.0 通过过一次 TCK，但不承诺支持。
+
+**分片集群未经验证**（没有任何测试经过 `mongos`）。如果使用分片集群，不要对 cosid 的三个集合分片（每个 key、每个槽位只有几行）：
+不分片时它们位于 primary shard 上，每个操作都路由到那里，与副本集相同，存储时钟取该 shard 的时钟。不支持对 `cosid_slot`
+分片：它的 `findOneAndUpdate` 过滤条件不含分片键，MongoDB 7.1 之前会拒绝。
 
 ## 配置
 

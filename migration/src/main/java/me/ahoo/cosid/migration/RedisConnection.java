@@ -52,7 +52,7 @@ public final class RedisConnection implements AutoCloseable {
     public static RedisConnection open(StoreLocation location) {
         RedisURI uri = RedisURI.create(location.url());
         if (location.option("password") != null) {
-            uri.setCredentialsProvider(new StaticCredentialsProvider(location.option("user"), location.option("password").toCharArray()));
+            uri.setCredentialsProvider(new StaticCredentialsProvider(location.user(), location.option("password").toCharArray()));
         }
         if (Boolean.parseBoolean(location.option("cluster"))) {
             RedisClusterClient client = RedisClusterClient.create(uri);

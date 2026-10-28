@@ -72,6 +72,15 @@ layout checks and the warnings. Fix what it asks for and plan again:
   `yyyyMMdd`). Its keys are reformatted to the preset of the same granularity. **Every period is migrated, past ones
   included**, because 4.x used the server's default zone.
 - `--slot-bits` (the 4.x `machine-bit`, 10 by default), `--tolerance` (1s): the slot parameters of the 5.0 namespace.
+- `--machine-from <4.x store>` and `--machine-to <5.0 store>`: when 4.x kept the machine ids in another store than the
+  segments (`cosid.machine.distributor.type` other than `cosid.segment.distributor.type`), name both; `plan` compares
+  them with `--layout-config` and refuses a split it was not told about.
+- `--target-config application-5.yaml`: a 5.0 configuration you already wrote; the layout checks use it instead of the
+  converted 4.x layouts.
+- Account options: `--from-option user=…` / `--to-option user=…`, or `username`, as the 5.0 JDBC store names it;
+  `password` (or `COSID_MIGRATION_FROM_PASSWORD` / `_TO_PASSWORD`), which `plan.json` never keeps.
+
+All options and what they guard: the [tool's README](https://github.com/Ahoo-Wang/CosId/blob/main/migration/README.md#commands).
 
 Key mapping: `{ns}.{name}` → `{ns}/{name}`; grouped `{ns}.{name}@{groupKey}` → `{ns}/{name}/{period}`.
 
@@ -88,6 +97,14 @@ java -jar cosid-migration.jar apply --plan plan.json --confirm-stopped --layout-
    that was missed gets ranges far above 5.0's, and `verify` reports it.
 3. **Write the target**: it raises each 5.0 key to `next`, records `{limit, tolerance}`, and prepares every slot with
    `next_floor = W`. The target only ever rises (`max(current, planned)`).
+
+Options of `apply` beyond the defaults:
+
+- `--allow-unmigrated <ns>.<name>`: `apply` aborts while the plan has a `NOT MIGRATED` key (a group pattern 5.0
+  cannot read, a name with `/`); name each one you accept to leave behind. Its 4.x value is not carried over, so no 5.0
+  generator may issue into the same ids.
+- `--gap <n>` (0): start every 5.0 key `n` above `lastMaxId + 1`, a margin you choose on top of the seal.
+- `--machine-from` / `--machine-to`, `--target-config`, `--layout-config`: as in `plan`, again for the checks.
 
 `apply` is idempotent. If it stops half way (a crash, a timeout), run it again. It refuses when a 5.0 runtime already
 holds a slot in the namespace, or when the namespace has other slot parameters. The result, `apply-result.json`, holds
@@ -110,7 +127,8 @@ java -jar cosid-migration.jar config --input application.yaml --result apply-res
 ```
 
 The 4.x `cosid.*` configuration becomes the 5.0 model. **Everything it could not convert as is sits as comments at the
-top of the output: review them.** A static slot gets `not-before: W` from the result. A 4.x proxy configuration becomes
+top of the output: review them.** It fails unless each segment generator has its key in the result; a generator 4.x
+never issued from is named with `--allow-new <generator>`. A static slot gets `not-before: W` from the result. A 4.x proxy configuration becomes
 a `remote` store (`baseUrl`, `token`, `connectTimeout`, `requestTimeout`).
 
 The CosIdGenerator keys map as follows (`config` writes them):
@@ -286,6 +304,51 @@ Stop every 5.0 instance of the namespace first: 4.x and 5.0 do not run side by s
   Every service sharing the namespace uses the same `bits`, `tolerance` and `slot-offset`. (5.0.0-alpha.1 refused such a
   configuration.)
 
+## Ids in static code
+
+4.x code often took ids anywhere with `DefaultIdGeneratorProvider.INSTANCE.getShare().generate()`. 5.0 has no global
+singleton (D17): every runtime belongs to whoever started it. In its place:
+
+1. **Inject the generator.** The `default` generator is the primary `IdGenerator` bean, and every generator is a bean of
+   its own name (`@Qualifier("order") IdGenerator`). Most static calls sit in code that can take a bean instead.
+2. **When it must be static** (an entity constructor, a static utility), keep the reference in a holder of your own,
+   set once the context is up and cleared when it closes:
+
+```java
+@Component
+public class Ids implements SmartInitializingSingleton, DisposableBean {
+    private static volatile IdGenerator generator;
+    private final IdGenerator injected;
+
+    public Ids(IdGenerator generator) {          // the `default` generator, the primary IdGenerator bean
+        this.injected = generator;
+    }
+
+    @Override
+    public void afterSingletonsInstantiated() {
+        generator = injected;
+    }
+
+    @Override
+    public void destroy() {
+        generator = null;
+    }
+
+    public static long next() {
+        IdGenerator current = generator;
+        if (current == null) {
+            throw new IllegalStateException("CosId is not started yet, or its context is closed");
+        }
+        return current.generate();
+    }
+}
+```
+
+   Calls before the context started or after it closed fail rather than issue from a closed runtime. With two Spring
+   contexts in one JVM (tests, parent and child contexts), each sets the holder: keep one holder per context, or none.
+3. **Without Spring**, the code that calls `CosIdRuntime.start` holds the runtime (and closes it): pass it, or its
+   generators, to where they are used.
+
 ## Artifacts and code
 
 | 4.x | 5.0 |
@@ -308,7 +371,7 @@ Stop every 5.0 instance of the namespace first: 4.x and 5.0 do not run side by s
 | `CosIdGenerator` (Radix62 / Friendly) | `cosid80` + `PartsCodec` |
 | `IdConverter`s | `IdCodec`: `Radix`, `Friendly`, `DatePrefix`, prefix / suffix |
 | `SnowflakeIdStateParser` | `Layout.unpack`, `Friendly.decode` |
-| `IdGeneratorProvider`, `DefaultIdGeneratorProvider.INSTANCE`, the share | `CosIdRuntime`, the generator `default` |
+| `IdGeneratorProvider`, `DefaultIdGeneratorProvider.INSTANCE`, the share | `CosIdRuntime`, the generator `default` ([in static code](#ids-in-static-code)) |
 | `IdGeneratorProvider.set(name, generator)` | `strategy: custom` + `ref: <bean>` (`GeneratorSpec.Custom`), or `GeneratorSpec.Instance` in a `RuntimeSpecCustomizer` |
 | `MachineIdDistributor`s, the guarder, `~/.cosid-machine-state` | `cosid.machine.leased` / `static` (see [the slot lease](../concepts/slot-lease.md)) |
 | `IntegerIdGenerator`, `UncertaintyIdGenerator`, `LazyIdGenerator` | `IdGenerators.toInt`, `.uncertain`, `.lazy` |

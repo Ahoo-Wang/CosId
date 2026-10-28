@@ -35,6 +35,16 @@ class StoreLocationTest {
     }
 
     @Test
+    void theAccountIsUserOrUsernameAsInTheJdbcStore() {
+        assertThat(StoreLocation.parse("jdbc:h2:mem:x", Map.of("user", "sa")).user(), is("sa"));
+        assertThat(StoreLocation.parse("jdbc:h2:mem:x", Map.of("username", "sa")).user(), is("sa"));
+        assertThat(StoreLocation.parse("jdbc:h2:mem:x", Map.of("user", "sa", "username", "sa")).user(), is("sa"));
+        assertThat(StoreLocation.parse("jdbc:h2:mem:x", Map.of()).user(), is((String) null));
+        StoreLocation both = StoreLocation.parse("jdbc:h2:mem:x", Map.of("user", "sa", "username", "root"));
+        assertThrows(IllegalArgumentException.class, both::user);
+    }
+
+    @Test
     void passwordsStayOutOfThePlan() {
         StoreLocation location = StoreLocation.parse("jdbc:h2:mem:x", Map.of("user", "sa", "password", "secret"));
         assertThat(location.redacted().options(), is(Map.of("user", "sa")));

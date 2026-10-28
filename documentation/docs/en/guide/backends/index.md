@@ -9,7 +9,7 @@ database and its slot in Redis.
 |---|---|---|---|---|
 | [JDBC](jdbc.md) | `cosid-store-jdbc` | `jdbc` | MySQL 8.4, MariaDB 10.11, PostgreSQL 15, SQL Server 2019, H2 2.x | the database's transactions |
 | [Redis](redis.md) | `cosid-store-redis` | `redis` | Redis 7.0 | **acknowledged writes never being lost**: AOF `appendfsync always`, or `WAIT` on every replica |
-| [MongoDB](mongo.md) | `cosid-store-mongo` | `mongo` | MongoDB 6.0, replica set or sharded cluster | `majority` reads and writes (`writeConcern: majority`, the default) |
+| [MongoDB](mongo.md) | `cosid-store-mongo` | `mongo` | MongoDB 6.0, replica set (sharded clusters [not verified](mongo.md)) | `majority` reads and writes (`writeConcern: majority`, the default) |
 | [ZooKeeper](zookeeper.md) | `cosid-store-zookeeper` | `zookeeper` | ZooKeeper 3.8 (3.9 primary) | ZooKeeper's quorum writes |
 | [Remote](../server.md) | `cosid-store-remote` | `remote` | the cosid-server of the same version | the server's backing store |
 

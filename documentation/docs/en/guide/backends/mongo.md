@@ -1,8 +1,13 @@
 # MongoDB
 
 `cosid-store-mongo`: `RangeStore` and `SlotLeaseStore` over `mongodb-driver-sync`. **MongoDB 6.0 or later** (D26),
-on a **replica set or a sharded cluster**: every operation reads with `majority` concern and, by default, writes with `majority` concern. CI runs the TCK on
+on a **replica set**: every operation reads with `majority` concern and, by default, writes with `majority` concern. CI runs the TCK on
 6.0 and 8.0. 4.4 and 5.0 passed the TCK once, which is not a support commitment.
+
+**Sharded clusters are not verified** (no test runs through `mongos`). If you use one, do not shard the three cosid
+collections (they hold a few rows per key and slot): unsharded, they live on the primary shard and every operation is
+routed there, as on a replica set, and the store clock is that shard's. A sharded `cosid_slot` is not supported: its
+`findOneAndUpdate` filters do not carry the shard key, which MongoDB before 7.1 refuses.
 
 ## Configuration
 

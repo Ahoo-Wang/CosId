@@ -212,6 +212,8 @@ curl -H "Authorization: Bearer $TOKEN" 'http://cosid-server:8688/ids/ticket?coun
 ```
 
 The server is then an ordinary `CosIdRuntime`: a time-based generator also needs `cosid.machine`, and each server
-instance leases its own slot.
+instance leases its own slot. Ids from one server namespace are unique for every caller, which is one way to get ids
+unique across services; the other is a [shared named machine](concepts/slot-lease.md#ids-unique-across-services) in
+each service, which costs no call per id.
 
 All `cosid.server.*` properties: [configuration reference](../reference/config/server.md).

@@ -39,6 +39,9 @@ cosid:
       codec: [ { friendly: { zone: Asia/Shanghai, pad-start: false } } ]
 ```
 
+4.x 的 `cosid.generator.namespace`（多个服务共用机器号）对应命名 machine：生成器上的 `machine: <name>` 加
+`cosid.machines.<name>.namespace`（见[基础配置](basic.md)与[跨服务全局唯一](../../guide/concepts/slot-lease.md#跨服务全局唯一)）。
+
 ## `custom`
 
 用户提供的 `IdGenerator` Bean（对应 4.x `IdGeneratorProvider.set`）；运行时对外提供它（它的 Bean、`IdFiller`、端点），但不负责关闭它。

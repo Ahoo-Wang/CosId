@@ -754,7 +754,10 @@ jobs:
         uses: ./.github/actions/setup-build
 
       - name: Publish to build/repos
-        run: scripts/gradle-retry.sh publishAllPublicationsToProjectBuildRepoRepository
+        # Unsigned: a pull request has no signing key, and the local repository needs none (CI requires signing otherwise).
+        run: >-
+          scripts/gradle-retry.sh publishAllPublicationsToProjectBuildRepoRepository
+          -x signMavenLibraryPublication -x signMavenBomPublication
 
       - name: Maven application
         run: |

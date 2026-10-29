@@ -18,6 +18,9 @@ and the message shows the bracketed form.
 | `disabled` | `false` | declared but not created; its bean throws `GeneratorDisabledException` (D24) |
 | `codec` | `[]` (decimal) | the codec list, applied in order (below) |
 
+A key of another strategy, such as `period` on a `segment` or `store` on a `snowflake`, does not apply: it is ignored,
+with a warning in the log that names it. (`cosid80` and `uuidv7` refuse such keys.)
+
 ## `snowflake` and `cosid80`
 
 | Property | Default | Meaning |

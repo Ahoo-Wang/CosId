@@ -42,6 +42,10 @@ import java.util.function.Consumer;
  * <p>The renewals run in one long-lived task on the executor, which must run tasks asynchronously (the runtime's
  * default runs each on a virtual thread). Their schedule follows elapsed time, not the wall clock, so a clock step
  * does not delay a renewal.
+ *
+ * <p>Its public constructors are the assembly entry {@code CosIdRuntime} uses (R2-core-03): they keep their signatures,
+ * and a new parameter comes only through a builder or a static factory, never as one more positional overload
+ * (api-freeze.md §4.2).
  */
 public final class LeaseKeeper implements SlotHandle, AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(LeaseKeeper.class);

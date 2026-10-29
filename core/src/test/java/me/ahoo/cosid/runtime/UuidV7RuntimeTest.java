@@ -64,9 +64,26 @@ class UuidV7RuntimeTest {
             assertEquals("uuidv7", info.strategy());
             assertEquals("", info.store());
             assertEquals(7, info.details().get("version"));
-            // The text view and the filler are counted; the generator itself, by its concrete type, is not.
-            assertEquals(OptionalLong.of(2), runtime.generated("order"));
+            // Every view is counted, the generator by its concrete type (a Spring bean) too (R2-uuid-01).
+            assertEquals(OptionalLong.of(3), runtime.generated("order"));
+            generator.generate();
+            assertEquals(OptionalLong.of(4), runtime.generated("order"));
+            assertEquals(4L, runtime.describe().get("order").details().get("generated"));
         }
+    }
+
+    @Test
+    void endsWithTheRuntime() {
+        // R2-uuid-03: terminal after close, as the other strategies, by every view.
+        RuntimeSpec spec = RuntimeSpec.builder("app").generator("order", GeneratorSpec.UuidV7.builder().build()).build();
+        CosIdRuntime runtime = CosIdRuntime.start(spec, options());
+        UuidV7Generator generator = runtime.get("order", UuidV7Generator.class);
+        java.util.function.Supplier<String> text = runtime.text("order");
+        generator.generateUuid();
+        runtime.close();
+        assertThat(assertThrows(IllegalStateException.class, generator::generateUuid).getMessage(),
+            containsString("UUIDv7 generator [order] is closed"));
+        assertThrows(IllegalStateException.class, text::get);
     }
 
     @Test

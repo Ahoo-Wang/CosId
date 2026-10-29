@@ -570,6 +570,29 @@ class SegmentGeneratorTest {
     }
 
     @Test
+    void everyResizeIsReportedWithAStepOfOne() {
+        // R2-core-01: with step 1 and a lookahead a caller may take the only value of a range itself; the sample of that
+        // value, taken when the next range arrives, may resize the batch, which onBatchResized reports as any other.
+        ManualTime time = new ManualTime(0);
+        BatchPolicy policy = policy(1, Duration.ofSeconds(1), 1000, Duration.ofSeconds(3), Optional.empty());
+        try (SegmentGenerator generator = generator(policy, Runnable::run, time)) {
+            long batch = generator.batch();
+            for (int i = 0; i < 3000; i++) {
+                generator.generate();
+                if (i % 3 == 0) {
+                    time.advance(1);
+                }
+                if (generator.batch() != batch) {
+                    batch = generator.batch();
+                    long reported = listener.resized.isEmpty() ? -1 : listener.resized.get(listener.resized.size() - 1)[1];
+                    assertThat("the resize to " + batch + " after " + i, reported, is(batch));
+                }
+            }
+            assertThat(listener.resized.isEmpty(), is(false));
+        }
+    }
+
+    @Test
     void largeDefaultMaxBatchKeepsTheRestartSmall() {
         ManualTime time = new ManualTime(0);
         BatchPolicy policy = policy(10, Duration.ofSeconds(1), BatchPolicy.defaultMaxBatch(10), Duration.ofSeconds(3), Optional.empty());

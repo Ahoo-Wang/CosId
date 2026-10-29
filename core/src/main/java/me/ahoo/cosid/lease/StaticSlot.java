@@ -40,6 +40,10 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <p>With a file, one long-lived task on the executor writes the ceiling ahead again whenever less than
  * {@code ahead/2} of the window is left; the executor must run tasks asynchronously.
+ *
+ * <p>Its public constructors are the assembly entry {@code CosIdRuntime} uses (R2-core-03): they keep their signatures,
+ * and a new parameter comes only through a builder or a static factory, never as one more positional overload
+ * (api-freeze.md §4.2).
  */
 public final class StaticSlot implements SlotHandle, AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(StaticSlot.class);

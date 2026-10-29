@@ -93,7 +93,7 @@ jobs:
               - '{store/**,server/**,spring/autoconfigure/**,integrations/**}'
               - '!**/*.md'
             spring:
-              - '{store/**,spring/**,integrations/**}'
+              - '{store/**,spring/**,integrations/**,smoke/**}'
               - '!**/*.md'
 
       - name: Plan the jobs
@@ -725,6 +725,57 @@ jobs:
           name: spring-test-reports-${{ strategy.job-index }}
 
 
+  # R2-build-01/02: the published jars in applications built outside this build, with Maven and with Gradle (a native
+  # platform), on Spring Boot 4.1.2, the lowest supported (D49): the starter with the Redis and MongoDB stores leases a
+  # slot and issues ids, on the store drivers each build resolves (printed). smoke/published/README.md.
+  published-jars:
+    name: Published jars on Boot 4.1.2 (Maven, Gradle)
+    needs: changes
+    if: needs.changes.outputs.spring == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      redis:
+        image: redis:8.10-alpine
+        ports:
+          - 6379:6379
+      mongo:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+    env:
+      REDIS_URI: redis://localhost:6379
+      MONGO_URI: mongodb://localhost:27017
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up the build
+        uses: ./.github/actions/setup-build
+
+      - name: Publish to build/repos
+        # Unsigned, as a local build publishes: a pull request has no signing key, and cosid.publish requires signing when
+        # CI is set (excluding the sign tasks would leave their .asc artifacts missing).
+        run: env -u CI scripts/gradle-retry.sh publishAllPublicationsToProjectBuildRepoRepository
+
+      - name: Maven application
+        run: |
+          version=$(grep '^version=' gradle.properties | cut -d= -f2)
+          mvn -B -q -f smoke/published/pom.xml -Dcosid.version="$version" -Dcosid.repo="file://$PWD/build/repos" package
+          mvn -B -f smoke/published/pom.xml -Dcosid.version="$version" -Dcosid.repo="file://$PWD/build/repos" dependency:tree \
+            -Dincludes=io.lettuce,org.mongodb,org.springframework.boot:spring-boot-autoconfigure,io.netty:netty-handler
+          java -jar smoke/published/target/smoke.jar
+
+      - name: Gradle application
+        run: |
+          version=$(grep '^version=' gradle.properties | cut -d= -f2)
+          ./gradlew -p smoke/published -Pcosid.version="$version" -Pcosid.repo="$PWD/build/repos" bootJar
+          ./gradlew -q -p smoke/published -Pcosid.version="$version" -Pcosid.repo="$PWD/build/repos" dependencyInsight \
+            --configuration runtimeClasspath --dependency lettuce-core
+          ./gradlew -q -p smoke/published -Pcosid.version="$version" -Pcosid.repo="$PWD/build/repos" dependencyInsight \
+            --configuration runtimeClasspath --dependency mongodb-driver-sync
+          java -jar smoke/published/build/libs/smoke.jar
+
   # The site, without deploying it, so a broken site (a dead link, a VitePress error) shows on the pull request rather
   # than on release day, when document-deploy.yml is dispatched with the release tag. Its steps are those of
   # document-deploy.yml, minus the Javadoc, which no Markdown page links to.
@@ -758,7 +809,8 @@ jobs:
   # or was cancelled.
   ci:
     name: CI
-    needs: [ changes, check, store-mongo, store-mongo-probe, store-redis, store-zookeeper, store-zookeeper-probe, store-jdbc, server, spring-compatibility, docs ]
+    needs: [ changes, check, store-mongo, store-mongo-probe, store-redis, store-zookeeper, store-zookeeper-probe, store-jdbc, server, spring-compatibility,
+             published-jars, docs ]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

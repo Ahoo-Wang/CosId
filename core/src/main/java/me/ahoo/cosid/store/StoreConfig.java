@@ -13,6 +13,8 @@
 
 package me.ahoo.cosid.store;
 
+import me.ahoo.cosid.internal.Redacted;
+
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -115,7 +117,7 @@ public final class StoreConfig {
 
     @Override
     public String toString() {
-        return "StoreConfig[name=" + name + ", type=" + type + ", timeout=" + timeout + ", options=" + options + ", client=" + client + "]";
+        return "StoreConfig[name=" + name + ", type=" + type + ", timeout=" + timeout + ", options=" + Redacted.options(options) + ", client=" + client + "]";
     }
 
     /**

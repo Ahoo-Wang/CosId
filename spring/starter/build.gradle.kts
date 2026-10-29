@@ -12,7 +12,9 @@
  */
 
 // The one Spring Boot starter (D14, 07-runtime-and-spring.md §4.3): dependencies only. Applications add the store
-// artifacts they use (cosid-store-jdbc, ...) themselves, as a JPA starter needs a database driver.
+// artifacts they use (cosid-store-jdbc, ...) themselves, as a JPA starter needs a database driver. It depends on
+// spring-boot-starter, as Spring Boot's own and third-party starters do: the core starter brings the logging and YAML
+// configuration an application expects (R2-build-01: without it, application.yaml did not load).
 plugins {
     id("cosid.spring")
 }
@@ -20,4 +22,5 @@ plugins {
 dependencies {
     api(project(":core"))
     api(project(":spring:autoconfigure"))
+    api("org.springframework.boot:spring-boot-starter")
 }
